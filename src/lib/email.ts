@@ -15,6 +15,22 @@ const key = process.env.RESEND_API_KEY;
 const resend = key ? new Resend(key) : null;
 const FROM = process.env.EMAIL_FROM ?? "FitOut <onboarding@resend.dev>";
 
+/**
+ * HTML-escape a string before it is interpolated into email markup (WR-01). The verify/reset `url`
+ * is library- and (for reset, via `redirectTo`) client-influenced; dropping it raw into an
+ * `href="..."` attribute and into HTML text is an injection sink. We escape the five HTML-significant
+ * characters so a value containing `"`, `<`, `>`, `&`, or `'` can never break out of the attribute
+ * or inject markup — rather than trusting an upstream library to pre-escape content we concatenate.
+ */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function send(to: string, subject: string, html: string) {
   if (!resend) {
     // Dev fallback — no API key: log the link instead of delivering.
@@ -25,8 +41,12 @@ async function send(to: string, subject: string, html: string) {
   if (error) console.error("resend error", error);
 }
 
-export const sendVerificationEmail = (to: string, url: string) =>
-  send(to, "Verify your FitOut email", `Verify: <a href="${url}">${url}</a>`);
+export const sendVerificationEmail = (to: string, url: string) => {
+  const safe = escapeHtml(url); // WR-01 — never interpolate the raw url into HTML.
+  return send(to, "Verify your FitOut email", `Verify: <a href="${safe}">${safe}</a>`);
+};
 
-export const sendResetPassword = (to: string, url: string) =>
-  send(to, "Reset your FitOut password", `Reset: <a href="${url}">${url}</a>`);
+export const sendResetPassword = (to: string, url: string) => {
+  const safe = escapeHtml(url); // WR-01 — never interpolate the raw url into HTML.
+  return send(to, "Reset your FitOut password", `Reset: <a href="${safe}">${safe}</a>`);
+};
