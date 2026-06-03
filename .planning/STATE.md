@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02-PLAN.md (auto tasks); Task 4 credentials checkpoint pending
-last_updated: "2026-06-03T09:24:30.488Z"
+stopped_at: Completed 01-03-PLAN.md (logged-out auth UX); Plan 04 next
+last_updated: "2026-06-03T09:58:40Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 01 (auth-accounts) — EXECUTING
-Plan: 3 of 4
-Status: Plan 01-02 complete (Better Auth identity layer; schema generated + migration applied; 18 config-invariant tests green). Task 4 credentials checkpoint pending (Google/Cloudinary keys). Ready for Plan 03.
-Last activity: 2026-06-03 -- Plan 01-02 executed (Better Auth + Google OAuth + 30d sessions + reset-revoke + capability/profile schema)
+Plan: 4 of 4
+Status: Plan 01-03 complete (logged-out auth UX: signup w/ book/host intent → server-set capability, login + Google, forgot/reset-password; optimistic middleware; 25/25 vitest + 2/2 E2E green; next build green). Ready for Plan 04 (profile + capabilities, mode switch, /host surface, per-page session gating).
+Last activity: 2026-06-03 -- Plan 01-03 executed (auth UI flows + capability-at-signup + persistence/reset E2E; patched broken kysely-adapter dep)
 
-Progress: [█████░░░░░] 50%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [█████░░░░░] 50%
 *Updated after each plan completion*
 | Phase 01 P01-01 | 14 | 3 tasks | 41 files |
 | Phase 01 P01-02 | 17 min | 3 tasks | 20 files |
+| Phase 01 P01-03 | 18 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 01]: [01-02]: Better Auth configured per D-01..D-13 — email/pw soft gate + Google OAuth, 30d sliding Postgres sessions, revokeSessionsOnPasswordReset:true, input:false canBook/canHost/role escalation guard, profile additionalFields; schema generated + migration APPLIED to live DB
 - [Phase 01]: [01-02]: Kept built-in name/email/image + added explicit firstName/lastName/avatarUrl/avatarPublicId (D-09/D-10 public-private split); all timestamps timestamptz; rateLimit.enabled:true with tuned customRules
 - [Phase 01]: [01-02]: Fixed Plan-01 test-DB isolation bug (integration writes leaked into dev public schema) — now per-Vitest-worker isolated schema with public-ref rewriting; mocked-email capture needs a fake RESEND_API_KEY in setup
+- [Phase 01]: [01-03]: Capability at signup is set via a privileged db.update on the user row AFTER auth.api.signUpEmail (canBook/canHost are input:false — never in the signup body); intent maps to exactly one flag (D-02/T-03-01). book→canBook→"/", host→canHost→"/host" (D-05, /host built later)
+- [Phase 01]: [01-03]: Logged-out forms pattern — client component RHF + zodResolver(sharedSchema) for UX, SAME schema re-validates in the server action / Better Auth re-checks server-side; forgot-password is enumeration-safe (uniform message), login error is generic
+- [Phase 01]: [01-03]: Patched a BROKEN transitive dep (@better-auth/kysely-adapter vs kysely@0.29 missing exports) that 500'd every route + broke next build — scripts/patch-kysely-adapter.mjs (postinstall), patches dead sqlite-dialect code only. Also: src/middleware.ts kept despite Next 16 'proxy' deprecation (works as required)
 
 ### Pending Todos
 
@@ -100,6 +104,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T09:24:30.482Z
-Stopped at: Completed 01-02-PLAN.md (auto tasks); Task 4 credentials checkpoint pending
+Last session: 2026-06-03T09:58:40Z
+Stopped at: Completed 01-03-PLAN.md (logged-out auth UX); Plan 04 next
 Resume file: None
