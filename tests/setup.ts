@@ -21,6 +21,14 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "postgresql://fitout:fitout@localhost:5432/fitout";
 }
 
+// Force a (fake) RESEND_API_KEY in tests so src/lib/email.ts instantiates the Resend client
+// — which is mocked below to CAPTURE the sent email. Without a key, email.ts takes its
+// dev console-log fallback and the mock never sees the link, so reset/verification tests
+// could not read the emailed link. The key value is irrelevant (the Resend class is mocked).
+if (!process.env.RESEND_API_KEY) {
+  process.env.RESEND_API_KEY = "re_test_mock_key";
+}
+
 // --- Module mocks shared across the suite ---------------------------------
 // Resend: capture sent emails instead of delivering them. Tests read the last
 // reset/verification link via mockResend.lastLink().
