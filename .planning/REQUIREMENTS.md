@@ -128,13 +128,59 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _(to be filled by roadmap)_ | — | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| LIST-01 | Phase 2 | Pending |
+| LIST-02 | Phase 2 | Pending |
+| LIST-03 | Phase 2 | Pending |
+| LIST-04 | Phase 2 | Pending |
+| LIST-05 | Phase 2 | Pending |
+| LIST-06 | Phase 2 | Pending |
+| PAY-04 | Phase 2 | Pending |
+| AVAIL-01 | Phase 3 | Pending |
+| AVAIL-02 | Phase 3 | Pending |
+| AVAIL-03 | Phase 3 | Pending |
+| AVAIL-04 | Phase 3 | Pending |
+| AVAIL-05 | Phase 3 | Pending |
+| SEARCH-01 | Phase 4 | Pending |
+| SEARCH-02 | Phase 4 | Pending |
+| SEARCH-03 | Phase 4 | Pending |
+| SEARCH-04 | Phase 4 | Pending |
+| SEARCH-05 | Phase 4 | Pending |
+| BOOK-01 | Phase 4 | Pending |
+| BOOK-02 | Phase 4 | Pending |
+| BOOK-03 | Phase 4 | Pending |
+| PAY-01 | Phase 5 | Pending |
+| PAY-02 | Phase 5 | Pending |
+| PAY-03 | Phase 5 | Pending |
+| HOST-03 | Phase 5 | Pending |
+| BOOK-04 | Phase 6 | Pending |
+| BOOK-05 | Phase 6 | Pending |
+| BOOK-06 | Phase 6 | Pending |
+| PAY-05 | Phase 6 | Pending |
+| HOST-01 | Phase 6 | Pending |
+| BOOK-07 | Phase 7 | Pending |
+| PAY-06 | Phase 7 | Pending |
+| HOST-02 | Phase 7 | Pending |
+| MANAGE-01 | Phase 7 | Pending |
+| MANAGE-02 | Phase 7 | Pending |
+| MANAGE-03 | Phase 7 | Pending |
+| GROUP-01 | Phase 8 | Pending |
+| GROUP-02 | Phase 8 | Pending |
+| GROUP-03 | Phase 8 | Pending |
+| GROUP-04 | Phase 8 | Pending |
+| GROUP-05 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 42 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 42 ⚠️
+- v1 requirements: 45 total
+- Mapped to phases: 45 (100%) ✓
+- Unmapped: 0
+
+> Note: the original summary count of "42 total" undercounted the enumerated requirements; the actual v1 requirement IDs number 45 (AUTH 5, LIST 6, AVAIL 5, SEARCH 5, BOOK 7, PAY 6, HOST 3, MANAGE 3, GROUP 5). All 45 are mapped.
 
 ---
 *Requirements defined: 2026-06-03*
-*Last updated: 2026-06-03 after initial definition*
+*Last updated: 2026-06-03 after roadmap creation (traceability populated, count corrected to 45)*
