@@ -1,0 +1,16 @@
+services:
+  db:
+    # PG18 + PostGIS 3.6 (gives btree_gist for the Phase 3 exclusion constraint).
+    # Note: a bare `postgis/postgis:18` tag does not exist on Docker Hub — the stable
+    # PG18 tag is `18-3.6` (deviation Rule 3: plan's pinned tag was invalid).
+    image: postgis/postgis:18-3.6
+    environment:
+      POSTGRES_USER: fitout
+      POSTGRES_PASSWORD: fitout
+      POSTGRES_DB: fitout
+    ports: ["5432:5432"]
+    # PG18+ images require the volume mounted at /var/lib/postgresql (NOT .../data) so
+    # data lands in a major-version subdir for pg_upgrade --link compatibility
+    # (deviation Rule 3: the .../data mount fails on PG18 with an init error).
+    volumes: ["pgdata:/var/lib/postgresql"]
+volumes: { pgdata: {} }
