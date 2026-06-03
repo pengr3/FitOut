@@ -1,8 +1,8 @@
 ---
 phase: 1
 slug: auth-accounts
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-03
 ---
@@ -79,11 +79,11 @@ created: 2026-06-03
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (Plan 01 installs Vitest+Playwright, test DB strategy, mocks)
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved by planner 2026-06-03 — all 11 executable tasks across plans 01-04 carry an <automated> verify; Wave 0 (plan 01) installs the test infra and shared mocks the integration/E2E tests depend on.
