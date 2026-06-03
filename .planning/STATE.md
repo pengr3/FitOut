@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready
-stopped_at: Phase 01 (auth-accounts) complete & verified — 4/4 plans, code review fixed, human UAT partial; ready to start Phase 02
-last_updated: "2026-06-03T11:42:04.116Z"
+stopped_at: Phase 01 (auth-accounts) complete, verified & threat-secure (25/25 closed); ready to start Phase 02
+last_updated: "2026-06-03T11:54:12.753Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 8
@@ -98,6 +98,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - Phase 7: Cancellation/refund policy matrix (who × time-to-start × % refunded × commission × payout) — blocks the cancel flow.
 - Phase 8: Whether invited attendees need an account to RSVP (v1 default: tokenized link, no account); group capacity source (listing capacity vs per-booking limit).
 - Phase 2 / Phase 5: Cold-start liquidity — consider lightweight admin/seed tooling and a zero-result-search metric; do not over-build.
+- Before Phase 2 wires Stripe payouts to canHost: close deferred Phase-1 security items WR-06 (add rate-limit + audit trail on capability-activate server actions) and WR-04 (email-send retry/observability). Tracked in 01-REVIEW.md (deferred) + 01-SECURITY.md audit notes.
 
 ## Deferred Items
 
