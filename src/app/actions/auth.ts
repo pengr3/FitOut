@@ -11,18 +11,16 @@
 //     canBook/canHost SERVER-SIDE only. Those flags are `input:false` on the user table
 //     (src/lib/auth.ts) so they cannot be set through the signUpEmail body — a client that
 //     smuggles canHost:true is silently stripped (proved by tests/auth/capability-escalation).
-//     We therefore set the chosen single flag via a privileged DB update AFTER the user is
-//     created (the mechanism documented in 01-02-SUMMARY: "capability flips must go through a
-//     privileged server action, not client input"). This is the D-02 entry point and the
-//     T-03-01 elevation-of-privilege mitigation.
+//     The chosen single flag is granted ATOMICALLY as part of user creation: we thread the
+//     validated intent through the signUpEmail body, and the `databaseHooks.user.create.before`
+//     hook in src/lib/auth.ts sets the flag on the SAME inserted row (a single write). There is no
+//     longer a second post-create UPDATE that could fail and leave the user created-but-flagless
+//     (the CR-02 non-atomic hazard). This is the D-02 entry point and the T-03-01 mitigation.
 //
 // auth.api.signUpEmail({ autoSignIn: true }) + the nextCookies() plugin set the httpOnly
 // session cookie, so the user is logged in immediately on a successful signup.
 
-import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
 import { signupSchema, type SignupInput } from "@/lib/validation/auth";
 
 export type SignupResult =
@@ -43,12 +41,28 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
   }
   const { email, password, firstName, intent } = parsed.data;
 
-  // 2. Create the user. `name` is set to the first name (per the Plan-02 firstName/name
-  //    decision); `firstName` populates the explicit public-display column. canBook/canHost
-  //    are NOT passed here — they are input:false and would be stripped anyway.
+  // 2. Create the user AND grant the chosen capability in a SINGLE write. `name` is the first
+  //    name (Plan-02 firstName/name decision); `firstName` populates the public-display column.
+  //    `intent` is threaded through purely as transport: canBook/canHost are input:false (a client
+  //    cannot self-grant), and the databaseHooks.user.create.before hook in src/lib/auth.ts reads
+  //    this intent and sets the single chosen flag ON the inserted row (CR-02 atomic fix — no
+  //    second UPDATE to fail). Only ever grants the one intent-derived capability (T-03-01).
   try {
-    const result = await auth.api.signUpEmail({
-      body: { email, password, name: firstName, firstName },
+    // The runtime accepts extra body fields (the create.before hook reads `intent` off the body),
+    // but signUpEmail's STATIC body type only models the declared additionalFields, so we widen the
+    // body shape here. `intent` is transport-only — it is not an additionalField and is never
+    // persisted as a column (CR-02). Same widening rationale as tests/helpers/auth.ts.
+    const signUp = auth.api.signUpEmail as unknown as (args: {
+      body: {
+        email: string;
+        password: string;
+        name: string;
+        firstName: string;
+        intent: "book" | "host";
+      };
+    }) => ReturnType<typeof auth.api.signUpEmail>;
+    const result = await signUp({
+      body: { email, password, name: firstName, firstName, intent },
     });
 
     const userId = (result as { user?: { id?: string } }).user?.id;
@@ -56,16 +70,7 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
       return { ok: false, error: "Could not create your account. Please try again." };
     }
 
-    // 3. Set the chosen capability flag SERVER-SIDE (input:false guard means this cannot
-    //    come from the client). intent "book" -> canBook=true; intent "host" -> canHost=true.
-    //    Only ever grants the single chosen capability (T-03-01).
-    if (intent === "host") {
-      await db.update(user).set({ canHost: true }).where(eq(user.id, userId));
-    } else {
-      await db.update(user).set({ canBook: true }).where(eq(user.id, userId));
-    }
-
-    // 4. D-05: choosing "host" only sets the flag + routes toward listing creation — it does
+    // 3. D-05: choosing "host" only sets the flag + routes toward listing creation — it does
     //    NOT trigger Stripe onboarding (Phase 2). Booker signups land on the home/search surface.
     return { ok: true, redirectTo: intent === "host" ? "/host" : "/" };
   } catch (err) {

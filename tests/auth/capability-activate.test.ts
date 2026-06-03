@@ -30,24 +30,21 @@ afterAll(async () => {
   await teardownTestDb(testDb);
 });
 
-/** Create a user, then set ONE starting capability server-side (mirrors signup). */
+/** Create a user with ONE starting capability granted atomically by the signup intent (CR-02). */
 async function createUserWith(
   email: string,
   starting: "book" | "host",
 ): Promise<string> {
+  // Thread the intent so the create.before hook grants exactly the starting capability in the
+  // user-creation insert — matching production (no separate post-create update needed).
   const res = (await signUp(auth, {
     email,
     password: "averylongpassword",
     name: "Cap",
     firstName: "Cap",
+    intent: starting,
   })) as { user: { id: string } };
-  const id = res.user.id;
-  if (starting === "host") {
-    await testDb.db.update(user).set({ canHost: true }).where(eq(user.id, id));
-  } else {
-    await testDb.db.update(user).set({ canBook: true }).where(eq(user.id, id));
-  }
-  return id;
+  return res.user.id;
 }
 
 /** The activation action's core step: a privileged flag flip (never from client input). */

@@ -43,6 +43,11 @@ export type SignUpBody = {
   password: string;
   name: string;
   firstName?: string;
+  // Transport-only: the signup capability intent. NOT an additionalField/column — the production
+  // databaseHooks.user.create.before hook reads it off the body to grant the chosen capability
+  // ATOMICALLY in the user-creation insert (CR-02). Tests thread it so the test-schema auth
+  // (rebuilt from prod options, so it carries the same hook) reproduces the real grant.
+  intent?: "book" | "host";
   // Privileged fields a malicious client might smuggle (must be stripped by input:false).
   canBook?: boolean;
   canHost?: boolean;

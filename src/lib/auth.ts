@@ -96,6 +96,30 @@ export const auth = betterAuth({
     },
   },
 
+  // D-02 / threat T-03-01 — ATOMIC capability grant at signup (CR-02 fix).
+  //
+  // The signup intent ("book" | "host") is threaded through the signUpEmail body and read here in
+  // the user-create BEFORE hook, which sets EXACTLY ONE capability flag on the SAME row that gets
+  // inserted. This makes create+grant a SINGLE write — there is no second UPDATE that can fail and
+  // strand the user created-but-flagless (the non-atomic hazard the review flagged in CR-02).
+  // canBook/canHost stay input:false (clients still cannot self-grant via the body); the hook runs
+  // server-side and only ever grants the single intent-derived capability.
+  //
+  // `intent` is NOT a declared additionalField, so it is never persisted as a column — it is read
+  // purely as transport off the request body. An absent/invalid intent defaults to the booker
+  // capability (canBook) so a user is NEVER persisted with BOTH flags false (the D-02 invariant).
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (newUser, context) => {
+          const intent = (context?.body as { intent?: unknown } | undefined)?.intent;
+          const grant = intent === "host" ? { canHost: true } : { canBook: true };
+          return { data: { ...newUser, ...grant } };
+        },
+      },
+    },
+  },
+
   // Brute-force / reset-spam mitigation (threat T-02-05). enabled:true so it also guards dev/test
   // (Better Auth defaults rateLimit.enabled to production-only).
   rateLimit: {
