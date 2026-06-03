@@ -9,21 +9,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const TOKEN_URL = "https://fitout.app/reset?token=SECRET-LIVE-TOKEN-123";
 
-const ORIGINAL_ENV = { ...process.env };
-
 beforeEach(() => {
   vi.resetModules();
 });
 
 afterEach(() => {
-  process.env = { ...ORIGINAL_ENV };
+  vi.unstubAllEnvs(); // restore RESEND_API_KEY / NODE_ENV that setup.ts / the runner set.
   vi.restoreAllMocks();
 });
 
 describe("email dev-fallback production guard (WR-02)", () => {
   it("in production with no RESEND_API_KEY, the token-bearing link is NOT logged", async () => {
-    delete process.env.RESEND_API_KEY; // simulate the missing-key misconfiguration.
-    process.env.NODE_ENV = "production";
+    // vi.stubEnv is the type-safe way to set NODE_ENV (typed readonly) and clear the key.
+    vi.stubEnv("RESEND_API_KEY", ""); // empty -> email.ts treats as no key (resend = null).
+    vi.stubEnv("NODE_ENV", "production");
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -47,8 +46,8 @@ describe("email dev-fallback production guard (WR-02)", () => {
   });
 
   it("in development with no RESEND_API_KEY, the link IS logged (local flow still works)", async () => {
-    delete process.env.RESEND_API_KEY;
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubEnv("NODE_ENV", "development");
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
