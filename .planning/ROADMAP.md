@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 01-01-PLAN.md — Wave 0: project scaffold (Next 16 + Docker Postgres 18 + Drizzle + shadcn/ui + Vitest/Playwright test infra)
   - [x] 01-02-PLAN.md — Wave 1: Better Auth config (email/pw + Google, soft gate, 30d sliding sessions, reset-revokes-others, capability+profile additionalFields) + [BLOCKING] schema migrate
   - [x] 01-03-PLAN.md — Wave 2: auth UI flows (signup w/ book-vs-host intent, login + Google, forgot/reset password)
-  - [ ] 01-04-PLAN.md — Wave 2: profile (public/private split + Cloudinary avatar) + capability activation + Airbnb-style mode switch + gated host dashboard
+  - [x] 01-04-PLAN.md — Wave 2: profile (public/private split + Cloudinary avatar) + capability activation + Airbnb-style mode switch + gated host dashboard
 
 ### Phase 2: Listings & Host Onboarding
 **Goal**: A host can publish a real, sellable listing — details, photos, pricing, and booking mode — and complete Stripe Connect payout onboarding, with bookability (not listing creation) gated on payout readiness so a slot can never be sold to an unpayable host.

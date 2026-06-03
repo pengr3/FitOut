@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md (logged-out auth UX); Plan 04 next
-last_updated: "2026-06-03T09:58:40Z"
+stopped_at: Completed 01-04-PLAN.md (signed-in identity surface); Phase 01 plans 4/4 complete
+last_updated: "2026-06-03T10:11:41Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 01 (auth-accounts) — EXECUTING
-Plan: 4 of 4
-Status: Plan 01-03 complete (logged-out auth UX: signup w/ book/host intent → server-set capability, login + Google, forgot/reset-password; optimistic middleware; 25/25 vitest + 2/2 E2E green; next build green). Ready for Plan 04 (profile + capabilities, mode switch, /host surface, per-page session gating).
-Last activity: 2026-06-03 -- Plan 01-03 executed (auth UI flows + capability-at-signup + persistence/reset E2E; patched broken kysely-adapter dep)
+Phase: 01 (auth-accounts) — ALL PLANS COMPLETE (4/4)
+Plan: 4 of 4 (complete)
+Status: Plan 01-04 complete (signed-in identity surface: (app) booker shell + (host) dashboard both gated per-page on the session; Airbnb mode switch with activate-later capability flow (canHost/canBook flip server-side, coexist); profile public/private split + optional Cloudinary avatar with type/size guards; 35/35 vitest + 2/2 new E2E green; next build green). Phase 01 (auth-accounts) is functionally complete — ready for verification/close and Phase 02 (listings + payments).
+Last activity: 2026-06-03 -- Plan 01-04 executed (profile + capabilities, mode switch, gated /host surface; no deviations)
 
-Progress: [████████░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 75%
 | Phase 01 P01-01 | 14 | 3 tasks | 41 files |
 | Phase 01 P01-02 | 17 min | 3 tasks | 20 files |
 | Phase 01 P01-03 | 18 min | 3 tasks | 15 files |
+| Phase 01 P01-04 | 8 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,10 @@ Recent decisions affecting current work:
 - [Phase 01]: [01-03]: Capability at signup is set via a privileged db.update on the user row AFTER auth.api.signUpEmail (canBook/canHost are input:false — never in the signup body); intent maps to exactly one flag (D-02/T-03-01). book→canBook→"/", host→canHost→"/host" (D-05, /host built later)
 - [Phase 01]: [01-03]: Logged-out forms pattern — client component RHF + zodResolver(sharedSchema) for UX, SAME schema re-validates in the server action / Better Auth re-checks server-side; forgot-password is enumeration-safe (uniform message), login error is generic
 - [Phase 01]: [01-03]: Patched a BROKEN transitive dep (@better-auth/kysely-adapter vs kysely@0.29 missing exports) that 500'd every route + broke next build — scripts/patch-kysely-adapter.mjs (postinstall), patches dead sqlite-dialect code only. Also: src/middleware.ts kept despite Next 16 'proxy' deprecation (works as required)
+- [Phase 01]: [01-04]: Public/private profile split enforced by an ALLOW-LIST projection (src/lib/profile.ts publicProfile → only avatarUrl/firstName/bio/city/createdAt) so a new private column can never silently leak (D-09/D-10); member-since rendered locale-aware (Pitfall 5)
+- [Phase 01]: [01-04]: Activate-later capability (activateHosting/activateBooking) flips canHost/canBook via a privileged db.update after a session check — same input:false mechanism as signup; both capabilities COEXIST (neither clears the other, D-03). No Stripe here (Phase 2, D-05)
+- [Phase 01]: [01-04]: Logged-in surfaces gate per-page in the route-group LAYOUT via auth.api.getSession() — (app) booker shell + (host) dashboard; (host) layout is the REAL canHost gate (redirect !canHost→/), middleware stays optimistic-only. /host seam from Plan 03 now filled
+- [Phase 01]: [01-04]: Avatar upload re-validates image/* + ≤5MB with a Zod File schema in the server action before the server-only Cloudinary call; stores avatarUrl + avatarPublicId. Real Cloudinary upload is a manual check once CLOUDINARY_* env vars are set (proven via mock)
 
 ### Pending Todos
 
@@ -104,6 +109,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T09:58:40Z
-Stopped at: Completed 01-03-PLAN.md (logged-out auth UX); Plan 04 next
+Last session: 2026-06-03T10:11:41Z
+Stopped at: Completed 01-04-PLAN.md (signed-in identity surface); Phase 01 plans 4/4 complete
 Resume file: None
