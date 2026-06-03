@@ -1,8 +1,112 @@
-// Placeholder schema.
+// Better-Auth-generated auth tables (user/session/account/verification) + the Phase-1
+// capability (canBook/canHost/role) and profile (firstName.. avatarPublicId) additionalFields
+// declared in src/lib/auth.ts. Regenerate with `npx @better-auth/cli generate` after any
+// change to auth.ts additionalFields — do NOT hand-edit the table SHAPE here (RESEARCH Pitfall 1).
 //
-// Plan 02 (Better Auth) populates the real auth tables here via the Better Auth CLI
-// (`npx @better-auth/cli generate`) plus profile/capability `additionalFields`.
-// DO NOT hand-write auth tables now — the CLI owns the auth-table shape (see RESEARCH Pitfall 1).
-//
-// This empty export just makes `import * as schema from "./schema"` in index.ts resolve.
-export {};
+// Manual post-generation tweak (kept on regen): all timestamp columns are timezone-aware
+// (`timestamptz`, withTimezone:true) to honor the project's UTC-everywhere constraint
+// (CLAUDE.md "What NOT to Use" — never store naive timestamps).
+
+import { relations } from "drizzle-orm";
+import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  canBook: boolean("can_book").default(false).notNull(),
+  canHost: boolean("can_host").default(false).notNull(),
+  role: text("role").default("user"),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name"),
+  phone: text("phone"),
+  bio: text("bio"),
+  city: text("city"),
+  avatarUrl: text("avatar_url"),
+  avatarPublicId: text("avatar_public_id"),
+});
+
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("session_userId_idx").on(table.userId)],
+);
+
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("account_userId_idx").on(table.userId)],
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+export const userRelations = relations(user, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, {
+    fields: [session.userId],
+    references: [user.id],
+  }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],
+    references: [user.id],
+  }),
+}));
