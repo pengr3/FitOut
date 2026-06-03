@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-03T15:49:07.580Z",
+  "phase": "2",
+  "phase_name": "Listings & Host Onboarding",
+  "phase_dir": ".planning/phases/02-listings-host-onboarding",
+  "plan": null,
+  "task": null,
+  "total_tasks": 0,
+  "status": "paused",
+  "stage": "discuss-complete / plan-not-started",
+  "completed_tasks": [
+    {"id": 1, "name": "Phase 2 discuss-phase — gathered context across 4 gray areas (creation flow, taxonomy, location/privacy, payout gate)", "status": "done", "commit": "9f00688"},
+    {"id": 2, "name": "Wrote 02-CONTEXT.md (D-01..D-16 + canonical refs + code context) and 02-DISCUSSION-LOG.md", "status": "done", "commit": "9f00688"},
+    {"id": 3, "name": "Recorded session in STATE.md and pushed dev to origin", "status": "done", "commit": "ad004a5"}
+  ],
+  "remaining_tasks": [
+    {"id": 4, "name": "Plan Phase 2 — /gsd-plan-phase 2 (optionally /gsd-ui-phase 2 first; phase has a UI hint + meaty wizard/detail-page surface)", "status": "not_started"},
+    {"id": 5, "name": "Execute Phase 2 plans — /gsd-execute-phase 2", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "Before wiring Stripe payouts to canHost, close Phase-1 deferred WR-06 (rate-limit + audit trail on capability-activate server actions) and WR-04 (email-send retry/observability). Tracked in 01-REVIEW.md (deferred) + 01-SECURITY.md.", "type": "technical", "workaround": "Fold into Phase 2 planning as a pre-req task; not blocking the planning step itself."}
+  ],
+  "human_actions_pending": [
+    {"action": "Provision Stripe test keys + Stripe Connect (Express) test mode + Stripe CLI for local webhook forwarding", "context": "Needed at Phase 2 EXECUTION (account.updated webhook, bookability gate), not for planning", "blocking": false},
+    {"action": "Confirm Cloudinary creds (CLOUDINARY_*) for signed direct gallery uploads", "context": "Phase 1 proved the avatar via mock; Phase 2 galleries need real creds at execution/UAT", "blocking": false},
+    {"action": "Decide/provide a maps + address-autocomplete (Places) provider key", "context": "D-10/D-11 store lat/lng + show a map; provider choice is a planner/research call, key needed at execution", "blocking": false},
+    {"action": "Carryover from Phase 1 UAT: Google OAuth, real Cloudinary upload, reset-email delivery (credential-dependent)", "context": "Tracked in 01-HUMAN-UAT.md; not Phase-2 gating", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Airbnb-style multi-step listing wizard with draft-between-steps; publish requires full fields + >=3 photos + verified email; both hourly AND day rate required; first photo = cover, drag-reorder; Cloudinary signed direct uploads", "rationale": "Matches the Phase-1 Airbnb mimic; enforces the soft email-verification gate (D-07) at publish; keeps pricing comparable", "phase": "2"},
+    {"decision": "Fixed curated space types (primary type + activity tags) + curated amenities checklist; capacity = single max-occupancy integer; starter vocabulary locked (11 types / 15 tags / 13 amenities)", "rationale": "Clean Phase-4 search filters; capacity decision resolves the open 'group capacity source' decision and is the Phase-8 RSVP cap source", "phase": "2"},
+    {"decision": "Per-listing 'show exact address' toggle (default approximate, exact after booking); autocomplete -> store lat/lng now; map with approximate pin; no hard region geofence", "rationale": "Protects home-gym privacy while letting commercial venues show exact; coordinates captured now unblock Phase-4 radius search; soft region keeps the model region-capable", "phase": "2"},
+    {"decision": "Onboard Stripe anytime + persistent nudge (required only for bookability); published-but-unpayable = viewable with disabled CTA; live account.updated-driven bookability that auto-reverts on payout disable; one Connect account per host. Bookable <=> published AND email_verified AND payouts_enabled", "rationale": "Matches SC#1 (create/publish without onboarding) + SC#4 (bookable only when payouts enabled); the live gate can never be bypassed by later phases", "phase": "2"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "/clear, then /gsd-plan-phase 2 (consider /gsd-ui-phase 2 first). Have the planner read 02-CONTEXT.md canonical_refs and fold the WR-06/WR-04 pre-req into the plan.",
+  "context_notes": "Clean stop at the discuss->plan boundary. Everything committed (9f00688, ad004a5) and pushed to origin/dev; working tree clean. Phase 1 fully complete & verified. Phase 2 is the first money-adjacent phase: the bookability gate (live, account.updated-driven) is the keystone and must be built so later phases can't bypass it. Cancellation-policy field is intentionally deferred to Phase 7; availability/calendar to Phase 3; search to Phase 4 (taxonomy locked now so its filters are ready)."
+}
