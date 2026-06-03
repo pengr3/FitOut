@@ -102,13 +102,20 @@ export const auth = betterAuth({
     enabled: true,
     window: 10, // global window (seconds) — library default.
     max: 100, // global max per window — library default.
+    // customRules KEYS are matched against the request path AFTER the /api/auth basePath
+    // is stripped (Better Auth 1.6.14 `resolveRateLimitConfig` -> `normalizePathname(req.url,
+    // basePath)` with `basePath = new URL(ctx.baseURL).pathname` = "/api/auth"), then compared
+    // with EXACT string equality (`p === path`) unless the key contains a "*" wildcard. So the
+    // keys are the BARE endpoint paths (NO /api/auth prefix) — verified against node_modules
+    // and exercised by tests/auth/rate-limit.test.ts so this can never silently regress.
+    // (`/forget-password` was removed: that endpoint does not exist in 1.6.14 — the email/password
+    //  reset endpoint is `/request-password-reset` — so the stale key matched nothing.)
     customRules: {
       // Tighten credential-bearing endpoints (login / signup).
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 60, max: 5 },
       // Tighten reset + verification email triggers (anti-enumeration / anti-spam).
       "/request-password-reset": { window: 60, max: 3 },
-      "/forget-password": { window: 60, max: 3 },
       "/reset-password": { window: 60, max: 5 },
       "/send-verification-email": { window: 60, max: 3 },
     },
