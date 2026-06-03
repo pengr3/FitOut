@@ -31,8 +31,36 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import { sendVerificationEmail, sendResetPassword } from "@/lib/email";
 
+// WR-03 — fail CLOSED on a missing signing secret in production.
+//
+// Better Auth derives its session/token signing+encryption secret from BETTER_AUTH_SECRET, and if
+// it is absent it falls back to a KNOWN development default — which, for a money-handling app,
+// silently undermines session integrity with no visible error. We require the secret explicitly and
+// throw at module load (boot) when it is missing in production, rather than deferring to a weak
+// default. In dev/test a missing value is tolerated (Better Auth's dev default) so local setup is
+// frictionless; .env.example documents generating a real one.
+const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET;
+if (!BETTER_AUTH_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "BETTER_AUTH_SECRET is not set. Refusing to boot in production with a weak/default auth secret. " +
+      "Generate one with `openssl rand -base64 32` and set it in the deploy environment.",
+  );
+}
+
+// Base URL of the app (OAuth callbacks, email links, and CSRF origin validation are built from it).
+// Falls back to localhost in dev so local runs work without extra config.
+const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg" }),
+
+  // WR-03 — set the signing secret, base URL, and trusted origins explicitly (no silent defaults).
+  // `secret` is undefined only in dev/test (guarded above for production); Better Auth then uses its
+  // dev default, which is acceptable locally. baseURL/trustedOrigins make OAuth redirect + CSRF
+  // origin validation deterministic in every environment.
+  secret: BETTER_AUTH_SECRET,
+  baseURL: BETTER_AUTH_URL,
+  trustedOrigins: [BETTER_AUTH_URL],
 
   emailAndPassword: {
     enabled: true,
