@@ -11,8 +11,8 @@
 // points at /forgot-password (the AUTH-03 recovery entry point). Only Google is surfaced in v1
 // (the second social provider is deferred from Phase 1; no provider button beyond Google).
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,6 +36,21 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+// Shows the "password updated" confirmation after a successful reset (?reset=1).
+// In its own Suspense-wrapped component because useSearchParams() needs a boundary.
+function ResetNotice() {
+  const params = useSearchParams();
+  if (params.get("reset") !== "1") return null;
+  return (
+    <p
+      role="status"
+      className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+    >
+      Password updated — please sign in.
+    </p>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -73,6 +88,9 @@ export default function LoginPage() {
         <CardDescription>Log in to your FitOut account.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <Suspense fallback={null}>
+          <ResetNotice />
+        </Suspense>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
