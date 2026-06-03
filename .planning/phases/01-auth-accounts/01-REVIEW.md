@@ -56,9 +56,16 @@ findings:
   info: 5
   total: 14
 status: issues_found
+resolution:
+  resolved: [CR-01, CR-02, WR-01, WR-02, WR-03, WR-05, WR-07]
+  deferred: [WR-04, WR-06, IN-01, IN-02, IN-03, IN-04, IN-05]
+  resolved_at: 2026-06-03
+  note: "2 Blockers + 5 Warnings fixed atomically (commits aea0f5c, 80796a1, 5113188, d36b481, abd6157, 3c85922, fc8b4f5, 08f8a99); full suite 54/54 + build green. Remaining 2 Warnings (email-send reliability, activate-action rate-limit/audit) + 5 Info deferred to a tracked follow-up."
 ---
 
 # Phase 1: Code Review Report
+
+> **Resolution (2026-06-03):** Both Blockers (CR-01 rate-limit path keys + regression test; CR-02 atomic capability grant via create.before hook) and 5 Warnings (WR-01/02/03/05/07) were fixed and committed atomically. Full suite **54/54** green, `tsc` clean, `next build` clean. Deferred: WR-04 (fire-and-forget email reliability — needs job/observability), WR-06 (rate limit/audit on capability-activate server actions), and all 5 Info items. Run `/gsd-code-review-fix 01` to address the remainder.
 
 **Reviewed:** 2026-06-03T00:00:00Z
 **Depth:** standard
