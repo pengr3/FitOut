@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-06-03T08:11:44.959Z"
-last_activity: 2026-06-03 -- Phase 1 planning complete
+last_updated: "2026-06-03T08:53:09.124Z"
+last_activity: 2026-06-03
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 1 — Auth & Accounts
+**Current focus:** Phase 01 — auth-accounts
 
 ## Current Position
 
-Phase: 1 of 8 (Auth & Accounts)
-Plan: 0 of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-06-03 -- Phase 1 planning complete
+Phase: 01 (auth-accounts) — EXECUTING
+Plan: 2 of 4
+Status: Plan 01-01 scaffold complete (Tasks 1-3 committed); Task 4 human-verify checkpoint pending
+Last activity: 2026-06-03 -- Plan 01-01 scaffold executed (Next.js + Postgres 18 + Drizzle + shadcn + test harness)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01 P01-01 | 14 | 3 tasks | 41 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Recent decisions affecting current work:
 - [Roadmap]: 8-phase dependency-driven order — identity → supply → availability + double-booking guarantee → booking core + search (no payment) → payments → full instant/request integration → bookings management + cancellation → group bookings. Ordering is non-negotiable for correctness.
 - [Roadmap]: Double-booking prevented at the DB level (Postgres GiST exclusion constraint on tstzrange, scoped by listing) — must exist before any booking insert (Phase 3).
 - [Roadmap]: Stripe Connect bookability gate built in Phase 2 (gate listing bookability, not creation, on payouts_enabled) so it can never be bypassed later.
+- [Phase ?]: [01-01]: Postgres image is postgis/postgis:18-3.6 with volume at /var/lib/postgresql (PG18+ convention); bare :18 tag is not on Docker Hub
+- [Phase ?]: [01-01]: Integration tests isolate to a dedicated 'test' Postgres schema and migrate ./drizzle before assertions; shared Resend/Cloudinary/Google mocks in tests/helpers/mocks.ts
+- [Phase ?]: [01-01]: jose NOT a direct dep (Apple OAuth deferred); src/lib/db/schema.ts is a placeholder owned by the Better Auth CLI until Plan 02
 
 ### Pending Todos
 
@@ -92,6 +96,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T07:32:15.292Z
+Last session: 2026-06-03T08:52:45.609Z
 Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-auth-accounts/01-CONTEXT.md
+Resume file: None
