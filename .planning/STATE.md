@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-06-03T08:53:09.124Z"
+stopped_at: Completed 01-02-PLAN.md (auto tasks); Task 4 credentials checkpoint pending
+last_updated: "2026-06-03T09:24:30.488Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 01 (auth-accounts) — EXECUTING
-Plan: 2 of 4
-Status: Plan 01-01 scaffold complete (Tasks 1-3 committed); Task 4 human-verify checkpoint pending
-Last activity: 2026-06-03 -- Plan 01-01 scaffold executed (Next.js + Postgres 18 + Drizzle + shadcn + test harness)
+Plan: 3 of 4
+Status: Plan 01-02 complete (Better Auth identity layer; schema generated + migration applied; 18 config-invariant tests green). Task 4 credentials checkpoint pending (Google/Cloudinary keys). Ready for Plan 03.
+Last activity: 2026-06-03 -- Plan 01-02 executed (Better Auth + Google OAuth + 30d sessions + reset-revoke + capability/profile schema)
 
-Progress: [███░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███░░░░░░░] 25%
 
 *Updated after each plan completion*
 | Phase 01 P01-01 | 14 | 3 tasks | 41 files |
+| Phase 01 P01-02 | 17 min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [01-01]: Postgres image is postgis/postgis:18-3.6 with volume at /var/lib/postgresql (PG18+ convention); bare :18 tag is not on Docker Hub
 - [Phase ?]: [01-01]: Integration tests isolate to a dedicated 'test' Postgres schema and migrate ./drizzle before assertions; shared Resend/Cloudinary/Google mocks in tests/helpers/mocks.ts
 - [Phase ?]: [01-01]: jose NOT a direct dep (Apple OAuth deferred); src/lib/db/schema.ts is a placeholder owned by the Better Auth CLI until Plan 02
+- [Phase 01]: [01-02]: Better Auth configured per D-01..D-13 — email/pw soft gate + Google OAuth, 30d sliding Postgres sessions, revokeSessionsOnPasswordReset:true, input:false canBook/canHost/role escalation guard, profile additionalFields; schema generated + migration APPLIED to live DB
+- [Phase 01]: [01-02]: Kept built-in name/email/image + added explicit firstName/lastName/avatarUrl/avatarPublicId (D-09/D-10 public-private split); all timestamps timestamptz; rateLimit.enabled:true with tuned customRules
+- [Phase 01]: [01-02]: Fixed Plan-01 test-DB isolation bug (integration writes leaked into dev public schema) — now per-Vitest-worker isolated schema with public-ref rewriting; mocked-email capture needs a fake RESEND_API_KEY in setup
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T08:52:45.609Z
-Stopped at: Phase 1 context gathered
+Last session: 2026-06-03T09:24:30.482Z
+Stopped at: Completed 01-02-PLAN.md (auto tasks); Task 4 credentials checkpoint pending
 Resume file: None

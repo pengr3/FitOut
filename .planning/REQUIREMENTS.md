@@ -9,11 +9,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication & Accounts
 
-- [ ] **AUTH-01**: User can sign up with email and password
-- [ ] **AUTH-02**: User can log in and stay logged in across sessions
-- [ ] **AUTH-03**: User can reset password via email link
-- [ ] **AUTH-04**: User can both book spaces and host spaces from a single account
-- [ ] **AUTH-05**: User can create and edit a basic profile (name, contact, optional photo)
+- [x] **AUTH-01**: User can sign up with email and password
+- [x] **AUTH-02**: User can log in and stay logged in across sessions
+- [x] **AUTH-03**: User can reset password via email link
+- [x] **AUTH-04**: User can both book spaces and host spaces from a single account
+- [x] **AUTH-05**: User can create and edit a basic profile (name, contact, optional photo)
 
 ### Listings (Host Supply)
 
@@ -128,11 +128,11 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
 | LIST-01 | Phase 2 | Pending |
 | LIST-02 | Phase 2 | Pending |
 | LIST-03 | Phase 2 | Pending |
