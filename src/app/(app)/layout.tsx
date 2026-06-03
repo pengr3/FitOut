@@ -9,6 +9,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { ModeSwitch } from "@/components/mode-switch";
 
 export default async function AppLayout({
   children,
@@ -20,6 +21,11 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  const u = session.user as typeof session.user & {
+    canBook?: boolean;
+    canHost?: boolean;
+  };
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex items-center justify-between border-b px-4 py-3">
@@ -27,7 +33,12 @@ export default async function AppLayout({
           FitOut
         </Link>
         <div className="flex items-center gap-3">
-          {/* Airbnb-style booker/host context switch is slotted here in Task 2. */}
+          {/* Airbnb-style booker/host context switch (D-04) — currently in the booking context. */}
+          <ModeSwitch
+            current="book"
+            canBook={u.canBook ?? false}
+            canHost={u.canHost ?? false}
+          />
           <Link
             href="/profile"
             className="text-sm font-medium underline-offset-4 hover:underline"
