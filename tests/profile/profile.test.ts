@@ -1,17 +1,17 @@
-// AUTH-05 / D-09 / D-10: profile create/edit persistence + the public/private projection boundary.
+// AUTH-05 / D-09 / D-10: profile edit persistence + the public/private projection boundary.
 //
-// Two behaviors under test:
-//   1. Updating the profile fields (firstName/lastName/bio/city/phone) via the SAME mechanism the
-//      profile server action uses — auth.api.updateUser — persists the values; re-reading the user
-//      returns them. (These fields are input-allowed; only canBook/canHost/role are input:false.)
-//   2. publicProfile(user) returns ONLY {avatarUrl, firstName, bio, city, createdAt} and NEVER
-//      lastName / email / phone / role (the Airbnb-style split, threat T-04-03). This is the load-
-//      bearing leak guard — it must fail if a private field is ever added to the public projection.
+// WR-07 change: the persistence test now imports and drives the REAL exported `updateProfile`
+// server action (binding it to the isolated test schema + a mocked session) instead of reproducing
+// a bare db.update against the test db. So a regression INSIDE the action — a dropped field, a
+// broken session gate, or the WR-05 null-normalization being reverted — fails this test.
 //
-// As with the Plan-02/03 suites, we drive auth.api against the ISOLATED test schema (the production
-// action binds to the dev public-schema db); the asserted BEHAVIOR is identical.
+// WR-05 change: cleared optional fields must persist as NULL (not ""). We assert that submitting a
+// field as "" / whitespace round-trips to NULL on the row (absent-vs-empty preserved for Phase 2).
+//
+// The publicProfile projection test (the load-bearing leak guard) is unchanged — it correctly
+// asserts the allow-list output and excludes every private field.
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
@@ -23,25 +23,47 @@ import {
 } from "@/lib/profile";
 
 let testDb: TestDb;
-let auth: TestAuth;
+let testAuth: TestAuth;
+let updateProfile: typeof import("@/app/actions/profile")["updateProfile"];
+
+// The real updateProfile reads the session via next/headers + auth.api.getSession, and writes via
+// auth.api.updateUser({ headers }). We mock next/headers to return the signed-in user's cookie, and
+// bind @/lib/auth to the test-schema auth. A mutable holder lets the next/headers mock pick up the
+// per-test session cookie.
+const sessionHeaders: { cookie: string } = { cookie: "" };
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+}));
 
 beforeAll(async () => {
   testDb = await setupTestDb();
-  auth = makeTestAuth(testDb);
+  testAuth = makeTestAuth(testDb);
+  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.resetModules();
+  ({ updateProfile } = await import("@/app/actions/profile"));
 });
 
 afterAll(async () => {
+  vi.doUnmock("@/lib/auth");
   await teardownTestDb(testDb);
 });
 
-/** Sign up a user and return their id + a headers object carrying the session cookie. */
-async function createSignedInUser(email: string, firstName: string) {
-  const res = (await signUp(auth, {
+/** Sign up + sign in a user; return their id and stash the session cookie for the next/headers mock. */
+async function signInUser(email: string, firstName: string): Promise<string> {
+  const res = (await signUp(testAuth, {
     email,
     password: "averylongpassword",
     name: firstName,
     firstName,
-  })) as { user: { id: string }; token?: string };
+    intent: "book",
+  })) as { user: { id: string } };
+  const signIn = await testAuth.api.signInEmail({
+    body: { email, password: "averylongpassword" },
+    asResponse: true,
+  });
+  const setCookie = signIn.headers.get("set-cookie");
+  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+  expect(sessionHeaders.cookie).toContain("better-auth.session_token=");
   return res.user.id;
 }
 
@@ -50,25 +72,19 @@ async function readUser(email: string) {
   return rows[0];
 }
 
-describe("profile persistence (AUTH-05, D-09/D-10)", () => {
-  it("updating profile fields persists them on the user row", async () => {
+describe("profile persistence via the real updateProfile action (AUTH-05, D-09/D-10, WR-07)", () => {
+  it("persists every editable field submitted through updateProfile()", async () => {
     const email = "profile.persist@example.com";
-    await createSignedInUser(email, "Persy");
+    await signInUser(email, "Persy");
 
-    // The profile server action re-validates with profileSchema then persists. updateUser through
-    // auth.api requires a session; here we persist via the same columns directly to prove the data
-    // layer accepts/round-trips every editable field (the action's parse step is unit-covered by the
-    // shared schema). firstName public, lastName/phone private, bio/city public.
-    await testDb.db
-      .update(user)
-      .set({
-        firstName: "Persephone",
-        lastName: "Hollis",
-        phone: "+1 555 0100",
-        bio: "Pickleball most mornings.",
-        city: "Austin",
-      })
-      .where(eq(user.email, email));
+    const res = await updateProfile({
+      firstName: "Persephone",
+      lastName: "Hollis",
+      phone: "+1 555 0100",
+      bio: "Pickleball most mornings.",
+      city: "Austin",
+    });
+    expect(res.ok).toBe(true);
 
     const row = await readUser(email);
     expect(row.firstName).toBe("Persephone");
@@ -77,12 +93,55 @@ describe("profile persistence (AUTH-05, D-09/D-10)", () => {
     expect(row.bio).toBe("Pickleball most mornings.");
     expect(row.city).toBe("Austin");
   });
+
+  it("clears optional fields to NULL (not \"\") when submitted empty/whitespace (WR-05)", async () => {
+    const email = "profile.clear@example.com";
+    await signInUser(email, "Clarence");
+
+    // First populate the optional fields.
+    await updateProfile({
+      firstName: "Clarence",
+      lastName: "Stale",
+      phone: "+1 555 9999",
+      bio: "Old bio",
+      city: "Old City",
+    });
+    let row = await readUser(email);
+    expect(row.lastName).toBe("Stale");
+
+    // Now clear them with empty / whitespace-only values — must persist as NULL, not "".
+    const res = await updateProfile({
+      firstName: "Clarence",
+      lastName: "",
+      phone: "   ",
+      bio: "",
+      city: undefined,
+    });
+    expect(res.ok).toBe(true);
+
+    row = await readUser(email);
+    expect(row.firstName).toBe("Clarence"); // required field preserved.
+    expect(row.lastName).toBeNull();
+    expect(row.phone).toBeNull();
+    expect(row.bio).toBeNull();
+    expect(row.city).toBeNull();
+    // Belt-and-suspenders: NONE of the cleared fields may be the empty string.
+    expect(row.lastName).not.toBe("");
+    expect(row.phone).not.toBe("");
+  });
+
+  it("rejects the update when there is no session (gate enforced by the real action)", async () => {
+    sessionHeaders.cookie = ""; // no session cookie.
+    const res = await updateProfile({ firstName: "Nobody" });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/signed in/i);
+  });
 });
 
 describe("public/private projection (D-09/D-10, threat T-04-03)", () => {
   it("publicProfile returns ONLY the public subset and excludes private fields", async () => {
     const email = "profile.public@example.com";
-    await createSignedInUser(email, "Pubby");
+    await signInUser(email, "Pubby");
     await testDb.db
       .update(user)
       .set({

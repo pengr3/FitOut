@@ -48,17 +48,26 @@ export async function updateProfile(
 
   const { firstName, lastName, phone, bio, city } = parsed.data;
 
+  // Normalize cleared optional fields to NULL, not "" (WR-05). The columns are nullable text and
+  // null means "absent" everywhere (publicProfile, avatar/initials fallbacks, and Phase-2 "has the
+  // host completed their profile?" checks that key off lastName/phone). Writing "" for a cleared
+  // field would read as "present-but-empty" and corrupt the absent-vs-empty distinction. A
+  // whitespace-only value is also treated as cleared.
+  const clean = (v?: string): string | null => {
+    const trimmed = v?.trim();
+    return trimmed ? trimmed : null;
+  };
+
   // 3. Persist to the caller's own row. canBook/canHost/role are input:false and absent here,
   //    so this action can only ever touch the profile fields (no privilege escalation).
   try {
     await auth.api.updateUser({
       body: {
         firstName,
-        // Optional fields: send "" -> null-ish clears rather than leaving stale values.
-        lastName: lastName ?? "",
-        phone: phone ?? "",
-        bio: bio ?? "",
-        city: city ?? "",
+        lastName: clean(lastName),
+        phone: clean(phone),
+        bio: clean(bio),
+        city: clean(city),
       },
       headers: requestHeaders,
     });
