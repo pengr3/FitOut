@@ -33,7 +33,17 @@ function escapeHtml(s: string): string {
 
 async function send(to: string, subject: string, html: string) {
   if (!resend) {
-    // Dev fallback — no API key: log the link instead of delivering.
+    // WR-02 — the dev fallback logs the FULL email body, which includes the single-use
+    // reset/verification link and its live token. That is acceptable locally but a credential
+    // leak in production logs. Gate it strictly on a non-production environment: if RESEND_API_KEY
+    // is ever missing in prod, fail loudly WITHOUT writing the token-bearing link to the logs.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "RESEND_API_KEY missing in production — email NOT sent (link withheld from logs).",
+      );
+      return;
+    }
+    // Dev/test only: log the link instead of delivering so the flow can be followed locally.
     console.log(`[email:dev] to=${to} ${subject}\n${html}`);
     return;
   }
