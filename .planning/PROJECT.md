@@ -16,7 +16,7 @@ The product is optimized first for the **person booking** (the demand side is th
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+- [x] Users can create accounts and sign in (separate booker and host capabilities on one account) — **Validated in Phase 1: Auth & Accounts** (email/password + Google OAuth, 30-day sliding sessions, password reset that revokes other sessions, profile + optional avatar, server-side capability flags with privilege-escalation guard; AUTH-01..05)
 
 ### Active
 
@@ -29,7 +29,6 @@ The product is optimized first for the **person booking** (the demand side is th
 - [ ] A host can list a space with details, photos, pricing, and bookable availability
 - [ ] A host can choose whether their listing is instant-book or request-to-book (approval required)
 - [ ] A host can review and approve/decline booking requests on request-to-book listings
-- [ ] Users can create accounts and sign in (separate booker and host capabilities on one account)
 - [ ] An organizer can create a group booking, invite people, and have them confirm attendance (RSVP/headcount)
 - [ ] Both sides can see their bookings (upcoming/past) and booking status
 
@@ -91,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-03 after initialization*
+*Last updated: 2026-06-03 after Phase 1 (Auth & Accounts) completion*

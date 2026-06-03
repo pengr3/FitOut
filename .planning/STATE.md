@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 01-04-PLAN.md (signed-in identity surface); Phase 01 plans 4/4 complete
+status: ready
+stopped_at: Phase 01 (auth-accounts) complete & verified — 4/4 plans, code review fixed, human UAT partial; ready to start Phase 02
 last_updated: "2026-06-03T11:42:04.116Z"
 last_activity: 2026-06-03
 progress:
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 01 — auth-accounts
+**Current focus:** Phase 02 — listings-&-host-onboarding (Phase 01 complete)
 
 ## Current Position
 
-Phase: 2
+Phase: 2 (Listings & Host Onboarding) — not started
 Plan: Not started
-Status: Plan 01-04 complete (signed-in identity surface: (app) booker shell + (host) dashboard both gated per-page on the session; Airbnb mode switch with activate-later capability flow (canHost/canBook flip server-side, coexist); profile public/private split + optional Cloudinary avatar with type/size guards; 35/35 vitest + 2/2 new E2E green; next build green). Phase 01 (auth-accounts) is functionally complete — ready for verification/close and Phase 02 (listings + payments).
+Status: Phase 01 (auth-accounts) COMPLETE & verified — single account with booker+host capabilities, sessions, password reset, profile + avatar; 54/54 tests, build green; code review 2 blockers + 5 warnings fixed; 3 human-UAT items pending (Google OAuth, Cloudinary, reset-email delivery — all credential-dependent, tracked in 01-HUMAN-UAT.md). Next: Phase 02 (listings + Stripe Connect onboarding).
 Last activity: 2026-06-03
 
 Progress: [██████████] 100%
