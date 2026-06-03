@@ -1,44 +1,66 @@
 // AUTH-05 / D-11 / threat T-04-04: avatar upload validates type+size, uploads to Cloudinary
 // (MOCKED — no real creds), and stores the returned secure_url + public_id on the user row.
 //
-// Cloudinary is mocked globally (tests/setup.ts -> tests/helpers/mocks.ts): upload_stream resolves
-// a fake { secure_url, public_id }. So this exercises the REAL uploadAvatar helper end-to-end
-// against the mock, plus the action's Zod file-guard (content-type image/* and size <= 5MB), plus
-// the persistence of both columns on the isolated test schema.
+// WR-07 change: the upload+persistence test now imports and drives the REAL exported
+// `uploadAvatarAction` (binding it to the test-schema auth + a mocked session) instead of
+// reproducing the upload+store steps against the test db. So a regression INSIDE the action — a
+// dropped column write, a broken session gate, or skipping the file validation — fails this test.
+//
+// The avatarFileSchema guard tests below are genuine and load-bearing (they assert the Zod
+// content-type/size contract directly) and are kept as-is.
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { user } from "@/lib/db/schema";
-import { uploadAvatar } from "@/lib/cloudinary";
 import { avatarFileSchema, AVATAR_MAX_BYTES } from "@/app/actions/avatar";
 
 let testDb: TestDb;
-let auth: TestAuth;
+let testAuth: TestAuth;
+let uploadAvatarAction: typeof import("@/app/actions/avatar")["uploadAvatarAction"];
+
+// uploadAvatarAction reads the session via next/headers + auth.api.getSession and persists via
+// auth.api.updateUser({ headers }). Mock next/headers to carry the signed-in cookie; bind @/lib/auth
+// to the test-schema auth. Cloudinary is already mocked globally (tests/setup.ts).
+const sessionHeaders: { cookie: string } = { cookie: "" };
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+}));
 
 beforeAll(async () => {
   testDb = await setupTestDb();
-  auth = makeTestAuth(testDb);
+  testAuth = makeTestAuth(testDb);
+  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.resetModules();
+  ({ uploadAvatarAction } = await import("@/app/actions/avatar"));
 });
 
 afterAll(async () => {
+  vi.doUnmock("@/lib/auth");
   await teardownTestDb(testDb);
 });
 
-async function createUser(email: string, firstName: string) {
-  const res = (await signUp(auth, {
+/** Sign up + sign in a user; return id and stash the session cookie for the next/headers mock. */
+async function signInUser(email: string, firstName: string): Promise<string> {
+  const res = (await signUp(testAuth, {
     email,
     password: "averylongpassword",
     name: firstName,
     firstName,
+    intent: "book",
   })) as { user: { id: string } };
+  const signIn = await testAuth.api.signInEmail({
+    body: { email, password: "averylongpassword" },
+    asResponse: true,
+  });
+  const setCookie = signIn.headers.get("set-cookie");
+  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
   return res.user.id;
 }
 
-/** Build a minimal File-like stand-in for the Zod guard (Node test env, no real File needed). */
+/** Build a real File so .type/.size/.arrayBuffer() behave like the runtime input. */
 function fakeFile(type: string, size: number): File {
-  // Construct a real File so .type/.size/.arrayBuffer() behave like the runtime input.
   const bytes = new Uint8Array(size);
   return new File([bytes], "avatar.png", { type });
 }
@@ -62,27 +84,43 @@ describe("avatar file validation (threat T-04-04)", () => {
   });
 });
 
-describe("avatar upload + persistence (AUTH-05, D-11)", () => {
+describe("avatar upload + persistence via the real uploadAvatarAction (AUTH-05, D-11, WR-07)", () => {
   it("uploads via Cloudinary (mocked) and stores secure_url + public_id on the user row", async () => {
     const email = "avatar.store@example.com";
-    const userId = await createUser(email, "Ava");
+    const userId = await signInUser(email, "Ava");
 
-    // Reproduce the action's upload+store step (the action binds to the dev db + needs a session;
-    // the BEHAVIOR — uploadAvatar then persist both columns — is identical here on the test schema).
-    const buffer = Buffer.from(new Uint8Array(2048));
-    const { secure_url, public_id } = await uploadAvatar(buffer, userId);
+    const form = new FormData();
+    form.set("avatar", fakeFile("image/png", 2048));
+    const res = await uploadAvatarAction(form);
 
-    await testDb.db
-      .update(user)
-      .set({ avatarUrl: secure_url, avatarPublicId: public_id })
-      .where(eq(user.id, userId));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.avatarUrl).toMatch(/^https?:\/\//);
 
     const rows = await testDb.db.select().from(user).where(eq(user.id, userId));
     const row = rows[0];
-    expect(row.avatarUrl).toBe(secure_url);
-    expect(row.avatarPublicId).toBe(public_id);
-    // Mock derives the public_id from the userId (folder/public_id), so it round-trips that id.
+    expect(row.avatarUrl).toBe(res.avatarUrl);
+    expect(row.avatarPublicId).toBeTruthy();
+    // Mock derives the public_id from the userId, so it round-trips that id.
     expect(row.avatarPublicId).toContain(userId);
-    expect(row.avatarUrl).toMatch(/^https?:\/\//);
+  });
+
+  it("rejects a non-image upload through the real action (server-side file guard)", async () => {
+    const email = "avatar.badtype@example.com";
+    await signInUser(email, "Bad");
+
+    const form = new FormData();
+    form.set("avatar", fakeFile("application/pdf", 2048));
+    const res = await uploadAvatarAction(form);
+    expect(res.ok).toBe(false);
+  });
+
+  it("rejects the upload when there is no session (gate enforced by the real action)", async () => {
+    sessionHeaders.cookie = ""; // no session.
+    const form = new FormData();
+    form.set("avatar", fakeFile("image/png", 2048));
+    const res = await uploadAvatarAction(form);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/signed in/i);
   });
 });
