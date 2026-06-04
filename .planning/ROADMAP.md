@@ -47,7 +47,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A host can set an hourly rate and a day rate, choose instant-book or request-to-book, and set listing status (draft / published / unlisted)
   3. Anyone can view a published listing's detail page with photos, description, amenities, location, price, and a book CTA
   4. A host completes Stripe Connect (KYC) onboarding, and a listing only becomes bookable once the host's payouts are enabled (tracked via the account.updated webhook)
-**Plans**: TBD
+**Plans**: 6 plans in 3 waves
+  - [ ] 02-01-PLAN.md — Wave 1: data model (listing/photo/amenity/tag/host_payout + PostGIS) + D-08 vocab + draft/publish Zod + deriveBookable + Wave-0 test scaffold + [BLOCKING] schema push
+  - [ ] 02-02-PLAN.md — Wave 1: deps + FitOut Coral/success tokens + 15 shadcn components + WR-06 closure (rate-limit + audit on capability-activate actions)
+  - [ ] 02-03-PLAN.md — Wave 2: listing server actions (create/save-step/publish-gate/unlist/soft-delete) + Airbnb-style wizard + address autocomplete + Your-listings grid
+  - [ ] 02-04-PLAN.md — Wave 3: Cloudinary signed direct upload (sign endpoint + helpers) + photo metadata actions + @dnd-kit reorder gallery wired into the wizard
+  - [ ] 02-05-PLAN.md — Wave 2: public listing detail page (un-gated, draft/unlisted 404, react-leaflet fuzzed/exact map, state-reflecting book CTA) + privacy-aware projection
+  - [ ] 02-06-PLAN.md — Wave 3: Stripe Connect Express onboarding + account.updated webhook (signature-verified, idempotent) bookability gate + payout banner/return/refresh
 **UI hint**: yes
 
 ### Phase 3: Availability & the Double-Booking Guarantee
@@ -130,7 +136,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth & Accounts | 3/4 | In Progress | - |
-| 2. Listings & Host Onboarding | 0/TBD | Not started | - |
+| 2. Listings & Host Onboarding | 0/6 | Not started | - |
 | 3. Availability & Double-Booking Guarantee | 0/TBD | Not started | - |
 | 4. Booking Core & Search | 0/TBD | Not started | - |
 | 5. Payments & Payouts | 0/TBD | Not started | - |
