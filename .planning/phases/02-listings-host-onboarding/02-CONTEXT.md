@@ -50,6 +50,11 @@ Turn the host **capability** (built in Phase 1) into a real, **sellable product*
 - **D-15:** **Bookability formula (intent):** a listing is bookable ⇔ `status == published` AND host `email_verified` AND host `payouts_enabled`. Bookability is the gate the rest of the system reads; "published" alone never implies sellable.
 - **D-16 (forward intent for Phase 4):** Published-but-not-bookable listings are **excluded from search/discovery** (avoid booker dead-ends — demand-side first), while their detail page remains directly viewable by link. Captured now so Phase 4 honors it.
 
+### Resolved Open Questions (post-research — 2026-06-04)
+- **D-17:** **Stripe SDK = `stripe@^22`** (22.2.x), `apiVersion` pinned to `2026-05-27.dahlia`. CLAUDE.md's `18.x` row is **stale** (18.x is now only on the alpha `beta` tag); the locked *intent* — Express accounts, Stripe-hosted onboarding, separate charges & transfers, pinned `apiVersion` — is fully preserved on 22.x. The version drift is recorded in STATE.md.
+- **D-18:** **Geocoding + maps = Photon/LocationIQ autocomplete + react-leaflet (OpenStreetMap tiles)** — cost-disciplined for the single-city launch (no per-keystroke billing). The listing model stores structured address + lat/lng **provider-agnostically** (D-10), so the provider stays swappable. Research recommends **enabling PostGIS this phase** (Drizzle `geometry(..., { type:'point', mode:'xy', srid:4326 })`; local image is already `postgis/postgis:18`; custom `CREATE EXTENSION IF NOT EXISTS postgis` ordered first in the migration) — D-10 left enablement to the planner, who confirms based on this research. Mind the PostGIS `x=lng, y=lat` axis-swap pitfall.
+- **D-19:** **Stripe Connect Express launch country = `US`** — connected accounts created with `country: 'US'`. Read from config/env (e.g. `STRIPE_CONNECT_COUNTRY`, default `US`) rather than hardcoded, but US is the launch market.
+
 ### Claude's Discretion
 - **"Unlisted" status semantics:** a previously-published listing the host takes off-market — hidden from the public, **keeps all data, re-publishable**. (status enum: `draft` / `published` / `unlisted`.)
 - **Edits to a published listing go live immediately** — no moderation/review queue in v1.
