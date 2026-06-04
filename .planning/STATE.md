@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 2 context gathered
-last_updated: "2026-06-03T15:48:14.667Z"
-last_activity: 2026-06-03
+status: planned
+stopped_at: Phase 2 planned — 6 plans in 3 waves; plan-checker PASSED (0 blockers, 4 minor warnings)
+last_updated: "2026-06-04T15:58:45.844Z"
+last_activity: 2026-06-04
 progress:
   total_phases: 8
   completed_phases: 1
-  total_plans: 4
+  total_plans: 10
   completed_plans: 4
-  percent: 100
+  percent: 40
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 2 (Listings & Host Onboarding) — not started
-Plan: Not started
-Status: Phase 01 (auth-accounts) COMPLETE & verified — single account with booker+host capabilities, sessions, password reset, profile + avatar; 54/54 tests, build green; code review 2 blockers + 5 warnings fixed; 3 human-UAT items pending (Google OAuth, Cloudinary, reset-email delivery — all credential-dependent, tracked in 01-HUMAN-UAT.md). Next: Phase 02 (listings + Stripe Connect onboarding).
-Last activity: 2026-06-03
+Phase: 2 (Listings & Host Onboarding) — PLANNED, ready to execute
+Plan: 6 plans in 3 waves (W1: 01 data-model+PostGIS, 02 deps/tokens/WR-06 · W2: 03 wizard, 05 public-page · W3: 04 photos, 06 Stripe gate)
+Status: Phase 02 PLANNED — research (HIGH confidence), pattern map, Nyquist VALIDATION, and 6 PLAN.md files created; plan-checker PASSED (0 blockers, 4 minor warnings; LIST-01..06 + PAY-04 fully covered, D-01..D-19 traced). Post-research decisions: Stripe SDK pinned stripe@^22 + apiVersion 2026-05-27.dahlia (D-17); geocoding/maps = Photon/LocationIQ + react-leaflet (OSM) + PostGIS this phase (D-18); Stripe Connect country=US via STRIPE_CONNECT_COUNTRY (D-19). WR-06 (rate-limit + audit on capability-activate) sequenced in Wave 1 (Plan 02) before payouts wire to canHost in Wave 3 (Plan 06). Next: /gsd-execute-phase 2.
+Last activity: 2026-06-04
 
-Progress: [██████████] 100%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -110,6 +110,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T15:48:14.658Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-listings-host-onboarding/02-CONTEXT.md
+Last session: 2026-06-04T15:58:45.844Z
+Stopped at: Phase 2 planned — 6 plans in 3 waves; plan-checker PASSED
+Resume file: .planning/phases/02-listings-host-onboarding/ (run /gsd-execute-phase 2)

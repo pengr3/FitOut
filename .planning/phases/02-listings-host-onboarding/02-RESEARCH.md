@@ -532,7 +532,9 @@ export async function reorderPhotos(listingId: string, orderedIds: string[]) {
 | A7 | Country fixed to `US` for Express accounts at launch | Pattern 7 | MED — Express `country` is set at creation and not easily changed; confirm the launch region's Stripe country. |
 | A8 | The chosen geocoding/maps provider (see Open Questions) — recommendation is OSM/Photon+Leaflet for a cost-free single-city launch | Open Questions | MED — provider choice affects cost, API keys, and the autocomplete/map components built. Needs a user decision. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> **Resolved during planning (2026-06-04):** (1) geocoding/maps provider → **Photon/LocationIQ autocomplete + react-leaflet (OSM)**, PostGIS enabled this phase — CONTEXT.md **D-18**; (2) Express launch `country` → **US**, read from `STRIPE_CONNECT_COUNTRY` (default `US`) — CONTEXT.md **D-19**; (3) slug scheme → ship `/listings/[id]` now (Claude's discretion). Stripe SDK pinned to `stripe@^22` + `apiVersion 2026-05-27.dahlia` — CONTEXT.md **D-17**.
 
 1. **Geocoding + maps provider (D-10/D-11) — needs a decision.**
    - What we know `[VERIFIED: provider pricing search, 2026]`: Google Places has **no meaningful free tier in 2026** + per-keystroke session billing (~$275/mo at 100k loads). Mapbox is cheaper (~50k free loads) but **Search Box bills per keystroke — debounce mandatory** or costs explode. Photon (Komoot, OSM-based) is **free** and purpose-built for autocomplete; Nominatim (OSM) is free with usage limits; LocationIQ offers a hosted OSM API (5k req/day free). `react-leaflet` 5.0.0 renders OSM tiles for free.
