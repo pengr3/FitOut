@@ -95,7 +95,7 @@ Accent is NOT used for: secondary buttons, all links, amenity multi-select toggl
 > Destructive vs. brand separation is deliberate: coral (warm red-orange, hue ~25) and destructive (true red, hue ~27 but higher chroma) are visually adjacent. To avoid confusion, **destructive actions always pair the color with a destructive icon + verb** ("Delete", trash icon) and live in confirmation dialogs — never as a bare colored button in normal flow. The brand coral never appears on a delete/remove control.
 
 ### Destructive / dangerous surfaces this phase
-- **Remove a photo** from the gallery (hover-reveal X on each tile) — uses `--destructive` on the icon, inline, no dialog (low-stakes, reversible by re-upload, draft state).
+- **Remove a photo** from the gallery (hover-reveal X on each tile) — uses `--destructive` on the icon, inline, no dialog (low-stakes, reversible by re-upload, draft state). The icon-only control MUST carry an accessible label: `aria-label="Remove photo"` (or an `sr-only` span) plus a tooltip, so it is operable by assistive tech and keyboard, not hover-only.
 - **Delete / archive a listing** (soft-delete per Claude's Discretion) — `--destructive` button, gated behind a confirmation dialog.
 - **Unlist a listing** (published → unlisted) — NOT destructive-colored; it is reversible and data-preserving. Use neutral `secondary` with a confirming dialog explaining "hidden from the public, re-publishable anytime."
 
@@ -158,7 +158,7 @@ Voice: clear, warm, host-empowering, demand-aware. Plain verbs, no jargon ("Stri
 |--------|-------------------|----------------|
 | Remove photo | (inline, no dialog) — hover X removes immediately in draft | n/a |
 | Delete listing (soft-delete) | `Delete this listing? It'll be removed from FitOut. This can't be undone from here.` | `Delete listing` (destructive) |
-| Unlist listing | `Take "{title}" off the market? Guests won't see it, but you keep all its details and can republish anytime.` | `Unlist` (neutral) |
+| Unlist listing | `Take "{title}" off the market? Guests won't see it, but you keep all its details and can republish anytime.` | `Unlist space` (neutral) |
 
 ---
 
