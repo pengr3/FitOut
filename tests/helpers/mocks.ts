@@ -6,9 +6,15 @@
 //                      upload tests never hit Cloudinary.
 // - mockGoogleProvider: a stub Google OAuth profile that arrives email-verified (D-08),
 //                      for the "OAuth account is pre-verified" test in Plan 03.
+// - mockPayMongo      : stubs the Plan-06 PayMongo Linked-Account calls (createLinkedAccount /
+//                      createOnboardingLink) and, critically, a signWebhook(rawBody, secret, ts)
+//                      helper that produces a VALID `Paymongo-Signature` header (HMAC-SHA256 over
+//                      `${ts}.${rawBody}`) so the webhook tests can sign a body and go green — plus
+//                      badSignature() for the 400 path.
 // - resetMocks        : clears captured state between tests (called from tests/setup.ts).
 
 import { vi } from "vitest";
+import { createHmac } from "node:crypto";
 
 // ---------------------------------------------------------------------------
 // Resend mock
@@ -137,9 +143,57 @@ export type GoogleProfile = {
 };
 
 // ---------------------------------------------------------------------------
+// PayMongo mock (Plan 06 — Linked Accounts onboarding + Paymongo-Signature webhook, D-20)
+// ---------------------------------------------------------------------------
+// There is no official PayMongo SDK; Plan 06 builds a thin fetch wrapper (src/lib/paymongo.ts). This
+// mock stubs the two onboarding calls and, most importantly, reproduces PayMongo's webhook signature
+// so the Plan-06 webhook suites can sign a body and exercise the verify + idempotency paths.
+//
+// Paymongo-Signature header format: `t=<timestamp>,te=<test-mode-sig>,li=<live-mode-sig>`, where each
+// sig = HMAC-SHA256(secret, `${timestamp}.${rawBody}`) as hex. We fill te and li with the same
+// computed sig so a test can verify in either mode.
+
+/** Compute the raw hex HMAC PayMongo signs (`${timestamp}.${rawBody}`). */
+function paymongoSig(rawBody: string, secret: string, timestamp: number | string): string {
+  return createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
+}
+
+const ZERO_SIG = "0".repeat(64);
+
+export const mockPayMongo = {
+  /** Stub of "create a Linked Account" — returns a deterministic account id (Plan 06 reuses it). */
+  createLinkedAccount: vi.fn(async (_email?: string) => ({ id: "acct_test_123" })),
+  /** Stub of "mint a hosted onboarding link" — deterministic URL keyed to the account id. */
+  createOnboardingLink: vi.fn(async (accountId: string = "acct_test_123") => ({
+    url: `https://onboarding.paymongo.test/${accountId}`,
+  })),
+  /**
+   * Build a VALID `Paymongo-Signature` header for a raw body + webhook secret. Format:
+   * `t=<ts>,te=<sig>,li=<sig>`. Signed payload is `${ts}.${rawBody}` (HMAC-SHA256, hex). Lets the
+   * Plan-06 signature test sign a body and assert the handler accepts it (and dedupes by event id).
+   */
+  signWebhook: (
+    rawBody: string,
+    secret: string,
+    timestamp: number = Math.floor(Date.now() / 1000),
+  ): string => {
+    const sig = paymongoSig(rawBody, secret, timestamp);
+    return `t=${timestamp},te=${sig},li=${sig}`;
+  },
+  /** Sentinel INVALID signature header (all-zero hex) for the 400 reject path. */
+  badSignature: (timestamp: number = Math.floor(Date.now() / 1000)): string =>
+    `t=${timestamp},te=${ZERO_SIG},li=${ZERO_SIG}`,
+  reset: () => {
+    mockPayMongo.createLinkedAccount.mockClear();
+    mockPayMongo.createOnboardingLink.mockClear();
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Reset everything between tests.
 // ---------------------------------------------------------------------------
 export function resetMocks() {
   mockResend.reset();
   mockCloudinary.reset();
+  mockPayMongo.reset();
 }
