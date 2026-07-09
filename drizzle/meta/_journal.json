@@ -8,6 +8,20 @@
       "when": 1780477726124,
       "tag": "0000_sturdy_nighthawk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783579806676,
+      "tag": "0001_enable_postgis",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783579832291,
+      "tag": "0002_listing_tables",
+      "breakpoints": true
     }
   ]
 }
