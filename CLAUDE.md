@@ -30,7 +30,7 @@ The product is optimized first for the **person booking** (the demand side is th
 | **TypeScript** | 5.7+ | Language | Type safety end-to-end (DB → API → UI) is decisive for a money-handling marketplace where shape mismatches cause real financial bugs. |
 | **PostgreSQL** | 18 | Primary database | The correct-by-construction choice for this domain. Native **exclusion constraints** (GiST) prevent double-booking at the DB level — no other mainstream DB does this as cleanly. Transactional, relational data (users, listings, bookings, payments) fits a marketplace exactly. PostGIS adds geo search on the same DB. |
 | **Drizzle ORM** | 0.44+ / drizzle-kit 0.31+ | Type-safe DB access + migrations | SQL-first ORM. Critical here: booking correctness needs **raw Postgres constructs** (exclusion constraints, `tstzrange`, `SELECT … FOR UPDATE`, partial indexes). Drizzle's `sql` template keeps these type-aware and lets you drop to SQL without fighting the ORM. Tiny bundle, fast cold starts. See "Why not Prisma" below — this is a deliberate, load-bearing choice. |
-| **Stripe Connect** | API `2025-xx` (Express accounts) | Marketplace payments: charge booker, pay out host, take commission | The de-facto standard for marketplace payouts. Handles KYC/onboarding, compliance, and bank payouts. **Express accounts** + Stripe-hosted onboarding gives fast host onboarding without you building compliance UI. See Payments section for charge-type rationale. |
+| **PayMongo** | REST API (`/v1` + `/v2`; no official SDK) | PH marketplace payments: charge booker, HOLD, pay out host, take commission | PH-native, **BSP-regulated EMI** with real local acquiring and **QRPh** — the reason to pick it over Stripe (Stripe has no PH acquiring and no QRPh). Rails: **QRPh + GCash + Maya + cards**. Host onboarding + payout wallets via **Platforms / Linked Accounts** (hosted-redirect KYC). Marketplace payout is **hold-until-session**: collect the full amount to the **platform wallet** → **HOLD** → after the session push an on-demand **`inhouse` wallet-to-wallet transfer** (`POST /v2/batch_transfers`) of (booking − commission) to the host. See Payments section for the payout-flow rationale. |
 | **Tailwind CSS** | v4 | Styling | Default for Next.js apps; fast to build a responsive UI; pairs with component libraries below. |
 ### Supporting Libraries
 | Library | Version | Purpose | When to Use |
@@ -42,15 +42,15 @@ The product is optimized first for the **person booking** (the demand side is th
 | **TanStack Query** | 5.x | Client data fetching/caching for interactive availability views | Use for the live availability calendar where the client polls/refetches slots. Optional if you lean fully on Server Components + revalidation. |
 | **UploadThing** *or* **Cloudinary** | latest | Listing photo upload + delivery | UploadThing = fastest Next.js integration (presigned URLs, ~30 LOC). Cloudinary = automatic image transforms/thumbnails/CDN (better for marketplace photo grids + zoom). Pick one; see Variants. |
 | **date-fns** + **@date-fns/tz** | 4.x | Date/time math and timezone handling | Slot math, durations, day/hour boundaries. **Store all times as `timestamptz` (UTC)** and convert at the edges. Timezone bugs are a top pitfall in booking apps. |
-| **Stripe Node SDK** | 18.x | Server-side Stripe calls | PaymentIntents, Connect accounts, transfers, webhooks. |
+| **PayMongo REST client** | thin `fetch` wrapper / community TS lib (no official SDK) | Server-side PayMongo calls | Payment Intents/Sources, Links, Platforms/Linked-Account onboarding, `POST /v2/batch_transfers` payouts, webhooks. No official SDK — wrap `fetch` (or an optional community TS lib); verify **`Paymongo-Signature`** (HMAC-SHA256 over the raw body) on webhooks; send an **`Idempotency-Key`** on POSTs. |
 | **Resend** | latest | Transactional email (booking confirmations, request approvals, group invites) | Simple, cheap, good Next.js/React Email DX. Needed for request-to-book and group-invite flows. |
 | **BullMQ + Redis** *or* **Inngest** | latest | Background jobs (delayed payout/transfer, reminders, webhook retries, RSVP deadlines) | Marketplace flows are async: capture-then-transfer-after-session, send reminders, expire unconfirmed group RSVPs. Inngest if you want managed/serverless-friendly; BullMQ+Redis if self-hosting on Railway/Render. |
 ### Development Tools
 | Tool | Purpose | Notes |
 |------|---------|-------|
 | **Drizzle Kit** | Migrations + Drizzle Studio (DB browser) | Generate migrations from schema; **hand-edit the migration SQL** to add the exclusion constraint and PostGIS bits (Drizzle can't yet express EXCLUDE constraints in schema — see Pitfalls). |
-| **Stripe CLI** | Local webhook forwarding + event triggering | Essential for developing Connect onboarding and payout webhooks locally (`stripe listen`, `stripe trigger`). |
-| **Vitest + Playwright** | Unit/integration + E2E tests | Test the booking transaction (concurrent double-book attempts must fail) and the pay→payout flow against Stripe test mode. |
+| **ngrok / cloudflared** (tunnel) | Local webhook forwarding for PayMongo events | PayMongo has **no CLI** — expose your local webhook endpoint through a tunnel and register that URL in the PayMongo dashboard to develop the `merchant.activated` (onboarding) and payment/payout webhooks locally. |
+| **Vitest + Playwright** | Unit/integration + E2E tests | Test the booking transaction (concurrent double-book attempts must fail) and the pay→payout flow against PayMongo test mode. |
 | **Biome** *or* ESLint + Prettier | Lint/format | Biome is faster/single-tool; either is fine. |
 | **Docker (local Postgres + PostGIS)** | Reproducible local DB matching prod | Use the `postgis/postgis:18` image so local matches production extensions. |
 ## Installation
@@ -66,6 +66,14 @@ The product is optimized first for the **person booking** (the demand side is th
 # UI primitives
 # Dev/testing
 ## Marketplace Payments — Prescriptive Detail
+- **Provider:** **PayMongo** — a BSP-regulated Philippine EMI. Rails: **QRPh, GCash, Maya, cards**. Chosen over Stripe because Stripe has no local PH acquiring and no QRPh (invite-only preview; a workaround needs a US entity).
+- **Payout model (hold-until-session) — the load-bearing rule:** collect the **full** booking amount to the **platform wallet** → **HOLD** → **after the session is delivered**, push an on-demand **`inhouse` wallet-to-wallet transfer** (`POST /v2/batch_transfers`, `provider:"paymongo"`) of **(booking − commission)** to the host's Linked-Account wallet. This is the PayMongo analog of Stripe's separate-charges-and-transfers.
+- **Do NOT use PayMongo "payment splitting".** Splitting pays the host their share at **settlement** — it breaks the hold-until-session requirement and can't support request-to-book approval/decline or cancellations. Always collect-then-transfer-after-delivery.
+- **Never pay the host at booking time.** Funds are held on the platform wallet until the session is delivered; the webhook is the source of truth for state transitions.
+- **Host onboarding:** PayMongo **Platforms / Linked Accounts** (hosted-redirect KYC; beta / sales-gated) — the host gets a payout wallet without you building compliance UI.
+- **Bookability gate (the Stripe `payouts_enabled` equivalent):** a listing is only bookable once the host is fully onboarded — driven by the **`merchant.activated`** webhook + **`activation_status: activated`** + wallet **`status: activated`**. Gate bookability (not listing creation) on this so it can never be bypassed.
+- **Integration mechanics:** **no official SDK** — use a thin server-side `fetch` wrapper (or an optional community TS lib). Verify **`Paymongo-Signature`** (HMAC-SHA256 over the raw request body) on every webhook; send an **`Idempotency-Key`** on all POSTs.
+- **Request-to-book capture (Phase 6):** card manual-capture is a **gated** advanced feature; **QRPh/GCash/Maya = capture-now → refund-on-decline**.
 ## Double-Booking Prevention — Prescriptive Detail
 - `tstzrange(..., '[)')` makes back-to-back bookings (e.g. 10:00–11:00 then 11:00–12:00) NOT overlap — correct for hourly slots.
 - The partial `WHERE` lets cancelled/declined rows coexist without blocking new bookings.
@@ -78,7 +86,7 @@ The product is optimized first for the **person booking** (the demand side is th
 | **Better Auth** | Clerk | If you want fastest possible setup and polished prebuilt UI and are fine paying per-MAU and storing user data on Clerk (US-only residency, painful to migrate off later). Good for racing to a demo. |
 | **Better Auth** | Supabase Auth | If you adopt the whole Supabase platform (DB + auth + storage + realtime) as one bundle. Reasonable all-in-one, but couples you to Supabase. |
 | **Next.js full-stack** | Separate React SPA + NestJS/Express API | If you anticipate a separate native mobile app soon and want a standalone API. For a v1 responsive web app, the monolith Next.js app is faster and simpler. |
-| **Separate charges & transfers** | Destination charges | If you ever move to *instant* settlement where the host is paid the moment the booker pays and there's no hold/approval window (not FitOut's model). |
+| **Collect→hold→on-demand `inhouse` transfer after the session** | PayMongo **payment splitting** (auto-split at settlement) | If you ever move to *instant* settlement where the host is paid the moment the booker pays and there's no hold/approval window (not FitOut's model). |
 | **PostGIS** | `cube` + `earthdistance` | If geo needs stay trivial (single-city, small dataset) and you want zero extra extension complexity. Simpler, slightly less precise; fine early, but PostGIS scales better and you'll likely want it. |
 | **UploadThing** | Cloudinary | When you need automatic image transforms/responsive thumbnails/zoom for listing galleries (Cloudinary) vs. cheapest fastest plumbing (UploadThing). |
 | **Railway/Render** | Vercel (frontend) + Railway/Render (worker) | Hybrid is common: Vercel for the Next.js frontend, separate service for webhooks/jobs. Adds moving parts; only split if you specifically want Vercel's frontend edge features. |
@@ -88,11 +96,11 @@ The product is optimized first for the **person booking** (the demand side is th
 |-------|-----|-------------|
 | **Application-level double-booking checks** ("query for conflicts, then insert") | Classic race condition: two concurrent requests both pass the check, both insert, space is double-booked, money is taken twice. The core value (a *real* booking) is violated. | **Postgres GiST exclusion constraint** + transaction (DB-enforced atomicity). |
 | **NextAuth / Auth.js (v5) for a new project** | As of Sept 2025 it's in security-patch-only mode; its own maintainers (now the Better Auth team) steer new projects elsewhere. No built-in 2FA/RBAC; fragmented v5 migration. | **Better Auth** (or Clerk/Supabase Auth). |
-| **Stripe Connect Standard accounts** for v1 | Pushes hosts to the full external Stripe dashboard (off-brand, heavier onboarding) and gives the platform less control over the experience. | **Express accounts** + Stripe-hosted onboarding. |
-| **Destination charges** for the booking flow | Transfers funds to the host immediately at payment — wrong when you must hold funds until the session is delivered and support request-to-book approval/decline + cancellations. | **Separate charges and transfers**, transfer post-delivery. |
+| **PayMongo "payment splitting"** for the booking flow | Settles the host's share at payment time — wrong when you must hold funds until the session is delivered and support request-to-book approval/decline + cancellations. | **Collect full amount to the platform wallet → HOLD → on-demand `inhouse` transfer** (`POST /v2/batch_transfers`) of (booking − commission) after the session. |
+| **Paying out to a host whose wallet isn't `activated`** (skipping the bookability gate) | Money lands nowhere or the transfer fails; the host may not be KYC-complete, breaking the "real booking" guarantee. | Gate bookability on the **`merchant.activated`** webhook + **`activation_status: activated`** + wallet **`status: activated`** (the `payouts_enabled` equivalent). |
 | **Storing local/naive timestamps** for slots | Timezone/DST bugs cause wrong slots, missed bookings, and disputes — a top booking-app failure mode. | `timestamptz` (UTC) in DB; convert at the edges with `@date-fns/tz`. |
 | **MongoDB / document DB as primary store** | Marketplace data is highly relational and money-critical (bookings ↔ payments ↔ users ↔ payouts), and you lose exclusion constraints + transactional guarantees that make double-booking prevention trivial. | **PostgreSQL**. |
-| **Building your own payout/KYC/escrow** | Massive compliance and money-transmission risk; unnecessary. | **Stripe Connect**. |
+| **Building your own payout/KYC/escrow** | Massive compliance and money-transmission risk; unnecessary. | **PayMongo Platforms / Linked Accounts** (hosted KYC + payout wallets). |
 | **Vercel-only deployment for the whole backend** | Serverless/edge function limits make long-lived webhook processing, retries, and always-on background jobs (delayed transfers, RSVP expiry) awkward. | Container host (**Railway/Render/Fly.io**), or hybrid with a dedicated worker. |
 | **Rolling your own calendar/date-picker from scratch** | Time sink + accessibility/timezone bugs. | **shadcn/ui** date components + **date-fns**. |
 | **Elasticsearch/Algolia for search at v1** | Over-engineered for a single-city catalog; another system to run and pay for. | Postgres full-text + PostGIS; add a dedicated search engine only if catalog/filters outgrow Postgres. |
@@ -114,13 +122,13 @@ The product is optimized first for the **person booking** (the demand side is th
 | Drizzle ORM 0.44+ | PostgreSQL 18 / `postgres` (postgres.js) driver | Use `postgres` (postgres.js) or `node-postgres`; postgres.js is the common Drizzle pairing. Confirm driver version against drizzle-orm release notes. |
 | PostgreSQL 18 | `btree_gist` + PostGIS 3.x | `btree_gist` required for the `space_id WITH =` part of the exclusion constraint; PostGIS for geo. Use the `postgis/postgis:18` Docker image locally. |
 | Better Auth 1.x | Drizzle adapter + Postgres | Better Auth has a first-class Drizzle adapter; store sessions in the same Postgres. |
-| Stripe Node SDK 18.x | Pinned Stripe API version | Pin `apiVersion` in the SDK; test Connect flows in Stripe test mode + Stripe CLI. |
+| PayMongo REST client | PayMongo `/v1` + `/v2` API | No official SDK — wrap `fetch` or an optional community TS lib. Verify `Paymongo-Signature` (HMAC-SHA256) on webhooks; send `Idempotency-Key` on POSTs; test against PayMongo test mode (tunnel webhooks with ngrok/cloudflared). |
 | Tailwind v4 | Next.js 16 / shadcn/ui | shadcn/ui supports Tailwind v4; verify component template versions on init. |
 ## Sources
 - /drizzle-team/drizzle-orm-docs (Context7) — Drizzle ORM docs lookup (resolved; current drizzle-kit 0.31.x) — HIGH
 - nextjs.org/blog/next-16-2 — Next.js 16.2 stable (Mar 2026 release) — HIGH
-- docs.stripe.com/connect/separate-charges-and-transfers & /connect/charges & /connect/destination-charges — charge-type semantics, hold-until-delivery guidance — HIGH
-- docs.stripe.com/connect/hosted-onboarding & /connect/webhooks & /connect/account-capabilities — Express onboarding, `account.updated`, `charges_enabled`/`payouts_enabled` — HIGH
+- docs.paymongo.com — Payments/Links, Platforms & Linked Accounts (hosted onboarding), `merchant.activated` / `activation_status` / wallet `status`, `POST /v2/batch_transfers` (on-demand `inhouse` payout), `Paymongo-Signature` webhook verification, `Idempotency-Key` — HIGH
+- Payments-provider decision revised Stripe Connect → **PayMongo** (2026-07-09) after a live PH sandbox spike: Stripe has no local PH acquiring / no QRPh; PayMongo is a PH-native BSP-regulated EMI with marketplace payouts. See PROJECT.md Key Decisions (D-20 supersedes D-17 & D-19) — HIGH
 - github.com/drizzle-team/drizzle-orm issues #2813 / #3388 — exclusion constraints not yet expressible in Drizzle schema (use raw SQL migration) — HIGH
 - github.com/prisma/prisma issue #17514 + prisma.io/docs unsupported-database-features — Prisma can't express exclusion constraints, falsely introspected as GiST indexes — HIGH
 - prisma.io/blog/announcing-prisma-orm-7-0-0 + infoq.com/news/2026/01/prisma-7-performance — Prisma 7 Rust-free, production-ready (alternative) — HIGH
