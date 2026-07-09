@@ -16,9 +16,12 @@ import { startPayoutOnboarding } from "@/app/actions/paymongo-connect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { PayoutStatus } from "./payout-status";
 
-/** The host's live payout state, derived server-side from host_payout and passed in as a prop. */
-export type PayoutStatus = "not_started" | "incomplete" | "enabled" | "paused";
+// PayoutStatus + derivePayoutStatus live in ./payout-status (a NON-client module) so Server
+// Components can call derivePayoutStatus — a "use client" module's exports become client
+// references and cannot be invoked server-side (that crashed the /host dashboard in UAT).
+export type { PayoutStatus } from "./payout-status";
 
 export function PayoutBanner({ status }: { status: PayoutStatus }) {
   const [pending, startTransition] = useTransition();
@@ -91,15 +94,5 @@ export function PayoutBanner({ status }: { status: PayoutStatus }) {
   );
 }
 
-/** Derive the banner state from a host_payout row (or its absence). Shared by the dashboard + pages. */
-export function derivePayoutStatus(
-  row:
-    | { paymongoAccountId: string | null; payoutsEnabled: boolean; activationStatus: string }
-    | undefined
-    | null,
-): PayoutStatus {
-  if (!row || !row.paymongoAccountId) return "not_started";
-  if (row.payoutsEnabled) return "enabled";
-  if (row.activationStatus === "declined") return "paused";
-  return "incomplete";
-}
+// derivePayoutStatus moved to ./payout-status (see the import note above) so Server Components
+// can call it. The banner is a pure presentational client component driven by the `status` prop.

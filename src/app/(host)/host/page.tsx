@@ -14,7 +14,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hostPayout, listing } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
-import { PayoutBanner, derivePayoutStatus } from "@/components/host/payout-banner";
+import { PayoutBanner } from "@/components/host/payout-banner";
+import { derivePayoutStatus } from "@/components/host/payout-status";
 
 export default async function HostDashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
