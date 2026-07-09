@@ -12,8 +12,8 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Auth & Accounts** - Single account with booker + host capabilities, sessions, password reset, basic profile
-- [ ] **Phase 2: Listings & Host Onboarding** - Hosts create/edit listings with photos, pricing, booking mode; Stripe Connect onboarding gates bookability
+- [x] **Phase 1: Auth & Accounts** - Single account with booker + host capabilities, sessions, password reset, basic profile
+- [x] **Phase 2: Listings & Host Onboarding** - Hosts create/edit listings with photos, pricing, booking mode; PayMongo onboarding gates bookability
 - [ ] **Phase 3: Availability & the Double-Booking Guarantee** - Availability rules, real-time calendar, and the DB exclusion constraint that makes overlaps structurally impossible
 - [ ] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search
 - [ ] **Phase 5: Payments & Payouts** - Stripe Connect charge, commission, delayed host payout, webhook-as-source-of-truth, refunds
@@ -48,12 +48,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Anyone can view a published listing's detail page with photos, description, amenities, location, price, and a book CTA
   4. A host completes Stripe Connect (KYC) onboarding, and a listing only becomes bookable once the host's payouts are enabled (tracked via the account.updated webhook)
 **Plans**: 6 plans in 3 waves
-  - [ ] 02-01-PLAN.md — Wave 1: data model (listing/photo/amenity/tag/host_payout + PostGIS) + D-08 vocab + draft/publish Zod + deriveBookable + Wave-0 test scaffold + [BLOCKING] schema push
-  - [ ] 02-02-PLAN.md — Wave 1: deps + FitOut Coral/success tokens + 15 shadcn components + WR-06 closure (rate-limit + audit on capability-activate actions)
-  - [ ] 02-03-PLAN.md — Wave 2: listing server actions (create/save-step/publish-gate/unlist/soft-delete) + Airbnb-style wizard + address autocomplete + Your-listings grid
-  - [ ] 02-04-PLAN.md — Wave 3: Cloudinary signed direct upload (sign endpoint + helpers) + photo metadata actions + @dnd-kit reorder gallery wired into the wizard
-  - [ ] 02-05-PLAN.md — Wave 2: public listing detail page (un-gated, draft/unlisted 404, react-leaflet fuzzed/exact map, state-reflecting book CTA) + privacy-aware projection
-  - [ ] 02-06-PLAN.md — Wave 3: Stripe Connect Express onboarding + account.updated webhook (signature-verified, idempotent) bookability gate + payout banner/return/refresh
+  - [x] 02-01-PLAN.md — Wave 1: data model (listing/photo/amenity/tag/host_payout + PostGIS) + D-08 vocab + draft/publish Zod + deriveBookable + Wave-0 test scaffold + [BLOCKING] schema push
+  - [x] 02-02-PLAN.md — Wave 1: deps + FitOut Coral/success tokens + 15 shadcn components + WR-06 closure (rate-limit + audit on capability-activate actions)
+  - [x] 02-03-PLAN.md — Wave 2: listing server actions (create/save-step/publish-gate/unlist/soft-delete) + Airbnb-style wizard + address autocomplete + Your-listings grid
+  - [x] 02-04-PLAN.md — Wave 3: Cloudinary signed direct upload (sign endpoint + helpers) + photo metadata actions + @dnd-kit reorder gallery wired into the wizard
+  - [x] 02-05-PLAN.md — Wave 2: public listing detail page (un-gated, draft/unlisted 404, react-leaflet fuzzed/exact map, state-reflecting book CTA) + privacy-aware projection
+  - [x] 02-06-PLAN.md — Wave 3: PayMongo Linked Accounts onboarding + merchant.activated webhook (signature-verified, idempotent) bookability gate + payout banner/return/refresh
 **UI hint**: yes
 
 ### Phase 3: Availability & the Double-Booking Guarantee
@@ -135,8 +135,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auth & Accounts | 3/4 | In Progress | - |
-| 2. Listings & Host Onboarding | 0/6 | Not started | - |
+| 1. Auth & Accounts | 4/4 | Complete | - |
+| 2. Listings & Host Onboarding | 6/6 | Built (tests green; verify/security/UAT pending) | 2026-07-09 |
 | 3. Availability & Double-Booking Guarantee | 0/TBD | Not started | - |
 | 4. Booking Core & Search | 0/TBD | Not started | - |
 | 5. Payments & Payouts | 0/TBD | Not started | - |

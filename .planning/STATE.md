@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planned
-stopped_at: Phase 2 re-planned for PayMongo — 02-06 rewritten (Linked Accounts onboarding + merchant.activated gate), 02-01 payout schema/test-anchors retargeted, 02-CONTEXT reworded (D-17/D-19 superseded by D-20); plan-check PASSED (0 blockers) + 4 tightenings applied. Residual: 02-VALIDATION.md still cites tests/stripe/*. Next: fix 02-VALIDATION (optional), then /gsd-execute-phase 2.
-last_updated: "2026-07-09T06:15:00.000Z"
+status: in_progress
+stopped_at: Phase 2 EXECUTED — all 6 plans built & committed on dev; full suite 29 files/135 tests green, `npm run build` PASS, migrations applied to live DB (incl. paymongo_event). PayMongo onboarding + merchant.activated bookability gate live (tests mock PayMongo; real hosted onboarding needs Platforms beta for UAT). Pending: /gsd-verify-work 2 + /gsd-secure-phase 2 + manual UATs. Next: verify/secure, then Phase 3.
+last_updated: "2026-07-09T21:15:00.000Z"
 last_activity: 2026-07-09
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 10
-  completed_plans: 4
-  percent: 40
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 2 (Listings & Host Onboarding) — PLANNED, ready to execute
-Plan: 6 plans in 3 waves (W1: 01 data-model+PostGIS, 02 deps/tokens/WR-06 · W2: 03 wizard, 05 public-page · W3: 04 photos, 06 PayMongo gate)
-Status: Phase 02 PLANNED — research (HIGH confidence), pattern map, Nyquist VALIDATION, and 6 PLAN.md files created; plan-checker PASSED (0 blockers, 4 minor warnings; LIST-01..06 + PAY-04 fully covered). Geocoding/maps = Photon/LocationIQ + react-leaflet (OSM) + PostGIS this phase (D-18). WR-06 (rate-limit + audit on capability-activate) sequenced in Wave 1 (Plan 02) before payouts wire to canHost in Wave 3 (Plan 06). **PAYMENTS SWITCHED Stripe → PayMongo (D-20, supersedes D-17/D-19)** for the PH launch (validated by a live sandbox spike): CLAUDE.md + PROJECT.md + 02-02 updated via quick 260709-id2. 02-06 re-planned (86c7b20 + fixes a8614bc — PayMongo Linked Accounts onboarding + Paymongo-Signature-verified idempotent merchant.activated gate), 02-01 payout schema/test-anchors retargeted (29620bc), 02-CONTEXT reworded + D-17/D-19 superseded (ecdc322). Plan-check PASSED (0 blockers; 4 tightenings applied: session/email resolution, timingSafeEqual length-guard, create-once row lock, onboarding test anchor). deriveBookable + truth-table test untouched. RESIDUAL: 02-VALIDATION.md still references tests/stripe/* + account.updated (active mismatch — regen pending); 02-RESEARCH/02-PATTERNS stay Stripe-era historical (non-blocking). Next: /gsd-execute-phase 2 (optionally fix 02-VALIDATION first).
+Phase: 2 (Listings & Host Onboarding) — EXECUTED (all 6 plans built + green); pending verify/security/UAT
+Plan: 6/6 done across 3 waves — 01 data-model+PostGIS+host_payout, 02 deps/tokens/WR-06, 03 wizard+actions, 05 public page, 04 photos, 06 PayMongo onboarding+merchant.activated gate
+Status: Phase 02 BUILT. All 6 plans committed on `dev` (23 impl commits + summaries); full suite **29 files / 135 tests PASS**, `npm run build` PASS, migrations applied to the live DB (incl. paymongo_event, migrate-tracked). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit, session resolved for id+email), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`), payout banner/return/refresh. Tests fully mock PayMongo. PENDING: (1) /gsd-verify-work 2 (UAT), (2) /gsd-secure-phase 2 (threat mitigations), (3) manual UATs — real PayMongo Linked-Accounts hosted onboarding (needs Platforms beta enablement), Cloudinary real upload, Leaflet/OSM map visuals, Google OAuth (dev .env has placeholders). Next: /gsd-verify-work 2 + /gsd-secure-phase 2, then Phase 3.
 Last activity: 2026-07-09
 
-Progress: [████░░░░░░] 40%
+Progress: [██████████] 100% (plans)
 
 ## Performance Metrics
 
