@@ -76,6 +76,15 @@ export default async function EditListingPage({
     amenities: amenities.map((a) => a.amenity),
     activityTags: tags.map((t) => t.tag),
     photoCount: photos.length,
+    // Ordered { id, publicId, url, position } for the client uploader/reorder grid (0 = cover, D-04).
+    photos: [...photos]
+      .sort((a, b) => a.position - b.position)
+      .map((p) => ({
+        id: p.id,
+        publicId: p.publicId,
+        url: p.url,
+        position: p.position,
+      })),
   };
 
   return (

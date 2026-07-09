@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import {
   CheckIcon,
   ChevronLeftIcon,
-  ImageIcon,
   MinusIcon,
 } from "lucide-react";
 
@@ -42,6 +41,8 @@ import {
   AddressAutocomplete,
   type ResolvedAddress,
 } from "@/components/listing/address-autocomplete";
+import { PhotoUploader } from "@/components/listing/photo-uploader";
+import { type ListingPhotoRow } from "@/app/actions/listing-photo";
 import {
   Form,
   FormControl,
@@ -101,6 +102,7 @@ export type WizardListing = {
   amenities: string[];
   activityTags: string[];
   photoCount: number;
+  photos: ListingPhotoRow[];
 };
 
 const STEPS = [
@@ -163,6 +165,9 @@ export function ListingWizard({
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  // Live photo count — seeded from the server, kept current by the PhotoUploader as photos are
+  // added/removed, so the D-02 publish checklist ("3+ photos") reflects real rows without a reload.
+  const [photoCount, setPhotoCount] = useState(listing.photoCount);
   const symbol = currencySymbol(listing.currency);
 
   const form = useForm<DraftListingInput>({
@@ -286,7 +291,7 @@ export function ListingWizard({
     { label: "Capacity", done: Boolean(values.maxOccupancy && values.maxOccupancy > 0), step: 1 },
     { label: "Hourly rate", done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0), step: 4 },
     { label: "Day rate", done: Boolean(values.dayRateCents && values.dayRateCents > 0), step: 4 },
-    { label: "3+ photos", done: listing.photoCount >= 3, step: 3 },
+    { label: "3+ photos", done: photoCount >= 3, step: 3 },
     {
       label: "Verified email",
       done: emailVerified,
@@ -576,19 +581,13 @@ export function ListingWizard({
             </div>
           )}
 
-          {/* --- Step 3: Photos (Plan-04 seam) ------------------------------------------------ */}
+          {/* --- Step 3: Photos (Plan-04 — signed direct-to-Cloudinary uploader + dnd reorder) - */}
           {step === 3 && (
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <ImageIcon className="mx-auto size-8 text-muted-foreground" />
-              <h2 className="mt-3 text-lg font-medium">Add photos of your space</h2>
-              <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-                Listings with great photos get booked more. Add at least 3 to publish — the first one
-                is your cover.
-              </p>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Photo upload arrives in the next update. {listing.photoCount} added so far.
-              </p>
-            </div>
+            <PhotoUploader
+              listingId={listing.id}
+              initialPhotos={listing.photos}
+              onCountChange={setPhotoCount}
+            />
           )}
 
           {/* --- Step 4: Pricing -------------------------------------------------------------- */}
