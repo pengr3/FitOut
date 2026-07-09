@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planned
-stopped_at: Phase 2 planned — 6 plans in 3 waves; plan-checker PASSED (0 blockers, 4 minor warnings)
-last_updated: "2026-06-04T15:58:45.844Z"
-last_activity: 2026-06-04
+stopped_at: Payments provider switched Stripe → PayMongo (D-20, supersedes D-17/D-19); planning docs updated via quick 260709-id2. Next: focused re-plan of 02-06 for PayMongo Linked Accounts + merchant.activated gate.
+last_updated: "2026-07-09T05:13:16.866Z"
+last_activity: 2026-07-09
 progress:
   total_phases: 8
   completed_phases: 1
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 2 (Listings & Host Onboarding) — PLANNED, ready to execute
-Plan: 6 plans in 3 waves (W1: 01 data-model+PostGIS, 02 deps/tokens/WR-06 · W2: 03 wizard, 05 public-page · W3: 04 photos, 06 Stripe gate)
-Status: Phase 02 PLANNED — research (HIGH confidence), pattern map, Nyquist VALIDATION, and 6 PLAN.md files created; plan-checker PASSED (0 blockers, 4 minor warnings; LIST-01..06 + PAY-04 fully covered, D-01..D-19 traced). Post-research decisions: Stripe SDK pinned stripe@^22 + apiVersion 2026-05-27.dahlia (D-17); geocoding/maps = Photon/LocationIQ + react-leaflet (OSM) + PostGIS this phase (D-18); Stripe Connect country=US via STRIPE_CONNECT_COUNTRY (D-19). WR-06 (rate-limit + audit on capability-activate) sequenced in Wave 1 (Plan 02) before payouts wire to canHost in Wave 3 (Plan 06). Next: /gsd-execute-phase 2.
-Last activity: 2026-06-04
+Plan: 6 plans in 3 waves (W1: 01 data-model+PostGIS, 02 deps/tokens/WR-06 · W2: 03 wizard, 05 public-page · W3: 04 photos, 06 PayMongo gate)
+Status: Phase 02 PLANNED — research (HIGH confidence), pattern map, Nyquist VALIDATION, and 6 PLAN.md files created; plan-checker PASSED (0 blockers, 4 minor warnings; LIST-01..06 + PAY-04 fully covered). Geocoding/maps = Photon/LocationIQ + react-leaflet (OSM) + PostGIS this phase (D-18). WR-06 (rate-limit + audit on capability-activate) sequenced in Wave 1 (Plan 02) before payouts wire to canHost in Wave 3 (Plan 06). **PAYMENTS SWITCHED Stripe → PayMongo (D-20, supersedes D-17/D-19)** for the PH launch (validated by a live sandbox spike): CLAUDE.md + PROJECT.md + 02-02 updated via quick 260709-id2. Still TODO — re-plan 02-06 (Stripe Connect Express → PayMongo Linked Accounts + merchant.activated gate) and mark D-17/D-19 superseded in 02-CONTEXT.md (their canonical location). Next: re-plan 02-06, then /gsd-execute-phase 2 (02-01..05 are payment-agnostic and can execute now).
+Last activity: 2026-07-09
 
 Progress: [████░░░░░░] 40%
 
@@ -66,7 +66,8 @@ Recent decisions affecting current work:
 
 - [Roadmap]: 8-phase dependency-driven order — identity → supply → availability + double-booking guarantee → booking core + search (no payment) → payments → full instant/request integration → bookings management + cancellation → group bookings. Ordering is non-negotiable for correctness.
 - [Roadmap]: Double-booking prevented at the DB level (Postgres GiST exclusion constraint on tstzrange, scoped by listing) — must exist before any booking insert (Phase 3).
-- [Roadmap]: Stripe Connect bookability gate built in Phase 2 (gate listing bookability, not creation, on payouts_enabled) so it can never be bypassed later.
+- [Roadmap]: Bookability gate built in Phase 2 (gate listing bookability, not creation, on payout-readiness) so it can never be bypassed later — now via PayMongo `merchant.activated`/`activation_status: activated` (D-20); previously Stripe Connect `payouts_enabled`.
+- [Quick 260709-id2]: Payments provider switched Stripe → **PayMongo** for the Philippines launch (D-20, supersedes D-17/D-19) — QRPh + GCash + Maya + cards; hold-until-session via on-demand `inhouse` wallet-to-wallet transfers (NOT payment-splitting); bookability gate = `merchant.activated`. Validated by a live sandbox spike (auth/QRPh-accept/card-void confirmed; card manual-capture is a gated advanced feature; QRPh refunds supported per docs). Follow-ups: re-plan 02-06; mark D-17/D-19 superseded in 02-CONTEXT.md.
 - [Phase ?]: [01-01]: Postgres image is postgis/postgis:18-3.6 with volume at /var/lib/postgresql (PG18+ convention); bare :18 tag is not on Docker Hub
 - [Phase ?]: [01-01]: Integration tests isolate to a dedicated 'test' Postgres schema and migrate ./drizzle before assertions; shared Resend/Cloudinary/Google mocks in tests/helpers/mocks.ts
 - [Phase ?]: [01-01]: jose NOT a direct dep (Apple OAuth deferred); src/lib/db/schema.ts is a placeholder owned by the Better Auth CLI until Plan 02
@@ -77,7 +78,7 @@ Recent decisions affecting current work:
 - [Phase 01]: [01-03]: Logged-out forms pattern — client component RHF + zodResolver(sharedSchema) for UX, SAME schema re-validates in the server action / Better Auth re-checks server-side; forgot-password is enumeration-safe (uniform message), login error is generic
 - [Phase 01]: [01-03]: Patched a BROKEN transitive dep (@better-auth/kysely-adapter vs kysely@0.29 missing exports) that 500'd every route + broke next build — scripts/patch-kysely-adapter.mjs (postinstall), patches dead sqlite-dialect code only. Also: src/middleware.ts kept despite Next 16 'proxy' deprecation (works as required)
 - [Phase 01]: [01-04]: Public/private profile split enforced by an ALLOW-LIST projection (src/lib/profile.ts publicProfile → only avatarUrl/firstName/bio/city/createdAt) so a new private column can never silently leak (D-09/D-10); member-since rendered locale-aware (Pitfall 5)
-- [Phase 01]: [01-04]: Activate-later capability (activateHosting/activateBooking) flips canHost/canBook via a privileged db.update after a session check — same input:false mechanism as signup; both capabilities COEXIST (neither clears the other, D-03). No Stripe here (Phase 2, D-05)
+- [Phase 01]: [01-04]: Activate-later capability (activateHosting/activateBooking) flips canHost/canBook via a privileged db.update after a session check — same input:false mechanism as signup; both capabilities COEXIST (neither clears the other, D-03). No payments here (Phase 2, D-05)
 - [Phase 01]: [01-04]: Logged-in surfaces gate per-page in the route-group LAYOUT via auth.api.getSession() — (app) booker shell + (host) dashboard; (host) layout is the REAL canHost gate (redirect !canHost→/), middleware stays optimistic-only. /host seam from Plan 03 now filled
 - [Phase 01]: [01-04]: Avatar upload re-validates image/* + ≤5MB with a Zod File schema in the server action before the server-only Cloudinary call; stores avatarUrl + avatarPublicId. Real Cloudinary upload is a manual check once CLOUDINARY_* env vars are set (proven via mock)
 
@@ -94,11 +95,18 @@ None yet.
 Open product decisions to resolve before their relevant phase begins (from research):
 
 - Phase 3: Slot granularity (30- vs 60-min minimum booking unit).
-- Phase 6: Request-to-book expiry SLA (must be shorter than Stripe's ~7-day authorization hold limit).
-- Phase 7: Cancellation/refund policy matrix (who × time-to-start × % refunded × commission × payout) — blocks the cancel flow.
+- Phase 6: Request-to-book expiry SLA (must be shorter than PayMongo's ~7-day CARD authorization-hold limit; note QRPh/GCash/Maya have NO auth-hold — capture-now → refund-on-decline, and card manual-capture is a gated advanced feature requiring PayMongo enablement).
+- Phase 7: Cancellation/refund policy matrix (who × time-to-start × % refunded × commission × payout) — blocks the cancel flow. Note PayMongo QRPh/e-wallet refund rule: same-day = full-refund-only; partial only from the next day.
 - Phase 8: Whether invited attendees need an account to RSVP (v1 default: tokenized link, no account); group capacity source (listing capacity vs per-booking limit).
 - Phase 2 / Phase 5: Cold-start liquidity — consider lightweight admin/seed tooling and a zero-result-search metric; do not over-build.
-- Before Phase 2 wires Stripe payouts to canHost: close deferred Phase-1 security items WR-06 (add rate-limit + audit trail on capability-activate server actions) and WR-04 (email-send retry/observability). Tracked in 01-REVIEW.md (deferred) + 01-SECURITY.md audit notes.
+- Before Phase 2 wires PayMongo payouts to canHost: close deferred Phase-1 security items WR-06 (add rate-limit + audit trail on capability-activate server actions) and WR-04 (email-send retry/observability). Tracked in 01-REVIEW.md (deferred) + 01-SECURITY.md audit notes.
+- Phase 2 (02-06): PayMongo Platforms / Linked Accounts is beta + sales-gated, and card manual-capture needs "advanced card features" enablement — both are PayMongo support requests with lead time; request early.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260709-id2 | Swap payments provider Stripe → PayMongo in planning docs | 2026-07-09 | 1eebe11 | [260709-id2-swap-payments-provider-stripe-to-paymong](./quick/260709-id2-swap-payments-provider-stripe-to-paymong/) |
 
 ## Deferred Items
 
@@ -110,6 +118,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-04T15:58:45.844Z
-Stopped at: Phase 2 planned — 6 plans in 3 waves; plan-checker PASSED
-Resume file: .planning/phases/02-listings-host-onboarding/ (run /gsd-execute-phase 2)
+Last session: 2026-07-09T05:13:16.866Z
+Stopped at: Payments provider switched Stripe → PayMongo (quick 260709-id2 — CLAUDE.md/PROJECT.md/02-02 updated; D-20 supersedes D-17/D-19). Next: focused re-plan of 02-06 (Stripe Connect Express → PayMongo Linked Accounts + merchant.activated gate) and mark D-17/D-19 superseded in 02-CONTEXT.md; then /gsd-execute-phase 2 (02-01..05 are payment-agnostic and can run now). Real-world lead-time action: request PayMongo Platforms/Linked-Accounts beta + advanced-card-features (manual capture) from PayMongo support.
+Resume file: .planning/phases/02-listings-host-onboarding/ (re-plan 02-06, then /gsd-execute-phase 2)
