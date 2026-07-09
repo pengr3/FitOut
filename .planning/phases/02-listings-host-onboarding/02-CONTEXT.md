@@ -6,9 +6,9 @@
 <domain>
 ## Phase Boundary
 
-Turn the host **capability** (built in Phase 1) into a real, **sellable product**. A host creates/edits a listing (title, description, space type, address, capacity, amenities, photos, hourly + day pricing, booking mode, status), anyone can view a **published** listing's public detail page, and the host completes **Stripe Connect (Express) payout onboarding**. The signature constraint: **bookability — not listing creation/publishing — is gated on `payouts_enabled`**, so a slot can never be sold to a host who cannot be paid.
+Turn the host **capability** (built in Phase 1) into a real, **sellable product**. A host creates/edits a listing (title, description, space type, address, capacity, amenities, photos, hourly + day pricing, booking mode, status), anyone can view a **published** listing's public detail page, and the host completes **PayMongo hosted payout onboarding** (Platforms / Linked Accounts). The signature constraint: **bookability — not listing creation/publishing — is gated on `payouts_enabled`** (the cached gate flag, set from PayMongo `merchant.activated`), so a slot can never be sold to a host who cannot be paid.
 
-**In scope:** listing data model (owned by the Phase-1 `user`), the multi-step listing creation/edit wizard, listing photo gallery (Cloudinary), pricing fields, booking-mode flag (instant vs request-to-book — stored, not yet wired), status lifecycle (draft/published/unlisted), the public listing detail page, Stripe Connect Express onboarding (hosted), the `account.updated`-driven bookability gate, and enforcement of the Phase-1 soft email-verification gate at publish.
+**In scope:** listing data model (owned by the Phase-1 `user`), the multi-step listing creation/edit wizard, listing photo gallery (Cloudinary), pricing fields, booking-mode flag (instant vs request-to-book — stored, not yet wired), status lifecycle (draft/published/unlisted), the public listing detail page, PayMongo hosted payout onboarding (Linked Accounts), the `merchant.activated`-driven bookability gate, and enforcement of the Phase-1 soft email-verification gate at publish.
 
 **Out of scope (later phases):**
 - Availability rules, operating hours, real calendar, and the double-booking exclusion constraint → **Phase 3**
@@ -24,7 +24,7 @@ Turn the host **capability** (built in Phase 1) into a real, **sellable product*
 
 ### Listing Creation Flow
 - **D-01:** Listing creation/edit uses an **Airbnb-style guided multi-step wizard** (e.g. type → details → location → photos → pricing → booking mode → review) with progress indication and the listing **saved as a draft between steps**. Needs a new stepper + select/combobox (shadcn `form`/`input`/`textarea`/`card`/`dialog` already exist; no date components — those are Phase 3).
-- **D-02:** **Draft → Published gate is strict:** a listing can only be published when ALL core fields are complete (title, description, space type, address, capacity, both rates) **AND** there are **≥3 photos** **AND** the host's **email is verified**. This is where the Phase-1 soft email-verification gate (01-CONTEXT D-07) is enforced. Publishing does **not** require Stripe onboarding (see D-12).
+- **D-02:** **Draft → Published gate is strict:** a listing can only be published when ALL core fields are complete (title, description, space type, address, capacity, both rates) **AND** there are **≥3 photos** **AND** the host's **email is verified**. This is where the Phase-1 soft email-verification gate (01-CONTEXT D-07) is enforced. Publishing does **not** require payout onboarding (see D-12).
 - **D-03:** **Both an hourly rate and a day rate are required** on every listing (flat rates only — dynamic/surge/tiered pricing is out of scope per REQUIREMENTS). Single currency (single-region launch). How hourly and day bookings coexist on a calendar/day is a **Phase 3** concern (slot granularity is an open Phase-3 decision); do not solve it here.
 - **D-04:** **Photos:** minimum **3** to publish, the **first photo is the cover**, drag-to-reorder (LIST-02 "order multiple photos"). Generous max (planner's call, ~20). Upload via **signed direct-to-Cloudinary client uploads** (`cloudinary.utils.api_sign_request`) — the graduation path already noted in `src/lib/cloudinary.ts`; do NOT route large galleries through the server like the Phase-1 avatar. Suggested folder convention `fitout/listings/<listingId>`.
 
@@ -43,24 +43,26 @@ Turn the host **capability** (built in Phase 1) into a real, **sellable product*
 - **D-11:** The v1 listing detail page **shows a map** with an approximate pin/area (fuzzed circle when approximate; exact pin when the host shows exact / after booking). This is the single-listing map, distinct from the v2 map-search feature (DISC-01). Adds a maps-embed dependency.
 - **D-11b:** **No hard region geofence** on listing addresses — allow any address; rely on search to surface local results. Keeps the data model region-capable per the PROJECT constraint without baking in multi-region logic.
 
-### Stripe Connect Onboarding & the Bookability Gate
-- **D-12:** Host can create, edit, **and publish** listings with **no Stripe yet**; a **persistent banner/checklist** nudges them to finish payout setup. Payout onboarding is required **only to make a listing bookable** (matches SC#1 + SC#4). NOT pushed immediately on "Start hosting," NOT blocking publish.
+### PayMongo Onboarding & the Bookability Gate
+- **D-12:** Host can create, edit, **and publish** listings with **no payout setup yet**; a **persistent banner/checklist** nudges them to finish payout setup. Payout onboarding is required **only to make a listing bookable** (matches SC#1 + SC#4). NOT pushed immediately on "Start hosting," NOT blocking publish.
 - **D-13:** A published-but-not-yet-payable listing's **public detail page is viewable** (per SC#3 — photos, price, description, location) with the **book CTA disabled / "not bookable yet"**; the host sees a "finish payout setup to accept bookings" prompt. (Actual booking is Phase 4+, so the CTA is a state-reflecting placeholder here.)
-- **D-14:** **Bookability is a live, webhook-driven state.** It is computed from the host's Stripe `payouts_enabled` (tracked via the `account.updated` webhook — PAY-04). If payouts later become **disabled**, the host's listings **immediately auto-revert to not-bookable** (and drop from search). **One Stripe Connect Express account per host** (`user`); all of that host's listings share it.
+- **D-14:** **Bookability is a live, webhook-driven state.** It is computed from the host's cached `payouts_enabled` flag, set from PayMongo `merchant.activated` / `activation_status: activated` (tracked via the `merchant.activated` webhook — PAY-04). If the host's account is later **declined/deactivated** (`merchant.declined`), the host's listings **immediately auto-revert to not-bookable** (and drop from search). **One PayMongo Linked Account per host** (`user`); all of that host's listings share it.
 - **D-15:** **Bookability formula (intent):** a listing is bookable ⇔ `status == published` AND host `email_verified` AND host `payouts_enabled`. Bookability is the gate the rest of the system reads; "published" alone never implies sellable.
 - **D-16 (forward intent for Phase 4):** Published-but-not-bookable listings are **excluded from search/discovery** (avoid booker dead-ends — demand-side first), while their detail page remains directly viewable by link. Captured now so Phase 4 honors it.
 
 ### Resolved Open Questions (post-research — 2026-06-04)
-- **D-17:** **Stripe SDK = `stripe@^22`** (22.2.x), `apiVersion` pinned to `2026-05-27.dahlia`. CLAUDE.md's `18.x` row is **stale** (18.x is now only on the alpha `beta` tag); the locked *intent* — Express accounts, Stripe-hosted onboarding, separate charges & transfers, pinned `apiVersion` — is fully preserved on 22.x. The version drift is recorded in STATE.md.
+- **D-17:** ~~**Stripe SDK = `stripe@^22`** (22.2.x), `apiVersion` pinned to `2026-05-27.dahlia`. CLAUDE.md's `18.x` row is **stale** (18.x is now only on the alpha `beta` tag); the locked *intent* — Express accounts, Stripe-hosted onboarding, separate charges & transfers, pinned `apiVersion` — is fully preserved on 22.x. The version drift is recorded in STATE.md.~~
+  - **SUPERSEDED 2026-07-09 by D-20 (PayMongo)** — Stripe SDK/Connect is no longer used. PayMongo has **no official SDK**; Plan 06 builds a thin `fetch` REST wrapper (`src/lib/paymongo.ts`, HTTP Basic auth with the secret key as username). No `apiVersion` pin applies. (Kept here for traceability — this is the canonical record of the retired decision.)
 - **D-18:** **Geocoding + maps = Photon/LocationIQ autocomplete + react-leaflet (OpenStreetMap tiles)** — cost-disciplined for the single-city launch (no per-keystroke billing). The listing model stores structured address + lat/lng **provider-agnostically** (D-10), so the provider stays swappable. Research recommends **enabling PostGIS this phase** (Drizzle `geometry(..., { type:'point', mode:'xy', srid:4326 })`; local image is already `postgis/postgis:18`; custom `CREATE EXTENSION IF NOT EXISTS postgis` ordered first in the migration) — D-10 left enablement to the planner, who confirms based on this research. Mind the PostGIS `x=lng, y=lat` axis-swap pitfall.
-- **D-19:** **Stripe Connect Express launch country = `US`** — connected accounts created with `country: 'US'`. Read from config/env (e.g. `STRIPE_CONNECT_COUNTRY`, default `US`) rather than hardcoded, but US is the launch market.
+- **D-19:** ~~**Stripe Connect Express launch country = `US`** — connected accounts created with `country: 'US'`. Read from config/env (e.g. `STRIPE_CONNECT_COUNTRY`, default `US`) rather than hardcoded, but US is the launch market.~~
+  - **SUPERSEDED 2026-07-09 by D-20 (PayMongo)** — Stripe SDK/Connect is no longer used. PayMongo is **PH-native**; there is **no country/env toggle** (`STRIPE_CONNECT_COUNTRY` is dropped). (Kept here for traceability — this is the canonical record of the retired decision.)
 
 ### Claude's Discretion
 - **"Unlisted" status semantics:** a previously-published listing the host takes off-market — hidden from the public, **keeps all data, re-publishable**. (status enum: `draft` / `published` / `unlisted`.)
 - **Edits to a published listing go live immediately** — no moderation/review queue in v1.
 - **Soft-delete / archive** listings rather than hard-delete (forward-safe for when bookings FK to listings in later phases).
 - Listing detail page **URL/slug** scheme; exact max photo count; image transform/thumbnail presets via Cloudinary; precise wizard step grouping and field-level validation messages — standard approaches, planner/researcher's call.
-- **Stripe Connect specifics** (Express account creation timing, hosted onboarding link generation, `account.updated` / `charges_enabled` / `payouts_enabled` handling, webhook signature verification, Stripe CLI for local dev) — follow CLAUDE.md "Marketplace Payments" guidance; researcher refines.
+- **PayMongo Linked-Accounts specifics** (Linked-Account creation timing, hosted onboarding link generation, `merchant.activated` / `activation_status` / wallet `status` handling, `Paymongo-Signature` webhook verification, tunnel (ngrok/cloudflared) for local webhook dev) — follow CLAUDE.md "Marketplace Payments" guidance; researcher refines.
 - **Lightweight cold-start seed tooling** (a handful of demo listings) is acceptable for the planner to add — the `role` field already exists for an admin hook — but **do not over-build** (per STATE.md note). Not a user-facing feature.
 
 </decisions>
@@ -72,11 +74,11 @@ Turn the host **capability** (built in Phase 1) into a real, **sellable product*
 
 ### Prescriptive Stack (LOCKED — read first)
 - `CLAUDE.md` — full prescriptive stack. For this phase specifically:
-  - **§ "Marketplace Payments — Prescriptive Detail"** + the Stripe rows: **Stripe Connect Express accounts**, **Stripe-hosted onboarding**, **separate charges & transfers** (do NOT use destination charges), `account.updated` / `charges_enabled` / `payouts_enabled` webhook signals, **Stripe Node SDK 18.x** (pin `apiVersion`), **Stripe CLI** for local webhook forwarding.
+  - **§ "Marketplace Payments — Prescriptive Detail"** + the PayMongo rows (D-20): **PayMongo Platforms / Linked Accounts** (hosted-redirect KYC), **hold-until-session payout** (collect the full amount to the platform wallet → HOLD → on-demand `inhouse` `POST /v2/batch_transfers` of (booking − commission) after the session; do NOT use PayMongo "payment splitting"), `merchant.activated` / `activation_status` / wallet `status` webhook signals, **no official SDK** (thin `fetch` REST wrapper), **`Paymongo-Signature`** HMAC-SHA256 webhook verification + **`Idempotency-Key`** on POSTs, and a **tunnel (ngrok/cloudflared)** for local webhook forwarding (no Stripe-CLI equivalent).
   - **Cloudinary** for listing photo upload/delivery (UploadThing is the named alternative variant — Cloudinary chosen in Phase 1 D-11 for galleries/transforms).
   - **Drizzle ORM 0.44+ / drizzle-kit** — new `listing` (+ photo/amenity) tables are **hand-authored** in `src/lib/db/schema.ts` (Better Auth only owns the auth tables); generate migrations with drizzle-kit. **PostGIS / `geography(Point,4326)` + GiST** for geo (see D-10; enablement is a planner call).
   - **Next.js 16.2 App Router + React 19 + TS 5.7+**, **React Hook Form + Zod** (shared client/server validation — re-validate on the server, never trust the client for price/capacity), **shadcn/ui + Radix + Tailwind v4**.
-  - **"What NOT to Use"** — no application-level booking checks (Phase 3), no Connect Standard accounts, no destination charges, no naive timestamps (`timestamptz` everywhere).
+  - **"What NOT to Use"** — no application-level booking checks (Phase 3); do NOT use PayMongo **"payment splitting"** (it pays the host at settlement — always collect → HOLD → on-demand `inhouse` transfer after the session; **never pay the host at booking time**); no naive timestamps (`timestamptz` everywhere).
 
 ### Product Intent
 - `.planning/PROJECT.md` — vision, core value ("Find & book a space"), constraints (responsive web, single-region but region-capable model, real payments), Key Decisions (host's choice instant vs request-to-book; demand-side first).
@@ -98,7 +100,7 @@ _No external ADRs or design specs beyond the above — decisions are fully captu
 ### Reusable Assets
 - **`src/lib/cloudinary.ts`** — `uploadAvatar` via server `upload_stream`. Its header comment **prescribes the Phase-2 path**: "graduate to **signed direct-to-Cloudinary client uploads** (`cloudinary.utils.api_sign_request`)" for galleries. Reuse the configured client; add a sign-request endpoint.
 - **`src/app/(host)/host/page.tsx`** — host dashboard with a **disabled "Create a listing (coming in Phase 2)" CTA** — the ready seam to wire to the new wizard. The `(host)` route group's **layout is the real `canHost` gate**; listing creation/management lives under it (e.g. `(host)/host/listings/...`).
-- **`src/lib/db/schema.ts`** — the Phase-1 `user` table is the **FK ownership root** for new `listing` tables. `firstName`/`lastName` stored privately → reused for Stripe KYC. `role` (default `user`) → admin/seed hook. All timestamps are `timestamptz` (keep the convention).
+- **`src/lib/db/schema.ts`** — the Phase-1 `user` table is the **FK ownership root** for new `listing` tables. `firstName`/`lastName` stored privately → reused for payout (PayMongo) KYC. `role` (default `user`) → admin/seed hook. All timestamps are `timestamptz` (keep the convention).
 - **`src/lib/validation/` (auth.ts, profile.ts)** — established **Zod schema** pattern (shared client + server). Add `listing.ts`.
 - **`src/app/actions/`** — server-actions directory; the Phase-1 pattern is RHF + zodResolver client-side, same schema re-validated in the server action. Capability/privileged updates use a session-checked `db.update`.
 - **shadcn/ui present:** `avatar, button, card, dialog, dropdown-menu, form, input, label, textarea`. **Will need to add:** select/combobox (space type), checkbox/toggle (amenities, booking mode, show-exact), a stepper, and an image-gallery/upload component. Date pickers are NOT needed until Phase 3.
@@ -110,7 +112,7 @@ _No external ADRs or design specs beyond the above — decisions are fully captu
 
 ### Integration Points
 - New `listing` (+ `listing_photo`, amenity/activity join or array columns) tables FK to `user.id`.
-- A **Stripe Connect account record per host** (account id + `payouts_enabled` / `charges_enabled` cached flags) — likely new columns/table keyed to `user`; updated by the `account.updated` webhook handler (new `src/app/api/.../webhook` route).
+- A **PayMongo Linked-Account record per host** (`paymongoAccountId` + `activation_status` / `payouts_enabled` cached flags) — a new table (`host_payout`) keyed to `user`; updated by the `merchant.activated` webhook handler (new `src/app/api/paymongo/webhook` route).
 - **Cloudinary** sign-request endpoint + the existing config power the gallery.
 - **Resend** (set up in Phase 1) is available if any host onboarding email is wanted (optional this phase).
 - Bookability flag/derivation here is read by **Phase 3** (availability/calendar), **Phase 4** (search inclusion + book CTA), and **Phase 6** (instant vs request-to-book fork — the `booking_mode` stored here).
@@ -121,7 +123,7 @@ _No external ADRs or design specs beyond the above — decisions are fully captu
 ## Specific Ideas
 
 - **"Mimic Airbnb"** continues from Phase 1 into the listing surface: a **guided multi-step creation wizard** (D-01), **approximate-location-until-booked** privacy default with a per-listing exact-address toggle (D-09), first-photo-as-cover gallery (D-04).
-- **The bookability gate is the architectural keystone of this phase** — it is a **live, webhook-driven** property (`payouts_enabled` via `account.updated`), not a one-time check, and it auto-reverts (D-14). Built here so it can never be bypassed by later phases.
+- **The bookability gate is the architectural keystone of this phase** — it is a **live, webhook-driven** property (`payouts_enabled` set via `merchant.activated`), not a one-time check, and it auto-reverts (D-14). Built here so it can never be bypassed by later phases.
 - Pricing is deliberately **both-rates-required** (D-03) — the host's choice between instant/request-to-book is stored as a `booking_mode` flag now but only *wired* in Phase 6.
 
 </specifics>
