@@ -16,14 +16,24 @@
 // COEXISTENCE (D-03): activating one capability NEVER clears the other — both can be true at once.
 //
 // D-05: activateHosting only sets the flag and routes the user toward listing creation (the /host
-// surface). It does NOT trigger Stripe Connect payout onboarding — that lands in PHASE 2. No Stripe
-// call happens here by design.
+// surface). It does NOT trigger PayMongo payout onboarding — that lands in PHASE 2 (Plan 06). No
+// payments call happens here by design.
+//
+// WR-06 CLOSURE (Phase-2, Plan 02): these privileged escalations are now BOUNDED + OBSERVABLE.
+// Phase-1 review (01-REVIEW.md § WR-06) deferred rate-limiting + an audit trail on these actions
+// because canHost later unlocks PayMongo payouts (Plan 06) — a logged-in session could otherwise
+// call activate* unboundedly with no record. Both halves are now wired: a per-identity fixed-window
+// rate limit (5/60s, keyed on the authenticated user id — src/lib/rate-limit.ts) and an audit-trail
+// entry on every allow/deny (src/lib/audit.ts). This satisfies the security carry-forward gate
+// BEFORE Plan 06 wires payouts to canHost.
 
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
+import { rateLimit } from "@/lib/rate-limit";
+import { recordAudit } from "@/lib/audit";
 
 export type CapabilityResult =
   | { ok: true; redirectTo: string }
@@ -35,19 +45,37 @@ async function requireUserId(): Promise<string | null> {
   return session?.user?.id ?? null;
 }
 
+// WR-06: privileged capability flips are bounded to 5 attempts per 60s per AUTHENTICATED identity
+// (mirrors the Better-Auth credential-endpoint budget in src/lib/auth.ts). Keyed on the user id —
+// never IP — because these are session-gated escalations. Hosting + booking share the budget.
+const ACTIVATE_RATE_LIMIT = { window: 60, max: 5 } as const;
+
 /**
  * Add the HOST capability to the signed-in user (D-03). Sets canHost=true server-side WITHOUT
- * touching canBook (coexistence). Returns the route toward listing creation (D-05). PHASE 2: this
- * is where Stripe Connect onboarding will be initiated — it is intentionally NOT triggered here.
+ * touching canBook (coexistence). Returns the route toward listing creation (D-05). PHASE 2 (Plan
+ * 06): this is where PayMongo Linked-Accounts onboarding will be initiated — NOT triggered here.
  */
 export async function activateHosting(): Promise<CapabilityResult> {
   const userId = await requireUserId();
   if (!userId) {
     return { ok: false, error: "You must be signed in to start hosting." };
   }
+  // WR-06: bound the privileged escalation per identity; audit the denial so it is non-repudiable.
+  const limit = rateLimit(`activate:${userId}`, ACTIVATE_RATE_LIMIT);
+  if (!limit.ok) {
+    await recordAudit({
+      actorId: userId,
+      action: "activateHosting",
+      outcome: "denied",
+      meta: { reason: "rate_limit", retryAfter: limit.retryAfter },
+    });
+    return { ok: false, error: "Too many attempts. Please try again in a moment." };
+  }
   // Privileged flip (input:false guard means this can never come from the client). canBook untouched.
   await db.update(user).set({ canHost: true }).where(eq(user.id, userId));
-  // Route toward the host surface / listing creation (Phase 2). No Stripe onboarding here (D-05).
+  // WR-06: record the successful escalation (actorId + action + outcome).
+  await recordAudit({ actorId: userId, action: "activateHosting", outcome: "ok" });
+  // Route toward the host surface / listing creation (Phase 2). No PayMongo onboarding here (D-05).
   return { ok: true, redirectTo: "/host" };
 }
 
@@ -60,7 +88,20 @@ export async function activateBooking(): Promise<CapabilityResult> {
   if (!userId) {
     return { ok: false, error: "You must be signed in to start booking." };
   }
+  // WR-06: bound the privileged escalation per identity; audit the denial so it is non-repudiable.
+  const limit = rateLimit(`activate:${userId}`, ACTIVATE_RATE_LIMIT);
+  if (!limit.ok) {
+    await recordAudit({
+      actorId: userId,
+      action: "activateBooking",
+      outcome: "denied",
+      meta: { reason: "rate_limit", retryAfter: limit.retryAfter },
+    });
+    return { ok: false, error: "Too many attempts. Please try again in a moment." };
+  }
   // Privileged flip; canHost untouched (coexistence, D-03).
   await db.update(user).set({ canBook: true }).where(eq(user.id, userId));
+  // WR-06: record the successful escalation (actorId + action + outcome).
+  await recordAudit({ actorId: userId, action: "activateBooking", outcome: "ok" });
   return { ok: true, redirectTo: "/" };
 }
