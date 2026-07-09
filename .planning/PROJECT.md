@@ -71,6 +71,11 @@ The product is optimized first for the **person booking** (the demand side is th
 | Real payments + marketplace payouts in v1 (commission model) | Booking a paid space is the actual product; reservations-only would not validate the real value or business model | — Pending |
 | Responsive web app for v1 (no native apps) | Fastest route to a usable, iterable product across desktop and mobile | — Pending |
 | Launch in a single city/region first | Two-sided marketplaces need local liquidity; density makes search results meaningful | — Pending |
+| **D-20 — Adopt PayMongo (PH-native, BSP-regulated EMI) as the payments provider for the Philippine launch, replacing Stripe Connect.** Rails: QRPh + GCash + Maya + cards. Host onboarding via PayMongo **Platforms / Linked Accounts** (hosted-redirect KYC; beta/sales-gated). Marketplace payout is **hold-until-session**: collect the full amount to the **platform wallet** → **HOLD** → after the session push an on-demand **`inhouse` wallet-to-wallet transfer** (`POST /v2/batch_transfers`, `provider:"paymongo"`) of (booking − commission) to the host's Linked-Account wallet — **NOT** PayMongo "payment splitting" (which pays the host at settlement, violating hold-until-session). Bookability gate (the Stripe `payouts_enabled` equivalent) = host **`merchant.activated`** webhook + **`activation_status: activated`** + wallet **`status: activated`**. No official SDK (thin REST wrapper / community TS lib); **`Paymongo-Signature`** HMAC-SHA256 webhook verification; **`Idempotency-Key`** on POSTs. | Stripe has **no local PH acquiring and no QRPh** (invite-only preview; a workaround needs a US entity), so it cannot process real PH payments at launch. PayMongo is PH-native with marketplace payouts and preserves the correctness intent: hold funds until the session; webhook as source of truth; **never pay the host at booking time**. Validated by a live sandbox spike (2026-07-09). | **Adopted — supersedes D-17 & D-19** (2026-07-09) |
+
+> **Superseded decisions** (payments-provider revision — **D-20**, 2026-07-09; kept for traceability, not deleted; the canonical D-numbered decision records live in `.planning/phases/02-listings-host-onboarding/02-CONTEXT.md`):
+> - **D-17** — Stripe SDK pinned `stripe@^22` + `apiVersion 2026-05-27.dahlia`. **Superseded by D-20** — PayMongo has no official SDK; use a thin REST wrapper / community TS lib.
+> - **D-19** — Stripe Connect Express launch `country=US` via `STRIPE_CONNECT_COUNTRY`. **Superseded by D-20** — PayMongo is PH-native; there is no country/env toggle.
 
 ## Evolution
 
@@ -90,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-03 after Phase 1 (Auth & Accounts) completion*
+*Last updated: 2026-07-09 — payments provider revised Stripe Connect → PayMongo (D-20; supersedes D-17 & D-19). Prior update: 2026-06-03 after Phase 1 (Auth & Accounts) completion.*
