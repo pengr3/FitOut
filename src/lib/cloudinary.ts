@@ -36,3 +36,38 @@ export function uploadAvatar(
     stream.end(buffer);
   });
 }
+
+// ---------------------------------------------------------------------------
+// Phase-2 listing gallery — the signed direct-to-client graduation (D-04).
+// The avatar path above routes bytes THROUGH the server (fine for one small image). Listing
+// galleries can be large, so bytes go DIRECT browser→Cloudinary; the only server involvement is
+// minting a scoped upload signature. The api_secret NEVER leaves the server (threat T-04-SECRET) —
+// only the resulting signature + the public api_key/cloud_name are ever returned to the client.
+// ---------------------------------------------------------------------------
+
+/**
+ * Mint an upload signature for a listing photo upload. `params` is the EXACT set of params the
+ * client widget will send (currently { timestamp, folder }) — Cloudinary 401s if the signed set and
+ * the sent set differ (RESEARCH Pitfall 3 / T-04-SIGMATCH), so callers must sign exactly what they
+ * send. Wraps `cloudinary.utils.api_sign_request` with the server-only CLOUDINARY_API_SECRET.
+ */
+export function signListingUpload(params: {
+  timestamp: number;
+  folder: string;
+}): string {
+  return cloudinary.utils.api_sign_request(
+    params,
+    process.env.CLOUDINARY_API_SECRET!, // SERVER ONLY — never shipped to the client.
+  );
+}
+
+/**
+ * Destroy a listing photo asset by its Cloudinary `public_id` (orphan cleanup, T-04-ORPHAN). Called
+ * when a photo is removed (or a draft abandoned) so deleted photos don't linger in storage or serve
+ * stale CDN copies — `invalidate: true` busts the CDN cache (RESEARCH Pattern 2 orphan handling).
+ */
+export function destroyListingPhoto(
+  publicId: string,
+): Promise<{ result: string }> {
+  return cloudinary.uploader.destroy(publicId, { invalidate: true });
+}
