@@ -1,13 +1,18 @@
 // Host dashboard landing (D-04) — a DISTINCT host surface, not blended into the booker pages.
 //
-// Reaching this page already means canHost is true (the (host) layout gated it). It is intentionally
-// minimal for Phase 1: a "Your hosting" header + a "Create a listing" call to action that points
-// toward Phase-2 listing creation. No Stripe onboarding here (D-05). The session read is repeated so
-// the greeting can use the first name and so this page also fails closed if reached directly.
+// Reaching this page already means canHost is true (the (host) layout gated it); we re-read the
+// session (defense in depth) so the greeting can use the first name and this page fails closed if
+// reached directly. Phase-2 (Plan 03): the Phase-1 placeholder CTA is now wired to the real listing
+// wizard — "Create your first listing" when the host has none, "Create listing" + "Your listings"
+// once they do. Payout onboarding is still Plan 06 (not surfaced here).
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { listing } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 
 export default async function HostDashboardPage() {
@@ -24,11 +29,14 @@ export default async function HostDashboardPage() {
     redirect("/");
   }
 
+  const [{ n } = { n: 0 }] = await db
+    .select({ n: count() })
+    .from(listing)
+    .where(and(eq(listing.hostId, session.user.id), isNull(listing.deletedAt)));
+  const hasListings = (n ?? 0) > 0;
+
   return (
-    <div
-      className="mx-auto w-full max-w-3xl px-4 py-12"
-      data-host-dashboard
-    >
+    <div className="mx-auto w-full max-w-3xl px-4 py-12" data-host-dashboard>
       <h1 className="text-2xl font-semibold tracking-tight">
         Your hosting{u.firstName ? `, ${u.firstName}` : ""}
       </h1>
@@ -38,16 +46,27 @@ export default async function HostDashboardPage() {
         it.
       </p>
 
-      <div className="mt-8 rounded-lg border border-dashed p-8 text-center">
-        <h2 className="text-lg font-medium">No listings yet</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create your first listing to start hosting.
-        </p>
-        {/* Listing creation (and Stripe payout onboarding) lands in Phase 2 — disabled for now. */}
-        <Button className="mt-4" disabled>
-          Create a listing (coming in Phase 2)
-        </Button>
-      </div>
+      {hasListings ? (
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+            <Link href="/host/listings/new">Create listing</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/host/listings">Your listings</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-8 rounded-lg border border-dashed p-8 text-center">
+          <h2 className="text-lg font-medium">No listings yet</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            List your space and start earning. We&apos;ll walk you through it
+            step by step.
+          </p>
+          <Button asChild className="mt-4 bg-brand text-brand-foreground hover:bg-brand/90">
+            <Link href="/host/listings/new">Create your first listing</Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
