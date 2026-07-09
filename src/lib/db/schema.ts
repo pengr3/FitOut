@@ -252,6 +252,15 @@ export const hostPayout = pgTable("host_payout", {
     .notNull(),
 });
 
+// PayMongo webhook idempotency ledger (PAY-04 / T-06-REPLAY). One row per PROCESSED event id; the
+// webhook route checks this BEFORE applying an event so a double-delivered / retried PayMongo webhook
+// is a no-op (duplicate → 200 skip). Hand-authored (not a Better Auth table); preserve on any auth regen.
+export const paymongoEvent = pgTable("paymongo_event", {
+  id: text("id").primaryKey(), // the PayMongo event id (data.id) — the idempotency key
+  type: text("type").notNull(), // e.g. merchant.activated / merchant.declined
+  processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const listingRelations = relations(listing, ({ one, many }) => ({
   host: one(user, {
     fields: [listing.hostId],
