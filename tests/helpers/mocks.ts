@@ -67,6 +67,8 @@ export const mockResend = {
 // Cloudinary mock
 // ---------------------------------------------------------------------------
 const cloudinaryUploads: Array<{ secure_url: string; public_id: string }> = [];
+// public_ids passed to uploader.destroy — lets the Plan-04 photo tests assert orphan cleanup.
+const cloudinaryDestroys: string[] = [];
 
 export const mockCloudinary = {
   /** Returns a module-shaped object suitable for `vi.mock("cloudinary", ...)`. */
@@ -98,6 +100,12 @@ export const mockCloudinary = {
             };
           }
         ),
+        // Mirror uploader.destroy(publicId, opts) -> Promise<{ result }>. Plan-04 removePhoto calls
+        // this for orphan cleanup; we capture the public_id so tests can assert it was destroyed.
+        destroy: vi.fn(async (publicId: string) => {
+          cloudinaryDestroys.push(publicId);
+          return { result: "ok" };
+        }),
       },
       utils: {
         api_sign_request: vi.fn(() => "mock-signature"),
@@ -109,8 +117,11 @@ export const mockCloudinary = {
   uploads: () => [...cloudinaryUploads],
   /** The most recent upload result, or undefined. */
   last: () => cloudinaryUploads[cloudinaryUploads.length - 1],
+  /** All public_ids passed to uploader.destroy so far (orphan-cleanup assertions). */
+  destroys: () => [...cloudinaryDestroys],
   reset: () => {
     cloudinaryUploads.length = 0;
+    cloudinaryDestroys.length = 0;
   },
 };
 
