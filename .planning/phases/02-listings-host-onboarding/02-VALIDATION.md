@@ -50,8 +50,9 @@ created: 2026-06-04
 | LIST-05 | status draft→published gated; unlist preserves data; soft-delete sets deletedAt | T-STATUS | Server-set status only; gated publish action | integration | `vitest run tests/listing/status-gate.test.ts` | ❌ W0 | ⬜ pending |
 | LIST-05 / D-02 | Publish blocked when <3 photos OR email unverified OR missing core field | T-STATUS | Strict server-side publish gate | integration | (status-gate.test.ts) | ❌ W0 | ⬜ pending |
 | LIST-06 | Public detail page reachable without session; unlisted/draft 404 to public | T-PII | Public projection excludes exact street + non-published | integration/E2E | `playwright test e2e/public-listing.spec.ts` | ❌ W0 | ⬜ pending |
-| PAY-04 | `account.updated` payouts_enabled=true flips host flag; =false auto-reverts bookability | T-WEBHOOK | Webhook/server-set only (D-14 auto-revert) | integration | `vitest run tests/stripe/webhook-account-updated.test.ts` | ❌ W0 | ⬜ pending |
-| PAY-04 | Webhook rejects invalid signature (400); idempotent on duplicate event id | T-SPOOF | `constructEvent` sig verify + idempotency by event.id | unit | `vitest run tests/stripe/webhook-signature.test.ts` | ❌ W0 | ⬜ pending |
+| PAY-04 | `merchant.activated` sets payoutsEnabled=true (host flag); `merchant.declined` auto-reverts bookability | T-WEBHOOK | Webhook/server-set only (D-14 auto-revert) | integration | `vitest run tests/paymongo/webhook-merchant-activated.test.ts` | ❌ W0 | ⬜ pending |
+| PAY-04 | Webhook rejects invalid `Paymongo-Signature` (400, incl. malformed/length-mismatch); idempotent on duplicate event id | T-SPOOF | `Paymongo-Signature` HMAC-SHA256 verify + idempotency by event id | unit | `vitest run tests/paymongo/webhook-signature.test.ts` | ❌ W0 | ⬜ pending |
+| PAY-04 | Onboarding creates a Linked Account once (reuse stored id); rate-limit → deny + audit | T-IDOR | Session + ownership; row-locked create-once; rate-limited + audited (WR-06) | unit | `vitest run tests/paymongo/onboarding.test.ts` | ❌ W0 | ⬜ pending |
 | D-15 | `deriveBookable` truth table (published × verified × payouts) | T-PRIV | Bookability purely derived, never client-settable | unit | `vitest run tests/listing/bookability.test.ts` | ❌ W0 | ⬜ pending |
 | D-10 | Coordinates round-trip (no lat/lng axis swap) | — | — | integration | `vitest run tests/listing/geo-roundtrip.test.ts` | ❌ W0 | ⬜ pending |
 
@@ -68,10 +69,11 @@ created: 2026-06-04
 - [ ] `tests/listing/cloudinary-sign.test.ts` — session gate + signed-param set (LIST-02)
 - [ ] `tests/listing/status-gate.test.ts` — publish gate, unlist, soft-delete (LIST-05/D-02)
 - [ ] `tests/listing/geo-roundtrip.test.ts` — PostGIS point round-trip, axis order (D-10)
-- [ ] `tests/stripe/webhook-signature.test.ts` — `generateTestHeaderString` + invalid-sig 400 + idempotency (PAY-04)
-- [ ] `tests/stripe/webhook-account-updated.test.ts` — flag flip + auto-revert (PAY-04/D-14)
+- [ ] `tests/paymongo/webhook-signature.test.ts` — `mockPayMongo.signWebhook` + invalid/malformed-sig 400 + idempotency (PAY-04)
+- [ ] `tests/paymongo/webhook-merchant-activated.test.ts` — flag flip + auto-revert (PAY-04/D-14)
+- [ ] `tests/paymongo/onboarding.test.ts` — Linked Account created once (reuse) + rate-limit deny+audit (PAY-04/WR-06)
 - [ ] `e2e/public-listing.spec.ts` — un-gated view + draft/unlisted 404 (LIST-06)
-- [ ] Shared: extend `tests/helpers/mocks.ts` with a Stripe mock (account create/retrieve + `constructEvent`/`generateTestHeaderString`); make `CREATE EXTENSION IF NOT EXISTS postgis` idempotent in the migration.
+- [ ] Shared: extend `tests/helpers/mocks.ts` with a PayMongo mock (`createLinkedAccount`/`createOnboardingLink` + `signWebhook` → valid `Paymongo-Signature`); make `CREATE EXTENSION IF NOT EXISTS postgis` idempotent in the migration.
 - [ ] Framework install: none — Vitest + Playwright already present.
 
 ---
@@ -80,7 +82,7 @@ created: 2026-06-04
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Stripe-hosted onboarding redirect + return/refresh round-trip | PAY-04 | Hosted Stripe UI is external; full KYC flow not automatable in CI | Run `stripe listen --forward-to localhost:3000/api/stripe/webhook`; start onboarding from host dashboard; complete Express test KYC; confirm `account.updated` flips `payouts_enabled` and listing becomes bookable |
+| PayMongo hosted onboarding redirect + return/refresh round-trip | PAY-04 | Hosted PayMongo Linked-Accounts KYC is external; full flow not automatable in CI; needs PayMongo Platforms beta enablement | Forward the PayMongo webhook to localhost via a tunnel (ngrok/cloudflared → `/api/paymongo/webhook`); start onboarding from the host dashboard; complete Linked-Account hosted KYC; confirm `merchant.activated` flips `payoutsEnabled` and the listing becomes bookable |
 | Cloudinary direct-to-client upload widget (real browser) | LIST-02 | `CldUploadWidget` opens a real widget; signature path verified in unit test but full upload is browser-driven | In dev, open the wizard photo step, upload ≥3 images, reorder, confirm cover = first; verify assets land under `fitout/listings/<listingId>` |
 | Leaflet/OSM map + Photon/LocationIQ autocomplete render | LIST-01/D-11 | Map tiles + autocomplete are third-party network UI | Open listing detail page; confirm approximate fuzzed circle vs exact pin per the show-exact toggle |
 
