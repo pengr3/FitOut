@@ -12,8 +12,9 @@ import { headers } from "next/headers";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { listing } from "@/lib/db/schema";
+import { hostPayout, listing } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
+import { PayoutBanner, derivePayoutStatus } from "@/components/host/payout-banner";
 
 export default async function HostDashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -35,6 +36,13 @@ export default async function HostDashboardPage() {
     .where(and(eq(listing.hostId, session.user.id), isNull(listing.deletedAt)));
   const hasListings = (n ?? 0) > 0;
 
+  // Live payout state (D-12) — drives the persistent nudge below. payoutsEnabled is webhook-set only.
+  const [payoutRow] = await db
+    .select()
+    .from(hostPayout)
+    .where(eq(hostPayout.userId, session.user.id));
+  const payoutStatus = derivePayoutStatus(payoutRow);
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-12" data-host-dashboard>
       <h1 className="text-2xl font-semibold tracking-tight">
@@ -45,6 +53,11 @@ export default async function HostDashboardPage() {
         recreational space and set its availability so people can find and book
         it.
       </p>
+
+      {/* Persistent payout-setup nudge (D-12) — never blocks publishing; gates bookability. */}
+      <div className="mt-8">
+        <PayoutBanner status={payoutStatus} />
+      </div>
 
       {hasListings ? (
         <div className="mt-8 flex flex-wrap items-center gap-3">
