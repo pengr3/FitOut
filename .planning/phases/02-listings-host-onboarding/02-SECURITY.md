@@ -1,10 +1,11 @@
 ---
 phase: 02
 slug: listings-host-onboarding
-status: draft
-threats_open: 1
+status: verified
+threats_open: 0
 asvs_level: 2
 created: 2026-07-10
+updated: 2026-07-10
 ---
 
 # Phase 02 — Security
@@ -13,6 +14,14 @@ created: 2026-07-10
 > Retroactive audit of an already-implemented phase (6 plans: 02-01..02-06). Every mitigation was
 > verified against the actual code (grep + read + test execution) — SUMMARY.md self-attestations
 > ("Threat Flags: None") were NOT accepted as evidence on their own.
+>
+> **Re-audit (2026-07-10):** the single prior BLOCKER, T-04-SIGMATCH, was remediated (commits
+> `3165eea` RED / `d1fb76b` GREEN) and independently re-verified against the live code and a real
+> test run — see "Resolved — T-04-SIGMATCH" below. **0 open threats.**
+>
+> **Config note:** the project default is `security_block_on: high` / `security_asvs_level: 1`. This
+> audit (and the original) ran at the stricter `block_on: open` / `asvs_level: 2`. `threats_open: 0`
+> satisfies both the stricter audit config and the project default.
 
 ---
 
@@ -54,7 +63,7 @@ created: 2026-07-10
 | T-04-IDOR | Elevation of Privilege | persist/reorder/remove + sign | mitigate | `assertOwnership` on every action and before minting a signature | closed |
 | T-04-SECRET | Information Disclosure | CLOUDINARY_API_SECRET | mitigate | Signed server-side only; never returned in the response body | closed |
 | T-04-ORPHAN | Tampering | removed/abandoned assets | mitigate | `removePhoto` calls `destroyListingPhoto({ invalidate: true })` | closed |
-| **T-04-SIGMATCH** | **Tampering** | **signed vs sent params (`/api/cloudinary/sign`)** | **mitigate** | **Declared: "signed param set == client param set; no extra params either side." NOT what's implemented — see Open Threats below.** | **OPEN** |
+| T-04-SIGMATCH | Tampering | signed vs sent params (`/api/cloudinary/sign`) | mitigate | `ALLOWED_SIGN_KEYS = {folder, source, timestamp}` allow-list rejects any other key with 400 before signing — `src/app/api/cloudinary/sign/route.ts:35,92-104` | closed |
 | T-05-PII | Information Disclosure | exact street address / exact coordinates | mitigate | `publicListing` allow-list drops addressLine1/2/postalCode, fuzzes coords unless `showExactAddress` | closed |
 | T-05-NONPUB | Information Disclosure | draft/unlisted listings | mitigate | RSC `notFound()` when `status !== "published"`; e2e proves 404 | closed |
 | T-05-BOOKABLE | Spoofing (false affordance) | book CTA | mitigate | CTA derived from `deriveBookable`, never `status` alone | closed |
@@ -69,67 +78,89 @@ created: 2026-07-10
 *Status: open · closed*
 *Disposition: mitigate (implementation required) · accept (documented risk) · transfer (third-party)*
 
-**26/27 closed. 1 open (BLOCKER per `block_on: open`).**
+**27/27 closed. 0 open.**
 
 ---
 
-## OPEN — T-04-SIGMATCH (Tampering, signed vs sent Cloudinary upload params)
+## Resolved — T-04-SIGMATCH (Tampering, signed vs sent Cloudinary upload params)
 
-**Declared mitigation (02-04-PLAN.md `<threat_model>`):** "Signed param set == client param set (`{timestamp, folder}`); no extra params on either side (Pitfall 3)."
+**Prior finding (2026-07-10, first pass):** `/api/cloudinary/sign` path 5a (the live
+`<CldUploadWidget>` path, driven by `paramsToSign` in the POST body) signed the client-supplied
+object verbatim, validating only that `paramsToSign.folder` matched the caller's own listing folder.
+Any authenticated host could add arbitrary Cloudinary upload keys (`public_id`, `notification_url`,
+`eager`, `overwrite`, `tags`, `context`, `moderation`, …) and receive a valid signature for them —
+contradicting the declared mitigation ("signed param set == client param set; no extra params either
+side"). Path 5a had zero test coverage of this boundary at the time.
 
-**What's actually implemented (`src/app/api/cloudinary/sign/route.ts` lines 80-90, introduced in commit `8d9c475`, dated 2026-07-10 — AFTER `02-04-SUMMARY.md` was written on 2026-07-09):**
+**Fix (commits `3165eea` RED / `d1fb76b` GREEN, both 2026-07-10, on `dev`):** a fixed
+`ALLOWED_SIGN_KEYS = {"folder", "source", "timestamp"}` allow-list is now enforced in path 5a
+*before* `signUploadParams` is ever called. Verified independently in this re-audit (not taken from
+the commit message or SUMMARY):
 
-```ts
-// 5a. Live <CldUploadWidget> path — it posts its OWN paramsToSign ({ folder, source: "uw",
-// timestamp }). We MUST sign that EXACT set (T-04-SIGMATCH) or Cloudinary returns "Invalid
-// Signature", but first enforce the folder is scoped to the owned listing so a tampered client
-// can't sign an upload into another host's folder. Return only the signature — the widget already
-// holds the rest of the params (and its own timestamp).
-if (paramsToSign) {
-  if (paramsToSign.folder !== folder) {
-    return new Response("Forbidden — upload folder out of scope", { status: 403 });
-  }
-  return Response.json({ signature: signUploadParams(paramsToSign) });
-}
-```
+- **`src/app/api/cloudinary/sign/route.ts:35`** — `const ALLOWED_SIGN_KEYS = new Set(["folder",
+  "source", "timestamp"])`, exactly the minimal set `<CldUploadWidget>` sends (confirmed against
+  `src/components/listing/photo-uploader.tsx:155`, the only `CldUploadWidget` consumer in the repo,
+  and against `src/lib/cloudinary.ts` — `signUploadParams`/`signListingUpload` have no other
+  callers anywhere in `src/`).
+- **`route.ts:92-98`** — path 5a computes `Object.keys(paramsToSign).find((k) =>
+  !ALLOWED_SIGN_KEYS.has(k))`; any key outside the allow-list short-circuits to `400` *before*
+  `signUploadParams` is reached — no signature is minted for a tampered body, closing the exact gap
+  the prior audit found.
+- **`route.ts:99-103`** — the pre-existing folder-scope check (`paramsToSign.folder !== folder` →
+  `403`) is intact and now runs *after* the allow-list check (read the diff of `d1fb76b`: it is a
+  pure addition, 17 insertions / 3 deletions, touching only the comment block and the new guard —
+  the folder check, session gate (step 1), listingId resolution (step 2), rate limit (step 3, 30/60s
+  keyed on `session.user.id`), and ownership lookup (step 4) are byte-for-byte unchanged).
+- **Path 5b** (`route.ts:106-116`, the `{listingId}` JSON-body path used by the primary test suite)
+  is untouched by the fix — still signs a server-computed `{timestamp, folder}` only, never touching
+  client-supplied params at all.
+- **`src/lib/cloudinary.ts`** — `signUploadParams` remains a generic signer with no key enforcement
+  of its own (by design; its JSDoc says "Callers MUST validate/scope sensitive params … BEFORE
+  calling this"). This is acceptable because the route (the single call site) now fully constrains
+  the input before every call — verified there is no other code path in `src/` that calls
+  `signUploadParams` or `signListingUpload`.
 
-`paramsToSign` is read verbatim from the untrusted POST body (`route.ts` lines 41-47) with **no
-allow-list of permitted keys** — the only check is that the `folder` field's value equals the
-caller's own listing folder. Everything else in the object is signed as-is.
+**Test coverage added (`tests/listing/cloudinary-sign.test.ts`, path-5a block, lines 188-249):**
+- `"rejects a paramsToSign body with a key outside the {folder, source, timestamp} allow-list"` —
+  sends `public_id` and `notification_url` as extra keys with an otherwise-valid body; asserts `400`,
+  asserts `signSpy` (the mocked `cloudinary.utils.api_sign_request`) was **never called**, and asserts
+  the string `"mock-signature"` never appears in the response body.
+- `"signs a clean paramsToSign of exactly {folder, source, timestamp}"` — the widget happy path;
+  asserts `200`, `signature: "mock-signature"`, and that the signed key set is exactly
+  `["folder", "source", "timestamp"]`.
+- `"returns 403 when paramsToSign.folder points outside the owned listing's folder"` — allow-listed
+  keys, wrong folder value → `403`, `signSpy` never called (proves the allow-list didn't weaken the
+  folder-scope gate).
 
-**Why this is a real gap, not a documentation nit:**
-- Any authenticated host (capability escalation is self-service via `activateHosting`, and creating
-  a draft listing requires no approval) can `POST /api/cloudinary/sign` with a `paramsToSign` body
-  containing arbitrary additional Cloudinary upload parameters — e.g. `overwrite`, `public_id`,
-  `notification_url`, `eager`, `tags`, `context`, `moderation` — as long as `folder` matches their
-  own listing. The server will sign the *entire* object and return a valid signature Cloudinary will
-  accept.
-- This directly contradicts "no extra params either side" — the endpoint is supposed to be a fixed,
-  minimal `{timestamp, folder}` scope (which is exactly what the test-covered JSON-body path, 5b,
-  still does).
-- This is the code path the REAL production upload flow uses: `photo-uploader.tsx`'s
-  `<CldUploadWidget signatureEndpoint="/api/cloudinary/sign?listingId=...">` triggers the widget to
-  POST its own `paramsToSign`, hitting path 5a — not the tested path 5b.
-- `tests/listing/cloudinary-sign.test.ts` only exercises the `{listingId}` JSON-body path (5b) and
-  asserts `Object.keys(signedParams).sort()).toEqual(["folder", "timestamp"])` — it never sends a
-  `paramsToSign` body, so path 5a (the one real uploads use) has **zero test coverage** of the
-  param-tampering boundary.
-- `02-04-SUMMARY.md` (`## Threat Flags: None — ... no new security surface was introduced`) predates
-  this commit by a day and is now a stale self-attestation, not evidence of the current code.
-
-**Files searched:** `src/app/api/cloudinary/sign/route.ts`, `src/lib/cloudinary.ts` (`signUploadParams`
-has no key allow-list either — it forwards whatever object it's given to
-`cloudinary.utils.api_sign_request`), `tests/listing/cloudinary-sign.test.ts` (no `paramsToSign`
-coverage), `tests/helpers/mocks.ts` (no allow-list enforcement in the mock either).
-
-**Not sufficient to close this:** the folder-equality check alone, because it does not constrain any
-key other than `folder` — an attacker can add unlimited additional signed parameters.
-
-**Suggested remediation (for the next implementation pass — do NOT patch here, this file is
-read-only per the auditor's role):** allow-list the permitted keys in `paramsToSign` before signing
-(e.g. `{folder, source, timestamp}` only, rejecting the request if any other key is present), or
-stop trusting client-supplied `paramsToSign` entirely and instead sign a server-computed
-`{timestamp, folder, source: "uw"}` object independent of what the client sent.
+**Independent re-verification performed in this re-audit (not accepted from SUMMARY/commit
+message):**
+- Read the live route and signer source in full (not a keyword grep) and traced every call site of
+  `signUploadParams`/`signListingUpload`/`CldUploadWidget` in `src/` — confirmed no bypass path.
+- `git show d1fb76b` — confirmed the diff is additive-only (allow-list check + comment update); the
+  session/ownership/rate-limit/folder-scope gates are unmodified.
+- `npx vitest run tests/listing/cloudinary-sign.test.ts` → **1 file / 9 tests, all pass** (6 pre-existing
+  + 3 new path-5a tests).
+- `npx vitest run` (full suite) → **29 files / 138 tests, all pass**.
+- `npx tsc --noEmit` → clean (exit 0).
+- Adversarial probing of the allow-list itself:
+  - Empty `paramsToSign: {}` → no extra key found, but `folder` is `undefined !== folder` → `403`,
+    no signature minted. Not a bypass.
+  - `paramsToSign` as an array → `Object.keys()` yields numeric-index keys (`"0"`, …), none in the
+    allow-list → `400`. Not a bypass.
+  - `paramsToSign: null` → filtered out by the `body.paramsToSign &&` truthiness check in the
+    body-parsing step (route.ts:52) before `paramsToSign` is ever assigned; falls through to path 5b
+    (server-computed, safe). Not a bypass.
+  - JSON body with a literal `"__proto__"` key → `JSON.parse` (ES2015+) creates it as an own
+    enumerable data property via `CreateDataProperty`, not a prototype-chain write, so
+    `Object.keys()` includes `"__proto__"` as a normal key → rejected as an extra key (`400`). Not a
+    bypass (and no prototype pollution occurs either way, since nothing in the route or
+    `cloudinary.utils.api_sign_request` merges the object onto a shared prototype).
+  - Allow-listed keys with a non-string `folder` (e.g. an object) → fails the strict `!==` folder
+    comparison against the server-computed string → `403`. Not a bypass.
+  - Confirmed path 5b cannot be reached with attacker-controlled params at all (server computes
+    `{timestamp, folder}` itself; client input only selects the target `listingId`, which is still
+    ownership-checked at step 4 before either path runs).
+- No residual gap found. **T-04-SIGMATCH is CLOSED.**
 
 ---
 
@@ -148,6 +179,11 @@ already names this exact boundary). The other post-summary commit found (`bc6a05
 adding a city name-fallback) is a correctness/UX fix with no security-relevant field — postal code
 was never part of any declared mitigation.
 
+**Re-audit sweep (2026-07-10):** `git show --stat` on the two remediation commits (`3165eea` test-only,
+`d1fb76b` route-only, both scoped exactly to `src/app/api/cloudinary/sign/route.ts` and
+`tests/listing/cloudinary-sign.test.ts`) confirms no new attack surface was introduced by the fix — it
+narrows an existing boundary, it doesn't add one. No new unregistered flags.
+
 ---
 
 ## Accepted Risks Log
@@ -165,13 +201,29 @@ Threat Register above — so no entry belongs here.)
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-07-10 | 27 | 26 | 1 | gsd-security-auditor |
+| 2026-07-10 | 27 | 27 | 0 | gsd-security-auditor (re-audit) |
 
-**Verification performed (not just static grep):**
+**First-pass verification performed (not just static grep):**
 - `npx vitest run tests/paymongo/webhook-signature.test.ts tests/paymongo/webhook-merchant-activated.test.ts tests/paymongo/onboarding.test.ts tests/listing/crud.test.ts tests/listing/status-gate.test.ts tests/listing/cloudinary-sign.test.ts tests/listing/photos.test.ts tests/security/rate-limit.test.ts tests/security/audit.test.ts` → **9 files / 46 tests, all pass**
 - `npx vitest run tests/listing/listing-public.test.ts tests/listing/bookability.test.ts tests/validation/listing-schema.test.ts tests/listing/geo-roundtrip.test.ts` → **4 files / 35 tests, all pass**
 - `npx vitest run` (full suite) → **29 files / 135 tests, all pass**
 - `git log` swept for post-SUMMARY commits touching security-critical files — found the T-04-SIGMATCH
   regression (commit `8d9c475`) that no SUMMARY or threat-model update accounts for.
+
+**Re-audit verification performed (2026-07-10, independent — not accepted from SUMMARY or commit
+message; see "Resolved — T-04-SIGMATCH" above for full detail):**
+- Read `src/app/api/cloudinary/sign/route.ts` and `src/lib/cloudinary.ts` in full; traced every
+  call site of the signer functions and the `CldUploadWidget` consumer.
+- `git show d1fb76b` — confirmed the fix diff is additive-only; session/ownership/rate-limit/folder
+  gates unmodified; path 5b untouched.
+- `npx vitest run tests/listing/cloudinary-sign.test.ts` → **1 file / 9 tests, all pass**.
+- `npx vitest run` (full suite) → **29 files / 138 tests, all pass**.
+- `npx tsc --noEmit` → clean (exit 0).
+- Adversarial probing (empty object, array, null, `__proto__` key, non-string folder, path-5b
+  reachability) — no bypass found.
+- Config cross-check: project default is `security_block_on: high` / `security_asvs_level: 1`; this
+  audit ran at the stricter `block_on: open` / `asvs_level: 2` (matching the first pass).
+  `threats_open: 0` satisfies both.
 
 ---
 
@@ -179,8 +231,9 @@ Threat Register above — so no entry belongs here.)
 
 - [x] All threats have a disposition (mitigate / accept / transfer)
 - [x] Accepted risks documented in Accepted Risks Log (none)
-- [ ] `threats_open: 0` confirmed — **FALSE: 1 open (T-04-SIGMATCH)**
-- [ ] `status: verified` set in frontmatter — **blocked, remains `draft`**
+- [x] `threats_open: 0` confirmed — 27/27 closed, independently re-verified 2026-07-10
+- [x] `status: verified` set in frontmatter
 
-**Approval:** pending — T-04-SIGMATCH must be closed (allow-list `paramsToSign` keys or stop trusting
-client-supplied params) and re-verified before this phase can ship (`block_on: open`).
+**Approval:** granted — T-04-SIGMATCH closed (allow-list enforced in `route.ts` path 5a, commits
+`3165eea`/`d1fb76b`, independently re-verified against live code and a passing test run). Phase 02
+has 0 open threats and may ship.
