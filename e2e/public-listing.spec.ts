@@ -38,7 +38,7 @@ test.beforeAll(async () => {
   await sql`
     INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, created_at, updated_at)
     VALUES (
-      ${hostId}, ${"E2E Host"}, ${`e2e.host.${Date.now()}@example.com`}, ${true},
+      ${hostId}, ${"E2E Host"}, ${`e2e.host.${hostId}@example.com`}, ${true},
       ${"Ezra"}, ${true}, now(), now()
     )
   `;
