@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 2 EXECUTED — all 6 plans built & committed on dev; full suite 29 files/135 tests green, `npm run build` PASS, migrations applied to live DB (incl. paymongo_event). PayMongo onboarding + merchant.activated bookability gate live (tests mock PayMongo; real hosted onboarding needs Platforms beta for UAT). Pending: /gsd-verify-work 2 + /gsd-secure-phase 2 + manual UATs. Next: verify/secure, then Phase 3.
-last_updated: "2026-07-09T21:15:00.000Z"
-last_activity: 2026-07-09
+stopped_at: Phase 2 COMPLETE — validated (Nyquist 14/14 green), secured (02-SECURITY threats_open:0, ASVS L2), UAT passed (8/11; in-scope findings fixed live; test 11 payout-onboarding redirect blocked on PayMongo Platforms beta). Ready to plan Phase 3 (Availability & the Double-Booking Guarantee). Next: /gsd-discuss-phase 3 → /gsd-plan-phase 3.
+last_updated: "2026-07-10T08:05:00.000Z"
+last_activity: 2026-07-10
 progress:
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
   completed_plans: 10
   percent: 100
@@ -21,18 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 02 — listings-&-host-onboarding (Phase 01 complete)
+**Current focus:** Phase 03 — availability-&-double-booking-guarantee (Phases 01–02 complete)
 
 ## Current Position
 
-Phase: 2 (Listings & Host Onboarding) — EXECUTED (all 6 plans built + green); pending verify/security/UAT
-Plan: 6/6 done across 3 waves — 01 data-model+PostGIS+host_payout, 02 deps/tokens/WR-06, 03 wizard+actions, 05 public page, 04 photos, 06 PayMongo onboarding+merchant.activated gate
-Status: Phase 02 BUILT. All 6 plans committed on `dev` (23 impl commits + summaries); full suite **29 files / 135 tests PASS**, `npm run build` PASS, migrations applied to the live DB (incl. paymongo_event, migrate-tracked). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit, session resolved for id+email), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`), payout banner/return/refresh. Tests fully mock PayMongo. PENDING: (1) /gsd-verify-work 2 (UAT), (2) /gsd-secure-phase 2 (threat mitigations), (3) manual UATs — real PayMongo Linked-Accounts hosted onboarding (needs Platforms beta enablement), Cloudinary real upload, Leaflet/OSM map visuals, Google OAuth (dev .env has placeholders). Next: /gsd-verify-work 2 + /gsd-secure-phase 2, then Phase 3.
-Last activity: 2026-07-09
+Phase: 3 (Availability & the Double-Booking Guarantee) — NOT STARTED (ready to discuss/plan)
+Plan: Not started
+Status: Phase 02 COMPLETE and closed. All 6 plans committed on `dev`; full Vitest suite **29 files / 138 tests PASS** + Playwright public-listing E2E 3/3; `npm run build` PASS; migrations applied to the live DB (incl. paymongo_event, migrate-tracked). Phase-2 gates all green: **Validation** (02-VALIDATION Nyquist-compliant, 14/14), **Security** (02-SECURITY threats_open:0, ASVS L2), **UAT** (02-UAT complete — 8/11 pass, in-scope findings fixed live; only test 11 payout-onboarding redirect blocked on PayMongo Platforms beta). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`). NEXT: /gsd-discuss-phase 3 → /gsd-plan-phase 3 → /gsd-execute-phase 3. Phase 3 delivers the DB-level GiST exclusion constraint (the double-booking guarantee) — the correctness keystone before any money/booking flow.
+Last activity: 2026-07-10 — Phase 2 verified & closed (validation + security + UAT gates green); dev server + .next cache reset during validation.
 
-Last activity: 2026-07-10 - Completed quick task 260710-lgo: Fix T-04-SIGMATCH (allow-list Cloudinary sign params)
-
-Progress: [██████████] 100% (plans)
+Progress: [██████████] 100% (10/10 executed plans across Phases 1–2) · 2/8 phases complete
 
 ## Performance Metrics
 
@@ -101,9 +99,10 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - Phase 7: Cancellation/refund policy matrix (who × time-to-start × % refunded × commission × payout) — blocks the cancel flow. Note PayMongo QRPh/e-wallet refund rule: same-day = full-refund-only; partial only from the next day.
 - Phase 8: Whether invited attendees need an account to RSVP (v1 default: tokenized link, no account); group capacity source (listing capacity vs per-booking limit).
 - Phase 2 / Phase 5: Cold-start liquidity — consider lightweight admin/seed tooling and a zero-result-search metric; do not over-build.
-- Before Phase 2 wires PayMongo payouts to canHost: close deferred Phase-1 security items WR-06 (add rate-limit + audit trail on capability-activate server actions) and WR-04 (email-send retry/observability). Tracked in 01-REVIEW.md (deferred) + 01-SECURITY.md audit notes.
-- Phase 2 (02-06): PayMongo Platforms / Linked Accounts is beta + sales-gated, and card manual-capture needs "advanced card features" enablement — both are PayMongo support requests with lead time; request early.
-- Phase 2 (02-VALIDATION): after the PayMongo re-plan, 02-VALIDATION.md still maps to tests/stripe/webhook-*.test.ts + account.updated/constructEvent/stripe-listen — an ACTIVE cross-ref mismatch with the re-planned 02-01/02-06 (tests/paymongo/*, merchant.activated, Paymongo-Signature). Regenerate/patch before relying on it as the phase validation gate. 02-RESEARCH/02-PATTERNS are Stripe-era historical (non-blocking).
+- ✅ RESOLVED (Phase 2): WR-06 (rate-limit + audit on capability-activate/onboarding actions) CLOSED in Plan 02. WR-04 (email-send retry/observability) STILL OPEN — deferred to the Phase-7 transactional-email layer.
+- ✅ RESOLVED (2026-07-10): 02-VALIDATION.md regenerated for PayMongo (tests/paymongo/*, merchant.activated, Paymongo-Signature) and marked Nyquist-compliant; the flaky public-listing E2E seed was fixed. 02-RESEARCH/02-PATTERNS remain Stripe-era historical (non-blocking).
+- Phase 2 → later (PayMongo real onboarding): PayMongo Platforms / Linked Accounts is beta + sales-gated, and card manual-capture needs "advanced card features" enablement — both are PayMongo support requests with lead time; request early (blocks 02-UAT test 11 + real payout UAT).
+- Follow-up (out-of-scope, task chip spawned 2026-07-10): Radix Tooltip SSR hydration mismatch at src/app/listings/[id]/page.tsx:267 (the "Not bookable yet" affordance) — client-recovered, not a 500; worth a cleanup. Also low-pri from 02-UAT: currency defaults to `usd` (should be PHP for the PH launch); no landing page at `/` (deferred to Phase 4).
 
 ### Quick Tasks Completed
 
@@ -122,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-09T06:15:00.000Z
-Stopped at: Phase 2 fully re-planned for PayMongo. 02-06 rewritten (86c7b20) + plan-check fixes (a8614bc); 02-01 payout schema/test-anchors retargeted (29620bc); 02-CONTEXT reworded + D-17/D-19 superseded by D-20 (ecdc322). Plan-check PASSED 0 blockers. deriveBookable + truth-table test untouched. OPEN for user review: whether to fix 02-VALIDATION.md (still cites tests/stripe/* — active mismatch) before executing. Real-world lead-time action: request PayMongo Platforms/Linked-Accounts beta + advanced-card-features (manual capture) from PayMongo support. Next: /gsd-execute-phase 2 (02-01..05 payment-agnostic; 02-06 execution gated on PayMongo beta access).
-Resume file: .planning/phases/02-listings-host-onboarding/ (optionally fix 02-VALIDATION, then /gsd-execute-phase 2)
+Last session: 2026-07-10T08:05:00.000Z
+Stopped at: Phase 2 COMPLETE and closed — all three quality gates green (Validation: Nyquist 14/14; Security: threats_open:0; UAT: 8/11 pass, in-scope fixes landed live). This session: validated Phase 2 (fixed the flaky public-listing E2E seed, a10d07d; marked 02-VALIDATION Nyquist-compliant, f471f69), then accepted the existing 02-UAT and transitioned Phase 2 → complete (ROADMAP/STATE/PROJECT updated). Ready to plan Phase 3 (Availability & the Double-Booking Guarantee) — the DB GiST exclusion-constraint keystone.
+Resume file: None. Next: /gsd-discuss-phase 3 → /gsd-plan-phase 3.

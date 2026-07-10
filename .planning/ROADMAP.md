@@ -136,7 +136,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth & Accounts | 4/4 | Complete | - |
-| 2. Listings & Host Onboarding | 6/6 | Built (tests green; verify/security/UAT pending) | 2026-07-09 |
+| 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
 | 3. Availability & Double-Booking Guarantee | 0/TBD | Not started | - |
 | 4. Booking Core & Search | 0/TBD | Not started | - |
 | 5. Payments & Payouts | 0/TBD | Not started | - |
