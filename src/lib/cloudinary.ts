@@ -62,6 +62,22 @@ export function signListingUpload(params: {
 }
 
 /**
+ * Sign the EXACT param set a signed Upload Widget sends (e.g. { folder, source, timestamp }). The
+ * live <CldUploadWidget> adds its own params (`source=uw`, its own `timestamp`), so the server MUST
+ * sign what the widget actually sends — signing a server-recomputed subset makes Cloudinary reject
+ * with "Invalid Signature" (T-04-SIGMATCH). Callers MUST validate/scope sensitive params (folder)
+ * BEFORE calling this.
+ */
+export function signUploadParams(
+  params: Record<string, string | number | boolean>,
+): string {
+  return cloudinary.utils.api_sign_request(
+    params,
+    process.env.CLOUDINARY_API_SECRET!, // SERVER ONLY.
+  );
+}
+
+/**
  * Destroy a listing photo asset by its Cloudinary `public_id` (orphan cleanup, T-04-ORPHAN). Called
  * when a photo is removed (or a draft abandoned) so deleted photos don't linger in storage or serve
  * stale CDN copies — `invalidate: true` busts the CDN cache (RESEARCH Pattern 2 orphan handling).

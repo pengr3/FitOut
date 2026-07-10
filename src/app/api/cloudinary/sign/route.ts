@@ -24,7 +24,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
-import { signListingUpload } from "@/lib/cloudinary"; // → cloudinary.utils.api_sign_request (secret server-only)
+import { signListingUpload, signUploadParams } from "@/lib/cloudinary"; // → cloudinary.utils.api_sign_request (secret server-only)
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
@@ -36,9 +36,15 @@ export async function POST(req: Request) {
 
   // 2. Resolve the target listingId (body first, then the widget's ?listingId= query fallback).
   let listingId: string | undefined;
+  let paramsToSign: Record<string, string | number | boolean> | undefined;
   try {
-    const body = (await req.json()) as { listingId?: unknown } | null;
+    const body = (await req.json()) as
+      | { listingId?: unknown; paramsToSign?: Record<string, unknown> }
+      | null;
     if (body && typeof body.listingId === "string") listingId = body.listingId;
+    if (body && body.paramsToSign && typeof body.paramsToSign === "object") {
+      paramsToSign = body.paramsToSign as Record<string, string | number | boolean>;
+    }
   } catch {
     // The live widget may post a non-JSON / different body — fall through to the query param.
   }
@@ -69,12 +75,24 @@ export async function POST(req: Request) {
     return new Response("Forbidden", { status: 403 });
   }
 
-  // 5. Sign EXACTLY { timestamp, folder } (the client sends the same set — Pitfall 3). D-04 folder.
-  const timestamp = Math.round(Date.now() / 1000);
   const folder = `fitout/listings/${listingId}`;
-  const signature = signListingUpload({ timestamp, folder });
 
-  // 6. Return the signature + PUBLIC config only. The api_secret is never in this body.
+  // 5a. Live <CldUploadWidget> path — it posts its OWN paramsToSign ({ folder, source: "uw",
+  // timestamp }). We MUST sign that EXACT set (T-04-SIGMATCH) or Cloudinary returns "Invalid
+  // Signature", but first enforce the folder is scoped to the owned listing so a tampered client
+  // can't sign an upload into another host's folder. Return only the signature — the widget already
+  // holds the rest of the params (and its own timestamp).
+  if (paramsToSign) {
+    if (paramsToSign.folder !== folder) {
+      return new Response("Forbidden — upload folder out of scope", { status: 403 });
+    }
+    return Response.json({ signature: signUploadParams(paramsToSign) });
+  }
+
+  // 5b. Test / primary JSON path ({ listingId }) — sign { timestamp, folder } and return the public
+  // config the caller needs. The api_secret is never in this body.
+  const timestamp = Math.round(Date.now() / 1000);
+  const signature = signListingUpload({ timestamp, folder });
   return Response.json({
     signature,
     timestamp,
