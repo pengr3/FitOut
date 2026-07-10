@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 2 COMPLETE — validated (Nyquist 14/14 green), secured (02-SECURITY threats_open:0, ASVS L2), UAT passed (8/11; in-scope findings fixed live; test 11 payout-onboarding redirect blocked on PayMongo Platforms beta). Ready to plan Phase 3 (Availability & the Double-Booking Guarantee). Next: /gsd-discuss-phase 3 → /gsd-plan-phase 3.
-last_updated: "2026-07-10T08:05:00.000Z"
+stopped_at: Phase 3 CONTEXT gathered (03-CONTEXT.md committed ad52da3). Discussed all 4 gray areas; key outcome = D-21 UNITS occupancy model (listing.unitCount, default 1 = exclusive; DB exclusion constraint scoped by (listing, unit, tstzrange); per-spot open/free play deferred). D-21 must be added to PROJECT.md Key Decisions at transition (reshapes Phases 4 & 8). Next: /gsd-plan-phase 3.
+last_updated: "2026-07-10T14:05:17.482Z"
 last_activity: 2026-07-10
 progress:
   total_phases: 8
@@ -121,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T08:05:00.000Z
-Stopped at: Phase 2 COMPLETE and closed — all three quality gates green (Validation: Nyquist 14/14; Security: threats_open:0; UAT: 8/11 pass, in-scope fixes landed live). This session: validated Phase 2 (fixed the flaky public-listing E2E seed, a10d07d; marked 02-VALIDATION Nyquist-compliant, f471f69), then accepted the existing 02-UAT and transitioned Phase 2 → complete (ROADMAP/STATE/PROJECT updated). Ready to plan Phase 3 (Availability & the Double-Booking Guarantee) — the DB GiST exclusion-constraint keystone.
-Resume file: None. Next: /gsd-discuss-phase 3 → /gsd-plan-phase 3.
+Last session: 2026-07-10T14:05:17.482Z
+Stopped at: Phase 3 discussion complete — 03-CONTEXT.md + 03-DISCUSSION-LOG.md committed (ad52da3). All 4 gray areas discussed. Key outcome: **D-21 UNITS occupancy model** ⭐ (listing.unitCount, default 1 = exclusive; a booking reserves ONE unit; DB GiST exclusion constraint scoped by (listing, unit, tstzrange '[)'); the (N+1)th overlapping booking is rejected. maxOccupancy = per-booking group headcount, not parallel bookings. Per-spot open/free play DEFERRED = out-of-scope per-attendee ticketing). Also: 60-min on-the-hour slots + any consecutive hours (D-22), day = operating window at day rate (D-23), close-only blocks, per-unit-or-listing scope, partial ranges (D-24), multiple weekly windows + listing-wide hours (D-25), rolling 90-day horizon + no min lead time (D-26), per-listing venue tz / timestamptz+@date-fns/tz (D-27), Phase 3 owns the booking table + exclusion constraint (btree_gist, partial WHERE excludes cancelled/declined), proven via concurrent-insert 23P01 tests (D-28). **ACTION at transition: add D-21 to PROJECT.md Key Decisions (reshapes Phases 4 & 8).**
+Resume file: .planning/phases/03-availability-the-double-booking-guarantee/03-CONTEXT.md. Next: /gsd-plan-phase 3.
