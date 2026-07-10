@@ -30,6 +30,8 @@ Plan: 6/6 done across 3 waves — 01 data-model+PostGIS+host_payout, 02 deps/tok
 Status: Phase 02 BUILT. All 6 plans committed on `dev` (23 impl commits + summaries); full suite **29 files / 135 tests PASS**, `npm run build` PASS, migrations applied to the live DB (incl. paymongo_event, migrate-tracked). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit, session resolved for id+email), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`), payout banner/return/refresh. Tests fully mock PayMongo. PENDING: (1) /gsd-verify-work 2 (UAT), (2) /gsd-secure-phase 2 (threat mitigations), (3) manual UATs — real PayMongo Linked-Accounts hosted onboarding (needs Platforms beta enablement), Cloudinary real upload, Leaflet/OSM map visuals, Google OAuth (dev .env has placeholders). Next: /gsd-verify-work 2 + /gsd-secure-phase 2, then Phase 3.
 Last activity: 2026-07-09
 
+Last activity: 2026-07-10 - Completed quick task 260710-lgo: Fix T-04-SIGMATCH (allow-list Cloudinary sign params)
+
 Progress: [██████████] 100% (plans)
 
 ## Performance Metrics
@@ -108,6 +110,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260709-id2 | Swap payments provider Stripe → PayMongo in planning docs | 2026-07-09 | 1eebe11 | [260709-id2-swap-payments-provider-stripe-to-paymong](./quick/260709-id2-swap-payments-provider-stripe-to-paymong/) |
+| 260710-lgo | Fix T-04-SIGMATCH: allow-list Cloudinary sign params | 2026-07-10 | d1fb76b | [260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-](./quick/260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-/) |
 
 ## Deferred Items
 
