@@ -10,9 +10,11 @@
 //   - OWNERSHIP (T-04-IDOR): the target listing must belong to the caller (listing.hostId ===
 //     session.user.id) BEFORE a signature is minted — this prevents one host uploading into another
 //     host's folder. Not found / not owned → 403 (we don't reveal whether the listing exists).
-//   - SIGNED-PARAM MATCH (T-04-SIGMATCH / Pitfall 3): we sign EXACTLY { timestamp, folder } — the
-//     same set the client widget sends — so Cloudinary accepts the upload. No extra params on one
-//     side only. The api_secret is used only inside signListingUpload and never returned.
+//   - SIGNED-PARAM MATCH (T-04-SIGMATCH / Pitfall 3): path 5a allow-lists { folder, source,
+//     timestamp } and rejects ANY other key with 400 BEFORE signing, so no arbitrary Cloudinary
+//     upload param can ever be signed; path 5b signs EXACTLY { timestamp, folder }. Both sign only
+//     the set the client widget sends — no extra params on one side. The api_secret is used only
+//     inside the signer and never returned.
 //
 // listingId resolution: the test/primary path posts { listingId } in the JSON body. The live
 // next-cloudinary <CldUploadWidget> posts its own { paramsToSign } body (no listingId), so the
@@ -26,6 +28,11 @@ import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
 import { signListingUpload, signUploadParams } from "@/lib/cloudinary"; // → cloudinary.utils.api_sign_request (secret server-only)
 import { rateLimit } from "@/lib/rate-limit";
+
+// T-04-SIGMATCH — the ONLY Cloudinary upload params this endpoint will ever sign. The signed
+// <CldUploadWidget> posts exactly { folder, source: "uw", timestamp }; anything else in the body
+// (public_id, notification_url, eager, overwrite, tags, context, moderation, …) must NOT be signed.
+const ALLOWED_SIGN_KEYS = new Set(["folder", "source", "timestamp"]);
 
 export async function POST(req: Request) {
   // 1. SESSION gate — no session, no signature.
@@ -83,6 +90,13 @@ export async function POST(req: Request) {
   // can't sign an upload into another host's folder. Return only the signature — the widget already
   // holds the rest of the params (and its own timestamp).
   if (paramsToSign) {
+    // Reject the request if it carries ANY param outside the fixed allow-list — the endpoint must
+    // never mint a signature for an arbitrary Cloudinary upload key (T-04-SIGMATCH). Do NOT sign.
+    const extraKey = Object.keys(paramsToSign).find((k) => !ALLOWED_SIGN_KEYS.has(k));
+    if (extraKey) {
+      return new Response("Bad Request — unexpected upload param", { status: 400 });
+    }
+    // Folder must still be scoped to the caller's own listing (unchanged).
     if (paramsToSign.folder !== folder) {
       return new Response("Forbidden — upload folder out of scope", { status: 403 });
     }
