@@ -81,6 +81,24 @@ function signRequest(body: Record<string, unknown>): Request {
   });
 }
 
+/**
+ * Build a POST Request for the REAL <CldUploadWidget> path (5a): listingId travels in the
+ * `?listingId=` query string and the body carries only `{ paramsToSign }` (no top-level listingId).
+ */
+function signParamsRequest(
+  listingId: string,
+  paramsToSign: Record<string, unknown>,
+): Request {
+  return new Request(
+    "http://localhost/api/cloudinary/sign?listingId=" + encodeURIComponent(listingId),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ paramsToSign }),
+    },
+  );
+}
+
 describe("cloudinary sign endpoint (LIST-02)", () => {
   it("returns 401 when there is no session", async () => {
     sessionHeaders.cookie = ""; // no session cookie
@@ -165,5 +183,68 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
     }
     expect(firstStatus).toBe(200);
     expect(throttled).toBeGreaterThanOrEqual(1);
+  });
+
+  // --- Path 5a: the live <CldUploadWidget> path (body = { paramsToSign }, listingId in query) ------
+
+  it("rejects a paramsToSign body with a key outside the {folder, source, timestamp} allow-list (T-04-SIGMATCH)", async () => {
+    const owner = await signInHost("sign.tamper@example.com");
+    const listingId = await makeListing(owner);
+
+    // Any Cloudinary upload key beyond the fixed allow-list must be rejected — and NO signature minted.
+    for (const forbidden of ["public_id", "notification_url"] as const) {
+      signSpy.mockClear();
+      const res = await POST(
+        signParamsRequest(listingId, {
+          folder: `fitout/listings/${listingId}`,
+          source: "uw",
+          timestamp: 1700000000,
+          [forbidden]: forbidden === "public_id" ? "attacker/evil" : "https://evil.example/hook",
+        }),
+      );
+      expect(res.status).toBe(400);
+      expect(signSpy).not.toHaveBeenCalled(); // no signature was ever minted for the tampered body
+      expect(await res.text()).not.toContain("mock-signature");
+    }
+  });
+
+  it("signs a clean paramsToSign of exactly {folder, source, timestamp} for the owned listing (widget happy path)", async () => {
+    const owner = await signInHost("sign.widgetok@example.com");
+    const listingId = await makeListing(owner);
+    signSpy.mockClear();
+
+    const res = await POST(
+      signParamsRequest(listingId, {
+        folder: `fitout/listings/${listingId}`,
+        source: "uw",
+        timestamp: 1700000000,
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { signature: string };
+    expect(body.signature).toBe("mock-signature");
+
+    // The signed set is EXACTLY the allow-listed keys, scoped to the owned listing's folder.
+    expect(signSpy).toHaveBeenCalledTimes(1);
+    const signedParams = signSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.keys(signedParams).sort()).toEqual(["folder", "source", "timestamp"]);
+    expect(signedParams.folder).toBe(`fitout/listings/${listingId}`);
+  });
+
+  it("returns 403 when paramsToSign.folder points outside the owned listing's folder (path-5a folder scope holds)", async () => {
+    const owner = await signInHost("sign.scope@example.com");
+    const listingId = await makeListing(owner); // caller OWNS this listing (ownership gate passes)
+    signSpy.mockClear();
+
+    // Only allow-listed keys, but the folder targets a DIFFERENT listing → must 403 (not 400, not 200).
+    const res = await POST(
+      signParamsRequest(listingId, {
+        folder: `fitout/listings/${randomUUID()}`,
+        source: "uw",
+        timestamp: 1700000000,
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(signSpy).not.toHaveBeenCalled();
   });
 });
