@@ -287,7 +287,7 @@ export function ListingWizard({
     { label: "Title", done: Boolean(values.title), step: 1 },
     { label: "Description", done: Boolean(values.description), step: 1 },
     { label: "Space type", done: Boolean(values.primarySpaceType), step: 0 },
-    { label: "Address", done: Boolean(values.addressLine1) && hasCoords, step: 2 },
+    { label: "Address", done: Boolean(values.addressLine1 && values.city && values.region && values.country) && hasCoords, step: 2 },
     { label: "Capacity", done: Boolean(values.maxOccupancy && values.maxOccupancy > 0), step: 1 },
     { label: "Hourly rate", done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0), step: 4 },
     { label: "Day rate", done: Boolean(values.dayRateCents && values.dayRateCents > 0), step: 4 },

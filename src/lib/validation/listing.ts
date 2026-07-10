@@ -51,7 +51,9 @@ export const publishSchema = z.object({
   addressLine2: z.string().max(200).optional(),
   city: z.string().min(1),
   region: z.string().min(1),
-  postalCode: z.string().min(1),
+  // OSM/Photon frequently returns no postcode (esp. PH) — requiring it created a publish dead-end
+  // (UAT). Postcode isn't needed for bookability (city + coordinates are), so it's optional.
+  postalCode: z.string().max(20).optional(),
   country: z.string().min(1),
   neighborhood: z.string().max(120).optional(),
   lat: z.number(),

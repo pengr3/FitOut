@@ -67,7 +67,9 @@ function toSuggestion(f: PhotonFeature, i: number): Suggestion | null {
   const [lng, lat] = coords;
   const p = f.properties;
   const line1 = [p.housenumber, p.street].filter(Boolean).join(" ") || p.name || "";
-  const city = p.city || p.town || p.village || "";
+  // City-level picks (e.g. "Mandaluyong") return the name in `name` with `city` empty — fall back to
+  // it so the required `city` field is populated (UAT: publish dead-end when city stayed blank).
+  const city = p.city || p.town || p.village || p.name || "";
   const neighborhood = p.district || p.suburb || p.name || "";
   const label = [line1 || p.name, city, p.state, p.country].filter(Boolean).join(", ");
   return {
