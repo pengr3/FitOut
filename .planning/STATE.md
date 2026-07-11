@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 3 Wave 2 — 03-02 COMPLETE (server correctness layer). slots.ts (TZDate DST-correct slot enumeration + venue-tz day-of-week + D-26 90d horizon/now gating), read-model.ts (getAvailability — on-the-fly per-slot free-unit counts from operating hours − blocks − occupying bookings, venue tz, identical '[)' overlap as the constraint), units.ts (createBooking find-free-unit + retry-on-23P01/40P01 bounded by unitCount + mapBookingError clean SC#4 message). tests/availability = 5 files/33 tests GREEN (incl. 03-01 race); full suite 34/171; tsc+eslint clean. FINDINGS: TZDate.toISOString() renders offset-local not UTC → normalize via new Date(getTime()).toISOString(); postgres.js rejects Date bound into a raw sql range template → bind ISO strings (keep Date for the drizzle insert); 40P01 mapped like 23P01. Next: 03-03 (host hours/blocks backend, parallel W2) then W3 (03-04 host editor UI, 03-05 booker calendar — both carry human-verify checkpoints).
-last_updated: "2026-07-11T04:44:29Z"
+stopped_at: Phase 3 Wave 2 — 03-03 COMPLETE (host availability write path). availability.ts (shared Zod: weeklyHoursSchema close>open + no same-day overlap '[)' + on-the-hour + :ss-tolerant; blockSchema whole-day/partial + unit/whole-listing), operating-hours.ts (saveOperatingHours: session + assertOwnership IDOR + safeParse + replace-the-set upsert, D-25), blocks.ts (addBlock venue-tz→UTC timestamptz via TZDate + removeBlock owner-scoped delete, D-24 close-only). tests/availability = 7 files/62 tests GREEN; full suite 36/200; tsc+eslint clean. The 03-04 edit round-trip seam (the BLOCKER) is closed: on-the-hour refine runs on the normalized 'HH:mm' prefix + :ss-tolerant regex, so DB 'HH:mm:ss' re-validates while '06:15:00' still rejects (proven purely + end-to-end through saveOperatingHours). Wave 2 now COMPLETE (03-02 + 03-03). Next: W3 (03-04 host editor UI, 03-05 booker calendar — both carry human-verify checkpoints; 03-05 also consumes 03-02's getAvailability read model).
+last_updated: "2026-07-11T04:57:59Z"
 last_activity: 2026-07-11
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 15
-  completed_plans: 12
-  percent: 80
+  completed_plans: 13
+  percent: 87
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 3 (Availability & the Double-Booking Guarantee) — IN PROGRESS (Wave 1 complete; Wave 2 in progress)
-Plan: 03-01 + 03-02 COMPLETE (EXCLUDE keystone + server correctness layer: slots/read-model/units). Remaining: W2: 03-03 host backend; W3: 03-04 host editor UI, 03-05 booker calendar. Wave 3 (03-04/03-05) have human-verify checkpoints. Next: 03-03 (host hours/blocks actions; unblocked). 03-05 also consumes 03-02's getAvailability read model.
+Phase: 3 (Availability & the Double-Booking Guarantee) — IN PROGRESS (Waves 1 & 2 complete; Wave 3 remaining)
+Plan: 03-01 + 03-02 + 03-03 COMPLETE (EXCLUDE keystone + server correctness layer: slots/read-model/units + host write path: availability Zod / operating-hours / blocks actions). Remaining: W3: 03-04 host editor UI, 03-05 booker calendar (both carry human-verify checkpoints). Next: 03-04 (host availability editor UI — binds weeklyHoursSchema/blockSchema + saveOperatingHours/addBlock/removeBlock). 03-05 also consumes 03-02's getAvailability read model.
 Status: Phase 02 COMPLETE and closed. All 6 plans committed on `dev`; full Vitest suite **29 files / 138 tests PASS** + Playwright public-listing E2E 3/3; `npm run build` PASS; migrations applied to the live DB (incl. paymongo_event, migrate-tracked). Phase-2 gates all green: **Validation** (02-VALIDATION Nyquist-compliant, 14/14), **Security** (02-SECURITY threats_open:0, ASVS L2), **UAT** (02-UAT complete — 8/11 pass, in-scope findings fixed live; only test 11 payout-onboarding redirect blocked on PayMongo Platforms beta). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`). NEXT: /gsd-discuss-phase 3 → /gsd-plan-phase 3 → /gsd-execute-phase 3. Phase 3 delivers the DB-level GiST exclusion constraint (the double-booking guarantee) — the correctness keystone before any money/booking flow.
 Last activity: 2026-07-10 — Phase 2 verified & closed (validation + security + UAT gates green); dev server + .next cache reset during validation.
 
-Progress: [████████··] 80% (12/15 executed plans) · 2/8 phases complete · Phase 3: 2/5 plans (Wave 1 done; Wave 2 in progress)
+Progress: [████████▋·] 87% (13/15 executed plans) · 2/8 phases complete · Phase 3: 3/5 plans (Waves 1 & 2 done; Wave 3 remaining)
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [████████··] 80% (12/15 executed plans) · 2/8 phase
 | Phase 01 P01-04 | 8 min | 2 tasks | 14 files |
 | Phase 03 P03-01 | 10 min | 3 tasks | 15 files |
 | Phase 03 P03-02 | 12 min | 3 tasks | 7 files |
+| Phase 03 P03-03 | 6 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Recent decisions affecting current work:
 - [Phase 03]: [03-02]: ⚠️ `@date-fns/tz` `TZDate.toISOString()` renders the OFFSET-LOCAL form (e.g. `…+08:00`), NOT UTC `Z` — take the true UTC instant from the epoch: `new Date(tzDate.getTime()).toISOString()`. Applied to all slot/day-window instants (slots.ts, read-model.ts).
 - [Phase 03]: [03-02]: ⚠️ postgres.js throws `ERR_INVALID_ARG_TYPE` when a JS `Date` is bound into a raw drizzle `sql` range template via `db.execute` — bind ISO strings there (postgres.js casts string→timestamptz); keep `Date` only for the drizzle timestamptz INSERT. Reused by read-model.ts + units.ts; Phase 4 must follow this convention.
 - [Phase 03]: [03-02]: `getAvailability(db, listingId, dayLocal, now)` is the single server-authoritative read model (AVAIL-03) — SQL fetches raw overlapping rows with the identical `tstzrange('[)')` bound as the constraint; TS composes per-slot free-unit counts (whole-listing block ⇒ 0 free; only pending/confirmed occupy). `createBooking` = find-free-unit + retry-on-23P01/40P01 bounded by unitCount (constraint is the sole authority); `mapBookingError` → clean "That time was just taken." (23P01/40P01/NoUnitAvailableError), unknown errors re-throw. Widened `DbConn = PostgresJsDatabase<Record<string, unknown>>` so prod + test db both type-check.
+- [Phase 03]: [03-03]: Shared availability Zod (`src/lib/validation/availability.ts`) — `weeklyHoursSchema` (close>open, no same-day overlap '[)' touching-endpoints OK, on-the-hour) + `blockSchema` (whole-day/partial, unit>=1 or null=whole-listing). The SAME schema validates in the Plan-04 RHF editor and re-validates in the server actions (never trust the client). The BLOCKER seam for 03-04 is CLOSED: the time regex is `:ss`-tolerant and the on-the-hour refine runs on the normalized `HH:mm` prefix (`t.slice(0,5).endsWith(':00')`), so a DB-read `06:00:00` re-validates on an edit re-save while `06:15:00` still rejects — proven purely AND end-to-end through `saveOperatingHours`.
+- [Phase 03]: [03-03]: Host availability write path: `saveOperatingHours` (replace-the-set full-state upsert, D-25 multiple windows/day), `addBlock`/`removeBlock` (close-only, D-24 — no positive-override path). Every write clones the listing.ts contract: `requireUserId` → `assertOwnership(listingId, userId)` (IDOR — the (host) route group alone is NOT the gate, T-03-IDOR-HOURS) → `safeParse` → tx re-scoped to the owner → `revalidatePath(host + public)`. `removeBlock` DELETE scoped `(blockId AND listingId)` behind ownership so a non-owner cannot unblock (T-03-BLOCK-UNBLOCK). Block times stored as timestamptz UTC via TZDate from the venue tz (Manila +8: 10:00→02:00Z; whole day 00:00→prior-day 16:00Z), normalized through the epoch to a Date for the drizzle insert. tests/availability = 7 files/62 tests green; full suite 36/200.
 
 ### Pending Todos
 
@@ -129,6 +132,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T04:44:29Z
-Stopped at: **Phase 3 Wave 2 — 03-02 COMPLETE (server correctness layer)**. Committed on `dev`: `5ce95fc` (test: RED slot-enum), `b7ce054` (feat: slots.ts DST-correct enumeration), `5ddd151` (feat: read-model.ts getAvailability + integration test), `eb4e63a` (feat: units.ts createBooking + error-map + integration test). slots.ts = TZDate venue-local→UTC slot math + venueDayOfWeek + D-26 90d horizon/now gating (proven: 6:00 Manila → 2026-07-31T22:00:00.000Z; NY winter/summer DST spot-check). read-model.ts = getAvailability on-the-fly per-slot free-unit counts (operating hours − blocks − occupying bookings; whole-listing block ⇒ 0 free; only pending/confirmed occupy; identical '[)' overlap as the constraint). units.ts = createBooking find-free-unit + retry-on-23P01/40P01 (constraint is sole authority) + mapBookingError clean SC#4 message. tests/availability 5 files/33 tests GREEN (incl. 03-01 race); full suite 34/171; tsc + eslint clean. **FINDINGS:** (1) TZDate.toISOString() is offset-local not UTC → normalize via epoch; (2) postgres.js rejects Date in a raw sql range bind → bind ISO strings, Date only for the drizzle insert; (3) 40P01 handled like 23P01. AVAIL-03 server-complete (read model) but stays Pending in REQUIREMENTS.md until the Phase-3 transition (calendar 03-05 completes the user-facing surface). Next: /gsd-execute-phase 3 → 03-03 (host hours/blocks backend), then W3 (03-04 host editor UI, 03-05 booker calendar — human-verify checkpoints).
-Resume file: .planning/phases/03-availability-the-double-booking-guarantee/03-03-PLAN.md. Next: /gsd-execute-phase 3 (Wave 2 → 03-03).
+Last session: 2026-07-11T04:57:59Z
+Stopped at: **Phase 3 Wave 2 — 03-03 COMPLETE (host availability write path)**. Committed on `dev`: `5646af2` (test: RED shared availability Zod), `cfb83bc` (feat: availability.ts weeklyHoursSchema/blockSchema), `3a7525b` (feat: saveOperatingHours + addBlock/removeBlock + integration test). availability.ts = shared Zod (close>open, no same-day overlap '[)', on-the-hour, :ss-tolerant DB round-trip; blockSchema whole-day/partial + unit/whole-listing). operating-hours.ts = saveOperatingHours session + assertOwnership(IDOR) + safeParse + replace-the-set upsert (D-25). blocks.ts = addBlock venue-tz→UTC timestamptz via TZDate + removeBlock owner-scoped delete (D-24 close-only; NO positive-override). tests/availability 7 files/62 tests GREEN; full suite 36/200; tsc + eslint clean. **The 03-04 BLOCKER seam is CLOSED**: on-the-hour refine on the normalized 'HH:mm' prefix + :ss-tolerant regex → DB 'HH:mm:ss' re-validates on re-save while '06:15:00' still rejects (proven purely + end-to-end). **Wave 2 now COMPLETE** (03-02 + 03-03). AVAIL-01/02 host write path complete but stays Pending in REQUIREMENTS.md until the Phase-3 transition (the 03-04 editor UI surfaces it). Next: /gsd-execute-phase 3 → W3 (03-04 host editor UI, 03-05 booker calendar — both human-verify checkpoints).
+Resume file: .planning/phases/03-availability-the-double-booking-guarantee/03-04-PLAN.md. Next: /gsd-execute-phase 3 (Wave 3 → 03-04 + 03-05).
