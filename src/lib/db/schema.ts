@@ -20,6 +20,7 @@ import {
   text,
   integer,
   timestamp,
+  time,
   boolean,
   index,
   uniqueIndex,
@@ -171,6 +172,8 @@ export const listing = pgTable(
     location: geometry("location", { type: "point", mode: "xy", srid: 4326 }),
     showExactAddress: boolean("show_exact_address").default(false).notNull(), // D-09 default approximate
     maxOccupancy: integer("max_occupancy"), // D-07 single capacity int
+    unitCount: integer("unit_count").default(1).notNull(), // D-21 (1 = exclusive whole-space; N = multi-unit venue)
+    timezone: text("timezone").default("Asia/Manila").notNull(), // D-27 (IANA; default launch region — drives calendar display)
     hourlyRateCents: integer("hourly_rate_cents"), // D-03 integer minor units (Pitfall 5)
     dayRateCents: integer("day_rate_cents"), // D-03
     currency: text("currency").default("usd").notNull(), // single-region; column future-proofs
@@ -261,6 +264,87 @@ export const paymongoEvent = pgTable("paymongo_event", {
   processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// ---------------------------------------------------------------------------
+// Phase-3 availability model (HAND-AUTHORED — the double-booking keystone, D-21/D-28).
+// operating_hours (recurring weekly windows), availability_block (close-only overrides), and
+// booking (the occupancy table). The GiST EXCLUDE that makes overlaps structurally impossible
+// lives in drizzle/0005_booking_exclusion.sql — Drizzle CANNOT express EXCLUDE (see `booking`).
+// ---------------------------------------------------------------------------
+
+// Booking-status enum. Declared before `booking` (const TDZ), mirroring listingStatus (line 135).
+// Declared forward-compatibly — Phase 4 owns the full state machine. Phase 3 references ONLY
+// 'pending'/'confirmed' (the 0005 partial WHERE occupying set); the rest are inert until Phase 4.
+export const bookingStatus = pgEnum("booking_status", [
+  "pending",
+  "confirmed",
+  "cancelled",
+  "declined",
+  "completed",
+]);
+
+// Recurring weekly operating hours (AVAIL-01, D-25). Multiple windows/day = multiple rows with the
+// same (listingId, dayOfWeek). Hours are listing-wide (all units share). Times are venue-local wall
+// clock (Postgres `time`, no tz) — combine with a concrete venue-local date via TZDate for a UTC instant.
+export const operatingHours = pgTable(
+  "operating_hours",
+  {
+    id: text("id").primaryKey(),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    dayOfWeek: integer("day_of_week").notNull(), // 0=Sun..6=Sat (JS Date.getDay convention, A1)
+    openTime: time("open_time").notNull(), // venue-local wall clock
+    closeTime: time("close_time").notNull(), // must be > openTime (server-validated; no midnight cross v1)
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("operating_hours_listing_idx").on(t.listingId)],
+);
+
+// Close-only availability overrides (AVAIL-02, D-24). unit NULL = whole listing blocked; else one
+// unit. A block is subtractive in the read model; "unblock" = delete the row. Block-vs-booking is NOT
+// DB-enforced here (Open Question Q1 RESOLVED) — the Phase-4 server action guards it in-transaction.
+export const availabilityBlock = pgTable(
+  "availability_block",
+  {
+    id: text("id").primaryKey(),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    unit: integer("unit"), // NULL = whole listing; else one unit (D-24)
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("availability_block_listing_idx").on(t.listingId)],
+);
+
+// The occupancy table + the double-booking keystone (D-21/D-28, SC#4). Each booking reserves exactly
+// ONE unit (bare index 1..unitCount) for its [startsAt, endsAt) window.
+//
+// EXCLUDE "booking_no_overlap" is HAND-AUTHORED in drizzle/0005_booking_exclusion.sql — Drizzle
+// cannot express EXCLUDE (issues #2813/#3388). `drizzle-kit generate` will NOT produce it; never
+// assume the constraint exists from THIS file alone. See 0005_booking_exclusion.sql for the
+// `EXCLUDE USING gist (listing_id =, unit =, tstzrange('[)') &&) WHERE status IN ('pending','confirmed')`.
+export const booking = pgTable(
+  "booking",
+  {
+    id: text("id").primaryKey(),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    unit: integer("unit").notNull(), // bare index 1..unitCount (D-21)
+    bookerId: text("booker_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }), // A5 — bookings are financial records; never cascade-delete
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    status: bookingStatus("status").default("confirmed").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("booking_listing_idx").on(t.listingId)],
+);
+
 export const listingRelations = relations(listing, ({ one, many }) => ({
   host: one(user, {
     fields: [listing.hostId],
@@ -269,4 +353,32 @@ export const listingRelations = relations(listing, ({ one, many }) => ({
   photos: many(listingPhoto),
   amenities: many(listingAmenity),
   activityTags: many(listingActivityTag),
+  operatingHours: many(operatingHours),
+  blocks: many(availabilityBlock),
+  bookings: many(booking),
+}));
+
+export const operatingHoursRelations = relations(operatingHours, ({ one }) => ({
+  listing: one(listing, {
+    fields: [operatingHours.listingId],
+    references: [listing.id],
+  }),
+}));
+
+export const availabilityBlockRelations = relations(availabilityBlock, ({ one }) => ({
+  listing: one(listing, {
+    fields: [availabilityBlock.listingId],
+    references: [listing.id],
+  }),
+}));
+
+export const bookingRelations = relations(booking, ({ one }) => ({
+  listing: one(listing, {
+    fields: [booking.listingId],
+    references: [listing.id],
+  }),
+  booker: one(user, {
+    fields: [booking.bookerId],
+    references: [user.id],
+  }),
 }));

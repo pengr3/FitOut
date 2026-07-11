@@ -29,6 +29,20 @@
       "when": 1783601775073,
       "tag": "0003_paymongo_event",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783743483538,
+      "tag": "0004_availability_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783743500408,
+      "tag": "0005_booking_exclusion",
+      "breakpoints": true
     }
   ]
 }
