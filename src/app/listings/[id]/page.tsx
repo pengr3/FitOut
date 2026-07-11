@@ -18,9 +18,12 @@
 
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { CalendarClockIcon, UsersIcon } from "lucide-react";
+import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
+import { UsersIcon } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { getAvailability } from "@/lib/availability/read-model";
 import {
   listing,
   user,
@@ -51,6 +54,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AvailabilityCalendar,
+  BookingSelectionProvider,
+  RailSelectionSummary,
+} from "@/components/availability/availability-calendar";
 
 /** Format integer minor units (cents) in the listing's currency (mirrors listing-card.formatMoney). */
 function formatMoney(cents: number, currency: string): string {
@@ -65,6 +73,32 @@ function formatMoney(cents: number, currency: string): string {
     return (cents / 100).toFixed(2);
   }
 }
+
+/** Current short GMT offset for an IANA zone, e.g. "GMT+8" for Asia/Manila (mirrors the host editor). */
+function gmtLabelFor(timezone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "shortOffset",
+    }).formatToParts(new Date());
+    const name = parts.find((p) => p.type === "timeZoneName")?.value;
+    if (name) return name.replace("UTC", "GMT");
+  } catch {
+    // fall through to the launch-region default
+  }
+  return "GMT+8";
+}
+
+/** A friendly city label: the listing's city, else the IANA tz's city segment (e.g. "Manila"). */
+function cityLabelFor(city: string | null, timezone: string): string {
+  if (city && city.trim()) return city.trim();
+  const seg = timezone.split("/").pop();
+  return seg ? seg.replace(/_/g, " ") : "your city";
+}
+
+// Single-region PH launch: this surface displays PHP regardless of the listing.currency column default
+// ('usd' — a known Phase-2 follow-up, RESEARCH Pitfall 7). Keeps the rail price + est.-price consistent.
+const DISPLAY_CURRENCY = "php";
 
 export default async function PublicListingPage({
   params,
@@ -137,16 +171,31 @@ export default async function PublicListingPage({
 
   const priceParts: string[] = [];
   if (pub.hourlyRateCents != null) {
-    priceParts.push(`${formatMoney(pub.hourlyRateCents, pub.currency)}/hr`);
+    priceParts.push(`${formatMoney(pub.hourlyRateCents, DISPLAY_CURRENCY)}/hr`);
   }
   if (pub.dayRateCents != null) {
-    priceParts.push(`${formatMoney(pub.dayRateCents, pub.currency)}/day`);
+    priceParts.push(`${formatMoney(pub.dayRateCents, DISPLAY_CURRENCY)}/day`);
   }
+
+  // Availability (AVAIL-03) — always render in the venue's local timezone (SC#2). Seed the FIRST day
+  // (today, venue-tz) server-side via the read model; the client calendar fetches later day-changes.
+  const timezone = row.listing.timezone;
+  const cityLabel = cityLabelFor(pub.city, timezone);
+  const gmtLabel = gmtLabelFor(timezone);
+  const nowInTz = tz(timezone);
+  const now = new Date();
+  const initialDate = {
+    year: Number(format(now, "yyyy", { in: nowInTz })),
+    month: Number(format(now, "M", { in: nowInTz })),
+    day: Number(format(now, "d", { in: nowInTz })),
+  };
+  const initialDay = await getAvailability(db, id, initialDate);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
       <PhotoGallery photos={pub.photos} title={title} />
 
+      <BookingSelectionProvider>
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px] lg:gap-12">
         {/* Main content column */}
         <div className="space-y-8">
@@ -216,18 +265,18 @@ export default async function PublicListingPage({
 
           <Separator />
           <section className="space-y-3">
+            {/* Heading stays server-rendered; the calendar itself is the client boundary (SC#2). */}
             <h2 className="text-xl font-semibold">Availability</h2>
-            {/* Phase-3 placeholder (UI-SPEC line 130) — NOT a real calendar. */}
-            <div className="rounded-xl border border-dashed p-6 text-center">
-              <CalendarClockIcon
-                className="mx-auto mb-2 size-6 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <p className="font-medium">Availability coming soon</p>
-              <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-                This host is still setting up their calendar. Check back shortly.
-              </p>
-            </div>
+            <AvailabilityCalendar
+              listingId={id}
+              timezone={timezone}
+              cityLabel={cityLabel}
+              gmtLabel={gmtLabel}
+              unitCount={row.listing.unitCount}
+              bookable={bookable}
+              initialDate={initialDate}
+              initialDay={initialDay}
+            />
           </section>
         </div>
 
@@ -250,6 +299,14 @@ export default async function PublicListingPage({
                   Up to {pub.maxOccupancy} {pub.maxOccupancy === 1 ? "person" : "people"}
                 </p>
               )}
+
+              {/* Selection summary — appears once the booker picks a run/full day (display-only). */}
+              <RailSelectionSummary
+                timezone={timezone}
+                currency={DISPLAY_CURRENCY}
+                hourlyRateCents={pub.hourlyRateCents}
+                dayRateCents={pub.dayRateCents}
+              />
 
               {bookable ? (
                 // Bookable → coral placeholder (wired Phase 4).
@@ -287,6 +344,7 @@ export default async function PublicListingPage({
           </Card>
         </aside>
       </div>
+      </BookingSelectionProvider>
     </main>
   );
 }
