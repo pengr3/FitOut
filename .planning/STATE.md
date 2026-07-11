@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 3 CONTEXT gathered (03-CONTEXT.md committed ad52da3). Discussed all 4 gray areas; key outcome = D-21 UNITS occupancy model (listing.unitCount, default 1 = exclusive; DB exclusion constraint scoped by (listing, unit, tstzrange); per-spot open/free play deferred). D-21 must be added to PROJECT.md Key Decisions at transition (reshapes Phases 4 & 8). Next: /gsd-plan-phase 3.
-last_updated: "2026-07-10T14:05:17.482Z"
-last_activity: 2026-07-10
+stopped_at: Phase 3 PLANNED — 5 plans in 3 waves, plan-checker VERIFICATION PASSED (all 12 dimensions), all AVAIL-01..05 covered, SC#4 two-connection race test + [BLOCKING] db:migrate ordered. Artifacts: UI-SPEC (verified), RESEARCH (HIGH), VALIDATION (Nyquist seed), PATTERNS, 5 PLANs. D-21 added to PROJECT.md Key Decisions at transition. Next: /gsd-execute-phase 3.
+last_updated: "2026-07-11T02:58:37.238Z"
+last_activity: 2026-07-11
 progress:
   total_phases: 8
   completed_phases: 2
-  total_plans: 10
+  total_plans: 15
   completed_plans: 10
-  percent: 100
+  percent: 67
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 3 (Availability & the Double-Booking Guarantee) — NOT STARTED (ready to discuss/plan)
-Plan: Not started
+Phase: 3 (Availability & the Double-Booking Guarantee) — PLANNED, ready to execute
+Plan: 5 plans in 3 waves (W1: 03-01 foundation+keystone; W2: 03-02 server correctness, 03-03 host backend; W3: 03-04 host editor UI, 03-05 booker calendar). Plan-checker VERIFICATION PASSED. Waves 3 (03-04/03-05) have human-verify checkpoints.
 Status: Phase 02 COMPLETE and closed. All 6 plans committed on `dev`; full Vitest suite **29 files / 138 tests PASS** + Playwright public-listing E2E 3/3; `npm run build` PASS; migrations applied to the live DB (incl. paymongo_event, migrate-tracked). Phase-2 gates all green: **Validation** (02-VALIDATION Nyquist-compliant, 14/14), **Security** (02-SECURITY threats_open:0, ASVS L2), **UAT** (02-UAT complete — 8/11 pass, in-scope findings fixed live; only test 11 payout-onboarding redirect blocked on PayMongo Platforms beta). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`). NEXT: /gsd-discuss-phase 3 → /gsd-plan-phase 3 → /gsd-execute-phase 3. Phase 3 delivers the DB-level GiST exclusion constraint (the double-booking guarantee) — the correctness keystone before any money/booking flow.
 Last activity: 2026-07-10 — Phase 2 verified & closed (validation + security + UAT gates green); dev server + .next cache reset during validation.
 
@@ -94,7 +94,7 @@ None yet.
 
 Open product decisions to resolve before their relevant phase begins (from research):
 
-- Phase 3: Slot granularity (30- vs 60-min minimum booking unit).
+- ✅ RESOLVED (Phase 3, D-22): Slot granularity = 60-min on-the-hour, platform-wide for v1; any run of consecutive hours or a full day (D-23). Per-listing granularity deferred.
 - Phase 6: Request-to-book expiry SLA (must be shorter than PayMongo's ~7-day CARD authorization-hold limit; note QRPh/GCash/Maya have NO auth-hold — capture-now → refund-on-decline, and card manual-capture is a gated advanced feature requiring PayMongo enablement).
 - Phase 7: Cancellation/refund policy matrix (who × time-to-start × % refunded × commission × payout) — blocks the cancel flow. Note PayMongo QRPh/e-wallet refund rule: same-day = full-refund-only; partial only from the next day.
 - Phase 8: Whether invited attendees need an account to RSVP (v1 default: tokenized link, no account); group capacity source (listing capacity vs per-booking limit).
@@ -121,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T14:05:17.482Z
-Stopped at: Phase 3 discussion complete — 03-CONTEXT.md + 03-DISCUSSION-LOG.md committed (ad52da3). All 4 gray areas discussed. Key outcome: **D-21 UNITS occupancy model** ⭐ (listing.unitCount, default 1 = exclusive; a booking reserves ONE unit; DB GiST exclusion constraint scoped by (listing, unit, tstzrange '[)'); the (N+1)th overlapping booking is rejected. maxOccupancy = per-booking group headcount, not parallel bookings. Per-spot open/free play DEFERRED = out-of-scope per-attendee ticketing). Also: 60-min on-the-hour slots + any consecutive hours (D-22), day = operating window at day rate (D-23), close-only blocks, per-unit-or-listing scope, partial ranges (D-24), multiple weekly windows + listing-wide hours (D-25), rolling 90-day horizon + no min lead time (D-26), per-listing venue tz / timestamptz+@date-fns/tz (D-27), Phase 3 owns the booking table + exclusion constraint (btree_gist, partial WHERE excludes cancelled/declined), proven via concurrent-insert 23P01 tests (D-28). **ACTION at transition: add D-21 to PROJECT.md Key Decisions (reshapes Phases 4 & 8).**
-Resume file: .planning/phases/03-availability-the-double-booking-guarantee/03-CONTEXT.md. Next: /gsd-plan-phase 3.
+Last session: 2026-07-11T02:58:37.238Z
+Stopped at: **Phase 3 PLANNED** — full plan-phase chain complete: UI-SPEC (gsd-ui-checker VERIFIED, focal-point FLAG resolved), RESEARCH (HIGH confidence, live-DB probe: PG18.4 + btree_gist 1.8 available; Open Questions RESOLVED), VALIDATION (Nyquist seed — SC#4 two-connection race is the load-bearing test; makeRacingClients Wave-0 enabler flagged), PATTERNS (26 files → analogs), and 5 PLANs. Plan-checker: 1 revision iteration (fixed the HH:mm:ss↔HH:mm edit-resave blocker, added units.test.ts retry coverage, on-the-hour refine, 03-05 frontmatter) → **VERIFICATION PASSED** (12/12 dimensions). D-21 recorded in PROJECT.md Key Decisions. Next: /gsd-execute-phase 3 (`/clear` first). Prior stop: Phase 3 discussion complete — 03-CONTEXT.md + 03-DISCUSSION-LOG.md committed (ad52da3). All 4 gray areas discussed. Key outcome: **D-21 UNITS occupancy model** ⭐ (listing.unitCount, default 1 = exclusive; a booking reserves ONE unit; DB GiST exclusion constraint scoped by (listing, unit, tstzrange '[)'); the (N+1)th overlapping booking is rejected. maxOccupancy = per-booking group headcount, not parallel bookings. Per-spot open/free play DEFERRED = out-of-scope per-attendee ticketing). Also: 60-min on-the-hour slots + any consecutive hours (D-22), day = operating window at day rate (D-23), close-only blocks, per-unit-or-listing scope, partial ranges (D-24), multiple weekly windows + listing-wide hours (D-25), rolling 90-day horizon + no min lead time (D-26), per-listing venue tz / timestamptz+@date-fns/tz (D-27), Phase 3 owns the booking table + exclusion constraint (btree_gist, partial WHERE excludes cancelled/declined), proven via concurrent-insert 23P01 tests (D-28). **ACTION at transition: add D-21 to PROJECT.md Key Decisions (reshapes Phases 4 & 8).**
+Resume file: .planning/phases/03-availability-the-double-booking-guarantee/03-01-PLAN.md. Next: /gsd-execute-phase 3.

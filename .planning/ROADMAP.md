@@ -71,6 +71,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [ ] 03-03-PLAN.md — Wave 2: host hours/blocks backend — shared Zod (weeklyHoursSchema/blockSchema) + saveOperatingHours/addBlock/removeBlock actions (session + ownership + server re-validation) + hours-validation/blocks tests
   - [ ] 03-04-PLAN.md — Wave 3: host availability editor UI — WeeklyHoursEditor (multiple windows/day) + BlocksEditor/AddBlockDialog (close-only, unit or whole-listing) + gated host RSC page (IDOR 404) + human-verify checkpoint
   - [ ] 03-05-PLAN.md — Wave 3: booker availability calendar — AvailabilityCalendar (react-day-picker venue tz) + SlotPicker (consecutive-run, unselectable occupied/blocked) wired into the public listing page (replaces placeholder + rail summary) + availability E2E + human-verify checkpoint
+
+  **Waves:** W1 (03-01) → W2 (03-02, 03-03 — parallel, blocked on W1) → W3 (03-04, 03-05 — parallel, blocked on W1; 03-05 also on W2's read model). W3 plans carry human-verify checkpoints.
+
+  **Cross-cutting constraints** (invariants spanning ≥2 plans — every executor must hold these):
+    - The **DB GiST `EXCLUDE` constraint is the only double-booking authority** — never an app-level "query-then-insert" (03-01, 03-02, 03-05).
+    - **All times `timestamptz` UTC; displayed venue-local** via date-fns + `@date-fns/tz` at the edges only — no naive timestamps (03-01, 03-02, 03-04, 03-05).
+    - **Half-open `'[)'` range semantics + the occupying-status list (`pending`,`confirmed`) are identical** across the constraint, unit-assignment SELECT, and read model (03-01, 03-02).
+    - **Host writes re-check listing ownership server-side** (`listing.hostId === session.userId`) — the `(host)` route group alone is not the gate (03-03, 03-04).
+    - **Selectability is gated on `deriveBookable()`**; non-bookable listings show a read-only availability preview, never a dead-end (03-05).
 **UI hint**: yes
 
 ### Phase 4: Booking Core & Search (no payment)
