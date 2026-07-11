@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 3 Wave 1 COMPLETE (03-01) — the double-booking keystone is live. booking_no_overlap GiST EXCLUDE constraint applied to the live DB; operating_hours/availability_block/booking tables + booking_status enum + listing.unitCount/timezone in schema; deps (react-day-picker/date-fns/@date-fns/tz) + shadcn calendar/toggle/toggle-group/scroll-area; makeRacingClients + isPgError. SC#4 two-connection race test GREEN (4 behaviors, non-flaky). FINDING: a genuine concurrent race surfaces 40P01 (deadlock) as well as 23P01 — both prevent the double-book; Phase-4 error mapping must treat 40P01 like 23P01. Next: /gsd-execute-phase 3 continues with Wave 2 (03-02 server correctness, 03-03 host backend).
-last_updated: "2026-07-11T04:24:53Z"
+stopped_at: Phase 3 Wave 2 — 03-02 COMPLETE (server correctness layer). slots.ts (TZDate DST-correct slot enumeration + venue-tz day-of-week + D-26 90d horizon/now gating), read-model.ts (getAvailability — on-the-fly per-slot free-unit counts from operating hours − blocks − occupying bookings, venue tz, identical '[)' overlap as the constraint), units.ts (createBooking find-free-unit + retry-on-23P01/40P01 bounded by unitCount + mapBookingError clean SC#4 message). tests/availability = 5 files/33 tests GREEN (incl. 03-01 race); full suite 34/171; tsc+eslint clean. FINDINGS: TZDate.toISOString() renders offset-local not UTC → normalize via new Date(getTime()).toISOString(); postgres.js rejects Date bound into a raw sql range template → bind ISO strings (keep Date for the drizzle insert); 40P01 mapped like 23P01. Next: 03-03 (host hours/blocks backend, parallel W2) then W3 (03-04 host editor UI, 03-05 booker calendar — both carry human-verify checkpoints).
+last_updated: "2026-07-11T04:44:29Z"
 last_activity: 2026-07-11
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 15
-  completed_plans: 11
-  percent: 73
+  completed_plans: 12
+  percent: 80
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 3 (Availability & the Double-Booking Guarantee) — IN PROGRESS (Wave 1 of 3 complete)
-Plan: 03-01 COMPLETE (foundation + the EXCLUDE keystone). Remaining: W2: 03-02 server correctness, 03-03 host backend; W3: 03-04 host editor UI, 03-05 booker calendar. Waves 3 (03-04/03-05) have human-verify checkpoints. Next: 03-02 / 03-03 (parallel, both blocked only on W1 which is now done).
+Phase: 3 (Availability & the Double-Booking Guarantee) — IN PROGRESS (Wave 1 complete; Wave 2 in progress)
+Plan: 03-01 + 03-02 COMPLETE (EXCLUDE keystone + server correctness layer: slots/read-model/units). Remaining: W2: 03-03 host backend; W3: 03-04 host editor UI, 03-05 booker calendar. Wave 3 (03-04/03-05) have human-verify checkpoints. Next: 03-03 (host hours/blocks actions; unblocked). 03-05 also consumes 03-02's getAvailability read model.
 Status: Phase 02 COMPLETE and closed. All 6 plans committed on `dev`; full Vitest suite **29 files / 138 tests PASS** + Playwright public-listing E2E 3/3; `npm run build` PASS; migrations applied to the live DB (incl. paymongo_event, migrate-tracked). Phase-2 gates all green: **Validation** (02-VALIDATION Nyquist-compliant, 14/14), **Security** (02-SECURITY threats_open:0, ASVS L2), **UAT** (02-UAT complete — 8/11 pass, in-scope findings fixed live; only test 11 payout-onboarding redirect blocked on PayMongo Platforms beta). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`). NEXT: /gsd-discuss-phase 3 → /gsd-plan-phase 3 → /gsd-execute-phase 3. Phase 3 delivers the DB-level GiST exclusion constraint (the double-booking guarantee) — the correctness keystone before any money/booking flow.
 Last activity: 2026-07-10 — Phase 2 verified & closed (validation + security + UAT gates green); dev server + .next cache reset during validation.
 
-Progress: [███████▎··] 73% (11/15 executed plans) · 2/8 phases complete · Phase 3: 1/5 plans (Wave 1 done)
+Progress: [████████··] 80% (12/15 executed plans) · 2/8 phases complete · Phase 3: 2/5 plans (Wave 1 done; Wave 2 in progress)
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [███████▎··] 73% (11/15 executed plans) · 2/8 phase
 | Phase 01 P01-03 | 18 min | 3 tasks | 15 files |
 | Phase 01 P01-04 | 8 min | 2 tasks | 14 files |
 | Phase 03 P03-01 | 10 min | 3 tasks | 15 files |
+| Phase 03 P03-02 | 12 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [03-01]: The `booking_no_overlap` GiST EXCLUDE constraint (`listing_id =`, `unit =`, `tstzrange('[)') &&`) WHERE status IN ('pending','confirmed') is the ONLY double-booking authority (D-21/D-28) — hand-authored in drizzle/0005 (Drizzle can't express EXCLUDE), btree_gist installed, applied to live DB. Half-open `'[)'` + positive occupying-status list reused identically downstream (read model, unit-assignment SELECT).
 - [Phase 03]: [03-01]: ⚠️ FINDING for Phase 4 — a GENUINE two-connection concurrent overlapping insert surfaces **40P01 (deadlock_detected)** as well as **23P01 (exclusion_violation)**; both are DB-atomic rejections that prevent the double-book (exactly one row survives). `createBooking` error-mapping / retry loop MUST treat 40P01 like 23P01 ("slot just taken — retry"), not a 500. SC#4 race test accepts either code; sequential cases assert 23P01 exactly.
 - [Phase 03]: [03-01]: `makeRacingClients(schema, n)` added to tests/helpers/db.ts (independent connections — the existing `makeClient` is max:1 and serializes, proving nothing for a race); `src/lib/pg.ts` `isPgError(e, code)` for SQLSTATE detection. Bare integer `unit` (1..unitCount), named units deferred (constraint forward-compatible). `booking.bookerId` onDelete:restrict (A5).
+- [Phase 03]: [03-02]: ⚠️ `@date-fns/tz` `TZDate.toISOString()` renders the OFFSET-LOCAL form (e.g. `…+08:00`), NOT UTC `Z` — take the true UTC instant from the epoch: `new Date(tzDate.getTime()).toISOString()`. Applied to all slot/day-window instants (slots.ts, read-model.ts).
+- [Phase 03]: [03-02]: ⚠️ postgres.js throws `ERR_INVALID_ARG_TYPE` when a JS `Date` is bound into a raw drizzle `sql` range template via `db.execute` — bind ISO strings there (postgres.js casts string→timestamptz); keep `Date` only for the drizzle timestamptz INSERT. Reused by read-model.ts + units.ts; Phase 4 must follow this convention.
+- [Phase 03]: [03-02]: `getAvailability(db, listingId, dayLocal, now)` is the single server-authoritative read model (AVAIL-03) — SQL fetches raw overlapping rows with the identical `tstzrange('[)')` bound as the constraint; TS composes per-slot free-unit counts (whole-listing block ⇒ 0 free; only pending/confirmed occupy). `createBooking` = find-free-unit + retry-on-23P01/40P01 bounded by unitCount (constraint is the sole authority); `mapBookingError` → clean "That time was just taken." (23P01/40P01/NoUnitAvailableError), unknown errors re-throw. Widened `DbConn = PostgresJsDatabase<Record<string, unknown>>` so prod + test db both type-check.
 
 ### Pending Todos
 
@@ -125,6 +129,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T04:24:53Z
-Stopped at: **Phase 3 Wave 1 COMPLETE (03-01 executed)** — the double-booking keystone is live. Committed on `dev`: `5ee56b9` (chore: deps + makeRacingClients + isPgError), `99a9fd8` (feat: availability tables + 0004 generated + 0005 hand-authored GiST EXCLUDE, applied to live DB), `c7b6994` (test: SC#4 two-connection exclusion-race). `booking_no_overlap` confirmed in the live DB `pg_constraint`; btree_gist installed. SC#4 test GREEN (genuine race + multi-unit + back-to-back '[)' + partial-WHERE freeing), non-flaky across 3 runs; harness replays 0004+0005 cleanly; tsc clean; tests/availability + tests/listing = 54 passing. **KEY FINDING:** a genuine two-connection race yields **40P01 (deadlock)** OR **23P01 (exclusion_violation)** — both DB-atomically prevent the double-book; Phase-4 `createBooking` error-mapping/retry MUST handle 40P01 like 23P01. AVAIL-01/02/03 are foundation-only here (host actions/UI in 03-03/03-04, calendar in 03-05) — REQUIREMENTS.md flipped at the Phase-3 transition per repo convention. Next: /gsd-execute-phase 3 → Wave 2 (03-02 server correctness + 03-03 host backend, parallel).
-Resume file: .planning/phases/03-availability-the-double-booking-guarantee/03-02-PLAN.md. Next: /gsd-execute-phase 3 (Wave 2).
+Last session: 2026-07-11T04:44:29Z
+Stopped at: **Phase 3 Wave 2 — 03-02 COMPLETE (server correctness layer)**. Committed on `dev`: `5ce95fc` (test: RED slot-enum), `b7ce054` (feat: slots.ts DST-correct enumeration), `5ddd151` (feat: read-model.ts getAvailability + integration test), `eb4e63a` (feat: units.ts createBooking + error-map + integration test). slots.ts = TZDate venue-local→UTC slot math + venueDayOfWeek + D-26 90d horizon/now gating (proven: 6:00 Manila → 2026-07-31T22:00:00.000Z; NY winter/summer DST spot-check). read-model.ts = getAvailability on-the-fly per-slot free-unit counts (operating hours − blocks − occupying bookings; whole-listing block ⇒ 0 free; only pending/confirmed occupy; identical '[)' overlap as the constraint). units.ts = createBooking find-free-unit + retry-on-23P01/40P01 (constraint is sole authority) + mapBookingError clean SC#4 message. tests/availability 5 files/33 tests GREEN (incl. 03-01 race); full suite 34/171; tsc + eslint clean. **FINDINGS:** (1) TZDate.toISOString() is offset-local not UTC → normalize via epoch; (2) postgres.js rejects Date in a raw sql range bind → bind ISO strings, Date only for the drizzle insert; (3) 40P01 handled like 23P01. AVAIL-03 server-complete (read model) but stays Pending in REQUIREMENTS.md until the Phase-3 transition (calendar 03-05 completes the user-facing surface). Next: /gsd-execute-phase 3 → 03-03 (host hours/blocks backend), then W3 (03-04 host editor UI, 03-05 booker calendar — human-verify checkpoints).
+Resume file: .planning/phases/03-availability-the-double-booking-guarantee/03-03-PLAN.md. Next: /gsd-execute-phase 3 (Wave 2 → 03-03).
