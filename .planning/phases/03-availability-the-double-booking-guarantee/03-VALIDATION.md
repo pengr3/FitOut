@@ -47,6 +47,7 @@ created: 2026-07-11
 | **SC#4** | Back-to-back 10–11 & 11–12 both succeed (`'[)'`); 10–11 & 10:30–11:30 → `23P01` | integration | `npx vitest run tests/availability/exclusion-race.test.ts` | same file | ❌ W0 | ⬜ pending |
 | **SC#4** / D-28 | Partial WHERE: cancelled/declined row frees the slot (overlapping insert succeeds) | integration | `npx vitest run tests/availability/exclusion-race.test.ts` | same file | ❌ W0 | ⬜ pending |
 | **SC#4** | Server action maps `23P01` → clean "That time was just taken" | unit | `npx vitest run tests/availability/error-map.test.ts` | `tests/availability/error-map.test.ts` | ❌ W0 | ⬜ pending |
+| **SC#4** / D-21 | `createBooking` auto-assigns lowest free unit + retries on `23P01` bounded by `unitCount` (unit 1 occupied → returns unit 2; `unitCount=1` exhaustion → mapped "just taken", no raw throw) | integration | `npx vitest run tests/availability/units.test.ts` | `tests/availability/units.test.ts` | ❌ W0 | ⬜ pending |
 | **AVAIL-03** | Read model: hours − blocks − bookings → correct free-unit count; whole-listing block ⇒ 0 free | integration | `npx vitest run tests/availability/read-model.test.ts` | `tests/availability/read-model.test.ts` | ❌ W0 | ⬜ pending |
 | **AVAIL-03** / SC#2 | tz/DST: a venue-local slot maps to the right UTC instant + right calendar day | unit | `npx vitest run tests/availability/slots.test.ts` | `tests/availability/slots.test.ts` | ❌ W0 | ⬜ pending |
 | **AVAIL-01** | Operating-hours validation: close > open, no window overlap | unit | `npx vitest run tests/availability/hours-validation.test.ts` | `tests/availability/hours-validation.test.ts` | ❌ W0 | ⬜ pending |
@@ -64,7 +65,8 @@ created: 2026-07-11
 - [ ] `tests/availability/exclusion-race.test.ts` — SC#4 (two-connection race), multi-unit, back-to-back boundary, partial-WHERE freeing.
 - [ ] `tests/availability/read-model.test.ts` — hours − blocks − bookings free-unit math.
 - [ ] `tests/availability/slots.test.ts` — TZDate slot enumeration / DST / horizon + `start > now` gating.
-- [ ] `tests/availability/hours-validation.test.ts`, `tests/availability/blocks.test.ts`, `tests/availability/error-map.test.ts`.
+- [ ] `tests/availability/units.test.ts` — `createBooking` unit auto-assignment + `23P01`-retry loop (bounded by `unitCount`); proves the must_have truth, not just the pure error-map.
+- [ ] `tests/availability/hours-validation.test.ts` (incl. the `"HH:mm:ss"` round-trip regression + off-the-hour reject), `tests/availability/blocks.test.ts`, `tests/availability/error-map.test.ts`.
 - [ ] `e2e/availability.spec.ts` — venue-tz note, unselectable blocked slots, `!bookable` read-only, consecutive-run selection.
 
 ---
