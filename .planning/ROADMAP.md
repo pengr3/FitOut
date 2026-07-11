@@ -66,7 +66,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A booker can select an hourly window or a full day from availability, and occupied or unavailable times are visibly blocked and cannot be selected
   4. Two concurrent overlapping booking inserts for the same listing cannot both succeed — the second is rejected at the database level (exclusion constraint, error 23P01 surfaced cleanly)
 **Plans**: 5 plans in 3 waves
-  - [ ] 03-01-PLAN.md — Wave 1: foundation — schema (unitCount/timezone + operating_hours/availability_block/booking + booking_status enum), generated 0004 + hand-authored 0005 GiST EXCLUDE constraint, [BLOCKING] db:migrate, deps + shadcn calendar/toggle/scroll-area, makeRacingClients + isPgError, SC#4 two-connection exclusion-race test
+  - [x] 03-01-PLAN.md — Wave 1: foundation — schema (unitCount/timezone + operating_hours/availability_block/booking + booking_status enum), generated 0004 + hand-authored 0005 GiST EXCLUDE constraint, [BLOCKING] db:migrate, deps + shadcn calendar/toggle/scroll-area, makeRacingClients + isPgError, SC#4 two-connection exclusion-race test (COMPLETE — booking_no_overlap live; race test green; finding: genuine race yields 40P01 deadlock OR 23P01, both prevent double-book → Phase-4 must map 40P01)
   - [ ] 03-02-PLAN.md — Wave 2: server correctness layer — TZDate slot math (slots.ts), on-the-fly availability read model (read-model.ts), createBooking find-free-unit + retry-on-23P01 + clean error mapping (units.ts) + unit/integration tests
   - [ ] 03-03-PLAN.md — Wave 2: host hours/blocks backend — shared Zod (weeklyHoursSchema/blockSchema) + saveOperatingHours/addBlock/removeBlock actions (session + ownership + server re-validation) + hours-validation/blocks tests
   - [ ] 03-04-PLAN.md — Wave 3: host availability editor UI — WeeklyHoursEditor (multiple windows/day) + BlocksEditor/AddBlockDialog (close-only, unit or whole-listing) + gated host RSC page (IDOR 404) + human-verify checkpoint
@@ -151,7 +151,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Auth & Accounts | 4/4 | Complete | - |
 | 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
-| 3. Availability & Double-Booking Guarantee | 0/5 | Planned (5 plans, 3 waves) | - |
+| 3. Availability & Double-Booking Guarantee | 1/5 | In progress (W1 done — EXCLUDE keystone live) | - |
 | 4. Booking Core & Search | 0/TBD | Not started | - |
 | 5. Payments & Payouts | 0/TBD | Not started | - |
 | 6. Full Booking + Payment Integration | 0/TBD | Not started | - |
