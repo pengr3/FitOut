@@ -49,6 +49,23 @@ function makeClient(schema: string) {
   });
 }
 
+/**
+ * Open `n` INDEPENDENT postgres.js connections bound to one isolated test schema. Unlike the
+ * shared max:1 `makeClient`, these can fire genuinely concurrent inserts so the SC#4 exclusion
+ * race is real (RESEARCH Pitfall 1 — a single max:1 client serializes and proves nothing). Each
+ * client has its own pool → separate backend connections → true concurrency. Caller must
+ * `.end()` each when done.
+ */
+export function makeRacingClients(schema: string, n: number) {
+  return Array.from({ length: n }, () =>
+    postgres(baseUrl(), {
+      max: 1,
+      onnotice: () => {},
+      connection: { search_path: `${schema},public` },
+    }),
+  );
+}
+
 export type TestDb = {
   db: ReturnType<typeof drizzle>;
   client: ReturnType<typeof postgres>;
