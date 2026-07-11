@@ -458,20 +458,23 @@ it("rejects the 2nd of two concurrent overlapping inserts with 23P01 (SC#4)", as
 | A5 | `booking.bookerId` uses `onDelete: "restrict"` (don't cascade-delete real bookings) | Schema shapes | Low — planner's call; `set null` also defensible. Bookings are financial records later. |
 | A6 | Booking-status enum declared as `pending/confirmed/cancelled/declined/completed` now, though Phase 4 owns the state machine | Schema shapes | Low — only `pending`+`confirmed` are referenced by the partial WHERE in Phase 3; extra values are inert until Phase 4. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should a host block DB-prevent a booking on that unit, or only hide it in the read model?**
    - What we know: D-24 defines `availability_block` as its own concept (whole-listing via `unit IS NULL`, whole-day, reasons, easy unblock) — it does **not** fit a single booking row. The read model subtracts blocks. Phase 3 has no real booking insert, so nothing breaks now.
    - What's unclear: in Phase 4, whether the booking insert must also reject overlapping blocks at the DB level (a block-vs-booking race) or app-level is acceptable.
-   - Recommendation: **Keep `availability_block` a separate table; enforce booking-vs-booking at the DB (the money-critical invariant, SC#4); guard booking-vs-block in the Phase-4 server action inside the same transaction.** A host blocking a slot a booker is simultaneously grabbing is rare and either outcome is acceptable (the host re-blocks). Do **not** over-engineer blocks into the exclusion space for v1. Flag for the planner to confirm.
+   - Recommendation: **Keep `availability_block` a separate table; enforce booking-vs-booking at the DB (the money-critical invariant, SC#4); guard booking-vs-block in the Phase-4 server action inside the same transaction.** A host blocking a slot a booker is simultaneously grabbing is rare and either outcome is acceptable (the host re-blocks). Do **not** over-engineer blocks into the exclusion space for v1.
+   - **RESOLVED:** Adopted the recommendation. Phase 3 keeps `availability_block` a separate table and does NOT enforce block-vs-booking at the DB (03-03 Task 2 explicitly: "Do NOT enforce block-vs-booking at the DB here"). Block-vs-booking guarding is deferred to the Phase-4 server action.
 
 2. **`operating_hours` open/close type: `time` vs integer minutes-from-midnight?**
    - What we know: hours are recurring wall-clock in the venue tz; both are Drizzle-native.
    - Recommendation: **`time` (Postgres `time without time zone`)** — readable, natural, combines cleanly with a venue-local date via `TZDate`. Minutes-from-midnight is a fine alternative if you prefer pure arithmetic for overlap validation.
+   - **RESOLVED:** Adopted `time` — used for `operating_hours.open_time`/`close_time` in 03-01 schema. NB: `time` columns round-trip from Drizzle as `"HH:mm:ss"` strings — the read-model `parseTime` and any UI seeding of the shared `"HH:mm"` Zod schema MUST normalize the trailing `:ss` (see plan-checker blocker; enforced in 03-04).
 
 3. **Named units now or later?**
    - What we know: D-21 + UI-SPEC lock **no unit picker** and **auto-assign**; named units are deferred. The "N of M free" annotation is the allowed low-cost surfacing.
    - Recommendation: **Bare integer `unit` (1..unitCount)** this phase. A `listing_unit` table can be added later without changing the constraint (still `unit WITH =`).
+   - **RESOLVED:** Adopted bare integer `unit` (1..unitCount) — 03-01 schema. Named units deferred; the constraint is forward-compatible (`unit WITH =` unchanged).
 
 ## Environment Availability
 
