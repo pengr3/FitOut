@@ -218,6 +218,11 @@ Every interactive surface defines loading / empty / error / selected / disabled 
 | **Host weekly-hours editor** | loading · empty ("Set your weekly hours") · editing (add/remove windows, multiple per day, "Closed" days) · validation error (close ≤ open / overlap) · saving / saved (toast) · save-failed |
 | **Host blocks editor** | loading · empty ("No blocked dates") · list populated · add-block dialog (date → whole-day/partial → whole-listing/unit → optional reason) · validation error (end ≤ start / no date) · saving / saved · remove/unblock (reversible confirm) |
 
+**Visual hierarchy / focal point (locked, per surface):**
+- **Booker availability calendar:** the day's **hour-slot grid is the primary focal point** once a day is chosen — the month calendar is the entry point that leads the eye into it, and the **booking rail summary is secondary**, staying quiet until a slot is selected. On selection the coral chip(s) and then the coral **"Book this space" CTA** become the terminal focal point, so the eye travels date → slots → rail. Coral appears nowhere else, which is what enforces this order.
+- **Host weekly-hours editor:** the **weekly windows list is the anchor**; the single neutral `Save hours` primary is the terminal action.
+- **Host blocks editor:** the **list of existing blocks is the anchor**; `Add block` is the entry point and, inside the dialog, `Save block` is the terminal action.
+
 **Interaction rules (locked):**
 - **Selection is enabled only when the listing is `bookable`** (`deriveBookable()`). A published-but-not-payable listing still **displays** its real availability (read-only preview) but the rail shows the existing disabled "Not bookable yet" affordance — no dead-end selection. Availability may be *shown*; a slot is only *selectable/sellable* when bookable (CONTEXT § Bookability).
 - The booker may select **any run of consecutive Available hours** within one operating window (D-22), **or** the "Full day" option (the operating window at the day rate, D-23). No fixed max run.
@@ -253,11 +258,11 @@ Every interactive surface defines loading / empty / error / selected / disabled 
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS (FLAG resolved — explicit focal-point/visual-hierarchy declaration added to Screen / State Contract)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** APPROVED (gsd-ui-checker, 2026-07-11)
