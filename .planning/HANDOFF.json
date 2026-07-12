@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-12T17:02:28.415Z",
+  "phase": "03",
+  "phase_name": "availability-the-double-booking-guarantee",
+  "phase_dir": ".planning/phases/03-availability-the-double-booking-guarantee",
+  "plan": 5,
+  "task": 0,
+  "total_tasks": 5,
+  "status": "paused",
+  "context_notes": "Phase 3 execution is CODE-COMPLETE on branch `dev` — all 5 plans built and committed. Paused at the Wave-3 human-verify gate: 03-04 and 03-05 are built + committed but NOT yet marked complete in STATE.md/ROADMAP.md because they require human UAT approval. On approval, run the remaining execute-phase gates then phase.complete.",
+  "completed_tasks": [
+    {"id": 1, "name": "03-01 DB keystone: booking table + GiST EXCLUDE constraint, availability tables, deps, SC#4 race test", "status": "done", "commit": "afba1ac"},
+    {"id": 2, "name": "03-02 server correctness: slots.ts + read-model.ts + units.ts (createBooking retries 23P01 AND 40P01)", "status": "done", "commit": "2b0cfd0"},
+    {"id": 3, "name": "03-03 host hours/blocks backend: shared Zod + saveOperatingHours/addBlock/removeBlock (IDOR + server re-validate)", "status": "done", "commit": "2b7f7f2"},
+    {"id": 4, "name": "03-04 host availability editor UI (WeeklyHoursEditor + BlocksEditor + gated RSC page) + overlap-prevention UX enhancement", "status": "built_awaiting_human_verify", "commit": "40e9cf6"},
+    {"id": 5, "name": "03-05 booker availability calendar (SlotPicker + AvailabilityCalendar + getDayAvailability + public page wiring + E2E, now green)", "status": "built_awaiting_human_verify", "commit": "43a2db9"}
+  ],
+  "remaining_tasks": [
+    {"id": "uat-04", "name": "Human-verify 03-04: editor overlap-prevention + validation, blocks add/remove, IDOR 404, tz note", "status": "not_started"},
+    {"id": "uat-05", "name": "Human-verify 03-05: booker calendar venue-tz (non-Manila browser), unselectable occupied/blocked, consecutive selection, not-bookable read-only, CTA placeholder", "status": "not_started"},
+    {"id": "opt-block", "name": "OPTIONAL: apply live-validation + end>start dropdown to AddBlockDialog partial-range (user has not decided)", "status": "not_started"},
+    {"id": "gate-complete", "name": "On approval: flip 03-04/03-05 in STATE.md + ROADMAP.md, then run execute-phase gates (code review, regression, schema-drift, gsd-verifier) and phase.complete", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "Two plans (03-04, 03-05) sit at BLOCKING human-verify checkpoints; the phase cannot be marked complete until the user approves the manual UAT.", "type": "human_action", "workaround": "User runs the app and verifies; reply 'approved' resumes the completion flow."}
+  ],
+  "human_actions_pending": [
+    {"action": "Run `npm run dev` and complete the 03-04 + 03-05 human-verify walkthroughs", "context": "Both Wave-3 plans are autonomous:false; verification is manual UI testing.", "blocking": true},
+    {"action": "Decide whether to also apply the live-validation/end>start treatment to AddBlockDialog", "context": "Consistency with the weekly-hours editor UX fix; user asked to answer the 'why' first and hasn't chosen.", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Ran the whole phase sequentially on the main working tree (worktree isolation DISABLED)", "rationale": "03-01 installs npm deps (gitignored node_modules) + runs a live DB migration; a fresh worktree lacks node_modules and it doesn't carry back on merge, so Waves 2/3 would run against a dependency-less tree. Sequential-on-main makes each plan's side effects visible to the next.", "phase": "03"},
+    {"decision": "createBooking / mapBookingError treat 40P01 (deadlock) identically to 23P01 (exclusion_violation)", "rationale": "03-01's genuine two-connection race can surface 40P01 as well as 23P01; both atomically reject the double-book. Carry-forward for Phase 4.", "phase": "03"},
+    {"decision": "Overlap-prevention in the weekly-hours editor is CLIENT-SIDE (disabled conflicting dropdown options + live validation); the saveOperatingHours server action still re-validates", "rationale": "User feedback: overlaps should be impossible to express, not flagged only on Save. Server check stays as the never-trust-client safety net.", "phase": "03"},
+    {"decision": "Fixed Docker Desktop 4.69.0 startup crash by disabling EnableDockerAI and moving the stale run dir aside", "rationale": "The Inference manager crashed on a stale `dockerInference` reparse point Windows couldn't delete; renaming `%LOCALAPPDATA%\\Docker\\run` forced a clean recreate.", "phase": "03"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Await the user's human-verify approval for 03-04 and 03-05. On 'approved': edit STATE.md + ROADMAP.md to mark both plans complete, then resume the execute-phase completion flow (code_review_gate -> regression_gate -> schema_drift_gate -> verify_phase_goal via gsd-verifier -> phase.complete -> offer Phase 4)."
+}
