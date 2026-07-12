@@ -13,7 +13,7 @@
 // an untouched, DB-origin window re-saves cleanly after a reload (the 03-04 round-trip seam).
 
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { PlusIcon, XIcon } from "lucide-react";
@@ -62,6 +62,9 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
   return { value, label: `${hour12}:00 ${period}` };
 });
 
+/** "HH:mm" (or "HH:mm:ss") → integer hour 0..23, for the client-side overlap math. */
+const toHour = (t: string) => parseInt(t.slice(0, 2), 10);
+
 /** RHF stores an array-root custom issue (the overlap message) on `windows` — read it defensively. */
 type WindowsRootError = { message?: string; root?: { message?: string } } | undefined;
 
@@ -82,11 +85,53 @@ export function WeeklyHoursEditor({
   const form = useForm<WeeklyHoursInput>({
     resolver: zodResolver(weeklyHoursSchema),
     defaultValues: { windows: initialWindows },
+    mode: "onChange", // validate live so overlap / close≤open surface as you pick — not only on Save
   });
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "windows",
   });
+
+  // Live window values, for the client-side overlap math below. The server action still
+  // re-validates every write with the SAME weeklyHoursSchema — this only makes an overlap
+  // impossible to *express* in the UI (never trust the client; the check is a safety net).
+  const liveWindows = (useWatch({ control: form.control, name: "windows" }) ?? []) as Array<
+    WeeklyHoursWindow | undefined
+  >;
+
+  /** Occupied [open, close) hour ranges from the OTHER windows on `day` (pass selfIndex -1 to include all). */
+  const otherRangesOnDay = (day: number, selfIndex: number) => {
+    const ranges: { s: number; e: number }[] = [];
+    liveWindows.forEach((w, i) => {
+      if (!w || i === selfIndex || w.dayOfWeek !== day) return;
+      const s = toHour(w.openTime);
+      const e = toHour(w.closeTime);
+      if (Number.isFinite(s) && Number.isFinite(e) && e > s) ranges.push({ s, e });
+    });
+    return ranges;
+  };
+
+  // An open hour is blocked if it sits inside another window (can't start mid-block) or has no room after it.
+  const isOpenDisabled = (h: number, day: number, selfIndex: number) =>
+    h >= 23 || otherRangesOnDay(day, selfIndex).some((r) => h >= r.s && h < r.e);
+
+  // A close hour is blocked if it isn't after open, or if the [open, close) run would cross another window.
+  const isCloseDisabled = (c: number, open: number, day: number, selfIndex: number) =>
+    !Number.isFinite(open) ||
+    c <= open ||
+    otherRangesOnDay(day, selfIndex).some((r) => r.s < c && r.e > open);
+
+  /** A non-overlapping default for "Add hours": the first free hour at/after the day's latest close. */
+  const nextDefaultWindow = (day: number) => {
+    const ranges = otherRangesOnDay(day, -1);
+    const isFree = (h: number) => !ranges.some((r) => r.s < h + 1 && r.e > h);
+    const latest = ranges.length ? Math.max(...ranges.map((r) => r.e)) : 0;
+    const from = Math.min(Math.max(latest, 0), 22);
+    const hours = Array.from({ length: 23 }, (_, i) => i); // 0..22 (an open hour needs room for a close after it)
+    const start = hours.find((h) => h >= from && isFree(h)) ?? hours.find(isFree) ?? 9;
+    const hhmm = (n: number) => `${String(n).padStart(2, "0")}:00`;
+    return { dayOfWeek: day, openTime: hhmm(start), closeTime: hhmm(start + 1) };
+  };
 
   const onSubmit = form.handleSubmit(async (values) => {
     setSaving(true);
@@ -158,7 +203,11 @@ export function WeeklyHoursEditor({
                                   </FormControl>
                                   <SelectContent>
                                     {HOUR_OPTIONS.map((o) => (
-                                      <SelectItem key={o.value} value={o.value}>
+                                      <SelectItem
+                                        key={o.value}
+                                        value={o.value}
+                                        disabled={isOpenDisabled(toHour(o.value), day, index)}
+                                      >
                                         {o.label}
                                       </SelectItem>
                                     ))}
@@ -181,7 +230,16 @@ export function WeeklyHoursEditor({
                                   </FormControl>
                                   <SelectContent>
                                     {HOUR_OPTIONS.map((o) => (
-                                      <SelectItem key={o.value} value={o.value}>
+                                      <SelectItem
+                                        key={o.value}
+                                        value={o.value}
+                                        disabled={isCloseDisabled(
+                                          toHour(o.value),
+                                          toHour(liveWindows[index]?.openTime ?? ""),
+                                          day,
+                                          index,
+                                        )}
+                                      >
                                         {o.label}
                                       </SelectItem>
                                     ))}
@@ -207,9 +265,7 @@ export function WeeklyHoursEditor({
                         variant="outline"
                         size="sm"
                         className="min-h-11"
-                        onClick={() =>
-                          append({ dayOfWeek: day, openTime: "09:00", closeTime: "17:00" })
-                        }
+                        onClick={() => append(nextDefaultWindow(day))}
                       >
                         <PlusIcon className="size-4" /> Add hours
                       </Button>
