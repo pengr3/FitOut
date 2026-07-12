@@ -157,7 +157,7 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
 
     // (1) SC#2 — the calendar always names the venue timezone, independent of the browser tz.
     await expect(page.getByRole("heading", { name: /availability/i })).toBeVisible();
-    await expect(page.getByText(/Times shown in .*Manila.*\(GMT\+8\)/i)).toBeVisible();
+    await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
 
     await selectTargetDay(page);
 
@@ -189,7 +189,7 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     expect(res?.status()).toBe(200);
 
     await expect(page.getByRole("heading", { name: /availability/i })).toBeVisible();
-    await expect(page.getByText(/Times shown in .*Manila.*\(GMT\+8\)/i)).toBeVisible();
+    await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
 
     // The "Not bookable yet" affordance is shown (deriveBookable false — no host_payout row).
     await expect(page.getByRole("button", { name: /not bookable yet/i })).toBeVisible();
