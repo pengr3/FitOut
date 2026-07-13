@@ -1,11 +1,23 @@
 "use client";
 
-// Booker hour-slot picker (AVAIL-04 / AVAIL-05 · D-22/D-23). A toggle-group of 60-min, on-the-hour
-// chips for one venue-local day, rendered in the venue's local 12-hour time (SC#2 — never the browser
-// tz). The booker selects a CONTIGUOUS run of available hours OR the whole operating day ("Book full
-// day", D-23). Occupied / blocked / past / beyond-horizon hours are visibly distinct (muted +
-// line-through + tooltip), `aria-disabled`, and CANNOT be selected — never red (occupancy is a normal
-// state, not an error; UI-SPEC Availability-state recipes).
+// Booker hour-slot picker (AVAIL-04 / AVAIL-05 · D-22/D-23 · sketch 001 variant A "Range fill"). A
+// toggle-group of 60-min, on-the-hour chips for one venue-local day, rendered in the venue's local
+// 12-hour time (SC#2 — never the browser tz). The booker picks a START hour (a coral-ring anchor), then
+// an END hour, and the CONTIGUOUS available run between them fills in (either direction). If the run
+// would cross an unavailable hour it TRUNCATES at the last available hour before the gap and shows a
+// soft, non-error hint naming the blocking hour. A same-anchor second click is a 1-hour block; a click
+// after a completed run re-anchors a fresh start. "Book full day" (D-23) selects the whole operating day
+// and mutually clears any run/anchor. Occupied / blocked / past / beyond-horizon hours are visibly
+// distinct (muted + line-through + tooltip), `aria-disabled`, and CANNOT be selected — never red
+// (occupancy is a normal state, not an error; UI-SPEC Availability-state recipes).
+//
+// A11Y: the control stays a Radix ToggleGroup type="multiple" — this keeps the single tab stop + arrow
+// roving + Space/Enter activation + aria-disabled on unavailable chips + 44px hit areas with the least
+// churn. The committed run's chips carry aria-pressed=true (honest — they ARE selected). The transient
+// START anchor is intentionally NOT a pressed toggle: it is a coral ring + an augmented aria-label +
+// an aria-live "pick an end hour" helper, so SR users hear the pending state and the truncation hint.
+// (A plain-<button>/roving-tabindex grid matching the sketch was rejected — it would re-implement
+// keyboard nav for no a11y gain.) The gesture logic itself lives in the DOM-free ./slot-selection core.
 //
 // The picker is advisory (Pitfall 6): the DB EXCLUDE constraint is the sole authority and Phase 4
 // re-derives + re-validates the selection server-side. Selection lifts up via `onSelectionChange`.
@@ -16,6 +28,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
+import { InfoIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -27,8 +40,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { AvailabilitySlot } from "@/lib/availability/read-model";
+import {
+  EMPTY_SELECTION,
+  resolveClick,
+  resolveFullDay,
+  selectionValue,
+  type SelectionState,
+  type SlotSelectionValue,
+} from "./slot-selection";
 
-export type SlotSelectionValue = { startUtc: string; endUtc: string; fullDay: boolean };
+// The lifted contract is defined in the pure core and re-exported here so availability-calendar.tsx's
+// `import { SlotPicker, type SlotSelectionValue }` stays valid and untouched (contract UNCHANGED).
+export type { SlotSelectionValue };
 
 type SlotPickerProps = {
   slots: AvailabilitySlot[];
@@ -37,9 +60,6 @@ type SlotPickerProps = {
   disabled: boolean;
   onSelectionChange: (sel: SlotSelectionValue | null) => void;
 };
-
-/** A contiguous, in-bounds selected run as [lo, hi] indices into `slots` (all guaranteed available). */
-type Run = { lo: number; hi: number };
 
 /** Human-readable reason a chip can't be picked (never leaks "unit"/"tstzrange" jargon — UI-SPEC copy). */
 function reasonFor(state: AvailabilitySlot["state"]): string {
@@ -65,8 +85,9 @@ export function SlotPicker({
   onSelectionChange,
 }: SlotPickerProps) {
   const inTz = tz(timezone);
-  const [run, setRun] = React.useState<Run | null>(null);
-  const [fullDay, setFullDay] = React.useState(false);
+  // The whole gesture (anchor / run / full-day / gap) lives in one reducer state; ./slot-selection owns
+  // every transition so the DOM shell never re-implements the range-fill rules.
+  const [sel, setSel] = React.useState<SelectionState>(EMPTY_SELECTION);
 
   const startToIndex = React.useMemo(() => {
     const m = new Map<string, number>();
@@ -74,81 +95,41 @@ export function SlotPicker({
     return m;
   }, [slots]);
 
-  // The selected startUtc list drives the controlled ToggleGroup value (empty in full-day mode).
+  // The committed run's startUtcs drive the controlled ToggleGroup value. The pending anchor is NOT in
+  // the value (it renders as a coral ring, not a filled/pressed chip); full-day mode selects nothing here.
   const selectedValues = React.useMemo(() => {
-    if (fullDay || !run) return [];
-    return slots.slice(run.lo, run.hi + 1).map((s) => s.startUtc);
-  }, [run, fullDay, slots]);
+    if (!sel.run) return [];
+    return slots.slice(sel.run.lo, sel.run.hi + 1).map((s) => s.startUtc);
+  }, [sel.run, slots]);
 
-  const firstSlot = slots[0];
-  const lastSlot = slots[slots.length - 1];
-
-  /** Two slots are run-adjacent iff both available AND time-contiguous (endUtc === next startUtc). */
-  function adjacent(aIdx: number, bIdx: number): boolean {
-    const a = slots[aIdx];
-    const b = slots[bIdx];
-    return (
-      !!a &&
-      !!b &&
-      a.state === "available" &&
-      b.state === "available" &&
-      a.endUtc === b.startUtc
-    );
-  }
-
-  /** Set state AND lift the resulting selection (start/end/fullDay) up to the rail. */
-  const commit = React.useCallback(
-    (nextRun: Run | null, nextFullDay: boolean) => {
-      setRun(nextRun);
-      setFullDay(nextFullDay);
-      if (nextFullDay && firstSlot && lastSlot) {
-        onSelectionChange({
-          startUtc: firstSlot.startUtc,
-          endUtc: lastSlot.endUtc,
-          fullDay: true,
-        });
-      } else if (nextRun) {
-        onSelectionChange({
-          startUtc: slots[nextRun.lo].startUtc,
-          endUtc: slots[nextRun.hi].endUtc,
-          fullDay: false,
-        });
-      } else {
-        onSelectionChange(null);
-      }
+  /** Set the reducer state AND lift the resulting {start,end,fullDay}|null selection to the rail. */
+  const apply = React.useCallback(
+    (nextSel: SelectionState) => {
+      setSel(nextSel);
+      onSelectionChange(selectionValue(nextSel, slots));
     },
-    [slots, firstSlot, lastSlot, onSelectionChange],
+    [slots, onSelectionChange],
   );
 
-  // Radix hands us the whole toggled array; derive the single changed hour and apply the
-  // consecutive-run rule (extend at either end, else re-anchor; clicking a selected hour trims back).
+  // Radix hands us the whole toggled array; derive the SINGLE changed hour (added on a fresh click, or
+  // removed when an in-run chip is re-clicked — both re-anchor correctly) and feed it to resolveClick.
   function handleValueChange(next: string[]) {
     const prev = selectedValues;
     const added = next.find((v) => !prev.includes(v));
     const removed = prev.find((v) => !next.includes(v));
-
-    if (added !== undefined) {
-      const i = startToIndex.get(added);
-      if (i === undefined) return;
-      if (fullDay || !run) return commit({ lo: i, hi: i }, false);
-      if (i === run.hi + 1 && adjacent(run.hi, i)) return commit({ lo: run.lo, hi: i }, false);
-      if (i === run.lo - 1 && adjacent(i, run.lo)) return commit({ lo: i, hi: run.hi }, false);
-      return commit({ lo: i, hi: i }, false); // non-adjacent click → fresh run
-    }
-
-    if (removed !== undefined && run) {
-      const i = startToIndex.get(removed);
-      if (i === undefined) return;
-      if (i <= run.lo) return commit(null, false); // trimmed the whole run away
-      return commit({ lo: run.lo, hi: i - 1 }, false); // trim back to just before the clicked hour
-    }
+    const changed = added ?? removed;
+    if (changed === undefined) return;
+    const index = startToIndex.get(changed);
+    if (index === undefined) return;
+    apply(resolveClick(sel, index, slots));
   }
 
   function toggleFullDay() {
-    commit(null, !fullDay);
+    apply(resolveFullDay(sel));
   }
 
   const hasSlots = slots.length > 0;
+  const gapSlot = sel.gapIndex !== null ? slots[sel.gapIndex] : null;
 
   return (
     <TooltipProvider>
@@ -162,10 +143,11 @@ export function SlotPicker({
             aria-label="Available hours"
             className="flex w-full flex-wrap justify-start gap-2 pr-3"
           >
-            {slots.map((slot) => {
+            {slots.map((slot, index) => {
               const timeLabel = format(new Date(slot.startUtc), "h:mm a", { in: inTz });
               const isAvailable = slot.state === "available";
               const isSelected = selectedValues.includes(slot.startUtc);
+              const isAnchor = sel.anchor === index;
 
               if (!isAvailable) {
                 // Occupied / blocked / past / beyond-horizon: visible, muted, struck-through, NEVER
@@ -199,12 +181,15 @@ export function SlotPicker({
                   key={slot.startUtc}
                   value={slot.startUtc}
                   aria-pressed={isSelected}
-                  aria-label={timeLabel}
+                  // The pending START anchor announces itself (coral ring alone is not enough for SR).
+                  aria-label={isAnchor ? `${timeLabel} — start selected, pick an end hour` : timeLabel}
                   className={cn(
                     CHIP_BASE,
                     "border border-border bg-card text-foreground hover:bg-muted",
-                    // Selected = coral (the ONLY accent on this surface besides the book CTA).
+                    // In-run (data-state=on) = coral fill (the ONLY accent besides the book CTA).
                     "data-[state=on]:border-transparent data-[state=on]:bg-brand data-[state=on]:text-brand-foreground data-[state=on]:hover:bg-brand/90",
+                    // Pending anchor = coral RING (not filled), so start vs committed reads at a glance.
+                    isAnchor && "border-brand ring-2 ring-brand/50",
                   )}
                 >
                   <span className="tabular-nums">{timeLabel}</span>
@@ -224,16 +209,39 @@ export function SlotPicker({
           </ToggleGroup>
         </ScrollArea>
 
+        {/* Pending helper: a start is anchored but no end yet. Muted, never red — this is normal flow. */}
+        {sel.anchor !== null && !sel.run && (
+          <p aria-live="polite" className="text-sm text-muted-foreground">
+            Start selected — pick an end hour.
+          </p>
+        )}
+
+        {/* Gap hint: the fill truncated at a busy hour. A soft brand-tint info note — NEVER an error/red
+            (occupancy is a normal state). Mutually exclusive with the pending helper by construction. */}
+        {gapSlot && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-start gap-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-foreground"
+          >
+            <InfoIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand" />
+            <span>
+              {format(new Date(gapSlot.startUtc), "h:mm a", { in: inTz })} is{" "}
+              {reasonFor(gapSlot.state).toLowerCase()} — pick a later start for a block after it.
+            </span>
+          </div>
+        )}
+
         {hasSlots && (
           <button
             type="button"
-            aria-pressed={fullDay}
+            aria-pressed={sel.fullDay}
             disabled={disabled}
             onClick={toggleFullDay}
             className={cn(
               "min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors",
               "hover:bg-muted disabled:pointer-events-none disabled:opacity-50",
-              fullDay && "border-transparent bg-brand text-brand-foreground hover:bg-brand/90",
+              sel.fullDay && "border-transparent bg-brand text-brand-foreground hover:bg-brand/90",
             )}
           >
             Book full day
