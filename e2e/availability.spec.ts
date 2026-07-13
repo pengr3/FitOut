@@ -11,7 +11,9 @@
 // Assertions (venue tz = Asia/Manila, GMT+8):
 //   1. tz note "Times shown in … (GMT+8)" is visible on the public page (SC#2).
 //   2. the booked hour and the blocked hour render disabled (aria-disabled) and are unselectable (AVAIL-05).
-//   3. selecting two adjacent available hours shows the selection summary (date · time range) in the rail.
+//   3. range fill (sketch 001 variant A): an adjacent start→end fill + full-day mutual-clear; a
+//      non-adjacent clean fill (interior hours filled) with a 3rd-click re-anchor; and a gap truncation
+//      that stops before the booked hour with a soft, non-red hint naming the blocking hour (AVAIL-04).
 //   4. the not-payable listing shows the calendar but slots are disabled + a "Not bookable yet" affordance.
 //
 // The webhook that sets payouts_enabled is Phase 2 / out of scope here, so the bookable case seeds the
@@ -147,7 +149,7 @@ async function selectTargetDay(page: import("@playwright/test").Page) {
 }
 
 test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
-  test("bookable listing: venue-tz note, unselectable booked/blocked hours, consecutive selection", async ({
+  test("bookable listing: venue-tz note, unselectable booked/blocked hours, adjacent range fill + full-day clear", async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -173,12 +175,79 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     await expect(bookedHour).toBeDisabled();
     await expect(blockedHour).toHaveAttribute("aria-disabled", "true");
 
-    // (3) AVAIL-04 — select two consecutive available hours → the rail selection summary appears.
-    await sixAm.click();
-    await sevenAm.click();
+    // (3) AVAIL-04 range fill — click a start hour, then an adjacent end hour: the run fills between and
+    // the rail summary appears. Both endpoints read as pressed (they ARE selected).
+    await sixAm.click(); // start anchor (coral ring; selection is still pending)
+    await sevenAm.click(); // end → the run spans 6:00 AM – 8:00 AM (end = the second hour's end)
     await expect(sixAm).toHaveAttribute("aria-pressed", "true");
-    // 06:00 + 07:00 → the run spans 6:00 AM – 8:00 AM (end = the second hour's end).
+    await expect(sevenAm).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByText(/6:00 AM\s*[–-]\s*8:00 AM/i)).toBeVisible();
+
+    // (4) D-23 — "Book full day" selects the whole operating day and MUTUALLY clears the run…
+    await page.getByRole("button", { name: /book full day/i }).click();
+    await expect(page.getByText("Full day", { exact: true })).toBeVisible();
+    // …then clicking any hour clears full-day back to a fresh PENDING anchor (mutual clear → no summary).
+    await sixAm.click();
+    await expect(page.getByText("Full day", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/pick an end hour/i)).toBeVisible();
+  });
+
+  test("range-fill: non-adjacent clean fill selects the whole run, then a 3rd click re-anchors", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    const res = await page.goto(`${BASE}/listings/${bookableListingId}`);
+    expect(res?.status()).toBe(200);
+    await selectTargetDay(page);
+
+    // 5:00 PM … 8:00 PM are all available (no afternoon booking/block) → a clean 4-hour run in two clicks.
+    await page.getByRole("button", { name: "5:00 PM", exact: true }).click(); // start anchor
+    await page.getByRole("button", { name: "8:00 PM", exact: true }).click(); // end
+    // The run spans 5:00 PM – 9:00 PM (end = the 8:00 PM slot's end).
+    await expect(page.getByText(/5:00 PM\s*[–-]\s*9:00 PM/i)).toBeVisible();
+    // Interior hours are FILLED (proves the range fill, not just the two clicked endpoints).
+    await expect(page.getByRole("button", { name: "6:00 PM", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.getByRole("button", { name: "7:00 PM", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    // A 3rd click AFTER a completed run re-anchors a FRESH start: the old summary clears and the
+    // pending helper returns (selection resets to null).
+    await page.getByRole("button", { name: "12:00 PM", exact: true }).click();
+    await expect(page.getByText(/5:00 PM\s*[–-]\s*9:00 PM/i)).toHaveCount(0);
+    await expect(page.getByText(/pick an end hour/i)).toBeVisible();
+    // Completing the fresh anchor yields a new run 12:00 PM – 2:00 PM.
+    await page.getByRole("button", { name: "1:00 PM", exact: true }).click();
+    await expect(page.getByText(/12:00 PM\s*[–-]\s*2:00 PM/i)).toBeVisible();
+  });
+
+  test("range-fill: a gap truncates the run to before the booked hour with a soft hint", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    const res = await page.goto(`${BASE}/listings/${bookableListingId}`);
+    expect(res?.status()).toBe(200);
+    await selectTargetDay(page);
+
+    // 7:00 AM (start) → 9:00 AM (end), but 8:00 AM is booked between them. The fill TRUNCATES at the
+    // last available hour before the gap → 7:00 AM – 8:00 AM only (a single hour).
+    await page.getByRole("button", { name: "7:00 AM", exact: true }).click();
+    await page.getByRole("button", { name: "9:00 AM", exact: true }).click();
+    await expect(page.getByText(/7:00 AM\s*[–-]\s*8:00 AM/i)).toBeVisible();
+
+    // A soft, non-error hint names the blocking hour (never red — occupancy is a normal state).
+    await expect(page.getByText(/8:00 AM is unavailable/i)).toBeVisible();
+    await expect(page.getByText(/pick a later start/i)).toBeVisible();
+
+    // 9:00 AM was excluded by the truncation → it is NOT selected.
+    await expect(page.getByRole("button", { name: "9:00 AM", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   test("published-but-not-payable listing: calendar renders read-only, slots not selectable", async ({
