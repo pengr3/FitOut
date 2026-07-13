@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: in_progress
 stopped_at: Phase 3 Wave 2 — 03-03 COMPLETE (host availability write path). availability.ts (shared Zod: weeklyHoursSchema close>open + no same-day overlap '[)' + on-the-hour + :ss-tolerant; blockSchema whole-day/partial + unit/whole-listing), operating-hours.ts (saveOperatingHours: session + assertOwnership IDOR + safeParse + replace-the-set upsert, D-25), blocks.ts (addBlock venue-tz→UTC timestamptz via TZDate + removeBlock owner-scoped delete, D-24 close-only). tests/availability = 7 files/62 tests GREEN; full suite 36/200; tsc+eslint clean. The 03-04 edit round-trip seam (the BLOCKER) is closed: on-the-hour refine runs on the normalized 'HH:mm' prefix + :ss-tolerant regex, so DB 'HH:mm:ss' re-validates while '06:15:00' still rejects (proven purely + end-to-end through saveOperatingHours). Wave 2 now COMPLETE (03-02 + 03-03). Next: W3 (03-04 host editor UI, 03-05 booker calendar — both carry human-verify checkpoints; 03-05 also consumes 03-02's getAvailability read model).
-last_updated: "2026-07-11T04:57:59Z"
-last_activity: 2026-07-11
+last_updated: "2026-07-13T09:15:43Z"
+last_activity: 2026-07-13
 progress:
   total_phases: 8
   completed_phases: 2
@@ -121,6 +121,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 |---|-------------|------|--------|-----------|
 | 260709-id2 | Swap payments provider Stripe → PayMongo in planning docs | 2026-07-09 | 1eebe11 | [260709-id2-swap-payments-provider-stripe-to-paymong](./quick/260709-id2-swap-payments-provider-stripe-to-paymong/) |
 | 260710-lgo | Fix T-04-SIGMATCH: allow-list Cloudinary sign params | 2026-07-10 | d1fb76b | [260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-](./quick/260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-/) |
+| 260713-nz3 | Range-fill slot selection in booker SlotPicker (03-05 UX) | 2026-07-13 | 83708f0 | [260713-nz3-range-fill-slot-selection-in-booker-slot](./quick/260713-nz3-range-fill-slot-selection-in-booker-slot/) |
 
 ## Deferred Items
 
