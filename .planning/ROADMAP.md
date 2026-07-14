@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Auth & Accounts** - Single account with booker + host capabilities, sessions, password reset, basic profile
 - [x] **Phase 2: Listings & Host Onboarding** - Hosts create/edit listings with photos, pricing, booking mode; PayMongo onboarding gates bookability
-- [ ] **Phase 3: Availability & the Double-Booking Guarantee** - Availability rules, real-time calendar, and the DB exclusion constraint that makes overlaps structurally impossible
+- [x] **Phase 3: Availability & the Double-Booking Guarantee** - Availability rules, real-time calendar, and the DB exclusion constraint that makes overlaps structurally impossible (completed 2026-07-14)
 - [ ] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search
 - [ ] **Phase 5: Payments & Payouts** - Stripe Connect charge, commission, delayed host payout, webhook-as-source-of-truth, refunds
 - [ ] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book authorize→capture-on-approve, host approve/decline, confirmation
@@ -69,8 +69,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 03-01-PLAN.md — Wave 1: foundation — schema (unitCount/timezone + operating_hours/availability_block/booking + booking_status enum), generated 0004 + hand-authored 0005 GiST EXCLUDE constraint, [BLOCKING] db:migrate, deps + shadcn calendar/toggle/scroll-area, makeRacingClients + isPgError, SC#4 two-connection exclusion-race test (COMPLETE — booking_no_overlap live; race test green; finding: genuine race yields 40P01 deadlock OR 23P01, both prevent double-book → Phase-4 must map 40P01)
   - [x] 03-02-PLAN.md — Wave 2: server correctness layer — TZDate slot math (slots.ts), on-the-fly availability read model (read-model.ts), createBooking find-free-unit + retry-on-23P01 + clean error mapping (units.ts) + unit/integration tests (COMPLETE — 5 files/33 tests green; findings: TZDate.toISOString() is offset-local not UTC → normalize via epoch; bind ISO strings not Date into raw sql; 40P01 mapped like 23P01)
   - [x] 03-03-PLAN.md — Wave 2: host hours/blocks backend — shared Zod (weeklyHoursSchema/blockSchema) + saveOperatingHours/addBlock/removeBlock actions (session + ownership + server re-validation) + hours-validation/blocks tests (COMPLETE — 2 files/29 tests green; on-the-hour :ss-tolerant round-trip seam closed for 03-04; venue-tz→UTC timestamptz via TZDate; IDOR/replace-the-set/non-owner-unblock guarded)
-  - [ ] 03-04-PLAN.md — Wave 3: host availability editor UI — WeeklyHoursEditor (multiple windows/day) + BlocksEditor/AddBlockDialog (close-only, unit or whole-listing) + gated host RSC page (IDOR 404) + human-verify checkpoint
-  - [ ] 03-05-PLAN.md — Wave 3: booker availability calendar — AvailabilityCalendar (react-day-picker venue tz) + SlotPicker (consecutive-run, unselectable occupied/blocked) wired into the public listing page (replaces placeholder + rail summary) + availability E2E + human-verify checkpoint
+  - [x] 03-04-PLAN.md — Wave 3: host availability editor UI — WeeklyHoursEditor (multiple windows/day) + BlocksEditor/AddBlockDialog (close-only, unit or whole-listing) + gated host RSC page (IDOR 404) + human-verify checkpoint
+  - [x] 03-05-PLAN.md — Wave 3: booker availability calendar — AvailabilityCalendar (react-day-picker venue tz) + SlotPicker (consecutive-run, unselectable occupied/blocked) wired into the public listing page (replaces placeholder + rail summary) + availability E2E + human-verify checkpoint
 
   **Waves:** W1 (03-01) → W2 (03-02, 03-03 — parallel, blocked on W1) → W3 (03-04, 03-05 — parallel, blocked on W1; 03-05 also on W2's read model). W3 plans carry human-verify checkpoints.
 
@@ -151,7 +151,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Auth & Accounts | 4/4 | Complete | - |
 | 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
-| 3. Availability & Double-Booking Guarantee | 3/5 | In progress (W1 done; W2 done — server correctness + host write path; W3 remaining: 03-04 editor UI, 03-05 booker calendar) | - |
+| 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
 | 4. Booking Core & Search | 0/TBD | Not started | - |
 | 5. Payments & Payouts | 0/TBD | Not started | - |
 | 6. Full Booking + Payment Integration | 0/TBD | Not started | - |
