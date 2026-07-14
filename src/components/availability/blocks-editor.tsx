@@ -55,7 +55,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Toaster } from "@/components/ui/sonner";
 
 export type BlockRow = {
   id: string;
@@ -105,8 +104,6 @@ export function BlocksEditor({
 
   return (
     <div className="space-y-4">
-      <Toaster />
-
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           {`Times shown in ${cityLabel} time.`}

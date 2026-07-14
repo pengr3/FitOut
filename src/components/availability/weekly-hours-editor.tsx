@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Toaster } from "@/components/ui/sonner";
 
 export type WeeklyHoursWindow = {
   dayOfWeek: number;
@@ -75,7 +74,6 @@ export function WeeklyHoursEditor({
   initialWindows,
 }: {
   listingId: string;
-  timezone: string; // accepted for a consistent editor contract; the tz note uses cityLabel + gmtLabel
   cityLabel: string;
   gmtLabel: string;
   initialWindows: WeeklyHoursWindow[];
@@ -155,8 +153,6 @@ export function WeeklyHoursEditor({
 
   return (
     <div className="space-y-4">
-      <Toaster />
-
       <p className="text-sm text-muted-foreground">
         {`These hours are in your space's local time — ${cityLabel} (${gmtLabel}).`}
       </p>

@@ -16,6 +16,7 @@ import { db } from "@/lib/db";
 import { listing, operatingHours, availabilityBlock } from "@/lib/db/schema";
 import { WeeklyHoursEditor } from "@/components/availability/weekly-hours-editor";
 import { BlocksEditor } from "@/components/availability/blocks-editor";
+import { Toaster } from "@/components/ui/sonner";
 
 /** Current short GMT offset for an IANA zone, e.g. "GMT+8" for Asia/Manila. */
 function gmtLabelFor(timezone: string): string {
@@ -91,6 +92,10 @@ export default async function HostAvailabilityPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
+      {/* WR-04: mount Toaster exactly once at the shared ancestor so a toast from either editor
+          (WeeklyHoursEditor / BlocksEditor) renders a single time, not once per mounted region. */}
+      <Toaster />
+
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Availability</h1>
         <p className="text-sm text-muted-foreground">
@@ -102,7 +107,6 @@ export default async function HostAvailabilityPage({
         <h2 className="text-xl font-semibold">Weekly hours</h2>
         <WeeklyHoursEditor
           listingId={row.id}
-          timezone={row.timezone}
           cityLabel={cityLabel}
           gmtLabel={gmtLabel}
           initialWindows={initialWindows}
