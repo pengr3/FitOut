@@ -1,10 +1,11 @@
 ---
 phase: 4
 slug: booking-core-search-no-payment
-status: draft
+status: approved
 shadcn_initialized: true
 preset: radix-nova / baseColor neutral / lucide
 created: 2026-07-14
+reviewed_at: 2026-07-14
 ---
 
 # Phase 4 — UI Design Contract
