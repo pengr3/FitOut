@@ -58,7 +58,7 @@
 | ID | Description | Research Support |
 |----|-------------|------------------|
 | SEARCH-01 | Search by location (area/radius within launch region) | Pattern 1 (search query) + Pitfall 1 (PostGIS `::geography` cast — the load-bearing correctness fact). Reuses `listing_location_gist`; origin lat/lng from `address-autocomplete`. |
-| SEARCH-02 | Filter by activity / space type | Pattern 1: `primary_space_type = $t OR EXISTS(listing_activity_tag)` (D-35). Vocab from `src/lib/listing-vocab.ts`. |
+| SEARCH-02 | Filter by activity / space type | Pattern 1: a single combined `category` param checked against BOTH columns — `primary_space_type::text = $category OR EXISTS(listing_activity_tag.tag = $category)` (D-35; the two vocabs are disjoint, so gate on `category` presence, not a space-type value). Vocab from `src/lib/listing-vocab.ts`. |
 | SEARCH-03 | Filter by date and time availability | Pattern 1 + Pattern 3 (reuse `getAvailability` read model as the availability predicate — the "true free-window" filter, D-34). Two-stage candidate-then-filter recommended. |
 | SEARCH-04 | Filter by price | Pattern 1: filter on `hourly_rate_cents` min/max (UI-SPEC price axis). |
 | SEARCH-05 | Results as list of cards (photo, name, price, distance) | Extend `listing-card.tsx` → `SearchResultCard`; distance from `ST_Distance(::geography)` (meters → km). |
@@ -165,7 +165,7 @@ SEARCH FLOW (SEARCH-01..05)
   STAGE 1 — SQL candidate query (Drizzle `sql`):
      bookable predicate (published ∧ emailVerified ∧ payoutsEnabled)     ← mirror deriveBookable (Pitfall 5)
      ∧ ST_DWithin(location::geography, origin::geography, radius_m)       ← ::geography cast (Pitfall 1)
-     ∧ (primary_space_type = $t OR EXISTS listing_activity_tag)          ← D-35
+     ∧ (primary_space_type::text = $category OR EXISTS listing_activity_tag.tag = $category)          ← D-35
      ∧ hourly_rate_cents BETWEEN $min AND $max                           ← D-46
      ∧ EXISTS operating_hours WHERE day_of_week = EXTRACT(DOW FROM $date) ← cheap "open that weekday"
      ORDER BY ST_Distance(::geography) | hourly_rate_cents  LIMIT+OFFSET  ← D-37/D-32
@@ -251,12 +251,12 @@ const rows = await db.execute(sql`
     AND u.email_verified = true
     AND COALESCE(hp.payouts_enabled, false) = true          -- mirrors deriveBookable (Pitfall 5)
     ${origin ? sql`AND ST_DWithin(l.location::geography, ${originGeog}::geography, ${radiusMeters})` : sql``}
-    ${spaceType ? sql`AND (l.primary_space_type = ${spaceType}
-        OR EXISTS (SELECT 1 FROM listing_activity_tag t WHERE t.listing_id = l.id AND t.tag = ${activity}))` : sql``}
+    ${category ? sql`AND (l.primary_space_type::text = ${category}
+        OR EXISTS (SELECT 1 FROM listing_activity_tag t WHERE t.listing_id = l.id AND t.tag = ${category}))` : sql``}  -- single combined param (D-35); ::text avoids an enum-cast error on an activity-tag value; gate on category presence, not a space-type value
     ${priceMax != null ? sql`AND l.hourly_rate_cents <= ${priceMax}` : sql``}
     ${pickedDate ? sql`AND EXISTS (SELECT 1 FROM operating_hours oh
         WHERE oh.listing_id = l.id AND oh.day_of_week = EXTRACT(DOW FROM ${pickedDate}::date))` : sql``}
-  ORDER BY ${sortByPrice ? sql`l.hourly_rate_cents ASC` : sql`distance_m ASC NULLS LAST`}
+  ORDER BY ${sortByPrice ? sql`l.hourly_rate_cents ASC, l.created_at DESC` : sql`distance_m ASC NULLS LAST, l.created_at DESC`}  -- created_at DESC = stable curated/newest tiebreaker (no-origin default: all distance_m NULL, D-30)
   LIMIT ${pageSize + 1} OFFSET ${page * pageSize}          -- +1 = "has more" probe (D-32 Load more)
 `);
 // originGeog: build as ST_SetSRID(ST_MakePoint(lng, lat), 4326) — x=lng, y=lat (Pitfall 4).
@@ -464,20 +464,25 @@ const results = await Promise.allSettled([placeHoldVia(a, window), placeHoldVia(
 | A6 | Booking reference `FIT-XXXXXXXX` is a stored column generated at insert (Crockford base32), URL uses the opaque id | Project Structure / UI-SPEC | Low — UI-SPEC locks the format; generation is planner's call. |
 | A7 | No existing prod/UAT bookings, so new columns are backfill-safe | Runtime State Inventory | Low — verified via STATE.md (no booking-write flow shipped) + MEMORY seed doc (listings only). |
 
-**These `[ASSUMED]` items need user/planner confirmation before becoming locked decisions** — chiefly A2 (idempotency source) and A5 (pagination), which have real design forks. A3 (`cancelled` vs `expired`) is already delegated to Claude's discretion.
+**These `[ASSUMED]` items were resolved at plan time (see § Open Questions (RESOLVED))** — A2 (idempotency source → ship both, 04-01 T1 + 04-04 T2) and A5 (pagination → over-fetch, 04-03 T2). A3 (`cancelled` vs `expired`) is delegated to Claude's discretion (lean `cancelled`).
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three questions were resolved at plan time; each carries an inline resolution note pointing at the deciding plan/task.
 
 1. **Idempotency-key source (A2).** Derived-from-window vs client-token vs both.
    - What we know: D-42 requires a booker's own double-click to return the same booking; the EXCLUDE constraint alone produces a false "just taken."
    - What's unclear: whether to also mint a client token (tighter exact-double-click dedup) or rely solely on the own-hold pre-check.
    - Recommendation: implement the own-hold pre-check as primary (covers re-entry + double-click of a window) and add a nullable `idempotencyKey` + partial-unique as the concurrent-race backstop. Ship both.
+   - **RESOLVED — ship BOTH (Plan 04-01 Task 1 + Plan 04-04 Task 2):** the nullable `idempotencyKey` column + partial-unique index land in 04-01 Task 1; the derived own-hold pre-check (primary) + the `23505` partial-unique backstop land in 04-04 Task 2 (`createPendingHold`).
 
 2. **Pagination under Stage-2 filtering (A5).** Availability filtering happens after the SQL page limit.
    - Recommendation: over-fetch Stage-1 (e.g. `pageSize*2+1`) and page in TS, or accept a keyset cursor. Decide at plan time; correctness (no skipped/duplicated cards) over cleverness.
+   - **RESOLVED — over-fetch (Plan 04-03 Task 2):** Stage-2 over-fetches Stage-1 (`LIMIT pageSize*2+1`) and computes the final `hasMore` after availability filtering; OFFSET paging at single-city scale (keyset cursor deferred).
 
 3. **"Near me" geolocation in the first cut?** (D-33, Claude's discretion.)
    - Recommendation: ship typed autocomplete first (the primary path already exists); add `Use my location` (`navigator.geolocation` → lat/lng into the same query) as a fast-follow if time allows. Not on the critical path.
+   - **RESOLVED — fast-follow (Plan 04-05 Task 2):** typed autocomplete is the primary path this phase; `Use my location` (`navigator.geolocation`) is an OPTIONAL fast-follow in the SearchBar, not on the critical path.
 
 ## Environment Availability
 

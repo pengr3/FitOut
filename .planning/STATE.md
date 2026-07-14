@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-last_updated: "2026-07-14T07:25:34.353Z"
-last_activity: 2026-07-14
+status: executing
+last_updated: "2026-07-14T10:05:59.937Z"
+last_activity: 2026-07-14 -- Phase 4 planning complete
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 15
+  total_plans: 23
   completed_plans: 16
   percent: 38
 ---
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 Phase: 4
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-07-14
+Status: Ready to execute
+Last activity: 2026-07-14 -- Phase 4 planning complete
 
 Progress: [████░░░░░░] 3/8 phases complete (~38%) · Phase 3 (Availability & Double-Booking Guarantee) shipped 2026-07-14 · Phase 4 (Booking Core & Search) — ready to plan
 
@@ -133,6 +133,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-14T07:25:34.302Z
+Last session: 2026-07-14T07:51:45.085Z
 Advisory follow-ups from 03-REVIEW.md — RESOLVED in quick task 260714-feq (commits 7ab4532/a527d50/c875d72/8667ecb): WR-01 (getDayAvailability now Zod-validates dayLocal via safeParse→empty + gates on published/non-deleted — no 500, no draft leak), WR-02 (addBlock rejects unit>unitCount; read-model clamps unit∈[1,unitCount]), WR-04 (single `<Toaster/>` on the host page), IN-01 (slotSelectionSchema marked Phase-4 scaffolding), IN-02 (formatMoney extracted to src/lib/money.ts), IN-03 (handleDaySelect catch → inline role=alert), IN-05 (E2E day locator robust to showOutsideDays), IN-06 (dropped unused timezone prop). Verified: tsc + eslint clean, vitest tests/availability 82/82, Playwright availability E2E 4/4. STILL OPEN by design: WR-03 deferred to Phase 4 (auto-commit contract now documented in units.ts createBooking; the savepoint-for-23P01 + outer-retry-for-40P01 transactional design is Phase-4 work) and IN-04 skipped (test-only local-dev creds). Also set workflow.use_worktrees=false — a fresh worktree lacks gitignored node_modules so tsc/eslint/vitest/playwright can't run; this recurring blocking anti-pattern is now structurally prevented.
-Resume file: .planning/phases/04-booking-core-search-no-payment/04-CONTEXT.md
+Resume file: .planning/phases/04-booking-core-search-no-payment/04-UI-SPEC.md

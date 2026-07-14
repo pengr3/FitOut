@@ -141,7 +141,7 @@ export const slotSelectionSchema = z.object({
 }).refine((v) => v.endUtc > v.startUtc, { message: "End must be after start.", path: ["endUtc"] });
 ```
 - `searchParamsSchema`: bound every untrusted URL param — `lat ∈ [-90,90]`, `lng ∈ [-180,180]`, `radius` ∈
-  the presets (2/5/10/25), `priceMax` int ≥ 0, `date`/`start`/`end`, `type` ∈ `spaceTypeValues`/`activityTagValues`
+  the presets (2/5/10/25), `priceMax` int ≥ 0, `date`/`start`/`end`, a single combined `category` ∈ `spaceTypeValues` ∪ `activityTagValues`
   (from `@/lib/listing-vocab`), `sort` ∈ `{nearest,price}`, `page` int ≥ 0 (RESEARCH Security V5 + Pitfall
   "Tampered search origin"). Mirror the **runtime arg-validation** pattern in `actions/availability.ts:25-29`
   (`dayLocalSchema` — a crafted `NaN`/`"abc"` must not reach date math).
@@ -240,8 +240,11 @@ Stage-1; the `deriveBookable` predicate (bookability.ts:16-21) inlined into SQL 
   //   → WHERE l.status='published' AND l.deleted_at IS NULL AND u.email_verified = true
   //     AND COALESCE(hp.payouts_enabled, false) = true
   ```
-- Activity match (D-35): `primary_space_type = $t OR EXISTS(listing_activity_tag …)` using `spaceTypeValues`/
-  `activityTagValues` (listing-vocab.ts:35,67). Price (D-46): `hourly_rate_cents <= $priceMax`. Weekday
+- Activity match (D-35): gate on a single `category` param's PRESENCE (not space-type alone), checked against BOTH
+  columns — `primary_space_type::text = $category OR EXISTS(listing_activity_tag WHERE tag = $category)` over
+  `spaceTypeValues` ∪ `activityTagValues` (listing-vocab.ts:35,67). The `::text` cast avoids `22P02`: an activity
+  `category` (e.g. `basketball`) is not a valid `space_type` enum label, so casting the enum to text makes a
+  cross-vocab value compare as no-match instead of raising. Price (D-46): `hourly_rate_cents <= $priceMax`. Weekday
   pre-filter (tz-independent): `EXISTS(operating_hours WHERE day_of_week = EXTRACT(DOW FROM $date::date))`.
 - **All user input parameter-bound** via Drizzle `sql` (never string-concat — Security V5). Bind ISO strings,
   not `Date` (Pitfall 3).
@@ -411,7 +414,7 @@ when an origin exists) and an optional **searched-window** line (`Available {t}`
 - **Debounced-fetch + abort pattern** (address-autocomplete.tsx:107-141) is the reference if any field needs
   live suggestions.
 - RHF + `zodResolver(searchParamsSchema)` (mirror wizard.tsx); on submit, **serialize params to the URL**
-  (`?type&date&start&end&priceMax&radius&sort&page` + `lat&lng`) so search is shareable/SEO + Back works (D-32).
+  (`?category&date&start&end&priceMax&radius&sort&page` + `lat&lng`) so search is shareable/SEO + Back works (D-32).
   Compose `input-group`/`command`/`popover`/`calendar`/`select`/`toggle-group` (all installed — UI-SPEC Inventory).
 - Single coral `Search` button (the one primary per screen). All fields ≥44px hit area.
 
