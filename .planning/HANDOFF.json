@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-14T10:11:41.435Z",
+  "phase": "04",
+  "phase_name": "Booking Core & Search (no payment)",
+  "phase_dir": ".planning/phases/04-booking-core-search-no-payment",
+  "plan": 0,
+  "task": 0,
+  "total_tasks": 8,
+  "status": "paused",
+  "pause_point": "plan-execute-boundary",
+  "summary": "Phase 4 is fully PLANNED and committed (8 plans, 5 waves), verified through the plan-checker revision loop. Execution has NOT started. Resume by running /gsd:execute-phase 4.",
+  "completed_tasks": [
+    {"id": 1, "name": "Research (04-RESEARCH.md) — PostGIS availability-search SQL, WR-03 SAVEPOINT/retry/sweep tx, hold expiry, idempotency; Validation Architecture + Security Domain", "status": "done", "commit": "f82e227"},
+    {"id": 2, "name": "Validation strategy (04-VALIDATION.md) — Nyquist per-requirement test map + Wave-0 gaps", "status": "done", "commit": "9fb1f61"},
+    {"id": 3, "name": "Pattern map (04-PATTERNS.md) — 32 files -> closest analogs with file:line excerpts", "status": "done", "commit": "1dec7f7"},
+    {"id": 4, "name": "8 plans created (04-01..04-08, 5 waves)", "status": "done", "commit": "69e07fc"},
+    {"id": 5, "name": "Plan-checker verification loop — iter1 fixed 1 blocker (D-35 activity-tag-only search no-op) + 6 warnings; iter2 re-check clean; doc-sync applied; 17/17 decision-coverage citations added to must_haves", "status": "done", "commit": "6532222"}
+  ],
+  "remaining_tasks": [
+    {"id": 1, "name": "Wave 1 — 04-01 (booking hold columns + [BLOCKING] drizzle migration + read-model lazy-expiry) + 04-02 (search/booking Zod schemas + PHP DISPLAY_CURRENCY + D-38 seed + geo helper)", "status": "not_started"},
+    {"id": 2, "name": "Wave 2 — 04-03 (two-stage search query + tests) + 04-04 (createPendingHold WR-03 tx + pricing + FIT- reference)", "status": "not_started"},
+    {"id": 3, "name": "Wave 3 — 04-05 (search home at /) + 04-06 (placeHold/confirmBooking actions + reserve components)", "status": "not_started"},
+    {"id": 4, "name": "Wave 4 — 04-07 (reserve page + owner-gated confirmation page + Book CTA wiring)", "status": "not_started"},
+    {"id": 5, "name": "Wave 5 — 04-08 (full-flow search->book->confirm E2E + expiry UX + HUMAN-VERIFY checkpoint)", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {"action": "Human-verify visual/interaction checkpoint in plan 04-08 (search home, reserve countdown/expiry, confirmation durability per UI-SPEC)", "context": "Plan 04-08 Task 2 is a non-autonomous checkpoint:human-verify — it will pause execution in Wave 5 and require a human sign-off", "blocking": true},
+    {"action": "Ensure Docker Postgres is running (npm run db:up) before executing Wave 1", "context": "Plan 04-01 includes a [BLOCKING] `npm run db:migrate` that applies drizzle/0006_booking_hold.sql to the live DB; the migrate and all DB-reading tests need the DB up", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Chose Research-first over skip-research", "rationale": "Phase 4 has two correctness-critical unknowns (PostGIS true-availability search SQL, WR-03 two-phase booking transaction) that reward investigation before planning", "phase": "04"},
+    {"decision": "Fixed a confirmed functional blocker in review: the Stage-1 search predicate gated the whole type-OR-tag filter on spaceType alone, so an activity-tag-only search no-oped (D-35). Collapsed type/activity into ONE `category` param checked against BOTH columns with a `::text` cast on the enum side (avoids 22P02)", "rationale": "listing-vocab.ts proves spaceType and activityTag vocabularies are disjoint; the fix spans 04-02 schema -> 04-03 SQL -> 04-05 SearchBar", "phase": "04"},
+    {"decision": "Added bare D-NN citations to each plan's must_haves.truths to pass the §13a Decision Coverage Gate", "rationale": "The gate only scans must_haves frontmatter (not the body); all decisions were implemented but uncited there — see memory gsd-decision-coverage-gate", "phase": "04"}
+  ],
+  "uncommitted_files": [".planning/config.json (ephemeral workflow._auto_chain_active flag toggled by plan-phase §15; not a planning artifact)"],
+  "next_action": "Run /gsd:execute-phase 4 — it starts Wave 1 (04-01 + 04-02). First bring up the DB: npm run db:up. The [BLOCKING] migration in 04-01 must apply drizzle/0006_booking_hold.sql to the live DB before any DB-reading task.",
+  "context_notes": "Planning is DONE and committed through 6532222. The plan set passed the plan-checker (0 blockers, all 12 dimensions) after one revision round. Correctness spine to preserve during execution: the DB booking_no_overlap EXCLUDE is the SOLE double-booking authority; the highest-risk executor trap is PostGIS distance units — cast BOTH operands ::geography or the km radius matches everything (RESEARCH Pitfall 1). WR-03: per-unit SAVEPOINT for 23P01, OUTER retry for 40P01 (a savepoint cannot rescue a deadlock-aborted tx). All 8 requirements (SEARCH-01..05, BOOK-01..03) and 17/17 tracked decisions are covered."
+}
