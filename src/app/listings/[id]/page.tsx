@@ -24,6 +24,7 @@ import { UsersIcon } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { getAvailability } from "@/lib/availability/read-model";
+import { formatMoney } from "@/lib/money";
 import {
   listing,
   user,
@@ -59,20 +60,6 @@ import {
   BookingSelectionProvider,
   RailSelectionSummary,
 } from "@/components/availability/availability-calendar";
-
-/** Format integer minor units (cents) in the listing's currency (mirrors listing-card.formatMoney). */
-function formatMoney(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(cents / 100);
-  } catch {
-    return (cents / 100).toFixed(2);
-  }
-}
 
 /** Current short GMT offset for an IANA zone, e.g. "GMT+8" for Asia/Manila (mirrors the host editor). */
 function gmtLabelFor(timezone: string): string {

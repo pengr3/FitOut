@@ -23,6 +23,7 @@ import { tz, TZDate } from "@date-fns/tz";
 import { getDayAvailability } from "@/app/actions/availability";
 import { BOOKING_HORIZON_DAYS } from "@/lib/availability/slots";
 import type { DayAvailability } from "@/lib/availability/read-model";
+import { formatMoney } from "@/lib/money";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
@@ -58,24 +59,6 @@ function useBookingSelection(): SelectionContext {
 }
 
 // ---------------------------------------------------------------------------
-// Money (venue currency is PHP on this surface — RESEARCH Pitfall 7)
-// ---------------------------------------------------------------------------
-
-/** Integer minor units → currency string (client copy of the page's formatMoney; keep in sync). */
-function formatMoney(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(cents / 100);
-  } catch {
-    return (cents / 100).toFixed(2);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // AvailabilityCalendar
 // ---------------------------------------------------------------------------
 
@@ -106,6 +89,7 @@ export function AvailabilityCalendar({
   const [day, setDay] = React.useState<DayLocal>(initialDate);
   const [dayAvail, setDayAvail] = React.useState<DayAvailability | null>(initialDay);
   const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(false);
 
   // Venue-local "today" and the 90-day horizon end (D-26), built as venue-tz instants so the day
   // matchers compare in the venue tz — never the browser tz.
@@ -140,9 +124,15 @@ export function AvailabilityCalendar({
     setDay(next);
     setSelection(null); // a new day clears any prior slot selection in the rail
     setLoading(true);
+    setError(false);
     try {
       const res = await getDayAvailability(listingId, next);
       setDayAvail(res);
+    } catch {
+      // IN-03: a failed day fetch must NOT leave the prior day's slots on screen (stale-but-plausible).
+      // Clear the grid and flag an inline error so the user sees a retry hint, not wrong availability.
+      setDayAvail(null);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -190,6 +180,13 @@ export function AvailabilityCalendar({
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-11 w-20 rounded-lg" />
               ))}
+            </div>
+          ) : error ? (
+            <div className="rounded-xl border border-dashed p-6 text-center" role="alert">
+              <p className="font-medium">Couldn&apos;t load this day</p>
+              <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
+                Something went wrong fetching availability. Pick the day again to retry.
+              </p>
             </div>
           ) : !dayAvail || !dayAvail.hasHours ? (
             <div className="rounded-xl border border-dashed p-6 text-center">

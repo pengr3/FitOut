@@ -15,6 +15,7 @@ import { z } from "zod";
  * are UTC ISO instants (the venue-tz display happens at the edge). `endUtc` must be strictly after
  * `startUtc`; everything else is re-derived server-side in Phase 4.
  */
+// Unused until Phase 4 — client selection lift is validated server-side in the booking flow
 export const slotSelectionSchema = z
   .object({
     startUtc: z.string().datetime(),

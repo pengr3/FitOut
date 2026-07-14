@@ -31,6 +31,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
+import { formatMoney } from "@/lib/money";
 
 export type ListingCardData = {
   id: string;
@@ -44,19 +45,6 @@ export type ListingCardData = {
 };
 
 type ActionResult = { ok: boolean; error?: string };
-
-function formatMoney(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(cents / 100);
-  } catch {
-    return (cents / 100).toFixed(2);
-  }
-}
 
 function statusBadge(status: ListingCardData["status"], bookable: boolean) {
   if (status === "published" && bookable) {
