@@ -145,7 +145,15 @@ async function selectTargetDay(page: import("@playwright/test").Page) {
   if (crossesMonth) {
     await page.getByRole("button", { name: /next month/i }).click();
   }
-  await page.getByRole("button", { name: targetDayLabel }).first().click();
+  // IN-05: with showOutsideDays a boundary-adjacent day can render twice — once in-month and once as an
+  // adjacent-month "outside" cell (react-day-picker marks the outside <td> data-outside="true") — under
+  // the SAME aria-label. Scope to the enabled, in-month occurrence so the click can never land on the
+  // outside/disabled duplicate, regardless of where the target date sits in the visible month grid.
+  const targetDay = page
+    .getByRole("button", { name: targetDayLabel })
+    .and(page.locator("td:not([data-outside='true']) button"))
+    .and(page.locator("button:not([disabled])"));
+  await targetDay.first().click();
 }
 
 test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {

@@ -37,6 +37,23 @@ export type CreateBookingInput = {
  * Auto-assign the lowest free unit for [startsAt, endsAt) and insert the booking, retrying the next
  * free unit on a DB conflict (23P01 / 40P01) up to `unitCount` attempts. Returns the assigned unit.
  * Throws NoUnitAvailableError when all units are taken. Any other error propagates (a real 500).
+ *
+ * ⚠️ AUTO-COMMIT CONTRACT (WR-03 — MUST be honored; the retry loop is auto-commit-only as written):
+ * `dbConn` MUST be an auto-commit connection so each INSERT attempt is its OWN transaction — which is
+ * exactly how it is called today (tests pass the raw db; Phase 4 must not regress this). The loop has
+ * NO per-attempt SAVEPOINT, so naively wrapping it in an outer `db.transaction(tx => createBooking(tx,
+ * …))` breaks it two distinct ways, and a PARTIAL fix is wrong — hence the whole transactional design
+ * is deferred to Phase 4:
+ *   - 23P01 (exclusion_violation): the first losing INSERT aborts the WHOLE outer tx; the next
+ *     iteration's find-free SELECT then throws 25P02 ("current transaction is aborted"), which is
+ *     neither 23P01 nor 40P01 → it re-throws → raw 500, and SC#4's clean "just taken" copy is lost.
+ *     Fix (Phase 4): give each attempt its own SAVEPOINT (a Drizzle nested `transaction`) so only the
+ *     failed attempt rolls back and the outer tx stays usable.
+ *   - 40P01 (deadlock_detected): Postgres aborts the ENTIRE transaction on deadlock — a savepoint can
+ *     NOT rescue it. This needs an OUTER-transaction retry (redo the whole booking tx from the top),
+ *     not just a savepoint. Because the 23P01 and 40P01 remedies differ, a savepoint-only change would
+ *     be subtly wrong for 40P01 — so do NOT touch the retry logic here; design both in Phase 4.
+ * Until then: call this ONLY on an auto-commit `dbConn`.
  */
 export async function createBooking(dbConn: DbConn, input: CreateBookingInput): Promise<number> {
   const { listingId, bookerId, unitCount } = input;
