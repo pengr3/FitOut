@@ -101,6 +101,14 @@ export async function addBlock(
     };
   }
   const b = parsed.data;
+
+  // WR-02: blockSchema.unit has no upper bound and the client Select only offers 1..unitCount, so a
+  // crafted request could POST an out-of-range unit (e.g. unit 999 on an 8-unit listing). Reject it
+  // here — we already hold the owned row — since a phantom unit would skew the read model's free count.
+  if (b.unit != null && b.unit > owned.unitCount) {
+    return { ok: false, error: "That unit doesn't exist for this listing." };
+  }
+
   const tz = owned.timezone;
   const { y, m0, d } = parseDate(b.date);
 

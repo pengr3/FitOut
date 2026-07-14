@@ -121,6 +121,11 @@ export async function getAvailability(
   const hasHours = hoursRows.length > 0;
   const slots: AvailabilitySlot[] = [];
 
+  // WR-02 defensive clamp: only a REAL unit in [1, unitCount] can occupy inventory. A stale/phantom
+  // unit (e.g. a block whose listing later shrank unitCount, or a crafted out-of-range block) must
+  // never inflate taken.size and under-report freeUnits — real units are still counted exactly as before.
+  const inRange = (u: number | null): u is number => u != null && u >= 1 && u <= unitCount;
+
   for (const win of hoursRows) {
     const openHour = parseHour(win.openTime);
     const closeHour = parseHour(win.closeTime);
@@ -136,9 +141,9 @@ export async function getAvailability(
         freeUnits = 0; // a whole-listing block zeroes every unit (RESEARCH Pattern 3)
       } else {
         const taken = new Set<number>();
-        for (const b of blocks) if (b.unit != null && overlaps(b.startMs, b.endMs)) taken.add(b.unit);
+        for (const b of blocks) if (inRange(b.unit) && overlaps(b.startMs, b.endMs)) taken.add(b.unit);
         for (const bk of bookings)
-          if (bk.unit != null && overlaps(bk.startMs, bk.endMs)) taken.add(bk.unit);
+          if (inRange(bk.unit) && overlaps(bk.startMs, bk.endMs)) taken.add(bk.unit);
         freeUnits = Math.max(0, unitCount - taken.size);
       }
 
