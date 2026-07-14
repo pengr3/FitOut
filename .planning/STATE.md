@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Phase 3 Wave 2 — 03-03 COMPLETE (host availability write path). availability.ts (shared Zod: weeklyHoursSchema close>open + no same-day overlap '[)' + on-the-hour + :ss-tolerant; blockSchema whole-day/partial + unit/whole-listing), operating-hours.ts (saveOperatingHours: session + assertOwnership IDOR + safeParse + replace-the-set upsert, D-25), blocks.ts (addBlock venue-tz→UTC timestamptz via TZDate + removeBlock owner-scoped delete, D-24 close-only). tests/availability = 7 files/62 tests GREEN; full suite 36/200; tsc+eslint clean. The 03-04 edit round-trip seam (the BLOCKER) is closed: on-the-hour refine runs on the normalized 'HH:mm' prefix + :ss-tolerant regex, so DB 'HH:mm:ss' re-validates while '06:15:00' still rejects (proven purely + end-to-end through saveOperatingHours). Wave 2 now COMPLETE (03-02 + 03-03). Next: W3 (03-04 host editor UI, 03-05 booker calendar — both carry human-verify checkpoints; 03-05 also consumes 03-02's getAvailability read model).
-last_updated: "2026-07-13T09:15:43Z"
+status: ready_to_plan
+stopped_at: Phase 03 complete (5/5) — ready to discuss Phase 4
+last_updated: 2026-07-14T02:47:49.292Z
 last_activity: 2026-07-13
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
-  completed_plans: 13
-  percent: 87
+  completed_plans: 15
+  percent: 38
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 03 — availability-&-double-booking-guarantee (Phases 01–02 complete)
+**Current focus:** Phase 4 — booking core & search (no payment)
 
 ## Current Position
 
-Phase: 3 (Availability & the Double-Booking Guarantee) — IN PROGRESS (Waves 1 & 2 complete; Wave 3 remaining)
-Plan: 03-01 + 03-02 + 03-03 COMPLETE (EXCLUDE keystone + server correctness layer: slots/read-model/units + host write path: availability Zod / operating-hours / blocks actions). Remaining: W3: 03-04 host editor UI, 03-05 booker calendar (both carry human-verify checkpoints). Next: 03-04 (host availability editor UI — binds weeklyHoursSchema/blockSchema + saveOperatingHours/addBlock/removeBlock). 03-05 also consumes 03-02's getAvailability read model.
-Status: Phase 02 COMPLETE and closed. All 6 plans committed on `dev`; full Vitest suite **29 files / 138 tests PASS** + Playwright public-listing E2E 3/3; `npm run build` PASS; migrations applied to the live DB (incl. paymongo_event, migrate-tracked). Phase-2 gates all green: **Validation** (02-VALIDATION Nyquist-compliant, 14/14), **Security** (02-SECURITY threats_open:0, ASVS L2), **UAT** (02-UAT complete — 8/11 pass, in-scope findings fixed live; only test 11 payout-onboarding redirect blocked on PayMongo Platforms beta). PayMongo swap complete end-to-end (D-20): onboarding action (row-locked create-once, rate-limit+audit), Paymongo-Signature-verified idempotent `merchant.activated` webhook = the un-bypassable bookability gate (`payoutsEnabled` webhook/server-set only; auto-revert via `deriveBookable`). NEXT: /gsd-discuss-phase 3 → /gsd-plan-phase 3 → /gsd-execute-phase 3. Phase 3 delivers the DB-level GiST exclusion constraint (the double-booking guarantee) — the correctness keystone before any money/booking flow.
-Last activity: 2026-07-10 — Phase 2 verified & closed (validation + security + UAT gates green); dev server + .next cache reset during validation.
+Phase: 4
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-14
 
-Progress: [████████▋·] 87% (13/15 executed plans) · 2/8 phases complete · Phase 3: 3/5 plans (Waves 1 & 2 done; Wave 3 remaining)
+Progress: [████░░░░░░] 3/8 phases complete (~38%) · Phase 3 (Availability & Double-Booking Guarantee) shipped 2026-07-14 · Phase 4 (Booking Core & Search) — ready to plan
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
+- Total plans completed: 9
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -133,6 +133,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-14 — RESUMED via /gsd-resume-work. Env confirmed LIVE on this machine (fitout-db-1 up on :5432, node_modules present, dev server 200 on :3000 — no restart needed). Seed intact: host@fitout.test / listings uat_listing_bookable + uat_listing_notpayable; UAT day 2026-07-16 has a confirmed 08:00–09:00 booking + a 10:00–11:00 Maintenance block, hours 06:00–21:00. Phase 3 is CODE-COMPLETE on `dev` (all 5 plans built + committed, tree clean); paused at the Wave-3 human-verify gate for 03-04 (host editor) + the NEW range-fill 03-05 gesture. On approval: mark 03-04/03-05 complete → reconcile the stale prose below → execute-phase completion gates → phase.complete → offer Phase 4 (STOP, auto_advance=false). [Prior marker follows.]
-Stopped at: **Phase 3 Wave 2 — 03-03 COMPLETE (host availability write path)**. Committed on `dev`: `5646af2` (test: RED shared availability Zod), `cfb83bc` (feat: availability.ts weeklyHoursSchema/blockSchema), `3a7525b` (feat: saveOperatingHours + addBlock/removeBlock + integration test). availability.ts = shared Zod (close>open, no same-day overlap '[)', on-the-hour, :ss-tolerant DB round-trip; blockSchema whole-day/partial + unit/whole-listing). operating-hours.ts = saveOperatingHours session + assertOwnership(IDOR) + safeParse + replace-the-set upsert (D-25). blocks.ts = addBlock venue-tz→UTC timestamptz via TZDate + removeBlock owner-scoped delete (D-24 close-only; NO positive-override). tests/availability 7 files/62 tests GREEN; full suite 36/200; tsc + eslint clean. **The 03-04 BLOCKER seam is CLOSED**: on-the-hour refine on the normalized 'HH:mm' prefix + :ss-tolerant regex → DB 'HH:mm:ss' re-validates on re-save while '06:15:00' still rejects (proven purely + end-to-end). **Wave 2 now COMPLETE** (03-02 + 03-03). AVAIL-01/02 host write path complete but stays Pending in REQUIREMENTS.md until the Phase-3 transition (the 03-04 editor UI surfaces it). Next: /gsd-execute-phase 3 → W3 (03-04 host editor UI, 03-05 booker calendar — both human-verify checkpoints).
-Resume file: .planning/phases/03-availability-the-double-booking-guarantee/.continue-here.md (+ .planning/HANDOFF.json — authoritative machine-readable state). Next: complete the human-verify of 03-04 + the new 03-05 range-fill gesture, then resume execute-phase.md at code_review_gate → phase.complete.
+Last session: 2026-07-14 — Phase 3 COMPLETED & closed. User approved both Wave-3 human-verify checkpoints (03-04 host editor + the NEW range-fill 03-05 booker gesture). Ran the execute-phase completion gates on `dev`: code review (advisory — 0 Critical / 4 Warning / 6 Info, in 03-REVIEW.md; the double-booking invariant traced end-to-end and HOLDS), regression PASS (Vitest 219/220 — the 1 miss is a confirmed pre-existing auth-config flake that passes in isolation), schema-drift PASS (no drift; migrations 0004/0005 already live), verifier PASS (12/12 must-haves, gsd-verifier sonnet — independently reconfirmed the `booking_no_overlap` EXCLUDE constraint via live DB query + re-ran 82 availability tests). phase.complete marked Phase 3 done (5/5, 2026-07-14); AVAIL-01..05 → Complete in REQUIREMENTS.md (also fixed the stale Phase-2 LIST-01..06/PAY-04 rows that a prior phase.complete never flipped); PROJECT.md evolved. auto_advance=false → stopped at Phase-4 routing.
+Open advisory follow-ups (from 03-REVIEW.md, non-blocking): WR-01 `getDayAvailability` lacks a published-status gate + `dayLocal` input validation (draft-schedule info-leak + 500 on malformed input); WR-02 `addBlock` unit unbounded by unitCount; WR-03 `createBooking` retry needs a per-attempt SAVEPOINT once wrapped in a Phase-4 transaction (else 25P02); WR-04 duplicate `<Toaster/>` double-renders host toasts. WR-03 is a Phase-4 concern; WR-01/WR-04 are quick fixes if desired before Phase 4.
+Resume file: none (HANDOFF.json + .continue-here.md consumed and deleted). Next: /gsd-discuss-phase 4 (recommended) or /gsd-plan-phase 4 — Booking Core & Search (no payment).
