@@ -5,7 +5,7 @@ milestone_name: milestone
 status: ready_to_plan
 stopped_at: Phase 03 complete (5/5) — ready to discuss Phase 4
 last_updated: 2026-07-14T02:47:49.292Z
-last_activity: 2026-07-13
+last_activity: 2026-07-14
 progress:
   total_phases: 8
   completed_phases: 3
@@ -122,6 +122,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 | 260709-id2 | Swap payments provider Stripe → PayMongo in planning docs | 2026-07-09 | 1eebe11 | [260709-id2-swap-payments-provider-stripe-to-paymong](./quick/260709-id2-swap-payments-provider-stripe-to-paymong/) |
 | 260710-lgo | Fix T-04-SIGMATCH: allow-list Cloudinary sign params | 2026-07-10 | d1fb76b | [260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-](./quick/260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-/) |
 | 260713-nz3 | Range-fill slot selection in booker SlotPicker (03-05 UX) | 2026-07-13 | 83708f0 | [260713-nz3-range-fill-slot-selection-in-booker-slot](./quick/260713-nz3-range-fill-slot-selection-in-booker-slot/) |
+| 260714-feq | Apply Phase-3 code-review findings (post-phase hardening) | 2026-07-14 | 8667ecb | [260714-feq-apply-phase-3-code-review-findings-post-](./quick/260714-feq-apply-phase-3-code-review-findings-post-/) |
 
 ## Deferred Items
 
@@ -134,5 +135,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-07-14 — Phase 3 COMPLETED & closed. User approved both Wave-3 human-verify checkpoints (03-04 host editor + the NEW range-fill 03-05 booker gesture). Ran the execute-phase completion gates on `dev`: code review (advisory — 0 Critical / 4 Warning / 6 Info, in 03-REVIEW.md; the double-booking invariant traced end-to-end and HOLDS), regression PASS (Vitest 219/220 — the 1 miss is a confirmed pre-existing auth-config flake that passes in isolation), schema-drift PASS (no drift; migrations 0004/0005 already live), verifier PASS (12/12 must-haves, gsd-verifier sonnet — independently reconfirmed the `booking_no_overlap` EXCLUDE constraint via live DB query + re-ran 82 availability tests). phase.complete marked Phase 3 done (5/5, 2026-07-14); AVAIL-01..05 → Complete in REQUIREMENTS.md (also fixed the stale Phase-2 LIST-01..06/PAY-04 rows that a prior phase.complete never flipped); PROJECT.md evolved. auto_advance=false → stopped at Phase-4 routing.
-Open advisory follow-ups (from 03-REVIEW.md, non-blocking): WR-01 `getDayAvailability` lacks a published-status gate + `dayLocal` input validation (draft-schedule info-leak + 500 on malformed input); WR-02 `addBlock` unit unbounded by unitCount; WR-03 `createBooking` retry needs a per-attempt SAVEPOINT once wrapped in a Phase-4 transaction (else 25P02); WR-04 duplicate `<Toaster/>` double-renders host toasts. WR-03 is a Phase-4 concern; WR-01/WR-04 are quick fixes if desired before Phase 4.
+Advisory follow-ups from 03-REVIEW.md — RESOLVED in quick task 260714-feq (commits 7ab4532/a527d50/c875d72/8667ecb): WR-01 (getDayAvailability now Zod-validates dayLocal via safeParse→empty + gates on published/non-deleted — no 500, no draft leak), WR-02 (addBlock rejects unit>unitCount; read-model clamps unit∈[1,unitCount]), WR-04 (single `<Toaster/>` on the host page), IN-01 (slotSelectionSchema marked Phase-4 scaffolding), IN-02 (formatMoney extracted to src/lib/money.ts), IN-03 (handleDaySelect catch → inline role=alert), IN-05 (E2E day locator robust to showOutsideDays), IN-06 (dropped unused timezone prop). Verified: tsc + eslint clean, vitest tests/availability 82/82, Playwright availability E2E 4/4. STILL OPEN by design: WR-03 deferred to Phase 4 (auto-commit contract now documented in units.ts createBooking; the savepoint-for-23P01 + outer-retry-for-40P01 transactional design is Phase-4 work) and IN-04 skipped (test-only local-dev creds). Also set workflow.use_worktrees=false — a fresh worktree lacks gitignored node_modules so tsc/eslint/vitest/playwright can't run; this recurring blocking anti-pattern is now structurally prevented.
 Resume file: none (HANDOFF.json + .continue-here.md consumed and deleted). Next: /gsd-discuss-phase 4 (recommended) or /gsd-plan-phase 4 — Booking Core & Search (no payment).
