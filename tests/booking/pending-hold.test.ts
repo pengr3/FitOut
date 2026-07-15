@@ -18,7 +18,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { randomUUID } from "node:crypto";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
-import { user, listing, booking } from "@/lib/db/schema";
+import { user, listing } from "@/lib/db/schema";
 import { createPendingHold } from "@/lib/availability/units";
 
 type HoldResult = Awaited<ReturnType<typeof createPendingHold>>;
@@ -52,7 +52,14 @@ async function makeListing(id: string, unitCount: number): Promise<void> {
 // Collapse a settled race into its resolved HoldResult values (createPendingHold never throws for a DB
 // conflict — it maps internally — so any REJECT here is a genuine failure, e.g. a leaked 25P02).
 function resolved(results: PromiseSettledResult<HoldResult>[]): HoldResult[] {
-  expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+  const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+  if (rejected.length > 0) {
+    // Surface the raw reason — a reject here means createPendingHold let a DB error escape mapping.
+    const why = rejected
+      .map((r) => `${(r.reason as { code?: string })?.code ?? ""} ${(r.reason as Error)?.message ?? String(r.reason)}`)
+      .join(" | ");
+    throw new Error(`createPendingHold rejected (expected a mapped result): ${why}`);
+  }
   return results.map((r) => (r as PromiseFulfilledResult<HoldResult>).value);
 }
 
