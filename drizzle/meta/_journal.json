@@ -43,6 +43,13 @@
       "when": 1783743500408,
       "tag": "0005_booking_exclusion",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784084229546,
+      "tag": "0006_booking_hold",
+      "breakpoints": true
     }
   ]
 }

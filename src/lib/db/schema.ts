@@ -13,7 +13,7 @@
 // (`timestamptz`, withTimezone:true) to honor the project's UTC-everywhere constraint
 // (CLAUDE.md "What NOT to Use" — never store naive timestamps).
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
   pgEnum,
@@ -326,6 +326,10 @@ export const availabilityBlock = pgTable(
 // cannot express EXCLUDE (issues #2813/#3388). `drizzle-kit generate` will NOT produce it; never
 // assume the constraint exists from THIS file alone. See 0005_booking_exclusion.sql for the
 // `EXCLUDE USING gist (listing_id =, unit =, tstzrange('[)') &&) WHERE status IN ('pending','confirmed')`.
+//
+// Phase-4 adds the pending-hold lifecycle columns (expiresAt/quotedTotalCents/currency/idempotencyKey)
+// + the booking_idem_uq partial-unique index. Unlike EXCLUDE, these ARE Drizzle-expressible and go
+// through `drizzle-kit generate` (drizzle/0006_booking_hold.sql) — only the EXCLUDE stays hand-authored.
 export const booking = pgTable(
   "booking",
   {
@@ -340,9 +344,21 @@ export const booking = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     status: bookingStatus("status").default("confirmed").notNull(),
+    // Pending-hold lifecycle (D-49, Phase 4). All new columns are nullable-safe — there are no existing
+    // booking rows in dev/UAT (A7) — so 0006 is a backfill-free ADD COLUMN.
+    expiresAt: timestamp("expires_at", { withTimezone: true }), // hold TTL; only meaningful while 'pending' (NULL once confirmed/terminal). D-48 lazy expiry treats a past value as FREE.
+    quotedTotalCents: integer("quoted_total_cents"), // price frozen at hold time (Phase-5 charge integrity, D-49)
+    currency: text("currency").default("php").notNull(), // freeze the display/charge currency (D-46)
+    idempotencyKey: text("idempotency_key"), // nullable client token — double-click backstop (D-42)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("booking_listing_idx").on(t.listingId)],
+  (t) => [
+    index("booking_listing_idx").on(t.listingId),
+    // Partial-unique idempotency index (D-42 / RESEARCH Pattern 6): at most one booking per client token.
+    // Drizzle CAN express a partial unique index via .where() (same idiom as listing_photo_position_uq);
+    // scoping to non-NULL keys lets the many holds placed without a token coexist.
+    uniqueIndex("booking_idem_uq").on(t.idempotencyKey).where(sql`idempotency_key IS NOT NULL`),
+  ],
 );
 
 export const listingRelations = relations(listing, ({ one, many }) => ({
