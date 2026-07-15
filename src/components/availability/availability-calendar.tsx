@@ -50,7 +50,8 @@ export function BookingSelectionProvider({ children }: { children: React.ReactNo
   );
 }
 
-function useBookingSelection(): SelectionContext {
+/** Read the lifted booker selection. Consumed by the calendar, the rail summary, AND the Book CTA (Plan 07). */
+export function useBookingSelection(): SelectionContext {
   const ctx = React.useContext(BookingSelectionContext);
   if (!ctx) {
     throw new Error("useBookingSelection must be used within a BookingSelectionProvider");

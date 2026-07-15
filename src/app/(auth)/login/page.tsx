@@ -52,6 +52,15 @@ function ResetNotice() {
   );
 }
 
+// Same-origin return path from ?callbackURL (D-41 resume-checkout). Read from window at call time so no
+// extra useSearchParams()/Suspense boundary is needed. Open-redirect guard: only a relative "/..." path is
+// honored — an absolute or protocol-relative ("//evil.com") URL falls back to "/".
+function safeCallbackUrl(): string {
+  if (typeof window === "undefined") return "/";
+  const raw = new URLSearchParams(window.location.search).get("callbackURL");
+  return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
@@ -72,13 +81,14 @@ export default function LoginPage() {
       setFormError("Invalid email or password.");
       return;
     }
-    router.push("/");
+    // Resume checkout (or any return path) after sign-in (D-41); defaults to "/" when none was threaded.
+    router.push(safeCallbackUrl());
     router.refresh();
   }
 
   async function onGoogle() {
     setFormError(null);
-    await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+    await authClient.signIn.social({ provider: "google", callbackURL: safeCallbackUrl() });
   }
 
   return (

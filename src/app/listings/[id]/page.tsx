@@ -24,7 +24,7 @@ import { UsersIcon } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { getAvailability } from "@/lib/availability/read-model";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import {
   listing,
   user,
@@ -60,39 +60,31 @@ import {
   BookingSelectionProvider,
   RailSelectionSummary,
 } from "@/components/availability/availability-calendar";
-
-/** Current short GMT offset for an IANA zone, e.g. "GMT+8" for Asia/Manila (mirrors the host editor). */
-function gmtLabelFor(timezone: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      timeZoneName: "shortOffset",
-    }).formatToParts(new Date());
-    const name = parts.find((p) => p.type === "timeZoneName")?.value;
-    if (name) return name.replace("UTC", "GMT");
-  } catch {
-    // fall through to the launch-region default
-  }
-  return "GMT+8";
-}
-
-/** A friendly city label: the listing's city, else the IANA tz's city segment (e.g. "Manila"). */
-function cityLabelFor(city: string | null, timezone: string): string {
-  if (city && city.trim()) return city.trim();
-  const seg = timezone.split("/").pop();
-  return seg ? seg.replace(/_/g, " ") : "your city";
-}
-
-// Single-region PH launch: this surface displays PHP regardless of the listing.currency column default
-// ('usd' — a known Phase-2 follow-up, RESEARCH Pitfall 7). Keeps the rail price + est.-price consistent.
-const DISPLAY_CURRENCY = "php";
+import { BookCta } from "@/components/booking/book-cta";
+import { placeHold } from "@/app/actions/booking";
+import { slotSelectionSchema } from "@/lib/validation/booking";
+// venue-tz labels + the shared DISPLAY_CURRENCY are now imported (Plan 07 promoted both out of this file
+// so the reserve + confirmation surfaces share ONE source and can never drift from the listing page).
+import { gmtLabelFor, cityLabelFor } from "@/lib/venue-time";
 
 export default async function PublicListingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ start?: string; end?: string; fullDay?: string; resume?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+
+  // Sign-in resume (D-41): after signing in at Book, the CTA returns here with the selected window in the
+  // URL + resume=1. Re-validate the SHAPE (end>start, ISO) and hand it to the CTA to auto-resume checkout,
+  // so the booker never re-picks the slot. Anything malformed simply drops the resume (no crash).
+  const resumeParsed =
+    sp.resume === "1"
+      ? slotSelectionSchema.safeParse({ startUtc: sp.start, endUtc: sp.end, fullDay: sp.fullDay === "1" })
+      : null;
+  const resumeWindow = resumeParsed?.success ? resumeParsed.data : null;
 
   // Fetch the listing + host + cached payout flag in one query (LEFT JOIN so a host with no payout row
   // still resolves — payoutsEnabled just defaults false). deletedAt IS NULL excludes soft-deleted rows.
@@ -296,13 +288,10 @@ export default async function PublicListingPage({
               />
 
               {bookable ? (
-                // Bookable → coral placeholder (wired Phase 4).
-                <Button
-                  size="lg"
-                  className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
-                >
-                  Book this space
-                </Button>
+                // Bookable → placeHold mints the pending hold on ENTERING checkout (D-39) then redirects to
+                // the reserve page; when sign-in is required the window is threaded through the callbackURL
+                // so checkout resumes on return (D-41). The lifted picker selection drives it via context.
+                <BookCta listingId={id} placeHold={placeHold} resumeWindow={resumeWindow} />
               ) : (
                 // Published but not payable → disabled neutral affordance + explanatory tooltip (D-13).
                 <TooltipProvider>
