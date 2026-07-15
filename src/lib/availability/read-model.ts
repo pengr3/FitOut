@@ -97,12 +97,15 @@ export async function getAvailability(
       WHERE listing_id = ${listingId}
         AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${dayStartIso}, ${dayEndIso}, '[)')
     `),
-    // Occupying bookings (pending/confirmed — matches the 0005 partial WHERE EXACTLY; cancelled/
-    // declined/completed never occupy). Same '[)' bound.
+    // Occupying bookings: confirmed, OR pending holds not yet expired (D-48a lazy expiry — a pending
+    // past its expires_at reads as FREE, no background worker). Uses SQL now() (the DB transaction
+    // clock, one source — NOT the injectable `now` param, which stays for slot past/horizon state only;
+    // Pitfall 7). '[)' bound + listing scope stay IDENTICAL to the booking_no_overlap EXCLUDE (0005);
+    // cancelled/declined/completed never occupy.
     dbConn.execute(sql`
       SELECT unit, starts_at, ends_at FROM booking
       WHERE listing_id = ${listingId}
-        AND status IN ('pending','confirmed')
+        AND (status = 'confirmed' OR (status = 'pending' AND expires_at > now()))
         AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${dayStartIso}, ${dayEndIso}, '[)')
     `),
   ]);
