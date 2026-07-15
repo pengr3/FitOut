@@ -3,13 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-07-14T10:05:59.937Z"
-last_activity: 2026-07-14 -- Phase 4 planning complete
+stopped_at: "Completed 04-01-PLAN.md — booking-hold columns on live DB (0006) + geography index (0007) + lazy-expiry read model (D-48a); suite 223/223 green. Next: 04-02 (WR-03 hold transaction: outer-40P01 retry + per-unit SAVEPOINT + in-tx sweep)."
+last_updated: "2026-07-15T03:17:27.471Z"
+last_activity: 2026-07-15
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 23
-  completed_plans: 16
+  completed_plans: 17
   percent: 38
 ---
 
@@ -20,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 4 — booking core & search (no payment)
+**Current focus:** Phase 04 — booking-core-search-no-payment
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
+Phase: 04 (booking-core-search-no-payment) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-07-14 -- Phase 4 planning complete
+Last activity: 2026-07-15
 
-Progress: [████░░░░░░] 3/8 phases complete (~38%) · Phase 3 (Availability & Double-Booking Guarantee) shipped 2026-07-14 · Phase 4 (Booking Core & Search) — ready to plan
+Progress: [███████░░░] 74%
 
 ## Performance Metrics
 
@@ -58,6 +59,7 @@ Progress: [████░░░░░░] 3/8 phases complete (~38%) · Phase 3
 | Phase 03 P03-01 | 10 min | 3 tasks | 15 files |
 | Phase 03 P03-02 | 12 min | 3 tasks | 7 files |
 | Phase 03 P03-03 | 6 min | 2 tasks | 5 files |
+| Phase 04 P04-01 | 15 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -91,6 +93,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [03-02]: `getAvailability(db, listingId, dayLocal, now)` is the single server-authoritative read model (AVAIL-03) — SQL fetches raw overlapping rows with the identical `tstzrange('[)')` bound as the constraint; TS composes per-slot free-unit counts (whole-listing block ⇒ 0 free; only pending/confirmed occupy). `createBooking` = find-free-unit + retry-on-23P01/40P01 bounded by unitCount (constraint is the sole authority); `mapBookingError` → clean "That time was just taken." (23P01/40P01/NoUnitAvailableError), unknown errors re-throw. Widened `DbConn = PostgresJsDatabase<Record<string, unknown>>` so prod + test db both type-check.
 - [Phase 03]: [03-03]: Shared availability Zod (`src/lib/validation/availability.ts`) — `weeklyHoursSchema` (close>open, no same-day overlap '[)' touching-endpoints OK, on-the-hour) + `blockSchema` (whole-day/partial, unit>=1 or null=whole-listing). The SAME schema validates in the Plan-04 RHF editor and re-validates in the server actions (never trust the client). The BLOCKER seam for 03-04 is CLOSED: the time regex is `:ss`-tolerant and the on-the-hour refine runs on the normalized `HH:mm` prefix (`t.slice(0,5).endsWith(':00')`), so a DB-read `06:00:00` re-validates on an edit re-save while `06:15:00` still rejects — proven purely AND end-to-end through `saveOperatingHours`.
 - [Phase 03]: [03-03]: Host availability write path: `saveOperatingHours` (replace-the-set full-state upsert, D-25 multiple windows/day), `addBlock`/`removeBlock` (close-only, D-24 — no positive-override path). Every write clones the listing.ts contract: `requireUserId` → `assertOwnership(listingId, userId)` (IDOR — the (host) route group alone is NOT the gate, T-03-IDOR-HOURS) → `safeParse` → tx re-scoped to the owner → `revalidatePath(host + public)`. `removeBlock` DELETE scoped `(blockId AND listingId)` behind ownership so a non-owner cannot unblock (T-03-BLOCK-UNBLOCK). Block times stored as timestamptz UTC via TZDate from the venue tz (Manila +8: 10:00→02:00Z; whole day 00:00→prior-day 16:00Z), normalized through the epoch to a Date for the drizzle insert. tests/availability = 7 files/62 tests green; full suite 36/200.
+- [Phase 04]: [04-01]: booking gains expiresAt/quotedTotalCents/currency(php)/idempotencyKey + booking_idem_uq partial-unique (WHERE idempotency_key IS NOT NULL), applied to LIVE DB via 0006; 4 nullable cols backfill-safe (no existing bookings, A7). Reuse cancelled status for abandoned holds (D-49/A3), no expired enum.
+- [Phase 04]: [04-01]: read-model occupancy is now lazy-expiry: (status = confirmed OR (status = pending AND expires_at > now())) via SQL now() (DB clock, NOT the injectable now:Date — Pitfall 7); the [) bound + listing scope stay identical to the 0005 EXCLUDE. Stale pending reads FREE everywhere (calendar + search Stage-2 downstream).
+- [Phase 04]: [04-01]: 0007 hand-authors listing_location_geog_gist GiST on (location::geography) with IF NOT EXISTS (harness replay) — the 0002 geometry index does not serve the ::geography radius cast. Hand-authored migrations use drizzle generate --custom (empty SQL + copied snapshot + journal entry).
 
 ### Pending Todos
 
@@ -133,6 +138,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-14T07:51:45.085Z
+Last session: 2026-07-15T03:17:27.457Z
+Stopped at: Completed 04-01-PLAN.md — booking-hold columns on live DB (0006) + geography index (0007) + lazy-expiry read model (D-48a); suite 223/223 green. Next: 04-02 (WR-03 hold transaction: outer-40P01 retry + per-unit SAVEPOINT + in-tx sweep).
+
+Prior session: 2026-07-14T07:51:45.085Z
 Advisory follow-ups from 03-REVIEW.md — RESOLVED in quick task 260714-feq (commits 7ab4532/a527d50/c875d72/8667ecb): WR-01 (getDayAvailability now Zod-validates dayLocal via safeParse→empty + gates on published/non-deleted — no 500, no draft leak), WR-02 (addBlock rejects unit>unitCount; read-model clamps unit∈[1,unitCount]), WR-04 (single `<Toaster/>` on the host page), IN-01 (slotSelectionSchema marked Phase-4 scaffolding), IN-02 (formatMoney extracted to src/lib/money.ts), IN-03 (handleDaySelect catch → inline role=alert), IN-05 (E2E day locator robust to showOutsideDays), IN-06 (dropped unused timezone prop). Verified: tsc + eslint clean, vitest tests/availability 82/82, Playwright availability E2E 4/4. STILL OPEN by design: WR-03 deferred to Phase 4 (auto-commit contract now documented in units.ts createBooking; the savepoint-for-23P01 + outer-retry-for-40P01 transactional design is Phase-4 work) and IN-04 skipped (test-only local-dev creds). Also set workflow.use_worktrees=false — a fresh worktree lacks gitignored node_modules so tsc/eslint/vitest/playwright can't run; this recurring blocking anti-pattern is now structurally prevented.
-Resume file: .planning/phases/04-booking-core-search-no-payment/04-UI-SPEC.md
+Resume file: None

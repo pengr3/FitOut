@@ -92,7 +92,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Entering checkout places a short-lived hold on the slot (a pending booking row) that immediately reflects in the calendar and search, and expires automatically if checkout is abandoned, releasing the slot
   4. A booking that overlaps an existing pending or confirmed booking is rejected with a graceful "just got taken" response; a double-clicked booking creates exactly one booking (idempotency)
 **Plans**: 8 plans in 5 waves
-  - [ ] 04-01-PLAN.md — Wave 1: booking hold columns (expiresAt/quotedTotalCents/currency/idempotencyKey) + [BLOCKING] migration + read-model lazy-expiry
+  - [x] 04-01-PLAN.md — Wave 1: booking hold columns (expiresAt/quotedTotalCents/currency/idempotencyKey) + [BLOCKING] migration + read-model lazy-expiry
   - [ ] 04-02-PLAN.md — Wave 1: shared searchParamsSchema + bookingCreateSchema, PHP DISPLAY_CURRENCY, D-38 seed script + geo test helper
   - [ ] 04-03-PLAN.md — Wave 2: two-stage search (::geography radius + type/tag/price + true-availability filter) + search integration tests
   - [ ] 04-04-PLAN.md — Wave 2: createPendingHold WR-03 transaction (SAVEPOINT/outer-retry/sweep + idempotency) + pricing + FIT- reference
@@ -162,7 +162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Auth & Accounts | 4/4 | Complete | - |
 | 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
 | 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
-| 4. Booking Core & Search | 0/8 | Planned | - |
+| 4. Booking Core & Search | 1/8 | In Progress|  |
 | 5. Payments & Payouts | 0/TBD | Not started | - |
 | 6. Full Booking + Payment Integration | 0/TBD | Not started | - |
 | 7. Bookings Management, Cancellation & Notifications | 0/TBD | Not started | - |

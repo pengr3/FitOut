@@ -43,7 +43,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Booking
 
 - [ ] **BOOK-01**: Booker can select a time window and see the price breakdown before committing
-- [ ] **BOOK-02**: Slot is held/locked during checkout with an expiry so two bookers cannot race for the same slot
+- [x] **BOOK-02**: Slot is held/locked during checkout with an expiry so two bookers cannot race for the same slot
 - [ ] **BOOK-03**: A booking that overlaps an existing booking is rejected (no double-booking)
 - [ ] **BOOK-04**: Instant-book listings confirm immediately on successful payment
 - [ ] **BOOK-05**: Request-to-book listings create a pending request the host approves/declines, auto-expiring if no response
@@ -151,7 +151,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | SEARCH-04 | Phase 4 | Pending |
 | SEARCH-05 | Phase 4 | Pending |
 | BOOK-01 | Phase 4 | Pending |
-| BOOK-02 | Phase 4 | Pending |
+| BOOK-02 | Phase 4 | Complete |
 | BOOK-03 | Phase 4 | Pending |
 | PAY-01 | Phase 5 | Pending |
 | PAY-02 | Phase 5 | Pending |
