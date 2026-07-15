@@ -3,9 +3,10 @@
 // Stage-1 (this file's SQL) narrows to a bounded candidate set using ONLY cheap, indexable predicates:
 // the inlined bookable gate + a `::geography` metric radius + the single-combined category (type OR tag)
 // + a price ceiling + a tz-independent "open this weekday" existence check, ordered nearest-first (or by
-// price) with a stable created_at tiebreaker and a Load-more probe. Stage-2 (added next) reuses the SAME
-// `getAvailability` read model the listing page uses to enforce the true free-window filter, so search
-// results and the listing calendar structurally cannot diverge.
+// price) with a stable created_at tiebreaker and a Load-more probe. Stage-2 reuses the SAME
+// `getAvailability` read model the listing page uses to enforce the true free-window filter (D-34), so
+// search results and the listing calendar structurally cannot diverge (never a second SQL availability
+// predicate — RESEARCH Anti-Pattern).
 //
 // HIGHEST-RISK trap (RESEARCH Pitfall 1): `ST_DWithin`/`ST_Distance` on `geometry(Point,4326)` measure in
 // DEGREES — a km radius then matches EVERYTHING. BOTH operands are cast `::geography` so the unit is
@@ -14,7 +15,8 @@
 // (never string-concatenated — Security V5).
 
 import { sql } from "drizzle-orm";
-import type { DbConn } from "@/lib/availability/read-model";
+import { TZDate } from "@date-fns/tz";
+import { getAvailability, type DbConn } from "@/lib/availability/read-model";
 import type { SearchParams } from "@/lib/validation/booking";
 
 /**
@@ -64,6 +66,22 @@ export function parsePickedDate(date: string | undefined): PickedDate | null {
   return { year, month, day, iso: `${m[1]}-${m[2]}-${m[3]}` };
 }
 
+/**
+ * Parse a venue-local wall-clock `HH:mm` (or `HH`) search-param time into an on-the-hour integer 0–23, or
+ * null when absent / malformed / off-the-hour (D-22). Like `date`, the time is attacker-controllable and
+ * only ever interpreted per-venue in Stage-2 (never bound into SQL) — a non-conforming value simply
+ * degrades to the date-only filter, never a crash.
+ */
+export function parseWindowHour(t: string | undefined): number | null {
+  if (!t) return null;
+  const m = /^(\d{1,2})(?::(\d{2}))?$/.exec(t);
+  if (!m) return null;
+  const hour = Number(m[1]);
+  const min = m[2] === undefined ? 0 : Number(m[2]);
+  if (hour < 0 || hour > 23 || min !== 0) return null; // on-the-hour only (D-22)
+  return hour;
+}
+
 // Raw postgres.js row (snake_case keys, exactly as aliased in the SELECT below).
 type RawRow = {
   id: string;
@@ -92,11 +110,16 @@ function toRow(r: RawRow): SearchResultRow {
 }
 
 /**
- * Search bookable listings by radius / category / price / weekday (Stage-1) with a Load-more probe. The
- * `date`-driven true-availability filter (Stage-2) is layered on next; Stage-1 already narrows to a
- * bounded, bookable-only candidate set.
+ * Search bookable listings (SEARCH-01..05). Stage-1 SQL narrows to a bounded, bookable-only candidate set
+ * by radius / category / price / weekday; when a `date` is picked, Stage-2 reuses `getAvailability` (the
+ * same read model as the listing calendar, D-34) to keep only listings with a real free window. `now` is
+ * injectable for deterministic slot past/horizon state (mirrors getAvailability); it defaults to real time.
  */
-export async function searchListings(db: DbConn, params: SearchParams): Promise<SearchResult> {
+export async function searchListings(
+  db: DbConn,
+  params: SearchParams,
+  now: Date = new Date(),
+): Promise<SearchResult> {
   const { lat, lng, radius, priceMax, category, sort, page } = params;
 
   const hasOrigin = lat !== undefined && lng !== undefined;
@@ -113,7 +136,10 @@ export async function searchListings(db: DbConn, params: SearchParams): Promise<
     ? sql`l.hourly_rate_cents ASC, l.created_at DESC`
     : sql`distance_m ASC NULLS LAST, l.created_at DESC`; // no-origin ⇒ all distance NULL ⇒ created_at DESC (D-30)
 
-  const fetchLimit = SEARCH_PAGE_SIZE + 1; // +1 = the "has more" probe (D-32, Pitfall 8)
+  // Stage-2 (per-candidate availability) can drop candidates below the page size, so over-fetch when a
+  // date is picked (Pitfall 8 / A5); otherwise a simple +1 "has more" probe suffices.
+  const needsAvailabilityFilter = picked !== null;
+  const fetchLimit = needsAvailabilityFilter ? SEARCH_PAGE_SIZE * 2 + 1 : SEARCH_PAGE_SIZE + 1;
   const offset = page * SEARCH_PAGE_SIZE;
 
   const rows = (await db.execute(sql`
@@ -145,10 +171,41 @@ export async function searchListings(db: DbConn, params: SearchParams): Promise<
 
   const candidates = rows.map(toRow);
 
-  // Stage-2 (true free-window availability filter, D-34) is layered on next; without a picked date the
-  // default browse view returns the Stage-1 candidates directly.
-  return {
-    results: candidates.slice(0, SEARCH_PAGE_SIZE),
-    hasMore: candidates.length > SEARCH_PAGE_SIZE,
-  };
+  // No picked date ⇒ the default browse view returns Stage-1 candidates directly (D-30).
+  if (!needsAvailabilityFilter) {
+    return {
+      results: candidates.slice(0, SEARCH_PAGE_SIZE),
+      hasMore: candidates.length > SEARCH_PAGE_SIZE,
+    };
+  }
+
+  // Stage-2: reuse the SAME getAvailability read model the listing calendar uses (D-34) — never a second
+  // SQL availability predicate (RESEARCH Anti-Pattern). Interpret the picked date/time in EACH candidate's
+  // OWN venue tz: getAvailability derives the day from `picked`; the optional window is resolved below via
+  // the same TZDate→epoch convention as slots.ts, so the same local wall clock lands per-venue.
+  const startHour = parseWindowHour(params.start);
+  const endHour = parseWindowHour(params.end);
+  const hasWindow = startHour !== null && endHour !== null && endHour > startHour;
+
+  const kept: SearchResultRow[] = [];
+  for (const c of candidates) {
+    const avail = await getAvailability(db, c.id, picked, now);
+    if (hasWindow) {
+      const winStartUtc = new Date(
+        new TZDate(picked.year, picked.month - 1, picked.day, startHour, 0, 0, avail.timezone).getTime(),
+      ).toISOString();
+      const winEndUtc = new Date(
+        new TZDate(picked.year, picked.month - 1, picked.day, endHour, 0, 0, avail.timezone).getTime(),
+      ).toISOString();
+      // On-the-hour slots fully inside the picked window. A genuine offer needs at least one and EVERY one
+      // bookable — state==='available' ⟹ freeUnits>=1 AND future AND within-horizon (same rule as date-only).
+      const inWindow = avail.slots.filter((s) => s.startUtc >= winStartUtc && s.endUtc <= winEndUtc);
+      if (inWindow.length > 0 && inWindow.every((s) => s.state === "available")) kept.push(c);
+    } else if (avail.slots.some((s) => s.state === "available")) {
+      // date-only: kept iff any hour that day is bookable.
+      kept.push(c);
+    }
+  }
+
+  return { results: kept.slice(0, SEARCH_PAGE_SIZE), hasMore: kept.length > SEARCH_PAGE_SIZE };
 }
