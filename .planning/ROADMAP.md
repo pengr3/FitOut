@@ -96,7 +96,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 04-02-PLAN.md — Wave 1: shared searchParamsSchema + bookingCreateSchema, PHP DISPLAY_CURRENCY, D-38 seed script + geo test helper
   - [x] 04-03-PLAN.md — Wave 2: two-stage search (::geography radius + type/tag/price + true-availability filter) + search integration tests
   - [x] 04-04-PLAN.md — Wave 2: createPendingHold WR-03 transaction (SAVEPOINT/outer-retry/sweep + idempotency) + pricing + FIT- reference
-  - [ ] 04-05-PLAN.md — Wave 3: search home at / (search bar + result cards + sort + Load more + empty states)
+  - [x] 04-05-PLAN.md — Wave 3: search home at / (search bar + result cards + sort + Load more + empty states)
   - [ ] 04-06-PLAN.md — Wave 3: placeHold/confirmBooking actions + reserve components (breakdown, countdown, expiry, Confirm)
   - [ ] 04-07-PLAN.md — Wave 4: reserve page + owner-gated confirmation page + listing Book CTA wiring
   - [ ] 04-08-PLAN.md — Wave 5: full-flow search→book→confirm E2E + expiry UX + human-verify
@@ -162,7 +162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Auth & Accounts | 4/4 | Complete | - |
 | 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
 | 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
-| 4. Booking Core & Search | 4/8 | In Progress|  |
+| 4. Booking Core & Search | 5/8 | In Progress|  |
 | 5. Payments & Payouts | 0/TBD | Not started | - |
 | 6. Full Booking + Payment Integration | 0/TBD | Not started | - |
 | 7. Bookings Management, Cancellation & Notifications | 0/TBD | Not started | - |

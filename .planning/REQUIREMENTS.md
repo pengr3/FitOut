@@ -34,11 +34,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Search & Discovery
 
-- [ ] **SEARCH-01**: User can search listings by location (area/radius within the launch region)
-- [ ] **SEARCH-02**: User can filter results by activity / space type (e.g. pickleball, yoga, gym)
-- [ ] **SEARCH-03**: User can filter results by date and time availability
-- [ ] **SEARCH-04**: User can filter results by price
-- [ ] **SEARCH-05**: User can view results as a list of cards (photo, name, price, location/distance)
+- [x] **SEARCH-01**: User can search listings by location (area/radius within the launch region)
+- [x] **SEARCH-02**: User can filter results by activity / space type (e.g. pickleball, yoga, gym)
+- [x] **SEARCH-03**: User can filter results by date and time availability
+- [x] **SEARCH-04**: User can filter results by price
+- [x] **SEARCH-05**: User can view results as a list of cards (photo, name, price, location/distance)
 
 ### Booking
 
@@ -145,11 +145,11 @@ Which phases cover which requirements. Populated during roadmap creation.
 | AVAIL-03 | Phase 3 | Complete |
 | AVAIL-04 | Phase 3 | Complete |
 | AVAIL-05 | Phase 3 | Complete |
-| SEARCH-01 | Phase 4 | Pending |
-| SEARCH-02 | Phase 4 | Pending |
-| SEARCH-03 | Phase 4 | Pending |
-| SEARCH-04 | Phase 4 | Pending |
-| SEARCH-05 | Phase 4 | Pending |
+| SEARCH-01 | Phase 4 | Complete |
+| SEARCH-02 | Phase 4 | Complete |
+| SEARCH-03 | Phase 4 | Complete |
+| SEARCH-04 | Phase 4 | Complete |
+| SEARCH-05 | Phase 4 | Complete |
 | BOOK-01 | Phase 4 | Pending |
 | BOOK-02 | Phase 4 | Complete |
 | BOOK-03 | Phase 4 | Pending |
