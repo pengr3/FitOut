@@ -5,6 +5,12 @@
 //
 // Pure/isomorphic: no "use client"/"use server" directive, so both Server Components and Client
 // Components can import it. Behavior is byte-identical to the three local copies it replaces.
+
+// Booker-facing display currency (D-46). ONE shared source so every Phase-4 price surface — search
+// cards, the reserve price breakdown, the confirmation page — renders PHP identically and can never
+// drift. The listing page keeps its own local `DISPLAY_CURRENCY` until Plan 07 swaps it for this import.
+export const DISPLAY_CURRENCY = "php";
+
 export function formatMoney(cents: number, currency: string): string {
   try {
     return new Intl.NumberFormat(undefined, {
