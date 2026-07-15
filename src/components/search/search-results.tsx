@@ -136,13 +136,17 @@ export function SearchResults({
 
   return (
     <section className="space-y-6" aria-busy={isPending}>
-      {/* Header: heading + (when populated) the sort Select. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">{heading}</h2>
-        {hasResults && (
+      {/* Header (heading + sort) shows only when populated — the empty states carry their own heading. */}
+      {hasResults && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold">{heading}</h2>
           <div className="flex flex-col items-end gap-1">
             <Select value={sort} onValueChange={onSortChange}>
-              <SelectTrigger className="h-9 min-w-[190px]" aria-label="Sort results" aria-describedby={!hasOrigin ? SORT_HINT_ID : undefined}>
+              <SelectTrigger
+                className="h-9 min-w-[190px]"
+                aria-label="Sort results"
+                aria-describedby={!hasOrigin ? SORT_HINT_ID : undefined}
+              >
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
@@ -158,8 +162,8 @@ export function SearchResults({
               </p>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Body: error → skeleton (searching) → results → zero-result → cold-start. */}
       {fetchError ? (
