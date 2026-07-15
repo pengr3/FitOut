@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 04-02-PLAN.md — searchParamsSchema/bookingCreateSchema (V5 input-validation) + DISPLAY_CURRENCY (D-46) + D-38 seed (scripts/seed.ts + tests/helpers/seed.ts); tsc clean, booking-schemas 19/19. Next: 04-03 (two-stage search: PostGIS ST_DWithin Stage-1 + read-model Stage-2)."
-last_updated: "2026-07-15T03:48:11.025Z"
+stopped_at: "Completed 04-03-PLAN.md — searchListings two-stage search (src/lib/search/query.ts): Stage-1 SQL candidate query (inlined deriveBookable gate + ::geography radius on BOTH operands + D-35 category via primary_space_type::text OR tag EXISTS + price + tz-independent weekday) → Stage-2 getAvailability free-window filter (SAME read model as the listing calendar, D-34; date-only/date+time, venue-tz per candidate). tests/search 16/16, tsc + eslint clean. Commits 8ca1fc2 (Stage-1) + 16f19a4 (Stage-2). SEARCH-01..05 stay Pending (user-facing completion at 04-05 UI). Next: 04-04 (createPendingHold WR-03 tx) or 04-05 (search UI)."
+last_updated: "2026-07-15T04:22:58.273Z"
 last_activity: 2026-07-15
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 23
-  completed_plans: 18
+  completed_plans: 19
   percent: 38
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 04 (booking-core-search-no-payment) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-07-15
 
-Progress: [████████░░] 78%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████████░░] 78%
 | Phase 03 P03-03 | 6 min | 2 tasks | 5 files |
 | Phase 04 P04-01 | 15 min | 3 tasks | 8 files |
 | Phase 04 P04-02 | 23 min | 2 tasks | 6 files |
+| Phase 04 P04-03 | 14 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,8 @@ Recent decisions affecting current work:
 - [Phase 04]: [04-02]: `DISPLAY_CURRENCY = "php"` promoted to src/lib/money.ts (D-46) as the single shared price source; the listing page keeps its LOCAL copy until Plan 07 swaps the import (do NOT edit page.tsx before then).
 - [Phase 04]: [04-02]: D-38 seed = scripts/seed.ts (standalone raw-postgres.js, NO `@/` imports so it runs under tsx; idempotent delete-first on `seed_%` in FK-safe order; 5 bookable Metro Manila listings, ST_MakePoint x=lng/y=lat) mirrored by tests/helpers/seed.ts (Drizzle `seedSearchListings(db)` for isolated schemas + `SEARCH_ORIGIN` Makati 14.5547,121.0244 + `DISTANCES_KM` DERIVED via haversine so they never drift). seed_listing_4 = gym tagged `basketball` (DISJOINT type/tag, D-35 supply); seed_listing_5 ≈15.3km (BEYOND 10km → radius/zero-result path). tsx already in node_modules (no install, T-04-SC). `npm run db:seed` added.
 - [Phase 04]: [04-02]: SEARCH-01..04 + BOOK-01 NOT marked complete — they are CROSS-CUTTING (appear in plans 04-02..04-08); 04-02 ships only the validation/currency/seed substrate. Completion stays with the plans that ship the search query/UI (04-03/05) + price breakdown (04-04/06/07); validated at phase transition. ⚠️ gsd-sdk string-arg query handlers (record-metric/add-decision/record-session stopped_at) silently no-op'd in v1.42.3 — metric row + decisions + stopped_at were hand-written; advance-plan/update-progress/roadmap.update-plan-progress worked.
+- [Phase 04]: [04-03]: `searchListings` (src/lib/search/query.ts) is the two-stage search spine (D-34): Stage-1 = ONE Drizzle `sql` candidate query (inlined deriveBookable gate w/ Pitfall-5 sync comment + `::geography` `ST_DWithin`/`ST_Distance` on BOTH operands + `ST_MakePoint(lng,lat)` + D-35 category `primary_space_type::text` OR `listing_activity_tag` EXISTS + price + tz-independent weekday `EXTRACT(DOW)` EXISTS), ordered distance/price with a `created_at DESC` tiebreaker + `LIMIT+1` probe; Stage-2 = per-candidate `getAvailability` reuse (the SAME read model as the listing calendar — NO second SQL occupancy predicate). `::geography` proven by the beyond-10km outlier-exclusion test (the degrees-vs-meters guard). tests/search 16/16; tsc + eslint clean.
+- [Phase 04]: [04-03]: Stage-2 window = venue-local wall-clock `HH:mm` resolved PER-CANDIDATE via TZDate (not absolute UTC), so the same picked local window lands per-venue (venue-tz honored). date-only ⇒ any slot `state==='available'`; date+time ⇒ EVERY on-the-hour slot in `[start,end)` is `'available'` (subsumes freeUnits≥1 + future + in-horizon). Injectable `now?:Date` 3rd param (mirrors getAvailability) for deterministic slot state. Strict `parsePickedDate` binds the CANONICAL iso into `::date` (never the raw string) + round-trip guard; `parseWindowHour` never reaches SQL — malformed input degrades to date-only, never a mid-query 22007. Over-fetch `pageSize*2+1` when a date is picked (Stage-2 can drop candidates, Pitfall 8/A5). SEARCH-01..05 NOT marked complete — query spine here; user-facing wiring + SEARCH-05 cards at 04-05.
 
 ### Pending Todos
 
@@ -143,8 +146,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T03:48:11.008Z
-Stopped at: Completed 04-02-PLAN.md — searchParamsSchema/bookingCreateSchema (V5 input-validation control) + DISPLAY_CURRENCY promoted to money.ts (D-46) + D-38 seed (scripts/seed.ts idempotent dev seed + tests/helpers/seed.ts geo helper with derived haversine distances). booking-schemas 19/19, tsc clean, seed idempotent (5 published, 1 >10km, 1 disjoint tag). SEARCH-01..04/BOOK-01 stay Pending (cross-cutting substrate). Next: 04-03 (two-stage search: PostGIS ST_DWithin Stage-1 + read-model Stage-2).
+Last session: 2026-07-15T04:19Z
+Stopped at: Completed 04-03-PLAN.md — searchListings two-stage search (Stage-1 SQL candidate + Stage-2 getAvailability free-window filter, D-34). ::geography on BOTH radius operands (Pitfall 1, proven by the beyond-10km outlier-exclusion test); D-35 category via primary_space_type::text OR tag EXISTS (activity-tag-only: no no-op, no enum error); Stage-2 reuses getAvailability so search & the listing calendar cannot diverge; venue-tz per candidate. tests/search 16/16, tsc + eslint clean. Commits 8ca1fc2 (Stage-1) + 16f19a4 (Stage-2). SEARCH-01..05 stay Pending (query spine here; user-facing at 04-05). ⚠️ gsd-sdk v1.42.3 string-arg handlers (record-metric/add-decision/record-session) still no-op — metric row + decisions + stopped_at hand-written; advance-plan/update-progress/roadmap worked. Next: 04-04 (WR-03 pending-hold tx) or 04-05 (search UI).
 
 Prior session: 2026-07-14T07:51:45.085Z
 Advisory follow-ups from 03-REVIEW.md — RESOLVED in quick task 260714-feq (commits 7ab4532/a527d50/c875d72/8667ecb): WR-01 (getDayAvailability now Zod-validates dayLocal via safeParse→empty + gates on published/non-deleted — no 500, no draft leak), WR-02 (addBlock rejects unit>unitCount; read-model clamps unit∈[1,unitCount]), WR-04 (single `<Toaster/>` on the host page), IN-01 (slotSelectionSchema marked Phase-4 scaffolding), IN-02 (formatMoney extracted to src/lib/money.ts), IN-03 (handleDaySelect catch → inline role=alert), IN-05 (E2E day locator robust to showOutsideDays), IN-06 (dropped unused timezone prop). Verified: tsc + eslint clean, vitest tests/availability 82/82, Playwright availability E2E 4/4. STILL OPEN by design: WR-03 deferred to Phase 4 (auto-commit contract now documented in units.ts createBooking; the savepoint-for-23P01 + outer-retry-for-40P01 transactional design is Phase-4 work) and IN-04 skipped (test-only local-dev creds). Also set workflow.use_worktrees=false — a fresh worktree lacks gitignored node_modules so tsc/eslint/vitest/playwright can't run; this recurring blocking anti-pattern is now structurally prevented.
