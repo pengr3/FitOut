@@ -1,0 +1,32 @@
+{
+  "phase": "5",
+  "phase_name": "Payments & Payouts",
+  "timestamp": "2026-07-15T10:26:37Z",
+  "areas_completed": ["Commission model", "Payment methods"],
+  "areas_remaining": ["Payout timing", "Payment wiring depth"],
+  "decisions": {
+    "Commission model": [
+      {"question": "Who bears the commission / what does the booker see?", "answer": "Host-side deduction — booker pays the listed price (breakdown stays subtotal = total, no booker-facing fee); host receives price − commission.", "options_presented": ["Host-side deduction", "Booker service fee on top", "Split (both sides)"]},
+      {"question": "What commission rate?", "answer": "10% (config-tunable, not hardcoded)", "options_presented": ["15%", "10%", "20%"]},
+      {"question": "Who absorbs PayMongo's processing fee?", "answer": "Platform absorbs it — host always receives exactly price − 10%; platform nets 10% − gateway fee (~6.5–8% effective take).", "options_presented": ["Platform absorbs it", "Host absorbs it"]}
+    ],
+    "Payment methods": [
+      {"question": "Which payment rails at checkout in Phase 5?", "answer": "Full PH set — cards + GCash + Maya + QRPh (D-20's rails; PAY-01 'by card' is a floor, not a ceiling).", "options_presented": ["Full PH set", "Cards + GCash only", "Card-only"]},
+      {"question": "How is the pay step presented / where does the booker enter payment details?", "answer": "Hosted PayMongo page — redirect to a PayMongo-hosted Checkout Session (all rails in one page), return to the confirmation. PCI-light; researcher picks the exact PayMongo primitive. Reinforces webhook-as-source-of-truth (the return redirect is a UX signal; the payment webhook confirms the booking).", "options_presented": ["Hosted PayMongo page", "Embedded on-site"]}
+    ]
+  },
+  "deferred_ideas": [],
+  "canonical_refs": [
+    "CLAUDE.md § Marketplace Payments — Prescriptive Detail (D-20 PayMongo hold-until-session; POST /v2/batch_transfers; Idempotency-Key; Paymongo-Signature HMAC)",
+    ".planning/PROJECT.md § Key Decisions D-20",
+    ".planning/ROADMAP.md § Phase 5 (NOTE: goal/success-criteria text still says Stripe/reverse_transfer/account.updated — STALE, superseded by D-20 PayMongo)",
+    ".planning/REQUIREMENTS.md — PAY-01, PAY-02, PAY-03, HOST-03; Open Product Decisions (refund policy is a Phase 7 concern)",
+    ".planning/phases/02-listings-host-onboarding/02-CONTEXT.md (PayMongo onboarding + bookability gate foundation)",
+    ".planning/phases/04-booking-core-search-no-payment/04-CONTEXT.md (D-46/47/48; the confirm seam)",
+    "src/lib/paymongo.ts (thin REST wrapper — extend with charge + batch_transfers)",
+    "src/app/api/paymongo/webhook/route.ts (extend: add payment.paid/refund/dispute event handling; idempotent via paymongo_event ledger)",
+    "src/app/actions/booking.ts (confirmBooking is the pending→confirmed seam where payment slots in)",
+    "src/lib/db/schema.ts (booking has quotedTotalCents/currency frozen at hold; host_payout; paymongo_event)"
+  ],
+  "notes": "Payout timing area was presented but the user DISMISSED the AskUserQuestion (did not answer) and then invoked /gsd-pause-work. Payout timing + Payment wiring depth are both undecided. When resuming, re-open Payout timing — let the user steer rather than re-firing the same picker. Two more optional areas were offered and not yet explored: refund/dispute scope split with Phase 7, and the host earnings/payout-status view (HOST-03)."
+}
