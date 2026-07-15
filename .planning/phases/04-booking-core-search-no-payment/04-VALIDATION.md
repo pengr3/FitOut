@@ -1,10 +1,11 @@
 ---
 phase: 04
 slug: booking-core-search-no-payment
-status: draft
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-07-14
+validated: 2026-07-15
 ---
 
 # Phase 04 — Validation Strategy
@@ -40,22 +41,23 @@ created: 2026-07-14
 
 > Behaviors + automated commands from RESEARCH § "Phase Requirements → Test Map".
 > `Plan · Task · Wave` references are filled from the 8 PLAN.md files. All test files
-> remain Wave-0 gaps (created during execution — ❌ = not yet on disk).
+> were created during execution and re-run **green** in the 2026-07-15 validation audit
+> (✅ = on disk & passing). No coverage gaps remain.
 
 | Requirement | Behavior (must be TRUE) | Test Type | Automated Command | Created by (Plan · Task · Wave) | File Exists | Status |
 |-------------|-------------------------|-----------|-------------------|--------------------------------|-------------|--------|
-| BOOK-03 | Concurrent overlapping holds → exactly one wins; loser `23P01`/`40P01` → "just taken" | integration (race) | `npx vitest run tests/booking/pending-hold.test.ts -t "concurrent"` | 04-04 · T2 · W2 | ❌ W0 | ⬜ pending |
-| BOOK-03 | Double-click / same idempotency key → exactly ONE booking, returns SAME id (never "just taken") | integration (race) | `npx vitest run tests/booking/pending-hold.test.ts -t "idempoten"` | 04-04 · T2 · W2 | ❌ W0 | ⬜ pending |
-| BOOK-02 | WR-03: `23P01` in savepoint retries next unit within one outer tx (no `25P02`); `40P01` → outer retry | integration | `npx vitest run tests/booking/pending-hold.test.ts -t "savepoint"` | 04-04 · T2 · W2 | ❌ W0 | ⬜ pending |
-| BOOK-02 | Stale hold (`expiresAt` past) → read model shows free (lazy) AND a new hold succeeds (sweep) | integration | `npx vitest run tests/booking/hold-expiry.test.ts` | 04-04 · T3 · W2 | ❌ W0 | ⬜ pending |
-| SEARCH-03 | True free-window filter: no-free listing excluded; free listing included; date-only vs date+time; block honored; venue-tz | integration | `npx vitest run tests/search/availability-filter.test.ts` | 04-03 · T2 · W2 | ❌ W0 | ⬜ pending |
-| SEARCH-01 | Radius: `::geography` returns within-N-km, excludes beyond; distance value correct | integration | `npx vitest run tests/search/radius.test.ts` | 04-03 · T1 · W2 | ❌ W0 | ⬜ pending |
-| SEARCH-02 / SEARCH-04 | Activity type OR tag match (single `category`, incl. activity-tag-only); price filter bounds | integration | `npx vitest run tests/search/filters.test.ts` | 04-03 · T1 · W2 | ❌ W0 | ⬜ pending |
-| SEARCH-05 (D-16) | Non-bookable (draft / unverified email / payouts-off) never appears in search | integration | `npx vitest run tests/search/bookable-gate.test.ts` | 04-03 · T1 · W2 | ❌ W0 | ⬜ pending |
-| BOOK-01 (SC#2) | Server re-derives price (hours×hourly \| dayRate); tampered client price ignored; PHP display | unit + integration | `npx vitest run tests/booking/pricing.test.ts` | 04-04 · T1 · W2 | ❌ W0 | ⬜ pending |
-| BOOK-01 | State machine: pending→confirmed; pending→cancelled on expiry; confirm re-checks expiry; idempotent re-confirm | integration | `npx vitest run tests/booking/state-machine.test.ts` | 04-06 · T1 · W3 | ❌ W0 | ⬜ pending |
-| BOOK-02 / BOOK-03 | Confirmation page owner-gated (non-owner → 404/gated) | integration + E2E | `npx vitest run tests/booking/state-machine.test.ts -t "owner"` (+ E2E) | 04-06 · T1 · W3 + 04-08 · T1 · W5 | ❌ W0 | ⬜ pending |
-| SEARCH-05 + full flow | search → filter → card → listing → Book → reserve (countdown) → Confirm → confirmation; + expiry UX | E2E | `npm run test:e2e -- search-and-book` | 04-08 · T1 · W5 | ❌ W0 | ⬜ pending |
+| BOOK-03 | Concurrent overlapping holds → exactly one wins; loser `23P01`/`40P01` → "just taken" | integration (race) | `npx vitest run tests/booking/pending-hold.test.ts -t "concurrent"` | 04-04 · T2 · W2 | ✅ | ✅ green |
+| BOOK-03 | Double-click / same idempotency key → exactly ONE booking, returns SAME id (never "just taken") | integration (race) | `npx vitest run tests/booking/pending-hold.test.ts -t "idempoten"` | 04-04 · T2 · W2 | ✅ | ✅ green |
+| BOOK-02 | WR-03: `23P01` in savepoint retries next unit within one outer tx (no `25P02`); `40P01` → outer retry | integration | `npx vitest run tests/booking/pending-hold.test.ts -t "savepoint"` | 04-04 · T2 · W2 | ✅ | ✅ green |
+| BOOK-02 | Stale hold (`expiresAt` past) → read model shows free (lazy) AND a new hold succeeds (sweep) | integration | `npx vitest run tests/booking/hold-expiry.test.ts` | 04-04 · T3 · W2 | ✅ | ✅ green |
+| SEARCH-03 | True free-window filter: no-free listing excluded; free listing included; date-only vs date+time; block honored; venue-tz | integration | `npx vitest run tests/search/availability-filter.test.ts` | 04-03 · T2 · W2 | ✅ | ✅ green |
+| SEARCH-01 | Radius: `::geography` returns within-N-km, excludes beyond; distance value correct | integration | `npx vitest run tests/search/radius.test.ts` | 04-03 · T1 · W2 | ✅ | ✅ green |
+| SEARCH-02 / SEARCH-04 | Activity type OR tag match (single `category`, incl. activity-tag-only); price filter bounds | integration | `npx vitest run tests/search/filters.test.ts` | 04-03 · T1 · W2 | ✅ | ✅ green |
+| SEARCH-05 (D-16) | Non-bookable (draft / unverified email / payouts-off) never appears in search | integration | `npx vitest run tests/search/bookable-gate.test.ts` | 04-03 · T1 · W2 | ✅ | ✅ green |
+| BOOK-01 (SC#2) | Server re-derives price (hours×hourly \| dayRate); tampered client price ignored; PHP display | unit + integration | `npx vitest run tests/booking/pricing.test.ts` | 04-04 · T1 · W2 | ✅ | ✅ green |
+| BOOK-01 | State machine: pending→confirmed; pending→cancelled on expiry; confirm re-checks expiry; idempotent re-confirm | integration | `npx vitest run tests/booking/state-machine.test.ts` | 04-06 · T1 · W3 | ✅ | ✅ green |
+| BOOK-02 / BOOK-03 | Confirmation page owner-gated (non-owner → 404/gated) | integration + E2E | `npx vitest run tests/booking/state-machine.test.ts -t "owner"` (+ E2E) | 04-06 · T1 · W3 + 04-08 · T1 · W5 | ✅ | ✅ green |
+| SEARCH-05 + full flow | search → filter → card → listing → Book → reserve (countdown) → Confirm → confirmation; + expiry UX | E2E | `npm run test:e2e -- search-and-book` | 04-08 · T1 · W5 | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -63,16 +65,16 @@ created: 2026-07-14
 
 ## Wave 0 Requirements
 
-> Each gap is created during execution by the plan/task noted; boxes stay unchecked until `wave_0_complete: true`.
+> Each gap was created during execution by the plan/task noted; all boxes are now checked (`wave_0_complete: true`, verified on disk 2026-07-15).
 
-- [ ] `src/lib/validation/booking.ts` — add `searchParamsSchema` (single combined `category`) + `bookingCreateSchema` (scaffold `slotSelectionSchema` already exists) — **04-02 · T1 · W1**
-- [ ] `tests/booking/pending-hold.test.ts` — concurrency + idempotency + savepoint (extend `makeRacingClients` from `exclusion-race.test.ts`) — **04-04 · T2 · W2**
-- [ ] `tests/booking/hold-expiry.test.ts` — lazy read + sweep (BOOK-02) — **04-04 · T3 · W2**
-- [ ] `tests/booking/pricing.test.ts` (**04-04 · T1 · W2**) + `tests/booking/state-machine.test.ts` (**04-06 · T1 · W3**)
-- [ ] `tests/search/{availability-filter (04-03 · T2),radius,filters,bookable-gate (04-03 · T1)}.test.ts` (+ a geo-seed helper with known coords/distances via **04-02 · T2 · W1**) — **W2**
-- [ ] `e2e/search-and-book.spec.ts` (reuse the UAT seed host `host@fitout.test` + a bookable seed set, D-38; mirror `e2e/availability.spec.ts`) — **04-08 · T1 · W5**
-- [ ] `scripts/seed.ts` (D-38) — the search tests and E2E depend on it — **04-02 · T2 · W1**
-- [ ] No framework install needed (Vitest + Playwright already present)
+- [x] `src/lib/validation/booking.ts` — add `searchParamsSchema` (single combined `category`) + `bookingCreateSchema` (scaffold `slotSelectionSchema` already exists) — **04-02 · T1 · W1**
+- [x] `tests/booking/pending-hold.test.ts` — concurrency + idempotency + savepoint (extend `makeRacingClients` from `exclusion-race.test.ts`) — **04-04 · T2 · W2**
+- [x] `tests/booking/hold-expiry.test.ts` — lazy read + sweep (BOOK-02) — **04-04 · T3 · W2**
+- [x] `tests/booking/pricing.test.ts` (**04-04 · T1 · W2**) + `tests/booking/state-machine.test.ts` (**04-06 · T1 · W3**)
+- [x] `tests/search/{availability-filter (04-03 · T2),radius,filters,bookable-gate (04-03 · T1)}.test.ts` (+ a geo-seed helper with known coords/distances via **04-02 · T2 · W1**) — **W2**
+- [x] `e2e/search-and-book.spec.ts` (reuse the UAT seed host `host@fitout.test` + a bookable seed set, D-38; mirror `e2e/availability.spec.ts`) — **04-08 · T1 · W5**
+- [x] `scripts/seed.ts` (D-38) — the search tests and E2E depend on it — **04-02 · T2 · W1**
+- [x] No framework install needed (Vitest + Playwright already present)
 
 ---
 
@@ -95,5 +97,17 @@ created: 2026-07-14
 - [x] Feedback latency < 30s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
-</content>
+**Approval:** validated 2026-07-15 — all 12 mapped behaviors are COVERED (60 unit/integration tests across 9 files + 2 E2E, all green).
+
+---
+
+## Validation Audit 2026-07-15
+
+Re-ran every mapped test live (DB container up; `npx vitest run tests/booking tests/search tests/validation/booking-schemas.test.ts` → **9 files / 60 tests passed**; `npx playwright test e2e/search-and-book.spec.ts` → **2 passed**). The pre-execution draft had marked all rows `❌ W0 / ⬜ pending`; execution created every referenced test and all pass, so statuses were reconciled to `✅ green` and `wave_0_complete` flipped to true. No tests were generated by this audit and no auditor was spawned — there were no coverage gaps to fill.
+
+| Metric | Count |
+|--------|-------|
+| Coverage gaps found (MISSING/PARTIAL) | 0 |
+| Tests generated | 0 |
+| Escalated to manual-only | 0 |
+| Map rows reconciled (pending → green) | 12 |
