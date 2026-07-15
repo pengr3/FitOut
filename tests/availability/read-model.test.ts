@@ -9,6 +9,8 @@
 //   - whole-listing block (NULL)  → freeUnits 0 (unavailable)
 //   - occupying booking, 1 unit   → unavailable
 //   - CANCELLED booking           → does NOT reduce freeUnits (only pending/confirmed occupy)
+//   - stale PENDING (past expiry) → does NOT occupy (D-48a lazy expiry, gated on the DB clock now())
+//   - live PENDING (future expiry)→ occupies; CONFIRMED (NULL expiry) still occupies (no regression)
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
@@ -127,6 +129,53 @@ beforeAll(async () => {
     endsAt: E,
     status: "cancelled",
   });
+
+  // Cases g/h/i — lazy-expiry pending holds (D-48a). The occupancy predicate gates a pending hold on
+  // `expires_at > now()` using the DB clock (SQL now()), NOT the injected NOW (Pitfall 7). Expiries are
+  // therefore set relative to the REAL wall clock (±1h ≫ test runtime) to stay deterministic vs now().
+  const pastExpiry = new Date(Date.now() - 60 * 60 * 1000); // stale hold → must read as FREE
+  const futureExpiry = new Date(Date.now() + 60 * 60 * 1000); // live hold → must still occupy
+
+  // g: unitCount 1, a PENDING hold whose expires_at already passed, covering the 06:00 slot.
+  await makeListing("L_pending_past", "rm_host", 1);
+  await addMondayHours("L_pending_past");
+  await testDb.db.insert(booking).values({
+    id: "bk_pending_past",
+    listingId: "L_pending_past",
+    unit: 1,
+    bookerId: BOOKER,
+    startsAt: S,
+    endsAt: E,
+    status: "pending",
+    expiresAt: pastExpiry,
+  });
+
+  // h: unitCount 1, a PENDING hold still within its TTL, covering the 06:00 slot.
+  await makeListing("L_pending_future", "rm_host", 1);
+  await addMondayHours("L_pending_future");
+  await testDb.db.insert(booking).values({
+    id: "bk_pending_future",
+    listingId: "L_pending_future",
+    unit: 1,
+    bookerId: BOOKER,
+    startsAt: S,
+    endsAt: E,
+    status: "pending",
+    expiresAt: futureExpiry,
+  });
+
+  // i: unitCount 1, a CONFIRMED booking (expires_at NULL) — regression guard, must still occupy.
+  await makeListing("L_confirmed_null", "rm_host", 1);
+  await addMondayHours("L_confirmed_null");
+  await testDb.db.insert(booking).values({
+    id: "bk_confirmed_null",
+    listingId: "L_confirmed_null",
+    unit: 1,
+    bookerId: BOOKER,
+    startsAt: S,
+    endsAt: E,
+    status: "confirmed",
+  });
 });
 
 afterAll(async () => {
@@ -183,5 +232,28 @@ describe("getAvailability — on-the-fly free-unit read model (AVAIL-03)", () =>
     const slot0600 = res.slots.find((s) => s.startUtc === SLOT_0600_START)!;
     expect(slot0600.freeUnits).toBe(1);
     expect(slot0600.state).toBe("available");
+  });
+});
+
+describe("getAvailability — lazy-expiry pending holds (D-48a)", () => {
+  it("treats a pending hold past its expires_at as FREE (stale hold does not occupy)", async () => {
+    const res = await getAvailability(testDb.db, "L_pending_past", DAY, NOW);
+    const slot0600 = res.slots.find((s) => s.startUtc === SLOT_0600_START)!;
+    expect(slot0600.freeUnits).toBe(1);
+    expect(slot0600.state).toBe("available");
+  });
+
+  it("keeps a pending hold within its TTL occupying (future expires_at → unavailable)", async () => {
+    const res = await getAvailability(testDb.db, "L_pending_future", DAY, NOW);
+    const slot0600 = res.slots.find((s) => s.startUtc === SLOT_0600_START)!;
+    expect(slot0600.freeUnits).toBe(0);
+    expect(slot0600.state).toBe("unavailable");
+  });
+
+  it("still occupies for a confirmed booking with a NULL expires_at (no regression)", async () => {
+    const res = await getAvailability(testDb.db, "L_confirmed_null", DAY, NOW);
+    const slot0600 = res.slots.find((s) => s.startUtc === SLOT_0600_START)!;
+    expect(slot0600.freeUnits).toBe(0);
+    expect(slot0600.state).toBe("unavailable");
   });
 });
