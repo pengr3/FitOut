@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Completed 04-07-PLAN.md — the two user-facing booking pages + Book-CTA wiring (completes BOOK-01/03). Reserve page /listings/[id]/book READS the placeHold-minted hold owner-gated and NEVER creates one (no GET-dup; missing/other-booker/no-session all notFound; already-confirmed own hold redirects to /bookings/[id] per D-42; expired shows the calm HoldExpiredState per D-44). Confirmation /bookings/[id] is durable + owner-gated (bookerId===userId else notFound, status=confirmed, opaque randomUUID id, FIT- reference display-only). BookCta wires the lifted BookingSelection to the placeHold POST (never a GET side-effect) with D-41 sign-in resume: the window is threaded through an open-redirect-guarded callbackURL and auto-resumed once on return. Shared venue-time.ts + DISPLAY_CURRENCY centralized. Commits 57c816f (T1) + 134236c (T2) + 487bda7 (T3). NOTE: Task 3 was finished INLINE by the orchestrator after the gsd-executor hit a monthly API spend-limit mid-Task-3 — no code was changed from what the executor wrote; only the commit + SUMMARY + tracking were completed. Verified: tsc 0, eslint 0 (4 T3 files), vitest 283/283, next build 0 with /listings/[id]/book and /bookings/[id] both present. Pre-existing/out-of-scope (deferred-items.md + task chip spawned): npm run build PAYMONGO_SECRET_KEY guard; npm run lint address-autocomplete.tsx:110. Next: 04-08 (Wave 5 — full search->book->confirm E2E + expiry UX + HUMAN-VERIFY checkpoint), then phase verification."
-last_updated: "2026-07-15T06:10:00.000Z"
+status: ready_to_plan
+stopped_at: Phase 04 complete (8/8) — ready to discuss Phase 5
+last_updated: 2026-07-15T08:42:08.485Z
 last_activity: 2026-07-15 -- Phase 04: 04-07 complete (7/8 plans); 04-08 remaining
 progress:
   total_phases: 8
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 23
   completed_plans: 23
-  percent: 38
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 04 — booking-core-search-no-payment
+**Current focus:** Phase 5 — payments & payouts
 
 ## Current Position
 
-Phase: 04 (booking-core-search-no-payment) — EXECUTED (verification pending)
-Plan: 8 of 8 — all plans complete
-Status: 8/8 plans complete; 04-08 human-verify APPROVED. Running phase verification (gsd-verifier) next.
-Last activity: 2026-07-15 -- Phase 04: all 8 plans complete; 04-08 human-verify approved
+Phase: 5
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-15
 
 Progress: [██████████] 96%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 96%
 
 **Velocity:**
 
-- Total plans completed: 9
+- Total plans completed: 17
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -45,6 +45,7 @@ Progress: [██████████] 96%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 4 | - | - |
+| 04 | 8 | - | - |
 
 **Recent Trend:**
 

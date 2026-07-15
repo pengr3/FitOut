@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Auth & Accounts** - Single account with booker + host capabilities, sessions, password reset, basic profile
 - [x] **Phase 2: Listings & Host Onboarding** - Hosts create/edit listings with photos, pricing, booking mode; PayMongo onboarding gates bookability
 - [x] **Phase 3: Availability & the Double-Booking Guarantee** - Availability rules, real-time calendar, and the DB exclusion constraint that makes overlaps structurally impossible (completed 2026-07-14)
-- [ ] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search
+- [x] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search (completed 2026-07-15)
 - [ ] **Phase 5: Payments & Payouts** - Stripe Connect charge, commission, delayed host payout, webhook-as-source-of-truth, refunds
 - [ ] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book authorize→capture-on-approve, host approve/decline, confirmation
 - [ ] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
@@ -99,7 +99,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 04-05-PLAN.md — Wave 3: search home at / (search bar + result cards + sort + Load more + empty states)
   - [x] 04-06-PLAN.md — Wave 3: placeHold/confirmBooking actions + reserve components (breakdown, countdown, expiry, Confirm)
   - [x] 04-07-PLAN.md — Wave 4: reserve page + owner-gated confirmation page + listing Book CTA wiring
-  - [ ] 04-08-PLAN.md — Wave 5: full-flow search→book→confirm E2E + expiry UX + human-verify
+  - [x] 04-08-PLAN.md — Wave 5: full-flow search→book→confirm E2E + expiry UX + human-verify
 
   **Waves:** W1 (04-01, 04-02) → W2 (04-03, 04-04) → W3 (04-05, 04-06) → W4 (04-07) → W5 (04-08). W5 carries the human-verify checkpoint.
 **UI hint**: yes
@@ -162,7 +162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Auth & Accounts | 4/4 | Complete | - |
 | 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
 | 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
-| 4. Booking Core & Search | 7/8 | In Progress|  |
+| 4. Booking Core & Search | 8/8 | Complete | 2026-07-15 |
 | 5. Payments & Payouts | 0/TBD | Not started | - |
 | 6. Full Booking + Payment Integration | 0/TBD | Not started | - |
 | 7. Bookings Management, Cancellation & Notifications | 0/TBD | Not started | - |
