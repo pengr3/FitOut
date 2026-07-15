@@ -10,7 +10,7 @@ progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
   percent: 38
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 04 (booking-core-search-no-payment) — EXECUTING
-Plan: 8 of 8
-Status: 7/8 plans complete — only 04-08 (full-flow E2E + human-verify checkpoint) remains
-Last activity: 2026-07-15
+Phase: 04 (booking-core-search-no-payment) — EXECUTED (verification pending)
+Plan: 8 of 8 — all plans complete
+Status: 8/8 plans complete; 04-08 human-verify APPROVED. Running phase verification (gsd-verifier) next.
+Last activity: 2026-07-15 -- Phase 04: all 8 plans complete; 04-08 human-verify approved
 
 Progress: [██████████] 96%
 
