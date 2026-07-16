@@ -11,9 +11,9 @@
 // is the caller, and the Paymongo-Signature is the authentication).
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { booking, hostPayout, paymongoEvent } from "@/lib/db/schema";
+import { booking, hostPayout, hostPayoutLedger, paymongoEvent } from "@/lib/db/schema";
 import { createRefund } from "@/lib/paymongo";
 import { recordAudit } from "@/lib/audit";
 
@@ -159,6 +159,44 @@ async function handleGoneSlot(
     UPDATE booking SET status = 'cancelled' WHERE id = ${bookingId} AND status <> 'confirmed'`);
 }
 
+/** The refunded payment's id (`pay_...`), derived from the verified refund event (never a client field). */
+function resolveRefundPaymentId(event: PayMongoEvent): string | undefined {
+  const resource = event.data?.attributes?.data;
+  const attrs = resource?.attributes;
+  // A Refund resource carries `payment_id`; a Payment resource's own id IS the pay_...
+  return (
+    attrs?.payment_id ??
+    attrs?.payment?.id ??
+    (resource?.id?.startsWith("pay_") ? resource.id : undefined)
+  );
+}
+
+/**
+ * D-60 refund mechanism. A `payment.refunded` / `payment.refund.updated` event idempotently marks the
+ * booking + payout ledger refunded. The state is DERIVED from the verified event TYPE (never a client body
+ * field); the outer `paymongo_event` dedupe already makes a re-delivery a 200 no-op, and the `state <>`
+ * guards make a same-handler re-run harmless too. Because payout is held until T+24h post-session, a pre-
+ * payout refund is JUST a platform-wallet refund — no host clawback (the host was never paid). If a ledger
+ * row exists we flip it `refunded`; either way we mark the booking `cancelled` so the Plan-05 payout sweep
+ * (which selects only `confirmed`) skips it.
+ */
+async function handleRefund(event: PayMongoEvent): Promise<void> {
+  const paymentId = resolveRefundPaymentId(event);
+  if (!paymentId) return;
+
+  // Flip any payout-ledger row for this payment to refunded (0 rows if the sweep hasn't created one yet).
+  await db
+    .update(hostPayoutLedger)
+    .set({ state: "refunded" })
+    .where(and(eq(hostPayoutLedger.paymentId, paymentId), ne(hostPayoutLedger.state, "refunded")));
+  // Mark the booking terminal (no 'refunded' booking status — 'cancelled' both keeps it out of the payout
+  // sweep and renders PaymentReversedState on a ?paid=1 return).
+  await db
+    .update(booking)
+    .set({ status: "cancelled" })
+    .where(and(eq(booking.paymentId, paymentId), ne(booking.status, "cancelled")));
+}
+
 export async function POST(req: Request): Promise<Response> {
   // RAW body — do NOT req.json() first: parsing changes the bytes the HMAC covers (T-06-SPOOF).
   const rawBody = await req.text();
@@ -222,6 +260,10 @@ export async function POST(req: Request): Promise<Response> {
         await handleGoneSlot(bookingId, paymentId, cs);
       }
     }
+  } else if (type === "payment.refunded" || type === "payment.refund.updated") {
+    // D-60 refund mechanism: idempotently mark the booking + payout ledger refunded (state derived from
+    // the verified event type; the paymongo_event dedupe already makes a re-delivery a 200 no-op).
+    await handleRefund(event);
   } else {
     const accountId = resolveAccountId(event);
     if (accountId) {
