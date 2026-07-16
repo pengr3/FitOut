@@ -1,12 +1,13 @@
 "use client";
 
-// ReserveActions (D-42/D-44) — the terminal `Confirm booking` control that wraps the confirmBooking server
-// action. On click it disables + swaps the label to `Confirming…` (aria-disabled while submitting) so a
-// double-click is a client-side no-op; the DB-level idempotency backstop lives in createPendingHold and the
-// confirmed→confirmed short-circuit lives in confirmBooking, so a booker double-clicking their OWN slot
-// always resolves to success (the confirmation page), never a false "just taken/expired" (D-42). The coral
-// CTA is the one primary action on the reserve page; the `You won't be charged yet.` line sets the
-// no-payment expectation honestly (Phase 4).
+// ReserveActions (D-42/D-44 · D-57) — the terminal `Confirm & pay` control that wraps the confirmBooking
+// server action. On click it disables + swaps the label to `Taking you to checkout…` (aria-disabled while
+// submitting) so a double-click is a client-side no-op; the DB-level idempotency backstop lives in
+// createPendingHold and the already-confirmed short-circuit + the stable checkout Idempotency-Key live in
+// confirmBooking, so a booker double-clicking their OWN slot always resolves cleanly (D-42). D-57: the
+// action now creates a hosted PayMongo checkout and REDIRECTS OFF-SITE on success — this component unmounts
+// on navigation, so the on-success assumption still holds. The coral CTA is the one primary action on the
+// reserve page; the reassurance line names the charged amount + rails honestly (`You'll pay {total} now…`).
 //
 // Analog: the ConfirmDialog button-disable idiom (listing-card.tsx:96-107).
 
@@ -17,10 +18,13 @@ import { confirmBooking, type ConfirmResult } from "@/app/actions/booking";
 
 export function ReserveActions({
   holdId,
+  totalLabel,
   onResult,
 }: {
   holdId: string;
-  /** Surfaces a graceful failure (expired / denied) to the parent so it can flip to the expiry state. */
+  /** Server-formatted charged amount (formatMoney(quotedTotalCents, currency)) — the truthful "you'll pay". */
+  totalLabel: string;
+  /** Surfaces a graceful failure (checkout / expired / denied) to the parent so it can flip to a calm state. */
   onResult?: (result: ConfirmResult) => void;
 }) {
   const [pending, setPending] = React.useState(false);
@@ -52,9 +56,11 @@ export function ReserveActions({
         aria-disabled={pending}
         className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
       >
-        {pending ? "Confirming…" : "Confirm booking"}
+        {pending ? "Taking you to checkout…" : "Confirm & pay"}
       </Button>
-      <p className="text-center text-xs text-muted-foreground">You won&apos;t be charged yet.</p>
+      <p className="text-center text-xs text-muted-foreground">
+        You&apos;ll pay {totalLabel} now — cards, GCash, Maya, or QR Ph. Payments are processed securely.
+      </p>
     </div>
   );
 }

@@ -3,8 +3,10 @@
 // It renders the frozen quote (booking.quotedTotalCents + currency, D-49) as a FEE-EXTENSIBLE line-item
 // list — NEVER a client recompute (CLAUDE.md "never trust the client for price/time"): the subtotal/Total
 // are the exact frozen cents and `hours` is server-derived and passed in, so this component does ZERO
-// price arithmetic. Phase 5 inserts `Service fee` / `FitOut commission` rows in the RESERVED slot below
-// (above the Total divider) with zero layout shift — the list structure exists precisely for that seam (D-46).
+// price arithmetic. The RESERVED slot below (above the Total divider) exists for any FUTURE booker-visible
+// line with zero layout shift — but per D-50 the commission is a HOST-side deduction, so the booker
+// breakdown STAYS subtotal = total (no `Service fee` / commission line here — that lives only on the host
+// /host/earnings rows). Do NOT add a fee line to the booker view (D-50/Pitfall 6).
 //
 // Pure display, no hooks → a Server Component (no "use client").
 
@@ -47,9 +49,9 @@ export function PriceBreakdown({
         </div>
 
         {/*
-          RESERVED FEE SLOT (Phase 5, D-46) — renders NOTHING in Phase 4. `Service fee` / `FitOut commission`
-          rows slot in HERE, above the Total divider, so the existing run line + Total never restructure or
-          shift. Keep this seam; do NOT add a fee line in Phase 4 (the breakdown is subtotal-only).
+          RESERVED SLOT (D-46) — renders NOTHING for the booker. The commission is HOST-side (D-50), so the
+          booker breakdown stays subtotal = total; NO `Service fee` / commission line goes here (that line
+          lives only on /host/earnings). Kept as a zero-shift seam for any future booker-visible line.
         */}
       </div>
 
@@ -61,7 +63,7 @@ export function PriceBreakdown({
         <span className="text-xl font-semibold tabular-nums">{formatMoney(quotedTotalCents, currency)}</span>
       </div>
 
-      <p className="text-xs text-muted-foreground">Final price. No booking or service fees in this step.</p>
+      <p className="text-xs text-muted-foreground">Final price — no added fees. You&apos;ll pay this now.</p>
     </div>
   );
 }

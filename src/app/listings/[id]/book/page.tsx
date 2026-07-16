@@ -26,7 +26,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, listingPhoto } from "@/lib/db/schema";
 import { windowHours } from "@/lib/booking/pricing";
-import { DISPLAY_CURRENCY } from "@/lib/money";
+import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
@@ -168,6 +168,10 @@ export default async function ReservePage({
     />
   );
 
+  // Server-formatted charged amount for the `Confirm & pay` reassurance (D-57) — the frozen quote (D-49),
+  // never a client recompute.
+  const totalLabel = formatMoney(quoted, bk.currency ?? DISPLAY_CURRENCY);
+
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
       <header className="space-y-1">
@@ -182,6 +186,7 @@ export default async function ReservePage({
           holdId={bk.id}
           listingId={bk.listingId}
           expiresAt={bk.expiresAt!.toISOString()}
+          totalLabel={totalLabel}
           summary={summary}
           breakdown={breakdown}
         />

@@ -22,6 +22,7 @@ export function ReserveView({
   holdId,
   listingId,
   expiresAt,
+  totalLabel,
   summary,
   breakdown,
 }: {
@@ -29,6 +30,8 @@ export function ReserveView({
   listingId: string;
   /** The hold's TTL deadline (ISO) — drives the countdown; the server re-checks it on Confirm. */
   expiresAt: string;
+  /** Server-formatted charged amount (formatMoney) — threaded to the `Confirm & pay` reassurance (D-57). */
+  totalLabel: string;
   /** Server-rendered listing summary (cover, name, type, venue-tz window). Dropped on expiry. */
   summary: React.ReactNode;
   /** Server-rendered PriceBreakdown (the frozen quote). Dropped on expiry. */
@@ -36,10 +39,13 @@ export function ReserveView({
 }) {
   const [expired, setExpired] = React.useState(false);
 
-  // A Confirm that resolves to a graceful failure (the server released the slot, or an ownership edge)
-  // flips to the SAME calm expiry state — never a red error (occupancy/expiry is a normal state).
+  // A Confirm that resolves to a graceful failure — the server released the slot (`expired`), an ownership
+  // edge (`denied`), or checkout couldn't start / going too fast (`checkout`, D-57) — flips to the SAME
+  // calm recovery state, never a red error (occupancy/expiry/checkout-retry are all normal states).
   function handleResult(result: ConfirmResult) {
-    if (result.reason === "expired" || result.reason === "denied") setExpired(true);
+    if (result.reason === "expired" || result.reason === "denied" || result.reason === "checkout") {
+      setExpired(true);
+    }
   }
 
   // The countdown hitting 0 flips the whole page into the expiry state (it does NOT silently vanish, D-44).
@@ -56,7 +62,7 @@ export function ReserveView({
           <CardContent className="space-y-5 py-6">
             {breakdown}
             <HoldCountdown expiresAt={expiresAt} onExpire={() => setExpired(true)} />
-            <ReserveActions holdId={holdId} onResult={handleResult} />
+            <ReserveActions holdId={holdId} totalLabel={totalLabel} onResult={handleResult} />
           </CardContent>
         </Card>
       </aside>
