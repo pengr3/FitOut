@@ -342,3 +342,26 @@ export async function listWalletAccounts(): Promise<WalletAccount[]> {
     status: w.status ?? "",
   }));
 }
+
+export type Transfer = { id: string; status: string };
+
+/**
+ * Poll a single /v2 transfer's terminal status (GET /v2/transfers/{id}, PAY-03).
+ *
+ * ⚠️ WHY A POLL, NOT A WEBHOOK: PayMongo has NO transfer/payout webhook subscription event (Research
+ * Pitfall 2 — the create-a-webhook enum contains no transfer/payout/disbursement events). Transfer status
+ * is therefore reconciled by POLLING this endpoint from the Plan-05b `payout-reconcile` cron, which moves
+ * each Processing ledger row Held→Processing→Paid/Failed based on the returned `status`.
+ *
+ * This is a GET, so it carries NO Idempotency-Key (only POSTs do, per paymongoFetch). The exact terminal
+ * status enum is a beta/thinly-documented surface (A4 — VERIFY the values against a captured test-mode
+ * response before UAT); the caller's mapTransferStatus treats any unknown/in-flight value as still
+ * `processing` so an unrecognized status can never spuriously flip a payout to Paid.
+ */
+export async function getTransfer(transferId: string): Promise<Transfer> {
+  const json = await paymongoFetch<{ data: { id: string; attributes: { status: string } } }>(
+    `/v2/transfers/${transferId}`,
+    { method: "GET" }, // GET — no Idempotency-Key
+  );
+  return { id: json.data.id, status: json.data.attributes.status };
+}

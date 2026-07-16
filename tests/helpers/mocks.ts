@@ -198,6 +198,12 @@ export const mockPayMongo = {
     { id: "wal_123", accountNumber: "9990001111", accountName: "Host Wallet", status: "activated" },
   ]),
   /**
+   * Phase-5 payout-reconcile stub (Plan 05b) — polls a transfer's terminal status. Defaults to a
+   * terminal `succeeded` (the Processing→Paid happy path); reconcile tests override per-case with
+   * `mockPayMongo.getTransfer.mockResolvedValueOnce({ id, status: "failed" | "pending" | ... })`.
+   */
+  getTransfer: vi.fn(async (transferId: string) => ({ id: transferId, status: "succeeded" })),
+  /**
    * Build a VALID `Paymongo-Signature` header for a raw body + webhook secret. Format:
    * `t=<ts>,te=<sig>,li=<sig>`. Signed payload is `${ts}.${rawBody}` (HMAC-SHA256, hex). Lets the
    * Plan-06 signature test sign a body and assert the handler accepts it (and dedupes by event id).
@@ -220,6 +226,7 @@ export const mockPayMongo = {
     mockPayMongo.createRefund.mockClear();
     mockPayMongo.createBatchTransfer.mockClear();
     mockPayMongo.listWalletAccounts.mockClear();
+    mockPayMongo.getTransfer.mockClear();
   },
 };
 
