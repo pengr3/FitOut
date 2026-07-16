@@ -176,7 +176,7 @@ export const listing = pgTable(
     timezone: text("timezone").default("Asia/Manila").notNull(), // D-27 (IANA; default launch region — drives calendar display)
     hourlyRateCents: integer("hourly_rate_cents"), // D-03 integer minor units (Pitfall 5)
     dayRateCents: integer("day_rate_cents"), // D-03
-    currency: text("currency").default("usd").notNull(), // single-region; column future-proofs
+    currency: text("currency").default("php").notNull(), // D-46 single-region PHP; column future-proofs multi-region (0008 reconciles + backfills 'usd'→'php')
     bookingMode: bookingMode("booking_mode").default("request").notNull(), // D-04 stored, wired Phase 6
     status: listingStatus("status").default("draft").notNull(), // D-02/LIST-05
     publishedAt: timestamp("published_at", { withTimezone: true }),
@@ -264,6 +264,54 @@ export const paymongoEvent = pgTable("paymongo_event", {
   processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Host payout state machine (D-59). SEPARATE from booking_status (line ~277): payout-eligibility is
+// DERIVED from confirmed + endsAt, NOT from a `completed` booking transition (D-56/Claude's discretion).
+// Peerspace vocabulary: held → processing → paid, plus refunded/failed. Declared before the table it
+// backs (const TDZ), mirroring the bookingStatus pgEnum idiom.
+export const payoutLedgerState = pgEnum("payout_ledger_state", [
+  "held",
+  "processing",
+  "paid",
+  "refunded",
+  "failed",
+]);
+
+// One row per booking payout (D-51/D-59, RESEARCH Pattern 3). The Plan-05 T+24h sweep INSERTs this row
+// with `ON CONFLICT (booking_id) DO NOTHING` as the at-most-once transfer LOCK (same philosophy as
+// booking_idem_uq, line ~360) — booking_id's UNIQUE is the DB-enforced gate so a booking is paid out at
+// most once. The Plan-04 refund webhook and the HOST-03 page (Plan 06) read/update it. The applied
+// commission (rate + amount) is FROZEN here (D-51) so a later rate change never rewrites a past payout.
+// All money is integer centavos (Pitfall 5). Hand-authored (not a Better Auth table) — preserve on any
+// auth regen; FKs are onDelete:"restrict" (a financial record must never cascade-delete).
+export const hostPayoutLedger = pgTable(
+  "host_payout_ledger",
+  {
+    id: text("id").primaryKey(),
+    bookingId: text("booking_id")
+      .notNull()
+      .unique() // the at-most-once payout gate (DB-enforced idempotency)
+      .references(() => booking.id, { onDelete: "restrict" }),
+    hostId: text("host_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    paymentId: text("payment_id"), // PayMongo pay_... (captured from the payment.paid webhook)
+    grossCents: integer("gross_cents").notNull(),
+    commissionRateBps: integer("commission_rate_bps").notNull(), // FROZEN rate (D-51)
+    commissionCents: integer("commission_cents").notNull(), // FROZEN amount (D-51)
+    netCents: integer("net_cents").notNull(), // gross − commission (D-52)
+    currency: text("currency").default("php").notNull(),
+    state: payoutLedgerState("state").default("held").notNull(),
+    transferId: text("transfer_id"), // PayMongo batch/transfer id (set when the transfer fires)
+    paidAt: timestamp("paid_at", { withTimezone: true }), // when processing → paid
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (t) => [index("host_payout_ledger_host_idx").on(t.hostId)],
+);
+
 // ---------------------------------------------------------------------------
 // Phase-3 availability model (HAND-AUTHORED — the double-booking keystone, D-21/D-28).
 // operating_hours (recurring weekly windows), availability_block (close-only overrides), and
@@ -350,6 +398,10 @@ export const booking = pgTable(
     quotedTotalCents: integer("quoted_total_cents"), // price frozen at hold time (Phase-5 charge integrity, D-49)
     currency: text("currency").default("php").notNull(), // freeze the display/charge currency (D-46)
     idempotencyKey: text("idempotency_key"), // nullable client token — double-click backstop (D-42)
+    // PayMongo pay_... captured by the Plan-04 payment.paid webhook at confirm, so a later refund
+    // (Plan 04 refund mechanism / D-58 auto-refund backstop) can reference the payment. Nullable
+    // ADD COLUMN (backfill-free — no existing booking rows, A7).
+    paymentId: text("payment_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
