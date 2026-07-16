@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_execute
-stopped_at: Phase 05 planned — 7 plans across 3 waves, plan-checker VERIFICATION PASSED; ready to execute
-last_updated: 2026-07-16T09:10:33.797Z
-last_activity: 2026-07-16 -- Phase 05 plan-phase complete; 7 PLAN.md files written, verified (0 blockers)
+status: verifying
+stopped_at: "Completed 05-01-PLAN.md — money foundation (commission calc + payment config + host_payout_ledger/payment_id/currency-reconcile via 0008, applied to live DB). Wave 1 done; Wave 1 also includes 05-02. Next: 05-02."
+last_updated: "2026-07-16T12:04:01.756Z"
+last_activity: 2026-07-16
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 30
-  completed_plans: 23
-  percent: 50
+  completed_plans: 25
+  percent: 83
 ---
 
 # Project State
@@ -27,10 +27,11 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 Phase: 5
 Plan: 7 plans across 3 waves (05-01, 05-02 | 05-03, 05-04, 05-05a, 05-06 | 05-05b)
-Status: Ready to execute (plan-checker VERIFICATION PASSED, 0 blockers)
+Wave 1 progress: 05-01 COMPLETE; 05-02 remaining
+Status: Executing — Wave 1 (05-01 done)
 Last activity: 2026-07-16
 
-Progress: [██████████] 96%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -66,6 +67,7 @@ Progress: [██████████] 96%
 | Phase 04 P04-04 | 20 min | 3 tasks | 7 files |
 | Phase 04 P04-05 | 24 min | 3 tasks | 4 files |
 | Phase 04 P04-06 | 18 min | 2 tasks | 6 files |
+| Phase 05 P01 | 5 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -114,6 +116,7 @@ Recent decisions affecting current work:
 - [Phase 04]: [04-05]: Search home UI at `/` (D-29) — the demand-side front door. `SearchResultCard` (extends listing-card; NEUTRAL — no host controls, no status badge; PHP `DISPLAY_CURRENCY`; distance origin-only; whole-card `Link` carrying `?date=&start=&end=`; title 500→600). `SearchResults` (1/2/3-col grid + sort `Select` [Nearest disabled + hint w/o origin] + neutral Load more off the hasMore probe + skeleton + zero-result escape hatches `Broaden radius`/`Clear filters`/`Show nearby` + broadened "You might also like" cards + cold-start floor; URL-driven client boundary). `SearchBar` (reused `AddressAutocomplete` + "Use my location"; ONE combined category `Select` MERGING `SPACE_TYPE_LABELS`+`ACTIVITY_TAG_LABELS` → single `?category`, D-35; date/on-the-hour time; max ₱/hr → cents at submit; radius 2/5/10/25 default 10; ONE coral Search) serialized to the URL via `useRouter`+`URLSearchParams`. `app/page.tsx` = public RSC: awaits + `searchParamsSchema.safeParse` (garbage → default city view, never crash, T-04-PARAMTAMPER) → two-stage `searchListings` server-side; **cumulative page 0..N fetch** drives Load more (`MAX_PAGES=50` cap, DoS safeguard); zero-result → broadened fallback `nearbyAlternatives`. Decision: RHF + `searchParamsSchema.safeParse` at submit (NOT `zodResolver` — `z.coerce.number()` input types resolve to `unknown` and fight RHF; the RSC safeParse is the authority). Mobile expand-to-`dialog` deferred (responsive wrapping pill instead); price is `priceMax`-only (the schema's single axis). **SEARCH-01..05 now Complete.** ⚠️ Pre-existing/out-of-scope (NOT 04-05, logged to `deferred-items.md`; my 4 files tsc+eslint clean, build Compile+TS green): `npm run build` fails at `/host/payouts/refresh` (`PAYMONGO_SECRET_KEY` unset, untouched Phase-2 lib); `npm run lint` errors on `address-autocomplete.tsx:110` (`react-hooks/set-state-in-effect`, unchanged Phase-2). ⚠️ gsd-sdk v1.42.3 `record-metric` string-args still no-op — metric/decisions/session hand-written; advance-plan/update-progress/roadmap/requirements.mark-complete worked. Commits 8d46a4e (T1) + 8c4c229 (T2) + e9169aa (T3).
 - [Phase 04]: [04-04]: `quoteWindow` (src/lib/booking/pricing.ts) = server-frozen quote: re-derives `hours` from the window (epoch delta of the absolute UTC on-the-hour instants — DST-safe because slots.ts already resolved them; NOT wall-clock arithmetic) × the listing rate; `fullDay?dayRate:hourly*hours` (D-45 distinct, NO cap); currency `php` (D-46). Throws rather than freeze a $0 quote when the required rate is null (money guard). `createPendingHold` loads unitCount+rates INSIDE the tx and freezes `quotedTotalCents` (Phase-5 charges this). `HOLD_TTL_MINUTES=15` (D-47) drives the countdown. `makeBookingReference` (reference.ts) = `FIT-`+8 Crockford base32 (no I/L/O/U) from `randomBytes`, uniform (256%32==0), non-sequential — generated on-read (no `reference` column this plan). BOOK-01/03 stay Pending (backend here; user-facing at 04-06); BOOK-02 already Complete. ⚠️ gsd-sdk v1.42.3 string-arg handlers (record-metric/add-decision/record-session) still no-op — metric row + decisions + stopped_at hand-written; advance-plan/update-progress/roadmap worked.
 - [Phase 04]: [04-06]: Booking mutation layer + reserve atoms. `placeHold` (src/app/actions/booking.ts) = a POST server action (NEVER a GET side-effect, Pitfall 2) that clones the blocks.ts skeleton but swaps host-ownership for a BOOKER-CAPABILITY gate: `requireUserId` (D-41 sign-in) → `canBook` re-read from the DB (input:false source of truth, NOT the session) → server RE-DERIVATION of `deriveBookable` via the listing⨝user⨝hostPayout join (Security V4 — the reserve route group is NOT the gate) → `bookingCreateSchema.safeParse` → `createPendingHold(db,…)` → `revalidatePath(listing)+('/')` → `redirect(/listings/[id]/book?hold=<id>)`. `confirmBooking(holdId)` = owner-gate `booking.bookerId===userId` (IDOR; missing-row and non-owner both return the SAME "denied" so a guessed id leaks nothing) → **idempotent short-circuit BEFORE the expiry check**: an already-`confirmed` OWN booking redirects to `/bookings/[id]` as a no-op SUCCESS (D-42), NEVER via mapBookingError → else ONE atomic `UPDATE booking SET status='confirmed',expires_at=NULL WHERE id=… AND booker_id=… AND status='pending' AND expires_at > now() RETURNING id` (server is the SOLE expiry authority — no TOCTOU, DB clock, never the client countdown); 0 rows ⇒ graceful `reason:"expired"` (never a silent confirm/500). Actions return discriminated unions (`PlaceHoldResult` reason: sign-in|activate-booking|not-bookable|invalid|taken; `ConfirmResult` reason: sign-in|denied|expired); SUCCESS redirects (never returns ok:true) so Plan 07 maps each reason to the UI-SPEC copy/state. Test harness: mock `next/navigation` redirect to throw a typed `RedirectError` carrying the URL → assert the SUCCESS/redirect path (tests/booking/state-machine.test.ts, 7 green: happy pending→confirmed, expiry-refusal-not-confirmed, owner-gate, idempotent re-confirm + the 3 placeHold gates). Four reserve atoms honor the UI-SPEC: `PriceBreakdown` (server-frozen `quotedTotalCents`+`currency` as a fee-extensible list, Heading-600 tabular-nums Total, documented Phase-5 RESERVED fee slot, ZERO client arithmetic — `hours` is a prop), `HoldCountdown` (`"use client"` role=timer 15-min from `expiresAt`, neutral + optional `--destructive` numerals ONLY final-60s, `onExpire` flip at 0; the setInterval callback is the ONLY setState site to dodge react-hooks/set-state-in-effect, ref synced in its own effect to dodge react-hooks/refs, `suppressHydrationWarning` on the digits), `HoldExpiredState` (calm TimerOff + coral Back-to-availability/neutral Search-other — NEVER red), `ReserveActions` (`"use client"` disable-on-click Confirm→Confirming… + "You won't be charged yet."). BOOK-01/03 NOT marked complete (action+atoms only; user-facing reserve/confirmation pages + Book-CTA wiring = 04-07, same requirements frontmatter — mirrors 04-04's deferral); BOOK-02 already Complete. My 6 files tsc+eslint clean; full booking suite 25/25. ⚠️ Pre-existing/out-of-scope (deferred-items.md, NOT 04-06): `npm run build` PAYMONGO_SECRET_KEY guard; `npm run lint` address-autocomplete.tsx:110. ⚠️ gsd-sdk v1.42.3 string-arg handlers still no-op — metric/decisions/session hand-written; advance-plan/update-progress/roadmap.update-plan-progress worked. Commits 778249b (T1) + 6691df6 (T2).
+- [Phase 05]: [05-01]: PAY-01/PAY-02 money foundation — computeCommission (src/lib/payments/commission.ts) is pure integer-cents (commissionCents=Math.round(gross*rateBps/10000); netCents=gross−commission ALWAYS, D-52 platform absorbs gateway fee); default rate reads COMMISSION_RATE_BPS from src/lib/payments/config.ts (also PAYOUT_DELAY_HOURS=24, PAYMENT_WINDOW_MINUTES=60 — the phase's single named config source). host_payout_ledger (0008) = UNIQUE(booking_id) at-most-once payout gate with FROZEN commission_rate_bps+commission_cents (D-51 — a later rate change never rewrites past payouts); payout state (held→processing→paid/refunded/failed) is a SEPARATE machine DERIVED from confirmed+endsAt, NOT a booking_status 'completed' transition (D-56). booking.payment_id added for later refunds; listing.currency default usd→php reconciled + live-backfilled (charge currency consistent end-to-end). 13/13 commission tests green; tsc clean; 0008 applied to live DB. TDD RED fea1d5e→GREEN c1d3a31; schema 05de76f; migration 1c7c283.
 
 ### Pending Todos
 
@@ -156,9 +159,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T03:00Z
-Stopped at: Phase 5 (Payments & Payouts) discuss-phase COMPLETE — resumed from the paused checkpoint (2/4 areas) and resolved every remaining area. Locked (D-50..D-60): host-side 10% commission (config-tunable; platform absorbs the PayMongo gateway fee so host always nets price − 10%); full PH rails (cards/GCash/Maya/QRPh) via a hosted PayMongo checkout; payout T+24h after session end (endsAt anchor) via a scheduled batch_transfers sweep, idempotent through a payout-ledger row; the payment.paid webhook is the confirm authority (retires the synchronous confirmBooking flip) with an extend-hold + auto-refund backstop so money is never kept for an undeliverable slot; HOST-03 = per-booking payout rows (Held→Processing→Paid/Refunded, gross→−10%→net, expected date) + summary total; refund MECHANISM only (Phase 7 owns the cancellation/refund policy matrix + cancel flow). ⚠️ ROADMAP Phase 5 prose is STALE (Stripe/reverse_transfer/account.updated) — D-20 PayMongo supersedes it; CONTEXT.md flags this for the planner. 05-CONTEXT.md + 05-DISCUSSION-LOG.md written; one-shot resume artifacts (checkpoint, .continue-here, HANDOFF.json) removed. Commit c88706e. Next: /gsd-plan-phase 5.
-Resume file: .planning/phases/05-payments-payouts/05-CONTEXT.md
+Last session: 2026-07-16T12:04:01.747Z
+Stopped at: Completed 05-01-PLAN.md — money foundation (commission calc + payment config + host_payout_ledger/payment_id/currency-reconcile via 0008, applied to live DB). Wave 1 done; Wave 1 also includes 05-02. Next: 05-02.
+Resume file: None
 
 Prior session: 2026-07-15T05:58Z
 Stopped at: Completed 04-06-PLAN.md — the booking MUTATION layer + reserve-page atoms. placeHold (src/app/actions/booking.ts) = POST server action (never a GET side-effect) cloning blocks.ts but swapping host-ownership for a BOOKER-CAPABILITY gate: requireUserId (D-41) → canBook re-read from the DB (not the session) → server RE-DERIVATION of deriveBookable via listing⨝user⨝hostPayout (Security V4 — the reserve route group is NOT the gate) → bookingCreateSchema.safeParse → createPendingHold → revalidatePath(listing)+('/') → redirect(/listings/[id]/book?hold=<id>). confirmBooking = owner-gate bookerId===userId (IDOR) → idempotent short-circuit BEFORE the expiry check (already-confirmed OWN booking → /bookings/[id] no-op SUCCESS, D-42, never mapBookingError) → else ONE atomic UPDATE … status='confirmed',expires_at=NULL WHERE status='pending' AND expires_at > now() RETURNING id (server = sole expiry authority; 0 rows ⇒ graceful reason:'expired', never a silent confirm/500). Both return discriminated-union reasons; SUCCESS redirects (never ok:true). state-machine.test.ts 7 green via a redirect-capture harness (mock next/navigation redirect → RedirectError carrying the URL). Four atoms per UI-SPEC: PriceBreakdown (frozen quotedTotalCents+currency, Heading-600 tabular-nums Total, reserved Phase-5 fee slot, ZERO client arithmetic), HoldCountdown (role=timer 15-min from expiresAt, neutral + optional --destructive numerals ONLY final-60s, onExpire flip at 0; setInterval-only setState + ref-in-effect for react-hooks; suppressHydrationWarning digits), HoldExpiredState (calm TimerOff + coral/neutral CTAs, never red), ReserveActions (disable-on-click Confirm→Confirming… + 'You won't be charged yet.'). BOOK-01/03 NOT marked complete (action+atoms only; user-facing reserve/confirmation + Book-CTA wiring = 04-07) — BOOK-02 already Complete. 6 files tsc+eslint clean; booking suite 25/25. ⚠️ Pre-existing/out-of-scope (deferred-items.md, NOT 04-06): npm run build PAYMONGO_SECRET_KEY guard; npm run lint address-autocomplete.tsx:110. ⚠️ gsd-sdk v1.42.3 string-arg handlers still no-op — metric/decisions/session hand-written; advance-plan/update-progress/roadmap.update-plan-progress worked. Commits 778249b (T1) + 6691df6 (T2). Next: 04-07 (assemble reserve page + confirmation + wire the Book CTA to placeHold — completes BOOK-01/03).

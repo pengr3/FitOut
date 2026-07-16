@@ -153,8 +153,8 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BOOK-01 | Phase 4 | Complete |
 | BOOK-02 | Phase 4 | Complete |
 | BOOK-03 | Phase 4 | Complete |
-| PAY-01 | Phase 5 | Pending |
-| PAY-02 | Phase 5 | Pending |
+| PAY-01 | Phase 5 | In progress (05-01 foundation: payment config) |
+| PAY-02 | Phase 5 | In progress (05-01 foundation: commission calculator + payout ledger) |
 | PAY-03 | Phase 5 | Pending |
 | HOST-03 | Phase 5 | Pending |
 | BOOK-04 | Phase 6 | Pending |

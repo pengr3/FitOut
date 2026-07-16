@@ -116,7 +116,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. The host is paid out `price − commission` via an inhouse `/v2/batch_transfers` fired T+24h after the session ends (funds held until then; never paid at booking time), at most once per booking
   5. A genuinely-gone-slot payment is auto-refunded (or operator-alerted for QR Ph, which cannot be API-refunded); a host can see per-booking payout status (Held / Processing / Paid / Refunded) with the commission breakdown
 **Plans**: 7 plans in 3 waves
-  - [ ] 05-01-PLAN.md — Wave 1: foundation — commission calc + payment config + host_payout_ledger / booking.payment_id / listing.currency reconcile + [BLOCKING] migration 0008
+  - [x] 05-01-PLAN.md — Wave 1: foundation — commission calc + payment config + host_payout_ledger / booking.payment_id / listing.currency reconcile + [BLOCKING] migration 0008 (COMPLETE — pure integer-cents computeCommission 13/13 green; COMMISSION_RATE_BPS/PAYOUT_DELAY_HOURS/PAYMENT_WINDOW_MINUTES config; host_payout_ledger UNIQUE(booking_id) + frozen commission + payment_id + usd→php backfill applied to live DB via 0008)
   - [ ] 05-02-PLAN.md — Wave 1: PayMongo client extension (checkout / batch-transfer / refund / wallets + /v1↔/v2 base) + mockPayMongo stubs
   - [ ] 05-03-PLAN.md — Wave 2: "Confirm & pay" checkout action (extend-hold, charge frozen quote, retire sync flip) + reserve UI + confirmation pending-payment/reversed states
   - [ ] 05-04-PLAN.md — Wave 2: webhook confirm authority (checkout_session.payment.paid) + D-58 auto-refund backstop (QR Ph operator-alert) + refund events
