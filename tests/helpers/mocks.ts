@@ -179,6 +179,25 @@ export const mockPayMongo = {
     url: `https://onboarding.paymongo.test/${accountId}`,
   })),
   /**
+   * Phase-5 money-movement stubs (Plan 02) — deterministic returns mirroring the real
+   * src/lib/paymongo.ts shapes so Wave-2 plans (03/04/05) can drive the charge / payout / refund /
+   * wallet paths without a live PayMongo call. Return shapes match createCheckoutSession /
+   * createRefund / createBatchTransfer / listWalletAccounts exactly.
+   */
+  createCheckoutSession: vi.fn(async (_input?: unknown) => ({
+    id: "cs_test_123",
+    checkoutUrl: "https://checkout.paymongo.test/cs_test_123",
+  })),
+  createRefund: vi.fn(async (_input?: unknown) => ({ id: "ref_test_123", status: "pending" })),
+  createBatchTransfer: vi.fn(async (_input?: unknown) => ({
+    batchId: "batch_tr_123",
+    transferId: "tr_test_123",
+    status: "pending",
+  })),
+  listWalletAccounts: vi.fn(async () => [
+    { id: "wal_123", accountNumber: "9990001111", accountName: "Host Wallet", status: "activated" },
+  ]),
+  /**
    * Build a VALID `Paymongo-Signature` header for a raw body + webhook secret. Format:
    * `t=<ts>,te=<sig>,li=<sig>`. Signed payload is `${ts}.${rawBody}` (HMAC-SHA256, hex). Lets the
    * Plan-06 signature test sign a body and assert the handler accepts it (and dedupes by event id).
@@ -197,6 +216,10 @@ export const mockPayMongo = {
   reset: () => {
     mockPayMongo.createLinkedAccount.mockClear();
     mockPayMongo.createOnboardingLink.mockClear();
+    mockPayMongo.createCheckoutSession.mockClear();
+    mockPayMongo.createRefund.mockClear();
+    mockPayMongo.createBatchTransfer.mockClear();
+    mockPayMongo.listWalletAccounts.mockClear();
   },
 };
 
