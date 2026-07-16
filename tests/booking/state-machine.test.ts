@@ -1,11 +1,14 @@
-// Booking state machine (BOOK-01/02/03, D-40/D-41/D-42) — placeHold + confirmBooking driven as the REAL
-// server actions through the tests/listing/status-gate.test.ts vi.doMock harness (mock next/headers,
-// @/lib/auth, @/lib/db, next/cache, next/navigation → import the actions). Proves the transitions:
-//   pending→confirmed (happy)        — confirm before expiry flips the hold and redirects to the confirmation.
-//   pending→(expired)                — confirm AFTER expiry is refused GRACEFULLY; the hold is NOT confirmed.
-//   owner-gate                       — a non-owner cannot confirm someone else's hold.
+// Booking state machine (BOOK-01/02/03, D-40/D-41/D-42; updated for Phase-5 D-57/D-58) — placeHold +
+// confirmBooking driven as the REAL server actions through the vi.doMock harness (mock next/headers,
+// @/lib/auth, @/lib/db, @/lib/paymongo, next/cache, next/navigation → import the actions). Proves the
+// transitions AFTER the D-57 rewrite (the synchronous pending→confirmed flip is RETIRED — the webhook is
+// the confirm authority; the CHARGE integrity + extend-hold specifics live in tests/payments/checkout-create):
+//   pending→(checkout)               — "Confirm & pay" extends the hold (D-58) + creates a hosted checkout
+//                                       and redirects OFF-SITE; the booking STAYS 'pending' (D-57).
+//   past-TTL pending→(extended)      — a lapsed-but-pending hold is EXTENDED, not refused (D-58).
+//   owner-gate                       — a non-owner cannot pay for someone else's hold.
 //   confirmed→confirmed (idempotent) — a re-confirm of the OWNER's already-confirmed booking is a no-op
-//                                      SUCCESS (redirect), never a false "expired"/"just taken" (D-42).
+//                                       redirect to the confirmation, with NO second checkout (D-42).
 // Plus the placeHold gates: sign-in (D-41), !canBook activate-booking, and the deriveBookable server
 // re-check (the route group is not the gate — Security V4).
 
@@ -13,6 +16,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, hostPayout, booking } from "@/lib/db/schema";
 
 // --- Redirect capture -------------------------------------------------------
@@ -117,6 +121,13 @@ beforeAll(async () => {
 
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
+  // D-57: confirmBooking now calls createCheckoutSession — mock @/lib/paymongo so no live checkout is made.
+  vi.doMock("@/lib/paymongo", () => ({
+    createCheckoutSession: mockPayMongo.createCheckoutSession,
+    createRefund: mockPayMongo.createRefund,
+    createBatchTransfer: mockPayMongo.createBatchTransfer,
+    listWalletAccounts: mockPayMongo.listWalletAccounts,
+  }));
   vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
   vi.doMock("next/navigation", () => ({
     redirect: (url: string) => {
@@ -149,6 +160,7 @@ beforeAll(async () => {
 afterAll(async () => {
   vi.doUnmock("@/lib/auth");
   vi.doUnmock("@/lib/db");
+  vi.doUnmock("@/lib/paymongo");
   vi.doUnmock("next/cache");
   vi.doUnmock("next/navigation");
   await teardownTestDb(testDb);
@@ -176,51 +188,58 @@ describe("placeHold — capability + bookability gate (D-41, Security V4)", () =
   });
 });
 
-describe("confirmBooking — state machine (D-40/D-42)", () => {
-  it("happy path: Book (canBook) places a hold (POST) and redirects to the reserve page, then confirm flips pending→confirmed", async () => {
+describe("confirmBooking — Confirm & pay (D-57/D-58; charge integrity in tests/payments/checkout-create)", () => {
+  it("happy path: Book (canBook) places a hold (POST) → reserve page, then Confirm & pay creates a checkout and redirects OFF-SITE — the booking STAYS pending (D-57)", async () => {
     await login(BOOKER_EMAIL);
     const url = await expectRedirect(placeHold({ listingId: "L_happy", startUtc: START, endUtc: END, fullDay: false }));
     expect(url).toMatch(/^\/listings\/L_happy\/book\?hold=/);
     const holdId = new URL(url, "http://t").searchParams.get("hold")!;
     expect(await statusOf(holdId)).toBe("pending");
 
+    // D-57: confirm no longer flips synchronously — it redirects to the hosted checkout (mock URL) and the
+    // booking is STILL pending (the checkout_session.payment.paid webhook is the sole confirm authority).
     const confirmUrl = await expectRedirect(confirmBooking(holdId));
-    expect(confirmUrl).toBe(`/bookings/${holdId}`);
-    expect(await statusOf(holdId)).toBe("confirmed"); // D-40 pending→confirmed (the Phase-5 seam)
+    expect(confirmUrl).toBe("https://checkout.paymongo.test/cs_test_123");
+    expect(await statusOf(holdId)).toBe("pending"); // NOT flipped here — Plan 04's webhook confirms
   });
 
-  it("expiry re-check: a hold that lapsed before confirm is refused gracefully and is NOT flipped to confirmed", async () => {
+  it("extend-hold: a lapsed-but-pending hold is EXTENDED (not refused) so the sweep can't take the slot mid-payment (D-58)", async () => {
     await login(BOOKER_EMAIL);
     const holdId = await place("L_exp");
-    // Force the hold past its TTL vs the DB clock — the server is the sole expiry authority, never the client.
+    // Force the hold past its TTL vs the DB clock. The Phase-4 expiry-refusal is RETIRED — confirm extends.
     await testDb.db.execute(sql`UPDATE booking SET expires_at = now() - interval '1 minute' WHERE id = ${holdId}`);
 
-    const res = await confirmBooking(holdId);
-    expect(res).toMatchObject({ ok: false, reason: "expired" }); // graceful, not a 500
-    expect(await statusOf(holdId)).toBe("pending"); // NOT flipped — no silent confirm
+    const confirmUrl = await expectRedirect(confirmBooking(holdId));
+    expect(confirmUrl).toBe("https://checkout.paymongo.test/cs_test_123"); // creates the checkout, not refused
+    expect(await statusOf(holdId)).toBe("pending"); // still pending — the webhook confirms
+    // The hold was pushed back into the future (now()+PAYMENT_WINDOW), no longer in the past.
+    const [{ future }] = await testDb.client<{ future: boolean }[]>`
+      SELECT expires_at > now() AS future FROM booking WHERE id = ${holdId}`;
+    expect(future).toBe(true);
   });
 
-  it("owner-gate: a different user cannot confirm someone else's hold", async () => {
+  it("owner-gate: a different user cannot pay for someone else's hold — no checkout is created", async () => {
     await login(BOOKER_EMAIL);
     const holdId = await place("L_own");
 
+    mockPayMongo.createCheckoutSession.mockClear();
     await login(BOOKER2_EMAIL); // a DIFFERENT booker
     const res = await confirmBooking(holdId);
     expect(res).toMatchObject({ ok: false, reason: "denied" });
+    expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
     expect(await statusOf(holdId)).toBe("pending"); // untouched by the non-owner
   });
 
-  it("idempotent re-confirm: a second confirm of the OWNER's confirmed booking is a no-op SUCCESS, never 'expired' (D-42)", async () => {
+  it("idempotent re-confirm: a confirm of the OWNER's already-confirmed booking is a no-op redirect to the confirmation, with NO second checkout (D-42)", async () => {
     await login(BOOKER_EMAIL);
     const holdId = await place("L_idem");
+    // The webhook (Plan 04) is what confirms; simulate that terminal state directly, then re-confirm.
+    await testDb.db.execute(sql`UPDATE booking SET status = 'confirmed', expires_at = NULL WHERE id = ${holdId}`);
 
-    const first = await expectRedirect(confirmBooking(holdId));
-    expect(first).toBe(`/bookings/${holdId}`);
-    expect(await statusOf(holdId)).toBe("confirmed");
-
-    // Second confirm (a double-submit / Back-then-Confirm) → the SAME confirmation redirect, NOT an error.
-    const second = await expectRedirect(confirmBooking(holdId));
-    expect(second).toBe(`/bookings/${holdId}`);
+    mockPayMongo.createCheckoutSession.mockClear();
+    const url = await expectRedirect(confirmBooking(holdId));
+    expect(url).toBe(`/bookings/${holdId}`); // no-op success → the confirmation, NOT a new checkout
+    expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
     expect(await statusOf(holdId)).toBe("confirmed");
 
     const [{ n }] = await testDb.client`SELECT count(*)::int AS n FROM booking WHERE id = ${holdId}`;
