@@ -33,13 +33,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { PendingPaymentState } from "@/components/booking/pending-payment-state";
+import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
 
 export default async function BookingConfirmationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  // ?paid=1 is the checkout return UX signal ONLY — never proof of payment (D-57). Next 16 async params.
+  searchParams: Promise<{ paid?: string }>;
 }) {
   const { id } = await params;
+  const { paid } = await searchParams;
 
   // A session is required to own a booking — no session can never be the owner (→ 404, reveal nothing).
   const session = await auth.api.getSession({ headers: await headers() });
@@ -63,9 +69,21 @@ export default async function BookingConfirmationPage({
   // Owner-gate (T-04-CONFIRMIDOR, D-43) — the route group is NOT the gate. Missing OR not-mine → the same 404.
   if (!bk || bk.bookerId !== userId) notFound();
 
-  // Truthfulness: never render "Booking confirmed" for an unconfirmed hold. A still-pending OWN hold goes
-  // back to the reserve page to finish checkout; any other non-confirmed status has no confirmation to show.
-  if (bk.status === "pending") redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
+  // Truthfulness (D-57): never render "Booking confirmed" until the DB says 'confirmed'. On return from the
+  // hosted checkout the webhook — NOT this ?paid=1 signal — is the confirm authority. Branch on the DB state:
+  if (bk.status === "pending") {
+    // Returned from checkout (?paid=1) → the neutral "finalizing…" interstitial that self-resolves once the
+    // webhook confirms (it only ever refreshes; it never fabricates the confirmed state client-side).
+    if (paid === "1") return <PendingPaymentState />;
+    // Abandoned pending hold (no ?paid) → back to the reserve page to finish checkout (Phase-4 behavior).
+    redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
+  }
+  // D-58 auto-refund landing: the webhook reversed a payment for a slot that was genuinely gone → the calm
+  // reversed state (you weren't charged), never a "Booking confirmed".
+  if (bk.status === "cancelled" && paid === "1") {
+    return <PaymentReversedState listingId={bk.listingId} />;
+  }
+  // Any other non-confirmed status has no confirmation to show.
   if (bk.status !== "confirmed") notFound();
 
   const [lst] = await db
