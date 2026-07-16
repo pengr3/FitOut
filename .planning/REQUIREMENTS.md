@@ -153,7 +153,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BOOK-01 | Phase 4 | Complete |
 | BOOK-02 | Phase 4 | Complete |
 | BOOK-03 | Phase 4 | Complete |
-| PAY-01 | Phase 5 | In progress (05-01 payment config + 05-02 createCheckoutSession /v1 full PH rail charge primitive; checkout wiring at 05-03/04) |
+| PAY-01 | Phase 5 | In progress (05-01 payment config + 05-02 createCheckoutSession /v1 full PH rail charge primitive; 05-03 "Confirm & pay" checkout action + reserve UI + pending-payment/reversed states; confirm authority = the payment.paid webhook at 05-04) |
 | PAY-02 | Phase 5 | In progress (05-01 foundation: commission calculator + payout ledger) |
 | PAY-03 | Phase 5 | In progress (05-02 createBatchTransfer inhouse net-amount payout + listWalletAccounts primitives; payout sweep at 05-05a/b) |
 | HOST-03 | Phase 5 | Pending |
