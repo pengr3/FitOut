@@ -52,7 +52,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Payments
 
-- [ ] **PAY-01**: Booker can pay for a booking by card online
+- [x] **PAY-01**: Booker can pay for a booking by card online
 - [ ] **PAY-02**: Platform deducts a commission from each booking
 - [ ] **PAY-03**: Host receives a payout for completed bookings, with funds held until after the session
 - [ ] **PAY-04**: Host completes payout onboarding (Stripe Connect KYC) before their listing becomes bookable
@@ -153,7 +153,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BOOK-01 | Phase 4 | Complete |
 | BOOK-02 | Phase 4 | Complete |
 | BOOK-03 | Phase 4 | Complete |
-| PAY-01 | Phase 5 | In progress (05-01 payment config + 05-02 createCheckoutSession /v1 full PH rail charge primitive; 05-03 "Confirm & pay" checkout action + reserve UI + pending-payment/reversed states; confirm authority = the payment.paid webhook at 05-04) |
+| PAY-01 | Phase 5 | Complete (05-01 payment config + 05-02 createCheckoutSession /v1 full PH rail charge primitive; 05-03 "Confirm & pay" checkout action + reserve UI + pending-payment/reversed states; 05-04 checkout_session.payment.paid webhook = the confirm authority — flips pending→confirmed on reference_number alone, captures pay_..., D-58 gone-slot auto-refund/QRPh-alert, D-60 refund events) |
 | PAY-02 | Phase 5 | In progress (05-01 foundation: commission calculator + payout ledger) |
 | PAY-03 | Phase 5 | In progress (05-02 createBatchTransfer inhouse net-amount payout + listWalletAccounts primitives; payout sweep at 05-05a/b) |
 | HOST-03 | Phase 5 | Pending |
