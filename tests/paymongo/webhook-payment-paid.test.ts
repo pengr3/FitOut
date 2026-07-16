@@ -234,3 +234,87 @@ describe("checkout_session.payment.paid — confirm authority (D-57)", () => {
     expect(row.paymentId).toBeNull();
   });
 });
+
+describe("checkout_session.payment.paid — gone-slot backstop (D-58)", () => {
+  it("auto-refunds a gone slot on a refundable rail (card) for the frozen amount, exactly once", async () => {
+    // Already-cancelled booking simulates a hold swept + slot retaken during payment.
+    const id = "bk_gone_card";
+    await seedBooking({ id, status: "cancelled", quotedTotalCents: 150000, hourUtc: 10 });
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_gone_1", method: "card" }),
+    );
+    expect(res.status).toBe(200); // never a silent 500
+
+    // The confirm claimed 0 rows → auto-refund fired ONCE for the server-frozen amount; no operator alert.
+    expect(mockPayMongo.createRefund).toHaveBeenCalledTimes(1);
+    const arg = mockPayMongo.createRefund.mock.calls[0][0] as { amountCents: number; paymentId: string };
+    expect(arg.amountCents).toBe(150000);
+    expect(arg.paymentId).toBe("pay_gone_1");
+    expect(recordAuditMock).not.toHaveBeenCalled();
+
+    // Booking stays terminal (cancelled) → the ?paid=1 return renders PaymentReversedState; not confirmed.
+    expect((await readBooking(id)).status).toBe("cancelled");
+  });
+
+  it("operator-alerts (never API-refunds) a gone slot on QRPh — the money is surfaced, not retained", async () => {
+    const id = "bk_gone_qrph";
+    await seedBooking({ id, status: "cancelled", quotedTotalCents: 99900, hourUtc: 11 });
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_gone_2", method: "qrph" }),
+    );
+    expect(res.status).toBe(200); // no silent 500, no retention
+
+    // QRPh is unrefundable → createRefund NOT called; the operator alert IS raised (needs_attention).
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
+    expect(recordAuditMock).toHaveBeenCalledTimes(1);
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "needs_attention" }),
+    );
+    expect((await readBooking(id)).status).toBe("cancelled");
+  });
+
+  it("double-book-during-payment: the swept loser (A) is reversed, the winner (B) stays pending & confirmable", async () => {
+    // A (swept to cancelled) and B (pending) hold the SAME slot — allowed by the EXCLUDE (one occupying row).
+    const a = "bk_dbl_loser";
+    const b = "bk_dbl_winner";
+    const { startsAt, endsAt } = windowAt(12);
+    await testDb.db.insert(booking).values([
+      {
+        id: a,
+        listingId: LISTING,
+        unit: 1,
+        bookerId: BOOKER,
+        startsAt,
+        endsAt,
+        status: "cancelled",
+        quotedTotalCents: 150000,
+        currency: "php",
+      },
+      {
+        id: b,
+        listingId: LISTING,
+        unit: 1,
+        bookerId: BOOKER,
+        startsAt,
+        endsAt,
+        status: "pending",
+        quotedTotalCents: 150000,
+        currency: "php",
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    ]);
+
+    // A's payment lands, but A's slot was swept + taken → A confirms 0 rows → auto-refund/alert, stays reversed.
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: a, paymentId: "pay_gone_3", method: "card" }),
+    );
+    expect(res.status).toBe(200);
+
+    // A did NOT become confirmed (the EXCLUDE let exactly one path win); B remains pending & confirmable.
+    expect((await readBooking(a)).status).toBe("cancelled");
+    expect((await readBooking(b)).status).toBe("pending");
+    expect(mockPayMongo.createRefund).toHaveBeenCalledTimes(1);
+  });
+});

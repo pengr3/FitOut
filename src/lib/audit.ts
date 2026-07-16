@@ -12,7 +12,10 @@
 // outcome [+ meta]) is intentionally stable so a durable sink can adopt it later unchanged, and the
 // function is async so that swap needs no call-site changes.
 
-export type AuditOutcome = "ok" | "denied" | "error";
+// "needs_attention" (Phase 5, D-58) flags a money-adjacent condition that could not be auto-resolved and
+// requires an operator — e.g. a slot-gone payment on an unrefundable rail (QRPh/UBP) or a failed auto-
+// refund. Surfacing it (never swallowing it) is the honest, correct behavior for held-but-undeliverable money.
+export type AuditOutcome = "ok" | "denied" | "error" | "needs_attention";
 
 export interface AuditEntry {
   /** The authenticated identity performing the action (server-resolved, never client-supplied). */

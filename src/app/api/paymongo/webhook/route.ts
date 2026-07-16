@@ -14,9 +14,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { booking, hostPayout, paymongoEvent } from "@/lib/db/schema";
+import { createRefund } from "@/lib/paymongo";
+import { recordAudit } from "@/lib/audit";
 
 // Signature verification needs node crypto + the RAW request body — this MUST be the Node runtime, not edge.
 export const runtime = "nodejs";
+
+// Payment rails PayMongo can API-refund (Pitfall 1). QRPh + UBP Online Banking are NOT refundable via the
+// API — the gone-slot backstop must operator-alert those, never call createRefund (it would 4xx).
+const REFUNDABLE_RAILS = new Set(["card", "gcash", "grab_pay", "paymaya"]);
 
 type SigParts = { t: string; te: string; li: string };
 
@@ -90,29 +96,67 @@ function resolveAccountId(event: PayMongoEvent): string | undefined {
 }
 
 /**
- * D-58 auto-refund backstop (body implemented in Task 2). A `checkout_session.payment.paid` whose confirm
- * UPDATE claimed 0 rows means one of two things: a BENIGN replay (the booking is already `confirmed` — do
- * NOTHING, never refund a paid+confirmed booking) OR the slot is GENUINELY GONE (the hold was swept and
- * the slot retaken during payment). For the gone case we must never silently keep the money — refund on a
- * refundable rail, or raise an operator alert on QRPh/UBP (which PayMongo cannot API-refund, Pitfall 1),
- * then set the booking terminal so the `?paid=1` return renders PaymentReversedState.
+ * D-58 auto-refund backstop. A `checkout_session.payment.paid` whose confirm UPDATE claimed 0 rows means
+ * one of two things: a BENIGN replay (the booking is already `confirmed` — do NOTHING, never refund a
+ * paid+confirmed booking) OR the slot is GENUINELY GONE (the hold was swept and the slot retaken during
+ * payment — e.g. the double-book-during-payment loser). For the gone case we must NEVER silently keep the
+ * money: refund on a refundable rail, or raise an operator alert on QRPh/UBP (which PayMongo cannot API-
+ * refund, Pitfall 1) or a failed refund. In BOTH gone-slot branches we set the booking terminal
+ * (`cancelled`) so the booker's `?paid=1` return renders PaymentReversedState (Plan 03) rather than a
+ * stuck interstitial.
  */
 async function handleGoneSlot(
   bookingId: string,
   paymentId: string | null,
   cs: PayMongoResource | undefined,
 ): Promise<void> {
-  // Re-read to distinguish a benign replay (already confirmed → no-op) from a genuinely gone slot.
+  // Re-read to distinguish a benign replay (already confirmed → no-op) from a genuinely gone slot, and to
+  // read the SERVER-FROZEN amount to refund (mismatch-proof full refund — never trust a client body field).
   const [current] = await db
-    .select({ status: booking.status })
+    .select({ status: booking.status, quotedTotalCents: booking.quotedTotalCents })
     .from(booking)
     .where(eq(booking.id, bookingId));
   if (!current || current.status === "confirmed") return; // never refund an already-confirmed booking
 
-  // Task 2 fills the refund / operator-alert body here (branch on the payment method) + the terminal flip.
   const method =
     cs?.attributes?.payments?.[0]?.source?.type ?? cs?.attributes?.payment_method_used ?? "unknown";
-  console.error("[PAYMENT_ALERT] gone_slot", { bookingId, paymentId, method });
+  const amountCents = current.quotedTotalCents ?? 0;
+
+  if (REFUNDABLE_RAILS.has(method) && paymentId && amountCents > 0) {
+    // Refundable rail (card / GCash / GrabPay / Maya) — auto-refund the full frozen amount (D-60: no % tiers).
+    try {
+      await createRefund({
+        amountCents,
+        paymentId,
+        notes: `Auto-refund: slot unavailable (${bookingId})`,
+      });
+      console.info("[PAYMENT] auto_refund_ok", { bookingId, paymentId, method, amountCents });
+    } catch {
+      // A refund API failure falls through to the operator-alert path — never swallow held money.
+      console.error("[PAYMENT_ALERT] auto_refund_failed", { bookingId, paymentId, method, amountCents });
+      await recordAudit({
+        actorId: "system",
+        action: "auto_refund_failed",
+        outcome: "needs_attention",
+        meta: { bookingId, paymentId, method, amountCents },
+      });
+    }
+  } else {
+    // Unrefundable rail (qrph / dob_ubp / unknown) or no captured payment id → DO NOT call the API (it
+    // would 4xx, Pitfall 1). Raise an operator alert so the held money is surfaced, never silently kept.
+    console.error("[PAYMENT_ALERT] needs_manual_refund", { bookingId, paymentId, method, amountCents });
+    await recordAudit({
+      actorId: "system",
+      action: "auto_refund_manual",
+      outcome: "needs_attention",
+      meta: { bookingId, paymentId, method, amountCents },
+    });
+  }
+
+  // Both gone-slot branches: set the booking terminal (idempotency guard — never clobber a confirmed row)
+  // so the ?paid=1 return renders PaymentReversedState (D-58) rather than a stuck finalizing interstitial.
+  await db.execute(sql`
+    UPDATE booking SET status = 'cancelled' WHERE id = ${bookingId} AND status <> 'confirmed'`);
 }
 
 export async function POST(req: Request): Promise<Response> {
