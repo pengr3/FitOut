@@ -458,23 +458,29 @@ export const payoutSweep = inngest.createFunction(
 | A5 | Refund `reason` enum is `duplicate \| fraudulent \| others` (the older docs also listed `requested_by_customer`) | Code Examples (refund) | A 4xx if an invalid reason is sent. Mitigation: use `others` for the auto-refund; verify the enum at implementation. |
 | A6 | Checkout Session default expiry is long enough (≥1h) to not lapse mid-payment, and can be forced via the "Expire a Checkout Session" endpoint | Open Questions | If PayMongo's session TTL is shorter than the FitOut extend-hold window, alignment is imperfect. Mitigation: the webhook (not the session) is truth; extend-hold covers the FitOut side regardless. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Resolved during Phase-5 planning (revision 1). Each question below carries an explicit resolution or accepted-risk annotation; the live-PayMongo-dependent items (A2 wallet enumeration) stay UAT-gated.
 
 1. **How is a host's linked-account wallet referenced as a transfer destination? (A2)**
    - What we know: `GET /v2/wallets` returns `account.account_number` / `account.account_name` / `status`; inhouse transfers use `provider:"paymongo"` + BIC `PAEYPHM2XXX`.
    - What's unclear: whether the platform can enumerate a **child** linked account's wallet, or must capture/store the host's wallet number at onboarding. This is the beta/sales-gated surface.
    - Recommendation: raise with PayMongo support (the Platforms/Linked-Accounts beta contact from Phase 2) and, defensively, plan a `host_payout.wallet_account_number` column populated at/after `merchant.activated`.
+   - **Resolution (accepted-risk, UAT-gated):** Within FitOut, the payout sweep (Plan 05, Task 2) correlates a wallet to the booking's host by `wallet.id === host_payout.paymongo_account_id` (defensive fallback: a stored per-host `accountNumber`); no match ⇒ leave Held + operator alert, never a wrong-wallet transfer. Whether `GET /v2/wallets` can actually enumerate a **child** linked-account wallet stays **UAT-gated** on PayMongo beta enablement (Environment Availability) — the exact correlating field is verified against a live/test response before UAT.
 
 2. **Default Checkout Session expiry, and how it interacts with the D-58 extend-hold. (A6)**
    - What we know: session `status` is `active|expired`; there is an "Expire a Checkout Session" endpoint; no default TTL is publicly documented.
    - Recommendation: don't depend on the session TTL for correctness — set the FitOut `PAYMENT_WINDOW_MINUTES` (e.g. 60) and treat the webhook as the sole confirm authority.
+   - **Resolution:** Adopted — Plan 03 sets `PAYMENT_WINDOW_MINUTES=60` and extends the hold to it; Plan 04 makes `checkout_session.payment.paid` the sole confirm authority. Correctness never depends on the PayMongo session TTL.
 
 3. **Transfer status delivery: callback vs poll. (A4)**
    - Recommendation: for the money-critical `Processing → Paid` transition, poll `GET /v2/transfers/{id}` from an Inngest step (deterministic, no inbound-auth question) unless a signed callback is confirmed.
+   - **Resolution:** Adopted (this is the root fix for the payout lifecycle) — Plan 05, Task 3 adds `getTransfer()` + a `payout-reconcile` Inngest cron that polls `GET /v2/transfers/{id}` for every Processing ledger row and moves it Paid/Failed, alerting on failures or stuck rows. The signed-callback path is NOT used (avoids the A4 inbound-auth question).
 
 4. **Is `payment.paid` or `checkout_session.payment.paid` the better subscription for D-57?**
    - What we know: both exist; `checkout_session.payment.paid` is purpose-built for Checkout Sessions and carries the session `reference_number`.
    - Recommendation: subscribe to `checkout_session.payment.paid` as the confirm trigger; it round-trips the booking id cleanly. (Subscribing to `payment.paid` too is harmless but the checkout event is the one to key on.)
+   - **Resolution:** Adopted — Plan 04 keys the confirm handler on `checkout_session.payment.paid` (single writer), deriving the booking id from the verified event's `reference_number`.
 
 ## Environment Availability
 
