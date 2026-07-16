@@ -53,8 +53,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Payments
 
 - [x] **PAY-01**: Booker can pay for a booking by card online
-- [ ] **PAY-02**: Platform deducts a commission from each booking
-- [ ] **PAY-03**: Host receives a payout for completed bookings, with funds held until after the session
+- [x] **PAY-02**: Platform deducts a commission from each booking
+- [x] **PAY-03**: Host receives a payout for completed bookings, with funds held until after the session
 - [ ] **PAY-04**: Host completes payout onboarding (Stripe Connect KYC) before their listing becomes bookable
 - [ ] **PAY-05**: For request-to-book, payment is authorized at request and captured on approval (released on decline/expiry)
 - [ ] **PAY-06**: Cancellations issue refunds according to the cancellation policy
@@ -154,8 +154,8 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BOOK-02 | Phase 4 | Complete |
 | BOOK-03 | Phase 4 | Complete |
 | PAY-01 | Phase 5 | Complete (05-01 payment config + 05-02 createCheckoutSession /v1 full PH rail charge primitive; 05-03 "Confirm & pay" checkout action + reserve UI + pending-payment/reversed states; 05-04 checkout_session.payment.paid webhook = the confirm authority — flips pending→confirmed on reference_number alone, captures pay_..., D-58 gone-slot auto-refund/QRPh-alert, D-60 refund events) |
-| PAY-02 | Phase 5 | In progress (05-01 commission calculator + payout ledger; 05-05a commission now FROZEN + deducted at payout — the sweep writes commission_rate_bps/commission_cents/net_cents per D-51; 05-06 the host-visible commission line is now LIVE on /host/earnings — gross→−10%→net, D-59; remaining: real payout transfer UAT-gated on the PayMongo /v2 beta) |
-| PAY-03 | Phase 5 | In progress (05-02 createBatchTransfer/listWalletAccounts primitives; 05-05a payout SWEEP live — hourly singleton cron, at-most-once ON CONFLICT claim, wallet.id===paymongo_account_id correlation, inhouse net transfer, Held→Processing; terminal Processing→Paid reconcile + /api/inngest serve at 05-05b; real transfer UAT-gated on PayMongo /v2 beta) |
+| PAY-02 | Phase 5 | Complete (05-01 commission calculator + payout ledger; 05-05a commission FROZEN + deducted at payout — the sweep writes commission_rate_bps/commission_cents/net_cents per D-51; 05-06 the host-visible commission line is LIVE on /host/earnings — gross→−10%→net, D-59; the payout mechanism that applies the deduction is now fully closed by the 05-05b reconcile. Real payout transfer UAT-gated on the PayMongo /v2 beta — same external gate as PAY-01's real charge) |
+| PAY-03 | Phase 5 | Complete (05-02 createBatchTransfer/listWalletAccounts primitives; 05-05a payout SWEEP — hourly singleton cron, at-most-once ON CONFLICT claim, wallet.id===paymongo_account_id correlation, inhouse net transfer, Held→Processing; 05-05b payout RECONCILE closes the lifecycle — getTransfer polls GET /v2/transfers/{id} (no transfer webhook, Pitfall 2), reconcileOne moves every Processing row Processing→Paid (paid_at) / Processing→Failed idempotently (AND state='processing'), Failed/stuck → [payout-alert], + /api/inngest serve() mounting both crons fail-closed in prod. Real transfer + polling UAT-gated on PayMongo /v2 beta) |
 | HOST-03 | Phase 5 | Complete (05-06 owner-gated /host/earnings — per-booking payout rows with Held/Processing/Paid/Refunded state badges, the host-visible gross→−10%→net breakdown, venue-tz-safe expected/paid dates, and Upcoming-vs-Paid summary totals; owner-scoped WHERE host_id=session.user.id so a host only ever sees their own rows; neutral Earnings nav in the dashboard + (host) header) |
 | BOOK-04 | Phase 6 | Pending |
 | BOOK-05 | Phase 6 | Pending |
