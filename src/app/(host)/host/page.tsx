@@ -68,6 +68,10 @@ export default async function HostDashboardPage() {
           <Button asChild variant="outline">
             <Link href="/host/listings">Your listings</Link>
           </Button>
+          {/* Neutral status view (HOST-03) — not coral (05-UI-SPEC: the earnings page is not an action surface). */}
+          <Button asChild variant="outline">
+            <Link href="/host/earnings">Earnings</Link>
+          </Button>
         </div>
       ) : (
         <div className="mt-8 rounded-lg border border-dashed p-8 text-center">

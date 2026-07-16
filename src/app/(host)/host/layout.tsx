@@ -46,6 +46,13 @@ export default async function HostLayout({
             canBook={u.canBook ?? false}
             canHost={u.canHost ?? false}
           />
+          {/* Neutral earnings/payouts nav (HOST-03) — status view, not coral. */}
+          <Link
+            href="/host/earnings"
+            className="text-sm font-medium underline-offset-4 hover:underline"
+          >
+            Earnings
+          </Link>
           <Link
             href="/profile"
             className="text-sm font-medium underline-offset-4 hover:underline"
