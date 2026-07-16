@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Listings & Host Onboarding** - Hosts create/edit listings with photos, pricing, booking mode; PayMongo onboarding gates bookability
 - [x] **Phase 3: Availability & the Double-Booking Guarantee** - Availability rules, real-time calendar, and the DB exclusion constraint that makes overlaps structurally impossible (completed 2026-07-14)
 - [x] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search (completed 2026-07-15)
-- [ ] **Phase 5: Payments & Payouts** - Stripe Connect charge, commission, delayed host payout, webhook-as-source-of-truth, refunds
+- [ ] **Phase 5: Payments & Payouts** - PayMongo hosted-checkout charge, host-side commission, hold-until-session delayed payout, webhook-as-source-of-truth, refund mechanism
 - [ ] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book authorize→capture-on-approve, host approve/decline, confirmation
 - [ ] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
 - [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity
@@ -105,15 +105,26 @@ Decimal phases appear between their surrounding integers in numeric order.
 **UI hint**: yes
 
 ### Phase 5: Payments & Payouts
-**Goal**: Money flows correctly through the proven booking core — the booker is charged, the platform keeps its commission, the host is paid out only after the session via a delayed transfer, and webhooks are the source of truth — with refund and dispute paths that protect the platform from liability.
+**Goal**: Money flows correctly through the proven booking core — the booker pays the full listed price on a hosted PayMongo checkout (cards/GCash/Maya/QR Ph), the booking confirms only when the `checkout_session.payment.paid` webhook lands, the platform keeps a host-side commission, and the host is paid `price − commission` only after the session via a delayed inhouse transfer held on the platform wallet — with a refund mechanism that never keeps money for an undeliverable slot.
 **Depends on**: Phase 4
 **Requirements**: PAY-01, PAY-02, PAY-03, HOST-03
 **Success Criteria** (what must be TRUE):
-  1. A booker can pay for a booking by card online, with the platform commission deducted and funds landing on the platform account
-  2. A host receives a payout for a completed booking, with funds held until after the session (never paid out at booking time)
-  3. Payment state is driven by signature-verified, idempotent Stripe webhooks (succeeded / refunded / dispute / account.updated), not the synchronous API response
-  4. A refund claws funds back from the host (reverse_transfer) and handles commission per policy; a dispute reverses the transfer; a host can see payout status (owed / paid)
-**Plans**: TBD
+  1. A booker can pay for a booking online via PayMongo hosted checkout (cards/GCash/Maya/QR Ph), with the full amount collected to the platform wallet
+  2. The platform deducts a host-side commission (10%, config-tunable) — the booker breakdown stays subtotal = total; the host receives price − commission
+  3. Payment state is driven by the signature-verified, idempotent `checkout_session.payment.paid` webhook (the confirm authority) and refund events — not the browser return redirect
+  4. The host is paid out `price − commission` via an inhouse `/v2/batch_transfers` fired T+24h after the session ends (funds held until then; never paid at booking time), at most once per booking
+  5. A genuinely-gone-slot payment is auto-refunded (or operator-alerted for QR Ph, which cannot be API-refunded); a host can see per-booking payout status (Held / Processing / Paid / Refunded) with the commission breakdown
+**Plans**: 6 plans in 2 waves
+  - [ ] 05-01-PLAN.md — Wave 1: foundation — commission calc + payment config + host_payout_ledger / booking.payment_id / listing.currency reconcile + [BLOCKING] migration 0008
+  - [ ] 05-02-PLAN.md — Wave 1: PayMongo client extension (checkout / batch-transfer / refund / wallets + /v1↔/v2 base) + mockPayMongo stubs
+  - [ ] 05-03-PLAN.md — Wave 2: "Confirm & pay" checkout action (extend-hold, charge frozen quote, retire sync flip) + reserve UI + confirmation pending-payment/reversed states
+  - [ ] 05-04-PLAN.md — Wave 2: webhook confirm authority (checkout_session.payment.paid) + D-58 auto-refund backstop (QR Ph operator-alert) + refund events
+  - [ ] 05-05-PLAN.md — Wave 2: Inngest T+24h payout sweep — at-most-once ledger claim + commission freeze + inhouse net transfer
+  - [ ] 05-06-PLAN.md — Wave 2: HOST-03 earnings page (owner-scoped ledger rows, gross→−10%→net, state badges, summary totals) + Earnings nav
+
+  **Waves:** W1 (05-01, 05-02 — parallel, no shared files) → W2 (05-03, 05-04, 05-05, 05-06 — parallel, blocked on W1; 05-06 depends on 05-01 only).
+
+  > ⚠️ Prior Stripe Connect prose (reverse_transfer / account.updated / payouts_enabled) is SUPERSEDED by D-20 (PayMongo). CLAUDE.md § Marketplace Payments + .planning/phases/05-payments-payouts/05-CONTEXT.md are authoritative for payment mechanics.
 **UI hint**: yes
 
 ### Phase 6: Full Booking + Payment Integration
@@ -163,7 +174,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
 | 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
 | 4. Booking Core & Search | 8/8 | Complete | 2026-07-15 |
-| 5. Payments & Payouts | 0/TBD | Not started | - |
+| 5. Payments & Payouts | 0/6 | Not started | - |
 | 6. Full Booking + Payment Integration | 0/TBD | Not started | - |
 | 7. Bookings Management, Cancellation & Notifications | 0/TBD | Not started | - |
 | 8. Group Bookings | 0/TBD | Not started | - |
