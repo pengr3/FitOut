@@ -117,7 +117,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. A genuinely-gone-slot payment is auto-refunded (or operator-alerted for QR Ph, which cannot be API-refunded); a host can see per-booking payout status (Held / Processing / Paid / Refunded) with the commission breakdown
 **Plans**: 7 plans in 3 waves
   - [x] 05-01-PLAN.md — Wave 1: foundation — commission calc + payment config + host_payout_ledger / booking.payment_id / listing.currency reconcile + [BLOCKING] migration 0008 (COMPLETE — pure integer-cents computeCommission 13/13 green; COMMISSION_RATE_BPS/PAYOUT_DELAY_HOURS/PAYMENT_WINDOW_MINUTES config; host_payout_ledger UNIQUE(booking_id) + frozen commission + payment_id + usd→php backfill applied to live DB via 0008)
-  - [ ] 05-02-PLAN.md — Wave 1: PayMongo client extension (checkout / batch-transfer / refund / wallets + /v1↔/v2 base) + mockPayMongo stubs
+  - [x] 05-02-PLAN.md — Wave 1: PayMongo client extension (checkout / batch-transfer / refund / wallets + /v1↔/v2 base) + mockPayMongo stubs (COMPLETE — version-less PAYMONGO_BASE + versioned per-call paths kill the /v1/v2/... bug; createCheckoutSession full PH rail set, createBatchTransfer inhouse amount=netCents, createRefund refund:<paymentId>, listWalletAccounts global-list-with-caller-correlation; PLATFORM_WALLET fail-closed prod guard; mockPayMongo + 4-test fetch-routing suite; 33/33 payments+paymongo green, tsc clean)
   - [ ] 05-03-PLAN.md — Wave 2: "Confirm & pay" checkout action (extend-hold, charge frozen quote, retire sync flip) + reserve UI + confirmation pending-payment/reversed states
   - [ ] 05-04-PLAN.md — Wave 2: webhook confirm authority (checkout_session.payment.paid) + D-58 auto-refund backstop (QR Ph operator-alert) + refund events
   - [ ] 05-05a-PLAN.md — Wave 2: Inngest T+24h payout sweep — at-most-once ledger claim + commission freeze + inhouse net transfer (client + env keys, no serve mount)
@@ -176,7 +176,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Listings & Host Onboarding | 6/6 | Complete (validated · secured · UAT passed) | 2026-07-10 |
 | 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
 | 4. Booking Core & Search | 8/8 | Complete | 2026-07-15 |
-| 5. Payments & Payouts | 0/7 | Not started | - |
+| 5. Payments & Payouts | 2/7 | In progress (Wave 1 complete: 05-01 money foundation + 05-02 PayMongo client) | - |
 | 6. Full Booking + Payment Integration | 0/TBD | Not started | - |
 | 7. Bookings Management, Cancellation & Notifications | 0/TBD | Not started | - |
 | 8. Group Bookings | 0/TBD | Not started | - |
