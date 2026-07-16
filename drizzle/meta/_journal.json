@@ -57,6 +57,13 @@
       "when": 1784084519949,
       "tag": "0007_booking_location_geog",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784203201650,
+      "tag": "0008_payout_ledger",
+      "breakpoints": true
     }
   ]
 }
