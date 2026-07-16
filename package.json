@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:inngest": "npx inngest-cli@latest dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -30,6 +31,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
+    "inngest": "^4.13.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.17.0",
     "next": "^16.2.7",
