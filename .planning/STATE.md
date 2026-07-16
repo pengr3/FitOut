@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-stopped_at: Phase 04 complete (8/8) — ready to discuss Phase 5
-last_updated: 2026-07-15T08:42:08.485Z
-last_activity: 2026-07-15 -- Phase 04: 04-07 complete (7/8 plans); 04-08 remaining
+stopped_at: Phase 05 context gathered (6 gray areas resolved) — ready to plan Phase 5
+last_updated: 2026-07-16T02:59:36.300Z
+last_activity: 2026-07-16 -- Phase 05 discuss complete; 05-CONTEXT.md written (commit c88706e)
 progress:
   total_phases: 8
   completed_phases: 4
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 Phase: 5
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-07-15
+Status: Ready to plan (context gathered)
+Last activity: 2026-07-16
 
 Progress: [██████████] 96%
 
@@ -156,7 +156,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T05:58Z
+Last session: 2026-07-16T03:00Z
+Stopped at: Phase 5 (Payments & Payouts) discuss-phase COMPLETE — resumed from the paused checkpoint (2/4 areas) and resolved every remaining area. Locked (D-50..D-60): host-side 10% commission (config-tunable; platform absorbs the PayMongo gateway fee so host always nets price − 10%); full PH rails (cards/GCash/Maya/QRPh) via a hosted PayMongo checkout; payout T+24h after session end (endsAt anchor) via a scheduled batch_transfers sweep, idempotent through a payout-ledger row; the payment.paid webhook is the confirm authority (retires the synchronous confirmBooking flip) with an extend-hold + auto-refund backstop so money is never kept for an undeliverable slot; HOST-03 = per-booking payout rows (Held→Processing→Paid/Refunded, gross→−10%→net, expected date) + summary total; refund MECHANISM only (Phase 7 owns the cancellation/refund policy matrix + cancel flow). ⚠️ ROADMAP Phase 5 prose is STALE (Stripe/reverse_transfer/account.updated) — D-20 PayMongo supersedes it; CONTEXT.md flags this for the planner. 05-CONTEXT.md + 05-DISCUSSION-LOG.md written; one-shot resume artifacts (checkpoint, .continue-here, HANDOFF.json) removed. Commit c88706e. Next: /gsd-plan-phase 5.
+Resume file: .planning/phases/05-payments-payouts/05-CONTEXT.md
+
+Prior session: 2026-07-15T05:58Z
 Stopped at: Completed 04-06-PLAN.md — the booking MUTATION layer + reserve-page atoms. placeHold (src/app/actions/booking.ts) = POST server action (never a GET side-effect) cloning blocks.ts but swapping host-ownership for a BOOKER-CAPABILITY gate: requireUserId (D-41) → canBook re-read from the DB (not the session) → server RE-DERIVATION of deriveBookable via listing⨝user⨝hostPayout (Security V4 — the reserve route group is NOT the gate) → bookingCreateSchema.safeParse → createPendingHold → revalidatePath(listing)+('/') → redirect(/listings/[id]/book?hold=<id>). confirmBooking = owner-gate bookerId===userId (IDOR) → idempotent short-circuit BEFORE the expiry check (already-confirmed OWN booking → /bookings/[id] no-op SUCCESS, D-42, never mapBookingError) → else ONE atomic UPDATE … status='confirmed',expires_at=NULL WHERE status='pending' AND expires_at > now() RETURNING id (server = sole expiry authority; 0 rows ⇒ graceful reason:'expired', never a silent confirm/500). Both return discriminated-union reasons; SUCCESS redirects (never ok:true). state-machine.test.ts 7 green via a redirect-capture harness (mock next/navigation redirect → RedirectError carrying the URL). Four atoms per UI-SPEC: PriceBreakdown (frozen quotedTotalCents+currency, Heading-600 tabular-nums Total, reserved Phase-5 fee slot, ZERO client arithmetic), HoldCountdown (role=timer 15-min from expiresAt, neutral + optional --destructive numerals ONLY final-60s, onExpire flip at 0; setInterval-only setState + ref-in-effect for react-hooks; suppressHydrationWarning digits), HoldExpiredState (calm TimerOff + coral/neutral CTAs, never red), ReserveActions (disable-on-click Confirm→Confirming… + 'You won't be charged yet.'). BOOK-01/03 NOT marked complete (action+atoms only; user-facing reserve/confirmation + Book-CTA wiring = 04-07) — BOOK-02 already Complete. 6 files tsc+eslint clean; booking suite 25/25. ⚠️ Pre-existing/out-of-scope (deferred-items.md, NOT 04-06): npm run build PAYMONGO_SECRET_KEY guard; npm run lint address-autocomplete.tsx:110. ⚠️ gsd-sdk v1.42.3 string-arg handlers still no-op — metric/decisions/session hand-written; advance-plan/update-progress/roadmap.update-plan-progress worked. Commits 778249b (T1) + 6691df6 (T2). Next: 04-07 (assemble reserve page + confirmation + wire the Book CTA to placeHold — completes BOOK-01/03).
 
 Prior session: 2026-07-15T05:25Z
