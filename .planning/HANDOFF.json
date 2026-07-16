@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-16T16:40:06.742Z",
+  "phase": "05",
+  "phase_name": "payments-payouts",
+  "phase_dir": ".planning/phases/05-payments-payouts",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "phase_complete_paused",
+  "completed_tasks": [
+    {"id": "05-01", "name": "Money foundation — commission calc + config + host_payout_ledger + migration 0008", "status": "done", "commit": "e798ce0"},
+    {"id": "05-02", "name": "PayMongo money-movement client (checkout/transfer/refund/wallets) + mocks", "status": "done", "commit": "1d31f92"},
+    {"id": "05-03", "name": "Confirm & pay checkout action (retire sync flip) + reserve/confirmation UI", "status": "done", "commit": "be4d43c"},
+    {"id": "05-04", "name": "payment.paid webhook = confirm authority + auto-refund backstop + refund events", "status": "done", "commit": "1a22419"},
+    {"id": "05-05a", "name": "Inngest T+24h payout sweep — at-most-once claim, commission freeze, inhouse transfer", "status": "done", "commit": "0a415fe"},
+    {"id": "05-06", "name": "HOST-03 owner-scoped earnings page + Earnings nav", "status": "done", "commit": "2f7f29a"},
+    {"id": "05-05b", "name": "Payout reconcile (Processing->Paid/Failed) + /api/inngest serve mount", "status": "done", "commit": "f35d8c0"},
+    {"id": "code-review", "name": "Phase-5 code review (05-REVIEW.md): 1 critical + 5 warn + 3 info", "status": "done", "commit": "867640a"},
+    {"id": "verification", "name": "Phase-5 verification 5/5 (human_needed) + 05-HUMAN-UAT.md", "status": "done", "commit": "4ddf292"},
+    {"id": "phase-close", "name": "STATE tracking update — phase complete", "status": "done", "commit": "d67de2b"}
+  ],
+  "remaining_tasks": [
+    {"id": "fix-CR-01", "name": "Fix CR-01 (payout stranded in held) + WR-03 (missing PAYMONGO_WEBHOOK_SECRET boot guard) via /gsd-code-review-fix 5", "status": "not_started"},
+    {"id": "secure-05", "name": "Run /gsd-secure-phase 5 — security_enforcement is ON but no 05-SECURITY.md exists yet (verify T-05-* mitigations)", "status": "not_started"},
+    {"id": "human-uat-05", "name": "3 human-UAT items in 05-HUMAN-UAT.md (real checkout+webhook, real /v2 transfer, QRPh operator-alert) — externally UAT-gated", "status": "not_started"},
+    {"id": "phase-6", "name": "Phase 6 (instant/request-to-book integration) — not yet planned; /gsd-discuss-phase 6 or /gsd-plan-phase 6", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "Real PayMongo /v2 money-movement (batch_transfers, wallet enumeration, transfer polling) + real hosted-checkout redirect + tunneled webhook cannot be exercised — sales-gated /v2 beta not enabled + no test-mode account wired", "type": "external", "workaround": "All payment/payout code+tests run against mockPayMongo; real paths are UAT-gated (documented in 05-HUMAN-UAT.md)"},
+    {"description": "Docker Desktop was not running at session start (WSL docker-desktop distro stuck Stopped); required manual start before Postgres could come up", "type": "human_action", "workaround": "Start Docker Desktop, then npm run db:up && npm run db:migrate"}
+  ],
+  "human_actions_pending": [
+    {"action": "Enable PayMongo Platforms/Linked-Accounts money-movement /v2 beta (batch_transfers + wallet enumeration + GET /v2/transfers/{id})", "context": "Blocks real host payouts + transfer reconcile UAT (sales-gated)", "blocking": false},
+    {"action": "Set env vars: PLATFORM_WALLET_NUMBER/NAME/BIC and INNGEST_EVENT_KEY/INNGEST_SIGNING_KEY (prod)", "context": "Required for real transfers + Inngest prod serve; dev uses mocks + Inngest Dev Server", "blocking": false},
+    {"action": "Add checkout_session.payment.paid, payment.refunded, payment.refund.updated to the PayMongo webhook subscription + tunnel via ngrok/cloudflared for local dev", "context": "Required to exercise the real confirm-on-webhook flow", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Executed all 7 plans sequentially on the main working tree (not parallel worktrees)", "rationale": "config workflow.use_worktrees=false — concurrent agents on one tree would corrupt the git index/STATE/ROADMAP", "phase": "05"},
+    {"decision": "Treated the single full-suite failure (tests/auth/secret-config.test.ts 5s timeout) as a non-regression", "rationale": "It passes cleanly in isolation (3/3, 2.9s); it is a Phase-1 test untouched by Phase 5; failure was load-induced timeout during a 151s-import full run", "phase": "05"},
+    {"decision": "Migrated the DB up to 0007 before executing", "rationale": "The Docker volume was behind (only 0000-0005 applied); Phase-4 code + Phase-5 base 0008 depend on 0006/0007", "phase": "05"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run /gsd-code-review-fix 5 to fix CR-01 (payout stranded in held) + WR-03 (webhook-secret boot guard) before real payouts go live; then /gsd-secure-phase 5; then plan Phase 6.",
+  "context_notes": "Phase 5 is fully executed, verified 5/5 (human_needed), and committed; working tree is clean. This is a between-phases pause, not a mid-task pause. The payout mechanism's happy path is proven under concurrency, but its failure-recovery path (CR-01) and one prod boot guard (WR-03) are the two things worth fixing before the /v2 beta goes live. Postgres is up via Docker (fitout-db-1, localhost:5432, migrated to 0008)."
+}
