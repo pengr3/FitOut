@@ -391,7 +391,12 @@ export const booking = pgTable(
       .references(() => user.id, { onDelete: "restrict" }), // A5 — bookings are financial records; never cascade-delete
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
-    status: bookingStatus("status").default("confirmed").notNull(),
+    // WR-05: default to the SAFE state 'pending', not 'confirmed'. Now that the payout sweep pays out
+    // 'confirmed' bookings past ends_at + delay, a 'confirmed' default would let any insert that omits
+    // `status` mint a slot-occupying, payout-eligible booking that was never paid for. 'pending' is the
+    // fail-safe default; every real caller sets `status` explicitly (holds are inserted 'pending'; the
+    // payment.paid webhook is the sole confirm authority). Live DB default changed in drizzle/0009.
+    status: bookingStatus("status").default("pending").notNull(),
     // Pending-hold lifecycle (D-49, Phase 4). All new columns are nullable-safe — there are no existing
     // booking rows in dev/UAT (A7) — so 0006 is a backfill-free ADD COLUMN.
     expiresAt: timestamp("expires_at", { withTimezone: true }), // hold TTL; only meaningful while 'pending' (NULL once confirmed/terminal). D-48 lazy expiry treats a past value as FREE.

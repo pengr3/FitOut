@@ -64,6 +64,13 @@
       "when": 1784203201650,
       "tag": "0008_payout_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784289601650,
+      "tag": "0009_booking_status_default_pending",
+      "breakpoints": true
     }
   ]
 }
