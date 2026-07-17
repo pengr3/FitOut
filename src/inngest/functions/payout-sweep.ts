@@ -27,7 +27,11 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { computeCommission } from "@/lib/payments/commission";
-import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import {
+  PAYOUT_DELAY_HOURS,
+  PAYOUT_RETRY_BACKOFF_HOURS,
+  PAYOUT_RETRY_MAX_AGE_HOURS,
+} from "@/lib/payments/config";
 import { createBatchTransfer, listWalletAccounts } from "@/lib/paymongo";
 
 /** How many due bookings a single sweep pass claims (coarse T+24h cadence — one pass drains the backlog). */
@@ -54,10 +58,13 @@ export type PayOneResult =
   | { status: "failed"; error: string }; // the transfer create threw → ledger marked failed (retry review)
 
 /**
- * The RESEARCH Pattern-4 sweep query, verbatim: `confirmed` bookings whose session ended ≥
- * PAYOUT_DELAY_HOURS ago (DB clock `now()`, not a JS clock) with NO payout row (`p.id IS NULL`).
- * `hp.paymongo_account_id` is aliased → `paymongoAccountId` so the caller can correlate the wallet.
- * Takes an explicit `dbConn` so a test can inject an isolated-schema db.
+ * The RESEARCH Pattern-4 sweep query: `confirmed` bookings whose session ended ≥ PAYOUT_DELAY_HOURS ago
+ * (DB clock `now()`, not a JS clock) that are eligible for a payout attempt. A booking is eligible when it
+ * has NO payout row yet (`p.id IS NULL`) OR — WR-04 bounded retry — its row is `failed`, the retry backoff
+ * has elapsed (`updated_at` ≥ PAYOUT_RETRY_BACKOFF_HOURS ago), and its ORIGINAL claim is still within
+ * PAYOUT_RETRY_MAX_AGE_HOURS (so a transient PayMongo error recovers automatically without retrying forever).
+ * `hp.paymongo_account_id` is aliased → `paymongoAccountId` so the caller can correlate the wallet. Takes an
+ * explicit `dbConn` so a test can inject an isolated-schema db.
  */
 export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
   const rows = (await dbConn.execute(sql`
@@ -70,7 +77,14 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
     LEFT JOIN host_payout_ledger p ON p.booking_id = b.id
     WHERE b.status = 'confirmed'
       AND b.ends_at + make_interval(hours => ${PAYOUT_DELAY_HOURS}::int) <= now()
-      AND p.id IS NULL
+      AND (
+        p.id IS NULL
+        OR (
+          p.state = 'failed'
+          AND p.updated_at <= now() - make_interval(hours => ${PAYOUT_RETRY_BACKOFF_HOURS}::int)
+          AND p.created_at >= now() - make_interval(hours => ${PAYOUT_RETRY_MAX_AGE_HOURS}::int)
+        )
+      )
     ORDER BY b.ends_at ASC
     LIMIT ${SWEEP_BATCH_SIZE}
   `)) as unknown as DuePayout[];
@@ -96,16 +110,24 @@ export async function payOne(dbConn: DbConn, b: DuePayout): Promise<PayOneResult
   // (1) Freeze the applied commission from the SERVER-FROZEN gross (never a client number).
   const { rateBps, commissionCents, netCents } = computeCommission(b.quotedTotalCents);
 
-  // (2) Claim the row — the INSERT itself is the at-most-once lock (no app-level "already paid?" check).
+  // (2) Claim the row — the INSERT itself is the at-most-once lock (no app-level "already paid?" check). The
+  //     ON CONFLICT DO UPDATE re-claims a `failed` row (WR-04 bounded retry: failed → held for a fresh
+  //     attempt) while KEEPING the FROZEN commission columns from the original claim (D-51 — only state +
+  //     updated_at change). For a held/processing/paid/refunded conflict the `WHERE state='failed'` is false,
+  //     so no row is updated and RETURNING is empty ⇒ at-most-once still holds (a concurrent duplicate or an
+  //     already-progressed booking fires nothing — same guarantee as the former DO NOTHING).
   const claimId = randomUUID();
   const claimed = (await dbConn.execute(sql`
     INSERT INTO host_payout_ledger (id, booking_id, host_id, payment_id, gross_cents,
       commission_rate_bps, commission_cents, net_cents, currency, state)
     VALUES (${claimId}, ${b.bookingId}, ${b.hostId}, ${b.paymentId}, ${b.quotedTotalCents},
       ${rateBps}, ${commissionCents}, ${netCents}, ${b.currency}, 'held')
-    ON CONFLICT (booking_id) DO NOTHING RETURNING id
+    ON CONFLICT (booking_id) DO UPDATE
+      SET state = 'held', updated_at = now()
+      WHERE host_payout_ledger.state = 'failed'
+    RETURNING id
   `)) as unknown as { id: string }[];
-  if (claimed.length === 0) return { status: "skipped-claimed" }; // another sweep owns it → fire nothing
+  if (claimed.length === 0) return { status: "skipped-claimed" }; // owned by another sweep / already progressed → fire nothing
 
   // CR-01: everything AFTER the claim is GUARDED — a `held` row must NEVER become a silent dead end. The
   // wallet lookup lives INSIDE the try so a listWalletAccounts() throw can't strand a `held` row, and the

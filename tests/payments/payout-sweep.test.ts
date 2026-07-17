@@ -334,3 +334,85 @@ describe("payout sweep — no matching wallet (T-05-27 / CR-01)", () => {
     spy.mockRestore();
   });
 });
+
+describe("payout sweep — failed payout is retryable (WR-04)", () => {
+  it("re-claims a `failed` ledger row on a later pass and releases it — exactly one row throughout", async () => {
+    const A = await makeHost();
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: A.accountId, accountNumber: "9990003333", accountName: "Host A Wallet", status: "activated" },
+    ]);
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "confirmed",
+      quotedTotalCents: 200000,
+      endsAtMs: dueMs(),
+    });
+    const b = duePayout({
+      bookingId: bkId,
+      listingId: L,
+      hostId: A.hostId,
+      accountId: A.accountId,
+      quotedTotalCents: 200000,
+    });
+
+    // First pass: a transient PayMongo error throws from createBatchTransfer → the claim is marked `failed`
+    // (never a silent held), and a [payout-alert] fires.
+    mockPayMongo.createBatchTransfer.mockRejectedValueOnce(new Error("paymongo 503"));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const first = await payOne(testDb.db, b);
+    expect(first.status).toBe("failed");
+    expect((await readLedger(bkId)).state).toBe("failed");
+
+    // Second pass: the transfer now succeeds → the `failed` row is RE-CLAIMED (failed → held) and RELEASED to
+    // processing. The stable payout:<bookingId> Idempotency-Key makes this re-attempt double-pay-safe.
+    mockPayMongo.createBatchTransfer.mockResolvedValueOnce({
+      batchId: "batch_tr_retry",
+      transferId: "tr_retry_1",
+      status: "pending",
+    });
+    const second = await payOne(testDb.db, b);
+    expect(second.status).toBe("paid");
+    spy.mockRestore();
+
+    // Exactly ONE ledger row throughout (the re-claim never mints a second), now released to processing with
+    // the retry's transfer id.
+    const rows = await testDb.db
+      .select()
+      .from(hostPayoutLedger)
+      .where(eq(hostPayoutLedger.bookingId, bkId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].state).toBe("processing");
+    expect(rows[0].transferId).toBe("tr_retry_1");
+  });
+
+  it("queryDuePayouts re-selects a backed-off `failed` row within the retry window", async () => {
+    const A = await makeHost();
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "confirmed",
+      quotedTotalCents: 200000,
+      endsAtMs: dueMs(),
+    });
+    // A `failed` row whose last attempt (updated_at) is well past the 1h backoff but whose original claim
+    // (created_at) is still inside the 72h max-age window → eligible for an automated retry.
+    await testDb.db.insert(hostPayoutLedger).values({
+      id: uid("ledger"),
+      bookingId: bkId,
+      hostId: A.hostId,
+      paymentId: null,
+      grossCents: 200000,
+      commissionRateBps: 1000,
+      commissionCents: 20000,
+      netCents: 180000,
+      currency: "php",
+      state: "failed",
+      createdAt: new Date(Date.now() - 3 * 3_600_000),
+      updatedAt: new Date(Date.now() - 3 * 3_600_000),
+    });
+
+    const due = await queryDuePayouts(testDb.db);
+    expect(due.map((d) => d.bookingId)).toContain(bkId);
+  });
+});
