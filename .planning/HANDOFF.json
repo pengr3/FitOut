@@ -1,46 +1,76 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-16T16:40:06.742Z",
-  "phase": "05",
-  "phase_name": "payments-payouts",
-  "phase_dir": ".planning/phases/05-payments-payouts",
+  "timestamp": "2026-07-17T14:51:27.985Z",
+  "phase": "6",
+  "phase_name": "Full Booking + Payment Integration",
+  "phase_dir": ".planning/phases/06-full-booking-payment-integration",
+  "workflow": "gsd-discuss-phase (context gathering — NOT planning/execution)",
   "plan": null,
   "task": null,
   "total_tasks": null,
-  "status": "phase_complete_paused",
-  "completed_tasks": [
-    {"id": "05-01", "name": "Money foundation — commission calc + config + host_payout_ledger + migration 0008", "status": "done", "commit": "e798ce0"},
-    {"id": "05-02", "name": "PayMongo money-movement client (checkout/transfer/refund/wallets) + mocks", "status": "done", "commit": "1d31f92"},
-    {"id": "05-03", "name": "Confirm & pay checkout action (retire sync flip) + reserve/confirmation UI", "status": "done", "commit": "be4d43c"},
-    {"id": "05-04", "name": "payment.paid webhook = confirm authority + auto-refund backstop + refund events", "status": "done", "commit": "1a22419"},
-    {"id": "05-05a", "name": "Inngest T+24h payout sweep — at-most-once claim, commission freeze, inhouse transfer", "status": "done", "commit": "0a415fe"},
-    {"id": "05-06", "name": "HOST-03 owner-scoped earnings page + Earnings nav", "status": "done", "commit": "2f7f29a"},
-    {"id": "05-05b", "name": "Payout reconcile (Processing->Paid/Failed) + /api/inngest serve mount", "status": "done", "commit": "f35d8c0"},
-    {"id": "code-review", "name": "Phase-5 code review (05-REVIEW.md): 1 critical + 5 warn + 3 info", "status": "done", "commit": "867640a"},
-    {"id": "verification", "name": "Phase-5 verification 5/5 (human_needed) + 05-HUMAN-UAT.md", "status": "done", "commit": "4ddf292"},
-    {"id": "phase-close", "name": "STATE tracking update — phase complete", "status": "done", "commit": "d67de2b"}
+  "status": "paused",
+  "status_note": "Mid-discussion. No CONTEXT.md written yet. A live product-scope debate is open and UNRESOLVED — do not treat any option below as decided.",
+  "gray_areas_selected": [
+    "R2B money model (deep-dived, escalated into a scope debate — see below)",
+    "Approval SLA (not yet discussed)",
+    "Host requests UI (not yet discussed)",
+    "Confirm & emails (not yet discussed)"
   ],
-  "remaining_tasks": [
-    {"id": "fix-CR-01", "name": "Fix CR-01 (payout stranded in held) + WR-03 (missing PAYMONGO_WEBHOOK_SECRET boot guard) via /gsd-code-review-fix 5", "status": "not_started"},
-    {"id": "secure-05", "name": "Run /gsd-secure-phase 5 — security_enforcement is ON but no 05-SECURITY.md exists yet (verify T-05-* mitigations)", "status": "not_started"},
-    {"id": "human-uat-05", "name": "3 human-UAT items in 05-HUMAN-UAT.md (real checkout+webhook, real /v2 transfer, QRPh operator-alert) — externally UAT-gated", "status": "not_started"},
-    {"id": "phase-6", "name": "Phase 6 (instant/request-to-book integration) — not yet planned; /gsd-discuss-phase 6 or /gsd-plan-phase 6", "status": "not_started"}
-  ],
-  "blockers": [
-    {"description": "Real PayMongo /v2 money-movement (batch_transfers, wallet enumeration, transfer polling) + real hosted-checkout redirect + tunneled webhook cannot be exercised — sales-gated /v2 beta not enabled + no test-mode account wired", "type": "external", "workaround": "All payment/payout code+tests run against mockPayMongo; real paths are UAT-gated (documented in 05-HUMAN-UAT.md)"},
-    {"description": "Docker Desktop was not running at session start (WSL docker-desktop distro stuck Stopped); required manual start before Postgres could come up", "type": "human_action", "workaround": "Start Docker Desktop, then npm run db:up && npm run db:migrate"}
-  ],
-  "human_actions_pending": [
-    {"action": "Enable PayMongo Platforms/Linked-Accounts money-movement /v2 beta (batch_transfers + wallet enumeration + GET /v2/transfers/{id})", "context": "Blocks real host payouts + transfer reconcile UAT (sales-gated)", "blocking": false},
-    {"action": "Set env vars: PLATFORM_WALLET_NUMBER/NAME/BIC and INNGEST_EVENT_KEY/INNGEST_SIGNING_KEY (prod)", "context": "Required for real transfers + Inngest prod serve; dev uses mocks + Inngest Dev Server", "blocking": false},
-    {"action": "Add checkout_session.payment.paid, payment.refunded, payment.refund.updated to the PayMongo webhook subscription + tunnel via ngrok/cloudflared for local dev", "context": "Required to exercise the real confirm-on-webhook flow", "blocking": false}
-  ],
+  "open_debate": {
+    "question": "Should request-to-book (host review/approval of bookings) exist in FitOut v1 at all, or should v1 be instant-book-only?",
+    "why_it_matters": "Request-to-book is the SOLE reason the escrow/authorize/hold/refund-on-decline complexity exists. Instant-book-only removes it entirely.",
+    "user_leaning": "Leaning toward instant-book-only + a cancellation policy with fees. User's key insight: a retained cancellation fee (>= processing fee) makes booker-initiated cancellations self-funding, so the platform never eats a fee — WHEREAS a host REJECTION can't fairly be billed to anyone, so rejection is the only reversal that forces the platform to eat the gateway fee. Remove rejection => remove the only unfunded fee event.",
+    "status": "STILL UP FOR DEBATE — user's exact words. Last open question posed to user: are they comfortable with the home-gym vetting gap (no reviews at launch + no host pre-screening => a stranger auto-confirms access to someone's home) under instant-book-only, or does that gap justify keeping request-to-book for home-gym hosts.",
+    "unresolved": true
+  },
   "decisions": [
-    {"decision": "Executed all 7 plans sequentially on the main working tree (not parallel worktrees)", "rationale": "config workflow.use_worktrees=false — concurrent agents on one tree would corrupt the git index/STATE/ROADMAP", "phase": "05"},
-    {"decision": "Treated the single full-suite failure (tests/auth/secret-config.test.ts 5s timeout) as a non-regression", "rationale": "It passes cleanly in isolation (3/3, 2.9s); it is a Phase-1 test untouched by Phase 5; failure was load-induced timeout during a 151s-import full run", "phase": "05"},
-    {"decision": "Migrated the DB up to 0007 before executing", "rationale": "The Docker volume was behind (only 0000-0005 applied); Phase-4 code + Phase-5 base 0008 depend on 0006/0007", "phase": "05"}
+    {
+      "decision": "PROVISIONAL / UNLOCKED: request-to-book money model options were narrowed to (A) pay-on-approval all rails [recommended], (B) card auth-hold + pay-on-approval for e-wallets, (C) keep capture-now->refund [rejected due to fee bleed].",
+      "rationale": "Grounded in PayMongo per-rail research (see finding below).",
+      "phase": "6",
+      "status": "NOT decided — user dismissed the selection twice, then reframed the whole thing as a scope question (instant-book-only)."
+    },
+    {
+      "decision": "HARD CONSTRAINT (fact, not a preference): QRPh must be excluded from any request-to-book / approval-gated flow.",
+      "rationale": "PayMongo cannot HOLD QRPh (capture-only) AND cannot API-refund QRPh at all. A declined QRPh request leaves funds stuck with only a manual/operator-alert reimbursement path. QRPh stays fine for instant-book (nothing is ever reversed).",
+      "phase": "6",
+      "status": "Locked as a technical constraint regardless of which scope path is chosen."
+    }
   ],
-  "uncommitted_files": [],
-  "next_action": "Run /gsd-code-review-fix 5 to fix CR-01 (payout stranded in held) + WR-03 (webhook-secret boot guard) before real payouts go live; then /gsd-secure-phase 5; then plan Phase 6.",
-  "context_notes": "Phase 5 is fully executed, verified 5/5 (human_needed), and committed; working tree is clean. This is a between-phases pause, not a mid-task pause. The payout mechanism's happy path is proven under concurrency, but its failure-recovery path (CR-01) and one prod boot guard (WR-03) are the two things worth fixing before the /v2 beta goes live. Postgres is up via Docker (fitout-db-1, localhost:5432, migrated to 0008)."
+  "research_finding_paymongo_per_rail": {
+    "summary": "PayMongo authorize/hold (manual capture) support, per rail — from a synchronous research agent this session.",
+    "cards": "HOLD-CAPABLE via Payment Intent capture_type:manual -> awaiting_capture -> POST /v1/payment_intents/{id}/capture (supports partial) OR /cancel (void). BUT it is a sales-gated 'Advanced Card Feature' (must request PayMongo enablement) and the hold AUTO-VOIDS after 7 days (caps any request SLA at <=7d). Void is almost certainly fee-free (docs silent — inferred).",
+    "gcash_maya_grabpay": "CAPTURE-ONLY (no hold). Refundable, BUT PayMongo confirms the merchant STILL PAYS the processing fee on refunds ('you are still charged the transaction fee for refunded transactions') => ~2.5% fee bleed on every declined request. Partial refunds OK on cards/GCash; Maya same-day = full-refund-only.",
+    "qrph": "CAPTURE-ONLY and NOT refundable via API at all ('QR Ph payments have no refunds through PayMongo'). => unusable for approval-gated bookings.",
+    "sources": [
+      "https://docs.paymongo.com/reference/the-payment-intent-object (capture_type; payment_method_allowed:['card'])",
+      "https://docs.paymongo.com/reference/capture-a-payment",
+      "https://docs.paymongo.com/reference/cancel-a-payment",
+      "https://paymongo.help/en/articles/11926812-advanced-card-features (Hold-then-Capture = gated card feature; 7-day auto-void)",
+      "https://paymongo.help/en/articles/3953727-am-i-charged-for-refunded-transactions (fee kept on refund)",
+      "https://paymongo.help/en/articles/11904095-refunding-payments (QRPh not refundable; Maya same-day full-only)"
+    ]
+  },
+  "cancellation_fee_economics": "Confirmed sound for BOOKER-initiated cancellation: booking P1000, processing fee ~P25 (2.5%). Retain P100 cancellation fee, refund P900 (partial refund) => net platform +P75. Any reasonable cancellation fee (>=~2.5%) covers the sunk gateway fee. Works on cards/GCash; Maya same-day = full-refund-only edge; QRPh = no refund (can't apply). Does NOT solve host REJECTION (can't bill booker for host's 'no'; can't bill host for using review) — which is exactly why rejection, unlike cancellation, forces escrow.",
+  "airbnb_precedent_discussed": "Early couch-surfing-era Airbnb (2008-2012) was approval-heavy (request-to-book was the default) BECAUSE it was intimate; Instant Book came ~2013 and is STILL opt-in per host, enabled only after trust infra (reviews/verified IDs/ratings) matured. FitOut has NO reviews yet (v2/DISC-03) => the trust scaffolding that makes instant-book-on-a-home-gym safe does not exist at launch. This is the strongest live argument for keeping SOME review capability early, or keeping home gyms out of the launch focus.",
+  "scope_change_flag": "Dropping or deferring request-to-book moves BOOK-05 / PAY-05 / HOST-01 out of Phase 6 and revisits a logged PROJECT.md Key Decision ('Host's choice: instant-book or request-to-book per listing') + makes the already-shipped LIST-04 toggle + schema bookingMode default ('request') vestigial. Currently listing.bookingMode DEFAULTS TO 'request' in src/lib/db/schema.ts (~line 180) — if request-to-book is deferred/cut, that default MUST flip to 'instant' or request-mode listings can't complete a booking. This is a ROADMAP/REQUIREMENTS change — route deliberately (e.g. /gsd-phase or a requirements revision), do NOT bury it silently in CONTEXT.md.",
+  "blockers": [],
+  "human_actions_pending": [
+    {
+      "action": "USER DECISION REQUIRED before CONTEXT.md can be written: (1) request-to-book in v1 — DEFER (instant-book-only Phase 6 + cancellation policy), DELETE from v1 entirely, or KEEP (and pick a money model A/B); (2) if keeping/deferring, comfort with the home-gym vetting gap.",
+      "context": "This is the pivot the entire Phase 6 scope + all 3 remaining gray areas depend on.",
+      "blocking": true
+    },
+    {
+      "action": "External: PayMongo manual-capture ('Advanced Card Features') is sales-gated and not enabled for FitOut. Real card auth-hold cannot be built/UAT'd until PayMongo whitelists it — same class of external gate as the /v2 batch_transfers beta.",
+      "context": "Only relevant if the KEEP path with card auth-hold is chosen.",
+      "blocking": false
+    }
+  ],
+  "uncommitted_files": [
+    ".planning/HANDOFF.json (overwritten — was Phase-5 pause)",
+    ".planning/phases/06-full-booking-payment-integration/.continue-here.md (new)"
+  ],
+  "next_action": "Resume the discuss-phase 6 debate at the open question: does the user go instant-book-only (defer/delete request-to-book) or keep it? Get that answer FIRST, then either (a) route the scope change + narrow Phase 6 to instant-book + BOOK-06 confirmation, or (b) lock a request-to-book money model and continue the remaining 3 gray areas (Approval SLA, Host requests UI, Confirm & emails). Then write 06-CONTEXT.md.",
+  "context_notes": "Was acting as a thinking partner in gsd-discuss-phase for Phase 6. The R2B money model question snowballed (correctly) from 'how do we hold money' into 'do we even need host review'. User is sharp on payment economics — pushed back hard on eating the 2.5% refund fee, cited Angkas/MoveIt GCash escrow (answer: they use auth-HOLDS not capture-then-refund, or their own in-app wallet ledger — neither available to us on a thin PayMongo wrapper). The debate is genuinely unresolved and the user is engaged; do NOT railroad to a decision. My standing recommendation: DEFER request-to-book out of Phase 6 (ship instant-book + confirmation now, it's mostly done from Phase 5), keep it as a real future capability rather than deleting — but the user may prefer full instant-book-only + strong cancellation policy, which is also coherent."
 }
