@@ -55,6 +55,9 @@ type PayMongoResource = {
     // payment.refunded / payment.refund.updated — the Refund/Payment carries the payment id
     payment_id?: string;
     payment?: { id?: string };
+    // The Refund resource's own lifecycle status (succeeded / pending / failed) — WR-02 gates the
+    // booking+ledger transition on a TERMINAL-SUCCESS value, never on the event type alone.
+    status?: string;
   };
 };
 
@@ -195,6 +198,14 @@ function resolveRefundPaymentId(event: PayMongoEvent): string | undefined {
 async function handleRefund(event: PayMongoEvent): Promise<void> {
   const paymentId = resolveRefundPaymentId(event);
   if (!paymentId) return;
+
+  // WR-02: gate on the refund resource's ACTUAL terminal-success status, never the event TYPE alone.
+  // `payment.refund.updated` also fires for pending/failed transitions; a refund that was ATTEMPTED and then
+  // FAILED (or a partial/pending one) must NOT drive the booking to cancelled + the ledger to refunded —
+  // that would tell the system the booker was made whole when the money is in fact still held (booker not
+  // refunded, host now blocked from payout because the sweep skips 'cancelled'). Ignore non-terminal-success.
+  const refundStatus = event.data?.attributes?.data?.attributes?.status;
+  if (!["succeeded", "refunded"].includes(refundStatus ?? "")) return;
 
   // WR-01: only a PRE-payout ledger row (state='held') may be flipped to refunded — that money is still on
   // the platform wallet, so the refund is a clean platform-wallet reversal with no host clawback. A refund
