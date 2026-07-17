@@ -9,7 +9,8 @@
 //   processing → failed                     when the transfer reports a terminal failure  + [payout-alert]
 //   processing → processing (unchanged)     for any unknown/in-flight status — NEVER a spurious Paid
 // A row that has been stuck `processing` beyond PAYOUT_RECONCILE_STUCK_HOURS also raises a [payout-alert]
-// so a silently-stranded payout (a host never paid) can never occur (mitigates T-05-28).
+// so a silently-stranded payout (a host never paid) can never occur (mitigates T-05-28). Likewise a row
+// stuck `held` beyond the same threshold — a sweep claim that never released (CR-01) — raises a [payout-alert].
 //
 // IDEMPOTENCY (mirrors the sweep's "the INSERT is the lock"): every UPDATE is guarded by
 // `AND state='processing'`. A re-run on an already-terminal (paid/failed/refunded) row touches 0 rows —
@@ -122,6 +123,32 @@ export async function reconcileOne(
 }
 
 /**
+ * CR-01 stuck-`held` operator alert (mirrors the stuck-`processing` alert). After the sweep's CR-01 rework a
+ * `held` row is transient — a claim is released to `processing`/`failed` (or rolled back on no-wallet) within
+ * one pass — so a `held` row lingering past PAYOUT_RECONCILE_STUCK_HOURS means a hard crash between claim and
+ * release. The money is still on the platform wallet (never mis-sent), so we do NOT auto-move it; we surface
+ * it for an operator so no ledger row can silently sit un-paid (T-05-28). Explicit `dbConn` for isolated-
+ * schema tests. Returns the count of stuck-held rows found (for the cron's summary).
+ */
+export async function alertStuckHeld(dbConn: DbConn = db): Promise<number> {
+  const rows = (await dbConn.execute(sql`
+    SELECT booking_id AS "bookingId", created_at AS "createdAt"
+    FROM host_payout_ledger
+    WHERE state = 'held'
+      AND created_at <= now() - make_interval(hours => ${RECONCILE_STUCK_HOURS}::int)
+    ORDER BY created_at ASC
+    LIMIT 200
+  `)) as unknown as { bookingId: string; createdAt: Date | string }[];
+  for (const r of rows) {
+    console.error("[payout-alert] payout stuck held", {
+      bookingId: r.bookingId,
+      createdAt: r.createdAt,
+    });
+  }
+  return rows.length;
+}
+
+/**
  * The D-59 payout reconcile: an hourly, timezone-aware, SINGLETON (`concurrency: 1`) cron, offset 30m from
  * the Plan-05a sweep so the two never contend. Each Processing row is reconciled inside its OWN Inngest
  * step so a mid-batch failure retries just that row, never the whole pass.
@@ -140,6 +167,9 @@ export const payoutReconcile = inngest.createFunction(
     for (const row of inflight) {
       await step.run(`reconcile-${row.bookingId}`, () => reconcileOne(row, db));
     }
-    return { reconciled: inflight.length };
+    // CR-01: surface any ledger row stuck `held` (a sweep claim that never released) so no payout can
+    // silently sit un-paid — even a hard crash between claim and release is caught by the next pass.
+    const stuckHeld = await step.run("alert-stuck-held", () => alertStuckHeld(db));
+    return { reconciled: inflight.length, stuckHeld };
   },
 );

@@ -301,8 +301,8 @@ describe("payout sweep — multi-host wallet correlation (T-05-33)", () => {
   });
 });
 
-describe("payout sweep — no matching wallet (T-05-27)", () => {
-  it("leaves the money Held, fires NO transfer, and raises a [payout-alert] operator alert", async () => {
+describe("payout sweep — no matching wallet (T-05-27 / CR-01)", () => {
+  it("rolls the claim back (no dead-end held row), fires NO transfer, and raises a [payout-alert]", async () => {
     const C = await makeHost();
     // Only OTHER hosts' wallets are activated — host C's Linked-Account id is absent.
     mockPayMongo.listWalletAccounts.mockResolvedValue([
@@ -321,10 +321,11 @@ describe("payout sweep — no matching wallet (T-05-27)", () => {
     expect(res.status).toBe("skipped-no-wallet");
     expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
 
-    // The claim row exists but stays HELD (money not released) with no transfer id.
+    // CR-01: the claim is ROLLED BACK — no held row is left behind, so the NEXT sweep re-selects this booking
+    // and retries once the host's wallet activates (a held row would be a permanent dead end). The money
+    // never left the platform wallet, so this is still fail-closed.
     const row = await readLedger(bkC);
-    expect(row.state).toBe("held");
-    expect(row.transferId).toBeNull();
+    expect(row).toBeUndefined();
 
     expect(spy).toHaveBeenCalledWith(
       "[payout-alert] no activated wallet for host",
