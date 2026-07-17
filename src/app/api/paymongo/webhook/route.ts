@@ -20,6 +20,18 @@ import { recordAudit } from "@/lib/audit";
 // Signature verification needs node crypto + the RAW request body — this MUST be the Node runtime, not edge.
 export const runtime = "nodejs";
 
+// Fail-closed prod boot guard (WR-03, mirrors src/lib/paymongo.ts + src/app/api/inngest/route.ts): the
+// webhook is the SOLE booking-confirm authority (D-57), so a missing/rotated-out secret would silently make
+// verifySignature fail-closed and 400 EVERY delivery — bookers charged, no booking ever confirms, with no
+// startup signal. Refuse to boot in production without the secret so a misconfigured deploy is a loud boot
+// FAILURE, not a silent confirmation outage. dev/test/build tolerate its absence (the mocked webhook suite
+// sets it per-test and `next build` must not require prod secrets).
+if (process.env.NODE_ENV === "production" && !process.env.PAYMONGO_WEBHOOK_SECRET) {
+  throw new Error(
+    "PAYMONGO_WEBHOOK_SECRET is required in production — the webhook is the sole booking-confirm authority (D-57).",
+  );
+}
+
 // Payment rails PayMongo can API-refund (Pitfall 1). QRPh + UBP Online Banking are NOT refundable via the
 // API — the gone-slot backstop must operator-alert those, never call createRefund (it would 4xx).
 const REFUNDABLE_RAILS = new Set(["card", "gcash", "grab_pay", "paymaya"]);
