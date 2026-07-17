@@ -11,7 +11,7 @@
 // is the caller, and the Paymongo-Signature is the authentication).
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { booking, hostPayout, hostPayoutLedger, paymongoEvent } from "@/lib/db/schema";
 import { createRefund } from "@/lib/paymongo";
@@ -196,11 +196,40 @@ async function handleRefund(event: PayMongoEvent): Promise<void> {
   const paymentId = resolveRefundPaymentId(event);
   if (!paymentId) return;
 
-  // Flip any payout-ledger row for this payment to refunded (0 rows if the sweep hasn't created one yet).
-  await db
+  // WR-01: only a PRE-payout ledger row (state='held') may be flipped to refunded — that money is still on
+  // the platform wallet, so the refund is a clean platform-wallet reversal with no host clawback. A refund
+  // that arrives AFTER the payout already fired (a row already 'processing'/'paid' — a late/manual dashboard
+  // refund, dispute, or chargeback) must NEVER be silently rewritten to 'refunded': that would erase the
+  // record that the host WAS paid and trigger no clawback, leaving the platform believing "no payout" while
+  // real money sits in the host's wallet. Restrict the flip to 'held'; alert (clawback) on any post-payout row.
+  const flipped = await db
     .update(hostPayoutLedger)
     .set({ state: "refunded" })
-    .where(and(eq(hostPayoutLedger.paymentId, paymentId), ne(hostPayoutLedger.state, "refunded")));
+    .where(and(eq(hostPayoutLedger.paymentId, paymentId), eq(hostPayoutLedger.state, "held")))
+    .returning({ id: hostPayoutLedger.id });
+  if (flipped.length === 0) {
+    // No HELD row was flipped. If a row exists in a POST-payout state (processing/paid), money has already
+    // left the platform → this is a post-payout refund needing a human-driven clawback, never a silent flip.
+    // (No row at all = the sweep simply hasn't created one yet — a benign pre-payout refund, no alert.)
+    const postPayout = await db
+      .select({ id: hostPayoutLedger.id })
+      .from(hostPayoutLedger)
+      .where(
+        and(
+          eq(hostPayoutLedger.paymentId, paymentId),
+          inArray(hostPayoutLedger.state, ["processing", "paid"]),
+        ),
+      );
+    if (postPayout.length > 0) {
+      console.error("[PAYMENT_ALERT] refund_after_payout", { paymentId });
+      await recordAudit({
+        actorId: "system",
+        action: "refund_after_payout",
+        outcome: "needs_attention",
+        meta: { paymentId },
+      });
+    }
+  }
   // Mark the booking terminal (no 'refunded' booking status — 'cancelled' both keeps it out of the payout
   // sweep and renders PaymentReversedState on a ?paid=1 return).
   await db
