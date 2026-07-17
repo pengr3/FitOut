@@ -6,7 +6,7 @@
 // schema and assert: a payment.refunded referencing a captured pay_... flips the ledger row held→refunded
 // and marks the booking cancelled; a replay transitions exactly once; a forged signature → 400, unchanged.
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
@@ -15,6 +15,10 @@ import { mockPayMongo } from "../helpers/mocks";
 
 const SECRET = "whsec_test_refund";
 const TS = 1_700_000_000;
+
+// WR-01's post-payout clawback alert sink — mocked so the alert can be asserted without a durable sink
+// (same idiom as tests/paymongo/webhook-payment-paid.test.ts).
+const recordAuditMock = vi.fn(async () => {});
 
 let testDb: TestDb;
 let POST: (typeof import("@/app/api/paymongo/webhook/route"))["POST"];
@@ -33,12 +37,17 @@ function windowAt(hourUtc: number): { startsAt: Date; endsAt: Date } {
   };
 }
 
-/** Seed a confirmed booking + a held payout-ledger row keyed to the same pay_... the refund references. */
+/**
+ * Seed a confirmed booking + a payout-ledger row keyed to the same pay_... the refund references.
+ * `state` defaults to "held" (pre-payout); WR-01 needs a POST-payout variant ("processing"/"paid") to
+ * prove the refund handler never silently rewrites money that already left the platform.
+ */
 async function seedConfirmedWithLedger(opts: {
   bookingId: string;
   ledgerId: string;
   paymentId: string;
   hourUtc: number;
+  state?: "held" | "processing" | "paid";
 }): Promise<void> {
   const { startsAt, endsAt } = windowAt(opts.hourUtc);
   await testDb.db.insert(booking).values({
@@ -63,7 +72,7 @@ async function seedConfirmedWithLedger(opts: {
     commissionCents: 15000,
     netCents: 135000,
     currency: "php",
-    state: "held",
+    state: opts.state ?? "held",
   });
 }
 
@@ -89,8 +98,17 @@ async function countEvents(eventId: string): Promise<number> {
   return rows.length;
 }
 
-/** A PayMongo refund event body — the Refund resource carries payment_id (A1 nesting). */
-function refundEventBody(opts: { eventId: string; type?: string; paymentId: string }): string {
+/**
+ * A PayMongo refund event body — the Refund resource carries payment_id (A1 nesting).
+ * `status` defaults to "succeeded" (terminal) to preserve existing callers; WR-02 needs a non-terminal
+ * value (e.g. "failed"/"pending") — realistic for a `payment.refund.updated` lifecycle event.
+ */
+function refundEventBody(opts: {
+  eventId: string;
+  type?: string;
+  paymentId: string;
+  status?: string;
+}): string {
   return JSON.stringify({
     data: {
       id: opts.eventId,
@@ -98,7 +116,7 @@ function refundEventBody(opts: { eventId: string; type?: string; paymentId: stri
         type: opts.type ?? "payment.refunded",
         data: {
           id: "ref_test_1",
-          attributes: { payment_id: opts.paymentId, status: "succeeded" },
+          attributes: { payment_id: opts.paymentId, status: opts.status ?? "succeeded" },
         },
       },
     },
@@ -137,13 +155,19 @@ beforeAll(async () => {
 
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({ createRefund: mockPayMongo.createRefund }));
+  vi.doMock("@/lib/audit", () => ({ recordAudit: recordAuditMock }));
   vi.resetModules();
   ({ POST } = await import("@/app/api/paymongo/webhook/route"));
+});
+
+beforeEach(() => {
+  recordAuditMock.mockClear();
 });
 
 afterAll(async () => {
   vi.doUnmock("@/lib/db");
   vi.doUnmock("@/lib/paymongo");
+  vi.doUnmock("@/lib/audit");
   process.env.PAYMONGO_WEBHOOK_SECRET = prevSecret;
   await teardownTestDb(testDb);
 });
@@ -216,5 +240,54 @@ describe("payment.refunded / payment.refund.updated — refund mechanism (D-60)"
 
     expect((await readLedger("led_rf_forged")).state).toBe("held");
     expect((await readBooking("bk_rf_forged")).status).toBe("confirmed");
+  });
+
+  it("WR-01: a refund on an already-processing (post-payout) ledger row is NOT flipped to refunded — it alerts a clawback instead", async () => {
+    await seedConfirmedWithLedger({
+      bookingId: "bk_rf_postpayout",
+      ledgerId: "led_rf_postpayout",
+      paymentId: "pay_rf_postpayout",
+      hourUtc: 5,
+      state: "processing",
+    });
+
+    const res = await post(
+      refundEventBody({ eventId: `evt_${randomUUID()}`, paymentId: "pay_rf_postpayout" }),
+    );
+    expect(res.status).toBe(200);
+
+    // The money already left the platform — the row must NEVER be silently rewritten to 'refunded'.
+    expect((await readLedger("led_rf_postpayout")).state).toBe("processing");
+
+    // The clawback alert fires so a human reconciles the post-payout refund.
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "refund_after_payout", outcome: "needs_attention" }),
+    );
+
+    // The booking is still marked terminal so the Plan-05 sweep skips it (unaffected by the ledger guard).
+    expect((await readBooking("bk_rf_postpayout")).status).toBe("cancelled");
+  });
+
+  it("WR-02: a non-terminal refund status (failed) does not flip the ledger or cancel the booking", async () => {
+    await seedConfirmedWithLedger({
+      bookingId: "bk_rf_nonterminal",
+      ledgerId: "led_rf_nonterminal",
+      paymentId: "pay_rf_nonterminal",
+      hourUtc: 6,
+    });
+
+    const res = await post(
+      refundEventBody({
+        eventId: `evt_${randomUUID()}`,
+        type: "payment.refund.updated",
+        paymentId: "pay_rf_nonterminal",
+        status: "failed",
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    // A failed/pending refund attempt must NOT be treated as a completed refund — no ledger flip, no cancel.
+    expect((await readLedger("led_rf_nonterminal")).state).toBe("held");
+    expect((await readBooking("bk_rf_nonterminal")).status).toBe("confirmed");
   });
 });
