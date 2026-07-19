@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-19T23:22:15.420Z",
+  "phase": "06",
+  "phase_name": "full-booking-payment-integration",
+  "phase_dir": ".planning/phases/06-full-booking-payment-integration",
+  "plan": null,
+  "task": 0,
+  "total_tasks": 0,
+  "status": "paused",
+  "stage": "planning-prep complete — ready to plan (no PLAN.md files yet)",
+  "completed_tasks": [
+    {"id": 1, "name": "Phase 6 research (RESEARCH.md) — resolved requested/approved state model, 8-site occupancy-predicate audit, 3-file migration sequence, 5 lifecycle emails, Inngest dual-timer sweep, security domain", "status": "done", "commit": "543b240"},
+    {"id": 2, "name": "Nyquist validation strategy (VALIDATION.md) — test map, Wave-0 test files, concurrent-double-book race is the non-negotiable gate", "status": "done", "commit": "8eee68b"},
+    {"id": 3, "name": "UI design contract (UI-SPEC.md) — /host/requests inbox, requested/approved confirmation states, RequestCountdown, mode toggle, pending-count badge, 5 email copy contracts; design system inherited from 02-05", "status": "done", "commit": "f2e5043"},
+    {"id": 4, "name": "UI-SPEC verified 6/6 dimensions (1 non-blocking copywriting FLAG) — frontmatter set to approved", "status": "done", "commit": "bd5f8d1"}
+  ],
+  "remaining_tasks": [
+    {"id": 5, "name": "Run /gsd-plan-phase 6 (NO --research flag) — planner creates PLAN.md files from CONTEXT + RESEARCH + VALIDATION + UI-SPEC; UI gate now passes (UI-SPEC exists)", "status": "not_started"},
+    {"id": 6, "name": "Plan-checker verification loop (max 3 iterations)", "status": "not_started"},
+    {"id": 7, "name": "Requirements + decision coverage gates (BOOK-04, BOOK-05, BOOK-06, PAY-05, HOST-01; D-61..D-66) — handle manually per gsd-tools-invocation memory (check.* subcommands unavailable here)", "status": "not_started"},
+    {"id": 8, "name": "Record planning completion in STATE.md + annotate ROADMAP wave dependencies (edit files directly — state.planned-phase/roadmap.annotate-dependencies subcommands unavailable here)", "status": "not_started"},
+    {"id": 9, "name": "Execute phase via /gsd-execute-phase 6", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {"decision": "Generate 06-UI-SPEC.md before planning (via /gsd-ui-phase 6), rather than --skip-ui", "rationale": "Phase 6 is a frontend phase and every prior frontend phase (02-05) shipped a UI-SPEC; the UI safety gate (ui_phase + ui_safety_gate = true) halts plan-phase without one. User confirmed via AskUserQuestion.", "phase": "06"},
+    {"decision": "Request lifecycle modeled as two NEW booking_status enum values: requested + approved (keep pending exclusively for the 15-min instant hold)", "rationale": "Unambiguous per-status TTL; reduces the webhook confirm change to a one-line WHERE widening (status IN ('pending','approved')); reuses already-present declined/completed. Resolved a CONTEXT.md 'Claude's Discretion' item in RESEARCH.md.", "phase": "06"},
+    {"decision": "3-file migration sequence: 0010 enum ADD VALUE (own file) -> 0011 columns + listing default flip -> 0012 DROP+ADD booking_no_overlap EXCLUDE with widened WHERE", "rationale": "Postgres forbids using a newly-ADDed enum value in the same transaction, and you cannot ALTER an EXCLUDE constraint's WHERE in place. Sequencing sidesteps both.", "phase": "06"},
+    {"decision": "Decline surfaces behind a confirm dialog; Approve inline; both neutral (not destructive-red)", "rationale": "A decline is an expected outcome not an error; matches the Phase-5 neutral-badge precedent. Locked the D-65 'Claude's Discretion' UI item in UI-SPEC.", "phase": "06"}
+  ],
+  "uncommitted_files": [],
+  "git": {"branch": "dev", "ahead_of_origin": 5, "note": "5 commits ahead of origin/dev before this WIP handoff commit; user requested push to origin after pausing"},
+  "next_action": "/clear then run /gsd-plan-phase 6 (no --research) to resume — research/validation/ui-spec are committed and will be reused; the UI gate now passes.",
+  "context_notes": "This was a plan-phase run that correctly halted at the UI design-contract gate. All four planning-prep artifacts (RESEARCH, VALIDATION, UI-SPEC, and the UI-SPEC approval) are committed on dev. Nothing is in-flight and there are no blockers — the pause is purely a session boundary before planning. The single most correctness-critical thing for the planner/executor to get right is the occupancy-predicate fan-out (RESEARCH.md 'Occupancy-Predicate Audit' table): all 8 sites — the GiST EXCLUDE WHERE, read-model.ts:108, three units.ts helpers, the in-tx sweep, webhook confirm, and the confirmBooking extend-hold — must be widened to include requested/approved in lockstep, or you get either a silent double-book or a paid-but-unconfirmed booking. Do NOT re-open the pay-on-approval vs authorize/capture debate (locked as D-63). GSD SDK note (see memory 'gsd-tools-invocation'): call `node C:/Users/franc/.claude/get-shit-done/bin/gsd-tools.cjs <cmd>`; many workflow-assumed subcommands (check.*, roadmap.*, state.planned-phase, agent-skills, config-get, gap-analysis) do NOT exist here — read fields from `init plan-phase 6` JSON and handle the coverage/state/annotate gates by editing files directly."
+}
