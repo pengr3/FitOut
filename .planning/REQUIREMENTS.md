@@ -56,7 +56,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PAY-02**: Platform deducts a commission from each booking
 - [x] **PAY-03**: Host receives a payout for completed bookings, with funds held until after the session
 - [ ] **PAY-04**: Host completes payout onboarding (Stripe Connect KYC) before their listing becomes bookable
-- [ ] **PAY-05**: For request-to-book, payment is authorized at request and captured on approval (released on decline/expiry)
+- [ ] **PAY-05**: For request-to-book, the slot is held with no charge at request; the booker pays on host approval (pay-on-approval) and the slot frees on decline/expiry/non-payment — *mechanism revised from authorize→capture per D-63 (Phase 6): PayMongo cannot hold funds on QRPh/e-wallets and card manual-capture is sales-gated; pay-on-approval works on all rails with no fee bleed*
 - [ ] **PAY-06**: Cancellations issue refunds according to the cancellation policy
 
 ### Host Tools

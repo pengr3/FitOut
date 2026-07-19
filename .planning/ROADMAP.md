@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
  (completed 2026-07-14)
 - [x] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search (completed 2026-07-15)
 - [x] **Phase 5: Payments & Payouts** - PayMongo hosted-checkout charge, host-side commission, hold-until-session delayed payout, webhook-as-source-of-truth, refund mechanism
-- [ ] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book authorize→capture-on-approve, host approve/decline, confirmation
+- [ ] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book pay-on-approval (no charge until host approves), host approve/decline, confirmation
 - [ ] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
 - [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity
 
@@ -130,16 +130,18 @@ Decimal phases appear between their surrounding integers in numeric order.
 **UI hint**: yes
 
 ### Phase 6: Full Booking + Payment Integration
-**Goal**: The booking and payment building blocks are wired into one complete lifecycle that forks on the host's booking mode — instant-book captures payment immediately and confirms, while request-to-book authorizes payment, lets the host approve or decline within an SLA, and captures on approval or releases on decline/expiry.
+**Goal**: The booking and payment building blocks are wired into one complete lifecycle that forks on the host's booking mode — instant-book captures payment immediately and confirms, while request-to-book holds the slot with no charge, lets the host approve or decline within an SLA, and on approval has the booker pay (pay-on-approval) to confirm, freeing the slot on decline/expiry/non-payment.
 **Depends on**: Phase 5
 **Requirements**: BOOK-04, BOOK-05, BOOK-06, PAY-05, HOST-01
 **Success Criteria** (what must be TRUE):
   1. An instant-book listing confirms immediately on successful payment and the slot is locked
-  2. A request-to-book listing creates a pending request (payment authorized, not captured) that a host can approve or decline, auto-expiring if no response within the SLA
-  3. On approval the authorized payment is captured and the booking confirms; on decline or expiry the authorization is released and the slot frees
+  2. A request-to-book listing creates a pending request that **holds the slot with no charge** and a host can approve or decline, auto-declining if no response within the SLA
+  3. On approval the booker pays via the Phase-5 checkout and the booking confirms; on decline, SLA expiry, or non-payment within the payment window the slot frees — nothing is ever refunded or voided
   4. A booker receives on-screen and email confirmation of a confirmed booking
 **Plans**: TBD
 **UI hint**: yes
+
+> ⚠️ **Mechanism corrected by Phase-6 discuss (D-63, 2026-07-19):** the original "authorize payment → capture on approval" model is **infeasible on our rails** (QRPh/e-wallets are capture-only; card manual-capture is sales-gated and not enabled for FitOut). Request-to-book uses **pay-on-approval** — no money moves until the host approves, so all rails (QRPh included) work with no refund/fee-bleed on a decline. Scope is unchanged (BOOK-05/PAY-05/HOST-01 stay in Phase 6). See `.planning/phases/06-full-booking-payment-integration/06-CONTEXT.md`.
 
 ### Phase 7: Bookings Management, Cancellation & Notifications
 **Goal**: Both sides can see and manage their bookings through their full lifecycle, cancellations resolve to correct, policy-driven refunds with the refund amount shown before confirming, and a reliable async transactional-email layer keeps everyone informed.
