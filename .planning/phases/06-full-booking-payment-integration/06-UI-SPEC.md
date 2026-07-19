@@ -1,7 +1,7 @@
 ---
 phase: 6
 slug: full-booking-payment-integration
-status: draft
+status: approved
 shadcn_initialized: true
 preset: radix-nova / baseColor neutral / lucide
 created: 2026-07-20
@@ -349,11 +349,11 @@ Every interactive surface defines loading / empty / error / active states.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking) — `Approve`/`Decline` row actions are single-word CTAs; mitigated by row-level context (space/date/price/booker) + industry-standard inbox precedent. Recommended: add `aria-label="Approve request from {booker}"` for screen readers. Not a blocker.
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-07-20
