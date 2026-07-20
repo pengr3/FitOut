@@ -78,9 +78,14 @@ export default async function ReservePage({
   // must never be told their hold expired). Short-circuits before any expiry check.
   if (bk.status === "confirmed") redirect(`/bookings/${bk.id}`);
 
-  // D-44: only a pending hold with a still-future TTL is live. Anything else (cancelled/declined, or a
-  // pending hold past its expires_at) degrades to the calm expiry interstitial — not a stale reserve form.
-  const active = bk.status === "pending" && !!bk.expiresAt && bk.expiresAt.getTime() > now.getTime();
+  // D-44: only a still-live hold with a future TTL renders the reserve/pay form. Live = a `pending` instant
+  // hold OR an `approved` request (PAY-05 / D-63 — this same pay page is reused for pay-on-approval, so the
+  // approved booker lands on the exact Phase-5 "Confirm & pay" surface). Anything else (cancelled/declined,
+  // a not-yet-approved `requested`, or a hold past its expires_at) degrades to the calm expiry interstitial.
+  const active =
+    (bk.status === "pending" || bk.status === "approved") &&
+    !!bk.expiresAt &&
+    bk.expiresAt.getTime() > now.getTime();
   if (!active) return <HoldExpiredState listingId={bk.listingId} />;
 
   // Live hold → load the listing facts (rates + venue tz) + the cover thumb for the summary.

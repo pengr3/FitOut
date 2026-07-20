@@ -17,11 +17,13 @@
 // the real request-to-book actions) to drive host approve/decline + pay-on-approval. This wave lands only
 // the DB-level correctness gate the whole request-to-book fork depends on.
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
+import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+import { mockPayMongo, mockResend } from "../helpers/mocks";
 import { isPgError } from "@/lib/pg";
-import { user, listing, operatingHours, booking } from "@/lib/db/schema";
+import { user, listing, hostPayout, operatingHours, booking } from "@/lib/db/schema";
 import { createPendingHold, HOLD_TTL_MINUTES } from "@/lib/availability/units";
 import { getAvailability } from "@/lib/availability/read-model";
 import type postgres from "postgres";
@@ -29,13 +31,49 @@ import type postgres from "postgres";
 type HoldResult = Awaited<ReturnType<typeof createPendingHold>>;
 const isOk = (v: HoldResult): v is Extract<HoldResult, { ok: true }> => "ok" in v && v.ok === true;
 
+// ── Action harness (06-04) ────────────────────────────────────────────────────────────────────────────
+// The request-to-book FORK, mode-flip independence, and pay-on-approval are driven through the REAL
+// placeHold/confirmBooking server actions via the vi.doMock idiom from tests/booking/state-machine.test.ts
+// (mock next/headers/auth/db/paymongo/navigation/cache, then import the actions). next/navigation.redirect
+// throws a typed RedirectError carrying the URL so a test can assert the redirect (SUCCESS) target.
+class RedirectError extends Error {
+  constructor(readonly url: string) {
+    super(`NEXT_REDIRECT:${url}`);
+    this.name = "RedirectError";
+  }
+}
+async function expectRedirect(p: Promise<unknown>): Promise<string> {
+  try {
+    await p;
+  } catch (e) {
+    if (e instanceof RedirectError) return e.url;
+    throw e;
+  }
+  throw new Error("expected the action to redirect, but it returned normally");
+}
+
+// The mocked next/headers reads this at CALL time (during an action), so login() can swap the session cookie.
+const sessionHeaders: { cookie: string } = { cookie: "" };
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+}));
+
 let testDb: TestDb;
+let testAuth: TestAuth;
+type BookingActions = typeof import("@/app/actions/booking");
+let placeHold: BookingActions["placeHold"];
+let confirmBooking: BookingActions["confirmBooking"];
 
 const HOST = "rl_host";
 const BOOKER = "rl_booker";
 const BOOKER2 = "rl_booker2";
 const HOURLY = 5000; // ₱50.00/hr
 const DAY_RATE = 30000; // ₱300.00/day
+
+// Action-harness fixtures (06-04): a REAL signed-up booker (intent 'book' → canBook) whose session drives
+// placeHold/confirmBooking. Distinct email from the plain-inserted BOOKER rows above (no conflict).
+const ACTION_BOOKER_EMAIL = "rl_action_booker@example.com";
+const PASSWORD = "averylongpassword";
 
 // ── Two window families ─────────────────────────────────────────────────────
 // A) getAvailability slots need to line up with venue-local operating hours, so reuse the read-model
@@ -358,5 +396,169 @@ describe("in-tx stale-hold sweep WRITE-TARGET — mirrors the 06-06 SLA cron (Wa
     expect(isOk(res)).toBe(true);
     if (isOk(res)) expect(res.unit).toBe(1);
     expect(await statusOf("bk_sweep_pending")).toBe("cancelled");
+  });
+});
+
+// ── (f) placeHold FORK + mode-flip independence + pay-on-approval (06-04 request-to-book fork) ─────────
+describe("placeHold forks on bookingMode + mode-flip independence + pay-on-approval (BOOK-04/BOOK-05/PAY-05, D-61/D-63)", () => {
+  /** Seed a published, bookable listing owned by HOST with the given booking mode. */
+  async function seedModedListing(id: string, mode: "instant" | "request"): Promise<void> {
+    await testDb.db.insert(listing).values({
+      id,
+      hostId: HOST,
+      title: `Listing ${id}`,
+      status: "published",
+      bookingMode: mode,
+      unitCount: 1,
+      timezone: "Asia/Manila",
+      city: "Makati",
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+    });
+  }
+
+  /** Sign in the action booker and thread the session cookie the mocked next/headers reads. */
+  async function login(email: string): Promise<void> {
+    const res = await testAuth.api.signInEmail({ body: { email, password: PASSWORD }, asResponse: true });
+    const setCookie = res.headers.get("set-cookie");
+    sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+  }
+
+  beforeAll(async () => {
+    testAuth = makeTestAuth(testDb);
+    // deriveBookable needs the host verified (already, top-level) + an ACTIVATED payout row — else placeHold
+    // refuses. HOST has no hostPayout yet (the earlier DB-level tests never hit deriveBookable), so add one.
+    await testDb.db.insert(hostPayout).values({
+      userId: HOST,
+      payoutsEnabled: true,
+      activationStatus: "activated",
+      onboardingComplete: true,
+    });
+    // A real signed-up booker (intent 'book' → canBook) whose session drives the actions.
+    await signUp(testAuth, {
+      email: ACTION_BOOKER_EMAIL,
+      password: PASSWORD,
+      name: "Action Booker",
+      firstName: "Action",
+      intent: "book",
+    });
+
+    vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+    vi.doMock("@/lib/db", () => ({ db: testDb.db }));
+    vi.doMock("@/lib/paymongo", () => ({
+      createCheckoutSession: mockPayMongo.createCheckoutSession,
+      createRefund: mockPayMongo.createRefund,
+      createBatchTransfer: mockPayMongo.createBatchTransfer,
+      listWalletAccounts: mockPayMongo.listWalletAccounts,
+    }));
+    vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+    vi.doMock("next/navigation", () => ({
+      redirect: (url: string) => {
+        throw new RedirectError(url);
+      },
+      notFound: () => {
+        throw new Error("NEXT_NOT_FOUND");
+      },
+    }));
+    vi.resetModules();
+    ({ placeHold, confirmBooking } = await import("@/app/actions/booking"));
+
+    // Distinct listings per case (the shared START/END window only collides on the SAME listing).
+    await seedModedListing("L_af_request", "request");
+    await seedModedListing("L_af_instant", "instant");
+    await seedModedListing("L_af_flip", "request");
+    await seedModedListing("L_af_approved", "instant"); // FK anchor for the directly-inserted approved hold
+  });
+
+  afterAll(() => {
+    vi.doUnmock("@/lib/auth");
+    vi.doUnmock("@/lib/db");
+    vi.doUnmock("@/lib/paymongo");
+    vi.doUnmock("next/cache");
+    vi.doUnmock("next/navigation");
+  });
+
+  it("(a) request-mode: mints a `requested` hold with NO checkout + fires booker & host emails (D-63 pay-on-approval)", async () => {
+    await login(ACTION_BOOKER_EMAIL);
+    const url = await expectRedirect(
+      placeHold({ listingId: "L_af_request", startUtc: START, endUtc: END, fullDay: false }),
+    );
+    // The request branch redirects to the request-received surface — NOT the /book pay page, NOT off-site.
+    expect(url).toMatch(/^\/bookings\//);
+    const holdId = url.split("/").pop()!;
+    expect(await statusOf(holdId)).toBe("requested");
+
+    // NO money moves at request time (D-63 / T-06-11) — the request branch creates no checkout.
+    expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
+
+    // Both lifecycle emails fired (fire-and-forget). Filter by subject so a stray signup email can't false-pass.
+    const subjects = mockResend.sent().map((e) => e.subject);
+    expect(subjects.some((s) => s.startsWith("We sent your request"))).toBe(true); // booker receipt
+    expect(subjects.some((s) => s.startsWith("New booking request"))).toBe(true); // host alert
+  });
+
+  it("(b) instant-mode: unchanged — a `pending` hold and a redirect to the /book pay page (BOOK-04 byte-for-byte)", async () => {
+    await login(ACTION_BOOKER_EMAIL);
+    const url = await expectRedirect(
+      placeHold({ listingId: "L_af_instant", startUtc: START, endUtc: END, fullDay: false }),
+    );
+    expect(url).toMatch(/^\/listings\/L_af_instant\/book\?hold=/);
+    const holdId = new URL(url, "http://t").searchParams.get("hold")!;
+    expect(await statusOf(holdId)).toBe("pending");
+    expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled(); // instant charges only on Confirm & pay
+  });
+
+  it("(c) mode-flip independence: flipping listing.bookingMode does NOT mutate an in-flight `requested` row (D-61)", async () => {
+    await login(ACTION_BOOKER_EMAIL);
+    const url = await expectRedirect(
+      placeHold({ listingId: "L_af_flip", startUtc: START, endUtc: END, fullDay: false }),
+    );
+    const holdId = url.split("/").pop()!;
+    expect(await statusOf(holdId)).toBe("requested");
+
+    // The host flips the listing to instant AFTER the request is in flight.
+    await testDb.db.update(listing).set({ bookingMode: "instant" }).where(eq(listing.id, "L_af_flip"));
+
+    // Lifecycle correctness keys off booking.status, not the live listing flag — the row is untouched (D-61):
+    // still `requested` (not auto-confirmed/dropped) and the creation-time snapshot survives the flip.
+    const rows = await testDb.db
+      .select({ status: booking.status, bookingMode: booking.bookingMode })
+      .from(booking)
+      .where(eq(booking.id, holdId));
+    expect(rows[0].status).toBe("requested");
+    expect(rows[0].bookingMode).toBe("request");
+  });
+
+  it("(d) pay-on-approval: confirmBooking on an `approved` hold creates the checkout and does NOT shrink the 24h window (PAY-05, Pitfall 6)", async () => {
+    // The approved hold must be OWNED by the session booker (confirmBooking owner-gates bookerId).
+    const [bkr] = await testDb.db.select({ id: user.id }).from(user).where(eq(user.email, ACTION_BOOKER_EMAIL));
+    const farExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // a fresh 24h post-approval payment window
+    await testDb.db.insert(booking).values({
+      id: "bk_af_approved",
+      listingId: "L_af_approved",
+      unit: 1,
+      bookerId: bkr.id,
+      startsAt: new Date(START),
+      endsAt: new Date(END),
+      status: "approved",
+      bookingMode: "request",
+      expiresAt: farExpiry,
+      quotedTotalCents: 5000,
+      currency: "php",
+    });
+
+    mockPayMongo.createCheckoutSession.mockClear();
+    await login(ACTION_BOOKER_EMAIL);
+    const url = await expectRedirect(confirmBooking("bk_af_approved"));
+    expect(url).toBe("https://checkout.paymongo.test/cs_test_123"); // reuses the exact Phase-5 hosted checkout
+    expect(mockPayMongo.createCheckoutSession).toHaveBeenCalledTimes(1);
+    expect(await statusOf("bk_af_approved")).toBe("approved"); // NOT flipped here — the webhook confirms
+
+    // GREATEST kept the 24h window — it was NOT shrunk to the 60-min instant window (Pitfall 6 / T-06-10).
+    const rows = await testDb.db
+      .select({ expiresAt: booking.expiresAt })
+      .from(booking)
+      .where(eq(booking.id, "bk_af_approved"));
+    expect(rows[0].expiresAt!.getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
   });
 });
