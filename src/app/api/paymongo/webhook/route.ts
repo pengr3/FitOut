@@ -79,7 +79,12 @@ type PayMongoEvent = {
   };
 };
 
-/** Parse `t=<ts>,te=<testSig>,li=<liveSig>` into its parts; a missing header or any missing part → null. */
+/**
+ * Parse `t=<ts>,te=<testSig>,li=<liveSig>` into its parts. PayMongo signs ONE mode per delivery: `te` in
+ * TEST mode (empty `li`) and `li` in LIVE mode (empty `te`) — NEVER both. So we tolerate one empty part and
+ * reject only a missing header, a malformed segment (no `=`), a missing `t`, or a header with BOTH
+ * signatures empty. verifySignature already length-skips an empty candidate, so an empty te/li never matches.
+ */
 function parseSignature(header: string | null): SigParts | null {
   if (!header) return null;
   const parts: Record<string, string> = {};
@@ -88,8 +93,8 @@ function parseSignature(header: string | null): SigParts | null {
     if (idx === -1) return null;
     parts[seg.slice(0, idx).trim()] = seg.slice(idx + 1).trim();
   }
-  if (!parts.t || !parts.te || !parts.li) return null;
-  return { t: parts.t, te: parts.te, li: parts.li };
+  if (!parts.t || (!parts.te && !parts.li)) return null;
+  return { t: parts.t, te: parts.te ?? "", li: parts.li ?? "" };
 }
 
 /**
