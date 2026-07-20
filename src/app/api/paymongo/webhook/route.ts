@@ -12,10 +12,15 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
 import { db } from "@/lib/db";
-import { booking, hostPayout, hostPayoutLedger, paymongoEvent } from "@/lib/db/schema";
+import { booking, hostPayout, hostPayoutLedger, listing, paymongoEvent, user } from "@/lib/db/schema";
 import { createRefund } from "@/lib/paymongo";
 import { recordAudit } from "@/lib/audit";
+import { sendBookingConfirmed } from "@/lib/email";
+import { bookingReference } from "@/lib/booking/reference";
+import { windowHours } from "@/lib/booking/pricing";
 
 // Signature verification needs node crypto + the RAW request body — this MUST be the Node runtime, not edge.
 export const runtime = "nodejs";
@@ -174,6 +179,66 @@ async function handleGoneSlot(
     UPDATE booking SET status = 'cancelled' WHERE id = ${bookingId} AND status <> 'confirmed'`);
 }
 
+/**
+ * BOOK-06 booking-confirmed email — fired FIRE-AND-FORGET on a SUCCESSFUL confirm (≥1 row), covering BOTH
+ * an instant pay (confirmed from `pending`) and a pay-on-approval request (confirmed from `approved`). It
+ * lives OUTSIDE the 200 ACK critical path (T-06-15): a read or Resend failure must NEVER reject the webhook
+ * — a rejected ACK would make PayMongo retry the (already-confirmed) event forever. It therefore swallows
+ * its own errors so the caller's `void` can never surface an unhandled rejection. Never fired on a 0-row
+ * confirm (replay / gone-slot) — only a genuine transition to `confirmed` earns the receipt.
+ *
+ * One extra read joins the booking to the booker (email) + listing (title / venue tz / city) and composes
+ * the venue-local `whenLabel` exactly as the reserve page + placeHold request branch do (`{date}, {time}
+ * ({City} time)`), so the three booker-facing time surfaces render the SC#2 venue tz identically.
+ */
+async function sendBookingConfirmedEmail(bookingId: string): Promise<void> {
+  try {
+    const [row] = await db
+      .select({
+        email: user.email,
+        title: listing.title,
+        timezone: listing.timezone,
+        city: listing.city,
+        startsAt: booking.startsAt,
+        endsAt: booking.endsAt,
+        quotedTotalCents: booking.quotedTotalCents,
+        hourlyRateCents: listing.hourlyRateCents,
+      })
+      .from(booking)
+      .innerJoin(user, eq(booking.bookerId, user.id))
+      .innerJoin(listing, eq(booking.listingId, listing.id))
+      .where(eq(booking.id, bookingId));
+    if (!row) return;
+
+    const inTz = tz(row.timezone);
+    // Re-derive the "Full day" vs hourly label from the FROZEN quote (fullDay is not persisted on the row),
+    // mirroring the reserve page (D-49): a full-day hold froze the flat day rate, an hourly hold froze
+    // hourlyRate × hours. Bias to hourly on an exact coincidence so the real hours show.
+    const hours = windowHours(row.startsAt, row.endsAt);
+    const quoted = row.quotedTotalCents ?? 0;
+    const hourlyTotal = row.hourlyRateCents != null ? row.hourlyRateCents * hours : null;
+    const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
+    const dateLabel = format(row.startsAt, "EEEE, MMM d", { in: inTz });
+    const timeLabel = fullDay
+      ? "Full day"
+      : `${format(row.startsAt, "h:mm a", { in: inTz })} – ${format(row.endsAt, "h:mm a", { in: inTz })}`;
+    const whenLabel = `${dateLabel}, ${timeLabel}${row.city ? ` (${row.city} time)` : ""}`;
+    const title = row.title ?? "your space";
+    const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+    await sendBookingConfirmed(
+      row.email,
+      title,
+      whenLabel,
+      bookingReference(bookingId),
+      `${base}/bookings/${bookingId}`,
+    );
+  } catch (err) {
+    // Fire-and-forget: the confirm already succeeded and the 200 ACK is (or will be) sent regardless. A
+    // read/send failure must never affect that ACK (T-06-15) — log for operators and move on.
+    console.error("[EMAIL] booking_confirmed_send_failed", { bookingId, err });
+  }
+}
+
 /** The refunded payment's id (`pay_...`), derived from the verified refund event (never a client field). */
 function resolveRefundPaymentId(event: PayMongoEvent): string | undefined {
   const resource = event.data?.attributes?.data;
@@ -299,17 +364,28 @@ export async function POST(req: Request): Promise<Response> {
     const bookingId = cs?.attributes?.reference_number;
     const paymentId = cs?.attributes?.payments?.[0]?.id ?? null;
     if (bookingId) {
-      // Single writer; the GiST EXCLUDE still guards the slot. Confirm on status='pending' ALONE — the
-      // payment is the authority (D-57 / Pitfall 4). Do NOT re-impose the Phase-4 `expires_at > now()`
-      // guard: a legitimately-paid-but-lapsed hold must still confirm (else the booker is charged with
-      // no booking). Capture the pay_... so a later refund can reference it.
+      // Single writer; the GiST EXCLUDE still guards the slot. Confirm on status IN ('pending','approved')
+      // — an instant pay confirms from `pending`, a pay-on-approval request from `approved` (PAY-05 / D-63);
+      // BOTH transition to `confirmed` through this ONE writer (D-57 — WIDEN the WHERE, never add a second
+      // confirm path). Confirm on status ALONE — the payment is the authority (D-57 / Pitfall 4). Do NOT
+      // re-impose the Phase-4 `expires_at > now()` guard: a legitimately-paid-but-lapsed hold must still
+      // confirm (else the booker is charged with no booking); the GiST EXCLUDE, not the TTL, is the
+      // double-confirm authority. Capture the pay_... so a later refund can reference it.
       const rows = (await db.execute(sql`
         UPDATE booking SET status = 'confirmed', expires_at = NULL, payment_id = ${paymentId}
-        WHERE id = ${bookingId} AND status = 'pending' RETURNING id`)) as unknown as { id: string }[];
+        WHERE id = ${bookingId} AND status IN ('pending','approved') RETURNING id`)) as unknown as {
+        id: string;
+      }[];
       if (rows.length === 0) {
         // 0 rows ⇒ benign replay (already confirmed) OR the slot is genuinely gone. The D-58 backstop
-        // distinguishes them and auto-refunds / operator-alerts — never a silent money retention.
+        // distinguishes them and auto-refunds / operator-alerts — never a silent money retention. UNCHANGED
+        // from Phase 5: it already covers the pay-after-release race for a released/declined request too.
         await handleGoneSlot(bookingId, paymentId, cs);
+      } else {
+        // ≥1 row ⇒ a GENUINE confirm (instant OR pay-on-approval — never a replay). Fire the BOOK-06
+        // booking-confirmed email FIRE-AND-FORGET, OUTSIDE the ACK path (T-06-15): a Resend/read failure
+        // must never reject the 200. The helper owns its own error handling so this `void` cannot reject.
+        void sendBookingConfirmedEmail(bookingId);
       }
     }
   } else if (type === "payment.refunded" || type === "payment.refund.updated") {
