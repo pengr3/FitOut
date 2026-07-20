@@ -502,25 +502,29 @@ This is a schema-extension phase with live-DB migration consequences. Explicit p
 | A3 | The approved-unpaid auto-release (payment-window) does not require its own email (D-66 lists 5 sends; release isn't one) | Pattern 5, Open Questions | LOW — cosmetic; fold under the "expired" template or leave silent. Confirm with the user/planner. |
 | A4 | `createBooking` (units.ts:59) has no live caller and its probe (#6) is dormant | Occupancy-Predicate Audit | LOW — verified by grep (only self-references). Widen or delete for consistency; no runtime path depends on it today. |
 | A5 | Hourly cron cadence is acceptable for 24h SLA/payment timers (≤1h staleness in the host inbox) | Pattern 3 | LOW — D-64 accepts ≤48h worst-case holds; ±1h is immaterial. Lazy read predicates free the slot instantly regardless. |
+| A6 | The in-tx stale-hold sweep (units.ts) reclassifying a lapsed `requested` row to `declined` may drop the D-66 declined/expired booker email on the rare in-tx-reclaim edge (a fresh overlapping hold reclaims the slot before the SLA cron ticks) | Pattern 3 / Occupancy sweep (Plans 06-02, 06-06) | LOW — the terminal STATUS is still correct (`declined`, mirroring the cron) so double-booking + status-consistency are unaffected; only the notification is skipped, and only when a new booker is simultaneously taking the just-lapsed slot. The cron (06-06) is the sole email authority; firing email inside the hold's rollback/retry DB tx is architecturally unsafe. Accepted bounded race — surfaced by Checker Warning 1. |
 
 **These assumptions are all LOW-risk with in-place mitigations; none block planning.** A1 is the only one worth a quick confirmation during implementation (run the split migrations).
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Approved-unpaid auto-release notification**
    - What we know: D-66 enumerates 5 sends; the `approved`→`cancelled` payment-window release is not explicitly listed.
    - What's unclear: whether the booker should get an email when their approved request auto-releases for non-payment.
    - Recommendation: reuse template #4 ("declined/expired") for it, or leave silent (the booker chose not to pay). Planner/UI call; not a blocker.
+   - **RESOLVED:** No dedicated email — the payment-window auto-release (`approved`→`cancelled`, Plan 06-06 Task 1) is silent per Assumption A3 (D-66 enumerates 5 sends; release is not one).
 
 2. **Request-received on-screen confirmation surface**
    - What we know: D-66 says on-screen confirmation reuses `/bookings/[id]`.
    - What's unclear: `/bookings/[id]` currently only renders `confirmed`/`pending`+`paid`/`cancelled`+`paid` [VERIFIED: bookings/[id]/page.tsx:74-87] — it will `notFound()` on a `requested` row. It needs a `requested` branch ("Request sent — awaiting host") or a distinct lightweight page.
    - Recommendation: add a `requested` branch to `/bookings/[id]` (cheapest reuse) rendering an "awaiting host" state; the redirect target of `placeHold`'s request branch. Planner's call on page vs branch.
+   - **RESOLVED:** `/bookings/[id]` gets `requested` + `approved` branches (Plan 06-08 Task 2); `placeHold`'s request branch redirects there (Plan 06-04 Task 1).
 
 3. **`declined` vs `cancelled` semantics for the two expiry timers**
    - What we know: recommended model uses `declined` for host-decline + SLA-auto-decline, `cancelled` for approved-unpaid release + abandoned instant holds.
    - What's unclear: whether the SLA auto-decline should be `declined` (treated as a host "no") or `cancelled`.
    - Recommendation: SLA expiry → `declined` (D-64 wording: "auto-declines"); payment-window expiry → `cancelled` (booker abandonment). Confirm during planning; both are non-occupying so double-booking is unaffected either way.
+   - **RESOLVED:** SLA auto-decline → `declined`, payment-window auto-release → `cancelled` (Plan 06-06 Task 1); the same terminal mapping is mirrored by the in-tx reclaim sweep (Plan 06-02 Task 2, Warning-1 reconciliation).
 
 ## Environment Availability
 
