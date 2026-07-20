@@ -97,15 +97,19 @@ export async function getAvailability(
       WHERE listing_id = ${listingId}
         AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${dayStartIso}, ${dayEndIso}, '[)')
     `),
-    // Occupying bookings: confirmed, OR pending holds not yet expired (D-48a lazy expiry — a pending
-    // past its expires_at reads as FREE, no background worker). Uses SQL now() (the DB transaction
+    // Occupying bookings: confirmed, OR a slot-holding hold (pending | requested | approved) not yet
+    // expired (D-48a lazy expiry — a hold past its expires_at reads as FREE, no background worker). The
+    // request-to-book states requested/approved OCCUPY exactly like pending (D-63) — this predicate MUST
+    // mirror 06-01's widened booking_no_overlap EXCLUDE occupying set {pending,confirmed,requested,
+    // approved} (0012), or a request-held slot would read as free here and the calendar/search (Stage-2
+    // reuses this read model) would collide a booker into a held slot. Uses SQL now() (the DB transaction
     // clock, one source — NOT the injectable `now` param, which stays for slot past/horizon state only;
-    // Pitfall 7). '[)' bound + listing scope stay IDENTICAL to the booking_no_overlap EXCLUDE (0005);
+    // Pitfall 7). '[)' bound + listing scope stay IDENTICAL to the EXCLUDE (0005/0012);
     // cancelled/declined/completed never occupy.
     dbConn.execute(sql`
       SELECT unit, starts_at, ends_at FROM booking
       WHERE listing_id = ${listingId}
-        AND (status = 'confirmed' OR (status = 'pending' AND expires_at > now()))
+        AND (status = 'confirmed' OR (status IN ('pending','requested','approved') AND expires_at > now()))
         AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${dayStartIso}, ${dayEndIso}, '[)')
     `),
   ]);

@@ -66,10 +66,13 @@ export async function createBooking(dbConn: DbConn, input: CreateBookingInput): 
 
   for (let attempt = 0; attempt < unitCount; attempt++) {
     // Advisory find-free probe — same '[)' half-open overlap + occupying-status set as the constraint.
+    // DORMANT path (no live caller — createPendingHold is the real booking mutation). Widened to the full
+    // 06-01 occupying set {pending,confirmed,requested,approved} for defense-in-depth/consistency so this
+    // probe can never under-report occupancy if ever revived; not load-bearing (the EXCLUDE arbitrates).
     const occupied = await dbConn.execute(sql`
       SELECT DISTINCT unit FROM booking
       WHERE listing_id = ${listingId}
-        AND status IN ('pending','confirmed')
+        AND status IN ('pending','confirmed','requested','approved')
         AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${startIso}, ${endIso}, '[)')
     `);
     const taken = new Set((occupied as unknown as { unit: number }[]).map((r) => r.unit));
@@ -128,6 +131,23 @@ export type CreatePendingHoldInput = {
   fullDay?: boolean;
   /** optional client double-click token — the booking_idem_uq partial-unique backstop (D-42). */
   idempotencyKey?: string | null;
+  /**
+   * The slot-holding status to mint (D-63). Defaults to `'pending'` (the 15-min instant hold) so the
+   * existing instant call site is unchanged; the 06-04 request branch passes `'requested'` to mint a
+   * request-to-book hold WITHOUT forking the SAVEPOINT/40P01-retry/idempotency transaction.
+   */
+  holdStatus?: "pending" | "requested";
+  /**
+   * Hold TTL in milliseconds. Defaults to HOLD_TTL_MS (15 min). The request branch passes the longer
+   * approval SLA window (APPROVAL_SLA_HOURS) so the request holds the slot until the host acts.
+   */
+  ttlMs?: number;
+  /**
+   * D-61 creation-time booking-mode SNAPSHOT (display/audit only — lifecycle correctness rests on
+   * `status`, not this column). Persisted into booking.bookingMode when provided; the instant path
+   * leaves it NULL as before.
+   */
+  bookingMode?: "instant" | "request";
 };
 
 /** A placed (or idempotently-replayed) hold, or a clean user-facing conflict message (mapBookingError). */
@@ -139,10 +159,11 @@ export type HoldResult = HoldSuccess | { error: string };
 type SqlExecutor = Pick<DbConn, "execute">;
 
 /**
- * The booker's own ACTIVE hold (pending-unexpired | confirmed) for this exact window OR idempotency key,
- * if any. The PRIMARY idempotency guard (D-42): re-entering checkout for a window you already hold — or a
- * concurrent same-key submit whose winner has committed — returns the SAME booking, never a false "just
- * taken". Uses the lazy-expiry predicate + SQL now() (DB clock) identical to the read model.
+ * The booker's own ACTIVE hold (an unexpired pending|requested|approved hold | confirmed) for this exact
+ * window OR idempotency key, if any. The PRIMARY idempotency guard (D-42): re-entering checkout for a
+ * window you already hold — or a concurrent same-key submit whose winner has committed — returns the SAME
+ * booking, never a false "just taken". Uses the SAME widened lazy-expiry occupancy predicate + SQL now()
+ * (DB clock) as the read model and the booking_no_overlap EXCLUDE (D-63: requested/approved occupy).
  */
 async function findOwnActiveHold(
   tx: SqlExecutor,
@@ -151,7 +172,7 @@ async function findOwnActiveHold(
   const rows = (await tx.execute(sql`
     SELECT id, unit FROM booking
     WHERE listing_id = ${args.listingId}
-      AND (status = 'confirmed' OR (status = 'pending' AND expires_at > now()))
+      AND (status = 'confirmed' OR (status IN ('pending','requested','approved') AND expires_at > now()))
       AND (
         ${args.idempotencyKey != null ? sql`idempotency_key = ${args.idempotencyKey}` : sql`false`}
         OR (booker_id = ${args.bookerId} AND starts_at = ${args.startIso} AND ends_at = ${args.endIso})
@@ -164,9 +185,10 @@ async function findOwnActiveHold(
 
 /**
  * Advisory find-free probe: the lowest unit in [1, unitCount] with no occupying row overlapping the
- * window. Uses the SAME lazy-expiry predicate + half-open '[)' bound as the read model and the EXCLUDE
- * constraint, so (after the in-tx sweep) it never picks a slot the constraint would clearly reject.
- * Returns null when every unit is occupied. The DB — not this probe — is the final authority.
+ * window. Uses the SAME widened lazy-expiry predicate ({pending,requested,approved} unexpired | confirmed)
+ * + half-open '[)' bound as the read model and the EXCLUDE constraint (D-63), so (after the in-tx sweep)
+ * it never picks a slot the constraint would clearly reject. Returns null when every unit is occupied.
+ * The DB — not this probe — is the final authority.
  */
 async function pickLowestFreeUnit(
   tx: SqlExecutor,
@@ -175,7 +197,7 @@ async function pickLowestFreeUnit(
   const occupied = (await tx.execute(sql`
     SELECT DISTINCT unit FROM booking
     WHERE listing_id = ${args.listingId}
-      AND (status = 'confirmed' OR (status = 'pending' AND expires_at > now()))
+      AND (status = 'confirmed' OR (status IN ('pending','requested','approved') AND expires_at > now()))
       AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${args.startIso}, ${args.endIso}, '[)')
   `)) as unknown as { unit: number }[];
   const taken = new Set(occupied.map((r) => r.unit));
@@ -195,6 +217,9 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
   const endIso = endsAt.toISOString();
   const fullDay = input.fullDay ?? false;
   const idempotencyKey = input.idempotencyKey ?? null;
+  const holdStatus = input.holdStatus ?? "pending"; // D-63: default keeps the instant hold unchanged
+  const ttlMs = input.ttlMs ?? HOLD_TTL_MS; // default 15-min instant TTL; request branch passes the SLA window
+  const bookingMode = input.bookingMode ?? null; // D-61 snapshot (NULL for the legacy instant path)
   const idArgs = { listingId: input.listingId, bookerId: input.bookerId, startIso, endIso, idempotencyKey };
 
   for (let txAttempt = 0; ; txAttempt++) {
@@ -216,16 +241,27 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         const existing = await findOwnActiveHold(tx, idArgs);
         if (existing) return { ok: true, id: existing.id, unit: existing.unit, replayed: true };
 
-        // (2) In-tx stale-hold sweep (D-48b): flip overlapping EXPIRED pending holds to cancelled so the
-        // EXCLUDE constraint sees the freed slot in THIS transaction (lazy reads alone can't free it).
+        // (2) In-tx stale-hold sweep (D-48b): flip EVERY overlapping EXPIRED slot-holding hold
+        // (pending | requested | approved) out of the occupying set so the EXCLUDE constraint sees the
+        // freed slot in THIS transaction (a lazy read alone can't free it — the DB EXCLUDE counts a lapsed
+        // requested/approved row until it's flipped). The terminal status MIRRORS the 06-06 SLA cron's
+        // mapping (Warning-1 reconciliation): a lapsed `requested` → `declined` (the cron's decline
+        // target), a lapsed `pending`/`approved` → `cancelled`. Casting the CASE to booking_status because
+        // an all-literal CASE resolves to `text`, which cannot assign to the enum column. Fire NO email
+        // in-tx — a Resend call inside this SAVEPOINT/rollback/retry tx is unsafe; the cron is the SOLE
+        // booker-email authority, and the email dropped on this rare in-tx-reclaim edge is an accepted
+        // bounded race (Assumption A6, 06-RESEARCH).
         await tx.execute(sql`
-          UPDATE booking SET status = 'cancelled'
-          WHERE listing_id = ${input.listingId} AND status = 'pending' AND expires_at <= now()
+          UPDATE booking
+          SET status = (CASE WHEN status = 'requested' THEN 'declined' ELSE 'cancelled' END)::booking_status,
+              expires_at = NULL
+          WHERE listing_id = ${input.listingId}
+            AND status IN ('pending','requested','approved') AND expires_at <= now()
             AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${startIso}, ${endIso}, '[)')`);
 
-        // (3) Server-frozen price quote (D-45/D-46) + 15-min TTL (D-47).
+        // (3) Server-frozen price quote (D-45/D-46) + parameterized TTL (D-47 instant default / D-64 SLA).
         const quote = quoteWindow({ startUtc: startsAt, endUtc: endsAt, fullDay, hourlyRateCents, dayRateCents });
-        const expiresAt = new Date(Date.now() + HOLD_TTL_MS);
+        const expiresAt = new Date(Date.now() + ttlMs);
 
         // (4) Per-unit SAVEPOINT insert loop — the constraint is the sole arbiter of the double-book.
         for (let attempt = 0; attempt < unitCount; attempt++) {
@@ -242,7 +278,8 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
                 unit,
                 startsAt,
                 endsAt,
-                status: "pending",
+                status: holdStatus, // D-63: 'pending' (instant, default) or 'requested' (request-to-book)
+                bookingMode, // D-61 creation-time snapshot (NULL for the legacy instant path)
                 expiresAt,
                 quotedTotalCents: quote.totalCents,
                 currency: quote.currency,
