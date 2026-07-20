@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
  (completed 2026-07-14)
 - [x] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search (completed 2026-07-15)
 - [x] **Phase 5: Payments & Payouts** - PayMongo hosted-checkout charge, host-side commission, hold-until-session delayed payout, webhook-as-source-of-truth, refund mechanism
-- [x] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book pay-on-approval (no charge until host approves), host approve/decline, confirmation (completed 2026-07-20)
+- [ ] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book pay-on-approval (no charge until host approves), host approve/decline, confirmation (code complete + G-06-01 gap closed — awaiting human re-UAT of the live PayMongo confirm round-trip)
 - [ ] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
 - [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity
 
