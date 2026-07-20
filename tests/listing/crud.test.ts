@@ -123,18 +123,18 @@ describe("listing CRUD via the real server action (LIST-01/04)", () => {
     expect(row.title).toBe("Owner's title");
   });
 
-  it("booking_mode is stored as instant|request with the schema default (request) when unset (LIST-04)", async () => {
+  it("createDraftListing defaults bookingMode to instant (D-62 demand-first flip); saveListingStep can toggle it (LIST-04)", async () => {
     await signInHost("crud.mode@example.com");
     const created = await createDraftListing();
     if (!created.ok) throw new Error("setup failed");
     const id = created.id!;
-    // Default when unset (D-04).
+    // D-62: the create-code default is now "instant" (demand-first), flipped from "request" (D-04).
     let row = await readListing(id);
-    expect(row.bookingMode).toBe("request");
-    // Host chooses instant-book.
-    await saveListingStep(id, { bookingMode: "instant" });
-    row = await readListing(id);
     expect(row.bookingMode).toBe("instant");
+    // The host can still choose request-to-book explicitly.
+    await saveListingStep(id, { bookingMode: "request" });
+    row = await readListing(id);
+    expect(row.bookingMode).toBe("request");
   });
 
   it("amenities + activity tags persist to their join tables scoped to the listing", async () => {

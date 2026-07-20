@@ -704,7 +704,10 @@ export function ListingWizard({
                       ))}
                     </RadioGroup>
                   </FormControl>
-                  <FormDescription>You can change this anytime.</FormDescription>
+                  <FormDescription>
+                    You can change this anytime. It applies to new bookings — any requests already in
+                    progress keep the mode they started under.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

@@ -65,7 +65,9 @@ async function assertOwnership(listingId: string, userId: string) {
 
 /**
  * Create an empty DRAFT owned by the signed-in user (D-01 draft-first). The wizard then autosaves
- * into it via saveListingStep. status defaults to "draft" and bookingMode to "request" (D-04).
+ * into it via saveListingStep. status defaults to "draft" and bookingMode to "instant" (D-62 — the
+ * demand-first default flip, was "request" under D-04). This create-code default is independent of
+ * (and mirrors) the DB SET DEFAULT flipped in 06-01's migration; existing listings are unaffected.
  */
 export async function createDraftListing(): Promise<ListingResult> {
   const userId = await requireUserId();
@@ -77,7 +79,7 @@ export async function createDraftListing(): Promise<ListingResult> {
     id,
     hostId: userId,
     status: "draft",
-    bookingMode: "request",
+    bookingMode: "instant",
   });
   return { ok: true, id };
 }
