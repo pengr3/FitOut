@@ -177,7 +177,7 @@ export const listing = pgTable(
     hourlyRateCents: integer("hourly_rate_cents"), // D-03 integer minor units (Pitfall 5)
     dayRateCents: integer("day_rate_cents"), // D-03
     currency: text("currency").default("php").notNull(), // D-46 single-region PHP; column future-proofs multi-region (0008 reconciles + backfills 'usd'→'php')
-    bookingMode: bookingMode("booking_mode").default("request").notNull(), // D-04 stored, wired Phase 6
+    bookingMode: bookingMode("booking_mode").default("instant").notNull(), // D-04 stored; D-62 demand-first default flip (was "request"), live-DB default set in drizzle/0011
     status: listingStatus("status").default("draft").notNull(), // D-02/LIST-05
     publishedAt: timestamp("published_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // soft-delete (Claude's discretion)
@@ -320,14 +320,22 @@ export const hostPayoutLedger = pgTable(
 // ---------------------------------------------------------------------------
 
 // Booking-status enum. Declared before `booking` (const TDZ), mirroring listingStatus (line 135).
-// Declared forward-compatibly — Phase 4 owns the full state machine. Phase 3 references ONLY
-// 'pending'/'confirmed' (the 0005 partial WHERE occupying set); the rest are inert until Phase 4.
+// Phase 3 referenced ONLY 'pending'/'confirmed' (the 0005 partial WHERE occupying set). Phase 6 adds
+// the two request-to-book slot-holding states 'requested' (booker asked; host not yet approved) and
+// 'approved' (host approved; awaiting the booker's payment). BOTH occupy the slot exactly like
+// pending/confirmed, so the booking_no_overlap GiST EXCLUDE (drizzle/0012) AND every read/occupancy
+// predicate MUST include them, or a requested/approved slot would fail to block a double-booking
+// (D-63 correctness). The live-DB ADD VALUE is migration drizzle/0010 — split from its first USE
+// (the widened EXCLUDE WHERE in 0012) because Postgres cannot ADD VALUE and USE it in one transaction
+// (Pitfall 2). Postgres appends ADD VALUE at the enum tail, so declare requested/approved LAST to match.
 export const bookingStatus = pgEnum("booking_status", [
   "pending",
   "confirmed",
   "cancelled",
   "declined",
   "completed",
+  "requested",
+  "approved",
 ]);
 
 // Recurring weekly operating hours (AVAIL-01, D-25). Multiple windows/day = multiple rows with the
@@ -372,8 +380,12 @@ export const availabilityBlock = pgTable(
 //
 // EXCLUDE "booking_no_overlap" is HAND-AUTHORED in drizzle/0005_booking_exclusion.sql — Drizzle
 // cannot express EXCLUDE (issues #2813/#3388). `drizzle-kit generate` will NOT produce it; never
-// assume the constraint exists from THIS file alone. See 0005_booking_exclusion.sql for the
-// `EXCLUDE USING gist (listing_id =, unit =, tstzrange('[)') &&) WHERE status IN ('pending','confirmed')`.
+// assume the constraint exists from THIS file alone. Phase 6 (D-63) WIDENS the occupying-status set:
+// the constraint is DROPped + re-ADDed in drizzle/0012_booking_exclusion_v2.sql (Postgres has no
+// ALTER CONSTRAINT ... WHERE) as
+// `EXCLUDE USING gist (listing_id =, unit =, tstzrange('[)') &&) WHERE status IN ('pending','confirmed','requested','approved')`
+// so a requested/approved (request-to-book) slot also blocks a conflicting booking. The GiST EXCLUDE
+// is the SOLE double-booking authority — every read/occupancy predicate must mirror this four-status set.
 //
 // Phase-4 adds the pending-hold lifecycle columns (expiresAt/quotedTotalCents/currency/idempotencyKey)
 // + the booking_idem_uq partial-unique index. Unlike EXCLUDE, these ARE Drizzle-expressible and go
@@ -397,6 +409,12 @@ export const booking = pgTable(
     // fail-safe default; every real caller sets `status` explicitly (holds are inserted 'pending'; the
     // payment.paid webhook is the sole confirm authority). Live DB default changed in drizzle/0009.
     status: bookingStatus("status").default("pending").notNull(),
+    // D-61 creation-time booking-mode SNAPSHOT (display/audit only — lifecycle correctness rests on
+    // `status`, NOT this column). Nullable, no default, no backfill: existing bookings predate the
+    // request-to-book fork. Captured at creation so a later listing.bookingMode edit (D-62/D-61: the mode
+    // governs NEW bookings only, in-flight requests keep their original mode) never rewrites an
+    // in-flight booking's mode. Live-DB ADD COLUMN is drizzle/0011 (backfill-free, mirrors 0006).
+    bookingMode: bookingMode("booking_mode"),
     // Pending-hold lifecycle (D-49, Phase 4). All new columns are nullable-safe — there are no existing
     // booking rows in dev/UAT (A7) — so 0006 is a backfill-free ADD COLUMN.
     expiresAt: timestamp("expires_at", { withTimezone: true }), // hold TTL; only meaningful while 'pending' (NULL once confirmed/terminal). D-48 lazy expiry treats a past value as FREE.

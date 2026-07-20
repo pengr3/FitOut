@@ -29,3 +29,13 @@ export const PAYOUT_RETRY_BACKOFF_HOURS = Number(process.env.PAYOUT_RETRY_BACKOF
  *  (created_at) is within this window. Beyond it the row stays `failed` for manual operator review (the
  *  reconcile stuck-held / transfer-failed alerts surface it) so a genuinely-broken payout can't retry forever. */
 export const PAYOUT_RETRY_MAX_AGE_HOURS = Number(process.env.PAYOUT_RETRY_MAX_AGE_HOURS ?? 72);
+
+/** D-64 request-to-book host approval SLA (hours). A `requested` hold auto-declines if the host does not
+ *  approve within this window — the Phase-6 approval sweep reads this. Config-tunable so policy can change
+ *  without touching the plumbing; never hardcode 24 at a call site (import this NAME). */
+export const APPROVAL_SLA_HOURS = Number(process.env.APPROVAL_SLA_HOURS ?? 24);
+
+/** D-64 post-approval payment window (hours). Once a request is `approved`, the booker has this long to pay
+ *  via the Phase-5 checkout; an unpaid `approved` hold auto-releases the slot afterward (nothing reverses —
+ *  no charge was ever made, pay-on-approval). Config-tunable, mirrors the approval-SLA constant above. */
+export const APPROVAL_PAYMENT_WINDOW_HOURS = Number(process.env.APPROVAL_PAYMENT_WINDOW_HOURS ?? 24);

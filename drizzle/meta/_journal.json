@@ -71,6 +71,27 @@
       "when": 1784289601650,
       "tag": "0009_booking_status_default_pending",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784518375165,
+      "tag": "0010_booking_request_states",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784518375166,
+      "tag": "0011_booking_request_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784518375167,
+      "tag": "0012_booking_exclusion_v2",
+      "breakpoints": true
     }
   ]
 }
