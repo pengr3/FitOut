@@ -140,7 +140,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A booker receives on-screen and email confirmation of a confirmed booking
 **Plans**: 9 plans in 6 waves
   - [x] 06-01-PLAN.md — Wave 1: schema (requested/approved enum + booking.bookingMode snapshot + listing default flip D-62) + config (APPROVAL_SLA/PAYMENT_WINDOW hours D-64) + hand-authored 0010/0011/0012 + [BLOCKING] db:migrate (enum-add → columns → widened GiST EXCLUDE)
-  - [ ] 06-02-PLAN.md — Wave 2: occupancy-predicate fan-out (read-model + units lazy reads/sweep) + createPendingHold parameterization + Wave-0 concurrent-double-book-on-requested/approved race gate
+  - [x] 06-02-PLAN.md — Wave 2: occupancy-predicate fan-out (read-model + units lazy reads/sweep) + createPendingHold parameterization + Wave-0 concurrent-double-book-on-requested/approved race gate
   - [ ] 06-03-PLAN.md — Wave 2: five lifecycle emails over email.ts (D-66) + D-62 createDraftListing default→instant + D-61 wizard copy
   - [ ] 06-04-PLAN.md — Wave 3: placeHold fork on bookingMode (request = no-charge held request + emails) + confirmBooking accepts approved (GREATEST extend) + /book page accepts approved
   - [ ] 06-05-PLAN.md — Wave 3: webhook confirm WHERE widened to IN('pending','approved') (single writer, D-57) + BOOK-06 confirmed email; D-58 gone-slot backstop unchanged
@@ -188,6 +188,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
 | 4. Booking Core & Search | 8/8 | Complete | 2026-07-15 |
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
-| 6. Full Booking + Payment Integration | 1/9 | In Progress|  |
+| 6. Full Booking + Payment Integration | 2/9 | In Progress|  |
 | 7. Bookings Management, Cancellation & Notifications | 0/TBD | Not started | - |
 | 8. Group Bookings | 0/TBD | Not started | - |
