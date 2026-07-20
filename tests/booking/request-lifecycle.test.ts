@@ -18,7 +18,7 @@
 // the DB-level correctness gate the whole request-to-book fork depends on.
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo, mockResend } from "../helpers/mocks";
@@ -560,5 +560,211 @@ describe("placeHold forks on bookingMode + mode-flip independence + pay-on-appro
       .from(booking)
       .where(eq(booking.id, "bk_af_approved"));
     expect(rows[0].expiresAt!.getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
+  });
+});
+
+// ── (06-07) host approve/decline server actions + owner-gate + SLA guard + owner-scope READ isolation ──
+// The host side of the pay-on-approval fork (HOST-01, BOOK-05, PAY-05). Drives the REAL approveRequest /
+// declineRequest actions through the same vi.doMock harness (mock next/headers/auth/db/cache → import).
+// A `requested` hold is inserted directly (this suite tests the HOST actions, not the placeHold entry
+// fork), then approved (→ approved + pay-now email + 24h payment window), declined (→ declined + email +
+// slot freed), refused past the SLA (DB-clock guard), refused cross-host (IDOR), and shown idempotent.
+// The NON-OPTIONAL owner-scope READ isolation (the /host/requests inbox predicate 06-08 consumes) proves
+// the read-path IDOR: host-A's owner-scoped SELECT returns ONLY A's requested rows (never host-B's).
+describe("host approve/decline server actions — owner-gate, SLA guard, idempotency, owner-scope READ (HOST-01, Security V4)", () => {
+  type HostRequestActions = typeof import("@/app/actions/host-requests");
+  let approveRequest: HostRequestActions["approveRequest"];
+  let declineRequest: HostRequestActions["declineRequest"];
+
+  const HOST_A_EMAIL = "rl_host_a@example.com";
+  const HOST_B_EMAIL = "rl_host_b@example.com";
+  let hostAId: string;
+  let hostBId: string;
+
+  // A fixed absolute window; each test uses a DISTINCT listing so occupying rows never collide on the
+  // booking_no_overlap EXCLUDE (which is scoped by listing_id + unit).
+  const HR_START = "2026-11-02T02:00:00.000Z";
+  const HR_END = "2026-11-02T03:00:00.000Z";
+
+  /** Seed a published request-mode listing owned by `hostId`. */
+  async function seedHostListing(id: string, hostId: string): Promise<void> {
+    await testDb.db.insert(listing).values({
+      id,
+      hostId,
+      title: `Listing ${id}`,
+      status: "published",
+      bookingMode: "request",
+      unitCount: 1,
+      timezone: "Asia/Manila",
+      city: "Makati",
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+    });
+  }
+
+  /** Directly insert a `requested` hold. `hoursToExpiry` sets expires_at relative to now (negative = a
+   *  lapsed SLA the cron hasn't yet swept). The frozen quote = 1h @ HOURLY so composeWhenLabel renders
+   *  an hourly time range. */
+  async function seedRequest(id: string, listingId: string, hoursToExpiry: number, unit = 1): Promise<void> {
+    await testDb.db.insert(booking).values({
+      id,
+      listingId,
+      unit,
+      bookerId: BOOKER,
+      startsAt: new Date(HR_START),
+      endsAt: new Date(HR_END),
+      status: "requested",
+      bookingMode: "request",
+      expiresAt: new Date(Date.now() + hoursToExpiry * 60 * 60 * 1000),
+      quotedTotalCents: HOURLY,
+      currency: "php",
+    });
+  }
+
+  /** Sign in a host and thread the session cookie the mocked next/headers reads. */
+  async function login(email: string): Promise<void> {
+    const res = await testAuth.api.signInEmail({ body: { email, password: PASSWORD }, asResponse: true });
+    const setCookie = res.headers.get("set-cookie");
+    sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+  }
+
+  beforeAll(async () => {
+    testAuth = makeTestAuth(testDb);
+    // Two REAL signed-up hosts (intent 'host' → canHost) whose sessions drive the host actions. The plain-
+    // inserted HOST ("rl_host") has no credential account and cannot sign in, so use dedicated hosts here.
+    await signUp(testAuth, { email: HOST_A_EMAIL, password: PASSWORD, name: "Host A", firstName: "HostA", intent: "host" });
+    await signUp(testAuth, { email: HOST_B_EMAIL, password: PASSWORD, name: "Host B", firstName: "HostB", intent: "host" });
+    const aRows = await testDb.db.select({ id: user.id }).from(user).where(eq(user.email, HOST_A_EMAIL));
+    const bRows = await testDb.db.select({ id: user.id }).from(user).where(eq(user.email, HOST_B_EMAIL));
+    hostAId = aRows[0].id;
+    hostBId = bRows[0].id;
+
+    // host-requests imports auth (session gate), db (owner-gate + UPDATE), and next/cache (revalidate); it
+    // does NOT redirect, so no next/navigation mock is needed. Email goes through the global resend mock.
+    vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+    vi.doMock("@/lib/db", () => ({ db: testDb.db }));
+    vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+    vi.resetModules();
+    ({ approveRequest, declineRequest } = await import("@/app/actions/host-requests"));
+  });
+
+  afterAll(() => {
+    vi.doUnmock("@/lib/auth");
+    vi.doUnmock("@/lib/db");
+    vi.doUnmock("next/cache");
+  });
+
+  it("(a) approve on a valid `requested` row → approved, expires_at ≈ now()+24h, pay-now email with hold=<id>", async () => {
+    await seedHostListing("L_hr_approve", hostAId);
+    await seedRequest("bk_hr_approve", "L_hr_approve", 12); // 12h left in the SLA → within the window
+    await login(HOST_A_EMAIL);
+
+    const before = Date.now();
+    const res = await approveRequest("bk_hr_approve");
+    expect(res.ok).toBe(true);
+    expect(await statusOf("bk_hr_approve")).toBe("approved");
+
+    // The payment window is opened to now()+APPROVAL_PAYMENT_WINDOW_HOURS (24h) — the booker gets the FULL
+    // window to pay (mirrors the 06-04 GREATEST/payment-window idiom; the approved hold keeps the slot).
+    const rows = await testDb.db.select({ expiresAt: booking.expiresAt }).from(booking).where(eq(booking.id, "bk_hr_approve"));
+    const exp = rows[0].expiresAt!.getTime();
+    expect(exp).toBeGreaterThan(before + 23 * 60 * 60 * 1000);
+    expect(exp).toBeLessThan(before + 25 * 60 * 60 * 1000);
+
+    // The booker's pay-now email fired (fire-and-forget) with the pay link to the /book page carrying the hold.
+    const approved = mockResend.sent().find((e) => e.subject.startsWith("Approved — pay to confirm"));
+    expect(approved).toBeDefined();
+    expect(approved!.html).toContain("hold=bk_hr_approve");
+    expect(approved!.html).toContain("/listings/L_hr_approve/book?hold=bk_hr_approve");
+  });
+
+  it("(b) SLA guard: approve on a LAPSED `requested` row → calm 'no longer pending', status unchanged (T-06-20)", async () => {
+    await seedHostListing("L_hr_sla", hostAId);
+    await seedRequest("bk_hr_sla", "L_hr_sla", -1); // expires_at 1h in the PAST → the SLA lapsed
+    await login(HOST_A_EMAIL);
+
+    const res = await approveRequest("bk_hr_sla");
+    // The DB-clock guard `AND expires_at > now()` refuses a lapsed approve → 0 rows → calm result, never a 500.
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/no longer pending/i);
+    expect(await statusOf("bk_hr_sla")).toBe("requested"); // a host cannot approve past the SLA
+  });
+
+  it("(c) decline → declined, slot freed (a subsequent overlapping hold succeeds), booker emailed (BOOK-05)", async () => {
+    await seedHostListing("L_hr_decline", hostAId);
+    await seedRequest("bk_hr_decline", "L_hr_decline", 12);
+    await login(HOST_A_EMAIL);
+
+    const res = await declineRequest("bk_hr_decline");
+    expect(res.ok).toBe(true);
+    expect(await statusOf("bk_hr_decline")).toBe("declined");
+
+    // Freeing is automatic — `declined` is non-occupying, so a fresh overlapping hold on the SAME window wins.
+    const hold = await createPendingHold(testDb.db, { listingId: "L_hr_decline", bookerId: BOOKER2, startsAt: HR_START, endsAt: HR_END });
+    expect(isOk(hold)).toBe(true);
+
+    // The booker declined email fired (fire-and-forget).
+    const declined = mockResend.sent().find((e) => e.subject.startsWith("Your request for"));
+    expect(declined).toBeDefined();
+  });
+
+  it("(d) owner-gate (IDOR): host-B approving/declining host-A's request → NO state change + SAME denial as a missing id (T-06-19)", async () => {
+    await seedHostListing("L_hr_idor", hostAId);
+    await seedRequest("bk_hr_idor", "L_hr_idor", 12);
+    await login(HOST_B_EMAIL); // a DIFFERENT host
+
+    const approveRes = await approveRequest("bk_hr_idor");
+    expect(approveRes.ok).toBe(false);
+    expect(await statusOf("bk_hr_idor")).toBe("requested"); // cross-host approve changed nothing
+
+    const declineRes = await declineRequest("bk_hr_idor");
+    expect(declineRes.ok).toBe(false);
+    expect(await statusOf("bk_hr_idor")).toBe("requested"); // cross-host decline changed nothing
+
+    // A MISSING id and a CROSS-HOST id return the SAME calm denial (leak nothing — missing vs not-mine
+    // are indistinguishable to the caller).
+    const missingRes = await approveRequest("bk_does_not_exist");
+    expect(missingRes.ok).toBe(false);
+    if (!approveRes.ok && !missingRes.ok) expect(missingRes.error).toBe(approveRes.error);
+  });
+
+  it("(e) idempotency: a second approve/decline on an already-actioned row is a calm 0-row no-op (T-06-21)", async () => {
+    await seedHostListing("L_hr_idem_a", hostAId);
+    await seedRequest("bk_hr_idem_a", "L_hr_idem_a", 12);
+    await login(HOST_A_EMAIL);
+    expect((await approveRequest("bk_hr_idem_a")).ok).toBe(true);
+    const second = await approveRequest("bk_hr_idem_a"); // already `approved` → status-scoped UPDATE flips 0 rows
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.error).toMatch(/no longer pending/i);
+    expect(await statusOf("bk_hr_idem_a")).toBe("approved"); // unchanged
+
+    await seedHostListing("L_hr_idem_d", hostAId);
+    await seedRequest("bk_hr_idem_d", "L_hr_idem_d", 12);
+    expect((await declineRequest("bk_hr_idem_d")).ok).toBe(true);
+    const secondD = await declineRequest("bk_hr_idem_d"); // already `declined` → 0 rows
+    expect(secondD.ok).toBe(false);
+    expect(await statusOf("bk_hr_idem_d")).toBe("declined");
+  });
+
+  it("(f) /host/requests owner-scope READ isolation (NON-OPTIONAL): host-A's inbox SELECT returns ONLY A's requested rows, never host-B's (Security V4 read-path IDOR)", async () => {
+    await seedHostListing("L_hr_read_a", hostAId);
+    await seedHostListing("L_hr_read_b", hostBId);
+    await seedRequest("bk_hr_read_a", "L_hr_read_a", 12);
+    await seedRequest("bk_hr_read_b", "L_hr_read_b", 12);
+
+    // The EXACT owner-scoped inbox predicate 06-08's page.tsx consumes:
+    //   SELECT booking.* FROM booking JOIN listing ON listing.id = booking.listing_id
+    //   WHERE listing.host_id = <A> AND booking.status = 'requested' ORDER BY booking.expires_at ASC
+    const rows = await testDb.db
+      .select({ id: booking.id, hostId: listing.hostId })
+      .from(booking)
+      .innerJoin(listing, eq(booking.listingId, listing.id))
+      .where(and(eq(listing.hostId, hostAId), eq(booking.status, "requested")))
+      .orderBy(booking.expiresAt);
+
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain("bk_hr_read_a"); // host-A sees their own requested row
+    expect(ids).not.toContain("bk_hr_read_b"); // NEVER host-B's — the read-path IDOR is closed
+    expect(rows.every((r) => r.hostId === hostAId)).toBe(true); // every returned row is owned by host-A
   });
 });
