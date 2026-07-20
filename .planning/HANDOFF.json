@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-20T11:04:37.864Z",
+  "phase": "06",
+  "phase_name": "full-booking-payment-integration",
+  "phase_dir": ".planning/phases/06-full-booking-payment-integration",
+  "plan": 10,
+  "task": "complete",
+  "total_tasks": 10,
+  "status": "phase_complete_between_phases",
+  "completed_tasks": [
+    {"id": "06-10", "name": "Gap closure G-06-01 — widen parseSignature for te-XOR-li real PayMongo signatures + regression tests", "status": "done", "commit": "39985d3"},
+    {"id": "code-review", "name": "Code review (scoped to 06-10) — 0 critical / 0 warning, 2 info", "status": "done", "commit": "59888c0"},
+    {"id": "secure-phase", "name": "Security verification — 31/31 threats closed, threats_open: 0", "status": "done", "commit": "c882760"},
+    {"id": "verify-work", "name": "Live PayMongo confirm re-UAT — 5/5 PASSED (webhook 200, booking confirmed + payment_id, on-screen confirmed, BOOK-06 email delivered)", "status": "done", "commit": "4afbe67"},
+    {"id": "phase-complete", "name": "Phase 06 marked complete; tracking reconciled (ROADMAP/STATE/REQUIREMENTS/BOOK-05/HOST-01)", "status": "done", "commit": "a2d83fa"}
+  ],
+  "remaining_tasks": [
+    {"id": "phase-07-discuss", "name": "Phase 7 (Bookings Management, Cancellation & Notifications) — discuss, carrying the UX design thread below", "status": "not_started"},
+    {"id": "phase-07-plan", "name": "Phase 7 — plan", "status": "not_started"},
+    {"id": "phase-07-execute", "name": "Phase 7 — execute", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {"action": "Push branch 'dev' to origin", "context": "User requested at end of this session; ~10 unpushed commits (39985d3..a2d83fa).", "blocking": false},
+    {"action": "On the home terminal: re-create .env.local secrets (RESEND_API_KEY, DATABASE_URL, BETTER_AUTH_SECRET, etc.)", "context": ".env.local is gitignored — never travels with git. Needed for local dev + email delivery.", "blocking": false},
+    {"action": "On the home terminal: re-seed the local Postgres if re-running UAT", "context": "Booking rows (e.g. confirmed FIT-2NCSCZMJ / 42132ab1) live in this machine's Docker volume fitout_pgdata, not in git.", "blocking": false}
+  ],
+  "decisions": [],
+  "uncommitted_files": [],
+  "next_action": "Push 'dev' to origin (user is doing this now). Next working session: /gsd-discuss-phase 7, carrying the Phase-7 UX design thread in context_notes.",
+  "context_notes": "Phase 6 shipped clean end-to-end: the te-XOR-li webhook signature parser bug (G-06-01) is fixed and PROVEN against real PayMongo traffic (a real pay-on-approval checkout confirmed booking 42132ab1 with payment_id pay_C4PW6fRGtUTNm6GsKCpt4P36; BOOK-06 email delivered via Resend id faa1481e). No open gaps, no open threats. PHASE 7 UX DESIGN THREAD (exploratory — NOT yet locked decisions; feed into /gsd-discuss-phase 7): (1) Booker/host feeds don't live-update — you must refresh to see an approval / a new request. Architectural (Server Components + revalidatePath, no WebSocket/SSE push). Backstopped by email (sendRequestApproved / sendNewRequestToHost). User wants a real notification so a booker can't miss 'you're approved, pay now' and forget. Cheap upgrade: TanStack Query poll + toast + visible countdown + a pre-expiry reminder + graceful re-request on expiry. (2) KEY INSIGHT: payment-window length and notification strength are COUPLED — a short window makes a missed notification fatal, so fix notifications FIRST. (3) User leans toward a fast 15-min payment window. Tension: request-to-book approval is async (host latency), so 15-min-from-approval punishes the booker for the host being slow. Better: start the booker's pay clock on ACKNOWLEDGMENT (when they open the approval), not on the host's click; cap the outer hold. Three models on the table: A Forgiving (long, capped at session start), B Live-fast (15-min from approval), C Acknowledgment-triggered (15-min from booker opening). Recommended: C + strong notification stack. (4) REAL CORRECTNESS GAP found (not just polish): both APPROVAL_PAYMENT_WINDOW_HOURS and APPROVAL_SLA_HOURS are flat now()+24h with NO cap at booking.starts_at (host-requests.ts:175). So a 2pm approval of a 5pm session holds/allows-pay until 2pm next day — past the session. Fix: expires_at = LEAST(now()+window, starts_at) and refuse approve/confirm once the session is imminent/past. Stakes are bounded (pay-on-approval = no charge until pay, D-63), so a lapse costs a slot not money. Constants are env-tunable in src/lib/payments/config.ts (D-64)."
+}
