@@ -143,7 +143,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 06-02-PLAN.md — Wave 2: occupancy-predicate fan-out (read-model + units lazy reads/sweep) + createPendingHold parameterization + Wave-0 concurrent-double-book-on-requested/approved race gate
   - [x] 06-03-PLAN.md — Wave 2: five lifecycle emails over email.ts (D-66) + D-62 createDraftListing default→instant + D-61 wizard copy
   - [x] 06-04-PLAN.md — Wave 3: placeHold fork on bookingMode (request = no-charge held request + emails) + confirmBooking accepts approved (GREATEST extend) + /book page accepts approved
-  - [ ] 06-05-PLAN.md — Wave 3: webhook confirm WHERE widened to IN('pending','approved') (single writer, D-57) + BOOK-06 confirmed email; D-58 gone-slot backstop unchanged
+  - [x] 06-05-PLAN.md — Wave 3: webhook confirm WHERE widened to IN('pending','approved') (single writer, D-57) + BOOK-06 confirmed email; D-58 gone-slot backstop unchanged (COMPLETE — one predicate widening, one writer; confirmed email fires fire-and-forget on the ≥1-row branch for BOTH instant + pay-on-approval; handleGoneSlot/verifySignature/dedupe/handleRefund untouched; pay-after-release proven; 12 webhook + 121 paymongo/booking/payments green)
   - [ ] 06-06-PLAN.md — Wave 3: request-expiry Inngest cron (SLA auto-decline / payment-window auto-release, DB-clock) + /api/inngest serve() mount
   - [ ] 06-07-PLAN.md — Wave 4: host-requests approve/decline server actions (owner-gated, atomic, SLA-guarded; D-64/HOST-01) + emails + revalidate
   - [ ] 06-08-PLAN.md — Wave 5: /host/requests inbox RSC + pending-count nudge + RequestCountdown (hours scale) + booker requested/approved confirmation states (D-65/D-66)
@@ -188,6 +188,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Availability & Double-Booking Guarantee | 5/5 | Complete   | 2026-07-14 |
 | 4. Booking Core & Search | 8/8 | Complete | 2026-07-15 |
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
-| 6. Full Booking + Payment Integration | 4/9 | In Progress|  |
+| 6. Full Booking + Payment Integration | 5/9 | In Progress|  |
 | 7. Bookings Management, Cancellation & Notifications | 0/TBD | Not started | - |
 | 8. Group Bookings | 0/TBD | Not started | - |
