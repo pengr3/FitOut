@@ -380,12 +380,15 @@ export const availabilityBlock = pgTable(
 //
 // EXCLUDE "booking_no_overlap" is HAND-AUTHORED in drizzle/0005_booking_exclusion.sql — Drizzle
 // cannot express EXCLUDE (issues #2813/#3388). `drizzle-kit generate` will NOT produce it; never
-// assume the constraint exists from THIS file alone. Phase 6 (D-63) WIDENS the occupying-status set:
-// the constraint is DROPped + re-ADDed in drizzle/0012_booking_exclusion_v2.sql (Postgres has no
-// ALTER CONSTRAINT ... WHERE) as
-// `EXCLUDE USING gist (listing_id =, unit =, tstzrange('[)') &&) WHERE status IN ('pending','confirmed','requested','approved')`
-// so a requested/approved (request-to-book) slot also blocks a conflicting booking. The GiST EXCLUDE
-// is the SOLE double-booking authority — every read/occupancy predicate must mirror this four-status set.
+// assume the constraint exists from THIS file alone. Phase 6 (D-63) WIDENS the occupying-status set to
+// {pending, confirmed, requested, approved} so a requested/approved (request-to-book) slot also blocks a
+// conflicting booking. The constraint is DROPped + re-ADDed in drizzle/0012_booking_exclusion_v2.sql
+// (Postgres has no ALTER CONSTRAINT ... WHERE). NOTE the 0012 predicate is written as the SET-EQUIVALENT
+// complement `WHERE status NOT IN ('cancelled','declined','completed')` — not the positive four-status
+// list — because drizzle-orm's migrator runs all pending migrations in ONE transaction, and naming the
+// enum values 'requested'/'approved' (ADDed in 0010) in that same transaction would raise 55P04 on an
+// already-migrated DB. The GiST EXCLUDE is the SOLE double-booking authority — every read/occupancy
+// predicate must mirror this occupying set (pending/confirmed/requested/approved).
 //
 // Phase-4 adds the pending-hold lifecycle columns (expiresAt/quotedTotalCents/currency/idempotencyKey)
 // + the booking_idem_uq partial-unique index. Unlike EXCLUDE, these ARE Drizzle-expressible and go
