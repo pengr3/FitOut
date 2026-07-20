@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-stopped_at: "Phase 6 discuss-phase COMPLETE — 06-CONTEXT.md + 06-DISCUSSION-LOG.md written. The paused scope debate is RESOLVED: BUILD BOTH booking modes, host-selectable per listing & editable while hosting (D-61); default flips request→instant (D-62); request-to-book money model = PAY-ON-APPROVAL, not authorize→capture (D-63 — infeasible on our rails; pay-on-approval works on all rails incl QRPh with zero fee bleed, reuses Phase-5 checkout wholesale). Approval SLA 24h + post-approval payment window 24h, both config-tunable (D-64); dedicated owner-scoped /host/requests page mirroring /host/earnings (D-65); on-screen confirmation + lifecycle emails via existing src/lib/email.ts, hardened layer/WR-04 deferred to Phase 7 (D-66). Routed the mechanism correction explicitly: ROADMAP Phase 6 SC #2/#3 + one-liner corrected authorize→capture ⇒ pay-on-approval; REQUIREMENTS PAY-05 reworded; bookingMode default flip (schema.ts:180) flagged as a Phase-6 EXECUTION change (not done yet — we're in discuss, not execute). Scope unchanged: BOOK-04/05/06, PAY-05, HOST-01 all stay in Phase 6. CRITICAL correctness note for the planner: any new slot-holding state (e.g. approved-awaiting-payment) MUST be added to the booking_no_overlap GiST exclusion occupying-status set or requested slots won't block double-booking. Next: /gsd-plan-phase 6 (optionally /gsd-research-phase 6 first — request-state modeling + pay-on-approval sweep are the unknowns). HANDOFF.json + 06 .continue-here.md consumed/deleted."
-prior_stopped_at: "Completed 05-06-PLAN.md — the HOST-03 host earnings/payouts page (D-59). Owner-gated (host) RSC at /host/earnings reading host_payout_ledger WHERE host_id=session.user.id (Security V4/T-05-29 — the route group is NOT the gate), joined booking/listing, newest-first; re-gates session + canHost (defense in depth). New pure NON-client module src/components/host/payout-ledger-status.ts: derivePayoutLedgerView(state) → calm view {label,tone,helper,datePrefix} (Held=muted+'Held until after the session'+Expected, Processing=outline+Expected, Paid=success+Paid, Refunded=muted+'This booking was refunded — no payout.'+Refunded, Failed=attention) + summarizePayouts(rows) → {upcomingCents=Held+Processing net, paidCents=Paid net} (Refunded/Failed contribute to neither) — the SAME helper the page and its test both call. PayoutStateBadge (icon+text, keyed by STATE so Held/Refunded share muted tone but differ Clock vs Undo2: Paid=bg-success+CheckCircle2, Held=secondary+Clock, Processing=outline+ArrowLeftRight, Refunded=secondary-muted+Undo2, Failed=destructive Alert not a badge — never red on a happy state). PayoutRow (mobile card): host-visible Booking {gross} / FitOut service fee (10%) −{commission} / Your payout {net} (net weight 600, tabular-nums; Refunded→muted/struck net + helper) — the host SEES the fee (D-59), unlike the booker (D-50). PayoutSummary: neutral Upcoming payouts / Paid out Display figures, no coral. Page: server-summed totals; venue-tz-safe Expected(endsAt+PAYOUT_DELAY_HOURS)/Paid(paidAt) dates via TZDate/format (confirmation-page idiom); desktop shadcn table (real th scope=col Space·When·Booking·Fee·Payout·Status·Expected) hidden on mobile + PayoutRow cards md:hidden; PayoutBanner nudge when !enabled; No earnings yet empty state; 10%-fee explainer footnote; container max-w-4xl; NO bg-brand/coral (status view). Added shadcn official table primitive. Neutral Earnings nav: outline Button in host/page.tsx dashboard action row + link in host/layout.tsx header. All money server-frozen (D-49/D-51) — zero arithmetic. 10 new tests (earnings-view.test.ts: derivation mappings, summary summing 135000/180000, owner-scope A sees only A / B only B / absent host sees nothing, commission visibility 200000→20000→180000); 65/65 payments+paymongo green; tsc+eslint clean on all 9 files. **HOST-03 COMPLETE.** Commits ce13923 (T1) + 8ff110f (T2) + 5d2f1df (T3). KNOWN BEHAVIOR (not a stub): the page reads the ledger, whose rows are written by the T+24h sweep (05-05a) — a confirmed booking pre-sweep has no row yet, so it shows as Held only once the sweep creates it (matches the plan's explicit read-the-ledger scope). ⚠ gsd-tools handlers misfit the wave-based STATE — STATE/ROADMAP/REQUIREMENTS hand-edited. Wave 2 COMPLETE. THEN completed 05-05b-PLAN.md (Wave 3, FINAL) — the payout RECONCILE: getTransfer polls GET /v2/transfers/{id} (no transfer webhook, Pitfall 2); reconcileOne moves each Processing ledger row Processing→Paid (paid_at=now()) / Processing→Failed, guarded AND state='processing' (idempotent 0-row no-op on terminal rows), unknown/in-flight stays processing (never spuriously Paid); Failed OR stuck-beyond-PAYOUT_RECONCILE_STUCK_HOURS → [payout-alert]; payoutReconcile hourly singleton (TZ=Asia/Manila 30 * * * *, offset 30m from sweep); /api/inngest serve() mounts BOTH payoutSweep+payoutReconcile (runtime=nodejs, fail-closed prod INNGEST_SIGNING_KEY boot guard), created LAST so both static imports resolve tsc-clean. 6 new tests; 71/71 payments+paymongo green; deviation: inngest 4.13.0 2-arg createFunction(options, handler). Commits a6260bd/b83c5e5/ddbaba0. **Phase 5 COMPLETE (7/7 plans — PAY-01/PAY-02/PAY-03/HOST-03); real PayMongo /v2 transfer+polling UAT-gated on beta.** Next: Phase 6 (instant/request-to-book integration) — not yet planned."
-last_updated: "2026-07-19T00:00:00.000Z"
-last_activity: 2026-07-19
+status: executing
+stopped_at: "Phase 6 PLANNED — 9 plans (06-01..06-09) in 6 waves, committed on dev (0b4acd8 initial + 8777001 revision). Pipeline: pattern-mapper (06-PATTERNS.md, 24/24 files→analogs) → planner (opus) → plan-checker (sonnet) returned 0 blockers/4 warnings → 1 revision fixed all 4 → RE-CHECK **VERIFICATION PASSED**, no regressions. Gates green: §13 requirements 5/5 (BOOK-04/05/06, PAY-05, HOST-01), §13a decision-coverage 6/6 (D-61..D-66 in must_haves frontmatter). Load-bearing invariants verified: the 8-site occupancy-predicate fan-out (requested/approved must join the booking_no_overlap EXCLUDE set — 06-01/02/04/05), the [BLOCKING] split-migration chain 0010 enum-add → 0011 cols+default(D-62 request→instant flip) → 0012 EXCLUDE recreate applied via `npm run db:migrate` (PG Pitfalls 1&2), pay-on-approval with NO refund/void (D-63), dual-timer expiry (approval SLA auto-decline + payment-window auto-release, D-64). Wave 6 = 06-09 human-verify checkpoint (autonomous:no). Note A6: in-tx stale-hold sweep flips lapsed requested→declined (status-consistent w/ cron); decline email is cron-only (accepted bounded race). Next: `/gsd-execute-phase 6` (/clear first). NOTE: repo worked from two machines — on this box the SDK is `gsd-sdk`."
+last_updated: "2026-07-20T03:20:10.126Z"
+last_activity: 2026-07-20 -- Phase 06 planning complete
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 30
+  total_plans: 39
   completed_plans: 30
-  percent: 100
+  percent: 77
 ---
 
 # Project State
@@ -22,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 6 — full booking + payment integration (context gathered; ready to plan)
+**Current focus:** Phase 6 — full booking + payment integration (PLANNED — 9 plans in 6 waves; ready to execute)
 
 ## Current Position
 
-Phase: 6 — context gathered, READY TO PLAN (Phase 5 COMPLETE)
-Plan: none yet (06-CONTEXT.md + 06-DISCUSSION-LOG.md written 2026-07-19; no PLANs)
-Status: Phase 5 COMPLETE (7/7 plans — PAY-01/02/03, HOST-03; real PayMongo /v2 transfer + polling UAT-gated on beta). **Phase 6 discuss-phase COMPLETE** — scope debate resolved (build both modes; pay-on-approval for request-to-book, D-61..D-66); ROADMAP/REQUIREMENTS corrected authorize→capture ⇒ pay-on-approval. Next: `/gsd-plan-phase 6` (optionally research first).
-Last activity: 2026-07-19
+Phase: 6 — PLANNED, READY TO EXECUTE (Phase 5 COMPLETE)
+Plan: 9 plans 06-01..06-09 in 6 waves (verified — plan-checker PASSED after 1 revision; committed 0b4acd8 + 8777001)
+Status: Ready to execute
+Last activity: 2026-07-20 -- Phase 06 planning complete
 
-Progress: Phases 1–5 of 8 complete [██████░░░░]; Phase 6 ready to plan
+Progress: Phases 1–5 of 8 complete [██████░░░░]; Phase 6 planned, ready to execute
 
 ## Performance Metrics
 
@@ -171,7 +170,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-19 (resumed via /gsd-resume-work → completed /gsd-discuss-phase 6)
+Last session: 2026-07-20 (resumed via /gsd-resume-work)
+Stopped at: Pulled origin/dev (91ca46a→1f36c7e) — Phase-6 planning-prep artifacts (06-RESEARCH.md, 06-VALIDATION.md, 06-UI-SPEC.md + approval, authored on another machine) landed. **Planning-prep is COMPLETE; no PLAN.md files yet.** Research/validation/UI-spec are all committed — do NOT re-run `/gsd-research-phase 6`. Next: `/gsd-plan-phase 6` (no --research flag). Consumed + deleted the pulled HANDOFF.json and the Phase-6 .continue-here.md. NOTE: repo is worked from two machines — HANDOFF context_notes reference the franc-box GSD path; on this box the SDK is `gsd-sdk`.
+Resume file: None
+
+Prior session: 2026-07-19 (resumed via /gsd-resume-work → completed /gsd-discuss-phase 6)
 Stopped at: **Phase 6 discuss-phase COMPLETE.** Resumed the paused 2026-07-17 scope debate and the user RESOLVED it: **build both booking modes**, host-selectable per listing & editable while hosting (D-61); the mode governs new bookings only (in-flight requests keep their original mode). Default `bookingMode` flips `request`→`instant` (D-62). Request-to-book money model = **pay-on-approval** (D-63) — the debate's load-bearing outcome: authorize→capture is infeasible on PayMongo's rails (QRPh/e-wallets capture-only; card manual-capture sales-gated + 7-day auto-void; capture-now→refund bleeds ~2.5% on every decline), so instead the request holds the slot with NO charge → host approves → booker pays via the Phase-5 checkout → payment.paid webhook confirms; decline/expiry/non-payment frees the slot with nothing reversed. This dissolves the QRPh exclusion (all rails work) and reuses Phase-5 checkout wholesale. Approval SLA 24h + payment window 24h, both config-tunable (D-64); dedicated `/host/requests` page mirroring `/host/earnings` + pending-count nudge (D-65); on-screen confirmation + lifecycle emails via the existing `src/lib/email.ts` (booker confirmed/request-received/approved-pay-now/declined-or-expired; host new-request), hardened email layer WR-04 deferred to Phase 7 (D-66). Wrote 06-CONTEXT.md + 06-DISCUSSION-LOG.md. Routed the mechanism correction EXPLICITLY (not buried): ROADMAP Phase 6 SC #2/#3 + one-liner + REQUIREMENTS PAY-05 all corrected authorize→capture ⇒ pay-on-approval; the `bookingMode` default flip (schema.ts:180) is flagged as a Phase-6 EXECUTION change (D-62, not yet applied — this was discuss, not execute). Consumed + deleted HANDOFF.json and the Phase-6 .continue-here.md. Next: `/gsd-plan-phase 6` (consider `/gsd-research-phase 6` first — request-state modeling over booking_status + the pay-on-approval SLA/payment-window sweeps are the real unknowns; CRITICAL: any new slot-holding state must join the booking_no_overlap GiST exclusion occupying set or requested slots won't block double-booking).
 
 Prior session: 2026-07-16T14:15Z
