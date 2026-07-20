@@ -4,20 +4,31 @@
 // now the sole writer of booking→confirmed. These POST a signed body (mockPayMongo.signWebhook) to the
 // exported route handler against an isolated schema and assert:
 //   - a pending booking is flipped confirmed, expires_at cleared, and the pay_... captured (Task 1);
-//   - the confirm keys on status='pending' ALONE — a PAST expires_at still confirms (Pitfall 4, Task 1);
+//   - the confirm keys on status IN ('pending','approved') ALONE — a PAST expires_at still confirms
+//     (Pitfall 4, Task 1);
 //   - the browser return is NOT the writer: without the webhook the booking stays pending (control);
 //   - a re-delivered event id is a 200 no-op (idempotent via paymongo_event), confirming exactly once;
 //   - a forged Paymongo-Signature → 400 with no state change;
 //   - a genuinely-gone slot is auto-refunded on a refundable rail and operator-alerted on QRPh, never
 //     silently kept, and the double-book-during-payment loser is reversed while the winner stays pending
 //     (D-58 backstop, Task 2).
+//
+// Plan 06-05 (PAY-05 / BOOK-06) widens the SAME single writer and adds a confirmed email, so these also assert:
+//   - a pay-on-approval request (paid from the `approved` state) confirms through the SAME writer as an
+//     instant pay — the confirm WHERE widened to status IN ('pending','approved'), never a 2nd confirm path;
+//   - the BOOK-06 booking-confirmed email fires (fire-and-forget) on a genuine confirm for BOTH modes —
+//     asserted via mockResend.sent() with vi.waitFor (the send is a background promise, off the ACK path);
+//   - pay-after-release: a released (`cancelled`) request that pays late claims 0 rows → the UNCHANGED
+//     handleGoneSlot auto-refunds (refundable rail) and the booking stays terminal → PaymentReversedState,
+//     with NO confirmed email (Pitfall 3 — never a silent retention, never a stuck interstitial).
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { user, listing, booking, paymongoEvent } from "@/lib/db/schema";
-import { mockPayMongo } from "../helpers/mocks";
+import { mockPayMongo, mockResend } from "../helpers/mocks";
+import { bookingReference } from "@/lib/booking/reference";
 
 const SECRET = "whsec_test_payment";
 const TS = 1_700_000_000;
@@ -45,10 +56,13 @@ function windowAt(hourUtc: number): { startsAt: Date; endsAt: Date } {
 
 async function seedBooking(opts: {
   id: string;
-  status: "pending" | "confirmed" | "cancelled";
+  // `approved` (06-05) = a host-approved request whose booker is paying via the SAME checkout as instant
+  // (PAY-05); the widened confirm accepts it. `requested` occupies the slot but is not yet payable.
+  status: "pending" | "approved" | "requested" | "confirmed" | "cancelled";
   quotedTotalCents?: number | null;
   expiresAtMs?: number | null;
   paymentId?: string | null;
+  bookingMode?: "instant" | "request" | null;
   hourUtc: number;
 }): Promise<void> {
   const { startsAt, endsAt } = windowAt(opts.hourUtc);
@@ -60,10 +74,27 @@ async function seedBooking(opts: {
     startsAt,
     endsAt,
     status: opts.status,
+    bookingMode: opts.bookingMode ?? null,
     quotedTotalCents: opts.quotedTotalCents ?? 150000,
     currency: "php",
     expiresAt: opts.expiresAtMs != null ? new Date(opts.expiresAtMs) : null,
     paymentId: opts.paymentId ?? null,
+  });
+}
+
+/**
+ * Wait for the fire-and-forget BOOK-06 confirmed email for `bookingId` to land in mockResend.sent(). The
+ * webhook fires it as a background promise OFF the 200 ACK path (T-06-15), so it can arrive AFTER `post()`
+ * resolves — poll for it, keyed on the booking's deterministic FIT- reference in the body (never a generic
+ * "some email was sent", which would false-match a sibling test's leaked async email).
+ */
+async function waitForConfirmedEmail(bookingId: string): Promise<void> {
+  const ref = bookingReference(bookingId);
+  await vi.waitFor(() => {
+    const hit = mockResend
+      .sent()
+      .find((e) => e.to === "pp_booker@example.com" && (e.html ?? "").includes(ref));
+    expect(hit, `no confirmed email for ${bookingId}`).toBeTruthy();
   });
 }
 
@@ -197,6 +228,61 @@ describe("checkout_session.payment.paid — confirm authority (D-57)", () => {
     expect((await readBooking(id)).status).toBe("confirmed");
   });
 
+  it("flips an APPROVED (pay-on-approval) request → confirmed via the SAME single writer (PAY-05, widened WHERE)", async () => {
+    // A host-approved request pays through the exact Phase-5 checkout; the confirm WHERE widened from
+    // status='pending' to IN ('pending','approved'), so this confirms with NO second confirm path (D-57).
+    const id = "bk_paid_approved";
+    await seedBooking({
+      id,
+      status: "approved",
+      bookingMode: "request",
+      expiresAtMs: Date.now() + 6 * 60 * 60 * 1000, // a fresh 24h-class approval window (unshrunk, 06-04)
+      hourUtc: 6,
+    });
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_approved_1", method: "card" }),
+    );
+    expect(res.status).toBe(200);
+
+    const row = await readBooking(id);
+    expect(row.status).toBe("confirmed");
+    expect(row.expiresAt).toBeNull();
+    expect(row.paymentId).toBe("pay_approved_1");
+  });
+
+  it("fires the BOOK-06 confirmed email to the booker on an INSTANT (pending) confirm (fire-and-forget)", async () => {
+    const id = "bk_email_instant";
+    await seedBooking({ id, status: "pending", expiresAtMs: Date.now() + 30 * 60 * 1000, hourUtc: 7 });
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_email_1", method: "card" }),
+    );
+    expect(res.status).toBe(200);
+
+    await waitForConfirmedEmail(id); // the confirmed receipt lands off the ACK path
+    expect((await readBooking(id)).status).toBe("confirmed");
+  });
+
+  it("fires the BOOK-06 confirmed email on a PAY-ON-APPROVAL (approved) confirm too", async () => {
+    const id = "bk_email_approved";
+    await seedBooking({
+      id,
+      status: "approved",
+      bookingMode: "request",
+      expiresAtMs: Date.now() + 6 * 60 * 60 * 1000,
+      hourUtc: 8,
+    });
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_email_2", method: "gcash" }),
+    );
+    expect(res.status).toBe(200);
+
+    await waitForConfirmedEmail(id); // same BOOK-06 receipt as instant — one confirm writer, one email path
+    expect((await readBooking(id)).status).toBe("confirmed");
+  });
+
   it("the browser return does NOT confirm — without the webhook the booking stays pending (control)", async () => {
     const id = "bk_no_webhook";
     await seedBooking({ id, status: "pending", expiresAtMs: Date.now() + 30 * 60 * 1000, hourUtc: 3 });
@@ -255,6 +341,38 @@ describe("checkout_session.payment.paid — gone-slot backstop (D-58)", () => {
 
     // Booking stays terminal (cancelled) → the ?paid=1 return renders PaymentReversedState; not confirmed.
     expect((await readBooking(id)).status).toBe("cancelled");
+  });
+
+  it("pay-after-release: a released (cancelled) request that pays late → 0-row confirm → handleGoneSlot auto-refunds, stays terminal, NO confirm email (Pitfall 3)", async () => {
+    // A request that reached `approved` then had its payment window lapse (swept to `cancelled`, 06-06) —
+    // then the booker pays anyway. The widened WHERE did NOT add request-specific refund logic: the SAME
+    // D-58 backstop that handles an instant gone slot handles this pay-after-release race identically.
+    const id = "bk_release_card";
+    await seedBooking({
+      id,
+      status: "cancelled",
+      bookingMode: "request",
+      quotedTotalCents: 150000,
+      hourUtc: 13,
+    });
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_release_1", method: "card" }),
+    );
+    expect(res.status).toBe(200); // never a silent 500
+
+    // 0-row confirm → the UNCHANGED handleGoneSlot auto-refunds the server-frozen amount ONCE (no alert).
+    expect(mockPayMongo.createRefund).toHaveBeenCalledTimes(1);
+    const arg = mockPayMongo.createRefund.mock.calls[0][0] as { amountCents: number; paymentId: string };
+    expect(arg.amountCents).toBe(150000);
+    expect(arg.paymentId).toBe("pay_release_1");
+    expect(recordAuditMock).not.toHaveBeenCalled();
+
+    // Stays terminal → PaymentReversedState, never confirmed, and the BOOK-06 email NEVER fires for it (the
+    // confirmed email is on the ≥1-row branch ONLY — a 0-row confirm earns no receipt).
+    expect((await readBooking(id)).status).toBe("cancelled");
+    const ref = bookingReference(id);
+    expect(mockResend.sent().every((e) => !(e.html ?? "").includes(ref))).toBe(true);
   });
 
   it("operator-alerts (never API-refunds) a gone slot on QRPh — the money is surfaced, not retained", async () => {
