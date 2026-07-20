@@ -1,9 +1,10 @@
 ---
 phase: 06-full-booking-payment-integration
-verified: 2026-07-20T17:15:00Z
-status: human_needed
-score: 4/4 success-criteria code-verified (1 live surface requires re-UAT before honest sign-off)
+verified: 2026-07-20T17:45:00Z
+status: passed
+score: 4/4 success-criteria verified (live re-UAT passed 2026-07-20 — G-06-01 confirmed fixed end-to-end)
 overrides_applied: 0
+human_verification_result: passed  # live PayMongo confirm round-trip re-UAT (G-06-02 URL corrected); booking 42132ab1 → confirmed + pay_C4PW6fRGtUTNm6GsKCpt4P36 + BOOK-06 email delivered (Resend id faa1481e). See 06-HUMAN-UAT.md.
 re_verification:
   previous_status: gaps_found
   previous_score: 3/4 success-criteria verified (1 blocked by a runtime gap)
