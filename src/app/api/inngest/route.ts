@@ -15,6 +15,7 @@ import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import { payoutSweep } from "@/inngest/functions/payout-sweep";
 import { payoutReconcile } from "@/inngest/functions/payout-reconcile";
+import { requestExpirySweep } from "@/inngest/functions/request-expiry";
 
 // serve() verifies the Paymongo-style signed Inngest request with node crypto — Node runtime, not edge.
 export const runtime = "nodejs";
@@ -27,8 +28,9 @@ if (process.env.NODE_ENV === "production" && !process.env.INNGEST_SIGNING_KEY) {
 }
 
 // serve() reads INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY from env automatically; the guard above just makes
-// a missing prod key fatal. Registers BOTH crons so the hourly sweep (05a) and reconcile (05b) are invoked.
+// a missing prod key fatal. Registers ALL THREE crons so the hourly payout sweep (05a), the payout reconcile
+// (05b), and the request-to-book expiry sweep (06-06, minute 15 offset) are all invoked.
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [payoutSweep, payoutReconcile],
+  functions: [payoutSweep, payoutReconcile, requestExpirySweep],
 });
