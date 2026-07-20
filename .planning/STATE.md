@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: "**Completed 06-10-PLAN.md (gap closure — G-06-01, the te-XOR-li webhook signature parser).** Widened parseSignature in src/app/api/paymongo/webhook/route.ts: guard changed to `if (!parts.t || (!parts.te && !parts.li)) return null;` + tolerant return `{ t, te: parts.te ?? '', li: parts.li ?? '' }` — real PayMongo signs ONE mode per delivery (te in TEST, empty li; li in LIVE, empty te), so the old all-three-required guard 400'd EVERY real signature before confirming, blocking D-57 single-writer confirm (PAY-05/BOOK-06/BOOK-04). verifySignature (length-skips an empty candidate), handleGoneSlot (D-58), handleRefund, the paymongo_event dedupe, and the confirm UPDATE `IN ('pending','approved')` are byte-for-byte unchanged (parser-only fix). Closed the FIXTURE GAP at its source: mockPayMongo.signWebhook gained a mode param (both|test|live) reproducing the real single-mode shapes; added 3 regression cases (te-only confirms pending + BOOK-06 fires; li-only confirms approved pay-on-approval + BOOK-06; both-empty header still 400s, T-06-SPOOF). tsc exit 0; eslint 0 errors on all 3 files (5 pre-existing warnings out of scope); vitest tests/paymongo/webhook-payment-paid.test.ts 15 green (12 existing + 3 new); tests/paymongo tests/booking tests/payments 134 green (no regressions). Commits 39985d3 (T1 fix) + 06f31e3 (T2 test). ⚠ gsd-sdk update-progress over-counted (41/40=100%, completed_phases 6) — hand-reconciled to 40/41 = 98%, completed_phases 5 (Phase 06 code-gap CLOSED but NOT yet verified — the 06-09 human-verify UAT must be RE-RUN with G-06-02's URL corrected: register the PayMongo webhook at the FULL /api/paymongo/webhook path, not the tunnel root). Next: re-run 06-09 UAT → phase verification.\n\n---PRIOR (06-08)---\n**Completed 06-08-PLAN.md (Wave 5 — /host/requests inbox + booker requested/approved states: the visible request-to-book surface, HOST-01/BOOK-05/BOOK-06).** Created src/components/booking/request-countdown.tsx (RequestCountdown — an HOURS-scale display-only clone of hold-countdown.tsx: per-MINUTE setInterval 60_000, format {N}h {M}m / under-1h {M}m, --destructive final-hour numerals, Expired/'Payment window closed' flip; timer discipline copied EXACTLY — setInterval-only setState, onExpire ref-synced in its own effect, suppressHydrationWarning digits, role=timer aria-live=off, threshold+expiry-only announcements; DB now() vs expires_at is the sole authority — display cue). Created src/components/host/request-row.tsx (RequestRow mobile card mirroring PayoutRow + a use-client RequestActions: Approve neutral solid inline disable→'Approving…', Decline neutral outline → confirm dialog 'Decline request'/'Keep it'; both call the 06-07 approveRequest/declineRequest, sonner toasts, revalidatePath freshness; a 0-row lapsed/already-actioned → calm 'no longer pending' toast). Created src/app/(host)/host/requests/page.tsx (RSC cloning /host/earnings: defense-in-depth session+canHost re-gate, then the OWNER-SCOPED read booking⨝listing⨝user WHERE listing.hostId=session.user.id AND status='requested' ORDER BY expires_at ASC — the EXACT predicate 06-07's non-optional owner-scope READ isolation test asserts, T-06-23/Security V4, the route group is NOT the gate; the booker JOIN is display-only; desktop table + mobile cards + 'No requests right now' empty + max-w-4xl + NO coral; server-frozen quote via formatMoney, zero arithmetic). Pending-count nudge (D-65): a count() owner-scoped booking⨝listing status='requested' query in BOTH host/page.tsx (neutral outline Requests button) + layout.tsx (neutral header nav link), a neutral secondary badge hidden at 0 + aria-label '{n} requests to review', never coral. Branched bookings/[id]/page.tsx before notFound(): requested (Awaiting host secondary/Hourglass, 'You'll pay if approved', 'you haven't been charged / within {APPROVAL_SLA_HOURS}h', NO pay CTA), approved (Approved outline/CalendarCheck — NOT --success; 'Pay within {Nh Mm}' countdown; coral Pay now → /listings/${bk.listingId}/book?hold=${bk.id} = the SAME Phase-5 checkout), + a calm declined landing (muted XCircle + coral 'Find another space'); confirmed/pending-interstitial/reversed unchanged. tsc exit 0; eslint 0 on all six files; booking+paymongo+payments 131 green (no regressions; the 06-07 owner-scope READ isolation test stays green). T-06-23/24/25 mitigated. **HOST-01/BOOK-05/BOOK-06 stay In-progress** — completion validated at 06-09 human-verify / phase transition (06-01..07 precedent). ⚠ gsd-sdk update-progress wrote 39/39=100% (excludes the 06-09 verify) + stray percent 63 — hand-reconciled to 39/40 = 98% (total bumped for the pending 06-09). Commits bcecf13 (T1) + 407cdaf (T2). Next: 06-09 (human-verify checkpoint)."
-last_updated: "2026-07-20T08:55:28.000Z"
+status: ready_to_plan
+stopped_at: Phase 06 complete (10/10) — ready to discuss Phase 7
+last_updated: 2026-07-20T10:37:26.182Z
 last_activity: 2026-07-20
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 41
-  completed_plans: 40
-  percent: 98
+  completed_plans: 41
+  percent: 75
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 06 — full-booking-payment-integration
+**Current focus:** Phase 7 — bookings management, cancellation & notifications
 
 ## Current Position
 
-Phase: 06 (full-booking-payment-integration) — G-06-01 CLOSED in code; awaiting re-UAT
-Plan: 10 of 10 (06-01…06-08 complete; 06-09 human-verify → gaps_found; 06-10 gap closure DONE)
-Status: Gap G-06-01 closed + regression-tested — re-run the 06-09 UAT (with G-06-02's full /api/paymongo/webhook URL) to verify Phase 06
+Phase: 7
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-07-20
 
 Progress: [█████████░] 98% (G-06-01 code closed; phase verification pending re-UAT)
@@ -36,7 +36,7 @@ Progress: [█████████░] 98% (G-06-01 code closed; phase verif
 
 **Velocity:**
 
-- Total plans completed: 20
+- Total plans completed: 30
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -46,6 +46,7 @@ Progress: [█████████░] 98% (G-06-01 code closed; phase verif
 |-------|-------|-------|----------|
 | 01 | 4 | - | - |
 | 04 | 8 | - | - |
+| 06 | 10 | - | - |
 
 **Recent Trend:**
 

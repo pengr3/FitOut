@@ -103,8 +103,8 @@ human_verification:
 
 ### Gaps Summary
 
-No code gaps remain from G-06-01 — it is closed and independently re-verified (diff scope, direct reads, and an independent re-run of both the targeted test file and the full paymongo/booking/payments suite, all matching the SUMMARY's claims exactly). G-06-02 (webhook URL registration) remains a non-code, re-UAT setup precondition, carried forward from the prior report. The phase cannot honestly be marked `passed` yet because the specific live round trip that failed before the fix (real paid checkout → real webhook confirm → on-screen confirmed state → real email) has not been re-observed — that is the single remaining item, and it requires a human to run the 06-09 UAT again with the corrected webhook URL. A documentation inconsistency (ROADMAP.md prematurely checking Phase 6 complete while STATE.md says "awaiting re-UAT") was also found and flagged for hand-correction.
+No gaps remain. G-06-01 is closed in code and independently re-verified (diff scope, direct reads, and an independent re-run of both the targeted test file and the full paymongo/booking/payments suite). G-06-02 (webhook URL registration) is resolved — the webhook was re-registered at the full `/api/paymongo/webhook` path for the re-UAT. The live round trip that failed before the fix (real paid checkout → real webhook confirm → on-screen confirmed state → real email) was re-observed and **PASSED on 2026-07-20**: booking `42132ab1` → `confirmed` with `payment_id` `pay_C4PW6fRGtUTNm6GsKCpt4P36`, the booker's browser showed the confirmed state (ref `FIT-2NCSCZMJ`, venue-local Makati time), and the BOOK-06 confirmation email was delivered via Resend (id `faa1481e`) and received. See `06-HUMAN-UAT.md`.
 
 ---
 *Phase: 06-full-booking-payment-integration*
-*Verified: 2026-07-20T17:15:00Z — human_needed*
+*Verified: 2026-07-20T17:45:00Z — passed (live confirm re-UAT passed)*
