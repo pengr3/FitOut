@@ -12,7 +12,8 @@ import { headers } from "next/headers";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { hostPayout, listing } from "@/lib/db/schema";
+import { booking, hostPayout, listing } from "@/lib/db/schema";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PayoutBanner } from "@/components/host/payout-banner";
 import { derivePayoutStatus } from "@/components/host/payout-status";
@@ -36,6 +37,15 @@ export default async function HostDashboardPage() {
     .from(listing)
     .where(and(eq(listing.hostId, session.user.id), isNull(listing.deletedAt)));
   const hasListings = (n ?? 0) > 0;
+
+  // Pending-request count (D-65) — booking JOIN listing owner-scoped to this host, status='requested'. Drives
+  // the neutral "Requests" nudge below (hidden at 0). Same owner-scope predicate as the /host/requests inbox.
+  const [{ p } = { p: 0 }] = await db
+    .select({ p: count() })
+    .from(booking)
+    .innerJoin(listing, eq(booking.listingId, listing.id))
+    .where(and(eq(listing.hostId, session.user.id), eq(booking.status, "requested")));
+  const pendingRequests = p ?? 0;
 
   // Live payout state (D-12) — drives the persistent nudge below. payoutsEnabled is webhook-set only.
   const [payoutRow] = await db
@@ -71,6 +81,20 @@ export default async function HostDashboardPage() {
           {/* Neutral status view (HOST-03) — not coral (05-UI-SPEC: the earnings page is not an action surface). */}
           <Button asChild variant="outline">
             <Link href="/host/earnings">Earnings</Link>
+          </Button>
+          {/* Neutral request-inbox nudge (D-65) — a secondary count badge, hidden at 0. Never coral. */}
+          <Button asChild variant="outline">
+            <Link href="/host/requests">
+              Requests
+              {pendingRequests > 0 && (
+                <Badge
+                  variant="secondary"
+                  aria-label={`${pendingRequests} requests to review`}
+                >
+                  {pendingRequests}
+                </Badge>
+              )}
+            </Link>
           </Button>
         </div>
       ) : (
