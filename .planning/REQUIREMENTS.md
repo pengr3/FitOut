@@ -45,9 +45,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **BOOK-01**: Booker can select a time window and see the price breakdown before committing
 - [x] **BOOK-02**: Slot is held/locked during checkout with an expiry so two bookers cannot race for the same slot
 - [x] **BOOK-03**: A booking that overlaps an existing booking is rejected (no double-booking)
-- [ ] **BOOK-04**: Instant-book listings confirm immediately on successful payment
+- [x] **BOOK-04**: Instant-book listings confirm immediately on successful payment
 - [ ] **BOOK-05**: Request-to-book listings create a pending request the host approves/declines, auto-expiring if no response
-- [ ] **BOOK-06**: Booker receives on-screen and email confirmation of a booking
+- [x] **BOOK-06**: Booker receives on-screen and email confirmation of a booking
 - [ ] **BOOK-07**: Booker can cancel a booking subject to the cancellation/refund policy
 
 ### Payments
@@ -56,7 +56,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PAY-02**: Platform deducts a commission from each booking
 - [x] **PAY-03**: Host receives a payout for completed bookings, with funds held until after the session
 - [ ] **PAY-04**: Host completes payout onboarding (Stripe Connect KYC) before their listing becomes bookable
-- [ ] **PAY-05**: For request-to-book, the slot is held with no charge at request; the booker pays on host approval (pay-on-approval) and the slot frees on decline/expiry/non-payment — *mechanism revised from authorize→capture per D-63 (Phase 6): PayMongo cannot hold funds on QRPh/e-wallets and card manual-capture is sales-gated; pay-on-approval works on all rails with no fee bleed*
+- [x] **PAY-05**: For request-to-book, the slot is held with no charge at request; the booker pays on host approval (pay-on-approval) and the slot frees on decline/expiry/non-payment — *mechanism revised from authorize→capture per D-63 (Phase 6): PayMongo cannot hold funds on QRPh/e-wallets and card manual-capture is sales-gated; pay-on-approval works on all rails with no fee bleed*
 - [ ] **PAY-06**: Cancellations issue refunds according to the cancellation policy
 
 ### Host Tools
@@ -157,10 +157,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 | PAY-02 | Phase 5 | Complete (05-01 commission calculator + payout ledger; 05-05a commission FROZEN + deducted at payout — the sweep writes commission_rate_bps/commission_cents/net_cents per D-51; 05-06 the host-visible commission line is LIVE on /host/earnings — gross→−10%→net, D-59; the payout mechanism that applies the deduction is now fully closed by the 05-05b reconcile. Real payout transfer UAT-gated on the PayMongo /v2 beta — same external gate as PAY-01's real charge) |
 | PAY-03 | Phase 5 | Complete (05-02 createBatchTransfer/listWalletAccounts primitives; 05-05a payout SWEEP — hourly singleton cron, at-most-once ON CONFLICT claim, wallet.id===paymongo_account_id correlation, inhouse net transfer, Held→Processing; 05-05b payout RECONCILE closes the lifecycle — getTransfer polls GET /v2/transfers/{id} (no transfer webhook, Pitfall 2), reconcileOne moves every Processing row Processing→Paid (paid_at) / Processing→Failed idempotently (AND state='processing'), Failed/stuck → [payout-alert], + /api/inngest serve() mounting both crons fail-closed in prod. Real transfer + polling UAT-gated on PayMongo /v2 beta) |
 | HOST-03 | Phase 5 | Complete (05-06 owner-gated /host/earnings — per-booking payout rows with Held/Processing/Paid/Refunded state badges, the host-visible gross→−10%→net breakdown, venue-tz-safe expected/paid dates, and Upcoming-vs-Paid summary totals; owner-scoped WHERE host_id=session.user.id so a host only ever sees their own rows; neutral Earnings nav in the dashboard + (host) header) |
-| BOOK-04 | Phase 6 | Pending |
+| BOOK-04 | Phase 6 | Complete |
 | BOOK-05 | Phase 6 | Pending |
-| BOOK-06 | Phase 6 | Pending |
-| PAY-05 | Phase 6 | Pending |
+| BOOK-06 | Phase 6 | Complete |
+| PAY-05 | Phase 6 | Complete |
 | HOST-01 | Phase 6 | Pending |
 | BOOK-07 | Phase 7 | Pending |
 | PAY-06 | Phase 7 | Pending |
