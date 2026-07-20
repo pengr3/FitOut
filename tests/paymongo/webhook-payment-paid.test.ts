@@ -321,6 +321,84 @@ describe("checkout_session.payment.paid — confirm authority (D-57)", () => {
   });
 });
 
+describe("checkout_session.payment.paid — real single-mode signature (te-XOR-li, G-06-01)", () => {
+  // PayMongo signs ONE mode per delivery: TEST fills `te` (empty `li`), LIVE fills `li` (empty `te`) — never
+  // both. The pre-06-10 parseSignature required all three of t/te/li non-empty, so every REAL signature →
+  // null → 400 before confirming (proven live in the 06-09 UAT). The existing fixtures masked this by
+  // populating BOTH te and li. These cases exercise the real single-mode shapes at the signer's source.
+
+  it("Case A — TEST shape (te valid, li EMPTY): confirms a pending booking + fires BOOK-06 (real 06-09 shape)", async () => {
+    const id = "bk_teonly_confirm";
+    await seedBooking({ id, status: "pending", expiresAtMs: Date.now() + 30 * 60 * 1000, hourUtc: 15 });
+
+    const body = paidEventBody({
+      eventId: `evt_${randomUUID()}`,
+      bookingId: id,
+      paymentId: "pay_teonly_1",
+      method: "card",
+    });
+    // te populated, li EMPTY — the exact shape the real 06-09 test-mode checkout produced.
+    const res = await post(body, mockPayMongo.signWebhook(body, SECRET, TS, "test"));
+    expect(res.status).toBe(200);
+
+    const row = await readBooking(id);
+    expect(row.status).toBe("confirmed");
+    expect(row.expiresAt).toBeNull();
+    expect(row.paymentId).toBe("pay_teonly_1");
+
+    // BOOK-06 fires directly on the te-only path — proven under a REAL single-mode signature, not the
+    // both-populated fixture that masked G-06-01.
+    await waitForConfirmedEmail(id);
+  });
+
+  it("Case B — LIVE shape (te EMPTY, li valid): confirms an APPROVED pay-on-approval booking + fires BOOK-06", async () => {
+    const id = "bk_lionly_confirm";
+    await seedBooking({
+      id,
+      status: "approved",
+      bookingMode: "request",
+      expiresAtMs: Date.now() + 6 * 60 * 60 * 1000,
+      hourUtc: 16,
+    });
+
+    const body = paidEventBody({
+      eventId: `evt_${randomUUID()}`,
+      bookingId: id,
+      paymentId: "pay_lionly_1",
+      method: "gcash",
+    });
+    // te EMPTY, li populated — the LIVE-mode mirror; the SAME single writer confirms both modes.
+    const res = await post(body, mockPayMongo.signWebhook(body, SECRET, TS, "live"));
+    expect(res.status).toBe(200);
+
+    const row = await readBooking(id);
+    expect(row.status).toBe("confirmed");
+    expect(row.expiresAt).toBeNull();
+    expect(row.paymentId).toBe("pay_lionly_1");
+
+    await waitForConfirmedEmail(id); // BOOK-06 on the li-only path too
+  });
+
+  it("Case C — BOTH-empty header still 400s with no state change (spoofing protection intact, T-06-SPOOF)", async () => {
+    const id = "bk_bothempty_reject";
+    await seedBooking({ id, status: "pending", expiresAtMs: Date.now() + 30 * 60 * 1000, hourUtc: 17 });
+
+    const body = paidEventBody({
+      eventId: `evt_${randomUUID()}`,
+      bookingId: id,
+      paymentId: "pay_bothempty_1",
+      method: "card",
+    });
+    // A header with BOTH signatures empty — the widened predicate tolerates ONE empty part, never both.
+    const res = await post(body, `t=${TS},te=,li=`);
+    expect(res.status).toBe(400);
+
+    const row = await readBooking(id);
+    expect(row.status).toBe("pending");
+    expect(row.paymentId).toBeNull();
+  });
+});
+
 describe("checkout_session.payment.paid — gone-slot backstop (D-58)", () => {
   it("auto-refunds a gone slot on a refundable rail (card) for the frozen amount, exactly once", async () => {
     // Already-cancelled booking simulates a hold swept + slot retaken during payment.

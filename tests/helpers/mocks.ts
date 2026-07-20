@@ -204,16 +204,22 @@ export const mockPayMongo = {
    */
   getTransfer: vi.fn(async (transferId: string) => ({ id: transferId, status: "succeeded" })),
   /**
-   * Build a VALID `Paymongo-Signature` header for a raw body + webhook secret. Format:
-   * `t=<ts>,te=<sig>,li=<sig>`. Signed payload is `${ts}.${rawBody}` (HMAC-SHA256, hex). Lets the
-   * Plan-06 signature test sign a body and assert the handler accepts it (and dedupes by event id).
+   * Build a VALID `Paymongo-Signature` header for a raw body + webhook secret. Signed payload is
+   * `${ts}.${rawBody}` (HMAC-SHA256, hex). The `mode` param reproduces PayMongo's REAL te-XOR-li shape:
+   * PayMongo signs ONE mode per delivery — TEST mode fills `te` (empty `li`), LIVE mode fills `li` (empty
+   * `te`), never both. `"both"` (default) keeps the legacy `t=<ts>,te=<sig>,li=<sig>` shape so the ~12
+   * existing callers are unaffected; `"test"` emits `t=<ts>,te=<sig>,li=` and `"live"` emits
+   * `t=<ts>,te=,li=<sig>` — the exact single-mode shapes the real 06-09 UAT produced (G-06-01 regression).
    */
   signWebhook: (
     rawBody: string,
     secret: string,
     timestamp: number = Math.floor(Date.now() / 1000),
+    mode: "both" | "test" | "live" = "both",
   ): string => {
     const sig = paymongoSig(rawBody, secret, timestamp);
+    if (mode === "test") return `t=${timestamp},te=${sig},li=`;
+    if (mode === "live") return `t=${timestamp},te=,li=${sig}`;
     return `t=${timestamp},te=${sig},li=${sig}`;
   },
   /** Sentinel INVALID signature header (all-zero hex) for the 400 reject path. */
