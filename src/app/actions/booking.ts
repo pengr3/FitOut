@@ -29,6 +29,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, user, hostPayout } from "@/lib/db/schema";
@@ -36,8 +38,10 @@ import { deriveBookable } from "@/lib/bookability";
 import { bookingCreateSchema } from "@/lib/validation/booking";
 import { createPendingHold } from "@/lib/availability/units";
 import { createCheckoutSession } from "@/lib/paymongo";
-import { PAYMENT_WINDOW_MINUTES } from "@/lib/payments/config";
+import { PAYMENT_WINDOW_MINUTES, APPROVAL_SLA_HOURS } from "@/lib/payments/config";
 import { bookingReference } from "@/lib/booking/reference";
+import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
+import { sendRequestReceived, sendNewRequestToHost } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
 
@@ -72,8 +76,11 @@ async function requireUserId(): Promise<string | null> {
 /**
  * placeHold — the entering-checkout mutation (D-39/SC#3). A POST server action, NEVER a GET side-effect
  * (Pitfall 2). Gates on a signed-in canBook user (D-41) + a server re-derivation of deriveBookable
- * (Security V4), then mints a pending hold via createPendingHold and redirects to the reserve page. A
- * double-submit (same idempotency key / window) returns the SAME booking (delegated to createPendingHold).
+ * (Security V4), then FORKS on the listing's SERVER-READ bookingMode (D-61 / BOOK-04 / BOOK-05):
+ *   - instant  → mints a pending 15-min hold and redirects to the reserve/pay page (unchanged);
+ *   - request  → mints a `requested` hold (APPROVAL_SLA_HOURS TTL) with NO charge (D-63 pay-on-approval),
+ *                fires the booker/host notification emails fire-and-forget, and redirects to /bookings/<id>.
+ * A double-submit (same idempotency key / window) returns the SAME booking (delegated to createPendingHold).
  */
 export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   // (1) Session gate (D-41). The CTA (Plan 07) threads the return-to-checkout callbackURL; here we only
@@ -84,8 +91,12 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   }
 
   // (2) Capability gate (T-04-BOOKCAP) — re-read canBook from the DB (canBook is input:false, so the row
-  // is the source of truth; a client flag is never trusted).
-  const [me] = await db.select({ canBook: user.canBook }).from(user).where(eq(user.id, userId));
+  // is the source of truth; a client flag is never trusted). Email + display name come along in the same
+  // pass so the request branch can send the booker their request-received receipt without a second read.
+  const [me] = await db
+    .select({ canBook: user.canBook, email: user.email, firstName: user.firstName, name: user.name })
+    .from(user)
+    .where(eq(user.id, userId));
   if (!me?.canBook) {
     return { ok: false, reason: "activate-booking", error: "Turn on booking to reserve this space." };
   }
@@ -110,6 +121,13 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   const [lr] = await db
     .select({
       status: listing.status,
+      // D-61: the booking MODE is read SERVER-SIDE from the listing row here (never a client flag —
+      // T-06-09 elevation). The request branch below forks on it; the reserve route group is not the gate.
+      bookingMode: listing.bookingMode,
+      title: listing.title,
+      timezone: listing.timezone,
+      city: listing.city,
+      hostEmail: user.email, // the join reaches the host via listing.hostId = user.id — reuse it for the alert
       emailVerified: user.emailVerified,
       payoutsEnabled: hostPayout.payoutsEnabled,
     })
@@ -123,8 +141,61 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       { status: lr.status },
       { emailVerified: lr.emailVerified, payoutsEnabled: lr.payoutsEnabled ?? false },
     );
-  if (!bookable) {
+  if (!lr || !bookable) {
     return { ok: false, reason: "not-bookable", error: "This space isn't accepting bookings right now." };
+  }
+
+  // (4b) Fork on the SERVER-READ booking mode (D-61 / BOOK-04 / BOOK-05). A `request` listing mints a
+  // `requested` hold that holds the slot for the APPROVAL_SLA_HOURS window with NO money moved (D-63
+  // pay-on-approval): nothing is charged now; the charge happens later, when the host approves and the
+  // booker pays via the SAME Phase-5 hosted checkout (06-07). Instant falls through to the byte-for-byte
+  // unchanged pending-hold path below (BOOK-04). The mode is a creation-time snapshot on the booking row,
+  // so a later listing.bookingMode edit never rewrites an in-flight request (D-61 new-bookings-only).
+  if (lr.bookingMode === "request") {
+    const res = await createPendingHold(db, {
+      listingId,
+      bookerId: userId,
+      startsAt: startUtc,
+      endsAt: endUtc,
+      fullDay,
+      idempotencyKey: idempotencyKey ?? null,
+      holdStatus: "requested",
+      ttlMs: APPROVAL_SLA_HOURS * 60 * 60 * 1000, // the 24h approval SLA (config-tunable) — never hardcoded
+      bookingMode: "request",
+    });
+    if ("error" in res) {
+      return { ok: false, reason: "taken", error: res.error }; // same calm "just taken" as instant (SC#4)
+    }
+
+    // NO checkout, NO charge at request time (D-63 / T-06-11). Notify both sides FIRE-AND-FORGET
+    // (T-06-07 — a Resend failure must never reject this server action): the booker's request-received
+    // receipt + the host's new-request alert. The host's guest-pays amount is the SERVER-FROZEN quote read
+    // back from the just-minted hold (never a client recompute).
+    const [q] = await db
+      .select({ quotedTotalCents: booking.quotedTotalCents, currency: booking.currency })
+      .from(booking)
+      .where(eq(booking.id, res.id));
+    const inTz = tz(lr.timezone);
+    const startAt = new Date(startUtc);
+    const endAt = new Date(endUtc);
+    const dateLabel = format(startAt, "EEEE, MMM d", { in: inTz });
+    const timeLabel = fullDay
+      ? "Full day"
+      : `${format(startAt, "h:mm a", { in: inTz })} – ${format(endAt, "h:mm a", { in: inTz })}`;
+    const whenLabel = `${dateLabel}, ${timeLabel}${lr.city ? ` (${lr.city} time)` : ""}`;
+    const totalLabel = formatMoney(q?.quotedTotalCents ?? 0, q?.currency ?? DISPLAY_CURRENCY);
+    const bookerLabel = me.firstName ?? me.name ?? "A guest";
+    const title = lr.title ?? "your space";
+    const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+    void sendRequestReceived(me.email, title, whenLabel, `${base}/bookings/${res.id}`);
+    void sendNewRequestToHost(lr.hostEmail, title, whenLabel, bookerLabel, totalLabel, `${base}/host/requests`);
+
+    // A `requested` hold occupies the slot immediately in the calendar + search (06-01 EXCLUDE + the 06-02
+    // read model), so revalidate BOTH before redirecting to the request-received surface (06-08 renders the
+    // `requested` state; the redirect target must exist today).
+    revalidatePath(`/listings/${listingId}`);
+    revalidatePath("/");
+    redirect(`/bookings/${res.id}`);
   }
 
   // (5) Mint the pending hold (the WR-03 transaction: SAVEPOINT + outer-retry + in-tx sweep + own-hold
@@ -189,8 +260,10 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     redirect(`/bookings/${holdId}`);
   }
 
-  // Any non-pending, non-confirmed status (cancelled/declined/…) has no live hold left to pay for.
-  if (bk.status !== "pending") {
+  // A live hold to pay for is either a `pending` instant hold OR an `approved` request (pay-on-approval,
+  // PAY-05 / D-63 — the host approved, the booker now pays via this SAME Phase-5 checkout). Any other
+  // status (cancelled/declined/requested-not-yet-approved/…) has no live hold left to pay for.
+  if (bk.status !== "pending" && bk.status !== "approved") {
     return {
       ok: false,
       reason: "expired",
@@ -222,12 +295,15 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     return { ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again." };
   }
 
-  // EXTEND the hold BEFORE creating the checkout (D-58 / T-05-16): push expires_at to now()+PAYMENT_WINDOW
-  // (DB clock) so the lazy-expiry sweep can't free — and someone else can't take — the slot while the
-  // booker pays. Scoped to the owner + still-'pending' so it can never touch a confirmed/other row.
+  // EXTEND the hold BEFORE creating the checkout (D-58 / T-05-16): push expires_at out (DB clock) so the
+  // lazy-expiry sweep can't free — and someone else can't take — the slot while the booker pays. Scoped to
+  // the owner + a still-live hold ('pending' instant OR 'approved' pay-on-approval) so it can never touch a
+  // confirmed/other row (T-06-10). GREATEST guarantees a fresh 24h `approved` payment window is never
+  // SHRUNK to the 60-min instant window (Pitfall 6) — we only ever push expires_at forward, never back.
   await db.execute(sql`
-    UPDATE booking SET expires_at = now() + make_interval(mins => ${PAYMENT_WINDOW_MINUTES})
-    WHERE id = ${holdId} AND booker_id = ${userId} AND status = 'pending'`);
+    UPDATE booking
+    SET expires_at = GREATEST(expires_at, now() + make_interval(mins => ${PAYMENT_WINDOW_MINUTES}))
+    WHERE id = ${holdId} AND booker_id = ${userId} AND status IN ('pending','approved')`);
 
   // Create the hosted checkout for the SERVER-FROZEN amount (D-49). The stable Idempotency-Key
   // checkout:<bookingId> makes a double-click / retry reuse the SAME session — never a second charge.
