@@ -1,0 +1,172 @@
+// Host request inbox (HOST-01 · D-65). An RSC under the (host) route group listing the host's PENDING
+// (`requested`) booking requests — booker, space, venue-local window, the server-frozen quote, an hours-scale
+// expiry countdown, and Approve/Decline actions wired to the 06-07 server actions. Clones /host/earnings for
+// the shell, the defense-in-depth re-gate, and the desktop table / mobile card responsive split.
+//
+// SECURITY (T-06-23 / Security V4): the (host) LAYOUT gates canHost, but the route group is NOT the
+// authorization gate for the DATA. This page re-checks the session + canHost (defense in depth) AND
+// owner-scopes the read to `listing.host_id = session.user.id AND booking.status = 'requested'` — the EXACT
+// predicate 06-07's non-optional owner-scope READ isolation test asserts (JOIN booking→listing, soonest-
+// expiring first). Keep this predicate identical to that tested SELECT: if it drifts, the read-path IDOR
+// test no longer covers the real page. A host can never see another host's requests.
+//
+// All money is the SERVER-FROZEN quote (booking.quotedTotalCents, D-49) rendered via formatMoney — the page
+// does ZERO price arithmetic. Every time names the venue timezone (SC#2). NO coral — this is a calm host
+// workflow surface, not a conversion funnel (mirrors /host/earnings).
+
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { and, asc, eq } from "drizzle-orm";
+import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
+
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { booking, listing, user } from "@/lib/db/schema";
+import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
+import { windowHours } from "@/lib/booking/pricing";
+import { APPROVAL_SLA_HOURS } from "@/lib/payments/config";
+import {
+  RequestActions,
+  RequestRow,
+  type RequestRowData,
+} from "@/components/host/request-row";
+import { RequestCountdown } from "@/components/booking/request-countdown";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+export default async function HostRequestsPage() {
+  // Defense in depth: the (host) layout already gates, but never render the inbox without a real session.
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    redirect("/login");
+  }
+  const u = session.user as typeof session.user & { canHost?: boolean };
+  if (!u.canHost) {
+    redirect("/");
+  }
+
+  // Owner-scoped read (T-06-23 / Security V4) — the route group is NOT the gate. This is the EXACT predicate
+  // 06-07's non-optional owner-scope READ test asserts: booking JOIN listing WHERE listing.hostId =
+  // session.user.id AND booking.status = 'requested', soonest-expiring first. Joined to the booker for the
+  // display name (the WHERE/ORDER BY isolation predicate is unchanged by the display join).
+  const rows = await db
+    .select({
+      id: booking.id,
+      listingId: booking.listingId,
+      startsAt: booking.startsAt,
+      endsAt: booking.endsAt,
+      expiresAt: booking.expiresAt,
+      quotedTotalCents: booking.quotedTotalCents,
+      currency: booking.currency,
+      title: listing.title,
+      timezone: listing.timezone,
+      city: listing.city,
+      hourlyRateCents: listing.hourlyRateCents,
+      bookerFirstName: user.firstName,
+    })
+    .from(booking)
+    .innerJoin(listing, eq(booking.listingId, listing.id))
+    .innerJoin(user, eq(booking.bookerId, user.id))
+    .where(and(eq(listing.hostId, session.user.id), eq(booking.status, "requested")))
+    .orderBy(asc(booking.expiresAt));
+
+  // Per-row display: venue-tz-safe window label "{date}, {time} ({City} time)" (mirrors composeWhenLabel in
+  // host-requests.ts / the confirmation page). fullDay is not persisted → re-derive from the FROZEN quote
+  // (the actions never re-price). Money is the frozen quotedTotalCents via formatMoney (zero arithmetic).
+  const displayRows: RequestRowData[] = rows.map((r) => {
+    const inTz = tz(r.timezone);
+    const hours = windowHours(r.startsAt, r.endsAt);
+    const quoted = r.quotedTotalCents ?? 0;
+    const hourlyTotal = r.hourlyRateCents != null ? r.hourlyRateCents * hours : null;
+    const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
+    const dateLabel = format(r.startsAt, "EEE, MMM d", { in: inTz });
+    const timeLabel = fullDay
+      ? "Full day"
+      : `${format(r.startsAt, "h:mm a", { in: inTz })} – ${format(r.endsAt, "h:mm a", { in: inTz })}`;
+    const cityPart = r.city ? ` (${r.city} time)` : "";
+    return {
+      requestId: r.id,
+      spaceTitle: r.title ?? "Your space",
+      whenLabel: `${dateLabel}, ${timeLabel}${cityPart}`,
+      bookerLabel: r.bookerFirstName?.trim() || "A guest",
+      totalLabel: formatMoney(quoted, r.currency ?? DISPLAY_CURRENCY),
+      expiresAt: (r.expiresAt ?? new Date()).toISOString(),
+    };
+  });
+
+  return (
+    <div className="mx-auto w-full max-w-4xl px-4 py-10">
+      <h1 className="text-xl font-semibold tracking-tight">Requests</h1>
+      <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+        Guests waiting on your yes. Approve or decline within {APPROVAL_SLA_HOURS} hours — after that a request
+        expires and the slot frees automatically.
+      </p>
+
+      <div className="mt-8">
+        {displayRows.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-10 text-center">
+            <h2 className="text-lg font-medium">No requests right now</h2>
+            <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
+              When a guest requests one of your request-to-book spaces, it shows up here for you to approve or
+              decline. Instant-book spaces confirm without a request.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop: the shadcn table with real <th scope="col"> headers. */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Space</TableHead>
+                    <TableHead scope="col">When</TableHead>
+                    <TableHead scope="col">Guest</TableHead>
+                    <TableHead scope="col" className="text-right">
+                      Guest pays
+                    </TableHead>
+                    <TableHead scope="col">Expires</TableHead>
+                    <TableHead scope="col">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayRows.map((data) => (
+                    <TableRow key={data.requestId}>
+                      <TableCell className="font-medium">{data.spaceTitle}</TableCell>
+                      <TableCell className="text-muted-foreground">{data.whenLabel}</TableCell>
+                      <TableCell>{data.bookerLabel}</TableCell>
+                      <TableCell className="text-right tabular-nums">{data.totalLabel}</TableCell>
+                      <TableCell>
+                        <RequestCountdown expiresAt={data.expiresAt} label="Expires in" />
+                      </TableCell>
+                      <TableCell>
+                        <RequestActions
+                          requestId={data.requestId}
+                          bookerLabel={data.bookerLabel}
+                          whenLabel={data.whenLabel}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile: stacked cards (the table collapses to a card per request). */}
+            <div className="space-y-3 md:hidden">
+              {displayRows.map((data) => (
+                <RequestRow key={data.requestId} row={data} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
