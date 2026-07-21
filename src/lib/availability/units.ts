@@ -370,10 +370,30 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         // SAVEPOINT attempt rather than captured once before the loop.
         const quote = quoteWindow({ startUtc: startsAt, endUtc: endsAt, fullDay, hourlyRateCents, dayRateCents });
 
+        /**
+         * EVERY "units exhausted" exit routes through here — the D-42 trap, in its last remaining form.
+         *
+         * Step (1)'s own-hold pre-check and the find-free probe are DIFFERENT statements, and under
+         * READ COMMITTED each takes a fresh snapshot. So a concurrent submit of YOUR OWN idempotency key
+         * or window can commit in between: step (1) saw nothing, and now the only unit reads as occupied
+         * — by your own booking. Throwing NoUnitAvailableError there would map to "That time was just
+         * taken", which is precisely the false conflict D-42 exists to prevent, and it is a LIE: you got
+         * the slot. The 23P01/23505 handlers below already re-check own-hold for the same reason; this
+         * closes the one path that reaches exhaustion WITHOUT ever attempting an insert.
+         *
+         * A genuine loser (a DIFFERENT booker, no matching key/window) still finds nothing here and gets
+         * the honest "just taken" — the exclusion constraint remains the sole arbiter of the double-book.
+         */
+        const exhausted = async (): Promise<HoldResult> => {
+          const mine = await findOwnActiveHold(tx, idArgs);
+          if (mine) return { ok: true, ...mine, replayed: true };
+          throw new NoUnitAvailableError();
+        };
+
         // (4) Per-unit SAVEPOINT insert loop — the constraint is the sole arbiter of the double-book.
         for (let attempt = 0; attempt < unitCount; attempt++) {
           const unit = await pickLowestFreeUnit(tx, { listingId: input.listingId, startIso, endIso, unitCount });
-          if (unit == null) throw new NoUnitAvailableError();
+          if (unit == null) return await exhausted();
           const id = randomUUID();
           try {
             // Read the DB-computed expiry straight back out of the insert (Pitfall 8) — with a SQL
@@ -421,7 +441,7 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
             throw e; // 40P01 (whole-tx abort) / anything else → propagate to the outer retry / mapper
           }
         }
-        throw new NoUnitAvailableError();
+        return await exhausted(); // every unit lost — own-hold re-checked before ruling it "just taken"
       });
     } catch (e) {
       // 40P01 aborts the whole tx and postgres.js does not auto-retry — re-run the whole booking tx.
