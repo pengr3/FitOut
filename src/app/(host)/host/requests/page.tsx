@@ -23,6 +23,7 @@ import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { composeWhenLabelShort } from "@/lib/booking/when-label";
+import { readDbNow } from "@/lib/booking/bookings-query";
 import { APPROVAL_SLA_HOURS } from "@/lib/payments/config";
 import {
   RequestActions,
@@ -30,6 +31,7 @@ import {
   type RequestRowData,
 } from "@/components/host/request-row";
 import { RequestCountdown } from "@/components/booking/request-countdown";
+import { RequestCountdownReason } from "@/components/host/request-countdown-reason";
 import {
   Table,
   TableBody,
@@ -61,6 +63,9 @@ export default async function HostRequestsPage() {
       startsAt: booking.startsAt,
       endsAt: booking.endsAt,
       expiresAt: booking.expiresAt,
+      // D-99 (07-12): the anchor the FLAT APPROVAL_SLA_HOURS deadline would have run from. Comparing it with
+      // the row's real expires_at is what tells the reason line whether this deadline is cap-derived.
+      createdAt: booking.createdAt,
       quotedTotalCents: booking.quotedTotalCents,
       // D-74: the listing-priced portion, used ONLY to re-derive fullDay in composeWhenLabelShort. The
       // all-in charged total can never equal hourlyRate × hours, so it cannot drive that comparison.
@@ -82,7 +87,11 @@ export default async function HostRequestsPage() {
   // "EEE, MMM d" form — this derivation was one of three verbatim duplicates before Phase 7 and must never
   // be re-inlined here. fullDay is re-derived inside it from the FROZEN quote (the actions never re-price).
   // Money is the frozen quotedTotalCents via formatMoney (zero arithmetic).
-  const displayRows: RequestRowData[] = rows.map((r) => ({
+  // D-99 (07-12): the reason line is rendered from the DB clock, read ONCE here and threaded into every row —
+  // so "Session starts in Xh" and the row's own countdown deadline can never disagree about what time it is.
+  const now = await readDbNow(db);
+
+  const displayRows: (RequestRowData & { reason: React.ReactNode })[] = rows.map((r) => ({
     requestId: r.id,
     spaceTitle: r.title ?? "Your space",
     whenLabel: composeWhenLabelShort({
@@ -97,6 +106,16 @@ export default async function HostRequestsPage() {
     bookerLabel: r.bookerFirstName?.trim() || "A guest",
     totalLabel: formatMoney(r.quotedTotalCents ?? 0, r.currency ?? DISPLAY_CURRENCY),
     expiresAt: (r.expiresAt ?? new Date()).toISOString(),
+    // Renders NOTHING unless the deadline is genuinely cap-derived (D-96) — the whole point of D-99 is that a
+    // host never reads a varying deadline as inconsistency, not that every row carries an explanation.
+    reason: r.expiresAt ? (
+      <RequestCountdownReason
+        createdAt={r.createdAt}
+        expiresAt={r.expiresAt}
+        startsAt={r.startsAt}
+        now={now}
+      />
+    ) : null,
   }));
 
   return (
@@ -141,7 +160,10 @@ export default async function HostRequestsPage() {
                       <TableCell>{data.bookerLabel}</TableCell>
                       <TableCell className="text-right tabular-nums">{data.totalLabel}</TableCell>
                       <TableCell>
+                        {/* The countdown itself is UNCHANGED (D-99 adds a line, not a component); the reason
+                            is its sibling, muted and never an alarm colour. */}
                         <RequestCountdown expiresAt={data.expiresAt} label="Expires in" />
+                        {data.reason}
                       </TableCell>
                       <TableCell>
                         <RequestActions
@@ -159,7 +181,7 @@ export default async function HostRequestsPage() {
             {/* Mobile: stacked cards (the table collapses to a card per request). */}
             <div className="space-y-3 md:hidden">
               {displayRows.map((data) => (
-                <RequestRow key={data.requestId} row={data} />
+                <RequestRow key={data.requestId} row={data} countdownReason={data.reason} />
               ))}
             </div>
           </>

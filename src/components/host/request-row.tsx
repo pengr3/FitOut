@@ -149,8 +149,22 @@ export function RequestActions({
   );
 }
 
-/** RequestRow — the mobile stacked card (mirrors PayoutRow). The desktop table row is rendered by the page. */
-export function RequestRow({ row }: { row: RequestRowData }) {
+/**
+ * RequestRow — the mobile stacked card (mirrors PayoutRow). The desktop table row is rendered by the page.
+ *
+ * `countdownReason` is the D-99 sibling line (07-12), passed in as an already-rendered ReactNode rather than
+ * derived here. It is a SERVER component that needs the row's `created_at`, `starts_at` and the DB clock —
+ * none of which belongs in a client card — so the page renders it and hands it down through this slot. The
+ * mobile card and the desktop table therefore render the SAME node, and the countdown itself is unchanged.
+ * Absent, nothing renders and the layout is byte-identical to before.
+ */
+export function RequestRow({
+  row,
+  countdownReason,
+}: {
+  row: RequestRowData;
+  countdownReason?: React.ReactNode;
+}) {
   return (
     <Card>
       <CardContent className={cn("space-y-3 p-4")}>
@@ -170,7 +184,10 @@ export function RequestRow({ row }: { row: RequestRowData }) {
           </div>
         </dl>
 
-        <RequestCountdown expiresAt={row.expiresAt} label="Expires in" />
+        <div className="space-y-0.5">
+          <RequestCountdown expiresAt={row.expiresAt} label="Expires in" />
+          {countdownReason}
+        </div>
 
         <RequestActions
           requestId={row.requestId}
