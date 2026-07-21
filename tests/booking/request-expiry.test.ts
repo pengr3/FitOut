@@ -2,16 +2,16 @@
 //
 // The 06-06 cron (src/inngest/functions/request-expiry.ts) drives the VISIBLE terminal flip + the booker
 // email for two lapsed request-to-book holds, DB-clock-authoritative. These integration tests exercise the
-// factored queryExpired / expireOne against an isolated schema (the resend transport is globally mocked, so
-// the declined email lands in mockResend.sent()). They assert the load-bearing behavior:
+// factored queryExpired / expireOne against an isolated schema, with the Inngest client stubbed so the
+// emitted notice is observable. They assert the load-bearing behavior:
 //   - SLA auto-decline      : a `requested` hold past `expires_at` (DB clock now()) → `declined`, the slot
 //                             frees (an overlapping createPendingHold now succeeds — declined is
-//                             non-occupying), and the booker gets the "expired" email ONCE. The cron is the
-//                             SOLE booker-email authority (A6).
+//                             non-occupying), and the booker is notified ONCE. The cron is the SOLE
+//                             booker-notice authority (A6).
 //   - payment-window release: an `approved` hold past `expires_at` → `cancelled`, the slot frees, and NO
-//                             email fires (D-66/A3 — the booker chose not to pay).
+//                             notice fires (D-66/A3 — the booker chose not to pay).
 //   - idempotency           : a second expireOne over an already-terminal row flips 0 rows (noop) and never
-//                             re-sends / re-flips.
+//                             re-notifies / re-flips.
 //   - selectivity           : a hold still WITHIN its window (future expires_at) is never selected by the
 //                             DB-clock sweep.
 // Nothing is ever refunded/voided on expiry (D-63) — the freed states are simply non-occupying.
@@ -21,13 +21,45 @@
 // it becomes selectable without sleeping. The seed helpers here insert an already-past `expires_at` directly
 // (the same-machine local Docker DB clock is the authority) for the same effect.
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { user, listing, booking } from "@/lib/db/schema";
 import { mockResend } from "../helpers/mocks";
-import { queryExpired, expireOne, type ExpiredBooking } from "@/inngest/functions/request-expiry";
 import { createPendingHold } from "@/lib/availability/units";
+
+// 07-10 / D-83: the cron no longer sends the declined email itself — it EMITS `fitout/notify`, which fans
+// out to the durable in-app row AND the email (D-91). The probe therefore moved from mockResend to the
+// Inngest client, stubbed at the MODULE the cron's graph resolves so the emission is observable (the
+// cancellation.test.ts idiom). A bare `vi.spyOn` on an import held here would patch the wrong instance and
+// silently miss — and `emitNotify` swallows its own errors, so a miss would be indistinguishable from a pass.
+type NotifyEnvelope = {
+  name: string;
+  data: {
+    type: string;
+    recipientId: string;
+    bookingId: string | null;
+    email: string | null;
+    payload: Record<string, unknown>;
+  };
+};
+// `vi.hoisted` because `vi.mock` is hoisted above every `const` in the file: the factory would otherwise
+// close over an uninitialised binding and the whole suite would fail to load. The sibling action suites use
+// `vi.doMock` + `vi.resetModules` instead — they need a live db/auth mock bound at import time; this file
+// imports the cron directly, so the static form is the right one here.
+const { inngestSend } = vi.hoisted(() => ({
+  inngestSend: vi.fn(async (event: NotifyEnvelope) => ({ ids: [event.name] })),
+}));
+// `createFunction` is stubbed too: the module registers its cron at import time, and these cases drive the
+// factored `queryExpired` / `expireOne` directly rather than through the Inngest runtime.
+vi.mock("@/inngest/client", () => ({
+  inngest: {
+    send: inngestSend,
+    createFunction: (_opts: unknown, handler: unknown) => handler,
+  },
+}));
+
+import { queryExpired, expireOne, type ExpiredBooking } from "@/inngest/functions/request-expiry";
 
 let testDb: TestDb;
 
@@ -77,9 +109,16 @@ async function readStatus(id: string): Promise<string> {
   return row.status;
 }
 
-/** Emails sent to the booker mentioning the declined/expired notice (the SOLE booker-email authority). */
-function declinedEmails() {
-  return mockResend.sent().filter((e) => e.to === "re_booker@example.com" && (e.html ?? "").includes("expired"));
+/** Declined/expired notices EMITTED for the booker (this cron is the SOLE booker-notice authority, A6). */
+function declinedEmissions(): NotifyEnvelope[] {
+  return inngestSend.mock.calls
+    .map((c) => c[0])
+    .filter(
+      (e) =>
+        e.name === "fitout/notify" &&
+        e.data.type === "request_declined" &&
+        e.data.email === "re_booker@example.com",
+    );
 }
 
 beforeAll(async () => {
@@ -99,6 +138,11 @@ beforeAll(async () => {
     hourlyRateCents: 5000,
     dayRateCents: 30000,
   });
+});
+
+beforeEach(() => {
+  inngestSend.mockClear();
+  inngestSend.mockResolvedValue({ ids: [] });
 });
 
 afterAll(async () => {
@@ -126,16 +170,16 @@ describe("request-to-book expiry sweeps — DB-clock-manip harness (06-06 cron b
     expect(past).toBe(true);
   });
 
-  it("SLA auto-decline: a `requested` hold past expires_at → `declined`, slot freed, booker emailed once", async () => {
+  it("SLA auto-decline: a `requested` hold past expires_at → `declined`, slot freed, booker notified once", async () => {
     const row = await seedHold({ id: "bk_sla_decline", status: "requested", hourUtc: 4, expiresInMs: -5 * 60_000 });
 
     // queryExpired (DB clock now()) selects the lapsed requested hold.
     const due = await queryExpired(testDb.db);
     expect(due.map((d) => d.id)).toContain(row.id);
 
-    const before = declinedEmails().length;
+    const before = declinedEmissions().length;
     const res = await expireOne(testDb.db, due.find((d) => d.id === row.id)!);
-    expect(res).toEqual({ status: "declined", emailed: true });
+    expect(res).toEqual({ status: "declined", notified: true });
 
     // The VISIBLE flip: requested → declined (the cron's canonical decline target, Warning-1).
     expect(await readStatus(row.id)).toBe("declined");
@@ -147,8 +191,8 @@ describe("request-to-book expiry sweeps — DB-clock-manip harness (06-06 cron b
     if ("error" in hold) throw new Error(`overlapping hold on the freed slot failed: ${hold.error}`);
     expect(hold.ok).toBe(true);
 
-    // The booker got EXACTLY ONE declined/expired email (this cron is the SOLE booker-email authority, A6).
-    expect(declinedEmails().length - before).toBe(1);
+    // The booker got EXACTLY ONE declined/expired notice (the SOLE booker-notice authority, A6).
+    expect(declinedEmissions().length - before).toBe(1);
   });
 
   it("payment-window release: an `approved` hold past expires_at → `cancelled`, slot freed, NO email (silent, D-66/A3)", async () => {
@@ -169,25 +213,27 @@ describe("request-to-book expiry sweeps — DB-clock-manip harness (06-06 cron b
     if ("error" in hold) throw new Error(`overlapping hold on the freed slot failed: ${hold.error}`);
     expect(hold.ok).toBe(true);
 
-    // The payment-window release is SILENT — the booker chose not to pay in time (D-66/A3), so NO email fires.
+    // The payment-window release is SILENT — the booker chose not to pay in time (D-66/A3), so NOTHING is
+    // emitted and nothing is sent, in either channel.
+    expect(declinedEmissions()).toHaveLength(0);
     expect(mockResend.sent()).toHaveLength(0);
   });
 
-  it("each sweep is idempotent: a re-run over an already-terminal row is a 0-row no-op (no duplicate email)", async () => {
+  it("each sweep is idempotent: a re-run over an already-terminal row is a 0-row no-op (no duplicate notice)", async () => {
     const row = await seedHold({ id: "bk_idem", status: "requested", hourUtc: 6, expiresInMs: -5 * 60_000 });
 
-    const before = declinedEmails().length;
+    const before = declinedEmissions().length;
     const first = await expireOne(testDb.db, row);
-    expect(first).toEqual({ status: "declined", emailed: true });
-    const afterFirst = declinedEmails().length;
+    expect(first).toEqual({ status: "declined", notified: true });
+    const afterFirst = declinedEmissions().length;
     expect(afterFirst - before).toBe(1);
 
     // Second pass over the SAME (now `declined`) row: the status-scoped UPDATE flips 0 rows → noop, and the
-    // email is NEVER re-sent (T-06-16 idempotency).
+    // notice is NEVER re-emitted (T-06-16 idempotency). The flip IS the dedupe claim.
     const second = await expireOne(testDb.db, row);
     expect(second).toEqual({ status: "noop" });
     expect(await readStatus(row.id)).toBe("declined"); // unchanged
-    expect(declinedEmails().length).toBe(afterFirst); // no duplicate email
+    expect(declinedEmissions().length).toBe(afterFirst); // no duplicate notice
   });
 
   it("neither sweep touches a hold still WITHIN its window (a live requested/approved row is not swept)", async () => {
