@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-stopped_at: Phase 06 complete (10/10) — ready to discuss Phase 7
-last_updated: 2026-07-20T10:37:26.182Z
+status: planning
+stopped_at: Phase 7 context gathered
+last_updated: "2026-07-21T06:41:13.093Z"
 last_activity: 2026-07-20
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 41
+  total_plans: 40
   completed_plans: 41
-  percent: 75
+  percent: 100
 ---
 
 # Project State
@@ -192,9 +192,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-08)
-Stopped at: **Completed 06-08-PLAN.md (Wave 5 — /host/requests inbox + booker requested/approved states: the visible request-to-book surface, HOST-01/BOOK-05/BOOK-06).** Created src/components/booking/request-countdown.tsx (RequestCountdown — an HOURS-scale display-only clone of hold-countdown.tsx: per-MINUTE setInterval 60_000, format {N}h {M}m / under-1h {M}m, --destructive final-hour numerals, Expired/'Payment window closed' flip; timer discipline copied EXACTLY — setInterval-only setState, onExpire ref-synced in its own effect, suppressHydrationWarning digits, role=timer aria-live=off, threshold+expiry-only announcements; DB now() vs expires_at is the sole authority — display cue). Created src/components/host/request-row.tsx (RequestRow mobile card mirroring PayoutRow + a use-client RequestActions: Approve neutral solid inline disable→'Approving…', Decline neutral outline → confirm dialog 'Decline request'/'Keep it'; both call the 06-07 approveRequest/declineRequest, sonner toasts, revalidatePath freshness; a 0-row lapsed/already-actioned → calm 'no longer pending' toast). Created src/app/(host)/host/requests/page.tsx (RSC cloning /host/earnings: defense-in-depth session+canHost re-gate, then the OWNER-SCOPED read booking⨝listing⨝user WHERE listing.hostId=session.user.id AND status='requested' ORDER BY expires_at ASC — the EXACT predicate 06-07's non-optional owner-scope READ isolation test asserts, T-06-23/Security V4, the route group is NOT the gate; the booker JOIN is display-only; desktop table + mobile cards + 'No requests right now' empty + max-w-4xl + NO coral; server-frozen quote via formatMoney, zero arithmetic). Pending-count nudge (D-65): a count() owner-scoped booking⨝listing status='requested' query in BOTH host/page.tsx (neutral outline Requests button) + layout.tsx (neutral header nav link), a neutral secondary badge hidden at 0 + aria-label '{n} requests to review', never coral. Branched bookings/[id]/page.tsx before notFound(): requested (Awaiting host secondary/Hourglass, 'You'll pay if approved', 'you haven't been charged / within {APPROVAL_SLA_HOURS}h', NO pay CTA), approved (Approved outline/CalendarCheck — NOT --success; 'Pay within {Nh Mm}' countdown; coral Pay now → /listings/${bk.listingId}/book?hold=${bk.id} = the SAME Phase-5 checkout), + a calm declined landing (muted XCircle + coral 'Find another space'); confirmed/pending-interstitial/reversed unchanged. tsc exit 0; eslint 0 on all six files; booking+paymongo+payments 131 green (no regressions; the 06-07 owner-scope READ isolation test stays green). T-06-23/24/25 mitigated. **HOST-01/BOOK-05/BOOK-06 stay In-progress** — completion validated at 06-09 human-verify / phase transition (06-01..07 precedent). ⚠ gsd-sdk update-progress wrote 39/39=100% (excludes the 06-09 verify) + stray percent 63 — hand-reconciled to 39/40 = 98% (total bumped for the pending 06-09). Commits bcecf13 (T1) + 407cdaf (T2). Next: 06-09 (human-verify checkpoint).
-Resume file: None
+Last session: 2026-07-21T06:41:13.058Z
+Stopped at: Phase 7 context gathered
+Resume file: .planning/phases/07-bookings-management-cancellation-notifications/07-CONTEXT.md
 
 Prior session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-07)
 Stopped at: Completed 06-07-PLAN.md (Wave 4 — host approve/decline server actions: owner-gated, atomic, SLA-guarded). Created src/app/actions/host-requests.ts (approveRequest + declineRequest cloning the blocks.ts skeleton but swapping in a BOOKING⨝LISTING host-ownership guard; atomic DB-clock SLA-guarded flips; fire-and-forget booker emails; rate-limit + audit on approve; dual revalidatePath). Extended tests/booking/request-lifecycle.test.ts +6 host-action cases incl. the NON-OPTIONAL /host/requests owner-scope READ isolation test (the predicate 06-08 consumes). request-lifecycle 22 green; booking+payments+paymongo 131 green. Commits 779cc43 + e3408cc. (Full detail in 06-07-SUMMARY.md.)
