@@ -30,14 +30,12 @@
 // never fail the sweep.
 
 import { eq, sql } from "drizzle-orm";
-import { format } from "date-fns";
-import { tz } from "@date-fns/tz";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { booking, listing, user } from "@/lib/db/schema";
 import { sendRequestDeclined } from "@/lib/email";
-import { windowHours } from "@/lib/booking/pricing";
+import { composeWhenLabel } from "@/lib/booking/when-label";
 
 /** How many lapsed holds a single sweep pass claims (coarse hourly cadence — one pass drains the backlog). */
 const EXPIRY_BATCH_SIZE = 100;
@@ -141,18 +139,17 @@ async function sendDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
       .where(eq(booking.id, bookingId));
     if (!row) return false;
 
-    const inTz = tz(row.timezone);
-    // Re-derive "Full day" vs hourly from the FROZEN quote (fullDay is not persisted), biasing to hourly on
-    // an exact coincidence so the real hours show — identical to the confirmed-email helper.
-    const hours = windowHours(row.startsAt, row.endsAt);
-    const quoted = row.quotedTotalCents ?? 0;
-    const hourlyTotal = row.hourlyRateCents != null ? row.hourlyRateCents * hours : null;
-    const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
-    const dateLabel = format(row.startsAt, "EEEE, MMM d", { in: inTz });
-    const timeLabel = fullDay
-      ? "Full day"
-      : `${format(row.startsAt, "h:mm a", { in: inTz })} – ${format(row.endsAt, "h:mm a", { in: inTz })}`;
-    const whenLabel = `${dateLabel}, ${timeLabel}${row.city ? ` (${row.city} time)` : ""}`;
+    // The SHARED venue-local formatter (07-02) — this body was one of three verbatim duplicates before
+    // Phase 7. "Full day" vs hourly is re-derived inside it from the FROZEN quote (fullDay is not
+    // persisted). Do NOT reintroduce a local copy: every time surface renders the SC#2 venue tz from here.
+    const whenLabel = composeWhenLabel({
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      timezone: row.timezone,
+      city: row.city,
+      quotedTotalCents: row.quotedTotalCents,
+      hourlyRateCents: row.hourlyRateCents,
+    });
 
     await sendRequestDeclined(row.email, row.title ?? "your space", whenLabel, { expired: true });
     return true;

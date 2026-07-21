@@ -17,14 +17,12 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { and, asc, eq } from "drizzle-orm";
-import { format } from "date-fns";
-import { tz } from "@date-fns/tz";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
-import { windowHours } from "@/lib/booking/pricing";
+import { composeWhenLabelShort } from "@/lib/booking/when-label";
 import { APPROVAL_SLA_HOURS } from "@/lib/payments/config";
 import {
   RequestActions,
@@ -77,29 +75,25 @@ export default async function HostRequestsPage() {
     .where(and(eq(listing.hostId, session.user.id), eq(booking.status, "requested")))
     .orderBy(asc(booking.expiresAt));
 
-  // Per-row display: venue-tz-safe window label "{date}, {time} ({City} time)" (mirrors composeWhenLabel in
-  // host-requests.ts / the confirmation page). fullDay is not persisted → re-derive from the FROZEN quote
-  // (the actions never re-price). Money is the frozen quotedTotalCents via formatMoney (zero arithmetic).
-  const displayRows: RequestRowData[] = rows.map((r) => {
-    const inTz = tz(r.timezone);
-    const hours = windowHours(r.startsAt, r.endsAt);
-    const quoted = r.quotedTotalCents ?? 0;
-    const hourlyTotal = r.hourlyRateCents != null ? r.hourlyRateCents * hours : null;
-    const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
-    const dateLabel = format(r.startsAt, "EEE, MMM d", { in: inTz });
-    const timeLabel = fullDay
-      ? "Full day"
-      : `${format(r.startsAt, "h:mm a", { in: inTz })} – ${format(r.endsAt, "h:mm a", { in: inTz })}`;
-    const cityPart = r.city ? ` (${r.city} time)` : "";
-    return {
-      requestId: r.id,
-      spaceTitle: r.title ?? "Your space",
-      whenLabel: `${dateLabel}, ${timeLabel}${cityPart}`,
-      bookerLabel: r.bookerFirstName?.trim() || "A guest",
-      totalLabel: formatMoney(quoted, r.currency ?? DISPLAY_CURRENCY),
-      expiresAt: (r.expiresAt ?? new Date()).toISOString(),
-    };
-  });
+  // Per-row display: the venue-tz-safe window label comes from the SHARED formatter (07-02) in its SHORT
+  // "EEE, MMM d" form — this derivation was one of three verbatim duplicates before Phase 7 and must never
+  // be re-inlined here. fullDay is re-derived inside it from the FROZEN quote (the actions never re-price).
+  // Money is the frozen quotedTotalCents via formatMoney (zero arithmetic).
+  const displayRows: RequestRowData[] = rows.map((r) => ({
+    requestId: r.id,
+    spaceTitle: r.title ?? "Your space",
+    whenLabel: composeWhenLabelShort({
+      startsAt: r.startsAt,
+      endsAt: r.endsAt,
+      timezone: r.timezone,
+      city: r.city,
+      quotedTotalCents: r.quotedTotalCents,
+      hourlyRateCents: r.hourlyRateCents,
+    }),
+    bookerLabel: r.bookerFirstName?.trim() || "A guest",
+    totalLabel: formatMoney(r.quotedTotalCents ?? 0, r.currency ?? DISPLAY_CURRENCY),
+    expiresAt: (r.expiresAt ?? new Date()).toISOString(),
+  }));
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">

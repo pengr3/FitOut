@@ -35,15 +35,13 @@ import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { format } from "date-fns";
-import { tz } from "@date-fns/tz";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { sendRequestApproved, sendRequestDeclined } from "@/lib/email";
-import { windowHours } from "@/lib/booking/pricing";
+import { composeWhenLabel, type WhenLabelInput } from "@/lib/booking/when-label";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
 
@@ -114,23 +112,19 @@ async function loadOwnedRequest(requestId: string, userId: string) {
 }
 
 /**
- * Compose the booker-facing venue-local `whenLabel` `{date}, {time} ({City} time)` — EXACTLY as the
- * reserve page / placeHold request branch / confirmed + declined email helpers, so every booker-facing
- * time surface renders the SC#2 venue tz identically. `fullDay` is not persisted, so it is re-derived
- * from the FROZEN quote (biasing to hourly on an exact coincidence) — mirrors the 06-06 notice helper.
+ * Project an owned request row onto the structural WhenLabelInput. The label itself is composed by the
+ * SHARED formatter (src/lib/booking/when-label.ts) — the body that used to live here was one of three
+ * verbatim duplicates and was extracted in 07-02 so every booker-facing time surface renders the SC#2
+ * venue tz identically and can never drift. Do NOT reintroduce a local formatter here.
  */
-function composeWhenLabel(row: OwnedRequest): string {
-  const inTz = tz(row.timezone);
-  const hours = windowHours(row.startsAt, row.endsAt);
-  const quoted = row.quotedTotalCents ?? 0;
-  const hourlyTotal = row.hourlyRateCents != null ? row.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
-  const dateLabel = format(row.startsAt, "EEEE, MMM d", { in: inTz });
-  const timeLabel = fullDay
-    ? "Full day"
-    : `${format(row.startsAt, "h:mm a", { in: inTz })} – ${format(row.endsAt, "h:mm a", { in: inTz })}`;
-  return `${dateLabel}, ${timeLabel}${row.city ? ` (${row.city} time)` : ""}`;
-}
+const whenLabelInput = (row: OwnedRequest): WhenLabelInput => ({
+  startsAt: row.startsAt,
+  endsAt: row.endsAt,
+  timezone: row.timezone,
+  city: row.city,
+  quotedTotalCents: row.quotedTotalCents,
+  hourlyRateCents: row.hourlyRateCents,
+});
 
 /**
  * approveRequest — the host approves a pending request (HOST-01 / PAY-05, D-64/D-66). Owner-gated, then
@@ -193,7 +187,7 @@ export async function approveRequest(requestId: string): Promise<RequestActionRe
   // Fire the booker the pay-now email FIRE-AND-FORGET (T-06-22 — a Resend failure never fails the action).
   // The pay link routes to the SAME Phase-5 checkout the /book page now treats an `approved` hold as active
   // for (06-04). The total is the SERVER-FROZEN quote (D-49), never a recompute.
-  const whenLabel = composeWhenLabel(row);
+  const whenLabel = composeWhenLabel(whenLabelInput(row));
   const totalLabel = formatMoney(row.quotedTotalCents ?? 0, row.currency ?? DISPLAY_CURRENCY);
   const title = row.title ?? "your space";
   const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
@@ -240,7 +234,7 @@ export async function declineRequest(requestId: string): Promise<RequestActionRe
 
   // Fire the booker the declined email FIRE-AND-FORGET (T-06-22). Freeing the slot is automatic (declined
   // is non-occupying — 06-01 EXCLUDE + 06-02 lazy reads); nothing is refunded/voided (D-63).
-  const whenLabel = composeWhenLabel(row);
+  const whenLabel = composeWhenLabel(whenLabelInput(row));
   void sendRequestDeclined(row.bookerEmail, row.title ?? "your space", whenLabel);
 
   // D-65 freshness: the decline clears the request from the host inbox + dashboard immediately.
