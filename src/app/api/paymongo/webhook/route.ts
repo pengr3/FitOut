@@ -17,6 +17,9 @@ import { tz } from "@date-fns/tz";
 import { db } from "@/lib/db";
 import { booking, hostPayout, hostPayoutLedger, listing, paymongoEvent, user } from "@/lib/db/schema";
 import { createRefund } from "@/lib/paymongo";
+// The rail-refundability question is answered in exactly ONE place (07-03). Do not re-inline the set here —
+// if the Plan-16 probe refutes the QRPh premise, that module is the only file that changes.
+import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { recordAudit } from "@/lib/audit";
 import { sendBookingConfirmed } from "@/lib/email";
 import { bookingReference } from "@/lib/booking/reference";
@@ -36,10 +39,6 @@ if (process.env.NODE_ENV === "production" && !process.env.PAYMONGO_WEBHOOK_SECRE
     "PAYMONGO_WEBHOOK_SECRET is required in production — the webhook is the sole booking-confirm authority (D-57).",
   );
 }
-
-// Payment rails PayMongo can API-refund (Pitfall 1). QRPh + UBP Online Banking are NOT refundable via the
-// API — the gone-slot backstop must operator-alert those, never call createRefund (it would 4xx).
-const REFUNDABLE_RAILS = new Set(["card", "gcash", "grab_pay", "paymaya"]);
 
 type SigParts = { t: string; te: string; li: string };
 
@@ -147,7 +146,7 @@ async function handleGoneSlot(
     cs?.attributes?.payments?.[0]?.source?.type ?? cs?.attributes?.payment_method_used ?? "unknown";
   const amountCents = current.quotedTotalCents ?? 0;
 
-  if (REFUNDABLE_RAILS.has(method) && paymentId && amountCents > 0) {
+  if (isApiRefundable(method) && paymentId && amountCents > 0) {
     // Refundable rail (card / GCash / GrabPay / Maya) — auto-refund the full frozen amount (D-60: no % tiers).
     try {
       await createRefund({
