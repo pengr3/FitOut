@@ -24,7 +24,9 @@ import { UsersIcon } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { getAvailability } from "@/lib/availability/read-model";
-import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
+import { DISPLAY_CURRENCY } from "@/lib/money";
+import { allInRateParts } from "@/lib/booking/all-in-rate";
+import { SERVICE_FEE_BPS } from "@/lib/payments/config";
 import {
   listing,
   user,
@@ -148,13 +150,17 @@ export default async function PublicListingPage({
       ? `Approximate area — ${coarseLocation}. The exact address is shared after booking.`
       : "Approximate area. The exact address is shared after booking.";
 
-  const priceParts: string[] = [];
-  if (pub.hourlyRateCents != null) {
-    priceParts.push(`${formatMoney(pub.hourlyRateCents, DISPLAY_CURRENCY)}/hr`);
-  }
-  if (pub.dayRateCents != null) {
-    priceParts.push(`${formatMoney(pub.dayRateCents, DISPLAY_CURRENCY)}/day`);
-  }
+  // D-75: search and listing pages display the ALL-IN rate so the number never goes up between browsing
+  // and paying. These surfaces create no hold, so nothing is frozen here and the frozen-quote contract is
+  // unaffected — the invariant holds because both surfaces and checkout use the SAME SERVICE_FEE_BPS.
+  //
+  // A RATE, never a promised total. 5% of an hourly rate × N hours can differ by one centavo from 5% of
+  // (rate × N hours). Labelling these `/hr` and `/day` means no total is promised until checkout, so the
+  // rounding edge cannot break D-75's "never goes up". Do NOT add a computed "estimated total" here —
+  // that would create a promise the checkout could break by a centavo.
+  //
+  // Composed by the SHARED helper both browse surfaces use, so this page and the search grid cannot drift.
+  const priceParts = allInRateParts(pub, DISPLAY_CURRENCY);
 
   // Availability (AVAIL-03) — always render in the venue's local timezone (SC#2). Seed the FIRST day
   // (today, venue-tz) server-side via the read model; the client calendar fetches later day-changes.
@@ -270,6 +276,9 @@ export default async function PublicListingPage({
                 {priceParts[1] && (
                   <p className="text-sm text-muted-foreground">{priceParts[1]}</p>
                 )}
+                {priceParts.length > 0 && (
+                  <p className="text-sm text-muted-foreground">Service fee included</p>
+                )}
               </div>
 
               {pub.maxOccupancy != null && (
@@ -285,6 +294,9 @@ export default async function PublicListingPage({
                 currency={DISPLAY_CURRENCY}
                 hourlyRateCents={pub.hourlyRateCents}
                 dayRateCents={pub.dayRateCents}
+                // D-75: threaded from the server so the rail's estimate uses the SAME rate checkout
+                // charges — a client-side default could silently disagree with a configured override.
+                serviceFeeBps={SERVICE_FEE_BPS}
               />
 
               {bookable ? (

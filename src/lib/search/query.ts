@@ -17,6 +17,7 @@
 import { sql } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";
 import { getAvailability, type DbConn } from "@/lib/availability/read-model";
+import { allInRateParts } from "@/lib/booking/all-in-rate";
 import type { SearchParams } from "@/lib/validation/booking";
 
 /**
@@ -33,6 +34,12 @@ export type SearchResultRow = {
   city: string | null;
   coverPhotoUrl: string | null;
   distanceM: number | null;
+  /**
+   * D-75 ALL-IN advertised rate parts (`["₱525/hr", "₱2,625/day"]`), fee-composed SERVER-SIDE here so the
+   * card — which is rendered from a `"use client"` shell — performs zero money arithmetic and never needs
+   * SERVICE_FEE_BPS in the browser bundle. Empty when the listing advertises neither rate.
+   */
+  allInRateParts: string[];
 };
 
 export type SearchResult = { results: SearchResultRow[]; hasMore: boolean };
@@ -96,16 +103,19 @@ type RawRow = {
 };
 
 function toRow(r: RawRow): SearchResultRow {
+  const rates = { hourlyRateCents: r.hourly_rate_cents, dayRateCents: r.day_rate_cents };
   return {
     id: r.id,
     title: r.title,
     primarySpaceType: r.primary_space_type,
-    hourlyRateCents: r.hourly_rate_cents,
-    dayRateCents: r.day_rate_cents,
+    ...rates,
     timezone: r.timezone,
     city: r.city,
     coverPhotoUrl: r.cover_photo_url,
     distanceM: r.distance_m === null ? null : Number(r.distance_m),
+    // D-75: composed HERE (server-side) rather than in the card, so the browse rate and the checkout
+    // breakdown are guaranteed to use the same SERVICE_FEE_BPS. See src/lib/booking/all-in-rate.ts.
+    allInRateParts: allInRateParts(rates),
   };
 }
 

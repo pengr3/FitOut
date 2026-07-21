@@ -24,6 +24,7 @@ import { getDayAvailability } from "@/app/actions/availability";
 import { BOOKING_HORIZON_DAYS } from "@/lib/availability/slots";
 import type { DayAvailability } from "@/lib/availability/read-model";
 import { formatMoney } from "@/lib/money";
+import { computeServiceFee } from "@/lib/payments/service-fee";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
@@ -231,6 +232,14 @@ type RailSelectionSummaryProps = {
   currency: string;
   hourlyRateCents: number | null;
   dayRateCents: number | null;
+  /**
+   * D-74/D-75 — the applied service-fee rate, passed in FROM THE SERVER. This component is inside a
+   * `"use client"` module, so it must not fall back to the SERVICE_FEE_BPS default: a non-public env
+   * override (`SERVICE_FEE_BPS=700`) is not inlined into the browser bundle, so the rail would keep
+   * quoting 5% while checkout charged 7% — the number going UP between browsing and paying, which is
+   * exactly what D-75 forbids. Threading it from the RSC keeps the two provably on the same rate.
+   */
+  serviceFeeBps: number;
 };
 
 /** In the booking rail, ABOVE the CTA: the chosen date · time range · est. price (display-only). */
@@ -239,6 +248,7 @@ export function RailSelectionSummary({
   currency,
   hourlyRateCents,
   dayRateCents,
+  serviceFeeBps,
 }: RailSelectionSummaryProps) {
   const { selection } = useBookingSelection();
   if (!selection) return null;
@@ -252,7 +262,17 @@ export function RailSelectionSummary({
     ? "Full day"
     : `${format(start, "h:mm a", { in: inTz })} – ${format(end, "h:mm a", { in: inTz })}`;
 
-  const cents = selection.fullDay ? dayRateCents : hourlyRateCents != null ? hourlyRateCents * hours : null;
+  // The SPACE price for the selection — the same figure quoteWindow freezes at hold time (pricing.ts
+  // documents this formula as byte-identical to the one here, so display and freeze agree).
+  const spaceCents =
+    selection.fullDay ? dayRateCents : hourlyRateCents != null ? hourlyRateCents * hours : null;
+  // D-75: the rail is the LAST number a booker sees before checkout, so it must be ALL-IN. Showing the
+  // space price here and charging space + fee on the next screen is the "number goes up between browsing
+  // and paying" failure D-75 exists to prevent — and at 5% of the booking it is not a rounding edge.
+  // Unlike a search card this IS a total for a chosen window, and it is EXACT rather than approximate:
+  // computeServiceFee is applied to the same space price checkout freezes, with the same rate, so the two
+  // agree to the centavo. The shared pure module is used — the fee formula is never re-implemented here.
+  const cents = spaceCents == null ? null : computeServiceFee(spaceCents, serviceFeeBps).allInCents;
 
   return (
     <div className="space-y-1 rounded-lg border p-3 text-sm">

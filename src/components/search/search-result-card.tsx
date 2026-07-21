@@ -6,7 +6,8 @@
 //   - Adds a distance line ("2.3 km away", muted) rendered ONLY when the search had an origin, and an
 //     optional searched-window line ("Available … on …") that always names the venue tz (SC#2).
 //   - Title weight is normalized 500 → 600 (`font-semibold`) per the strict 2-weight contract.
-//   - Prices render in the shared PHP `DISPLAY_CURRENCY` (D-46), never `listing.currency` ('usd').
+//   - Prices render in the shared PHP `DISPLAY_CURRENCY` (D-46), never `listing.currency` ('usd'), and
+//     since D-75 they arrive ALL-IN and pre-formatted from the server (see the price block below).
 // The WHOLE card is a single Link to the listing, carrying the searched window so the listing calendar
 // can pre-open that day. Neutral throughout — coral is reserved for the Search button (no per-card accent).
 
@@ -16,7 +17,6 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
-import { DISPLAY_CURRENCY, formatMoney } from "@/lib/money";
 import type { SearchResultRow } from "@/lib/search/query";
 
 /** The booker's searched window, threaded onto the card link + the "Available …" line. */
@@ -75,13 +75,20 @@ export function SearchResultCard({
     ? (SPACE_TYPE_LABELS[listing.primarySpaceType as SpaceTypeValue] ?? listing.primarySpaceType)
     : null;
 
-  const priceParts: string[] = [];
-  if (listing.hourlyRateCents != null) {
-    priceParts.push(`${formatMoney(listing.hourlyRateCents, DISPLAY_CURRENCY)}/hr`);
-  }
-  if (listing.dayRateCents != null) {
-    priceParts.push(`${formatMoney(listing.dayRateCents, DISPLAY_CURRENCY)}/day`);
-  }
+  // D-75: search and listing pages display the ALL-IN rate so the number never goes up between browsing
+  // and paying. These surfaces create no hold, so nothing is frozen here and the frozen-quote contract is
+  // unaffected — the invariant holds because both surfaces and checkout use the SAME SERVICE_FEE_BPS.
+  //
+  // A RATE, never a promised total. 5% of an hourly rate × N hours can differ by one centavo from 5% of
+  // (rate × N hours). Labelling these `/hr` and `/day` means no total is promised until checkout, so the
+  // rounding edge cannot break D-75's "never goes up". Do NOT add a computed "estimated total" to a search
+  // card — that would create a promise the checkout could break by a centavo.
+  //
+  // Already formatted SERVER-SIDE in the search query mapping (src/lib/search/query.ts → allInRateParts):
+  // this card is rendered from a "use client" shell, so composing the fee here would put SERVICE_FEE_BPS
+  // in the browser bundle, where a non-public env override does not reach it — the browse rate would
+  // silently keep showing 5% while checkout charged the configured rate. Zero arithmetic in this file.
+  const priceParts = listing.allInRateParts;
 
   // Distance renders ONLY when the search had an origin (distanceM is NULL in the default city view, D-30).
   const distanceKm = listing.distanceM != null ? (listing.distanceM / 1000).toFixed(1) : null;
@@ -118,6 +125,9 @@ export function SearchResultCard({
           <p className="text-sm tabular-nums">
             {priceParts.length ? priceParts.join(" · ") : "Price on request"}
           </p>
+          {priceParts.length > 0 && (
+            <p className="text-sm text-muted-foreground">Service fee included</p>
+          )}
           {distanceKm && (
             <p className="text-sm text-muted-foreground tabular-nums">{distanceKm} km away</p>
           )}
