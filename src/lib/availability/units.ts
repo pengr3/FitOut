@@ -9,12 +9,34 @@
 // 03-01 concurrency finding: a genuine two-connection race can surface 40P01 (deadlock_detected) as
 // well as 23P01 (exclusion_violation). BOTH are DB-atomic rejections that prevent the double-book, so
 // both drive a retry here and both map to the clean "just taken" message — never a raw 500.
+//
+// ── D-94 (Phase 7): ONE INVARIANT, ENFORCED EVERYWHERE ───────────────────────────────────────────────
+// NO HOLD EVER OUTLIVES ITS OWN SESSION. `expires_at = LEAST(now() + window, starts_at)` on ALL THREE
+// hold-write sites: the request SLA and the instant-book hold (both below) and the approval payment
+// window (src/app/actions/host-requests.ts). A hold that outlives its session is, in effect, a slot sold
+// twice — the calendar keeps showing it held while the session it holds is already running or over.
+//
+// THE DATABASE CLOCK `now()` IS THE SOLE EXPIRY AUTHORITY. This file deliberately contains ZERO JS clock
+// reads — expiry is a SQL expression evaluated by Postgres, in the same transaction as the rows it is
+// compared against. A JS clock read is skewed relative to those rows, and it would be captured ONCE
+// before the SAVEPOINT retry loop rather than re-evaluated per attempt. Do not reintroduce one; the
+// absence of a JS clock read here is asserted by grep in 07-05's acceptance criteria.
+//
+// D-96 mode-scoped lead-time guards live here too, enforced SERVER-SIDE against now() in the same
+// transaction. The SlotPicker's unselectable `too_soon` chips (D-98/D-100) are a COURTESY, never the
+// gate — this check runs unconditionally at submit (Security V4).
 
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { booking, listing } from "@/lib/db/schema";
 import { isPgError } from "@/lib/pg";
 import { quoteWindow } from "@/lib/booking/pricing";
+import {
+  APPROVAL_SLA_HOURS,
+  MIN_APPROVE_WINDOW_HOURS,
+  MIN_LEAD_INSTANT_MINUTES,
+  MIN_LEAD_REQUEST_HOURS,
+} from "@/lib/payments/config";
 import type { DbConn } from "./read-model";
 
 /** Thrown when every unit is occupied for the requested window (units exhausted). */
@@ -138,8 +160,9 @@ export type CreatePendingHoldInput = {
    */
   holdStatus?: "pending" | "requested";
   /**
-   * Hold TTL in milliseconds. Defaults to HOLD_TTL_MS (15 min). The request branch passes the longer
-   * approval SLA window (APPROVAL_SLA_HOURS) so the request holds the slot until the host acts.
+   * Hold TTL in milliseconds — the window BEFORE the D-94 session-start cap and the D-96 split are
+   * applied. Defaults per mode: HOLD_TTL_MS (15 min) for an instant hold, APPROVAL_SLA_HOURS for a
+   * request (so a caller that omits it can never accidentally mint a 15-minute approval SLA).
    */
   ttlMs?: number;
   /**
@@ -150,8 +173,22 @@ export type CreatePendingHoldInput = {
   bookingMode?: "instant" | "request";
 };
 
-/** A placed (or idempotently-replayed) hold, or a clean user-facing conflict message (mapBookingError). */
-export type HoldSuccess = { ok: true; id: string; unit: number; replayed: boolean };
+/**
+ * A placed (or idempotently-replayed) hold, or a clean user-facing conflict message (mapBookingError).
+ *
+ * `expiresAt` is the DB-COMPUTED expiry (Pitfall 8). Since D-94 the value is a SQL expression evaluated
+ * by Postgres, so it is NOT known client-side at insert time — it is read back via `.returning()` (fresh
+ * insert) or re-selected (idempotent replay) and handed to the caller for the countdown UI. It is
+ * `null` ONLY on the replay of an already-`confirmed` booking, which has no live hold expiry at all —
+ * typed honestly so a consumer cannot render `new Date(null)` as a silent Invalid Date.
+ */
+export type HoldSuccess = {
+  ok: true;
+  id: string;
+  unit: number;
+  replayed: boolean;
+  expiresAt: Date | null;
+};
 export type HoldResult = HoldSuccess | { error: string };
 
 // Only the raw `.execute(sql)` surface is needed by the probe/idempotency helpers; both the top-level
@@ -164,13 +201,17 @@ type SqlExecutor = Pick<DbConn, "execute">;
  * window you already hold — or a concurrent same-key submit whose winner has committed — returns the SAME
  * booking, never a false "just taken". Uses the SAME widened lazy-expiry occupancy predicate + SQL now()
  * (DB clock) as the read model and the booking_no_overlap EXCLUDE (D-63: requested/approved occupy).
+ *
+ * Selects `expires_at` too (Pitfall 8): the idempotent-replay paths must return the SAME real expiry a
+ * fresh insert returns, or the countdown silently breaks on exactly the re-entering-checkout case the
+ * replay exists to serve. NULL only for a `confirmed` row (no live hold expiry).
  */
 async function findOwnActiveHold(
   tx: SqlExecutor,
   args: { listingId: string; bookerId: string; startIso: string; endIso: string; idempotencyKey: string | null },
-): Promise<{ id: string; unit: number } | null> {
+): Promise<{ id: string; unit: number; expiresAt: Date | null } | null> {
   const rows = (await tx.execute(sql`
-    SELECT id, unit FROM booking
+    SELECT id, unit, expires_at FROM booking
     WHERE listing_id = ${args.listingId}
       AND (status = 'confirmed' OR (status IN ('pending','requested','approved') AND expires_at > now()))
       AND (
@@ -179,8 +220,10 @@ async function findOwnActiveHold(
       )
     ORDER BY created_at ASC
     LIMIT 1
-  `)) as unknown as { id: string; unit: number }[];
-  return rows.length > 0 ? { id: rows[0].id, unit: rows[0].unit } : null;
+  `)) as unknown as { id: string; unit: number; expires_at: Date | string | null }[];
+  if (rows.length === 0) return null;
+  const { id, unit, expires_at } = rows[0];
+  return { id, unit, expiresAt: expires_at == null ? null : new Date(expires_at) };
 }
 
 /**
@@ -218,28 +261,91 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
   const fullDay = input.fullDay ?? false;
   const idempotencyKey = input.idempotencyKey ?? null;
   const holdStatus = input.holdStatus ?? "pending"; // D-63: default keeps the instant hold unchanged
-  const ttlMs = input.ttlMs ?? HOLD_TTL_MS; // default 15-min instant TTL; request branch passes the SLA window
+  // Default per mode so an omitted ttlMs can never mint a 15-minute approval SLA (D-95: the request
+  // window IS APPROVAL_SLA_HOURS). Converted to whole MINUTES for make_interval — the SQL expression is
+  // the authority now, so this is only ever the pre-cap window WIDTH, never an absolute instant.
+  const ttlMs = input.ttlMs ?? (holdStatus === "requested" ? APPROVAL_SLA_HOURS * 60 * 60 * 1000 : HOLD_TTL_MS);
+  const ttlMinutes = Math.max(1, Math.round(ttlMs / 60_000));
   const bookingMode = input.bookingMode ?? null; // D-61 snapshot (NULL for the legacy instant path)
+
+  // ── D-94 expiry, computed by POSTGRES (never the JS clock) and capped at the session start ──────────
+  // `starts_at` here is a value being INSERTED, not a column being read, so it is parameterised as
+  // ${startIso}::timestamptz rather than named as a column. ISO STRINGS are bound into raw `sql`
+  // templates (postgres.js throws ERR_INVALID_ARG_TYPE on a JS Date in a raw template; the JS `Date`
+  // stays only for the drizzle timestamptz insert) — the established Phase-3 convention.
+  //
+  // INSTANT path: LEAST(now() + ttl, starts_at). A 15-minute hold placed 5 minutes before the session
+  // expires when the session starts, not 10 minutes into it.
+  //
+  // REQUEST path: the D-96 PROPORTIONAL SPLIT, so a cap-shortened SLA never eats the booker's whole
+  // window. Host SLA = min(ttl, half the time to start), floored at MIN_APPROVE_WINDOW_HOURS (D-93),
+  // then capped at starts_at (D-94).
+  //   Worked check — a request 4h out: (4h)/2 = 2h; LEAST(24h, 2h) = 2h; GREATEST(1h, 2h) = 2h.
+  //   Host SLA = now+2h and the booker gets the remaining 2h — NOT host 3h59m and booker one minute.
+  // The outer LEAST(..., starts_at) is belt-and-braces (half the time to start can never exceed the
+  // time to start); it stays as the structural guarantee that D-94's one invariant holds at this site.
+  const expiresAtSql =
+    holdStatus === "requested"
+      ? sql`LEAST(
+          now() + GREATEST(
+            make_interval(hours => ${MIN_APPROVE_WINDOW_HOURS}::int),
+            LEAST(
+              make_interval(mins => ${ttlMinutes}::int),
+              (${startIso}::timestamptz - now()) / 2
+            )
+          ),
+          ${startIso}::timestamptz
+        )`
+      : sql`LEAST(
+          now() + make_interval(mins => ${ttlMinutes}::int),
+          ${startIso}::timestamptz
+        )`;
+
+  // D-93/D-96 lead-time guard, MODE-SCOPED. Request-to-book needs TWO humans in sequence (host approves,
+  // then booker pays) so it needs hours. Instant-book is ONE person and ONE checkout, so it gets a
+  // checkout-sized minutes guard — deliberately small so same-day instant-book stays available.
+  const leadIntervalSql =
+    holdStatus === "requested"
+      ? sql`make_interval(hours => ${MIN_LEAD_REQUEST_HOURS}::int)`
+      : sql`make_interval(mins => ${MIN_LEAD_INSTANT_MINUTES}::int)`;
+  const leadError =
+    holdStatus === "requested"
+      ? "That start time is too soon to request — this host needs a few hours' notice. Pick a later time."
+      : "That start time is too soon to book. Pick a time at least half an hour out.";
   const idArgs = { listingId: input.listingId, bookerId: input.bookerId, startIso, endIso, idempotencyKey };
 
   for (let txAttempt = 0; ; txAttempt++) {
     try {
       return await db.transaction(async (tx): Promise<HoldResult> => {
         // Server-authoritative listing facts (unitCount + rates) — never trust a client-supplied price.
+        //
+        // The D-93/D-96 lead-time guard rides ALONG on this SAME round trip as a computed column. That is
+        // deliberate: this transaction races other bookers on the booking_no_overlap EXCLUDE, and every
+        // ADDED statement between the own-hold pre-check and the insert widens the window in which the
+        // D-42 own-duplicate conflation has to be untangled. Evaluating the guard here costs nothing, and
+        // it is still the DB clock, still in-transaction, and still ahead of every write.
         const listingRows = await tx
           .select({
             unitCount: listing.unitCount,
             hourlyRateCents: listing.hourlyRateCents,
             dayRateCents: listing.dayRateCents,
+            leadOk: sql<boolean>`(${startIso}::timestamptz >= now() + ${leadIntervalSql})`,
           })
           .from(listing)
           .where(eq(listing.id, input.listingId));
         if (listingRows.length === 0) throw new NoUnitAvailableError(); // unknown listing → nothing to hold
-        const { unitCount, hourlyRateCents, dayRateCents } = listingRows[0];
+        const { unitCount, hourlyRateCents, dayRateCents, leadOk } = listingRows[0];
+
+        // D-93/D-96 lead-time guard, enforced SERVER-SIDE against now(). The SlotPicker's unselectable
+        // `too_soon` chips (D-98/D-100) are a COURTESY, never the gate — this runs unconditionally at
+        // submit (Security V4 / T-07-22), so a crafted POST of a disabled slot is refused right here,
+        // before any write. Returned through the EXISTING HoldResult error channel — no new branch for
+        // callers, no new failure shape.
+        if (!leadOk) return { error: leadError };
 
         // (1) Own-hold idempotency pre-check (primary, D-42) — replay an existing active hold.
         const existing = await findOwnActiveHold(tx, idArgs);
-        if (existing) return { ok: true, id: existing.id, unit: existing.unit, replayed: true };
+        if (existing) return { ok: true, ...existing, replayed: true };
 
         // (2) In-tx stale-hold sweep (D-48b): flip EVERY overlapping EXPIRED slot-holding hold
         // (pending | requested | approved) out of the occupying set so the EXCLUDE constraint sees the
@@ -259,9 +365,10 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
             AND status IN ('pending','requested','approved') AND expires_at <= now()
             AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${startIso}, ${endIso}, '[)')`);
 
-        // (3) Server-frozen price quote (D-45/D-46) + parameterized TTL (D-47 instant default / D-64 SLA).
+        // (3) Server-frozen price quote (D-45/D-46). The TTL is NOT computed here any more — `expiresAtSql`
+        // (D-94) is evaluated by Postgres inside the insert, and is therefore RE-EVALUATED on each
+        // SAVEPOINT attempt rather than captured once before the loop.
         const quote = quoteWindow({ startUtc: startsAt, endUtc: endsAt, fullDay, hourlyRateCents, dayRateCents });
-        const expiresAt = new Date(Date.now() + ttlMs);
 
         // (4) Per-unit SAVEPOINT insert loop — the constraint is the sole arbiter of the double-book.
         for (let attempt = 0; attempt < unitCount; attempt++) {
@@ -269,30 +376,36 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
           if (unit == null) throw new NoUnitAvailableError();
           const id = randomUUID();
           try {
-            await tx.transaction(async (sp) => {
+            // Read the DB-computed expiry straight back out of the insert (Pitfall 8) — with a SQL
+            // expression the value is unknowable client-side, and a missing countdown would NOT fail tsc.
+            const expiresAt = await tx.transaction(async (sp) => {
               // ← SAVEPOINT: a 23P01 here rolls back ONLY this attempt, leaving the outer tx usable.
-              await sp.insert(booking).values({
-                id,
-                listingId: input.listingId,
-                bookerId: input.bookerId,
-                unit,
-                startsAt,
-                endsAt,
-                status: holdStatus, // D-63: 'pending' (instant, default) or 'requested' (request-to-book)
-                bookingMode, // D-61 creation-time snapshot (NULL for the legacy instant path)
-                expiresAt,
-                quotedTotalCents: quote.totalCents,
-                currency: quote.currency,
-                idempotencyKey,
-              });
+              const inserted = await sp
+                .insert(booking)
+                .values({
+                  id,
+                  listingId: input.listingId,
+                  bookerId: input.bookerId,
+                  unit,
+                  startsAt,
+                  endsAt,
+                  status: holdStatus, // D-63: 'pending' (instant, default) or 'requested' (request-to-book)
+                  bookingMode, // D-61 creation-time snapshot (NULL for the legacy instant path)
+                  expiresAt: expiresAtSql, // D-94: LEAST(now() + window, starts_at), computed by Postgres
+                  quotedTotalCents: quote.totalCents,
+                  currency: quote.currency,
+                  idempotencyKey,
+                })
+                .returning({ expiresAt: booking.expiresAt });
+              return inserted[0]?.expiresAt ?? null;
             });
-            return { ok: true, id, unit, replayed: false }; // won the slot — the constraint accepted it
+            return { ok: true, id, unit, replayed: false, expiresAt }; // won — the constraint accepted it
           } catch (e) {
             // 23505 (unique_violation on booking_idem_uq): a concurrent same-key insert won; the winner
             // is committed → return it (YOUR OWN duplicate, never "just taken" — D-42).
             if (isPgError(e, "23505")) {
               const dup = await findOwnActiveHold(tx, idArgs);
-              if (dup) return { ok: true, id: dup.id, unit: dup.unit, replayed: true };
+              if (dup) return { ok: true, ...dup, replayed: true };
               throw e;
             }
             // 23P01 (exclusion_violation): someone holds THIS unit's range. But it may be your OWN
@@ -302,7 +415,7 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
             // someone else → roll back the savepoint and try the next free unit.
             if (isPgError(e, "23P01")) {
               const mine = await findOwnActiveHold(tx, idArgs);
-              if (mine) return { ok: true, id: mine.id, unit: mine.unit, replayed: true };
+              if (mine) return { ok: true, ...mine, replayed: true };
               continue; // rolled back to the savepoint; the outer tx is intact → next free unit
             }
             throw e; // 40P01 (whole-tx abort) / anything else → propagate to the outer retry / mapper
