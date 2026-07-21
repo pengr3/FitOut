@@ -26,3 +26,28 @@ export const cancellationSchema = z.object({
 });
 
 export type CancellationInput = z.infer<typeof cancellationSchema>;
+
+/**
+ * The five HOST cancellation reasons (D-70 / 07-UI-SPEC § 4). The host path carries ONE more field than the
+ * booker path, and it is not theatrical: D-70 requires an audit record against the host, the value is written
+ * to `booking.decline_reason`, and the notification composer reads it. It is still not a money field — the
+ * fee and the refund are both derived server-side exactly as the booker path derives its quote, so the
+ * tripwire above holds unchanged.
+ *
+ * A closed union, not free text: an open string would be an unbounded value landing in an audit row and a
+ * durable column, and the UI only ever offers these five.
+ */
+export const hostCancelReasons = [
+  "space_unavailable",
+  "double_booked",
+  "maintenance",
+  "guest_requested",
+  "other",
+] as const;
+
+export const hostCancellationSchema = z.object({
+  bookingId: z.string().min(1),
+  reason: z.enum(hostCancelReasons),
+});
+
+export type HostCancellationInput = z.infer<typeof hostCancellationSchema>;

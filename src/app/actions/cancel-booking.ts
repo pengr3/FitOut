@@ -42,6 +42,8 @@
 // review page discloses the concrete instant each rung changes (D-81 / `rungBoundaries`) so a booker near a
 // boundary can see it coming rather than be surprised by it.
 
+import { randomUUID } from "node:crypto";
+
 import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { headers } from "next/headers";
@@ -49,17 +51,25 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { booking, listing, user } from "@/lib/db/schema";
+import { availabilityBlock, booking, listing, user } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { composeWhenLabel, type WhenLabelInput } from "@/lib/booking/when-label";
 import { emitNotify } from "@/lib/notifications";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
+import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/config";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { createRefund } from "@/lib/paymongo";
 import { recordAudit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rate-limit";
-import { cancellationSchema } from "@/lib/validation/cancellation";
+import {
+  cancellationSchema,
+  hostCancellationSchema,
+  type HostCancellationInput,
+} from "@/lib/validation/cancellation";
+
+/** The five D-70 host cancellation reasons, re-exported from the ONE schema that owns the union. */
+export type HostCancelReason = HostCancellationInput["reason"];
 
 /** Cancel result. `refundCents` is what the SERVER computed and wrote — never an echo of a request field. */
 export type CancelActionResult = { ok: true; refundCents: number } | { ok: false; error: string };
@@ -111,25 +121,29 @@ async function requireUserId(): Promise<string | null> {
 const hostUser = alias(user, "host_user");
 const bookerUser = alias(user, "booker_user");
 
-type OwnedBooking = NonNullable<Awaited<ReturnType<typeof loadOwnedBooking>>>;
+type OwnedBooking = NonNullable<Awaited<ReturnType<typeof loadBookingRow>>>;
 
 /**
- * Owner-gated load (T-07-48 / Security V4). Returns the booking ONLY if the signed-in user is its booker;
- * a missing row and a cross-user row both fall through to null and are therefore indistinguishable to the
- * caller. Everything the two cancel paths need — the frozen money split, the snapshotted tier, the payment
- * id and rail, the venue-local label inputs, and both parties' notification addresses — comes back in this
- * ONE read, so no branch below has to re-query and risk reading a row that changed underneath it.
+ * The ONE read every cancel path shares. Everything the three paths need — the frozen money split, the
+ * snapshotted tier, the payment id and rail, the occupied unit, the venue-local label inputs, both parties'
+ * notification addresses, and the host's `canHost` capability — comes back here, so no branch below has to
+ * re-query and risk reading a row that changed underneath it.
+ *
+ * It performs NO authorization. The two gates below own that, and they are what callers must use.
  *
  * Timestamps arrive as real Dates here because this is a Drizzle `select()` and not a raw `execute()` —
  * see the RawBookingRow contract in bookings-query.ts for why that distinction matters.
  */
-async function loadOwnedBooking(bookingId: string, userId: string) {
+async function loadBookingRow(bookingId: string) {
   const [row] = await db
     .select({
       id: booking.id,
       bookerId: booking.bookerId,
       listingId: booking.listingId,
       status: booking.status,
+      // The unit this booking occupies (D-21). The host-cancel auto-block must close the SAME unit —
+      // blocking the whole listing would punish the host's other units for a single cancellation.
+      unit: booking.unit,
       startsAt: booking.startsAt,
       endsAt: booking.endsAt,
       // The D-67 creation-time tier SNAPSHOT. NEVER listing.cancellationPolicy (T-07-51).
@@ -146,6 +160,7 @@ async function loadOwnedBooking(bookingId: string, userId: string) {
       city: listing.city,
       hourlyRateCents: listing.hourlyRateCents,
       hostId: listing.hostId,
+      hostCanHost: hostUser.canHost,
       hostEmail: hostUser.email,
       bookerEmail: bookerUser.email,
       bookerFirstName: bookerUser.firstName,
@@ -155,8 +170,34 @@ async function loadOwnedBooking(bookingId: string, userId: string) {
     .innerJoin(hostUser, eq(listing.hostId, hostUser.id))
     .innerJoin(bookerUser, eq(booking.bookerId, bookerUser.id))
     .where(eq(booking.id, bookingId));
+  return row ?? null;
+}
+
+/**
+ * BOOKER owner-gate (T-07-48 / Security V4). Returns the booking ONLY if the signed-in user is its booker;
+ * a missing row and a cross-user row both fall through to null and are therefore indistinguishable to the
+ * caller.
+ */
+async function loadOwnedBooking(bookingId: string, userId: string) {
+  const row = await loadBookingRow(bookingId);
   // Re-check ownership server-side (the route group is NOT the gate). Missing and not-mine both → null.
   if (!row || row.bookerId !== userId) return null;
+  return row;
+}
+
+/**
+ * HOST owner-gate (T-07-61). The mirror image of the booker gate, cloned from host-requests.ts's
+ * `loadOwnedRequest`: the signed-in user must be the LISTING's host AND still hold `canHost`. A missing
+ * booking, a booking on someone else's listing, and a de-capability'd host all fall through to null and are
+ * therefore indistinguishable — the caller returns the SAME `DENIED` string the booker path returns, so a
+ * guessed or leaked booking id is not an enumeration oracle in either direction.
+ *
+ * `canHost` is checked here and not only at the route because a host whose capability was revoked must not
+ * keep a live money-moving action just because they still hold a URL.
+ */
+async function loadHostOwnedBooking(bookingId: string, userId: string) {
+  const row = await loadBookingRow(bookingId);
+  if (!row || row.hostId !== userId || !row.hostCanHost) return null;
   return row;
 }
 
@@ -186,6 +227,21 @@ async function explainNoRows(bookingId: string): Promise<CancelActionResult> {
   return NOT_ACTIVE;
 }
 
+/**
+ * The app's base URL, from the SAME `BETTER_AUTH_URL` convention auth.ts / email.ts / paymongo-connect.ts
+ * and every other emitNotify call site already use (booking.ts:218, host-requests.ts:258, request-expiry.ts:188,
+ * webhook/route.ts:255). Do NOT introduce a second env var for this.
+ *
+ * ⚠️ EVERY `href` in a notification payload MUST be ABSOLUTE. One payload string feeds BOTH channels (D-91):
+ * the in-app dropdown resolves an absolute same-origin URL fine, but an email client has no origin to resolve
+ * a root-relative `/bookings/123` against, so a relative href is a DEAD LINK in the email half — silently, in
+ * the one message the recipient most needs to act on. This regressed here once (found by 07-10) and is
+ * asserted against in tests/booking/cancellation.test.ts.
+ */
+function appBaseUrl(): string {
+  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+}
+
 /** Both sides are told, post-commit. Emission never blocks or fails the action (MANAGE-03). */
 async function notifyCancellation(
   row: OwnedBooking,
@@ -195,6 +251,7 @@ async function notifyCancellation(
   const whenLabel = composeWhenLabel(whenLabelInput(row));
   const listingTitle = row.title ?? "your space";
   const bookerLabel = row.bookerFirstName?.trim() || "A guest";
+  const base = appBaseUrl();
 
   // The HOST learns their slot is free again. Always sent — a host must never discover a cancellation by
   // turning up to an empty space.
@@ -208,7 +265,7 @@ async function notifyCancellation(
       listingTitle,
       whenLabel,
       bookerLabel,
-      href: "/host/bookings",
+      href: `${base}/host/bookings`,
     },
   });
 
@@ -225,17 +282,26 @@ async function notifyCancellation(
         listingTitle,
         whenLabel,
         refundLabel,
-        href: `/bookings/${bookingId}`,
+        href: `${base}/bookings/${bookingId}`,
       },
     });
   }
 }
 
-/** The three surfaces a cancellation changes. Shared so the two paths can never revalidate different sets. */
-function revalidateCancelSurfaces(bookingId: string): void {
+/**
+ * The surfaces a cancellation changes. Shared so the paths can never revalidate different sets.
+ * `listingId` is passed by the HOST path, whose auto-block also changes the PUBLIC listing's availability —
+ * without it the freed-then-blocked window would keep rendering as bookable to browsers until the next
+ * revalidation, which is exactly the resale window D-70 exists to close.
+ */
+function revalidateCancelSurfaces(bookingId: string, listingId?: string): void {
   revalidatePath("/bookings");
   revalidatePath("/host/bookings");
   revalidatePath(`/bookings/${bookingId}`);
+  if (listingId) {
+    revalidatePath(`/host/bookings/${bookingId}`);
+    revalidatePath(`/listings/${listingId}`);
+  }
 }
 
 /**
@@ -482,4 +548,341 @@ export async function cancelUnpaidHold(bookingId: string): Promise<CancelActionR
 
   revalidateCancelSurfaces(bookingId);
   return { ok: true, refundCents: 0 };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// HOST-INITIATED CANCELLATION (HOST-02 · PAY-06 · D-70/D-71/D-80) — ROADMAP SC#3.
+//
+// A host breaking an ALREADY-CONFIRMED booking is a different event from a booker changing their mind, and
+// the economics are the reason (07-CONTEXT § Specific Ideas — the user reasons from economics first). D-63
+// refused to bill a host for a REJECTION, because nobody can fairly be billed for a reversal they were
+// asked to make. A host cancelling a booking the booker already PAID for is the opposite case: a broken
+// commitment, fairly billable, and the fee self-funds the ~2.5% gateway cost the platform would otherwise
+// absorb for nothing.
+//
+// FOUR CONSEQUENCES FIRE, and all four are load-bearing (D-70/D-71):
+//   1. The booker is refunded 100% — INCLUDING the D-74 service fee, and REGARDLESS of the listing's tier.
+//   2. An audit row is recorded against the HOST.
+//   3. The freed window is AUTO-BLOCKED on the same listing AND unit, with a sentinel `reason` the unblock
+//      action refuses to delete. This is the anti-resell mechanism; without it the whole apparatus is a
+//      formality, because the host could cancel and immediately relist the same slot at a higher price.
+//   4. A flat, config-tunable fee is charged as a SIGNED DEBIT on host_payout_ledger, capped at the booking
+//      value AT WRITE TIME, netted against the host's next payout by the 07-04 sweep.
+//
+// ⚠️ THE TIER IS DELIBERATELY NOT CONSULTED. `quoteRefund` is NOT called anywhere below and must not be.
+// The refund ladder answers "how much does the BOOKER forfeit for changing their mind" — a question that
+// has no meaning when the booker did nothing. A strict-tier booking cancelled by the host one hour out
+// still refunds 100%; that is asserted by test, at exactly the rung that would otherwise award 0%.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** WR-06 / T-07-68: same money-moving budget per identity as approve / booker-cancel (5 per 60s). */
+const HOST_CANCEL_RATE_LIMIT = { window: 60, max: 5 } as const;
+
+/** The sentinel `availability_block.reason` that marks a block as SYSTEM-created and undeletable. */
+const HOST_CANCEL_BLOCK_REASON = "host_cancellation";
+
+/**
+ * The D-71 fee for this booking, CAPPED AT THE BOOKING VALUE. Pure, so the preview and the write can never
+ * disagree about the figure the host was shown and the figure they are charged.
+ *
+ * The cap is enforced HERE, at write time, and NOT at netting time. Netting time is too late: the debit row
+ * would already misstate the debt, every consumer that reads it (the sweep, /host/earnings' outstanding
+ * line, this action's own preview) would show the uncapped number, and the cap would have to be re-derived
+ * on every sweep against a booking row that may have changed.
+ *
+ * The basis is the SPACE price, not the all-in charged total — the fee can never exceed what the host would
+ * have EARNED, and the host never earns the platform's service fee.
+ */
+function cappedHostCancelFee(row: OwnedBooking): number {
+  return Math.min(HOST_CANCEL_FEE_CENTS, row.spacePriceCents ?? row.quotedTotalCents ?? 0);
+}
+
+/** The host's unrecovered D-71 debt — the SAME `SUM(-net_cents - recovered_cents)` the sweep and /host/earnings use. */
+async function readOutstandingDebitCents(hostId: string): Promise<number> {
+  const [{ outstandingCents = 0 } = { outstandingCents: 0 }] = (await db.execute(sql`
+    SELECT COALESCE(SUM(-net_cents - recovered_cents), 0)::int AS "outstandingCents"
+    FROM host_payout_ledger
+    WHERE host_id = ${hostId}
+      AND kind = 'host_cancel_fee'
+      AND recovered_cents < -net_cents
+  `)) as unknown as { outstandingCents: number }[];
+  return outstandingCents;
+}
+
+/**
+ * previewHostCancelFee — the owner-gated read that feeds the dialog's Step-2 consequences pane.
+ *
+ * Returns the ALREADY-CAPPED fee. The UI renders the figure it is handed and NEVER applies the cap itself:
+ * a cap applied in two places is a cap that can disagree with itself, and the half the host would notice is
+ * the half that under-states what they are about to be charged.
+ */
+export async function previewHostCancelFee(
+  bookingId: string,
+): Promise<{ feeCents: number; outstandingCents: number } | null> {
+  const parsed = cancellationSchema.safeParse({ bookingId });
+  if (!parsed.success) return null;
+
+  const userId = await requireUserId();
+  if (!userId) return null;
+
+  const row = await loadHostOwnedBooking(parsed.data.bookingId, userId);
+  if (!row) return null;
+
+  return {
+    feeCents: cappedHostCancelFee(row),
+    outstandingCents: await readOutstandingDebitCents(row.hostId),
+  };
+}
+
+/**
+ * cancelBookingAsHost — the host cancels a confirmed booking (HOST-02 / PAY-06 · D-70/D-71/D-80), firing all
+ * four consequences. The client sends ONLY a booking id and one of five enumerated reasons; the refund, the
+ * fee and the blocked window are all derived server-side from the booking's own row (T-07-63).
+ *
+ * The ORDER is load-bearing and mirrors the booker path: gate before rate-limit (so a stranger's id is
+ * denied without consuming the owner's budget), rate-limit before any write, flip before any consequence,
+ * consequences before money, money before notification. Nothing after the flip may undo it.
+ */
+export async function cancelBookingAsHost(
+  bookingId: string,
+  reason: HostCancelReason,
+): Promise<CancelActionResult> {
+  // Re-validate BOTH fields that cross the boundary. Server-action argument types are NOT enforced at
+  // runtime, so a crafted reason string would otherwise land verbatim in an audit row and a durable column.
+  // A malformed id or an unknown reason is a calm denial, never a throw.
+  const parsed = hostCancellationSchema.safeParse({ bookingId, reason });
+  if (!parsed.success) return DENIED;
+
+  const userId = await requireUserId();
+  if (!userId) return NEEDS_SESSION;
+
+  // T-07-61 — HOST owner-gate BEFORE any write. Missing, cross-host, and de-capability'd → the SAME calm
+  // denial the booker path returns, byte for byte.
+  const row = await loadHostOwnedBooking(parsed.data.bookingId, userId);
+  if (!row) return DENIED;
+
+  // T-07-68: bound host-cancel spam per identity; audit the denial (non-repudiable).
+  const limit = rateLimit(`host-cancel:${userId}`, HOST_CANCEL_RATE_LIMIT);
+  if (!limit.ok) {
+    await recordAudit({
+      actorId: userId,
+      action: "host_cancel_booking",
+      outcome: "denied",
+      meta: { reason: "rate_limit", bookingId, retryAfter: limit.retryAfter },
+    });
+    return TOO_FAST;
+  }
+
+  // T-07-50 — CLOCK. There is deliberately NO `readDbNow` call on this path, and its absence is the
+  // stronger position rather than a gap. The booker path hydrates a JS Date because `quoteRefund` needs one
+  // to evaluate a rung; this path evaluates NO rung (the tier is not consulted), so the only time authority
+  // it needs is Postgres `now()` INSIDE the UPDATE's own WHERE and SET below — which cannot be raced apart
+  // from the status check the way a read-then-compare in JS could be. Do not "complete the pattern" by
+  // adding a clock read here that nothing would compare against.
+
+  // The refund is the FULL charge — space price AND the D-74 service fee. This is the ONE case where the
+  // non-refundable fee IS returned: the booker did nothing wrong, so the platform, not the booker, absorbs
+  // the gateway cost of the reversal. Read off the frozen row, never recomputed.
+  const refundCents = row.quotedTotalCents ?? 0;
+  const feeCents = cappedHostCancelFee(row);
+
+  // The ATOMIC, status-scoped, DB-clock-guarded flip. Every guard lives in the WHERE, so a 0-row result is
+  // the single calm failure path and none of them can be raced apart from the others.
+  //
+  // `retained_space_cents = 0` is what makes the 07-04 sweep's predicate
+  // (`status = 'cancelled' AND COALESCE(retained_space_cents, 0) > 0`) correctly EXCLUDE this booking: the
+  // host gets no payout for a session they cancelled AND owes the fee. Writing NULL here instead would fall
+  // through to `COALESCE(retained, space_price)` and pay the host the full space price — the exact
+  // inversion of the consequence.
+  //
+  // `AND starts_at > now()` (D-94) is the same guard the booker path carries, and it structurally eliminates
+  // the payout clawback problem: payout is not eligible until endsAt + PAYOUT_DELAY_HOURS (D-55), so the
+  // host has never been paid at the moment a refund is issued.
+  const flipped = (await db.execute(sql`
+    UPDATE booking
+    SET status = 'cancelled',
+        refund_cents = ${refundCents},
+        retained_space_cents = 0,
+        cancelled_by = 'host',
+        cancelled_at = now(),
+        decline_reason = ${parsed.data.reason},
+        expires_at = NULL
+    WHERE id = ${parsed.data.bookingId}
+      AND status = 'confirmed'
+      AND starts_at > now()
+    RETURNING id
+  `)) as unknown as { id: string }[];
+
+  if (flipped.length === 0) {
+    const calm = await explainNoRows(parsed.data.bookingId);
+    await recordAudit({
+      actorId: userId,
+      action: "host_cancel_booking",
+      outcome: "denied",
+      meta: { reason: calm === PAST_START ? "past_start" : "not_active", bookingId },
+    });
+    return calm; // calm, never a throw
+  }
+
+  // ── Consequence 2. THIS IS D-70's "audit record against the host". ────────────────────────────────────
+  await recordAudit({
+    actorId: userId,
+    action: "host_cancel_booking",
+    outcome: "ok",
+    meta: {
+      bookingId,
+      reason: parsed.data.reason,
+      feeCents,
+      refundCents,
+      listingId: row.listingId,
+    },
+  });
+
+  // ── Everything below is a side-effect of a flip that has ALREADY committed. ───────────────────────────
+  //
+  // None of it may unwind the flip, and none of it may THROW past this point either: the booking is already
+  // cancelled and the slot already freed, so a raised exception would hand the host a 500 for an action that
+  // in fact succeeded, and would skip the refund entirely. Each consequence is therefore individually
+  // guarded and any failure becomes a `needs_attention` audit row — the established operator-alert channel
+  // (D-58/D-90) — so a consequence can fail LOUDLY but never silently, and never by taking the others down.
+
+  // ── Consequence 3. AUTO-BLOCK the freed window (D-70's actual anti-resell mechanism). ─────────────────
+  // Reuses the Phase-3 availability_block machinery verbatim — same listing, same UNIT, same [startsAt,
+  // endsAt) window. `reason` carries the sentinel that removeBlock refuses to delete (07-RESEARCH Open
+  // Question 3): availability_block rows are deleted to unblock and nothing previously marked a block as
+  // system-created, so without that refusal a host could simply delete their own punitive block and defeat
+  // this consequence entirely.
+  try {
+    await db.insert(availabilityBlock).values({
+      id: randomUUID(),
+      listingId: row.listingId,
+      unit: row.unit,
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      reason: HOST_CANCEL_BLOCK_REASON,
+    });
+  } catch (err) {
+    console.error("[HOST_CANCEL_ALERT] auto_block_failed", { bookingId, err });
+    await recordAudit({
+      actorId: userId,
+      action: "host_cancel_autoblock_failed",
+      outcome: "needs_attention",
+      meta: { bookingId, listingId: row.listingId, unit: row.unit },
+    });
+  }
+
+  // ── Consequence 4. The D-71 SIGNED DEBIT, capped at write time. ───────────────────────────────────────
+  // gross/commission are meaningless for a debit — it never transfers, it only NETS against a future payout
+  // — so gross = -fee, commission = 0, net = -fee keeps the arithmetic coherent if anything ever sums the
+  // column. Inserted `held`; the sweep moves it to `paid` once recovered_cents reaches -net_cents.
+  //
+  // T-07-64 — `ON CONFLICT (booking_id, kind) DO NOTHING` IS the at-most-once lock, exactly as the sweep's
+  // claim INSERT is. An empty RETURNING means this booking's fee was already charged, which is a calm no-op
+  // and never a second charge. There is DELIBERATELY no app-level "already charged?" pre-query: a
+  // read-then-write is precisely the race the composite UNIQUE exists to kill.
+  try {
+    const charged = (await db.execute(sql`
+      INSERT INTO host_payout_ledger (id, booking_id, host_id, kind, gross_cents,
+        commission_rate_bps, commission_cents, net_cents, recovered_cents, currency, state)
+      VALUES (${randomUUID()}, ${parsed.data.bookingId}, ${row.hostId}, 'host_cancel_fee', ${-feeCents},
+        0, 0, ${-feeCents}, 0, ${row.currency ?? DISPLAY_CURRENCY}, 'held')
+      ON CONFLICT (booking_id, kind) DO NOTHING
+      RETURNING id
+    `)) as unknown as { id: string }[];
+    if (charged.length === 0) {
+      await recordAudit({
+        actorId: userId,
+        action: "host_cancel_fee_already_charged",
+        outcome: "ok",
+        meta: { bookingId, feeCents },
+      });
+    }
+  } catch (err) {
+    console.error("[HOST_CANCEL_ALERT] fee_debit_failed", { bookingId, err });
+    await recordAudit({
+      actorId: userId,
+      action: "host_cancel_fee_failed",
+      outcome: "needs_attention",
+      meta: { bookingId, hostId: row.hostId, feeCents },
+    });
+  }
+
+  // ── Consequence 1 (the money). Same dispatch discipline as the booker path. ───────────────────────────
+  //
+  // ⚠️ The POST records INTENT ONLY. Refund status is ASYNCHRONOUS and the payment.refunded webhook is the
+  // SINGLE WRITER of terminal state (D-57) — never display "Refunded ₱1,050" off this return value.
+  const refundable =
+    refundCents >= MIN_API_REFUND_CENTS && row.paymentId != null && isApiRefundable(row.paymentMethod);
+
+  if (refundable) {
+    try {
+      await createRefund({
+        amountCents: refundCents,
+        paymentId: row.paymentId!,
+        notes: `Host cancellation (${bookingId})`,
+      });
+    } catch (err) {
+      console.error("[CANCEL_ALERT] refund_dispatch_failed", { bookingId, err });
+      await recordAudit({
+        actorId: userId,
+        action: "refund_dispatch_failed",
+        outcome: "needs_attention",
+        meta: { bookingId, paymentId: row.paymentId, method: row.paymentMethod, refundCents },
+      });
+    }
+  } else if (refundCents > 0) {
+    // Money IS owed but the API cannot move it (unrefundable rail, no captured payment id, or below
+    // PayMongo's ₱1 floor). Operator-alert; never silently keep the money. The D-72 QRPh form (Plan 16)
+    // hangs off the BOOKER path's single documented seam — do NOT add a second branch for it here.
+    console.error("[CANCEL_ALERT] refund_needs_manual", { bookingId, method: row.paymentMethod });
+    await recordAudit({
+      actorId: userId,
+      action: "refund_manual_required",
+      outcome: "needs_attention",
+      meta: { bookingId, paymentId: row.paymentId, method: row.paymentMethod, refundCents },
+    });
+  }
+
+  // AFTER the commit, never inside a transaction. `emitNotify` swallows its own transport errors, so a
+  // notification outage can never fail a cancellation whose money already moved.
+  const whenLabel = composeWhenLabel(whenLabelInput(row));
+  const listingTitle = row.title ?? "your space";
+  const refundLabel = formatMoney(refundCents, row.currency ?? DISPLAY_CURRENCY);
+  const base = appBaseUrl();
+
+  // The BOOKER learns their session is off and what is coming back. `booking_cancelled_by_host` is its own
+  // notification type because "your host cancelled" and "your booking was cancelled" are different sentences
+  // to receive, and only one of them is the recipient's own doing.
+  await emitNotify({
+    type: "booking_cancelled_by_host",
+    recipientId: row.bookerId,
+    bookingId,
+    email: row.bookerEmail,
+    payload: {
+      type: "booking_cancelled_by_host",
+      listingTitle,
+      whenLabel,
+      refundLabel,
+      href: `${base}/bookings/${bookingId}`,
+    },
+  });
+
+  // The HOST gets their own copy — a durable record of what they did and what it cost, so the fee is never
+  // first discovered as an unexplained shortfall on a later payout.
+  await emitNotify({
+    type: "booking_cancelled_by_host",
+    recipientId: row.hostId,
+    bookingId,
+    email: row.hostEmail,
+    payload: {
+      type: "booking_cancelled_by_host",
+      listingTitle,
+      whenLabel,
+      refundLabel,
+      href: `${base}/host/bookings`,
+    },
+  });
+
+  revalidateCancelSurfaces(bookingId, row.listingId);
+  return { ok: true, refundCents };
 }

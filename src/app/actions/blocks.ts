@@ -20,7 +20,7 @@
 // block-vs-booking). unit NULL = whole listing; else a single unit.
 
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -142,8 +142,32 @@ export async function addBlock(
 }
 
 /**
+ * The sentinel `reason` marking a block as SYSTEM-created and PUNITIVE — written by the host-cancel action
+ * (07-11 / D-70). Kept as a named constant so the writer and this refusal can never drift apart on a
+ * string literal.
+ */
+const SYSTEM_BLOCK_REASON = "host_cancellation";
+
+/** Calm refusal for an attempt to unblock a punitive, system-created block (T-07-62). */
+const SYSTEM_BLOCK_REFUSAL =
+  "That block was created by a cancellation and can't be removed.";
+
+/**
  * Remove (unblock) a block (D-24 — reversible/neutral, not destructive). The DELETE is scoped to
  * (blockId AND listingId) behind assertOwnership so a non-owner cannot unblock someone's listing.
+ *
+ * ⚠️ T-07-62 / 07-RESEARCH Open Question 3 — a block whose `reason` is the system sentinel is REFUSED.
+ * `availability_block` rows are deleted to unblock, and until 07-11 nothing marked a block as
+ * system-created. D-70 auto-blocks the window a host just cancelled precisely so they cannot cancel a
+ * confirmed booking and immediately resell the same slot at a higher price — the abuse vector D-70 names.
+ * Without this predicate the host could simply delete their own punitive block through the shipped unblock
+ * button and defeat that consequence entirely, in one click, from the UI.
+ *
+ * The refusal lives in the DELETE's own WHERE (behind, not instead of, the ownership gate) rather than in a
+ * pre-read branch: a 0-row result then covers "not yours", "already gone" and "system-created" with one
+ * atomic statement that cannot be raced apart. `IS DISTINCT FROM` and not `<>` because `reason` is NULLABLE
+ * and `NULL <> 'host_cancellation'` is NULL, not true — a plain inequality would silently refuse to delete
+ * every ORDINARY block ever created without a reason, which is most of them.
  */
 export async function removeBlock(
   listingId: string,
@@ -159,9 +183,28 @@ export async function removeBlock(
     return { ok: false, error: "We couldn't find that listing, or it isn't yours to edit." };
   }
 
-  await db
+  const deleted = await db
     .delete(availabilityBlock)
-    .where(and(eq(availabilityBlock.id, blockId), eq(availabilityBlock.listingId, listingId)));
+    .where(
+      and(
+        eq(availabilityBlock.id, blockId),
+        eq(availabilityBlock.listingId, listingId),
+        sql`${availabilityBlock.reason} IS DISTINCT FROM ${SYSTEM_BLOCK_REASON}`,
+      ),
+    )
+    .returning({ id: availabilityBlock.id });
+
+  // 0 rows: either the block is gone / not on this listing, or it is a punitive one. Distinguish the two so
+  // the host gets an honest explanation rather than silently seeing the block still sitting there.
+  if (deleted.length === 0) {
+    const [surviving] = await db
+      .select({ reason: availabilityBlock.reason })
+      .from(availabilityBlock)
+      .where(and(eq(availabilityBlock.id, blockId), eq(availabilityBlock.listingId, listingId)));
+    if (surviving?.reason === SYSTEM_BLOCK_REASON) {
+      return { ok: false, error: SYSTEM_BLOCK_REFUSAL };
+    }
+  }
 
   revalidatePath(`/host/listings/${listingId}/availability`);
   revalidatePath(`/listings/${listingId}`);
