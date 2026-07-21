@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 9
+current_plan: 10
 status: executing
-stopped_at: Completed 07-08-PLAN.md
-last_updated: "2026-07-21T12:19:17.371Z"
+stopped_at: Completed 07-09-PLAN.md (booker cancellation + exact refund)
+last_updated: "2026-07-21T12:49:34.887Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 49
-  percent: 88
+  completed_plans: 50
+  percent: 89
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 9
+Current Plan: 10
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
@@ -128,6 +128,7 @@ Progress: [█████████░] 86% (48 of 56 plans)
 | Phase 07 P06 | ~35 min | 3 tasks | 10 files |
 | Phase 07 P07 | ~55m | 3 tasks | 8 files |
 | Phase 07 P08 | ~55m | 3 tasks | 18 files |
+| Phase 07 P09 | 75min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -205,6 +206,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-07: the notification payload is the SOLE input to both channels, so email-required fields live in the payload rather than a parallel structure (D-91 sufficiency)
 - [Phase ?]: 07-08: cancellation tier snapshotted from the IN-TRANSACTION listing read, closing a retier race the plan's caller-threading design left open
 - [Phase ?]: 07-08: fullDay is re-derived from the frozen space price, never the all-in charged total (D-74 makes the latter structurally unequal to rate x hours)
+- [Phase 07]: Booker cancellation RECOMPUTES the refund at confirm time — There is no signed quote token, so honouring the previewed figure would mean trusting a number that reached the server through the client. Time only moves toward the session, so a rung crossed between preview and confirm can only LOWER the refund. The review page discloses the concrete instant the rung changes (D-81) so the recompute is disclosed, never sprung.
+- [Phase 07]: booking.payment_method persisted at confirm (migration 0015) — isApiRefundable fails closed. The rail was only ever resolved inline from a live webhook event, but a cancellation happens days later with no event in hand — so without a stored rail every cancellation refund would have been judged unrefundable and routed to the operator-alert path, and no money would ever have moved. Nullable, backfill-free, absent from the GiST EXCLUDE predicate.
+- [Phase 07]: readDbNow() is the only display-side DB-clock reader — Probed live: a bare SELECT now() through db.execute returns a STRING, not a Date. The as-unknown-as cast satisfies tsc, eslint and next build and then throws on .getTime() with the first real row. This supersedes the literal snippet 07-09-PLAN mandated.
 
 ### Pending Todos
 
@@ -250,8 +254,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T12:19:17.359Z
-Stopped at: Completed 07-08-PLAN.md
+Last session: 2026-07-21T12:49:34.864Z
+Stopped at: Completed 07-09-PLAN.md (booker cancellation + exact refund)
 Resume file: None
 
 Prior session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-07)
