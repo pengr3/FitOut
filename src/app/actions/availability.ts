@@ -32,6 +32,9 @@ const EMPTY_AVAILABILITY: DayAvailability = {
   timezone: "UTC",
   unitCount: 0,
   hasHours: false,
+  // There are no slots to label, so the mode is inert here; `instant` matches the read model's own
+  // unknown-listing fallback and the listing table's default, so the two can never drift apart.
+  bookingMode: "instant",
   slots: [],
 };
 

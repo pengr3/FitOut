@@ -40,6 +40,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { AvailabilitySlot } from "@/lib/availability/read-model";
+import { MIN_LEAD_INSTANT_MINUTES, MIN_LEAD_REQUEST_HOURS } from "@/lib/payments/config";
 import {
   EMPTY_SELECTION,
   resolveClick,
@@ -53,24 +54,40 @@ import {
 // `import { SlotPicker, type SlotSelectionValue }` stays valid and untouched (contract UNCHANGED).
 export type { SlotSelectionValue };
 
+type BookingMode = "instant" | "request";
+
 type SlotPickerProps = {
   slots: AvailabilitySlot[];
   timezone: string;
   unitCount: number;
+  /** D-100: selects which minimum-notice copy the `too_soon` chips carry. */
+  mode: BookingMode;
   disabled: boolean;
   onSelectionChange: (sel: SlotSelectionValue | null) => void;
 };
 
 /** Human-readable reason a chip can't be picked (never leaks "unit"/"tstzrange" jargon — UI-SPEC copy). */
-function reasonFor(state: AvailabilitySlot["state"]): string {
+function reasonFor(state: AvailabilitySlot["state"], mode: BookingMode): string {
   switch (state) {
     case "past":
       return "Past";
     case "beyond_horizon":
       return "Too far ahead";
+    // D-98/D-100. An explicit case is REQUIRED — the `default` below would otherwise swallow it into a
+    // flat "Unavailable" and the booker would never learn that the slot is free, just not yet bookable.
+    case "too_soon":
+      return mode === "request" ? "Too soon to request" : "Too soon to book";
     default:
       return "Unavailable";
   }
+}
+
+/** The expanded tooltip body (UI-SPEC § 8): the short reason, plus the notice requirement when there is one. */
+function tooltipFor(state: AvailabilitySlot["state"], mode: BookingMode): string {
+  if (state !== "too_soon") return reasonFor(state, mode);
+  return mode === "request"
+    ? `Too soon to request — this host needs ${MIN_LEAD_REQUEST_HOURS}h notice`
+    : `Too soon to book — needs ${MIN_LEAD_INSTANT_MINUTES} minutes' notice`;
 }
 
 /** Shared chip shape so available / selected / unavailable chips line up in the grid (≥44px hit area). */
@@ -81,6 +98,7 @@ export function SlotPicker({
   slots,
   timezone,
   unitCount,
+  mode,
   disabled,
   onSelectionChange,
 }: SlotPickerProps) {
@@ -150,9 +168,11 @@ export function SlotPicker({
               const isAnchor = sel.anchor === index;
 
               if (!isAvailable) {
-                // Occupied / blocked / past / beyond-horizon: visible, muted, struck-through, NEVER
-                // selectable, NEVER red. The wrapping span carries the tooltip (a disabled control
-                // wouldn't receive hover) — mirrors the "Not bookable yet" affordance on this page.
+                // Occupied / blocked / past / beyond-horizon / too-soon: visible, muted, struck-through,
+                // NEVER selectable, NEVER red. The wrapping span carries the tooltip (a disabled control
+                // wouldn't receive hover) — mirrors the "Not bookable yet" affordance on this page. The
+                // fourth state (D-98/D-100) flows through this EXACT treatment with zero visual change:
+                // too-soon is a normal state, not an error.
                 return (
                   <Tooltip key={slot.startUtc}>
                     <TooltipTrigger asChild>
@@ -161,7 +181,7 @@ export function SlotPicker({
                           value={slot.startUtc}
                           disabled
                           aria-disabled="true"
-                          aria-label={`${timeLabel} — ${reasonFor(slot.state)}`}
+                          aria-label={`${timeLabel} — ${reasonFor(slot.state, mode)}`}
                           className={cn(
                             CHIP_BASE,
                             "cursor-not-allowed bg-muted text-muted-foreground line-through",
@@ -171,7 +191,7 @@ export function SlotPicker({
                         </ToggleGroupItem>
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>{reasonFor(slot.state)}</TooltipContent>
+                    <TooltipContent>{tooltipFor(slot.state, mode)}</TooltipContent>
                   </Tooltip>
                 );
               }
@@ -227,7 +247,7 @@ export function SlotPicker({
             <InfoIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand" />
             <span>
               {format(new Date(gapSlot.startUtc), "h:mm a", { in: inTz })} is{" "}
-              {reasonFor(gapSlot.state).toLowerCase()} — pick a later start for a block after it.
+              {reasonFor(gapSlot.state, mode).toLowerCase()} — pick a later start for a block after it.
             </span>
           </div>
         )}

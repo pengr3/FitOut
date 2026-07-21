@@ -209,6 +209,9 @@ export function AvailabilityCalendar({
               slots={dayAvail.slots}
               timezone={timezone}
               unitCount={unitCount}
+              // D-100: the mode rides along on the read model, so the picker's minimum-notice copy can
+              // never disagree with the thresholds the server actually enforces.
+              mode={dayAvail.bookingMode}
               disabled={!bookable}
               onSelectionChange={setSelection}
             />

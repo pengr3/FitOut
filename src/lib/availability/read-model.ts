@@ -13,6 +13,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { listing, operatingHours } from "@/lib/db/schema";
+import { MIN_LEAD_INSTANT_MINUTES, MIN_LEAD_REQUEST_HOURS } from "@/lib/payments/config";
 import {
   slotsForWindow,
   venueDayOfWeek,
@@ -25,7 +26,19 @@ import {
 // depends on the schema generic — `.select`/`.execute` are shared.
 export type DbConn = PostgresJsDatabase<Record<string, unknown>>;
 
-export type SlotState = "available" | "unavailable" | "past" | "beyond_horizon";
+/**
+ * A slot's DISPLAY state. `too_soon` (D-98/D-100) is the fourth member: the slot is genuinely free, but
+ * its start is inside the listing's mode-scoped minimum notice window, so it cannot be held yet.
+ *
+ * `too_soon` is a READ-MODEL DISPLAY STATE ONLY (T-07-26). It is not a booking status, it appears in no
+ * occupancy predicate, and the booking_no_overlap EXCLUDE and both lazy-expiry sweeps are untouched by
+ * it. The authoritative refusal lives server-side in createPendingHold; this state only lets the picker
+ * say so before the booker clicks.
+ *
+ * Adding a member here intentionally breaks every exhaustive switch over SlotState until it is handled.
+ * That is desirable — do NOT silence it with a `default` case.
+ */
+export type SlotState = "available" | "unavailable" | "past" | "beyond_horizon" | "too_soon";
 
 export type AvailabilitySlot = {
   startUtc: string;
@@ -39,8 +52,25 @@ export type DayAvailability = {
   timezone: string;
   unitCount: number;
   hasHours: boolean;
+  /** D-100: which mode's minimum notice applies — also what the picker's `too_soon` copy keys off. */
+  bookingMode: "instant" | "request";
   slots: AvailabilitySlot[];
 };
+
+/**
+ * D-96/D-100 minimum notice before a slot's start, in ms, for a listing's booking mode. ONE mechanism,
+ * two thresholds: request-to-book needs TWO humans in sequence (host approves, then booker pays) so it
+ * needs hours; instant-book is one person and one checkout, so it gets a checkout-sized guard.
+ *
+ * This MIRRORS the authoritative guard in createPendingHold, which is enforced against the DB clock in
+ * the booking transaction. This copy exists so the picker can grey the chip out first — it is a
+ * courtesy, never the gate (Security V4).
+ */
+export function leadTimeMsFor(mode: "instant" | "request"): number {
+  return mode === "request"
+    ? MIN_LEAD_REQUEST_HOURS * 60 * 60 * 1000
+    : MIN_LEAD_INSTANT_MINUTES * 60 * 1000;
+}
 
 // Raw overlapping row (unit + [startsAt, endsAt)) as returned by the postgres.js driver: snake_case
 // keys, timestamptz decoded to Date. Used for the in-TS '[)' overlap test per slot.
@@ -67,15 +97,23 @@ export async function getAvailability(
   const m0 = month - 1; // 0-based month for slots.ts / TZDate (JS Date convention)
 
   const listingRows = await dbConn
-    .select({ unitCount: listing.unitCount, timezone: listing.timezone })
+    .select({
+      unitCount: listing.unitCount,
+      timezone: listing.timezone,
+      // D-100: the mode selects WHICH minimum-notice threshold applies to this listing's slots.
+      bookingMode: listing.bookingMode,
+    })
     .from(listing)
     .where(eq(listing.id, listingId));
 
   if (listingRows.length === 0) {
     // Defensive: unknown listing → empty calendar (no crash). Callers normally pre-load the listing.
-    return { timezone: "UTC", unitCount: 0, hasHours: false, slots: [] };
+    return { timezone: "UTC", unitCount: 0, hasHours: false, bookingMode: "instant", slots: [] };
   }
-  const { unitCount, timezone: tz } = listingRows[0];
+  const { unitCount, timezone: tz, bookingMode } = listingRows[0];
+  // D-98/D-100: the earliest start this listing will accept. Compared against the SAME `now` that drives
+  // `past`/`beyond_horizon`, so all three display states share one clock and can never disagree.
+  const earliestStartMs = now.getTime() + leadTimeMsFor(bookingMode);
 
   // Venue-local day window [00:00 today, 00:00 next day) as UTC instants (normalize via the epoch —
   // TZDate.toISOString() renders the offset-local form). day+1 rolls month/year over via Date math.
@@ -154,10 +192,15 @@ export async function getAvailability(
         freeUnits = Math.max(0, unitCount - taken.size);
       }
 
+      // Display-state precedence. `too_soon` sits AFTER the freeUnits check on purpose: occupancy is the
+      // stronger, more informative fact about a slot someone else already holds, and keeping it ahead
+      // means `too_soon` describes exactly one thing — a slot that is genuinely free but inside the
+      // listing's minimum notice window (D-98/D-100).
       let state: SlotState;
       if (!isWithinHorizon(s.startUtc, now)) state = "beyond_horizon";
       else if (!slotStartsInFuture(s.startUtc, now)) state = "past";
       else if (freeUnits < 1) state = "unavailable";
+      else if (sStart < earliestStartMs) state = "too_soon";
       else state = "available";
 
       slots.push({ startUtc: s.startUtc, endUtc: s.endUtc, state, freeUnits, unitCount });
@@ -165,5 +208,5 @@ export async function getAvailability(
   }
 
   slots.sort((a, b) => (a.startUtc < b.startUtc ? -1 : a.startUtc > b.startUtc ? 1 : 0));
-  return { timezone: tz, unitCount, hasHours, slots };
+  return { timezone: tz, unitCount, hasHours, bookingMode, slots };
 }
