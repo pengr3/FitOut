@@ -94,8 +94,15 @@ type RawBookingRow = Omit<BookingListRow, "startsAt" | "endsAt"> & {
   endsAtIso: string;
 };
 
-/** `to_char` mask producing the exact shape `Date.prototype.toISOString` emits, so cursors round-trip. */
-function isoUtc(column: string) {
+/**
+ * `to_char` mask producing the exact shape `Date.prototype.toISOString` emits, so cursors round-trip.
+ *
+ * EXPORTED as the repo's single timestamp-boundary mask (07-07). Every module reading a `timestamptz`
+ * through `dbConn.execute` needs this same conversion for the reason documented on `RawBookingRow`; a
+ * second copy of the mask is a second thing to get subtly wrong (a dropped `.MS`, a missing `Z`), and the
+ * failure mode is invisible until real rows exist. One mask, one hydration rule.
+ */
+export function isoUtc(column: string) {
   return sql`to_char(${sql.raw(column)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 }
 

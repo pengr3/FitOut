@@ -374,8 +374,22 @@ export const notificationType = pgEnum("notification_type", [
 // PRIVACY (T-07-04): display strings ONLY — no email addresses, no payment ids, no bank/account details.
 // Every time label is composed venue-local by the caller (the `composeWhenLabel` idiom); these payloads
 // never carry a raw Date.
+//
+// D-91 SUFFICIENCY RULE (07-07): this payload is the SOLE input to BOTH channels — the in-app row AND the
+// email `sendForType` dispatches (src/inngest/functions/notify.ts). A field the email needs therefore
+// belongs HERE, not in a second parallel structure; one event feeding two channels is exactly what D-91
+// buys, and a second source would reintroduce the drift it exists to prevent. `referenceLabel`,
+// `totalLabel` on new_request_to_host, and `expired` were added for that reason.
 export type NotificationPayload =
-  | { type: "booking_confirmed"; listingTitle: string; whenLabel: string; totalLabel: string; href: string }
+  | {
+      type: "booking_confirmed";
+      listingTitle: string;
+      whenLabel: string;
+      totalLabel: string;
+      /** The FIT-XXXXXXXX booking reference, as displayed. Required by sendBookingConfirmed (D-91). */
+      referenceLabel: string;
+      href: string;
+    }
   | { type: "request_received"; listingTitle: string; whenLabel: string; totalLabel: string; href: string }
   | {
       type: "request_approved";
@@ -385,12 +399,24 @@ export type NotificationPayload =
       payByLabel: string;
       href: string;
     }
-  | { type: "request_declined"; listingTitle: string; whenLabel: string; reasonLabel?: string; href: string }
+  | {
+      type: "request_declined";
+      listingTitle: string;
+      whenLabel: string;
+      reasonLabel?: string;
+      /** COPY VARIANT, not a display string: true ⇒ "expired before the host responded", false ⇒ "the host
+       *  couldn't take it". Two different sentences, not two values of one sentence, so it cannot be a
+       *  label. sendRequestDeclined's `opts.expired` reads it (D-91 sufficiency rule above). */
+      expired: boolean;
+      href: string;
+    }
   | {
       type: "new_request_to_host";
       listingTitle: string;
       whenLabel: string;
       bookerLabel: string;
+      /** The server-frozen guest-pays amount, as displayed. Required by sendNewRequestToHost (D-91). */
+      totalLabel: string;
       respondByLabel: string;
       href: string;
     }
