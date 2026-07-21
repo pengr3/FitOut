@@ -1,33 +1,68 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-20T11:04:37.864Z",
-  "phase": "06",
-  "phase_name": "full-booking-payment-integration",
-  "phase_dir": ".planning/phases/06-full-booking-payment-integration",
-  "plan": 10,
-  "task": "complete",
-  "total_tasks": 10,
-  "status": "phase_complete_between_phases",
+  "timestamp": "2026-07-21T17:23:20.160Z",
+  "phase": "07",
+  "phase_name": "bookings-management-cancellation-notifications",
+  "phase_dir": ".planning/phases/07-bookings-management-cancellation-notifications",
+  "plan": 16,
+  "task": 1,
+  "total_tasks": 16,
+  "status": "paused",
   "completed_tasks": [
-    {"id": "06-10", "name": "Gap closure G-06-01 — widen parseSignature for te-XOR-li real PayMongo signatures + regression tests", "status": "done", "commit": "39985d3"},
-    {"id": "code-review", "name": "Code review (scoped to 06-10) — 0 critical / 0 warning, 2 info", "status": "done", "commit": "59888c0"},
-    {"id": "secure-phase", "name": "Security verification — 31/31 threats closed, threats_open: 0", "status": "done", "commit": "c882760"},
-    {"id": "verify-work", "name": "Live PayMongo confirm re-UAT — 5/5 PASSED (webhook 200, booking confirmed + payment_id, on-screen confirmed, BOOK-06 email delivered)", "status": "done", "commit": "4afbe67"},
-    {"id": "phase-complete", "name": "Phase 06 marked complete; tracking reconciled (ROADMAP/STATE/REQUIREMENTS/BOOK-05/HOST-01)", "status": "done", "commit": "a2d83fa"}
+    {"id": "07-01", "name": "Foundation: config constants, schema enums/columns/tables, migrations 0013+0014", "status": "done", "commit": "f9ee7d7"},
+    {"id": "07-02", "name": "Shared display primitives: whenLabel extraction + booking-status derivation/badge", "status": "done", "commit": "ba47a79"},
+    {"id": "07-03", "name": "Pure money modules: D-68 refund ladder, service fee, rail predicate", "status": "done", "commit": "564119a"},
+    {"id": "07-04", "name": "Payout ledger correctness: kind scoping, retention sweep, debit netting", "status": "done", "commit": "3e57f97"},
+    {"id": "07-05", "name": "Expiry-cap correctness: session cap, DB clock, lead-time guards", "status": "done", "commit": "1d22152"},
+    {"id": "07-06", "name": "Bookings views: /bookings + /host/bookings, tabs, rows, keyset paging", "status": "done", "commit": "2e66d44"},
+    {"id": "07-07", "name": "Notification infrastructure: Inngest fan-out, notification table, onFailure audit", "status": "done", "commit": "2d50577"},
+    {"id": "07-08", "name": "Service fee: D-74 split frozen at creation + D-75 all-in disclosure", "status": "done", "commit": "5250727"},
+    {"id": "07-09", "name": "Booker cancellation: owner-gated action + refund preview (migration 0015)", "status": "done", "commit": "1fc2ab0"},
+    {"id": "07-10", "name": "Notification emission migration — the layer is wired live", "status": "done", "commit": "fc13cbb"},
+    {"id": "07-14", "name": "In-app notification centre: bell, item renderer, owner scoping", "status": "done", "commit": "9e9a7de"},
+    {"id": "07-11", "name": "Host cancellation: full refund, auto-block, capped host_cancel_fee debit", "status": "done", "commit": "67aeb31"},
+    {"id": "07-12", "name": "Booking detail states + one-click re-request (D-97, D-99)", "status": "done", "commit": "378b6fe"},
+    {"id": "07-13", "name": "Reminders: four D-85 reminders on an hourly cron — MANAGE-03 closed", "status": "done", "commit": "bfd488e"},
+    {"id": "07-15", "name": "Cancellation policy surfaces: D-77 publish gate + D-81 pre-booking disclosure", "status": "done", "commit": "7475b2a"}
   ],
   "remaining_tasks": [
-    {"id": "phase-07-discuss", "name": "Phase 7 (Bookings Management, Cancellation & Notifications) — discuss, carrying the UX design thread below", "status": "not_started"},
-    {"id": "phase-07-plan", "name": "Phase 7 — plan", "status": "not_started"},
-    {"id": "phase-07-execute", "name": "Phase 7 — execute", "status": "not_started"}
+    {"id": "07-16", "name": "QRPh refund settling probe + D-72 build-or-delete", "status": "not_started", "note": "autonomous: false — blocked on a human-in-browser QRPh test payment"},
+    {"id": "verify", "name": "Phase verification (gsd-verifier -> 07-VERIFICATION.md)", "status": "not_started"},
+    {"id": "code-review", "name": "Code review gate (/gsd-code-review 7)", "status": "not_started"},
+    {"id": "secure", "name": "Security gate (/gsd-secure-phase 7) — workflow.security_enforcement is true", "status": "not_started"},
+    {"id": "e2e", "name": "Playwright e2e run (needs dev server) — 07-12's updated cancel.spec.ts is unexecuted", "status": "not_started"}
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "07-16 requires a live test-mode QRPh payment completed by a human in a browser on PayMongo's hosted page, plus a tunnel (ngrok/cloudflared) with the webhook URL registered in the PayMongo dashboard and QRPh enabled on the test account. PAYMONGO_SECRET_KEY is already set to a sk_test_ key.",
+      "type": "human_action",
+      "workaround": "None that preserves correctness. The plan is sequenced last precisely so a refutation of D-58 DELETES the D-72 workstream rather than requiring a rewrite. Building D-72 on the documented assumption is explicitly the wrong move — every primary PayMongo page stating the claim now 404s."
+    },
+    {
+      "description": "npm run build fails on a clean checkout: PLATFORM_WALLET_NUMBER, PLATFORM_WALLET_NAME and INNGEST_SIGNING_KEY are absent from .env.local. Next 16 collects page data with NODE_ENV=production, firing two pre-existing module-scope fail-closed guards (src/lib/paymongo.ts:39 from 05-02, and the Inngest signing-key guard).",
+      "type": "external",
+      "workaround": "Supply the three env vars locally. This is MISSING LOCAL CONFIG, not a code defect — 07-06, 07-07 and 07-08 each independently hit it and each correctly declined to relax a fail-closed money guard as a drive-by. It would block CI."
+    },
+    {
+      "description": "Verification blind spot, no owner assigned. The local `public` schema was three migrations behind (0010-0012, Phase 6) and nothing caught it. tests/helpers/db.ts replays migrations into isolated per-test schemas, so a stale `public` schema is invisible to the entire suite. Phase 6 verified green against a DB that never had its own booking_no_overlap widening applied.",
+      "type": "technical",
+      "workaround": "Run `npm run db:migrate` and confirm nothing pending before trusting any phase verification. A pre-phase guard asserting `public` is fully migrated is the real fix."
+    }
+  ],
   "human_actions_pending": [
-    {"action": "Push branch 'dev' to origin", "context": "User requested at end of this session; ~10 unpushed commits (39985d3..a2d83fa).", "blocking": false},
-    {"action": "On the home terminal: re-create .env.local secrets (RESEND_API_KEY, DATABASE_URL, BETTER_AUTH_SECRET, etc.)", "context": ".env.local is gitignored — never travels with git. Needed for local dev + email delivery.", "blocking": false},
-    {"action": "On the home terminal: re-seed the local Postgres if re-running UAT", "context": "Booking rows (e.g. confirmed FIT-2NCSCZMJ / 42132ab1) live in this machine's Docker volume fitout_pgdata, not in git.", "blocking": false}
+    {"action": "Decide how to handle 07-16 — close the phase at 15/16 with the gap recorded, or run the QRPh probe together", "context": "AskUserQuestion was dismissed at the end of the session; no option was chosen and nothing was assumed", "blocking": true},
+    {"action": "Add PLATFORM_WALLET_NUMBER, PLATFORM_WALLET_NAME, INNGEST_SIGNING_KEY to .env.local", "context": "Unblocks `npm run build` without env placeholders", "blocking": false}
   ],
-  "decisions": [],
+  "decisions": [
+    {"decision": "Executed all 15 plans sequentially rather than in parallel worktrees", "rationale": "workflow.use_worktrees is false in .planning/config.json; concurrent commits on one working tree would interleave. The one time two agents ran concurrently (07-01 + 07-02) it required manual arbitration of STATE.md ownership — evidence the sequential default is right here.", "phase": "07"},
+    {"decision": "Orchestrator applied migrations 0013/0014 directly rather than re-dispatching 07-01 blind", "rationale": "Docker recovered mid-session; applying and snapshotting booking_no_overlap before/after gave a byte-level diff proving the D-21 keystone was untouched.", "phase": "07"},
+    {"decision": "07-01 was allowed to repair two call sites outside its files_modified (payout-sweep.ts ON CONFLICT target, request-lifecycle.test.ts stale 24h assertion)", "rationale": "Both breakages were causally its own schema/constant changes. A plan must not leave the tree red for a later wave to inherit.", "phase": "07"},
+    {"decision": "07-02's Self-Check was flipped FAILED -> PASSED by the orchestrator with an evidence addendum", "rationale": "It was marked FAILED only because the DB was down when it ran. The owed gate was later executed and passed; the flip is documented in the SUMMARY with its evidence rather than silently rewritten.", "phase": "07"},
+    {"decision": "Recompute-wins for the refund preview/confirm gap (07-09)", "rationale": "There is no signed quote token, so honouring the page's number means trusting a client-transported figure. Time only moves toward the session, so a crossed boundary can only lower the refund. The review page discloses the concrete boundary so the recompute is disclosed, not sprung.", "phase": "07"},
+    {"decision": "NULL-tier listings disclose NOTHING rather than tierOrDefault's Flexible (07-15)", "rationale": "The fallback is an internal safety net so the refund engine never faces an unpriceable legacy row — it is not a policy any host chose. It is also safe in the only direction that matters: the fallback a booker would actually receive is the most generous rung.", "phase": "07"},
+    {"decision": "Reminder reachability is guarded by `deadline - OFFSET >= created_at`, not by `expires_at > now()` (07-13)", "rationale": "The plan, 07-RESEARCH Pitfall 9 and the orchestrator's brief all wrongly credited `> now()` with producing a no-send. A request 4h out gets a ~2h SLA, and now()+2h satisfies both `> now()` and `<= now()+6h`, so a range-only query fires a '6 hours left' reminder at creation time.", "phase": "07"}
+  ],
   "uncommitted_files": [],
-  "next_action": "Push 'dev' to origin (user is doing this now). Next working session: /gsd-discuss-phase 7, carrying the Phase-7 UX design thread in context_notes.",
-  "context_notes": "Phase 6 shipped clean end-to-end: the te-XOR-li webhook signature parser bug (G-06-01) is fixed and PROVEN against real PayMongo traffic (a real pay-on-approval checkout confirmed booking 42132ab1 with payment_id pay_C4PW6fRGtUTNm6GsKCpt4P36; BOOK-06 email delivered via Resend id faa1481e). No open gaps, no open threats. PHASE 7 UX DESIGN THREAD (exploratory — NOT yet locked decisions; feed into /gsd-discuss-phase 7): (1) Booker/host feeds don't live-update — you must refresh to see an approval / a new request. Architectural (Server Components + revalidatePath, no WebSocket/SSE push). Backstopped by email (sendRequestApproved / sendNewRequestToHost). User wants a real notification so a booker can't miss 'you're approved, pay now' and forget. Cheap upgrade: TanStack Query poll + toast + visible countdown + a pre-expiry reminder + graceful re-request on expiry. (2) KEY INSIGHT: payment-window length and notification strength are COUPLED — a short window makes a missed notification fatal, so fix notifications FIRST. (3) User leans toward a fast 15-min payment window. Tension: request-to-book approval is async (host latency), so 15-min-from-approval punishes the booker for the host being slow. Better: start the booker's pay clock on ACKNOWLEDGMENT (when they open the approval), not on the host's click; cap the outer hold. Three models on the table: A Forgiving (long, capped at session start), B Live-fast (15-min from approval), C Acknowledgment-triggered (15-min from booker opening). Recommended: C + strong notification stack. (4) REAL CORRECTNESS GAP found (not just polish): both APPROVAL_PAYMENT_WINDOW_HOURS and APPROVAL_SLA_HOURS are flat now()+24h with NO cap at booking.starts_at (host-requests.ts:175). So a 2pm approval of a 5pm session holds/allows-pay until 2pm next day — past the session. Fix: expires_at = LEAST(now()+window, starts_at) and refuse approve/confirm once the session is imminent/past. Stakes are bounded (pay-on-approval = no charge until pay, D-63), so a lapse costs a slot not money. Constants are env-tunable in src/lib/payments/config.ts (D-64)."
+  "next_action": "Answer the 07-16 question: either close Phase 7 at 15/16 (run gsd-verifier, code review, security gate, and record 07-16 as outstanding), or set up the tunnel + PayMongo dashboard config and run the QRPh probe. Do NOT build the D-72 bank-details workstream without the probe.",
+  "context_notes": "Phase 7 executed 15/16 plans across 5 waves. All self-checks PASSED, working tree clean, full suite 76 files / 628 tests green, migrations 0013-0015 applied and idempotent, booking_no_overlap verified byte-for-byte intact. The value of this run was concentrated in defects a green suite could not see: NO REFUND COULD EVER HAVE BEEN DISPATCHED (booking.payment_method did not exist and isApiRefundable fails closed, so the 'createRefund called at most once' test passed vacuously with zero calls); a host could cancel another host's booking, refunding platform money and charging them a fee, because the plan's SQL omitted the host-ownership predicate; three money-flow bugs sat in 07-04's own plan text, including netting applied before a branch that DELETEs the claim; an unscoped ledger query in webhook handleRefund would have silently forgiven a host's cancellation debt; timestamptz came back as TEXT through an `as unknown as` cast that passed tsc, eslint AND next build and would have crashed on the first real row. The pattern worth carrying forward: plan text and research documents are FALLIBLE, and the executors that found the most were the ones that probed the live DB or mutation-tested a guard instead of trusting a documented claim. 07-13 disproved an assumption held simultaneously by its plan, by 07-RESEARCH and by the orchestrator."
 }
