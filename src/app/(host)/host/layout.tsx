@@ -14,8 +14,15 @@ import { and, count, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing } from "@/lib/db/schema";
+import { readDbNow } from "@/lib/booking/bookings-query";
+import { countUnread, listRecent, NOTIFICATIONS_MAX_LIMIT } from "@/lib/notifications";
 import { Badge } from "@/components/ui/badge";
 import { ModeSwitch } from "@/components/mode-switch";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import {
+  toNotificationItems,
+  type NotificationItemData,
+} from "@/components/notifications/notification-item";
 
 export default async function HostLayout({
   children,
@@ -45,6 +52,32 @@ export default async function HostLayout({
     .innerJoin(listing, eq(booking.listingId, listing.id))
     .where(and(eq(listing.hostId, session.user.id), eq(booking.status, "requested")));
   const pendingRequests = p ?? 0;
+
+  // D-92 wants "a bell in the shared header". There IS no shared header component: the booker header
+  // ((app)/layout.tsx) and the host header ((host)/host/layout.tsx) are duplicated inline, and D-04
+  // deliberately made the host shell distinct (different wordmark, bg-zinc-50). Merging them is out of
+  // scope and contradicts D-04. The BELL is the shared thing D-92 requires, not the header — so one
+  // component is mounted in both. Do NOT refactor the two headers into one here.
+  //
+  // Same shape as the pending-request count above: OWNER-SCOPED IN THE QUERY on session.user.id
+  // (T-07-82), never post-filtered. Relative labels are composed against the DATABASE clock (readDbNow),
+  // not the viewer's. Wrapped so an ambient notification read can never take down the host shell — which
+  // is also the (host) capability gate, so a throw here would be a real availability problem.
+  let unreadCount = 0;
+  let notificationItems: NotificationItemData[] = [];
+  let notificationsFailed = false;
+  try {
+    const [unread, rows, now] = await Promise.all([
+      countUnread(db, session.user.id),
+      listRecent(db, session.user.id, NOTIFICATIONS_MAX_LIMIT),
+      readDbNow(db),
+    ]);
+    unreadCount = unread;
+    notificationItems = toNotificationItems(rows, now);
+  } catch (err) {
+    console.error("[notifications] bell_read_failed", { surface: "host", err });
+    notificationsFailed = true;
+  }
 
   return (
     <div className="flex min-h-full flex-col">
@@ -78,6 +111,14 @@ export default async function HostLayout({
               </Badge>
             )}
           </Link>
+          {/* D-92 in-app notification centre — the SAME component the booker header mounts, sitting
+              ALONGSIDE the D-65 Requests badge above. Two badges, two meanings: `Requests` is an action
+              you owe someone; the bell is things that happened. Do not merge them. */}
+          <NotificationBell
+            unreadCount={unreadCount}
+            items={notificationItems}
+            error={notificationsFailed}
+          />
           <Link
             href="/profile"
             className="text-sm font-medium underline-offset-4 hover:underline"

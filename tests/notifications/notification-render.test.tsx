@@ -1,0 +1,193 @@
+// @vitest-environment jsdom
+
+// T-07-84 — the RENDER side of notification safety.
+//
+// WHY A RENDER TEST AND NOT JUST A UNIT TEST ON safeHref. The property that matters is not "the helper
+// returns null" — it is "a hostile href never reaches an `href` attribute in the DOM". Those are only the
+// same statement if the component actually calls the helper on the path that builds the anchor, and that
+// wiring is exactly what a refactor breaks. So this file asserts against the rendered output.
+//
+// WHY IT EXISTS AT ALL, given 07-07 already validates the scheme at the WRITE boundary. Because a durable
+// row outlives the guard that wrote it. Rows written before that guard landed, rows from a future emitter
+// that bypasses the shared boundary, and rows edited directly in the database all arrive at this renderer
+// unexamined. Defence at one end of a durable pipe is not defence — 07-07's own summary flags this
+// component as the surface it was defending in advance.
+//
+// The specific hazard, restated because it is counter-intuitive: React escapes TEXT, and `escapeHtml`
+// escapes HTML metacharacters — neither touches a URL SCHEME. `javascript:alert(1)` survives both
+// perfectly intact, and React will happily render it into `<a href>` without complaint.
+//
+// `next/link` is stubbed to a plain anchor: it needs an App-Router context that does not exist in jsdom,
+// and for this question the stub is faithful — Link's entire contribution here is emitting `<a href>`,
+// which is precisely the thing under test.
+
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
+
+import type { NotificationPayload } from "@/lib/db/schema";
+
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+  } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
+const { NotificationItem, safeHref, describeNotification } = await import(
+  "@/components/notifications/notification-item"
+);
+
+afterEach(cleanup);
+
+function confirmedPayload(overrides: Partial<Extract<NotificationPayload, { type: "booking_confirmed" }>> = {}) {
+  return {
+    type: "booking_confirmed" as const,
+    listingTitle: "Sunset Court",
+    whenLabel: "Sat, 3 May · 9:00–10:00 AM (Asia/Manila)",
+    totalLabel: "₱1,050.00",
+    referenceLabel: "FIT-ABCD1234",
+    href: "/bookings/bk_1",
+    ...overrides,
+  };
+}
+
+function renderItem(payload: NotificationPayload, unread = true) {
+  return render(
+    <NotificationItem item={{ id: "n1", payload, unread, timeAgoLabel: "2h ago" }} />,
+  );
+}
+
+describe("T-07-84 — a hostile href never becomes a rendered anchor", () => {
+  // Every scheme/shape that survives HTML escaping but must not be navigable.
+  const HOSTILE = [
+    "javascript:alert(document.cookie)",
+    "JavaScript:alert(1)", // scheme matching must not be case-sensitive
+    "  javascript:alert(1)", // nor defeated by leading whitespace
+    "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+    "vbscript:msgbox(1)",
+    // Looks root-relative to a naive startsWith("/") check; a browser reads it as cross-origin.
+    "//evil.example/steal",
+  ];
+
+  for (const href of HOSTILE) {
+    it(`renders no anchor for ${JSON.stringify(href)}`, () => {
+      const { container } = renderItem(confirmedPayload({ href }) as NotificationPayload);
+
+      // THE ASSERTION: not one anchor in the subtree, hostile or otherwise.
+      expect(container.querySelectorAll("a")).toHaveLength(0);
+      // And the string appears nowhere as an attribute value under any name.
+      expect(container.innerHTML).not.toContain("javascript:");
+      expect(container.innerHTML).not.toContain("vbscript:");
+      expect(container.innerHTML).not.toContain("data:text/html");
+
+      // POSITIVE CONTROL: the notification is still READABLE — it degrades to static content rather than
+      // disappearing. A renderer that returned null on a bad href would pass every assertion above while
+      // silently swallowing notifications, which is its own (quieter) failure.
+      expect(screen.getByText("Booking confirmed")).toBeTruthy();
+      expect(screen.getByText(/Sunset Court/)).toBeTruthy();
+    });
+  }
+
+  it("POSITIVE CONTROL: a legitimate href DOES render a navigable anchor", () => {
+    const { container } = renderItem(confirmedPayload({ href: "/bookings/bk_1" }));
+    const anchors = container.querySelectorAll("a");
+    expect(anchors).toHaveLength(1);
+    expect(anchors[0].getAttribute("href")).toBe("/bookings/bk_1");
+  });
+
+  it("POSITIVE CONTROL: an absolute https href also renders", () => {
+    const { container } = renderItem(
+      confirmedPayload({ href: "https://fitout.example/bookings/bk_1" }),
+    );
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+  });
+
+  it("root-relative hrefs from the 07-10 emitters render fine (no renderer break)", () => {
+    // 07-10's cancel-booking.ts emits root-relative hrefs. That is a known defect assigned to 07-11 for a
+    // different reason; the renderer must not be the thing that breaks on them in the meantime.
+    for (const href of ["/bookings", "/bookings/bk_x/cancel", "/host/bookings?tab=past"]) {
+      const { container } = renderItem(confirmedPayload({ href }));
+      expect(container.querySelectorAll("a")[0]?.getAttribute("href")).toBe(href);
+      cleanup();
+    }
+  });
+});
+
+describe("T-07-84 — payload display strings render as escaped text, never as markup", () => {
+  it("an HTML-injection attempt in a listing title stays inert text", () => {
+    const hostileTitle = '<img src=x onerror="alert(1)">';
+    const { container } = renderItem(confirmedPayload({ listingTitle: hostileTitle }));
+
+    // No element was created from the string...
+    expect(container.querySelector("img")).toBeNull();
+    // ...and it is present as visible TEXT, which is the correct, honest rendering of a hostile title.
+    expect(container.textContent).toContain(hostileTitle);
+  });
+});
+
+describe("safeHref — the allow-list is closed, not a blocklist", () => {
+  it("accepts only root-relative paths and http(s) URLs", () => {
+    expect(safeHref("/bookings/1")).toBe("/bookings/1");
+    expect(safeHref("http://x.example/a")).toBe("http://x.example/a");
+    expect(safeHref("https://x.example/a")).toBe("https://x.example/a");
+  });
+
+  it("refuses everything else, including shapes no blocklist would anticipate", () => {
+    for (const bad of [
+      "javascript:alert(1)",
+      "//evil.example",
+      "mailto:a@b.example",
+      "tel:+639171234567",
+      "bookings/1", // bare relative — not a shape this product emits
+      "#anchor",
+      "",
+      null,
+      undefined,
+      42,
+      {},
+    ]) {
+      expect(safeHref(bad)).toBeNull();
+    }
+  });
+});
+
+describe("describeNotification — every payload kind has copy", () => {
+  it("never returns an empty title or body for any kind", () => {
+    // The union's exhaustiveness is enforced at COMPILE time by the `never` weld; this catches the other
+    // half — a case that compiles but returns blank strings, which renders as an empty row.
+    const samples: NotificationPayload[] = [
+      confirmedPayload(),
+      { type: "request_received", listingTitle: "A", whenLabel: "W", totalLabel: "T", href: "/b" },
+      { type: "request_approved", listingTitle: "A", whenLabel: "W", totalLabel: "T", payByLabel: "P", href: "/b" },
+      { type: "request_declined", listingTitle: "A", whenLabel: "W", expired: false, href: "/b" },
+      { type: "request_declined", listingTitle: "A", whenLabel: "W", expired: true, href: "/b" },
+      { type: "new_request_to_host", listingTitle: "A", whenLabel: "W", bookerLabel: "B", totalLabel: "T", respondByLabel: "R", href: "/b" },
+      { type: "booking_cancelled_by_booker", listingTitle: "A", whenLabel: "W", bookerLabel: "B", href: "/b" },
+      { type: "booking_cancelled_by_host", listingTitle: "A", whenLabel: "W", refundLabel: "R", href: "/b" },
+      { type: "refund_issued", listingTitle: "A", whenLabel: "W", refundLabel: "R", href: "/b" },
+      { type: "reminder_pre_expiry", listingTitle: "A", whenLabel: "W", totalLabel: "T", payByLabel: "P", href: "/b" },
+      { type: "reminder_pre_session", listingTitle: "A", whenLabel: "W", href: "/b" },
+      { type: "reminder_pre_sla", listingTitle: "A", whenLabel: "W", bookerLabel: "B", respondByLabel: "R", href: "/b" },
+    ];
+
+    for (const payload of samples) {
+      const { Icon, title, body } = describeNotification(payload);
+      expect(Icon, `icon for ${payload.type}`).toBeTruthy();
+      expect(title.length, `title for ${payload.type}`).toBeGreaterThan(0);
+      expect(body.length, `body for ${payload.type}`).toBeGreaterThan(0);
+    }
+
+    // Both declined variants must read differently — C6 makes a lapse and a refusal two sentences.
+    const declined = describeNotification({ type: "request_declined", listingTitle: "A", whenLabel: "W", expired: false, href: "/b" });
+    const lapsed = describeNotification({ type: "request_declined", listingTitle: "A", whenLabel: "W", expired: true, href: "/b" });
+    expect(declined.title).not.toBe(lapsed.title);
+  });
+});
