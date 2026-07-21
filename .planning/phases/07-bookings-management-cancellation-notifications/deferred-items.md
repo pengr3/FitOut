@@ -37,6 +37,11 @@ twice-observed, fully-characterised environment issue rather than a suspicion. N
 a function to the `/api/inngest` `functions: []` array, so the Inngest guard is now on the critical path
 for one more plan's build gate — it will keep recurring until it is fixed.
 
+**Reconfirmed by 07-14** (2026-07-21). Third observation, unchanged. 07-14 ships changes to BOTH route-group
+layouts, so its build gate is genuinely load-bearing (a layout that fails to compile breaks every page under
+it) — which makes the noise from this issue more costly than for a plan that only touches leaf modules. Same
+three-variable workaround, no source changed; the build then completed clean and listed all 24 routes.
+
 ---
 
 ## Root-relative `href` in cancellation notification payloads (found by 07-10, NOT fixed here)

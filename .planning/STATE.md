@@ -4,15 +4,15 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 11
 status: executing
-stopped_at: Completed 07-10-PLAN.md (lifecycle sends wired onto fitout/notify)
-last_updated: "2026-07-21T13:19:42.851Z"
+stopped_at: Completed 07-14-PLAN.md (in-app notification centre — bell in both headers)
+last_updated: "2026-07-21T13:45:00.000Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 51
-  percent: 91
+  completed_plans: 52
+  percent: 93
 ---
 
 # Project State
@@ -32,7 +32,9 @@ Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [█████████░] 91% (51 of 56 plans)
+Progress: [█████████░] 93% (52 of 56 plans)
+
+**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-10 and 07-14**. Next unexecuted: **07-11**.
 
 **Wave 1 complete.** 07-01 (config + schema + migrations) and 07-02 (when-label + booking-status derivation) both have SUMMARY.md on disk; `drizzle/0013` + `0014` are applied to the live DB and are idempotent.
 
@@ -66,6 +68,18 @@ Progress: [█████████░] 91% (51 of 56 plans)
 📌 **Contract for anyone emitting a notification.** Call `emitNotify(event)` **after commit, NEVER inside `db.transaction`** — `inngest.send` is an outbound HTTP call, and a rollback would leave an event already sent for a booking that does not exist. Never call `email.ts` sends directly; `sendForType` is the only dispatcher (that is the D-83 anti-pattern being removed). The payload must be complete — `booking_confirmed.referenceLabel`, `new_request_to_host.totalLabel` and `request_declined.expired` were **added by 07-07** and are REQUIRED; `href` must be a root-relative path or an `http(s)` URL (a `javascript:` scheme is refused at the write boundary) — and **07-10 established ABSOLUTE (`${BETTER_AUTH_URL}/...`) as the convention**, because under D-91 that one string is also the email's CTA and a root-relative href is a dead link in a mail client; and `type` must equal `payload.type`. Adding a notification type is a **three-file change by construction** (pgEnum + TS union, Zod union, `sendForType` switch) — each omission is a compile error, and a `default:` clause would destroy that. Do not add one.
 
 ℹ️ **`/bookings/[id]` moved into the `(app)` route group** (URL unchanged). It now inherits the booker header, so 07-14's bell will cover it; `/` and `/listings/[id]` remain header-less — the residual half of UI-SPEC Open Question 1.
+
+✅ **The in-app notification centre SHIPS — the D-92 bell is in BOTH headers (07-14).** Full suite: **72 files / 581 tests, exit 0**. One `NotificationBell` (popover, not dropdown-menu) mounted in `(app)/layout.tsx` and `(host)/host/layout.tsx`, fed server-computed owner-scoped props; the D-65 `Requests` badge sits alongside it untouched (two badges, two meanings). `markNotificationRead` / `markAllNotificationsRead` scope on `recipient_id` **inside the UPDATE's WHERE**. The poller is D-84's bounded `router.refresh()` idiom at ~30s, and it **PAUSES** on `document.hidden` (burning no attempt) rather than skipping. TanStack Query is still not installed.
+
+✅ **Owner scope AND the XSS guard are proven by mutation (07-14).** `tests/security/notification-owner-scope.test.ts` (8 cases) was verified by deleting each owner predicate in turn: `listRecent` → 3/8 fail, `countUnread` → 3/8, `markNotificationRead` → 2/8, `markAllNotificationsRead` → 1/8. `tests/notifications/notification-render.test.tsx` (13 cases) → 6/13 fail when the href guard is bypassed. **The positive controls are what make these non-vacuous** — the file also asserts exact counts, exact id sets, and that a user genuinely CAN read and mark their own rows, so a deny-everything implementation cannot pass.
+
+⚠️ **`escapeHtml` and React escaping do NOT sanitise a URL scheme — the render path guards it too now.** 07-07 validated `href` at the WRITE boundary; 07-14 added an independent render-side allow-list (`safeHref` in `notification-item.tsx`) because a durable row outlives the guard that wrote it. Accepted shapes: root-relative and `http(s)` **only**. Protocol-relative `//evil.example` is explicitly refused — it passes a naive `startsWith("/")` but is cross-origin. A refused href renders the row as **inert, readable, non-clickable** content (never dropped, never given a substitute destination).
+
+📌 **Adding a notification type is now a FOUR-file change** (was three): pgEnum + TS union (`schema.ts`), Zod union (`validation/notification.ts`), `sendForType` (`inngest/functions/notify.ts`), and **`describeNotification` (`components/notifications/notification-item.tsx`)**. Every omission is a compile error. Do not add a `default:` clause to any of them.
+
+ℹ️ **First jsdom component test in the repo (07-14)** — not new infrastructure: `vitest.config.ts` already documents the `// @vitest-environment jsdom` pragma and `@testing-library/react` / `jsdom` / `@vitejs/plugin-react` were already installed. `next/link` is stubbed to a plain `<a>` (it needs an App-Router context absent in jsdom). Reuse this pattern for future component tests.
+
+ℹ️ **Reminder notification COPY exists but nothing emits it yet.** `reminder_pre_expiry` / `reminder_pre_session` / `reminder_pre_sla` have icons, titles and bodies in the renderer; **Plan 13 owns the emitters**. Pass a pre-composed venue-local deadline label, not an hour count (D-96).
 
 ✅ **D-94 is now TRUE at all three hold-write sites (07-05).** `expires_at = LEAST(now() + window, starts_at)` on the instant hold, the request SLA and the approval payment window, all computed by Postgres. `units.ts` contains **zero** JS clock reads (grep-asserted). The request path applies the D-96 proportional split — a request 4h out gives the host a 2h SLA and the booker ~2h, floored at `MIN_APPROVE_WINDOW_HOURS`. Mode-scoped lead-time guards refuse server-side (2h request / 30min instant); `SlotState` gained `too_soon` as a display-only fourth member. The payment webhook is **unchanged** (D-57), protected by a mutation-verified guard test.
 
@@ -134,6 +148,7 @@ Progress: [█████████░] 91% (51 of 56 plans)
 | Phase 07 P08 | ~55m | 3 tasks | 18 files |
 | Phase 07 P09 | 75min | 3 tasks | 11 files |
 | Phase 07 P10 | 75 min | 2 tasks tasks | 9 files files |
+| Phase 07 P14 | ~45 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -262,8 +277,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T13:19:42.837Z
-Stopped at: Completed 07-10-PLAN.md (lifecycle sends wired onto fitout/notify)
+Last session: 2026-07-21T13:45:00.000Z
+Stopped at: **Completed 07-14-PLAN.md (Wave 3 — the in-app notification centre).** Executed ahead of 07-11/12/13; its deps (07-06, 07-07) were already done. Created `src/app/actions/notifications.ts` (`markNotificationRead` + `markAllNotificationsRead`, owner-scoped inside the UPDATE's WHERE, idempotent, bulk write rate-limited 60/60s + audited on denial, identical calm shape for owned/foreign/missing ids so there is no enumeration oracle); `src/components/notifications/notification-item.tsx` (exhaustive `NotificationPayload` switch closed by a `never` weld — no `default:`; `safeHref` render-side scheme allow-list; `formatTimeAgo` against the DB clock; `toNotificationItems` shared by both layouts); `src/components/notifications/notification-bell.tsx` (`"use client"` popover — NOT dropdown-menu, since links+button are not menuitems; ghost 44×44 trigger with `aria-label="Notifications, {n} unread"` carrying the TRUE count; `secondary` badge hidden at 0 and capped `9+`, never coral; `w-80 sm:w-96` / `max-h-96` + ScrollArea; `Mark all as read` only when unread>0; no `View all` dead link; bounded ~30s poller that PAUSES on `document.hidden`; no `aria-live`). Mounted the SAME bell in both inline headers (`(app)/layout.tsx`, `(host)/host/layout.tsx`) with the researcher's-call comment recorded in both — the two headers stay duplicated per D-04, the BELL is the shared thing. The D-65 `Requests` badge is untouched. **Rule-2 deviations:** both layouts wrap the notification read in try/catch (a layout throw would take down the session gate and every page in the group — the plan's specified error state was otherwise dead code, so `NotificationBell` gained an `error` prop); added `tests/notifications/notification-render.test.tsx` because the plan's only XSS control was a grep for an ABSENT API, which cannot prove a present one is safe. Both test files mutation-verified (5 owner-scope mutations, 1 render mutation, all caught; all restored). tsc + eslint clean; `npm run build` exit 0 with the three documented env placeholders (3rd observation, reconfirmed in deferred-items.md, not fixed). Full suite **72 files / 581 tests green** (was 70/560). Commits 845fc24 + 6474ce9 + bbc8fb2. ⚠ local `gsd-tools` has no `query state.*` handlers — STATE/ROADMAP updated by hand. Next: 07-11.
 Resume file: None
 
 Prior session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-07)
