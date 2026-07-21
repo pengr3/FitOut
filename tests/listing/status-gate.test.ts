@@ -47,7 +47,10 @@ afterAll(async () => {
   await teardownTestDb(testDb);
 });
 
-// A complete, publish-eligible field set (all core fields + both integer-cents rates + coordinates).
+// A complete, publish-eligible field set (all core fields + both integer-cents rates + coordinates +
+// the D-77 cancellation tier). `cancellationPolicy` joined this set in 07-15: it is REQUIRED to publish
+// and has NO default, so a fixture without it is no longer publish-eligible. The gate's own cases live
+// in tests/booking/cancellation-policy.test.ts.
 const VALID_FIELDS: DraftListingInput = {
   title: "Sunny Downtown Pickleball Court",
   description: "Two dedicated courts, indoor, climate-controlled.",
@@ -64,6 +67,7 @@ const VALID_FIELDS: DraftListingInput = {
   hourlyRateCents: 2500,
   dayRateCents: 18000,
   bookingMode: "request",
+  cancellationPolicy: "standard",
   showExactAddress: true,
 };
 

@@ -1,0 +1,359 @@
+// BOOK-07 / D-77 / D-81 — the two human ends of the cancellation tier: a host CHOOSING it, and a booker
+// SEEING it before they commit money.
+//
+// Everything downstream of the tier NAME already had tests before this file existed — the ladder (07-03),
+// the snapshot (07-08), the refund quote and the cancel screen (07-09). What was untested was whether the
+// tier can be skipped on the way in, and whether what a booker is SHOWN is what the engine later APPLIES.
+// Those are the two things this file pins, and they are pinned differently on purpose:
+//
+//   · The publish gate is driven through the REAL `publishListing` action against an isolated schema, so
+//     it proves the SERVER refuses — the wizard's checklist is client state and can be bypassed (T-07-88).
+//   · The disclosure agreement is proven by DERIVING BOTH SIDES FROM `LADDER` and asserting they meet.
+//     No expected percentage or hour figure is hand-typed anywhere below. Edit a rung in cancellation.ts
+//     and either this file's expectations move with it, or it goes red — it cannot silently pass while the
+//     copy and the money drift apart. That drift is exactly how a disclosure becomes a refund dispute.
+//
+// Harness: the vi.doMock idiom (mock next/headers, @/lib/auth, @/lib/db, next/cache → import the actions)
+// against an isolated schema, cloned from tests/listing/status-gate.test.ts.
+
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { eq } from "drizzle-orm";
+import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+import { listing, listingPhoto, booking, user } from "@/lib/db/schema";
+import type { DraftListingInput } from "@/lib/validation/listing";
+import {
+  LADDER,
+  quoteRefund,
+  rungBoundaries,
+  type CancellationTier,
+} from "@/lib/payments/cancellation";
+import {
+  policyDisclosureLines,
+  policySummaryLine,
+} from "@/components/booking/cancellation-policy-disclosure";
+
+const HOUR = 60 * 60 * 1000;
+const TIERS: CancellationTier[] = ["flexible", "standard", "strict"];
+
+let testDb: TestDb;
+let testAuth: TestAuth;
+type ListingActions = typeof import("@/app/actions/listing");
+let createDraftListing: ListingActions["createDraftListing"];
+let saveListingStep: ListingActions["saveListingStep"];
+let publishListing: ListingActions["publishListing"];
+
+const sessionHeaders: { cookie: string } = { cookie: "" };
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+}));
+
+/** Every publish requirement EXCEPT the tier — so a case can add or withhold exactly that one field. */
+const CORE_FIELDS: DraftListingInput = {
+  title: "Bright Makati Studio",
+  description: "Sprung floor, mirrors, sound system.",
+  primarySpaceType: "dance_studio",
+  addressLine1: "88 Ayala Ave",
+  city: "Makati",
+  region: "NCR",
+  postalCode: "1226",
+  country: "PH",
+  neighborhood: "Salcedo",
+  lat: 14.5547,
+  lng: 121.0244,
+  maxOccupancy: 12,
+  hourlyRateCents: 100000,
+  dayRateCents: 600000,
+  bookingMode: "instant",
+  showExactAddress: true,
+};
+
+let hostId: string;
+
+async function addPhotos(listingId: string, n: number): Promise<void> {
+  for (let i = 0; i < n; i++) {
+    await testDb.db.insert(listingPhoto).values({
+      id: `${listingId}_p${i}`,
+      listingId,
+      publicId: `pub_${listingId}_${i}`,
+      url: `https://res.cloudinary.com/mock/${listingId}/${i}.jpg`,
+      position: i,
+    });
+  }
+}
+
+async function readListing(id: string) {
+  const [row] = await testDb.db.select().from(listing).where(eq(listing.id, id));
+  return row;
+}
+
+/** A draft carrying every publish requirement except (optionally) the tier, with photos attached. */
+async function seedPublishReadyDraft(tier?: "flexible" | "standard" | "strict"): Promise<string> {
+  const created = await createDraftListing();
+  if (!created.ok || !created.id) throw new Error("draft setup failed");
+  await saveListingStep(created.id, tier ? { ...CORE_FIELDS, cancellationPolicy: tier } : CORE_FIELDS);
+  await addPhotos(created.id, 3);
+  return created.id;
+}
+
+beforeAll(async () => {
+  testDb = await setupTestDb();
+  testAuth = makeTestAuth(testDb);
+
+  const res = (await signUp(testAuth, {
+    email: "tier.host@example.com",
+    password: "averylongpassword",
+    name: "Tier Host",
+    firstName: "Tia",
+    intent: "host",
+  })) as { user: { id: string } };
+  hostId = res.user.id;
+  // The email soft-gate is a SEPARATE publish requirement (01-CONTEXT D-07). Satisfy it so a rejection
+  // in these cases can only ever be about the cancellation tier.
+  await testDb.db.update(user).set({ emailVerified: true }).where(eq(user.id, hostId));
+
+  const signIn = await testAuth.api.signInEmail({
+    body: { email: "tier.host@example.com", password: "averylongpassword" },
+    asResponse: true,
+  });
+  const setCookie = signIn.headers.get("set-cookie");
+  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+
+  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.doMock("@/lib/db", () => ({ db: testDb.db }));
+  vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+  vi.resetModules();
+  ({ createDraftListing, saveListingStep, publishListing } = await import("@/app/actions/listing"));
+});
+
+afterAll(async () => {
+  vi.doUnmock("@/lib/auth");
+  vi.doUnmock("@/lib/db");
+  vi.doUnmock("next/cache");
+  await teardownTestDb(testDb);
+});
+
+describe("the publish gate (D-77 / T-07-88) — server-enforced, never the client checklist", () => {
+  it("(1) REFUSES to publish a listing whose cancellation_policy IS NULL", async () => {
+    // Everything else about this listing is publish-ready, so the ONLY thing that can block it is the
+    // tier. The action is called directly — there is no wizard in this process, which is precisely the
+    // point: this is what a stale or crafted client that skipped the step reaches.
+    const id = await seedPublishReadyDraft();
+    expect((await readListing(id)).cancellationPolicy).toBeNull();
+
+    const res = await publishListing(id);
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      // Named, calm, and it tells the host what to do — not "invalid input".
+      expect(res.fieldErrors?.cancellationPolicy).toBeDefined();
+      expect(res.fieldErrors?.cancellationPolicy?.[0]).toMatch(/cancellation policy/i);
+      expect(res.error).toBe("Almost there — finish these to publish.");
+    }
+    // The listing did not sneak through: status is untouched, and it is still not publicly viewable.
+    expect((await readListing(id)).status).toBe("draft");
+    expect((await readListing(id)).publishedAt).toBeNull();
+  });
+
+  it("(2) PUBLISHES the same listing once a tier is chosen", async () => {
+    // The mirror of case (1) — without this, (1) would pass against an action that refuses everything.
+    const id = await seedPublishReadyDraft();
+    await saveListingStep(id, { cancellationPolicy: "standard" });
+
+    const res = await publishListing(id);
+
+    expect(res.ok).toBe(true);
+    const row = await readListing(id);
+    expect(row.status).toBe("published");
+    expect(row.cancellationPolicy).toBe("standard");
+  });
+
+  it("(3) does NOT brick existing drafts — a NULL-tier listing still SAVES as a draft", async () => {
+    // The gate is on PUBLISH, not on creation or autosave (mirroring how bookability, not listing
+    // creation, is gated on payout-readiness). Every listing drafted before Phase 7 carries NULL; if the
+    // draft path required a tier, all of them would be stranded mid-edit.
+    const created = await createDraftListing();
+    if (!created.ok || !created.id) throw new Error("draft setup failed");
+
+    const saved = await saveListingStep(created.id, { ...CORE_FIELDS, title: "Half-finished draft" });
+
+    expect(saved.ok).toBe(true);
+    const row = await readListing(created.id);
+    expect(row.title).toBe("Half-finished draft");
+    expect(row.cancellationPolicy).toBeNull(); // still unchosen, and that is fine for a draft
+    expect(row.status).toBe("draft");
+  });
+
+  it("(4) a tier is retierable, and the change applies FORWARD ONLY (T-07-90)", async () => {
+    // The listing side changes; the booking side must not. This complements 07-09's assertion that the
+    // REFUND is unchanged by asserting the underlying facts: the snapshot column itself never moves.
+    const id = await seedPublishReadyDraft("strict");
+    expect((await publishListing(id)).ok).toBe(true);
+
+    const startsAt = new Date(Date.now() + 30 * HOUR);
+    await testDb.db.insert(booking).values({
+      id: "bk_retier",
+      listingId: id,
+      unit: 1,
+      bookerId: hostId,
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + HOUR),
+      status: "confirmed",
+      bookingMode: "instant",
+      cancellationPolicy: "strict", // the D-67 snapshot taken at creation
+      spacePriceCents: 100000,
+      serviceFeeCents: 5000,
+      quotedTotalCents: 105000,
+      currency: "php",
+    });
+
+    // The host retiers to the most booker-friendly option AFTER the booking exists.
+    const retiered = await saveListingStep(id, { cancellationPolicy: "flexible" });
+    expect(retiered.ok).toBe(true);
+
+    expect((await readListing(id)).cancellationPolicy).toBe("flexible"); // listing side moved
+    const [bk] = await testDb.db
+      .select({ policy: booking.cancellationPolicy })
+      .from(booking)
+      .where(eq(booking.id, "bk_retier"));
+    expect(bk.policy).toBe("strict"); // booking side did NOT
+
+    // And the money follows the snapshot, not the listing: Strict at 30h out sits in the 48h→24h rung
+    // (50%). Had the quote read the listing, Flexible would have paid out 100% — a host's later edit
+    // rewriting the terms of a booking already agreed and already paid for.
+    const quote = quoteRefund({
+      tier: bk.policy!,
+      spacePriceCents: 100000,
+      serviceFeeCents: 5000,
+      startsAt,
+      now: new Date(),
+    });
+    expect(quote.refundBps).toBe(5000);
+  });
+});
+
+describe("concrete rung boundaries (D-81) — the dates the checkout disclosure renders", () => {
+  const startsAt = new Date("2026-07-10T12:00:00Z");
+
+  it("(5) standard returns startsAt−24h then startsAt−6h, in that order, at 100% then 50%", async () => {
+    const b = rungBoundaries("standard", startsAt);
+    expect(b).toHaveLength(2);
+    expect(b[0].refundBps).toBe(10000);
+    expect(b[0].boundary.toISOString()).toBe("2026-07-09T12:00:00.000Z"); // −24h
+    expect(b[1].refundBps).toBe(5000);
+    expect(b[1].boundary.toISOString()).toBe("2026-07-10T06:00:00.000Z"); // −6h
+  });
+
+  it("(6) flexible has exactly one rung, at startsAt−12h", async () => {
+    const b = rungBoundaries("flexible", startsAt);
+    expect(b).toHaveLength(1);
+    expect(b[0].refundBps).toBe(10000);
+    expect(b[0].boundary.toISOString()).toBe("2026-07-10T00:00:00.000Z"); // −12h
+  });
+});
+
+describe("disclosure == enforcement — both sides derived from LADDER", () => {
+  it("(7) the disclosure emits one line per LADDER rung, in ladder order, plus a no-refund close", () => {
+    // The tripwire. Nothing here is hand-typed: the expected line count, the hour figures and the
+    // percentages are all read out of LADDER. Add a rung, move a rung, or change a percentage in
+    // cancellation.ts and these expectations move with it automatically — while a HAND-TYPED disclosure
+    // would keep rendering the old promise and this test would go red.
+    for (const tier of TIERS) {
+      const rungs = LADDER[tier];
+      const lines = policyDisclosureLines(tier);
+
+      expect(lines).toHaveLength(rungs.length + 1);
+
+      rungs.forEach((rung, i) => {
+        expect(lines[i].when).toContain(String(rung.minHours));
+        if (rung.refundBps >= 10000) {
+          expect(lines[i].outcome).toBe("full refund of the space price");
+        } else {
+          expect(lines[i].outcome).toContain(`${rung.refundBps / 100}%`);
+        }
+      });
+
+      expect(lines[lines.length - 1].outcome).toBe("no refund");
+    }
+  });
+
+  it("(8) the collapsed summary names the LADDER's own free-cancellation lead time", () => {
+    for (const tier of TIERS) {
+      const freeRung = LADDER[tier].find((r) => r.refundBps >= 10000)!;
+      expect(policySummaryLine(tier)).toContain(String(freeRung.minHours));
+    }
+  });
+
+  it("(9) concrete mode renders one date per rung, and refuses a mismatched boundary set", () => {
+    const startsAt = new Date("2026-07-10T12:00:00Z");
+    for (const tier of TIERS) {
+      const labels = rungBoundaries(tier, startsAt).map((r) => r.boundary.toISOString());
+      const lines = policyDisclosureLines(tier, labels);
+
+      // Every rung line names a CONCRETE instant — never a bare percentage (D-81 / C3).
+      labels.forEach((label, i) => expect(lines[i].when).toContain(label));
+      expect(policySummaryLine(tier, labels)).toContain(labels[0]);
+    }
+
+    // Boundaries formatted for one tier and passed with a different tier would disclose dates from a
+    // policy the booker isn't under. It throws instead of rendering — a wrong date here is worse than
+    // an error, because only the booker would ever see it.
+    const flexibleLabels = rungBoundaries("flexible", startsAt).map((r) => r.boundary.toISOString());
+    expect(() => policyDisclosureLines("standard", flexibleLabels)).toThrow(/boundary labels/);
+  });
+
+  it("(10) every DISCLOSED boundary is the exact instant quoteRefund changes its answer", () => {
+    // The claim the whole plan turns on. For each tier, at each boundary the disclosure shows: standing
+    // exactly ON it must award the rung that was promised, and one millisecond LATER must award strictly
+    // less. If the copy and the ladder ever disagree, this is where it surfaces — and it is checked
+    // against quoteRefund itself, not against a restatement of it.
+    const startsAt = new Date("2026-07-10T12:00:00Z");
+    const money = { spacePriceCents: 100000, serviceFeeCents: 5000, startsAt };
+
+    for (const tier of TIERS) {
+      const boundaries = rungBoundaries(tier, startsAt);
+      // Index-aligned with the disclosure's rung lines — the same array the checkout page formats.
+      expect(policyDisclosureLines(tier)).toHaveLength(boundaries.length + 1);
+
+      boundaries.forEach(({ refundBps, boundary }, i) => {
+        const onTheDot = quoteRefund({ ...money, tier, now: boundary });
+        expect(onTheDot.refundBps).toBe(refundBps);
+        expect(onTheDot.spaceRefundCents).toBe((100000 * refundBps) / 10000);
+
+        // A millisecond past the boundary drops to the NEXT rung — the one the disclosure's next line
+        // promises — or to nothing when this was the last rung.
+        const justAfter = quoteRefund({
+          ...money,
+          tier,
+          now: new Date(boundary.getTime() + 1),
+        });
+        const expectedNext = boundaries[i + 1]?.refundBps ?? 0;
+        expect(justAfter.refundBps).toBe(expectedNext);
+      });
+
+      // Past the final boundary the disclosure says "no refund". The engine must agree.
+      const last = boundaries[boundaries.length - 1].boundary;
+      const afterAll = quoteRefund({ ...money, tier, now: new Date(last.getTime() + HOUR) });
+      expect(afterAll.refundBps).toBe(0);
+      expect(afterAll.totalRefundCents).toBe(0);
+    }
+  });
+
+  it("(11) the non-refundable service fee is disclosed at EVERY tier, including flexible", () => {
+    // C2: the one place a booker could be surprised. Flexible is the dangerous case — a full refund is
+    // its only rung, so a booker most reasonably assumes everything comes back. quoteRefund never
+    // refunds the fee at any tier or any rung, so the line must never be conditional.
+    for (const tier of TIERS) {
+      const quote = quoteRefund({
+        tier,
+        spacePriceCents: 100000,
+        serviceFeeCents: 5000,
+        startsAt: new Date("2026-07-10T12:00:00Z"),
+        now: new Date("2026-07-01T12:00:00Z"), // far out — the most generous rung on every tier
+      });
+      expect(quote.refundBps).toBe(10000);
+      expect(quote.serviceFeeRefundCents).toBe(0);
+      expect(quote.totalRefundCents).toBe(quote.spaceRefundCents);
+    }
+  });
+});
