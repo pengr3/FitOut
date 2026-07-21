@@ -162,8 +162,8 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BOOK-06 | Phase 6 | Complete |
 | PAY-05 | Phase 6 | Complete |
 | HOST-01 | Phase 6 | Complete |
-| BOOK-07 | Phase 7 | Pending |
-| PAY-06 | Phase 7 | Pending |
+| BOOK-07 | Phase 7 | In progress |
+| PAY-06 | Phase 7 | In progress |
 | HOST-02 | Phase 7 | In-progress (07-02 shipped the shared primitives the host bookings view renders from — `deriveBookingStatusView`/`BookingStatusBadge` + `composeWhenLabelShort`. The `/host/bookings` route itself lands in 07-06; closed at the phase transition) |
 | MANAGE-01 | Phase 7 | In-progress (07-02 shipped the shared primitives — the venue-local when-label formatter + the booking-status derivation. The `/bookings` route, Upcoming/Past tabs and keyset paging land in 07-06) |
 | MANAGE-02 | Phase 7 | In-progress (07-02 shipped the SINGLE status derivation both sides render from — exhaustive, side-specific labels, D-102 `completed` derived at read time and never stored, D-79 refund detail kept out of the badge. Made *visible* on both surfaces by 07-06/07-12) |
