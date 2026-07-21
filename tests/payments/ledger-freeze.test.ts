@@ -119,7 +119,8 @@ describe("commission freeze (PAY-02, D-51)", () => {
     const b: DuePayout = {
       bookingId: bkId,
       listingId: L,
-      quotedTotalCents: 200000,
+      // 07-04 Finding 2: the payout basis is the SPACE price, never the all-in quoted total.
+      payoutGrossCents: 200000,
       currency: "php",
       hostId: A.hostId,
       paymentId: null,

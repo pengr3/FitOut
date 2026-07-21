@@ -86,6 +86,10 @@ async function makeBooking(opts: {
     endsAt,
     status: opts.status,
     quotedTotalCents: opts.quotedTotalCents,
+    // 07-04 Finding 2: the sweep's payout basis is space_price_cents, NOT quoted_total_cents. With no
+    // service fee these are equal, which is exactly what drizzle/0014 backfilled for pre-Phase-7 rows.
+    spacePriceCents: opts.quotedTotalCents,
+    serviceFeeCents: 0,
     currency: "php",
     expiresAt: opts.status === "pending" ? endsAt : null,
   });
@@ -97,12 +101,12 @@ function duePayout(opts: {
   listingId: string;
   hostId: string;
   accountId: string | null;
-  quotedTotalCents: number;
+  payoutGrossCents: number;
 }): DuePayout {
   return {
     bookingId: opts.bookingId,
     listingId: opts.listingId,
-    quotedTotalCents: opts.quotedTotalCents,
+    payoutGrossCents: opts.payoutGrossCents,
     currency: "php",
     hostId: opts.hostId,
     paymentId: null,
@@ -176,7 +180,8 @@ describe("payout sweep — due selection (PAY-03, D-55/56)", () => {
     // The returned row carries the host's correlating Linked-Account id (the wallet is matched against it).
     const row = due.find((d) => d.bookingId === dueId)!;
     expect(row.paymongoAccountId).toBe(A.accountId);
-    expect(row.quotedTotalCents).toBe(200000);
+    // Finding 2: the sweep's basis is the SPACE price, exposed as payoutGrossCents (never the all-in total).
+    expect(row.payoutGrossCents).toBe(200000);
   });
 });
 
@@ -196,7 +201,7 @@ describe("payout sweep — happy payout (PAY-03/PAY-02, D-51/52/56)", () => {
 
     const res = await payOne(
       testDb.db,
-      duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, quotedTotalCents: 200000 }),
+      duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 200000 }),
     );
     expect(res.status).toBe("paid");
 
@@ -242,7 +247,7 @@ describe("payout sweep — at-most-once under concurrency (T-05-23)", () => {
       listingId: L,
       hostId: A.hostId,
       accountId: A.accountId,
-      quotedTotalCents: 200000,
+      payoutGrossCents: 200000,
     });
 
     // Two GENUINELY concurrent connections (makeRacingClients — the max:1 shared client would serialize).
@@ -283,11 +288,11 @@ describe("payout sweep — multi-host wallet correlation (T-05-33)", () => {
 
     await payOne(
       testDb.db,
-      duePayout({ bookingId: bkA, listingId: LA, hostId: A.hostId, accountId: A.accountId, quotedTotalCents: 200000 }),
+      duePayout({ bookingId: bkA, listingId: LA, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 200000 }),
     );
     await payOne(
       testDb.db,
-      duePayout({ bookingId: bkB, listingId: LB, hostId: B.hostId, accountId: B.accountId, quotedTotalCents: 200000 }),
+      duePayout({ bookingId: bkB, listingId: LB, hostId: B.hostId, accountId: B.accountId, payoutGrossCents: 200000 }),
     );
 
     const numbers = mockPayMongo.createBatchTransfer.mock.calls.map(
@@ -315,7 +320,7 @@ describe("payout sweep — no matching wallet (T-05-27 / CR-01)", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await payOne(
       testDb.db,
-      duePayout({ bookingId: bkC, listingId: L, hostId: C.hostId, accountId: C.accountId, quotedTotalCents: 200000 }),
+      duePayout({ bookingId: bkC, listingId: L, hostId: C.hostId, accountId: C.accountId, payoutGrossCents: 200000 }),
     );
 
     expect(res.status).toBe("skipped-no-wallet");
@@ -353,7 +358,7 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
       listingId: L,
       hostId: A.hostId,
       accountId: A.accountId,
-      quotedTotalCents: 200000,
+      payoutGrossCents: 200000,
     });
 
     // First pass: a transient PayMongo error throws from createBatchTransfer → the claim is marked `failed`
