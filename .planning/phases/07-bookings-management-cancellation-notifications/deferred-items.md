@@ -36,3 +36,27 @@ Same two-variable workaround, no source changed; `npm run build` then completed 
 twice-observed, fully-characterised environment issue rather than a suspicion. Note that 07-07 ALSO adds
 a function to the `/api/inngest` `functions: []` array, so the Inngest guard is now on the critical path
 for one more plan's build gate — it will keep recurring until it is fixed.
+
+---
+
+## Root-relative `href` in cancellation notification payloads (found by 07-10, NOT fixed here)
+
+**Where:** `src/app/actions/cancel-booking.ts` — `notifyCancellation` emits
+`href: "/host/bookings"` and `href: \`/bookings/${bookingId}\`` (07-09).
+
+**The problem:** under D-91 the payload's `href` is the SOLE input to both channels. The in-app
+dropdown renders a root-relative path fine; an EMAIL client does not — `<a href="/host/bookings">`
+has no origin to resolve against and is a dead link in every mail reader. So the cancellation and
+refund emails ship with unclickable CTAs.
+
+**Why not fixed here:** 07-10 is a transport migration of five specific lifecycle sends and
+`cancel-booking.ts` is not one of them; the bug predates this plan (07-09) and lives in a file this
+plan does not otherwise touch. Fixing it is a one-line change per emission (prefix
+`process.env.BETTER_AUTH_URL`), but it is someone's plan to own, with its own test.
+
+**What 07-10 did instead:** every href it emits is ABSOLUTE, for exactly this reason, and the
+rationale is written into the call sites so the pattern is not copied back the other way.
+
+**Impact if left:** two booker/host-facing emails (cancelled-by-booker, refund-issued) have broken
+CTAs. Not a correctness or money bug — the notification still tells the truth, and the in-app row is
+clickable — but it is a visible quality defect on a money-adjacent email.

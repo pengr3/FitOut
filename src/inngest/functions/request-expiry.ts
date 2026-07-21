@@ -127,8 +127,8 @@ export async function expireOne(dbConn: DbConn, row: ExpiredBooking): Promise<Ex
  * Load the booker + listing, compose the venue-local `whenLabel`, and EMIT the declined/expired notice.
  *
  * ⚠️ D-91 PARITY — WHY THIS EMITS RATHER THAN CALLING email.ts DIRECTLY. This cron is ALREADY an Inngest
- * function, so calling `sendRequestDeclined` here would be strictly fewer hops and would keep the send
- * inside a step that already has retries. We emit the event anyway, because otherwise EXPIRY becomes the
+ * function, so calling the declined send from email.ts here would be strictly fewer hops and would keep the
+ * send inside a step that already has retries. We emit the event anyway, because otherwise EXPIRY becomes the
  * one lifecycle event with no in-app notification row — exactly the channel drift D-91 exists to prevent,
  * and the kind of drift nobody notices until a booker asks why their notification list skips the thing that
  * actually happened to their booking. One event, two channels, no per-event judgement call to maintain.
