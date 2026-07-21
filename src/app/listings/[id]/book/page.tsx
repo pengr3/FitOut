@@ -132,7 +132,11 @@ export default async function ReservePage({
   // booking as "Full day". `quotedTotalCents` remains the fallback for a pre-Phase-7 row (fee was 0).
   const hours = windowHours(bk.startsAt, bk.endsAt);
   const quoted = bk.quotedTotalCents ?? 0;
+  // The D-74 split, read off the frozen row. LEGACY FALLBACK: a pre-Phase-7 booking has a null split and
+  // genuinely had no service fee, so `space = the whole charge, fee = 0` reproduces exactly what it was
+  // charged — and `serviceFeeCents === 0` makes PriceBreakdown omit the fee row entirely.
   const spacePriceCents = bk.spacePriceCents ?? quoted;
+  const serviceFeeCents = bk.serviceFeeCents ?? 0;
   const hourlyTotal = lst.hourlyRateCents != null ? lst.hourlyRateCents * hours : null;
   const fullDay = hourlyTotal == null || spacePriceCents !== hourlyTotal;
 
@@ -175,6 +179,8 @@ export default async function ReservePage({
   const breakdown = (
     <PriceBreakdown
       quotedTotalCents={quoted}
+      spacePriceCents={spacePriceCents}
+      serviceFeeCents={serviceFeeCents}
       currency={bk.currency ?? DISPLAY_CURRENCY}
       fullDay={fullDay}
       hours={hours}
