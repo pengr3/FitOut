@@ -245,6 +245,7 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       bookerId: booking.bookerId,
       status: booking.status,
       listingId: booking.listingId,
+      startsAt: booking.startsAt,
       quotedTotalCents: booking.quotedTotalCents,
       currency: booking.currency,
     })
@@ -268,6 +269,25 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       ok: false,
       reason: "expired",
       error: "Your hold is no longer active. Check availability again.",
+    };
+  }
+
+  // D-94: pay is refused once starts_at has passed. This is the CHECKOUT-INITIATION guard — the safe place
+  // to refuse, BEFORE any money moves. `now` is read from POSTGRES, not the JS clock, so it is the same
+  // clock every other expiry decision in the system uses (a skewed process clock must never decide whether
+  // a session has begun).
+  //
+  // ⚠️ The mirror of this guard does NOT belong in the payment webhook (D-57 / Pitfall 4). That handler
+  // confirms on `status='pending'` ALONE because payment is the confirm authority; a start-time condition
+  // there would take the booker's money and leave the booking unconfirmable. A payment that lands
+  // post-start anyway is handled by the existing handleGoneSlot auto-refund backstop (D-58).
+  const nowRows = (await db.execute(sql`SELECT now() AS "now"`)) as unknown as { now: Date | string }[];
+  const nowFromDb = new Date(nowRows[0].now);
+  if (bk.startsAt.getTime() <= nowFromDb.getTime()) {
+    return {
+      ok: false,
+      reason: "expired",
+      error: "This session has already started, so it can't be paid for now. Check availability again.",
     };
   }
 

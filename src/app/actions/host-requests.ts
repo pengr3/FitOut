@@ -38,7 +38,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
-import { APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
+import { APPROVAL_PAYMENT_WINDOW_HOURS, MIN_APPROVE_WINDOW_HOURS } from "@/lib/payments/config";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { sendRequestApproved, sendRequestDeclined } from "@/lib/email";
 import { composeWhenLabel, type WhenLabelInput } from "@/lib/booking/when-label";
@@ -129,8 +129,9 @@ const whenLabelInput = (row: OwnedRequest): WhenLabelInput => ({
 /**
  * approveRequest — the host approves a pending request (HOST-01 / PAY-05, D-64/D-66). Owner-gated, then
  * an ATOMIC, DB-clock-SLA-guarded flip `requested → approved` that ALSO sets the payment-window expiry to
- * now()+APPROVAL_PAYMENT_WINDOW_HOURS so the booker gets the FULL window to pay (mirrors the confirmBooking
- * GREATEST/payment-window idiom — the approved hold occupies the slot until the payment window lapses).
+ * LEAST(now()+APPROVAL_PAYMENT_WINDOW_HOURS, starts_at) — the booker gets the full window to pay, but
+ * never past the moment the session begins (D-94; the approved hold occupies the slot until it lapses).
+ * An approve with less than MIN_APPROVE_WINDOW_HOURS left before start is refused by the same WHERE (D-93).
  * The `AND status='requested' AND expires_at > now()` guard means a lapsed approve claims 0 rows → calm
  * "no longer pending" (never a 500, never a silent approve of a row the 06-06 SLA cron already declined).
  * On a genuine flip the booker is emailed a pay-now link to the SAME Phase-5 /book checkout (D-63 reuse).
@@ -161,18 +162,58 @@ export async function approveRequest(requestId: string): Promise<RequestActionRe
 
   // ATOMIC SLA-guarded flip (T-06-20/21). The DB clock now() is the sole SLA authority (never a JS Date):
   // `AND status='requested'` makes it idempotent (a 2nd approve is a 0-row no-op) and `AND expires_at >
-  // now()` refuses a lapsed approve. Setting expires_at = now()+APPROVAL_PAYMENT_WINDOW_HOURS opens the
-  // booker's full payment window so the approved hold keeps occupying the slot until that window lapses.
+  // now()` refuses a lapsed approve. The payment window opens to APPROVAL_PAYMENT_WINDOW_HOURS so the
+  // approved hold keeps occupying the slot until that window lapses.
+  //
+  // D-94: the LEAST(...) is the CAP that closes the "a 2pm approval of a 5pm session stayed payable until
+  // 2pm the next day" bug — no hold may outlive its own session. In `UPDATE … SET`, an unqualified
+  // `starts_at` on the right-hand side reads the ROW'S CURRENT VALUE; correct and safe here.
+  //
+  // D-93's minimum-approve-window guard lives in the SAME WHERE, so a too-late approve claims 0 rows and
+  // falls through to the EXISTING calm NOT_PENDING path — no new error branch, no new test surface. The
+  // 0-row path is already tested. Being in the WHERE also makes it atomic with the status check, so it
+  // cannot be raced (T-07-24).
+  //
+  // ⚠️ D-57 — THIS GUARD BELONGS HERE AND *NOWHERE NEAR* THE PAYMENT WEBHOOK. Do NOT "complete the
+  // pattern" by adding `AND starts_at > now()` to src/app/api/paymongo/webhook/route.ts. That handler
+  // confirms on `status = 'pending'` ALONE, deliberately, because PAYMENT IS THE CONFIRM AUTHORITY. A
+  // start-time condition there resurrects exactly the failure 05-04 was built to prevent: the booker's
+  // money is taken and the booking cannot confirm. A payment that lands post-start is already covered by
+  // the existing handleGoneSlot auto-refund backstop (D-58). See 07-RESEARCH Pitfall 4 — and the
+  // dedicated "D-57 GUARD" test in tests/paymongo/webhook-payment-paid.test.ts.
   const flipped = (await db.execute(sql`
     UPDATE booking
     SET status = 'approved',
-        expires_at = now() + make_interval(hours => ${APPROVAL_PAYMENT_WINDOW_HOURS})
-    WHERE id = ${requestId} AND status = 'requested' AND expires_at > now()
+        expires_at = LEAST(
+          now() + make_interval(hours => ${APPROVAL_PAYMENT_WINDOW_HOURS}::int),
+          starts_at
+        )
+    WHERE id = ${requestId}
+      AND status = 'requested'
+      AND expires_at > now()
+      AND starts_at > now() + make_interval(hours => ${MIN_APPROVE_WINDOW_HOURS}::int)
     RETURNING id
   `)) as unknown as { id: string }[];
 
   if (flipped.length === 0) {
-    // Already actioned (approved/declined) or lapsed (the 06-06 cron won the race) — calm, never a 500.
+    // D-93: when the 0 rows are due to the request being TOO CLOSE TO START (rather than already actioned
+    // or SLA-lapsed), record WHY on the row so the expiry cron's email/notification composer can give both
+    // sides the honest "too close to start" message instead of a generic SLA lapse. Status-scoped, mirror
+    // of the guard above, and non-throwing — it can never touch a healthy row, and a failure to annotate
+    // must never turn a calm denial into a 500.
+    try {
+      await db.execute(sql`
+        UPDATE booking
+        SET decline_reason = 'too_close_to_start'
+        WHERE id = ${requestId}
+          AND status = 'requested'
+          AND starts_at <= now() + make_interval(hours => ${MIN_APPROVE_WINDOW_HOURS}::int)`);
+    } catch {
+      // Annotation is best-effort telemetry, never part of the guard's correctness.
+    }
+
+    // Already actioned (approved/declined), lapsed (the 06-06 cron won the race), or too close to start —
+    // all fall through to the SAME calm result. Never a 500, never a new error branch.
     await recordAudit({
       actorId: userId,
       action: "approve_request",
