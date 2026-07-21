@@ -17,6 +17,11 @@
 // paid_at is never rewritten, a terminal row is never reopened. The guard, not an app-level "already
 // paid?" read, is the authority — exactly as the ON CONFLICT is for the sweep and the EXCLUDE for booking.
 //
+// KIND SCOPING (Phase 7, D-71 / 07-RESEARCH Finding 3): EVERY query in this file carries
+// `AND kind = 'payout'`. A `host_cancel_fee` row is a signed DEBIT that never transfers — it is inserted
+// `held` and stays there until netted against a future payout by the sweep. Unscoped, it would be polled
+// as if it had a transfer AND would trip the stuck-`held` alert on every single host cancellation.
+//
 // DB CLOCK for the terminal timestamp (`paid_at = now()`), an injectable-free discipline matching the
 // sweep + Phase-4 lazy-expiry; only the stuck-age comparison uses createdAt vs Date.now() (advisory alert
 // timing, not a money-moving decision).
@@ -67,7 +72,7 @@ export async function queryProcessingLedger(dbConn: DbConn = db): Promise<Proces
   return (await dbConn.execute(sql`
     SELECT booking_id AS "bookingId", transfer_id AS "transferId", created_at AS "createdAt"
     FROM host_payout_ledger
-    WHERE state = 'processing' AND transfer_id IS NOT NULL
+    WHERE kind = 'payout' AND state = 'processing' AND transfer_id IS NOT NULL
     ORDER BY created_at ASC
     LIMIT 200
   `)) as unknown as ProcessingLedgerRow[];
@@ -91,7 +96,7 @@ export async function reconcileOne(
     // Terminal success → release the ledger to Paid. `AND state='processing'` ⇒ 0 rows if already terminal.
     await dbConn.execute(sql`
       UPDATE host_payout_ledger SET state='paid', paid_at=now()
-      WHERE booking_id=${row.bookingId} AND state='processing'
+      WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
     `);
     return { bookingId: row.bookingId, state: "paid" };
   }
@@ -100,7 +105,7 @@ export async function reconcileOne(
     // Terminal failure → mark Failed (idempotent) + operator alert (a payout needs human review).
     await dbConn.execute(sql`
       UPDATE host_payout_ledger SET state='failed'
-      WHERE booking_id=${row.bookingId} AND state='processing'
+      WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
     `);
     console.error("[payout-alert] transfer failed", {
       bookingId: row.bookingId,
@@ -134,7 +139,10 @@ export async function alertStuckHeld(dbConn: DbConn = db): Promise<number> {
   const rows = (await dbConn.execute(sql`
     SELECT booking_id AS "bookingId", created_at AS "createdAt"
     FROM host_payout_ledger
-    WHERE state = 'held'
+    -- Finding 3 / Pitfall 7 — a host_cancel_fee DEBIT row is inserted as 'held' and stays there until
+    -- fully netted. Without this kind scope it would fire a FALSE [payout-alert] on every host
+    -- cancellation, and operators who learn to ignore the channel will miss a real transfer failure.
+    WHERE kind = 'payout' AND state = 'held'
       AND created_at <= now() - make_interval(hours => ${RECONCILE_STUCK_HOURS}::int)
     ORDER BY created_at ASC
     LIMIT 200

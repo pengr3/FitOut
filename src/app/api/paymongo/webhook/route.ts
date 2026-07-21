@@ -282,10 +282,20 @@ async function handleRefund(event: PayMongoEvent): Promise<void> {
   // refund, dispute, or chargeback) must NEVER be silently rewritten to 'refunded': that would erase the
   // record that the host WAS paid and trigger no clawback, leaving the platform believing "no payout" while
   // real money sits in the host's wallet. Restrict the flip to 'held'; alert (clawback) on any post-payout row.
+  //
+  // `kind = 'payout'` (Phase 7, D-71 / Finding 3): a `host_cancel_fee` DEBIT row is also inserted `held`
+  // and may carry the same payment_id as the booking it was charged against. A booker refund must NEVER
+  // flip the HOST's outstanding cancellation debt to 'refunded' — that would silently forgive the fee.
   const flipped = await db
     .update(hostPayoutLedger)
     .set({ state: "refunded" })
-    .where(and(eq(hostPayoutLedger.paymentId, paymentId), eq(hostPayoutLedger.state, "held")))
+    .where(
+      and(
+        eq(hostPayoutLedger.paymentId, paymentId),
+        eq(hostPayoutLedger.kind, "payout"),
+        eq(hostPayoutLedger.state, "held"),
+      ),
+    )
     .returning({ id: hostPayoutLedger.id });
   if (flipped.length === 0) {
     // No HELD row was flipped. If a row exists in a POST-payout state (processing/paid), money has already
@@ -297,6 +307,7 @@ async function handleRefund(event: PayMongoEvent): Promise<void> {
       .where(
         and(
           eq(hostPayoutLedger.paymentId, paymentId),
+          eq(hostPayoutLedger.kind, "payout"),
           inArray(hostPayoutLedger.state, ["processing", "paid"]),
         ),
       );

@@ -12,7 +12,7 @@
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
 
@@ -56,6 +56,13 @@ export default async function HostEarningsPage() {
   // Owner-scoped ledger read (T-05-29, Security V4): the route group is NOT the gate — filter to the
   // signed-in host so a host can never see another host's payout rows. Joined to booking/listing for the
   // space title + window + venue tz; newest-first.
+  //
+  // `kind = 'payout'` (Phase 7, D-71 / Finding 3) is load-bearing: a `host_cancel_fee` row is a SIGNED
+  // DEBIT (negative net_cents) with no booking payout behind it. Unscoped it would render as a nonsense
+  // row AND would subtract from summarizePayouts' Upcoming total, mis-stating what the host is owed.
+  // Scoping HERE (not inside summarizePayouts) keeps that pure helper a plain sum over the rows it is
+  // handed — the query is the single place the row-kind decision is made. Outstanding debits are
+  // surfaced separately below.
   const rows = await db
     .select({
       bookingId: hostPayoutLedger.bookingId,
@@ -74,7 +81,12 @@ export default async function HostEarningsPage() {
     .from(hostPayoutLedger)
     .innerJoin(booking, eq(hostPayoutLedger.bookingId, booking.id))
     .innerJoin(listing, eq(booking.listingId, listing.id))
-    .where(eq(hostPayoutLedger.hostId, session.user.id))
+    .where(
+      and(
+        eq(hostPayoutLedger.hostId, session.user.id),
+        eq(hostPayoutLedger.kind, "payout"),
+      ),
+    )
     .orderBy(desc(hostPayoutLedger.createdAt));
 
   // Summary totals summed server-side by the shared pure helper (Upcoming = Held+Processing, Paid = Paid).
@@ -82,6 +94,19 @@ export default async function HostEarningsPage() {
     rows.map((r) => ({ state: r.state, netCents: r.netCents })),
   );
   const summaryCurrency = rows[0]?.currency ?? DISPLAY_CURRENCY;
+
+  // D-71 unrecovered host-cancellation debt. A debit carries NEGATIVE net_cents and accumulates
+  // recovered_cents toward -net_cents as it is netted off future payouts; anything still outstanding will
+  // be deducted from the host's NEXT payout (or written off entirely if they never host again). This must
+  // be VISIBLE — a returning host seeing a smaller payout with no explanation is the surprise 07-RESEARCH
+  // calls out. Owner-scoped like every other read on this page; integer centavos, summed in Postgres.
+  const [{ outstandingDebitCents = 0 } = { outstandingDebitCents: 0 }] = (await db.execute(sql`
+    SELECT COALESCE(SUM(-net_cents - recovered_cents), 0)::int AS "outstandingDebitCents"
+    FROM host_payout_ledger
+    WHERE host_id = ${session.user.id}
+      AND kind = 'host_cancel_fee'
+      AND recovered_cents < -net_cents
+  `)) as unknown as { outstandingDebitCents: number }[];
 
   // Per-row display: compute the venue-tz-safe expected/paid date server-side. Expected = endsAt + the
   // payout delay (D-55); Paid rows read paidAt; Refunded rows read the flip time. Same TZDate/epoch
@@ -136,8 +161,18 @@ export default async function HostEarningsPage() {
         />
       </div>
 
+      {/* D-71: unrecovered cancellation debt, stated plainly and neutrally. Muted body copy — this is
+          information, not an alarm: no coral, no destructive red, no badge. */}
+      {outstandingDebitCents > 0 ? (
+        <p className="mt-3 max-w-prose text-sm text-muted-foreground">
+          {/* prettier-ignore */}
+          You have {formatMoney(outstandingDebitCents, summaryCurrency)} in cancellation fees still to be deducted. We&apos;ll take this off your next payout.
+        </p>
+      ) : null}
+
+      {/* C8 — "service fee" is D-73's BOOKER-facing 5% line. The host-side 10% is a commission. */}
       <p className="mt-3 max-w-prose text-sm text-muted-foreground">
-        FitOut keeps a 10% service fee. You always receive the listed price minus 10% — we cover the
+        FitOut keeps a 10% commission. You always receive the listed price minus 10% — we cover the
         payment processing costs. Payout dates are shown in each space&apos;s local time.
       </p>
 
@@ -162,8 +197,9 @@ export default async function HostEarningsPage() {
                     <TableHead scope="col" className="text-right">
                       Booking
                     </TableHead>
+                    {/* C8 — the host-side 10% is a COMMISSION; "Service fee" is the booker's 5% (D-73). */}
                     <TableHead scope="col" className="text-right">
-                      Fee
+                      Commission
                     </TableHead>
                     <TableHead scope="col" className="text-right">
                       Payout
