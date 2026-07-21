@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 7 UI-SPEC approved
-last_updated: "2026-07-21T08:46:58.559Z"
-last_activity: 2026-07-21 -- Phase 07 planning complete
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-07-21T17:29:00.000Z"
+last_activity: 2026-07-21 -- Phase 07 Plan 02 complete (shared when-label formatter + booking-status derivation)
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 41
-  percent: 73
+  completed_plans: 42
+  percent: 75
 ---
 
 # Project State
@@ -26,11 +26,16 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-21 -- Phase 07 planning complete
+Current Plan: 3
+Total Plans in Phase: 16
+Status: Executing (Wave 1)
+Last activity: 2026-07-21 -- Phase 07 Plan 02 complete (shared when-label formatter + booking-status derivation)
 
-Progress: [█████████░] 98% (G-06-01 code closed; phase verification pending re-UAT)
+Progress: [███████░░░] 75% (42 of 56 plans)
+
+**Wave 1 status:** 07-01 (config + schema + migrations) committed at c8a115a/d1344c7/d283f92 but has **no SUMMARY.md on disk** and its migration is **not applied to the live DB**. 07-02 complete.
+
+⚠️ **Environment blocker:** the local Postgres container is down (Docker engine stuck initializing). All DB-backed tests fail at connection. 07-02's DB-dependent verification gates are listed unrun in its SUMMARY under "Unverified — Blocked on Database" and must be executed once Postgres is back.
 
 ## Performance Metrics
 
@@ -83,6 +88,7 @@ Progress: [█████████░] 98% (G-06-01 code closed; phase verif
 | Phase 06 P07 | ~18 min | 2 tasks | 2 files |
 | Phase 06 P08 | ~28 min | 2 tasks | 6 files |
 | Phase 06 P10 | ~12 min | 2 tasks | 3 files |
+| Phase 07 P02 | ~10 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -151,6 +157,8 @@ Recent decisions affecting current work:
 
 - [Phase 06]: [06-10]: GAP CLOSURE G-06-01 (CRITICAL) — the te-XOR-li webhook signature parser. `parseSignature` (src/app/api/paymongo/webhook/route.ts) required all three of t/te/li non-empty; real PayMongo signs ONE mode per delivery (te in TEST with empty li, li in LIVE with empty te — NEVER both), so EVERY real signature returned null → 400 before confirming, silently blocking the D-57 single-writer booking-confirm authority (PAY-05/BOOK-06/BOOK-04) on real payments. Proven live in the 06-09 UAT: a real paid PayMongo test checkout never confirmed; the recomputed HMAC matched the `te` digest exactly; manual replay to the correct endpoint returned 400 (parser, not network). FIX = a one-predicate widening `if (!parts.t || (!parts.te && !parts.li)) return null;` + a tolerant return `{ t: parts.t, te: parts.te ?? '', li: parts.li ?? '' }` — reject ONLY a missing header, a malformed segment, a missing `t`, or a BOTH-empty header. **verifySignature is byte-for-byte UNCHANGED** — it already loops `[sig.te, sig.li]` behind a `candBuf.length === expectedBuf.length` guard, so a tolerated empty candidate (0 bytes) can never length-match the 64-char HMAC hex and is silently skipped; no verify change was needed. **handleGoneSlot (D-58), handleRefund, the paymongo_event dedupe, and the confirm UPDATE `IN ('pending','approved')` are all UNTOUCHED** (surgical parser-only change). Closed the FIXTURE GAP at its source: extended the EXISTING `mockPayMongo.signWebhook` with a `mode: 'both'|'test'|'live'='both'` param (default keeps the legacy both-populated header so the ~12 existing callers are unaffected; `test`→`te=<sig>,li=`, `live`→`te=,li=<sig>`) — the both-populated fixture is exactly what masked G-06-01. Added 3 regression cases (tests/paymongo/webhook-payment-paid.test.ts): Case A te-only confirms a `pending` booking + `waitForConfirmedEmail` proves BOOK-06 on the te-only path; Case B li-only confirms an `approved` pay-on-approval booking + BOOK-06 on the li-only path; Case C a BOTH-empty header still 400s with no state change (T-06-SPOOF, spoofing protection intact). **NO deviations — plan executed exactly as written.** tsc exit 0; eslint 0 errors on all 3 files (5 pre-existing mocks.ts no-unused-vars warnings out of scope); webhook-payment-paid 15 green (12 + 3); tests/paymongo tests/booking tests/payments 134 green (no regressions). **G-06-02 is a NON-CODE re-UAT precondition**: register the PayMongo webhook at the FULL `/api/paymongo/webhook` path (not the tunnel root) before re-running the 06-09 UAT. **Phase 06 gap CLOSED in code but NOT yet verified** — the 06-09 human-verify UAT must be RE-RUN (with G-06-02 corrected) to clear the phase. ⚠ gsd-sdk update-progress over-counted (41/40=100%, completed_phases 6) — hand-reconciled to 40/41 = 98%, completed_phases 5; record-metric string-args no-op'd (metric row hand-written). Commits 39985d3 (T1 fix) + 06f31e3 (T2 test).
 
+- [Phase 07]: [07-02]: SHARED WHEN-LABEL FORMATTER + BOOKING-STATUS DERIVATION (MANAGE-01/02, HOST-02 — the two pure modules Waves 2-4 all consume). **(1) The triplicate time formatter is dead.** `composeWhenLabel` existed VERBATIM in three places (`host-requests.ts:122-133`, `request-expiry.ts:144-155`, `host/requests/page.tsx:84-97` — the short `EEE, MMM d` variant); Phase 7 adds ~6 more time surfaces, so 07-RESEARCH § Don't Hand-Roll forbids a fourth copy. Extracted to **`src/lib/booking/when-label.ts`** — `composeWhenLabel` (`EEEE, MMM d`) + `composeWhenLabelShort` (`EEE, MMM d`) over a structural `WhenLabelInput`, PURE/isomorphic (no client and no server directive, so RSCs + server actions + Inngest functions all import it, exactly like `commission.ts`). It owns three rules: times render in the VENUE tz via `tz(input.timezone)` never the viewer's (D-105/C5); `fullDay` is NOT persisted so it is re-derived from the FROZEN quote (D-49) biasing to hourly on an exact coincidence; the ` ({City} time)` suffix is omitted entirely when city is null. All three duplicates DELETED and importing. `host-requests.ts` keeps a one-expression `whenLabelInput(row)` ORM-row projection (called from both approve + decline) — the FORMATTER is shared, only the projection is local. **(2) The single booking-status source of truth.** `src/components/booking/booking-status.ts` — `deriveDisplayStatus(status, endsAt, now)` implements **D-102**: a `confirmed` booking whose `endsAt` has passed derives as `completed` AT READ TIME, never stored, so the `completed` enum value stays unused and the GiST EXCLUDE predicate is UNTOUCHED. Boundary is `endsAt <= now` (matching the half-open `[)` window). `deriveBookingStatusView(status, endsAt, now, side)` = an EXHAUSTIVE switch with NO fallthrough clause (a new `booking_status` value becomes a compile error here) emitting the 07-UI-SPEC badge matrix with side-specific labels (`approved` → booker `Approved — pay now` / host `Awaiting payment`; `requested` → booker `Awaiting host` / host `Requested`). `success` tone is reserved for `confirmed` ALONE (approved is NOT paid yet). **D-79 enforced structurally**: no label carries a currency symbol or a digit — `BookingStatusBadge` (`booking-status-badge.tsx`, per-display-status `BADGE_RECIPES`, icon + text never colour-only) returns ONLY the badge and the refund line (`₱500 refunded`) is a CALLER-composed sibling. **⚠️ CONTRACT for downstream callers: `now` is a REQUIRED parameter and must come from the DB clock (`SELECT now()`), never `Date.now()`** — the module deliberately cannot source it itself (T-07-10), so a client clock can never move a booking between the Upcoming/Past tabs independently of the SQL partition. **2 deviations, both auto-fixed:** (a) Rule 2 — Task 1 is `tdd="true"` with a `<behavior>` block but listed NO test file, so `tests/booking/when-label.test.ts` was added as the RED gate (9 assertions pinning the EXACT strings, which is what makes "byte-identical refactor" checkable rather than assumed); (b) Rule 1 — three grep acceptance criteria (`use client`→0, `default:`→0, `Full day`→1) were violated by explanatory HEADER COMMENTS, not code (the pattern file this clones, `payout-ledger-status.ts`, would fail its own criterion) — comments reworded to preserve intent while making the assertions literally true. **⚠️ DB-BLOCKED VERIFICATION — NOT passed, do not treat as green:** the local Postgres container is DOWN (Docker engine stuck initializing), so Task 1's `<verify>` (`npx vitest run tests/booking tests/payments`) did NOT execute — 10 of 14 files fail at `ECONNREFUSED :5432`. Most valuable unrun assertion: `tests/booking/request-expiry.test.ts:138` asserts `{status:'declined', emailed:true}` and `sendDeclinedNotice` SWALLOWS its own exceptions, so a throw introduced by the new projection would surface THERE and nowhere else; `request-lifecycle.test.ts` covers the approve/decline paths likewise. The refactor is proven as a PURE FUNCTION (exact strings pinned) but the integration path (real DB row → projection → Inngest email step) is unproven. Also unrun and pre-existing: `tests/auth/rate-limit.test.ts` + `secret-config.test.ts` time out because Better Auth boot blocks on the same DB. **Non-DB gates ALL green:** tsc exit 0 (whole project), eslint clean on all 5 touched source + 2 test files, when-label 9/9, booking-status 16/16, pricing + commission unregressed; all 13 acceptance greps pass. Full suite with DB down: 20 files passed / 39 failed, every failure a connection error or connection-induced timeout. **SUMMARY Self-Check marked FAILED** (not for a missing artifact — every file and commit verified present — but because a required gate could not run; the exact owed commands are listed under "Unverified — Blocked on Database"). ⚠ gsd-sdk `state advance-plan` errored ("Cannot parse Current Plan or Total Plans in Phase") because Current Position read `Plan: Not started` — position/metric/decision hand-written and the block reformatted to the parseable `Current Plan:` / `Total Plans in Phase:` shape. **Also noted: 07-01 shipped code (c8a115a/d1344c7/d283f92) but has NO SUMMARY.md on disk and its migration is NOT applied to the live DB.** Commits 2766f7b (T1 RED) + bd07474 (T1 refactor) + ad71d54 (T2 RED) + 0a205be (T2 feat).
+
 ### Pending Todos
 
 [From .planning/todos/pending/ — ideas captured during sessions]
@@ -171,6 +179,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - ✅ RESOLVED (Phase 2): WR-06 (rate-limit + audit on capability-activate/onboarding actions) CLOSED in Plan 02. WR-04 (email-send retry/observability) STILL OPEN — deferred to the Phase-7 transactional-email layer.
 - ✅ RESOLVED (2026-07-10): 02-VALIDATION.md regenerated for PayMongo (tests/paymongo/*, merchant.activated, Paymongo-Signature) and marked Nyquist-compliant; the flaky public-listing E2E seed was fixed. 02-RESEARCH/02-PATTERNS remain Stripe-era historical (non-blocking).
 - Phase 2 → later (PayMongo real onboarding): PayMongo Platforms / Linked Accounts is beta + sales-gated, and card manual-capture needs "advanced card features" enablement — both are PayMongo support requests with lead time; request early (blocks 02-UAT test 11 + real payout UAT).
+- ⚠️ **ACTIVE BLOCKER (2026-07-21): local Postgres is DOWN** — Docker Desktop's engine is stuck initializing and `docker info` hangs. Every DB-backed test fails at `ECONNREFUSED :5432`. Two consequences: (1) Plan 07-01's migrations (drizzle/0013 + 0014) are committed to source but **NOT applied to the live DB**; (2) Plan 07-02's DB-dependent gates are unrun and recorded in its SUMMARY under "Unverified — Blocked on Database". **Once Docker is back: `npm run db:migrate`, then run `npx vitest run tests/booking tests/payments` and `npx vitest run` before any Wave-2 plan builds on the refactored call sites.**
 - Follow-up (out-of-scope, task chip spawned 2026-07-10): Radix Tooltip SSR hydration mismatch at src/app/listings/[id]/page.tsx:267 (the "Not bookable yet" affordance) — client-recovered, not a 500; worth a cleanup. Also low-pri from 02-UAT: currency defaults to `usd` (should be PHP for the PH launch); no landing page at `/` (deferred to Phase 4).
 
 ### Quick Tasks Completed
