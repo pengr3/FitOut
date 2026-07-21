@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 07-07-PLAN.md
-last_updated: "2026-07-21T11:48:12.022Z"
+stopped_at: Completed 07-08-PLAN.md
+last_updated: "2026-07-21T12:19:17.371Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 48
-  percent: 86
+  completed_plans: 49
+  percent: 88
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 8
+Current Plan: 9
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
@@ -127,6 +127,7 @@ Progress: [█████████░] 86% (48 of 56 plans)
 | Phase 07 P05 | ~75 min | 3 tasks | 9 files |
 | Phase 07 P06 | ~35 min | 3 tasks | 10 files |
 | Phase 07 P07 | ~55m | 3 tasks | 8 files |
+| Phase 07 P08 | ~55m | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-07: one fitout/notify event fans out to a durable notification row (step 1) then an email (step 2) — memoized separately, so an email retry can never duplicate the row (D-91)
 - [Phase ?]: 07-07: emitNotify swallows transport errors by design — a notification must never fail a money/state action that already committed (MANAGE-03); the dropped-event gap is documented as accepted, matching Phase-6 A6
 - [Phase ?]: 07-07: the notification payload is the SOLE input to both channels, so email-required fields live in the payload rather than a parallel structure (D-91 sufficiency)
+- [Phase ?]: 07-08: cancellation tier snapshotted from the IN-TRANSACTION listing read, closing a retier race the plan's caller-threading design left open
+- [Phase ?]: 07-08: fullDay is re-derived from the frozen space price, never the all-in charged total (D-74 makes the latter structurally unequal to rate x hours)
 
 ### Pending Todos
 
@@ -247,8 +250,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T11:48:12.011Z
-Stopped at: Completed 07-07-PLAN.md
+Last session: 2026-07-21T12:19:17.359Z
+Stopped at: Completed 07-08-PLAN.md
 Resume file: None
 
 Prior session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-07)
