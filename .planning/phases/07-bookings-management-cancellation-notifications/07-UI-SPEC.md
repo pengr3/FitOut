@@ -1,10 +1,11 @@
 ---
 phase: 7
 slug: bookings-management-cancellation-notifications
-status: draft
+status: approved
 shadcn_initialized: true
 preset: radix-nova / baseColor neutral / lucide
 created: 2026-07-21
+reviewed_at: 2026-07-21
 ---
 
 # Phase 7 — UI Design Contract
@@ -233,7 +234,7 @@ D-80 mandates "deliberately more friction than the booker's cancel" without spec
 | Step | Contract |
 |---|---|
 | Entry | `/host/bookings/[id]` (or the host view of the booking) — neutral `outline` `Cancel booking`, below the fold, never inline on a row |
-| **Step 1 — Reason** | Dialog. Required `select`: `Space is unavailable` · `Double-booked elsewhere` · `Maintenance or damage` · `Guest asked me to cancel` · `Other`. `Continue` stays **disabled** until a reason is chosen. |
+| **Step 1 — Reason** | Dialog. Required `select`: `Space is unavailable` · `Double-booked elsewhere` · `Maintenance or damage` · `Guest asked me to cancel` · `Other`. `Continue to consequences` stays **disabled** until a reason is chosen. |
 | **Step 2 — Consequences** | Same dialog, second pane. All three consequences stated plainly as a list (below). Plus a **required checkbox**. `Cancel this booking` stays disabled until it is ticked. |
 | Confirm button | `Cancel this booking` — neutral `outline` |
 | Back | `Keep booking` — `ghost` |
