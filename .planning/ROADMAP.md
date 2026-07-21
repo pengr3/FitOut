@@ -165,7 +165,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Users receive transactional emails for key booking events (confirmation, request received, approved/declined, cancelled, reminder) via a reliable async layer that never blocks the booking transaction
 **Plans**: 16 plans in 5 waves
 Plans:
-- [ ] 07-01-PLAN.md — Foundation: config constants, schema columns/enums/tables, migrations [BLOCKING]
+- [x] 07-01-PLAN.md — Foundation: config constants, schema columns/enums/tables, migrations [BLOCKING]
 - [x] 07-02-PLAN.md — Shared display primitives: whenLabel extraction + booking status derivation/badge
 - [ ] 07-03-PLAN.md — Pure money modules: refund ladder, service fee, rail predicate
 - [ ] 07-04-PLAN.md — Payout ledger correctness: retention sweep, fee-exclusion, kind scoping, debit netting

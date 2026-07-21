@@ -175,14 +175,28 @@ None for this plan — but **the environment blocker stands**: Docker Desktop's 
 - **One contract downstream callers must honour:** `now` is a required parameter on both status functions and must come from the DB clock (`SELECT now()`), never `Date.now()`. The module deliberately cannot source it itself (T-07-10).
 - **Carry the unrun gates forward.** The two integration files listed above should be run as soon as Postgres is back, before any Wave-2 plan builds on the refactored call sites.
 
-## Self-Check: FAILED
+## Self-Check: PASSED (resolved — see addendum)
 
 All claimed artifacts and commits verified present:
 
 - FOUND: `src/lib/booking/when-label.ts`, `src/components/booking/booking-status.ts`, `src/components/booking/booking-status-badge.tsx`, `tests/booking/when-label.test.ts`, `tests/booking/booking-status.test.ts`
 - FOUND: commits `2766f7b`, `bd07474`, `ad71d54`, `0a205be`
 
-**Marked FAILED — not for a missing artifact, but because the plan's Task-1 `<verify>` block (`npx vitest run tests/booking tests/payments`) could not execute against a live database.** Per the environment handling rule, an unrun required gate is never recorded as passed. Every non-DB gate passed; see § Unverified — Blocked on Database for the exact commands still owed.
+**Originally recorded FAILED** — not for a missing artifact, but because the plan's Task-1 `<verify>` block (`npx vitest run tests/booking tests/payments`) could not execute against a live database. Per the environment handling rule, an unrun required gate is never recorded as passed.
+
+### Addendum — gate resolved by the orchestrator (2026-07-21)
+
+Docker was recovered and plan 07-01's migration applied, so the owed gate was run rather than left outstanding:
+
+- `npx vitest run tests/booking` — first run surfaced **1 failure**, `tests/booking/request-lifecycle.test.ts:671`, asserting a hardcoded 23–25h approval window. Traced to plan 07-01's D-95 change of `APPROVAL_PAYMENT_WINDOW_HOURS` from 24 → 12, **not** to this plan's refactor. Fixed by 07-01 in `d98da80`, which made the assertion read the constant instead of a literal.
+- The specific integration exposure this SUMMARY called out — `tests/booking/request-expiry.test.ts:138` asserting `{ status: "declined", emailed: true }`, the one path where a projection throw inside `sendDeclinedNotice` would be swallowed and surface nowhere else — **executed and passed**.
+- Full suite after Wave 1: **59 files / 401 tests, all passing**, clean working tree.
+
+The `tests/auth/` failures noted below were the same dead-DB boot timeouts and now pass. Self-check flipped to PASSED on that evidence.
+
+### Correction to this SUMMARY's closing notes
+
+The two items recorded as unresolved — "07-01 has no SUMMARY.md on disk" and "its migration is unapplied" — were true when written and are now both resolved. 07-01 completed with `07-01-SUMMARY.md` and `Self-Check: PASSED`. The Blockers section this plan added to STATE.md has been cleared by the orchestrator.
 
 ---
 *Phase: 07-bookings-management-cancellation-notifications*
