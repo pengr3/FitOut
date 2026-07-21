@@ -10,8 +10,13 @@
 // The correctness rules this module owns:
 //   - Times render in the VENUE timezone via tz(input.timezone) — never the viewer's clock (D-105/C5).
 //     Both bounds are absolute UTC instants (timestamptz); only the DISPLAY is converted, at the edge.
-//   - `fullDay` is NOT persisted, so it is re-derived from the FROZEN quote (D-49) — biasing to hourly on
+//   - `fullDay` is NOT persisted, so it is re-derived from the frozen SPACE PRICE — biasing to hourly on
 //     an exact coincidence so the real hours show. This is the shipped behaviour; do not "improve" it.
+//     ⚠️ It compares against `spacePriceCents`, NOT the all-in charged total. Under D-74 the charged total
+//     is `space + service fee`, so it can NEVER equal `hourlyRate × hours` — deriving from it would make
+//     EVERY hourly booking render "Full day", on every surface this module feeds, silently and with no
+//     test failure. The space price is the listing-priced portion and is the only figure comparable to a
+//     listing rate. `quotedTotalCents` remains only as the pre-Phase-7 fallback (see below).
 //   - The city suffix is omitted entirely when the listing has no city (never a dangling " ( time)").
 //
 // Pure/isomorphic: this file carries NO client and NO server directive, so Server Components, server
@@ -33,7 +38,16 @@ export type WhenLabelInput = {
   timezone: string;
   /** Venue city for the " ({City} time)" suffix; null omits the suffix entirely. */
   city: string | null;
-  /** The SERVER-FROZEN quote (D-49) — compared against hourlyRate × hours to re-derive fullDay. */
+  /**
+   * The frozen SPACE price (D-74) — compared against hourlyRate × hours to re-derive fullDay. REQUIRED
+   * (not optional) so tsc forces every call site to supply it: a call site that silently omitted it would
+   * fall back to the all-in total and mislabel every hourly booking as "Full day".
+   */
+  spacePriceCents: number | null;
+  /**
+   * The SERVER-FROZEN all-in charged total (D-49). Used here ONLY as the fallback when `spacePriceCents`
+   * is null — a pre-Phase-7 row, where no service fee existed and the two figures were equal by definition.
+   */
   quotedTotalCents: number | null;
   /** The listing's hourly rate; null means there is nothing to compare, so the window reads as a full day. */
   hourlyRateCents: number | null;
@@ -46,9 +60,11 @@ export type WhenLabelInput = {
 function compose(input: WhenLabelInput, dateFormat: string): string {
   const inTz = tz(input.timezone);
   const hours = windowHours(input.startsAt, input.endsAt);
-  const quoted = input.quotedTotalCents ?? 0;
+  // The listing-priced portion. Falls back to the all-in total only for a pre-Phase-7 row whose split was
+  // never frozen — for those rows the fee was 0, so the two are the same number.
+  const spaceCents = input.spacePriceCents ?? input.quotedTotalCents ?? 0;
   const hourlyTotal = input.hourlyRateCents != null ? input.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
+  const fullDay = hourlyTotal == null || spaceCents !== hourlyTotal;
   const dateLabel = format(input.startsAt, dateFormat, { in: inTz });
   const timeLabel = fullDay
     ? "Full day"

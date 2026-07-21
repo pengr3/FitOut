@@ -277,6 +277,10 @@ describe("quoteWindow stays fee-free", () => {
 // ── 4. The 07-04 payout contract, closed end to end ───────────────────────────────────────────────────
 describe("the payout sweep pays on the SPACE price, with the service fee excluded", () => {
   it("a booking created through createPendingHold grosses on space, never on the all-in charge", async () => {
+    // Correlate a wallet to THIS host's Linked-Account id — payOne matches by id, never wallet[0].
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: "acct_sf_host", accountNumber: "9990001111", accountName: "SF Host Wallet", status: "activated" },
+    ]);
     const listingId = await makeListing({ hourlyRateCents: 50000 });
     const res = await hold(listingId, { hours: 2 });
     const frozen = await readFrozen(res.id);

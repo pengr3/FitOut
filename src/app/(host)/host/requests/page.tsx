@@ -62,6 +62,9 @@ export default async function HostRequestsPage() {
       endsAt: booking.endsAt,
       expiresAt: booking.expiresAt,
       quotedTotalCents: booking.quotedTotalCents,
+      // D-74: the listing-priced portion, used ONLY to re-derive fullDay in composeWhenLabelShort. The
+      // all-in charged total can never equal hourlyRate × hours, so it cannot drive that comparison.
+      spacePriceCents: booking.spacePriceCents,
       currency: booking.currency,
       title: listing.title,
       timezone: listing.timezone,
@@ -87,6 +90,7 @@ export default async function HostRequestsPage() {
       endsAt: r.endsAt,
       timezone: r.timezone,
       city: r.city,
+      spacePriceCents: r.spacePriceCents,
       quotedTotalCents: r.quotedTotalCents,
       hourlyRateCents: r.hourlyRateCents,
     }),

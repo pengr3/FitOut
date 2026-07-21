@@ -31,6 +31,7 @@ import { eq, sql } from "drizzle-orm";
 import { booking, listing } from "@/lib/db/schema";
 import { isPgError } from "@/lib/pg";
 import { quoteWindow } from "@/lib/booking/pricing";
+import { computeServiceFee } from "@/lib/payments/service-fee";
 import {
   APPROVAL_SLA_HOURS,
   MIN_APPROVE_WINDOW_HOURS,
@@ -188,6 +189,17 @@ export type HoldSuccess = {
   unit: number;
   replayed: boolean;
   expiresAt: Date | null;
+  /**
+   * The D-74 FROZEN TRIPLE, read back off the row so a REPLAY returns exactly what a fresh insert
+   * returned (07-RESEARCH Finding 2). Three values, not one:
+   *   spacePriceCents  — the listing-priced portion. The PAYOUT basis (payout-sweep grosses on this).
+   *   serviceFeeCents  — platform revenue, NON-REFUNDABLE. Never enters a payout.
+   *   quotedTotalCents — space + fee. The CHARGE basis: what PayMongo charges, what a refund references.
+   * Nullable only for a replayed pre-Phase-7 row whose split was never frozen.
+   */
+  spacePriceCents: number | null;
+  serviceFeeCents: number | null;
+  quotedTotalCents: number | null;
 };
 export type HoldResult = HoldSuccess | { error: string };
 
@@ -205,13 +217,25 @@ type SqlExecutor = Pick<DbConn, "execute">;
  * Selects `expires_at` too (Pitfall 8): the idempotent-replay paths must return the SAME real expiry a
  * fresh insert returns, or the countdown silently breaks on exactly the re-entering-checkout case the
  * replay exists to serve. NULL only for a `confirmed` row (no live hold expiry).
+ *
+ * Selects the D-74 FROZEN TRIPLE for the same reason: a replay must hand the caller the price split that
+ * was frozen at the ORIGINAL creation, never a fresh recompute. Recomputing on replay would silently
+ * re-price a booking whose listing rate (or SERVICE_FEE_BPS) moved in between — precisely the drift D-49's
+ * freeze exists to prevent, and it would show a re-entering booker a different total than they were quoted.
  */
 async function findOwnActiveHold(
   tx: SqlExecutor,
   args: { listingId: string; bookerId: string; startIso: string; endIso: string; idempotencyKey: string | null },
-): Promise<{ id: string; unit: number; expiresAt: Date | null } | null> {
+): Promise<{
+  id: string;
+  unit: number;
+  expiresAt: Date | null;
+  spacePriceCents: number | null;
+  serviceFeeCents: number | null;
+  quotedTotalCents: number | null;
+} | null> {
   const rows = (await tx.execute(sql`
-    SELECT id, unit, expires_at FROM booking
+    SELECT id, unit, expires_at, space_price_cents, service_fee_cents, quoted_total_cents FROM booking
     WHERE listing_id = ${args.listingId}
       AND (status = 'confirmed' OR (status IN ('pending','requested','approved') AND expires_at > now()))
       AND (
@@ -220,10 +244,26 @@ async function findOwnActiveHold(
       )
     ORDER BY created_at ASC
     LIMIT 1
-  `)) as unknown as { id: string; unit: number; expires_at: Date | string | null }[];
+  `)) as unknown as {
+    id: string;
+    unit: number;
+    expires_at: Date | string | null;
+    space_price_cents: number | null;
+    service_fee_cents: number | null;
+    quoted_total_cents: number | null;
+  }[];
   if (rows.length === 0) return null;
-  const { id, unit, expires_at } = rows[0];
-  return { id, unit, expiresAt: expires_at == null ? null : new Date(expires_at) };
+  const r = rows[0];
+  return {
+    id: r.id,
+    unit: r.unit,
+    // `expires_at` is the ONLY timestamptz here; the three money columns are int4 and arrive as JS numbers,
+    // so they need no boundary hydration (07-06's to_char rule applies to timestamps, not integers).
+    expiresAt: r.expires_at == null ? null : new Date(r.expires_at),
+    spacePriceCents: r.space_price_cents,
+    serviceFeeCents: r.service_fee_cents,
+    quotedTotalCents: r.quoted_total_cents,
+  };
 }
 
 /**
@@ -324,17 +364,25 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         // ADDED statement between the own-hold pre-check and the insert widens the window in which the
         // D-42 own-duplicate conflation has to be untangled. Evaluating the guard here costs nothing, and
         // it is still the DB clock, still in-transaction, and still ahead of every write.
+        //
+        // The D-67 cancellation tier rides along on this SAME read for the same reason, and one more: it is
+        // read INSIDE the transaction that inserts the booking, so the snapshot is transactionally
+        // consistent with the hold. Sourcing it from an out-of-transaction read in the caller would leave a
+        // window in which a host retiers between the read and the insert, freezing a tier that was never
+        // simultaneously true of the listing.
         const listingRows = await tx
           .select({
             unitCount: listing.unitCount,
             hourlyRateCents: listing.hourlyRateCents,
             dayRateCents: listing.dayRateCents,
+            cancellationPolicy: listing.cancellationPolicy,
             leadOk: sql<boolean>`(${startIso}::timestamptz >= now() + ${leadIntervalSql})`,
           })
           .from(listing)
           .where(eq(listing.id, input.listingId));
         if (listingRows.length === 0) throw new NoUnitAvailableError(); // unknown listing → nothing to hold
         const { unitCount, hourlyRateCents, dayRateCents, leadOk } = listingRows[0];
+        const listingCancellationPolicy = listingRows[0].cancellationPolicy;
 
         // D-93/D-96 lead-time guard, enforced SERVER-SIDE against now(). The SlotPicker's unselectable
         // `too_soon` chips (D-98/D-100) are a COURTESY, never the gate — this runs unconditionally at
@@ -365,10 +413,20 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
             AND status IN ('pending','requested','approved') AND expires_at <= now()
             AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${startIso}, ${endIso}, '[)')`);
 
-        // (3) Server-frozen price quote (D-45/D-46). The TTL is NOT computed here any more — `expiresAtSql`
-        // (D-94) is evaluated by Postgres inside the insert, and is therefore RE-EVALUATED on each
-        // SAVEPOINT attempt rather than captured once before the loop.
+        // (3) Server-frozen price quote (D-45/D-46) + the D-74 service fee composed AT THE CALLER. The TTL
+        // is NOT computed here any more — `expiresAtSql` (D-94) is evaluated by Postgres inside the insert,
+        // and is therefore RE-EVALUATED on each SAVEPOINT attempt rather than captured once before the loop.
         const quote = quoteWindow({ startUtc: startsAt, endUtc: endsAt, fullDay, hourlyRateCents, dayRateCents });
+        // Finding 2 — THREE frozen values, not one. `quotedTotalCents` stays "the amount actually charged"
+        // (ALL-IN: what PayMongo charges and what a refund references). `spacePriceCents` is the PAYOUT
+        // basis; `serviceFeeCents` is NON-REFUNDABLE platform revenue (D-74). Paying out 90% of the all-in
+        // total would hand the host 90% of the platform's OWN service fee, inverting the purpose of D-74.
+        //
+        // Composed HERE and not inside quoteWindow: quoteWindow is a pure function over the listing's rates
+        // and must NOT learn about platform fees. Composing at the caller preserves the Phase-4 pure-pricing
+        // seam and keeps its tests valid. `allInCents` is an ADDITION of the two frozen values, never a
+        // second rounding, so `quoted == space + fee` holds exactly at every price point.
+        const fee = computeServiceFee(quote.totalCents);
 
         /**
          * EVERY "units exhausted" exit routes through here — the D-42 trap, in its last remaining form.
@@ -398,7 +456,7 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
           try {
             // Read the DB-computed expiry straight back out of the insert (Pitfall 8) — with a SQL
             // expression the value is unknowable client-side, and a missing countdown would NOT fail tsc.
-            const expiresAt = await tx.transaction(async (sp) => {
+            const frozen = await tx.transaction(async (sp) => {
               // ← SAVEPOINT: a 23P01 here rolls back ONLY this attempt, leaving the outer tx usable.
               const inserted = await sp
                 .insert(booking)
@@ -412,14 +470,38 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
                   status: holdStatus, // D-63: 'pending' (instant, default) or 'requested' (request-to-book)
                   bookingMode, // D-61 creation-time snapshot (NULL for the legacy instant path)
                   expiresAt: expiresAtSql, // D-94: LEAST(now() + window, starts_at), computed by Postgres
-                  quotedTotalCents: quote.totalCents,
+                  // D-74 frozen triple. quoted == space + fee, EXACTLY, by construction (addition, not a
+                  // second rounding). Nothing downstream may re-derive any of the three from the others.
+                  spacePriceCents: quote.totalCents,
+                  serviceFeeCents: fee.serviceFeeCents,
+                  quotedTotalCents: fee.allInCents,
                   currency: quote.currency,
+                  // D-67 creation-time cancellation-tier SNAPSHOT, exactly like bookingMode (D-61). Captured
+                  // here so a later listing retier NEVER rewrites the refund terms of an in-flight booking.
+                  // The refund calculator reads THIS column, never the listing's current value (T-07-43).
+                  cancellationPolicy: listingCancellationPolicy,
                   idempotencyKey,
                 })
-                .returning({ expiresAt: booking.expiresAt });
-              return inserted[0]?.expiresAt ?? null;
+                .returning({
+                  expiresAt: booking.expiresAt,
+                  spacePriceCents: booking.spacePriceCents,
+                  serviceFeeCents: booking.serviceFeeCents,
+                  quotedTotalCents: booking.quotedTotalCents,
+                });
+              return inserted[0] ?? null;
             });
-            return { ok: true, id, unit, replayed: false, expiresAt }; // won — the constraint accepted it
+            // Read the frozen values straight back OUT of the insert rather than echoing the locals: the
+            // caller must see what was PERSISTED, which is the same guarantee the replay path gives.
+            return {
+              ok: true,
+              id,
+              unit,
+              replayed: false,
+              expiresAt: frozen?.expiresAt ?? null,
+              spacePriceCents: frozen?.spacePriceCents ?? null,
+              serviceFeeCents: frozen?.serviceFeeCents ?? null,
+              quotedTotalCents: frozen?.quotedTotalCents ?? null,
+            }; // won — the constraint accepted it
           } catch (e) {
             // 23505 (unique_violation on booking_idem_uq): a concurrent same-key insert won; the winner
             // is committed → return it (YOUR OWN duplicate, never "just taken" — D-42).

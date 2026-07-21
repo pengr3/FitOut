@@ -64,6 +64,11 @@ export default async function ReservePage({
       status: booking.status,
       expiresAt: booking.expiresAt,
       quotedTotalCents: booking.quotedTotalCents,
+      // The D-74 frozen split. `quotedTotalCents` is the ALL-IN charge; these two are its parts, frozen at
+      // hold creation. Both are read (never recomputed) so the breakdown the booker agrees to is exactly
+      // the amount that will be charged.
+      spacePriceCents: booking.spacePriceCents,
+      serviceFeeCents: booking.serviceFeeCents,
       currency: booking.currency,
     })
     .from(booking)
@@ -117,14 +122,19 @@ export default async function ReservePage({
     ? SPACE_TYPE_LABELS[lst.primarySpaceType as SpaceTypeValue]
     : null;
 
-  // fullDay is NOT persisted on the booking row (schema.ts) — re-derive it from the FROZEN quote: a
+  // fullDay is NOT persisted on the booking row (schema.ts) — re-derive it from the frozen SPACE PRICE: a
   // full-day hold froze the flat day rate, an hourly hold froze hourlyRate × hours. The Total shown is
-  // ALWAYS the frozen quotedTotalCents (D-49) regardless of this label; only the "/day" vs "/hr × N"
+  // ALWAYS the frozen all-in quotedTotalCents (D-49) regardless of this label; only the "/day" vs "/hr × N"
   // wording depends on the derivation. Bias to hourly on an exact coincidence (shows the real hours).
+  //
+  // ⚠️ Compared against `spacePriceCents`, NOT the all-in total. Under D-74 the charged total is
+  // `space + service fee`, so it can never equal `hourlyRate × hours` and would mislabel EVERY hourly
+  // booking as "Full day". `quotedTotalCents` remains the fallback for a pre-Phase-7 row (fee was 0).
   const hours = windowHours(bk.startsAt, bk.endsAt);
   const quoted = bk.quotedTotalCents ?? 0;
+  const spacePriceCents = bk.spacePriceCents ?? quoted;
   const hourlyTotal = lst.hourlyRateCents != null ? lst.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
+  const fullDay = hourlyTotal == null || spacePriceCents !== hourlyTotal;
 
   const dateLabel = format(bk.startsAt, "EEEE, MMM d", { in: inTz });
   const timeLabel = fullDay

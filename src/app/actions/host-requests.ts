@@ -91,6 +91,7 @@ async function loadOwnedRequest(requestId: string, userId: string) {
       startsAt: booking.startsAt,
       endsAt: booking.endsAt,
       quotedTotalCents: booking.quotedTotalCents,
+      spacePriceCents: booking.spacePriceCents,
       currency: booking.currency,
       hostId: listing.hostId,
       hostCanHost: hostUser.canHost,
@@ -122,6 +123,7 @@ const whenLabelInput = (row: OwnedRequest): WhenLabelInput => ({
   endsAt: row.endsAt,
   timezone: row.timezone,
   city: row.city,
+  spacePriceCents: row.spacePriceCents,
   quotedTotalCents: row.quotedTotalCents,
   hourlyRateCents: row.hourlyRateCents,
 });

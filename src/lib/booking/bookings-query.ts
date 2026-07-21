@@ -57,7 +57,14 @@ export type BookingListRow = {
   status: BookingDbStatus;
   /** DB-derived (D-102): CASE WHEN status='confirmed' AND ends_at<=now() THEN 'completed' ELSE status END */
   displayStatus: BookingDbStatus;
+  /** The all-in CHARGED total (D-49) — what the booker actually paid. Rendered as `amountLabel`. */
   quotedTotalCents: number | null;
+  /**
+   * The frozen SPACE price (D-74) — the listing-priced portion, WITHOUT the booker-facing service fee.
+   * Needed by `composeWhenLabelShort` to re-derive `fullDay`: the all-in total can never equal
+   * `hourlyRate × hours`, so deriving from it mislabels every hourly booking as "Full day".
+   */
+  spacePriceCents: number | null;
   refundCents: number | null;
   currency: string;
   listingId: string;
@@ -224,6 +231,7 @@ export async function queryBookerBookings(
       b.status::text AS "status",
       ${displayStatusExpr} AS "displayStatus",
       b.quoted_total_cents AS "quotedTotalCents",
+      b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",
       b.currency,
       l.id AS "listingId",
@@ -276,6 +284,7 @@ export async function queryHostBookings(
       b.status::text AS "status",
       ${displayStatusExpr} AS "displayStatus",
       b.quoted_total_cents AS "quotedTotalCents",
+      b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",
       b.currency,
       l.id AS "listingId",

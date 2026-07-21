@@ -74,6 +74,8 @@ export default async function BookingConfirmationPage({
       endsAt: booking.endsAt,
       status: booking.status,
       quotedTotalCents: booking.quotedTotalCents,
+      // D-74: the listing-priced portion, used to re-derive fullDay (see below).
+      spacePriceCents: booking.spacePriceCents,
       currency: booking.currency,
       expiresAt: booking.expiresAt,
     })
@@ -122,12 +124,15 @@ export default async function BookingConfirmationPage({
     ? SPACE_TYPE_LABELS[lst.primarySpaceType as SpaceTypeValue]
     : null;
 
-  // fullDay is not persisted — re-derive from the FROZEN quote (see the reserve page). The Total shown is
-  // always the frozen quotedTotalCents (D-49); the label only chooses "Full day" vs an hour range.
+  // fullDay is not persisted — re-derive from the frozen SPACE PRICE (see the reserve page). The Total
+  // shown is always the frozen all-in quotedTotalCents (D-49); the label only chooses "Full day" vs an
+  // hour range. Compared against the SPACE price, never the all-in total: under D-74 the latter is
+  // `space + service fee` and can never equal `hourlyRate × hours`, which would mislabel every hourly
+  // booking as "Full day". The `?? quoted` fallback covers a pre-Phase-7 row (fee was 0).
   const hours = windowHours(bk.startsAt, bk.endsAt);
   const quoted = bk.quotedTotalCents ?? 0;
   const hourlyTotal = lst.hourlyRateCents != null ? lst.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
+  const fullDay = hourlyTotal == null || (bk.spacePriceCents ?? quoted) !== hourlyTotal;
 
   const dateLabel = format(bk.startsAt, "EEEE, MMM d, yyyy", { in: inTz });
   const timeLabel = fullDay

@@ -131,6 +131,7 @@ async function sendDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
         startsAt: booking.startsAt,
         endsAt: booking.endsAt,
         quotedTotalCents: booking.quotedTotalCents,
+        spacePriceCents: booking.spacePriceCents,
         hourlyRateCents: listing.hourlyRateCents,
       })
       .from(booking)
@@ -147,6 +148,7 @@ async function sendDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
       endsAt: row.endsAt,
       timezone: row.timezone,
       city: row.city,
+      spacePriceCents: row.spacePriceCents,
       quotedTotalCents: row.quotedTotalCents,
       hourlyRateCents: row.hourlyRateCents,
     });

@@ -121,6 +121,7 @@ export default async function HostBookingsPage({
       endsAt: r.endsAt,
       timezone: r.timezone,
       city: r.city,
+      spacePriceCents: r.spacePriceCents,
       quotedTotalCents: r.quotedTotalCents,
       hourlyRateCents: r.hourlyRateCents,
     }),
