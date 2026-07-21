@@ -23,6 +23,7 @@ type ReconcileModule = typeof import("@/inngest/functions/payout-reconcile");
 let queryProcessingLedger: ReconcileModule["queryProcessingLedger"];
 let reconcileOne: ReconcileModule["reconcileOne"];
 let mapTransferStatus: ReconcileModule["mapTransferStatus"];
+let alertStuckHeld: ReconcileModule["alertStuckHeld"];
 
 const BOOKER = "reconcile_booker";
 let prevStuckHours: string | undefined;
@@ -86,21 +87,26 @@ async function seedLedger(opts: {
   transferId?: string | null;
   createdAtMs?: number;
   paidAtMs?: number | null;
+  /** D-71 row kind. A 'host_cancel_fee' row is a SIGNED DEBIT that never transfers — it only nets. */
+  kind?: "payout" | "host_cancel_fee";
 }): Promise<string> {
   const hostId = await makeHostUser();
   const listingId = await makeListing(hostId);
   const bookingId = await makeBooking(listingId);
+  const debit = opts.kind === "host_cancel_fee";
   await testDb.db.insert(hostPayoutLedger).values({
     id: uid("ledger"),
     bookingId,
     hostId,
     paymentId: null,
-    grossCents: 200000,
-    commissionRateBps: 1000,
-    commissionCents: 20000,
-    netCents: 180000,
+    // A debit carries NEGATIVE gross/net and zero commission (07-RESEARCH Finding 3 § Recommended shape).
+    grossCents: debit ? -30000 : 200000,
+    commissionRateBps: debit ? 0 : 1000,
+    commissionCents: debit ? 0 : 20000,
+    netCents: debit ? -30000 : 180000,
     currency: "php",
     state: opts.state,
+    kind: opts.kind ?? "payout",
     transferId: opts.transferId ?? null,
     paidAt: opts.paidAtMs != null ? new Date(opts.paidAtMs) : null,
     ...(opts.createdAtMs != null ? { createdAt: new Date(opts.createdAtMs) } : {}),
@@ -114,6 +120,13 @@ async function readLedger(bookingId: string) {
     .from(hostPayoutLedger)
     .where(eq(hostPayoutLedger.bookingId, bookingId));
   return row;
+}
+
+/** Every [payout-alert] stuck-held line the console spy captured, as bookingIds. */
+function stuckHeldAlertIds(spy: { mock: { calls: unknown[][] } }): string[] {
+  return spy.mock.calls
+    .filter((c) => c[0] === "[payout-alert] payout stuck held")
+    .map((c) => (c[1] as { bookingId: string }).bookingId);
 }
 
 beforeAll(async () => {
@@ -130,7 +143,7 @@ beforeAll(async () => {
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({ getTransfer: mockPayMongo.getTransfer }));
   vi.resetModules();
-  ({ queryProcessingLedger, reconcileOne, mapTransferStatus } = await import(
+  ({ queryProcessingLedger, reconcileOne, mapTransferStatus, alertStuckHeld } = await import(
     "@/inngest/functions/payout-reconcile"
   ));
 });
@@ -232,6 +245,32 @@ describe("reconcileOne — unknown/in-flight stays processing (never spurious Pa
     expect(row.paidAt).toBeNull();
     // The mapping itself never promotes an unknown status to a terminal one.
     expect(mapTransferStatus("pending")).toBe("processing");
+  });
+});
+
+describe("alertStuckHeld — a host_cancel_fee debit never trips the alert (07-04, Pitfall 7)", () => {
+  it("alerts on a stuck kind='payout' held row but IGNORES a kind='host_cancel_fee' held row", async () => {
+    const stuckMs = Date.now() - 72 * 3_600_000; // 72h > the 48h threshold
+
+    // A D-71 signed debit is inserted `held` and STAYS there until fully netted against a future payout.
+    // Unscoped, alertStuckHeld would fire a FALSE [payout-alert] on EVERY host cancellation — and
+    // operators who learn to ignore the channel would miss a real transfer failure.
+    const debitId = await seedLedger({
+      state: "held",
+      kind: "host_cancel_fee",
+      transferId: null,
+      createdAtMs: stuckMs,
+    });
+    // A genuine payout claim that never released is a REAL stranded payout and MUST still alert (CR-01).
+    const payoutId = await seedLedger({ state: "held", transferId: null, createdAtMs: stuckMs });
+
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await alertStuckHeld(testDb.db);
+    const alerted = stuckHeldAlertIds(spy);
+    spy.mockRestore();
+
+    expect(alerted).toContain(payoutId); // the real signal survives
+    expect(alerted).not.toContain(debitId); // the false one is gone
   });
 });
 

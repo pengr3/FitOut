@@ -3,7 +3,7 @@
 // and the expected/paid date meta.
 //
 // The host SEES the commission line (D-59) — UNLIKE the booker (D-50, whose breakdown stays subtotal=total).
-// The breakdown is `Booking {₱gross}` / `FitOut service fee (10%) −{₱commission}` / `Your payout {₱net}`
+// The breakdown is `Booking {₱gross}` / `FitOut commission (10%) −{₱commission}` / `Your payout {₱net}`
 // (net weight 600). All figures are the SERVER-FROZEN ledger cents (D-49/D-51) rendered via formatMoney —
 // this component does ZERO price arithmetic. Refunded → the net renders muted + struck through, with the
 // "no payout" helper. `dateLabel` is a pre-formatted, venue-tz-safe "MMM d" computed by the page.
@@ -54,8 +54,12 @@ export function PayoutRow({ row }: { row: PayoutRowData }) {
             <dd className="tabular-nums">{formatMoney(row.grossCents, row.currency)}</dd>
           </div>
           {/* The host-visible commission line (D-59) — a negative value, muted (04/05-UI-SPEC typography). */}
+          {/* C8 — D-73 assigns "Service fee" to the BOOKER-facing 5% fee. One FitOut account is both booker
+              and host (AUTH-04), so the same person sees both lines; "commission" is the term CLAUDE.md and
+              every planning doc already uses for the host-side 10%. D-50's host half is unchanged in
+              substance — only the wording. Do NOT change any amount, calculation, or badge. */}
           <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">FitOut service fee (10%)</dt>
+            <dt className="text-muted-foreground">FitOut commission (10%)</dt>
             <dd className="tabular-nums text-muted-foreground">
               −{formatMoney(row.commissionCents, row.currency)}
             </dd>

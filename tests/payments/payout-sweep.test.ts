@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, hostPayout, hostPayoutLedger, booking } from "@/lib/db/schema";
@@ -70,9 +70,14 @@ async function makeListing(hostId: string): Promise<string> {
 
 async function makeBooking(opts: {
   listingId: string;
-  status: "pending" | "confirmed";
+  status: "pending" | "confirmed" | "cancelled";
   quotedTotalCents: number;
   endsAtMs: number;
+  /** Defaults to quotedTotalCents (the pre-service-fee shape drizzle/0014 backfilled). */
+  spacePriceCents?: number;
+  serviceFeeCents?: number;
+  /** D-69: the retained (non-refunded) space price on a cancellation. null ⇒ not cancelled. */
+  retainedSpaceCents?: number | null;
 }): Promise<string> {
   const id = uid("bk");
   const endsAt = new Date(opts.endsAtMs);
@@ -86,14 +91,46 @@ async function makeBooking(opts: {
     endsAt,
     status: opts.status,
     quotedTotalCents: opts.quotedTotalCents,
-    // 07-04 Finding 2: the sweep's payout basis is space_price_cents, NOT quoted_total_cents. With no
-    // service fee these are equal, which is exactly what drizzle/0014 backfilled for pre-Phase-7 rows.
-    spacePriceCents: opts.quotedTotalCents,
-    serviceFeeCents: 0,
+    // 07-04 Finding 2: the sweep's payout basis is space_price_cents, NOT the all-in charged total. With
+    // no service fee the two are equal — exactly what drizzle/0014 backfilled for pre-Phase-7 rows.
+    spacePriceCents: opts.spacePriceCents ?? opts.quotedTotalCents,
+    serviceFeeCents: opts.serviceFeeCents ?? 0,
+    retainedSpaceCents: opts.retainedSpaceCents ?? null,
     currency: "php",
     expiresAt: opts.status === "pending" ? endsAt : null,
   });
   return id;
+}
+
+/**
+ * Seed a D-71 SIGNED DEBIT row (kind='host_cancel_fee') for a host. gross/net are NEGATIVE and commission
+ * is 0 — a debit never transfers, it only nets against a future payout, accumulating recovered_cents
+ * toward -net_cents. Inserted `held`, which is precisely why every payout query must be kind-scoped.
+ */
+async function seedDebit(hostId: string, bookingId: string, feeCents: number): Promise<void> {
+  await testDb.db.insert(hostPayoutLedger).values({
+    id: uid("debit"),
+    bookingId,
+    hostId,
+    paymentId: null,
+    grossCents: -feeCents,
+    commissionRateBps: 0,
+    commissionCents: 0,
+    netCents: -feeCents,
+    currency: "php",
+    state: "held",
+    kind: "host_cancel_fee",
+  });
+}
+
+/** Read a host's debit rows (kind-scoped — the payout row for the same booking must never be returned). */
+async function readDebits(hostId: string) {
+  return testDb.db
+    .select()
+    .from(hostPayoutLedger)
+    .where(
+      and(eq(hostPayoutLedger.hostId, hostId), eq(hostPayoutLedger.kind, "host_cancel_fee")),
+    );
 }
 
 function duePayout(opts: {
@@ -114,12 +151,25 @@ function duePayout(opts: {
   };
 }
 
+/** Read a booking's PAYOUT row. kind-scoped so a coexisting host_cancel_fee debit is never picked up. */
 async function readLedger(bookingId: string) {
   const [row] = await testDb.db
     .select()
     .from(hostPayoutLedger)
-    .where(eq(hostPayoutLedger.bookingId, bookingId));
+    .where(
+      and(eq(hostPayoutLedger.bookingId, bookingId), eq(hostPayoutLedger.kind, "payout")),
+    );
   return row;
+}
+
+/** All payout rows for a booking — used to assert "exactly one" without the kind scope masking a dupe. */
+async function readPayoutRows(bookingId: string) {
+  return testDb.db
+    .select()
+    .from(hostPayoutLedger)
+    .where(
+      and(eq(hostPayoutLedger.bookingId, bookingId), eq(hostPayoutLedger.kind, "payout")),
+    );
 }
 
 beforeAll(async () => {
@@ -419,5 +469,309 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
 
     const due = await queryDuePayouts(testDb.db);
     expect(due.map((d) => d.bookingId)).toContain(bkId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 07-04 — the Phase-7 payout invariants (07-RESEARCH Findings 1/2/3, D-69/D-71/D-74).
+// ---------------------------------------------------------------------------
+
+describe("payout sweep — retained cancellation IS swept (Finding 1, D-69)", () => {
+  it("selects a cancelled booking with retained > 0 and grosses the payout on the RETAINED amount", async () => {
+    const A = await makeHost();
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: A.accountId, accountNumber: "RET0001", accountName: "Host A Wallet", status: "activated" },
+    ]);
+    const L = await makeListing(A.hostId);
+    // A Standard-tier booking cancelled at the 50% rung: 100000 space + 5000 fee, 50000 refunded, 50000 kept.
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "cancelled",
+      quotedTotalCents: 105000,
+      spacePriceCents: 100000,
+      serviceFeeCents: 5000,
+      retainedSpaceCents: 50000,
+      endsAtMs: dueMs(),
+    });
+
+    // Before this plan the sweep's status='confirmed' predicate skipped this row forever — the host was
+    // owed 45000 of the retained 50000 (D-69) and would NEVER have received it.
+    const due = await queryDuePayouts(testDb.db);
+    const row = due.find((d) => d.bookingId === bkId);
+    expect(row).toBeDefined();
+    expect(row!.payoutGrossCents).toBe(50000); // the RETAINED space price — not 100000, not 105000
+
+    const res = await payOne(
+      testDb.db,
+      duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 50000 }),
+    );
+    expect(res.status).toBe("paid");
+
+    const rows = await readPayoutRows(bkId);
+    expect(rows).toHaveLength(1); // exactly ONE ledger row
+    expect(rows[0].grossCents).toBe(50000);
+    expect(rows[0].netCents).toBe(45000); // retained − 10% commission (D-69)
+  });
+});
+
+describe("payout sweep — a host-cancelled booking produces NOTHING (D-70/D-71)", () => {
+  it("is never selected and writes zero ledger rows when retained is 0", async () => {
+    const A = await makeHost();
+    const L = await makeListing(A.hostId);
+    // A HOST cancellation refunds the booker in full, so retained = 0: the host gets no payout AND owes
+    // the D-71 fee. The "retained > 0" half of the widened predicate is what enforces that.
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "cancelled",
+      quotedTotalCents: 105000,
+      spacePriceCents: 100000,
+      serviceFeeCents: 5000,
+      retainedSpaceCents: 0,
+      endsAtMs: dueMs(),
+    });
+
+    const due = await queryDuePayouts(testDb.db);
+    expect(due.map((d) => d.bookingId)).not.toContain(bkId);
+    expect(await readPayoutRows(bkId)).toHaveLength(0);
+  });
+});
+
+describe("payout sweep — the service fee is NEVER paid out (Finding 2 / T-07-16, D-74)", () => {
+  it("grosses on the space price, not the all-in charged total", async () => {
+    const A = await makeHost();
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: A.accountId, accountNumber: "FEE0001", accountName: "Host A Wallet", status: "activated" },
+    ]);
+    const L = await makeListing(A.hostId);
+    const CHARGED_TOTAL = 105000; // what the booker PAID: space 100000 + the 5% service fee 5000
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "confirmed",
+      quotedTotalCents: CHARGED_TOTAL,
+      spacePriceCents: 100000,
+      serviceFeeCents: 5000,
+      endsAtMs: dueMs(),
+    });
+
+    const due = await queryDuePayouts(testDb.db);
+    expect(due.find((d) => d.bookingId === bkId)!.payoutGrossCents).toBe(100000);
+
+    await payOne(
+      testDb.db,
+      duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 100000 }),
+    );
+
+    const row = await readLedger(bkId);
+    expect(row.grossCents).toBe(100000);
+    // The load-bearing assertion: grossing on the CHARGED total would pay the host 90% of the platform's
+    // OWN service fee, inverting the entire purpose of D-74.
+    expect(row.grossCents).not.toBe(CHARGED_TOTAL);
+    expect(row.netCents).toBe(90000); // 100000 − 10%, NOT 94500 (= 105000 − 10%)
+  });
+});
+
+describe("payout sweep — D-71 debit netting (netting floor)", () => {
+  it("deducts an outstanding host_cancel_fee from the transfer and marks the debit paid once recovered", async () => {
+    const A = await makeHost();
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: A.accountId, accountNumber: "NET0001", accountName: "Host A Wallet", status: "activated" },
+    ]);
+    const L = await makeListing(A.hostId);
+
+    // A previously host-cancelled booking carrying a 30000 debit...
+    const cancelledId = await makeBooking({
+      listingId: L,
+      status: "cancelled",
+      quotedTotalCents: 60000,
+      retainedSpaceCents: 0,
+      endsAtMs: dueMs() - 48 * 3_600_000,
+    });
+    await seedDebit(A.hostId, cancelledId, 30000);
+
+    // ...and a later due payout of net 90000 (gross 100000 − 10%).
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "confirmed",
+      quotedTotalCents: 100000,
+      endsAtMs: dueMs(),
+    });
+
+    const res = await payOne(
+      testDb.db,
+      duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 100000 }),
+    );
+    expect(res).toMatchObject({ status: "paid", netCents: 60000, deductedCents: 30000 });
+
+    // The TRANSFER carries the NETTED amount, never the raw net.
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+    const arg = mockPayMongo.createBatchTransfer.mock.calls[0][0] as { netCents: number };
+    expect(arg.netCents).toBe(60000);
+
+    // The debit is fully recovered → terminal paid; the payout row memoises the deduction it applied.
+    const [debit] = await readDebits(A.hostId);
+    expect(debit.recoveredCents).toBe(30000);
+    expect(debit.state).toBe("paid");
+    const payoutRow = await readLedger(bkId);
+    expect(payoutRow.recoveredCents).toBe(30000);
+  });
+});
+
+describe("payout sweep — a ZERO transfer is never fired (D-71, T-07-19)", () => {
+  it("settles by netting instead: payout paid with transfer_id NULL, no PayMongo call", async () => {
+    const A = await makeHost();
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: A.accountId, accountNumber: "ZER0001", accountName: "Host A Wallet", status: "activated" },
+    ]);
+    const L = await makeListing(A.hostId);
+
+    const cancelledId = await makeBooking({
+      listingId: L,
+      status: "cancelled",
+      quotedTotalCents: 90000,
+      retainedSpaceCents: 0,
+      endsAtMs: dueMs() - 48 * 3_600_000,
+    });
+    await seedDebit(A.hostId, cancelledId, 90000); // exactly equal to the coming payout's net
+
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "confirmed",
+      quotedTotalCents: 100000, // net 90000
+      endsAtMs: dueMs(),
+    });
+
+    const res = await payOne(
+      testDb.db,
+      duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 100000 }),
+    );
+    expect(res).toEqual({ status: "settled-by-netting", deductedCents: 90000 });
+
+    // PayMongo rejects / mis-handles a zero transfer — it must never be attempted.
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+
+    const row = await readLedger(bkId);
+    expect(row.state).toBe("paid");
+    expect(row.transferId).toBeNull();
+
+    const [debit] = await readDebits(A.hostId);
+    expect(debit.recoveredCents).toBe(90000);
+    expect(debit.state).toBe("paid");
+  });
+});
+
+describe("payout sweep — netting can never drive a transfer negative (T-07-19)", () => {
+  it("clamps the deduction at the payout net and carries the residual debt forward", async () => {
+    const A = await makeHost();
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: A.accountId, accountNumber: "NEG0001", accountName: "Host A Wallet", status: "activated" },
+    ]);
+    const L = await makeListing(A.hostId);
+
+    const cancelledId = await makeBooking({
+      listingId: L,
+      status: "cancelled",
+      quotedTotalCents: 200000,
+      retainedSpaceCents: 0,
+      endsAtMs: dueMs() - 48 * 3_600_000,
+    });
+    await seedDebit(A.hostId, cancelledId, 200000); // MORE than this payout can cover
+
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "confirmed",
+      quotedTotalCents: 100000, // net 90000
+      endsAtMs: dueMs(),
+    });
+
+    const res = await payOne(
+      testDb.db,
+      duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 100000 }),
+    );
+    // deduction = min(200000, 90000) = 90000 ⇒ transferAmt = 0, never negative.
+    expect(res).toEqual({ status: "settled-by-netting", deductedCents: 90000 });
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+
+    const [debit] = await readDebits(A.hostId);
+    expect(debit.recoveredCents).toBe(90000); // increased by EXACTLY the payout net
+    expect(debit.state).toBe("held"); // still outstanding — 110000 remains for a future payout
+    expect(debit.recoveredCents).toBeLessThan(-debit.netCents);
+
+    // No ledger value went negative beyond the debit's own (deliberately signed) net_cents.
+    const payoutRow = await readLedger(bkId);
+    expect(payoutRow.grossCents).toBeGreaterThanOrEqual(0);
+    expect(payoutRow.netCents).toBeGreaterThanOrEqual(0);
+    expect(payoutRow.recoveredCents).toBeGreaterThanOrEqual(0);
+    expect(debit.recoveredCents).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("payout sweep — concurrent cancel × sweep race (T-07-17)", () => {
+  it("two genuinely concurrent payOne calls on a retained cancellation → ONE ledger row, at most one transfer", async () => {
+    const A = await makeHost();
+    mockPayMongo.listWalletAccounts.mockResolvedValue([
+      { id: A.accountId, accountNumber: "RAC0001", accountName: "Host A Wallet", status: "activated" },
+    ]);
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "cancelled",
+      quotedTotalCents: 105000,
+      spacePriceCents: 100000,
+      serviceFeeCents: 5000,
+      retainedSpaceCents: 50000,
+      endsAtMs: dueMs(),
+    });
+    const b = duePayout({
+      bookingId: bkId,
+      listingId: L,
+      hostId: A.hostId,
+      accountId: A.accountId,
+      payoutGrossCents: 50000,
+    });
+
+    // Genuinely concurrent connections — the shared max:1 client would serialize and prove nothing.
+    const [c1, c2] = makeRacingClients(testDb.schema, 2);
+    try {
+      const results = await Promise.all([payOne(drizzle(c1), b), payOne(drizzle(c2), b)]);
+      expect(results.filter((r) => r.status === "paid")).toHaveLength(1);
+      expect(results.filter((r) => r.status === "skipped-claimed")).toHaveLength(1);
+    } finally {
+      await c1.end();
+      await c2.end();
+    }
+
+    // The DB — the widened UNIQUE(booking_id, kind), not app code — enforces at-most-once.
+    expect(await readPayoutRows(bkId)).toHaveLength(1);
+    expect(mockPayMongo.createBatchTransfer.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("payout sweep — a booking with no frozen payout basis fails CLOSED", () => {
+  it("alerts and skips rather than guessing a gross from the all-in charged total", async () => {
+    const A = await makeHost();
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({
+      listingId: L,
+      status: "confirmed",
+      quotedTotalCents: 105000,
+      endsAtMs: dueMs(),
+    });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // space_price_cents was never frozen on this row ⇒ the sweep receives a null basis.
+    const b: DuePayout = {
+      ...duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 0 }),
+      payoutGrossCents: null,
+    };
+    const res = await payOne(testDb.db, b);
+
+    expect(res.status).toBe("skipped-no-basis");
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+    expect(await readPayoutRows(bkId)).toHaveLength(0); // nothing claimed — retried on the next sweep
+    expect(spy).toHaveBeenCalledWith(
+      "[payout-alert] booking has no frozen payout basis",
+      expect.objectContaining({ bookingId: bkId }),
+    );
+    spy.mockRestore();
   });
 });
