@@ -18,7 +18,8 @@ Decimal phases appear between their surrounding integers in numeric order.
  (completed 2026-07-14)
 - [x] **Phase 4: Booking Core & Search (no payment)** - Two-phase slot hold + state machine + expiry worker, plus geo/activity/date/price search (completed 2026-07-15)
 - [x] **Phase 5: Payments & Payouts** - PayMongo hosted-checkout charge, host-side commission, hold-until-session delayed payout, webhook-as-source-of-truth, refund mechanism
-- [x] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book pay-on-approval (no charge until host approves), host approve/decline, confirmation (completed 2026-07-20)
+- [x] **Phase 6: Full Booking + Payment Integration** - Instant-book capture vs request-to-book pay-on-approval (no charge until host approves), host approve/decline, confirmation
+ (completed 2026-07-20)
 - [ ] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
 - [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity
 
@@ -162,7 +163,24 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A booker can cancel a booking and see the exact refund amount before confirming, with the refund issued per the listing's named cancellation policy tier (correct money movement for who-cancels × time-to-start)
   3. A host-initiated cancellation produces a full refund to the booker with defined consequences
   4. Users receive transactional emails for key booking events (confirmation, request received, approved/declined, cancelled, reminder) via a reliable async layer that never blocks the booking transaction
-**Plans**: TBD
+**Plans**: 16 plans in 5 waves
+Plans:
+- [ ] 07-01-PLAN.md — Foundation: config constants, schema columns/enums/tables, migrations [BLOCKING]
+- [ ] 07-02-PLAN.md — Shared display primitives: whenLabel extraction + booking status derivation/badge
+- [ ] 07-03-PLAN.md — Pure money modules: refund ladder, service fee, rail predicate
+- [ ] 07-04-PLAN.md — Payout ledger correctness: retention sweep, fee-exclusion, kind scoping, debit netting
+- [ ] 07-05-PLAN.md — Expiry-cap correctness: session cap, DB clock, lead-time guards, proportional split
+- [ ] 07-06-PLAN.md — Bookings views: /bookings + /host/bookings, tabs, rows, keyset paging
+- [ ] 07-07-PLAN.md — Notification infrastructure: Inngest fan-out, notification table, onFailure audit
+- [ ] 07-08-PLAN.md — Service fee end-to-end: frozen triple, tier snapshot, checkout disclosure, all-in browse
+- [ ] 07-09-PLAN.md — Booker cancellation: refund preview route + owner-gated cancel action (SC#2)
+- [ ] 07-10-PLAN.md — Notification emission migration: five sends off fire-and-forget
+- [ ] 07-11-PLAN.md — Host cancellation: full refund + audit + auto-block + capped fee debit (SC#3)
+- [ ] 07-12-PLAN.md — Booking detail states: cancel entry, one-click re-request, cap-shortened SLA reason
+- [ ] 07-13-PLAN.md — Four reminders on an at-most-once DB claim
+- [ ] 07-14-PLAN.md — Notification bell + centre in both headers
+- [ ] 07-15-PLAN.md — Cancellation policy surfaces: wizard tier step + booker disclosure
+- [ ] 07-16-PLAN.md — QRPh refund path (gated on the settling probe)
 **UI hint**: yes
 
 ### Phase 8: Group Bookings
