@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 07-05-PLAN.md
-last_updated: "2026-07-21T11:05:00.000Z"
+stopped_at: Completed 07-06-PLAN.md
+last_updated: "2026-07-21T11:30:00.000Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 46
-  percent: 82
+  completed_plans: 47
+  percent: 84
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [████████░░] 82% (46 of 56 plans)
+Progress: [████████░░] 84% (47 of 56 plans)
 
 **Wave 1 complete.** 07-01 (config + schema + migrations) and 07-02 (when-label + booking-status derivation) both have SUMMARY.md on disk; `drizzle/0013` + `0014` are applied to the live DB and are idempotent.
 
@@ -45,6 +45,16 @@ Progress: [████████░░] 82% (46 of 56 plans)
 ⚠️ **New handoff constraint for 07-08 (service fee end-to-end).** `booking.space_price_cents` is nullable and **nothing writes it yet**. `payOne` now fails CLOSED on a null basis (`[payout-alert] booking has no frozen payout basis`, claims nothing, moves no money) rather than falling back to the charged total — a fallback would silently leak the service fee into host payouts. Consequence: **every booking created between now and 07-08 will not pay out until 07-08 freezes the price split at creation.** This is intended and visible, not a regression.
 
 **Wave 2 fully complete (07-05 landed).** Full suite: **63 files / 487 tests, exit 0**.
+
+**Wave 3 opened — 07-06 landed.** Full suite: **65 files / 509 tests, exit 0**. `/bookings` and `/host/bookings` ship, closing MANAGE-01, MANAGE-02, HOST-02 and ROADMAP SC#1.
+
+✅ **Owner scope is proven, not asserted (07-06).** `tests/security/bookings-owner-scope.test.ts` was verified by MUTATION: deleting `WHERE b.booker_id = …` fails 6 of 11 tests, deleting `WHERE l.host_id = …` fails 7 of 11; both restored. The fixture is crossed (A hosts listing A but books listing B) so a swapped predicate fails too, not just a dropped one.
+
+⚠️ **`db.execute` returns `timestamptz` as TEXT — new repo-wide contract (07-06).** Drizzle's raw `execute` path hands back Postgres text (`2027-03-01 02:00:00+00`), NOT a Date, and the `as unknown as T[]` cast makes this invisible to `tsc`, `eslint` and `next build`. Both new pages would have crashed on the first real row (`date-fns` / `.getTime()`). `bookings-query.ts` now selects timestamps as strict ISO-8601 via `to_char` and hydrates once at the boundary, and exports **`readDbNow(dbConn)`** so no surface re-derives the cast. **Any new page reading timestamps through `db.execute` must do the same.**
+
+⚠️ **`npm run build` needs three env placeholders on a dev machine.** Two module-scope fail-closed guards throw because `next build` runs with `NODE_ENV=production`: the PayMongo platform-wallet guard (`src/lib/paymongo.ts:39`, from 05-02) and the Inngest signing-key guard. Pre-existing, unrelated to 07-06, logged in `.planning/phases/07-.../deferred-items.md`. Until fixed, run: `PLATFORM_WALLET_NUMBER=x PLATFORM_WALLET_NAME=x INNGEST_SIGNING_KEY=x npm run build`.
+
+ℹ️ **`/bookings/[id]` moved into the `(app)` route group** (URL unchanged). It now inherits the booker header, so 07-14's bell will cover it; `/` and `/listings/[id]` remain header-less — the residual half of UI-SPEC Open Question 1.
 
 ✅ **D-94 is now TRUE at all three hold-write sites (07-05).** `expires_at = LEAST(now() + window, starts_at)` on the instant hold, the request SLA and the approval payment window, all computed by Postgres. `units.ts` contains **zero** JS clock reads (grep-asserted). The request path applies the D-96 proportional split — a request 4h out gives the host a 2h SLA and the booker ~2h, floored at `MIN_APPROVE_WINDOW_HOURS`. Mode-scoped lead-time guards refuse server-side (2h request / 30min instant); `SlotState` gained `too_soon` as a display-only fourth member. The payment webhook is **unchanged** (D-57), protected by a mutation-verified guard test.
 
@@ -108,6 +118,7 @@ Progress: [████████░░] 82% (46 of 56 plans)
 | Phase 07 P03 | ~12 min | 2 tasks | 6 files |
 | Phase 07 P04 | ~35 min | 3 tasks | 9 files |
 | Phase 07 P05 | ~75 min | 3 tasks | 9 files |
+| Phase 07 P06 | ~35 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 

@@ -170,7 +170,7 @@ Plans:
 - [x] 07-03-PLAN.md — Pure money modules: refund ladder, service fee, rail predicate
 - [x] 07-04-PLAN.md — Payout ledger correctness: retention sweep, fee-exclusion, kind scoping, debit netting
 - [x] 07-05-PLAN.md — Expiry-cap correctness: session cap, DB clock, lead-time guards, proportional split
-- [ ] 07-06-PLAN.md — Bookings views: /bookings + /host/bookings, tabs, rows, keyset paging
+- [x] 07-06-PLAN.md — Bookings views: /bookings + /host/bookings, tabs, rows, keyset paging
 - [ ] 07-07-PLAN.md — Notification infrastructure: Inngest fan-out, notification table, onFailure audit
 - [ ] 07-08-PLAN.md — Service fee end-to-end: frozen triple, tier snapshot, checkout disclosure, all-in browse
 - [ ] 07-09-PLAN.md — Booker cancellation: refund preview route + owner-gated cancel action (SC#2)
@@ -208,5 +208,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Booking Core & Search | 8/8 | Complete | 2026-07-15 |
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
-| 7. Bookings Management, Cancellation & Notifications | 1/16 | Wave 1 in progress — 07-02 complete (shared when-label formatter + booking-status derivation). 07-01 code committed but has no SUMMARY and its migration is unapplied; local Postgres is down, so 07-02's DB-backed gates are unrun (see its SUMMARY § Unverified — Blocked on Database) | - |
+| 7. Bookings Management, Cancellation & Notifications | 6/16 | Waves 1-2 complete — 07-06 shipped MANAGE-01/MANAGE-02/HOST-02 (ROADMAP SC#1): /bookings and /host/bookings, owner-scoped in the query and mutation-verified, DB-clock tab partition, keyset paging. Full suite 65 files / 509 tests green | - |
 | 8. Group Bookings | 0/TBD | Not started | - |

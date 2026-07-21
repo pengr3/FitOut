@@ -62,13 +62,13 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Host Tools
 
 - [x] **HOST-01**: Host can approve or decline pending booking requests within a deadline
-- [ ] **HOST-02**: Host can view upcoming and past bookings with status
+- [x] **HOST-02**: Host can view upcoming and past bookings with status
 - [x] **HOST-03**: Host can see payout status (what is owed / paid)
 
 ### Bookings Management (Both Sides)
 
-- [ ] **MANAGE-01**: Booker can view upcoming and past bookings with status
-- [ ] **MANAGE-02**: Booking status lifecycle (pending / confirmed / declined / cancelled / completed) is visible to both sides
+- [x] **MANAGE-01**: Booker can view upcoming and past bookings with status
+- [x] **MANAGE-02**: Booking status lifecycle (pending / confirmed / declined / cancelled / completed) is visible to both sides
 - [ ] **MANAGE-03**: Users receive transactional emails for key booking events (confirmation, request received, approved/declined, cancelled, reminder)
 
 ### Group Bookings (Differentiator)
@@ -164,9 +164,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | HOST-01 | Phase 6 | Complete |
 | BOOK-07 | Phase 7 | In progress |
 | PAY-06 | Phase 7 | In progress |
-| HOST-02 | Phase 7 | In-progress (07-02 shipped the shared primitives the host bookings view renders from — `deriveBookingStatusView`/`BookingStatusBadge` + `composeWhenLabelShort`. The `/host/bookings` route itself lands in 07-06; closed at the phase transition) |
-| MANAGE-01 | Phase 7 | In-progress (07-02 shipped the shared primitives — the venue-local when-label formatter + the booking-status derivation. The `/bookings` route, Upcoming/Past tabs and keyset paging land in 07-06) |
-| MANAGE-02 | Phase 7 | In-progress (07-02 shipped the SINGLE status derivation both sides render from — exhaustive, side-specific labels, D-102 `completed` derived at read time and never stored, D-79 refund detail kept out of the badge. Made *visible* on both surfaces by 07-06/07-12) |
+| HOST-02 | Phase 7 | Complete (07-06 shipped `/host/bookings` — Upcoming/Past tabs, desktop table + mobile cards, per-booking payout state via `PayoutStateBadge` reused verbatim, keyset paging. Ownership is `listing.host_id` inside the query WHERE, mutation-verified in `tests/security/bookings-owner-scope.test.ts`) |
+| MANAGE-01 | Phase 7 | Complete (07-06 shipped `/bookings` — Upcoming/Past tabs partitioned on the DB clock, venue-local labels, keyset `Load more`, and the single D-104 inline `Pay now`. Rows are scoped by `booking.booker_id` in the query WHERE, mutation-verified) |
+| MANAGE-02 | Phase 7 | Complete (07-06 made the lifecycle visible on BOTH surfaces from 07-02's single derivation. D-102 `completed` is derived in SQL and proven to write nothing — `tests/booking/views.test.ts` reads the stored row back and asserts it still says `confirmed`. Booking-detail states are extended further in 07-12) |
 | MANAGE-03 | Phase 7 | Pending |
 | GROUP-01 | Phase 8 | Pending |
 | GROUP-02 | Phase 8 | Pending |
