@@ -17,6 +17,7 @@ import { payoutSweep } from "@/inngest/functions/payout-sweep";
 import { payoutReconcile } from "@/inngest/functions/payout-reconcile";
 import { requestExpirySweep } from "@/inngest/functions/request-expiry";
 import { notify } from "@/inngest/functions/notify";
+import { remindersSweep } from "@/inngest/functions/reminders";
 
 // serve() verifies the Paymongo-style signed Inngest request with node crypto — Node runtime, not edge.
 export const runtime = "nodejs";
@@ -29,15 +30,18 @@ if (process.env.NODE_ENV === "production" && !process.env.INNGEST_SIGNING_KEY) {
 }
 
 // serve() reads INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY from env automatically; the guard above just makes
-// a missing prod key fatal. Registers the THREE crons — the hourly payout sweep (05a), the payout reconcile
-// (05b), and the request-to-book expiry sweep (06-06, minute 15 offset) — plus `notify` (07-07), the first
-// EVENT-triggered function here: it listens for `fitout/notify` and fans one event out to the durable
+// a missing prod key fatal. Registers all FIVE functions — the FOUR crons on offset minutes so they never
+// contend (Pitfall 4): the hourly payout sweep (05a, :00), the request-to-book expiry sweep (06-06, :15),
+// the payout reconcile (05b, :30) and the D-85 reminder sweep (07-13, :45) — plus `notify` (07-07), the
+// only EVENT-triggered function here: it listens for `fitout/notify` and fans one event out to the durable
 // in-app notification row and the email (D-83/D-91).
 //
 // A function that is not in this array does not exist as far as Inngest is concerned — registration is
 // DERIVED from this file at sync time, not stored anywhere else. An unregistered `notify` means every
-// emitNotify call silently drops on the floor with no error at the emitter (which swallows by design).
+// emitNotify call silently drops on the floor with no error at the emitter (which swallows by design), and
+// an unregistered `remindersSweep` means the cron never ticks and NO reminder is ever sent — with nothing
+// failing anywhere to say so.
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [payoutSweep, payoutReconcile, requestExpirySweep, notify],
+  functions: [payoutSweep, payoutReconcile, requestExpirySweep, notify, remindersSweep],
 });
