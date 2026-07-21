@@ -28,10 +28,12 @@
 //
 // ⚠️ A D-96 CAP-SHORTENED SLA CAN MAKE A REMINDER UNREACHABLE. 07-05 capped every hold expiry at
 // `starts_at` and split the request SLA proportionally, so an SLA is no longer a flat 24h: a request 4h out
-// gives the host a ~2h SLA and the 6h `pre_sla_host` offset can NEVER be satisfied for it. The
-// `expires_at > now()` guard turns that into a clean NO-SEND — no row, no emission, no crash, and
-// emphatically not a reminder fired immediately or scheduled in the past. That behaviour is CORRECT but
-// SILENT, which is exactly why tests/notifications/reminders.test.ts asserts it explicitly.
+// gives the host a ~2h SLA and the 6h `pre_sla_host` offset has NO reachable instant inside that window.
+// The required behaviour is a clean NO-SEND — no row, no emission, no crash — and emphatically NOT a
+// reminder fired immediately or scheduled in the past. A range alone does not achieve that (a 2h-SLA
+// request sits happily inside a 6h range); the `deadline - OFFSET >= created_at` REACHABILITY guard does.
+// See `duePredicate` for the full argument. The behaviour is CORRECT but SILENT at runtime, which is
+// exactly why tests/notifications/reminders.test.ts asserts it explicitly.
 //
 // ---------------------------------------------------------------------------
 // TIMESTAMP BOUNDARY (the 07-06 repo contract)
@@ -125,39 +127,65 @@ export type RemindOneResult =
  * The kind's status + time predicate. All four are RANGE-based against the DB clock `now()` — never an
  * instant, never a JS clock (the same discipline as the payout sweep and both lazy-expiry sweeps).
  *
- * The `> now()` half of each range is not decoration. It is what makes an UNREACHABLE offset a clean
- * no-send: a deadline already in the past drops out of the range instead of firing a reminder about a
- * moment that has already gone by.
+ * Each predicate has THREE parts, and each one is load-bearing:
  *
- * Each predicate is also STATUS-SCOPED to a live state (T-07-79). A cancelled, declined, completed or
- * already-paid booking matches none of them, so a terminal booking can never be reminded about.
+ *   1. STATUS — scoped to a live state (T-07-79). A cancelled, declined, completed or already-paid
+ *      booking matches none of the four, so a terminal booking can never be reminded about.
+ *   2. `deadline > now()` — the deadline has not passed. Without it a lapsed hold would be "reminded"
+ *      about a moment that has already gone by.
+ *   3. `deadline <= now() + OFFSET` — the deadline is within the offset window. This is the RANGE (not an
+ *      instant) that lets a missed/late/paused tick recover on the next one.
+ *   4. `deadline - OFFSET >= b.created_at` — REACHABILITY. See below.
+ *
+ * ⚠️ REACHABILITY IS A SEPARATE GUARD FROM `> now()`, AND THE PLAN CONFLATED THEM.
+ *
+ * A reminder is meant to land ~OFFSET before its deadline. When the whole window from booking creation to
+ * deadline is SHORTER than the offset, that instant never existed inside the booking's life — the reminder
+ * is UNREACHABLE. Under D-96 a request 4h out gets a ~2h SLA, so a 6h `pre_sla_host` reminder has no
+ * reachable moment.
+ *
+ * Parts (2)+(3) alone do NOT handle this. A 2h-SLA request satisfies `expires_at > now()` AND
+ * `expires_at <= now() + 6h`, so a range-only query would select it on the very FIRST tick and fire a
+ * "6 hours left" reminder roughly at the moment the request was created — spam, arriving alongside the
+ * request notification itself, and precisely the "fired immediately" failure the phase brief rules out.
+ * The required behaviour is a clean NO-SEND.
+ *
+ * Comparing the reminder instant against `b.created_at` gives exactly that, uniformly across all four
+ * kinds. Its one accepted consequence, stated plainly: a session booked LESS than an offset ahead gets no
+ * pre-session reminder (a booking made 23h out gets no 24h booker reminder). That is correct — the
+ * booking-confirmed notification, sent 23h before the session, already IS that reminder, and firing a
+ * second one minutes later would be noise. The host's 12h reminder is still reachable and still fires.
  */
 function duePredicate(kind: ReminderKind): SQL {
   switch (kind) {
-    // Approved but UNPAID — the highest-value reminder, the one D-89 accepted risk on.
+    // Approved but UNPAID — the highest-value reminder, the one D-89 accepted risk on. 07-05 caps the
+    // payment window at starts_at, so a late approval can make this unreachable exactly as below.
     case "pre_expiry":
       return sql`b.status = 'approved'
         AND b.expires_at > now()
-        AND b.expires_at <= now() + make_interval(hours => ${PRE_EXPIRY_REMINDER_HOURS}::int)`;
+        AND b.expires_at <= now() + make_interval(hours => ${PRE_EXPIRY_REMINDER_HOURS}::int)
+        AND b.expires_at - make_interval(hours => ${PRE_EXPIRY_REMINDER_HOURS}::int) >= b.created_at`;
 
-    // A host sitting on a pending request. ⚠️ A D-96 cap-shortened SLA can make this reminder UNREACHABLE —
-    // a request 4h out gives the host a 2h SLA, so a 6h offset can never fire. The `expires_at > now()`
-    // guard handles that gracefully (no row, no send), which is CORRECT but SILENT — hence the dedicated
-    // test. Do NOT "fix" it by dropping the guard: that would fire the reminder after the deadline passed.
+    // A host sitting on a pending request — the canonical D-96 unreachable case (a request 4h out gives a
+    // ~2h SLA, and a 6h offset has no reachable instant inside it). No row, no send, no crash. CORRECT but
+    // SILENT at runtime, which is why the test asserts it explicitly rather than trusting the reading.
     case "pre_sla_host":
       return sql`b.status = 'requested'
         AND b.expires_at > now()
-        AND b.expires_at <= now() + make_interval(hours => ${PRE_SLA_REMINDER_HOURS}::int)`;
+        AND b.expires_at <= now() + make_interval(hours => ${PRE_SLA_REMINDER_HOURS}::int)
+        AND b.expires_at - make_interval(hours => ${PRE_SLA_REMINDER_HOURS}::int) >= b.created_at`;
 
     case "pre_session_booker":
       return sql`b.status = 'confirmed'
         AND b.starts_at > now()
-        AND b.starts_at <= now() + make_interval(hours => ${PRE_SESSION_BOOKER_REMINDER_HOURS}::int)`;
+        AND b.starts_at <= now() + make_interval(hours => ${PRE_SESSION_BOOKER_REMINDER_HOURS}::int)
+        AND b.starts_at - make_interval(hours => ${PRE_SESSION_BOOKER_REMINDER_HOURS}::int) >= b.created_at`;
 
     case "pre_session_host":
       return sql`b.status = 'confirmed'
         AND b.starts_at > now()
-        AND b.starts_at <= now() + make_interval(hours => ${PRE_SESSION_HOST_REMINDER_HOURS}::int)`;
+        AND b.starts_at <= now() + make_interval(hours => ${PRE_SESSION_HOST_REMINDER_HOURS}::int)
+        AND b.starts_at - make_interval(hours => ${PRE_SESSION_HOST_REMINDER_HOURS}::int) >= b.created_at`;
   }
 }
 
