@@ -92,6 +92,20 @@
       "when": 1784518375167,
       "tag": "0012_booking_exclusion_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784624442496,
+      "tag": "0013_phase7_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784624442497,
+      "tag": "0014_phase7_ledger_kind",
+      "breakpoints": true
     }
   ]
 }
