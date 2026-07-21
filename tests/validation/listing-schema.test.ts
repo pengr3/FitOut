@@ -23,6 +23,8 @@ const validPublish = {
   hourlyRateCents: 2500,
   dayRateCents: 18000,
   bookingMode: "request",
+  // D-77 (07-15): required to publish, with NO default. A payload without it is no longer complete.
+  cancellationPolicy: "standard",
 } as const;
 
 describe("draftSchema (D-01 autosave — everything optional)", () => {
@@ -45,6 +47,24 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
   it("rejects a missing/empty title", () => {
     expect(publishSchema.safeParse({ ...validPublish, title: undefined }).success).toBe(false);
     expect(publishSchema.safeParse({ ...validPublish, title: "" }).success).toBe(false);
+  });
+
+  it("rejects a missing or unrecognised cancellation tier (D-77 — no default)", () => {
+    // The schema half of the publish gate. There is deliberately no default, so an absent tier must be
+    // REJECTED rather than silently coerced to the most booker-friendly option (which is what D-62 would
+    // have done, and what D-77 deliberately breaks with — the tier governs real money).
+    expect(
+      publishSchema.safeParse({ ...validPublish, cancellationPolicy: undefined }).success,
+    ).toBe(false);
+    // And nothing outside the three named tiers gets through — the enum is the same set the D-68 LADDER
+    // is keyed by, so an accepted stray value would be a tier the refund engine cannot price.
+    expect(
+      publishSchema.safeParse({ ...validPublish, cancellationPolicy: "none" }).success,
+    ).toBe(false);
+    // Draft-time stays permissive, so a pre-Phase-7 listing is never stranded mid-edit.
+    expect(draftSchema.safeParse({ ...validPublish, cancellationPolicy: undefined }).success).toBe(
+      true,
+    );
   });
 
   it("rejects a non-positive rate (0 or negative)", () => {
