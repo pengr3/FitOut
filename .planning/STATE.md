@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 13
+current_plan: 14
 status: executing
-stopped_at: Completed 07-12-PLAN.md
-last_updated: "2026-07-21T14:36:01.625Z"
+stopped_at: "Completed 07-12-PLAN.md (Wave 4 — booking-detail completion + D-97 lapse recovery). `reRequestSameWindow` mints a NEW constraint-validated hold (never a status flip back); `/bookings/[id]` gains the D-104 cancel entry, the no-money `Cancel request` dialog, the D-97 recovery branch and the `cancelled` / derived-`completed` branches; D-99's cap-shortened-SLA reason line ships on `/host/requests`. **Two live defects fixed along the way:** the plan's `expires_at has passed` lapse guard would have matched NO row (both retirement paths NULL the column, so D-97 would have shipped dead), and `cancelled` was absent from `RENDERABLE` so the shipped booker cancel flow ended on a 404. **Both assigned handoffs closed:** `e2e/cancel.spec.ts` now clicks the detail-page entry instead of deep-linking (07-09's documented gap), and D-99 is implemented (07-05's). Full suite **74 files / 604 tests, exit 0** (was 73/597). Commits 940f66f + 9158a47 + 39b89e4. (Full detail in 07-12-SUMMARY.md.)"
+last_updated: "2026-07-21T14:56:07.174Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 54
-  percent: 96
+  completed_plans: 55
+  percent: 98
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 13
+Current Plan: 14
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
@@ -151,6 +151,7 @@ Progress: [██████████] 96% (54 of 56 plans)
 | Phase 07 P14 | ~45 min | 3 tasks | 8 files |
 | Phase 07 P11 | ~70m | 3 tasks | 6 files |
 | Phase 07 P12 | ~75m | 3 tasks | 9 files |
+| Phase 07 P13 | 15m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -242,6 +243,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-12: the D-97 lapse guard reads 'holds no live window' (expires_at IS NULL OR <= now()) because both retirement paths CLEAR expires_at
 - [Phase ?]: 07-12: a non-zero refund on the booking detail page always reads 'on its way' — there is no settled-refund signal on a booking row, so 'Refunded' would violate D-57
 - [Phase ?]: 07-12: no stable idempotencyKey on re-request — booking_idem_uq is partial-UNIQUE over all time and would 23505 into a 500 once the first re-request itself lapsed
+- [Phase ?]: 07-13: reminder at-most-once is the booking_reminder UNIQUE(booking_id, kind) claim, never Inngest's 24h dedupe TTL
+- [Phase ?]: 07-13: a reminder whose offset instant predates the booking is UNREACHABLE and sends nothing — a range guard alone would fire it immediately
 
 ### Pending Todos
 
@@ -287,7 +290,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T14:35:38.604Z
+Last session: 2026-07-21T14:55:53.632Z
 Stopped at: Completed 07-12-PLAN.md (Wave 4 — booking-detail completion + D-97 lapse recovery). `reRequestSameWindow` mints a NEW constraint-validated hold (never a status flip back); `/bookings/[id]` gains the D-104 cancel entry, the no-money `Cancel request` dialog, the D-97 recovery branch and the `cancelled` / derived-`completed` branches; D-99's cap-shortened-SLA reason line ships on `/host/requests`. **Two live defects fixed along the way:** the plan's `expires_at has passed` lapse guard would have matched NO row (both retirement paths NULL the column, so D-97 would have shipped dead), and `cancelled` was absent from `RENDERABLE` so the shipped booker cancel flow ended on a 404. **Both assigned handoffs closed:** `e2e/cancel.spec.ts` now clicks the detail-page entry instead of deep-linking (07-09's documented gap), and D-99 is implemented (07-05's). Full suite **74 files / 604 tests, exit 0** (was 73/597). Commits 940f66f + 9158a47 + 39b89e4. (Full detail in 07-12-SUMMARY.md.)
 Resume file: None
 
