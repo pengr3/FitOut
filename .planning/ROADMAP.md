@@ -168,7 +168,7 @@ Plans:
 - [x] 07-01-PLAN.md — Foundation: config constants, schema columns/enums/tables, migrations [BLOCKING]
 - [x] 07-02-PLAN.md — Shared display primitives: whenLabel extraction + booking status derivation/badge
 - [x] 07-03-PLAN.md — Pure money modules: refund ladder, service fee, rail predicate
-- [ ] 07-04-PLAN.md — Payout ledger correctness: retention sweep, fee-exclusion, kind scoping, debit netting
+- [x] 07-04-PLAN.md — Payout ledger correctness: retention sweep, fee-exclusion, kind scoping, debit netting
 - [ ] 07-05-PLAN.md — Expiry-cap correctness: session cap, DB clock, lead-time guards, proportional split
 - [ ] 07-06-PLAN.md — Bookings views: /bookings + /host/bookings, tabs, rows, keyset paging
 - [ ] 07-07-PLAN.md — Notification infrastructure: Inngest fan-out, notification table, onFailure audit
