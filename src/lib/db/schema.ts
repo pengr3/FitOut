@@ -24,6 +24,8 @@ import {
   boolean,
   index,
   uniqueIndex,
+  unique,
+  jsonb,
   geometry,
 } from "drizzle-orm/pg-core";
 
@@ -149,6 +151,11 @@ export const spaceType = pgEnum("space_type", [
   "multi_purpose_event",
 ]);
 
+// D-67 host-selected cancellation tier. A brand-new CREATE TYPE — the 55P04 two-migration split
+// (0010/0012) applies ONLY to ALTER TYPE ... ADD VALUE on an EXISTING type, so this type and its first
+// use may share one migration transaction.
+export const cancellationPolicy = pgEnum("cancellation_policy", ["flexible", "standard", "strict"]);
+
 export const listing = pgTable(
   "listing",
   {
@@ -178,6 +185,12 @@ export const listing = pgTable(
     dayRateCents: integer("day_rate_cents"), // D-03
     currency: text("currency").default("php").notNull(), // D-46 single-region PHP; column future-proofs multi-region (0008 reconciles + backfills 'usd'→'php')
     bookingMode: bookingMode("booking_mode").default("instant").notNull(), // D-04 stored; D-62 demand-first default flip (was "request"), live-DB default set in drizzle/0011
+    // D-77 host-chosen cancellation tier. NO DEFAULT — the wizard requires an explicit choice before
+    // publishing (deliberately breaks the D-62 precedent of defaulting to the most booker-friendly option).
+    // Nullable so existing DRAFT listings backfill cleanly; the PUBLISH gate enforces non-null, mirroring
+    // how bookability is gated rather than creation. Editable while hosting; a retier NEVER rewrites an
+    // in-flight booking (booking.cancellationPolicy is the creation-time snapshot, D-67).
+    cancellationPolicy: cancellationPolicy("cancellation_policy"),
     status: listingStatus("status").default("draft").notNull(), // D-02/LIST-05
     publishedAt: timestamp("published_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // soft-delete (Claude's discretion)
@@ -276,10 +289,18 @@ export const payoutLedgerState = pgEnum("payout_ledger_state", [
   "failed",
 ]);
 
+// D-71 ledger row kind. 'payout' = the existing credit transfer; 'host_cancel_fee' = a SIGNED DEBIT
+// (negative net_cents) netted against the host's next payout. EVERY pre-existing ledger query must be
+// scoped `AND kind = 'payout'` or a debit row trips the payout-reconcile stuck-`held` alert. Declared
+// before the table it backs (const TDZ), mirroring the payoutLedgerState idiom above.
+export const ledgerKind = pgEnum("ledger_kind", ["payout", "host_cancel_fee"]);
+
 // One row per booking payout (D-51/D-59, RESEARCH Pattern 3). The Plan-05 T+24h sweep INSERTs this row
-// with `ON CONFLICT (booking_id) DO NOTHING` as the at-most-once transfer LOCK (same philosophy as
-// booking_idem_uq, line ~360) — booking_id's UNIQUE is the DB-enforced gate so a booking is paid out at
-// most once. The Plan-04 refund webhook and the HOST-03 page (Plan 06) read/update it. The applied
+// with `ON CONFLICT (booking_id, kind) DO NOTHING` as the at-most-once transfer LOCK (same philosophy as
+// booking_idem_uq, line ~360) — the (booking_id, kind) UNIQUE is the DB-enforced gate so a booking is paid
+// out at most once. Phase 7 (D-71) WIDENED that gate from UNIQUE(booking_id) to UNIQUE(booking_id, kind)
+// so a booking can ALSO carry one `host_cancel_fee` debit row; the payout gate itself is unchanged because
+// every payout row is kind='payout'. The Plan-04 refund webhook and the HOST-03 page (Plan 06) read/update it. The applied
 // commission (rate + amount) is FROZEN here (D-51) so a later rate change never rewrites a past payout.
 // All money is integer centavos (Pitfall 5). Hand-authored (not a Better Auth table) — preserve on any
 // auth regen; FKs are onDelete:"restrict" (a financial record must never cascade-delete).
@@ -289,7 +310,8 @@ export const hostPayoutLedger = pgTable(
     id: text("id").primaryKey(),
     bookingId: text("booking_id")
       .notNull()
-      .unique() // the at-most-once payout gate (DB-enforced idempotency)
+      // D-71: the at-most-once gate is now COMPOSITE (booking_id, kind) — see the table-level unique below.
+      // A booking can hold at most ONE payout row AND at most ONE host_cancel_fee row.
       .references(() => booking.id, { onDelete: "restrict" }),
     hostId: text("host_id")
       .notNull()
@@ -301,6 +323,11 @@ export const hostPayoutLedger = pgTable(
     netCents: integer("net_cents").notNull(), // gross − commission (D-52)
     currency: text("currency").default("php").notNull(),
     state: payoutLedgerState("state").default("held").notNull(),
+    // D-71 row kind. Defaults to 'payout' so every pre-Phase-7 row backfills by construction and the
+    // widened composite unique is satisfied without a data migration.
+    kind: ledgerKind("kind").default("payout").notNull(),
+    // D-71: how much of a DEBIT has been netted so far. A debit is only `paid` when recovered_cents == -net_cents.
+    recoveredCents: integer("recovered_cents").default(0).notNull(),
     transferId: text("transfer_id"), // PayMongo batch/transfer id (set when the transfer fires)
     paidAt: timestamp("paid_at", { withTimezone: true }), // when processing → paid
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -309,7 +336,146 @@ export const hostPayoutLedger = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (t) => [index("host_payout_ledger_host_idx").on(t.hostId)],
+  (t) => [
+    index("host_payout_ledger_host_idx").on(t.hostId),
+    // D-71 the at-most-once gate, WIDENED from UNIQUE(booking_id). Installed on the live DB by the
+    // hand-authored drizzle/0014 constraint swap (Postgres has no ALTER CONSTRAINT for this).
+    unique("host_payout_ledger_booking_id_kind_unique").on(t.bookingId, t.kind),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Phase-7 notification model (D-86/D-91/D-92). One `notification` row per in-app notification, written
+// by the same Inngest function that sends the email so the two channels cannot drift (D-91).
+// ---------------------------------------------------------------------------
+
+// D-86 notification kinds. One value per lifecycle event that reaches a human; the NotificationPayload
+// union below is keyed on this same discriminant, so adding a value here without handling it in the
+// dropdown renderer is a COMPILE error, not a blank row. Declared before the table it backs (const TDZ).
+export const notificationType = pgEnum("notification_type", [
+  "booking_confirmed",
+  "request_received",
+  "request_approved",
+  "request_declined",
+  "new_request_to_host",
+  "booking_cancelled_by_booker",
+  "booking_cancelled_by_host",
+  "refund_issued",
+  "reminder_pre_expiry",
+  "reminder_pre_session",
+  "reminder_pre_sla",
+]);
+
+// D-86 durable notification payload. STORE DISPLAY STRINGS, NEVER IDS TO JOIN AT READ TIME: a notification
+// saying "Your booking at Court A was cancelled" must not silently re-render if the listing is later
+// retitled — D-86 explicitly wants history that survives the underlying booking changing state. It also
+// makes the dropdown a single indexed table scan with no joins.
+//
+// PRIVACY (T-07-04): display strings ONLY — no email addresses, no payment ids, no bank/account details.
+// Every time label is composed venue-local by the caller (the `composeWhenLabel` idiom); these payloads
+// never carry a raw Date.
+export type NotificationPayload =
+  | { type: "booking_confirmed"; listingTitle: string; whenLabel: string; totalLabel: string; href: string }
+  | { type: "request_received"; listingTitle: string; whenLabel: string; totalLabel: string; href: string }
+  | {
+      type: "request_approved";
+      listingTitle: string;
+      whenLabel: string;
+      totalLabel: string;
+      payByLabel: string;
+      href: string;
+    }
+  | { type: "request_declined"; listingTitle: string; whenLabel: string; reasonLabel?: string; href: string }
+  | {
+      type: "new_request_to_host";
+      listingTitle: string;
+      whenLabel: string;
+      bookerLabel: string;
+      respondByLabel: string;
+      href: string;
+    }
+  | {
+      type: "booking_cancelled_by_booker";
+      listingTitle: string;
+      whenLabel: string;
+      bookerLabel: string;
+      href: string;
+    }
+  | {
+      type: "booking_cancelled_by_host";
+      listingTitle: string;
+      whenLabel: string;
+      refundLabel: string;
+      href: string;
+    }
+  | { type: "refund_issued"; listingTitle: string; whenLabel: string; refundLabel: string; href: string }
+  | {
+      type: "reminder_pre_expiry";
+      listingTitle: string;
+      whenLabel: string;
+      totalLabel: string;
+      payByLabel: string;
+      href: string;
+    }
+  | { type: "reminder_pre_session"; listingTitle: string; whenLabel: string; href: string }
+  | {
+      type: "reminder_pre_sla";
+      listingTitle: string;
+      whenLabel: string;
+      bookerLabel: string;
+      respondByLabel: string;
+      href: string;
+    };
+
+export const notification = pgTable(
+  "notification",
+  {
+    id: text("id").primaryKey(),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: notificationType("type").notNull(),
+    // Denormalised for the dropdown's deep link + for cheap filtering. Nullable: not every notification
+    // is booking-scoped.
+    bookingId: text("booking_id").references(() => booking.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").$type<NotificationPayload>().notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Unread count — the hot query, on EVERY page render. PARTIAL index: only unread rows are indexed,
+    // so it stays tiny forever while read history grows without bound. Do NOT add a denormalised counter
+    // on `user` — that is a second writer and a drift class for an already-indexed query.
+    index("notification_unread_idx").on(t.recipientId).where(sql`read_at IS NULL`),
+    // Dropdown list — newest first, scoped to the recipient.
+    index("notification_recipient_created_idx").on(t.recipientId, t.createdAt.desc()),
+  ],
+);
+
+// D-85 the four reminder kinds. Declared before the table it backs (const TDZ).
+export const reminderKind = pgEnum("reminder_kind", [
+  "pre_expiry",
+  "pre_session_booker",
+  "pre_session_host",
+  "pre_sla_host",
+]);
+
+// D-87 at-most-once reminder claim. The UNIQUE(booking_id, kind) IS the lock — the same DB-level
+// guarantee host_payout_ledger's UNIQUE(booking_id) provides for payouts. Inngest's own idempotency is
+// a 24-HOUR key that is documented as bypassed by debouncing, batching and function pausing; it is a
+// structural mismatch for "exactly one reminder, ever" and must NOT be relied on. The reminder cron
+// INSERTs ... ON CONFLICT DO NOTHING RETURNING id and sends ONLY on a non-empty return.
+export const bookingReminder = pgTable(
+  "booking_reminder",
+  {
+    id: text("id").primaryKey(),
+    bookingId: text("booking_id")
+      .notNull()
+      .references(() => booking.id, { onDelete: "cascade" }),
+    kind: reminderKind("kind").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("booking_reminder_uq").on(t.bookingId, t.kind)],
 );
 
 // ---------------------------------------------------------------------------
@@ -337,6 +503,10 @@ export const bookingStatus = pgEnum("booking_status", [
   "requested",
   "approved",
 ]);
+
+// D-70/D-79 who initiated a cancellation. Display/audit metadata only — the non-repudiable record is the
+// `recordAudit` row written by the cancel actions. Declared before `booking` (const TDZ).
+export const cancelledBy = pgEnum("cancelled_by", ["booker", "host", "system"]);
 
 // Recurring weekly operating hours (AVAIL-01, D-25). Multiple windows/day = multiple rows with the
 // same (listingId, dayOfWeek). Hours are listing-wide (all units share). Times are venue-local wall
@@ -428,10 +598,38 @@ export const booking = pgTable(
     // (Plan 04 refund mechanism / D-58 auto-refund backstop) can reference the payment. Nullable
     // ADD COLUMN (backfill-free — no existing booking rows, A7).
     paymentId: text("payment_id"),
+    // ---- Phase-7 cancellation + fee split (D-67/D-69/D-74/D-79). ALL nullable / defaulted, so this is a
+    // backfill-free ADD COLUMN for every column except the two the 0014 hand-edit backfills.
+    // STRUCTURALLY INERT for occupancy: none of these columns appears in the booking_no_overlap GiST EXCLUDE
+    // predicate (listing_id, unit, starts_at, ends_at, status), the in-tx stale-hold sweep, or the cron expiry
+    // sweep. D-79 keeps the SINGLE `cancelled` status precisely so the EXCLUDE predicate never changes: that
+    // predicate is the COMPLEMENT (`status NOT IN ('cancelled','declined','completed')`), so any NEW status
+    // value would default to OCCUPYING and permanently block the slot of every partially-refunded cancellation.
+    //
+    // D-67 creation-time cancellation-tier SNAPSHOT, mirroring bookingMode above. A host retiering the
+    // listing NEVER rewrites the refund terms of an in-flight booking.
+    cancellationPolicy: cancellationPolicy("cancellation_policy"),
+    // Finding 2 — the PAYOUT basis. quoted_total_cents stays the CHARGE basis (all-in, what PayMongo charged
+    // and what a refund references). Paying out 90% of quoted_total would hand the host 90% of the platform's
+    // own service fee, inverting the entire purpose of D-74.
+    spacePriceCents: integer("space_price_cents"),
+    // D-74 platform revenue, NON-REFUNDABLE. quoted_total_cents = space_price_cents + service_fee_cents.
+    serviceFeeCents: integer("service_fee_cents").default(0),
+    // D-79 what actually went back to the booker (space refund only — the service fee is never refunded).
+    refundCents: integer("refund_cents"),
+    // D-69 the RETAINED space price. Becomes the payout gross: host receives retained − 10% commission.
+    retainedSpaceCents: integer("retained_space_cents"),
+    cancelledBy: cancelledBy("cancelled_by"),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    // D-93: distinguishes "declined because too close to start" from "declined because the SLA lapsed", read
+    // by the email/notification composer so both sides get an honest message.
+    declineReason: text("decline_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("booking_listing_idx").on(t.listingId),
+    // MANAGE-01 /bookings read path: filter by booker, newest session first.
+    index("booking_booker_idx").on(t.bookerId, t.startsAt.desc()),
     // Partial-unique idempotency index (D-42 / RESEARCH Pattern 6): at most one booking per client token.
     // Drizzle CAN express a partial unique index via .where() (same idiom as listing_photo_position_uq);
     // scoping to non-NULL keys lets the many holds placed without a token coexist.
