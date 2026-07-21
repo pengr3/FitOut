@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 14
+current_plan: 16
 status: executing
-stopped_at: "Completed 07-12-PLAN.md (Wave 4 — booking-detail completion + D-97 lapse recovery). `reRequestSameWindow` mints a NEW constraint-validated hold (never a status flip back); `/bookings/[id]` gains the D-104 cancel entry, the no-money `Cancel request` dialog, the D-97 recovery branch and the `cancelled` / derived-`completed` branches; D-99's cap-shortened-SLA reason line ships on `/host/requests`. **Two live defects fixed along the way:** the plan's `expires_at has passed` lapse guard would have matched NO row (both retirement paths NULL the column, so D-97 would have shipped dead), and `cancelled` was absent from `RENDERABLE` so the shipped booker cancel flow ended on a 404. **Both assigned handoffs closed:** `e2e/cancel.spec.ts` now clicks the detail-page entry instead of deep-linking (07-09's documented gap), and D-99 is implemented (07-05's). Full suite **74 files / 604 tests, exit 0** (was 73/597). Commits 940f66f + 9158a47 + 39b89e4. (Full detail in 07-12-SUMMARY.md.)"
-last_updated: "2026-07-21T14:56:07.174Z"
+stopped_at: "Completed 07-15-PLAN.md (Wave 4 — the cancellation tier's two HUMAN ends, closing BOOK-07). A host must now make an EXPLICIT tier choice before publishing: three equal-weight cards with NO pre-selection in the wizard (D-77), the requirement joining the SHIPPED publish checklist, and the real gate in `publishSchema` re-read from the PERSISTED row so the client checklist is never it (T-07-88). A booker now sees that tier before paying: one `CancellationPolicyDisclosure` Server Component (native `<details>`), generic on the listing page and CONCRETE venue-local dates at checkout (D-81), sourced from the BOOKING's tier snapshot — the same column `quoteRefund` reads. **All disclosure copy is DERIVED from `LADDER` and mutation-proven in both directions:** move a rung and the copy follows automatically; hand-type a figure and the test goes red. A NULL tier renders NOTHING rather than `tierOrDefault`'s Flexible — that fallback is a legacy engine safety net, not a policy any host chose. Two shipped fixtures that called themselves publish-eligible no longer were, and were correctly updated. Full suite **76 files / 628 tests, exit 0** (was 75/616). Commits 53ce7ac + 14dd0f5 + 05d719d + 926517c. (Full detail in 07-15-SUMMARY.md.)"
+last_updated: "2026-07-21T15:20:00.000Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 56
-  completed_plans: 55
+  total_plans: 57
+  completed_plans: 56
   percent: 98
 ---
 
@@ -27,14 +27,22 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 14
+Current Plan: 16
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [██████████] 96% (54 of 56 plans)
+Progress: [██████████] 98% (56 of 57 plans)
 
-**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-12 and 07-14**. Next unexecuted: **07-13**.
+**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-15**. Next unexecuted: **07-16** (the gating QRPh probe — independent of everything else in the phase).
+
+**Wave 4 complete (07-15 landed).** Full suite: **76 files / 628 tests, exit 0**. BOOK-07 is closed: a host must now explicitly choose a cancellation tier before publishing, and a booker sees that tier's rungs — as concrete venue-local dates for their own booking — before they pay.
+
+✅ **Disclosure equals enforcement, and it is mutation-proven (07-15).** All booker-facing policy copy is DERIVED from `LADDER`, the same constant `quoteRefund` evaluates. Verified in both directions: moving a rung (24h→36h) left the derived assertions green because the copy followed automatically, and hand-typing one interpolated figure turned the derivation test red immediately. `tests/booking/cancellation-policy.test.ts` case (10) asserts, for every tier at every boundary the disclosure renders, that standing exactly ON it awards the promised rung and one millisecond later awards the next one down — checked against `quoteRefund` itself, not a restatement.
+
+⚠️ **A NULL cancellation tier means "show nothing", NOT `tierOrDefault`'s Flexible (07-15).** `tierOrDefault` is an internal safety net so the refund ENGINE never faces an unpriceable legacy row; it is not a policy any host chose, and surfacing it would put a promise in the host's mouth they never made. Any future booker-facing policy surface must make the same call. Checkout in particular reads the **booking's** tier snapshot, never `listing.cancellationPolicy` — the two can legitimately differ and the booking's is the one that gets paid.
+
+⚠️ **New publish requirements must land in TWO places (07-15).** A wizard checklist row is a courtesy; the gate is `publishSchema` + a re-read of the **persisted row** inside `publishListing`. Adding only the checklist row leaves the requirement bypassable by any stale or crafted client. Note this also means any test fixture describing itself as "publish-eligible" must be updated whenever the gate widens — two such fixtures went red on this plan and were correct to.
 
 **Wave 1 complete.** 07-01 (config + schema + migrations) and 07-02 (when-label + booking-status derivation) both have SUMMARY.md on disk; `drizzle/0013` + `0014` are applied to the live DB and are idempotent.
 
@@ -290,7 +298,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T14:55:53.632Z
+Last session: 2026-07-21T15:20:00.000Z
+Stopped at: Completed 07-15-PLAN.md (Wave 4 — the cancellation tier's two HUMAN ends, closing BOOK-07). A host must now make an EXPLICIT tier choice before publishing: three equal-weight cards with NO pre-selection in the wizard (D-77), the requirement joining the SHIPPED publish checklist, and the real gate in `publishSchema` re-read from the PERSISTED row so the client checklist is never it (T-07-88). A booker now sees that tier before paying: one `CancellationPolicyDisclosure` Server Component (native `<details>`), generic on the listing page and CONCRETE venue-local dates at checkout (D-81), sourced from the BOOKING's tier snapshot — the same column `quoteRefund` reads. **All disclosure copy is DERIVED from `LADDER` and mutation-proven in both directions:** move a rung and the copy follows automatically; hand-type a figure and the test goes red. A NULL tier renders NOTHING rather than `tierOrDefault`'s Flexible — that fallback is a legacy engine safety net, not a policy any host chose. Two shipped fixtures that called themselves publish-eligible no longer were, and were correctly updated. Full suite **76 files / 628 tests, exit 0** (was 75/616). Commits 53ce7ac + 14dd0f5 + 05d719d + 926517c. (Full detail in 07-15-SUMMARY.md.)
+Resume file: None
+
+Prior session: 2026-07-21T14:55:53.632Z
 Stopped at: Completed 07-12-PLAN.md (Wave 4 — booking-detail completion + D-97 lapse recovery). `reRequestSameWindow` mints a NEW constraint-validated hold (never a status flip back); `/bookings/[id]` gains the D-104 cancel entry, the no-money `Cancel request` dialog, the D-97 recovery branch and the `cancelled` / derived-`completed` branches; D-99's cap-shortened-SLA reason line ships on `/host/requests`. **Two live defects fixed along the way:** the plan's `expires_at has passed` lapse guard would have matched NO row (both retirement paths NULL the column, so D-97 would have shipped dead), and `cancelled` was absent from `RENDERABLE` so the shipped booker cancel flow ended on a 404. **Both assigned handoffs closed:** `e2e/cancel.spec.ts` now clicks the detail-page entry instead of deep-linking (07-09's documented gap), and D-99 is implemented (07-05's). Full suite **74 files / 604 tests, exit 0** (was 73/597). Commits 940f66f + 9158a47 + 39b89e4. (Full detail in 07-12-SUMMARY.md.)
 Resume file: None
 
