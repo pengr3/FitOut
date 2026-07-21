@@ -16,6 +16,11 @@ import { spaceTypeValues, activityTagValues, amenityValues } from "@/lib/listing
 
 const bookingModeValues = ["instant", "request"] as const;
 
+/** The D-67 named cancellation tiers. Mirrors the `cancellation_policy` pgEnum and the D-68 `LADDER`
+ *  keys in src/lib/payments/cancellation.ts — the tier a host picks here is snapshotted onto every
+ *  booking at creation (D-67) and is what `quoteRefund` later applies. */
+const cancellationPolicyValues = ["flexible", "standard", "strict"] as const;
+
 /** Draft autosave (D-01) — everything optional; the wizard saves partial progress between steps. */
 export const draftSchema = z.object({
   title: z.string().max(120).optional(),
@@ -34,6 +39,9 @@ export const draftSchema = z.object({
   hourlyRateCents: z.number().int().optional(),
   dayRateCents: z.number().int().optional(),
   bookingMode: z.enum(bookingModeValues).optional(),
+  // D-77: OPTIONAL at draft time, on purpose. The tier gates PUBLISHING, not creation (see publishSchema),
+  // so every listing drafted before Phase 7 — which all carry NULL — stays editable and saveable.
+  cancellationPolicy: z.enum(cancellationPolicyValues).optional(),
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),
@@ -62,10 +70,23 @@ export const publishSchema = z.object({
   hourlyRateCents: z.number().int().positive(),
   dayRateCents: z.number().int().positive(),
   bookingMode: z.enum(bookingModeValues),
+  // D-77: REQUIRED to publish, and deliberately with NO default. This breaks the D-62 precedent of
+  // defaulting to the most booker-friendly option, because the tier governs real money: it decides how
+  // much of a booker's payment comes back, and a host must not set that by accident.
+  //
+  // The gate is on PUBLISH, not on creation — mirroring how bookability (not listing creation) is gated
+  // on payout-readiness. An existing NULL-tier draft is therefore never bricked; it simply cannot go live
+  // until the host chooses. And because this schema runs server-side inside publishListing against the
+  // PERSISTED row, a stale or tampered client that skips the wizard step cannot bypass it.
+  cancellationPolicy: z.enum(cancellationPolicyValues),
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),
 });
+
+/** The D-67 tier union, exported so the wizard cards and the publish gate share ONE source of truth. */
+export type CancellationPolicyValue = (typeof cancellationPolicyValues)[number];
+export const CANCELLATION_POLICY_VALUES = cancellationPolicyValues;
 
 export type DraftListingInput = z.infer<typeof draftSchema>;
 export type PublishListingInput = z.infer<typeof publishSchema>;

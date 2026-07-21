@@ -6,7 +6,7 @@
 // itself: it calls publishListing, which re-runs the full D-02 gate SERVER-SIDE (all core fields +
 // both integer-cents rates + ≥3 photos + verified email). status is never set from the client.
 //
-// Steps (D-01): type → details → location → photos → pricing → booking mode → review.
+// Steps (D-01): type → details → location → photos → pricing → booking mode → cancellation → review.
 // The PHOTOS step is a documented seam — the signed direct-to-Cloudinary uploader grid lands in
 // Plan 04 (Wave 3). Until then the review checklist's "3+ photos" row stays unmet (photoCount comes
 // from the server), so publish is correctly blocked on photos this phase.
@@ -22,7 +22,11 @@ import {
   MinusIcon,
 } from "lucide-react";
 
-import { draftSchema, type DraftListingInput } from "@/lib/validation/listing";
+import {
+  draftSchema,
+  type CancellationPolicyValue,
+  type DraftListingInput,
+} from "@/lib/validation/listing";
 import {
   SPACE_TYPES,
   ACTIVITY_TAGS,
@@ -97,6 +101,8 @@ export type WizardListing = {
   dayRateCents: number | null;
   currency: string;
   bookingMode: "instant" | "request";
+  /** D-77 — NULL until the host makes an explicit choice. There is deliberately no default. */
+  cancellationPolicy: CancellationPolicyValue | null;
   showExactAddress: boolean;
   status: "draft" | "published" | "unlisted";
   amenities: string[];
@@ -112,8 +118,42 @@ const STEPS = [
   { key: "photos", title: "Add photos of your space" },
   { key: "pricing", title: "Set your rates" },
   { key: "booking", title: "How do you want to accept bookings?" },
+  // Title phrased as a question to match the other steps' voice ("How do you want to accept bookings?"),
+  // and deliberately NOT reusing the publish checklist's row label verbatim. Keeping that label a unique
+  // string in this file means a grep for the unmet-requirement row finds the ROW, not this heading — the
+  // same tripwire discipline 07-04/07-09 use for their forbidden-name greps.
+  { key: "cancellation", title: "What happens if a guest cancels?" },
   { key: "review", title: "Review and publish" },
 ] as const;
+
+/** Index of the D-77 tier step, so the publish-checklist row links back to it without a magic number. */
+const CANCELLATION_STEP = STEPS.findIndex((s) => s.key === "cancellation");
+
+/**
+ * The three D-67 tiers, host-facing (07-UI-SPEC § 6). Plain language, no dates — there is no booking yet;
+ * the booker-facing surfaces derive their copy from the D-68 LADDER instead (see
+ * src/components/booking/cancellation-policy-disclosure.tsx).
+ *
+ * ORDER IS NOT A RANKING. The three render at equal weight and nothing marks one as recommended — see the
+ * no-default rationale on the step below.
+ */
+const CANCELLATION_TIERS: { value: CancellationPolicyValue; title: string; body: string }[] = [
+  {
+    value: "flexible",
+    title: "Flexible",
+    body: "Guests get a full refund if they cancel at least 12 hours before the session. Best for spaces that are easy to rebook.",
+  },
+  {
+    value: "standard",
+    title: "Standard",
+    body: "Full refund up to 24 hours before; half back up to 6 hours before. A middle ground most hosts pick.",
+  },
+  {
+    value: "strict",
+    title: "Strict",
+    body: "Full refund up to 48 hours before; half back up to 24 hours before. Best for spaces you turn down other bookings for.",
+  },
+];
 
 /** Minimal currency-symbol map (single-region launch — the column future-proofs multi-currency). */
 function currencySymbol(code: string): string {
@@ -146,6 +186,7 @@ function toPayload(v: DraftListingInput): DraftListingInput {
     hourlyRateCents: num(v.hourlyRateCents),
     dayRateCents: num(v.dayRateCents),
     bookingMode: v.bookingMode,
+    cancellationPolicy: v.cancellationPolicy,
     showExactAddress: v.showExactAddress,
     amenities: v.amenities,
     activityTags: v.activityTags,
@@ -189,6 +230,9 @@ export function ListingWizard({
       hourlyRateCents: listing.hourlyRateCents ?? undefined,
       dayRateCents: listing.dayRateCents ?? undefined,
       bookingMode: listing.bookingMode,
+      // D-77 — `undefined`, never a fallback tier. An unchosen policy must reach the RadioGroup as
+      // unchosen so no card renders selected; seeding a default here would silently make the choice.
+      cancellationPolicy: listing.cancellationPolicy ?? undefined,
       showExactAddress: listing.showExactAddress,
       amenities: listing.amenities as AmenityValue[],
       activityTags: listing.activityTags as ActivityTagValue[],
@@ -292,6 +336,15 @@ export function ListingWizard({
     { label: "Hourly rate", done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0), step: 4 },
     { label: "Day rate", done: Boolean(values.dayRateCents && values.dayRateCents > 0), step: 4 },
     { label: "3+ photos", done: photoCount >= 3, step: 3 },
+    // D-77 joins the EXISTING checklist rather than inventing a new blocked affordance — the shipped
+    // "Almost there — finish these to publish:" panel already renders unmet rows with a Fix link, and
+    // `publishEligible = checklist.every(c => c.done)` picks this up with no other change. The real gate
+    // is publishListing's server-side publishSchema; this row only tells the host what's missing.
+    {
+      label: "Choose a cancellation policy",
+      done: Boolean(values.cancellationPolicy),
+      step: CANCELLATION_STEP,
+    },
     {
       label: "Verified email",
       done: emailVerified,
@@ -714,8 +767,59 @@ export function ListingWizard({
             />
           )}
 
-          {/* --- Step 6: Review --------------------------------------------------------------- */}
+          {/* --- Step 6: Cancellation policy (D-77) ------------------------------------------- */}
+          {/*
+            NO CARD IS PRE-SELECTED, DELIBERATELY. This breaks the D-62 precedent of defaulting to the
+            most booker-friendly option, because the cancellation tier is not a setting that should be
+            set by accident — it governs real money. The tier a host picks here is snapshotted onto every
+            booking at creation and is exactly what the refund ladder later applies, so an unchosen tier
+            must stay unchosen until a human chooses it.
+
+            All three cards render at equal weight; the selection marker is neutral `border-primary` and
+            NEVER coral. Coral is reserved for booker CTAs (07-UI-SPEC § Color) and using it here would
+            advertise a recommendation the product deliberately doesn't make.
+          */}
           {step === 6 && (
+            <FormField
+              control={form.control}
+              name="cancellationPolicy"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <RadioGroup
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      className="gap-3"
+                    >
+                      {CANCELLATION_TIERS.map((opt) => (
+                        <label
+                          key={opt.value}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                            field.value === opt.value && "border-primary",
+                          )}
+                        >
+                          <RadioGroupItem value={opt.value} className="mt-1" />
+                          <span className="space-y-0.5">
+                            <span className="block text-sm font-medium">{opt.title}</span>
+                            <span className="block text-sm text-muted-foreground">{opt.body}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormDescription>
+                    Pick the policy that fits your space. You can change it later — it applies to new
+                    bookings only; bookings already made keep the policy they were booked under.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* --- Step 7: Review --------------------------------------------------------------- */}
+          {step === 7 && (
             <div className="space-y-6">
               {publishEligible ? (
                 <div className="rounded-lg border bg-muted/40 p-4 text-sm">

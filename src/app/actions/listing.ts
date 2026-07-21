@@ -16,6 +16,10 @@
 //   - PUBLISH GATE (D-02): publishListing enforces, server-side, publishSchema.parse(row) AND ≥3
 //     photos AND host.emailVerified === true. This is where the Phase-1 soft email-verification gate
 //     (01-CONTEXT D-07) is enforced. This plan is payment-agnostic — payout/bookability is Plan 06.
+//   - CANCELLATION TIER (T-07-88 / D-77): publishSchema now REQUIRES cancellationPolicy, re-read from the
+//     PERSISTED row. The wizard's live checklist is a courtesy, never the gate — a client that skips the
+//     step, or a stale one that predates it, is rejected here. Gating PUBLISH (not creation) mirrors the
+//     bookability gate and is what keeps pre-Phase-7 NULL-tier drafts saveable rather than bricked.
 //   - Soft-deleted rows (deletedAt IS NOT NULL) are excluded from normal reads/writes.
 
 import { randomUUID } from "node:crypto";
@@ -133,6 +137,10 @@ export async function saveListingStep(
     hourlyRateCents: d.hourlyRateCents,
     dayRateCents: d.dayRateCents,
     bookingMode: d.bookingMode,
+    // D-67: the listing's CURRENT tier. Editing it is forward-only by construction — every booking
+    // snapshots the tier at creation (booking.cancellation_policy), so a retier here can never rewrite
+    // the refund terms of a booking already made. Nothing on this path touches a booking row.
+    cancellationPolicy: d.cancellationPolicy,
     showExactAddress: d.showExactAddress,
     updatedAt: new Date(),
   };
@@ -224,12 +232,23 @@ export async function publishListing(listingId: string): Promise<ListingResult> 
     hourlyRateCents: row.hourlyRateCents ?? undefined,
     dayRateCents: row.dayRateCents ?? undefined,
     bookingMode: row.bookingMode,
+    // D-77 — read from the PERSISTED row, never from client state. The wizard's live checklist is a
+    // courtesy; THIS is the gate. A stale or crafted client that never visited the tier step lands here
+    // with null and is rejected.
+    cancellationPolicy: row.cancellationPolicy ?? undefined,
     showExactAddress: row.showExactAddress,
   });
 
   const fieldErrors: Record<string, string[]> = {};
   if (!parsed.success) {
     Object.assign(fieldErrors, parsed.error.flatten().fieldErrors);
+  }
+  // D-77: replace Zod's generic enum complaint with copy that names the choice and routes the host back
+  // to the step. A host who never made a choice must be told what to choose, not that input was invalid.
+  if (!row.cancellationPolicy) {
+    fieldErrors.cancellationPolicy = [
+      "Choose a cancellation policy — Flexible, Standard or Strict — before publishing.",
+    ];
   }
   const hasMinPhotos = photoCount >= MIN_PHOTOS; // >= 3 photos (D-02/D-04)
   if (!hasMinPhotos) {

@@ -71,6 +71,9 @@ export default async function EditListingPage({
     dayRateCents: row.dayRateCents,
     currency: row.currency,
     bookingMode: row.bookingMode,
+    // D-77 — passed through as-is, INCLUDING null. A pre-Phase-7 listing has no tier and must reach the
+    // wizard unchosen so the step renders with nothing selected and the publish checklist reads unmet.
+    cancellationPolicy: row.cancellationPolicy,
     showExactAddress: row.showExactAddress,
     status: row.status,
     amenities: amenities.map((a) => a.amenity),
