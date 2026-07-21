@@ -29,3 +29,10 @@ about whether the build phase should be exempted or whether CI should simply sup
 
 **Impact if left:** every plan that carries a `npm run build` gate will hit this and may either
 mis-report the build as broken or paper over it. Worth a one-line fix in a Wave-3+ plan.
+
+**Reconfirmed by 07-07** (2026-07-21). Hit in exactly the documented order — the PayMongo wallet guard
+first, then the Inngest signing-key guard — on a tree whose only changes were the notification layer.
+Same two-variable workaround, no source changed; `npm run build` then completed clean. This is now a
+twice-observed, fully-characterised environment issue rather than a suspicion. Note that 07-07 ALSO adds
+a function to the `/api/inngest` `functions: []` array, so the Inngest guard is now on the critical path
+for one more plan's build gate — it will keep recurring until it is fixed.

@@ -167,7 +167,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | HOST-02 | Phase 7 | Complete (07-06 shipped `/host/bookings` — Upcoming/Past tabs, desktop table + mobile cards, per-booking payout state via `PayoutStateBadge` reused verbatim, keyset paging. Ownership is `listing.host_id` inside the query WHERE, mutation-verified in `tests/security/bookings-owner-scope.test.ts`) |
 | MANAGE-01 | Phase 7 | Complete (07-06 shipped `/bookings` — Upcoming/Past tabs partitioned on the DB clock, venue-local labels, keyset `Load more`, and the single D-104 inline `Pay now`. Rows are scoped by `booking.booker_id` in the query WHERE, mutation-verified) |
 | MANAGE-02 | Phase 7 | Complete (07-06 made the lifecycle visible on BOTH surfaces from 07-02's single derivation. D-102 `completed` is derived in SQL and proven to write nothing — `tests/booking/views.test.ts` reads the stored row back and asserts it still says `confirmed`. Booking-detail states are extended further in 07-12) |
-| MANAGE-03 | Phase 7 | Pending |
+| MANAGE-03 | Phase 7 | In progress (07-07 shipped the LAYER: the `fitout/notify` Inngest fan-out writes the durable notification row in step 1 and sends the email in step 2, so an email retry cannot duplicate the row; `emitNotify` is proven not to throw when the transport rejects — the "never blocks the booking transaction" clause — and `onFailure` writes a `needs_attention` audit entry, closing WR-04. **Deliberately not yet wired**: no call site emits, so the five existing sends are still fire-and-forget. Needs 07-10 (migrate call sites), 07-13 (reminders), 07-14 (bell + dropdown) before this is observably satisfied) |
 | GROUP-01 | Phase 8 | Pending |
 | GROUP-02 | Phase 8 | Pending |
 | GROUP-03 | Phase 8 | Pending |

@@ -171,7 +171,7 @@ Plans:
 - [x] 07-04-PLAN.md — Payout ledger correctness: retention sweep, fee-exclusion, kind scoping, debit netting
 - [x] 07-05-PLAN.md — Expiry-cap correctness: session cap, DB clock, lead-time guards, proportional split
 - [x] 07-06-PLAN.md — Bookings views: /bookings + /host/bookings, tabs, rows, keyset paging
-- [ ] 07-07-PLAN.md — Notification infrastructure: Inngest fan-out, notification table, onFailure audit
+- [x] 07-07-PLAN.md — Notification infrastructure: Inngest fan-out, notification table, onFailure audit
 - [ ] 07-08-PLAN.md — Service fee end-to-end: frozen triple, tier snapshot, checkout disclosure, all-in browse
 - [ ] 07-09-PLAN.md — Booker cancellation: refund preview route + owner-gated cancel action (SC#2)
 - [ ] 07-10-PLAN.md — Notification emission migration: five sends off fire-and-forget
