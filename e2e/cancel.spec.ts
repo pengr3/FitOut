@@ -8,12 +8,15 @@
 // It drives the dev app against the dev Postgres (public schema), cloning e2e/search-and-book.spec.ts for
 // the seed/teardown shape and the signed-in-booker storageState idiom.
 //
-// ⚠️ NAVIGATION NOTE. The `Cancel booking` entry point ON THE BOOKING DETAIL PAGE is Plan 12's work (it owns
-// src/app/(app)/bookings/[id]/page.tsx and its must_haves name that entry explicitly). This plan is Wave 3
-// and Plan 12 is Wave 4, so the link does not exist yet. The spec therefore navigates to /bookings/[id]/cancel
-// directly. That is a real coverage gap in the ENTRY, not in the flow — everything from the review screen
-// onward is exercised exactly as a booker would. When Plan 12 lands, replace the goto below with a click on
-// the detail page's `Cancel booking` button; nothing else in this file needs to change.
+// ⚠️ NAVIGATION NOTE — RESOLVED BY PLAN 12. This spec used to deep-link to /bookings/[id]/cancel because the
+// `Cancel booking` entry point on the detail page did not exist yet (07-09 is Wave 3; the page is Plan 12's
+// file, Wave 4). That entry now exists, so the spec reaches the review screen the way a booker does: it lands
+// on the booking detail page and CLICKS the entry. The journey is therefore whole — entry included — and the
+// coverage gap 07-09 documented is closed.
+//
+// The entry is a LINK (role=link) and the review screen's confirm is a BUTTON (role=button); both are named
+// `Cancel booking`, so every locator below is role-qualified. That is not incidental — D-104 requires the
+// entry to route to the disclosure rather than act, and the role difference is what proves it still does.
 //
 // The booking is seeded directly as `confirmed` rather than paid through PayMongo: a hosted checkout cannot
 // be driven from Playwright, and the payment path already has its own coverage (tests/paymongo). The rail is
@@ -154,8 +157,15 @@ test.describe("booker cancellation — the previewed refund is the refund given 
     await page.goto(`${BASE}/bookings`);
     await expect(page.getByText(LISTING_TITLE).first()).toBeVisible();
 
-    // ── The SC#2 review screen. (See the NAVIGATION NOTE — Plan 12 adds the detail-page entry point.) ──
-    await page.goto(`${BASE}/bookings/${bookingId}/cancel`);
+    // ── The ENTRY POINT (D-104). Below the primary content on the detail page, and a LINK to the review —
+    //    never an inline action, so the itemised breakdown is always seen before money moves. ────────────
+    await page.goto(`${BASE}/bookings/${bookingId}`);
+    const cancelEntry = page.getByRole("link", { name: "Cancel booking" });
+    await expect(cancelEntry).toBeVisible();
+    await cancelEntry.click();
+    await page.waitForURL(new RegExp(`/bookings/${bookingId}/cancel$`), { timeout: 20_000 });
+
+    // ── The SC#2 review screen, reached the way a booker reaches it. ───────────────────────────────────
     await expect(page.getByRole("heading", { name: /cancel this booking\?/i })).toBeVisible();
 
     // The tier rationale explains WHICH policy and WHY this rung (D-78's "which tier applies and why").
@@ -220,6 +230,15 @@ test.describe("booker cancellation — the previewed refund is the refund given 
     await page.goto(`${BASE}/bookings/${bookingId}/cancel`);
     await page.waitForURL(new RegExp(`/bookings/${bookingId}$`), { timeout: 20_000 });
     await expect(page.getByRole("button", { name: "Cancel booking" })).toHaveCount(0);
+
+    // And the ENTRY is gone too (07-12) — a terminal booking offers no route back into the money flow, so
+    // there is no second door to the confirm the assertion above just proved is absent.
+    await expect(page.getByRole("link", { name: "Cancel booking" })).toHaveCount(0);
+
+    // The detail page now RENDERS the cancellation rather than 404ing it, with the refund as a muted sibling
+    // line beneath the badge (D-79) — and phrased "on its way", never "refunded", because the webhook is the
+    // single writer of terminal refund state (D-57).
+    await expect(page.getByText(/refund on its way/i)).toBeVisible();
 
     // The refund column is still the single value written by the one successful cancel.
     const [row] = await sql<{ refund_cents: number }[]>`

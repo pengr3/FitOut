@@ -22,7 +22,26 @@
 // DURABLE: this is a pure RSC read of persisted booking state — it needs NO client/countdown/ephemeral
 // hold state, so it survives a refresh or a later revisit unchanged. Times are timestamptz UTC, displayed
 // venue-local at the edge (SC#2); the total is the server-FROZEN quote (booking.quotedTotalCents, D-49),
-// never a client recompute. No "My Bookings" list and no cancel/manage — those are Phase 7.
+// never a client recompute.
+//
+// ── Plan 07-12 completed the page. FOUR ADDITIONS; every branch that shipped before is untouched. ────────
+//   (a) The CANCEL ENTRY POINT (D-104). On a `confirmed` booking whose session is still ahead, a neutral
+//       outline link BELOW the primary content and behind a Separator — present but not competing. It is a
+//       LINK to /bookings/[id]/cancel, never an inline action, so D-78's itemised breakdown is always seen
+//       before an irreversible money action.
+//   (b) The UNPAID-HOLD cancel on `requested` / `approved` — a plain confirm dialog with no breakdown and no
+//       money UI, because no money moved (D-63). The copy lives in CancelRequestDialog.
+//   (c) The D-97 EXPIRED-APPROVAL recovery branch: a `cancelled` row that the SYSTEM retired (rather than a
+//       party cancelling it) after an approval lapsed. Calm, plus a one-click resubmission when the slot is
+//       genuinely free.
+//   (d) The `cancelled` and derived-`completed` branches, both CALM — never an alarm colour, never --success.
+//
+// THE CLOCK. `now` is read from POSTGRES once, via `readDbNow`, and threaded into every status derivation and
+// date comparison on the page, so the badge, the completed derivation and the availability read all agree
+// with the DB and with the /bookings list's SQL partition. A bare `SELECT now()` through `db.execute` hands
+// back Postgres TEXT rather than a Date — a cast over it satisfies tsc, eslint AND `next build`, then throws
+// on `.getTime()` with the first real row; `readDbNow` is the ONE hydrating reader (the 07-06 boundary
+// contract). There is no JS clock read anywhere on this page.
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -30,7 +49,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
-import { CalendarCheckIcon, CheckCircle2Icon, HourglassIcon, XCircleIcon } from "lucide-react";
+import { CalendarCheckIcon, HourglassIcon, XCircleIcon } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -38,6 +57,8 @@ import { booking, listing } from "@/lib/db/schema";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { windowHours } from "@/lib/booking/pricing";
 import { bookingReference } from "@/lib/booking/reference";
+import { readDbNow } from "@/lib/booking/bookings-query";
+import { getAvailability } from "@/lib/availability/read-model";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
 import { APPROVAL_SLA_HOURS, APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
@@ -48,6 +69,52 @@ import { Separator } from "@/components/ui/separator";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
 import { RequestCountdown } from "@/components/booking/request-countdown";
+import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
+import { CancelRequestDialog } from "@/components/booking/cancel-request-dialog";
+import {
+  ExpiredApprovalState,
+  type ExpiredApprovalSlot,
+} from "@/components/booking/expired-approval-state";
+import { deriveDisplayStatus } from "@/components/booking/booking-status";
+
+/**
+ * Is the lapsed booking's own window still bookable? Decides which D-97 variant renders (07-UI-SPEC § 10).
+ *
+ * A COURTESY, NEVER THE GATE (Security V4). `reRequestSameWindow` re-mints through `createPendingHold`, so
+ * the booking_no_overlap EXCLUDE re-adjudicates the slot on every submit no matter what this read concluded.
+ * The read exists only so a button that would certainly fail is not offered — a one-click recovery that
+ * bounces is worse than no button at all.
+ *
+ * The three outcomes are kept distinct because the copy differs and truthfulness matters more than brevity:
+ * a slot that is merely PAST or inside the listing's minimum notice must not be described as one somebody
+ * else booked. Reads the venue-local day of the session start; a window that no slot covers (the host closed
+ * those hours since, or the window straddles venue-local midnight) reads as `unavailable`, which is both the
+ * safe answer and the honest one.
+ */
+async function readSlotState(
+  listingId: string,
+  startsAt: Date,
+  endsAt: Date,
+  timezone: string,
+  now: Date,
+): Promise<ExpiredApprovalSlot> {
+  const [year, month, day] = format(startsAt, "yyyy-MM-dd", { in: tz(timezone) })
+    .split("-")
+    .map(Number);
+  const availability = await getAvailability(db, listingId, { year, month, day }, now);
+  const startMs = startsAt.getTime();
+  const endMs = endsAt.getTime();
+  // Half-open '[)' overlap, identical to the constraint and the read model.
+  const covering = availability.slots.filter((s) => {
+    const a = new Date(s.startUtc).getTime();
+    const b = new Date(s.endUtc).getTime();
+    return a < endMs && startMs < b;
+  });
+  if (covering.length === 0) return "unavailable";
+  if (covering.every((s) => s.state === "available")) return "free";
+  if (covering.some((s) => s.state === "unavailable")) return "taken";
+  return "unavailable"; // past / too_soon / beyond_horizon — free, but not requestable
+}
 
 export default async function BookingConfirmationPage({
   params,
@@ -78,6 +145,15 @@ export default async function BookingConfirmationPage({
       spacePriceCents: booking.spacePriceCents,
       currency: booking.currency,
       expiresAt: booking.expiresAt,
+      // ── Plan 07-12 additions, all read-only display inputs. ──
+      // D-79: what actually went back to the booker. NULL on a hold that was never paid.
+      refundCents: booking.refundCents,
+      // Set ONLY by a party cancellation (cancel-booking.ts). NULL means the SYSTEM retired the hold, which
+      // is exactly the D-97 lapse — and is what separates it from a booking someone chose to cancel.
+      cancelledBy: booking.cancelledBy,
+      // D-61 creation-time snapshot. Only a request-mode booking ever had an approval to lapse.
+      bookingMode: booking.bookingMode,
+      paymentId: booking.paymentId,
     })
     .from(booking)
     .where(eq(booking.id, id));
@@ -99,9 +175,12 @@ export default async function BookingConfirmationPage({
   if (bk.status === "cancelled" && paid === "1") {
     return <PaymentReversedState listingId={bk.listingId} />;
   }
-  // The remaining states we render a booking-detail card for are requested / approved / declined / confirmed.
-  // Anything else (a plain cancelled without ?paid, completed) has no confirmation to show → the same bare 404.
-  const RENDERABLE = ["requested", "approved", "declined", "confirmed"];
+  // The states we render a booking-detail card for. 07-12 ADDS `cancelled`: a cancelled booking is durable
+  // history the booker is entitled to see (a refund figure, or the D-97 recovery), and 404ing it was the
+  // reason confirming a cancellation used to land on a dead page. `completed` is NOT here and must not be —
+  // it is DERIVED at read time from a `confirmed` row whose endsAt has passed (D-102) and is never stored, so
+  // a row carrying the unused enum value is a data fault, not a state to render.
+  const RENDERABLE = ["requested", "approved", "declined", "confirmed", "cancelled"];
   if (!RENDERABLE.includes(bk.status)) notFound();
 
   const [lst] = await db
@@ -140,6 +219,10 @@ export default async function BookingConfirmationPage({
     : `${format(bk.startsAt, "h:mm a", { in: inTz })} – ${format(bk.endsAt, "h:mm a", { in: inTz })}`;
   const tzNote = venueTzNote(lst.city, timezone);
   const totalLabel = formatMoney(quoted, bk.currency ?? DISPLAY_CURRENCY);
+
+  // THE CLOCK — Postgres, read once, hydrated once, threaded into every derivation below (see the header).
+  const now = await readDbNow(db);
+  const whenLabel = `${dateLabel}, ${timeLabel}`;
 
   // ── requested (BOOK-06, D-66): "Request sent — awaiting host". Calm, NO pay CTA, "you haven't been charged". ──
   if (bk.status === "requested") {
@@ -189,6 +272,13 @@ export default async function BookingConfirmationPage({
               </div>
             </dl>
             <p className="text-xs text-muted-foreground">{tzNote}</p>
+
+            <Separator />
+
+            {/* (b) The unpaid-hold cancel — a plain confirm dialog ("Cancel this request?") carrying NO
+                breakdown and NO money UI, because no money moved (D-63). Below the primary content, like
+                every other cancel entry on this page. */}
+            <CancelRequestDialog bookingId={bk.id} />
           </CardContent>
         </Card>
       </main>
@@ -256,6 +346,10 @@ export default async function BookingConfirmationPage({
             <Button asChild className="w-full bg-brand text-brand-foreground hover:bg-brand/90">
               <Link href={`/listings/${bk.listingId}/book?hold=${bk.id}`}>Pay now</Link>
             </Button>
+
+            {/* (b) The same no-money cancel dialog as the `requested` branch — an approved-but-unpaid hold is
+                still an unpaid hold. Beneath the pay CTA so the primary action stays primary. */}
+            <CancelRequestDialog bookingId={bk.id} />
           </CardContent>
         </Card>
       </main>
@@ -294,21 +388,125 @@ export default async function BookingConfirmationPage({
     );
   }
 
-  // ── confirmed (UNCHANGED) — the one terminal --success surface. ──
+  // ── cancelled (07-12) — two genuinely different events sharing one enum value (D-79). ──────────────────
+  if (bk.status === "cancelled") {
+    // (c) THE D-97 LAPSE. Three conditions, each excluding something this branch must NOT swallow:
+    //   - `cancelledBy === null`   — a PARTY cancellation was a decision, not a lapse. Keeps every
+    //                                booker-cancelled and host-cancelled booking (and its refund) out.
+    //   - `bookingMode === request`— only a request-mode booking ever had an approval to lapse.
+    //   - `paymentId === null`     — money never moved, so "you weren't charged anything" is TRUE.
+    // These are the same conditions `reRequestSameWindow` re-checks server-side; this branch only decides
+    // what to render.
+    //
+    // KNOWN EDGE, stated rather than hidden: the D-58 gone-slot backstop also lands a booking here with no
+    // `cancelled_by` and no persisted payment id. Its own landing is the `?paid=1` PaymentReversedState
+    // branch above, which fires on the return from checkout; a later revisit WITHOUT `?paid=1` on a
+    // request-mode booking would read as a lapse. Vanishingly rare (it needs a payment to land for a slot
+    // already gone) and the recovery offered is still the right one — but it is an edge, not a proof.
+    const lapsedApproval =
+      bk.cancelledBy === null && bk.bookingMode === "request" && bk.paymentId === null;
+
+    if (lapsedApproval) {
+      const slot = await readSlotState(bk.listingId, bk.startsAt, bk.endsAt, timezone, now);
+      return (
+        <ExpiredApprovalState
+          bookingId={bk.id}
+          listingId={bk.listingId}
+          whenLabel={whenLabel}
+          // Usually null: both retirement paths CLEAR expires_at when they flip the hold terminal, so the
+          // instant the window closed is not retained. The component carries a deadline-free copy variant
+          // rather than inventing a deadline we do not have — see its prop doc.
+          deadlineLabel={
+            bk.expiresAt
+              ? `${format(bk.expiresAt, "EEE, MMM d, h:mm a", { in: inTz })}${lst.city ? ` (${lst.city} time)` : ""}`
+              : null
+          }
+          tzNote={tzNote}
+          slot={slot}
+        />
+      );
+    }
+
+    // (d) The generic cancelled landing. CALM — muted badge, never an alarm colour, never --success.
+    //
+    // D-79: the badge label is ALWAYS and ONLY `Cancelled`. The refund renders as a SIBLING line beneath it,
+    // never interpolated into the badge — a variable money string inside a fixed-vocabulary element breaks
+    // the badge grammar everywhere it is shared with a table column.
+    //
+    // ⚠️ D-57 — WHY A NON-ZERO REFUND ALWAYS READS "on its way" AND NEVER "refunded". The cancel action's
+    // PayMongo POST records INTENT only; refund status is asynchronous and the payment.refunded webhook is
+    // the single writer of terminal state. That webhook writes settlement to `host_payout_ledger.state`, and
+    // a pre-session cancellation has no ledger row (the payout sweep runs at endsAt + PAYOUT_DELAY_HOURS and
+    // skips cancelled) — so there is NO settled-refund signal on a booking row to read. Claiming "Refunded"
+    // would therefore be claiming it off the POST, which is exactly what D-57 forbids. The settled variant
+    // is deliberately not rendered; if a settlement signal is ever persisted, this is where it lands.
+    const refundCents = bk.refundCents;
+    const refundLine =
+      refundCents == null
+        ? null
+        : refundCents > 0
+          ? `${formatMoney(refundCents, bk.currency ?? DISPLAY_CURRENCY)} refund on its way`
+          : "No refund — cancelled inside the no-refund window";
+
+    return (
+      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+        <Card>
+          <CardContent
+            role="status"
+            aria-live="polite"
+            className="flex flex-col items-center gap-4 py-10 text-center"
+          >
+            <div className="flex flex-col items-center gap-1.5">
+              <BookingStatusBadge status="cancelled" endsAt={bk.endsAt} now={now} side="booker" />
+              {/* The D-79 sibling line. Never a bare "₱0 refunded" — the zero case always carries its reason. */}
+              {refundLine && (
+                <p className="text-sm tabular-nums text-muted-foreground">{refundLine}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-xl leading-tight font-semibold">This booking was cancelled</h1>
+              <p className="mx-auto max-w-prose text-sm text-muted-foreground">
+                {title} · {whenLabel}
+              </p>
+              {refundCents != null && refundCents > 0 && (
+                <p className="mx-auto max-w-prose text-sm text-muted-foreground">
+                  Refunds usually land back on your original payment method within a few days.
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">{tzNote}</p>
+            </div>
+            <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+              <Link href="/">Find another space</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  // ── confirmed, and the DERIVED `completed` (D-102) — the one terminal --success surface, and its inert
+  //    afterlife. `completed` is never stored: `deriveDisplayStatus` reads it off a `confirmed` row whose
+  //    endsAt has passed, against the DB clock, exactly as the /bookings list's SQL derives it. Nothing here
+  //    writes, so it cannot drift and cannot race the occupancy predicate. ──
   const reference = bookingReference(bk.id);
+  const isCompleted = deriveDisplayStatus("confirmed", bk.endsAt, now) === "completed";
+  // (a) The cancel entry appears ONLY while the session is still ahead — the same D-94 rule the action and
+  //     the review page enforce, so all three agree about when cancellation is possible. A finished session
+  //     has nothing to cancel, which is also why the completed branch carries no entry.
+  const canCancel = !isCompleted && bk.startsAt.getTime() > now.getTime();
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
       <Card>
         <CardContent className="space-y-6 py-8">
-          {/* Focal point: reassurance first — the success badge (icon + text, never color-only) + reference. */}
+          {/* Focal point: reassurance first — the badge (icon + text, never color-only) + reference. The
+              badge derivation is the SHARED one, so `Confirmed` here and `Completed` once the session ends
+              read identically to the same booking on /bookings and /host/bookings. Completed is muted, NOT
+              green: it is inert history, not a live success. */}
           <div className="flex flex-col items-center gap-3 text-center">
-            <Badge className="gap-1.5 border-transparent bg-success text-success-foreground">
-              <CheckCircle2Icon className="size-4" aria-hidden="true" />
-              Confirmed
-            </Badge>
+            <BookingStatusBadge status="confirmed" endsAt={bk.endsAt} now={now} side="booker" />
             <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
-              Booking confirmed
+              {isCompleted ? "This session is done" : "Booking confirmed"}
             </h1>
             <div className="space-y-0.5">
               <p className="text-sm text-muted-foreground">Booking reference</p>
@@ -348,13 +546,30 @@ export default async function BookingConfirmationPage({
 
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              This page is your confirmation — it stays here if you refresh or come back later.
+              {isCompleted
+                ? "This page is your record of the session — it stays here if you come back later."
+                : "This page is your confirmation — it stays here if you refresh or come back later."}
             </p>
             {/* At most one optional coral forward action (UI-SPEC accent #4); the badge stays --success. */}
             <Button asChild className="w-full bg-brand text-brand-foreground hover:bg-brand/90">
               <Link href="/">Find another space</Link>
             </Button>
           </div>
+
+          {/* (a) THE CANCEL ENTRY POINT (D-104). Below the primary content and behind its own Separator —
+              present but not competing, and NEVER on a list row. A LINK, not an action: it routes to the
+              /bookings/[id]/cancel review so the D-78 itemised breakdown (and the exact refund SC#2
+              promises) is always seen before an irreversible money action. Neutral outline — not coral,
+              which would advertise the action FitOut least wants taken, and not an alarm colour, which
+              would misrepresent a refund the booker is contractually entitled to. */}
+          {canCancel && (
+            <>
+              <Separator />
+              <Button asChild variant="outline" className="w-full">
+                <Link href={`/bookings/${bk.id}/cancel`}>Cancel booking</Link>
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </main>
