@@ -78,8 +78,13 @@ export const sendResetPassword = (to: string, url: string) => {
 //    and passes it as whenLabel; these sends never format a time themselves.
 //  - The approval SLA / payment window render as HOUR VALUES from config (never the internal constant
 //    names) so Phase-7 policy tuning flows through automatically.
-//  - Fire-and-forget at every call site (`void sendXxx(...)`, T-06-07): a Resend failure must never
-//    reject a webhook ACK or block a server action — the consuming plans (06-04/05/06/07) own that.
+//  - Sends are invoked ONLY from the Inngest notify function (D-83), never fire-and-forget from an
+//    action. A call site emits `inngest.send({ name: "fitout/notify" })` AFTER commit (see
+//    src/lib/notifications.ts `emitNotify`); Inngest owns retry, backoff and per-run observability, and
+//    a permanently-failed send writes a `needs_attention` audit row (D-90) instead of vanishing.
+//    Do NOT reinstate `void sendXxx(...)` — that is the anti-pattern D-83 exists to remove. It is what
+//    left WR-04 open since Phase 2: a `void`ed rejection is a swallowed failure with no retry, no
+//    record, and nothing for an operator to look at.
 
 /** App base URL for the one CTA without a caller-supplied link (declined → "Find another space").
  *  Uses the same BETTER_AUTH_URL app-URL convention as auth.ts / paymongo-connect.ts; falls back to a
@@ -207,6 +212,174 @@ export const sendNewRequestToHost = (
     `New booking request — ${spaceTitle}`,
     `<p><strong>New booking request</strong></p>` +
       `<p>${booker} requested ${space} on ${when} for ${total}. Respond within ${APPROVAL_SLA_HOURS} hours to approve or decline.</p>` +
+      `<p><a href="${url}">Review request</a></p>`,
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Phase-7 cancellation + reminder sends (D-70/D-85/D-87). Same contract header as above.
+// ---------------------------------------------------------------------------
+// These six are dispatched EXCLUSIVELY by `sendForType` in src/inngest/functions/notify.ts — there is no
+// other call site and there must not be one (D-83). Each takes a PRE-COMPOSED `whenLabel` and pre-formatted
+// money labels, so no send here formats a time or does arithmetic.
+
+/**
+ * Booking cancelled by the BOOKER → notifies the HOST. Deliberately carries the booker label and the freed
+ * window rather than the booker's refund amount: what the host needs to know is who cancelled and that the
+ * slot is available again — the refund is the booker's side of the transaction, not the host's business.
+ * Calm, no blame: a booker cancelling within the policy they were shown (D-81) did nothing wrong.
+ */
+export const sendBookingCancelledByBooker = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  bookerLabel: string,
+  bookingUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const booker = escapeHtml(bookerLabel);
+  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `Booking cancelled — ${spaceTitle}`,
+    `<p><strong>A booking was cancelled</strong></p>` +
+      `<p>${booker} cancelled their booking at ${space} on ${when}. That window is open for other guests again — nothing else is needed from you.</p>` +
+      `<p><a href="${url}">View the booking</a></p>`,
+  );
+};
+
+/**
+ * Booking cancelled by the HOST → notifies the BOOKER. States the FULL refund plainly and up front (D-70:
+ * the booker gets everything back regardless of the listing's tier). The booker did not choose this, so the
+ * money answer comes first, before any suggestion that they go and find somewhere else.
+ */
+export const sendBookingCancelledByHost = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  refundLabel: string,
+  bookingUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const refund = escapeHtml(refundLabel);
+  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `Your booking was cancelled — ${spaceTitle}`,
+    `<p><strong>The host cancelled this booking</strong></p>` +
+      `<p>We're sorry — the host cancelled your booking at ${space} on ${when}. You're getting a full refund of ${refund}, including the service fee.</p>` +
+      `<p><a href="${url}">View the booking</a></p>`,
+  );
+};
+
+/**
+ * Refund issued → notifies the BOOKER. Fired when the refund is actually on its way, which is a separate
+ * moment from the cancellation itself (the webhook is the single writer of terminal refund state, D-57).
+ * Carries the settlement-timing note, because "refunded" without a timeframe reliably generates the
+ * "where is my money" support thread a single sentence prevents.
+ */
+export const sendRefundIssued = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  refundLabel: string,
+  bookingUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const refund = escapeHtml(refundLabel);
+  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `Refund on its way — ${spaceTitle}`,
+    `<p><strong>Your refund is on its way</strong></p>` +
+      `<p>We've issued a refund of ${refund} for your booking at ${space} on ${when}. Refunds usually land back on your original payment method within a few days.</p>` +
+      `<p><a href="${url}">View the booking</a></p>`,
+  );
+};
+
+/**
+ * Pre-expiry reminder (D-85 #1) → the BOOKER with an approved-but-unpaid booking. The highest-value
+ * reminder in the set: it is the one D-89 explicitly accepted risk on when the channel stack was fixed at
+ * email + in-app.
+ *
+ * TONE IS LOAD-BEARING (C6) — calm, never urgent, no countdown theatre. Under pay-on-approval (D-63) a
+ * lapse costs the booker a SLOT, never money: nothing was ever charged, so there is nothing to be alarmed
+ * about and manufacturing alarm would be dishonest. `payByLabel` is the pre-composed venue-local deadline;
+ * the window is never re-derived here.
+ */
+export const sendReminderPreExpiry = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  totalLabel: string,
+  payByLabel: string,
+  payUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const total = escapeHtml(totalLabel);
+  const payBy = escapeHtml(payByLabel);
+  const url = escapeHtml(payUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `Still holding your spot — ${spaceTitle}`,
+    `<p><strong>Your approved booking is waiting</strong></p>` +
+      `<p>The host approved ${space} on ${when}, and we're holding it until ${payBy}. Pay ${total} whenever you're ready to confirm it. You haven't been charged anything yet.</p>` +
+      `<p><a href="${url}">Pay now</a></p>`,
+  );
+};
+
+/**
+ * Pre-session reminder (D-85 #2 and #3) → BOTH the booker and the host. One send serves both sides: the
+ * copy is deliberately side-neutral, because the recipient already knows which side of the booking they are
+ * on and a split would be two templates to keep in sync for no gain. Fires once per side, guaranteed by the
+ * `booking_reminder` UNIQUE(booking_id, kind) claim — never by an Inngest dedupe TTL (D-87).
+ */
+export const sendReminderPreSession = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  bookingUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `Coming up — ${spaceTitle}`,
+    `<p><strong>Your session is coming up</strong></p>` +
+      `<p>A reminder that ${space} is booked for ${when}.</p>` +
+      `<p><a href="${url}">View the booking</a></p>`,
+  );
+};
+
+/**
+ * Pre-SLA reminder (D-85 #4) → the HOST sitting on a pending request. `respondByLabel` is the pre-composed
+ * venue-local deadline rather than an hour count from config, because a D-96 cap-shortened SLA means the
+ * real deadline is frequently NOT `APPROVAL_SLA_HOURS` from now — printing the constant would be wrong on
+ * exactly the short-notice requests where the reminder matters most.
+ */
+export const sendReminderPreSla = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  bookerLabel: string,
+  respondByLabel: string,
+  requestsUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const booker = escapeHtml(bookerLabel);
+  const respondBy = escapeHtml(respondByLabel);
+  const url = escapeHtml(requestsUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `Still waiting on you — ${spaceTitle}`,
+    `<p><strong>A request is waiting for your answer</strong></p>` +
+      `<p>${booker} asked to book ${space} on ${when}. Let them know by ${respondBy} — if you don't, we'll decline it for you and free the slot.</p>` +
       `<p><a href="${url}">Review request</a></p>`,
   );
 };

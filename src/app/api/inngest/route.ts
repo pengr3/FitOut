@@ -16,6 +16,7 @@ import { inngest } from "@/inngest/client";
 import { payoutSweep } from "@/inngest/functions/payout-sweep";
 import { payoutReconcile } from "@/inngest/functions/payout-reconcile";
 import { requestExpirySweep } from "@/inngest/functions/request-expiry";
+import { notify } from "@/inngest/functions/notify";
 
 // serve() verifies the Paymongo-style signed Inngest request with node crypto — Node runtime, not edge.
 export const runtime = "nodejs";
@@ -28,9 +29,15 @@ if (process.env.NODE_ENV === "production" && !process.env.INNGEST_SIGNING_KEY) {
 }
 
 // serve() reads INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY from env automatically; the guard above just makes
-// a missing prod key fatal. Registers ALL THREE crons so the hourly payout sweep (05a), the payout reconcile
-// (05b), and the request-to-book expiry sweep (06-06, minute 15 offset) are all invoked.
+// a missing prod key fatal. Registers the THREE crons — the hourly payout sweep (05a), the payout reconcile
+// (05b), and the request-to-book expiry sweep (06-06, minute 15 offset) — plus `notify` (07-07), the first
+// EVENT-triggered function here: it listens for `fitout/notify` and fans one event out to the durable
+// in-app notification row and the email (D-83/D-91).
+//
+// A function that is not in this array does not exist as far as Inngest is concerned — registration is
+// DERIVED from this file at sync time, not stored anywhere else. An unregistered `notify` means every
+// emitNotify call silently drops on the floor with no error at the emitter (which swallows by design).
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [payoutSweep, payoutReconcile, requestExpirySweep],
+  functions: [payoutSweep, payoutReconcile, requestExpirySweep, notify],
 });
