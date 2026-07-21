@@ -29,8 +29,6 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { format } from "date-fns";
-import { tz } from "@date-fns/tz";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, user, hostPayout } from "@/lib/db/schema";
@@ -40,8 +38,9 @@ import { createPendingHold } from "@/lib/availability/units";
 import { createCheckoutSession } from "@/lib/paymongo";
 import { PAYMENT_WINDOW_MINUTES, APPROVAL_SLA_HOURS } from "@/lib/payments/config";
 import { bookingReference } from "@/lib/booking/reference";
+import { composeDeadlineLabel, composeWhenLabel } from "@/lib/booking/when-label";
+import { emitNotify } from "@/lib/notifications";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
-import { sendRequestReceived, sendNewRequestToHost } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
 
@@ -79,7 +78,8 @@ async function requireUserId(): Promise<string | null> {
  * (Security V4), then FORKS on the listing's SERVER-READ bookingMode (D-61 / BOOK-04 / BOOK-05):
  *   - instant  → mints a pending 15-min hold and redirects to the reserve/pay page (unchanged);
  *   - request  → mints a `requested` hold (APPROVAL_SLA_HOURS TTL) with NO charge (D-63 pay-on-approval),
- *                fires the booker/host notification emails fire-and-forget, and redirects to /bookings/<id>.
+ *                EMITS the booker/host notifications post-commit via `fitout/notify` (D-83), and redirects
+ *                to /bookings/<id>.
  * A double-submit (same idempotency key / window) returns the SAME booking (delegated to createPendingHold).
  */
 export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
@@ -127,6 +127,11 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       title: listing.title,
       timezone: listing.timezone,
       city: listing.city,
+      // The listing rate, for the SHARED whenLabel formatter's fullDay re-derivation (07-02/07-08).
+      hourlyRateCents: listing.hourlyRateCents,
+      // The host's user id — the notification RECIPIENT for the new-request alert (T-07-56). Taken from the
+      // listing row this action already read server-side; never anything the caller supplied.
+      hostId: listing.hostId,
       hostEmail: user.email, // the join reaches the host via listing.hostId = user.id — reuse it for the alert
       emailVerified: user.emailVerified,
       payoutsEnabled: hostPayout.payoutsEnabled,
@@ -167,28 +172,78 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       return { ok: false, reason: "taken", error: res.error }; // same calm "just taken" as instant (SC#4)
     }
 
-    // NO checkout, NO charge at request time (D-63 / T-06-11). Notify both sides FIRE-AND-FORGET
-    // (T-06-07 — a Resend failure must never reject this server action): the booker's request-received
-    // receipt + the host's new-request alert. The host's guest-pays amount is the SERVER-FROZEN quote read
-    // back from the just-minted hold (never a client recompute).
+    // NO checkout, NO charge at request time (D-63 / T-06-11). Both sides are told via the D-83
+    // `fitout/notify` event — 07-10 replaced the old fire-and-forget pair (the request-received and
+    // new-request-to-host sends, each `void`ed at this call site). Emitting buys retry, backoff, per-run
+    // observability and the durable in-app notification row at parity (D-91); `emitNotify` swallows its own
+    // transport errors, so a notification outage can never reject this action or strand a hold that the
+    // database has already committed (MANAGE-03 / T-07-57).
+    //
+    // EMITTED AFTER `createPendingHold` HAS RETURNED — i.e. after its WR-03 transaction committed, never
+    // inside it. `inngest.send` is an outbound HTTP call, and a rollback would leave an event already sent
+    // for a booking that does not exist (T-07-58).
+    //
+    // The money labels come from the values `createPendingHold` read straight back OUT of its own insert
+    // (the D-74 frozen triple), so a REPLAYED double-submit notifies with the SAME frozen numbers the first
+    // submit did — never a recompute, and never a second read that could observe a different row.
     const [q] = await db
-      .select({ quotedTotalCents: booking.quotedTotalCents, currency: booking.currency })
+      .select({ currency: booking.currency })
       .from(booking)
       .where(eq(booking.id, res.id));
-    const inTz = tz(lr.timezone);
-    const startAt = new Date(startUtc);
-    const endAt = new Date(endUtc);
-    const dateLabel = format(startAt, "EEEE, MMM d", { in: inTz });
-    const timeLabel = fullDay
-      ? "Full day"
-      : `${format(startAt, "h:mm a", { in: inTz })} – ${format(endAt, "h:mm a", { in: inTz })}`;
-    const whenLabel = `${dateLabel}, ${timeLabel}${lr.city ? ` (${lr.city} time)` : ""}`;
-    const totalLabel = formatMoney(q?.quotedTotalCents ?? 0, q?.currency ?? DISPLAY_CURRENCY);
+    const currency = q?.currency ?? DISPLAY_CURRENCY;
+    // The SHARED venue-local formatter (07-02). `fullDay` is re-derived inside it from the frozen SPACE
+    // price — deliberately NOT from the local `fullDay` flag, so this label is composed from exactly the
+    // same inputs, by exactly the same code, as every other time surface in the app.
+    const whenLabel = composeWhenLabel({
+      startsAt: new Date(startUtc),
+      endsAt: new Date(endUtc),
+      timezone: lr.timezone,
+      city: lr.city,
+      spacePriceCents: res.spacePriceCents,
+      quotedTotalCents: res.quotedTotalCents,
+      hourlyRateCents: lr.hourlyRateCents,
+    });
+    // The host's SLA deadline, from the row's own `expires_at`. Under D-96 a session-start cap splits the
+    // remaining time proportionally, so this is frequently NOT `APPROVAL_SLA_HOURS` out — rendering the
+    // config constant would be wrong on precisely the short-notice requests where the deadline matters.
+    const respondByLabel =
+      res.expiresAt === null
+        ? "as soon as possible"
+        : composeDeadlineLabel(res.expiresAt, lr.timezone, lr.city);
+    const totalLabel = formatMoney(res.quotedTotalCents ?? 0, currency);
     const bookerLabel = me.firstName ?? me.name ?? "A guest";
     const title = lr.title ?? "your space";
+    // Absolute hrefs: one payload string feeds BOTH channels (D-91), and a root-relative href is a dead
+    // link in an email client. Preserves the exact URLs the pre-migration sends used.
     const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-    void sendRequestReceived(me.email, title, whenLabel, `${base}/bookings/${res.id}`);
-    void sendNewRequestToHost(lr.hostEmail, title, whenLabel, bookerLabel, totalLabel, `${base}/host/requests`);
+    await emitNotify({
+      type: "request_received",
+      recipientId: userId,
+      bookingId: res.id,
+      email: me.email,
+      payload: {
+        type: "request_received",
+        listingTitle: title,
+        whenLabel,
+        totalLabel,
+        href: `${base}/bookings/${res.id}`,
+      },
+    });
+    await emitNotify({
+      type: "new_request_to_host",
+      recipientId: lr.hostId,
+      bookingId: res.id,
+      email: lr.hostEmail,
+      payload: {
+        type: "new_request_to_host",
+        listingTitle: title,
+        whenLabel,
+        bookerLabel,
+        totalLabel,
+        respondByLabel,
+        href: `${base}/host/requests`,
+      },
+    });
 
     // A `requested` hold occupies the slot immediately in the calendar + search (06-01 EXCLUDE + the 06-02
     // read model), so revalidate BOTH before redirecting to the request-received surface (06-08 renders the

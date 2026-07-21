@@ -24,8 +24,11 @@
 //   - REPLAY / DOUBLE-ACTION (T-06-21): every UPDATE is status-scoped (`AND status='requested'`), so a
 //     second approve/decline over an already-actioned row is a 0-row no-op → calm "no longer pending".
 //     The approve is additionally rate-limited + audited (WR-06, money-adjacent — mirrors confirmBooking).
-//   - EMAIL DoS (T-06-22): sendRequestApproved / sendRequestDeclined are fire-and-forget (`void`) — a
-//     Resend failure can never block or fail the action.
+//   - NOTIFICATION DoS (T-06-22 / T-07-57): the booker notice is EMITTED as a `fitout/notify` event, not
+//     sent inline. 07-10 replaced the old `void`ed sendRequestApproved call with
+//     `await emitNotify(...)` (D-83): Inngest owns retry, backoff and per-run observability, `emitNotify`
+//     swallows its own transport errors, and the in-app notification row lands at parity (D-91). A Resend
+//     or Inngest outage can never block or fail a state action whose durable write already committed.
 //   - POST-ONLY: both are POST server actions invoked from a form/button, never a GET side-effect.
 //
 // Nothing is ever refunded or voided here (D-63): no money moved at request time, so approve just opens
@@ -40,8 +43,13 @@ import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { APPROVAL_PAYMENT_WINDOW_HOURS, MIN_APPROVE_WINDOW_HOURS } from "@/lib/payments/config";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
-import { sendRequestApproved, sendRequestDeclined } from "@/lib/email";
-import { composeWhenLabel, type WhenLabelInput } from "@/lib/booking/when-label";
+import { isoUtc } from "@/lib/booking/bookings-query";
+import {
+  composeDeadlineLabel,
+  composeWhenLabel,
+  type WhenLabelInput,
+} from "@/lib/booking/when-label";
+import { emitNotify } from "@/lib/notifications";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
 
@@ -88,6 +96,9 @@ async function loadOwnedRequest(requestId: string, userId: string) {
     .select({
       status: booking.status,
       listingId: booking.listingId,
+      // The notification RECIPIENT (D-83/T-07-56). Read from the row this action has ALREADY owner-gated
+      // and joined — never a second lookup, and never anything the caller supplied.
+      bookerId: booking.bookerId,
       startsAt: booking.startsAt,
       endsAt: booking.endsAt,
       quotedTotalCents: booking.quotedTotalCents,
@@ -194,8 +205,8 @@ export async function approveRequest(requestId: string): Promise<RequestActionRe
       AND status = 'requested'
       AND expires_at > now()
       AND starts_at > now() + make_interval(hours => ${MIN_APPROVE_WINDOW_HOURS}::int)
-    RETURNING id
-  `)) as unknown as { id: string }[];
+    RETURNING id, ${isoUtc("expires_at")} AS "expiresAtIso"
+  `)) as unknown as { id: string; expiresAtIso: string | null }[];
 
   if (flipped.length === 0) {
     // D-93: when the 0 rows are due to the request being TOO CLOSE TO START (rather than already actioned
@@ -227,20 +238,49 @@ export async function approveRequest(requestId: string): Promise<RequestActionRe
 
   await recordAudit({ actorId: userId, action: "approve_request", outcome: "ok", meta: { requestId } });
 
-  // Fire the booker the pay-now email FIRE-AND-FORGET (T-06-22 — a Resend failure never fails the action).
+  // D-83 — the send moves BEHIND Inngest. This emits an EVENT and returns; the `fitout/notify` function
+  // performs the send with automatic retry, backoff and per-run observability, AND writes the durable in-app
+  // notification row at parity (D-91). `emitNotify` swallows its own transport errors: a notification
+  // failure must NEVER fail a money/state action whose durable write already succeeded (MANAGE-03).
+  //
+  // PLACEMENT IS LOAD-BEARING — after the flip has committed and after `recordAudit`, and NEVER inside a
+  // `db.transaction`: `inngest.send` is an outbound HTTP call, so inside a transaction it would pin a
+  // pooled connection across a network hop and — the real hazard — a rollback would leave an event already
+  // sent for a booking that does not exist. This action opens no transaction; keep it that way.
+  //
   // The pay link routes to the SAME Phase-5 checkout the /book page now treats an `approved` hold as active
-  // for (06-04). The total is the SERVER-FROZEN quote (D-49), never a recompute.
+  // for (06-04). The total is the SERVER-FROZEN quote (D-49), never a recompute. The `href` is ABSOLUTE
+  // because this one string feeds both channels (D-91) and a root-relative href renders as a dead link in
+  // an email client — the in-app dropdown handles an absolute same-origin URL fine, the reverse is not true.
   const whenLabel = composeWhenLabel(whenLabelInput(row));
   const totalLabel = formatMoney(row.quotedTotalCents ?? 0, row.currency ?? DISPLAY_CURRENCY);
   const title = row.title ?? "your space";
   const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-  void sendRequestApproved(
-    row.bookerEmail,
-    title,
-    whenLabel,
-    totalLabel,
-    `${base}/listings/${row.listingId}/book?hold=${requestId}`,
+  // The REAL deadline, read back off the row the UPDATE just wrote — not `now() + APPROVAL_PAYMENT_WINDOW`.
+  // D-94's LEAST(...) cap means those two differ on every short-notice approve, and telling a booker they
+  // have 12 hours when the window actually closes when the session starts is the exact failure D-99 names.
+  // `expires_at` is a timestamptz read through `db.execute`, which returns Postgres TEXT — hence the shared
+  // `isoUtc` mask in the RETURNING above and the single hydration here (the 07-06 boundary contract).
+  const payByIso = flipped[0]?.expiresAtIso ?? null;
+  const payByLabel = composeDeadlineLabel(
+    payByIso === null ? row.startsAt : new Date(payByIso),
+    row.timezone,
+    row.city,
   );
+  await emitNotify({
+    type: "request_approved",
+    recipientId: row.bookerId,
+    bookingId: requestId,
+    email: row.bookerEmail,
+    payload: {
+      type: "request_approved",
+      listingTitle: title,
+      whenLabel,
+      totalLabel,
+      payByLabel,
+      href: `${base}/listings/${row.listingId}/book?hold=${requestId}`,
+    },
+  });
 
   // D-65 freshness (no websockets/polling): the flip changes the host inbox + dashboard state immediately.
   revalidatePath("/host/requests");
@@ -275,10 +315,26 @@ export async function declineRequest(requestId: string): Promise<RequestActionRe
 
   if (flipped.length === 0) return NOT_PENDING; // already actioned/lapsed — calm, never a 500
 
-  // Fire the booker the declined email FIRE-AND-FORGET (T-06-22). Freeing the slot is automatic (declined
-  // is non-occupying — 06-01 EXCLUDE + 06-02 lazy reads); nothing is refunded/voided (D-63).
+  // D-83 — emitted post-commit, exactly as in `approveRequest` above (see the rationale there; it is not
+  // repeated). `expired: false` picks the "the host couldn't take it" copy variant rather than the SLA-lapse
+  // one — a HOST decline and a lapsed request are two different sentences, which is why the payload carries
+  // the variant as a boolean rather than a label. Freeing the slot is automatic (declined is non-occupying —
+  // 06-01 EXCLUDE + 06-02 lazy reads); nothing is refunded/voided (D-63).
   const whenLabel = composeWhenLabel(whenLabelInput(row));
-  void sendRequestDeclined(row.bookerEmail, row.title ?? "your space", whenLabel);
+  const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  await emitNotify({
+    type: "request_declined",
+    recipientId: row.bookerId,
+    bookingId: requestId,
+    email: row.bookerEmail,
+    payload: {
+      type: "request_declined",
+      listingTitle: row.title ?? "your space",
+      whenLabel,
+      expired: false,
+      href: `${base}/bookings/${requestId}`,
+    },
+  });
 
   // D-65 freshness: the decline clears the request from the host inbox + dashboard immediately.
   revalidatePath("/host/requests");

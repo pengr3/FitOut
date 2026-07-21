@@ -21,7 +21,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
-import { mockPayMongo, mockResend } from "../helpers/mocks";
+import { mockPayMongo } from "../helpers/mocks";
 import { isPgError } from "@/lib/pg";
 import { user, listing, hostPayout, operatingHours, booking } from "@/lib/db/schema";
 import { createPendingHold, HOLD_TTL_MINUTES } from "@/lib/availability/units";
@@ -58,6 +58,37 @@ const sessionHeaders: { cookie: string } = { cookie: "" };
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
 }));
+
+/** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the Inngest client. */
+type NotifyEnvelope = {
+  name: string;
+  data: {
+    type: string;
+    recipientId: string;
+    bookingId: string | null;
+    email: string | null;
+    payload: Record<string, unknown>;
+  };
+};
+
+/**
+ * The Inngest client, stubbed at the MODULE the actions' graph resolves (the cancellation.test.ts idiom).
+ *
+ * 07-10 moved the five lifecycle sends off `void sendXxx(...)` and onto the D-83 `fitout/notify` event, so
+ * these cases' probe moved with them: the assertion is now that the action EMITTED, with the right type and
+ * the right recipient. The email itself is dispatched by the Inngest function and is proven end-to-end by
+ * tests/notifications/notify.test.ts; asserting a Resend body here too would be asserting Inngest's job.
+ * `vi.spyOn` on an import held by this file would patch the pre-`resetModules` instance and silently miss —
+ * and `emitNotify` swallows its own errors, so the miss would be indistinguishable from a pass.
+ */
+const inngestSend = vi.fn(async (event: NotifyEnvelope) => ({ ids: [event.name] }));
+
+/** Every emission of `type` so far — the "did this migrated send still fire?" probe. */
+function emissionsOfType(type: string): NotifyEnvelope[] {
+  return inngestSend.mock.calls
+    .map((c) => c[0])
+    .filter((e) => e.name === "fitout/notify" && e.data.type === type);
+}
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -453,6 +484,7 @@ describe("placeHold forks on bookingMode + mode-flip independence + pay-on-appro
       listWalletAccounts: mockPayMongo.listWalletAccounts,
     }));
     vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+    vi.doMock("@/inngest/client", () => ({ inngest: { send: inngestSend } }));
     vi.doMock("next/navigation", () => ({
       redirect: (url: string) => {
         throw new RedirectError(url);
@@ -476,10 +508,11 @@ describe("placeHold forks on bookingMode + mode-flip independence + pay-on-appro
     vi.doUnmock("@/lib/db");
     vi.doUnmock("@/lib/paymongo");
     vi.doUnmock("next/cache");
+    vi.doUnmock("@/inngest/client");
     vi.doUnmock("next/navigation");
   });
 
-  it("(a) request-mode: mints a `requested` hold with NO checkout + fires booker & host emails (D-63 pay-on-approval)", async () => {
+  it("(a) request-mode: mints a `requested` hold with NO checkout + notifies booker & host (D-63 pay-on-approval)", async () => {
     await login(ACTION_BOOKER_EMAIL);
     const url = await expectRedirect(
       placeHold({ listingId: "L_af_request", startUtc: START, endUtc: END, fullDay: false }),
@@ -492,10 +525,18 @@ describe("placeHold forks on bookingMode + mode-flip independence + pay-on-appro
     // NO money moves at request time (D-63 / T-06-11) — the request branch creates no checkout.
     expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
 
-    // Both lifecycle emails fired (fire-and-forget). Filter by subject so a stray signup email can't false-pass.
-    const subjects = mockResend.sent().map((e) => e.subject);
-    expect(subjects.some((s) => s.startsWith("We sent your request"))).toBe(true); // booker receipt
-    expect(subjects.some((s) => s.startsWith("New booking request"))).toBe(true); // host alert
+    // Both lifecycle notifications were EMITTED post-commit (D-83), each to the correct party. Scoped to
+    // THIS hold's id so a sibling case's emission can never false-pass.
+    const received = emissionsOfType("request_received").filter((e) => e.data.bookingId === holdId);
+    const toHost = emissionsOfType("new_request_to_host").filter((e) => e.data.bookingId === holdId);
+    expect(received).toHaveLength(1); // booker receipt
+    expect(toHost).toHaveLength(1); // host alert
+    expect(received[0].data.email).toBe(ACTION_BOOKER_EMAIL);
+    // The host alert must go to the HOST, not the booker — the one mistake that would be invisible in a
+    // "some email was sent" assertion (T-07-56: a notification to the wrong party).
+    expect(toHost[0].data.email).toBe("rl_host@example.com");
+    expect(toHost[0].data.recipientId).toBe(HOST);
+    expect(toHost[0].data.recipientId).not.toBe(received[0].data.recipientId);
   });
 
   it("(b) instant-mode: unchanged — a `pending` hold and a redirect to the /book pay page (BOOK-04 byte-for-byte)", async () => {
@@ -640,11 +681,13 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
     hostAId = aRows[0].id;
     hostBId = bRows[0].id;
 
-    // host-requests imports auth (session gate), db (owner-gate + UPDATE), and next/cache (revalidate); it
-    // does NOT redirect, so no next/navigation mock is needed. Email goes through the global resend mock.
+    // host-requests imports auth (session gate), db (owner-gate + UPDATE), next/cache (revalidate) and —
+    // since 07-10 — the Inngest client (the D-83 post-commit emission). It does NOT redirect, so no
+    // next/navigation mock is needed.
     vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
     vi.doMock("@/lib/db", () => ({ db: testDb.db }));
     vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+    vi.doMock("@/inngest/client", () => ({ inngest: { send: inngestSend } }));
     vi.resetModules();
     ({ approveRequest, declineRequest } = await import("@/app/actions/host-requests"));
   });
@@ -653,6 +696,7 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
     vi.doUnmock("@/lib/auth");
     vi.doUnmock("@/lib/db");
     vi.doUnmock("next/cache");
+    vi.doUnmock("@/inngest/client");
   });
 
   it("(a) approve on a valid `requested` row → approved, expires_at ≈ now()+APPROVAL_PAYMENT_WINDOW_HOURS, pay-now email with hold=<id>", async () => {
@@ -675,11 +719,17 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
     expect(exp).toBeGreaterThan(before + windowMs - 60 * 60 * 1000);
     expect(exp).toBeLessThan(before + windowMs + 60 * 60 * 1000);
 
-    // The booker's pay-now email fired (fire-and-forget) with the pay link to the /book page carrying the hold.
-    const approved = mockResend.sent().find((e) => e.subject.startsWith("Approved — pay to confirm"));
-    expect(approved).toBeDefined();
-    expect(approved!.html).toContain("hold=bk_hr_approve");
-    expect(approved!.html).toContain("/listings/L_hr_approve/book?hold=bk_hr_approve");
+    // The booker's pay-now notification was EMITTED (D-83), carrying the pay link to the /book page with
+    // this hold. The href is what the email renders as its CTA, so asserting it here still guards the
+    // link — it has simply moved from the rendered body into the payload that composes it.
+    const approved = emissionsOfType("request_approved").filter(
+      (e) => e.data.bookingId === "bk_hr_approve",
+    );
+    expect(approved).toHaveLength(1);
+    const payload = approved[0].data.payload as { href: string; payByLabel: string };
+    expect(payload.href).toContain("/listings/L_hr_approve/book?hold=bk_hr_approve");
+    // The pay-by deadline is a real composed label, not an empty string the Zod boundary would reject.
+    expect(payload.payByLabel.length).toBeGreaterThan(0);
   });
 
   it("(b) SLA guard: approve on a LAPSED `requested` row → calm 'no longer pending', status unchanged (T-06-20)", async () => {
@@ -707,9 +757,13 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
     const hold = await createPendingHold(testDb.db, { listingId: "L_hr_decline", bookerId: BOOKER2, startsAt: HR_START, endsAt: HR_END });
     expect(isOk(hold)).toBe(true);
 
-    // The booker declined email fired (fire-and-forget).
-    const declined = mockResend.sent().find((e) => e.subject.startsWith("Your request for"));
-    expect(declined).toBeDefined();
+    // The booker's declined notification was EMITTED (D-83). `expired: false` is the load-bearing bit — a
+    // HOST decline and an SLA lapse are two different sentences, and the payload is what picks between them.
+    const declined = emissionsOfType("request_declined").filter(
+      (e) => e.data.bookingId === "bk_hr_decline",
+    );
+    expect(declined).toHaveLength(1);
+    expect((declined[0].data.payload as { expired: boolean }).expired).toBe(false);
   });
 
   it("(d) owner-gate (IDOR): host-B approving/declining host-A's request → NO state change + SAME denial as a missing id (T-06-19)", async () => {

@@ -16,8 +16,13 @@
 // Plan 06-05 (PAY-05 / BOOK-06) widens the SAME single writer and adds a confirmed email, so these also assert:
 //   - a pay-on-approval request (paid from the `approved` state) confirms through the SAME writer as an
 //     instant pay — the confirm WHERE widened to status IN ('pending','approved'), never a 2nd confirm path;
-//   - the BOOK-06 booking-confirmed email fires (fire-and-forget) on a genuine confirm for BOTH modes —
-//     asserted via mockResend.sent() with vi.waitFor (the send is a background promise, off the ACK path);
+//   - the BOOK-06 booking-confirmed notification fires on a genuine confirm for BOTH modes. 07-10 moved
+//     this behind the D-83 `fitout/notify` event, so the assertion moved with it: the probe is now the
+//     EMISSION (a `fitout/notify` event carrying type `booking_confirmed` and this booking's id) rather
+//     than a captured Resend body. The email itself is dispatched by the Inngest function and is proven by
+//     tests/notifications/notify.test.ts — asserting it here too would be testing Inngest, not the webhook.
+//     A welcome side-effect: the emission is AWAITED, so the assertion is deterministic and no longer needs
+//     vi.waitFor to poll for a background promise that might land after the ACK;
 //   - pay-after-release: a released (`cancelled`) request that pays late claims 0 rows → the UNCHANGED
 //     handleGoneSlot auto-refunds (refundable rail) and the booking stays terminal → PaymentReversedState,
 //     with NO confirmed email (Pitfall 3 — never a silent retention, never a stuck interstitial).
@@ -84,20 +89,53 @@ async function seedBooking(opts: {
   });
 }
 
+/** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the Inngest client. */
+type NotifyEnvelope = {
+  name: string;
+  data: {
+    type: string;
+    recipientId: string;
+    bookingId: string | null;
+    email: string | null;
+    payload: { referenceLabel?: string; whenLabel?: string };
+  };
+};
+
 /**
- * Wait for the fire-and-forget BOOK-06 confirmed email for `bookingId` to land in mockResend.sent(). The
- * webhook fires it as a background promise OFF the 200 ACK path (T-06-15), so it can arrive AFTER `post()`
- * resolves — poll for it, keyed on the booking's deterministic FIT- reference in the body (never a generic
- * "some email was sent", which would false-match a sibling test's leaked async email).
+ * The Inngest client, stubbed at the MODULE the route's graph actually resolves — the idiom from
+ * tests/booking/cancellation.test.ts. `vi.spyOn` on an import held by this file would patch the
+ * pre-`resetModules` instance and silently miss, and because `emitNotify` swallows its own errors the miss
+ * would look exactly like a pass.
  */
-async function waitForConfirmedEmail(bookingId: string): Promise<void> {
+const inngestSend = vi.fn(async (event: NotifyEnvelope) => ({ ids: [event.name] }));
+
+/** Every `booking_confirmed` emission for `bookingId`, keyed on the deterministic FIT- reference. */
+function confirmedEmissions(bookingId: string): NotifyEnvelope[] {
   const ref = bookingReference(bookingId);
-  await vi.waitFor(() => {
-    const hit = mockResend
-      .sent()
-      .find((e) => e.to === "pp_booker@example.com" && (e.html ?? "").includes(ref));
-    expect(hit, `no confirmed email for ${bookingId}`).toBeTruthy();
-  });
+  return inngestSend.mock.calls
+    .map((c) => c[0])
+    .filter(
+      (e) =>
+        e.name === "fitout/notify" &&
+        e.data.type === "booking_confirmed" &&
+        e.data.payload.referenceLabel === ref,
+    );
+}
+
+/**
+ * Assert the BOOK-06 booking-confirmed notification was emitted EXACTLY ONCE for `bookingId`.
+ *
+ * No polling: 07-10 awaits the emission inside the handler (an enqueue that cannot reject is safe on the
+ * ACK path in a way a live Resend call was not), so by the time `post()` resolves the event has either been
+ * handed to the client or it never will be. Keyed on the booking's own reference so a sibling case's
+ * emission can never false-match.
+ */
+function expectConfirmedNotification(bookingId: string): void {
+  const hits = confirmedEmissions(bookingId);
+  expect(hits, `no booking_confirmed emission for ${bookingId}`).toHaveLength(1);
+  expect(hits[0].data.recipientId).toBe(BOOKER);
+  expect(hits[0].data.bookingId).toBe(bookingId);
+  expect(hits[0].data.email).toBe("pp_booker@example.com");
 }
 
 async function readBooking(id: string) {
@@ -186,6 +224,8 @@ beforeAll(async () => {
   // The route (Task 2) refunds via createRefund; mock it so no live PayMongo call fires and calls assert.
   vi.doMock("@/lib/paymongo", () => ({ createRefund: mockPayMongo.createRefund }));
   vi.doMock("@/lib/audit", () => ({ recordAudit: recordAuditMock }));
+  // D-83: the confirmed notice is EMITTED, not sent inline. Stub the client so the emission is observable.
+  vi.doMock("@/inngest/client", () => ({ inngest: { send: inngestSend } }));
   vi.resetModules();
   ({ POST } = await import("@/app/api/paymongo/webhook/route"));
 });
@@ -193,12 +233,15 @@ beforeAll(async () => {
 beforeEach(() => {
   recordAuditMock.mockClear();
   mockPayMongo.createRefund.mockClear();
+  inngestSend.mockClear();
+  inngestSend.mockResolvedValue({ ids: [] });
 });
 
 afterAll(async () => {
   vi.doUnmock("@/lib/db");
   vi.doUnmock("@/lib/paymongo");
   vi.doUnmock("@/lib/audit");
+  vi.doUnmock("@/inngest/client");
   process.env.PAYMONGO_WEBHOOK_SECRET = prevSecret;
   await teardownTestDb(testDb);
 });
@@ -262,7 +305,7 @@ describe("checkout_session.payment.paid — confirm authority (D-57)", () => {
     );
     expect(res.status).toBe(200);
 
-    await waitForConfirmedEmail(id); // the confirmed receipt lands off the ACK path
+    expectConfirmedNotification(id); // the confirmed receipt is emitted on the genuine-confirm branch
     expect((await readBooking(id)).status).toBe("confirmed");
   });
 
@@ -281,7 +324,7 @@ describe("checkout_session.payment.paid — confirm authority (D-57)", () => {
     );
     expect(res.status).toBe(200);
 
-    await waitForConfirmedEmail(id); // same BOOK-06 receipt as instant — one confirm writer, one email path
+    expectConfirmedNotification(id); // same BOOK-06 receipt as instant — one confirm writer, one notify path
     expect((await readBooking(id)).status).toBe("confirmed");
   });
 
@@ -395,7 +438,7 @@ describe("checkout_session.payment.paid — real single-mode signature (te-XOR-l
 
     // BOOK-06 fires directly on the te-only path — proven under a REAL single-mode signature, not the
     // both-populated fixture that masked G-06-01.
-    await waitForConfirmedEmail(id);
+    expectConfirmedNotification(id);
   });
 
   it("Case B — LIVE shape (te EMPTY, li valid): confirms an APPROVED pay-on-approval booking + fires BOOK-06", async () => {
@@ -423,7 +466,7 @@ describe("checkout_session.payment.paid — real single-mode signature (te-XOR-l
     expect(row.expiresAt).toBeNull();
     expect(row.paymentId).toBe("pay_lionly_1");
 
-    await waitForConfirmedEmail(id); // BOOK-06 on the li-only path too
+    expectConfirmedNotification(id); // BOOK-06 on the li-only path too
   });
 
   it("Case C — BOTH-empty header still 400s with no state change (spoofing protection intact, T-06-SPOOF)", async () => {
@@ -493,11 +536,13 @@ describe("checkout_session.payment.paid — gone-slot backstop (D-58)", () => {
     expect(arg.paymentId).toBe("pay_release_1");
     expect(recordAuditMock).not.toHaveBeenCalled();
 
-    // Stays terminal → PaymentReversedState, never confirmed, and the BOOK-06 email NEVER fires for it (the
-    // confirmed email is on the ≥1-row branch ONLY — a 0-row confirm earns no receipt).
+    // Stays terminal → PaymentReversedState, never confirmed, and the BOOK-06 notification NEVER fires for
+    // it: the emission is on the ≥1-row branch ONLY, so a 0-row confirm earns no receipt in EITHER channel.
+    // This is also the duplicate-suppression proof for a webhook REDELIVERY — the status-scoped UPDATE is
+    // what gates the emission, so a second delivery of a confirmed booking emits nothing.
     expect((await readBooking(id)).status).toBe("cancelled");
-    const ref = bookingReference(id);
-    expect(mockResend.sent().every((e) => !(e.html ?? "").includes(ref))).toBe(true);
+    expect(confirmedEmissions(id)).toHaveLength(0);
+    expect(mockResend.sent()).toHaveLength(0);
   });
 
   it("operator-alerts (never API-refunds) a gone slot on QRPh — the money is surfaced, not retained", async () => {

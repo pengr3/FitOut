@@ -12,8 +12,6 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
-import { format } from "date-fns";
-import { tz } from "@date-fns/tz";
 import { db } from "@/lib/db";
 import { booking, hostPayout, hostPayoutLedger, listing, paymongoEvent, user } from "@/lib/db/schema";
 import { createRefund } from "@/lib/paymongo";
@@ -21,9 +19,10 @@ import { createRefund } from "@/lib/paymongo";
 // if the Plan-16 probe refutes the QRPh premise, that module is the only file that changes.
 import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { recordAudit } from "@/lib/audit";
-import { sendBookingConfirmed } from "@/lib/email";
+import { emitNotify } from "@/lib/notifications";
 import { bookingReference } from "@/lib/booking/reference";
-import { windowHours } from "@/lib/booking/pricing";
+import { composeWhenLabel } from "@/lib/booking/when-label";
+import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 
 // Signature verification needs node crypto + the RAW request body — this MUST be the Node runtime, not edge.
 export const runtime = "nodejs";
@@ -196,28 +195,41 @@ async function handleGoneSlot(
 }
 
 /**
- * BOOK-06 booking-confirmed email — fired FIRE-AND-FORGET on a SUCCESSFUL confirm (≥1 row), covering BOTH
- * an instant pay (confirmed from `pending`) and a pay-on-approval request (confirmed from `approved`). It
- * lives OUTSIDE the 200 ACK critical path (T-06-15): a read or Resend failure must NEVER reject the webhook
- * — a rejected ACK would make PayMongo retry the (already-confirmed) event forever. It therefore swallows
- * its own errors so the caller's `void` can never surface an unhandled rejection. Never fired on a 0-row
- * confirm (replay / gone-slot) — only a genuine transition to `confirmed` earns the receipt.
+ * BOOK-06 booking-confirmed notification — emitted on a SUCCESSFUL confirm (≥1 row), covering BOTH an
+ * instant pay (confirmed from `pending`) and a pay-on-approval request (confirmed from `approved`). Never
+ * fired on a 0-row confirm (replay / gone-slot): only a genuine transition to `confirmed` earns the receipt,
+ * and that is what makes a PayMongo REDELIVERY produce no second notification — the status-scoped UPDATE is
+ * the dedupe claim, one layer above the `paymongo_event` id ledger.
  *
- * One extra read joins the booking to the booker (email) + listing (title / venue tz / city) and composes
- * the venue-local `whenLabel` exactly as the reserve page + placeHold request branch do (`{date}, {time}
- * ({City} time)`), so the three booker-facing time surfaces render the SC#2 venue tz identically.
+ * 07-10 / D-83: this was `await sendBookingConfirmed(...)` behind a `void` call. It now emits the
+ * `fitout/notify` event, so the send gains retry, backoff and per-run observability, and the durable in-app
+ * notification row lands at parity (D-91).
+ *
+ * WHY THIS IS NOW AWAITED RATHER THAN `void`ed. The old `void` existed to keep a slow Resend call off the
+ * 200-ACK path (T-06-15) — a rejected ACK makes PayMongo retry an already-confirmed event forever. Two
+ * things changed. First, `emitNotify` is an enqueue, not a delivery: it hands off one small event and
+ * returns, and it CANNOT reject (it swallows and logs its own transport errors), so it can never turn into
+ * a non-200. Second, `void`ing an enqueue is actively worse than awaiting it here — the handler can return
+ * and the runtime can freeze the process before an un-awaited outbound request has flushed, silently losing
+ * the notification. The bounded read + enqueue below is the correct trade for that guarantee.
+ *
+ * The `try/catch` remains for the READ (a DB hiccup on the join): the confirm already succeeded and is
+ * durable, so nothing here may affect the ACK.
  */
-async function sendBookingConfirmedEmail(bookingId: string): Promise<void> {
+async function emitBookingConfirmed(bookingId: string): Promise<void> {
   try {
     const [row] = await db
       .select({
+        bookerId: booking.bookerId,
         email: user.email,
         title: listing.title,
         timezone: listing.timezone,
         city: listing.city,
         startsAt: booking.startsAt,
         endsAt: booking.endsAt,
+        spacePriceCents: booking.spacePriceCents,
         quotedTotalCents: booking.quotedTotalCents,
+        currency: booking.currency,
         hourlyRateCents: listing.hourlyRateCents,
       })
       .from(booking)
@@ -226,32 +238,39 @@ async function sendBookingConfirmedEmail(bookingId: string): Promise<void> {
       .where(eq(booking.id, bookingId));
     if (!row) return;
 
-    const inTz = tz(row.timezone);
-    // Re-derive the "Full day" vs hourly label from the FROZEN quote (fullDay is not persisted on the row),
-    // mirroring the reserve page (D-49): a full-day hold froze the flat day rate, an hourly hold froze
-    // hourlyRate × hours. Bias to hourly on an exact coincidence so the real hours show.
-    const hours = windowHours(row.startsAt, row.endsAt);
-    const quoted = row.quotedTotalCents ?? 0;
-    const hourlyTotal = row.hourlyRateCents != null ? row.hourlyRateCents * hours : null;
-    const fullDay = hourlyTotal == null || quoted !== hourlyTotal;
-    const dateLabel = format(row.startsAt, "EEEE, MMM d", { in: inTz });
-    const timeLabel = fullDay
-      ? "Full day"
-      : `${format(row.startsAt, "h:mm a", { in: inTz })} – ${format(row.endsAt, "h:mm a", { in: inTz })}`;
-    const whenLabel = `${dateLabel}, ${timeLabel}${row.city ? ` (${row.city} time)` : ""}`;
-    const title = row.title ?? "your space";
+    // The SHARED venue-local formatter (07-02). This replaces a verbatim inline copy of the fullDay
+    // re-derivation that compared the ALL-IN `quotedTotalCents` against `hourlyRate × hours` — under D-74
+    // the total is space + service fee, so that comparison can never match and EVERY hourly booking would
+    // have rendered "Full day" in the confirmation. `composeWhenLabel` compares `spacePriceCents`, which is
+    // the only figure comparable to a listing rate (07-08 made the field required for exactly this reason).
+    const whenLabel = composeWhenLabel({
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      timezone: row.timezone,
+      city: row.city,
+      spacePriceCents: row.spacePriceCents,
+      quotedTotalCents: row.quotedTotalCents,
+      hourlyRateCents: row.hourlyRateCents,
+    });
     const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-    await sendBookingConfirmed(
-      row.email,
-      title,
-      whenLabel,
-      bookingReference(bookingId),
-      `${base}/bookings/${bookingId}`,
-    );
+    await emitNotify({
+      type: "booking_confirmed",
+      recipientId: row.bookerId,
+      bookingId,
+      email: row.email,
+      payload: {
+        type: "booking_confirmed",
+        listingTitle: row.title ?? "your space",
+        whenLabel,
+        totalLabel: formatMoney(row.quotedTotalCents ?? 0, row.currency ?? DISPLAY_CURRENCY),
+        referenceLabel: bookingReference(bookingId),
+        href: `${base}/bookings/${bookingId}`,
+      },
+    });
   } catch (err) {
-    // Fire-and-forget: the confirm already succeeded and the 200 ACK is (or will be) sent regardless. A
-    // read/send failure must never affect that ACK (T-06-15) — log for operators and move on.
-    console.error("[EMAIL] booking_confirmed_send_failed", { bookingId, err });
+    // The confirm already succeeded and the 200 ACK is (or will be) sent regardless. A read failure must
+    // never affect that ACK (T-06-15) — log for operators and move on.
+    console.error("[NOTIFY] booking_confirmed_emit_failed", { bookingId, err });
   }
 }
 
@@ -417,10 +436,11 @@ export async function POST(req: Request): Promise<Response> {
         // from Phase 5: it already covers the pay-after-release race for a released/declined request too.
         await handleGoneSlot(bookingId, paymentId, cs);
       } else {
-        // ≥1 row ⇒ a GENUINE confirm (instant OR pay-on-approval — never a replay). Fire the BOOK-06
-        // booking-confirmed email FIRE-AND-FORGET, OUTSIDE the ACK path (T-06-15): a Resend/read failure
-        // must never reject the 200. The helper owns its own error handling so this `void` cannot reject.
-        void sendBookingConfirmedEmail(bookingId);
+        // ≥1 row ⇒ a GENUINE confirm (instant OR pay-on-approval — never a replay), which is what makes a
+        // redelivery emit NOTHING. Emit the BOOK-06 booking-confirmed notification (D-83). The helper owns
+        // its own error handling and `emitNotify` cannot reject, so awaiting it can never turn the 200 ACK
+        // into a retry storm (T-06-15) — see the rationale on the helper.
+        await emitBookingConfirmed(bookingId);
       }
     }
   } else if (type === "payment.refunded" || type === "payment.refund.updated") {

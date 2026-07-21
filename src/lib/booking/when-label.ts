@@ -77,3 +77,27 @@ export const composeWhenLabel = (input: WhenLabelInput): string => compose(input
 
 /** "Thu, Jul 3, 8:00 AM – 10:00 AM (Manila time)" — the short form for dense table/card rows. */
 export const composeWhenLabelShort = (input: WhenLabelInput): string => compose(input, "EEE, MMM d");
+
+/**
+ * A single DEADLINE instant, venue-local — "Thu, Jul 3, 8:00 PM (Manila time)".
+ *
+ * `composeWhenLabel` renders a booking WINDOW (two bounds, a fullDay re-derivation, a range). A deadline is
+ * one instant and has none of that, so it gets its own export rather than a fake zero-length window — but
+ * it lives HERE, in the module that owns venue-local rendering, for the reason stated in this file's
+ * header: every new time surface imports from here, and the tz + city-suffix rules must never be
+ * re-implemented at a call site.
+ *
+ * Feeds the `payByLabel` / `respondByLabel` display strings on the D-86 notification payloads (07-10), and
+ * is what Plan 13's reminders must use — under D-96 a cap-shortened SLA means the real deadline is
+ * frequently NOT `APPROVAL_SLA_HOURS` from now, so a label rendered from a config constant would be wrong
+ * on exactly the short-notice bookings where the deadline matters most. Always compose from the row's own
+ * `expires_at`.
+ */
+export function composeDeadlineLabel(
+  instant: Date,
+  timezone: string,
+  city: string | null,
+): string {
+  const label = format(instant, "EEE, MMM d, h:mm a", { in: tz(timezone) });
+  return `${label}${city ? ` (${city} time)` : ""}`;
+}
