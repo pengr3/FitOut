@@ -708,6 +708,15 @@ export async function cancelBookingAsHost(
         decline_reason = ${parsed.data.reason},
         expires_at = NULL
     WHERE id = ${parsed.data.bookingId}
+      -- DEFENCE IN DEPTH (T-07-61) — the host-side equivalent of the booker path's in-WHERE booker scope.
+      -- Host ownership lives on the LISTING, not on the booking, so it cannot be a bare column predicate —
+      -- hence the EXISTS. Without it the pre-read gate would be the ONLY layer on this path, and a future
+      -- refactor that broke it could cancel, refund and fee-charge a STRANGER's booking. That is not
+      -- hypothetical: it is exactly what happened when the gate was removed during this plan's mutation
+      -- check, and this predicate is what now stops the WRITE even if the read gate ever regresses.
+      AND EXISTS (
+        SELECT 1 FROM listing l WHERE l.id = booking.listing_id AND l.host_id = ${userId}
+      )
       AND status = 'confirmed'
       AND starts_at > now()
     RETURNING id
