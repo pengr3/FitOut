@@ -63,6 +63,7 @@ import {
   RailSelectionSummary,
 } from "@/components/availability/availability-calendar";
 import { BookCta } from "@/components/booking/book-cta";
+import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { placeHold } from "@/app/actions/booking";
 import { slotSelectionSchema } from "@/lib/validation/booking";
 // venue-tz labels + the shared DISPLAY_CURRENCY are now imported (Plan 07 promoted both out of this file
@@ -280,6 +281,11 @@ export default async function PublicListingPage({
                   <p className="text-sm text-muted-foreground">Service fee included</p>
                 )}
               </div>
+
+              {/* D-81 — the refund promise, next to the price it qualifies. GENERIC mode: there is no
+                  booking yet, so rungs are stated relative to session start; checkout re-states the same
+                  ladder as concrete dates once a window is picked. A NULL tier renders nothing. */}
+              <CancellationPolicyDisclosure tier={row.listing.cancellationPolicy} />
 
               {pub.maxOccupancy != null && (
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground">

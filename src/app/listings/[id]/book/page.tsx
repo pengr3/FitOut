@@ -29,7 +29,12 @@ import { windowHours } from "@/lib/booking/pricing";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
+import { composeDeadlineLabel } from "@/lib/booking/when-label";
+// `rungBoundaries` only — deliberately NOT `tierOrDefault`. Its Flexible fallback is a legacy safety net
+// for the refund ENGINE; using it here would put a policy the host never chose in front of a booker.
+import { rungBoundaries } from "@/lib/payments/cancellation";
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
+import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
 import { ReserveView } from "@/components/booking/reserve-view";
 
@@ -69,6 +74,11 @@ export default async function ReservePage({
       // the amount that will be charged.
       spacePriceCents: booking.spacePriceCents,
       serviceFeeCents: booking.serviceFeeCents,
+      // The D-67 tier SNAPSHOT, frozen onto this hold at creation (07-08) — deliberately NOT
+      // listing.cancellationPolicy. This is the exact column `quoteRefund` reads if the booker later
+      // cancels, so disclosing from it means the terms shown here are provably the terms applied. A host
+      // retiering the listing between this render and the cancel cannot move what was disclosed (T-07-90).
+      cancellationPolicy: booking.cancellationPolicy,
       currency: booking.currency,
     })
     .from(booking)
@@ -176,17 +186,35 @@ export default async function ReservePage({
     </div>
   );
 
+  // D-81 / C3 — the rung boundaries as CONCRETE INSTANTS for THIS booking, derived SERVER-SIDE from the
+  // booking's own snapshotted tier and its frozen startsAt, then rendered venue-local by the shared
+  // deadline formatter (07-02). Percentages may accompany a date; they may never replace one, so the
+  // disclosure is fed dates rather than left to state the ladder abstractly. Nothing here reads a client
+  // clock — the instants are pure arithmetic on a stored timestamptz (T-07-92).
+  //
+  // A pre-Phase-7 hold has a null snapshot; `tier` stays null and the disclosure renders nothing rather
+  // than showing a policy the booker's row doesn't carry (see the component's NULL-TIER note).
+  const tier = bk.cancellationPolicy;
+  const boundaryLabels = tier
+    ? rungBoundaries(tier, bk.startsAt).map((r) =>
+        composeDeadlineLabel(r.boundary, timezone, lst.city),
+      )
+    : undefined;
+
   const breakdown = (
-    <PriceBreakdown
-      quotedTotalCents={quoted}
-      spacePriceCents={spacePriceCents}
-      serviceFeeCents={serviceFeeCents}
-      currency={bk.currency ?? DISPLAY_CURRENCY}
-      fullDay={fullDay}
-      hours={hours}
-      hourlyRateCents={lst.hourlyRateCents}
-      dayRateCents={lst.dayRateCents}
-    />
+    <>
+      <PriceBreakdown
+        quotedTotalCents={quoted}
+        spacePriceCents={spacePriceCents}
+        serviceFeeCents={serviceFeeCents}
+        currency={bk.currency ?? DISPLAY_CURRENCY}
+        fullDay={fullDay}
+        hours={hours}
+        hourlyRateCents={lst.hourlyRateCents}
+        dayRateCents={lst.dayRateCents}
+      />
+      <CancellationPolicyDisclosure tier={tier} boundaryLabels={boundaryLabels} />
+    </>
   );
 
   // Server-formatted charged amount for the `Confirm & pay` reassurance (D-57) — the frozen quote (D-49),
