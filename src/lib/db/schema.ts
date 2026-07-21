@@ -624,6 +624,22 @@ export const booking = pgTable(
     // (Plan 04 refund mechanism / D-58 auto-refund backstop) can reference the payment. Nullable
     // ADD COLUMN (backfill-free — no existing booking rows, A7).
     paymentId: text("payment_id"),
+    // The PAYMENT RAIL the booker actually used ("card" / "gcash" / "paymaya" / "qrph" / "dob_ubp" / …),
+    // captured by the same payment.paid webhook that captures paymentId, from the SAME verified event
+    // resource (never a client field). Phase-7 addition (07-09).
+    //
+    // WHY IT MUST BE PERSISTED. `isApiRefundable` (src/lib/payments/refund-rail.ts) is the SOLE predicate
+    // deciding whether a refund can be dispatched through the PayMongo API at all — QRPh and UBP cannot be
+    // (Pitfall 1), and the predicate FAILS CLOSED. The gone-slot backstop reads the rail off the live
+    // webhook event, but a booker CANCELLATION happens hours or days later with no event in hand, so
+    // without this column the predicate would receive `undefined` on every cancellation, answer "not
+    // refundable", and route EVERY refund to the operator-alert path — the money would never move. The
+    // rail is a durable property of the payment, so it is stored alongside the payment id it belongs to.
+    //
+    // Nullable + backfill-free. A pre-Phase-7 confirmed booking has no rail recorded; `isApiRefundable`
+    // reads that as non-refundable and takes the operator-alert path, which is the correct fail-closed
+    // outcome for a payment whose rail we genuinely do not know.
+    paymentMethod: text("payment_method"),
     // ---- Phase-7 cancellation + fee split (D-67/D-69/D-74/D-79). ALL nullable / defaulted, so this is a
     // backfill-free ADD COLUMN for every column except the two the 0014 hand-edit backfills.
     // STRUCTURALLY INERT for occupancy: none of these columns appears in the booking_no_overlap GiST EXCLUDE

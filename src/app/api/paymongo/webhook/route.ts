@@ -113,6 +113,19 @@ function verifySignature(rawBody: string, sig: SigParts, secret: string): boolea
   return false;
 }
 
+/**
+ * The PAYMENT RAIL used for a checkout session ("card" / "gcash" / "paymaya" / "qrph" / …), read off the
+ * VERIFIED event resource — never a client-supplied field. `"unknown"` when the shape does not carry one.
+ *
+ * ONE resolver, two call sites (the confirm UPDATE below and handleGoneSlot). Both feed `isApiRefundable`,
+ * which fails closed, so the two must agree byte-for-byte about what the rail was: a rail resolved one way
+ * at confirm and another way at refund time is a silent divergence in which money moves the resolver
+ * disagrees about.
+ */
+function resolvePaymentMethod(cs: PayMongoResource | undefined): string {
+  return cs?.attributes?.payments?.[0]?.source?.type ?? cs?.attributes?.payment_method_used ?? "unknown";
+}
+
 /** The Linked-Account id the event concerns (matches host_payout.paymongoAccountId). */
 function resolveAccountId(event: PayMongoEvent): string | undefined {
   const a = event.data?.attributes;
@@ -142,8 +155,7 @@ async function handleGoneSlot(
     .where(eq(booking.id, bookingId));
   if (!current || current.status === "confirmed") return; // never refund an already-confirmed booking
 
-  const method =
-    cs?.attributes?.payments?.[0]?.source?.type ?? cs?.attributes?.payment_method_used ?? "unknown";
+  const method = resolvePaymentMethod(cs);
   const amountCents = current.quotedTotalCents ?? 0;
 
   if (isApiRefundable(method) && paymentId && amountCents > 0) {
@@ -386,8 +398,16 @@ export async function POST(req: Request): Promise<Response> {
       // re-impose the Phase-4 `expires_at > now()` guard: a legitimately-paid-but-lapsed hold must still
       // confirm (else the booker is charged with no booking); the GiST EXCLUDE, not the TTL, is the
       // double-confirm authority. Capture the pay_... so a later refund can reference it.
+      //
+      // 07-09: capture the RAIL alongside the payment id, from the same verified resource. A booker
+      // cancellation happens hours or days later with no event in hand, and `isApiRefundable` fails closed —
+      // so if the rail is not persisted HERE, every cancellation refund would be judged unrefundable and
+      // routed to the operator-alert path instead of actually moving money.
+      const paymentMethod = resolvePaymentMethod(cs);
       const rows = (await db.execute(sql`
-        UPDATE booking SET status = 'confirmed', expires_at = NULL, payment_id = ${paymentId}
+        UPDATE booking
+        SET status = 'confirmed', expires_at = NULL,
+            payment_id = ${paymentId}, payment_method = ${paymentMethod}
         WHERE id = ${bookingId} AND status IN ('pending','approved') RETURNING id`)) as unknown as {
         id: string;
       }[];

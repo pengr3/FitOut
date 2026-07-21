@@ -1,0 +1,15 @@
+-- 07-09 — persist the PAYMENT RAIL on the booking so a later cancellation can decide refundability.
+--
+-- `isApiRefundable` (src/lib/payments/refund-rail.ts) is the sole predicate answering "can PayMongo refund
+-- this through the API?" and it FAILS CLOSED. The gone-slot backstop reads the rail straight off the live
+-- payment.paid event, but a booker cancellation happens hours or days later with no event in hand. Without
+-- a stored rail the predicate would be handed `undefined` on every cancellation, answer "no", and route
+-- every refund to the operator-alert path — the booker's money would never actually move.
+--
+-- Backfill-free: nullable, no default, no constraint. A pre-Phase-7 confirmed booking simply has no rail
+-- recorded, which reads as non-refundable — the correct fail-closed outcome for an unknown rail.
+--
+-- STRUCTURALLY INERT for occupancy: `payment_method` does not appear in the booking_no_overlap GiST EXCLUDE
+-- predicate (listing_id, unit, starts_at, ends_at, status), the in-tx stale-hold sweep, or the expiry cron.
+-- Unqualified table name so tests/helpers/db.ts replays this into every isolated schema.
+ALTER TABLE "booking" ADD COLUMN "payment_method" text;
