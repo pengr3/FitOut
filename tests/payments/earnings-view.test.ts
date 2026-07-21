@@ -11,7 +11,7 @@
 //      sees the fee (D-59). Runs against an isolated Postgres schema.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
@@ -105,8 +105,26 @@ function loadHostEarnings(db: PostgresJsDatabase<Record<string, unknown>>, hostI
     .from(hostPayoutLedger)
     .innerJoin(booking, eq(hostPayoutLedger.bookingId, booking.id))
     .innerJoin(listing, eq(booking.listingId, listing.id))
-    .where(eq(hostPayoutLedger.hostId, hostId))
+    // 07-04 / D-71: kind-scoped, exactly as the RSC is. A host_cancel_fee row is a SIGNED DEBIT with no
+    // booking payout behind it — unscoped it renders as a nonsense row AND subtracts from the Upcoming
+    // total, understating what the host is actually owed.
+    .where(and(eq(hostPayoutLedger.hostId, hostId), eq(hostPayoutLedger.kind, "payout")))
     .orderBy(desc(hostPayoutLedger.createdAt));
+}
+
+/** The D-71 outstanding-debt query the earnings RSC runs — unrecovered host_cancel_fee, owner-scoped. */
+async function loadOutstandingDebt(
+  db: PostgresJsDatabase<Record<string, unknown>>,
+  hostId: string,
+): Promise<number> {
+  const [{ outstandingDebitCents = 0 } = { outstandingDebitCents: 0 }] = (await db.execute(sql`
+    SELECT COALESCE(SUM(-net_cents - recovered_cents), 0)::int AS "outstandingDebitCents"
+    FROM host_payout_ledger
+    WHERE host_id = ${hostId}
+      AND kind = 'host_cancel_fee'
+      AND recovered_cents < -net_cents
+  `)) as unknown as { outstandingDebitCents: number }[];
+  return outstandingDebitCents;
 }
 
 async function makeUser(prefix: string, canHost = true): Promise<string> {
@@ -225,5 +243,68 @@ describe("earnings read is owner-scoped — a host only ever sees their own rows
     expect(row.commissionCents).toBe(20000); // 10% — the host-visible fee
     expect(row.netCents).toBe(180000); // gross − commission (D-52)
     expect(row.commissionCents).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. 07-04 / D-71 — the signed debit row must not pollute the earnings view
+// ---------------------------------------------------------------------------
+
+describe("earnings view — a host_cancel_fee debit never pollutes the payout rows (07-04, D-71)", () => {
+  it("excludes the debit from the row list and from the Upcoming total, and surfaces it separately", async () => {
+    const booker = await makeUser("booker3", false);
+    const host = await makeUser("hostD");
+    const listingD = await makeListing(host);
+
+    const paidBk = await makePayout({
+      hostId: host,
+      listingId: listingD,
+      bookerId: booker,
+      grossCents: 200000,
+      state: "held",
+    });
+
+    // A D-71 signed debit keyed to a DIFFERENT (host-cancelled) booking, partially recovered:
+    // 30000 owed, 10000 already netted off an earlier payout ⇒ 20000 still outstanding.
+    const debitBk = await makePayout({
+      hostId: host,
+      listingId: listingD,
+      bookerId: booker,
+      grossCents: 60000,
+      state: "held",
+    });
+    await testDb.db.insert(hostPayoutLedger).values({
+      id: uid("debit"),
+      bookingId: debitBk,
+      hostId: host,
+      grossCents: -30000,
+      commissionRateBps: 0,
+      commissionCents: 0,
+      netCents: -30000,
+      recoveredCents: 10000,
+      currency: "php",
+      state: "held",
+      kind: "host_cancel_fee",
+    });
+
+    // The row list is kind-scoped: two payout rows, and the debit is not among them.
+    const rows = await loadHostEarnings(testDb.db, host);
+    expect(rows.map((r) => r.bookingId).sort()).toEqual([paidBk, debitBk].sort());
+    expect(rows.every((r) => r.netCents > 0)).toBe(true); // no negative row leaked in
+
+    // Unscoped, the debit's −30000 would have been summed into Upcoming, understating what the host is
+    // owed by exactly the debit amount. Upcoming = 180000 + 54000, with no −30000 term.
+    const { upcomingCents } = summarizePayouts(
+      rows.map((r) => ({ state: r.state, netCents: r.netCents })),
+    );
+    expect(upcomingCents).toBe(234000);
+
+    // The debt is not hidden — it is surfaced on its own line, net of what has already been recovered.
+    expect(await loadOutstandingDebt(testDb.db, host)).toBe(20000);
+  });
+
+  it("reports zero outstanding debt for a host with no cancellations", async () => {
+    const host = await makeUser("hostE");
+    expect(await loadOutstandingDebt(testDb.db, host)).toBe(0);
   });
 });
