@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 12
+current_plan: 13
 status: executing
-stopped_at: Completed 07-11-PLAN.md
-last_updated: "2026-07-21T14:09:08.934Z"
+stopped_at: Completed 07-12-PLAN.md
+last_updated: "2026-07-21T14:36:01.625Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 53
-  percent: 95
+  completed_plans: 54
+  percent: 96
 ---
 
 # Project State
@@ -27,14 +27,14 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 12
+Current Plan: 13
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [█████████░] 93% (52 of 56 plans)
+Progress: [██████████] 96% (54 of 56 plans)
 
-**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-10 and 07-14**. Next unexecuted: **07-11**.
+**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-12 and 07-14**. Next unexecuted: **07-13**.
 
 **Wave 1 complete.** 07-01 (config + schema + migrations) and 07-02 (when-label + booking-status derivation) both have SUMMARY.md on disk; `drizzle/0013` + `0014` are applied to the live DB and are idempotent.
 
@@ -150,6 +150,7 @@ Progress: [█████████░] 93% (52 of 56 plans)
 | Phase 07 P10 | 75 min | 2 tasks tasks | 9 files files |
 | Phase 07 P14 | ~45 min | 3 tasks | 8 files |
 | Phase 07 P11 | ~70m | 3 tasks | 6 files |
+| Phase 07 P12 | ~75m | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -237,6 +238,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-11: the D-71 host-cancel fee is capped at the booking value at WRITE time, never at netting time
 - [Phase ?]: 07-11: the auto-block carries reason='host_cancellation' and removeBlock refuses to delete it (anti-resell)
 - [Phase 07]: [07-11]: HOST-INITIATED CANCELLATION (HOST-02/PAY-06 — ROADMAP SC#3 now has a product path). **`cancelBookingAsHost(bookingId, reason)`** fires all four D-70/D-71 consequences: (1) the booker is refunded **100% of the all-in charged total INCLUDING the D-74 service fee** — the one case in the system where the non-refundable fee IS returned, because the booker did nothing wrong and the platform absorbs the gateway cost; **`quoteRefund` is deliberately NOT called and the tier is NOT consulted** (a strict-tier booking cancelled 1h out still refunds 100%, proven at the exact rung that would award a BOOKER 0%). (2) `recordAudit({action:"host_cancel_booking"})` against the host. (3) the freed window is **auto-blocked on the same listing AND unit** for the exact `[startsAt, endsAt)` range with `reason='host_cancellation'`, and `removeBlock` (in **`blocks.ts`**, NOT `availability.ts` — the plan misnamed the file) refuses to delete it via `IS DISTINCT FROM` **inside the DELETE's own WHERE**; `<>` would have been a live bug since `reason` is nullable and `NULL <> 'x'` is NULL, which would have made every ordinary reason-less block undeletable. (4) a **signed debit** `kind='host_cancel_fee'`, gross=net=−fee, commission 0, recovered 0, state `held`, **capped at the booking value AT WRITE TIME** (`Math.min(HOST_CANCEL_FEE_CENTS, spacePriceCents)`), with `ON CONFLICT (booking_id, kind) DO NOTHING` as the at-most-once lock and deliberately NO app-level pre-check. `retained_space_cents = 0` is what makes 07-04's sweep predicate exclude the booking — writing NULL would have fallen through to `COALESCE(retained, space_price)` and paid the host the full space price, the exact inversion of the consequence. **This plan writes the FIRST REAL `host_cancel_fee` row in the system's history**, so it is the first that could check 07-04's kind scoping against a debit the PRODUCT produced rather than a fixture: proven that the payout sweep still pays correctly and nets ₱1,800−₱300=₱1,500, that `alertStuckHeld` returns 0 with a real debit aged 200h past the 48h threshold, and that `/host/earnings`' own kind-scoped read and `summarizePayouts` are unaffected while the debt surfaces through its separate outstanding query. **THREE deviations, all auto-fixed:** (a) Rule 1 — the plan's mandated `readDbNow` call on the host path is DEAD CODE: the path evaluates no rung and nothing consumes a JS Date, so it was omitted with a comment stating that Postgres `now()` inside the UPDATE's own WHERE is the STRONGER position (it cannot be raced apart from the status check). (b) Rule 2 — the plan sequences the auto-block and debit INSERTs as bare statements AFTER a flip that has already committed; a throw from either would have 500'd a cancellation that in fact succeeded and **skipped the refund entirely**, leaving the booker's money uncollected with no alert. Each consequence is now individually try/caught into a `needs_attention` audit + `[HOST_CANCEL_ALERT]` line. (c) Rule 3 — `removeBlock` lives in `blocks.ts`; `availability.ts` is a read-only public fetcher with no mutation at all. **⚠️ THE MUTATION CHECK FOUND A REAL GAP.** Removing the host owner-gate let our host genuinely cancel another host's booking — refunded ₱1,050, blocked their slot, charged them ₱300. The host path had only ONE ownership layer where the booker path has two, because host ownership lives on the LISTING and so cannot be a bare column predicate; the plan's SQL simply omitted it. Fixed with `AND EXISTS (SELECT 1 FROM listing l WHERE l.id = booking.listing_id AND l.host_id = ...)` in the same WHERE, after which the same mutation blocks the WRITE and only leaks the denial string — the two-stage result proving both layers are independently meaningful. **Also fixed the 07-10 assigned defect:** `cancel-booking.ts` emitted root-relative hrefs, dead links in both its emails; now absolute via the EXISTING `BETTER_AUTH_URL` convention (no new env var), with regression assertions on BOTH the host and booker paths. **UI (D-80/07-UI-SPEC §4):** `HostCancelDialog` — two panes in one dialog, required reason select (5 options) gating pane 2, required acknowledgment checkbox gating confirm, both buttons neutral (`outline`/`ghost`), zero coral, no `variant="destructive"`; the fee arrives as a SERVER-CAPPED prop and the component never caps or computes. `/host/bookings/[id]` re-gates session + `canHost`, owner-scopes with `listing.host_id` in the WHERE, bare `notFound()` for missing and not-mine alike, kind-scoped payout join, cancel entry point below a `Separator` (D-104). **ALL gates green:** tsc exit 0; eslint clean on all 6 files; `npm run build` exit 0 with `/host/bookings/[id]` present; host-cancel 16/16; payments+booking+security+availability 37 files/386; **full `npm test` 73 files / 597 tests, exit 0** (was 72/581). Four acceptance-criteria greps documented rather than gamed (two count an explanatory comment alongside the one real statement; `availability.ts` is 0 by design; `Keep booking` is 2 because each pane needs its own back button). **Downstream: any new `host_payout_ledger` query MUST carry `AND kind='payout'` — there are now real negative-`net_cents` rows in production data. Any new `availability_block` delete path MUST carry the `host_cancellation` refusal or D-70's anti-resell consequence is defeated through it. Plan 13's reminder queries must exclude cancelled bookings. Every notification `href` must be absolute.** Commits df30010 + 59c08ff + 8df752f.
+- [Phase ?]: 07-12: a lapsed approval is recovered by INSERTING a new hold, never by flipping a terminal booking back — the GiST EXCLUDE is the only mechanism that re-adjudicates occupancy
+- [Phase ?]: 07-12: the D-97 lapse guard reads 'holds no live window' (expires_at IS NULL OR <= now()) because both retirement paths CLEAR expires_at
+- [Phase ?]: 07-12: a non-zero refund on the booking detail page always reads 'on its way' — there is no settled-refund signal on a booking row, so 'Refunded' would violate D-57
+- [Phase ?]: 07-12: no stable idempotencyKey on re-request — booking_idem_uq is partial-UNIQUE over all time and would 23505 into a 500 once the first re-request itself lapsed
 
 ### Pending Todos
 
@@ -282,8 +287,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T14:09:08.921Z
-Stopped at: Completed 07-11-PLAN.md
+Last session: 2026-07-21T14:35:38.604Z
+Stopped at: Completed 07-12-PLAN.md (Wave 4 — booking-detail completion + D-97 lapse recovery). `reRequestSameWindow` mints a NEW constraint-validated hold (never a status flip back); `/bookings/[id]` gains the D-104 cancel entry, the no-money `Cancel request` dialog, the D-97 recovery branch and the `cancelled` / derived-`completed` branches; D-99's cap-shortened-SLA reason line ships on `/host/requests`. **Two live defects fixed along the way:** the plan's `expires_at has passed` lapse guard would have matched NO row (both retirement paths NULL the column, so D-97 would have shipped dead), and `cancelled` was absent from `RENDERABLE` so the shipped booker cancel flow ended on a 404. **Both assigned handoffs closed:** `e2e/cancel.spec.ts` now clicks the detail-page entry instead of deep-linking (07-09's documented gap), and D-99 is implemented (07-05's). Full suite **74 files / 604 tests, exit 0** (was 73/597). Commits 940f66f + 9158a47 + 39b89e4. (Full detail in 07-12-SUMMARY.md.)
 Resume file: None
 
 Prior session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-07)

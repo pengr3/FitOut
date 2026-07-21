@@ -48,7 +48,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **BOOK-04**: Instant-book listings confirm immediately on successful payment
 - [x] **BOOK-05**: Request-to-book listings create a pending request the host approves/declines, auto-expiring if no response
 - [x] **BOOK-06**: Booker receives on-screen and email confirmation of a booking
-- [ ] **BOOK-07**: Booker can cancel a booking subject to the cancellation/refund policy
+- [x] **BOOK-07**: Booker can cancel a booking subject to the cancellation/refund policy
 
 ### Payments
 
