@@ -1,14 +1,18 @@
 // The T+24h host-payout sweep cron (D-55/D-56, PAY-03/PAY-02) — the FIRST async-scheduled job in the
 // codebase. Hourly (timezone-aware), it finds `confirmed` bookings whose session ended ≥ PAYOUT_DELAY_HOURS
-// ago with NO payout row yet, claims each at-most-once with an `INSERT ... ON CONFLICT (booking_id) DO
-// NOTHING` ledger row that FREEZES the applied commission (D-51), CORRELATES the payout wallet to THAT
+// ago with NO payout row yet, claims each at-most-once with an `INSERT ... ON CONFLICT (booking_id, kind)
+// DO NOTHING` ledger row that FREEZES the applied commission (D-51), CORRELATES the payout wallet to THAT
 // booking's host (wallet.id === host_payout.paymongo_account_id — NEVER an arbitrary wallet), and fires an
 // inhouse `/v2/batch_transfers` of exactly `net_cents` (D-52), moving the ledger Held → Processing.
 //
 // CORRECTNESS RESTS ON TWO DB-LEVEL INVARIANTS, exactly as double-booking rests on the GiST EXCLUDE:
-//   1. `UNIQUE(booking_id)` on host_payout_ledger — the INSERT itself is the at-most-once lock (mirrors
-//      createPendingHold's "the INSERT is the lock", units.ts). There is deliberately NO app-level
+//   1. `UNIQUE(booking_id, kind)` on host_payout_ledger — the INSERT itself is the at-most-once lock
+//      (mirrors createPendingHold's "the INSERT is the lock", units.ts). There is deliberately NO app-level
 //      "already paid out?" query-then-insert — that is the exact race the constraint exists to kill.
+//      Phase 7 (D-71/drizzle-0014) WIDENED this gate from UNIQUE(booking_id) so a booking can also carry
+//      one signed `host_cancel_fee` debit row. The payout guarantee is UNCHANGED: this INSERT omits `kind`,
+//      so the NOT NULL DEFAULT 'payout' applies before conflict resolution and the arbiter matches the
+//      composite index — at most one kind='payout' row per booking, exactly as before.
 //   2. `wallet.id === b.paymongoAccountId` — the payout can ONLY address the booking's own host's wallet.
 //      No match ⇒ ROLL THE CLAIM BACK (retry next sweep) + operator alert + fire NOTHING (never wallets[0],
 //      never cross-pay). CR-01: a `held` row is never a dead end — any post-claim failure becomes `failed`.
@@ -95,8 +99,8 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
  * Pay a single due booking, at-most-once. The order is load-bearing:
  *   1. FREEZE the commission (rate + amount) from the server-frozen gross (D-51) — a later rate change
  *      must never rewrite this row.
- *   2. CLAIM the ledger row: the INSERT is the lock. `ON CONFLICT (booking_id) DO NOTHING RETURNING id`
- *      — an empty RETURNING means another sweep already owns this booking ⇒ fire NOTHING.
+ *   2. CLAIM the ledger row: the INSERT is the lock. `ON CONFLICT (booking_id, kind) DO NOTHING RETURNING
+ *      id` — an empty RETURNING means another sweep already owns this booking ⇒ fire NOTHING.
  *   3. CORRELATE the wallet to THIS booking's host (`wallet.id === b.paymongoAccountId`). No match ⇒ ROLL
  *      THE CLAIM BACK (so a later sweep retries), alert, fire NOTHING — NEVER wallets[0] or a wrong host.
  *   4. FIRE the inhouse transfer of exactly `net_cents` (D-52) to the correlated wallet.
@@ -122,7 +126,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout): Promise<PayOneResult
       commission_rate_bps, commission_cents, net_cents, currency, state)
     VALUES (${claimId}, ${b.bookingId}, ${b.hostId}, ${b.paymentId}, ${b.quotedTotalCents},
       ${rateBps}, ${commissionCents}, ${netCents}, ${b.currency}, 'held')
-    ON CONFLICT (booking_id) DO UPDATE
+    ON CONFLICT (booking_id, kind) DO UPDATE
       SET state = 'held', updated_at = now()
       WHERE host_payout_ledger.state = 'failed'
     RETURNING id

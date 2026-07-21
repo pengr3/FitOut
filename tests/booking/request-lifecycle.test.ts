@@ -25,6 +25,7 @@ import { mockPayMongo, mockResend } from "../helpers/mocks";
 import { isPgError } from "@/lib/pg";
 import { user, listing, hostPayout, operatingHours, booking } from "@/lib/db/schema";
 import { createPendingHold, HOLD_TTL_MINUTES } from "@/lib/availability/units";
+import { APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
 import { getAvailability } from "@/lib/availability/read-model";
 import type postgres from "postgres";
 
@@ -654,7 +655,7 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
     vi.doUnmock("next/cache");
   });
 
-  it("(a) approve on a valid `requested` row → approved, expires_at ≈ now()+24h, pay-now email with hold=<id>", async () => {
+  it("(a) approve on a valid `requested` row → approved, expires_at ≈ now()+APPROVAL_PAYMENT_WINDOW_HOURS, pay-now email with hold=<id>", async () => {
     await seedHostListing("L_hr_approve", hostAId);
     await seedRequest("bk_hr_approve", "L_hr_approve", 12); // 12h left in the SLA → within the window
     await login(HOST_A_EMAIL);
@@ -664,12 +665,15 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
     expect(res.ok).toBe(true);
     expect(await statusOf("bk_hr_approve")).toBe("approved");
 
-    // The payment window is opened to now()+APPROVAL_PAYMENT_WINDOW_HOURS (24h) — the booker gets the FULL
+    // The payment window is opened to now()+APPROVAL_PAYMENT_WINDOW_HOURS — the booker gets the FULL
     // window to pay (mirrors the 06-04 GREATEST/payment-window idiom; the approved hold keeps the slot).
+    // Asserted against the CONSTANT, not a hardcoded 24: D-95 moved this default 24h → 12h (partially
+    // superseding D-64), and a literal here silently goes stale on every future policy tune.
     const rows = await testDb.db.select({ expiresAt: booking.expiresAt }).from(booking).where(eq(booking.id, "bk_hr_approve"));
     const exp = rows[0].expiresAt!.getTime();
-    expect(exp).toBeGreaterThan(before + 23 * 60 * 60 * 1000);
-    expect(exp).toBeLessThan(before + 25 * 60 * 60 * 1000);
+    const windowMs = APPROVAL_PAYMENT_WINDOW_HOURS * 60 * 60 * 1000;
+    expect(exp).toBeGreaterThan(before + windowMs - 60 * 60 * 1000);
+    expect(exp).toBeLessThan(before + windowMs + 60 * 60 * 1000);
 
     // The booker's pay-now email fired (fire-and-forget) with the pay link to the /book page carrying the hold.
     const approved = mockResend.sent().find((e) => e.subject.startsWith("Approved — pay to confirm"));
