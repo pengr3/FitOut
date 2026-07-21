@@ -57,7 +57,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PAY-03**: Host receives a payout for completed bookings, with funds held until after the session
 - [ ] **PAY-04**: Host completes payout onboarding (Stripe Connect KYC) before their listing becomes bookable
 - [x] **PAY-05**: For request-to-book, the slot is held with no charge at request; the booker pays on host approval (pay-on-approval) and the slot frees on decline/expiry/non-payment — *mechanism revised from authorize→capture per D-63 (Phase 6): PayMongo cannot hold funds on QRPh/e-wallets and card manual-capture is sales-gated; pay-on-approval works on all rails with no fee bleed*
-- [ ] **PAY-06**: Cancellations issue refunds according to the cancellation policy
+- [x] **PAY-06**: Cancellations issue refunds according to the cancellation policy
 
 ### Host Tools
 
@@ -163,7 +163,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | PAY-05 | Phase 6 | Complete |
 | HOST-01 | Phase 6 | Complete |
 | BOOK-07 | Phase 7 | In progress |
-| PAY-06 | Phase 7 | In progress |
+| PAY-06 | Phase 7 | Complete (07-09 shipped the BOOKER path — tier-driven refund computed from the booking's own snapshot against the DB clock, exact amount shown before confirming; 07-11 shipped the HOST path — 100% refund including the D-74 service fee with the tier deliberately not consulted, plus the D-70/D-71 consequences: audit against the host, undeletable auto-block of the freed window, and a write-time-capped signed `host_cancel_fee` debit netted by the 07-04 sweep) |
 | HOST-02 | Phase 7 | Complete (07-06 shipped `/host/bookings` — Upcoming/Past tabs, desktop table + mobile cards, per-booking payout state via `PayoutStateBadge` reused verbatim, keyset paging. Ownership is `listing.host_id` inside the query WHERE, mutation-verified in `tests/security/bookings-owner-scope.test.ts`) |
 | MANAGE-01 | Phase 7 | Complete (07-06 shipped `/bookings` — Upcoming/Past tabs partitioned on the DB clock, venue-local labels, keyset `Load more`, and the single D-104 inline `Pay now`. Rows are scoped by `booking.booker_id` in the query WHERE, mutation-verified) |
 | MANAGE-02 | Phase 7 | Complete (07-06 made the lifecycle visible on BOTH surfaces from 07-02's single derivation. D-102 `completed` is derived in SQL and proven to write nothing — `tests/booking/views.test.ts` reads the stored row back and asserts it still says `confirmed`. Booking-detail states are extended further in 07-12) |

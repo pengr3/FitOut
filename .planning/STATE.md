@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 11
+current_plan: 12
 status: executing
-stopped_at: Completed 07-14-PLAN.md (in-app notification centre — bell in both headers)
-last_updated: "2026-07-21T13:45:00.000Z"
+stopped_at: Completed 07-11-PLAN.md
+last_updated: "2026-07-21T14:09:08.934Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 52
-  percent: 93
+  completed_plans: 53
+  percent: 95
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 11
+Current Plan: 12
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
@@ -149,6 +149,7 @@ Progress: [█████████░] 93% (52 of 56 plans)
 | Phase 07 P09 | 75min | 3 tasks | 11 files |
 | Phase 07 P10 | 75 min | 2 tasks tasks | 9 files files |
 | Phase 07 P14 | ~45 min | 3 tasks | 8 files |
+| Phase 07 P11 | ~70m | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -232,6 +233,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-10: lifecycle sends emit fitout/notify post-commit — duplicate suppression lives in each action's status-scoped UPDATE WHERE, not in the notify layer
 - [Phase ?]: 07-10: notification payload hrefs are ABSOLUTE — one payload string feeds both channels (D-91); a root-relative href is a dead link in an email client
 - [Phase ?]: 07-10: auth.ts's two fire-and-forget sends are deliberately NOT migrated — they carry bearer secrets and the void is a timing-side-channel defence
+- [Phase ?]: 07-11: host cancel refunds 100% including the service fee; the tier is deliberately not consulted (D-70)
+- [Phase ?]: 07-11: the D-71 host-cancel fee is capped at the booking value at WRITE time, never at netting time
+- [Phase ?]: 07-11: the auto-block carries reason='host_cancellation' and removeBlock refuses to delete it (anti-resell)
+- [Phase 07]: [07-11]: HOST-INITIATED CANCELLATION (HOST-02/PAY-06 — ROADMAP SC#3 now has a product path). **`cancelBookingAsHost(bookingId, reason)`** fires all four D-70/D-71 consequences: (1) the booker is refunded **100% of the all-in charged total INCLUDING the D-74 service fee** — the one case in the system where the non-refundable fee IS returned, because the booker did nothing wrong and the platform absorbs the gateway cost; **`quoteRefund` is deliberately NOT called and the tier is NOT consulted** (a strict-tier booking cancelled 1h out still refunds 100%, proven at the exact rung that would award a BOOKER 0%). (2) `recordAudit({action:"host_cancel_booking"})` against the host. (3) the freed window is **auto-blocked on the same listing AND unit** for the exact `[startsAt, endsAt)` range with `reason='host_cancellation'`, and `removeBlock` (in **`blocks.ts`**, NOT `availability.ts` — the plan misnamed the file) refuses to delete it via `IS DISTINCT FROM` **inside the DELETE's own WHERE**; `<>` would have been a live bug since `reason` is nullable and `NULL <> 'x'` is NULL, which would have made every ordinary reason-less block undeletable. (4) a **signed debit** `kind='host_cancel_fee'`, gross=net=−fee, commission 0, recovered 0, state `held`, **capped at the booking value AT WRITE TIME** (`Math.min(HOST_CANCEL_FEE_CENTS, spacePriceCents)`), with `ON CONFLICT (booking_id, kind) DO NOTHING` as the at-most-once lock and deliberately NO app-level pre-check. `retained_space_cents = 0` is what makes 07-04's sweep predicate exclude the booking — writing NULL would have fallen through to `COALESCE(retained, space_price)` and paid the host the full space price, the exact inversion of the consequence. **This plan writes the FIRST REAL `host_cancel_fee` row in the system's history**, so it is the first that could check 07-04's kind scoping against a debit the PRODUCT produced rather than a fixture: proven that the payout sweep still pays correctly and nets ₱1,800−₱300=₱1,500, that `alertStuckHeld` returns 0 with a real debit aged 200h past the 48h threshold, and that `/host/earnings`' own kind-scoped read and `summarizePayouts` are unaffected while the debt surfaces through its separate outstanding query. **THREE deviations, all auto-fixed:** (a) Rule 1 — the plan's mandated `readDbNow` call on the host path is DEAD CODE: the path evaluates no rung and nothing consumes a JS Date, so it was omitted with a comment stating that Postgres `now()` inside the UPDATE's own WHERE is the STRONGER position (it cannot be raced apart from the status check). (b) Rule 2 — the plan sequences the auto-block and debit INSERTs as bare statements AFTER a flip that has already committed; a throw from either would have 500'd a cancellation that in fact succeeded and **skipped the refund entirely**, leaving the booker's money uncollected with no alert. Each consequence is now individually try/caught into a `needs_attention` audit + `[HOST_CANCEL_ALERT]` line. (c) Rule 3 — `removeBlock` lives in `blocks.ts`; `availability.ts` is a read-only public fetcher with no mutation at all. **⚠️ THE MUTATION CHECK FOUND A REAL GAP.** Removing the host owner-gate let our host genuinely cancel another host's booking — refunded ₱1,050, blocked their slot, charged them ₱300. The host path had only ONE ownership layer where the booker path has two, because host ownership lives on the LISTING and so cannot be a bare column predicate; the plan's SQL simply omitted it. Fixed with `AND EXISTS (SELECT 1 FROM listing l WHERE l.id = booking.listing_id AND l.host_id = ...)` in the same WHERE, after which the same mutation blocks the WRITE and only leaks the denial string — the two-stage result proving both layers are independently meaningful. **Also fixed the 07-10 assigned defect:** `cancel-booking.ts` emitted root-relative hrefs, dead links in both its emails; now absolute via the EXISTING `BETTER_AUTH_URL` convention (no new env var), with regression assertions on BOTH the host and booker paths. **UI (D-80/07-UI-SPEC §4):** `HostCancelDialog` — two panes in one dialog, required reason select (5 options) gating pane 2, required acknowledgment checkbox gating confirm, both buttons neutral (`outline`/`ghost`), zero coral, no `variant="destructive"`; the fee arrives as a SERVER-CAPPED prop and the component never caps or computes. `/host/bookings/[id]` re-gates session + `canHost`, owner-scopes with `listing.host_id` in the WHERE, bare `notFound()` for missing and not-mine alike, kind-scoped payout join, cancel entry point below a `Separator` (D-104). **ALL gates green:** tsc exit 0; eslint clean on all 6 files; `npm run build` exit 0 with `/host/bookings/[id]` present; host-cancel 16/16; payments+booking+security+availability 37 files/386; **full `npm test` 73 files / 597 tests, exit 0** (was 72/581). Four acceptance-criteria greps documented rather than gamed (two count an explanatory comment alongside the one real statement; `availability.ts` is 0 by design; `Keep booking` is 2 because each pane needs its own back button). **Downstream: any new `host_payout_ledger` query MUST carry `AND kind='payout'` — there are now real negative-`net_cents` rows in production data. Any new `availability_block` delete path MUST carry the `host_cancellation` refusal or D-70's anti-resell consequence is defeated through it. Plan 13's reminder queries must exclude cancelled bookings. Every notification `href` must be absolute.** Commits df30010 + 59c08ff + 8df752f.
 
 ### Pending Todos
 
@@ -277,8 +282,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T13:45:00.000Z
-Stopped at: **Completed 07-14-PLAN.md (Wave 3 — the in-app notification centre).** Executed ahead of 07-11/12/13; its deps (07-06, 07-07) were already done. Created `src/app/actions/notifications.ts` (`markNotificationRead` + `markAllNotificationsRead`, owner-scoped inside the UPDATE's WHERE, idempotent, bulk write rate-limited 60/60s + audited on denial, identical calm shape for owned/foreign/missing ids so there is no enumeration oracle); `src/components/notifications/notification-item.tsx` (exhaustive `NotificationPayload` switch closed by a `never` weld — no `default:`; `safeHref` render-side scheme allow-list; `formatTimeAgo` against the DB clock; `toNotificationItems` shared by both layouts); `src/components/notifications/notification-bell.tsx` (`"use client"` popover — NOT dropdown-menu, since links+button are not menuitems; ghost 44×44 trigger with `aria-label="Notifications, {n} unread"` carrying the TRUE count; `secondary` badge hidden at 0 and capped `9+`, never coral; `w-80 sm:w-96` / `max-h-96` + ScrollArea; `Mark all as read` only when unread>0; no `View all` dead link; bounded ~30s poller that PAUSES on `document.hidden`; no `aria-live`). Mounted the SAME bell in both inline headers (`(app)/layout.tsx`, `(host)/host/layout.tsx`) with the researcher's-call comment recorded in both — the two headers stay duplicated per D-04, the BELL is the shared thing. The D-65 `Requests` badge is untouched. **Rule-2 deviations:** both layouts wrap the notification read in try/catch (a layout throw would take down the session gate and every page in the group — the plan's specified error state was otherwise dead code, so `NotificationBell` gained an `error` prop); added `tests/notifications/notification-render.test.tsx` because the plan's only XSS control was a grep for an ABSENT API, which cannot prove a present one is safe. Both test files mutation-verified (5 owner-scope mutations, 1 render mutation, all caught; all restored). tsc + eslint clean; `npm run build` exit 0 with the three documented env placeholders (3rd observation, reconfirmed in deferred-items.md, not fixed). Full suite **72 files / 581 tests green** (was 70/560). Commits 845fc24 + 6474ce9 + bbc8fb2. ⚠ local `gsd-tools` has no `query state.*` handlers — STATE/ROADMAP updated by hand. Next: 07-11.
+Last session: 2026-07-21T14:09:08.921Z
+Stopped at: Completed 07-11-PLAN.md
 Resume file: None
 
 Prior session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-07)
