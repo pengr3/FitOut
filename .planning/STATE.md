@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 10
+current_plan: 11
 status: executing
-stopped_at: Completed 07-09-PLAN.md (booker cancellation + exact refund)
-last_updated: "2026-07-21T12:49:34.887Z"
+stopped_at: Completed 07-10-PLAN.md (lifecycle sends wired onto fitout/notify)
+last_updated: "2026-07-21T13:19:42.851Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 56
-  completed_plans: 50
-  percent: 89
+  completed_plans: 51
+  percent: 91
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 10
+Current Plan: 11
 Total Plans in Phase: 16
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [█████████░] 86% (48 of 56 plans)
+Progress: [█████████░] 91% (51 of 56 plans)
 
 **Wave 1 complete.** 07-01 (config + schema + migrations) and 07-02 (when-label + booking-status derivation) both have SUMMARY.md on disk; `drizzle/0013` + `0014` are applied to the live DB and are idempotent.
 
@@ -57,9 +57,13 @@ Progress: [█████████░] 86% (48 of 56 plans)
 
 **07-07 landed — the notification LAYER exists.** Full suite: **66 files / 519 tests, exit 0**. `src/inngest/functions/notify.ts` is the repo's first event-triggered Inngest function: one `fitout/notify` event → `write-notification` (durable row) then `send-email`, each its own memoized step. WR-04, open since Phase 2, is closed — a permanently-failed send now writes a `recordAudit` `needs_attention` entry instead of vanishing.
 
-⚠️ **The notification layer is BUILT BUT NOT WIRED.** Nothing calls `emitNotify` yet, so no notification row is produced and the five existing sends are still `void sendXxx(...)`. This is by design (07-07's own objective defers it), but it means **MANAGE-03 is NOT observably satisfied** until **07-10** migrates the call sites. Left un-wired past 07-10, the whole layer is dead code.
+✅ **The notification layer is now WIRED — MANAGE-03 is observably satisfied (07-10).** Full suite: **70 files / 560 tests, exit 0**. All five shipped fire-and-forget lifecycle sends emit `fitout/notify` post-commit: `approveRequest` → `request_approved`, `declineRequest` → `request_declined`, `placeHold` → `request_received` + `new_request_to_host`, the payment webhook → `booking_confirmed`, and the expiry cron → `request_declined` (D-91 parity — the cron emits rather than calling `email.ts` directly, so expiry is not the one lifecycle event without an in-app row). A real approve now produces a real `notification` row in the real database — `tests/booking/notify-emission.test.ts` case 6 reads it back out.
 
-📌 **Contract for anyone emitting a notification.** Call `emitNotify(event)` **after commit, NEVER inside `db.transaction`** — `inngest.send` is an outbound HTTP call, and a rollback would leave an event already sent for a booking that does not exist. Never call `email.ts` sends directly; `sendForType` is the only dispatcher (that is the D-83 anti-pattern being removed). The payload must be complete — `booking_confirmed.referenceLabel`, `new_request_to_host.totalLabel` and `request_declined.expired` were **added by 07-07** and are REQUIRED; `href` must be a root-relative path or an `http(s)` URL (a `javascript:` scheme is refused at the write boundary); and `type` must equal `payload.type`. Adding a notification type is a **three-file change by construction** (pgEnum + TS union, Zod union, `sendForType` switch) — each omission is a compile error, and a `default:` clause would destroy that. Do not add one.
+📌 **The three properties 07-10 proved, and how (do not weaken these).** (1) **Emission happens AFTER commit** — case 1 records what an **independent Postgres connection** can see at emit time; a second connection observes only committed rows, so `statusAtEmit === "approved"` is what distinguishes post-commit from in-transaction. "Send was called" is not that assertion. (2) **A rejecting transport cannot fail the action** — case 2. (3) **Duplicate suppression lives in each action's status-scoped `UPDATE ... WHERE`, NOT in the notify layer** — a 0-row repeat returns before the emission is reached (case 3), and the webhook gates its emission on the `≥1-row` confirm branch so a PayMongo redelivery emits nothing. Verified non-vacuous by mutation: a deliberate pre-commit emission fails 4 of the 6 cases.
+
+⚠️ **`auth.ts` still has two `void send...` calls and that is CORRECT.** `sendResetPassword` / `sendVerificationEmail` are deliberately NOT migrated — a reset URL is a bearer secret and the notification row is durable, and `email.ts:7` documents the `void` as a **timing-side-channel** (user-enumeration) defence. D-83/D-66 scope the migration to the five booking lifecycle emails, all of which are done. Do not "finish the job" by migrating auth.
+
+📌 **Contract for anyone emitting a notification.** Call `emitNotify(event)` **after commit, NEVER inside `db.transaction`** — `inngest.send` is an outbound HTTP call, and a rollback would leave an event already sent for a booking that does not exist. Never call `email.ts` sends directly; `sendForType` is the only dispatcher (that is the D-83 anti-pattern being removed). The payload must be complete — `booking_confirmed.referenceLabel`, `new_request_to_host.totalLabel` and `request_declined.expired` were **added by 07-07** and are REQUIRED; `href` must be a root-relative path or an `http(s)` URL (a `javascript:` scheme is refused at the write boundary) — and **07-10 established ABSOLUTE (`${BETTER_AUTH_URL}/...`) as the convention**, because under D-91 that one string is also the email's CTA and a root-relative href is a dead link in a mail client; and `type` must equal `payload.type`. Adding a notification type is a **three-file change by construction** (pgEnum + TS union, Zod union, `sendForType` switch) — each omission is a compile error, and a `default:` clause would destroy that. Do not add one.
 
 ℹ️ **`/bookings/[id]` moved into the `(app)` route group** (URL unchanged). It now inherits the booker header, so 07-14's bell will cover it; `/` and `/listings/[id]` remain header-less — the residual half of UI-SPEC Open Question 1.
 
@@ -129,6 +133,7 @@ Progress: [█████████░] 86% (48 of 56 plans)
 | Phase 07 P07 | ~55m | 3 tasks | 8 files |
 | Phase 07 P08 | ~55m | 3 tasks | 18 files |
 | Phase 07 P09 | 75min | 3 tasks | 11 files |
+| Phase 07 P10 | 75 min | 2 tasks tasks | 9 files files |
 
 ## Accumulated Context
 
@@ -209,6 +214,9 @@ Recent decisions affecting current work:
 - [Phase 07]: Booker cancellation RECOMPUTES the refund at confirm time — There is no signed quote token, so honouring the previewed figure would mean trusting a number that reached the server through the client. Time only moves toward the session, so a rung crossed between preview and confirm can only LOWER the refund. The review page discloses the concrete instant the rung changes (D-81) so the recompute is disclosed, never sprung.
 - [Phase 07]: booking.payment_method persisted at confirm (migration 0015) — isApiRefundable fails closed. The rail was only ever resolved inline from a live webhook event, but a cancellation happens days later with no event in hand — so without a stored rail every cancellation refund would have been judged unrefundable and routed to the operator-alert path, and no money would ever have moved. Nullable, backfill-free, absent from the GiST EXCLUDE predicate.
 - [Phase 07]: readDbNow() is the only display-side DB-clock reader — Probed live: a bare SELECT now() through db.execute returns a STRING, not a Date. The as-unknown-as cast satisfies tsc, eslint and next build and then throws on .getTime() with the first real row. This supersedes the literal snippet 07-09-PLAN mandated.
+- [Phase ?]: 07-10: lifecycle sends emit fitout/notify post-commit — duplicate suppression lives in each action's status-scoped UPDATE WHERE, not in the notify layer
+- [Phase ?]: 07-10: notification payload hrefs are ABSOLUTE — one payload string feeds both channels (D-91); a root-relative href is a dead link in an email client
+- [Phase ?]: 07-10: auth.ts's two fire-and-forget sends are deliberately NOT migrated — they carry bearer secrets and the void is a timing-side-channel defence
 
 ### Pending Todos
 
@@ -254,8 +262,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T12:49:34.864Z
-Stopped at: Completed 07-09-PLAN.md (booker cancellation + exact refund)
+Last session: 2026-07-21T13:19:42.837Z
+Stopped at: Completed 07-10-PLAN.md (lifecycle sends wired onto fitout/notify)
 Resume file: None
 
 Prior session: 2026-07-20 (executing Phase 06 via /gsd-execute-phase — completed 06-07)
