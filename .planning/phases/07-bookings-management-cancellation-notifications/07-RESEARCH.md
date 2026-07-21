@@ -1100,24 +1100,30 @@ Phase 7 is additive schema + code. Assessed for completeness:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED — planning, 2026-07-21)
+
+All four were resolved by `/gsd-plan-phase 7`. Resolutions recorded inline below.
 
 1. **Does the QRPh refund probe confirm or refute D-58?**
    - Known: PayMongo's help text says no; the API reference is silent; the pages are 404.
    - Unclear: current live behaviour.
    - **Recommendation: run the probe in the first wave. Sequence the D-72 tasks last so a refutation deletes work rather than rewriting it.**
+   - **RESOLVED → Plan 07-16, Task 1** (`checkpoint:human-verify`, gate `blocking`), sequenced last in wave 5 so a refutation *deletes* the D-72 workstream rather than rewriting it. Task 2 then records the verdict and routes all refund dispatch through the single `refund-rail` predicate; Task 3 is Branch-B-only.
 
 2. **Should the `payout_ledger_state` vocabulary be extended for debit rows?**
    - Known: `held|processing|paid|refunded|failed` were designed for transfers; a debit never transfers.
    - Recommendation: reuse `held` → `paid` with `kind` scoping. Adding an enum value is possible (a *new value on an existing type* needs the `0010`/`0012` two-migration split) but not worth it.
+   - **RESOLVED → recommendation accepted.** Plan 07-01 Task 2 adds a new `ledger_kind` `CREATE TYPE` (not an `ALTER TYPE … ADD VALUE`, so no two-migration split needed); Plan 07-04 Task 1 scopes every ledger query by `kind`.
 
 3. **Does the host-cancel auto-block (D-70) need to survive an un-block by the host?**
    - Known: `availability_block` rows are deleted to unblock; nothing marks a block as system-created.
    - Unclear: whether a host can simply delete the punitive block, defeating D-70's anti-resell purpose.
    - **Recommendation: add a `reason` value (the column exists, `schema.ts:365`) like `host_cancellation` and refuse deletion of those rows in the unblock action. Flagging because D-70's stated abuse vector is exactly this.** Worth a planner decision.
+   - **RESOLVED → recommendation accepted.** Plan 07-11 Task 1 writes the auto-block with `reason = 'host_cancellation'`; `removeBlock` refuses to delete those rows. Plan 07-11 Task 3 tests both directions.
 
 4. **Keyset vs offset pagination for "Load more" (D-106)?**
    - Recommendation: match Phase 4 unless it used `OFFSET`; prefer keyset for the unbounded Past tab.
+   - **RESOLVED → keyset**, a recorded, deliberate divergence from Phase 4's `OFFSET` idiom (justified by the unbounded Past tab). Plan 07-06 Task 1 implements it; Task 3 tests cursor and malformed-cursor tolerance.
 
 ---
 
