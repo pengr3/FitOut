@@ -1,5 +1,16 @@
-// The durable booking confirmation (BOOK-03 · D-43). A top-level route (NOT under the (app)/(host) gated
-// groups on purpose) — the OWNER-GATE, not the route group, is the security boundary (Security V4).
+// The durable booking confirmation (BOOK-03 · D-43). The OWNER-GATE below, not the route group, is the
+// security boundary (Security V4) — that is unchanged and remains the only thing keeping this page private.
+//
+// Phase 7 MOVED this file from src/app/bookings/[id] into the (app) group. Route groups do not change URLs,
+// so it still serves /bookings/[id]; the move exists because Plan 06 adds a real /bookings segment and
+// declaring `bookings` in BOTH the root and the (app) group is an avoidable Next.js routing ambiguity that
+// Plans 09 and 12 would keep compounding. No behaviour in this file changed with the move.
+//
+// It also closes part of 07-UI-SPEC Open Question 1: inside (app) this page now inherits the booker header
+// and therefore the D-92 notification bell. The (app) layout's own session redirect is DESIRABLE here rather
+// than a regression — the page already refused to render without a session (it 404s), so the only change is
+// that a signed-out visitor lands on /login instead of a 404. `/` and `/listings/[id]` remain header-less;
+// that residual bell-coverage gap is accepted and is recorded in the 07-06 SUMMARY.
 //
 // Security boundaries enforced here:
 //   - T-04-CONFIRMIDOR (a MUST-NOT-SKIP control): the booking is loaded owner-gated —

@@ -78,6 +78,27 @@ export type BookingsPage = {
   nextCursor: string | null;
 };
 
+/**
+ * The row shape Postgres actually hands back. This is NOT cosmetic — `dbConn.execute` returns raw driver
+ * rows, and a `timestamptz` arrives as Postgres TEXT (`2027-03-01 02:00:00+00`), not as a Date. Typing the
+ * projection as `Date` and hoping would hand `date-fns` and `BookingStatusBadge` a string, which fails at
+ * RUNTIME with data present and passes every compile-time check — the worst possible failure mode for a
+ * page whose whole job is showing times.
+ *
+ * So each timestamp is selected as a STRICT ISO-8601 UTC string via to_char (see `isoUtc` below) and
+ * converted once, here, at the boundary. Strict ISO because parsing Postgres' native text format relies on
+ * implementation-defined leniency in the JS engine; ISO-8601 parsing is specified.
+ */
+type RawBookingRow = Omit<BookingListRow, "startsAt" | "endsAt"> & {
+  startsAtIso: string;
+  endsAtIso: string;
+};
+
+/** `to_char` mask producing the exact shape `Date.prototype.toISOString` emits, so cursors round-trip. */
+function isoUtc(column: string) {
+  return sql`to_char(${sql.raw(column)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+}
+
 type ParsedCursor = { startsAtIso: string; id: string };
 
 /**
@@ -145,14 +166,35 @@ function orderBy(tab: BookingsTab) {
 }
 
 /**
- * Trim the sentinel row and emit the cursor. We read `limit + 1` rows: if the extra one came back there IS
- * a next page, and the cursor is the LAST KEPT row's key — never the sentinel's, which would skip it.
+ * Trim the sentinel row, convert the boundary types, and emit the cursor. We read `limit + 1` rows: if the
+ * extra one came back there IS a next page, and the cursor is the LAST KEPT row's key — never the
+ * sentinel's, which would skip it.
  */
-function toPage(rows: BookingListRow[], limit: number): BookingsPage {
-  if (rows.length <= limit) return { rows, nextCursor: null };
-  const kept = rows.slice(0, limit);
+function toPage(raw: RawBookingRow[], limit: number): BookingsPage {
+  const hasMore = raw.length > limit;
+  const kept = hasMore ? raw.slice(0, limit) : raw;
   const last = kept[kept.length - 1];
-  return { rows: kept, nextCursor: `${last.startsAt.toISOString()}|${last.id}` };
+  const rows: BookingListRow[] = kept.map((r) => ({
+    ...r,
+    startsAt: new Date(r.startsAtIso),
+    endsAt: new Date(r.endsAtIso),
+  }));
+  return {
+    rows,
+    nextCursor: hasMore && last ? `${last.startsAtIso}|${last.id}` : null,
+  };
+}
+
+/**
+ * The DB clock, as a Date, for the surfaces that must thread `now` into a status derivation (D-102). Lives
+ * here so no page re-derives the same cast: `SELECT now()` through `execute` is TEXT for exactly the reason
+ * documented on RawBookingRow, and a page that forgot would crash on `.getTime()` with real data.
+ */
+export async function readDbNow(dbConn: DbConn): Promise<Date> {
+  const [row] = (await dbConn.execute(sql`
+    SELECT ${isoUtc("now()")} AS "nowIso"
+  `)) as unknown as { nowIso: string }[];
+  return new Date(row.nowIso);
 }
 
 /**
@@ -170,8 +212,8 @@ export async function queryBookerBookings(
   const rows = (await dbConn.execute(sql`
     SELECT
       b.id,
-      b.starts_at AS "startsAt",
-      b.ends_at AS "endsAt",
+      ${isoUtc("b.starts_at")} AS "startsAtIso",
+      ${isoUtc("b.ends_at")} AS "endsAtIso",
       b.status::text AS "status",
       ${displayStatusExpr} AS "displayStatus",
       b.quoted_total_cents AS "quotedTotalCents",
@@ -191,7 +233,7 @@ export async function queryBookerBookings(
       ${keysetPredicate(args.tab, cursor)}
     ${orderBy(args.tab)}
     LIMIT ${limit + 1}
-  `)) as unknown as BookingListRow[];
+  `)) as unknown as RawBookingRow[];
 
   return toPage(rows, limit);
 }
@@ -222,8 +264,8 @@ export async function queryHostBookings(
   const rows = (await dbConn.execute(sql`
     SELECT
       b.id,
-      b.starts_at AS "startsAt",
-      b.ends_at AS "endsAt",
+      ${isoUtc("b.starts_at")} AS "startsAtIso",
+      ${isoUtc("b.ends_at")} AS "endsAtIso",
       b.status::text AS "status",
       ${displayStatusExpr} AS "displayStatus",
       b.quoted_total_cents AS "quotedTotalCents",
@@ -247,7 +289,7 @@ export async function queryHostBookings(
       ${keysetPredicate(args.tab, cursor)}
     ${orderBy(args.tab)}
     LIMIT ${limit + 1}
-  `)) as unknown as BookingListRow[];
+  `)) as unknown as RawBookingRow[];
 
   return toPage(rows, limit);
 }
