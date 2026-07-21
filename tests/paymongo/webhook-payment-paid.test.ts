@@ -64,8 +64,10 @@ async function seedBooking(opts: {
   paymentId?: string | null;
   bookingMode?: "instant" | "request" | null;
   hourUtc: number;
+  /** Override the session window with explicit instants — used by the D-57 guard test's PAST session. */
+  window?: { startsAt: Date; endsAt: Date };
 }): Promise<void> {
-  const { startsAt, endsAt } = windowAt(opts.hourUtc);
+  const { startsAt, endsAt } = opts.window ?? windowAt(opts.hourUtc);
   await testDb.db.insert(booking).values({
     id: opts.id,
     listingId: LISTING,
@@ -303,6 +305,51 @@ describe("checkout_session.payment.paid — confirm authority (D-57)", () => {
     expect((await readBooking(id)).status).toBe("confirmed");
     expect((await readBooking(id)).paymentId).toBe("pay_test_3");
     expect(await countEvents(eventId)).toBe(1);
+  });
+
+  it("D-57 GUARD: the webhook confirms on status='pending' ALONE — a starts_at condition must NEVER be added here (Pitfall 4)", async () => {
+    // ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+    // │ IF THIS TEST FAILS, SOMEONE ADDED A START-TIME GUARD TO THE CONFIRM AUTHORITY.                │
+    // │                                                                                              │
+    // │ D-94 says approve, confirm-initiation and pay are refused once starts_at has passed, and the  │
+    // │ payment webhook LOOKS like the pay path. It is not — it is the CONFIRM path, and payment is   │
+    // │ the confirm authority (D-57). Adding `AND starts_at > now()` to the confirm UPDATE resurrects │
+    // │ exactly the failure 05-04 was built to prevent: the booker's money is taken and the booking   │
+    // │ cannot confirm. Money in, nothing delivered, no record that it should have been.              │
+    // │                                                                                              │
+    // │ The correct homes for D-94's post-start refusals are approveRequest's UPDATE WHERE and        │
+    // │ confirmBooking (checkout INITIATION, before any money moves). A payment that lands post-start │
+    // │ anyway is already covered by the handleGoneSlot auto-refund backstop (D-58).                  │
+    // │                                                                                              │
+    // │ Do NOT "fix" this test. Revert the guard.                                                     │
+    // └──────────────────────────────────────────────────────────────────────────────────────────────┘
+    const id = "bk_paid_post_start";
+    // A session that started an hour ago and has already ended — the booker paid late, at the edge of the
+    // checkout window, and the webhook arrived after the session began.
+    const startsAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const endsAt = new Date(Date.now() - 60 * 60 * 1000);
+    await seedBooking({
+      id,
+      status: "pending",
+      expiresAtMs: Date.now() + 30 * 60 * 1000,
+      hourUtc: 18,
+      window: { startsAt, endsAt },
+    });
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_post_start", method: "card" }),
+    );
+    expect(res.status).toBe(200);
+
+    // Confirmed anyway. The money was taken, so the booking MUST become real — refusing here would leave
+    // the booker paid-but-unconfirmed with no automatic recovery.
+    const row = await readBooking(id);
+    expect(row.status).toBe("confirmed");
+    expect(row.expiresAt).toBeNull();
+    expect(row.paymentId).toBe("pay_post_start");
+
+    // And it went through the ordinary confirm path — NOT the gone-slot refund backstop.
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
   });
 
   it("rejects a forged Paymongo-Signature → 400 with no state change", async () => {
