@@ -20,6 +20,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Integration files replay every migration into an isolated schema in beforeAll
+    // (tests/helpers/db.ts). With ~78 files sharing one Postgres, setup contention can
+    // push a hook past Vitest's 10s default, failing random files. 120s makes the full
+    // suite deterministic (proven 655/655) without masking real hangs.
+    hookTimeout: 120_000,
     setupFiles: ["tests/setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     // E2E specs live in /e2e and are run by Playwright, not Vitest.
