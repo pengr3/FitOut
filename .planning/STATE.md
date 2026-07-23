@@ -5,8 +5,8 @@ milestone_name: milestone
 current_plan: 16
 status: executing
 stopped_at: "Completed 07-15-PLAN.md (Wave 4 — the cancellation tier's two HUMAN ends, closing BOOK-07). A host must now make an EXPLICIT tier choice before publishing: three equal-weight cards with NO pre-selection in the wizard (D-77), the requirement joining the SHIPPED publish checklist, and the real gate in `publishSchema` re-read from the PERSISTED row so the client checklist is never it (T-07-88). A booker now sees that tier before paying: one `CancellationPolicyDisclosure` Server Component (native `<details>`), generic on the listing page and CONCRETE venue-local dates at checkout (D-81), sourced from the BOOKING's tier snapshot — the same column `quoteRefund` reads. **All disclosure copy is DERIVED from `LADDER` and mutation-proven in both directions:** move a rung and the copy follows automatically; hand-type a figure and the test goes red. A NULL tier renders NOTHING rather than `tierOrDefault`'s Flexible — that fallback is a legacy engine safety net, not a policy any host chose. Two shipped fixtures that called themselves publish-eligible no longer were, and were correctly updated. Full suite **76 files / 628 tests, exit 0** (was 75/616). Commits 53ce7ac + 14dd0f5 + 05d719d + 926517c. (Full detail in 07-15-SUMMARY.md.)"
-last_updated: "2026-07-21T15:20:00.000Z"
-last_activity: 2026-07-21
+last_updated: "2026-07-23T05:47:00Z"
+last_activity: 2026-07-23
 progress:
   total_phases: 8
   completed_phases: 6
@@ -298,7 +298,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T15:20:00.000Z
+Last session: 2026-07-23T05:47:00Z
+Stopped at: Session resumed via /gsd-resume-work. The dismissed 07-16 question from the pause is now ANSWERED: run the QRPh probe together (interactive — human completes the test-mode QRPh payment in-browser; tunnel + PayMongo dashboard webhook registration required). Also committed the Inngest in-housing deliberation outcome (3eca5ed): DEFERRED — staying on Inngest for v1, upholding D-56; revisit only after proving market AND hitting Inngest limits. HANDOFF.json consumed and deleted. Proceeding to /gsd-execute-phase 7 for 07-16.
+Resume file: None
+
+Prior session: 2026-07-21T15:20:00.000Z
 Stopped at: Completed 07-15-PLAN.md (Wave 4 — the cancellation tier's two HUMAN ends, closing BOOK-07). A host must now make an EXPLICIT tier choice before publishing: three equal-weight cards with NO pre-selection in the wizard (D-77), the requirement joining the SHIPPED publish checklist, and the real gate in `publishSchema` re-read from the PERSISTED row so the client checklist is never it (T-07-88). A booker now sees that tier before paying: one `CancellationPolicyDisclosure` Server Component (native `<details>`), generic on the listing page and CONCRETE venue-local dates at checkout (D-81), sourced from the BOOKING's tier snapshot — the same column `quoteRefund` reads. **All disclosure copy is DERIVED from `LADDER` and mutation-proven in both directions:** move a rung and the copy follows automatically; hand-type a figure and the test goes red. A NULL tier renders NOTHING rather than `tierOrDefault`'s Flexible — that fallback is a legacy engine safety net, not a policy any host chose. Two shipped fixtures that called themselves publish-eligible no longer were, and were correctly updated. Full suite **76 files / 628 tests, exit 0** (was 75/616). Commits 53ce7ac + 14dd0f5 + 05d719d + 926517c. (Full detail in 07-15-SUMMARY.md.)
 Resume file: None
 
