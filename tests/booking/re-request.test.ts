@@ -417,6 +417,32 @@ describe("reRequestSameWindow — the D-97 lapse-recovery invariants", () => {
     expect((await readRow("bk_rr_live")).status).toBe("approved"); // untouched
   });
 
+  it("(7 · WR-06) an hourly re-request after a host RATE EDIT stays hourly — never repriced at the day rate", async () => {
+    // THE GAP (07-REVIEW WR-06): fullDay was re-derived as `spaceCents !== currentHourlyRate × hours`.
+    // The frozen spaceCents was priced at the rate in force at the ORIGINAL booking, so ANY hourly-rate
+    // edit since fails the equality, flips fullDay true, and the "one-click, nothing to re-enter"
+    // recovery flow silently mints a request at the flat DAY rate — ₱3,000 for a ₱1,000 hourly window,
+    // which the host may approve. The derivation is PRICE-DETERMINING here, not display-only.
+    await seedListing("L_rr_rate_edit");
+    await seedLapsedApproval("bk_rr_rate_edit", "L_rr_rate_edit", 30 * HOUR); // frozen at HOURLY × 1h
+    const NEW_HOURLY = 120000; // the host's rate edit — any value ≠ the frozen 100000 triggers the bug
+    await testDb.db
+      .update(listing)
+      .set({ hourlyRateCents: NEW_HOURLY })
+      .where(eq(listing.id, "L_rr_rate_edit"));
+
+    await login(BOOKER_EMAIL);
+    const res = await reRequestSameWindow("bk_rr_rate_edit");
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error("expected the re-request to succeed");
+
+    // The NEW row's PERSISTED money fields — hourly pricing at the CURRENT rate (rate × 1h), and
+    // emphatically NOT the flat day rate the inequality derivation would have minted.
+    const row = await readRow(res.bookingId);
+    expect(row.spacePriceCents).toBe(NEW_HOURLY);
+    expect(row.spacePriceCents).not.toBe(DAY_RATE);
+  });
+
   it("(6) rate limit: the sixth call in the window is refused, and the denial is audited", async () => {
     // T-07-73 — the mitigation for re-request spam against a host. The budget is consulted BEFORE the lapse
     // guard, which is why the first five calls below can target a live (non-resendable) booking: they each
