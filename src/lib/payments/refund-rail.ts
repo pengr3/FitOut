@@ -1,13 +1,38 @@
 // The SINGLE place the QRPh refundability question is answered (07-RESEARCH § Gating Verdict).
 //
-// VERDICT as of 2026-07-21: QRPh is NOT API-refundable — PayMongo's help centre states "In general, QR Ph
-// payments have no refunds through PayMongo", corroborated independently by the Phase-5 research pass and
-// by the shipped webhook branch. Every primary doc page now 404s, so the verdict is MEDIUM-HIGH, not HIGH.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════
+// VERDICT: `confirmed` — QRPh is NOT API-refundable. SETTLED BY OBSERVED API BEHAVIOUR on 2026-07-23
+// (Plan 16 Task 1 probe, TEST mode — the paid payment's raw body shows `livemode:false`), not by
+// documentation. D-58 stands; the D-72 collect-and-never-store branch is BUILT (createRefundTransfer in
+// src/lib/paymongo.ts + the destination form).
 //
-// If the documented test-mode probe (Plan 16, Task 1) REFUTES that premise, this becomes `() => true` and
-// the ENTIRE D-72 workstream — bank-details form, instapay transfer path, PH Data Privacy Act exposure,
-// payout-redirection threat, failed-transfer recovery UX — is deleted with zero rework, because it is the
-// only branch point. Do NOT inline this predicate anywhere.
+// THE OBSERVED EVIDENCE, VERBATIM:
+//   - QRPh-only checkout session `cs_809b1190ba4c3d44b7a77cdc` (₱100.00 = 10000 centavos) was paid by a
+//     human on the hosted page; captured payment `pay_ru6sXqhRJto1NW3T83cqak4q`, `source.type: "qrph"`.
+//   - `POST /v1/refunds` with `Idempotency-Key: qrph-refund-probe-1`, body
+//     `{"data":{"attributes":{"amount":10000,"payment_id":"pay_ru6sXqhRJto1NW3T83cqak4q","reason":"others"}}}`
+//     → HTTP 400, raw body:
+//     `{"errors":[{"code":"parameter_invalid","detail":"Refunds are not allowed for payments with source
+//     type qrph.","source":{"pointer":"payment_id","attribute":"payment_id"}}]}`
+//   - Outcome-matrix row 1 (a sync 4xx naming the rail as not refundable) → `confirmed`. No refund
+//     resource was created, so terminal-status polling does not apply — that requirement guards the
+//     HTTP-200 branch, where an async `failed` would look healthy while stranding the booker's money.
+//
+// A3 (stable Idempotency-Key + rotating reference_number on /v2/batch_transfers): BLOCKED, not settled.
+// Probed in the same 2026-07-23 test session:
+//   - `GET /v2/wallets?status=activated` → HTTP 200 with ZERO wallets — Platforms / Linked Accounts is
+//     not enabled on this test account.
+//   - `GET /v2/transfers/receiving_institutions?provider=instapay` → HTTP 404, raw body
+//     `{"errors":[{"code":"not_found","detail":"failed to get transfer: resource not found"}]}` — the
+//     router resolved `receiving_institutions` as a transfer-id lookup, i.e. the Money Movement endpoints
+//     are ABSENT until PayMongo enables the feature on the account.
+// Consequence: the refund-transfer path keeps the documented design exactly (stable `Idempotency-Key`,
+// per-attempt rotating `reference_number` — PayMongo's own retry guidance), and A3 is flagged for
+// re-verification in manual UAT once Money Movement is enabled. Do NOT record an a3-ok/a3-rejected result
+// that was never observed.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// This module remains the ONLY branch point for refund dispatch. Do NOT inline this predicate anywhere.
 //
 // Pure/isomorphic: no "use client"/"use server" directive — the webhook route, the cancel server action and
 // the refund-preview RSC all import it.

@@ -232,6 +232,14 @@ export async function createRefund(input: {
     "/v1/refunds",
     {
       method: "POST",
+      // ⚠️ ONE-REFUND-PER-PAYMENT ASSUMPTION, recorded explicitly (07-16). This key is scoped to the
+      // PAYMENT, not to a (payment, amount) pair — so a SECOND createRefund for the same payment does NOT
+      // produce a second refund resource: PayMongo's idempotency replays the FIRST response, whatever
+      // amount the second call asked for. That is SAFE today (one refund per booking; booking↔payment is
+      // 1:1) and is exactly the double-refund guard the key exists to be. But it is a TRAP for any future
+      // partial-then-top-up flow: the top-up call would silently no-op and REPORT SUCCESS while moving no
+      // money. If that flow is ever built, this key must gain a per-refund discriminator — and the
+      // one-refund-per-payment test in tests/paymongo/refund.test.ts will go red to force the decision.
       idempotencyKey: `refund:${input.paymentId}`,
       body: {
         data: {
@@ -307,6 +315,113 @@ export async function createBatchTransfer(input: {
     transferId: transfer?.id ?? "",
     status: transfer?.status ?? "",
   };
+}
+
+/**
+ * InstaPay's real-time ceiling: ₱50,000 = 5_000_000 centavos (07-RESEARCH § InstaPay transfer shape).
+ * A transfer above it is DOOMED — do not fire it. createRefundTransfer throws below as defence in depth;
+ * the cancel action checks this constant FIRST and takes the `needs_attention` operator-alert path instead
+ * of a call we know fails. Comfortably above any plausible FitOut booking, asserted anyway.
+ */
+export const INSTAPAY_CEILING_CENTS = 5_000_000;
+
+/**
+ * Fire an InstaPay refund transfer (/v2/batch_transfers) of a booker's cancellation refund to a bank /
+ * e-wallet destination THE BOOKER SUPPLIED on the cancel screen (D-72, Plan 07-16 Branch B — QRPh is NOT
+ * API-refundable, settled by the 2026-07-23 probe recorded in src/lib/payments/refund-rail.ts).
+ *
+ * A SEPARATE exported function, deliberately NOT an overload of createBatchTransfer's payout signature:
+ * the two move money for different reasons, and collapsing them invites exactly the namespace collision
+ * below.
+ *
+ * ⚠️ PITFALL 10 — THE IDEMPOTENCY NAMESPACE IS `refund:`, NEVER the payout namespace. A payout and a
+ * refund can exist for the SAME booking (partial refund → the retained share still pays out); if both
+ * used one key, PayMongo would silently replay one call's response for the other and either the host or
+ * the booker would not be paid. The two namespaces are grep-asserted distinct.
+ *
+ * ⚠️ RETRY SHAPE (A3): the `Idempotency-Key` is STABLE per booking (it is what prevents a double-pay);
+ * `reference_number` ROTATES per attempt (`refund-<bookingId>-<attempt>`), per PayMongo's documented
+ * guidance to "always use a NEW, unique reference_number" on retry — the reference is a reconciliation
+ * label, not the dedupe. A3 (that PayMongo accepts this mix) is BLOCKED-unverified: the Money Movement
+ * endpoints 404 on this test account until PayMongo enables the feature (evidence in refund-rail.ts).
+ * Re-verify in manual UAT; the design follows the documented contract either way.
+ *
+ * ⚠️ D-72 COLLECT-AND-NEVER-STORE: `destination` passes STRAIGHT THROUGH to the transfer body and is
+ * never persisted or logged by this module. The CALLER may keep only the returned transfer id and a
+ * masked last-4. Transfers start `pending` and there is NO transfer webhook — terminal status is polled
+ * (getTransfer), exactly as payout-reconcile does.
+ */
+export async function createRefundTransfer(input: {
+  bookingId: string;
+  amountCents: number;
+  currency: string;
+  attempt: number;
+  destination: { number: string; name: string; bic: string };
+}): Promise<BatchTransfer> {
+  if (input.amountCents > INSTAPAY_CEILING_CENTS) {
+    // Defence in depth — the caller must have routed this to the operator-alert path already.
+    throw new Error(
+      `Refund transfer for ${input.bookingId} exceeds the InstaPay ceiling; refusing to fire a doomed transfer.`,
+    );
+  }
+  const json = await paymongoFetch<{
+    data?: { id?: string; attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
+  }>("/v2/batch_transfers", {
+    method: "POST",
+    idempotencyKey: `refund:${input.bookingId}`,
+    body: {
+      transfers: [
+        {
+          provider: "instapay",
+          amount: input.amountCents, // server-frozen quote.totalRefundCents — NEVER a client figure
+          currency: input.currency.toUpperCase(),
+          purpose: "Disbursement",
+          description: `FitOut refund ${input.bookingId}`,
+          reference_number: `refund-${input.bookingId}-${input.attempt}`,
+          source_account: {
+            number: PLATFORM_WALLET.number,
+            name: PLATFORM_WALLET.name,
+            bic: PLATFORM_WALLET.bic,
+          },
+          destination_account: {
+            number: input.destination.number,
+            name: input.destination.name,
+            bic: input.destination.bic,
+          },
+          metadata: { booking_id: input.bookingId },
+        },
+      ],
+    },
+  });
+  const transfer = json.data?.attributes?.transfers?.[0];
+  return {
+    batchId: json.data?.id ?? "",
+    transferId: transfer?.id ?? "",
+    status: transfer?.status ?? "",
+  };
+}
+
+export type ReceivingInstitution = { name: string; bic: string };
+
+/**
+ * List the InstaPay receiving institutions (GET /v2/transfers/receiving_institutions?provider=instapay) —
+ * the `{ name, bic }` pairs that populate the D-72 destination form's institution picker and the server-side
+ * BIC allow-list (T-07-99: a destination BIC is validated against THIS set, never accepted as a free string).
+ *
+ * ⚠️ CURRENTLY 404s ON THIS ACCOUNT (observed 2026-07-23): until PayMongo enables Money Movement, the
+ * router resolves `receiving_institutions` as a transfer-id lookup and returns
+ * `{"errors":[{"code":"not_found","detail":"failed to get transfer: resource not found"}]}`. Callers MUST
+ * tolerate a throw from this function and degrade calmly (the cancel page falls back to the
+ * `needs_attention` operator-alert seam) rather than crash the cancellation surface.
+ */
+export async function listReceivingInstitutions(): Promise<ReceivingInstitution[]> {
+  const json = await paymongoFetch<{
+    data?: Array<{ attributes?: { name?: string; bic?: string }; name?: string; bic?: string }>;
+  }>("/v2/transfers/receiving_institutions?provider=instapay");
+  // Defensive over the beta shape: tolerate both a flat and an attributes-nested entry.
+  return (json.data ?? [])
+    .map((r) => ({ name: r.attributes?.name ?? r.name ?? "", bic: r.attributes?.bic ?? r.bic ?? "" }))
+    .filter((r) => r.name !== "" && r.bic !== "");
 }
 
 export type WalletAccount = {
