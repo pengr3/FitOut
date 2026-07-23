@@ -32,11 +32,14 @@ import { readDbNow } from "@/lib/booking/bookings-query";
 import { composeWhenLabel } from "@/lib/booking/when-label";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { LADDER, quoteRefund, rungBoundaries, tierOrDefault } from "@/lib/payments/cancellation";
+import { isApiRefundable } from "@/lib/payments/refund-rail";
+import { listReceivingInstitutions, type ReceivingInstitution } from "@/lib/paymongo";
 import { venueTzNote } from "@/lib/venue-time";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RefundBreakdown } from "@/components/booking/refund-breakdown";
 import { CancelConfirm } from "@/components/booking/cancel-confirm";
+import { RefundDestinationForm } from "@/components/booking/refund-destination-form";
 
 /** Host-facing tier names, sentence-cased for the D-78 rationale prose. */
 const TIER_LABELS = { flexible: "Flexible", standard: "Standard", strict: "Strict" } as const;
@@ -81,6 +84,9 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
       serviceFeeCents: booking.serviceFeeCents,
       quotedTotalCents: booking.quotedTotalCents,
       currency: booking.currency,
+      // D-72: the rail decides whether the confirm is the plain CancelConfirm (API-refundable) or the
+      // collect-and-never-store destination form (QRPh — refund-rail.ts, settled 2026-07-23).
+      paymentMethod: booking.paymentMethod,
     })
     .from(booking)
     .where(eq(booking.id, id));
@@ -172,6 +178,22 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
           toBps: boundaries[nextIndex + 1]?.refundBps ?? 0,
         };
 
+  // ── D-72: a rail PayMongo cannot API-refund, with money owed, needs a destination the booker supplies.
+  // The institution list is fetched SERVER-side (it also feeds the action's BIC allow-list). If the fetch
+  // fails — observed live 2026-07-23: the Money Movement endpoints 404 until PayMongo enables the feature
+  // (refund-rail.ts) — the page must NOT crash: it falls back to the plain confirm, says so calmly, and the
+  // action's `needs_attention` operator seam picks the refund up. A ₱0 refund needs no destination at all.
+  const needsDestination = !isApiRefundable(bk.paymentMethod) && quote.totalRefundCents > 0;
+  let institutions: ReceivingInstitution[] = [];
+  if (needsDestination) {
+    try {
+      institutions = await listReceivingInstitutions();
+    } catch {
+      institutions = [];
+    }
+  }
+  const destinationFormReady = needsDestination && institutions.length > 0;
+
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
       <Card>
@@ -220,16 +242,36 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
             totalRefundLabel={formatMoney(quote.totalRefundCents, currency)}
           />
 
-          <p className="text-xs text-muted-foreground">
-            Refunds usually land back on your original payment method within a few days.
-          </p>
+          {needsDestination ? (
+            <p className="text-xs text-muted-foreground">
+              QR&nbsp;Ph payments can&apos;t be refunded back the way they came, so your refund is sent
+              to a bank or e-wallet account instead.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Refunds usually land back on your original payment method within a few days.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">{tzNote}</p>
 
           <Separator />
 
           {/* Neutral outline confirm + ghost back. The rationale for refusing both coral and destructive-red
               lives in the component's header, where the buttons actually are. */}
-          <CancelConfirm bookingId={bk.id} />
+          {destinationFormReady ? (
+            <RefundDestinationForm bookingId={bk.id} institutions={institutions} />
+          ) : (
+            <>
+              {needsDestination && (
+                <p className="text-sm text-muted-foreground">
+                  We can&apos;t take refund account details right now, so our team will arrange your{" "}
+                  {formatMoney(quote.totalRefundCents, currency)} refund with you directly after you
+                  cancel.
+                </p>
+              )}
+              <CancelConfirm bookingId={bk.id} />
+            </>
+          )}
         </CardContent>
       </Card>
     </main>

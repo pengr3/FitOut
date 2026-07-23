@@ -59,7 +59,12 @@ import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
 import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/config";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
-import { createRefund } from "@/lib/paymongo";
+import {
+  createRefund,
+  createRefundTransfer,
+  listReceivingInstitutions,
+  INSTAPAY_CEILING_CENTS,
+} from "@/lib/paymongo";
 import { recordAudit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import {
@@ -67,12 +72,24 @@ import {
   hostCancellationSchema,
   type HostCancellationInput,
 } from "@/lib/validation/cancellation";
+import {
+  qrphRefundDestinationSchema,
+  type QrphRefundDestination,
+} from "@/lib/validation/qrph-refund";
 
 /** The five D-70 host cancellation reasons, re-exported from the ONE schema that owns the union. */
 export type HostCancelReason = HostCancellationInput["reason"];
 
-/** Cancel result. `refundCents` is what the SERVER computed and wrote — never an echo of a request field. */
-export type CancelActionResult = { ok: true; refundCents: number } | { ok: false; error: string };
+/**
+ * Cancel result. `refundCents` is what the SERVER computed and wrote — never an echo of a request field.
+ * `notice` (optional, D-72) is a calm post-cancellation caveat for the paths where the cancellation
+ * SUCCEEDED but the refund could not be dispatched to the supplied destination (transfer failure, the
+ * InstaPay ceiling, or an unverifiable institution list) — the operator seam has the money; the booker is
+ * told plainly rather than left to infer.
+ */
+export type CancelActionResult =
+  | { ok: true; refundCents: number; notice?: string }
+  | { ok: false; error: string };
 
 // WR-06: money-moving budget per identity — mirrors approveRequest / confirmBooking (5 per 60s).
 const CANCEL_RATE_LIMIT = { window: 60, max: 5 } as const;
@@ -102,6 +119,23 @@ const TOO_FAST: CancelActionResult = {
   ok: false,
   error: "You're going a little fast. Please try again in a moment.",
 };
+
+/**
+ * D-72: a malformed destination or an institution not on the live InstaPay list is rejected BEFORE the
+ * flip — the booking stays live, the booker fixes the form, nothing has been cancelled with no way to pay
+ * the refund out. Calm and non-specific (which field failed is the FORM's job to say; this is the server
+ * backstop for a bypassed client).
+ */
+const INVALID_DESTINATION: CancelActionResult = {
+  ok: false,
+  error:
+    "Check your refund account details — pick a bank or e-wallet from the list and re-enter the account name and number.",
+};
+
+/** The ONLY destination fragment that may outlive the transfer call (D-72): a masked last-4. */
+function maskAccountLast4(accountNumber: string): string {
+  return `••••${accountNumber.slice(-4)}`;
+}
 
 /**
  * PayMongo refuses a refund below 100 centavos (₱1.00) — documented on the Refund resource. A non-zero
@@ -309,14 +343,37 @@ function revalidateCancelSurfaces(bookingId: string, listingId?: string): void {
  * booking id; the tier, the rung and every peso are derived server-side from the booking's own snapshot,
  * evaluated against the Postgres clock.
  *
+ * `destination` (OPTIONAL, D-72 / Plan 07-16): on a rail PayMongo cannot API-refund (QRPh — settled by the
+ * 2026-07-23 probe recorded in refund-rail.ts), the booker supplies a bank/e-wallet destination that passes
+ * STRAIGHT THROUGH to createRefundTransfer and is NEVER persisted — only the transfer id and a masked
+ * last-4 survive, in the audit trail. It is re-validated server-side (shape + live-BIC membership), bound
+ * to the authenticated booker AND this specific booking (it is only ever used inside this owner-gated
+ * flow, on the row just flipped), and the amount is ALWAYS the server-computed `quote.totalRefundCents` —
+ * a destination is NEVER read from a prior request, a session value or a stored record (T-07-94).
+ *
  * The ORDER below is load-bearing: gate before rate-limit (so a stranger's id is denied without consuming
  * the owner's budget), rate-limit before any write, clock before quote, quote before flip, flip before
  * money, money before notification. Nothing after the flip may undo it.
  */
-export async function cancelBookingAsBooker(bookingId: string): Promise<CancelActionResult> {
+export async function cancelBookingAsBooker(
+  bookingId: string,
+  destination?: QrphRefundDestination,
+): Promise<CancelActionResult> {
   // Re-validate the ONE field that crosses the boundary. A malformed id is a calm denial, not a 500.
   const parsed = cancellationSchema.safeParse({ bookingId });
   if (!parsed.success) return DENIED;
+
+  // D-72: SHAPE-validate the optional destination with the SAME schema the form uses — server-action
+  // argument types are not enforced at runtime, so a crafted payload lands here raw. safeParse also STRIPS
+  // unknown keys, so a smuggled amount-shaped field never survives past this line (not that anything below
+  // reads one — the transfer amount is the server quote by construction). Malformed → calm denial BEFORE
+  // any write: the booking must not end up cancelled with an unusable refund destination.
+  let suppliedDest: QrphRefundDestination | null = null;
+  if (destination !== undefined) {
+    const parsedDest = qrphRefundDestinationSchema.safeParse(destination);
+    if (!parsedDest.success) return INVALID_DESTINATION;
+    suppliedDest = parsedDest.data;
+  }
 
   const userId = await requireUserId();
   if (!userId) return NEEDS_SESSION;
@@ -354,6 +411,30 @@ export async function cancelBookingAsBooker(bookingId: string): Promise<CancelAc
     startsAt: row.startsAt,
     now,
   });
+
+  // ── D-72: verify the destination's institution against the LIVE InstaPay list, BEFORE the flip. ───────
+  // T-07-99 — `institutionBic` is never accepted as a free string: it must be a member of the set
+  // `listReceivingInstitutions()` returns. An unknown BIC is rejected here, while the booking is still
+  // live, so the booker fixes the form instead of ending up cancelled with an undeliverable refund.
+  // The destination is consulted ONLY when it will actually be used: a rail the API can refund ignores it
+  // entirely (the standard createRefund path needs no destination and must never read one).
+  //
+  // If the institutions fetch itself FAILS (observed live 2026-07-23: the Money Movement endpoints 404
+  // until PayMongo enables the feature — evidence in refund-rail.ts), the cancellation still proceeds and
+  // the money block below routes to the `needs_attention` operator seam: an unverifiable list must not
+  // block a booker's right to cancel, and firing a transfer at an unverified institution is not an option.
+  let dest: QrphRefundDestination | null = null;
+  let destUnverifiable = false;
+  if (suppliedDest && !isApiRefundable(row.paymentMethod) && quote.totalRefundCents > 0) {
+    const d = suppliedDest;
+    try {
+      const institutions = await listReceivingInstitutions();
+      if (!institutions.some((i) => i.bic === d.institutionBic)) return INVALID_DESTINATION;
+      dest = d;
+    } catch {
+      destUnverifiable = true;
+    }
+  }
 
   // The ATOMIC, owner-scoped, status-scoped, DB-clock-guarded flip. EVERY guard lives in the WHERE, so a
   // 0-row result is the single calm failure path and none of the guards can be raced apart from the others.
@@ -423,6 +504,9 @@ export async function cancelBookingAsBooker(bookingId: string): Promise<CancelAc
     row.paymentId != null &&
     isApiRefundable(row.paymentMethod);
 
+  // D-72: the calm post-cancel caveat for the destination paths where the money could NOT be dispatched.
+  let notice: string | undefined;
+
   if (refundable) {
     try {
       await createRefund({
@@ -445,25 +529,98 @@ export async function cancelBookingAsBooker(bookingId: string): Promise<CancelAc
       });
     }
   } else if (quote.totalRefundCents > 0) {
-    // Money IS owed but the API cannot move it: an unrefundable rail (QRPh / UBP — Pitfall 1, and the rail
-    // is unknown on a pre-07-09 row, which `isApiRefundable` correctly reads as unrefundable), no captured
-    // payment id, or an amount below PayMongo's ₱1 floor. Operator-alert; never silently keep the money.
+    // Money IS owed but createRefund cannot move it: an unrefundable rail (QRPh — settled by the
+    // 2026-07-23 probe, refund-rail.ts; and the rail is unknown on a pre-07-09 row, which `isApiRefundable`
+    // correctly reads as unrefundable), no captured payment id, or an amount below PayMongo's ₱1 floor.
     //
-    // ⚠️ THIS IS THE SINGLE DOCUMENTED SEAM FOR THE D-72 QRPh REFUND FORM (Plan 16). If the Plan-16
-    // test-mode probe confirms QRPh is unrefundable, the collect-and-never-store bank-details form hangs
-    // HERE, off this one branch. Do NOT build it now, and do NOT add a second branch for it elsewhere.
-    console.error("[CANCEL_ALERT] refund_needs_manual", { bookingId, method: row.paymentMethod });
-    await recordAudit({
-      actorId: userId,
-      action: "refund_manual_required",
-      outcome: "needs_attention",
-      meta: {
-        bookingId,
-        paymentId: row.paymentId,
-        method: row.paymentMethod,
-        refundCents: quote.totalRefundCents,
-      },
-    });
+    // THIS IS THE SINGLE D-72 SEAM (Plan 16, built): with a VERIFIED destination, the refund goes out as
+    // an InstaPay transfer; every other shape of this branch stays the operator-alert path — never a
+    // silent retention.
+    if (dest) {
+      if (quote.totalRefundCents > INSTAPAY_CEILING_CENTS) {
+        // T-07-98: a transfer above the InstaPay ceiling is DOOMED — alert, never fire it.
+        console.error("[CANCEL_ALERT] refund_over_instapay_ceiling", {
+          bookingId,
+          refundCents: quote.totalRefundCents,
+        });
+        await recordAudit({
+          actorId: userId,
+          action: "refund_over_instapay_ceiling",
+          outcome: "needs_attention",
+          meta: { bookingId, refundCents: quote.totalRefundCents },
+        });
+        notice =
+          "Your booking is cancelled. This refund is above the instant-transfer limit, so our team will arrange it with you directly.";
+      } else {
+        try {
+          const transfer = await createRefundTransfer({
+            bookingId: parsed.data.bookingId,
+            amountCents: quote.totalRefundCents, // SERVER-frozen — never a client figure (T-07-94)
+            currency: row.currency ?? DISPLAY_CURRENCY,
+            attempt: 1,
+            // Straight through — never persisted (D-72). Projected onto the transfer's account shape.
+            destination: {
+              number: dest.accountNumber,
+              name: dest.accountName,
+              bic: dest.institutionBic,
+            },
+          });
+          // D-72: ONLY the transfer id and a masked last-4 outlive the call. No account number, no
+          // account name, no BIC — not in this audit meta, not in any log line, not in any column.
+          await recordAudit({
+            actorId: userId,
+            action: "refund_transfer_dispatched",
+            outcome: "ok",
+            meta: {
+              bookingId,
+              transferId: transfer.transferId,
+              destinationLast4: maskAccountLast4(dest.accountNumber),
+              refundCents: quote.totalRefundCents,
+            },
+          });
+        } catch {
+          // DELIBERATELY no `err` in this log line: a PayMongo error detail can echo the destination
+          // fields back, and the D-72 no-leakage rule covers log lines too — the leakage test feeds this
+          // path an error that DOES echo the account number, so logging it would go red.
+          //
+          // And DELIBERATELY no retry: PayMongo requires a NEW reference_number per attempt, so a silent
+          // same-reference retry is exactly what the per-attempt design forbids. The booker gets a calm
+          // recovery message instead; the operator seam has the money.
+          console.error("[CANCEL_ALERT] refund_transfer_failed", { bookingId });
+          await recordAudit({
+            actorId: userId,
+            action: "refund_transfer_failed",
+            outcome: "needs_attention",
+            meta: {
+              bookingId,
+              refundCents: quote.totalRefundCents,
+              destinationLast4: maskAccountLast4(dest.accountNumber),
+            },
+          });
+          notice =
+            "Your booking is cancelled, but we couldn't send the refund to that account. Our team has been alerted and will arrange your refund — you may be asked to re-enter your details.";
+        }
+      }
+    } else {
+      // No usable destination: none supplied, or the institution list was unverifiable (Money Movement
+      // not enabled — the live 404, refund-rail.ts). Operator-alert; never silently keep the money.
+      console.error("[CANCEL_ALERT] refund_needs_manual", { bookingId, method: row.paymentMethod });
+      await recordAudit({
+        actorId: userId,
+        action: "refund_manual_required",
+        outcome: "needs_attention",
+        meta: {
+          bookingId,
+          paymentId: row.paymentId,
+          method: row.paymentMethod,
+          refundCents: quote.totalRefundCents,
+        },
+      });
+      if (destUnverifiable) {
+        notice =
+          "Your booking is cancelled. We couldn't verify your refund account right now, so our team will arrange your refund directly.";
+      }
+    }
   }
 
   // AFTER the commit, never inside a transaction (this action opens none). `emitNotify` swallows its own
@@ -475,7 +632,9 @@ export async function cancelBookingAsBooker(bookingId: string): Promise<CancelAc
   );
 
   revalidateCancelSurfaces(bookingId);
-  return { ok: true, refundCents: quote.totalRefundCents };
+  return notice
+    ? { ok: true, refundCents: quote.totalRefundCents, notice }
+    : { ok: true, refundCents: quote.totalRefundCents };
 }
 
 /**
