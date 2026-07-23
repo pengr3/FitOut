@@ -432,6 +432,14 @@ export type NotificationPayload =
       listingTitle: string;
       whenLabel: string;
       refundLabel: string;
+      /** WR-04 (07-17) — the AUDIENCE of this copy. cancelBookingAsHost emits to BOTH parties; the host's
+       *  copy must state the host's situation (you cancelled; your guest is refunded; the fee), never the
+       *  booker's. REQUIRED on every new write. Durable pre-07-17 jsonb rows lack this field — renderers
+       *  treat anything !== "host" (including undefined) as booker, so old rows keep their meaning. */
+      side: "booker" | "host";
+      /** Present ONLY on the host side AND only when the charged D-71 fee > 0 — a "₱0 fee" claim would be
+       *  CR-01's disease in a new place. formatMoney output, composed by the emitter. */
+      feeLabel?: string;
       href: string;
     }
   | { type: "refund_issued"; listingTitle: string; whenLabel: string; refundLabel: string; href: string }

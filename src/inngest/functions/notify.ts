@@ -37,6 +37,7 @@ import {
   sendBookingConfirmed,
   sendBookingCancelledByBooker,
   sendBookingCancelledByHost,
+  sendHostCancellationRecord,
   sendNewRequestToHost,
   sendRefundIssued,
   sendReminderPreExpiry,
@@ -129,13 +130,27 @@ export async function sendForType(event: NotifyEvent): Promise<SendForTypeResult
       return { sent: true };
 
     case "booking_cancelled_by_host":
-      await sendBookingCancelledByHost(
-        to,
-        payload.listingTitle,
-        payload.whenLabel,
-        payload.refundLabel,
-        payload.href,
-      );
+      // WR-04: one type, two audiences. The HOST (the canceller) gets their own record — what they did,
+      // what their guest gets back, what it costs them. Anything !== "host" — including a durable
+      // pre-07-17 row with no `side` at all — takes the booker copy, so old rows keep their meaning.
+      if (payload.side === "host") {
+        await sendHostCancellationRecord(
+          to,
+          payload.listingTitle,
+          payload.whenLabel,
+          payload.refundLabel,
+          payload.feeLabel ?? null,
+          payload.href,
+        );
+      } else {
+        await sendBookingCancelledByHost(
+          to,
+          payload.listingTitle,
+          payload.whenLabel,
+          payload.refundLabel,
+          payload.href,
+        );
+      }
       return { sent: true };
 
     case "refund_issued":

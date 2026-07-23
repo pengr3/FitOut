@@ -118,6 +118,12 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
     listingTitle: label,
     whenLabel: label,
     refundLabel: label,
+    // WR-04 (07-17): the audience discriminant — required at the write boundary so every NEW row
+    // declares who its copy addresses. Durable pre-07-17 rows (written before this field existed) are
+    // never re-validated; renderers treat a missing side as booker.
+    side: z.enum(["booker", "host"]),
+    // Host-side only, and only when the charged fee > 0 (a "₱0 fee" would be CR-01's disease anew).
+    feeLabel: label.optional(),
     href,
   }),
   z.object({

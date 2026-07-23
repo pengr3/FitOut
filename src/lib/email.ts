@@ -287,6 +287,37 @@ export const sendBookingCancelledByHost = (
 };
 
 /**
+ * Booking cancelled by the HOST → the HOST's OWN record (WR-04 / 07-17). The canceller's copy is a
+ * different document from the booker's: they receive nothing, their guest is refunded in full, and they
+ * may owe the D-71 fee. `feeLabel` is null when no fee was charged — the fee sentence is then omitted
+ * entirely, never rendered as "₱0" (CR-01's rule applies to fees too). Dispatched exclusively by
+ * `sendForType` on `payload.side === "host"`.
+ */
+export const sendHostCancellationRecord = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  refundLabel: string,
+  feeLabel: string | null,
+  bookingUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const refund = escapeHtml(refundLabel);
+  const fee = feeLabel === null ? null : escapeHtml(feeLabel); // WR-01 — every interpolated field.
+  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
+  const feeSentence =
+    fee === null ? "" : ` A ${fee} cancellation fee will be deducted from your next payout.`;
+  return send(
+    to,
+    `You cancelled a booking — ${spaceTitle}`,
+    `<p><strong>You cancelled this booking</strong></p>` +
+      `<p>You cancelled the booking at ${space} on ${when}. Your guest is being refunded ${refund} in full, including the service fee.${feeSentence}</p>` +
+      `<p><a href="${url}">View your bookings</a></p>`,
+  );
+};
+
+/**
  * Refund issued → notifies the BOOKER. Fired when the refund is actually on its way, which is a separate
  * moment from the cancellation itself (the webhook is the single writer of terminal refund state, D-57).
  * Carries the settlement-timing note, because "refunded" without a timeframe reliably generates the

@@ -1032,12 +1032,15 @@ export async function cancelBookingAsHost(
       listingTitle,
       whenLabel,
       refundLabel,
+      side: "booker", // WR-04: every write declares its audience; the booker copy is byte-unchanged.
       href: `${base}/bookings/${bookingId}`,
     },
   });
 
   // The HOST gets their own copy — a durable record of what they did and what it cost, so the fee is never
-  // first discovered as an unexplained shortfall on a later payout.
+  // first discovered as an unexplained shortfall on a later payout. `side: "host"` routes both channels to
+  // host-perspective copy (WR-04); `feeLabel` is present ONLY when a fee was actually charged — a "₱0 fee"
+  // claim would invent a money event exactly the way CR-01's "₱0 refund" did.
   await emitNotify({
     type: "booking_cancelled_by_host",
     recipientId: row.hostId,
@@ -1048,6 +1051,10 @@ export async function cancelBookingAsHost(
       listingTitle,
       whenLabel,
       refundLabel,
+      side: "host",
+      ...(feeCents > 0
+        ? { feeLabel: formatMoney(feeCents, row.currency ?? DISPLAY_CURRENCY) }
+        : {}),
       href: `${base}/host/bookings`,
     },
   });

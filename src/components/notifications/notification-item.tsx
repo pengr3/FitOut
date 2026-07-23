@@ -166,6 +166,19 @@ export function describeNotification(payload: NotificationPayload): Notification
         body: `${payload.bookerLabel} cancelled ${payload.listingTitle} · ${payload.whenLabel}`,
       };
     case "booking_cancelled_by_host":
+      // WR-04: one type, two audiences. The HOST (the canceller) reads their own record — the guest's
+      // refund and the D-71 fee when one was charged. The `!== "host"` fallthrough is load-bearing:
+      // durable pre-07-17 jsonb rows carry NO `side` and must keep rendering the booker copy they were
+      // written as — a durable row outlives the code that wrote it.
+      if (payload.side === "host") {
+        return {
+          Icon: CalendarXIcon,
+          title: "You cancelled this booking",
+          body:
+            `${payload.listingTitle} · ${payload.whenLabel} · ${payload.refundLabel} refunded to your guest` +
+            (payload.feeLabel ? ` · ${payload.feeLabel} fee` : ""),
+        };
+      }
       return {
         Icon: CalendarXIcon,
         title: "Your host cancelled",
