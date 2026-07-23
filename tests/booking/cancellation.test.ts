@@ -16,6 +16,7 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, booking } from "@/lib/db/schema";
+import { formatMoney } from "@/lib/money";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
@@ -42,8 +43,18 @@ vi.mock("next/headers", () => ({
  * its own errors, so the miss would look exactly like a pass. Stubbing the module makes the emission
  * observable and, in case (9), controllably broken.
  */
-/** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the client. */
-type NotifyEnvelope = { name: string; data: { type: string; recipientId: string; bookingId: string | null } };
+/** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the client. `payload` is exposed
+ *  (07-17 / CR-01) because the regression cases assert on the CONTENT of the captured envelopes — the
+ *  Phase-7 lesson is that call-count assertions let four content bugs sail through 639 green tests. */
+type NotifyEnvelope = {
+  name: string;
+  data: {
+    type: string;
+    recipientId: string;
+    bookingId: string | null;
+    payload: { type: string; refundLabel?: string };
+  };
+};
 const inngestSend = vi.fn(async (event: NotifyEnvelope) => ({ ids: [event.name] }));
 
 /**
@@ -586,6 +597,69 @@ describe("cancelBookingAsBooker — the SC#2 money invariants", () => {
 
     errorSpy.mockRestore();
     infoSpy.mockRestore();
+  });
+
+  it("(14 · CR-01) a 0%-rung PAID cancellation emits NO refund_issued payload — and still tells the host", async () => {
+    // THE GAP (07-VERIFICATION CR-01): inside the no-refund window quote.totalRefundCents is 0 and NO
+    // money moves — but a suppression guard keyed on label NULLITY receives formatMoney(0, …), the
+    // non-null string "₱0", and the booker is told "Refund issued — ₱0 … usually lands within a few
+    // days" for a money event that never happened (the exact sentence D-79 forbids). The guard must key
+    // on the AMOUNT.
+    await seedListing("L_zero_rung", "standard");
+    // Case-6 geometry: standard <6h ⇒ the 0% rung. Paid on an API-refundable rail ("card") so the ONLY
+    // thing standing between the booker and a refund dispatch is the zero amount.
+    await seedBooking("bk_zero_rung", "L_zero_rung", 2 * HOUR, {
+      policy: "standard",
+      paymentMethod: "card",
+    });
+
+    await login(BOOKER_EMAIL);
+    const res = await cancelBookingAsBooker("bk_zero_rung");
+    expect(res).toEqual({ ok: true, refundCents: 0 });
+
+    // Assert on the CAPTURED envelopes for THIS booking — content, never call counts.
+    const envelopes = inngestSend.mock.calls
+      .map((c) => c[0])
+      .filter((e) => e.name === "fitout/notify" && e.data.bookingId === "bk_zero_rung");
+    // (a) NO channel carries a refund-issued claim: no money moved, so no money event may be recorded.
+    expect(envelopes.filter((e) => e.data.payload.type === "refund_issued")).toHaveLength(0);
+    // (b) The host still learns their slot is free — suppression must not silence the OTHER notice.
+    const hostNotices = envelopes.filter(
+      (e) => e.data.payload.type === "booking_cancelled_by_booker",
+    );
+    expect(hostNotices).toHaveLength(1);
+    expect(hostNotices[0].data.recipientId).toBe(hostId);
+    expect(envelopes).toHaveLength(1); // exactly one envelope total: the host notice
+    // And dispatch agrees with suppression — nothing was sent to PayMongo either.
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
+  });
+
+  it("(14b · CR-01 positive control) a NON-zero rung still announces the exact server-computed amount", async () => {
+    // The other direction, pinned so the fix cannot overcorrect into silencing real refunds.
+    await seedListing("L_half_rung", "standard");
+    await seedBooking("bk_half_rung", "L_half_rung", 10 * HOUR, { policy: "standard" }); // 50% rung
+
+    await login(BOOKER_EMAIL);
+    const expected = await previewQuote("bk_half_rung"); // the same quoteRefund the action recomputes
+    expect(expected.totalRefundCents).toBeGreaterThan(0); // fixture sanity — this IS the non-zero control
+
+    const res = await cancelBookingAsBooker("bk_half_rung");
+    expect(res).toEqual({ ok: true, refundCents: expected.totalRefundCents });
+
+    const refundNotices = inngestSend.mock.calls
+      .map((c) => c[0])
+      .filter(
+        (e) =>
+          e.name === "fitout/notify" &&
+          e.data.bookingId === "bk_half_rung" &&
+          e.data.payload.type === "refund_issued",
+      );
+    expect(refundNotices).toHaveLength(1);
+    expect(refundNotices[0].data.recipientId).toBe(bookerId);
+    // The EXACT amount through the same formatter — never a regex, never a hand-typed literal.
+    expect(refundNotices[0].data.payload.refundLabel).toBe(
+      formatMoney(expected.totalRefundCents, "php"),
+    );
   });
 
   it("(11) a refund-dispatch failure does NOT unwind the durable flip", async () => {
