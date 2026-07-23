@@ -10,7 +10,6 @@
 // Source: resend.com/docs/send-with-nextjs.
 
 import { Resend } from "resend";
-import { APPROVAL_SLA_HOURS, APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
 
 const key = process.env.RESEND_API_KEY;
 const resend = key ? new Resend(key) : null;
@@ -76,8 +75,11 @@ export const sendResetPassword = (to: string, url: string) => {
 //    or a raw title in HTML text is the injection vector).
 //  - Time labels ALREADY name the venue timezone — the caller composes `{date}, {time} ({City} time)`
 //    and passes it as whenLabel; these sends never format a time themselves.
-//  - The approval SLA / payment window render as HOUR VALUES from config (never the internal constant
-//    names) so Phase-7 policy tuning flows through automatically.
+//  - Deadline claims render the ROW's pre-composed capped label (payByLabel / respondByLabel — D-96/D-99,
+//    CR-02). Config hour-constants must NEVER appear in email copy: the D-96 session-start cap means the
+//    real deadline is frequently NOT "N hours from now", and a flat number is false in writing on exactly
+//    the short-notice requests where the deadline matters most. A template with no deadline field states
+//    NO number at all — a numberless claim cannot be false.
 //  - Sends are invoked ONLY from the Inngest notify function (D-83), never fire-and-forget from an
 //    action. A call site emits `inngest.send({ name: "fitout/notify" })` AFTER commit (see
 //    src/lib/notifications.ts `emitNotify`); Inngest owns retry, backoff and per-run observability, and
@@ -118,8 +120,11 @@ export const sendBookingConfirmed = (
 
 /**
  * Request received (booker) — fires from placeHold's request branch after minting the `requested`
- * hold. Names the approval SLA in hours and reassures nothing was charged (D-63). `bookingUrl` is the
- * caller's absolute /bookings/{id} link.
+ * hold. Reassures nothing was charged (D-63). `bookingUrl` is the caller's absolute /bookings/{id} link.
+ *
+ * DELIBERATELY STATES NO DEADLINE (CR-02): this payload carries no deadline field, and under the D-96
+ * proportional split the host's real SLA is frequently far shorter than any flat hour count — so the
+ * copy makes no numeric claim at all rather than a sometimes-false one.
  */
 export const sendRequestReceived = (
   to: string,
@@ -134,32 +139,35 @@ export const sendRequestReceived = (
     to,
     `We sent your request — ${spaceTitle}`,
     `<p><strong>Request sent</strong></p>` +
-      `<p>Your request to book ${space} on ${when} is with the host. You'll hear back within ${APPROVAL_SLA_HOURS} hours. You haven't been charged — you'll only pay if the host approves.</p>` +
+      `<p>Your request to book ${space} on ${when} is with the host. We'll let you know as soon as they respond. You haven't been charged — you'll only pay if the host approves.</p>` +
       `<p><a href="${url}">View your request</a></p>`,
   );
 };
 
 /**
  * Request approved → pay now (booker) — fires from approveRequest. `totalLabel` is the server-frozen
- * formatMoney amount; `payUrl` is the caller's absolute /listings/{listingId}/book?hold={id} link. The
- * payment window renders as an hour VALUE from config.
+ * formatMoney amount; `payByLabel` is the ROW's real payment deadline (the D-96 session-start-capped
+ * expiry, read back off the approval UPDATE's RETURNING and pre-composed venue-local — CR-02: never a
+ * flat hour count); `payUrl` is the caller's absolute /listings/{listingId}/book?hold={id} link.
  */
 export const sendRequestApproved = (
   to: string,
   spaceTitle: string,
   whenLabel: string,
   totalLabel: string,
+  payByLabel: string,
   payUrl: string,
 ) => {
   const space = escapeHtml(spaceTitle);
   const when = escapeHtml(whenLabel);
   const total = escapeHtml(totalLabel);
+  const payBy = escapeHtml(payByLabel); // WR-01 — carries a venue city string; escape like every field.
   const url = escapeHtml(payUrl); // WR-01 — never interpolate the raw url into an href.
   return send(
     to,
     `Approved — pay to confirm ${spaceTitle}`,
     `<p><strong>Your request was approved</strong></p>` +
-      `<p>Good news — the host approved your booking for ${space} on ${when}. Pay ${total} within ${APPROVAL_PAYMENT_WINDOW_HOURS} hours to lock it in.</p>` +
+      `<p>Good news — the host approved your booking for ${space} on ${when}. Pay ${total} by ${payBy} to lock it in.</p>` +
       `<p><a href="${url}">Pay now</a></p>`,
   );
 };
@@ -191,8 +199,10 @@ export const sendRequestDeclined = (
 
 /**
  * New booking request (host) — fires from placeHold's request branch. `bookerLabel` is the booker's
- * display name (untrusted — escaped), `totalLabel` the server-frozen guest-pays amount, `requestsUrl`
- * the caller's absolute /host/requests link. Names the SLA in hours.
+ * display name (untrusted — escaped), `totalLabel` the server-frozen guest-pays amount,
+ * `respondByLabel` the ROW's real SLA deadline (the D-96 proportional-split expiry off the request
+ * insert, pre-composed venue-local — CR-02: a flat hour count is false on exactly the short-notice
+ * requests where the deadline matters most), `requestsUrl` the caller's absolute /host/requests link.
  */
 export const sendNewRequestToHost = (
   to: string,
@@ -200,18 +210,20 @@ export const sendNewRequestToHost = (
   whenLabel: string,
   bookerLabel: string,
   totalLabel: string,
+  respondByLabel: string,
   requestsUrl: string,
 ) => {
   const space = escapeHtml(spaceTitle);
   const when = escapeHtml(whenLabel);
   const booker = escapeHtml(bookerLabel);
   const total = escapeHtml(totalLabel);
+  const respondBy = escapeHtml(respondByLabel); // WR-01 — carries a venue city string; escape it.
   const url = escapeHtml(requestsUrl); // WR-01 — never interpolate the raw url into an href.
   return send(
     to,
     `New booking request — ${spaceTitle}`,
     `<p><strong>New booking request</strong></p>` +
-      `<p>${booker} requested ${space} on ${when} for ${total}. Respond within ${APPROVAL_SLA_HOURS} hours to approve or decline.</p>` +
+      `<p>${booker} requested ${space} on ${when} for ${total}. Respond by ${respondBy} to approve or decline.</p>` +
       `<p><a href="${url}">Review request</a></p>`,
   );
 };
@@ -359,8 +371,8 @@ export const sendReminderPreSession = (
 /**
  * Pre-SLA reminder (D-85 #4) → the HOST sitting on a pending request. `respondByLabel` is the pre-composed
  * venue-local deadline rather than an hour count from config, because a D-96 cap-shortened SLA means the
- * real deadline is frequently NOT `APPROVAL_SLA_HOURS` from now — printing the constant would be wrong on
- * exactly the short-notice requests where the reminder matters most.
+ * real deadline is frequently NOT the configured hour count from now — printing a flat number would be
+ * wrong on exactly the short-notice requests where the reminder matters most.
  */
 export const sendReminderPreSla = (
   to: string,

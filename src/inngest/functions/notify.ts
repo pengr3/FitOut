@@ -92,6 +92,9 @@ export async function sendForType(event: NotifyEvent): Promise<SendForTypeResult
         payload.listingTitle,
         payload.whenLabel,
         payload.totalLabel,
+        // The ROW's D-96-capped payment deadline (CR-02). Guaranteed present by the Zod union — dropping
+        // it on the floor here was how every short-notice approval email stated a false deadline.
+        payload.payByLabel,
         payload.href,
       );
       return { sent: true };
@@ -109,6 +112,8 @@ export async function sendForType(event: NotifyEvent): Promise<SendForTypeResult
         payload.whenLabel,
         payload.bookerLabel,
         payload.totalLabel,
+        // The ROW's D-96 proportional-split SLA deadline (CR-02) — same rule as payByLabel above.
+        payload.respondByLabel,
         payload.href,
       );
       return { sent: true };

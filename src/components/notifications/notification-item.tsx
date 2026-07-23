@@ -155,7 +155,9 @@ export function describeNotification(payload: NotificationPayload): Notification
       return {
         Icon: InboxIcon,
         title: "New booking request",
-        body: `${payload.bookerLabel} · ${payload.listingTitle} · ${payload.whenLabel}`,
+        // CR-02 (D-91 parity): the in-app copy states the SAME row-derived respond-by deadline the email
+        // states — the payload's D-96-capped label, never an hour count re-derived from config.
+        body: `${payload.bookerLabel} · ${payload.listingTitle} · ${payload.whenLabel} · respond by ${payload.respondByLabel}`,
       };
     case "booking_cancelled_by_booker":
       return {
