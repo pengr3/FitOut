@@ -65,3 +65,40 @@ rationale is written into the call sites so the pattern is not copied back the o
 **Impact if left:** two booker/host-facing emails (cancelled-by-booker, refund-issued) have broken
 CTAs. Not a correctness or money bug — the notification still tells the truth, and the in-app row is
 clickable — but it is a visible quality defect on a money-adjacent email.
+
+**RESOLVED by 07-11** (see 07-11-SUMMARY.md "Assigned Out-of-Plan Fix") — hrefs are now absolute via
+`BETTER_AUTH_URL`, with regression assertions on both cancel paths.
+
+---
+
+## `npm run build` env-placeholder issue — reconfirmed by 07-16 (2026-07-23)
+
+Fourth+ observation, unchanged behaviour and unchanged workaround
+(`PLATFORM_WALLET_NUMBER=x PLATFORM_WALLET_NAME=x INNGEST_SIGNING_KEY=x npm run build`). Hit on both
+of this plan's build gates; no source changed. Still worth the one-line `NEXT_PHASE` fix or a CI env.
+
+---
+
+## Refund transfers have no reconcile poller (found by 07-16, deliberately not built there)
+
+**Where:** `createRefundTransfer` (src/lib/paymongo.ts) fires a D-72 InstaPay refund transfer; the only
+durable handle is the `refund_transfer_dispatched` audit entry carrying `transferId` + masked last-4.
+
+**The gap:** transfers start `pending` and PayMongo has NO transfer webhook. Host payouts are polled to
+terminal status by `payout-reconcile` off their `host_payout_ledger` row — but a refund transfer has no
+ledger row (it is not a payout and D-72 forbids persisting the destination), so nothing polls it. A
+refund transfer that fails asynchronously AFTER a 200-accepted POST surfaces nowhere automatically; an
+operator must `getTransfer(transferId)` from the audit trail.
+
+**Why not fixed in 07-16:** out of the plan's files list and threat model; the whole path is currently
+unreachable live anyway (Money Movement endpoints 404 until PayMongo enables the feature — see the
+A3-BLOCKED evidence in refund-rail.ts). Building a poller against an endpoint that cannot yet be
+exercised would be untestable scaffolding.
+
+**When to fix:** alongside the manual UAT once Money Movement is enabled. Shape: a minimal
+`refund_transfer` tracking row (transferId, bookingId, state — still no destination fields) + a clone of
+the payout-reconcile poll, or fold into that cron with a kind discriminator.
+
+**Impact if left:** an async-failed refund transfer looks dispatched in the audit trail until an
+operator manually polls it — the exact "healthy-looking code path stranding a booker's money" failure
+mode the Task-1 probe matrix warned about for the HTTP-200 branch.

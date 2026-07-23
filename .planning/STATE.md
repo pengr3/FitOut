@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_plan: 16
-status: executing
-stopped_at: "Completed 07-15-PLAN.md (Wave 4 — the cancellation tier's two HUMAN ends, closing BOOK-07). A host must now make an EXPLICIT tier choice before publishing: three equal-weight cards with NO pre-selection in the wizard (D-77), the requirement joining the SHIPPED publish checklist, and the real gate in `publishSchema` re-read from the PERSISTED row so the client checklist is never it (T-07-88). A booker now sees that tier before paying: one `CancellationPolicyDisclosure` Server Component (native `<details>`), generic on the listing page and CONCRETE venue-local dates at checkout (D-81), sourced from the BOOKING's tier snapshot — the same column `quoteRefund` reads. **All disclosure copy is DERIVED from `LADDER` and mutation-proven in both directions:** move a rung and the copy follows automatically; hand-type a figure and the test goes red. A NULL tier renders NOTHING rather than `tierOrDefault`'s Flexible — that fallback is a legacy engine safety net, not a policy any host chose. Two shipped fixtures that called themselves publish-eligible no longer were, and were correctly updated. Full suite **76 files / 628 tests, exit 0** (was 75/616). Commits 53ce7ac + 14dd0f5 + 05d719d + 926517c. (Full detail in 07-15-SUMMARY.md.)"
-last_updated: "2026-07-23T05:47:00Z"
+status: phase-complete
+stopped_at: "Completed 07-16-PLAN.md — PHASE 7 CODE-COMPLETE (16/16). The QRPh gating question is SETTLED BY OBSERVED API BEHAVIOUR, not documentation: the 2026-07-23 test-mode probe returned HTTP 400 'Refunds are not allowed for payments with source type qrph.' (raw body verbatim in refund-rail.ts) → VERDICT `confirmed`, D-58 stands, and the D-72 collect-and-never-store branch is BUILT. `createRefundTransfer` fires InstaPay refunds with the `refund:` idempotency namespace (Pitfall 10 — `payout:` untouched, both grep-asserted at exactly 1), a per-attempt rotating reference_number, and a ₱50,000 ceiling guard routed to needs_attention. A QRPh booker supplies a destination on the cancel screen (RHF+Zod form, institution Select fed by the live listReceivingInstitutions() set) that passes STRAIGHT THROUGH to the transfer — no account number/name/BIC in any table, audit meta or log line; ONLY transferId + masked last-4 survive, proven by row-scan + log-scan tests against a failure fixture that deliberately echoes the destination. Owner gate mutation-verified (predicate removed → case 7 red → restored). ⚠️ A3 is BLOCKED, not settled — the Money Movement endpoints 404 on this account until PayMongo enables the feature (evidence in refund-rail.ts); at runtime the destination form degrades calmly to the operator seam until then. Full suite 78 files / 639 tests, exit 0 (was 76/628). Commits 3fa3156 + 81dd608. (Full detail in 07-16-SUMMARY.md.) Prior: 07-15 (cancellation-policy surfaces, BOOK-07 closed — full detail in 07-15-SUMMARY.md)."
+last_updated: "2026-07-23T06:35:00Z"
 last_activity: 2026-07-23
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 57
-  completed_plans: 56
-  percent: 98
+  completed_plans: 57
+  percent: 100
 ---
 
 # Project State
@@ -29,12 +29,21 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 Phase: 7
 Current Plan: 16
 Total Plans in Phase: 16
-Status: Ready to execute
-Last activity: 2026-07-21
+Status: Phase 7 code-complete (16/16) — ready for /gsd-verify-work 7 and /gsd-plan-phase 8
+Last activity: 2026-07-23
 
-Progress: [██████████] 98% (56 of 57 plans)
+Progress: [██████████] 100% (57 of 57 plans)
 
-**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-15**. Next unexecuted: **07-16** (the gating QRPh probe — independent of everything else in the phase).
+**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-16** (all).
+
+**Wave 5 complete (07-16 landed) — Phase 7 is code-complete.** Full suite: **78 files / 639 tests, exit 0**. The QRPh gating question is SETTLED by observed API behaviour (2026-07-23 probe: HTTP 400 "Refunds are not allowed for payments with source type qrph." — raw evidence in `refund-rail.ts`), and the D-72 collect-and-never-store refund path is BUILT.
+
+📌 **New contracts from 07-16 (load-bearing for anyone touching refunds/payouts):**
+1. *Idempotency namespaces* — refund transfers use `refund:` + bookingId; payouts keep `payout:` + bookingId (Pitfall 10). Both appear exactly once in `paymongo.ts`, grep-asserted. Never reuse either.
+2. *No-persistence (D-72)* — a refund destination (account number/name/BIC) must NEVER reach a table, audit meta, notification payload or log line; only `transferId` + a masked last-4 survive (audit meta). The transfer-failure catch deliberately logs NO error content because a PayMongo error detail can echo the destination — `tests/paymongo/instapay-refund.test.ts` case (4) feeds it one that does.
+3. *one-refund-per-payment* — `createRefund`'s key is payment-scoped; a second call for the same payment silently replays the first response (safe today, a trap for any partial-then-top-up flow; explicit comment + test guard it).
+4. *A3 is BLOCKED, not settled* — the Money Movement endpoints 404 on this account until PayMongo enables the feature; the destination form degrades calmly to the operator seam until then. Manual UAT owes: A3 re-verification + live institutions list.
+5. *Refund transfers have no reconcile poller* — dispatched transfers are operator-reconciled via the audit trail (`refund_transfer_dispatched` → `getTransfer`); logged in deferred-items.md for a follow-up once Money Movement is live.
 
 **Wave 4 complete (07-15 landed).** Full suite: **76 files / 628 tests, exit 0**. BOOK-07 is closed: a host must now explicitly choose a cancellation tier before publishing, and a booker sees that tier's rungs — as concrete venue-local dates for their own booking — before they pay.
 
@@ -160,6 +169,7 @@ Progress: [██████████] 98% (56 of 57 plans)
 | Phase 07 P11 | ~70m | 3 tasks | 6 files |
 | Phase 07 P12 | ~75m | 3 tasks | 9 files |
 | Phase 07 P13 | 15m | 2 tasks | 3 files |
+| Phase 07 P16 | ~25m | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -253,6 +263,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-12: no stable idempotencyKey on re-request — booking_idem_uq is partial-UNIQUE over all time and would 23505 into a 500 once the first re-request itself lapsed
 - [Phase ?]: 07-13: reminder at-most-once is the booking_reminder UNIQUE(booking_id, kind) claim, never Inngest's 24h dedupe TTL
 - [Phase ?]: 07-13: a reminder whose offset instant predates the booking is UNREACHABLE and sends nothing — a range guard alone would fire it immediately
+- [Phase 07]: [07-16]: QRPh verdict settled by OBSERVATION — the 2026-07-23 test-mode probe returned HTTP 400 "Refunds are not allowed for payments with source type qrph." → D-58 confirmed, D-72 built (Branch B). The raw evidence (session/payment ids, verbatim error bodies, A3-BLOCKED status) lives in refund-rail.ts, the single branch point.
+- [Phase 07]: [07-16]: refund destination is collect-and-never-store — validated (shape + live-BIC set) BEFORE the flip, bound to the owner-gated flow, amount server-frozen; only transferId + masked last-4 persist (audit meta). Transfer failures log no error content (provider details can echo the destination) and never retry with the same reference_number.
 
 ### Pending Todos
 
@@ -268,7 +280,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 
 - ✅ RESOLVED (Phase 3, D-22): Slot granularity = 60-min on-the-hour, platform-wide for v1; any run of consecutive hours or a full day (D-23). Per-listing granularity deferred.
 - ✅ RESOLVED (Phase 6 discuss, D-63/D-64, 2026-07-19): Request-to-book money model = **pay-on-approval** (no charge at request; the ~7-day card auth-hold limit is moot — no hold). Approval SLA = 24h, post-approval payment window = 24h, both config-tunable. QRPh is back IN scope for request-to-book (nothing ever reverses).
-- Phase 7: Cancellation/refund policy matrix (who × time-to-start × % refunded × commission × payout) — blocks the cancel flow. Note PayMongo QRPh/e-wallet refund rule: same-day = full-refund-only; partial only from the next day.
+- ✅ RESOLVED (Phase 7): Cancellation/refund policy matrix → D-67/D-68 tier ladder (07-03, shipped through 07-15). The QRPh refund rule is now SETTLED BY OBSERVATION (07-16, 2026-07-23): QRPh is NOT API-refundable at all (HTTP 400, verbatim in refund-rail.ts) — the D-72 collect-and-never-store InstaPay path is built for it.
 - Phase 8: Whether invited attendees need an account to RSVP (v1 default: tokenized link, no account); group capacity source (listing capacity vs per-booking limit).
 - Phase 2 / Phase 5: Cold-start liquidity — consider lightweight admin/seed tooling and a zero-result-search metric; do not over-build.
 - ✅ RESOLVED (Phase 2): WR-06 (rate-limit + audit on capability-activate/onboarding actions) CLOSED in Plan 02. WR-04 (email-send retry/observability) STILL OPEN — deferred to the Phase-7 transactional-email layer.
@@ -298,7 +310,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T05:47:00Z
+Last session: 2026-07-23T06:35:00Z
+Stopped at: Completed 07-16-PLAN.md — PHASE 7 CODE-COMPLETE (16/16 plans, all SUMMARYs on disk). The human QRPh probe settled the gating question (`confirmed` — HTTP 400, raw evidence in refund-rail.ts; A3 BLOCKED on PayMongo enabling Money Movement) and Branch B was executed: createRefundTransfer + listReceivingInstitutions in paymongo.ts, the qrph-refund destination schema + RefundDestinationForm, cancelBookingAsBooker(bookingId, destination?), and tests/paymongo/{refund,instapay-refund}.test.ts (owner gate mutation-verified). Full suite 78 files / 639 tests, exit 0. Commits 3fa3156 + 81dd608. Next: /gsd-verify-work 7, then /gsd-plan-phase 8 (group bookings). Manual UAT owes: A3 re-verification + live institutions list once PayMongo enables Money Movement.
+Resume file: None
+
+Prior session: 2026-07-23T05:47:00Z
 Stopped at: Session resumed via /gsd-resume-work. The dismissed 07-16 question from the pause is now ANSWERED: run the QRPh probe together (interactive — human completes the test-mode QRPh payment in-browser; tunnel + PayMongo dashboard webhook registration required). Also committed the Inngest in-housing deliberation outcome (3eca5ed): DEFERRED — staying on Inngest for v1, upholding D-56; revisit only after proving market AND hitting Inngest limits. HANDOFF.json consumed and deleted. Proceeding to /gsd-execute-phase 7 for 07-16.
 Resume file: None
 
