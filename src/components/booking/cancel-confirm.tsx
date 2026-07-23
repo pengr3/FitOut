@@ -37,7 +37,15 @@ export function CancelConfirm({ bookingId }: { bookingId: string }) {
         // ⚠️ D-57 — the refund POST records INTENT only; the webhook is the single writer of terminal
         // refund state. So the copy is "on its way", never "Refunded". The detail page renders the durable
         // truth; keep the button disabled through the navigation.
-        toast.success("Booking cancelled. Your refund is on its way.");
+        //
+        // CR-01: the toast claims a refund ONLY when the server says one exists. On a 0%-rung
+        // cancellation `refundCents` is 0 and nothing is on its way — saying otherwise here was the
+        // toast-shaped half of the "₱0 refund issued" defect.
+        toast.success(
+          res.refundCents > 0
+            ? "Booking cancelled. Your refund is on its way."
+            : "Booking cancelled.",
+        );
         router.push(`/bookings/${bookingId}`);
         router.refresh();
       } else {

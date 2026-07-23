@@ -280,7 +280,7 @@ function appBaseUrl(): string {
 async function notifyCancellation(
   row: OwnedBooking,
   bookingId: string,
-  refundLabel: string | null,
+  refundCents: number | null,
 ): Promise<void> {
   const whenLabel = composeWhenLabel(whenLabelInput(row));
   const listingTitle = row.title ?? "your space";
@@ -304,8 +304,11 @@ async function notifyCancellation(
   });
 
   // The BOOKER gets the refund figure in writing — but ONLY when money actually moved. An unpaid hold has
-  // nothing to refund, and a "₱0 refunded" notice would invent an event that never happened.
-  if (refundLabel !== null) {
+  // nothing to refund, a 0%-rung cancellation refunds nothing, and a "₱0 refunded" notice would invent a
+  // money event that never happened (D-79 / CR-01). The guard keys on the AMOUNT, and the label is
+  // composed HERE, at the single point past the guard — so no call site can ever hand this function a
+  // pre-formatted "₱0" string that reads as a truthy label for a refund that does not exist.
+  if (refundCents !== null && refundCents > 0) {
     await emitNotify({
       type: "refund_issued",
       recipientId: row.bookerId,
@@ -315,7 +318,7 @@ async function notifyCancellation(
         type: "refund_issued",
         listingTitle,
         whenLabel,
-        refundLabel,
+        refundLabel: formatMoney(refundCents, row.currency ?? DISPLAY_CURRENCY),
         href: `${base}/bookings/${bookingId}`,
       },
     });
@@ -625,11 +628,9 @@ export async function cancelBookingAsBooker(
 
   // AFTER the commit, never inside a transaction (this action opens none). `emitNotify` swallows its own
   // transport errors, so a notification outage can never fail a cancellation whose money already moved.
-  await notifyCancellation(
-    row,
-    bookingId,
-    formatMoney(quote.totalRefundCents, row.currency ?? DISPLAY_CURRENCY),
-  );
+  // The AMOUNT is passed, never a pre-formatted label — notifyCancellation suppresses the refund notice
+  // when it is 0 (CR-01) and composes the label itself past that guard.
+  await notifyCancellation(row, bookingId, quote.totalRefundCents);
 
   revalidateCancelSurfaces(bookingId);
   return notice
@@ -701,7 +702,7 @@ export async function cancelUnpaidHold(bookingId: string): Promise<CancelActionR
     meta: { bookingId, previousStatus: row.status },
   });
 
-  // `null` refund label: nothing was charged, so the booker gets no refund notice. The host still does —
+  // `null` refund amount: nothing was charged, so the booker gets no refund notice. The host still does —
   // their slot just became free again, which is the whole reason they need telling.
   await notifyCancellation(row, bookingId, null);
 
