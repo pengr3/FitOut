@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-23T18:14:20Z",
+  "phase": "07",
+  "phase_name": "bookings-management-cancellation-notifications",
+  "phase_dir": ".planning/phases/07-bookings-management-cancellation-notifications",
+  "activity": "verify-work (UAT)",
+  "status": "paused",
+  "uat_file": ".planning/phases/07-bookings-management-cancellation-notifications/07-UAT.md",
+  "uat_status": "partial",
+  "progress": "11 passed, 2 issues, 2 pending of 15 tests",
+  "completed_tests": [
+    {"id": 1, "name": "Cold Start Smoke Test", "result": "pass"},
+    {"id": 2, "name": "All-In Browse Pricing + Service Fee at Checkout", "result": "pass"},
+    {"id": 3, "name": "Cancellation Policy Required to Publish", "result": "pass"},
+    {"id": 4, "name": "Cancellation Policy Disclosure to Booker", "result": "pass"},
+    {"id": 5, "name": "My Bookings List (/bookings)", "result": "pass"},
+    {"id": 6, "name": "Host Bookings List + Detail", "result": "issue", "severity": "major"},
+    {"id": 7, "name": "Booker Cancels a Paid Booking (Exact Refund)", "result": "pass"},
+    {"id": 8, "name": "Cancel an Unpaid Request/Approved Hold", "result": "issue", "severity": "major"},
+    {"id": 9, "name": "Host Cancels a Confirmed Booking", "result": "pass"},
+    {"id": 10, "name": "Host Earnings: Commission Label + Fee Debt Line", "result": "pass"},
+    {"id": 11, "name": "Notification Bell + In-App Notifications", "result": "pass"},
+    {"id": 12, "name": "Lifecycle Emails", "result": "pass"},
+    {"id": 15, "name": "Reminder Emails (Cron)", "result": "pass"}
+  ],
+  "remaining_tests": [
+    {"id": 13, "name": "Too-Soon Slots + Lead-Time Guard", "status": "awaiting_user_visual", "note": "Ask whether today's within-2h evening slots on a request-mode listing render muted/struck-through (not red)."},
+    {"id": 14, "name": "Expired Approval Recovery (Re-Request)", "status": "not_run", "note": "Needs staging: booker submits request, host approves, simulate payment-window lapse, then exercise 'Request this time again' on the booking detail."}
+  ],
+  "gaps": [
+    {"test": 8, "severity": "major", "summary": "Booker-cancelled unpaid request renders host-decline copy ('Declined' / 'The host couldn't take your booking'). Row: status=declined, cancelled_by=booker. Detail page declined branch + deriveBookingStatusView ignore cancelled_by."},
+    {"test": 6, "severity": "major", "summary": "/host/bookings list rows have no link to /host/bookings/[id]; host cancel flow (SC#3) unreachable without hand-typing a UUID. host-booking-row.tsx has no href."},
+    {"test": 4, "severity": "minor", "summary": "Checkout policy SUMMARY line advertises an already-lapsed top refund rung ('Free cancellation until <past instant>') without comparing the boundary to now."},
+    {"test": 11, "severity": "minor", "summary": "placeHold re-emits the request-received + new-request-to-host notification pair on an idempotent replay (double-click), unlike re-request.ts which suppresses. Duplicate host notifications/emails on double-submit."},
+    {"test": 7, "severity": "cosmetic", "summary": "formatMoney drops the trailing zero: '₱307.5' instead of '₱307.50' (also refundLabel payload)."},
+    {"test": 9, "severity": "cosmetic", "summary": "Copy nits: '₱300in' missing space on /host/earnings; raw enum 'host_cancellation' shown as block label on the availability page."},
+    {"test": 4, "severity": "major", "summary": "No UI links to /host/listings/[id]/availability (weekly-hours editor); wizard has no hours step and publish checklist doesn't require hours, so a published listing can sit at 'No availability yet'. Pre-existing Phase 3/4 discoverability gap surfaced during Phase-7 UAT."}
+  ],
+  "human_actions_pending": [
+    {"action": "Complete test 13 (visual: too-soon slots muted) and test 14 (re-request recovery)", "context": "Both need the running local stack + a logged-in booker/host", "blocking": false}
+  ],
+  "infrastructure_state": {
+    "dev_server": "next dev on :3000 (preview server, may still be running)",
+    "postgres": "docker fitout-db-1 up (postgis/postgis:18)",
+    "inngest_dev": "npx inngest-cli dev on :8288 (crashed once mid-session, restarted; may still be running)",
+    "ngrok_tunnel": "https://eloquent-pounce-entangled.ngrok-free.dev -> :3000, PayMongo webhook registered at /api/paymongo/webhook (checkout_session.payment.paid). Tunnel URL is ephemeral — re-register if it changes on resume.",
+    "env_change": "Added INNGEST_DEV=1 to .env.local (gitignored). Without it /api/inngest 500s in cloud mode and every emitNotify enqueue fails silently. REQUIRED for the notification pipeline in local dev.",
+    "db_seed_state": "Ran npm run db:seed (5 seed_* listings) then patched cancellation tiers via SQL; activated host_payout for test@gmail.com (RdJ4E83J...) via SQL; Pickletickle (3ab8e6c5-...) published/standard, currently booking_mode=request; several bookings created/cancelled during UAT; synthetic reminder booking 45cba391 inserted."
+  },
+  "decisions": [
+    {"decision": "Simulate host payout activation + tier assignment via direct SQL", "rationale": "PayMongo Platforms/Linked Accounts is sales-gated in test mode (no merchant.activated webhook available); the dev seed predates Phase 7 so seeded listings had NULL cancellation_policy."},
+    {"decision": "Real PayMongo test-mode payments via ngrok, not mocked", "rationale": "SC#2/SC#3 money correctness is the phase's core value; refunds verified against the live PayMongo API (ref_ ids, status=succeeded)."}
+  ],
+  "spawned_tasks": [
+    {"title": "Update dev seed script for Phase 7 columns", "reason": "scripts/seed.ts creates published listings with NULL cancellation_policy, bypassing the D-77 publish gate"}
+  ],
+  "next_action": "Resume /gsd-verify-work 7: run test 13 (ask user if today's within-2h slots render muted) and test 14 (stage a request->approve->lapse, then exercise 'Request this time again'). Then the workflow auto-diagnoses the 2 major + minor/cosmetic gaps and plans fixes.",
+  "context_notes": "Session was a conversational UAT of all 17 Phase-7 plans. 11/15 pass with strong live evidence (real PayMongo payments + refunds, live cron reminder, full notification bell). Two MAJOR discoverability/copy gaps found (tests 6 and 8) that automated tests missed because they assert behavior not navigation/landing-copy. Six gaps total logged in 07-UAT.md Gaps section; three UX polish notes in deferred-items.md (weekly-hours editor UX, duplicated approve/decline surfaces, seed script). When resuming, note the running background processes and INNGEST_DEV=1 requirement."
+}

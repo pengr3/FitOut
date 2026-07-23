@@ -116,3 +116,25 @@ mode the Task-1 probe matrix warned about for the HTTP-200 branch.
    error in `src/`; everything else in `src/`+`tests/` is warnings on deliberately-underscored unused args.
 
 Neither is caused by 07-17; every file 07-17 touched lints clean (`npx eslint <files>` exit 0).
+
+## Weekly-hours editor UX — polish candidate for the UI pass (found during Phase-7 UAT, 2026-07-23)
+
+`src/components/availability/weekly-hours-editor.tsx` renders each day's open/close as two 24-item
+`Select` dropdowns of on-the-hour times (`HOUR_OPTIONS`, generated 00:00–23:00 — a deliberate match
+to the schema's on-the-hour slot rule, not hardcoding). Functional but clunky: no "apply to all
+days" shortcut, no drag/range affordance, long scroll to reach evening hours. User verdict during
+UAT: "take a note on this for the UI pass to polish."
+
+Related discoverability defect (logged as a 07-UAT gap, not here): NOTHING links to
+`/host/listings/[id]/availability` — the wizard has no hours step and no nav/dashboard/listing card
+links there, and the publish checklist doesn't require hours, so a published listing can sit at "No
+availability yet" indefinitely. That half is a functional gap, not polish.
+
+## Duplicated approve/decline surfaces (found during Phase-7 UAT, 2026-07-23)
+
+`/host/requests` (the dedicated queue, Phase 6) and `/host/bookings` (the Phase-7 all-bookings list)
+BOTH render Approve/Decline on a `requested` booking — 07-06 deliberately reused `RequestActions`
+in the host bookings row. User flagged the overlap as confusing during UAT. Worth a product
+decision: either make `/host/bookings` read-only with a "Respond in Requests" link, or retire
+`/host/requests` into a filter of `/host/bookings`. Not a functional defect — both paths hit the
+same owner-gated action.
