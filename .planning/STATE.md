@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 17
-status: verifying
+current_plan: null
+status: phase_complete
 stopped_at: "Completed 07-17-PLAN.md — Phase 7 GAP CLOSURE (17/17). All four user-approved findings closed red-first with content-pinning regressions: CR-01 (refund_issued suppression keyed on the AMOUNT inside notifyCancellation — a 0%-rung cancellation emits no refund claim in any channel; toast branches on res.refundCents), CR-02 (sendRequestApproved/sendNewRequestToHost render the row's D-96-capped payByLabel/respondByLabel; sendRequestReceived states NO number; APPROVAL_* constants have no renderer in email.ts, grep-gated at 0; in-app and email copy agree per D-91), WR-04 (booking_cancelled_by_host gains required side:'booker'|'host' + optional feeLabel in BOTH unions; new sendHostCancellationRecord email + host branch in describeNotification; booker copy and durable pre-fix rows byte-unchanged, positive-control pinned), WR-06 (booking.full_day column via drizzle/0016 — journal idx 16, live-DB applied, idempotent, booking_no_overlap untouched — written by createPendingHold, read authoritatively by reRequestSameWindow; the current-hourly-rate inequality is no longer a full-day trigger on any pricing path). Full suite 78 files / 655 tests exit 0 (was 639); tsc clean; env-prefixed build green. 8 commits (4 test + 4 fix), 6f887c3..c46f2cf. Next: /gsd-verify-work 7 re-verification, then /gsd-plan-phase 8. (Full detail in 07-17-SUMMARY.md.)"
 last_updated: "2026-07-23T07:45:00Z"
 last_activity: 2026-07-23
@@ -22,14 +22,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 7 — bookings management, cancellation & notifications
+**Current focus:** Phase 7 COMPLETE (verification passed 4/4 SC) — next: Phase 8 (Group Bookings), not yet discussed/planned
 
 ## Current Position
 
-Phase: 7
-Current Plan: 17
-Total Plans in Phase: 17
-Status: Phase 7 gap closure complete (17/17) — ready for /gsd-verify-work 7 re-verification
+Phase: 7 — COMPLETE (2026-07-23). Verification: PASSED, 4/4 success criteria (07-VERIFICATION.md, re-verified after 07-17 gap closure). Code review: 22 findings — 2 Critical + 2 confirmed Warnings FIXED in 07-17; remaining 7 Warnings + 11 Info tracked in 07-REVIEW.md.
+Next Phase: 8 (Group Bookings) — no CONTEXT.md yet; route through /gsd-discuss-phase 8.
+Outstanding phase-7 debt: security gate (/gsd-secure-phase 7) not yet run and security_enforcement is ON; Playwright e2e specs lint-clean but unexecuted (need dev server); A3 + live receiving_institutions re-verification once PayMongo enables Money Movement (manual UAT).
 Last activity: 2026-07-23
 
 Progress: [██████████] 100% (58 of 58 plans)
