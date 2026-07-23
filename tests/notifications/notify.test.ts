@@ -432,3 +432,80 @@ describe("CR-02 — lifecycle emails state the row's real deadline, not the conf
     expect(email.html).toContain("You haven't been charged");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// WR-04 (07-17) — the host's copy of a host cancellation addresses the HOST's situation.
+//
+// `cancelBookingAsHost` emits booking_cancelled_by_host to BOTH parties. Pre-fix, both received the
+// booker's copy: the CANCELLER was told "You're getting a full refund of ₱X" — wrong on every clause —
+// and the D-71 fee consequence appeared in neither channel. The payload's `side` discriminant routes the
+// host to their own truthful record; the booker's copy is byte-unchanged (positive control below).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("WR-04 — host-cancellation emails address each recipient's own situation", () => {
+  const wr04Payload = (over: Record<string, unknown>) =>
+    ({
+      type: "booking_cancelled_by_host",
+      listingTitle: "Court A",
+      whenLabel: "Fri, Jul 4, 9:00 AM – 10:00 AM (Manila time)",
+      refundLabel: "₱1,050.00",
+      ...over,
+    }) as NotificationPayload;
+
+  it("(host side) 'You cancelled' + the fee consequence — never the booker's sentences", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "wr04_host",
+        type: "booking_cancelled_by_host",
+        email: "wr04-host@example.com",
+        payload: wr04Payload({
+          side: "host",
+          feeLabel: "₱300.00",
+          href: "https://fitout.example/host/bookings",
+        }),
+      }),
+    );
+
+    const [email] = mockResend.sent().filter((e) => e.to === "wr04-host@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain("You cancelled");
+    expect(email.html).toContain("₱1,050.00"); // the guest's refund, named for the host's records
+    expect(email.html).toContain("₱300.00"); // the D-71 fee, finally in writing (WR-04's complaint)
+    expect(email.html).toMatch(/fee.*deducted|deducted.*fee/i);
+    // The canceller must never receive the booker's sentences about themselves.
+    expect(email.html).not.toContain("You're getting");
+    expect(email.html).not.toContain("the host cancelled your booking");
+  });
+
+  it("(host side, no fee) the fee sentence is absent when no fee was charged", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "wr04_host_nofee",
+        type: "booking_cancelled_by_host",
+        email: "wr04-host-nofee@example.com",
+        payload: wr04Payload({ side: "host", href: "https://fitout.example/host/bookings" }),
+      }),
+    );
+
+    const [email] = mockResend.sent().filter((e) => e.to === "wr04-host-nofee@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain("You cancelled");
+    expect(email.html).not.toMatch(/cancellation fee/i);
+  });
+
+  it("(booker side, positive control) the booker's email copy is byte-unchanged", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "wr04_booker",
+        type: "booking_cancelled_by_host",
+        email: "wr04-booker@example.com",
+        payload: wr04Payload({ side: "booker", href: "https://fitout.example/bookings/bk1" }),
+      }),
+    );
+
+    const [email] = mockResend.sent().filter((e) => e.to === "wr04-booker@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain("The host cancelled this booking");
+    expect(email.html).toContain("You're getting a full refund of ₱1,050.00");
+  });
+});

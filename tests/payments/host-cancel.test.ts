@@ -47,6 +47,7 @@ import {
   hostPayoutLedger,
 } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
+import { formatMoney } from "@/lib/money";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
 import { HOST_CANCEL_FEE_CENTS, PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import { summarizePayouts } from "@/components/host/payout-ledger-status";
@@ -84,14 +85,15 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
 }));
 
-/** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the client. */
+/** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the client. `side`/`feeLabel`
+ *  exposed for the 07-17 WR-04 content assertions (case 17). */
 type NotifyEnvelope = {
   name: string;
   data: {
     type: string;
     recipientId: string;
     bookingId: string | null;
-    payload: { href: string; refundLabel?: string };
+    payload: { href: string; refundLabel?: string; side?: string; feeLabel?: string };
   };
 };
 const inngestSend = vi.fn(async (event: NotifyEnvelope) => ({ ids: [event.name] }));
@@ -853,6 +855,37 @@ describe("cancelBookingAsHost — notifications", () => {
     for (const e of sent) {
       expect(e.data.payload.href).toMatch(/^https?:\/\//);
     }
+  });
+
+  it("(17 · WR-04) each envelope declares its audience: booker side sans fee, host side with the exact fee", async () => {
+    // The emission half of WR-04. Pre-fix both recipients got the SAME payload shape and the host read
+    // the booker's copy — "You're getting a full refund" — while the D-71 fee appeared in no channel.
+    await seedListing("L_sides");
+    await seedBooking("bk_sides", "L_sides", 12 * HOUR); // space ₱1,000 > flat fee ₱300 → fee uncapped, > 0
+
+    await login(HOST_EMAIL);
+    const res = await cancelBookingAsHost("bk_sides", "maintenance");
+    expect(res.ok).toBe(true);
+
+    const sent = inngestSend.mock.calls
+      .map((c) => c[0])
+      .filter((e) => e.name === "fitout/notify" && e.data.bookingId === "bk_sides");
+    const toBooker = sent.find((e) => e.data.recipientId === bookerId);
+    const toHost = sent.find((e) => e.data.recipientId === hostId);
+    expect(toBooker).toBeDefined();
+    expect(toHost).toBeDefined();
+
+    // The booker's payload declares the booker audience and carries NO fee — the fee is the host's
+    // consequence, not the booker's business (asserted on payload CONTENT, never call counts).
+    expect(toBooker!.data.payload.side).toBe("booker");
+    expect(toBooker!.data.payload.feeLabel).toBeUndefined();
+
+    // The host's payload declares the host audience and carries the EXACT charged fee, through the same
+    // formatter the action uses.
+    expect(toHost!.data.payload.side).toBe("host");
+    expect(toHost!.data.payload.feeLabel).toBe(
+      formatMoney(Math.min(HOST_CANCEL_FEE_CENTS, HOURLY), "php"),
+    );
   });
 
   it("(16) the BOOKER path's hrefs are absolute too — the same defect, the other action", async () => {

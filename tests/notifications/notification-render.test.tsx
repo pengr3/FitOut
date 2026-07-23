@@ -159,6 +159,56 @@ describe("safeHref — the allow-list is closed, not a blocklist", () => {
   });
 });
 
+describe("WR-04 — a host cancellation renders each side's OWN truthful copy", () => {
+  // 07-17: `cancelBookingAsHost` emits booking_cancelled_by_host to BOTH parties. Pre-fix the host's
+  // copy was the booker's verbatim — "Your host cancelled … ₱X refunded" — wrong on every clause for
+  // the canceller, and the D-71 fee consequence appeared in neither channel. The `side` discriminant
+  // fixes the audience; these cases pin both directions plus the durable-row fallback.
+  const base = {
+    type: "booking_cancelled_by_host" as const,
+    listingTitle: "Sunset Court",
+    whenLabel: "Sat, 3 May · 9:00–10:00 AM (Asia/Manila)",
+    refundLabel: "₱1,050.00",
+    href: "/host/bookings",
+  };
+
+  it("side:'host' states the HOST's situation: you cancelled, your guest is refunded, the fee", () => {
+    const { title, body } = describeNotification({ ...base, side: "host", feeLabel: "₱300.00" });
+    expect(title).toBe("You cancelled this booking");
+    expect(body).toContain("₱1,050.00 refunded to your guest");
+    expect(body).toContain("₱300.00 fee");
+    // The canceller must never read the booker's sentence about themselves.
+    expect(`${title} ${body}`).not.toContain("Your host cancelled");
+  });
+
+  it("side:'host' with NO fee charged renders no fee clause — a '₱0 fee' would be CR-01's disease anew", () => {
+    const { title, body } = describeNotification({ ...base, side: "host" });
+    expect(title).toBe("You cancelled this booking");
+    expect(body).not.toContain("fee");
+    expect(body).toContain("refunded to your guest");
+  });
+
+  it("POSITIVE CONTROL: side:'booker' renders today's booker copy byte-identically", () => {
+    const { title, body } = describeNotification({ ...base, side: "booker" });
+    expect(title).toBe("Your host cancelled");
+    expect(body).toBe(
+      "Sunset Court · Sat, 3 May · 9:00–10:00 AM (Asia/Manila) · ₱1,050.00 refunded",
+    );
+  });
+
+  it("POSITIVE CONTROL: a durable pre-07-17 row (no side field) still renders the booker copy", () => {
+    // A jsonb row outlives the code that wrote it. Rows written before the discriminant existed carry
+    // no `side`; anything !== "host" — including undefined — must keep meaning exactly what it meant
+    // the day it was written. The cast simulates that durable shape.
+    const legacy = { ...base } as unknown as NotificationPayload;
+    const { title, body } = describeNotification(legacy);
+    expect(title).toBe("Your host cancelled");
+    expect(body).toBe(
+      "Sunset Court · Sat, 3 May · 9:00–10:00 AM (Asia/Manila) · ₱1,050.00 refunded",
+    );
+  });
+});
+
 describe("describeNotification — every payload kind has copy", () => {
   it("never returns an empty title or body for any kind", () => {
     // The union's exhaustiveness is enforced at COMPILE time by the `never` weld; this catches the other
