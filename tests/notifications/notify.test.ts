@@ -32,6 +32,7 @@ import {
   type NotifyEvent,
 } from "@/lib/notifications";
 import { notifyOnFailure, sendForType } from "@/inngest/functions/notify";
+import { describeNotification } from "@/components/notifications/notification-item";
 import { inngest } from "@/inngest/client";
 
 let testDb: TestDb;
@@ -324,5 +325,110 @@ describe("notify fan-out (MANAGE-03)", () => {
     // A crafted limit can never request an unbounded read.
     expect(await listRecent(testDb.db, userC, 10_000)).toHaveLength(3);
     expect(await listRecent(testDb.db, userC, 2)).toHaveLength(2);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// CR-02 (07-17) — deadline claims in lifecycle emails render the ROW's capped label, never flat config.
+//
+// The payloads already carry the real D-96 session-start-capped deadline (`payByLabel` off the approval
+// UPDATE's RETURNING; `respondByLabel` off the request insert). The defect was sendForType dropping both
+// on the floor while the templates rendered APPROVAL_PAYMENT_WINDOW_HOURS / APPROVAL_SLA_HOURS — false in
+// writing on every short-notice request, and a two-channel drift from the correct in-app copy (the exact
+// failure D-91/D-99 forbid). The labels below are deliberately UNDERIVABLE from config: the only way the
+// email can contain them is by rendering the payload field.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A capped deadline no config constant could produce — the row's own composed label. */
+const CR02_PAY_BY = "Thu, Jul 3, 8:00 PM (Manila time)";
+const CR02_RESPOND_BY = "Fri, Jul 4, 6:30 AM (Manila time)";
+
+const cr02ApprovedPayload: NotificationPayload = {
+  type: "request_approved",
+  listingTitle: "Court A",
+  whenLabel: "Fri, Jul 4, 9:00 AM – 10:00 AM (Manila time)",
+  totalLabel: "₱1,050.00",
+  payByLabel: CR02_PAY_BY,
+  href: "https://fitout.example/listings/l1/book?hold=bk1",
+};
+
+const cr02NewRequestPayload: NotificationPayload = {
+  type: "new_request_to_host",
+  listingTitle: "Court A",
+  whenLabel: "Fri, Jul 4, 9:00 AM – 10:00 AM (Manila time)",
+  bookerLabel: "Cassie",
+  totalLabel: "₱1,050.00",
+  respondByLabel: CR02_RESPOND_BY,
+  href: "https://fitout.example/host/requests",
+};
+
+describe("CR-02 — lifecycle emails state the row's real deadline, not the config constants", () => {
+  it("(A) request_approved email contains the payload's payByLabel and no 'within N hours' claim", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "cr02_user_a",
+        type: "request_approved",
+        email: "cr02-approved@example.com",
+        payload: cr02ApprovedPayload,
+      }),
+    );
+
+    const [email] = mockResend.sent().filter((e) => e.to === "cr02-approved@example.com");
+    expect(email).toBeDefined();
+    // The ROW's capped deadline, verbatim — the only source it can come from is the payload.
+    expect(email.html).toContain(CR02_PAY_BY);
+    // And the flat-constant phrasing is GONE. On a short-notice approval "within 12 hours" is simply
+    // false — the window closes when the session starts.
+    expect(email.html).not.toMatch(/within\s+\d+\s+hours/i);
+  });
+
+  it("(B) new_request_to_host email contains the payload's respondByLabel and no 'within N hours' claim", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "cr02_user_b",
+        type: "new_request_to_host",
+        email: "cr02-host@example.com",
+        payload: cr02NewRequestPayload,
+      }),
+    );
+
+    const [email] = mockResend.sent().filter((e) => e.to === "cr02-host@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain(CR02_RESPOND_BY);
+    // A host who trusts "within 24 hours" finds the request auto-declined long before the deadline the
+    // platform stated in writing — the D-96 split can shrink the SLA to a single hour.
+    expect(email.html).not.toMatch(/within\s+\d+\s+hours/i);
+  });
+
+  it("(C) two-channel parity: the in-app copy states the SAME deadline as the email (D-91)", () => {
+    // The SAME payload objects cases A and B just emailed. One payload feeds both channels; after the
+    // fix both channels state the same capped deadline for the same event.
+    expect(describeNotification(cr02ApprovedPayload).body).toContain(CR02_PAY_BY);
+    expect(describeNotification(cr02NewRequestPayload).body).toContain(CR02_RESPOND_BY);
+  });
+
+  it("(D) request_received email makes NO numeric deadline claim but keeps the not-charged reassurance", async () => {
+    // The request_received payload carries no deadline field, and adding one is a four-file payload
+    // change outside this plan's scope — so its email must state NO number at all (a numberless claim
+    // cannot be false), while keeping the D-63 "you haven't been charged" reassurance.
+    await sendForType(
+      makeEvent({
+        recipientId: "cr02_user_d",
+        type: "request_received",
+        email: "cr02-received@example.com",
+        payload: {
+          type: "request_received",
+          listingTitle: "Court A",
+          whenLabel: "Fri, Jul 4, 9:00 AM – 10:00 AM (Manila time)",
+          totalLabel: "₱1,050.00",
+          href: "https://fitout.example/bookings/bk1",
+        },
+      }),
+    );
+
+    const [email] = mockResend.sent().filter((e) => e.to === "cr02-received@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).not.toMatch(/\d+\s+hours/i);
+    expect(email.html).toContain("You haven't been charged");
   });
 });
