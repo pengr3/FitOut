@@ -443,6 +443,45 @@ describe("reRequestSameWindow — the D-97 lapse-recovery invariants", () => {
     expect(row.spacePriceCents).not.toBe(DAY_RATE);
   });
 
+  it("(7b · WR-06 positive control) a GENUINE full-day re-request stays full-day priced", async () => {
+    // The other direction, so the fix cannot overcorrect into repricing real full-day holds as hourly.
+    // full_day = true is the persisted creation-time snapshot (0016); a 6h window makes the day rate
+    // (₱3,000) distinguishable from hourly × hours (₱6,000), so this can only pass via the day-rate
+    // formula — at CURRENT rates, which is what a re-request is defined to re-freeze.
+    await seedListing("L_rr_fullday");
+    const base = await readDbNow(testDb.db);
+    const startsAt = new Date(base.getTime() + 30 * HOUR);
+    const endsAt = new Date(startsAt.getTime() + 6 * HOUR);
+    await testDb.db.insert(booking).values({
+      id: "bk_rr_fullday",
+      listingId: "L_rr_fullday",
+      unit: 1,
+      bookerId,
+      startsAt,
+      endsAt,
+      status: "cancelled",
+      bookingMode: "request",
+      cancellationPolicy: "standard",
+      fullDay: true,
+      spacePriceCents: DAY_RATE,
+      serviceFeeCents: SERVICE_FEE,
+      quotedTotalCents: DAY_RATE + SERVICE_FEE,
+      currency: "php",
+      expiresAt: null,
+      cancelledBy: null,
+      paymentId: null,
+    });
+
+    await login(BOOKER_EMAIL);
+    const res = await reRequestSameWindow("bk_rr_fullday");
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error("expected the full-day re-request to succeed");
+
+    const row = await readRow(res.bookingId);
+    expect(row.spacePriceCents).toBe(DAY_RATE); // the day-rate formula, honoured
+    expect(row.spacePriceCents).not.toBe(HOURLY * 6); // NOT silently re-derived as hourly
+  });
+
   it("(6) rate limit: the sixth call in the window is refused, and the denial is audited", async () => {
     // T-07-73 — the mitigation for re-request spam against a host. The budget is consulted BEFORE the lapse
     // guard, which is why the first five calls below can target a live (non-resendable) booking: they each

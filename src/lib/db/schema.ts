@@ -622,6 +622,14 @@ export const booking = pgTable(
     // governs NEW bookings only, in-flight requests keep their original mode) never rewrites an
     // in-flight booking's mode. Live-DB ADD COLUMN is drizzle/0011 (backfill-free, mirrors 0006).
     bookingMode: bookingMode("booking_mode"),
+    // WR-06 (07-17) — creation-time PRICING-MODE snapshot, mirroring the bookingMode D-61 idiom above.
+    // TRUE = the booker selected full-day (the flat day rate froze the price); FALSE = hourly. Written by
+    // createPendingHold at mint time; nullable, no default, backfill-free (pre-0016 rows stay NULL).
+    // PRICE-DETERMINING consumers (re-request) read THIS column and NEVER re-derive the mode by comparing
+    // the frozen price against the listing's CURRENT rates — a host rate edit makes that inequality lie,
+    // silently repricing hourly holds at the day rate (the WR-06 anti-pattern). Display-only consumers
+    // (when-label.ts) keep their own derivation by explicit decision (IN-09).
+    fullDay: boolean("full_day"),
     // Pending-hold lifecycle (D-49, Phase 4). All new columns are nullable-safe — there are no existing
     // booking rows in dev/UAT (A7) — so 0006 is a backfill-free ADD COLUMN.
     expiresAt: timestamp("expires_at", { withTimezone: true }), // hold TTL; only meaningful while 'pending' (NULL once confirmed/terminal). D-48 lazy expiry treats a past value as FREE.

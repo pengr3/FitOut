@@ -469,6 +469,11 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
                   endsAt,
                   status: holdStatus, // D-63: 'pending' (instant, default) or 'requested' (request-to-book)
                   bookingMode, // D-61 creation-time snapshot (NULL for the legacy instant path)
+                  // WR-06 (07-17) — the creation-time PRICING-MODE snapshot: the SAME flag quoteWindow just
+                  // froze the price with, persisted so price-determining consumers (re-request) can read the
+                  // mode instead of re-deriving it against the listing's CURRENT rates (which a host edit
+                  // makes lie). Every future hold — instant, request, re-request — freezes it here.
+                  fullDay,
                   expiresAt: expiresAtSql, // D-94: LEAST(now() + window, starts_at), computed by Postgres
                   // D-74 frozen triple. quoted == space + fee, EXACTLY, by construction (addition, not a
                   // second rounding). Nothing downstream may re-derive any of the three from the others.

@@ -118,6 +118,9 @@ async function loadOwnedLapsedBooking(bookingId: string, userId: string) {
       endsAt: booking.endsAt,
       // D-61 creation-time snapshot. Only a request-mode booking ever had an approval to lapse.
       bookingMode: booking.bookingMode,
+      // WR-06 (07-17) — the persisted creation-time PRICING-MODE snapshot. Authoritative for the
+      // re-price below; NULL only on pre-0016 rows.
+      fullDay: booking.fullDay,
       // Set ONLY by a party cancellation (cancel-booking.ts). NULL means the system retired the hold, which
       // is precisely the lapse D-97 recovers from.
       cancelledBy: booking.cancelledBy,
@@ -136,6 +139,9 @@ async function loadOwnedLapsedBooking(bookingId: string, userId: string) {
       timezone: listing.timezone,
       city: listing.city,
       hourlyRateCents: listing.hourlyRateCents,
+      // Consulted ONLY by the pre-0016 fullDay fallback below — a positive day-rate match, never an
+      // hourly-rate inequality (WR-06).
+      dayRateCents: listing.dayRateCents,
       hostEmail: hostUser.email,
       bookerEmail: bookerUser.email,
       bookerFirstName: bookerUser.firstName,
@@ -207,15 +213,27 @@ export async function reRequestSameWindow(bookingId: string): Promise<ReRequestR
 
   if (!isResendableLapse(row)) return NOT_RESENDABLE;
 
-  // `fullDay` is not persisted, so it is re-derived by the SHARED rule (src/lib/booking/when-label.ts): the
-  // frozen SPACE price against `hourlyRate × hours`. Compared against `spacePriceCents`, NEVER the all-in
-  // `quotedTotalCents` — under D-74 the latter is `space + service fee` and can therefore never equal
-  // `hourlyRate × hours`, which would silently re-price every hourly re-request at the day rate. The
-  // `?? quoted` fallback covers a pre-07-08 row whose split was never frozen (its fee was 0).
+  // WR-06 (07-17) — `fullDay` is the booking row's OWN persisted creation-time snapshot
+  // (`booking.full_day`, written by createPendingHold at mint time), because this derivation is
+  // PRICE-DETERMINING: createPendingHold re-freezes the price from it at the listing's current rates.
+  //
+  // The pre-fix code re-derived the mode as `spaceCents !== currentHourlyRate × hours` — but the frozen
+  // spaceCents was priced at the rate in force at the ORIGINAL booking, so ANY host hourly-rate edit
+  // since made the inequality lie, flipping every hourly re-request to full-day and silently minting the
+  // flat day rate. The load-bearing property of the line below: an hourly-rate edit can no longer flip
+  // ANYTHING to full-day, because inequality-with-the-current-hourly-rate is not a full-day trigger
+  // anywhere on this path.
+  //
+  // The fallback exists ONLY for pre-0016 rows (full_day IS NULL): it treats a row as full-day solely on
+  // a POSITIVE match against the day rate that is not also an exact hourly match — biasing to hourly on
+  // coincidence, the same bias when-label.ts documents. (`?? quoted` covers a pre-07-08 row whose split
+  // was never frozen; its fee was 0, so the two are equal.)
   const hours = windowHours(row.startsAt, row.endsAt);
   const spaceCents = row.spacePriceCents ?? row.quotedTotalCents ?? 0;
   const hourlyTotal = row.hourlyRateCents != null ? row.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || spaceCents !== hourlyTotal;
+  const fullDay =
+    row.fullDay ??
+    (row.dayRateCents != null && spaceCents === row.dayRateCents && spaceCents !== hourlyTotal);
 
   // The listing's CURRENT mode decides what is minted. A request listing mints a `requested` hold on the
   // APPROVAL_SLA_HOURS window; an instant listing mints the ordinary 15-minute checkout hold and the detail
