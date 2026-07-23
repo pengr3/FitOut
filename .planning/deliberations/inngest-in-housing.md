@@ -2,7 +2,8 @@
 type: deliberation
 title: In-house the Inngest background-job layer (Postgres outbox + worker)
 supersedes_candidate: D-56
-status: recommended — not yet formalized as an ADR, not yet executed
+status: deferred — staying on Inngest for v1 (upholds D-56); design shelf-ready, revisit at scale
+decision: 2026-07-23 — keep Inngest for v1; revisit only after proving market AND hitting Inngest limits. Future host left open (Railway/Render/Fly OR Cloudflare Workers+Queues — NOT R2).
 created: 2026-07-22T10:47:24.843Z
 gate: Do NOT execute mid-Phase-7. Formalize as an ADR superseding D-56 first, then plan as a slice BETWEEN phases.
 ---
