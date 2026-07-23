@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 16
-status: phase-complete
-stopped_at: "Completed 07-16-PLAN.md — PHASE 7 CODE-COMPLETE (16/16). The QRPh gating question is SETTLED BY OBSERVED API BEHAVIOUR, not documentation: the 2026-07-23 test-mode probe returned HTTP 400 'Refunds are not allowed for payments with source type qrph.' (raw body verbatim in refund-rail.ts) → VERDICT `confirmed`, D-58 stands, and the D-72 collect-and-never-store branch is BUILT. `createRefundTransfer` fires InstaPay refunds with the `refund:` idempotency namespace (Pitfall 10 — `payout:` untouched, both grep-asserted at exactly 1), a per-attempt rotating reference_number, and a ₱50,000 ceiling guard routed to needs_attention. A QRPh booker supplies a destination on the cancel screen (RHF+Zod form, institution Select fed by the live listReceivingInstitutions() set) that passes STRAIGHT THROUGH to the transfer — no account number/name/BIC in any table, audit meta or log line; ONLY transferId + masked last-4 survive, proven by row-scan + log-scan tests against a failure fixture that deliberately echoes the destination. Owner gate mutation-verified (predicate removed → case 7 red → restored). ⚠️ A3 is BLOCKED, not settled — the Money Movement endpoints 404 on this account until PayMongo enables the feature (evidence in refund-rail.ts); at runtime the destination form degrades calmly to the operator seam until then. Full suite 78 files / 639 tests, exit 0 (was 76/628). Commits 3fa3156 + 81dd608. (Full detail in 07-16-SUMMARY.md.) Prior: 07-15 (cancellation-policy surfaces, BOOK-07 closed — full detail in 07-15-SUMMARY.md)."
-last_updated: "2026-07-23T06:35:00Z"
+current_plan: 17
+status: verifying
+stopped_at: "Completed 07-17-PLAN.md — Phase 7 GAP CLOSURE (17/17). All four user-approved findings closed red-first with content-pinning regressions: CR-01 (refund_issued suppression keyed on the AMOUNT inside notifyCancellation — a 0%-rung cancellation emits no refund claim in any channel; toast branches on res.refundCents), CR-02 (sendRequestApproved/sendNewRequestToHost render the row's D-96-capped payByLabel/respondByLabel; sendRequestReceived states NO number; APPROVAL_* constants have no renderer in email.ts, grep-gated at 0; in-app and email copy agree per D-91), WR-04 (booking_cancelled_by_host gains required side:'booker'|'host' + optional feeLabel in BOTH unions; new sendHostCancellationRecord email + host branch in describeNotification; booker copy and durable pre-fix rows byte-unchanged, positive-control pinned), WR-06 (booking.full_day column via drizzle/0016 — journal idx 16, live-DB applied, idempotent, booking_no_overlap untouched — written by createPendingHold, read authoritatively by reRequestSameWindow; the current-hourly-rate inequality is no longer a full-day trigger on any pricing path). Full suite 78 files / 655 tests exit 0 (was 639); tsc clean; env-prefixed build green. 8 commits (4 test + 4 fix), 6f887c3..c46f2cf. Next: /gsd-verify-work 7 re-verification, then /gsd-plan-phase 8. (Full detail in 07-17-SUMMARY.md.)"
+last_updated: "2026-07-23T07:45:00Z"
 last_activity: 2026-07-23
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 57
-  completed_plans: 57
+  total_plans: 58
+  completed_plans: 58
   percent: 100
 ---
 
@@ -27,18 +27,28 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 7
-Current Plan: 16
-Total Plans in Phase: 16
-Status: Phase 7 code-complete (16/16) — ready for /gsd-verify-work 7 and /gsd-plan-phase 8
+Current Plan: 17
+Total Plans in Phase: 17
+Status: Phase 7 gap closure complete (17/17) — ready for /gsd-verify-work 7 re-verification
 Last activity: 2026-07-23
 
-Progress: [██████████] 100% (57 of 57 plans)
+Progress: [██████████] 100% (58 of 58 plans)
 
-**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-16** (all).
+**Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-17** (all; 07-17 is the gap-closure plan for CR-01/CR-02/WR-04/WR-06).
+
+**Gap closure complete (07-17 landed).** Full suite: **78 files / 655 tests, exit 0**. All four user-approved 07-VERIFICATION/07-REVIEW findings are closed red-first with content-pinning regressions (envelope payloads / email bodies / persisted money fields — never call counts).
+
+📌 **New contracts from 07-17 (load-bearing for anyone touching notifications or re-request pricing):**
+
+1. *Refund/fee claims are AMOUNT-gated* — `notifyCancellation` takes cents and composes the ₱-label past a `> 0` guard; `feeLabel` on the host cancellation payload exists only when the charged fee > 0. No channel may durably record a money event that did not happen (CR-01/D-79 — and the rule now explicitly covers fees).
+2. *`booking_cancelled_by_host` carries `side: "booker" | "host"` (required) + `feeLabel?`* — renderers treat anything `!== "host"` (including `undefined` on durable pre-07-17 jsonb rows) as booker, so old rows keep their meaning. The four-file compile-enforced contract is unchanged (TS union, Zod union, sendForType, describeNotification; no `default:` clauses).
+3. *Deadline claims in emails render the ROW's pre-composed capped label* (`payByLabel`/`respondByLabel`) — config hour-constants must never appear in email copy; a template with no deadline field states NO number (comment-safe grep gate in the plan verifies email.ts at 0).
+4. *`booking.full_day` is the pricing-mode snapshot* (drizzle/0016, nullable, backfill-free) — written by `createPendingHold` on every hold; PRICE-DETERMINING consumers (re-request) read the column and never re-derive the mode against current listing rates. `when-label.ts`'s identical derivation stays display-only by decision (IN-09).
 
 **Wave 5 complete (07-16 landed) — Phase 7 is code-complete.** Full suite: **78 files / 639 tests, exit 0**. The QRPh gating question is SETTLED by observed API behaviour (2026-07-23 probe: HTTP 400 "Refunds are not allowed for payments with source type qrph." — raw evidence in `refund-rail.ts`), and the D-72 collect-and-never-store refund path is BUILT.
 
 📌 **New contracts from 07-16 (load-bearing for anyone touching refunds/payouts):**
+
 1. *Idempotency namespaces* — refund transfers use `refund:` + bookingId; payouts keep `payout:` + bookingId (Pitfall 10). Both appear exactly once in `paymongo.ts`, grep-asserted. Never reuse either.
 2. *No-persistence (D-72)* — a refund destination (account number/name/BIC) must NEVER reach a table, audit meta, notification payload or log line; only `transferId` + a masked last-4 survive (audit meta). The transfer-failure catch deliberately logs NO error content because a PayMongo error detail can echo the destination — `tests/paymongo/instapay-refund.test.ts` case (4) feeds it one that does.
 3. *one-refund-per-payment* — `createRefund`'s key is payment-scoped; a second call for the same payment silently replays the first response (safe today, a trap for any partial-then-top-up flow; explicit comment + test guard it).
@@ -170,6 +180,7 @@ Progress: [██████████] 100% (57 of 57 plans)
 | Phase 07 P12 | ~75m | 3 tasks | 9 files |
 | Phase 07 P13 | 15m | 2 tasks | 3 files |
 | Phase 07 P16 | ~25m | 3 tasks | 8 files |
+| Phase 07 P17 | 25m | 4 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -310,7 +321,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-23T06:35:00Z
+Last session: 2026-07-23T07:45:00Z
+Stopped at: Completed 07-17-PLAN.md — Phase 7 gap closure (17/17). CR-01/CR-02/WR-04/WR-06 all closed red-first: amount-keyed refund-notice suppression (+ toast branch), row-derived capped deadline labels in the lifecycle emails (APPROVAL_* constants renderer-free in email.ts), the `side`-discriminated host-cancellation record (new sendHostCancellationRecord; booker copy + durable pre-fix rows byte-unchanged), and the persisted `booking.full_day` pricing-mode snapshot (drizzle/0016 applied + idempotent; re-request reads the column, never the current-rate inequality). Full suite 78 files / 655 tests exit 0; tsc clean; env-prefixed build green. 8 commits 6f887c3..c46f2cf. Next: /gsd-verify-work 7 re-verification, then /gsd-plan-phase 8 (group bookings).
+Resume file: None
+
+Prior session: 2026-07-23T06:35:00Z
 Stopped at: Completed 07-16-PLAN.md — PHASE 7 CODE-COMPLETE (16/16 plans, all SUMMARYs on disk). The human QRPh probe settled the gating question (`confirmed` — HTTP 400, raw evidence in refund-rail.ts; A3 BLOCKED on PayMongo enabling Money Movement) and Branch B was executed: createRefundTransfer + listReceivingInstitutions in paymongo.ts, the qrph-refund destination schema + RefundDestinationForm, cancelBookingAsBooker(bookingId, destination?), and tests/paymongo/{refund,instapay-refund}.test.ts (owner gate mutation-verified). Full suite 78 files / 639 tests, exit 0. Commits 3fa3156 + 81dd608. Next: /gsd-verify-work 7, then /gsd-plan-phase 8 (group bookings). Manual UAT owes: A3 re-verification + live institutions list once PayMongo enables Money Movement.
 Resume file: None
 

@@ -102,3 +102,17 @@ the payout-reconcile poll, or fold into that cron with a kind discriminator.
 **Impact if left:** an async-failed refund transfer looks dispatched in the audit trail until an
 operator manually polls it — the exact "healthy-looking code path stranding a booker's money" failure
 mode the Task-1 probe matrix warned about for the HTTP-200 branch.
+
+## Pre-existing lint findings (logged by 07-17, out of scope)
+
+**Found during:** 07-17 plan-level verification (`npm run lint`), 2026-07-23.
+
+1. **Stale worktree build junk breaks bare `npm run lint`:** `.claude/worktrees/naughty-fermat-9d894d/.next/build/*`
+   contains generated Turbopack output that eslint v9's flat config scans (1,000+ errors, 21k+ warnings —
+   all in generated .js). Not produced by any plan's source. Fix: delete the stale worktree directory
+   and/or add `.claude/worktrees/**` + `**/.next/**` to the eslint flat-config `ignores`.
+2. **`src/components/listing/address-autocomplete.tsx:110`** — `react-hooks` "Calling setState
+   synchronously within an effect" error (Phase-4 listing wizard file; untouched by Phase 7). One real
+   error in `src/`; everything else in `src/`+`tests/` is warnings on deliberately-underscored unused args.
+
+Neither is caused by 07-17; every file 07-17 touched lints clean (`npx eslint <files>` exit 0).
