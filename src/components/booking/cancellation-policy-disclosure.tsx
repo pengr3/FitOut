@@ -96,20 +96,52 @@ export function policyDisclosureLines(
  * If a future ladder edit leaves a tier with no 100% rung at all, this deliberately does NOT say "free
  * cancellation" — it falls back to naming the tier. A summary that promises a free cancellation the ladder
  * won't honour is the exact failure this module exists to prevent.
+ *
+ * ══ T4-rung: CONCRETE MODE LEADS WITH THE BEST STILL-FUTURE RUNG ══════════════════════════════════════
+ * The bug this closes: the one-liner used to ALWAYS lead with the ladder's top (100%) rung, so once that
+ * rung's boundary had passed for THIS booking the summary advertised "Free cancellation until <past
+ * instant>" — a window the refund engine would never honour, while the expanded list below was already
+ * correct. In concrete mode the caller passes `bestRungIndex` (the index of the best rung whose boundary
+ * is still in the future, computed SERVER-SIDE by the RSC via `bestFutureRungIndex`), and this line names
+ * THAT rung. The component still performs NO date math — it only forwards the number.
  */
 export function policySummaryLine(
   tier: CancellationTier,
   boundaryLabels?: readonly string[],
+  bestRungIndex?: number,
 ): string {
-  const i = LADDER[tier].findIndex((r) => r.refundBps >= 10000);
-  if (i === -1) return `${TIER_LABELS[tier]} cancellation policy`;
-  if (boundaryLabels) return `Free cancellation until ${boundaryLabels[i]}`;
-  return `Free cancellation up to ${LADDER[tier][i].minHours} hours before the session.`;
+  // GENERIC MODE (the listing page, no concrete instants): unchanged — state the ladder's own free
+  // cancellation lead time relative to session start. `bestRungIndex` is a per-booking, time-relative fact
+  // that only makes sense against concrete boundaries, so it is deliberately ignored here.
+  if (!boundaryLabels) {
+    const i = LADDER[tier].findIndex((r) => r.refundBps >= 10000);
+    if (i === -1) return `${TIER_LABELS[tier]} cancellation policy`;
+    return `Free cancellation up to ${LADDER[tier][i].minHours} hours before the session.`;
+  }
+
+  // CONCRETE MODE (checkout, dates for THIS booking).
+  //   - `bestRungIndex` omitted → keep the pre-T4-rung behaviour (lead with the ladder's top 100% rung) so
+  //     a caller that has not adopted the index cannot regress;
+  //   - `-1` → every boundary has passed: promise NO window. Name the tier (the same truthful fallback the
+  //     no-100%-rung case returns) — NEVER "Free cancellation";
+  //   - otherwise → lead with the best still-future rung: a full-refund rung reads "Free cancellation
+  //     until <date>", any lesser rung names its percentage ("50% refund until <date>").
+  if (bestRungIndex === undefined) {
+    const i = LADDER[tier].findIndex((r) => r.refundBps >= 10000);
+    if (i === -1) return `${TIER_LABELS[tier]} cancellation policy`;
+    return `Free cancellation until ${boundaryLabels[i]}`;
+  }
+  if (bestRungIndex === -1) return `${TIER_LABELS[tier]} cancellation policy`;
+  const rung = LADDER[tier][bestRungIndex];
+  const label = boundaryLabels[bestRungIndex];
+  if (rung.refundBps >= 10000) return `Free cancellation until ${label}`;
+  return `${rung.refundBps / 100}% refund until ${label}`;
 }
 
 export function CancellationPolicyDisclosure({
   tier,
   boundaryLabels,
+  bestRungIndex,
 }: {
   /**
    * At checkout this MUST be the booking's own snapshotted tier (`booking.cancellation_policy`), not the
@@ -121,6 +153,13 @@ export function CancellationPolicyDisclosure({
   tier: CancellationTier | null | undefined;
   /** Present ⇒ concrete mode. Index-aligned with `LADDER[tier]`, already formatted venue-local. */
   boundaryLabels?: readonly string[];
+  /**
+   * T4-rung, concrete mode only: the index (into `LADDER[tier]` / `boundaryLabels`) of the best rung whose
+   * boundary is still in the future for THIS booking, or `-1` when all have lapsed. Computed SERVER-SIDE by
+   * the RSC via `bestFutureRungIndex` and simply FORWARDED to `policySummaryLine` — the component performs
+   * no date math (its header rule). Omitted ⇒ the summary keeps its pre-T4-rung top-rung lead.
+   */
+  bestRungIndex?: number;
 }) {
   // ── NULL-TIER BEHAVIOUR (D-77's deliberate no-default, and what it implies for old rows) ─────────────
   // A NULL tier renders nothing at all — not an empty shell, not a fallback policy.
@@ -136,7 +175,7 @@ export function CancellationPolicyDisclosure({
   // no disclosure — that is the rule this branch encodes.
   if (!tier) return null;
 
-  const summary = policySummaryLine(tier, boundaryLabels);
+  const summary = policySummaryLine(tier, boundaryLabels, bestRungIndex);
   const lines = policyDisclosureLines(tier, boundaryLabels);
 
   return (

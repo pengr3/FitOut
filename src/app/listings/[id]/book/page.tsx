@@ -30,9 +30,10 @@ import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
 import { composeDeadlineLabel } from "@/lib/booking/when-label";
-// `rungBoundaries` only — deliberately NOT `tierOrDefault`. Its Flexible fallback is a legacy safety net
-// for the refund ENGINE; using it here would put a policy the host never chose in front of a booker.
-import { rungBoundaries } from "@/lib/payments/cancellation";
+// `rungBoundaries` + `bestFutureRungIndex` only — deliberately NOT `tierOrDefault`. The Flexible fallback
+// is a legacy safety net for the refund ENGINE; using it here would put a policy the host never chose in
+// front of a booker.
+import { rungBoundaries, bestFutureRungIndex } from "@/lib/payments/cancellation";
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
@@ -200,6 +201,12 @@ export default async function ReservePage({
         composeDeadlineLabel(r.boundary, timezone, lst.city),
       )
     : undefined;
+  // T4-rung: the summary line must lead with the best rung STILL OPEN for this booking, never a lapsed top
+  // rung ("Free cancellation until <past instant>"). Computed here from the page's existing `now` (line 58)
+  // — this is a DISPLAY summary; the enforceable refund still recomputes against the Postgres clock at
+  // cancel time (cancel-booking.ts, unchanged), so this display clock can never move money. `-1` once every
+  // boundary has passed, which the disclosure renders as a truthful no-window line.
+  const bestRungIndex = tier ? bestFutureRungIndex(tier, bk.startsAt, now) : undefined;
 
   const breakdown = (
     <>
@@ -213,7 +220,11 @@ export default async function ReservePage({
         hourlyRateCents={lst.hourlyRateCents}
         dayRateCents={lst.dayRateCents}
       />
-      <CancellationPolicyDisclosure tier={tier} boundaryLabels={boundaryLabels} />
+      <CancellationPolicyDisclosure
+        tier={tier}
+        boundaryLabels={boundaryLabels}
+        bestRungIndex={bestRungIndex}
+      />
     </>
   );
 

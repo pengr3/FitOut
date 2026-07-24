@@ -134,6 +134,23 @@ export function rungBoundaries(
   }));
 }
 
+/**
+ * T4-rung: the index of the best cancellation rung that is STILL OPEN for a booking starting at `startsAt`,
+ * evaluated at `now`. Because `LADDER[tier]` is DESCENDING by minHours, `rungBoundaries` returns boundaries
+ * ASCENDING in time (index 0 is the most generous rung AND the earliest boundary). "The best rung still
+ * open" is therefore the FIRST index whose boundary is strictly in the future; `-1` once EVERY boundary has
+ * passed (no free/partial window remains to advertise).
+ *
+ * Pure, and derived from the SAME `rungBoundaries` — hence the same `LADDER` — that `quoteRefund` reads, so
+ * there is no second source of truth for where the rungs sit. It feeds a DISPLAY-ONLY summary line; the
+ * enforceable refund still recomputes against the Postgres clock at cancel time (cancel-booking.ts), so a
+ * skewed display clock here can never move money. `now` is a required parameter — this module reads no clock
+ * (the header's DB-CLOCK RULE); the RSC passes its own `now` for the summary.
+ */
+export function bestFutureRungIndex(tier: CancellationTier, startsAt: Date, now: Date): number {
+  return rungBoundaries(tier, startsAt).findIndex((r) => r.boundary.getTime() > now.getTime());
+}
+
 /** Pre-Phase-7 bookings predate the tier snapshot. Fall back to FLEXIBLE — the most booker-friendly
  *  option, matching the D-62 precedent for legacy-row handling. There will be very few. */
 export function tierOrDefault(tier: CancellationTier | null | undefined): CancellationTier {
