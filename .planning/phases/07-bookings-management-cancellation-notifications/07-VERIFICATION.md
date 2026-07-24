@@ -1,9 +1,15 @@
 ---
 phase: 07-bookings-management-cancellation-notifications
-verified: 2026-07-24T05:10:00Z
-status: human_needed
-score: 4/4 roadmap success criteria verified; 7/7 UAT gap-closure truths verified in code + independently re-run tests
+verified: 2026-07-24T06:50:00Z
+status: passed
+score: 4/4 roadmap success criteria verified; 7/7 UAT gap-closure truths verified in code + independently re-run tests; 3/3 human-UAT items verified in a real browser (07-HUMAN-UAT.md status: passed)
 overrides_applied: 0
+human_verification_result:
+  status: passed
+  method: playwright-driven real-browser UAT (host + booker DB sessions, seeded fixtures) — see 07-HUMAN-UAT.md
+  t6_host_row_nav: passed (desktop Space-cell + mobile card tap navigate; Approve/Decline not swallowed by the overlay at either breakpoint)
+  t8_booker_cancel_landing: passed (booker-cancel → "Cancelled" / "You cancelled this request"; host-decline → "Declined" unchanged)
+  t9_block_and_earnings: passed after fix — block copy "Cancelled by host" verified; the earnings fee-line missing-space defect (G1) was found, fixed in quick task 260724-jo1, and re-verified in-browser ("₱300.00 in cancellation fees")
 re_verification:
   previous_status: passed
   previous_score: "4/4 roadmap success criteria verified (after 07-17 gap-closure, 2026-07-23)"
