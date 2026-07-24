@@ -13,7 +13,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -115,18 +115,20 @@ export function ListingCard({
   listing,
   bookable = false,
   editHref,
+  availabilityHref,
   onUnlist,
   onDelete,
 }: {
   listing: ListingCardData;
   bookable?: boolean;
   editHref?: string;
+  availabilityHref?: string;
   onUnlist?: (id: string) => Promise<ActionResult>;
   onDelete?: (id: string) => Promise<ActionResult>;
 }) {
   const router = useRouter();
   const badge = statusBadge(listing.status, bookable);
-  const hasActions = Boolean(editHref || onUnlist || onDelete);
+  const hasActions = Boolean(editHref || availabilityHref || onUnlist || onDelete);
 
   const priceParts: string[] = [];
   if (listing.hourlyRateCents != null) {
@@ -188,6 +190,13 @@ export function ListingCard({
             <Button asChild variant="outline" size="sm">
               <Link href={editHref}>
                 <PencilIcon className="size-3.5" /> Edit
+              </Link>
+            </Button>
+          )}
+          {availabilityHref && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={availabilityHref}>
+                <CalendarClock className="size-3.5" /> Availability
               </Link>
             </Button>
           )}

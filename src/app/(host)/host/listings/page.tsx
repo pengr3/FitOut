@@ -102,6 +102,7 @@ export default async function HostListingsPage() {
                 listing={data}
                 bookable={bookable}
                 editHref={`/host/listings/${r.id}/edit`}
+                availabilityHref={`/host/listings/${r.id}/availability`}
                 onUnlist={unlistListing}
                 onDelete={softDeleteListing}
               />
