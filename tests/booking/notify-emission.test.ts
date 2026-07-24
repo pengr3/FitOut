@@ -27,7 +27,7 @@ import postgres from "postgres";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockResend } from "../helpers/mocks";
-import { user, listing, booking } from "@/lib/db/schema";
+import { user, listing, booking, hostPayout } from "@/lib/db/schema";
 import type { NotifyEvent } from "@/lib/notifications";
 
 const MIN = 60 * 1000;
@@ -38,6 +38,25 @@ const sessionHeaders: { cookie: string } = { cookie: "" };
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
 }));
+
+// placeHold ends in a redirect (next/navigation). The mock (installed in beforeAll) throws a typed
+// RedirectError carrying the URL so a case can assert the SUCCESS target — cloned from
+// tests/booking/request-lifecycle.test.ts.
+class RedirectError extends Error {
+  constructor(readonly url: string) {
+    super(`NEXT_REDIRECT:${url}`);
+    this.name = "RedirectError";
+  }
+}
+async function expectRedirect(p: Promise<unknown>): Promise<string> {
+  try {
+    await p;
+  } catch (e) {
+    if (e instanceof RedirectError) return e.url;
+    throw e;
+  }
+  throw new Error("expected the action to redirect, but it returned normally");
+}
 
 /** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the Inngest client. */
 type NotifyEnvelope = { name: string; data: NotifyEvent };
@@ -84,13 +103,19 @@ let expireOne: ExpiryFns["expireOne"];
 type NotifyFns = typeof import("@/inngest/functions/notify");
 let sendForType: NotifyFns["sendForType"];
 let insertNotification: (typeof import("@/lib/notifications"))["insertNotification"];
+type BookingActions = typeof import("@/app/actions/booking");
+let placeHold: BookingActions["placeHold"];
 
 const BOOKER = "ne_booker";
 const BOOKER_EMAIL = "ne_booker@example.com";
 const HOST_EMAIL = "ne_host@example.com";
+// A REAL signed-up booker (intent 'book' → canBook) whose session drives placeHold (T11). Distinct from
+// the plain-inserted BOOKER row, which has no credential account and cannot sign in.
+const ACTION_BOOKER_EMAIL = "ne_action_booker@example.com";
 const PASSWORD = "averylongpassword";
 const HOURLY = 5000;
 let hostId: string;
+let actionBookerId: string;
 
 async function dbNow(): Promise<Date> {
   const [row] = await testDb.client<{ now: Date | string }[]>`SELECT now() AS "now"`;
@@ -209,9 +234,41 @@ beforeAll(async () => {
   const [h] = await testDb.db.select({ id: user.id }).from(user).where(eq(user.email, HOST_EMAIL));
   hostId = h.id;
 
+  // T11: placeHold's request branch needs a SIGNED-IN canBook booker AND a BOOKABLE listing
+  // (deriveBookable = published + host emailVerified + host payoutsEnabled). Sign up a real booker and
+  // make the host bookable so a request-mode placeHold actually reaches its emission pair.
+  await signUp(testAuth, {
+    email: ACTION_BOOKER_EMAIL,
+    password: PASSWORD,
+    name: "NE Action Booker",
+    firstName: "ActionBooker",
+    intent: "book",
+  });
+  const [ab] = await testDb.db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.email, ACTION_BOOKER_EMAIL));
+  actionBookerId = ab.id;
+  await testDb.db.update(user).set({ emailVerified: true }).where(eq(user.id, hostId));
+  await testDb.db.insert(hostPayout).values({
+    userId: hostId,
+    payoutsEnabled: true,
+    activationStatus: "activated",
+    onboardingComplete: true,
+  });
+
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+  // placeHold redirects on success; throw a typed error carrying the URL so expectRedirect can read it.
+  vi.doMock("next/navigation", () => ({
+    redirect: (url: string) => {
+      throw new RedirectError(url);
+    },
+    notFound: () => {
+      throw new Error("NEXT_NOT_FOUND");
+    },
+  }));
   vi.doMock("@/inngest/client", () => ({
     inngest: {
       send: inngestSend,
@@ -232,12 +289,14 @@ beforeAll(async () => {
   ({ expireOne } = await import("@/inngest/functions/request-expiry"));
   ({ sendForType } = await import("@/inngest/functions/notify"));
   ({ insertNotification } = await import("@/lib/notifications"));
+  ({ placeHold } = await import("@/app/actions/booking"));
 });
 
 afterAll(async () => {
   vi.doUnmock("@/lib/auth");
   vi.doUnmock("@/lib/db");
   vi.doUnmock("next/cache");
+  vi.doUnmock("next/navigation");
   vi.doUnmock("@/inngest/client");
   vi.doUnmock("@/lib/rate-limit");
   await probe.end();
@@ -437,5 +496,50 @@ describe("the wire is live end-to-end — a real action produces a real notifica
     await sendForType(event);
     expect(await countNotifications("bk_ne_e2e")).toBe(1);
     expect(mockResend.sent().filter((e) => e.to === BOOKER_EMAIL)).toHaveLength(2);
+  });
+});
+
+describe("placeHold suppresses the request notification pair on an idempotent replay (T11)", () => {
+  // A far-future, on-instant window well beyond MIN_LEAD_REQUEST_HOURS, dedicated to this case's listing so
+  // it never collides with another case on the booking_no_overlap EXCLUDE.
+  const START = "2027-03-01T02:00:00.000Z";
+  const END = "2027-03-01T03:00:00.000Z";
+
+  it("(7) a first request emits ONE pair; a REPLAYED double-submit emits NOTHING (the host is notified once)", async () => {
+    await seedListing("L_ne_replay");
+    await login(ACTION_BOOKER_EMAIL);
+
+    // FIRST submit → mints a `requested` hold and emits the pair: the booker's receipt + the host's alert.
+    const firstUrl = await expectRedirect(
+      placeHold({ listingId: "L_ne_replay", startUtc: START, endUtc: END, fullDay: false }),
+    );
+    expect(firstUrl).toMatch(/^\/bookings\//);
+    const holdId = firstUrl.split("/").pop()!;
+    expect(await readStatus(holdId)).toBe("requested");
+
+    const receipt = emissionsFor("request_received", holdId);
+    expect(receipt).toHaveLength(1);
+    // The receipt went to the BOOKER, the alert to the HOST — a wrong-party regression would be invisible
+    // in a bare count (T-07-56).
+    expect(receipt[0].envelope.data.recipientId).toBe(actionBookerId);
+    const hostAlert = emissionsFor("new_request_to_host", holdId);
+    expect(hostAlert).toHaveLength(1);
+    expect(hostAlert[0].envelope.data.recipientId).toBe(hostId);
+
+    // SECOND submit on the SAME window by the SAME booker → createPendingHold matches the active hold and
+    // replays it (replayed:true, SAME id). The T11 fix guards the emissions on `!res.replayed`, mirroring
+    // re-request.ts:299, so the host is NOT told a second time.
+    const secondUrl = await expectRedirect(
+      placeHold({ listingId: "L_ne_replay", startUtc: START, endUtc: END, fullDay: false }),
+    );
+    // The replay still revalidates and REDIRECTS to the SAME booking — hold + redirect unchanged on replay.
+    expect(secondUrl).toBe(firstUrl);
+    expect(await readStatus(holdId)).toBe("requested");
+
+    // Across the double-submit: exactly ONE pair total. The replay added nothing — never a second pair.
+    expect(emissionsFor("request_received", holdId)).toHaveLength(1);
+    expect(emissionsFor("new_request_to_host", holdId)).toHaveLength(1);
+    const forThisBooking = recorded.filter((r) => r.envelope.data.bookingId === holdId);
+    expect(forThisBooking).toHaveLength(2); // one pair, never four
   });
 });
