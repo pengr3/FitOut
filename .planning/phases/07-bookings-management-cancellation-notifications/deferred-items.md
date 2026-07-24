@@ -151,3 +151,39 @@ in the host bookings row. User flagged the overlap as confusing during UAT. Wort
 decision: either make `/host/bookings` read-only with a "Respond in Requests" link, or retire
 `/host/requests` into a filter of `/host/bookings`. Not a functional defect — both paths hit the
 same owner-gated action.
+
+## Refund workflow never exercised end-to-end against live PayMongo (flagged 2026-07-24)
+
+**Status:** OPEN — verification gap (card/GCash/Maya rail testable now; QRPh path BLOCKED). Owner: manual UAT.
+
+**What IS covered (all against stubbed `fetch` / mocked `createRefund` — no real provider call):**
+- Refund ladder + amounts (D-68), service-fee, rail predicate — pure unit tests, mutation-verified.
+- `createRefund` HTTP contract (Basic auth, `Idempotency-Key`, one-refund-per-payment) —
+  `tests/paymongo/refund.test.ts`, stubbed global fetch.
+- Refund webhook (`payment.refunded` / `payment.refund.updated`) — `tests/paymongo/webhook-refund.test.ts`,
+  `createRefund` mocked.
+- Host-cancel 100%-refund + audit + block + capped debit — `tests/payments/host-cancel.test.ts`, mocked.
+- `e2e/cancel.spec.ts` asserts the DB flip + refund AMOUNT only: it seeds a `confirmed`+`gcash` booking
+  directly and the real refund POST **fails closed** into the operator-alert path (test creds, no real
+  paid payment) — so no real refund is verified.
+
+**What is NOT verified:** a real paid → refunded ROUND-TRIP in PayMongo test mode — i.e. a real
+`createRefund` producing a real Refund object, the real refund webhook arriving and being processed, and
+the resulting booking/ledger/notification effects — has NEVER been driven. The async half of this
+(webhook → Inngest fan-out) also only runs when the full local stack is up (app :3000 + `dev:inngest`
+:8288 + ngrok tunnel + registered webhook).
+
+**Why not done:** a real refund needs a real paid payment, which comes via PayMongo's HOSTED CHECKOUT
+(cannot be automated in Playwright; card-entry is a manual/user step). QRPh/InstaPay refund (D-72) is
+additionally blocked until PayMongo enables Money Movement (see the A3 items below).
+
+**Ready fixture for a shortcut test:** a real test-mode payment already exists — booking
+`42132ab1-ae9d-48d4-926a-234887435adc`, `payment_id = pay_C4PW6fRGtUTNm6GsKCpt4P36` (2026-07-20 confirm
+UAT, not yet refunded). A one-off real `createRefund` against it (with the stack up + tunnel + webhook)
+would prove the live refund API + refund-webhook path without a fresh payment. Test mode = no real money;
+still get explicit confirmation before firing any refund and re-check refundability first.
+
+**When to close:** fold into the PayMongo manual-UAT session (alongside A3 re-verification + live
+receiving_institutions) once someone drives a real payment; the card/GCash rail portion can be validated
+independently of Money Movement. Relates to the two PayMongo-blocked items above (refund-transfer
+reconcile poller; A3 / receiving_institutions).
