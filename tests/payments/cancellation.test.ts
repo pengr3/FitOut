@@ -21,6 +21,7 @@ import {
   LADDER,
   quoteRefund,
   rungBoundaries,
+  bestFutureRungIndex,
   tierOrDefault,
   type CancellationTier,
 } from "@/lib/payments/cancellation";
@@ -358,6 +359,46 @@ describe("rungBoundaries — D-81 concrete-date disclosure", () => {
   it("does not format anything — boundaries are raw instants for the caller to localise", () => {
     for (const { boundary } of rungBoundaries("standard", STARTS_AT)) {
       expect(boundary).toBeInstanceOf(Date);
+    }
+  });
+});
+
+describe("bestFutureRungIndex — the best rung STILL OPEN at `now` (T4-rung)", () => {
+  // Because rungs are DESCENDING by minHours, their boundaries (startsAt − minHours) are ASCENDING in
+  // time. The "best rung still open" is therefore the FIRST index whose boundary is strictly in the
+  // future — the same array `rungBoundaries` returns, index-aligned with `LADDER[tier]`.
+
+  it("standard: BETWEEN the 24h and 6h boundaries → 1 (the 50% rung is the best still open)", () => {
+    // now = 12h before start: the 100% (24h) boundary has lapsed, the 50% (6h) boundary has not.
+    expect(bestFutureRungIndex("standard", STARTS_AT, nowAtHoursBefore(12))).toBe(1);
+  });
+
+  it("standard: well before start (both boundaries still future) → 0 (the 100% rung is open)", () => {
+    expect(bestFutureRungIndex("standard", STARTS_AT, nowAtHoursBefore(30))).toBe(0);
+  });
+
+  it("standard: near/after start (both boundaries lapsed) → -1 (no rung open)", () => {
+    expect(bestFutureRungIndex("standard", STARTS_AT, nowAtHoursBefore(3))).toBe(-1);
+    expect(bestFutureRungIndex("standard", STARTS_AT, nowAtHoursBefore(-1))).toBe(-1);
+  });
+
+  it("flexible: 0 while the single 12h boundary is future, -1 once it has passed", () => {
+    expect(bestFutureRungIndex("flexible", STARTS_AT, nowAtHoursBefore(13))).toBe(0);
+    expect(bestFutureRungIndex("flexible", STARTS_AT, nowAtHoursBefore(6))).toBe(-1);
+  });
+
+  it("is the FIRST boundary STRICTLY in the future, agreeing with rungBoundaries at every tier", () => {
+    for (const tier of TIERS) {
+      const boundaries = rungBoundaries(tier, STARTS_AT);
+      // A hair before the earliest boundary: the most generous rung (index 0) is open.
+      const beforeFirst = new Date(boundaries[0].boundary.getTime() - 1);
+      expect(bestFutureRungIndex(tier, STARTS_AT, beforeFirst)).toBe(0);
+      // A hair before the LAST boundary: only that last rung is still open.
+      const beforeLast = new Date(boundaries[boundaries.length - 1].boundary.getTime() - 1);
+      expect(bestFutureRungIndex(tier, STARTS_AT, beforeLast)).toBe(boundaries.length - 1);
+      // Exactly ON the last boundary: not strictly future → the summary shows no window (display-only,
+      // conservative; the ENGINE still awards the inclusive rung — this feeds copy, never money).
+      expect(bestFutureRungIndex(tier, STARTS_AT, boundaries[boundaries.length - 1].boundary)).toBe(-1);
     }
   });
 });

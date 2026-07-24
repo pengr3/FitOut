@@ -26,6 +26,7 @@ import {
   LADDER,
   quoteRefund,
   rungBoundaries,
+  bestFutureRungIndex,
   type CancellationTier,
 } from "@/lib/payments/cancellation";
 import {
@@ -337,6 +338,75 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
       expect(afterAll.refundBps).toBe(0);
       expect(afterAll.totalRefundCents).toBe(0);
     }
+  });
+
+  it("(T4-rung) concrete summary leads with the best STILL-FUTURE rung, never a lapsed one", () => {
+    // T4-rung UAT gap: `policySummaryLine` used to ALWAYS lead with the ladder's top (100%) rung, so once
+    // its boundary had passed the one-liner advertised a "Free cancellation until <past instant>" that the
+    // engine would never honour. The expanded list was already correct; only this summary lied. The RSC now
+    // computes `bestFutureRungIndex` server-side and passes it in; the summary names THAT rung.
+    const startsAt = new Date("2026-07-10T12:00:00Z");
+    const labels = rungBoundaries("standard", startsAt).map((r) => r.boundary.toISOString());
+
+    // bestRungIndex = 1: the 100% window has lapsed; the summary leads with the 50% rung's own date and
+    // never re-advertises the lapsed top rung or the word "Free".
+    const midLine = policySummaryLine("standard", labels, 1);
+    expect(midLine).toContain("50%");
+    expect(midLine).toContain(labels[1]);
+    expect(midLine).not.toContain("Free cancellation");
+    expect(midLine).not.toContain(labels[0]); // the lapsed 100% boundary is never named
+
+    // bestRungIndex = 0: the unchanged happy path — free cancellation up to the top boundary.
+    expect(policySummaryLine("standard", labels, 0)).toBe(`Free cancellation until ${labels[0]}`);
+
+    // bestRungIndex = -1: every boundary has passed. A truthful line that promises NO window — it names the
+    // tier (the same fallback the no-100%-rung case returns) and NEVER says "Free cancellation".
+    const lapsedLine = policySummaryLine("standard", labels, -1);
+    expect(lapsedLine).toBe("Standard cancellation policy");
+    expect(lapsedLine).not.toMatch(/free cancellation/i);
+    expect(lapsedLine).not.toContain(labels[0]);
+    expect(lapsedLine).not.toContain(labels[1]);
+
+    // An omitted index in concrete mode keeps the pre-T4-rung top-rung lead, so a caller that has not
+    // adopted the index cannot regress (this is exactly what case (9) above still asserts).
+    expect(policySummaryLine("standard", labels)).toBe(`Free cancellation until ${labels[0]}`);
+  });
+
+  it("(T4-rung) generic mode (no labels, no index) is byte-unchanged", () => {
+    // The listing page passes no boundaryLabels; `bestRungIndex` must be ignored there. The summary stays
+    // relative-to-session-start, exactly as case (8) pins.
+    expect(policySummaryLine("standard")).toBe("Free cancellation up to 24 hours before the session.");
+    expect(policySummaryLine("flexible")).toBe("Free cancellation up to 12 hours before the session.");
+    expect(policySummaryLine("strict")).toBe("Free cancellation up to 48 hours before the session.");
+  });
+
+  it("(T4-rung) end-to-end: bestFutureRungIndex feeds a truthful summary as `now` crosses the ladder", () => {
+    const HR = 60 * 60 * 1000;
+    const startsAt = new Date("2026-07-10T12:00:00Z");
+    const labels = rungBoundaries("standard", startsAt).map((r) => r.boundary.toISOString());
+
+    // Well before start → the 100% rung is open.
+    const early = new Date(startsAt.getTime() - 30 * HR);
+    expect(
+      policySummaryLine("standard", labels, bestFutureRungIndex("standard", startsAt, early)),
+    ).toBe(`Free cancellation until ${labels[0]}`);
+
+    // Between the two boundaries → the 50% rung is the best still open.
+    const mid = new Date(startsAt.getTime() - 12 * HR);
+    const midLine = policySummaryLine(
+      "standard",
+      labels,
+      bestFutureRungIndex("standard", startsAt, mid),
+    );
+    expect(midLine).toContain("50%");
+    expect(midLine).toContain(labels[1]);
+    expect(midLine).not.toContain("Free cancellation");
+
+    // Near start → every boundary lapsed; the summary must not advertise ANY window.
+    const late = new Date(startsAt.getTime() - 3 * HR);
+    expect(
+      policySummaryLine("standard", labels, bestFutureRungIndex("standard", startsAt, late)),
+    ).toBe("Standard cancellation policy");
   });
 
   it("(11) the non-refundable service fee is disclosed at EVERY tier, including flexible", () => {
