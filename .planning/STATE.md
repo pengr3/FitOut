@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: phase_complete
-stopped_at: Completed 07-19-PLAN.md (T4-rung + T11 gap closure); next 07-20
-last_updated: "2026-07-24T04:19:08.351Z"
+stopped_at: Completed 07-20-PLAN.md (T4-hours/T7/T9 gap closure)
+last_updated: "2026-07-24T04:37:54.742Z"
 last_activity: 2026-07-24
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 60
-  completed_plans: 60
-  percent: 75
+  completed_plans: 61
+  percent: 88
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 07 (bookings-management-cancellation-notifications) — EXECUTING
-Plan: 3 of 20
+Plan: 4 of 20
 Next Phase: 8 (Group Bookings) — no CONTEXT.md yet; route through /gsd-discuss-phase 8.
 Outstanding phase-7 debt: security gate (/gsd-secure-phase 7) not yet run and security_enforcement is ON; Playwright e2e specs lint-clean but unexecuted (need dev server); A3 + live receiving_institutions re-verification once PayMongo enables Money Movement (manual UAT).
 Last activity: 2026-07-24
@@ -182,6 +182,7 @@ Progress: [██████████] 100%
 | Phase 07 P17 | 25m | 4 tasks | 17 files |
 | Phase 07 P18 | 12min | 3 tasks | 10 files |
 | Phase 07 P19 | 14 | 2 tasks | 7 files |
+| Phase 07 P20 | 11 | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -282,6 +283,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-18 (T6): BOTH /host/bookings surfaces link to /host/bookings/[id] — the DEFAULT desktop <Table> Space-cell link (load-bearing half, where the tester hit it) AND the mobile-card overlay anchor; RequestActions lifted relative z-10 so Approve/Decline survive. SC#3 now reachable without typing a booking UUID. — 07-06 left both linkless; 07-11 built the detail page but wired neither
 - [Phase ?]: 07-19: checkout cancellation summary leads with the best rung STILL OPEN for this booking (bestFutureRungIndex, strict >); display-only, refund recomputes at cancel time
 - [Phase ?]: 07-19: a replayed request-mode placeHold notifies nobody (!res.replayed guards the emission pair; revalidate/redirect stay outside) — mirrors re-request.ts:299
+- [Phase 07]: T4-hours closed with a discoverable Availability link on the Your-listings card (availabilityHref prop to /host/listings/[id]/availability), NOT a hard operating-hours publish gate — the forcing option touches the two-place publish gate and strands hours-less published listings, deferred as a product decision.
+- [Phase 07]: formatMoney pinned to minimumFractionDigits 2 so money renders two decimals everywhere from the one shared formatter; blockReasonLabel is a pure client-importable module mapping the host_cancellation sentinel to 'Cancelled by host'.
 
 ### Pending Todos
 
@@ -327,8 +330,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T04:19:08.319Z
-Stopped at: Completed 07-19-PLAN.md (T4-rung + T11 gap closure); next 07-20
+Last session: 2026-07-24T04:37:54.671Z
+Stopped at: Completed 07-20-PLAN.md (T4-hours/T7/T9 gap closure)
 Resume file: None
 
 Prior session: 2026-07-23T07:45:00Z

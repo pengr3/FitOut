@@ -184,7 +184,7 @@ Plans:
 - [x] 07-17-PLAN.md — Gap closure (wave 6): CR-01/CR-02/WR-04/WR-06 (COMPLETE — all four user-approved verification/review findings closed red-first with content-pinning regressions: amount-keyed refund-notice suppression + toast branch (CR-01); row-derived D-96-capped payByLabel/respondByLabel rendered by the request-approved/new-request emails, request-received states NO number, APPROVAL_* constants renderer-free in email.ts (CR-02); `side`-discriminated booking_cancelled_by_host with feeLabel + new sendHostCancellationRecord, booker copy and durable pre-fix rows byte-unchanged (WR-04); persisted `booking.full_day` snapshot via drizzle/0016 read by re-request — an hourly-rate edit can no longer reprice an hourly re-request at the day rate (WR-06). Full suite 78 files / 655 tests exit 0; tsc clean; env-prefixed build green. 8 commits 6f887c3..c46f2cf)
 - [x] 07-18-PLAN.md — UAT gap closure (wave 7): host /host/bookings row link to detail (T6, SC#3 reachable) + cancelled_by-aware status/derivation so a booker-cancelled request reads "Cancelled" and a truthful landing, not host-decline copy (T8)
 - [x] 07-19-PLAN.md — UAT gap closure (wave 7): checkout policy summary leads with the best still-future refund rung, never a lapsed one (T4-rung) + placeHold suppresses duplicate host notifications on idempotent replay (T11)
-- [ ] 07-20-PLAN.md — UAT gap closure (wave 7): discoverable Availability link on the Your-listings card (T4-hours) + formatMoney pinned to 2 decimals (T7) + human copy for the host-cancellation block label (T9)
+- [x] 07-20-PLAN.md — UAT gap closure (wave 7): discoverable Availability link on the Your-listings card (T4-hours) + formatMoney pinned to 2 decimals (T7) + human copy for the host-cancellation block label (T9)
 **UI hint**: yes
 
 ### Phase 8: Group Bookings
@@ -212,5 +212,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Booking Core & Search | 8/8 | Complete | 2026-07-15 |
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
-| 7. Bookings Management, Cancellation & Notifications | 19/20 | In Progress|  |
+| 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
 | 8. Group Bookings | 0/TBD | Not started | - |
