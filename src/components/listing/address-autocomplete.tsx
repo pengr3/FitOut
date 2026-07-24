@@ -103,16 +103,21 @@ export function AddressAutocomplete({
   const [selectedLabel, setSelectedLabel] = useState(initialLabel ?? "");
   const abortRef = useRef<AbortController | null>(null);
 
+  // A query under 3 chars has nothing to look up. This is DERIVED at render (see `visibleResults` /
+  // `showLoading` below) rather than pushed into state inside the effect — clearing results and
+  // stopping the spinner synchronously in an effect body triggers cascading renders
+  // (react-hooks/set-state-in-effect). Deriving keeps the exact same behaviour: a short query shows
+  // no suggestions and no spinner, without an extra render pass.
+  const isQueryTooShort = query.trim().length < 3;
+
   // Debounced Photon lookup (250ms) — never one request per keystroke (D-18 cost discipline).
+  // The effect body performs NO synchronous setState (react-hooks/set-state-in-effect): the spinner is
+  // switched on in the input handler (`handleQueryChange`, an event handler where setState is fine), and
+  // every other transition happens inside the async debounce callback below. The effect's sole job is to
+  // schedule the debounced fetch and abort the prior one — the external-system sync the rule expects.
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 3) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
+    if (q.length < 3) return; // nothing to fetch; the short-query empty/idle state is derived at render
     const timer = setTimeout(async () => {
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -140,6 +145,17 @@ export function AddressAutocomplete({
     return () => clearTimeout(timer);
   }, [query]);
 
+  // Query changes drive both the debounce effect and the immediate UI feedback. Initialising the
+  // loading/error state here (an event handler) rather than inside the effect keeps the effect body
+  // free of synchronous setState while preserving behaviour: the spinner appears the instant a ≥3-char
+  // query is entered (through the 250ms debounce), and a fresh search clears any prior error.
+  function handleQueryChange(next: string) {
+    setQuery(next);
+    const willSearch = next.trim().length >= 3;
+    setLoading(willSearch);
+    if (willSearch) setError(null);
+  }
+
   function handleSelect(s: Suggestion) {
     // Enforce the D-10 invariant at the UI edge: a pick with no coordinates is not acceptable.
     if (typeof s.lat !== "number" || typeof s.lng !== "number") {
@@ -162,6 +178,11 @@ export function AddressAutocomplete({
     });
     setOpen(false);
   }
+
+  // Short query ⇒ no suggestions, no spinner (the effect never fetches for it). Deriving these avoids
+  // clearing state inside the effect while preserving the exact rendered behaviour.
+  const visibleResults = isQueryTooShort ? [] : results;
+  const showLoading = !isQueryTooShort && loading;
 
   const located = Boolean(hasCoordinates) || selectedLabel.length > 0;
 
@@ -191,18 +212,18 @@ export function AddressAutocomplete({
           <Command shouldFilter={false}>
             <CommandInput
               value={query}
-              onValueChange={setQuery}
+              onValueChange={handleQueryChange}
               placeholder="Start typing a street, city…"
             />
             <CommandList>
-              {loading && (
+              {showLoading && (
                 <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
               )}
-              {!loading && query.trim().length >= 3 && results.length === 0 && (
+              {!showLoading && query.trim().length >= 3 && visibleResults.length === 0 && (
                 <CommandEmpty>No matches yet. Keep typing.</CommandEmpty>
               )}
               <CommandGroup>
-                {results.map((s) => (
+                {visibleResults.map((s) => (
                   <CommandItem key={s.id} value={s.id} onSelect={() => handleSelect(s)}>
                     <MapPinIcon className="size-4 shrink-0 text-muted-foreground" />
                     <span className="truncate">{s.label}</span>
