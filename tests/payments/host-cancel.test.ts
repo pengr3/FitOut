@@ -847,7 +847,7 @@ describe("cancelBookingAsHost — notifications", () => {
     expect(toBooker?.data.type).toBe("booking_cancelled_by_host");
     expect(toHost?.data.type).toBe("booking_cancelled_by_host");
     // The booker is told the figure in writing — the whole point of the notice.
-    expect(toBooker?.data.payload.refundLabel).toBe("₱1,050");
+    expect(toBooker?.data.payload.refundLabel).toBe("₱1,050.00");
 
     // ⚠️ REGRESSION GUARD (found by 07-10). One payload string feeds BOTH channels (D-91). An email client
     // has no origin to resolve `/bookings/123` against, so a root-relative href is a DEAD LINK in the email
