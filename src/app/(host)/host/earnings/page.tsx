@@ -22,6 +22,7 @@ import { booking, hostPayout, hostPayoutLedger, listing } from "@/lib/db/schema"
 import { cn } from "@/lib/utils";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { CancellationFeeNotice } from "@/components/host/cancellation-fee-notice";
 import { PayoutBanner } from "@/components/host/payout-banner";
 import { derivePayoutStatus } from "@/components/host/payout-status";
 import { PayoutSummary } from "@/components/host/payout-summary";
@@ -162,12 +163,10 @@ export default async function HostEarningsPage() {
       </div>
 
       {/* D-71: unrecovered cancellation debt, stated plainly and neutrally. Muted body copy — this is
-          information, not an alarm: no coral, no destructive red, no badge. */}
+          information, not an alarm: no coral, no destructive red, no badge. Extracted to its own
+          component (260724-jo1) so the space before "in" survives SWC's JSX whitespace transform. */}
       {outstandingDebitCents > 0 ? (
-        <p className="mt-3 max-w-prose text-sm text-muted-foreground">
-          {/* prettier-ignore */}
-          You have {formatMoney(outstandingDebitCents, summaryCurrency)} in cancellation fees still to be deducted. We&apos;ll take this off your next payout.
-        </p>
+        <CancellationFeeNotice cents={outstandingDebitCents} currency={summaryCurrency} />
       ) : null}
 
       {/* C8 — "service fee" is D-73's BOOKER-facing 5% line. The host-side 10% is a commission. */}
