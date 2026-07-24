@@ -38,6 +38,7 @@ if (!process.env.PAYMONGO_SECRET_KEY && process.env.NODE_ENV === "production") {
 // defaults to PayMongo's inhouse BIC (PAEYPHM2XXX) when unset.
 if (
   process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build" &&
   (!process.env.PLATFORM_WALLET_NUMBER || !process.env.PLATFORM_WALLET_NAME)
 ) {
   throw new Error(

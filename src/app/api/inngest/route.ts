@@ -23,7 +23,13 @@ import { remindersSweep } from "@/inngest/functions/reminders";
 export const runtime = "nodejs";
 
 // Fail-closed prod guard: a missing signing key in production is a boot failure, never a silent bypass.
-if (process.env.NODE_ENV === "production" && !process.env.INNGEST_SIGNING_KEY) {
+// The `phase-production-build` phase is exempted — NEXT_PHASE is that value ONLY during `next build`'s
+// data-collection pass, never at runtime serving, so the guard still fires on a real production boot.
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build" &&
+  !process.env.INNGEST_SIGNING_KEY
+) {
   throw new Error(
     "INNGEST_SIGNING_KEY is required in production (fail-closed: Inngest verifies the /api/inngest serve endpoint).",
   );
