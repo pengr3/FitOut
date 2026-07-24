@@ -31,6 +31,12 @@ const publishedId = `e2e_pub_${randomUUID()}`;
 const draftId = `e2e_draft_${randomUUID()}`;
 const unlistedId = `e2e_unlisted_${randomUUID()}`;
 
+// Run this file's tests in ONE worker, sequentially. With `fullyParallel`, these fast tests otherwise
+// distribute across workers, each re-running beforeAll (seed) + afterAll (`sql.end()`); that rapid
+// open/close churn intermittently drops the client mid-query (`write CONNECTION_ENDED localhost:5432`).
+// The reliably-green DB-seeding specs (cancel, search-and-book) are serial for the same reason.
+test.describe.configure({ mode: "serial" });
+
 test.beforeAll(async () => {
   // Throwaway host (email verified so it's a realistic publishable owner; no host_payout row, so the
   // listing is published-but-not-payable → the CTA is the "Not bookable yet" state, which is exactly
