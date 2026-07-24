@@ -59,14 +59,18 @@ export function BookingStatusBadge({
   endsAt,
   now,
   side,
+  cancelledBy,
 }: {
   status: BookingDbStatus;
   endsAt: Date;
   now: Date;
   side: BookingSide;
+  /** T8: passed to BOTH derivations so the recipe (icon/variant) and the label agree — a booker-cancelled
+   *  `declined` request reads Cancelled/Ban, a genuine host decline stays Declined/XCircle. */
+  cancelledBy?: string | null;
 }) {
-  const view = deriveBookingStatusView(status, endsAt, now, side);
-  const display = deriveDisplayStatus(status, endsAt, now);
+  const view = deriveBookingStatusView(status, endsAt, now, side, cancelledBy);
+  const display = deriveDisplayStatus(status, endsAt, now, cancelledBy);
   const { Icon, variant, className } = BADGE_RECIPES[display];
 
   return (

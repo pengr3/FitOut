@@ -60,7 +60,14 @@ export function deriveDisplayStatus(
   status: BookingDbStatus,
   endsAt: Date,
   now: Date,
+  cancelledBy?: string | null,
 ): BookingDisplayStatus {
+  // T8 (07-18): a booker who cancels their own unpaid `requested` hold is stored `declined` +
+  // cancelled_by='booker' (cancelUnpaidHold) — that is a CANCELLATION, not a host decline. Remap it BEFORE
+  // the completed rule. A genuine host decline / SLA lapse leaves cancelled_by NULL (or 'host'/'system') and
+  // is untouched, so durable pre-existing declined rows keep their meaning. The param is OPTIONAL, so every
+  // existing call site compiles unchanged and only a booker-cancelled `declined` row is ever rewritten.
+  if (status === "declined" && cancelledBy === "booker") return "cancelled";
   if (status === "confirmed" && endsAt.getTime() <= now.getTime()) return "completed";
   return status;
 }
@@ -79,8 +86,12 @@ export function deriveBookingStatusView(
   endsAt: Date,
   now: Date,
   side: BookingSide,
+  cancelledBy?: string | null,
 ): BookingStatusView {
-  const display = deriveDisplayStatus(status, endsAt, now);
+  // Forward `cancelledBy` so the exhaustive switch lands on the `cancelled` case for a booker-cancelled
+  // request (T8). The switch stays EXHAUSTIVE with NO `default:` clause — the compile-gate for "adding a
+  // booking_status" is load-bearing (STATE.md notification contract).
+  const display = deriveDisplayStatus(status, endsAt, now, cancelledBy);
   switch (display) {
     case "pending":
       // The short-lived checkout hold. Calm — the booker is mid-payment, not late.
@@ -112,4 +123,28 @@ export function deriveBookingStatusView(
       // Single status for full AND partial refunds (D-79) — the amount is a sibling line, never here.
       return { label: "Cancelled", tone: "muted", icon: "Ban" };
   }
+}
+
+/**
+ * The heading + body for a `declined`-status booking's /bookings/[id] landing, selected on WHO ended it
+ * (T8). This single call IS the booker-vs-host selection — the page must never re-implement the conditional
+ * inline.
+ *
+ * PARAMETER-FREE by design: neither string carries a `{date}`/`{time}`/venue token, so the caller renders
+ * `{title} · {whenLabel}` on a SEPARATE sibling line — the same two-line layout the `cancelled` branch uses.
+ * A booker who cancelled their own unpaid hold (cancelled_by='booker') must never read "the host couldn't
+ * take your booking"; a genuine host decline / SLA lapse (NULL / 'host' / 'system') keeps the host-decline
+ * copy.
+ */
+export function declinedCopy(cancelledBy: string | null): { heading: string; body: string } {
+  if (cancelledBy === "booker") {
+    return {
+      heading: "You cancelled this request",
+      body: "You cancelled your request — you haven't been charged.",
+    };
+  }
+  return {
+    heading: "This request wasn't available",
+    body: "The host couldn't take your booking. You haven't been charged — plenty of other spaces are open.",
+  };
 }
