@@ -1,15 +1,14 @@
 ---
-status: partial
+status: complete
 phase: 07-bookings-management-cancellation-notifications
 source: 07-01-SUMMARY.md through 07-17-SUMMARY.md (17 plans)
 started: 2026-07-23T10:33:04Z
-updated: 2026-07-23T18:14:20Z
+updated: 2026-07-24T03:00:00Z
 ---
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-[paused — 2 tests outstanding: 13 (too-soon slots, awaiting user visual) and 14 (re-request recovery, not yet staged/run)]
+[testing complete — 15/15 resolved: 13 pass, 2 issues (tests 6 & 8, both major). 6 gaps logged for closure.]
 
 ## Tests
 
@@ -79,11 +78,13 @@ notes: User confirmed receipt of the refund email. Approved-notification deadlin
 
 ### 13. Too-Soon Slots + Lead-Time Guard
 expected: In the slot picker, slots starting too soon (within 2h for request listings, 30min for instant) render muted/struck-through with a notice — never red. They cannot be selected, and a direct submit for such a window is refused server-side with a calm message.
-result: [pending]
+result: pass
+notes: Verified live on seed_listing_1 (Poblacion Pickleball Court, request-mode, 2h lead) at 10:30 AM Manila / Fri Jul 24. Slot picker showed 6–10 AM "Past", 11 AM + 12 PM "Too soon to request" (now+2h = 12:30), 1 PM+ selectable "2 of 2 free" — correct band. Computed styles on the 11 AM too-soon chip (via DOM inspection, stronger than eyeball): color=lab(48.496 0 0) = neutral gray with ZERO chroma (definitively NOT red), text-decoration=line-through, opacity=0.5, disabled=true, aria-disabled=true, pointer-events=none, cursor=not-allowed — styled identically to Past chips; available 1 PM chip is near-black, enabled, no strikethrough. Server-side refusal confirmed in code: units.ts:25-26 + 344-349 D-96 mode-scoped lead-time guard enforced against now() in the createPendingHold transaction ("the SlotPicker chips are a COURTESY, never the gate"). Both halves (client muted/unselectable + server refuse) satisfied.
 
 ### 14. Expired Approval Recovery (Re-Request)
 expected: An approved booking whose payment window lapsed shows a calm "payment window closed" state on its detail page. If the slot is still free, a "Request this time again" button resubmits the same window in one click (host gets a fresh request). If the slot was taken, the page says so and offers "Find another time" instead.
-result: [pending]
+result: pass
+notes: Verified END-TO-END on uat_listing_bookable (request-mode) as the real logged-in booker (pogi@gmail.com — reused an existing valid DB session, no password entered). Staged genuine lapsed-approval rows via SQL (status=cancelled, cancelled_by NULL, booking_mode=request, payment_id NULL — exactly the D-97 `lapsedApproval` precondition). BOTH variants render correctly (real RSC, owner-gated): (A) FREE window → "Expired" badge + "This approval expired" + "The payment window for this booking closed … You weren't charged anything" + one-click "Request these times again" + "Same space, same time" helper; (B) TAKEN window (occupied by a confirmed booking, unit_count=1) → same calm state + "Find another time" + "Someone else booked this slot", and correctly NO resubmit button. Exercised the ACTUAL reRequestSameWindow server action (POST, action id 4039ebb4…) and verified every outcome in the DB: (1) a NEW `requested` hold (02e7e24b) minted on the same window with an SLA expires_at — a fresh row, NEVER a status flip; (2) the source lapsed row left byte-untouched (still cancelled, no payment_id, no cancelled_by — T-07-72 live); (3) both notifications fired post-commit — `new_request_to_host` → host@fitout.test and `request_received` → booker (durable notification rows confirmed). Setup fixes this session: cleared a stale .next cache (a week-old dev server was 404-ing /listings/[id] AND /api/inngest despite valid data), re-added INNGEST_DEV=1, restarted dev + local Inngest server, set uat_listing_bookable.cancellation_policy=standard.
 
 ### 15. Reminder Emails (Cron)
 expected: The hourly reminders cron (at :45) sends pre-expiry payment reminders, pre-SLA host reminders, and pre-session reminders (24h booker / 12h host) — each at most once, none for cancelled bookings, and none scheduled "in the past" for short-notice bookings.
@@ -93,9 +94,9 @@ notes: Verified LIVE — seeded a synthetic confirmed booking (45cba391) with a 
 ## Summary
 
 total: 15
-passed: 11
+passed: 13
 issues: 2
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
