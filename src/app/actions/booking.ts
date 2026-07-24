@@ -183,71 +183,81 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
     // inside it. `inngest.send` is an outbound HTTP call, and a rollback would leave an event already sent
     // for a booking that does not exist (T-07-58).
     //
-    // The money labels come from the values `createPendingHold` read straight back OUT of its own insert
-    // (the D-74 frozen triple), so a REPLAYED double-submit notifies with the SAME frozen numbers the first
-    // submit did — never a recompute, and never a second read that could observe a different row.
-    const [q] = await db
-      .select({ currency: booking.currency })
-      .from(booking)
-      .where(eq(booking.id, res.id));
-    const currency = q?.currency ?? DISPLAY_CURRENCY;
-    // The SHARED venue-local formatter (07-02). `fullDay` is re-derived inside it from the frozen SPACE
-    // price — deliberately NOT from the local `fullDay` flag, so this label is composed from exactly the
-    // same inputs, by exactly the same code, as every other time surface in the app.
-    const whenLabel = composeWhenLabel({
-      startsAt: new Date(startUtc),
-      endsAt: new Date(endUtc),
-      timezone: lr.timezone,
-      city: lr.city,
-      spacePriceCents: res.spacePriceCents,
-      quotedTotalCents: res.quotedTotalCents,
-      hourlyRateCents: lr.hourlyRateCents,
-    });
-    // The host's SLA deadline, from the row's own `expires_at`. Under D-96 a session-start cap splits the
-    // remaining time proportionally, so this is frequently NOT `APPROVAL_SLA_HOURS` out — rendering the
-    // config constant would be wrong on precisely the short-notice requests where the deadline matters.
-    const respondByLabel =
-      res.expiresAt === null
-        ? "as soon as possible"
-        : composeDeadlineLabel(res.expiresAt, lr.timezone, lr.city);
-    const totalLabel = formatMoney(res.quotedTotalCents ?? 0, currency);
-    const bookerLabel = me.firstName ?? me.name ?? "A guest";
-    const title = lr.title ?? "your space";
-    // Absolute hrefs: one payload string feeds BOTH channels (D-91), and a root-relative href is a dead
-    // link in an email client. Preserves the exact URLs the pre-migration sends used.
-    const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-    await emitNotify({
-      type: "request_received",
-      recipientId: userId,
-      bookingId: res.id,
-      email: me.email,
-      payload: {
+    // ── T11: SUPPRESSED ON AN IDEMPOTENT REPLAY (`!res.replayed`), mirroring re-request.ts:299 ──────────
+    // A double-submit (a double-click, or a same-window resubmit) resolves to the SAME booking via
+    // createPendingHold's D-42 own-hold match, which returns `replayed:true`. The FIRST submit already told
+    // both sides; re-emitting here would send the host a duplicate new-request alert/email for a request
+    // they have already seen. So the label composition and BOTH emissions are guarded — a replay notifies
+    // nobody. The hold, the revalidate and the redirect below stay OUTSIDE the guard: a replay must still
+    // land the booker on their existing request (/bookings/<id>) exactly as the first submit did.
+    if (!res.replayed) {
+      // The money labels come from the values `createPendingHold` read straight back OUT of its own insert
+      // (the D-74 frozen triple), so the numbers here are always the SAME frozen numbers that were quoted —
+      // never a recompute, and never a second read that could observe a different row.
+      const [q] = await db
+        .select({ currency: booking.currency })
+        .from(booking)
+        .where(eq(booking.id, res.id));
+      const currency = q?.currency ?? DISPLAY_CURRENCY;
+      // The SHARED venue-local formatter (07-02). `fullDay` is re-derived inside it from the frozen SPACE
+      // price — deliberately NOT from the local `fullDay` flag, so this label is composed from exactly the
+      // same inputs, by exactly the same code, as every other time surface in the app.
+      const whenLabel = composeWhenLabel({
+        startsAt: new Date(startUtc),
+        endsAt: new Date(endUtc),
+        timezone: lr.timezone,
+        city: lr.city,
+        spacePriceCents: res.spacePriceCents,
+        quotedTotalCents: res.quotedTotalCents,
+        hourlyRateCents: lr.hourlyRateCents,
+      });
+      // The host's SLA deadline, from the row's own `expires_at`. Under D-96 a session-start cap splits the
+      // remaining time proportionally, so this is frequently NOT `APPROVAL_SLA_HOURS` out — rendering the
+      // config constant would be wrong on precisely the short-notice requests where the deadline matters.
+      const respondByLabel =
+        res.expiresAt === null
+          ? "as soon as possible"
+          : composeDeadlineLabel(res.expiresAt, lr.timezone, lr.city);
+      const totalLabel = formatMoney(res.quotedTotalCents ?? 0, currency);
+      const bookerLabel = me.firstName ?? me.name ?? "A guest";
+      const title = lr.title ?? "your space";
+      // Absolute hrefs: one payload string feeds BOTH channels (D-91), and a root-relative href is a dead
+      // link in an email client. Preserves the exact URLs the pre-migration sends used.
+      const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+      await emitNotify({
         type: "request_received",
-        listingTitle: title,
-        whenLabel,
-        totalLabel,
-        href: `${base}/bookings/${res.id}`,
-      },
-    });
-    await emitNotify({
-      type: "new_request_to_host",
-      recipientId: lr.hostId,
-      bookingId: res.id,
-      email: lr.hostEmail,
-      payload: {
+        recipientId: userId,
+        bookingId: res.id,
+        email: me.email,
+        payload: {
+          type: "request_received",
+          listingTitle: title,
+          whenLabel,
+          totalLabel,
+          href: `${base}/bookings/${res.id}`,
+        },
+      });
+      await emitNotify({
         type: "new_request_to_host",
-        listingTitle: title,
-        whenLabel,
-        bookerLabel,
-        totalLabel,
-        respondByLabel,
-        href: `${base}/host/requests`,
-      },
-    });
+        recipientId: lr.hostId,
+        bookingId: res.id,
+        email: lr.hostEmail,
+        payload: {
+          type: "new_request_to_host",
+          listingTitle: title,
+          whenLabel,
+          bookerLabel,
+          totalLabel,
+          respondByLabel,
+          href: `${base}/host/requests`,
+        },
+      });
+    }
 
     // A `requested` hold occupies the slot immediately in the calendar + search (06-01 EXCLUDE + the 06-02
     // read model), so revalidate BOTH before redirecting to the request-received surface (06-08 renders the
-    // `requested` state; the redirect target must exist today).
+    // `requested` state; the redirect target must exist today). OUTSIDE the T11 guard: a replayed
+    // double-submit must still revalidate and land on the existing request.
     revalidatePath(`/listings/${listingId}`);
     revalidatePath("/");
     redirect(`/bookings/${res.id}`);
