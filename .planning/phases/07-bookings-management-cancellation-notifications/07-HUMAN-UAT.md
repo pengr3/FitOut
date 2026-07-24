@@ -1,10 +1,11 @@
 ---
-status: issues
+status: passed
 phase: 07-bookings-management-cancellation-notifications
 source: [07-VERIFICATION.md]
 started: 2026-07-24T05:10:00Z
-updated: 2026-07-24T06:20:00Z
+updated: 2026-07-24T06:45:00Z
 method: playwright-driven real-browser UAT (Chromium, host + booker DB sessions, seeded fixtures)
+resolution: G1 fixed in quick task 260724-jo1; all 3 items pass after re-verification.
 ---
 
 ## Current Test
@@ -28,24 +29,26 @@ evidence: /bookings/uat-t8-booker-cancel → "⊘ Cancelled" badge + heading "Yo
 ### 3. Block-reason copy + earnings fee-debt spacing (T9)
 expected: The blocked-dates row reads '… · Cancelled by host', never the raw enum '… · host_cancellation'. The earnings debt line reads 'You have ₱300.00 in cancellation fees' with a visible space between the amount and 'in'.
 steps: On /host/listings/uat_listing_bookable/availability with a host_cancellation block present, read the blocked-dates reason text. On /host/earnings with an outstanding host_cancel_fee debit, read the fee-debt line.
-result: issue
-evidence: Block-reason copy PASSES — the blocked-date renders "· Cancelled by host" and the raw enum "host_cancellation" is absent (t9-availability.png). Earnings fee-debt line FAILS — it renders "You have ₱300.00in cancellation fees still to be deducted." with NO space between the amount and "in" (t9-earnings.png; raw HTML: `You have <!-- -->₱300.00<!-- -->in cancellation fees`). Source `earnings/page.tsx:169` DOES contain a space (`}` + ` ` + `in`), but SWC's JSX whitespace transform strips the leading space of the text node that follows the `{formatMoney(...)}` expression, so the browser drops it. This is the exact defect the human-check targets and unit tests on the pure formatter cannot catch.
+result: passed (after fix)
+evidence: Block-reason copy PASSED at first run — the blocked-date renders "· Cancelled by host" and the raw enum "host_cancellation" is absent (t9-availability.png). Earnings fee-debt line initially FAILED — rendered "You have ₱300.00in cancellation fees…" with NO space (t9-earnings.png; raw HTML `₱300.00<!-- -->in`). Root cause: SWC's JSX whitespace transform strips the leading space of the text node after the `{formatMoney(...)}` expression, even though source `earnings/page.tsx:169` had it. FIXED in quick task 260724-jo1 (extracted CancellationFeeNotice with an explicit `{" "}`; mutation-verified jsdom regression). Re-verified in-browser: now renders "You have ₱300.00 in cancellation fees still to be deducted." with the space (raw HTML `₱300.00<!-- --> <!-- -->in`; t9-earnings-FIXED.png).
 
 ## Summary
 
 total: 3
-passed: 2
-issues: 1
+passed: 3
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-### G1 — Earnings cancellation-fee line drops the space before "in" (T9)
+### G1 — Earnings cancellation-fee line drops the space before "in" (T9) — RESOLVED
 severity: minor
-surface: src/app/(host)/host/earnings/page.tsx (~line 169)
-observed: "You have ₱300.00in cancellation fees still to be deducted."
-expected: "You have ₱300.00 in cancellation fees still to be deducted."
-root_cause: SWC JSX whitespace transform strips the leading space of the JSXText that follows the `{formatMoney(...)}` expression container (source has the space; the compiled output does not). 07-20 T9 assumed this line was "intact — no change needed"; the live render disproves that.
-fix: make the space non-strippable — insert an explicit `{" "}` between `{formatMoney(...)}` and `in cancellation fees…` (or `&nbsp;`). Consider a rendered-output regression (not a pure-function unit test) so a future whitespace regression is caught.
+status: resolved
+resolved_by: quick task 260724-jo1 (commits edc10e5 fix + b6533bc regression test)
+surface: src/app/(host)/host/earnings/page.tsx (~line 169) → extracted to src/components/host/cancellation-fee-notice.tsx
+observed (before): "You have ₱300.00in cancellation fees still to be deducted."
+expected/after: "You have ₱300.00 in cancellation fees still to be deducted." (re-verified in real browser)
+root_cause: SWC JSX whitespace transform strips the leading space of the JSXText that follows the `{formatMoney(...)}` expression container (source had the space; compiled output did not). 07-20 T9 assumed this line was "intact — no change needed"; the live render disproved that.
+fix: extracted the notice into a pure component with an explicit `{" "}` (its own text node, unstrippable) + a rendered-output (jsdom) regression that fails without the space; mutation-verified.
