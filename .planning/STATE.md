@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: null
 status: phase_complete
-stopped_at: "Completed 07-17-PLAN.md — Phase 7 GAP CLOSURE (17/17). All four user-approved findings closed red-first with content-pinning regressions: CR-01 (refund_issued suppression keyed on the AMOUNT inside notifyCancellation — a 0%-rung cancellation emits no refund claim in any channel; toast branches on res.refundCents), CR-02 (sendRequestApproved/sendNewRequestToHost render the row's D-96-capped payByLabel/respondByLabel; sendRequestReceived states NO number; APPROVAL_* constants have no renderer in email.ts, grep-gated at 0; in-app and email copy agree per D-91), WR-04 (booking_cancelled_by_host gains required side:'booker'|'host' + optional feeLabel in BOTH unions; new sendHostCancellationRecord email + host branch in describeNotification; booker copy and durable pre-fix rows byte-unchanged, positive-control pinned), WR-06 (booking.full_day column via drizzle/0016 — journal idx 16, live-DB applied, idempotent, booking_no_overlap untouched — written by createPendingHold, read authoritatively by reRequestSameWindow; the current-hourly-rate inequality is no longer a full-day trigger on any pricing path). Full suite 78 files / 655 tests exit 0 (was 639); tsc clean; env-prefixed build green. 8 commits (4 test + 4 fix), 6f887c3..c46f2cf. Next: /gsd-verify-work 7 re-verification, then /gsd-plan-phase 8. (Full detail in 07-17-SUMMARY.md.)"
-last_updated: "2026-07-24T03:00:00Z"
+stopped_at: Completed 07-18-PLAN.md (T6+T8 gap closure); next 07-19, 07-20
+last_updated: "2026-07-24T03:59:47.310Z"
 last_activity: 2026-07-24
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 58
-  completed_plans: 58
-  percent: 100
+  completed_phases: 6
+  total_plans: 60
+  completed_plans: 59
+  percent: 75
 ---
 
 # Project State
@@ -22,16 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 7 COMPLETE (verification passed 4/4 SC) — next: Phase 8 (Group Bookings), not yet discussed/planned
+**Current focus:** Phase 07 — bookings-management-cancellation-notifications
 
 ## Current Position
 
-Phase: 7 — COMPLETE (2026-07-23). Verification: PASSED, 4/4 success criteria (07-VERIFICATION.md, re-verified after 07-17 gap closure). Code review: 22 findings — 2 Critical + 2 confirmed Warnings FIXED in 07-17; remaining 7 Warnings + 11 Info tracked in 07-REVIEW.md.
+Phase: 07 (bookings-management-cancellation-notifications) — EXECUTING
+Plan: 2 of 20
 Next Phase: 8 (Group Bookings) — no CONTEXT.md yet; route through /gsd-discuss-phase 8.
 Outstanding phase-7 debt: security gate (/gsd-secure-phase 7) not yet run and security_enforcement is ON; Playwright e2e specs lint-clean but unexecuted (need dev server); A3 + live receiving_institutions re-verification once PayMongo enables Money Movement (manual UAT).
-Last activity: 2026-07-23
+Last activity: 2026-07-24
 
-Progress: [██████████] 100% (58 of 58 plans)
+Progress: [██████████] 98%
 
 **Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-17** (all; 07-17 is the gap-closure plan for CR-01/CR-02/WR-04/WR-06).
 
@@ -180,6 +180,7 @@ Progress: [██████████] 100% (58 of 58 plans)
 | Phase 07 P13 | 15m | 2 tasks | 3 files |
 | Phase 07 P16 | ~25m | 3 tasks | 8 files |
 | Phase 07 P17 | 25m | 4 tasks | 17 files |
+| Phase 07 P18 | 12min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -275,6 +276,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-13: a reminder whose offset instant predates the booking is UNREACHABLE and sends nothing — a range guard alone would fire it immediately
 - [Phase 07]: [07-16]: QRPh verdict settled by OBSERVATION — the 2026-07-23 test-mode probe returned HTTP 400 "Refunds are not allowed for payments with source type qrph." → D-58 confirmed, D-72 built (Branch B). The raw evidence (session/payment ids, verbatim error bodies, A3-BLOCKED status) lives in refund-rail.ts, the single branch point.
 - [Phase 07]: [07-16]: refund destination is collect-and-never-store — validated (shape + live-BIC set) BEFORE the flip, bound to the owner-gated flow, amount server-frozen; only transferId + masked last-4 persist (audit meta). Transfer failures log no error content (provider details can echo the destination) and never retry with the same reference_number.
+- [Phase 07]: 07-18: cancelled_by-aware status derivation — deriveDisplayStatus/deriveBookingStatusView take an OPTIONAL cancelledBy; declined+booker remaps to cancelled (a booker cancel is not a host decline), NULL/host/system keep declined. Exhaustive switch kept (no default clause) so the add-a-status compile-gate stays intact. — T8 UAT gap: a booker-cancelled unpaid hold was wearing the host-decline copy
+- [Phase 07]: 07-18: declinedCopy(cancelledBy) is the SINGLE booker-vs-host selection point for the /bookings/[id] declined landing — parameter-free strings, venue/time rendered as a sibling line (the two-line cancelled-branch layout); the host-decline copy is structurally-equivalent, not byte-identical. — Callers must never re-implement the conditional inline
+- [Phase 07]: 07-18 (T6): BOTH /host/bookings surfaces link to /host/bookings/[id] — the DEFAULT desktop <Table> Space-cell link (load-bearing half, where the tester hit it) AND the mobile-card overlay anchor; RequestActions lifted relative z-10 so Approve/Decline survive. SC#3 now reachable without typing a booking UUID. — 07-06 left both linkless; 07-11 built the detail page but wired neither
 
 ### Pending Todos
 
@@ -320,8 +324,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T03:00Z (resumed via /gsd-resume-work → /gsd-verify-work 7)
-Stopped at: **Phase 7 UAT COMPLETE (07-UAT.md status: complete — 13 pass / 2 issues / 0 pending).** Closed the two paused tests. **Test 13** (too-soon slots): PASS — at 10:30 Manila on seed_listing_1 (request, 2h lead), the 11:00/12:00 chips render muted+struck-through — computed color = neutral gray `lab(48.496 0 0)` (zero chroma → definitively NOT red), disabled + pointer-events:none; server-side D-96 lead-time guard confirmed in units.ts:344. **Test 14** (expired-approval recovery): PASS END-TO-END — staged genuine lapsedApproval rows (status=cancelled, cancelled_by NULL, mode=request, payment_id NULL) on uat_listing_bookable; BOTH variants render as the real booker (A free → "Request these times again"; B taken → "Find another time"/"Someone else booked"); invoked the REAL `reRequestSameWindow` action (id 4039ebb4…) and verified in DB — a new `requested` hold minted (source row byte-untouched, T-07-72), `new_request_to_host` + `request_received` notification rows written post-commit. ⚠️ **ENV/INFRA FIXES this session (carry forward):** (1) a WEEK-OLD `next dev` (started 7/17) served a STALE `.next` cache that 404'd `/listings/[id]` AND `/api/inngest` despite valid DB data — `rm -rf .next` + restart fixed it (always do this after a long-running dev server or branch churn); (2) `INNGEST_DEV=1` was ABSENT from .env.local again — re-added (required or every emitNotify enqueue fails silently); (3) the DB was RE-SEEDED (Pickletickle 3ab8e6c5 gone; now seed_listing_*/uat_listing_* with NULL cancellation_policy) — set uat_listing_bookable.cancellation_policy=standard. **Auth for UAT reused an EXISTING better-auth DB session (cookie = `token + "." + base64(HMAC-SHA256(BETTER_AUTH_SECRET, token))`, name `better-auth.session_token`) — NO password entered; the session cookie is httpOnly so the in-app browser can't be logged in via JS, hence curl-with-signed-cookie for the owner-gated pages.** 2 commits: a9bb060 (UAT complete) + d34155e (consumed HANDOFF.json + phase-07 .continue-here.md, both deleted). **STILL OPEN — 6 gaps in 07-UAT.md Gaps (feed /gsd-plan-phase 7 --gaps):** T6 (major) /host/bookings row has no link to /host/bookings/[id] (host cancel flow UI-unreachable); T8 (major) booker-cancelled request renders host-decline copy (deriveBookingStatusView ignores cancelled_by); T4 (major) nothing links to the /availability weekly-hours editor (published listing sits at "No availability yet"); T4 (minor) checkout summary advertises an already-lapsed top refund rung; T11 (minor) placeHold re-emits the request-notify pair on idempotent replay; T7/T9 (cosmetic) formatMoney drops trailing zero + "₱300in" spacing + raw "host_cancellation" enum label. Also STILL outstanding: /gsd-secure-phase 7 (security_enforcement ON, not yet run). **GAP PLANS CREATED + CHECKER-VERIFIED (this session):** 07-18 (T6 host-detail link on BOTH desktop table + mobile card, + T8 cancelled_by-aware declined copy), 07-19 (T4-rung best-future-rung summary + T11 placeHold replay-suppression), 07-20 (T4-hours ListingCard availability link + T7 formatMoney 2-dp + T9 blockReasonLabel/spacing). All wave-1 parallel, zero file overlap; gsd-plan-checker PASSED after one revision (blocker: desktop table row initially unlinked). Committed b102b8e (+ planner's plan commits). **Next: /gsd-execute-phase 7 --gaps-only** (then re-verify tests 6 & 8, then /gsd-secure-phase 7, then Phase 8 group bookings).
+Last session: 2026-07-24T03:59:21.722Z
+Stopped at: Completed 07-18-PLAN.md (T6+T8 gap closure); next 07-19, 07-20
 Resume file: None
 
 Prior session: 2026-07-23T07:45:00Z
