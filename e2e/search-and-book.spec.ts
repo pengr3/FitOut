@@ -1,22 +1,29 @@
-// SEARCH-01..05 + BOOK-01..03 · SC#1–SC#4 — the whole Phase-4 promise lived once, end-to-end.
+// SEARCH-01..05 + BOOK-01..03 · SC#1–SC#4 — the whole Phase-4 promise, driven against the REAL app.
 //
-// A single Playwright spec that drives the REAL app against the dev Postgres (public schema — the same DB
+// A single Playwright spec that drives the dev app against the dev Postgres (public schema — the same DB
 // the Playwright webServer's dev app reads):
 //   search (`/`) → apply a filter → click a result card → open the listing → pick a venue-tz window →
-//   `Book this space` → land on the reserve page (venue-tz window + ₱ price breakdown + live "Held for
-//   mm:ss" countdown) → `Confirm booking` → reach the durable confirmation (`FIT-XXXXXXXX`) → refresh and
-//   confirm it persists. Plus the abandoned-hold EXPIRY UX: place a hold, force its `expires_at` into the
-//   past (the graceful-expiry path — never a real 15-min sleep), reload, and assert the calm
-//   `Your hold expired` state with a recovery CTA (D-44 — never a red error).
+//   `Book this space` → land on the LIVE reserve page (venue-tz window + ₱ price breakdown + live "Held for
+//   mm:ss" countdown). The seeded listing is `instant` (the host is payouts-enabled), so `Book this space`
+//   mints a 15-min hold and redirects to `/book?hold=<id>` — the reserve page is the automatable END of the
+//   instant flow. The tail past it (`Confirm booking` → a PayMongo HOSTED CHECKOUT → the durable
+//   confirmation) CANNOT be driven from Playwright, so the durable-confirmation coverage comes from a
+//   DIRECTLY-SEEDED `confirmed` booking (D-43) — exactly as e2e/cancel.spec.ts does: a separate test loads
+//   `/bookings/<id>`, asserts the `FIT-XXXXXXXX` reference + the `Confirmed` badge, and reloads to prove the
+//   read is a durable RSC read of persisted state. Plus the abandoned-hold EXPIRY UX: place a hold, force
+//   its `expires_at` into the past (the graceful-expiry path — never a real 15-min sleep), reload, and assert
+//   the calm `Your hold expired` state with a recovery CTA (D-44 — never a red error).
 //
 // Mirrors e2e/availability.spec.ts for the seed/teardown + venue-tz day navigation, and
 // e2e/login-persistence.spec.ts for the signed-in `canBook` booker (Book is gated, D-41 — a signup with
 // intent "book" maps to canBook=true server-side, so the booker can reserve without the activate detour).
 //
-// Serial: both tests share ONE seeded bookable listing + ONE signed-in booker (storageState captured in
-// beforeAll). The happy path books 5–7 PM; the expiry case books a DISJOINT window (8–10 AM) so the two
-// never contend for the same slot. Unique randomUUID ids per run + cascade-correct teardown (bookings
-// FIRST — booker_id is ON DELETE RESTRICT) keep repeated runs from colliding or leaving rows behind.
+// Serial: the tests share ONE seeded instant-bookable listing + ONE signed-in booker (storageState captured
+// in beforeAll) + ONE directly-seeded confirmed booking. The live-hold test books 5–7 PM; the expiry case
+// books a DISJOINT window (8–10 AM) so the two never contend for the same slot; the confirmed seed sits a
+// few hours out so it derives as `confirmed`, NOT `completed` (D-102), and never contends with the +3-day
+// windows. Unique randomUUID ids per run + cascade-correct teardown (bookings FIRST — booker_id is ON DELETE
+// RESTRICT) keep repeated runs from colliding or leaving rows behind.
 
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { randomUUID } from "node:crypto";
@@ -36,6 +43,9 @@ const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
 // ---- Unique ids / auth per run ---------------------------------------------
 const hostId = `e2e_sb_host_${randomUUID()}`;
 const listingId = `e2e_sb_listing_${randomUUID()}`;
+// The directly-seeded `confirmed` booking (Task 3 / D-43) — its own id so teardown + the detail-page URL
+// both address it precisely (it is also swept by the listing-scoped booking DELETE in afterAll).
+const confirmedBookingId = `e2e_sb_booking_${randomUUID()}`;
 const bookerEmail = `e2e.searchbook.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
 const bookerPassword = "averylongpassword";
 
@@ -43,6 +53,9 @@ const bookerPassword = "averylongpassword";
 // as the signed-in canBook booker without a per-test signup. Using addCookies (not test.use storageState)
 // avoids the manual-context inheritance that would make beforeAll's own newContext read a not-yet-written file.
 let bookerState: Awaited<ReturnType<BrowserContext["storageState"]>>;
+// The signed-up booker's DB id — resolved from their email after the UI signup (as e2e/cancel.spec.ts does),
+// so the confirmed booking can be seeded against the real row Better Auth created.
+let bookerId: string;
 
 // A distinctive title + a space type NONE of the other seeds use (tennis_court), so the category filter
 // narrows to EXACTLY this listing — the search step is deterministic regardless of other dev-DB data.
@@ -96,7 +109,7 @@ async function seedListing(): Promise<void> {
       ${"A bright indoor tennis court with a sprung surface and net."}, ${"tennis_court"}::space_type,
       ${"1 Real Street"}, ${LISTING_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
       ST_SetSRID(ST_MakePoint(${LISTING_LNG}, ${LISTING_LAT}), 4326), ${false}, ${8}, ${1}, ${VENUE_TZ},
-      ${HOURLY_RATE_CENTS}, ${DAY_RATE_CENTS}, ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      ${HOURLY_RATE_CENTS}, ${DAY_RATE_CENTS}, ${"php"}, ${"instant"}::booking_mode, ${"published"}::listing_status,
       now(), now(), now()
     )
   `;
@@ -116,6 +129,36 @@ async function seedListing(): Promise<void> {
   }
   // A matching activity tag (D-35) so the type-OR-tag category vocabulary has real supply.
   await sql`INSERT INTO "listing_activity_tag" (listing_id, tag) VALUES (${listingId}, ${"tennis"})`;
+}
+
+// The confirmed seed sits CONFIRMED_HOURS_TO_START hours out (a clean 1-hour window at the listing's hourly
+// rate) so deriveDisplayStatus reads it as `confirmed`, NOT the past-endsAt `completed` (D-102). A few hours
+// from now can never collide with the +3-day live-hold / expiry windows the other tests use.
+const CONFIRMED_HOURS_TO_START = 10;
+const CONFIRMED_SERVICE_FEE_CENTS = 4500; // ~10% of the 1-hour space price — a realistic frozen fee split.
+
+/**
+ * A CONFIRMED, paid-looking booking on THIS spec's seeded listing + booker (D-43). Seeded DIRECTLY rather
+ * than paid through PayMongo because a hosted checkout cannot be driven from Playwright (see the header and
+ * e2e/cancel.spec.ts). It carries a `payment_id` + a refundable `gcash` rail so the row looks exactly like a
+ * real confirmed booking; its future window makes it derive as `confirmed`, never `completed`.
+ */
+async function seedConfirmedBooking(): Promise<void> {
+  await sql`
+    INSERT INTO "booking" (
+      id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
+      cancellation_policy, space_price_cents, service_fee_cents, quoted_total_cents,
+      currency, payment_id, payment_method, created_at
+    ) VALUES (
+      ${confirmedBookingId}, ${listingId}, ${1}, ${bookerId},
+      now() + make_interval(hours => ${CONFIRMED_HOURS_TO_START}),
+      now() + make_interval(hours => ${CONFIRMED_HOURS_TO_START + 1}),
+      ${"confirmed"}::booking_status, ${"instant"}::booking_mode,
+      ${"standard"}::cancellation_policy, ${HOURLY_RATE_CENTS}, ${CONFIRMED_SERVICE_FEE_CENTS},
+      ${HOURLY_RATE_CENTS + CONFIRMED_SERVICE_FEE_CENTS}, ${"php"},
+      ${`pay_e2e_${randomUUID()}`}, ${"gcash"}, now()
+    )
+  `;
 }
 
 test.describe.configure({ mode: "serial" });
@@ -143,11 +186,20 @@ test.beforeAll(async ({ browser }) => {
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 20_000 });
   bookerState = await ctx.storageState();
   await ctx.close();
+
+  // (3) Resolve the booker's real DB id (Better Auth wrote the row during the UI signup) and seed a durable
+  // `confirmed` booking against it — the D-43 durable-confirmation coverage (Task 3) that the un-automatable
+  // PayMongo tail can no longer provide.
+  const [row] = await sql<{ id: string }[]>`SELECT id FROM "user" WHERE email = ${bookerEmail}`;
+  bookerId = row.id;
+  await seedConfirmedBooking();
 });
 
 test.afterAll(async () => {
   // Bookings FIRST (booker_id is ON DELETE RESTRICT), then the host (cascades listing/photos/hours/tags),
-  // then the signed-up booker. Order is load-bearing — mirrors availability.spec.ts:134-141.
+  // then the signed-up booker. Order is load-bearing — mirrors availability.spec.ts:134-141. Any notification
+  // rows for this listing's bookings are cleared first (defensive; none are emitted for directly-seeded rows).
+  await sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ${listingId})`;
   await sql`DELETE FROM booking WHERE listing_id = ${listingId}`;
   await sql`DELETE FROM "user" WHERE id = ${hostId}`;
   await sql`DELETE FROM "user" WHERE email = ${bookerEmail}`;
@@ -180,8 +232,8 @@ async function pickWindow(page: Page, startLabel: string, endLabel: string): Pro
   await page.getByRole("button", { name: endLabel, exact: true }).click(); // end → fills the run
 }
 
-test.describe("full search → book → confirm flow + expiry UX (SC#1–SC#4)", () => {
-  test("search → filter → card → listing → Book → reserve → Confirm → durable confirmation", async ({
+test.describe("search → book → live hold + durable confirmation + expiry UX (SC#1–SC#4)", () => {
+  test("search → filter → card → listing → Book → live instant hold on the reserve page (SC#1/#2/#4)", async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -229,18 +281,38 @@ test.describe("full search → book → confirm flow + expiry UX (SC#1–SC#4)",
     await expect(page.getByText(/₱[\d,]+/).first()).toBeVisible();
     await expect(page.getByText(/Held for/i)).toBeVisible();
     await expect(page.getByRole("timer")).toContainText(/\d+:\d{2}/);
-    await expect(page.getByText(/You won.t be charged yet/i)).toBeVisible();
+    // The terminal action + its HONEST pre-charge reassurance (D-57): the current reserve page shows a
+    // `Confirm & pay` CTA and "You'll pay {total} now — cards, GCash, Maya, or QR Ph." — NOT the stale
+    // "you won't be charged yet" the never-run Phase-4 draft asserted, which contradicts the live copy.
+    await expect(page.getByRole("button", { name: /confirm & pay/i })).toBeVisible();
+    await expect(page.getByText(/You.ll pay .* now.*cards, GCash, Maya, or QR ?Ph/i)).toBeVisible();
 
-    // ── Confirm → the durable confirmation page. ───────────────────────────────────────────────────────
-    await page.getByRole("button", { name: /confirm booking/i }).click();
-    await page.waitForURL(new RegExp(`/bookings/`));
+    // The reserve page is where the automatable instant flow ENDS. Clicking `Confirm booking` from here now
+    // opens a PayMongo HOSTED CHECKOUT that Playwright cannot complete (see the header + e2e/cancel.spec.ts),
+    // so the durable-confirmation assertions live in the next test against a directly-seeded confirmed booking
+    // (D-43) — proving the same persisted-confirmation UX without depending on a hosted-checkout redirect.
+  });
+
+  test("directly-seeded confirmed booking → the durable confirmation, unchanged across a refresh (D-43)", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await loginAsBooker(page);
+
+    // The confirmation is a pure RSC read of persisted booking state (D-43) — no ephemeral hold, no client
+    // countdown — so it is reachable directly and must survive a reload. Seeded confirmed in beforeAll because
+    // a PayMongo hosted checkout can't be driven from Playwright; this is exactly e2e/cancel.spec.ts's pattern.
+    await page.goto(`${BASE}/bookings/${confirmedBookingId}`);
+
+    // The one terminal --success surface: the "Booking confirmed" heading, the "Booking reference" label, the
+    // shared `Confirmed` status badge (icon + text, never colour-only), and the FIT-XXXXXXXX reference.
     await expect(page.getByRole("heading", { name: /booking confirmed/i })).toBeVisible();
     await expect(page.getByText(/booking reference/i)).toBeVisible();
     await expect(page.getByText("Confirmed", { exact: true })).toBeVisible();
     const reference = await page.getByText(/FIT-[0-9A-Z]{8}/).textContent();
     expect(reference).toMatch(/FIT-[0-9A-Z]{8}/);
 
-    // ── Durable across a refresh (D-43) — a pure RSC read of persisted state, no ephemeral hold. ────────
+    // ── Durable across a refresh (D-43) — the same reference re-renders from persisted state, no hold. ──
     await page.reload();
     await expect(page.getByRole("heading", { name: /booking confirmed/i })).toBeVisible();
     await expect(page.getByText(reference!.trim(), { exact: true })).toBeVisible();
