@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-24T10:09:06.102Z",
+  "phase": "8",
+  "phase_name": "Group Bookings",
+  "phase_dir": ".planning/phases/08-group-bookings",
+  "stage": "discussion (pre-CONTEXT.md)",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": "p7-gaps", "name": "Phase 7 gap plans 07-18/19/20 executed + suite green", "status": "done"},
+    {"id": "p7-uat", "name": "Phase 7 human-UAT T6/T8/T9 driven in real browser; all pass", "status": "done"},
+    {"id": "quick-jo1", "name": "Fix earnings cancellation-fee missing space (SWC JSX whitespace)", "status": "done", "commit": "edc10e5"},
+    {"id": "quick-l1s", "name": "Rewrite stale search-and-book e2e to current instant-book flow", "status": "done", "commit": "35243e1"},
+    {"id": "e2e-flake", "name": "Serialize public-listing spec; full e2e suite 16/16 green x2", "status": "done", "commit": "e54e416"},
+    {"id": "quick-lmy", "name": "Build-guard NEXT_PHASE exemption + eslint ignores + react-hooks fix", "status": "done", "commit": "4a97771"},
+    {"id": "p8-grayareas", "name": "Phase 8 gray areas identified; strategic debate on the group-booking payment model", "status": "in_progress", "progress": "no CONTEXT.md written; core question unresolved"}
+  ],
+  "remaining_tasks": [
+    {"id": "resolve-paymodel", "name": "RESOLVE: will FitOut ever do per-attendee payment / cost-splitting (GPAY-01/02)? This decides whether v1 free-RSVP group bookings is foundation vs. busywork.", "status": "not_started"},
+    {"id": "p8-discuss", "name": "Run the 4-gray-area discussion (invite/RSVP identity, headcount cap, group-creation entry point, invite/RSVP lifecycle) → write 08-CONTEXT.md", "status": "not_started"},
+    {"id": "prelaunch-moneyloop", "name": "PRE-LAUNCH GATE: validate core money loop live vs real PayMongo (payment→confirm→payout→refund). Never run live — only stubbed.", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "Phase 8 CONTEXT.md is not worth writing until the payment-model question is resolved — it determines the whole feature's scope/value.", "type": "human_action", "workaround": "none — needs a product decision from the user"}
+  ],
+  "human_actions_pending": [
+    {"action": "Decide whether per-attendee payment / cost-splitting is on FitOut's eventual roadmap", "context": "The organizer pays 100%, so a free RSVP link is coordination-only (soft value + growth funnel). It becomes load-bearing only if attendees pay their share. That answer decides v1 group-booking scope.", "blocking": true},
+    {"action": "Restart the dev stack when resuming UAT/dev work", "context": "npm run dev (:3000) was stopped by the build task; npm run dev:inngest (:8288) still running but shows 0 connected apps until the app is back", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Build Phase 8 anyway (user's call), money-loop validation parked as a pre-launch gate", "rationale": "Group bookings is decoupled from the money path (never touches occupancy, never per-attendee payment), so it's low-risk to build; but the core money loop being unvalidated live is the bigger risk and is deferred, not forgotten.", "phase": "8"},
+    {"decision": "Phase 7 is fully complete — gap plans + UAT + e2e + build/lint debt all closed", "rationale": "07-VERIFICATION status=passed (human UAT 3/3); e2e 16/16; plain npm run build passes; npm run lint 0 errors; suite 83 files / 693 tests green.", "phase": "7"},
+    {"decision": "Documented the refund-workflow verification gap + Inngest two-process note as tracked debt", "rationale": "Refund logic/contract/webhook are all tested against STUBBED fetch — a real paid→refunded round-trip has never been driven. Card/GCash testable now; QRPh blocked on PayMongo Money Movement.", "phase": "7"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Resolve the payment-model question with the user (per-attendee pay / cost-splitting eventually — yes or no). If yes → v1 free-RSVP shell is a justified foundation; resume /gsd-discuss-phase 8 through the 4 gray areas. If no → reconsider whether to defer Phase 8. Do NOT write 08-CONTEXT.md before this is settled.",
+  "context_notes": "We were filleting the group-bookings concept, not doing the structured discussion (user dismissed the gray-area multiselect twice to debate the idea). The crux we reached: v1 group bookings = a FREE RSVP coordination shell on an organizer-paid booking; the invite link is only decorative unless attendees pay their share (cost-splitting = GPAY-01/02, explicitly out of v1 scope). So v1's justification is 'foundation + growth funnel', and it hinges entirely on whether the paid version is coming later. That single product decision is the gate."
+}
