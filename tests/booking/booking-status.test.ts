@@ -15,6 +15,7 @@ import { describe, it, expect } from "vitest";
 import {
   deriveDisplayStatus,
   deriveBookingStatusView,
+  declinedCopy,
   type BookingDbStatus,
 } from "@/components/booking/booking-status";
 
@@ -133,5 +134,75 @@ describe("deriveBookingStatusView — tone + icon contract (UI-SPEC § Status ba
         }
       }
     }
+  });
+});
+
+// ── T8 (07-18): cancelled_by discriminates a booker-cancel from a genuine host decline ──────────────────
+// `cancelUnpaidHold` stores a booker cancelling their own unpaid `requested` hold as `declined` +
+// cancelled_by='booker'; a real host decline (declineRequest) and the SLA auto-decline leave cancelled_by
+// NULL. So the SAME `declined` enum value carries two truthfully-different meanings, and only cancelled_by
+// tells them apart. These cases pin the remap and are the content-pin for the /bookings/[id] declined branch.
+
+describe("deriveDisplayStatus — cancelled_by-aware remap (T8)", () => {
+  it("declined + cancelledBy 'booker' remaps to cancelled (the booker cancelled their own hold)", () => {
+    expect(deriveDisplayStatus("declined", FUTURE, NOW, "booker")).toBe("cancelled");
+    expect(deriveDisplayStatus("declined", PAST, NOW, "booker")).toBe("cancelled");
+  });
+
+  it("declined + cancelledBy null stays declined (genuine host decline / SLA lapse — durable rows keep meaning)", () => {
+    expect(deriveDisplayStatus("declined", FUTURE, NOW, null)).toBe("declined");
+  });
+
+  it("declined + cancelledBy 'host' stays declined (the host is the actor)", () => {
+    expect(deriveDisplayStatus("declined", FUTURE, NOW, "host")).toBe("declined");
+  });
+
+  it("the cancelledBy arg is OPTIONAL — omitting it leaves declined as declined (existing call sites unaffected)", () => {
+    expect(deriveDisplayStatus("declined", PAST, NOW)).toBe("declined");
+  });
+
+  it("cancelledBy 'booker' remaps ONLY declined — confirmed/cancelled/completed are untouched", () => {
+    expect(deriveDisplayStatus("cancelled", PAST, NOW, "booker")).toBe("cancelled");
+    expect(deriveDisplayStatus("confirmed", new Date(NOW.getTime() + 1), NOW, "booker")).toBe("confirmed");
+    // a past confirmed still derives to completed regardless of a (nonsensical) cancelledBy value
+    expect(deriveDisplayStatus("confirmed", PAST, NOW, "booker")).toBe("completed");
+  });
+});
+
+describe("deriveBookingStatusView — a booker-cancelled request reads Cancelled, not Declined (T8)", () => {
+  it("declined + cancelledBy 'booker' reads 'Cancelled' / Ban / muted on BOTH sides", () => {
+    for (const side of ["booker", "host"] as const) {
+      const view = deriveBookingStatusView("declined", FUTURE, NOW, side, "booker");
+      expect(view.label).toBe("Cancelled");
+      expect(view.icon).toBe("Ban");
+      expect(view.tone).toBe("muted");
+    }
+  });
+
+  it("declined + cancelledBy null still reads 'Declined' (unchanged)", () => {
+    expect(deriveBookingStatusView("declined", FUTURE, NOW, "booker", null).label).toBe("Declined");
+    expect(deriveBookingStatusView("declined", FUTURE, NOW, "host").label).toBe("Declined");
+  });
+});
+
+describe("declinedCopy — truthful attribution of who ended a declined-status request (T8)", () => {
+  it("cancelledBy 'booker' names the booker's own action and never blames the host", () => {
+    const { heading, body } = declinedCopy("booker");
+    expect(heading.toLowerCase()).toContain("cancelled");
+    expect(body).not.toContain("The host couldn't take");
+    // PARAMETER-FREE by design: no {date}/{time} token leaks into the copy (the caller renders venue/time
+    // as a sibling line, exactly as the `cancelled` branch does).
+    expect(body).not.toMatch(/\{.*\}/);
+  });
+
+  it("cancelledBy null returns the host-decline copy, parameter-free", () => {
+    const { heading, body } = declinedCopy(null);
+    expect(heading).toContain("wasn't available");
+    expect(body).toContain("The host couldn't take your booking");
+    expect(body).not.toMatch(/\{.*\}/);
+  });
+
+  it("cancelledBy 'host' also returns the host-decline copy (the host is the actor)", () => {
+    expect(declinedCopy("host")).toEqual(declinedCopy(null));
   });
 });
