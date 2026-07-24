@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 Phase: 07 (bookings-management-cancellation-notifications) — EXECUTING
 Plan: 4 of 20
 Next Phase: 8 (Group Bookings) — no CONTEXT.md yet; route through /gsd-discuss-phase 8.
-Outstanding phase-7 debt: security gate (/gsd-secure-phase 7) not yet run and security_enforcement is ON; Playwright e2e specs lint-clean but unexecuted (need dev server); A3 + live receiving_institutions re-verification once PayMongo enables Money Movement (manual UAT).
+Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. STILL OPEN (not chosen this session): `npm run build` NEXT_PHASE env-guard fix (deferred-items.md); lint hygiene (worktree/.next eslint ignores + address-autocomplete:110 react-hooks error). BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-24
 
 Progress: [██████████] 100%
@@ -320,6 +320,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 | 260713-nz3 | Range-fill slot selection in booker SlotPicker (03-05 UX) | 2026-07-13 | 83708f0 | [260713-nz3-range-fill-slot-selection-in-booker-slot](./quick/260713-nz3-range-fill-slot-selection-in-booker-slot/) |
 | 260714-feq | Apply Phase-3 code-review findings (post-phase hardening) | 2026-07-14 | 8667ecb | [260714-feq-apply-phase-3-code-review-findings-post-](./quick/260714-feq-apply-phase-3-code-review-findings-post-/) |
 | 260724-jo1 | Fix Phase-7 UAT gap G1: earnings cancellation-fee line missing space before "in" (SWC JSX whitespace) | 2026-07-24 | edc10e5 | [260724-jo1-fix-earnings-cancellation-fee-line-missi](./quick/260724-jo1-fix-earnings-cancellation-fee-line-missi/) |
+| 260724-l1s | Rewrite stale search-and-book e2e to the current instant-book flow (Phase-7 e2e debt) | 2026-07-24 | 35243e1 | [260724-l1s-rewrite-stale-search-and-book-e2e-to-cur](./quick/260724-l1s-rewrite-stale-search-and-book-e2e-to-cur/) |
 
 ## Deferred Items
 
