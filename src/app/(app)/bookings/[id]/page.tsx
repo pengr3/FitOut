@@ -49,7 +49,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
-import { CalendarCheckIcon, HourglassIcon, XCircleIcon } from "lucide-react";
+import { CalendarCheckIcon, HourglassIcon } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -75,7 +75,7 @@ import {
   ExpiredApprovalState,
   type ExpiredApprovalSlot,
 } from "@/components/booking/expired-approval-state";
-import { deriveDisplayStatus } from "@/components/booking/booking-status";
+import { deriveDisplayStatus, declinedCopy } from "@/components/booking/booking-status";
 
 /**
  * Is the lapsed booking's own window still bookable? Decides which D-97 variant renders (07-UI-SPEC § 10).
@@ -356,8 +356,15 @@ export default async function BookingConfirmationPage({
     );
   }
 
-  // ── declined (optional calm landing, recommended over a bare 404). Muted — NEVER red (mirrors HoldExpiredState). ──
+  // ── declined — ONE enum value, two truthfully-different endings (T8 · 07-18). A booker who cancelled their
+  //    own unpaid `requested` hold is stored `declined` + cancelled_by='booker' (cancelUnpaidHold); a genuine
+  //    host decline / SLA lapse leaves cancelled_by NULL (or 'host'/'system'). `declinedCopy(bk.cancelledBy)`
+  //    IS the selection — the booker-vs-host conditional is NOT re-implemented inline here — and the badge is
+  //    threaded the same `cancelledBy` so it agrees with the lists (booker-cancel → "Cancelled", host-decline
+  //    → "Declined"). The copy is parameter-free, so the venue/time renders on a SEPARATE sibling line, the
+  //    same two-line layout the `cancelled` branch uses. Muted — NEVER red (mirrors HoldExpiredState). ──
   if (bk.status === "declined") {
+    const copy = declinedCopy(bk.cancelledBy);
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
@@ -366,15 +373,19 @@ export default async function BookingConfirmationPage({
             aria-live="polite"
             className="flex flex-col items-center gap-4 py-10 text-center"
           >
-            <Badge variant="secondary" className="gap-1.5 text-muted-foreground">
-              <XCircleIcon className="size-4" aria-hidden="true" />
-              Declined
-            </Badge>
+            <BookingStatusBadge
+              status="declined"
+              endsAt={bk.endsAt}
+              now={now}
+              side="booker"
+              cancelledBy={bk.cancelledBy}
+            />
             <div className="space-y-1">
-              <h1 className="text-xl leading-tight font-semibold">This request wasn&apos;t available</h1>
+              <h1 className="text-xl leading-tight font-semibold">{copy.heading}</h1>
+              <p className="mx-auto max-w-prose text-sm text-muted-foreground">{copy.body}</p>
+              {/* The venue/time as a sibling line (copy is parameter-free) — mirrors the `cancelled` branch. */}
               <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-                The host couldn&apos;t take your booking for {dateLabel}, {timeLabel}. You haven&apos;t been
-                charged — plenty of other spaces are open.
+                {title} · {whenLabel}
               </p>
               <p className="text-xs text-muted-foreground">{tzNote}</p>
             </div>
