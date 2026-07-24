@@ -319,6 +319,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 | 260710-lgo | Fix T-04-SIGMATCH: allow-list Cloudinary sign params | 2026-07-10 | d1fb76b | [260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-](./quick/260710-lgo-fix-t-04-sigmatch-allow-list-cloudinary-/) |
 | 260713-nz3 | Range-fill slot selection in booker SlotPicker (03-05 UX) | 2026-07-13 | 83708f0 | [260713-nz3-range-fill-slot-selection-in-booker-slot](./quick/260713-nz3-range-fill-slot-selection-in-booker-slot/) |
 | 260714-feq | Apply Phase-3 code-review findings (post-phase hardening) | 2026-07-14 | 8667ecb | [260714-feq-apply-phase-3-code-review-findings-post-](./quick/260714-feq-apply-phase-3-code-review-findings-post-/) |
+| 260724-jo1 | Fix Phase-7 UAT gap G1: earnings cancellation-fee line missing space before "in" (SWC JSX whitespace) | 2026-07-24 | edc10e5 | [260724-jo1-fix-earnings-cancellation-fee-line-missi](./quick/260724-jo1-fix-earnings-cancellation-fee-line-missi/) |
 
 ## Deferred Items
 
