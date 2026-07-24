@@ -128,6 +128,7 @@ export default async function HostBookingsPage({
     amountLabel: formatMoney(r.quotedTotalCents ?? 0, r.currency ?? DISPLAY_CURRENCY),
     refundLabel: refundLabelFor(r.status, r.refundCents, r.currency ?? DISPLAY_CURRENCY),
     status: r.status,
+    cancelledBy: r.cancelledBy,
     startsAt: r.startsAt,
     endsAt: r.endsAt,
     now,
@@ -214,7 +215,16 @@ export default async function HostBookingsPage({
                   {rows.map((row) => (
                     <TableRow key={row.bookingId}>
                       <TableCell>{row.bookerLabel}</TableCell>
-                      <TableCell className="font-medium">{row.spaceTitle}</TableCell>
+                      <TableCell className="font-medium">
+                        {/* T6 (load-bearing half) — the DEFAULT desktop viewport. Mirrors the booker page's
+                            Space-cell link so the host cancel flow (SC#3) is reachable without typing a UUID. */}
+                        <Link
+                          href={`/host/bookings/${row.bookingId}`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {row.spaceTitle}
+                        </Link>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{row.whenLabel}</TableCell>
                       <TableCell>
                         <div className="flex flex-col items-start gap-1">
@@ -223,6 +233,7 @@ export default async function HostBookingsPage({
                             endsAt={row.endsAt}
                             now={row.now}
                             side="host"
+                            cancelledBy={row.cancelledBy}
                           />
                           {/* D-79: the refund figure is a sibling of the badge, never inside it. */}
                           {row.refundLabel ? (

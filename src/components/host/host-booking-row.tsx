@@ -20,6 +20,8 @@
 //
 // Not a client component — a pure presentational component the /host/bookings RSC renders directly.
 
+import Link from "next/link";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import type { BookingDbStatus } from "@/components/booking/booking-status";
@@ -39,6 +41,8 @@ export type HostBookingRowData = {
   /** D-79 sibling line beneath the badge, or null. Never interpolated into the badge. */
   refundLabel: string | null;
   status: BookingDbStatus;
+  /** T8: who ended the booking — threaded to the badge so a booker-cancelled request reads Cancelled. */
+  cancelledBy: string | null;
   startsAt: Date;
   endsAt: Date;
   /** The DB clock, threaded from the page so the badge and the tab partition agree. */
@@ -64,11 +68,20 @@ export function HostPayoutCell({ state }: { state: PayoutLedgerState | null }) {
 
 export function HostBookingRow({ row }: { row: HostBookingRowData }) {
   return (
-    <Card>
+    // `relative` anchors the overlay anchor below so the whole card navigates to the detail page (T6).
+    <Card className="relative">
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{row.spaceTitle}</p>
+            {/* T6 — the whole card is the link to /host/bookings/[id] (the host cancel flow, SC#3), via an
+                overlay pseudo-element rather than a wrapping anchor, so the inline RequestActions below stays
+                a sibling and can sit ABOVE it. Mirrors the booker row (booking-row.tsx). */}
+            <Link
+              href={`/host/bookings/${row.bookingId}`}
+              className="truncate text-sm font-semibold outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
+            >
+              {row.spaceTitle}
+            </Link>
             <p className="text-sm text-muted-foreground">{row.whenLabel}</p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
@@ -77,6 +90,7 @@ export function HostBookingRow({ row }: { row: HostBookingRowData }) {
               endsAt={row.endsAt}
               now={row.now}
               side="host"
+              cancelledBy={row.cancelledBy}
             />
             {row.refundLabel ? (
               <p className="text-right text-sm tabular-nums text-muted-foreground">
@@ -104,11 +118,14 @@ export function HostBookingRow({ row }: { row: HostBookingRowData }) {
         </dl>
 
         {row.status === "requested" ? (
-          <RequestActions
-            requestId={row.bookingId}
-            bookerLabel={row.bookerLabel}
-            whenLabel={row.whenLabel}
-          />
+          // `relative z-10` lifts Approve/Decline ABOVE the card-overlay link so they stay clickable (T6).
+          <div className="relative z-10">
+            <RequestActions
+              requestId={row.bookingId}
+              bookerLabel={row.bookerLabel}
+              whenLabel={row.whenLabel}
+            />
+          </div>
         ) : null}
       </CardContent>
     </Card>

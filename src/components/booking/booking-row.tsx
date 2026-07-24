@@ -39,6 +39,8 @@ export type BookingRowData = {
   /** D-79 sibling line beneath the badge, or null. Never interpolated into the badge. */
   refundLabel: string | null;
   status: BookingDbStatus;
+  /** T8: who ended the booking — threaded to the badge so a booker-cancelled request reads Cancelled. */
+  cancelledBy: string | null;
   startsAt: Date;
   endsAt: Date;
   /** The DB clock, threaded from the page so the badge and the tab partition agree. */
@@ -82,6 +84,7 @@ export function BookingRow({ row }: { row: BookingRowData }) {
               endsAt={row.endsAt}
               now={row.now}
               side="booker"
+              cancelledBy={row.cancelledBy}
             />
             {row.refundLabel ? (
               <p className="text-right text-sm tabular-nums text-muted-foreground">

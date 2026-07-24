@@ -57,6 +57,13 @@ export type BookingListRow = {
   status: BookingDbStatus;
   /** DB-derived (D-102): CASE WHEN status='confirmed' AND ends_at<=now() THEN 'completed' ELSE status END */
   displayStatus: BookingDbStatus;
+  /**
+   * T8 (07-18): who ended the booking — `'booker' | 'host' | 'system' | null` (the cancelled_by enum, NULL
+   * on rows no party retired). Threaded into BookingStatusBadge so a booker-cancelled `requested` hold
+   * (stored `declined` + cancelled_by='booker' by cancelUnpaidHold) reads Cancelled, not Declined. No PII —
+   * it only names the actor, and the row is already owner-scoped by the WHERE (T-07-18-01).
+   */
+  cancelledBy: string | null;
   /** The all-in CHARGED total (D-49) — what the booker actually paid. Rendered as `amountLabel`. */
   quotedTotalCents: number | null;
   /**
@@ -230,6 +237,7 @@ export async function queryBookerBookings(
       ${isoUtc("b.ends_at")} AS "endsAtIso",
       b.status::text AS "status",
       ${displayStatusExpr} AS "displayStatus",
+      b.cancelled_by::text AS "cancelledBy",
       b.quoted_total_cents AS "quotedTotalCents",
       b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",
@@ -283,6 +291,7 @@ export async function queryHostBookings(
       ${isoUtc("b.ends_at")} AS "endsAtIso",
       b.status::text AS "status",
       ${displayStatusExpr} AS "displayStatus",
+      b.cancelled_by::text AS "cancelledBy",
       b.quoted_total_cents AS "quotedTotalCents",
       b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",

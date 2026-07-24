@@ -105,6 +105,7 @@ export default async function BookingsPage({
     amountLabel: formatMoney(r.quotedTotalCents ?? 0, r.currency ?? DISPLAY_CURRENCY),
     refundLabel: refundLabelFor(r.status, r.refundCents, r.currency ?? DISPLAY_CURRENCY),
     status: r.status,
+    cancelledBy: r.cancelledBy,
     startsAt: r.startsAt,
     endsAt: r.endsAt,
     now,
@@ -187,6 +188,7 @@ export default async function BookingsPage({
                             endsAt={row.endsAt}
                             now={row.now}
                             side="booker"
+                            cancelledBy={row.cancelledBy}
                           />
                           {/* D-79: the refund figure is a sibling of the badge, never inside it. */}
                           {row.refundLabel ? (
