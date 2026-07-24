@@ -23,6 +23,7 @@ import { tz } from "@date-fns/tz";
 import { PlusIcon } from "lucide-react";
 
 import { blockSchema, type BlockInput } from "@/lib/validation/availability";
+import { blockReasonLabel } from "@/lib/availability/block-reason";
 import { addBlock, removeBlock } from "@/app/actions/blocks";
 import {
   Form,
@@ -126,6 +127,7 @@ export function BlocksEditor({
           <CardContent className="divide-y p-0">
             {initialBlocks.map((b) => {
               const d = describe(b);
+              const reasonLabel = blockReasonLabel(b.reason);
               return (
                 <div
                   key={b.id}
@@ -135,7 +137,7 @@ export function BlocksEditor({
                     <p className="font-semibold">{d.date}</p>
                     <p className="text-muted-foreground">
                       {d.time} · {d.target}
-                      {b.reason ? ` · ${b.reason}` : ""}
+                      {reasonLabel ? ` · ${reasonLabel}` : ""}
                     </p>
                   </div>
                   <RemoveBlockButton listingId={listingId} blockId={b.id} />
