@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated build output anywhere in the tree, plus stale git worktrees: the default
+    // `.next/**` only matches the ROOT .next, so a nested `.claude/worktrees/<name>/.next`
+    // full of generated Turbopack JS would otherwise flood lint with thousands of errors.
+    ".claude/worktrees/**",
+    "**/.next/**",
   ]),
 ]);
 
