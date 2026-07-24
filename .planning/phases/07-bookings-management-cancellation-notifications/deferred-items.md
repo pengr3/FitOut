@@ -77,6 +77,12 @@ Fourth+ observation, unchanged behaviour and unchanged workaround
 (`PLATFORM_WALLET_NUMBER=x PLATFORM_WALLET_NAME=x INNGEST_SIGNING_KEY=x npm run build`). Hit on both
 of this plan's build gates; no source changed. Still worth the one-line `NEXT_PHASE` fix or a CI env.
 
+**RESOLVED (2026-07-24, quick 260724-lmy, commit 4a97771).** Both guards now include
+`&& process.env.NEXT_PHASE !== "phase-production-build"` (paymongo.ts + api/inngest/route.ts). Plain
+`npm run build` (no env prefixes, `.env.local` lacking all three secrets) passes exit 0 with all 27
+routes; the guards still fire at a real production runtime boot (NEXT_PHASE is only that value during
+the build data-collection pass). The env workaround is no longer needed.
+
 ---
 
 ## Refund transfers have no reconcile poller (found by 07-16, deliberately not built there)
@@ -116,6 +122,13 @@ mode the Task-1 probe matrix warned about for the HTTP-200 branch.
    error in `src/`; everything else in `src/`+`tests/` is warnings on deliberately-underscored unused args.
 
 Neither is caused by 07-17; every file 07-17 touched lints clean (`npx eslint <files>` exit 0).
+
+**RESOLVED (2026-07-24, quick 260724-lmy, commits 463d131 + 98b49ab).** (1) `eslint.config.mjs`
+`globalIgnores` now includes `.claude/worktrees/**` + `**/.next/**`, so bare `npm run lint` is usable
+(0 errors; the generated-JS flood is gone). (2) `address-autocomplete.tsx:110` `react-hooks/set-state-in-effect`
+fixed by deriving the short-query empty/idle state at render and moving loading/error init into the input
+handler — the effect body now has zero synchronous setState; the 250ms debounce + AbortController behavior
+is preserved.
 
 ## Weekly-hours editor UX — polish candidate for the UI pass (found during Phase-7 UAT, 2026-07-23)
 
