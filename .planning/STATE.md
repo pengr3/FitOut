@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: phase_complete
-stopped_at: Completed 07-18-PLAN.md (T6+T8 gap closure); next 07-19, 07-20
-last_updated: "2026-07-24T03:59:47.310Z"
+stopped_at: Completed 07-19-PLAN.md (T4-rung + T11 gap closure); next 07-20
+last_updated: "2026-07-24T04:19:08.351Z"
 last_activity: 2026-07-24
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 60
-  completed_plans: 59
+  completed_plans: 60
   percent: 75
 ---
 
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 07 (bookings-management-cancellation-notifications) — EXECUTING
-Plan: 2 of 20
+Plan: 3 of 20
 Next Phase: 8 (Group Bookings) — no CONTEXT.md yet; route through /gsd-discuss-phase 8.
 Outstanding phase-7 debt: security gate (/gsd-secure-phase 7) not yet run and security_enforcement is ON; Playwright e2e specs lint-clean but unexecuted (need dev server); A3 + live receiving_institutions re-verification once PayMongo enables Money Movement (manual UAT).
 Last activity: 2026-07-24
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 **Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-17** (all; 07-17 is the gap-closure plan for CR-01/CR-02/WR-04/WR-06).
 
@@ -181,6 +181,7 @@ Progress: [██████████] 98%
 | Phase 07 P16 | ~25m | 3 tasks | 8 files |
 | Phase 07 P17 | 25m | 4 tasks | 17 files |
 | Phase 07 P18 | 12min | 3 tasks | 10 files |
+| Phase 07 P19 | 14 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -279,6 +280,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-18: cancelled_by-aware status derivation — deriveDisplayStatus/deriveBookingStatusView take an OPTIONAL cancelledBy; declined+booker remaps to cancelled (a booker cancel is not a host decline), NULL/host/system keep declined. Exhaustive switch kept (no default clause) so the add-a-status compile-gate stays intact. — T8 UAT gap: a booker-cancelled unpaid hold was wearing the host-decline copy
 - [Phase 07]: 07-18: declinedCopy(cancelledBy) is the SINGLE booker-vs-host selection point for the /bookings/[id] declined landing — parameter-free strings, venue/time rendered as a sibling line (the two-line cancelled-branch layout); the host-decline copy is structurally-equivalent, not byte-identical. — Callers must never re-implement the conditional inline
 - [Phase 07]: 07-18 (T6): BOTH /host/bookings surfaces link to /host/bookings/[id] — the DEFAULT desktop <Table> Space-cell link (load-bearing half, where the tester hit it) AND the mobile-card overlay anchor; RequestActions lifted relative z-10 so Approve/Decline survive. SC#3 now reachable without typing a booking UUID. — 07-06 left both linkless; 07-11 built the detail page but wired neither
+- [Phase ?]: 07-19: checkout cancellation summary leads with the best rung STILL OPEN for this booking (bestFutureRungIndex, strict >); display-only, refund recomputes at cancel time
+- [Phase ?]: 07-19: a replayed request-mode placeHold notifies nobody (!res.replayed guards the emission pair; revalidate/redirect stay outside) — mirrors re-request.ts:299
 
 ### Pending Todos
 
@@ -324,8 +327,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T03:59:21.722Z
-Stopped at: Completed 07-18-PLAN.md (T6+T8 gap closure); next 07-19, 07-20
+Last session: 2026-07-24T04:19:08.319Z
+Stopped at: Completed 07-19-PLAN.md (T4-rung + T11 gap closure); next 07-20
 Resume file: None
 
 Prior session: 2026-07-23T07:45:00Z

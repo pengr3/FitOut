@@ -115,6 +115,11 @@ None - no external service configuration required.
 - Two of the six Phase-7 UAT gaps are closed (T4-rung + T11). Remaining gap plan: **07-20** (T7/T9 per the UAT handoff).
 - No blockers introduced. Outstanding phase-7 debt is unchanged: security gate (`/gsd-secure-phase 7`) not yet run; Playwright e2e specs lint-clean but unexecuted; A3 + live receiving_institutions re-verification once PayMongo enables Money Movement.
 
+## Self-Check: PASSED
+
+- Commits verified in git log: `b7acdba`, `5592420`, `3907395`, `3d532c0`, `d125781`.
+- Artifacts verified on disk: `bestFutureRungIndex` (cancellation.ts + book/page.tsx), `bestRungIndex` (disclosure), `!res.replayed` guard (booking.ts), SUMMARY.md.
+
 ---
 *Phase: 07-bookings-management-cancellation-notifications*
 *Completed: 2026-07-24*
