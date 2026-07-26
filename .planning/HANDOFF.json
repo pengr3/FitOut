@@ -1,41 +1,46 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-24T10:09:06.102Z",
-  "phase": "8",
-  "phase_name": "Group Bookings",
+  "timestamp": "2026-07-26T14:04:44.840Z",
+  "phase": "08",
+  "phase_name": "group-bookings",
   "phase_dir": ".planning/phases/08-group-bookings",
-  "stage": "discussion (pre-CONTEXT.md)",
   "plan": null,
   "task": null,
   "total_tasks": null,
   "status": "paused",
-  "completed_tasks": [
-    {"id": "p7-gaps", "name": "Phase 7 gap plans 07-18/19/20 executed + suite green", "status": "done"},
-    {"id": "p7-uat", "name": "Phase 7 human-UAT T6/T8/T9 driven in real browser; all pass", "status": "done"},
-    {"id": "quick-jo1", "name": "Fix earnings cancellation-fee missing space (SWC JSX whitespace)", "status": "done", "commit": "edc10e5"},
-    {"id": "quick-l1s", "name": "Rewrite stale search-and-book e2e to current instant-book flow", "status": "done", "commit": "35243e1"},
-    {"id": "e2e-flake", "name": "Serialize public-listing spec; full e2e suite 16/16 green x2", "status": "done", "commit": "e54e416"},
-    {"id": "quick-lmy", "name": "Build-guard NEXT_PHASE exemption + eslint ignores + react-hooks fix", "status": "done", "commit": "4a97771"},
-    {"id": "p8-grayareas", "name": "Phase 8 gray areas identified; strategic debate on the group-booking payment model", "status": "in_progress", "progress": "no CONTEXT.md written; core question unresolved"}
-  ],
-  "remaining_tasks": [
-    {"id": "resolve-paymodel", "name": "RESOLVE: will FitOut ever do per-attendee payment / cost-splitting (GPAY-01/02)? This decides whether v1 free-RSVP group bookings is foundation vs. busywork.", "status": "not_started"},
-    {"id": "p8-discuss", "name": "Run the 4-gray-area discussion (invite/RSVP identity, headcount cap, group-creation entry point, invite/RSVP lifecycle) → write 08-CONTEXT.md", "status": "not_started"},
-    {"id": "prelaunch-moneyloop", "name": "PRE-LAUNCH GATE: validate core money loop live vs real PayMongo (payment→confirm→payout→refund). Never run live — only stubbed.", "status": "not_started"}
-  ],
-  "blockers": [
-    {"description": "Phase 8 CONTEXT.md is not worth writing until the payment-model question is resolved — it determines the whole feature's scope/value.", "type": "human_action", "workaround": "none — needs a product decision from the user"}
-  ],
+  "stage": "discussion",
+  "summary": "Phase 8 group-booking PAYMENT MODEL resolved this session. Supersedes both prior framings: NOT 'deferred entirely' (the 2026-07-25 memory) and NOT the 'free-RSVP shell' (older .continue-here framing). The pricing model is now designed; group size affects price, so it no longer reads as 'free'.",
+  "resolved_design": {
+    "single_payer": "Organizer pays for ALL pax. Exactly one payment -> reuses the existing hold-until-session rail unchanged (no cost-splitting, no per-attendee collection). This is what makes it buildable.",
+    "two_axes": "Pricing unit (per-space flat vs per-head) x Occupancy (exclusive vs open). These are independent; earlier discussion conflated them.",
+    "v1_scope": "EXCLUSIVE-ONLY. Group booking = one exclusive lock on the space -> existing GiST exclusion constraint untouched.",
+    "open_play_deferred": "Open court / open play (strangers share one slot, each pays per head) is a SEPARATE future product = GPAY-02 ticketing + a capacity-counter availability model that would BREAK the exclusion constraint. Do NOT build in v1.",
+    "unified_pricing_formula": "total = baseRate + max(0, pax - included) * extraHeadFee. extraHeadFee=0 => flat court rental, zero leak, backward-compatible default (existing listings unchanged). included+fee => group size affects price, leak bounded to surcharge delta. 'per-person' = the extreme (included=1) => max under-declaration exposure, front desk is the enforcement. This is the Airbnb extra-guest-fee shape.",
+    "scope_reach": "Reaches into Phase 2 (host sets base + optional included/extraHeadFee) and Phase 4 (quote applies the formula), but shallow + backward-compatible because extraHeadFee defaults to 0."
+  },
+  "money_leak_analysis": {
+    "crux": "per-person-exclusive is the most-exposed cell: organizer declares pax=1, pays for 1, brings 4 (court is already theirs, no stranger blocked, only the front desk forces honesty).",
+    "structural_truth": "Leak is proportional to how much price depends on door-counted heads: per-space=0, surcharge=bounded, pure per-head=max. per-head-exclusive CANNOT be made self-policing without becoming ticketing (the deferred open-play model).",
+    "mitigations_settled": [
+      "Structurally prefer per-space + surcharge (bounds exposure to the surcharge delta).",
+      "Host check-in headcount confirmation -> creates a discrepancy RECORD (v1 seam) + enables an in-app TOP-UP charge to organizer's saved card (top-up = fast-follow).",
+      "RSVP shell doubles as a fraud-corroboration signal (RSVP count vs declared pax mismatch = flag) -> gives invites a hard job beyond logistics.",
+      "Align host incentives so they don't prefer cash (payout / ranking / dispute protection flow only from on-platform bookings).",
+      "Accept the bounded remainder, priced into commission (every marketplace leaks at the last mile)."
+    ]
+  },
+  "refund_no_show": "Organizer bought the slots -> no per-attendee refund on no-shows. pax-decrease follows the Phase-7 cancellation ladder; pax-increase = capacity-checked top-up.",
+  "blockers": [],
   "human_actions_pending": [
-    {"action": "Decide whether per-attendee payment / cost-splitting is on FitOut's eventual roadmap", "context": "The organizer pays 100%, so a free RSVP link is coordination-only (soft value + growth funnel). It becomes load-bearing only if attendees pay their share. That answer decides v1 group-booking scope.", "blocking": true},
-    {"action": "Restart the dev stack when resuming UAT/dev work", "context": "npm run dev (:3000) was stopped by the build task; npm run dev:inngest (:8288) still running but shows 0 connected apps until the app is back", "blocking": false}
+    {"action": "Pre-launch money-loop validation vs PayMongo test mode (payment -> confirm -> payout -> refund)", "context": "Separate track, unchanged. Never driven end-to-end. Card/GCash testable now (fixture booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh + payout blocked on PayMongo Money Movement beta.", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Build Phase 8 anyway (user's call), money-loop validation parked as a pre-launch gate", "rationale": "Group bookings is decoupled from the money path (never touches occupancy, never per-attendee payment), so it's low-risk to build; but the core money loop being unvalidated live is the bigger risk and is deferred, not forgotten.", "phase": "8"},
-    {"decision": "Phase 7 is fully complete — gap plans + UAT + e2e + build/lint debt all closed", "rationale": "07-VERIFICATION status=passed (human UAT 3/3); e2e 16/16; plain npm run build passes; npm run lint 0 errors; suite 83 files / 693 tests green.", "phase": "7"},
-    {"decision": "Documented the refund-workflow verification gap + Inngest two-process note as tracked debt", "rationale": "Refund logic/contract/webhook are all tested against STUBBED fetch — a real paid→refunded round-trip has never been driven. Card/GCash testable now; QRPh blocked on PayMongo Money Movement.", "phase": "7"}
+    {"decision": "v1 group bookings = single-payer (organizer pays all pax), exclusive-only, reusing the existing payment rail", "rationale": "One payment sidesteps the cost-splitting complexity that got other models rejected; exclusive lock keeps the exclusion constraint intact", "phase": "08"},
+    {"decision": "Unified exclusive pricing: base + optional per-extra-head surcharge over an included headcount; extraHeadFee defaults to 0", "rationale": "Airbnb extra-guest-fee shape; makes group size affect price (answers the 'feels free' complaint) while staying backward-compatible and bounding the leak", "phase": "08"},
+    {"decision": "Open play / open court DEFERRED to its own future phase", "rationale": "= GPAY-02 ticketing + capacity-counter availability; would break the GiST exclusion constraint and needs per-attendee payment", "phase": "08"},
+    {"decision": "Per-person-exclusive under-declaration leak accepted as bounded-by-design", "rationale": "Cannot be made self-policing without becoming ticketing; mitigated via prefer-per-space, host check-in record + top-up (fast-follow), RSVP corroboration, incentive alignment, commission buffer", "phase": "08"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Resolve the payment-model question with the user (per-attendee pay / cost-splitting eventually — yes or no). If yes → v1 free-RSVP shell is a justified foundation; resume /gsd-discuss-phase 8 through the 4 gray areas. If no → reconsider whether to defer Phase 8. Do NOT write 08-CONTEXT.md before this is settled.",
-  "context_notes": "We were filleting the group-bookings concept, not doing the structured discussion (user dismissed the gray-area multiselect twice to debate the idea). The crux we reached: v1 group bookings = a FREE RSVP coordination shell on an organizer-paid booking; the invite link is only decorative unless attendees pay their share (cost-splitting = GPAY-01/02, explicitly out of v1 scope). So v1's justification is 'foundation + growth funnel', and it hinges entirely on whether the paid version is coming later. That single product decision is the gate."
+  "uncommitted_files": [".planning/STATE.md", ".planning/phases/08-group-bookings/.continue-here.md", ".planning/phases/08-group-bookings/08-QUESTIONS.json", ".planning/phases/08-group-bookings/08-QUESTIONS.html"],
+  "next_action": "Run /gsd-discuss-phase 8: work the remaining gray areas in 08-QUESTIONS.json (18 Qs: invite/RSVP identity, headcount cap, group-creation entry, lifecycle) under the now-settled pricing model, and write 08-CONTEXT.md. Fold in host check-in headcount confirmation (v1 record seam), in-app top-up (fast-follow), and the open-play deferral note.",
+  "context_notes": "STALE-FRAMING WARNING: 08-QUESTIONS.json's top-level framing ('v1 = a FREE RSVP coordination shell, RSVP never becomes per-attendee payment') is now PARTIALLY STALE. Pricing is pax-scaled AT BOOKING (still single-payer, still NOT per-attendee collection). Re-frame the headcount-cap questions: the cap is now the PAID pax count, and RSVP fills + corroborates those paid slots. The user drove this as a founder-debate: they re-opened the deferred gate, pushed back on 'per-person fights the rent-the-space core' (correctly - a gym/pickleball rec game IS per-head), and we landed the unified surcharge model + open-play deferral together."
 }

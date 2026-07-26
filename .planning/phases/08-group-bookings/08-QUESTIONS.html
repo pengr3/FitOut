@@ -1,0 +1,463 @@
+<meta charset="utf-8" />
+<title>Phase 8: Group Bookings — Discussion Questions</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --green: #22c55e; --green-bg: #f0fdf4; --green-border: #bbf7d0;
+    --orange: #f97316; --gray: #e2e8f0; --gray-2: #f8fafc;
+    --ink: #0f172a; --muted: #64748b; --coral: #ff5a5f;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; background: #f1f5f9; color: var(--ink); line-height: 1.45;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid var(--gray);
+    padding: 16px 24px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; max-width: 1100px; }
+  .statsbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .stat { font-size: 13px; color: var(--muted); }
+  .stat b { color: var(--ink); font-size: 15px; }
+  .progress-wrap { flex: 1; min-width: 220px; height: 10px; background: var(--gray); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: var(--green); transition: width .25s ease; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  button, label.filebtn {
+    font: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid var(--gray); background: #fff; color: var(--ink); cursor: pointer;
+  }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button:hover, label.filebtn:hover { background: var(--gray-2); }
+  button.primary:hover { opacity: .9; background: var(--ink); }
+  main { padding: 20px 24px 80px; max-width: 1280px; margin: 0 auto; }
+  .section { margin-bottom: 12px; background: #fff; border: 1px solid var(--gray); border-radius: 12px; overflow: hidden; }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 18px; cursor: pointer; user-select: none; background: var(--gray-2);
+  }
+  .section-head h2 { margin: 0; font-size: 15px; }
+  .section-count { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .section-body { padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .section.collapsed .section-body { display: none; }
+  .chev { transition: transform .2s; font-size: 12px; color: var(--muted); }
+  .section.collapsed .chev { transform: rotate(-90deg); }
+  .card {
+    border: 1px solid var(--gray); border-radius: 10px; padding: 14px; background: #fff;
+    display: flex; flex-direction: column; gap: 8px; transition: border-color .15s, background .15s;
+  }
+  .card.answered { border: 2px solid var(--green); background: var(--green-bg); }
+  .card .qid { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    color: var(--muted); background: var(--gray-2); border: 1px solid var(--gray); border-radius: 6px; padding: 1px 6px; }
+  .card.answered .qid { color: #15803d; background: #dcfce7; border-color: var(--green-border); }
+  .card h3 { margin: 2px 0 0; font-size: 15px; }
+  .ctx { font-size: 12px; color: var(--muted); font-style: italic; margin: 0; }
+  .opts { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 0; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 7px 9px; border: 1px solid var(--gray);
+    border-radius: 8px; cursor: pointer; background: #fff; }
+  .opt:hover { background: var(--gray-2); }
+  .opt input { margin-top: 3px; }
+  .opt.sel { border-color: var(--green); background: #ecfdf3; }
+  .opt .lbl { font-size: 13px; font-weight: 600; }
+  .opt .desc { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  textarea {
+    width: 100%; font: inherit; font-size: 12.5px; padding: 8px; border: 1px solid var(--gray);
+    border-radius: 8px; resize: vertical; min-height: 42px; margin-top: 2px;
+  }
+  textarea.has-content { border: 2px solid var(--orange); background: #fff7ed; }
+  .note-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 4px; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink);
+    color: #fff; padding: 11px 18px; border-radius: 10px; font-size: 13px; opacity: 0; pointer-events: none;
+    transition: opacity .2s; z-index: 50; max-width: 90%;
+  }
+  .toast.show { opacity: 1; }
+  .footer-save { text-align: center; margin-top: 20px; }
+  .help { font-size: 12px; color: var(--muted); background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; }
+  code { background: var(--gray-2); border: 1px solid var(--gray); border-radius: 4px; padding: 0 4px; font-size: 12px; }
+</style>
+
+<header>
+  <h1>Phase 8: Group Bookings — Discussion Questions</h1>
+  <p class="sub" id="framing"></p>
+  <div class="statsbar">
+    <div class="stat"><b id="s-total">0</b> total</div>
+    <div class="stat"><b id="s-answered">0</b> answered</div>
+    <div class="stat"><b id="s-remaining">0</b> remaining</div>
+    <div class="progress-wrap"><div class="progress-fill" id="progress"></div></div>
+    <div class="btns">
+      <label class="filebtn">Load saved…<input id="loader" type="file" accept="application/json,.json" hidden /></label>
+      <button class="primary" onclick="saveAnswers()">Save answers</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <p class="help">
+    Answer at your own pace — pick an option and/or type a note. Your answers are remembered in this browser automatically.
+    When done, click <b>Save answers</b> (it writes <code>08-QUESTIONS.json</code>, either in place or to your Downloads — replace the original if downloaded).
+    Then return to Claude and say <b>"refresh"</b> to process them, or <b>"finalize"</b> to generate CONTEXT.md.
+  </p>
+  <div id="sections"></div>
+  <div class="footer-save">
+    <button class="primary" onclick="saveAnswers()">Save answers</button>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = {
+  "phase": "08-group-bookings",
+  "generated_at": "2026-07-25T04:05:28.374Z",
+  "mode": "power",
+  "stats": { "total": 18, "answered": 0, "chat_more": 0, "remaining": 18 },
+  "framing": "v1 group bookings = a FREE RSVP coordination shell layered on a normal paid booking the organizer pays 100% for. RSVP never touches the occupancy constraint and never becomes per-attendee payment. Gate resolved 2026-07-25: per-attendee cost-splitting (GPAY-01) + ticketing (GPAY-02) ARE a confirmed FUTURE milestone, so v1's rails (invites / RSVP / capacity / identity) are the deliberate foundation the paid version plugs into. Every decision below is HOW to build that foundation; the scope (RSVP-only, no money) is fixed.",
+  "sections": [
+    { "id": "invite-rsvp-identity", "title": "Invite & RSVP identity", "questions": [
+      { "id": "Q-01", "title": "Invite delivery mechanism",
+        "context": "GROUP-02 literally says 'a shareable link AND/OR email', so both channels are in scope. Peerspace/Partiful lean on one broadcast link; Eventbrite/Google Calendar use per-recipient email invites. A crypto-random token pattern already exists (src/lib/booking/reference.ts) — but an invite token is a real ACCESS TOKEN (like the booking's opaque UUID id), not a friendly label.",
+        "options": [
+          { "id": "a", "label": "Both — one shareable link + targeted email invites (recommended)", "description": "One reusable group link to drop in a chat, PLUS tokenized invites to specific emails. Matches GROUP-02's 'and/or' exactly." },
+          { "id": "b", "label": "Shareable link only", "description": "One link, anyone who opens it can RSVP. Lowest build cost; can't target a person or tell invited-vs-found-the-link." },
+          { "id": "c", "label": "Per-email tokenized invites only", "description": "Each attendee gets their own scoped token by email. Max control + you know who's invited; no 'share in the group chat' path." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-02", "title": "What an RSVP captures (attendee identity)",
+        "context": "GROUP-03 requires RSVP 'without a full account'. Resend send(to,...) takes ANY email, so emailing non-account attendees works today. BUT the in-app notification row is keyed on recipientId = user.id, so a no-account attendee gets EMAIL only. Capturing email also enables a confirmation + reminder, and is the identity a future per-attendee payment attaches to.",
+        "options": [
+          { "id": "a", "label": "Name + email (recommended)", "description": "Enables confirmation email, reminder, de-duping, and is the identity hook the paid version reuses. Slight friction vs name-only." },
+          { "id": "b", "label": "Name only", "description": "Lowest friction, purely informational. Can't email them, can't de-dupe, no identity for the paid version." },
+          { "id": "c", "label": "Name + email, auto-link if logged in", "description": "Like (a), plus attach user.id when the attendee is a signed-in FitOut user so they also get in-app notifications." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-03", "title": "Can an attendee change their RSVP after submitting?",
+        "context": "Plans change; Partiful/Meetup let attendees toggle freely until the event. Interacts with the cap (Q-09): a yes->no frees a spot, a no->yes must re-check the cap atomically.",
+        "options": [
+          { "id": "a", "label": "Yes — can toggle yes/no until RSVP closes (recommended)", "description": "Attendee can change their answer before the RSVP close time (Q-12). A no->yes re-competes for a spot under the atomic cap." },
+          { "id": "b", "label": "No — RSVP is final once submitted", "description": "Simpler state, no re-cap logic. But a misclick or changed plan is stuck, and the count overstates who's coming." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-04", "title": "Can one RSVP bring +guests?",
+        "context": "Eventbrite/Evite allow 'RSVP + N guests'. This changes cap math (Q-08): if allowed, the cap counts heads not RSVPs, and a no-account +guest has no identity. One-person-one-RSVP keeps count = number of 'yes' rows.",
+        "options": [
+          { "id": "a", "label": "One RSVP = one person, no +guests (recommended for v1)", "description": "Cap = count of 'yes' RSVPs. Cleanest to hard-cap atomically. '+guests' becomes a deferred idea for the ticketing version." },
+          { "id": "b", "label": "Allow +N guests per RSVP", "description": "'me + 2'. More realistic for casual groups, but the cap must count heads and those extras have no identity." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" }
+    ]},
+    { "id": "headcount-cap", "title": "Headcount cap rules", "questions": [
+      { "id": "Q-05", "title": "Capacity source for the cap",
+        "context": "listing.maxOccupancy (integer, NULLABLE — D-07) is the obvious source and exactly what REQUIREMENTS flags to confirm. unitCount is a DIFFERENT concept (multi-unit venue); a group wraps ONE booking on ONE unit, so the cap is about people in that space, not units.",
+        "options": [
+          { "id": "a", "label": "listing.maxOccupancy is the hard ceiling (recommended)", "description": "Confirmed RSVPs hard-capped at the host's max occupancy (SC#4). Single source of truth. See Q-06 for the NULL case." },
+          { "id": "b", "label": "Organizer sets a group target ≤ maxOccupancy", "description": "Organizer picks how many they're inviting (bounded by maxOccupancy if set). More control; a second number to reconcile." },
+          { "id": "c", "label": "Both — default to maxOccupancy, organizer may lower it", "description": "Cap defaults to maxOccupancy but the organizer can set a smaller size. Flexible; a bit more UI + validation." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-06", "title": "Fallback when listing.maxOccupancy is NULL",
+        "context": "maxOccupancy is nullable and NOT required at publish, so many listings will have none. SC#4's hard-cap only has meaning when a capacity exists. Second REQUIREMENTS open decision.",
+        "options": [
+          { "id": "a", "label": "No cap — RSVP stays purely informational (recommended)", "description": "If unset, headcount is shown but never blocks a 'yes'. The atomic hard-cap applies only where capacity exists. Simplest and honest." },
+          { "id": "b", "label": "Organizer must set a group size to enable invites", "description": "Organizer supplies the cap at group creation. Always a real cap; adds a required field." },
+          { "id": "c", "label": "Require host to set maxOccupancy before group invites work", "description": "Gate invites on the host having set capacity. Cleanest data guarantee; blocks organizers on hosts who never filled it in." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-07", "title": "Does the organizer count toward the cap?",
+        "context": "The organizer paid for and is attending — they occupy a spot. Meetup counts the host. If they don't count, maxOccupancy 10 could put 11 bodies in the space.",
+        "options": [
+          { "id": "a", "label": "Yes — organizer is attendee #1 (recommended)", "description": "Cap counts organizer + confirmed attendees. Matches reality; prevents an off-by-one overflow." },
+          { "id": "b", "label": "No — cap counts invited attendees only", "description": "The number is an 'invite budget' on top of the organizer. Intuitive; risks one body over maxOccupancy." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-08", "title": "What counts toward the cap?",
+        "context": "SC#4 says 'CONFIRMED RSVPs are hard-capped'. With one-person-one-RSVP (Q-04a) count = number of 'yes' rows (+organizer per Q-07).",
+        "options": [
+          { "id": "a", "label": "Confirmed 'yes' RSVPs only (recommended)", "description": "A 'no' or unanswered invite consumes nothing; only 'yes' takes a spot; yes->no frees it. Matches SC#4 wording." },
+          { "id": "b", "label": "Yes + pending/unanswered (reserve on invite)", "description": "Sending an invite tentatively holds a spot until declined. Prevents over-inviting, but silent invitees block real yeses." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-09", "title": "Behavior when the cap is reached",
+        "context": "SC#4 requires 'atomic, no overflow' and 'a partial RSVP leaves the booking valid'. The atomic-no-overflow DB pattern already exists here (ON CONFLICT claim; conditional UPDATE ... WHERE count < cap). A WAITLIST (DISC-02) is explicitly v2/out-of-scope — a deferred idea, not a v1 option.",
+        "options": [
+          { "id": "a", "label": "Hard block: once full, no more 'yes'; page shows 'full' (recommended)", "description": "The Nth yes fills it; the next attendee sees 'full' and can't confirm. Atomic at the DB. 'No' always allowed. The booking stays valid regardless." },
+          { "id": "b", "label": "Cap only 'yes'; always allow 'no'/'maybe'", "description": "Same yes-cap, framed around also capturing declines/maybes. Adds a third RSVP value to model." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" }
+    ]},
+    { "id": "group-creation-entry", "title": "Group-creation entry point", "questions": [
+      { "id": "Q-10", "title": "Where/how the organizer starts a group",
+        "context": "/bookings/[id] already exists, and /bookings/[id]/cancel is a precedent for a nested action route under a booking. The goal says the organizer 'HAS PAID' then invites — pointing at the confirmed-booking surface, not checkout. No group/invite/rsvp routes exist yet.",
+        "options": [
+          { "id": "a", "label": "'Invite people' on the confirmed booking detail page (recommended)", "description": "Every confirmed booking gets an 'Invite people' affordance that turns it into a group. Zero checkout changes; matches 'wraps a booking already paid for'." },
+          { "id": "b", "label": "Opt-in at checkout ('booking for a group?')", "description": "Flag 'group' during checkout. Sets intent early, but adds a branch to money-critical checkout and can't retrofit an existing booking." },
+          { "id": "c", "label": "Both — a checkout nudge + the post-booking affordance", "description": "Most discoverable; most surface area to build and keep consistent." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-11", "title": "Which bookings qualify to become a group?",
+        "context": "The goal says the organizer 'has PAID' — a confirmed booking. Request-to-book only reaches 'confirmed' after approval + payment, so 'confirmed' naturally covers both modes.",
+        "options": [
+          { "id": "a", "label": "Any confirmed (paid) booking (recommended)", "description": "If confirmed, the organizer paid, so it can host a group — instant or request alike. Simplest rule, matches the goal." },
+          { "id": "b", "label": "Confirmed AND future only", "description": "Also require the session hasn't started/ended — no inviting to a past session. (a) plus the RSVP-close rule (Q-12) may already cover it." },
+          { "id": "c", "label": "Restrict by mode or space type", "description": "e.g. only instant-book, or only whole-space (unitCount=1). Adds guardrails but narrows the differentiator without a clear reason yet." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" }
+    ]},
+    { "id": "lifecycle-edges", "title": "Invite & RSVP lifecycle / edges", "questions": [
+      { "id": "Q-12", "title": "When does RSVP close?",
+        "context": "booking.startsAt/endsAt are venue-local timestamptz. Closing RSVP bounds the cap race and stops late confusion. The reminder (Q-15) and 'who's coming' view (Q-16) key off this.",
+        "options": [
+          { "id": "a", "label": "At session start (recommended)", "description": "Open from creation until the session starts, then locks. Simple; the headcount is final exactly when it matters." },
+          { "id": "b", "label": "A cutoff before start (e.g. 2h / 24h before)", "description": "Gives a firm number ahead of time. Requires choosing the offset; can frustrate last-minute joiners." },
+          { "id": "c", "label": "Never closes until the session ends", "description": "Walk-ins can RSVP after start. Most permissive; headcount never finalizes." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-13", "title": "What happens to invites/RSVPs if the booking is cancelled or refunded?",
+        "context": "Phase 7 shipped booker + host cancellation with refunds + durable notifications. 'Yes' attendees planned around this session; Partiful/Eventbrite notify attendees on cancellation.",
+        "options": [
+          { "id": "a", "label": "Auto-void invites + email attendees it's cancelled (recommended)", "description": "Invites stop accepting RSVPs and every 'yes' attendee gets a cancellation email. Honest; reuses the notify/email layer." },
+          { "id": "b", "label": "Silently void — link shows 'no longer available', no message", "description": "Invites become inert; attendee finds out only if they revisit. Less email; leaves people uninformed." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-14", "title": "Can the organizer manage invites (revoke / remove / resend)?",
+        "context": "Guest lists change. Revoking a tokenized invite invalidates that token; removing a confirmed attendee frees a capped spot (Q-09). Regenerating the shareable link handles 'the old link leaked'.",
+        "options": [
+          { "id": "a", "label": "Yes — revoke, remove attendee, resend/regenerate link (recommended)", "description": "Full control from the group view. Removing a 'yes' frees a spot atomically. More UI + actions, but expected of a coordination tool." },
+          { "id": "b", "label": "Minimal — resend only, no revoke/remove", "description": "Can re-share but can't kick someone or kill a leaked link. Less to build; weaker control." },
+          { "id": "c", "label": "None — fire-and-forget invites", "description": "Cheapest; no recourse for a wrong invite or a leaked link." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-15", "title": "Do attendees get a pre-session reminder?",
+        "context": "Phase 7 runs an at-most-once reminder cron (src/inngest/functions/reminders.ts, UNIQUE(booking_id, kind)); an attendee reminder extends that pattern. Requires attendee email (Q-02 a/c).",
+        "options": [
+          { "id": "a", "label": "Yes — 'yes' attendees get a pre-session reminder email (recommended)", "description": "Reuse the reminder infra to email confirmed attendees before the session. High value; low cost. Needs attendee email." },
+          { "id": "b", "label": "No attendee reminders in v1", "description": "Only the organizer (a real account) gets reminders. Less to build; attendees may forget." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" }
+    ]},
+    { "id": "visibility-foundation", "title": "Visibility, notifications & paid-version foundation", "questions": [
+      { "id": "Q-16", "title": "What does an attendee see about the booking?",
+        "context": "listing.showExactAddress (D-09, default approximate) governs how much address the PUBLIC sees; neighborhood is the approximate anchor. An RSVP'd attendee is more trusted than a browser but may be a no-account stranger with a link. GROUP-04 is the ORGANIZER seeing who's coming; this is the reverse.",
+        "options": [
+          { "id": "a", "label": "Name + date/time + address per showExactAddress (recommended)", "description": "Respect the host's exact-vs-approximate setting, consistent with the public listing page. Organizer can share the precise address out-of-band." },
+          { "id": "b", "label": "Always show the exact address to a 'yes' attendee", "description": "They're confirmed coming, so give the full address. Convenient; overrides the host's approximate-address preference for anyone with a link." },
+          { "id": "c", "label": "Minimal — name + time only; organizer shares location", "description": "Invite is just 'you're on the list'. Most privacy-preserving; least useful standalone." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-17", "title": "Notifications: organizer updates + attendee confirmations",
+        "context": "GROUP-04 wants the organizer to see 'headcount and who is coming' — a live view and/or a push. fitout/notify gives the organizer (a real user) in-app + email; a no-account attendee gets EMAIL only. New notification_type enum values are compile-checked in schema.ts.",
+        "options": [
+          { "id": "a", "label": "Organizer notified per RSVP + attendee gets a confirmation email (recommended)", "description": "Each yes/no pings the organizer (in-app + email); each attendee gets an RSVP confirmation email. Closes the loop both ways; reuses infra." },
+          { "id": "b", "label": "Live headcount view, no per-RSVP push", "description": "Organizer sees the count/list on opening the group page; not pinged each RSVP. Quieter; less real-time. Attendee still confirmed." },
+          { "id": "c", "label": "Digest — one summary (e.g. at RSVP close)", "description": "Batch updates into one message. Least noise; least immediacy." },
+          { "id": "d", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" },
+      { "id": "Q-18", "title": "How deliberately should the schema anticipate the paid version?",
+        "context": "The gate resolution (2026-07-25) is explicit: v1's rails are the FOUNDATION the future per-attendee payment (GPAY-01/02) plugs into. This is a HOW-to-build-v1 data-model decision, NOT scope creep — no payment is built now. Precedent: booking rows carry frozen snapshots + ledger rows keyed per-booking.",
+        "options": [
+          { "id": "a", "label": "Per-attendee/RSVP row, payment-ready but unpriced (recommended)", "description": "A per-attendee row (keyed to group + booking, carrying identity + RSVP state) so a future price/payment attaches 1:1 with no reshape. Cheap now; no money columns yet." },
+          { "id": "b", "label": "Store RSVPs minimally now; refactor when paid arrives", "description": "Simplest v1 shape (compact list/count); accept a migration later. A little less now; pays a refactor + data-migration cost when GPAY lands." },
+          { "id": "c", "label": "Other (note below)", "description": "" }
+        ], "answer": null, "chat_more": "", "status": "unanswered" }
+    ]}
+  ]
+};
+
+const LS_KEY = "fitout-08-questions-answers";
+
+function allQuestions() { return DATA.sections.flatMap(s => s.questions); }
+
+function recomputeStats() {
+  const qs = allQuestions();
+  const answered = qs.filter(q => q.answer !== null && q.answer !== "").length;
+  const chat = qs.filter(q => q.chat_more && q.chat_more.trim() !== "").length;
+  DATA.stats = { total: qs.length, answered, chat_more: chat, remaining: qs.length - answered };
+  qs.forEach(q => {
+    const hasAns = q.answer !== null && q.answer !== "";
+    const hasNote = q.chat_more && q.chat_more.trim() !== "";
+    q.status = hasAns ? "answered" : (hasNote ? "chat-more" : "unanswered");
+  });
+}
+
+function renderStats() {
+  document.getElementById("s-total").textContent = DATA.stats.total;
+  document.getElementById("s-answered").textContent = DATA.stats.answered;
+  document.getElementById("s-remaining").textContent = DATA.stats.remaining;
+  const pct = DATA.stats.total ? Math.round(100 * DATA.stats.answered / DATA.stats.total) : 0;
+  document.getElementById("progress").style.width = pct + "%";
+}
+
+function persist() {
+  const map = {};
+  allQuestions().forEach(q => { map[q.id] = { answer: q.answer, chat_more: q.chat_more }; });
+  try { localStorage.setItem(LS_KEY, JSON.stringify(map)); } catch (e) {}
+}
+
+function restore() {
+  let map = null;
+  try { map = JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) {}
+  if (!map) return;
+  allQuestions().forEach(q => {
+    if (map[q.id]) { q.answer = map[q.id].answer ?? null; q.chat_more = map[q.id].chat_more ?? ""; }
+  });
+}
+
+function render() {
+  recomputeStats();
+  document.getElementById("framing").textContent = DATA.framing;
+  const root = document.getElementById("sections");
+  root.innerHTML = "";
+  DATA.sections.forEach(sec => {
+    const answeredInSec = sec.questions.filter(q => q.answer !== null && q.answer !== "").length;
+    const section = document.createElement("div");
+    section.className = "section";
+    const head = document.createElement("div");
+    head.className = "section-head";
+    head.innerHTML = `<h2><span class="chev">▼</span> ${sec.title}</h2>
+      <span class="section-count">${answeredInSec}/${sec.questions.length} answered</span>`;
+    head.onclick = () => section.classList.toggle("collapsed");
+    const body = document.createElement("div");
+    body.className = "section-body";
+    sec.questions.forEach(q => body.appendChild(renderCard(q)));
+    section.appendChild(head);
+    section.appendChild(body);
+    root.appendChild(section);
+  });
+  renderStats();
+}
+
+function renderCard(q) {
+  const card = document.createElement("div");
+  const answered = q.answer !== null && q.answer !== "";
+  card.className = "card" + (answered ? " answered" : "");
+  card.id = "card-" + q.id;
+
+  const opts = q.options.map(o => {
+    const sel = q.answer === o.id;
+    const desc = o.description ? `<div class="desc">${o.description}</div>` : "";
+    return `<label class="opt ${sel ? "sel" : ""}">
+      <input type="radio" name="${q.id}" value="${o.id}" ${sel ? "checked" : ""}
+        onchange="setAnswer('${q.id}','${o.id}')" />
+      <span><span class="lbl">${o.label}</span>${desc}</span>
+    </label>`;
+  }).join("");
+
+  const note = q.chat_more || "";
+  card.innerHTML = `
+    <span class="qid">${q.id}</span>
+    <h3>${q.title}</h3>
+    <p class="ctx">${q.context}</p>
+    <div class="opts">${opts}</div>
+    <div class="note-label">Note / nuance (optional — used to enrich CONTEXT.md)</div>
+    <textarea class="${note.trim() ? "has-content" : ""}" placeholder="Add context, nuance, or clarification for this question..."
+      oninput="setNote('${q.id}', this.value)">${note}</textarea>`;
+  return card;
+}
+
+function findQ(id) { return allQuestions().find(q => q.id === id); }
+
+function setAnswer(id, optId) {
+  const q = findQ(id);
+  q.answer = optId;
+  persist();
+  refreshCard(id);
+  recomputeStats();
+  renderStats();
+  refreshSectionCounts();
+}
+
+function setNote(id, val) {
+  const q = findQ(id);
+  q.chat_more = val;
+  persist();
+  const ta = document.querySelector(`#card-${id} textarea`);
+  if (ta) ta.classList.toggle("has-content", val.trim() !== "");
+  recomputeStats();
+}
+
+function refreshCard(id) {
+  const q = findQ(id);
+  const card = document.getElementById("card-" + id);
+  const answered = q.answer !== null && q.answer !== "";
+  card.classList.toggle("answered", answered);
+  card.querySelectorAll(".opt").forEach(el => {
+    const input = el.querySelector("input");
+    el.classList.toggle("sel", input.value === q.answer);
+  });
+}
+
+function refreshSectionCounts() {
+  DATA.sections.forEach((sec, i) => {
+    const answeredInSec = sec.questions.filter(q => q.answer !== null && q.answer !== "").length;
+    const el = document.querySelectorAll(".section-count")[i];
+    if (el) el.textContent = `${answeredInSec}/${sec.questions.length} answered`;
+  });
+}
+
+function serialized() {
+  recomputeStats();
+  return JSON.stringify(DATA, null, 2);
+}
+
+async function saveAnswers() {
+  const json = serialized();
+  // Prefer the File System Access API so the user can overwrite 08-QUESTIONS.json in place.
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: "08-QUESTIONS.json",
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
+      });
+      const w = await handle.createWritable();
+      await w.write(json);
+      await w.close();
+      toast("Saved. Return to Claude and say \"refresh\" (or \"finalize\").");
+      return;
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // user cancelled the picker
+      // otherwise fall through to download
+    }
+  }
+  // Fallback: download the file; user replaces the original.
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "08-QUESTIONS.json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast("Downloaded 08-QUESTIONS.json — replace the original, then say \"refresh\" to Claude.");
+}
+
+document.getElementById("loader").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const loaded = JSON.parse(text);
+    const map = {};
+    (loaded.sections || []).flatMap(s => s.questions || []).forEach(q => {
+      map[q.id] = { answer: q.answer ?? null, chat_more: q.chat_more ?? "" };
+    });
+    allQuestions().forEach(q => {
+      if (map[q.id]) { q.answer = map[q.id].answer; q.chat_more = map[q.id].chat_more; }
+    });
+    persist();
+    render();
+    toast("Loaded saved answers.");
+  } catch (e) { toast("Couldn't read that file — is it the 08-QUESTIONS.json?"); }
+  ev.target.value = "";
+});
+
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 4000);
+}
+
+restore();
+render();
+</script>

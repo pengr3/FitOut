@@ -1,0 +1,288 @@
+{
+  "phase": "08-group-bookings",
+  "generated_at": "2026-07-25T04:05:28.374Z",
+  "mode": "power",
+  "stats": {
+    "total": 18,
+    "answered": 0,
+    "chat_more": 0,
+    "remaining": 18
+  },
+  "framing": "v1 group bookings = a FREE RSVP coordination shell layered on a normal paid booking the organizer pays 100% for. RSVP never touches the GiST occupancy constraint and never becomes per-attendee payment. The gate resolved 2026-07-25: per-attendee cost-splitting (GPAY-01) + ticketing (GPAY-02) ARE a confirmed FUTURE milestone, so v1's rails (invites / RSVP / capacity / identity) are the deliberate foundation the paid version plugs into — not standalone busywork. Every decision below is HOW to build that foundation; scope (RSVP-only, no money) is fixed by ROADMAP + REQUIREMENTS.",
+  "sections": [
+    {
+      "id": "invite-rsvp-identity",
+      "title": "Invite & RSVP identity",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Invite delivery mechanism",
+          "context": "GROUP-02 literally says 'a shareable link AND/OR email', so both channels are in scope. Peerspace/Partiful lean on one broadcast link; Eventbrite/Google Calendar use per-recipient email invites. The token pattern already exists in src/lib/booking/reference.ts (crypto-random Crockford) — but note an invite token is a real ACCESS TOKEN (like the booking's opaque UUID id), not a friendly label.",
+          "options": [
+            { "id": "a", "label": "Both — one shareable link + targeted email invites (recommended)", "description": "One reusable group link the organizer drops in a chat, PLUS the option to send tokenized invites to specific emails. Matches GROUP-02's 'and/or' exactly and serves both 'blast my group chat' and 'invite these 5 people'." },
+            { "id": "b", "label": "Shareable link only", "description": "One link, anyone who opens it can RSVP. Lowest build cost; but you can't target a specific person or know who was invited vs who just found the link." },
+            { "id": "c", "label": "Per-email tokenized invites only", "description": "Every attendee gets their own scoped token by email. Maximum control + you know exactly who's invited; but no frictionless 'share in the group chat' path." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-02",
+          "title": "What an RSVP captures (attendee identity)",
+          "context": "GROUP-03 requires RSVP 'without needing a full account'. Resend's send(to,...) in src/lib/email.ts takes ANY email, so emailing non-account attendees works today. BUT the fitout/notify in-app row is keyed on recipientId = user.id, so a no-account attendee can only receive EMAIL, never an in-app notification. Capturing email also enables an RSVP confirmation + a pre-session reminder, and is the natural identity anchor a future per-attendee payment (GPAY-01) attaches to.",
+          "options": [
+            { "id": "a", "label": "Name + email (recommended)", "description": "Attendee types name + email to RSVP. Enables a confirmation email, a reminder, de-duping repeat RSVPs, and is the identity hook the future paid version reuses. Slight friction vs name-only." },
+            { "id": "b", "label": "Name only", "description": "Lowest friction, purely informational headcount. But you can't email the attendee anything, can't de-dupe, and there's no identity for the paid version to build on." },
+            { "id": "c", "label": "Name + email, auto-link if logged in", "description": "Same as (a), but if the attendee happens to be a signed-in FitOut user, attach their user.id so they also get an in-app notification. Best of both, marginally more logic." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Can an attendee change their RSVP after submitting?",
+          "context": "Plans change. Partiful/Meetup let attendees toggle yes/no freely until the event. This interacts with the headcount cap (Q-09): a yes→no frees a capped spot, a no→yes must re-check the cap atomically.",
+          "options": [
+            { "id": "a", "label": "Yes — can toggle yes/no until RSVP closes (recommended)", "description": "Attendee can revisit their invite/link and change their answer any time before the RSVP close time (Q-12). A no→yes re-competes for a spot under the same atomic cap." },
+            { "id": "b", "label": "No — RSVP is final once submitted", "description": "Simpler state model, no re-cap logic. But an attendee who clicks wrong or whose plans change is stuck, and the headcount can overstate who's actually coming." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-04",
+          "title": "Can one RSVP bring +guests?",
+          "context": "Eventbrite/Evite allow 'RSVP for me + N guests'. This directly changes cap math (Q-08): if +guests are allowed, the cap counts heads not RSVPs, and a no-account +guest has no identity. Keeping it one-person-one-RSVP keeps the count = number of 'yes' rows and the model clean for v1.",
+          "options": [
+            { "id": "a", "label": "One RSVP = one person, no +guests (recommended for v1)", "description": "Cap = count of 'yes' RSVPs. Cleanest headcount and the simplest thing to hard-cap atomically. '+guests' becomes a deferred idea for the paid/ticketing version where each head is a priced spot anyway." },
+            { "id": "b", "label": "Allow +N guests per RSVP", "description": "An attendee can say 'me + 2'. More realistic for casual groups, but the cap must count heads, and those extra heads have no name/email/identity — awkward for the paid version and for 'who's coming'." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "headcount-cap",
+      "title": "Headcount cap rules",
+      "questions": [
+        {
+          "id": "Q-05",
+          "title": "Capacity source for the cap",
+          "context": "listing.maxOccupancy (integer, NULLABLE — D-07 'single capacity int') is the obvious source and is exactly what the REQUIREMENTS open decision flags to confirm. Note unitCount is a DIFFERENT concept (multi-unit venue); a group booking wraps ONE booking on ONE unit, so the cap is about people in that one booked space, not units.",
+          "options": [
+            { "id": "a", "label": "listing.maxOccupancy is the hard ceiling (recommended)", "description": "Confirmed RSVPs are hard-capped at the host's stated max occupancy (SC#4). Single source of truth, host already owns it. Depends on Q-06 for the NULL case." },
+            { "id": "b", "label": "Organizer sets a group target ≤ maxOccupancy", "description": "Organizer picks how many they're inviting (bounded above by maxOccupancy if set). More control for the organizer; a second number to reconcile." },
+            { "id": "c", "label": "Both — default to maxOccupancy, organizer may lower it", "description": "Cap defaults to maxOccupancy but the organizer can set a smaller intended size. Flexible; slightly more UI + validation." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Fallback when listing.maxOccupancy is NULL",
+          "context": "maxOccupancy is nullable and is NOT required at publish, so many real listings will have no capacity set. SC#4's hard-cap only has meaning when a capacity exists. This is the second REQUIREMENTS open decision ('confirm capacity source drives overflow logic').",
+          "options": [
+            { "id": "a", "label": "No cap — RSVP stays purely informational (recommended)", "description": "If maxOccupancy is unset, headcount is shown but never blocks a 'yes'. SC#4's atomic hard-cap applies only where a capacity actually exists; nothing is fabricated. Simplest and honest." },
+            { "id": "b", "label": "Organizer must set a group size to enable invites", "description": "If the listing has no maxOccupancy, the organizer supplies the cap when creating the group. Always have a real cap; adds a required field at group creation." },
+            { "id": "c", "label": "Require host to set maxOccupancy before group invites work", "description": "Gate group invites on the host having set capacity (like bookability is gated on payout readiness). Cleanest data guarantee; but blocks organizers on hosts who never filled it in." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Does the organizer count toward the cap?",
+          "context": "The organizer paid for and is attending the session — they occupy a spot in the room. Meetup counts the host/organizer. If they don't count, a maxOccupancy of 10 could put 11 bodies in the space.",
+          "options": [
+            { "id": "a", "label": "Yes — organizer is attendee #1 (recommended)", "description": "Cap counts the organizer + confirmed attendees. Matches physical reality (the organizer is in the room) and prevents an off-by-one overflow." },
+            { "id": "b", "label": "No — cap counts invited attendees only", "description": "The number represents 'guests I can invite' on top of the organizer. More intuitive as an invite budget, but risks one body over maxOccupancy." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-08",
+          "title": "What counts toward the cap?",
+          "context": "SC#4 says 'CONFIRMED RSVPs are hard-capped'. If Q-04 keeps one-person-one-RSVP, then count = number of 'yes' rows (+organizer per Q-07). If +guests were allowed, this must count heads instead.",
+          "options": [
+            { "id": "a", "label": "Confirmed 'yes' RSVPs only (recommended)", "description": "A 'no' or an un-answered invite consumes nothing; only a 'yes' takes a spot. A yes→no frees the spot. Matches SC#4 wording precisely." },
+            { "id": "b", "label": "Yes + pending/unanswered (reserve a spot on invite)", "description": "Sending an invite tentatively holds a spot until declined. Prevents over-inviting, but 'invited but silent' people block real yeses — usually the wrong default for casual groups." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-09",
+          "title": "Behavior when the cap is reached",
+          "context": "SC#4 requires the cap be 'atomic, no overflow' and 'a partial RSVP leaves the booking valid'. The DB pattern for atomic-no-overflow already exists in this codebase (the at-most-once ON CONFLICT claim; conditional UPDATE ... WHERE count < cap). Note: a WAITLIST (DISC-02) is explicitly v2/out-of-scope, so it's a deferred idea, not a v1 option.",
+          "options": [
+            { "id": "a", "label": "Hard block: once full, no more 'yes' accepted; page shows 'full' (recommended)", "description": "The Nth yes fills it; the N+1th attendee sees 'this is full' and cannot confirm. Atomic at the DB level (no overflow). 'No' is always allowed. The organizer's booking stays valid regardless of how many said yes." },
+            { "id": "b", "label": "Cap only 'yes'; always allow 'no'/'maybe'", "description": "Effectively the same as (a) for the yes-cap, framed around also capturing declines. Fine if we want a 'maybe' state; adds a third RSVP value to model." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "group-creation-entry",
+      "title": "Group-creation entry point",
+      "questions": [
+        {
+          "id": "Q-10",
+          "title": "Where/how the organizer starts a group",
+          "context": "The booking detail page /bookings/[id] already exists, and /bookings/[id]/cancel is a precedent for a nested action route under a booking. The phase goal says the organizer 'HAS PAID for a booking' then invites — which points at the confirmed-booking surface rather than checkout. No group/invite/rsvp routes exist yet.",
+          "options": [
+            { "id": "a", "label": "'Invite people' on the confirmed booking detail page (recommended)", "description": "Every confirmed booking gets an 'Invite people' affordance; clicking it turns that booking into a group and opens invite management. Zero checkout changes, matches 'wraps a booking already paid for', and any booking can become a group after the fact." },
+            { "id": "b", "label": "Opt-in at checkout ('booking for a group?')", "description": "Organizer flags 'this is a group' during checkout. Sets intent early, but adds a branch to the money-critical checkout flow and can't retro-fit an existing booking." },
+            { "id": "c", "label": "Both — a checkout nudge + the post-booking affordance", "description": "Offer it at checkout AND on the booking page. Most discoverable; most surface area to build and keep consistent." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Which bookings qualify to become a group?",
+          "context": "The goal says the organizer 'has PAID' — i.e. a confirmed booking. Request-to-book only reaches 'confirmed' after host approval + payment, so 'confirmed' naturally includes both modes. unitCount (whole-space vs multi-unit) is a possible edge.",
+          "options": [
+            { "id": "a", "label": "Any confirmed (paid) booking (recommended)", "description": "If it's confirmed, the organizer has paid, so it can host a group — instant or request-to-book alike. Simplest rule, matches the goal. Pending/requested/cancelled bookings don't qualify." },
+            { "id": "b", "label": "Confirmed AND future only", "description": "Same as (a) but also require the session hasn't started/ended — no point inviting to a past session. Sensible refinement; (a) plus the RSVP-close rule (Q-12) may already cover it." },
+            { "id": "c", "label": "Restrict by mode or space type", "description": "e.g. only instant-book, or only whole-space (unitCount=1) listings. Adds guardrails but narrows the differentiator without a clear reason yet." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "lifecycle-edges",
+      "title": "Invite & RSVP lifecycle / edges",
+      "questions": [
+        {
+          "id": "Q-12",
+          "title": "When does RSVP close?",
+          "context": "booking.startsAt / endsAt are venue-local timestamptz. Closing RSVP bounds the cap race and stops late confusion. A pre-session reminder (Q-15) and the 'who's coming' view (Q-16) both key off this.",
+          "options": [
+            { "id": "a", "label": "At session start (recommended)", "description": "RSVP is open from creation until the session's start time, then locks. Simple, intuitive, and the headcount is final exactly when it matters." },
+            { "id": "b", "label": "A cutoff before start (e.g. 2h / 24h before)", "description": "Gives the organizer a firm number ahead of time. Requires choosing/justifying the offset; can frustrate last-minute joiners." },
+            { "id": "c", "label": "Never closes until the session ends", "description": "People can RSVP even after it starts (walk-ins). Most permissive; headcount never 'finalizes'." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-13",
+          "title": "What happens to invites/RSVPs if the booking is cancelled or refunded?",
+          "context": "Phase 7 shipped booker + host cancellation with refunds and durable notifications. Attendees who RSVP'd 'yes' have made plans around this session. Partiful/Eventbrite notify attendees when an event is cancelled.",
+          "options": [
+            { "id": "a", "label": "Auto-void all invites + email attendees the event is cancelled (recommended)", "description": "When the underlying booking is cancelled/refunded, invites stop accepting RSVPs and every 'yes' attendee gets a cancellation email. Honest and closes the loop; reuses the notify/email layer." },
+            { "id": "b", "label": "Silently void — links show 'no longer available', no proactive message", "description": "Invites become inert; an attendee only finds out if they revisit the link. Less email volume, but leaves people who planned to attend uninformed." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-14",
+          "title": "Can the organizer manage invites (revoke / remove / resend)?",
+          "context": "Organizers change their guest list. Revoking a tokenized invite must invalidate that token; removing a confirmed attendee frees a capped spot (interacts with Q-09). Resending / regenerating the shareable link is a common 'the old link leaked' need.",
+          "options": [
+            { "id": "a", "label": "Yes — revoke an invite, remove an attendee, resend/regenerate link (recommended)", "description": "Full organizer control from the group management view. Removing a 'yes' frees a spot atomically. A bit more UI + actions, but expected of a coordination tool." },
+            { "id": "b", "label": "Minimal — resend only, no revoke/remove", "description": "Organizer can re-share but can't kick someone or kill a leaked link. Less to build; weaker control." },
+            { "id": "c", "label": "None — fire-and-forget invites", "description": "Once sent, invites can't be managed. Cheapest; but no recourse for a wrong invite or a leaked link." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-15",
+          "title": "Do attendees get a pre-session reminder?",
+          "context": "Phase 7 already runs an at-most-once reminder cron (src/inngest/functions/reminders.ts) with a UNIQUE(booking_id, kind) claim — an attendee reminder would extend that pattern. Requires attendee email (Q-02 option a/c).",
+          "options": [
+            { "id": "a", "label": "Yes — 'yes' attendees get a pre-session reminder email (recommended)", "description": "Reuse the reminder infra to email confirmed attendees before the session. High value for actual attendance; low cost given the existing cron. Needs attendee email captured." },
+            { "id": "b", "label": "No attendee reminders in v1", "description": "Only the organizer (a real account) gets reminders via the existing path; attendees don't. Less to build; attendees may forget." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "visibility-foundation",
+      "title": "Visibility, notifications & paid-version foundation",
+      "questions": [
+        {
+          "id": "Q-16",
+          "title": "What does an attendee see about the booking?",
+          "context": "listing.showExactAddress (D-09, default approximate) governs how much of the address the PUBLIC sees; neighborhood is the approximate anchor. An RSVP'd attendee is more trusted than an anonymous browser but still may be a no-account stranger with just a link. GROUP-04 is about the ORGANIZER seeing who's coming; this is the reverse — what the attendee sees.",
+          "options": [
+            { "id": "a", "label": "Venue name + date/time + address per listing's showExactAddress (recommended)", "description": "Respect the host's exact-vs-approximate address setting, consistent with the public listing page. Safe default; an organizer can always share the precise address out-of-band." },
+            { "id": "b", "label": "Always show the exact address to a 'yes' attendee", "description": "They're confirmed coming, so give them the full address. More convenient; overrides the host's approximate-address preference for anyone holding a link." },
+            { "id": "c", "label": "Minimal — name + time only; organizer shares location themselves", "description": "The invite is just 'you're on the list'; location is the organizer's job. Most privacy-preserving; least useful as a standalone invite." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-17",
+          "title": "Notifications: organizer updates + attendee confirmations",
+          "context": "GROUP-04 requires the organizer see 'confirmed headcount and who is coming' — that can be a live view and/or a push. The fitout/notify layer gives the organizer (a real user) in-app + email; a no-account attendee can only get EMAIL (no recipientId for an in-app row). This is where new notification_type enum values would be added (compile-checked union in schema.ts).",
+          "options": [
+            { "id": "a", "label": "Organizer notified per RSVP + attendee gets an RSVP confirmation email (recommended)", "description": "Each 'yes'/'no' pings the organizer (in-app + email via notify), and each attendee gets an email confirming their RSVP. Closes the loop both directions; reuses existing infra." },
+            { "id": "b", "label": "Live headcount view for the organizer, no per-RSVP push", "description": "Organizer sees the count/list when they open the group page, but isn't pinged on every RSVP. Quieter; less real-time awareness. Attendee still gets a confirmation." },
+            { "id": "c", "label": "Digest — one summary to the organizer (e.g. at RSVP close)", "description": "Batch the updates into a single message. Least noise; least immediacy." },
+            { "id": "d", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-18",
+          "title": "How deliberately should the schema anticipate the paid version?",
+          "context": "The gate resolution (2026-07-25) is explicit: v1's rails are the FOUNDATION the future per-attendee-payment version (GPAY-01/02) plugs into. This is a HOW-to-build-v1 data-model decision, NOT scope creep — no payment is built now. The question is only how much shape to leave behind. Precedent in this repo: booking rows carry frozen snapshots + ledger rows keyed per-booking for money.",
+          "options": [
+            { "id": "a", "label": "Model each attendee/RSVP as its own row, payment-ready but unpriced (recommended)", "description": "A per-attendee row (keyed to the group + booking, carrying identity + RSVP state) so a future per-attendee price/payment attaches one-to-one with no reshape. Cheap now, and it's the explicit point of building the shell. No money columns yet." },
+            { "id": "b", "label": "Store RSVPs minimally now; refactor when paid arrives", "description": "Simplest v1 shape (e.g. a compact list/count), accept a schema migration later. Slightly less to build now; pays a refactor + data-migration cost when GPAY lands." },
+            { "id": "c", "label": "Other (note below)", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    }
+  ]
+}
