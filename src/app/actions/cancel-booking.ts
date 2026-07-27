@@ -55,6 +55,8 @@ import { availabilityBlock, booking, listing, user } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { composeWhenLabel, type WhenLabelInput } from "@/lib/booking/when-label";
 import { emitNotify } from "@/lib/notifications";
+import { emitGuestEmail } from "@/lib/group/guest-notify";
+import { listReachableYesAttendees } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
 import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/config";
@@ -321,6 +323,94 @@ async function notifyCancellation(
         refundLabel: formatMoney(refundCents, row.currency ?? DISPLAY_CURRENCY),
         href: `${base}/bookings/${bookingId}`,
       },
+    });
+  }
+}
+
+/**
+ * D-121 — CANCELLING A BOOKING CANCELS ITS GROUP. Two consequences, in this order:
+ *   1. The invite is VOIDED, so the link stops accepting RSVPs. Someone must not be able to keep saying
+ *      "I'm coming" to a session that is not happening — and the void, not a UI branch, is what stops it
+ *      (`getGroupByToken` filters on `voided_at IS NULL`, so a voided link renders exactly like an unknown
+ *      one — T-08-17 holds through cancellation too).
+ *   2. Every REACHABLE yes attendee is told. "Reachable" is doing real work: an account attendee gets the
+ *      durable in-app row + email via `fitout/notify`, a guest-with-email gets the email-only
+ *      `fitout/guest-email` path (a guest has no `user.id` and would fail the notification FK — RESEARCH
+ *      Pitfall 2), and a BLANK-EMAIL guest is unreachable BY DESIGN (D-117). That last one is a product
+ *      decision the invite page discloses up front ("this is your only confirmation"), not an oversight to
+ *      route around by inventing a channel for them.
+ *
+ * MONEY IS DELIBERATELY UNTOUCHED. The organizer bought the slot; per-attendee refunds do not exist (D-114).
+ * Nothing in here reads or writes a money column, and nothing in here may change the refund math.
+ *
+ * WHOLLY GUARDED, like every other post-commit consequence on these paths (the 07-11 discipline): the
+ * cancellation and its refund have ALREADY committed by the time this runs, so a failure here must surface
+ * as a `needs_attention` audit row rather than as a 500 for an action that in fact succeeded — or, worse, an
+ * exception thrown before the refund's own notification.
+ *
+ * IDEMPOTENT: the UPDATE is scoped `voided_at IS NULL`, so a repeat claims 0 rows and notifies nobody twice.
+ */
+async function voidGroupAndNotifyAttendees(row: OwnedBooking, bookingId: string): Promise<void> {
+  try {
+    const [group] = (await db.execute(sql`
+      UPDATE booking_group
+      SET voided_at = now()
+      WHERE booking_id = ${bookingId}
+        AND voided_at IS NULL
+      RETURNING id, access_token AS "accessToken"
+    `)) as unknown as { id: string; accessToken: string }[];
+    // No group on this booking (the overwhelmingly common case), or it was already voided. Either way
+    // there is nothing to announce.
+    if (!group) return;
+
+    const attendees = await listReachableYesAttendees(db, group.id);
+    const whenLabel = composeWhenLabel(whenLabelInput(row));
+    const listingTitle = row.title ?? "the space";
+    const href = `${appBaseUrl()}/invite/${group.accessToken}`;
+
+    let notified = 0;
+    for (const attendee of attendees) {
+      // The ORGANIZER already has their own cancellation notice (and, on the host path, their refund
+      // notice). Telling them a second time that their own booking is off is noise, not news.
+      if (attendee.userId != null && attendee.userId === row.bookerId) continue;
+
+      if (attendee.userId != null) {
+        await emitNotify({
+          type: "group_cancelled",
+          recipientId: attendee.userId,
+          bookingId,
+          email: attendee.accountEmail,
+          payload: { type: "group_cancelled", listingTitle, whenLabel, href },
+        });
+        notified += 1;
+      } else if (attendee.guestEmail != null) {
+        await emitGuestEmail({
+          to: attendee.guestEmail,
+          kind: "group_cancelled",
+          listingTitle,
+          whenLabel,
+          href,
+        });
+        notified += 1;
+      }
+    }
+
+    await recordAudit({
+      actorId: "system",
+      action: "group_voided_on_cancel",
+      outcome: "ok",
+      // A COUNT, never a roster: an audit row must not become a durable copy of who was coming (T-07-38).
+      meta: { bookingId, groupId: group.id, notified },
+    });
+  } catch {
+    // DELIBERATELY no error object: an enqueue error can echo a payload carrying a guest's address back at
+    // the log line (the same no-leak rule as the D-72 transfer catch above).
+    console.error("[CANCEL_ALERT] group_void_failed", { bookingId });
+    await recordAudit({
+      actorId: "system",
+      action: "group_void_failed",
+      outcome: "needs_attention",
+      meta: { bookingId },
     });
   }
 }
@@ -631,6 +721,10 @@ export async function cancelBookingAsBooker(
   // The AMOUNT is passed, never a pre-formatted label — notifyCancellation suppresses the refund notice
   // when it is 0 (CR-01) and composes the label itself past that guard.
   await notifyCancellation(row, bookingId, quote.totalRefundCents);
+
+  // D-121 — the group consequence, AFTER the money notice so the booker's own messages are never delayed
+  // behind an attendee fan-out. Guarded internally; it cannot throw past this line.
+  await voidGroupAndNotifyAttendees(row, bookingId);
 
   revalidateCancelSurfaces(bookingId);
   return notice
@@ -1058,6 +1152,11 @@ export async function cancelBookingAsHost(
       href: `${base}/host/bookings`,
     },
   });
+
+  // D-121 — the SAME group consequence as the booker path. A host cancellation is the case where the
+  // attendees are least likely to find out any other way, so omitting it here would be the worse of the
+  // two omissions.
+  await voidGroupAndNotifyAttendees(row, bookingId);
 
   revalidateCancelSurfaces(bookingId, row.listingId);
   return { ok: true, refundCents };

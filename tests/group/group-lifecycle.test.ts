@@ -26,6 +26,7 @@ import { sql } from "drizzle-orm";
 
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, booking, bookingGroup } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { getGroupByToken, getRoster } from "@/lib/group/rsvp";
@@ -36,6 +37,7 @@ const PASSWORD = "averylongpassword";
 const HOST_EMAIL = "gl_host@example.com";
 const ORG_EMAIL = "gl_organizer@example.com";
 const STRANGER_EMAIL = "gl_stranger@example.com";
+const ATTENDEE_EMAIL = "gl_attendee@example.com";
 
 const sessionHeaders: { cookie: string } = { cookie: "" };
 vi.mock("next/headers", () => ({
@@ -60,10 +62,20 @@ let createGroup: GroupActions["createGroup"];
 let submitRsvp: GroupActions["submitRsvp"];
 let removeAttendee: GroupActions["removeAttendee"];
 let regenerateLink: GroupActions["regenerateLink"];
+type CancelActions = typeof import("@/app/actions/cancel-booking");
+let cancelBookingAsBooker: CancelActions["cancelBookingAsBooker"];
+let cancelBookingAsHost: CancelActions["cancelBookingAsHost"];
 
 let hostId: string;
 let organizerId: string;
 let strangerId: string;
+let attendeeId: string;
+
+const events = () => inngestSend.mock.calls.map((c) => c[0]);
+const notifiesOf = (type: string) =>
+  events().filter((e) => e.name === "fitout/notify" && e.data.type === type);
+const guestEmailsOf = (kind: string) =>
+  events().filter((e) => e.name === "fitout/guest-email" && e.data.kind === kind);
 
 /** Distinct windows per listing so the GiST exclusion never fires for an unrelated reason. */
 let slot = 0;
@@ -122,6 +134,9 @@ async function seedBooking(
     serviceFeeCents: 5000,
     quotedTotalCents: 105000,
     currency: "php",
+    // A confirmed booking carries a captured payment, so the cancel paths reach their real refund branch.
+    paymentId: status === "confirmed" ? `pay_${id}` : null,
+    paymentMethod: status === "confirmed" ? "gcash" : null,
   });
 }
 
@@ -164,16 +179,33 @@ beforeAll(async () => {
     firstName: "Stan",
     intent: "book",
   });
+  await signUp(testAuth, {
+    email: ATTENDEE_EMAIL,
+    password: PASSWORD,
+    name: "Ada Account",
+    firstName: "Ada",
+    intent: "book",
+  });
 
   const ids = await testDb.db.select({ id: user.id, email: user.email }).from(user);
   hostId = ids.find((u) => u.email === HOST_EMAIL)!.id;
   organizerId = ids.find((u) => u.email === ORG_EMAIL)!.id;
   strangerId = ids.find((u) => u.email === STRANGER_EMAIL)!.id;
+  attendeeId = ids.find((u) => u.email === ATTENDEE_EMAIL)!.id;
 
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
   vi.doMock("@/inngest/client", () => ({ inngest: { send: inngestSend } }));
+  vi.doMock("@/lib/paymongo", () => ({
+    createRefund: mockPayMongo.createRefund,
+    createCheckoutSession: mockPayMongo.createCheckoutSession,
+    createBatchTransfer: mockPayMongo.createBatchTransfer,
+    createRefundTransfer: mockPayMongo.createBatchTransfer,
+    listWalletAccounts: mockPayMongo.listWalletAccounts,
+    listReceivingInstitutions: async () => [],
+    INSTAPAY_CEILING_CENTS: 5_000_000,
+  }));
   vi.doMock("@/lib/rate-limit", () => ({
     rateLimit: alwaysAllow,
     requireWithinRateLimit: alwaysAllow,
@@ -182,10 +214,14 @@ beforeAll(async () => {
   ({ createGroup, submitRsvp, removeAttendee, regenerateLink } = await import(
     "@/app/actions/group"
   ));
+  ({ cancelBookingAsBooker, cancelBookingAsHost } = await import(
+    "@/app/actions/cancel-booking"
+  ));
 
   await seedListing("L_gl_main", 5);
   await seedListing("L_gl_cap", 2);
   await seedListing("L_gl_past", 4);
+  await seedListing("L_gl_cancel", 6);
 
   await seedBooking("bk_gl_confirmed", "L_gl_main", organizerId, "confirmed");
   await seedBooking("bk_gl_unpaid", "L_gl_main", organizerId, "approved");
@@ -193,6 +229,9 @@ beforeAll(async () => {
   await seedBooking("bk_gl_cap", "L_gl_cap", organizerId, "confirmed");
   await seedBooking("bk_gl_past", "L_gl_past", organizerId, "confirmed", "past");
   await seedBooking("bk_gl_regen", "L_gl_main", organizerId, "confirmed");
+  await seedBooking("bk_gl_cancel_booker", "L_gl_cancel", organizerId, "confirmed");
+  await seedBooking("bk_gl_cancel_host", "L_gl_cancel", organizerId, "confirmed");
+  await seedBooking("bk_gl_cancel_self", "L_gl_cancel", organizerId, "confirmed");
 });
 
 afterAll(async () => {
@@ -200,6 +239,7 @@ afterAll(async () => {
   vi.doUnmock("@/lib/db");
   vi.doUnmock("next/cache");
   vi.doUnmock("@/inngest/client");
+  vi.doUnmock("@/lib/paymongo");
   vi.doUnmock("@/lib/rate-limit");
   await teardownTestDb(testDb);
 });
@@ -453,9 +493,164 @@ describe("regenerateLink — D-121 kills the leaked link, keeps the people", () 
   });
 });
 
+describe("D-121 — cancelling a booking auto-voids its invites and tells the attendees", () => {
+  /** Fill a group with one account attendee, one guest-with-email, and one unreachable blank guest. */
+  async function seedAttendees(accessToken: string, suffix: string): Promise<void> {
+    await login(ATTENDEE_EMAIL);
+    expect((await submitRsvp(accessToken, { name: "ignored", answer: "yes" })).ok).toBe(true);
+    sessionHeaders.cookie = "";
+    expect(
+      (await submitRsvp(accessToken, {
+        name: "Gina Guest",
+        email: `gina_${suffix}@example.com`,
+        answer: "yes",
+      })).ok,
+    ).toBe(true);
+    expect(
+      (await submitRsvp(accessToken, { name: "Blank Bea", answer: "yes" })).ok,
+    ).toBe(true);
+    // Someone who declined must NOT be told a session they weren't attending is off.
+    expect(
+      (await submitRsvp(accessToken, {
+        name: "Declining Dana",
+        email: `dana_${suffix}@example.com`,
+        answer: "no",
+      })).ok,
+    ).toBe(true);
+  }
+
+  it("booker cancellation: voided_at is set, the invite dies, reachable yes attendees are told", async () => {
+    await login(ORG_EMAIL);
+    const created = await createGroup("bk_gl_cancel_booker");
+    if (!created.ok) throw new Error("setup: group must be created");
+    await seedAttendees(created.accessToken, "booker");
+
+    await login(ORG_EMAIL);
+    inngestSend.mockClear();
+    const res = await cancelBookingAsBooker("bk_gl_cancel_booker");
+    expect(res.ok).toBe(true);
+
+    // (1) The invite is VOIDED.
+    const [g] = await groupRow("bk_gl_cancel_booker");
+    expect(g.voidedAt).not.toBeNull();
+
+    // (2) …and the link genuinely stops accepting RSVPs — the acceptance criterion, driven through the
+    //     real public action rather than asserted off the column.
+    sessionHeaders.cookie = "";
+    const afterCancel = await submitRsvp(created.accessToken, {
+      name: "Too Late Tom",
+      answer: "yes",
+    });
+    expect(afterCancel.ok).toBe(false);
+    if (!afterCancel.ok) expect(afterCancel.error).toMatch(/no longer active/i);
+
+    // (3) Reachable yes attendees are told, once each, on the right channel.
+    const cancelled = notifiesOf("group_cancelled");
+    expect(cancelled).toHaveLength(1);
+    expect(cancelled[0].data.recipientId).toBe(attendeeId);
+
+    const guestMails = guestEmailsOf("group_cancelled");
+    expect(guestMails).toHaveLength(1);
+    expect(guestMails[0].data.to).toBe("gina_booker@example.com");
+
+    // (4) The blank-email guest is unreachable BY DESIGN, and the decliner is not told either — so the
+    //     fan-out is exactly two, not four.
+    expect(cancelled.length + guestMails.length).toBe(2);
+    expect(JSON.stringify(events())).not.toContain("dana_booker@example.com");
+
+    // (5) The booker's own money notices still fired — the group consequence did not displace them.
+    expect(notifiesOf("booking_cancelled_by_booker")).toHaveLength(1);
+    expect(notifiesOf("refund_issued")).toHaveLength(1);
+  });
+
+  it("host cancellation: the same consequence fires on the host path", async () => {
+    await login(ORG_EMAIL);
+    const created = await createGroup("bk_gl_cancel_host");
+    if (!created.ok) throw new Error("setup: group must be created");
+    await seedAttendees(created.accessToken, "host");
+
+    await login(HOST_EMAIL);
+    inngestSend.mockClear();
+    const res = await cancelBookingAsHost("bk_gl_cancel_host", "maintenance");
+    expect(res.ok).toBe(true);
+
+    const [g] = await groupRow("bk_gl_cancel_host");
+    expect(g.voidedAt).not.toBeNull();
+
+    expect(notifiesOf("group_cancelled")).toHaveLength(1);
+    expect(guestEmailsOf("group_cancelled").map((e) => e.data.to)).toEqual([
+      "gina_host@example.com",
+    ]);
+    // Both parties' host-cancellation notices are untouched (the refund math is not this plan's business).
+    expect(notifiesOf("booking_cancelled_by_host")).toHaveLength(2);
+    if (res.ok) expect(res.refundCents).toBe(105000);
+  });
+
+  it("an organizer who RSVP'd to their OWN group is never notified twice", async () => {
+    // The organizer is a legitimate attendee (D-113 — they are person #1), so they can answer their own
+    // link. Two de-duplications must then hold, and neither is visible from the other cases: they are not
+    // pinged that "someone RSVP'd" about themselves, and at cancellation they get their own cancellation
+    // notice ONCE rather than that plus a group_cancelled.
+    await login(ORG_EMAIL);
+    const created = await createGroup("bk_gl_cancel_self");
+    if (!created.ok) throw new Error("setup: group must be created");
+
+    inngestSend.mockClear();
+    expect((await submitRsvp(created.accessToken, { name: "ignored", answer: "yes" })).ok).toBe(true);
+    expect(notifiesOf("group_rsvp_received")).toHaveLength(0); // no "you RSVP'd to your own booking"
+    expect(notifiesOf("group_rsvp_confirmed")).toHaveLength(1); // they ARE an attendee now
+
+    // A reachable guest too, so the fan-out below is genuinely non-empty and the organizer's absence from
+    // it means something.
+    sessionHeaders.cookie = "";
+    expect(
+      (await submitRsvp(created.accessToken, {
+        name: "Gina Guest",
+        email: "gina_self@example.com",
+        answer: "yes",
+      })).ok,
+    ).toBe(true);
+
+    await login(ORG_EMAIL);
+    inngestSend.mockClear();
+    expect((await cancelBookingAsBooker("bk_gl_cancel_self")).ok).toBe(true);
+
+    const cancelled = notifiesOf("group_cancelled");
+    expect(cancelled.map((e) => e.data.recipientId)).not.toContain(organizerId);
+    expect(cancelled).toHaveLength(0);
+    // The guest still hears about it, and the organizer still gets their own cancellation notices.
+    expect(guestEmailsOf("group_cancelled").map((e) => e.data.to)).toEqual([
+      "gina_self@example.com",
+    ]);
+    expect(notifiesOf("booking_cancelled_by_booker")).toHaveLength(1);
+    expect(notifiesOf("refund_issued")).toHaveLength(1);
+  });
+
+  it("a second cancel attempt notifies nobody twice (the void is idempotent)", async () => {
+    await login(ORG_EMAIL);
+    inngestSend.mockClear();
+    const again = await cancelBookingAsBooker("bk_gl_cancel_booker");
+    expect(again.ok).toBe(false); // already cancelled — the status-scoped UPDATE claims 0 rows
+    expect(notifiesOf("group_cancelled")).toHaveLength(0);
+    expect(guestEmailsOf("group_cancelled")).toHaveLength(0);
+  });
+
+  it("cancelling a booking with NO group is a calm no-op", async () => {
+    await login(ORG_EMAIL);
+    inngestSend.mockClear();
+    // bk_gl_stranger belongs to Stan and has no group; cancel Stan's own, groupless booking as Stan.
+    await login(STRANGER_EMAIL);
+    const res = await cancelBookingAsBooker("bk_gl_stranger");
+    expect(res.ok).toBe(true);
+    expect(notifiesOf("group_cancelled")).toHaveLength(0);
+    expect(guestEmailsOf("group_cancelled")).toHaveLength(0);
+  });
+});
+
 describe("fixture sanity", () => {
   it("the organizer, the stranger and the host are genuinely different identities", () => {
     expect(organizerId).not.toBe(strangerId);
     expect(organizerId).not.toBe(hostId);
+    expect(organizerId).not.toBe(attendeeId);
   });
 });
