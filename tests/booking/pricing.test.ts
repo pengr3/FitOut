@@ -98,6 +98,126 @@ describe("quoteWindow — server-authoritative frozen quote (D-45/D-46)", () => 
   });
 });
 
+// The D-108 pax surcharge (GROUP-01/GROUP-05). quoteWindow stays a pure, no-I/O function over the listing's
+// own included/extraHeadFee and the organizer's declaredPax: total = base + max(0, pax − included) × fee.
+// The load-bearing correctness facts proven here, all off the SAME pure function the freeze site calls:
+//   - extraHeadFee absent/0 ⇒ byte-identical to today's flat quote (zero leak, backward-compatible default);
+//   - a real surcharge adds (pax − included) × fee to the base and surfaces extraHeads + the per-head cents;
+//   - the surcharge FLOORS at 0 (Math.max) so pax ≤ included — including organizer-only (D-113) — adds nothing;
+//   - integer centavos throughout, and the money-correctness throw still fires on a missing base rate.
+// Per A1 the surcharge is HOST REVENUE folded into totalCents at the caller (units.ts) → the payout + service-
+// fee basis; quoteWindow itself only knows the listing's rates, never the platform fee (07-08 seam preserved).
+describe("quoteWindow — D-108 pax surcharge (host revenue; folds into totalCents, A1)", () => {
+  it("extraHeadFee absent (or 0) is byte-identical to the shipped flat quote — zero leak", () => {
+    // Pin against the pre-existing D-45 flat case: an 8h hourly run is 40000. Threading included/declaredPax
+    // with NO fee configured must not move that total by a single centavo (backward-compat default).
+    const flat = quoteWindow({ ...windowOf(8), fullDay: false, hourlyRateCents: HOURLY, dayRateCents: DAY });
+    expect(flat.totalCents).toBe(40000); // the shipped D-45 total this backward-compat case is pinned to
+
+    const paxNoFee = quoteWindow({
+      ...windowOf(8),
+      fullDay: false,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY,
+      included: 1,
+      declaredPax: 10, // a big group — but with no extraHeadFee there is no surcharge machinery
+    });
+    expect(paxNoFee.totalCents).toBe(flat.totalCents);
+    expect(paxNoFee.totalCents).toBe(40000);
+    expect(paxNoFee.extraHeads).toBe(0);
+    expect(paxNoFee.extraHeadCents).toBe(0);
+
+    // An explicit extraHeadFee:0 (not merely absent) is equally inert.
+    const zeroFee = quoteWindow({
+      ...windowOf(8),
+      fullDay: false,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY,
+      included: 2,
+      extraHeadFee: 0,
+      declaredPax: 9,
+    });
+    expect(zeroFee.totalCents).toBe(40000);
+    expect(zeroFee.extraHeads).toBe(0);
+    expect(zeroFee.extraHeadCents).toBe(0);
+  });
+
+  it("extraHeadFee>0 with declaredPax>included adds (pax − included) × fee to the base", () => {
+    // base 2h hourly = 10000; included 2, declaredPax 5 ⇒ 3 extra heads × 1500 = 4500 surcharge ⇒ 14500.
+    const q = quoteWindow({
+      ...windowOf(2),
+      fullDay: false,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY,
+      included: 2,
+      extraHeadFee: 1500,
+      declaredPax: 5,
+    });
+    expect(q.totalCents).toBe(10000 + 3 * 1500); // 14500
+    expect(q.extraHeads).toBe(3);
+    expect(q.extraHeadCents).toBe(1500);
+  });
+
+  it("declaredPax ≤ included floors the surcharge at 0 (Math.max), incl. organizer-only (D-113)", () => {
+    // pax below included — the floor prevents a negative surcharge.
+    const under = quoteWindow({
+      ...windowOf(2),
+      fullDay: false,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY,
+      included: 4,
+      extraHeadFee: 1500,
+      declaredPax: 2,
+    });
+    expect(under.totalCents).toBe(10000);
+    expect(under.extraHeads).toBe(0);
+
+    // Organizer-only: declaredPax=1, included=1 ⇒ attendee #1 is folded into the base, no surcharge (D-113).
+    const solo = quoteWindow({
+      ...windowOf(2),
+      fullDay: false,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY,
+      included: 1,
+      extraHeadFee: 1500,
+      declaredPax: 1,
+    });
+    expect(solo.totalCents).toBe(10000);
+    expect(solo.extraHeads).toBe(0);
+    expect(solo.extraHeadCents).toBe(1500); // the per-head line is still surfaced for the breakdown UI
+  });
+
+  it("keeps integer centavos and still throws on a missing base rate even with a surcharge configured", () => {
+    // The surcharge machinery must never mask the money-correctness guard: no hourly rate ⇒ throw.
+    expect(() =>
+      quoteWindow({
+        ...windowOf(2),
+        fullDay: false,
+        hourlyRateCents: null,
+        dayRateCents: DAY,
+        included: 1,
+        extraHeadFee: 1500,
+        declaredPax: 4,
+      }),
+    ).toThrow();
+
+    // A full-day surcharge sums onto the flat day rate as an integer (no float): 30000 + 2×2500 = 35000.
+    const day = quoteWindow({
+      ...windowOf(8),
+      fullDay: true,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY,
+      included: 1,
+      extraHeadFee: 2500,
+      declaredPax: 3,
+    });
+    expect(day.totalCents).toBe(35000);
+    expect(Number.isInteger(day.totalCents)).toBe(true);
+    expect(day.extraHeads).toBe(2);
+    expect(day.extraHeadCents).toBe(2500);
+  });
+});
+
 describe("makeBookingReference — FIT- Crockford base32 reference (A6, Security V6)", () => {
   const FORMAT = /^FIT-[0-9A-HJKMNP-TV-Z]{8}$/; // 8 Crockford base32 chars: no I, L, O, U
 
