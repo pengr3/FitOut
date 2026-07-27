@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: discuss_ready
-stopped_at: "Phase 8 payment MODEL fully designed (2026-07-26): single-payer + exclusive-only + unified surcharge pricing (base + per-extra-head over an included count, fee defaults 0); open-play deferred to GPAY-02; leak bounded-by-design. Supersedes the 2026-07-25 'free-RSVP shell' framing. Ready to run /gsd-discuss-phase 8 → 08-CONTEXT.md"
-last_updated: "2026-07-26T14:04:44.840Z"
-last_activity: 2026-07-26
+stopped_at: "Phase 8 OCCUPANCY + PAYMENT models both resolved. Payment (2026-07-26): single-payer + exclusive-only + unified surcharge pricing (base + per-extra-head over an included count, fee defaults 0); leak bounded-by-design. Occupancy (2026-07-27): host-set, per-listing, THREE modes — exclusive (Phase 8), drop-in/common-use (own future phase, capacity-counter), open-play/cost-split (future GPAY-01, organizer-driven). Phase 8 = exclusive-only + records occupancy_mode (default exclusive); Q-18 = per-attendee rows. Drop-in gyms ≠ open play (different subsystems). Roadmap follow-up owed: add drop-in/common-use phase via /gsd-phase. Ready to run /gsd-discuss-phase 8 → 08-CONTEXT.md (headcount reconciliation still open)."
+last_updated: "2026-07-27T03:32:12.000Z"
+last_activity: 2026-07-27
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 7
   total_plans: 60
   completed_plans: 61
@@ -185,6 +185,10 @@ Progress: [██████████] 100%
 | Phase 07 P20 | 11 | 3 tasks | 9 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 9 added (2026-07-27): **Open-Capacity Bookings** — the second host-set occupancy mode (drop-in / common-use, capacity-counter availability), split out of the Phase-8 group-booking discussion as its own phase because it stresses AVAILABILITY (a concurrent seat-claim), not payment. Each visitor books single-payer on the existing rail; the new work is a capacity-counter that replaces the GiST exclusion constraint for these listings, race-proven. Adds OPEN-01..04; depends on Phase 8's `occupancy_mode` seam (default `exclusive`). Organizer-driven open play / cost-split (GPAY-01) remains deferred.
 
 ### Decisions
 

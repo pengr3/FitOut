@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
  (completed 2026-07-20)
 - [x] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
 - [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity
+- [ ] **Phase 9: Open-Capacity Bookings** - Host-set open/common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail
 
 ## Phase Details
 
@@ -199,10 +200,22 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
+### Phase 9: Open-Capacity Bookings
+**Goal**: A host can list a space in **open / common-use** mode where many independent bookers share one time slot up to a capacity cap — the drop-in gym, the host-run open court — instead of one exclusive lock. Each visitor books and pays for their own head(s) on the **existing single-payer rail** (no cost-splitting, no multi-payer); the genuinely new work is a **capacity-counter availability model** that safely admits N concurrent bookings on the same slot up to the cap, replacing the GiST exclusion constraint for these listings. Because that is a count-then-insert seat-claim on the money path — the exact anti-pattern the exclusion constraint was built to avoid — it needs its own concurrency-correct design (materialized seat-claim via `UNIQUE`, an advisory lock, or a serializable transaction), proven under a genuine concurrent-overbook race before it ships. This is the **second host-set occupancy mode** (the first, exclusive, is Phase 8's basis). Deferred as separate future work: organizer-driven open play / cost-split (GPAY-01), which keeps the exclusion constraint and builds on Phase 8's RSVP shell.
+**Depends on**: Phase 8 (reuses the host-set `occupancy_mode` column Phase 8 introduces — default `exclusive` — and adds the `open_capacity` mode + its booking path). Also reaches back into Phase 2 (host picks occupancy mode + sets per-head capacity pricing) and Phase 4 (search/availability shows remaining capacity, not just free/taken).
+**Requirements**: OPEN-01, OPEN-02, OPEN-03, OPEN-04
+**Success Criteria** (what must be TRUE):
+  1. A host can publish an open-capacity listing with a per-head price and a capacity cap (occupancy mode set on the listing)
+  2. Multiple different bookers can each reserve their own spot on the same time slot until the cap is reached, each paying only for their own head(s) via the existing rail
+  3. The (cap+1)-th concurrent booking is rejected atomically at the database level with no overbooking — proven under a genuine concurrent race (analogous to Phase 3 SC#4 for exclusive listings)
+  4. Availability and search reflect remaining capacity (spots left), not merely free/taken
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -214,3 +227,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
 | 8. Group Bookings | 0/TBD | Not started | - |
+| 9. Open-Capacity Bookings | 0/TBD | Not started | - |

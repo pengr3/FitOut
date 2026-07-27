@@ -79,6 +79,15 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **GROUP-04**: Organizer can see the confirmed headcount and who is coming
 - [ ] **GROUP-05**: Confirmed headcount is validated against the listing's capacity
 
+### Open-Capacity Bookings (Second Occupancy Mode)
+
+Host-set open / common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail. A separate occupancy mode from exclusive group bookings (Phase 8); the new engineering is a capacity-counter availability model, not per-attendee payment. Added 2026-07-27 (Phase 9).
+
+- [ ] **OPEN-01**: Host can set a listing to open-capacity mode with a per-head price and a capacity cap
+- [ ] **OPEN-02**: Multiple independent bookers can each reserve their own spot on the same shared time slot, each paying for their own head(s) via the existing rail
+- [ ] **OPEN-03**: Concurrent bookings on a shared slot are hard-capped at capacity with no overbooking — enforced atomically at the database level and proven under a race
+- [ ] **OPEN-04**: Availability and search show remaining capacity (spots left) for open-capacity listings
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -173,14 +182,18 @@ Which phases cover which requirements. Populated during roadmap creation.
 | GROUP-03 | Phase 8 | Pending |
 | GROUP-04 | Phase 8 | Pending |
 | GROUP-05 | Phase 8 | Pending |
+| OPEN-01 | Phase 9 | Pending |
+| OPEN-02 | Phase 9 | Pending |
+| OPEN-03 | Phase 9 | Pending |
+| OPEN-04 | Phase 9 | Pending |
 
 **Coverage:**
-- v1 requirements: 45 total
-- Mapped to phases: 45 (100%) ✓
+- v1 requirements: 49 total
+- Mapped to phases: 49 (100%) ✓
 - Unmapped: 0
 
-> Note: the original summary count of "42 total" undercounted the enumerated requirements; the actual v1 requirement IDs number 45 (AUTH 5, LIST 6, AVAIL 5, SEARCH 5, BOOK 7, PAY 6, HOST 3, MANAGE 3, GROUP 5). All 45 are mapped.
+> Note: the original summary count of "42 total" undercounted the enumerated requirements; the v1 requirement IDs now number 49 (AUTH 5, LIST 6, AVAIL 5, SEARCH 5, BOOK 7, PAY 6, HOST 3, MANAGE 3, GROUP 5, OPEN 4). All 49 are mapped. (OPEN-01..04 added 2026-07-27 with Phase 9: Open-Capacity Bookings.)
 
 ---
 *Requirements defined: 2026-06-03*
-*Last updated: 2026-06-03 after roadmap creation (traceability populated, count corrected to 45)*
+*Last updated: 2026-07-27 — added Phase 9 (Open-Capacity Bookings) + OPEN-01..04; v1 count 45 → 49*
