@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: plan_ready
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-07-27T09:48:13.300Z"
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-07-27T10:05:20.662Z"
 last_activity: 2026-07-27
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 69
-  completed_plans: 64
+  completed_plans: 65
   percent: 78
 ---
 
@@ -26,13 +26,13 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Next action: `/gsd-execute-phase 8`
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-27
 
-Progress: [█████████░] 93%
+Progress: [█████████░] 94%
 
 **Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-17** (all; 07-17 is the gap-closure plan for CR-01/CR-02/WR-04/WR-06).
 
@@ -187,6 +187,7 @@ Progress: [█████████░] 93%
 | Phase 08 P01 | 17 | 2 tasks | 4 files |
 | Phase 08 P02 | 12 | 2 tasks | 5 files |
 | Phase 08 P03 | 9 | 2 tasks | 6 files |
+| Phase 08 P04 | 30 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -297,6 +298,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-02: RSVP no-overflow is the D-112 pessimistic seat-claim (SELECT capacity_snapshot ... FOR UPDATE + count under the lock in claimSeat), the atomic authority — mutation-verified via the two-connection makeRacingClients race gate (delete FOR UPDATE -> red -> restore). Invite/manage tokens are ~100-bit crypto Crockford bearer credentials over randomBytes(20), no FIT- prefix (D-118).
 - [Phase ?]: 08-03: the D-108 pax surcharge folds into spacePriceCents (A1) — host revenue, the payout + service-fee basis; extraHeadFee=0 stays byte-identical to today; Phase-5 rail unchanged (D-107)
 - [Phase ?]: 08-03: booking.declared_pax persisted only when the listing charges per head (extra_head_fee>0), else NULL (D-108); declaredPax is shape-only at the schema, price re-derived server-side
+- [Phase ?]: D-122: group RSVP notification types added as the four-file compile-checked change (no default:); guests (null user_id) use a separate email-only fitout/guest-email fn with no durable row (RESOLVED A2 / Pitfall 2)
 
 ### Pending Todos
 
@@ -346,8 +348,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-27T09:48:13.275Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-07-27T10:05:20.606Z
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None
 
 Prior session: 2026-07-24T04:37:54.671Z

@@ -246,7 +246,7 @@ Plans:
 
 - [x] 08-02-PLAN.md — Seat-claim + invite token + the GROUP-05 acceptance-gate race test (red-first, mutation-verified)
 - [x] 08-03-PLAN.md — Pax pricing backend: quoteWindow surcharge (D-108) + placeHold declaredPax, folded into spacePriceCents (A1)
-- [ ] 08-04-PLAN.md — Notifications: four-file group types + email-only guest Inngest fn + migration 0018 [BLOCKING]
+- [x] 08-04-PLAN.md — Notifications: four-file group types + email-only guest Inngest fn + migration 0018 [BLOCKING]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -293,5 +293,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
-| 8. Group Bookings | 3/9 | In Progress|  |
+| 8. Group Bookings | 4/9 | In Progress|  |
 | 9. Open-Capacity Bookings | 0/TBD | Not started | - |

@@ -76,7 +76,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **GROUP-01**: Organizer can create a group booking on top of a paid booking (organizer pays the full booking)
 - [ ] **GROUP-02**: Organizer can invite attendees via a shareable link and/or email
 - [x] **GROUP-03**: Invited attendees can RSVP (yes/no) without needing a full account
-- [ ] **GROUP-04**: Organizer can see the confirmed headcount and who is coming
+- [x] **GROUP-04**: Organizer can see the confirmed headcount and who is coming
 - [x] **GROUP-05**: Confirmed headcount is validated against the listing's capacity
 
 ### Open-Capacity Bookings (Second Occupancy Mode)
@@ -180,7 +180,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | GROUP-01 | Phase 8 | Complete |
 | GROUP-02 | Phase 8 | Pending |
 | GROUP-03 | Phase 8 | Complete |
-| GROUP-04 | Phase 8 | Pending |
+| GROUP-04 | Phase 8 | Complete |
 | GROUP-05 | Phase 8 | Complete |
 | OPEN-01 | Phase 9 | Pending |
 | OPEN-02 | Phase 9 | Pending |
