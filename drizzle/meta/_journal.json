@@ -120,6 +120,13 @@
       "when": 1784791786220,
       "tag": "0016_booking_full_day",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785143475802,
+      "tag": "0017_group_bookings",
+      "breakpoints": true
     }
   ]
 }
