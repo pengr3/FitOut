@@ -67,7 +67,7 @@ Reuses the locked 8-point scale (Tailwind v4 defaults; all multiples of 4). **No
 - **Touch targets ≥44×44px** for every interactive control: `Invite people`, `Copy link`, `Regenerate link`, each `Remove` control, the Yes/No RSVP buttons, the `declaredPax` stepper +/− controls, every dialog button.
 - **Page containers (reuse, do not invent):**
   - `/bookings/[id]/group` (organizer management) → `mx-auto w-full max-w-2xl px-4 py-8 sm:py-12` (matches `bookings/[id]/page.tsx:230`).
-  - `/invite/[token]` (public RSVP) → `mx-auto w-full max-w-lg px-4 py-10` — a focused single-column landing, narrower than the booking detail because it is a short form, not a data page.
+  - `/invite/[token]` (public RSVP) → `mx-auto w-full max-w-lg px-4 py-8 sm:py-12` — a focused single-column landing, narrower than the booking detail because it is a short form, not a data page.
 - **The share-link input** is a read-only full-width field paired with the copy button; on mobile the copy button drops below the field (stacked), on `sm+` it sits inline to the right.
 
 ---
@@ -144,7 +144,7 @@ Owner-gated RSC. **The organizer is `booking.bookerId`; the RSC re-checks it (Se
 | **Headcount (GROUP-04 focal)** | `{confirmed} of {capacity_snapshot}` at Display 28/600 `tabular-nums`, with a Label-400 caption `spots filled`. Optional subtle `progress` bar beneath **[researcher's call — text is sufficient; the bar is a nicety, skip if over budget]**. At the cap: caption becomes `This group is full.` (muted, never red). |
 | Share-link block (D-118) | Label `Your invite link` (14/600) + a **read-only** full-width `input` holding the absolute URL (`{origin}/invite/{token}`) + a neutral **`Copy link`** button (client, `navigator.clipboard`, `sonner` toast `Link copied`). The token is a real access credential — render it, never log it. |
 | "Who's coming" roster | A `card`-wrapped list. **Organizer is row #1, labelled `You · organizer`** (D-113). Each other row: attendee name (14/600) + a neutral `secondary` tag `Guest` or `Account` (D-116) + RSVP answer meta (14/400 muted). Only **`yes`** rows count toward the headcount (D-113); render `yes` rows first. A collapsed `Can't make it ({M})` group below holds the `no` rows, muted. Unanswered invitees are not rows (there is nothing to show until someone responds). |
-| Per-attendee action | Neutral `outline` **`Remove`** (icon `UserRoundMinus` + label) → confirm dialog (below). Frees the seat via the D-112 `FOR UPDATE` claim. Never on the organizer's own row. |
+| Per-attendee action | Neutral `outline` **`Remove attendee`** (icon `UserRoundMinus` + label) → confirm dialog (below). Frees the seat via the D-112 `FOR UPDATE` claim. Never on the organizer's own row. |
 | Top-up nudge (D-114) | **Only when `extraHeadFee > 0` AND confirmed-yes > `declaredPax`.** A neutral `alert` (NOT destructive): `{N} people have RSVP'd, but you booked for {declaredPax}. You may owe a bit more for the extra {K} at check-in.` **v1 is a record + nudge only** — the automated in-app top-up charge is a fast-follow (D-114). Do not render a "Pay now" here. On a flat listing (`extraHeadFee = 0`) this block never exists. |
 | Manage actions (D-121) | Neutral `outline` **`Regenerate link`** (icon `RefreshCw`) → confirm dialog (below). |
 | Live freshness | Headcount + roster refresh via the bounded `router.refresh()` poller (D-84), paused on `document.hidden`. No spinner on refresh. No TanStack Query. |
@@ -253,7 +253,7 @@ Voice (continued from Phases 2–7): clear, warm, plain verbs, sentence case. **
 | `/bookings/[id]` — confirmed, already a group | `Manage group · {N} coming` | Neutral `outline` |
 | `/bookings/[id]/group` — share | `Copy link` | Neutral |
 | `/bookings/[id]/group` — regenerate | `Regenerate link` | Neutral `outline` + confirm |
-| `/bookings/[id]/group` — per attendee | `Remove` | Neutral `outline` (icon + label) + confirm |
+| `/bookings/[id]/group` — per attendee | `Remove attendee` | Neutral `outline` (icon + label) + confirm |
 | `/invite/[token]` — accept | `Yes, I'm coming` | **Coral** |
 | `/invite/[token]` — decline | `Can't make it` | Neutral `outline` |
 | `/invite/[token]` — logged out alt | `Log in instead` | `ghost` link (carries the token) |
@@ -283,7 +283,7 @@ None of these use a destructive-red button (see § Color).
 
 | Action | Confirmation copy | Confirm button |
 |---|---|---|
-| Remove attendee | `Remove {name} from this group? This frees up their spot. They can RSVP again if they still have the link.` | `Remove` (neutral `outline`) |
+| Remove attendee | `Remove {name} from this group? This frees up their spot. They can RSVP again if they still have the link.` | `Remove attendee` (neutral `outline`) |
 | Regenerate link | `Get a new invite link? The current link stops working, so anyone you've already shared it with will need the new one. People who've already RSVP'd stay on your list.` | `Regenerate link` (neutral `outline`) |
 | Cancel a group booking | Handled by the shipped Phase-7 cancel review, plus the § 7 group-consequence line (`This also cancels the group — we'll let the {N} people coming know.`) | `Cancel booking` (neutral `outline`, unchanged) |
 
