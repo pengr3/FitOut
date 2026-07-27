@@ -197,7 +197,17 @@ Plans:
   2. Invited attendees can RSVP yes/no via a scoped invite token without needing a full account
   3. The organizer can see the confirmed headcount and who is coming
   4. Confirmed RSVPs are hard-capped at the listing's capacity (atomic, no overflow), and a partial RSVP leaves the booking valid
-**Plans**: TBD
+**Plans**: 9 plans in 5 waves
+Plans:
+- [ ] 08-01-PLAN.md — Schema foundation: booking_group + rsvp tables, occupancy_mode/rsvp_status enums, pax columns + migration 0017 [BLOCKING]
+- [ ] 08-02-PLAN.md — Seat-claim + invite token + the GROUP-05 acceptance-gate race test (red-first, mutation-verified)
+- [ ] 08-03-PLAN.md — Pax pricing backend: quoteWindow surcharge (D-108) + placeHold declaredPax, folded into spacePriceCents (A1)
+- [ ] 08-04-PLAN.md — Notifications: four-file group types + email-only guest Inngest fn + migration 0018 [BLOCKING]
+- [ ] 08-05-PLAN.md — Pax pricing UI: PaxStepper + surcharge breakdown line + wizard fields + the persisted-fullDay fix
+- [ ] 08-06-PLAN.md — Group actions + lifecycle: createGroup/submitRsvp/removeAttendee/regenerateLink + D-117 opt-in guard + cancel auto-void
+- [ ] 08-07-PLAN.md — Organizer management RSC + entry point + roster/headcount/share + top-up nudge
+- [ ] 08-08-PLAN.md — Public /invite/[token] RSVP route + guest-or-login form + confirmation
+- [ ] 08-09-PLAN.md — Human-verify checkpoint: cross-session guest RSVP + real email + GROUP-05 mutation-verify
 **UI hint**: yes
 
 ### Phase 9: Open-Capacity Bookings
@@ -226,5 +236,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
-| 8. Group Bookings | 0/TBD | Not started | - |
+| 8. Group Bookings | 0/9 | Planned | - |
 | 9. Open-Capacity Bookings | 0/TBD | Not started | - |
