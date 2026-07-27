@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: plan_ready
-stopped_at: "Phase 8 PAYMENT + OCCUPANCY + HEADCOUNT models all resolved. Payment (2026-07-26): single-payer + exclusive-only + unified surcharge pricing (base + per-extra-head over an included count, fee defaults 0). Occupancy (2026-07-27): host-set, per-listing, THREE modes — exclusive (Phase 8), drop-in/common-use (Phase 9, capacity-counter), open-play/cost-split (future GPAY-01, organizer-driven); Phase 8 = exclusive-only + occupancy_mode seam (default exclusive); Q-18 = per-attendee rows. Headcount (2026-07-27): cap = listing.maxOccupancy (already required at publish) SNAPSHOTTED onto the group row; no-overflow via SELECT…FOR UPDATE seat-claim + a makeRacingClients race test (plan acceptance gate); organizer = attendee #1; declaredPax overage = signal not block (only when extraHeadFee>0). Phase 9 (Open-Capacity, OPEN-01..04) ADDED to roadmap (commit ef53fd2). RSVP/identity/lifecycle (2026-07-27): all 12 08-QUESTIONS resolved — identity = HYBRID guest-or-login (one rsvp row, nullable user_id, optional guest email; GROUP-03 unchanged); link-only invites; toggle-until-session-start; one-per-RSVP; invite from booking detail; any confirmed booking; auto-void+notify on cancel; organizer manage; no attendee reminders v1; address per showExactAddress; organizer per-RSVP notify. Phase 8 DISCUSSION COMPLETE and 08-CONTEXT.md WRITTEN (2026-07-27, decisions D-107..D-122). Next: /gsd-ui-phase 8 (UI hint yes) then /gsd-plan-phase 8."
-last_updated: "2026-07-27T06:11:33.000Z"
-last_activity: 2026-07-27
+stopped_at: Phase 08 UI-SPEC approved
+last_updated: "2026-07-27T08:55:14.746Z"
+last_activity: 2026-07-27 -- Phase 08 planning complete
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 60
+  total_plans: 69
   completed_plans: 61
-  percent: 88
+  percent: 78
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 07 — bookings-management-cancellation-notifications
+**Current focus:** Phase 08 — group-bookings (PLANNED, ready to execute)
 
 ## Current Position
 
-Phase: 07 (bookings-management-cancellation-notifications) — EXECUTING
-Plan: 4 of 20
-Next Phase: 8 (Group Bookings) — payment-model gate RESOLVED (2026-07-25: per-attendee cost-splitting IS on the roadmap; v1 free-RSVP shell = justified foundation for the future paid version). No CONTEXT.md yet; ready to run /gsd-discuss-phase 8 (4 gray areas → 08-CONTEXT.md).
+Phase: 08 (group-bookings) — PLANNED, ready to execute. 9 plans in 5 waves; research + pattern-map + validation-strategy done, plan-checker VERIFICATION PASSED (2026-07-27, iteration 2). Acceptance gate = the D-112 `SELECT … FOR UPDATE` seat-claim race test (GROUP-05/SC#4), red-first in 08-02, mutation-verified again at the 08-09 checkpoint. Resolved during planning: A1 (pax surcharge = host revenue in `spacePriceCents`, user-confirmed), A2 (guest-email = new email-only Inngest fn, no durable row), A3 (host check-in/top-up deferred to fast-follow). Two `[BLOCKING]` migrations: 0017 (tables/enums/columns, 08-01) + 0018 (55P04-safe `notification_type` ADD VALUE split, 08-04).
+Next action: `/gsd-execute-phase 8`
+Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
-Last activity: 2026-07-24
+Last activity: 2026-07-27 -- Phase 08 planning complete
 
 Progress: [██████████] 100%
 
@@ -338,9 +338,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T03:58:44.113Z
-Stopped at: Resumed via /gsd-resume-work. Loaded the 2026-07-24 pause (HANDOFF.json) — Phase 8 discussion was parked at the payment-model gate. **User RESOLVED the gate: YES, per-attendee cost-splitting IS on FitOut's roadmap.** Consequence recorded across STATE + the Phase-8 .continue-here.md: v1's free-RSVP shell is now a justified foundation for the future paid/cost-split version (invites/RSVP/capacity/identity are the rails it plugs into), NOT decorative — GPAY-01/02 stay OUT of v1 but become a future milestone. HANDOFF.json consumed + deleted (one-shot). No 08-CONTEXT.md written yet (correctly — that's discuss-phase's job). Next: `/gsd-discuss-phase 8` — work the 4 gray areas (invite/RSVP identity, headcount cap, group-creation entry point, invite/RSVP lifecycle) → 08-CONTEXT.md. Separate non-blocking pre-launch gate still owed: validate the core money loop live vs real PayMongo test mode (only ever stubbed; card/GCash testable now via fixture booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36, QRPh blocked on PayMongo Money Movement).
-Resume file: .planning/phases/08-group-bookings/.continue-here.md (gate-resolved framing for discuss-phase 8)
+Last session: 2026-07-27T07:12:13.232Z
+Stopped at: Phase 08 UI-SPEC approved
+Resume file: .planning/phases/08-group-bookings/08-UI-SPEC.md
 
 Prior session: 2026-07-24T04:37:54.671Z
 Stopped at: Completed 07-20-PLAN.md (T4-hours/T7/T9 gap closure)
