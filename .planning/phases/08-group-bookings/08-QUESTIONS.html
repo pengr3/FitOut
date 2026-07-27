@@ -112,8 +112,8 @@ const DATA = {
   "phase": "08-group-bookings",
   "generated_at": "2026-07-25T04:05:28.374Z",
   "mode": "power",
-  "stats": { "total": 18, "answered": 0, "chat_more": 0, "remaining": 18 },
-  "framing": "v1 group bookings = a FREE RSVP coordination shell layered on a normal paid booking the organizer pays 100% for. RSVP never touches the occupancy constraint and never becomes per-attendee payment. Gate resolved 2026-07-25: per-attendee cost-splitting (GPAY-01) + ticketing (GPAY-02) ARE a confirmed FUTURE milestone, so v1's rails (invites / RSVP / capacity / identity) are the deliberate foundation the paid version plugs into. Every decision below is HOW to build that foundation; the scope (RSVP-only, no money) is fixed.",
+  "stats": { "total": 12, "answered": 0, "chat_more": 0, "remaining": 12 },
+  "framing": "The 12 REMAINING open questions for Phase 8, after the 2026-07-27 founder-debate resolved pricing, occupancy, and the headcount cap. v1 group bookings = SINGLE-PAYER (organizer pays for all pax) + EXCLUSIVE-only lock, so the whole feature stays inside the existing hold-until-session rail and the GiST exclusion constraint. Pricing is pax-scaled at booking (base + max(0, pax - included) * extraHeadFee, fee defaults 0) but still one payer, NOT per-attendee collection. The RSVP shell is coordination + fraud-corroboration + the foundation the future organizer-driven cost-split (GPAY-01) plugs into. Every question below is HOW to build that shell. RESOLVED & removed from this sheet: the headcount-cap cluster (Q-05..Q-09) and Q-18 — see .planning/HANDOFF.json.",
   "sections": [
     { "id": "invite-rsvp-identity", "title": "Invite & RSVP identity", "questions": [
       { "id": "Q-01", "title": "Invite delivery mechanism",
@@ -144,45 +144,6 @@ const DATA = {
         "options": [
           { "id": "a", "label": "One RSVP = one person, no +guests (recommended for v1)", "description": "Cap = count of 'yes' RSVPs. Cleanest to hard-cap atomically. '+guests' becomes a deferred idea for the ticketing version." },
           { "id": "b", "label": "Allow +N guests per RSVP", "description": "'me + 2'. More realistic for casual groups, but the cap must count heads and those extras have no identity." },
-          { "id": "c", "label": "Other (note below)", "description": "" }
-        ], "answer": null, "chat_more": "", "status": "unanswered" }
-    ]},
-    { "id": "headcount-cap", "title": "Headcount cap rules", "questions": [
-      { "id": "Q-05", "title": "Capacity source for the cap",
-        "context": "listing.maxOccupancy (integer, NULLABLE — D-07) is the obvious source and exactly what REQUIREMENTS flags to confirm. unitCount is a DIFFERENT concept (multi-unit venue); a group wraps ONE booking on ONE unit, so the cap is about people in that space, not units.",
-        "options": [
-          { "id": "a", "label": "listing.maxOccupancy is the hard ceiling (recommended)", "description": "Confirmed RSVPs hard-capped at the host's max occupancy (SC#4). Single source of truth. See Q-06 for the NULL case." },
-          { "id": "b", "label": "Organizer sets a group target ≤ maxOccupancy", "description": "Organizer picks how many they're inviting (bounded by maxOccupancy if set). More control; a second number to reconcile." },
-          { "id": "c", "label": "Both — default to maxOccupancy, organizer may lower it", "description": "Cap defaults to maxOccupancy but the organizer can set a smaller size. Flexible; a bit more UI + validation." },
-          { "id": "d", "label": "Other (note below)", "description": "" }
-        ], "answer": null, "chat_more": "", "status": "unanswered" },
-      { "id": "Q-06", "title": "Fallback when listing.maxOccupancy is NULL",
-        "context": "maxOccupancy is nullable and NOT required at publish, so many listings will have none. SC#4's hard-cap only has meaning when a capacity exists. Second REQUIREMENTS open decision.",
-        "options": [
-          { "id": "a", "label": "No cap — RSVP stays purely informational (recommended)", "description": "If unset, headcount is shown but never blocks a 'yes'. The atomic hard-cap applies only where capacity exists. Simplest and honest." },
-          { "id": "b", "label": "Organizer must set a group size to enable invites", "description": "Organizer supplies the cap at group creation. Always a real cap; adds a required field." },
-          { "id": "c", "label": "Require host to set maxOccupancy before group invites work", "description": "Gate invites on the host having set capacity. Cleanest data guarantee; blocks organizers on hosts who never filled it in." },
-          { "id": "d", "label": "Other (note below)", "description": "" }
-        ], "answer": null, "chat_more": "", "status": "unanswered" },
-      { "id": "Q-07", "title": "Does the organizer count toward the cap?",
-        "context": "The organizer paid for and is attending — they occupy a spot. Meetup counts the host. If they don't count, maxOccupancy 10 could put 11 bodies in the space.",
-        "options": [
-          { "id": "a", "label": "Yes — organizer is attendee #1 (recommended)", "description": "Cap counts organizer + confirmed attendees. Matches reality; prevents an off-by-one overflow." },
-          { "id": "b", "label": "No — cap counts invited attendees only", "description": "The number is an 'invite budget' on top of the organizer. Intuitive; risks one body over maxOccupancy." },
-          { "id": "c", "label": "Other (note below)", "description": "" }
-        ], "answer": null, "chat_more": "", "status": "unanswered" },
-      { "id": "Q-08", "title": "What counts toward the cap?",
-        "context": "SC#4 says 'CONFIRMED RSVPs are hard-capped'. With one-person-one-RSVP (Q-04a) count = number of 'yes' rows (+organizer per Q-07).",
-        "options": [
-          { "id": "a", "label": "Confirmed 'yes' RSVPs only (recommended)", "description": "A 'no' or unanswered invite consumes nothing; only 'yes' takes a spot; yes->no frees it. Matches SC#4 wording." },
-          { "id": "b", "label": "Yes + pending/unanswered (reserve on invite)", "description": "Sending an invite tentatively holds a spot until declined. Prevents over-inviting, but silent invitees block real yeses." },
-          { "id": "c", "label": "Other (note below)", "description": "" }
-        ], "answer": null, "chat_more": "", "status": "unanswered" },
-      { "id": "Q-09", "title": "Behavior when the cap is reached",
-        "context": "SC#4 requires 'atomic, no overflow' and 'a partial RSVP leaves the booking valid'. The atomic-no-overflow DB pattern already exists here (ON CONFLICT claim; conditional UPDATE ... WHERE count < cap). A WAITLIST (DISC-02) is explicitly v2/out-of-scope — a deferred idea, not a v1 option.",
-        "options": [
-          { "id": "a", "label": "Hard block: once full, no more 'yes'; page shows 'full' (recommended)", "description": "The Nth yes fills it; the next attendee sees 'full' and can't confirm. Atomic at the DB. 'No' always allowed. The booking stays valid regardless." },
-          { "id": "b", "label": "Cap only 'yes'; always allow 'no'/'maybe'", "description": "Same yes-cap, framed around also capturing declines/maybes. Adds a third RSVP value to model." },
           { "id": "c", "label": "Other (note below)", "description": "" }
         ], "answer": null, "chat_more": "", "status": "unanswered" }
     ]},
@@ -236,7 +197,7 @@ const DATA = {
           { "id": "c", "label": "Other (note below)", "description": "" }
         ], "answer": null, "chat_more": "", "status": "unanswered" }
     ]},
-    { "id": "visibility-foundation", "title": "Visibility, notifications & paid-version foundation", "questions": [
+    { "id": "visibility-foundation", "title": "Visibility & notifications", "questions": [
       { "id": "Q-16", "title": "What does an attendee see about the booking?",
         "context": "listing.showExactAddress (D-09, default approximate) governs how much address the PUBLIC sees; neighborhood is the approximate anchor. An RSVP'd attendee is more trusted than a browser but may be a no-account stranger with a link. GROUP-04 is the ORGANIZER seeing who's coming; this is the reverse.",
         "options": [
@@ -252,13 +213,6 @@ const DATA = {
           { "id": "b", "label": "Live headcount view, no per-RSVP push", "description": "Organizer sees the count/list on opening the group page; not pinged each RSVP. Quieter; less real-time. Attendee still confirmed." },
           { "id": "c", "label": "Digest — one summary (e.g. at RSVP close)", "description": "Batch updates into one message. Least noise; least immediacy." },
           { "id": "d", "label": "Other (note below)", "description": "" }
-        ], "answer": null, "chat_more": "", "status": "unanswered" },
-      { "id": "Q-18", "title": "How deliberately should the schema anticipate the paid version?",
-        "context": "The gate resolution (2026-07-25) is explicit: v1's rails are the FOUNDATION the future per-attendee payment (GPAY-01/02) plugs into. This is a HOW-to-build-v1 data-model decision, NOT scope creep — no payment is built now. Precedent: booking rows carry frozen snapshots + ledger rows keyed per-booking.",
-        "options": [
-          { "id": "a", "label": "Per-attendee/RSVP row, payment-ready but unpriced (recommended)", "description": "A per-attendee row (keyed to group + booking, carrying identity + RSVP state) so a future price/payment attaches 1:1 with no reshape. Cheap now; no money columns yet." },
-          { "id": "b", "label": "Store RSVPs minimally now; refactor when paid arrives", "description": "Simplest v1 shape (compact list/count); accept a migration later. A little less now; pays a refactor + data-migration cost when GPAY lands." },
-          { "id": "c", "label": "Other (note below)", "description": "" }
         ], "answer": null, "chat_more": "", "status": "unanswered" }
     ]}
   ]
