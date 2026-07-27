@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: plan_ready
-stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-07-27T10:36:50.963Z"
+stopped_at: Completed 08-06-PLAN.md
+last_updated: "2026-07-27T11:12:15.103Z"
 last_activity: 2026-07-27
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 69
-  completed_plans: 66
+  completed_plans: 67
   percent: 78
 ---
 
@@ -26,13 +26,28 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Next action: `/gsd-execute-phase 8`
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-27
 
-Progress: [██████████] 96%
+Progress: [██████████] 97%
+
+**08-06 landed — the GROUP LOGIC LAYER ships (createGroup / submitRsvp / removeAttendee / regenerateLink + the D-121 auto-void).** `tests/booking/ group/ security/ notifications/`: **34 files / 347 tests, exit 0**; tsc clean; `npx eslint src tests` 0 errors; `npm run build` exit 0 (27 routes). GROUP-01…GROUP-05 are closed at the logic layer; the surfaces that call these actions are 08-07 (`/bookings/[id]/group`) and 08-08 (`/invite/[token]`).
+
+📌 **New contracts from 08-06 (load-bearing for anyone touching the group surfaces, an invite link, or a cancel path):**
+
+1. *Owner scope is IN the WHERE, and it is mutation-proven.* Every organizer read in `src/lib/group/rsvp.ts` (`getRoster`, `getHeadcount`, `getOwnedGroupByBooking`, `getOwnedGroupById`) takes the organizer id and carries `b.booker_id = $organizerId` inside the statement — a foreign roster is **UNREADABLE**, not merely unrendered. `tests/group/group-owner-scope.test.ts` (18 cases) was verified by deleting each predicate in turn: roster → 2/18 fail, headcount → 1/18, by-booking → 1/18, by-id → 1/18, the token's `voided_at` → 1/18, the token's booking-status half → 1/18, reachable-attendee group scope → 2/18, its reachability filter → 1/18. **The positive controls are what make it non-vacuous** — the file also asserts exact id sets, that an organizer genuinely CAN read their own roster, and that a live token genuinely DOES resolve.
+2. *`getGroupByToken` returns ONE frozen `GROUP_INACTIVE` object for unknown = replaced = voided = cancelled-booking.* **Never add a `reason`/`voidedAt` field to help the UI tell them apart** — the indistinguishability IS T-08-17 (the invite link is a shared bearer credential of publicly-known length), and the test compares the four results' KEY SETS to each other precisely to catch that "improvement".
+3. *An Inngest event NAME + its emitter belong in a plain lib module, never in the `inngest/functions/` file.* `src/lib/group/guest-notify.ts` now owns `GUEST_EMAIL_EVENT` + `emitGuestEmail` (the guest sibling of `emitNotify`), because `guest-email.ts` calls `inngest.createFunction` at **module scope** — importing the name from there ran the registration inside a server action's module graph. `guest-email.ts` re-exports the name so 08-04's import surface is unchanged. **Apply this rule to any future event.**
+4. *The D-117 opt-in email guard is STRUCTURAL.* The only address ever emailed is the one on **this** request body — no address is read back out of the `rsvp` table to be mailed, and none is carried over from an earlier RSVP. Budget: **3 per hour per normalized address** (re-casing cannot mint a fresh one). A blank-email guest gets **zero** sends on any channel and `submitRsvp` returns `reachable: false` so the UI can make the G3 disclosure honestly. The RSVP *submit* budget is keyed on the LINK and deliberately generous (30/60s) — a group of ten answering at once is the success case, not abuse.
+5. *The attendee confirmation fires ONLY for a `yes`.* The shipped copy on both channels is "you're on the list", which would be a false statement to send to someone who just declined — and there is deliberately **no declined notification type to invent**. A decline is confirmed on-screen and the organizer is still told.
+6. *`removeAttendee` DELETEs the row and takes the seat-claim's own lock.* "Removed by the organizer" and "said they can't make it" are different facts; flipping to `no` would put words in the attendee's mouth on the roster. The delete runs inside a tx that first takes `SELECT capacity_snapshot … FOR UPDATE` on the group row — the identical statement `claimSeat` opens with — so a removal and a concurrent RSVP serialise.
+7. *D-121 auto-void is wired into BOTH cancel paths* (`cancelBookingAsBooker` + `cancelBookingAsHost`), inside the guarded post-commit consequence block (the 07-11 discipline): `voided_at = now()` scoped `voided_at IS NULL` (idempotent), then `group_cancelled` to every reachable yes attendee — accounts via `emitNotify`, guests-with-email via `emitGuestEmail`, blank-email guests unreachable **by design**. **The refund math is untouched (D-114)** and the organizer is skipped (they already have their own cancellation + refund notices). Mutation-verified: removing either call site, weakening the UPDATE, or dropping the organizer self-skip each turns the suite red.
+8. *`createGroup` freezes the cap in ONE statement and is idempotent.* `capacity_snapshot` is `SELECT`ed from the listing joined to the booking **inside** the `INSERT`, so no read-then-write window exists and no request shape carries a cap; `ON CONFLICT (booking_id) DO NOTHING` returns the EXISTING group on a double submit (`alreadyExisted: true`).
+
+⚠️ **`z.email()` rejects surrounding whitespace — trim BEFORE validating on any optional address field.** Found here as a real bug: a trailing space from mobile autofill turned a valid RSVP into "We couldn't save your RSVP" on the one field the product promises is optional. `optionalEmail` now trims first, and every blank shape (absent / `""` / all-whitespace) collapses to `undefined` so exactly one "no address" branch exists. Case is left alone — lowercasing belongs to `normalizeEmail`, whose output is a de-dup KEY, not a display string.
 
 **08-05 landed — the D-108 pax-pricing UI ships (wizard fee fields + PaxStepper + surcharge line + BOTH fullDay fixes).** `tests/booking/ listing/ validation/ payments/`: **40 files / 419 tests, exit 0**; tsc + eslint clean (0 errors); `npm run build` exit 0.
 
@@ -200,6 +215,7 @@ Progress: [██████████] 96%
 | Phase 08 P03 | 9 | 2 tasks | 6 files |
 | Phase 08 P04 | 30 | 2 tasks | 13 files |
 | Phase 08 P05 | 35 | 2 tasks | 13 files |
+| Phase 08 P06 | 38min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -314,6 +330,12 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-05: group-pricing fields are OPTIONAL in publishSchema (mirror postalCode, not cancellationPolicy) — adding them to the publish gate is exactly how a requirement becomes real
 - [Phase ?]: 08-05: a CONFIRMED booking can never be re-priced by updateDeclaredPax — the over-subscribed-group top-up stays D-114's deferred fast-follow
 - [Phase ?]: 08-05: the PayMongo checkout Idempotency-Key is amount-scoped ONLY for per-head bookings (declared_pax non-NULL); flat bookings keep checkout:<bookingId> byte-identical
+- [Phase ?]: 08-06: the organizer group reads (getRoster/getHeadcount/getOwnedGroup*) take the organizer id and carry `b.booker_id = $organizerId` INSIDE the WHERE — a foreign roster is UNREADABLE, not merely unrendered (T-08-14); mutation-verified, 8 predicate deletions each go red
+- [Phase ?]: 08-06: getGroupByToken returns ONE frozen GROUP_INACTIVE for unknown = replaced = voided = cancelled-booking; never add a `reason` field to distinguish them — the indistinguishability IS T-08-17, and the test compares the four results' key sets to catch that "improvement"
+- [Phase ?]: 08-06: an Inngest event NAME + its emitter live in a plain lib module (src/lib/group/guest-notify.ts), NEVER in the inngest/functions file — that file calls createFunction at module scope, so a server action importing the name registers a function from an action import (it broke outright under a mocked client)
+- [Phase ?]: 08-06: the group attendee confirmation fires ONLY for a 'yes' (the shipped copy on both channels is "you're on the list", false to send to a decliner) and there is deliberately no declined notification type to invent; a blank-email guest gets NO send on any channel and submitRsvp returns reachable:false so the UI can say so (D-117/G3)
+- [Phase ?]: 08-06: removeAttendee DELETEs the rsvp row (never flips it to 'no' — "removed by the organizer" and "can't make it" are different facts) and takes the seat-claim's own group-row FOR UPDATE lock so a removal and a concurrent claim serialise
+- [Phase ?]: 08-06: the RSVP submit budget is keyed on the LINK and deliberately generous (30/60s — a group of ten answering at once is the success case); the real anti-abuse control is the per-normalized-address guest-email budget (3/hr), and the D-117 opt-in guard is structural: the emitted address is derived from THIS request body, never read back out of the roster
 
 ### Pending Todos
 
@@ -363,7 +385,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-27T10:36:40.137Z
+Last session: 2026-07-27T11:11:38.847Z
 Stopped at: Completed 08-04-PLAN.md
 Resume file: None
 
