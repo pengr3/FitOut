@@ -509,3 +509,137 @@ describe("WR-04 — host-cancellation emails address each recipient's own situat
     expect(email.html).toContain("You're getting a full refund of ₱1,050.00");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// D-122 (08-04) — the three group RSVP types dispatch to their email templates (account recipients).
+//
+// These are the four-file compile-checked additions. sendForType is exhaustive with NO default:, so the
+// only way these three cases can email nothing is if a branch is missing — which is a BUILD error, not a
+// silent test-green gap. The G6 case pins the load-bearing security property: a guest-typed attendee name
+// is escapeHtml'd in the organizer's email body, never rendered as live markup.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("D-122 — group RSVP notifications dispatch to their templates", () => {
+  const groupWhen = "Sat, Jul 25, 8:00 AM – 9:00 AM (Manila time)";
+
+  it("(A) group_rsvp_received (yes) emails the organizer 'is coming'", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "grp_org_yes",
+        type: "group_rsvp_received",
+        email: "organizer-yes@example.com",
+        payload: {
+          type: "group_rsvp_received",
+          listingTitle: "Court A",
+          whenLabel: groupWhen,
+          attendeeLabel: "Cassie",
+          answer: "yes",
+          href: "https://fitout.example/bookings/bk1/group",
+        },
+      }),
+    );
+    const [email] = mockResend.sent().filter((e) => e.to === "organizer-yes@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain("Cassie is coming");
+    expect(email.html).toContain("Court A");
+  });
+
+  it("(B) group_rsvp_received (no) emails the organizer 'can't make it'", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "grp_org_no",
+        type: "group_rsvp_received",
+        email: "organizer-no@example.com",
+        payload: {
+          type: "group_rsvp_received",
+          listingTitle: "Court A",
+          whenLabel: groupWhen,
+          attendeeLabel: "Dev",
+          answer: "no",
+          href: "https://fitout.example/bookings/bk1/group",
+        },
+      }),
+    );
+    const [email] = mockResend.sent().filter((e) => e.to === "organizer-no@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain("Dev can't make it");
+  });
+
+  it("(C, G6) a guest-typed attendee name is HTML-escaped in the organizer email — never live markup", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "grp_org_xss",
+        type: "group_rsvp_received",
+        email: "organizer-xss@example.com",
+        payload: {
+          type: "group_rsvp_received",
+          listingTitle: "Court A",
+          whenLabel: groupWhen,
+          attendeeLabel: '<script>alert(1)</script>',
+          answer: "yes",
+          href: "https://fitout.example/bookings/bk1/group",
+        },
+      }),
+    );
+    const [email] = mockResend.sent().filter((e) => e.to === "organizer-xss@example.com");
+    expect(email).toBeDefined();
+    // The name survives as escaped, inert text — the raw tag never reaches the body.
+    expect(email.html).toContain("&lt;script&gt;");
+    expect(email.html).not.toContain("<script>alert(1)</script>");
+  });
+
+  it("(D) group_rsvp_confirmed emails the attendee-account", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "grp_att",
+        type: "group_rsvp_confirmed",
+        email: "attendee@example.com",
+        payload: {
+          type: "group_rsvp_confirmed",
+          listingTitle: "Court A",
+          whenLabel: groupWhen,
+          href: "https://fitout.example/bookings/bk1/group",
+        },
+      }),
+    );
+    const [email] = mockResend.sent().filter((e) => e.to === "attendee@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain("Court A");
+  });
+
+  it("(E) group_cancelled emails the reachable attendee", async () => {
+    await sendForType(
+      makeEvent({
+        recipientId: "grp_cancel",
+        type: "group_cancelled",
+        email: "cancel-attendee@example.com",
+        payload: {
+          type: "group_cancelled",
+          listingTitle: "Court A",
+          whenLabel: groupWhen,
+          href: "https://fitout.example/bookings/bk1/group",
+        },
+      }),
+    );
+    const [email] = mockResend.sent().filter((e) => e.to === "cancel-attendee@example.com");
+    expect(email).toBeDefined();
+    expect(email.html).toContain("cancelled");
+  });
+
+  it("(F) a null email writes nothing and does not throw for a group type", async () => {
+    const result = await sendForType(
+      makeEvent({
+        recipientId: "grp_noemail",
+        type: "group_cancelled",
+        email: null,
+        payload: {
+          type: "group_cancelled",
+          listingTitle: "Court A",
+          whenLabel: groupWhen,
+          href: "https://fitout.example/bookings/bk1/group",
+        },
+      }),
+    );
+    expect(result).toEqual({ sent: false, reason: "no_email" });
+  });
+});

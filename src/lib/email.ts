@@ -426,3 +426,81 @@ export const sendReminderPreSla = (
       `<p><a href="${url}">Review request</a></p>`,
   );
 };
+
+// ---------------------------------------------------------------------------
+// Phase-8 group-RSVP sends (D-122). Same contract header as above — thin plain-HTML sends over the SAME
+// send()/escapeHtml() helpers. Dispatched EXCLUSIVELY by `sendForType` in notify.ts (D-83). These reach
+// ACCOUNT recipients only; the guest-with-email path is the separate `sendGuestRsvpEmail` (email-only fn,
+// RESEARCH Pitfall 2). EVERY interpolated field — including the guest-typed attendee name — is escapeHtml'd
+// (G6 / T-08-08); `groupUrl` is the caller's ABSOLUTE ${BETTER_AUTH_URL}/... link.
+
+/**
+ * A group attendee RSVP'd → notifies the ORGANIZER. `attendeeLabel` is the attendee's display name
+ * (guest-typed, untrusted — escaped). `answer` picks the sentence: "is coming" (yes) or "can't make it"
+ * (no); it is a copy variant, never a rendered label. Calm, factual — the organizer is just tracking heads.
+ */
+export const sendGroupRsvpReceived = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  attendeeLabel: string,
+  answer: "yes" | "no",
+  groupUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const attendee = escapeHtml(attendeeLabel); // T-08-08 — guest-typed name; escape like every field.
+  const url = escapeHtml(groupUrl); // WR-01 — never interpolate the raw url into an href.
+  const verdict = answer === "yes" ? "is coming" : "can't make it";
+  return send(
+    to,
+    `New RSVP — ${spaceTitle}`,
+    `<p><strong>New RSVP for your group booking</strong></p>` +
+      `<p>${attendee} ${verdict} to ${space} on ${when}.</p>` +
+      `<p><a href="${url}">View your group</a></p>`,
+  );
+};
+
+/**
+ * RSVP confirmed → notifies an ATTENDEE with an account. Reassures they're on the list; the organizer pays,
+ * so there is nothing for them to settle (group v1 = organizer-pays, RSVP/headcount only).
+ */
+export const sendGroupRsvpConfirmed = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  groupUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const url = escapeHtml(groupUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `You're on the list — ${spaceTitle}`,
+    `<p><strong>You're confirmed for the group</strong></p>` +
+      `<p>You're set for ${space} on ${when}. The organizer has the booking covered — just show up.</p>` +
+      `<p><a href="${url}">View the details</a></p>`,
+  );
+};
+
+/**
+ * The group booking was cancelled → notifies a reachable, confirmed ("yes") ATTENDEE. States plainly that
+ * the session is off so no one turns up to a booking that no longer exists.
+ */
+export const sendGroupCancelled = (
+  to: string,
+  spaceTitle: string,
+  whenLabel: string,
+  groupUrl: string,
+) => {
+  const space = escapeHtml(spaceTitle);
+  const when = escapeHtml(whenLabel);
+  const url = escapeHtml(groupUrl); // WR-01 — never interpolate the raw url into an href.
+  return send(
+    to,
+    `Group booking cancelled — ${spaceTitle}`,
+    `<p><strong>This group booking was cancelled</strong></p>` +
+      `<p>The booking at ${space} on ${when} is no longer happening — you don't need to go.</p>` +
+      `<p><a href="${url}">View the details</a></p>`,
+  );
+};

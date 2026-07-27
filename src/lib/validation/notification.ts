@@ -20,7 +20,7 @@ import { z } from "zod";
 
 import type { NotificationPayload } from "@/lib/db/schema";
 
-/** The 11 `notification_type` enum values, as a literal tuple (mirrors schema.ts `notificationType`). */
+/** The 14 `notification_type` enum values, as a literal tuple (mirrors schema.ts `notificationType`). */
 export const notificationTypeValues = [
   "booking_confirmed",
   "request_received",
@@ -33,6 +33,10 @@ export const notificationTypeValues = [
   "reminder_pre_expiry",
   "reminder_pre_session",
   "reminder_pre_sla",
+  // Phase-8 group RSVP kinds (D-122) — account recipients only (guests go through fitout/guest-email).
+  "group_rsvp_received",
+  "group_rsvp_confirmed",
+  "group_cancelled",
 ] as const;
 
 export type NotificationTypeValue = (typeof notificationTypeValues)[number];
@@ -153,6 +157,29 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
     whenLabel: label,
     bookerLabel: label,
     respondByLabel: label,
+    href,
+  }),
+  // ── Phase-8 group RSVP kinds (D-122). Account recipients only; the _PayloadUnionParity weld below breaks
+  //    the build if these drift from schema.ts's NotificationPayload.
+  z.object({
+    type: z.literal("group_rsvp_received"),
+    listingTitle: label,
+    whenLabel: label,
+    attendeeLabel: label,
+    // Copy variant, not a label — see the field comment on schema.ts NotificationPayload.
+    answer: z.enum(["yes", "no"]),
+    href,
+  }),
+  z.object({
+    type: z.literal("group_rsvp_confirmed"),
+    listingTitle: label,
+    whenLabel: label,
+    href,
+  }),
+  z.object({
+    type: z.literal("group_cancelled"),
+    listingTitle: label,
+    whenLabel: label,
     href,
   }),
 ]);

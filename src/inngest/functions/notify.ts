@@ -37,6 +37,9 @@ import {
   sendBookingConfirmed,
   sendBookingCancelledByBooker,
   sendBookingCancelledByHost,
+  sendGroupCancelled,
+  sendGroupRsvpConfirmed,
+  sendGroupRsvpReceived,
   sendHostCancellationRecord,
   sendNewRequestToHost,
   sendRefundIssued,
@@ -187,6 +190,27 @@ export async function sendForType(event: NotifyEvent): Promise<SendForTypeResult
         payload.respondByLabel,
         payload.href,
       );
+      return { sent: true };
+
+    // ── Phase-8 group RSVP kinds (D-122). Account recipients only — a guest-with-email attendee never
+    //    reaches this function (it has no user.id to write a notification row); that path is fitout/guest-email.
+    case "group_rsvp_received":
+      await sendGroupRsvpReceived(
+        to,
+        payload.listingTitle,
+        payload.whenLabel,
+        payload.attendeeLabel,
+        payload.answer,
+        payload.href,
+      );
+      return { sent: true };
+
+    case "group_rsvp_confirmed":
+      await sendGroupRsvpConfirmed(to, payload.listingTitle, payload.whenLabel, payload.href);
+      return { sent: true };
+
+    case "group_cancelled":
+      await sendGroupCancelled(to, payload.listingTitle, payload.whenLabel, payload.href);
       return { sent: true };
   }
 

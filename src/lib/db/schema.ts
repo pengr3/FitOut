@@ -378,6 +378,13 @@ export const notificationType = pgEnum("notification_type", [
   "reminder_pre_expiry",
   "reminder_pre_session",
   "reminder_pre_sla",
+  // Phase-8 group RSVP kinds (D-122). ACCOUNT recipients only — each writes a durable `notification` row,
+  // so a guest-with-email attendee (no user.id) can NEVER route here; that path is the separate email-only
+  // fitout/guest-email function (RESEARCH Pitfall 2 / RESOLVED A2). Added to the live enum by the 55P04-safe
+  // split (drizzle/0018 ADD VALUEs only; first runtime INSERT is a later emit, never a migration).
+  "group_rsvp_received",
+  "group_rsvp_confirmed",
+  "group_cancelled",
 ]);
 
 // D-86 durable notification payload. STORE DISPLAY STRINGS, NEVER IDS TO JOIN AT READ TIME: a notification
@@ -473,7 +480,23 @@ export type NotificationPayload =
       bookerLabel: string;
       respondByLabel: string;
       href: string;
-    };
+    }
+  // ── Phase-8 group RSVP kinds (D-122). ACCOUNT recipients only. href is ABSOLUTE (${BETTER_AUTH_URL}/...)
+  //    per the 07-10 convention and must pass safeHref; every field is a pre-composed DISPLAY string (D-86).
+  | {
+      type: "group_rsvp_received";
+      listingTitle: string;
+      whenLabel: string;
+      /** The attendee's display name (guest-typed → untrusted; escaped in every email body, auto-escaped
+       *  as React text in the panel — G6). */
+      attendeeLabel: string;
+      /** COPY VARIANT, not a display string: "yes" ⇒ "is coming", "no" ⇒ "can't make it". Two different
+       *  sentences (and two icons), so it cannot be a label — mirrors request_declined.expired. */
+      answer: "yes" | "no";
+      href: string;
+    }
+  | { type: "group_rsvp_confirmed"; listingTitle: string; whenLabel: string; href: string }
+  | { type: "group_cancelled"; listingTitle: string; whenLabel: string; href: string };
 
 export const notification = pgTable(
   "notification",

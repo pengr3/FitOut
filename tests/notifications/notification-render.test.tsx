@@ -133,6 +133,78 @@ describe("T-07-84 — payload display strings render as escaped text, never as m
   });
 });
 
+describe("D-122 — group RSVP notifications render safely (escaped text + safeHref anchor)", () => {
+  const absHref = "https://fitout.example/bookings/bk1/group";
+
+  it("group_rsvp_received (yes) renders the coming copy and a navigable absolute anchor", () => {
+    const { container } = renderItem({
+      type: "group_rsvp_received",
+      listingTitle: "Sunset Court",
+      whenLabel: "Sat, 3 May · 9:00–10:00 AM (Asia/Manila)",
+      attendeeLabel: "Cassie",
+      answer: "yes",
+      href: absHref,
+    });
+    expect(screen.getByText(/is coming/)).toBeTruthy();
+    const anchors = container.querySelectorAll("a");
+    expect(anchors).toHaveLength(1);
+    // The ABSOLUTE group href passes safeHref and renders as the anchor target (07-10 convention).
+    expect(anchors[0].getAttribute("href")).toBe(absHref);
+  });
+
+  it("group_rsvp_received (no) reads differently from the yes variant", () => {
+    renderItem({
+      type: "group_rsvp_received",
+      listingTitle: "Sunset Court",
+      whenLabel: "W",
+      attendeeLabel: "Dev",
+      answer: "no",
+      href: absHref,
+    });
+    expect(screen.getByText(/can't make it/)).toBeTruthy();
+  });
+
+  it("G6: a guest-typed attendee name renders as inert TEXT, never as markup", () => {
+    const hostileName = '<img src=x onerror="alert(1)">';
+    const { container } = renderItem({
+      type: "group_rsvp_received",
+      listingTitle: "Sunset Court",
+      whenLabel: "W",
+      attendeeLabel: hostileName,
+      answer: "yes",
+      href: absHref,
+    });
+    // No element materialised from the string...
+    expect(container.querySelector("img")).toBeNull();
+    // ...and it is present verbatim as visible text (React auto-escaped it).
+    expect(container.textContent).toContain(hostileName);
+  });
+
+  it("group_cancelled with a hostile href degrades to inert, readable content (render-side safeHref)", () => {
+    const { container } = renderItem({
+      type: "group_cancelled",
+      listingTitle: "Sunset Court",
+      whenLabel: "W",
+      // A durable row could carry a scheme the write guard never saw; the renderer refuses it independently.
+      href: "javascript:alert(1)" as string,
+    });
+    expect(container.querySelectorAll("a")).toHaveLength(0);
+    expect(container.innerHTML).not.toContain("javascript:");
+    expect(screen.getByText("Group booking cancelled")).toBeTruthy();
+  });
+
+  it("group_rsvp_confirmed renders a navigable anchor for an absolute href", () => {
+    const { container } = renderItem({
+      type: "group_rsvp_confirmed",
+      listingTitle: "Sunset Court",
+      whenLabel: "W",
+      href: absHref,
+    });
+    expect(screen.getByText("You're on the list")).toBeTruthy();
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+  });
+});
+
 describe("safeHref — the allow-list is closed, not a blocklist", () => {
   it("accepts only root-relative paths and http(s) URLs", () => {
     expect(safeHref("/bookings/1")).toBe("/bookings/1");
@@ -227,6 +299,10 @@ describe("describeNotification — every payload kind has copy", () => {
       { type: "reminder_pre_expiry", listingTitle: "A", whenLabel: "W", totalLabel: "T", payByLabel: "P", href: "/b" },
       { type: "reminder_pre_session", listingTitle: "A", whenLabel: "W", href: "/b" },
       { type: "reminder_pre_sla", listingTitle: "A", whenLabel: "W", bookerLabel: "B", respondByLabel: "R", href: "/b" },
+      { type: "group_rsvp_received", listingTitle: "A", whenLabel: "W", attendeeLabel: "N", answer: "yes", href: "/b" },
+      { type: "group_rsvp_received", listingTitle: "A", whenLabel: "W", attendeeLabel: "N", answer: "no", href: "/b" },
+      { type: "group_rsvp_confirmed", listingTitle: "A", whenLabel: "W", href: "/b" },
+      { type: "group_cancelled", listingTitle: "A", whenLabel: "W", href: "/b" },
     ];
 
     for (const payload of samples) {

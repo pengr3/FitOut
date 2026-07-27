@@ -127,6 +127,13 @@
       "when": 1785143475802,
       "tag": "0017_group_bookings",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785145923764,
+      "tag": "0018_group_notification_types",
+      "breakpoints": true
     }
   ]
 }

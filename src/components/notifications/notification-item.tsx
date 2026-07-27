@@ -28,10 +28,13 @@ import {
   BanknoteIcon,
   CalendarCheckIcon,
   CalendarClockIcon,
+  CalendarX2Icon,
   CalendarXIcon,
   CircleCheckIcon,
   HourglassIcon,
   InboxIcon,
+  UserRoundCheckIcon,
+  UserRoundXIcon,
   XCircleIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -207,6 +210,29 @@ export function describeNotification(payload: NotificationPayload): Notification
         Icon: AlarmClockIcon,
         title: "A request needs your answer",
         body: `${payload.bookerLabel} · ${payload.listingTitle} · respond by ${payload.respondByLabel}`,
+      };
+    // ── Phase-8 group RSVP kinds (D-122). Icons per UI-SPEC §4. Every field renders as React TEXT (auto-
+    //    escaped) — the guest-typed attendeeLabel included (G6 / T-08-08).
+    case "group_rsvp_received":
+      return {
+        // Two icons, one type: a "yes" and a "no" are different events to an organizer scanning the panel.
+        Icon: payload.answer === "yes" ? UserRoundCheckIcon : UserRoundXIcon,
+        title: payload.answer === "yes" ? "New RSVP — coming" : "New RSVP — not coming",
+        body:
+          `${payload.attendeeLabel} ${payload.answer === "yes" ? "is coming" : "can't make it"}` +
+          ` · ${payload.listingTitle} · ${payload.whenLabel}`,
+      };
+    case "group_rsvp_confirmed":
+      return {
+        Icon: CalendarCheckIcon,
+        title: "You're on the list",
+        body: `${payload.listingTitle} · ${payload.whenLabel}`,
+      };
+    case "group_cancelled":
+      return {
+        Icon: CalendarX2Icon,
+        title: "Group booking cancelled",
+        body: `${payload.listingTitle} · ${payload.whenLabel}`,
       };
   }
   // Exhaustiveness weld (07-07 convention). No fallback clause: a new notification kind must break the
