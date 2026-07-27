@@ -1,7 +1,7 @@
 ---
 phase: 8
 slug: group-bookings
-status: draft
+status: approved
 shadcn_initialized: true
 preset: radix-nova / baseColor neutral / lucide
 created: 2026-07-27

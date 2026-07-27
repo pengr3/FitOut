@@ -446,18 +446,23 @@ export function quoteWindow(input: QuoteInput & {
 
 **If a planner or discuss-phase pass wants to lock A1 and A2, surface them to the user** — they are the two places a locked decision meets an implementation fork with real consequences.
 
-## Open Questions
+## Open Questions (RESOLVED 2026-07-27)
+
+> Resolved during `/gsd-plan-phase 8`. A1 was surfaced to the user (AskUserQuestion, 2026-07-27) and confirmed; A2/A3 adopted the recommended resolutions at planning. No requirement or locked decision (D-107..D-122) is reversed.
 
 1. **Does the pax surcharge enter the host payout / commission basis?** (A1)
    - What we know: `spacePriceCents` is the payout basis (payout-sweep grosses on it) and the service-fee basis; the surcharge is host-set revenue (D-108).
    - What's unclear: D-108 gives the *charge* formula but not the payout split treatment.
-   - Recommendation: Fold surcharge into `spacePriceCents` (host earns it, commissionable, service-fee applies). Confirm with user before locking; document in the plan.
+   - Recommendation: Fold surcharge into `spacePriceCents` (host earns it, commissionable, service-fee applies).
+   - **✅ RESOLVED — YES (user-confirmed 2026-07-27):** the surcharge IS host revenue and folds into `spacePriceCents`; host is paid (base+surcharge) − commission after the session, keeping the Phase-5 hold-until-session rail UNCHANGED (D-107). Platform earns commission on the larger total. Implemented in 08-03.
 
 2. **Guest-email delivery mechanism** (A2) — new email-only Inngest fn (recommended) vs. nullable `notification.recipientId`.
    - Recommendation: new fn; smaller blast radius, preserves shipped owner-scoped queries.
+   - **✅ RESOLVED — new email-only Inngest fn:** `notification.recipientId` stays NOT NULL FK to `user.id`; guests (null `user_id`) route through a new email-only function that clones the D-83 retry/`onFailure` envelope and writes no durable row. Account recipients keep the four-file `sendForType` path (D-122). Opt-in email guard + rate-limit + de-dup preserved (D-117). Implemented in 08-04.
 
 3. **Host check-in headcount confirmation** (Claude's discretion, D-114) — build the v1 discrepancy-record seam now, or defer entirely?
    - Recommendation: defer the record seam unless the UI-SPEC top-up nudge needs a persisted `declaredPax` vs `yes` comparison beyond what the group row already gives. The nudge itself (UI-SPEC §2) needs only `declaredPax` + live yes-count, both available. The automated top-up *charge* is a fast-follow regardless.
+   - **✅ RESOLVED — DEFER:** v1 builds no check-in reconciliation/top-up charge. The corroboration nudge uses only `declaredPax` + live yes-count (meaningful when `extraHeadFee > 0`). Top-up is a fast-follow.
 
 ## Environment Availability
 

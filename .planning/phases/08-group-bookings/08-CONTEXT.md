@@ -189,6 +189,14 @@ Covers **GROUP-01, GROUP-02, GROUP-03, GROUP-04, GROUP-05**.
 - **Run `/gsd-ui-phase 8`** (UI hint = yes) for the invite/RSVP pages, the "who's coming" view, and the organizer management surface before or alongside `/gsd-plan-phase 8`.
 - **Separate track (unchanged):** the pre-launch money-loop UAT vs PayMongo test mode (payment → confirm → payout → refund) is still owed and is independent of Phase 8; card/GCash is testable now (fixture booking `42132ab1` / `pay_C4PW6fRGtUTNm6GsKCpt4P36`), QRPh + payout gated on PayMongo Money Movement beta.
 
+### Resolved open questions (during `/gsd-plan-phase 8`, 2026-07-27)
+
+These clarify existing decisions; they reverse nothing.
+
+- **Payout treatment of the pax surcharge (clarifies D-107 + D-108) — user-confirmed 2026-07-27:** the per-extra-head surcharge is **host revenue** and folds into `spacePriceCents` (the payout basis and service-fee basis). The host is paid **(base + surcharge) − commission** after the session; the platform earns commission on the larger total. This keeps the Phase-5 hold-until-session rail **unchanged** per D-107. The surcharge is never routed to platform revenue.
+- **Guest-email delivery mechanism (implements D-116/D-117/D-122):** guests (null `user_id`) do **not** flow through `fitout/notify` — `notification.recipientId` is a NOT NULL FK to `user.id`. Guests-with-email get a **new email-only Inngest function** (clones the D-83 retry/`onFailure` envelope, writes no durable row); accounts keep the four-file `sendForType` path. The D-117 opt-in email guard + rate-limit + de-dup are preserved. (`notification.recipientId` stays NOT NULL — no nullable-recipient reshape.)
+- **Host check-in headcount (clarifies D-114 Claude's-Discretion) — DEFER:** v1 builds no check-in reconciliation and no top-up charge. The corroboration nudge uses only `declaredPax` + live yes-count. The top-up charge is a fast-follow.
+
 </notes>
 
 ---
