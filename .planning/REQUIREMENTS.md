@@ -73,11 +73,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Group Bookings (Differentiator)
 
-- [ ] **GROUP-01**: Organizer can create a group booking on top of a paid booking (organizer pays the full booking)
+- [x] **GROUP-01**: Organizer can create a group booking on top of a paid booking (organizer pays the full booking)
 - [ ] **GROUP-02**: Organizer can invite attendees via a shareable link and/or email
-- [ ] **GROUP-03**: Invited attendees can RSVP (yes/no) without needing a full account
+- [x] **GROUP-03**: Invited attendees can RSVP (yes/no) without needing a full account
 - [ ] **GROUP-04**: Organizer can see the confirmed headcount and who is coming
-- [ ] **GROUP-05**: Confirmed headcount is validated against the listing's capacity
+- [x] **GROUP-05**: Confirmed headcount is validated against the listing's capacity
 
 ### Open-Capacity Bookings (Second Occupancy Mode)
 
@@ -177,11 +177,11 @@ Which phases cover which requirements. Populated during roadmap creation.
 | MANAGE-01 | Phase 7 | Complete (07-06 shipped `/bookings` — Upcoming/Past tabs partitioned on the DB clock, venue-local labels, keyset `Load more`, and the single D-104 inline `Pay now`. Rows are scoped by `booking.booker_id` in the query WHERE, mutation-verified) |
 | MANAGE-02 | Phase 7 | Complete (07-06 made the lifecycle visible on BOTH surfaces from 07-02's single derivation. D-102 `completed` is derived in SQL and proven to write nothing — `tests/booking/views.test.ts` reads the stored row back and asserts it still says `confirmed`. Booking-detail states are extended further in 07-12) |
 | MANAGE-03 | Phase 7 | In progress — 4 of the 5 named events ship (07-10). 07-07 built the layer (`fitout/notify` fans out to a durable notification row in step 1 and the email in step 2, so an email retry cannot duplicate the row; `emitNotify` is proven not to throw when the transport rejects — the "never blocks the booking transaction" clause — and `onFailure` writes a `needs_attention` audit entry, closing WR-04). **07-10 wired it**: confirmation, request received, approved, declined and cancelled all emit post-commit through the one event, and a real lifecycle action now writes a real notification row (proven against a real DB, plus an independent-connection assertion that the emission happens AFTER the durable write commits). **07-14 landed the in-app RENDER half**: a `NotificationBell` popover mounted in both headers (D-92), owner-scoped `markNotificationRead`/`markAllNotificationsRead`, a bounded hidden-aware poller (D-84), and an exhaustive item renderer whose three reminder cases already have copy and icons. Cross-user reads and mark-read writes are mutation-proven impossible, and a `javascript:` href is proven never to reach a rendered anchor. **COMPLETE as of 07-13**, which shipped the fifth and last named event: the four D-85 reminders on an hourly singleton cron at `:45`, at-most-once by `booking_reminder`'s `UNIQUE(booking_id, kind)` claim (the INSERT is the lock; Inngest's 24h dedupe TTL is explicitly not relied on) with the claim written BEFORE the send, so a crash loses a reminder rather than double-sending one — proven under a genuine two-connection race. 07-13 also closed two correctness gaps the plan carried: a reminder whose offset instant predates the booking now sends NOTHING (a range-only predicate fires it immediately — mutation-verified), and the send path re-reads the booking so a booking cancelled after being scheduled is never reminded about. **07-17 closed the CONTENT-ACCURACY gaps 07-VERIFICATION flagged (CR-01/CR-02/WR-04)**: lifecycle emails now render the row's D-96-capped payByLabel/respondByLabel instead of the flat config constants (in-app and email copy agree per D-91, request-received states no number), a zero-refund cancellation sends no refund-issued claim, and the host's copy of a host cancellation states the host's own situation (side discriminant + sendHostCancellationRecord, fee consequence in writing) while the booker's copy and durable pre-fix rows stay byte-unchanged — "keeps everyone informed" no longer means misinformed. |
-| GROUP-01 | Phase 8 | Pending |
+| GROUP-01 | Phase 8 | Complete |
 | GROUP-02 | Phase 8 | Pending |
-| GROUP-03 | Phase 8 | Pending |
+| GROUP-03 | Phase 8 | Complete |
 | GROUP-04 | Phase 8 | Pending |
-| GROUP-05 | Phase 8 | Pending |
+| GROUP-05 | Phase 8 | Complete |
 | OPEN-01 | Phase 9 | Pending |
 | OPEN-02 | Phase 9 | Pending |
 | OPEN-03 | Phase 9 | Pending |

@@ -240,7 +240,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 08-01-PLAN.md — Schema foundation: booking_group + rsvp tables, occupancy_mode/rsvp_status enums, pax columns + migration 0017 [BLOCKING]
+- [x] 08-01-PLAN.md — Schema foundation: booking_group + rsvp tables, occupancy_mode/rsvp_status enums, pax columns + migration 0017 [BLOCKING]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -293,5 +293,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
-| 8. Group Bookings | 0/9 | Planned | - |
+| 8. Group Bookings | 1/9 | In Progress|  |
 | 9. Open-Capacity Bookings | 0/TBD | Not started | - |

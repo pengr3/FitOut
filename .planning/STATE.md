@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: plan_ready
 stopped_at: Phase 08 UI-SPEC approved
-last_updated: "2026-07-27T08:55:14.746Z"
-last_activity: 2026-07-27 -- Phase 08 planning complete
+last_updated: "2026-07-27T09:18:19.040Z"
+last_activity: 2026-07-27
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 69
-  completed_plans: 61
+  completed_plans: 62
   percent: 78
 ---
 
@@ -21,17 +21,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 08 — group-bookings (PLANNED, ready to execute)
+**Current focus:** Phase 08 — group-bookings
 
 ## Current Position
 
-Phase: 08 (group-bookings) — PLANNED, ready to execute. 9 plans in 5 waves; research + pattern-map + validation-strategy done, plan-checker VERIFICATION PASSED (2026-07-27, iteration 2). Acceptance gate = the D-112 `SELECT … FOR UPDATE` seat-claim race test (GROUP-05/SC#4), red-first in 08-02, mutation-verified again at the 08-09 checkpoint. Resolved during planning: A1 (pax surcharge = host revenue in `spacePriceCents`, user-confirmed), A2 (guest-email = new email-only Inngest fn, no durable row), A3 (host check-in/top-up deferred to fast-follow). Two `[BLOCKING]` migrations: 0017 (tables/enums/columns, 08-01) + 0018 (55P04-safe `notification_type` ADD VALUE split, 08-04).
+Phase: 08 (group-bookings) — EXECUTING
+Plan: 2 of 9
 Next action: `/gsd-execute-phase 8`
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
-Last activity: 2026-07-27 -- Phase 08 planning complete
+Last activity: 2026-07-27
 
-Progress: [██████████] 100%
+Progress: [█████████░] 90%
 
 **Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-17** (all; 07-17 is the gap-closure plan for CR-01/CR-02/WR-04/WR-06).
 
@@ -183,6 +184,7 @@ Progress: [██████████] 100%
 | Phase 07 P18 | 12min | 3 tasks | 10 files |
 | Phase 07 P19 | 14 | 2 tasks | 7 files |
 | Phase 07 P20 | 11 | 3 tasks | 9 files |
+| Phase 08 P01 | 17 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -289,6 +291,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-19: a replayed request-mode placeHold notifies nobody (!res.replayed guards the emission pair; revalidate/redirect stay outside) — mirrors re-request.ts:299
 - [Phase 07]: T4-hours closed with a discoverable Availability link on the Your-listings card (availabilityHref prop to /host/listings/[id]/availability), NOT a hard operating-hours publish gate — the forcing option touches the two-place publish gate and strands hours-less published listings, deferred as a product decision.
 - [Phase 07]: formatMoney pinned to minimumFractionDigits 2 so money renders two decimals everywhere from the one shared formatter; blockReasonLabel is a pure client-importable module mapping the host_cancellation sentinel to 'Cancelled by host'.
+- [Phase ?]: 08-01: migration 0017 follows the 0013 convention (unqualified names, plain CREATE TYPE) because Postgres has no CREATE TYPE IF NOT EXISTS; idempotency = drizzle journal + fresh-schema harness replay
 
 ### Pending Todos
 
@@ -338,9 +341,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-27T07:12:13.232Z
+Last session: 2026-07-27T09:15:24.270Z
 Stopped at: Phase 08 UI-SPEC approved
-Resume file: .planning/phases/08-group-bookings/08-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-07-24T04:37:54.671Z
 Stopped at: Completed 07-20-PLAN.md (T4-hours/T7/T9 gap closure)
