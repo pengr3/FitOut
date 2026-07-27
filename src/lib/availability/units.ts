@@ -172,6 +172,14 @@ export type CreatePendingHoldInput = {
    * leaves it NULL as before.
    */
   bookingMode?: "instant" | "request";
+  /**
+   * D-108 organizer-declared attendee headcount, captured at placeHold. Drives the pax surcharge ONLY
+   * when the listing's extra_head_fee > 0 — the fee + `included` are read SERVER-SIDE from the listing row
+   * inside the tx (never trusted from the client). Persisted onto the booking row ONLY when the fee > 0; a
+   * flat listing has no surcharge machinery and leaves booking.declared_pax NULL (D-108). Absent ⇒ the
+   * quote is byte-identical to today.
+   */
+  declaredPax?: number;
 };
 
 /**
@@ -376,12 +384,16 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
             hourlyRateCents: listing.hourlyRateCents,
             dayRateCents: listing.dayRateCents,
             cancellationPolicy: listing.cancellationPolicy,
+            // D-108 group-pricing facts, read INSIDE the tx alongside the rates (never a client-supplied
+            // price). Nullable on a flat listing → coalesced by quoteWindow; a NULL fee means no surcharge.
+            included: listing.included,
+            extraHeadFee: listing.extraHeadFee,
             leadOk: sql<boolean>`(${startIso}::timestamptz >= now() + ${leadIntervalSql})`,
           })
           .from(listing)
           .where(eq(listing.id, input.listingId));
         if (listingRows.length === 0) throw new NoUnitAvailableError(); // unknown listing → nothing to hold
-        const { unitCount, hourlyRateCents, dayRateCents, leadOk } = listingRows[0];
+        const { unitCount, hourlyRateCents, dayRateCents, included, extraHeadFee, leadOk } = listingRows[0];
         const listingCancellationPolicy = listingRows[0].cancellationPolicy;
 
         // D-93/D-96 lead-time guard, enforced SERVER-SIDE against now(). The SlotPicker's unselectable
@@ -416,7 +428,26 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         // (3) Server-frozen price quote (D-45/D-46) + the D-74 service fee composed AT THE CALLER. The TTL
         // is NOT computed here any more — `expiresAtSql` (D-94) is evaluated by Postgres inside the insert,
         // and is therefore RE-EVALUATED on each SAVEPOINT attempt rather than captured once before the loop.
-        const quote = quoteWindow({ startUtc: startsAt, endUtc: endsAt, fullDay, hourlyRateCents, dayRateCents });
+        //
+        // D-108: the pax surcharge is re-derived here from the listing's OWN included/extra_head_fee (read
+        // above, server-side) and the organizer's declaredPax — the client sends no price. With extra_head_fee
+        // absent/0 the quote is byte-identical to today (backward-compat). Per A1 the surcharge folds into
+        // quote.totalCents, which is frozen as spacePriceCents below — so it becomes the payout gross basis AND
+        // the service-fee basis (computeServiceFee(quote.totalCents)) automatically, and quoted == space + fee
+        // still holds by construction. The Phase-5 hold-until-session rail is untouched (D-107).
+        const quote = quoteWindow({
+          startUtc: startsAt,
+          endUtc: endsAt,
+          fullDay,
+          hourlyRateCents,
+          dayRateCents,
+          included: included ?? undefined,
+          extraHeadFee: extraHeadFee ?? undefined,
+          declaredPax: input.declaredPax,
+        });
+        // D-108: record declaredPax ONLY when the listing actually charges per head (extra_head_fee > 0). On a
+        // flat listing there is no surcharge machinery and no declaredPax to persist — the column stays NULL.
+        const declaredPaxToPersist = (extraHeadFee ?? 0) > 0 ? (input.declaredPax ?? null) : null;
         // Finding 2 — THREE frozen values, not one. `quotedTotalCents` stays "the amount actually charged"
         // (ALL-IN: what PayMongo charges and what a refund references). `spacePriceCents` is the PAYOUT
         // basis; `serviceFeeCents` is NON-REFUNDABLE platform revenue (D-74). Paying out 90% of the all-in
@@ -485,6 +516,9 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
                   // here so a later listing retier NEVER rewrites the refund terms of an in-flight booking.
                   // The refund calculator reads THIS column, never the listing's current value (T-07-43).
                   cancellationPolicy: listingCancellationPolicy,
+                  // D-108: the declared headcount that priced this booking — persisted ONLY when the listing
+                  // charges per head (else NULL). Frozen alongside the price so a later listing edit can't lie.
+                  declaredPax: declaredPaxToPersist,
                   idempotencyKey,
                 })
                 .returning({

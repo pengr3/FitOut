@@ -113,7 +113,7 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
     };
   }
-  const { listingId, startUtc, endUtc, fullDay, idempotencyKey } = parsed.data;
+  const { listingId, startUtc, endUtc, fullDay, idempotencyKey, declaredPax } = parsed.data;
 
   // (4) Re-derive bookability SERVER-SIDE (Security V4 — the reserve route group is NOT the gate). Mirrors
   // the listing page's deriveBookable call (listings/[id]/page.tsx:113-119): published + host emailVerified
@@ -167,6 +167,7 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       holdStatus: "requested",
       ttlMs: APPROVAL_SLA_HOURS * 60 * 60 * 1000, // the 24h approval SLA (config-tunable) — never hardcoded
       bookingMode: "request",
+      declaredPax, // D-108: drives the pax surcharge server-side, but ONLY when the listing charges per head
     });
     if ("error" in res) {
       return { ok: false, reason: "taken", error: res.error }; // same calm "just taken" as instant (SC#4)
@@ -272,6 +273,7 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
     endsAt: endUtc,
     fullDay,
     idempotencyKey: idempotencyKey ?? null,
+    declaredPax, // D-108: the surcharge is re-derived server-side and folds into spacePriceCents (A1), fee>0 only
   });
   if ("error" in res) {
     return { ok: false, reason: "taken", error: res.error }; // "That time was just taken." (SC#4)

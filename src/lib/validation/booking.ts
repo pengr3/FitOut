@@ -94,6 +94,11 @@ export const bookingCreateSchema = z
     listingId: z.string().min(1),
     ...slotWindowShape,
     idempotencyKey: z.string().min(1).optional(),
+    // D-108 group pricing: the organizer-declared attendee headcount. SHAPE-ONLY here (an optional coerced
+    // positive int) — the PRICE is re-derived server-side inside createPendingHold from the listing's OWN
+    // included/extra_head_fee, and this only drives the charge when extra_head_fee > 0. The real seat-cap
+    // enforcement is D-112's seat-claim, not this field, so no upper bound is asserted here.
+    declaredPax: z.coerce.number().int().min(1).optional(),
   })
   .refine(endAfterStart, endAfterStartIssue);
 
