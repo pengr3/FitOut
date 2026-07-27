@@ -30,6 +30,7 @@ import { db } from "@/lib/db";
 import { booking, listing } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { composeWhenLabel } from "@/lib/booking/when-label";
+import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { LADDER, quoteRefund, rungBoundaries, tierOrDefault } from "@/lib/payments/cancellation";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
@@ -166,6 +167,31 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   const hoursToStart = Math.floor(quote.hoursToStart);
   const percentLabel = `${quote.refundBps / 100}%`;
 
+  // ── 08-07 / D-121: THE GROUP CONSEQUENCE. Cancelling a group booking also kills the group — the invite
+  // link stops resolving and every reachable "yes" attendee is told (the auto-void wired into both cancel
+  // paths by 08-06). Disclosing that here, BEFORE the confirm, is the same discipline the refund breakdown
+  // follows: this screen exists so nothing about the consequence is a surprise.
+  //
+  // ⚠️ THE MONEY IS DELIBERATELY UNTOUCHED (D-114). Attendees are not payers — the organizer bought the slot
+  // and the organizer is refunded; there are no per-attendee refunds to add, and the breakdown below is
+  // byte-identical to what it renders on a non-group booking. This is prose, and only prose.
+  //
+  // Both reads are owner-scoped INSIDE their statements (08-06), and the page is already owner-gated above.
+  const group = await getOwnedGroupByBooking(db, { bookingId: bk.id, organizerId: userId });
+  const groupHeadcount = group
+    ? await getHeadcount(db, { groupId: group.groupId, organizerId: userId })
+    : null;
+  const comingCount = groupHeadcount?.confirmed ?? 0;
+  // The 08-UI-SPEC §7 sentence, made TRUTHFUL at its edges rather than interpolated blindly: "the 1 people
+  // coming" and "the 0 people coming" are both things we would be saying to a real person at the moment
+  // they are cancelling. A group nobody has answered yet still HAS a consequence — the link dies — so the
+  // zero case states that consequence instead of pretending an audience exists.
+  const groupConsequenceLine = !group
+    ? null
+    : comingCount > 0
+      ? `This also cancels the group — we'll let the ${comingCount} ${comingCount === 1 ? "person" : "people"} coming know.`
+      : "This also cancels the group — your invite link will stop working.";
+
   // D-81 — the CONCRETE instant the refund changes, in venue-local time, never an abstract percentage
   // alone. This is what turns the action's recompute from a surprise into something the booker was told.
   const boundaries = rungBoundaries(tier, bk.startsAt);
@@ -226,6 +252,11 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
                 {format(nextDrop.at, "EEE, MMM d, h:mm a", { in: inTz })}
                 {lst.city ? ` (${lst.city} time)` : ""}.
               </p>
+            )}
+            {/* D-121 — ONE muted line, above the breakdown, only when this booking is a group. No new
+                component and no new layout (08-UI-SPEC §7). */}
+            {groupConsequenceLine && (
+              <p className="text-sm text-muted-foreground">{groupConsequenceLine}</p>
             )}
           </div>
 

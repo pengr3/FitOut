@@ -36,6 +36,13 @@
 //       genuinely free.
 //   (d) The `cancelled` and derived-`completed` branches, both CALM — never an alarm colour, never --success.
 //
+// ── Plan 08-07 adds ONE more, on the confirmed branch only. ───────────────────────────────────────────────
+//   (e) THE D-119 GROUP ENTRY: a coral `Invite people` on a confirmed, session-ahead, exclusive-occupancy
+//       booking that is not yet a group, or a neutral `Manage group · {N} coming` link once it is. Its cost
+//       to the surface is that the shipped coral `Find another space` DEMOTES to a ghost link — one primary
+//       per surface (08-UI-SPEC Open Q3), and the differentiator gets the slot. Nothing else moved: the
+//       cancel entry, every other status branch and all the money on this page are untouched.
+//
 // THE CLOCK. `now` is read from POSTGRES once, via `readDbNow`, and threaded into every status derivation and
 // date comparison on the page, so the badge, the completed derivation and the availability read all agree
 // with the DB and with the /bookings list's SQL partition. A bare `SELECT now()` through `db.execute` hands
@@ -58,6 +65,7 @@ import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { bookingReference } from "@/lib/booking/reference";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { getAvailability } from "@/lib/availability/read-model";
+import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
 import { APPROVAL_SLA_HOURS, APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
@@ -70,6 +78,7 @@ import { PaymentReversedState } from "@/components/booking/payment-reversed-stat
 import { RequestCountdown } from "@/components/booking/request-countdown";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { CancelRequestDialog } from "@/components/booking/cancel-request-dialog";
+import { CreateGroupButton } from "@/components/group/create-group-button";
 import {
   ExpiredApprovalState,
   type ExpiredApprovalSlot,
@@ -194,6 +203,11 @@ export default async function BookingConfirmationPage({
       // against a CURRENT listing rate, and that absence is the Pitfall-3 fix. Only the day rate remains,
       // for the pre-0016 positive-match fullDay fallback.
       dayRateCents: listing.dayRateCents,
+      // D-109 — the group entry is an EXCLUSIVE-occupancy affordance. The enum has exactly one value in v1
+      // (and the column is NOT NULL DEFAULT 'exclusive'), so today this predicate is always true; it is
+      // written out anyway so the open-capacity mode Phase 9 adds cannot inherit an invite flow that was
+      // designed around "one payer, one exclusive lock" without someone deciding it should.
+      occupancyMode: listing.occupancyMode,
     })
     .from(listing)
     .where(eq(listing.id, bk.listingId));
@@ -518,7 +532,36 @@ export default async function BookingConfirmationPage({
   // (a) The cancel entry appears ONLY while the session is still ahead — the same D-94 rule the action and
   //     the review page enforce, so all three agree about when cancellation is possible. A finished session
   //     has nothing to cancel, which is also why the completed branch carries no entry.
-  const canCancel = !isCompleted && bk.startsAt.getTime() > now.getTime();
+  //
+  // (e) 08-07 — the D-119 GROUP ENTRY turns on the SAME predicate, so the two entries are named ONCE rather
+  //     than restated. Both mean "there is still a session to act on": you cannot cancel a session that has
+  //     started, and you cannot usefully invite people to one either.
+  const sessionAhead = !isCompleted && bk.startsAt.getTime() > now.getTime();
+
+  // ── (e) THE D-119 GROUP ENTRY POINT (08-UI-SPEC §1). ────────────────────────────────────────────────────
+  // THREE conditions, and the branch is exhaustive about them because every OTHER status renders above:
+  //   - `status === 'confirmed'` — a group is a coordination layer on a booking that is PAID and real
+  //     (D-119). pending / requested / approved / declined / cancelled all return before this line, so this
+  //     re-states the invariant rather than discovering it; it is written out so the guard survives anyone
+  //     later adding a status to this branch.
+  //   - `sessionAhead`          — see above. A finished or in-progress session has no one left to invite.
+  //   - `occupancyMode`         — D-109; see the select above.
+  // ALL THREE ARE COURTESIES. `createGroup` re-checks ownership and confirmation server-side before it
+  // writes anything, so a hand-crafted POST that skipped this UI gains nothing (Security V4).
+  //
+  // The reads are owner-scoped IN their own WHERE (`organizerId` is an argument to both, 08-06) — this page
+  // never filters a group in JS after reading it, because a foreign roster must be UNREADABLE, not merely
+  // unrendered.
+  const groupEligible =
+    bk.status === "confirmed" && sessionAhead && lst.occupancyMode === "exclusive";
+  const group = groupEligible
+    ? await getOwnedGroupByBooking(db, { bookingId: bk.id, organizerId: userId })
+    : null;
+  // `{N} coming` is the CONFIRMED-yes count, server-computed — the same figure the management surface makes
+  // its focal point, so the two can never disagree about how many people are coming.
+  const groupHeadcount = group
+    ? await getHeadcount(db, { groupId: group.groupId, organizerId: userId })
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
@@ -575,8 +618,38 @@ export default async function BookingConfirmationPage({
                 ? "This page is your record of the session — it stays here if you come back later."
                 : "This page is your confirmation — it stays here if you refresh or come back later."}
             </p>
-            {/* At most one optional coral forward action (UI-SPEC accent #4); the badge stays --success. */}
-            <Button asChild className="w-full bg-brand text-brand-foreground hover:bg-brand/90">
+
+            {/* (e) THE GROUP ENTRY (D-119 / 08-UI-SPEC §1) — the differentiator's front door, and the ONE
+                coral on this surface. Two mutually-exclusive shapes:
+                  - not yet a group → the coral `Invite people` + its helper line. This is the phase's
+                    headline action, so it takes the accent slot (08-UI-SPEC §Color accent #1).
+                  - already a group → a NEUTRAL outline `Manage group · {N} coming` link. Once the group
+                    exists, management is a calm return trip, not a headline action; making it coral would
+                    keep shouting at an organizer who has already done the thing. */}
+            {groupEligible &&
+              (group ? (
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`/bookings/${bk.id}/group`}>
+                    Manage group · {groupHeadcount?.confirmed ?? 0} coming
+                  </Link>
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <CreateGroupButton bookingId={bk.id} />
+                  <p className="text-sm text-muted-foreground">
+                    Invite friends to this booking and track who&apos;s coming.
+                  </p>
+                </div>
+              ))}
+
+            {/* ⚠️ DEMOTED FROM CORAL TO `ghost` (08-UI-SPEC §1 / Open Q3). This was the confirmed branch's
+                one coral forward action; `Invite people` now holds that slot, and one-primary-per-surface
+                forbids two. The demotion is UNCONDITIONAL on this branch rather than tied to whether the
+                group entry rendered: a completed session's "find another space" is a calm afterthought, not
+                a call to action, and a rule that flipped a shipped button's weight depending on a date is a
+                rule nobody can hold in their head. The `declined` and `cancelled` branches keep their coral
+                — there, finding another space genuinely IS the one thing left to do. */}
+            <Button asChild variant="ghost" className="w-full">
               <Link href="/">Find another space</Link>
             </Button>
           </div>
@@ -587,7 +660,7 @@ export default async function BookingConfirmationPage({
               promises) is always seen before an irreversible money action. Neutral outline — not coral,
               which would advertise the action FitOut least wants taken, and not an alarm colour, which
               would misrepresent a refund the booker is contractually entitled to. */}
-          {canCancel && (
+          {sessionAhead && (
             <>
               <Separator />
               <Button asChild variant="outline" className="w-full">
