@@ -183,3 +183,7 @@ None. Every file touched is inside the plan's declared `<threat_model>` surface,
 4. **`createGroup` is idempotent and returns `alreadyExisted`** — the "Invite people" button can be double-clicked safely, and the caller can route straight to `/bookings/[id]/group` either way.
 5. **`regenerateLink(groupId)` and `removeAttendee(rsvpId)`**, not booking ids — `getOwnedGroupByBooking` is the bridge from the RSC's `[id]` param to the group id.
 6. **The top-up nudge (D-114) must check `extraHeadFee > 0` FIRST** (08-05 contract 6): `declared_pax` is NULL on every flat listing. `getOwnedGroupByBooking` already returns both `declaredPax` and `extraHeadFee` so the nudge needs no extra query.
+
+## Self-Check: PASSED
+
+All 7 created files and the SUMMARY exist on disk; all 4 commits (`69bd0fa`, `08e6f84`, `396cb1d`, `0f100b3`) are present in the repository history.
