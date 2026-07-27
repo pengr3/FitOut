@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: plan_ready
 stopped_at: Phase 08 UI-SPEC approved
-last_updated: "2026-07-27T09:18:19.040Z"
+last_updated: "2026-07-27T09:34:21.456Z"
 last_activity: 2026-07-27
 progress:
   total_phases: 9
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Next action: `/gsd-execute-phase 8`
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
@@ -185,6 +185,7 @@ Progress: [█████████░] 90%
 | Phase 07 P19 | 14 | 2 tasks | 7 files |
 | Phase 07 P20 | 11 | 3 tasks | 9 files |
 | Phase 08 P01 | 17 | 2 tasks | 4 files |
+| Phase 08 P02 | 12 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -292,6 +293,7 @@ Recent decisions affecting current work:
 - [Phase 07]: T4-hours closed with a discoverable Availability link on the Your-listings card (availabilityHref prop to /host/listings/[id]/availability), NOT a hard operating-hours publish gate — the forcing option touches the two-place publish gate and strands hours-less published listings, deferred as a product decision.
 - [Phase 07]: formatMoney pinned to minimumFractionDigits 2 so money renders two decimals everywhere from the one shared formatter; blockReasonLabel is a pure client-importable module mapping the host_cancellation sentinel to 'Cancelled by host'.
 - [Phase ?]: 08-01: migration 0017 follows the 0013 convention (unqualified names, plain CREATE TYPE) because Postgres has no CREATE TYPE IF NOT EXISTS; idempotency = drizzle journal + fresh-schema harness replay
+- [Phase ?]: 08-02: RSVP no-overflow is the D-112 pessimistic seat-claim (SELECT capacity_snapshot ... FOR UPDATE + count under the lock in claimSeat), the atomic authority — mutation-verified via the two-connection makeRacingClients race gate (delete FOR UPDATE -> red -> restore). Invite/manage tokens are ~100-bit crypto Crockford bearer credentials over randomBytes(20), no FIT- prefix (D-118).
 
 ### Pending Todos
 
@@ -341,7 +343,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-27T09:15:24.270Z
+Last session: 2026-07-27T09:33:49.064Z
 Stopped at: Phase 08 UI-SPEC approved
 Resume file: None
 
