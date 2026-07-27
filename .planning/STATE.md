@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: plan_ready
 stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-07-27T10:05:20.662Z"
+last_updated: "2026-07-27T10:36:50.963Z"
 last_activity: 2026-07-27
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 69
-  completed_plans: 65
+  completed_plans: 66
   percent: 78
 ---
 
@@ -26,13 +26,24 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 5 of 9
+Plan: 6 of 9
 Next action: `/gsd-execute-phase 8`
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-27
 
-Progress: [█████████░] 94%
+Progress: [██████████] 96%
+
+**08-05 landed — the D-108 pax-pricing UI ships (wizard fee fields + PaxStepper + surcharge line + BOTH fullDay fixes).** `tests/booking/ listing/ validation/ payments/`: **40 files / 419 tests, exit 0**; tsc + eslint clean (0 errors); `npm run build` exit 0.
+
+📌 **New contracts from 08-05 (load-bearing for anyone touching checkout, the breakdown, or a fullDay label):**
+
+1. *Pitfall 3 is CLOSED, and the fix is grep-guarded.* `/listings/[id]/book` and `/bookings/[id]` now read the PERSISTED `booking.full_day` (WR-06 / drizzle 0016). The old "frozen space price ≠ the current hourly run total" derivation is GONE and **must not come back** — the D-108 surcharge folds into `spacePriceCents` (A1), so an ordinary hourly booking with one extra guest no longer matches that product and would render as "Full day". Neither page spells the removed identifiers **even in prose**, so the absence-grep cannot be tripped by the comment forbidding it (the 07-04 tripwire discipline). The pre-0016 fallback is a POSITIVE day-rate match (the `re-request.ts:234` idiom), never an inequality.
+2. *`updateDeclaredPax` is the ONLY way a frozen quote may move, and it can never touch money already taken.* Scoped to `(id, owner, status IN ('pending','approved'), expires_at > now())`, so a `confirmed` booking is untouchable — the over-subscribed-group top-up remains **D-114's deferred fast-follow**. It re-freezes the whole D-74 triple together (`quoted == space + fee` still holds by construction), reads `full_day` from the row, and clamps the headcount to the LISTING's `maxOccupancy` server-side (the stepper's `max` is a courtesy, Security V4).
+3. *The checkout `Idempotency-Key` is now amount-scoped — but ONLY for per-head bookings.* `checkout:<bookingId>:<quotedTotalCents>` when `declared_pax` is non-NULL; the byte-identical `checkout:<bookingId>` otherwise. Reason: the stepper makes a quote MUTABLE for the first time, so a booker who backs out of the hosted checkout, re-steps, and pays again would otherwise replay the first session **at the old amount**. The two shipped tests pinning the flat key stay valid by construction. ⚠️ Residual edge (a stale open PayMongo tab paying the older session) is logged in `08-.../deferred-items.md` — closing it needs a persisted `checkout_session_id` or a webhook amount-reconcile, both Phase-5 rail changes D-107 holds out of Phase 8.
+4. *`paxSurcharge()` (pricing.ts) is the SINGLE place `max(0, pax − included) × fee` is computed.* `quoteWindow` delegates to it and the reserve RSC calls it for the breakdown props, so the figure a booker reads and the figure they are charged cannot drift by restatement. `PriceBreakdown` gained `runPriceCents` — because the surcharge lives INSIDE `spacePriceCents`, the run line must drop to the base or the same centavos are disclosed twice; the component still neither sums nor subtracts.
+5. *Group-pricing fields are OPTIONAL in `publishSchema` on purpose.* They mirror `postalCode`, NOT `cancellationPolicy`. 07-15's "a new publish requirement lands in TWO places" rule cuts the other way here: putting them in the gate is exactly how a requirement becomes real, so they stay optional and never enter the publish checklist. A test pins this **negative** property.
+6. *`extraHeadFee = 0` ⇒ ZERO UI change, still true.* No stepper, no surcharge line, no `declared_pax`, identical checkout key. `declared_pax` is **NULL on every flat listing** — 08-07's top-up nudge must check `extraHeadFee > 0` FIRST or it will compare against null.
 
 **Note on ordering:** 07-14 was executed ahead of 07-11/12/13 (its dependencies, 07-06 and 07-07, were both already done). Completed in Phase 7: **07-01 … 07-17** (all; 07-17 is the gap-closure plan for CR-01/CR-02/WR-04/WR-06).
 
@@ -188,6 +199,7 @@ Progress: [█████████░] 94%
 | Phase 08 P02 | 12 | 2 tasks | 5 files |
 | Phase 08 P03 | 9 | 2 tasks | 6 files |
 | Phase 08 P04 | 30 | 2 tasks | 13 files |
+| Phase 08 P05 | 35 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -299,6 +311,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-03: the D-108 pax surcharge folds into spacePriceCents (A1) — host revenue, the payout + service-fee basis; extraHeadFee=0 stays byte-identical to today; Phase-5 rail unchanged (D-107)
 - [Phase ?]: 08-03: booking.declared_pax persisted only when the listing charges per head (extra_head_fee>0), else NULL (D-108); declaredPax is shape-only at the schema, price re-derived server-side
 - [Phase ?]: D-122: group RSVP notification types added as the four-file compile-checked change (no default:); guests (null user_id) use a separate email-only fitout/guest-email fn with no durable row (RESOLVED A2 / Pitfall 2)
+- [Phase ?]: 08-05: group-pricing fields are OPTIONAL in publishSchema (mirror postalCode, not cancellationPolicy) — adding them to the publish gate is exactly how a requirement becomes real
+- [Phase ?]: 08-05: a CONFIRMED booking can never be re-priced by updateDeclaredPax — the over-subscribed-group top-up stays D-114's deferred fast-follow
+- [Phase ?]: 08-05: the PayMongo checkout Idempotency-Key is amount-scoped ONLY for per-head bookings (declared_pax non-NULL); flat bookings keep checkout:<bookingId> byte-identical
 
 ### Pending Todos
 
@@ -348,7 +363,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-27T10:05:20.606Z
+Last session: 2026-07-27T10:36:40.137Z
 Stopped at: Completed 08-04-PLAN.md
 Resume file: None
 
