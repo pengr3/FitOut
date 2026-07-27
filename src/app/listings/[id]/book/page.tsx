@@ -25,7 +25,7 @@ import { tz } from "@date-fns/tz";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, listingPhoto } from "@/lib/db/schema";
-import { windowHours } from "@/lib/booking/pricing";
+import { windowHours, paxSurcharge } from "@/lib/booking/pricing";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
@@ -37,6 +37,7 @@ import { rungBoundaries, bestFutureRungIndex } from "@/lib/payments/cancellation
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
+import { PaxStepper } from "@/components/booking/pax-stepper";
 import { ReserveView } from "@/components/booking/reserve-view";
 
 export default async function ReservePage({
@@ -81,6 +82,10 @@ export default async function ReservePage({
       // retiering the listing between this render and the cancel cannot move what was disclosed (T-07-90).
       cancellationPolicy: booking.cancellationPolicy,
       currency: booking.currency,
+      // WR-06 (drizzle 0016) — the PERSISTED pricing-mode snapshot, read instead of re-derived (see below).
+      fullDay: booking.fullDay,
+      // D-108 — the headcount that priced this hold. NULL on every flat-priced listing.
+      declaredPax: booking.declaredPax,
     })
     .from(booking)
     .where(eq(booking.id, holdId));
@@ -113,6 +118,11 @@ export default async function ReservePage({
       timezone: listing.timezone,
       hourlyRateCents: listing.hourlyRateCents,
       dayRateCents: listing.dayRateCents,
+      // D-108 group pricing + the stepper's cap. `extraHeadFee` absent/0 ⇒ this page renders exactly as
+      // it does today: no stepper, no surcharge line, no declaredPax anywhere.
+      included: listing.included,
+      extraHeadFee: listing.extraHeadFee,
+      maxOccupancy: listing.maxOccupancy,
     })
     .from(listing)
     .where(eq(listing.id, bk.listingId));
@@ -133,14 +143,23 @@ export default async function ReservePage({
     ? SPACE_TYPE_LABELS[lst.primarySpaceType as SpaceTypeValue]
     : null;
 
-  // fullDay is NOT persisted on the booking row (schema.ts) — re-derive it from the frozen SPACE PRICE: a
-  // full-day hold froze the flat day rate, an hourly hold froze hourlyRate × hours. The Total shown is
-  // ALWAYS the frozen all-in quotedTotalCents (D-49) regardless of this label; only the "/day" vs "/hr × N"
-  // wording depends on the derivation. Bias to hourly on an exact coincidence (shows the real hours).
+  // fullDay is the booking row's OWN persisted creation-time snapshot (booking.full_day, drizzle 0016 /
+  // WR-06) — the same flag quoteWindow froze this price with. The Total shown is ALWAYS the frozen all-in
+  // quotedTotalCents (D-49) regardless of this label; only the "/day" vs "/hr × N" wording depends on it.
   //
-  // ⚠️ Compared against `spacePriceCents`, NOT the all-in total. Under D-74 the charged total is
-  // `space + service fee`, so it can never equal `hourlyRate × hours` and would mislabel EVERY hourly
-  // booking as "Full day". `quotedTotalCents` remains the fallback for a pre-Phase-7 row (fee was 0).
+  // ⚠️ THE OLD "space price is not equal to the hourly run total" DERIVATION IS GONE, AND MUST NOT COME
+  // BACK (08-RESEARCH Pitfall 3). It was already fragile — a host rate edit made the inequality lie — but
+  // the D-108 extra-guest surcharge makes it actively WRONG: the surcharge is folded INTO spacePriceCents
+  // (A1), so a perfectly ordinary hourly booking with one extra guest no longer matches the plain hourly
+  // run total, and would render as "Full day" to the person who booked two hours.
+  //
+  // ⚠️ GREP TRIPWIRE (the 07-04 payout-sweep idiom). The absence of the old derivation is checked by grepping
+  // this file for the two identifiers it was written with; neither is spelled out anywhere here, comments
+  // included, because a guard a comment can trip is not a guard.
+  //
+  // The fallback covers pre-0016 rows only (full_day IS NULL) and is a POSITIVE day-rate match, never an
+  // inequality — mirroring re-request.ts:234. It can only ever ADD "Full day" on an exact match, so nothing
+  // hourly (surcharged or not) can be mislabeled by it.
   const hours = windowHours(bk.startsAt, bk.endsAt);
   const quoted = bk.quotedTotalCents ?? 0;
   // The D-74 split, read off the frozen row. LEGACY FALLBACK: a pre-Phase-7 booking has a null split and
@@ -148,8 +167,31 @@ export default async function ReservePage({
   // charged — and `serviceFeeCents === 0` makes PriceBreakdown omit the fee row entirely.
   const spacePriceCents = bk.spacePriceCents ?? quoted;
   const serviceFeeCents = bk.serviceFeeCents ?? 0;
-  const hourlyTotal = lst.hourlyRateCents != null ? lst.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || spacePriceCents !== hourlyTotal;
+  const fullDay =
+    bk.fullDay ?? (lst.dayRateCents != null && spacePriceCents === lst.dayRateCents);
+
+  // ── D-108 extra-guest surcharge, computed SERVER-SIDE by the same function that froze it ─────────────
+  // `paxSurcharge` is the single definition of the D-108 product; quoteWindow folded its `surchargeCents`
+  // into `spacePriceCents` at hold time (A1). Disclosing it needs the run line to drop back to the BASE,
+  // or the same centavos would appear twice — so the base is computed HERE and handed to PriceBreakdown,
+  // which still neither sums nor subtracts anything.
+  //
+  // The `< spacePriceCents` guard is a coherence check, not decoration: if a host edits extra_head_fee
+  // during a live hold, the recomputed surcharge could no longer fit inside the frozen space price. Rather
+  // than render a base that disagrees with the charge, the line is simply omitted and the run line shows
+  // the whole frozen space price — the pre-Phase-8 rendering, which is always truthful about the total.
+  const surcharge = paxSurcharge({
+    included: lst.included,
+    extraHeadFee: lst.extraHeadFee,
+    declaredPax: bk.declaredPax,
+  });
+  const showSurcharge =
+    surcharge.surchargeCents > 0 && surcharge.surchargeCents < spacePriceCents;
+  const runPriceCents = showSurcharge ? spacePriceCents - surcharge.surchargeCents : spacePriceCents;
+
+  // The stepper exists ONLY on a listing that actually charges per head (D-108). On every flat listing the
+  // component is never mounted and this page is byte-for-byte what it was before Phase 8.
+  const chargesPerHead = (lst.extraHeadFee ?? 0) > 0;
 
   const dateLabel = format(bk.startsAt, "EEEE, MMM d", { in: inTz });
   const timeLabel = fullDay
@@ -184,6 +226,19 @@ export default async function ReservePage({
           {!fullDay && ` · ${hours} ${hours === 1 ? "hour" : "hours"}`}
         </p>
       </div>
+
+      {/* D-108 — the headcount control, and ONLY on a listing that charges per head. `declaredPax` is the
+          PERSISTED value (organizer counts as #1, D-113), so a refresh or a Back never resurrects a stale
+          local number, and the cap is the listing's own maxOccupancy. */}
+      {chargesPerHead && (
+        <div className="rounded-lg border p-4">
+          <PaxStepper
+            holdId={bk.id}
+            declaredPax={bk.declaredPax ?? 1}
+            maxOccupancy={lst.maxOccupancy ?? 1}
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -213,7 +268,11 @@ export default async function ReservePage({
       <PriceBreakdown
         quotedTotalCents={quoted}
         spacePriceCents={spacePriceCents}
+        runPriceCents={runPriceCents}
         serviceFeeCents={serviceFeeCents}
+        extraHeads={showSurcharge ? surcharge.extraHeads : 0}
+        extraHeadCents={showSurcharge ? surcharge.extraHeadCents : 0}
+        extraSurchargeCents={showSurcharge ? surcharge.surchargeCents : 0}
         currency={bk.currency ?? DISPLAY_CURRENCY}
         fullDay={fullDay}
         hours={hours}

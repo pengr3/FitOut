@@ -46,6 +46,39 @@ export type Quote = {
 
 const MS_PER_HOUR = 3_600_000;
 
+/** The D-108 surcharge, split into the three figures the breakdown line needs. Never summed by a UI. */
+export type PaxSurcharge = {
+  /** Heads charged beyond `included` — 0 whenever the listing does not charge per head. */
+  extraHeads: number;
+  /** The per-extra-head fee actually applied, in centavos — 0 on a flat listing. */
+  extraHeadCents: number;
+  /** extraHeads × extraHeadCents, in centavos. THE ONLY PLACE THIS PRODUCT IS COMPUTED. */
+  surchargeCents: number;
+};
+
+/**
+ * The D-108 pax surcharge, as ONE function. `quoteWindow` folds its `surchargeCents` into the frozen
+ * price, and the reserve page calls the SAME function to label the breakdown line — so the figure a booker
+ * reads and the figure they are charged cannot drift apart by restatement (the failure mode the
+ * PriceBreakdown zero-arithmetic contract exists to prevent).
+ *
+ * Gated on `fee > 0` so a flat listing yields exactly zero and the quote stays byte-identical to today;
+ * `Math.max(0, …)` floors it so `declaredPax ≤ included` (including organizer-only, D-113) never produces
+ * a negative surcharge. Integer centavos throughout — fee and heads are both integers, so there is no
+ * float and no second rounding.
+ */
+export function paxSurcharge(input: {
+  included?: number | null;
+  extraHeadFee?: number | null;
+  declaredPax?: number | null;
+}): PaxSurcharge {
+  const included = input.included ?? 1; // organizer is attendee #1, folded into the base (D-113)
+  const fee = input.extraHeadFee ?? 0;
+  const pax = input.declaredPax ?? 1;
+  const extraHeads = fee > 0 ? Math.max(0, pax - included) : 0;
+  return { extraHeads, extraHeadCents: fee, surchargeCents: extraHeads * fee };
+}
+
 /**
  * Whole-hour count of the window [startUtc, endUtc). Both bounds are ABSOLUTE UTC instants that were
  * already produced on-the-hour in the venue tz by slots.ts (via TZDate) upstream, so the number of paid
@@ -87,15 +120,9 @@ export function quoteWindow(input: QuoteInput): Quote {
     baseCents = hourlyRateCents * hours;
   }
 
-  // D-108 surcharge — integer centavos throughout (fee and extraHeads are both integers, so no float and no
-  // second rounding). Gated on `fee > 0` so a flat listing yields exactly zero and stays byte-identical to
-  // today; `Math.max(0, …)` floors it so `declaredPax ≤ included` (incl. organizer-only, D-113) never
-  // produces a negative surcharge.
-  const included = input.included ?? 1; // organizer is attendee #1, folded into the base (D-113)
-  const fee = input.extraHeadFee ?? 0;
-  const pax = input.declaredPax ?? 1;
-  const extraHeads = fee > 0 ? Math.max(0, pax - included) : 0;
-  const surchargeCents = extraHeads * fee;
+  // D-108 surcharge — delegated to `paxSurcharge` above so the reserve page's breakdown line and this
+  // frozen price are produced by the SAME code, never by two copies of the formula.
+  const { extraHeads, extraHeadCents, surchargeCents } = paxSurcharge(input);
 
   return {
     totalCents: baseCents + surchargeCents,
@@ -103,6 +130,6 @@ export function quoteWindow(input: QuoteInput): Quote {
     hours,
     fullDay,
     extraHeads,
-    extraHeadCents: fee,
+    extraHeadCents,
   };
 }

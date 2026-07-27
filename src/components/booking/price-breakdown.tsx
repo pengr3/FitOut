@@ -40,10 +40,31 @@ type PriceBreakdownProps = {
    * D-74 this is `spacePriceCents + serviceFeeCents`; it is passed in, never summed here.
    */
   quotedTotalCents: number;
-  /** Server-frozen SPACE price (booking.spacePriceCents) — the run line's value. */
+  /** Server-frozen SPACE price (booking.spacePriceCents) — the run line's value by default. */
   spacePriceCents: number;
+  /**
+   * The RUN LINE's value, when it is not the whole space price. Defaults to `spacePriceCents`, so every
+   * flat listing is unchanged. When a D-108 surcharge is disclosed on its own line below, the server passes
+   * the BASE here (space price − surcharge) — because the surcharge is folded INTO `spacePriceCents` (A1),
+   * and showing the full space price on the run line as well would disclose the same centavos twice.
+   * Computed server-side and passed in for the same reason every other figure here is: this component
+   * subtracts nothing, just as it sums nothing.
+   */
+  runPriceCents?: number;
   /** Server-frozen NON-REFUNDABLE service fee (booking.serviceFeeCents, D-74). 0 omits the row entirely. */
   serviceFeeCents: number;
+  /**
+   * D-108 extra-guest surcharge, as THREE server-computed figures (`paxSurcharge`, pricing.ts) — never one
+   * that this component multiplies out. `extraHeads` and `extraHeadCents` label the line; `extraSurchargeCents`
+   * IS the line's value and also its render gate. All default to 0, so every existing call site (and every
+   * flat listing) renders byte-for-byte what it does today: no line at all.
+   *
+   * The surcharge is ALREADY INSIDE `spacePriceCents` (A1 — it is host revenue and the payout basis), so this
+   * line is a DISCLOSURE of part of the run total, not an addend. Do not add it to anything here.
+   */
+  extraHeads?: number;
+  extraHeadCents?: number;
+  extraSurchargeCents?: number;
   /** Frozen display currency (booking.currency); defaults to the shared PHP source (D-46). */
   currency?: string;
   /** Full-day selection → the flat day-rate line; else the hourly run (D-45, distinct — no cap). */
@@ -57,7 +78,11 @@ type PriceBreakdownProps = {
 export function PriceBreakdown({
   quotedTotalCents,
   spacePriceCents,
+  runPriceCents,
   serviceFeeCents,
+  extraHeads = 0,
+  extraHeadCents = 0,
+  extraSurchargeCents = 0,
   currency = DISPLAY_CURRENCY,
   fullDay,
   hours,
@@ -76,8 +101,30 @@ export function PriceBreakdown({
             total: the fee gets its own disclosed line below, and the two must sum to the Total). */}
         <div className="flex items-baseline justify-between gap-4 text-sm">
           <span className="text-muted-foreground">{runLabel}</span>
-          <span className="tabular-nums">{formatMoney(spacePriceCents, currency)}</span>
+          <span className="tabular-nums">
+            {formatMoney(runPriceCents ?? spacePriceCents, currency)}
+          </span>
         </div>
+
+        {/*
+          D-108 EXTRA GUESTS (08-UI-SPEC § 5) — ONE conditional line, between the run line and the service
+          fee, cloning the service-fee row's shape exactly. Rendered ONLY when the server says a surcharge
+          was actually applied, so a flat listing (extraHeadFee = 0, the overwhelming majority) renders this
+          file byte-for-byte as it did before Phase 8: no line, no layout shift, no ₱0 row.
+
+          Both label figures AND the value are server-computed props (`paxSurcharge`, pricing.ts — the same
+          function that folded the surcharge into the frozen price). Nothing here multiplies heads by fee: a
+          product computed in the browser could disagree with the amount PayMongo charges, which is the exact
+          trust failure the header contract forbids.
+        */}
+        {extraSurchargeCents > 0 && (
+          <div className="flex items-baseline justify-between gap-4 text-sm">
+            <span className="text-muted-foreground">
+              Extra guests ({extraHeads} × {formatMoney(extraHeadCents, currency)})
+            </span>
+            <span className="tabular-nums">{formatMoney(extraSurchargeCents, currency)}</span>
+          </div>
+        )}
 
         {/*
           THE FORMERLY-RESERVED SLOT (D-46), now FILLED by the D-74 booker-facing service fee. It was held

@@ -55,7 +55,6 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing } from "@/lib/db/schema";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
-import { windowHours } from "@/lib/booking/pricing";
 import { bookingReference } from "@/lib/booking/reference";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { getAvailability } from "@/lib/availability/read-model";
@@ -141,8 +140,10 @@ export default async function BookingConfirmationPage({
       endsAt: booking.endsAt,
       status: booking.status,
       quotedTotalCents: booking.quotedTotalCents,
-      // D-74: the listing-priced portion, used to re-derive fullDay (see below).
+      // D-74: the listing-priced portion. Consulted ONLY by the pre-0016 fullDay fallback below.
       spacePriceCents: booking.spacePriceCents,
+      // WR-06 (drizzle 0016) — the PERSISTED pricing-mode snapshot that now DRIVES the label (see below).
+      fullDay: booking.fullDay,
       currency: booking.currency,
       expiresAt: booking.expiresAt,
       // ── Plan 07-12 additions, all read-only display inputs. ──
@@ -189,7 +190,9 @@ export default async function BookingConfirmationPage({
       primarySpaceType: listing.primarySpaceType,
       city: listing.city,
       timezone: listing.timezone,
-      hourlyRateCents: listing.hourlyRateCents,
+      // The hourly rate is deliberately NOT selected any more: nothing on this page compares a frozen price
+      // against a CURRENT listing rate, and that absence is the Pitfall-3 fix. Only the day rate remains,
+      // for the pre-0016 positive-match fullDay fallback.
       dayRateCents: listing.dayRateCents,
     })
     .from(listing)
@@ -203,15 +206,26 @@ export default async function BookingConfirmationPage({
     ? SPACE_TYPE_LABELS[lst.primarySpaceType as SpaceTypeValue]
     : null;
 
-  // fullDay is not persisted — re-derive from the frozen SPACE PRICE (see the reserve page). The Total
-  // shown is always the frozen all-in quotedTotalCents (D-49); the label only chooses "Full day" vs an
-  // hour range. Compared against the SPACE price, never the all-in total: under D-74 the latter is
-  // `space + service fee` and can never equal `hourlyRate × hours`, which would mislabel every hourly
-  // booking as "Full day". The `?? quoted` fallback covers a pre-Phase-7 row (fee was 0).
-  const hours = windowHours(bk.startsAt, bk.endsAt);
+  // fullDay is the booking row's OWN persisted creation-time snapshot (booking.full_day, drizzle 0016 /
+  // WR-06) — the same flag the price was frozen with. The Total shown is always the frozen all-in
+  // quotedTotalCents (D-49); this only chooses "Full day" vs an hour range.
+  //
+  // ⚠️ THE OLD "space price is not equal to the hourly run total" DERIVATION IS GONE, AND MUST NOT COME
+  // BACK (08-RESEARCH Pitfall 3), for the same reason spelled out on the reserve page: the D-108 extra-guest
+  // surcharge is folded INTO spacePriceCents (A1), so an ordinary hourly booking with one extra guest no
+  // longer matches the plain hourly run total, and that inequality would label it "Full day".
+  //
+  // ⚠️ GREP TRIPWIRE (the 07-04 payout-sweep idiom). The absence of the old derivation is checked by grepping
+  // this file for the two identifiers it was written with. A grep is only a real guard if it cannot be
+  // tripped by the very comment forbidding it — so neither is spelled out anywhere here, comments included.
+  // If you are tempted to name them "just in prose", don't: it disarms the check for good.
+  //
+  // The fallback is for pre-0016 rows only (full_day IS NULL) and is a POSITIVE day-rate match rather than
+  // an inequality (the re-request.ts:234 idiom), so it can only ever ADD "Full day" on an exact match —
+  // nothing hourly can be mislabeled by it.
   const quoted = bk.quotedTotalCents ?? 0;
-  const hourlyTotal = lst.hourlyRateCents != null ? lst.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || (bk.spacePriceCents ?? quoted) !== hourlyTotal;
+  const fullDay =
+    bk.fullDay ?? (lst.dayRateCents != null && (bk.spacePriceCents ?? quoted) === lst.dayRateCents);
 
   const dateLabel = format(bk.startsAt, "EEEE, MMM d, yyyy", { in: inTz });
   const timeLabel = fullDay

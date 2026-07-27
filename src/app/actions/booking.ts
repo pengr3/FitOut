@@ -25,16 +25,19 @@
 //   - POST-ONLY (T-04-GETHOLD): placeHold mints the hold via this POST server action + redirect, never a
 //     GET render side-effect (Pitfall 2 — a GET duplicates holds on prefetch/refresh/Back).
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, user, hostPayout } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
 import { bookingCreateSchema } from "@/lib/validation/booking";
 import { createPendingHold } from "@/lib/availability/units";
+import { quoteWindow } from "@/lib/booking/pricing";
+import { computeServiceFee } from "@/lib/payments/service-fee";
 import { createCheckoutSession } from "@/lib/paymongo";
 import { PAYMENT_WINDOW_MINUTES, APPROVAL_SLA_HOURS } from "@/lib/payments/config";
 import { bookingReference } from "@/lib/booking/reference";
@@ -63,8 +66,19 @@ export type ConfirmResult =
   | { ok: false; reason: "expired"; error: string }
   | { ok: false; reason: "checkout"; error: string };
 
+/** updateDeclaredPax failure shapes. Every one is a calm, retryable sentence — nothing here is red. */
+export type UpdatePaxResult = { ok: true } | { ok: false; error: string };
+
 // WR-06: money-adjacent budget — mirrors the payout-onboarding action (5/60s per authenticated identity).
 const CONFIRM_PAY_RATE_LIMIT = { window: 60, max: 5 } as const;
+
+/** The pax stepper is a HELD-ROW re-price, not a charge, and a booker legitimately taps +/− several times
+ *  in a row — so the budget is looser than confirm-pay's 5/60s while still bounding the write. */
+const REPRICE_PAX_RATE_LIMIT = { window: 60, max: 30 } as const;
+
+/** Shape-only guard for the stepper's headcount. The real bound is the LISTING's maxOccupancy, re-read and
+ *  clamped server-side below — this only refuses obvious junk before a DB round trip. */
+const declaredPaxSchema = z.coerce.number().int().min(1).max(10_000);
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from blocks.ts). */
 async function requireUserId(): Promise<string | null> {
@@ -287,6 +301,130 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
 }
 
 /**
+ * updateDeclaredPax — the PaxStepper's re-quote (GROUP-01/GROUP-05 · D-108, 08-UI-SPEC § 5 / Open Q5).
+ *
+ * The one job: change the organizer's declared headcount on a LIVE, UNPAID hold and RE-FREEZE the D-74
+ * triple from it. The client sends a headcount and NOTHING ELSE — no price, no fee, no total. Every money
+ * input (`included`, `extra_head_fee`, both rates) is re-read from the LISTING row here, and the whole
+ * quote is recomputed by the same `quoteWindow` + `computeServiceFee` pair `createPendingHold` uses, so a
+ * tampered pax can move the charge only in the way the host's own pricing says it should (T-08-12).
+ *
+ * Guards, in order:
+ *   - SESSION + OWNERSHIP (T-04-HOLDIDOR): a missing row and someone else's row return the SAME calm
+ *     sentence — a leaked id reveals nothing.
+ *   - LIVE + UNPAID ONLY: `pending` (instant) or `approved` (pay-on-approval) with `expires_at > now()`,
+ *     evaluated against the POSTGRES clock inside the UPDATE's own WHERE. A `confirmed` booking has already
+ *     been charged and can NEVER be re-priced here — the top-up for an over-subscribed group is D-114's
+ *     deferred fast-follow, deliberately not this action.
+ *   - FLAT LISTINGS ARE INERT: with `extra_head_fee` absent/0 this returns success having written nothing,
+ *     so `declared_pax` stays NULL and the frozen price is untouched (D-108 zero-leak).
+ *   - CAP: the headcount is clamped to the listing's own `maxOccupancy` server-side. The stepper's `max`
+ *     attribute is a courtesy; this is the gate (Security V4).
+ *
+ * `fullDay` comes from the PERSISTED `booking.full_day` snapshot (WR-06), never re-derived from the frozen
+ * price — re-deriving it here would be the 07-17 anti-pattern squared, because the surcharge this very
+ * action folds in is what makes `space != hourlyRate × hours` for an ordinary hourly booking.
+ */
+export async function updateDeclaredPax(holdId: string, pax: number): Promise<UpdatePaxResult> {
+  const userId = await requireUserId();
+  if (!userId) return { ok: false, error: "Sign in to change your booking." };
+
+  const parsed = declaredPaxSchema.safeParse(pax);
+  if (!parsed.success) return { ok: false, error: "That headcount doesn't look right." };
+
+  const limit = rateLimit(`reprice-pax:${userId}`, REPRICE_PAX_RATE_LIMIT);
+  if (!limit.ok) {
+    await recordAudit({
+      actorId: userId,
+      action: "reprice_pax",
+      outcome: "denied",
+      meta: { reason: "rate_limit", holdId, retryAfter: limit.retryAfter },
+    });
+    return { ok: false, error: "You're going a little fast. Please try again in a moment." };
+  }
+
+  // Owner-gated load. The listing's pricing facts ride along on the SAME round trip (the units.ts idiom):
+  // they are the server's own numbers, and reading them here keeps the quote consistent with the row.
+  const [row] = await db
+    .select({
+      bookerId: booking.bookerId,
+      status: booking.status,
+      listingId: booking.listingId,
+      startsAt: booking.startsAt,
+      endsAt: booking.endsAt,
+      // WR-06 pricing-mode snapshot — the SAME flag the original quote was frozen with.
+      fullDay: booking.fullDay,
+      declaredPax: booking.declaredPax,
+      hourlyRateCents: listing.hourlyRateCents,
+      dayRateCents: listing.dayRateCents,
+      included: listing.included,
+      extraHeadFee: listing.extraHeadFee,
+      maxOccupancy: listing.maxOccupancy,
+    })
+    .from(booking)
+    .innerJoin(listing, eq(listing.id, booking.listingId))
+    .where(eq(booking.id, holdId));
+  if (!row || row.bookerId !== userId) {
+    return { ok: false, error: "We can't show this booking." };
+  }
+
+  // D-108 zero-leak: a listing that does not charge per head has no surcharge machinery at all. Report
+  // success and write nothing — there is no declared_pax to record and no price that could move.
+  if ((row.extraHeadFee ?? 0) <= 0) return { ok: true };
+
+  // The cap is the LISTING's, applied here rather than trusted from the stepper (Security V4).
+  const cap = row.maxOccupancy != null && row.maxOccupancy > 0 ? row.maxOccupancy : parsed.data;
+  const declared = Math.min(parsed.data, cap);
+
+  let quote;
+  try {
+    quote = quoteWindow({
+      startUtc: row.startsAt,
+      endUtc: row.endsAt,
+      fullDay: row.fullDay ?? false,
+      hourlyRateCents: row.hourlyRateCents,
+      dayRateCents: row.dayRateCents,
+      included: row.included ?? undefined,
+      extraHeadFee: row.extraHeadFee ?? undefined,
+      declaredPax: declared,
+    });
+  } catch {
+    // A listing missing the rate its own booking needs is a mis-configuration, not a booker error — refuse
+    // calmly rather than freeze a price the quote engine would not stand behind.
+    return { ok: false, error: "We couldn't update your booking. Please try again." };
+  }
+  const fee = computeServiceFee(quote.totalCents);
+
+  // The re-freeze. Scoped to (id, owner, live-and-unpaid) so it can never touch a confirmed row, and the
+  // expiry is compared against the POSTGRES clock in the same statement that writes — the same authority
+  // every other expiry decision in the system uses. Zero rows back = the hold lapsed while they stepped.
+  const written = await db
+    .update(booking)
+    .set({
+      declaredPax: declared,
+      // The D-74 triple, re-frozen TOGETHER. quoted == space + fee still holds exactly, by construction.
+      spacePriceCents: quote.totalCents,
+      serviceFeeCents: fee.serviceFeeCents,
+      quotedTotalCents: fee.allInCents,
+    })
+    .where(
+      and(
+        eq(booking.id, holdId),
+        eq(booking.bookerId, userId),
+        inArray(booking.status, ["pending", "approved"]),
+        sql`${booking.expiresAt} > now()`,
+      ),
+    )
+    .returning({ id: booking.id });
+  if (written.length === 0) {
+    return { ok: false, error: "Your hold is no longer active. Check availability again." };
+  }
+
+  revalidatePath(`/listings/${row.listingId}/book`);
+  return { ok: true };
+}
+
+/**
  * confirmBooking — "Confirm & pay" (D-57). The Phase-4 synchronous pending→confirmed flip is RETIRED: the
  * booking confirms ONLY when the checkout_session.payment.paid webhook lands (Plan 04 — the single confirm
  * authority). This action instead:
@@ -315,6 +453,8 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       startsAt: booking.startsAt,
       quotedTotalCents: booking.quotedTotalCents,
       currency: booking.currency,
+      // D-108 — read ONLY to scope the Idempotency-Key below. NULL on every flat-priced booking.
+      declaredPax: booking.declaredPax,
     })
     .from(booking)
     .where(eq(booking.id, holdId));
@@ -394,6 +534,20 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
 
   // Create the hosted checkout for the SERVER-FROZEN amount (D-49). The stable Idempotency-Key
   // checkout:<bookingId> makes a double-click / retry reuse the SAME session — never a second charge.
+  //
+  // ── D-108: THE KEY IS AMOUNT-SCOPED **ONLY** WHEN A HEADCOUNT WAS DECLARED. ────────────────────────────
+  // `declared_pax` is non-NULL exactly on a per-head-priced booking (units.ts writes it only when the
+  // listing charges per head), and such a booking's frozen quote CAN legitimately move after this session
+  // would first be created: the booker can leave the hosted checkout, land back on the reserve page via
+  // `cancelUrl`, step the headcount, and pay again. With a bookingId-only key that second attempt replays
+  // the FIRST session and charges the OLD amount — the displayed total would not be the charged total,
+  // which is precisely the trust failure `price-breakdown.tsx` is written to prevent. Folding the frozen
+  // amount into the key makes a re-priced hold mint a session for the price actually agreed, while a
+  // double-click (same booking, same amount) still resolves to the same key and the same session.
+  //
+  // Flat-priced bookings keep the byte-identical `checkout:<bookingId>` key they have today — their quote
+  // is immutable once frozen, so there is nothing for an amount to disambiguate, and the shipped
+  // double-charge guard (and the tests pinning it) is untouched.
   const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   const ref = bookingReference(holdId);
   let checkout: { id: string; checkoutUrl: string };
@@ -406,7 +560,10 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       metadata: { booking_id: holdId },
       successUrl: `${base}/bookings/${holdId}?paid=1`,
       cancelUrl: `${base}/listings/${bk.listingId}/book?hold=${holdId}`,
-      idempotencyKey: `checkout:${holdId}`,
+      idempotencyKey:
+        bk.declaredPax == null
+          ? `checkout:${holdId}`
+          : `checkout:${holdId}:${bk.quotedTotalCents}`,
     });
   } catch {
     // A PayMongo failure is surfaced as a calm retryable result — never a raw 500 or a leaked secret.
