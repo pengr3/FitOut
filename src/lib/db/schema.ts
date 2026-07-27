@@ -156,6 +156,14 @@ export const spaceType = pgEnum("space_type", [
 // use may share one migration transaction.
 export const cancellationPolicy = pgEnum("cancellation_policy", ["flexible", "standard", "strict"]);
 
+// Phase-8 group bookings (D-109/D-116). BRAND-NEW enums — exactly like cancellationPolicy above, a brand-new
+// CREATE TYPE and its FIRST USE may share one migration; the 55P04 two-migration split (0010/0012) applies
+// ONLY to ALTER TYPE ... ADD VALUE on an EXISTING type. occupancy_mode has EXACTLY ONE value in v1
+// (D-109 — 'exclusive'); Phase 9 adds shared/capacity modes and v1 NEVER writes another value. rsvp_status
+// is the yes/no attendance answer (D-116). Declared before `listing` (const TDZ), mirroring the enum idioms above.
+export const occupancyMode = pgEnum("occupancy_mode", ["exclusive"]);
+export const rsvpStatus = pgEnum("rsvp_status", ["yes", "no"]);
+
 export const listing = pgTable(
   "listing",
   {
@@ -191,6 +199,12 @@ export const listing = pgTable(
     // how bookability is gated rather than creation. Editable while hosting; a retier NEVER rewrites an
     // in-flight booking (booking.cancellationPolicy is the creation-time snapshot, D-67).
     cancellationPolicy: cancellationPolicy("cancellation_policy"),
+    // Phase-8 group bookings (D-108/D-109). Backfill-free: occupancyMode carries a NOT NULL default so every
+    // existing listing reads 'exclusive' (the only v1 value, D-109); included/extraHeadFee are nullable so a
+    // flat-priced listing is byte-identical to today (the app coalesces extraHeadFee to 0 — a NULL fee = no surcharge).
+    occupancyMode: occupancyMode("occupancy_mode").default("exclusive").notNull(), // D-109 v1 = exclusive only
+    included: integer("included"), // D-108 base headcount included in the flat price (nullable)
+    extraHeadFee: integer("extra_head_fee"), // D-108 per-extra-head surcharge in integer centavos (nullable → app-coalesced to 0)
     status: listingStatus("status").default("draft").notNull(), // D-02/LIST-05
     publishedAt: timestamp("published_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // soft-delete (Claude's discretion)
@@ -682,6 +696,9 @@ export const booking = pgTable(
     // D-93: distinguishes "declined because too close to start" from "declined because the SLA lapsed", read
     // by the email/notification composer so both sides get an honest message.
     declineReason: text("decline_reason"),
+    // Phase-8 group bookings (D-108). The declared attendee headcount, captured at hold time ONLY when the
+    // listing's extra_head_fee > 0 (a flat-priced listing leaves this NULL). Nullable, backfill-free ADD COLUMN.
+    declaredPax: integer("declared_pax"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
@@ -732,3 +749,69 @@ export const bookingRelations = relations(booking, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+// ---------------------------------------------------------------------------
+// Phase-8 group bookings (GROUP-01/03/05, D-111/D-115/D-116/D-117/D-118/D-121). The organizer-pays + RSVP
+// model: a confirmed booking spawns ONE booking_group (a HISTORICAL record — booking_id is a UNIQUE FK with
+// onDelete restrict, D-115) carrying a transactionally-snapshotted capacity (capacity_snapshot, the cap the
+// seat-claim reads — NEVER live listing.maxOccupancy, D-111) and a bearer access_token (D-118). Each rsvp is
+// one attendee with a NULLABLE user_id (a guest has no account — D-115/D-116) and NO money column (organizer
+// pays; cost-splitting is out of scope for v1). NO payment/booking column is changed (D-107).
+//
+// Table name is booking_group, NEVER `group` (SQL reserved word — RESEARCH Pitfall 6). Declared AFTER
+// `booking`/`user` (const TDZ); `rsvp` declared AFTER `bookingGroup` for the same reason.
+// ---------------------------------------------------------------------------
+export const bookingGroup = pgTable("booking_group", {
+  id: text("id").primaryKey(),
+  // A group IS history: onDelete restrict so a booking that owns a group cannot be hard-deleted (D-115).
+  // UNIQUE — at most one group per booking.
+  bookingId: text("booking_id")
+    .notNull()
+    .unique()
+    .references(() => booking.id, { onDelete: "restrict" }),
+  // D-111 the cap AUTHORITY. Snapshotted from listing.maxOccupancy at creation INSIDE the tx; the seat-claim
+  // counts confirmed RSVPs against THIS value, never live maxOccupancy (a host retier must not shrink an
+  // in-flight group's cap).
+  capacitySnapshot: integer("capacity_snapshot").notNull(),
+  // D-118 the bearer invite credential. Minted from crypto randomBytes (Plan 08-02), NEVER a sequential id.
+  accessToken: text("access_token").notNull().unique(),
+  // D-121 soft-void: regenerating the link / cancelling the booking voids the group without deleting history.
+  voidedAt: timestamp("voided_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// One row per attendee (GROUP-03, D-115/D-116/D-117) — the GPAY-01 foundation. NULLABLE user_id (a guest has
+// no account) and NO money column (organizer pays; cost-splitting is v2). The three partial-unique indexes are
+// the T-08-01 de-dup gate — one row per identity so a duplicate-RSVP race cannot inflate the roster
+// (name-only guests are intentionally NOT de-duped, D-117).
+export const rsvp = pgTable(
+  "rsvp",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => bookingGroup.id, { onDelete: "cascade" }),
+    // D-115/D-116 NULLABLE identity — a signed-in attendee sets user_id; a guest leaves it NULL. onDelete
+    // set null so deleting a user preserves the attendance history as a name-only guest row.
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    guestName: text("guest_name").notNull(),
+    guestEmailNorm: text("guest_email_norm"), // normalized email, nullable (name-only guests have none)
+    manageToken: text("manage_token"), // D-117 per-rsvp bearer manage credential (nullable; crypto-minted in 08-02)
+    status: rsvpStatus("status").notNull(), // yes | no attendance answer (D-116) — NO money column (D-115)
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (t) => [
+    // T-08-01 de-dup: one signed-in attendee per group (D-116). Partial so the many NULL user_ids (guests) coexist.
+    uniqueIndex("rsvp_group_user_uq").on(t.groupId, t.userId).where(sql`user_id IS NOT NULL`),
+    // T-08-01 de-dup: one email per group (D-117). Partial so name-only guests (NULL email) are NOT de-duped.
+    uniqueIndex("rsvp_group_email_uq")
+      .on(t.groupId, t.guestEmailNorm)
+      .where(sql`guest_email_norm IS NOT NULL`),
+    // D-117 the manage token is unique when present (a bearer credential; NULL for on-screen-only guests).
+    uniqueIndex("rsvp_manage_token_uq").on(t.manageToken).where(sql`manage_token IS NOT NULL`),
+  ],
+);
