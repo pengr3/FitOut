@@ -17,6 +17,7 @@ import { payoutSweep } from "@/inngest/functions/payout-sweep";
 import { payoutReconcile } from "@/inngest/functions/payout-reconcile";
 import { requestExpirySweep } from "@/inngest/functions/request-expiry";
 import { notify } from "@/inngest/functions/notify";
+import { guestEmail } from "@/inngest/functions/guest-email";
 import { remindersSweep } from "@/inngest/functions/reminders";
 
 // serve() verifies the Paymongo-style signed Inngest request with node crypto — Node runtime, not edge.
@@ -46,8 +47,10 @@ if (
 // DERIVED from this file at sync time, not stored anywhere else. An unregistered `notify` means every
 // emitNotify call silently drops on the floor with no error at the emitter (which swallows by design), and
 // an unregistered `remindersSweep` means the cron never ticks and NO reminder is ever sent — with nothing
-// failing anywhere to say so.
+// failing anywhere to say so. `guestEmail` (08-04) is the SECOND event-triggered function: it listens for
+// `fitout/guest-email` and sends the guest-with-email RSVP send email-only, writing NO durable row (a guest
+// has no user.id; RESEARCH Pitfall 2). Unregistered, every guest RSVP email silently drops on the floor.
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [payoutSweep, payoutReconcile, requestExpirySweep, notify, remindersSweep],
+  functions: [payoutSweep, payoutReconcile, requestExpirySweep, notify, guestEmail, remindersSweep],
 });

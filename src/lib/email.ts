@@ -504,3 +504,52 @@ export const sendGroupCancelled = (
       `<p><a href="${url}">View the details</a></p>`,
   );
 };
+
+// ---------------------------------------------------------------------------
+// Phase-8 guest-with-email send (D-122 · GROUP-03/04 · RESEARCH Pitfall 2 / RESOLVED A2).
+// ---------------------------------------------------------------------------
+// A guest attendee RSVP'd via the invite link but has NO account — so NO durable `notification` row is ever
+// written for them (notification.recipientId is a NOT NULL FK to user.id). This send is therefore dispatched
+// by the SEPARATE email-only Inngest fn `fitout/guest-email` (src/inngest/functions/guest-email.ts), never
+// by fitout/notify. It uses the SAME private send()/escapeHtml() helpers as every other send — the guest
+// path needs no new integration, and the [email:dev] fallback logs locally when RESEND_API_KEY is unset.
+
+/** The whole input to the email-only guest send. No user.id → no durable row (RESEARCH Pitfall 2). `kind`
+ *  is a copy variant, not a rendered label. `href` is the caller's ABSOLUTE invite/details link. */
+export type GuestRsvpEmail = {
+  to: string;
+  kind: "rsvp_confirmed" | "group_cancelled";
+  listingTitle: string;
+  whenLabel: string;
+  href: string;
+};
+
+/**
+ * The guest-with-email RSVP send. EVERY interpolated field — the guest-facing title, the venue-local when
+ * label, and the invite href — is escapeHtml'd (G6 / T-08-08). Returns a JSON-serializable result so it can
+ * be the body of an Inngest `step.run`. Does NOT throw when RESEND_API_KEY is unset: `send` falls back to the
+ * [email:dev] console log, so the guest path works in dev/test with no Resend key.
+ */
+export const sendGuestRsvpEmail = async (d: GuestRsvpEmail): Promise<{ sent: true }> => {
+  const space = escapeHtml(d.listingTitle);
+  const when = escapeHtml(d.whenLabel);
+  const url = escapeHtml(d.href); // WR-01 — never interpolate the raw url into an href.
+  if (d.kind === "rsvp_confirmed") {
+    await send(
+      d.to,
+      `You're on the list — ${d.listingTitle}`,
+      `<p><strong>Your RSVP is confirmed</strong></p>` +
+        `<p>You're set for ${space} on ${when}. The organizer has the booking covered — just show up.</p>` +
+        `<p><a href="${url}">View the details</a></p>`,
+    );
+  } else {
+    await send(
+      d.to,
+      `Group booking cancelled — ${d.listingTitle}`,
+      `<p><strong>This group booking was cancelled</strong></p>` +
+        `<p>The booking at ${space} on ${when} is no longer happening — you don't need to go.</p>` +
+        `<p><a href="${url}">View the details</a></p>`,
+    );
+  }
+  return { sent: true };
+};
