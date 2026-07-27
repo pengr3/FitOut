@@ -22,9 +22,14 @@
 import { inngest } from "@/inngest/client";
 import { recordAudit } from "@/lib/audit";
 import { sendGuestRsvpEmail, type GuestRsvpEmail } from "@/lib/email";
+import { GUEST_EMAIL_EVENT } from "@/lib/group/guest-notify";
 
-/** The Inngest event name. One name, one email-only function (the guest sibling of NOTIFY_EVENT). */
-export const GUEST_EMAIL_EVENT = "fitout/guest-email" as const;
+// The event NAME now lives in src/lib/group/guest-notify.ts alongside its emitter, mirroring how
+// NOTIFY_EVENT lives in notifications.ts rather than in inngest/functions/notify.ts. Reason (08-06): this
+// file calls `inngest.createFunction` at MODULE SCOPE, so any emitter that imported the name from here
+// would register the function inside its own module graph — which is a server action's graph in the RSVP
+// path. Re-exported so the 08-04 import surface is unchanged.
+export { GUEST_EMAIL_EVENT };
 
 /**
  * The shape Inngest hands `onFailure`, read defensively. Bound to the `inngest/function.failed` SYSTEM

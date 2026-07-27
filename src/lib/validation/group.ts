@@ -25,14 +25,27 @@ const NAME_MAX = 80;
 const EMAIL_MAX = 200;
 
 /**
- * The optional attendee email (D-117 / G2). Accepts a real address OR the empty string, because an OPTIONAL
- * text input submits `""` rather than `undefined` — treating `""` as a validation failure would turn the
- * "leave it blank" path into an error state, which is precisely the gate D-117 says the email must not be.
- * Both blank shapes normalize to `undefined` here so exactly ONE downstream branch exists ("no address").
+ * The optional attendee email (D-117 / G2).
+ *
+ * TRIMMED FIRST, VALIDATED SECOND — and that order is load-bearing, not tidiness. `z.email()` rejects
+ * surrounding whitespace, and a mobile keyboard or an autofill routinely appends a trailing space; validating
+ * before trimming turns `"gina@example.com "` into "We couldn't save your RSVP", which is a dead end on the
+ * one field the product promises is OPTIONAL and low-stakes.
+ *
+ * Accepts a real address OR blank (empty / all-whitespace), because an optional text input submits `""`
+ * rather than `undefined` — treating `""` as a validation failure would make "leave it blank" an error
+ * state, which is precisely the gate D-117 says the email must not be. Every blank shape collapses to
+ * `undefined` so exactly ONE downstream branch exists ("no address"). Case is left alone here: lowercasing
+ * is `normalizeEmail`'s job, because that value is a de-dup KEY rather than a display string.
  */
 const optionalEmail = z
-  .union([z.email().max(EMAIL_MAX), z.literal("")])
+  .string()
+  .trim()
+  .max(EMAIL_MAX)
   .optional()
+  .refine((v) => v === undefined || v === "" || z.email().safeParse(v).success, {
+    message: "Enter a valid email address, or leave it blank.",
+  })
   .transform((v) => (v === "" || v === undefined ? undefined : v));
 
 /**

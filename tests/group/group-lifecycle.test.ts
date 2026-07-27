@@ -1,0 +1,461 @@
+// The group lifecycle (GROUP-01/02/05 · D-111/D-118/D-119/D-120/D-121) — create, invite, RSVP, manage.
+//
+// Harness: the REAL server actions through the `vi.doMock` idiom against an isolated schema, cloned from
+// tests/security/cancel-owner-gate.test.ts. Nothing here stubs the group logic itself — the actions run
+// against a real Postgres with the real seat-claim, so "the seat was freed" is a fact about the database
+// rather than about a mock.
+//
+// THE FIVE PROPERTIES UNDER TEST:
+//   1. D-119 — a group can be created ONLY on a confirmed booking the caller owns, and the denial for
+//      "not confirmed", "not yours" and "does not exist" is the SAME sentence (no enumeration oracle).
+//   2. D-111 — `capacity_snapshot` equals the LISTING's maxOccupancy, frozen at creation, and a later edit
+//      to the listing does not move it.
+//   3. D-118 — the access token is minted (20 Crockford symbols), and `createGroup` is idempotent: a second
+//      call returns the SAME group rather than a second one.
+//   4. D-121 — `regenerateLink` kills the old link (which then renders identically to an unknown one) while
+//      keeping everyone who already RSVP'd, and `removeAttendee` genuinely FREES a seat: a group at its cap
+//      refuses a new yes, and accepts it after a removal.
+//   5. D-120 — RSVPs are refused once the session has started, against the DB clock.
+//
+// The rate limiter is stubbed to always-allow (the real one is a module-level Map with a 5-per-60s budget,
+// which would turn later cases into rate-limit denials); the SAME note applies here as in
+// tests/booking/cancellation.test.ts. The guest-email BUDGET is exercised for real in guest-email-guard.
+
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { sql } from "drizzle-orm";
+
+import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+import { user, listing, booking, bookingGroup } from "@/lib/db/schema";
+import { readDbNow } from "@/lib/booking/bookings-query";
+import { getGroupByToken, getRoster } from "@/lib/group/rsvp";
+import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
+
+const HOUR = 60 * 60 * 1000;
+const PASSWORD = "averylongpassword";
+const HOST_EMAIL = "gl_host@example.com";
+const ORG_EMAIL = "gl_organizer@example.com";
+const STRANGER_EMAIL = "gl_stranger@example.com";
+
+const sessionHeaders: { cookie: string } = { cookie: "" };
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+}));
+
+type SentEvent = { name: string; data: Record<string, unknown> };
+const inngestSend = vi.fn(async (event: SentEvent) => {
+  void event;
+  return { ids: [] as string[] };
+});
+const alwaysAllow = (key: string, opts: RateLimitOptions): RateLimitResult => {
+  void key;
+  void opts;
+  return { ok: true };
+};
+
+let testDb: TestDb;
+let testAuth: TestAuth;
+type GroupActions = typeof import("@/app/actions/group");
+let createGroup: GroupActions["createGroup"];
+let submitRsvp: GroupActions["submitRsvp"];
+let removeAttendee: GroupActions["removeAttendee"];
+let regenerateLink: GroupActions["regenerateLink"];
+
+let hostId: string;
+let organizerId: string;
+let strangerId: string;
+
+/** Distinct windows per listing so the GiST exclusion never fires for an unrelated reason. */
+let slot = 0;
+
+async function login(email: string): Promise<void> {
+  const res = await testAuth.api.signInEmail({
+    body: { email, password: PASSWORD },
+    asResponse: true,
+  });
+  const setCookie = res.headers.get("set-cookie");
+  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+}
+
+async function seedListing(id: string, maxOccupancy: number): Promise<void> {
+  await testDb.db.insert(listing).values({
+    id,
+    hostId,
+    title: `Listing ${id}`,
+    status: "published",
+    bookingMode: "instant",
+    unitCount: 1,
+    maxOccupancy,
+    timezone: "Asia/Manila",
+    city: "Makati",
+    addressLine1: "1 Test Street",
+    hourlyRateCents: 100000,
+    dayRateCents: 300000,
+    cancellationPolicy: "standard",
+  });
+}
+
+async function seedBooking(
+  id: string,
+  listingId: string,
+  bookerId: string,
+  status: "confirmed" | "approved",
+  when: "future" | "past" = "future",
+): Promise<void> {
+  const base = await readDbNow(testDb.db);
+  slot += 1;
+  const startsAt =
+    when === "future"
+      ? new Date(base.getTime() + (10 + slot * 3) * HOUR)
+      : new Date(base.getTime() - (10 + slot * 3) * HOUR);
+  await testDb.db.insert(booking).values({
+    id,
+    listingId,
+    unit: 1,
+    bookerId,
+    startsAt,
+    endsAt: new Date(startsAt.getTime() + HOUR),
+    status,
+    bookingMode: "instant",
+    cancellationPolicy: "standard",
+    spacePriceCents: 100000,
+    serviceFeeCents: 5000,
+    quotedTotalCents: 105000,
+    currency: "php",
+  });
+}
+
+async function groupRow(bookingId: string) {
+  const rows = (await testDb.db.execute(sql`
+    SELECT id, capacity_snapshot AS "capacitySnapshot", access_token AS "accessToken",
+           voided_at AS "voidedAt"
+    FROM booking_group WHERE booking_id = ${bookingId}
+  `)) as unknown as {
+    id: string;
+    capacitySnapshot: number;
+    accessToken: string;
+    voidedAt: string | null;
+  }[];
+  return rows;
+}
+
+beforeAll(async () => {
+  testDb = await setupTestDb();
+  testAuth = makeTestAuth(testDb);
+
+  await signUp(testAuth, {
+    email: HOST_EMAIL,
+    password: PASSWORD,
+    name: "GL Host",
+    firstName: "GLHost",
+    intent: "host",
+  });
+  await signUp(testAuth, {
+    email: ORG_EMAIL,
+    password: PASSWORD,
+    name: "Olive Organizer",
+    firstName: "Olive",
+    intent: "book",
+  });
+  await signUp(testAuth, {
+    email: STRANGER_EMAIL,
+    password: PASSWORD,
+    name: "Stan Stranger",
+    firstName: "Stan",
+    intent: "book",
+  });
+
+  const ids = await testDb.db.select({ id: user.id, email: user.email }).from(user);
+  hostId = ids.find((u) => u.email === HOST_EMAIL)!.id;
+  organizerId = ids.find((u) => u.email === ORG_EMAIL)!.id;
+  strangerId = ids.find((u) => u.email === STRANGER_EMAIL)!.id;
+
+  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.doMock("@/lib/db", () => ({ db: testDb.db }));
+  vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+  vi.doMock("@/inngest/client", () => ({ inngest: { send: inngestSend } }));
+  vi.doMock("@/lib/rate-limit", () => ({
+    rateLimit: alwaysAllow,
+    requireWithinRateLimit: alwaysAllow,
+  }));
+  vi.resetModules();
+  ({ createGroup, submitRsvp, removeAttendee, regenerateLink } = await import(
+    "@/app/actions/group"
+  ));
+
+  await seedListing("L_gl_main", 5);
+  await seedListing("L_gl_cap", 2);
+  await seedListing("L_gl_past", 4);
+
+  await seedBooking("bk_gl_confirmed", "L_gl_main", organizerId, "confirmed");
+  await seedBooking("bk_gl_unpaid", "L_gl_main", organizerId, "approved");
+  await seedBooking("bk_gl_stranger", "L_gl_main", strangerId, "confirmed");
+  await seedBooking("bk_gl_cap", "L_gl_cap", organizerId, "confirmed");
+  await seedBooking("bk_gl_past", "L_gl_past", organizerId, "confirmed", "past");
+  await seedBooking("bk_gl_regen", "L_gl_main", organizerId, "confirmed");
+});
+
+afterAll(async () => {
+  vi.doUnmock("@/lib/auth");
+  vi.doUnmock("@/lib/db");
+  vi.doUnmock("next/cache");
+  vi.doUnmock("@/inngest/client");
+  vi.doUnmock("@/lib/rate-limit");
+  await teardownTestDb(testDb);
+});
+
+beforeEach(() => {
+  inngestSend.mockClear();
+});
+
+describe("createGroup — D-119 owner + confirmed gate", () => {
+  it("creates a group on a confirmed booking the caller owns, snapshotting the listing cap (D-111)", async () => {
+    await login(ORG_EMAIL);
+    const res = await createGroup("bk_gl_confirmed");
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error("unreachable");
+    expect(res.alreadyExisted).toBe(false);
+
+    const rows = await groupRow("bk_gl_confirmed");
+    expect(rows).toHaveLength(1);
+    // D-111 — the cap comes from the LISTING, transactionally, and is never client-proposed.
+    expect(rows[0].capacitySnapshot).toBe(5);
+    // D-118 — 20 Crockford symbols of crypto-random, and no "FIT-" display prefix.
+    expect(rows[0].accessToken).toMatch(/^[0-9A-HJKMNP-TV-Z]{20}$/);
+    expect(rows[0].accessToken).toBe(res.accessToken);
+    expect(rows[0].voidedAt).toBeNull();
+  });
+
+  it("is idempotent — a second call returns the SAME group, never a second row", async () => {
+    await login(ORG_EMAIL);
+    const first = await groupRow("bk_gl_confirmed");
+    const again = await createGroup("bk_gl_confirmed");
+    expect(again.ok).toBe(true);
+    if (!again.ok) throw new Error("unreachable");
+    expect(again.alreadyExisted).toBe(true);
+    expect(again.groupId).toBe(first[0].id);
+    expect(again.accessToken).toBe(first[0].accessToken);
+    expect(await groupRow("bk_gl_confirmed")).toHaveLength(1);
+  });
+
+  it("refuses a NON-confirmed booking and creates NO row", async () => {
+    await login(ORG_EMAIL);
+    const res = await createGroup("bk_gl_unpaid");
+    expect(res.ok).toBe(false);
+    expect(await groupRow("bk_gl_unpaid")).toHaveLength(0);
+  });
+
+  it("refuses a CROSS-USER booking with the IDENTICAL denial, and creates NO row", async () => {
+    await login(ORG_EMAIL);
+    const crossUser = await createGroup("bk_gl_stranger"); // real, confirmed — but Stan's
+    const notConfirmed = await createGroup("bk_gl_unpaid"); // real, mine — but unpaid
+    const missing = await createGroup("bk_gl_does_not_exist");
+    if (crossUser.ok || notConfirmed.ok || missing.ok) throw new Error("all three must be denials");
+
+    // THE ORACLE ASSERTION — the three denials are compared to EACH OTHER, not to a literal. If they
+    // differed, walking booking ids would reveal which are real and which are paid.
+    expect(crossUser.error).toBe(missing.error);
+    expect(notConfirmed.error).toBe(missing.error);
+    expect(crossUser.error).not.toMatch(/stan/i);
+    expect(await groupRow("bk_gl_stranger")).toHaveLength(0);
+  });
+
+  it("refuses a signed-OUT caller and changes nothing", async () => {
+    sessionHeaders.cookie = "";
+    const res = await createGroup("bk_gl_cap");
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/sign in/i);
+    expect(await groupRow("bk_gl_cap")).toHaveLength(0);
+  });
+
+  it("keeps the snapshot frozen when the host later changes the listing's capacity (D-111)", async () => {
+    await login(ORG_EMAIL);
+    const before = await groupRow("bk_gl_confirmed");
+    await testDb.db.execute(sql`UPDATE listing SET max_occupancy = 99 WHERE id = 'L_gl_main'`);
+    const after = await groupRow("bk_gl_confirmed");
+    expect(after[0].capacitySnapshot).toBe(before[0].capacitySnapshot);
+    expect(after[0].capacitySnapshot).toBe(5);
+    await testDb.db.execute(sql`UPDATE listing SET max_occupancy = 5 WHERE id = 'L_gl_main'`);
+  });
+});
+
+describe("submitRsvp — the public token path (GROUP-03 · D-116/D-120)", () => {
+  it("accepts a name-only guest with NO session at all", async () => {
+    await login(ORG_EMAIL);
+    const created = await createGroup("bk_gl_cap");
+    if (!created.ok) throw new Error("setup: group must be created");
+
+    sessionHeaders.cookie = ""; // a stranger with the link — the whole point of GROUP-03
+    const res = await submitRsvp(created.accessToken, { name: "Nameless Nadia", answer: "yes" });
+    expect(res).toEqual({ ok: true, status: "yes", reachable: false });
+
+    const roster = await getRoster(testDb.db, {
+      groupId: created.groupId,
+      organizerId,
+    });
+    expect(roster.map((r) => r.name)).toEqual(["Nameless Nadia"]);
+    expect(roster[0].hasEmail).toBe(false);
+  });
+
+  it("refuses an unknown token with the SAME sentence a revoked one gets (T-08-17)", async () => {
+    sessionHeaders.cookie = "";
+    const unknown = await submitRsvp("ZZZZZZZZZZZZZZZZZZZZ", { name: "Nobody", answer: "yes" });
+    const malformed = await submitRsvp("not-a-token", { name: "Nobody", answer: "yes" });
+    if (unknown.ok || malformed.ok) throw new Error("both must be denials");
+    expect(unknown.error).toBe(malformed.error);
+    expect(unknown.error).toMatch(/no longer active/i);
+  });
+
+  it("refuses once the session has started — the DB clock decides (D-120)", async () => {
+    await login(ORG_EMAIL);
+    const created = await createGroup("bk_gl_past");
+    if (!created.ok) throw new Error("setup: group must be created");
+
+    sessionHeaders.cookie = "";
+    const res = await submitRsvp(created.accessToken, { name: "Late Larry", answer: "yes" });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/RSVPs have closed/i);
+
+    // Nothing was written — a closed RSVP is refused, not recorded and hidden.
+    expect(
+      await getRoster(testDb.db, { groupId: created.groupId, organizerId }),
+    ).toEqual([]);
+  });
+
+  it("tells the organizer someone answered (post-commit emit)", async () => {
+    await login(ORG_EMAIL);
+    const [g] = await groupRow("bk_gl_confirmed");
+    sessionHeaders.cookie = "";
+    inngestSend.mockClear();
+    await submitRsvp(g.accessToken, { name: "Ronan RSVP", answer: "yes" });
+
+    const events = inngestSend.mock.calls.map((c) => c[0]);
+    const received = events.filter(
+      (e) => e.name === "fitout/notify" && e.data.type === "group_rsvp_received",
+    );
+    expect(received).toHaveLength(1);
+    expect(received[0].data.recipientId).toBe(organizerId);
+    const payload = received[0].data.payload as { attendeeLabel: string; answer: string; href: string };
+    expect(payload.attendeeLabel).toBe("Ronan RSVP");
+    expect(payload.answer).toBe("yes");
+    // 07-10 convention: absolute href, because the same string is the email CTA.
+    expect(payload.href).toMatch(/^https?:\/\/.+\/bookings\/bk_gl_confirmed\/group$/);
+  });
+});
+
+describe("removeAttendee — D-121 frees a seat through the group-row lock", () => {
+  it("a full group refuses a new yes, and accepts it once a seat is freed", async () => {
+    await login(ORG_EMAIL);
+    const [g] = await groupRow("bk_gl_cap"); // capacity_snapshot = 2, one guest already yes
+    sessionHeaders.cookie = "";
+
+    // Fill it: one from the previous case + one here = 2 of 2.
+    expect((await submitRsvp(g.accessToken, { name: "Second Sam", answer: "yes" })).ok).toBe(true);
+    const full = await submitRsvp(g.accessToken, { name: "Third Tina", answer: "yes" });
+    expect(full.ok).toBe(false);
+    if (!full.ok) expect(full.error).toMatch(/just filled up — all 2 spots/i);
+
+    // Free one — and prove it is the SEAT that moved, not the copy.
+    const roster = await getRoster(testDb.db, { groupId: g.id, organizerId });
+    await login(ORG_EMAIL);
+    expect(await removeAttendee(roster[0].rsvpId)).toEqual({ ok: true });
+
+    sessionHeaders.cookie = "";
+    const nowFits = await submitRsvp(g.accessToken, { name: "Third Tina", answer: "yes" });
+    expect(nowFits).toEqual({ ok: true, status: "yes", reachable: false });
+  });
+
+  it("refuses a cross-user removal and leaves the row in place", async () => {
+    const [g] = await groupRow("bk_gl_cap");
+    const roster = await getRoster(testDb.db, { groupId: g.id, organizerId });
+    const target = roster[0].rsvpId;
+
+    await login(STRANGER_EMAIL);
+    const res = await removeAttendee(target);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/couldn't find that booking, or it isn't yours/i);
+
+    // Still there — the stranger's attempt did not touch someone else's roster.
+    expect(
+      (await getRoster(testDb.db, { groupId: g.id, organizerId })).some((r) => r.rsvpId === target),
+    ).toBe(true);
+  });
+
+  it("a cross-user removal and a missing rsvp id return the IDENTICAL denial", async () => {
+    await login(STRANGER_EMAIL);
+    const [g] = await groupRow("bk_gl_cap");
+    const roster = await getRoster(testDb.db, { groupId: g.id, organizerId });
+    const crossUser = await removeAttendee(roster[0].rsvpId);
+    const missing = await removeAttendee("rsvp_does_not_exist");
+    if (crossUser.ok || missing.ok) throw new Error("both must be denials");
+    expect(crossUser.error).toBe(missing.error);
+  });
+});
+
+describe("regenerateLink — D-121 kills the leaked link, keeps the people", () => {
+  it("mints a new token; the old one resolves EXACTLY like an unknown one", async () => {
+    await login(ORG_EMAIL);
+    const created = await createGroup("bk_gl_regen");
+    if (!created.ok) throw new Error("setup: group must be created");
+    const oldToken = created.accessToken;
+
+    // Someone RSVPs on the old link first — they must survive the rotation.
+    sessionHeaders.cookie = "";
+    expect((await submitRsvp(oldToken, { name: "Early Ella", answer: "yes" })).ok).toBe(true);
+
+    await login(ORG_EMAIL);
+    const rotated = await regenerateLink(created.groupId);
+    expect(rotated.ok).toBe(true);
+    if (!rotated.ok) throw new Error("unreachable");
+    expect(rotated.accessToken).not.toBe(oldToken);
+    expect(rotated.accessToken).toMatch(/^[0-9A-HJKMNP-TV-Z]{20}$/);
+
+    // The old credential is now indistinguishable from one that never existed (T-08-17).
+    const stale = await getGroupByToken(testDb.db, oldToken);
+    const unknown = await getGroupByToken(testDb.db, "ZZZZZZZZZZZZZZZZZZZZ");
+    expect(stale).toEqual(unknown);
+
+    sessionHeaders.cookie = "";
+    const onStale = await submitRsvp(oldToken, { name: "Late Lena", answer: "yes" });
+    expect(onStale.ok).toBe(false);
+    if (!onStale.ok) expect(onStale.error).toMatch(/no longer active/i);
+
+    // The NEW link works, and Ella is still on the list — regenerating kills the link, not the group.
+    expect((await submitRsvp(rotated.accessToken, { name: "New Nina", answer: "yes" })).ok).toBe(true);
+    const roster = await getRoster(testDb.db, { groupId: created.groupId, organizerId });
+    expect(roster.map((r) => r.name).sort()).toEqual(["Early Ella", "New Nina"]);
+  });
+
+  it("refuses a cross-user regeneration and leaves the token untouched", async () => {
+    const [g] = await groupRow("bk_gl_regen");
+    await login(STRANGER_EMAIL);
+    const res = await regenerateLink(g.id);
+    expect(res.ok).toBe(false);
+    const after = await groupRow("bk_gl_regen");
+    expect(after[0].accessToken).toBe(g.accessToken);
+  });
+
+  it("refuses to regenerate a VOIDED group (a cancelled booking's invites stay dead)", async () => {
+    await login(ORG_EMAIL);
+    const [g] = await groupRow("bk_gl_regen");
+    await testDb.db
+      .update(bookingGroup)
+      .set({ voidedAt: new Date() })
+      .where(sql`id = ${g.id}`);
+
+    const res = await regenerateLink(g.id);
+    expect(res.ok).toBe(false);
+    const after = await groupRow("bk_gl_regen");
+    expect(after[0].accessToken).toBe(g.accessToken);
+
+    // restore for any later case
+    await testDb.db.update(bookingGroup).set({ voidedAt: null }).where(sql`id = ${g.id}`);
+  });
+});
+
+describe("fixture sanity", () => {
+  it("the organizer, the stranger and the host are genuinely different identities", () => {
+    expect(organizerId).not.toBe(strangerId);
+    expect(organizerId).not.toBe(hostId);
+  });
+});
