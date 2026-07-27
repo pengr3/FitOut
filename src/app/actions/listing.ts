@@ -141,6 +141,15 @@ export async function saveListingStep(
     // snapshots the tier at creation (booking.cancellation_policy), so a retier here can never rewrite
     // the refund terms of a booking already made. Nothing on this path touches a booking row.
     cancellationPolicy: d.cancellationPolicy,
+    // D-108 group pricing. Same forward-only semantics as the tier above: every booking freezes its own
+    // price at hold time (booking.space_price_cents), so editing the fee here can never reprice a booking
+    // already made. `undefined` (a step that doesn't carry them) leaves the columns untouched.
+    included: d.included,
+    extraHeadFee: d.extraHeadFee,
+    // D-109: accepted for shape-completeness but there is NO wizard control — the Zod enum has exactly one
+    // member (`exclusive`), so even a crafted client can only ever write the value the column already
+    // defaults to. Phase 9 introduces the second mode and the picker together.
+    occupancyMode: d.occupancyMode,
     showExactAddress: d.showExactAddress,
     updatedAt: new Date(),
   };
@@ -236,6 +245,13 @@ export async function publishListing(listingId: string): Promise<ListingResult> 
     // courtesy; THIS is the gate. A stale or crafted client that never visited the tier step lands here
     // with null and is rejected.
     cancellationPolicy: row.cancellationPolicy ?? undefined,
+    // D-108 — re-validated from the PERSISTED row like everything else, but OPTIONAL in publishSchema, so a
+    // listing that never touched the group-pricing fields (i.e. every listing that predates Phase 8) still
+    // publishes unchanged. What this DOES buy: a persisted value outside the contract (a float, a negative
+    // fee) blocks publish instead of reaching the quote engine.
+    included: row.included ?? undefined,
+    extraHeadFee: row.extraHeadFee ?? undefined,
+    occupancyMode: row.occupancyMode,
     showExactAddress: row.showExactAddress,
   });
 

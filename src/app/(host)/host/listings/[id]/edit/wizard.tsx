@@ -99,6 +99,10 @@ export type WizardListing = {
   maxOccupancy: number | null;
   hourlyRateCents: number | null;
   dayRateCents: number | null;
+  /** D-108 — how many people the flat rate covers before the extra-guest fee applies. NULL ⇒ 1. */
+  included: number | null;
+  /** D-108 — per-extra-guest surcharge in integer centavos. NULL or 0 ⇒ flat pricing (no surcharge). */
+  extraHeadFee: number | null;
   currency: string;
   bookingMode: "instant" | "request";
   /** D-77 — NULL until the host makes an explicit choice. There is deliberately no default. */
@@ -185,6 +189,10 @@ function toPayload(v: DraftListingInput): DraftListingInput {
     maxOccupancy: num(v.maxOccupancy),
     hourlyRateCents: num(v.hourlyRateCents),
     dayRateCents: num(v.dayRateCents),
+    // D-108 group pricing. Both carry the app-level defaults (₱0 fee = flat pricing, 1 included head), so
+    // saving them is a no-op for a host who never opens the subsection.
+    included: num(v.included),
+    extraHeadFee: num(v.extraHeadFee),
     bookingMode: v.bookingMode,
     cancellationPolicy: v.cancellationPolicy,
     showExactAddress: v.showExactAddress,
@@ -229,6 +237,10 @@ export function ListingWizard({
       maxOccupancy: listing.maxOccupancy ?? undefined,
       hourlyRateCents: listing.hourlyRateCents ?? undefined,
       dayRateCents: listing.dayRateCents ?? undefined,
+      // D-108 — seeded with the SAME defaults the pricing engine coalesces to (quoteWindow: fee 0, included
+      // 1), so an untouched listing round-trips to exactly the flat price it has today.
+      included: listing.included ?? 1,
+      extraHeadFee: listing.extraHeadFee ?? 0,
       bookingMode: listing.bookingMode,
       // D-77 — `undefined`, never a fallback tier. An unchosen policy must reach the RadioGroup as
       // unchosen so no card renders selected; seeding a default here would silently make the choice.
@@ -713,6 +725,91 @@ export function ListingWizard({
                   </FormItem>
                 )}
               />
+
+              {/* --- Group pricing (D-108, 08-UI-SPEC § 6) — OPTIONAL, NOT a publish requirement ------
+                  Deliberately NOT in the publish checklist and deliberately optional in publishSchema:
+                  both fields are backward-compatible with defaults (₱0 fee = flat pricing, 1 included
+                  head), so a host who never opens this block publishes exactly as before.
+
+                  There is NO occupancy-mode control here and there must not be one (D-109 / Open Q8):
+                  the column exists with a single v1 value and a picker with one choice is noise. The
+                  real second mode (open capacity) arrives with Phase 9. */}
+              <div className="space-y-6 rounded-lg border p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">Group pricing (optional)</p>
+                  <p className="text-sm text-muted-foreground">
+                    Most spaces skip this — leave the fee at {symbol}0 and your rate stays flat however
+                    many people come.
+                  </p>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="extraHeadFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Extra guest fee</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
+                            {symbol}
+                          </span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            className="pl-8"
+                            placeholder="0.00"
+                            value={field.value != null ? (field.value / 100).toString() : ""}
+                            onChange={(e) => {
+                              const major = parseFloat(e.target.value);
+                              field.onChange(
+                                Number.isNaN(major) ? undefined : Math.round(major * 100),
+                              );
+                            }}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Charge more when a group is larger than your base capacity. Leave at {symbol}0 for
+                        flat pricing — most spaces do.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Shown ONLY once a fee is actually set — `included` is meaningless without one. */}
+                {(values.extraHeadFee ?? 0) > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="included"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Base price covers</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            inputMode="numeric"
+                            placeholder="1"
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                              const n = parseInt(e.target.value, 10);
+                              field.onChange(Number.isNaN(n) ? undefined : n);
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          How many people your rate includes before the extra guest fee applies.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
             </div>
           )}
 

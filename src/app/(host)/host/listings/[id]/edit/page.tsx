@@ -69,6 +69,10 @@ export default async function EditListingPage({
     maxOccupancy: row.maxOccupancy,
     hourlyRateCents: row.hourlyRateCents,
     dayRateCents: row.dayRateCents,
+    // D-108 — passed through INCLUDING null; the wizard seeds the app-level defaults (fee ₱0, includes 1)
+    // so a pre-Phase-8 listing renders as the flat-priced space it already is.
+    included: row.included,
+    extraHeadFee: row.extraHeadFee,
     currency: row.currency,
     bookingMode: row.bookingMode,
     // D-77 — passed through as-is, INCLUDING null. A pre-Phase-7 listing has no tier and must reach the

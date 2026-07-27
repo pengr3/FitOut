@@ -21,6 +21,12 @@ const bookingModeValues = ["instant", "request"] as const;
  *  booking at creation (D-67) and is what `quoteRefund` later applies. */
 const cancellationPolicyValues = ["flexible", "standard", "strict"] as const;
 
+/** D-109 occupancy modes. EXACTLY ONE value in v1 (`exclusive`) — Phase 9 adds open-capacity. Mirrors the
+ *  `occupancy_mode` pgEnum. There is deliberately NO host-facing control for this in v1 (08-UI-SPEC § 6 /
+ *  Open Q8): a picker with one choice is noise. The field is accepted here so the shape is forward-compatible
+ *  and so a client can never smuggle a value outside the enum. */
+const occupancyModeValues = ["exclusive"] as const;
+
 /** Draft autosave (D-01) — everything optional; the wizard saves partial progress between steps. */
 export const draftSchema = z.object({
   title: z.string().max(120).optional(),
@@ -42,6 +48,12 @@ export const draftSchema = z.object({
   // D-77: OPTIONAL at draft time, on purpose. The tier gates PUBLISHING, not creation (see publishSchema),
   // so every listing drafted before Phase 7 — which all carry NULL — stays editable and saveable.
   cancellationPolicy: z.enum(cancellationPolicyValues).optional(),
+  // ── D-108 group pricing (GROUP-01/GROUP-05) — OPTIONAL everywhere, on purpose (see publishSchema). ──
+  occupancyMode: z.enum(occupancyModeValues).optional(),
+  included: z.number().int().positive().optional(),
+  // ≥ 0, not positive: ₱0 IS the meaningful "flat pricing, no surcharge" value and is the default the
+  // wizard shows. Integer CENTAVOS (Pitfall 5 — money is never a float).
+  extraHeadFee: z.number().int().min(0).optional(),
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),
@@ -79,6 +91,16 @@ export const publishSchema = z.object({
   // until the host chooses. And because this schema runs server-side inside publishListing against the
   // PERSISTED row, a stale or tampered client that skips the wizard step cannot bypass it.
   cancellationPolicy: z.enum(cancellationPolicyValues),
+  // ── D-108 group pricing — OPTIONAL AT PUBLISH, DELIBERATELY. ────────────────────────────────────────
+  // These mirror `postalCode` (:64 — optional in the strict gate), NOT `cancellationPolicy` (required).
+  // They are NOT publish requirements and must NOT enter the publish checklist: both are backward-compatible
+  // with app-level defaults (a NULL/0 extraHeadFee means flat pricing, `included` defaults to 1), so every
+  // listing that predates Phase 8 — i.e. all of them — stays publishable without the host touching a group
+  // field. 07-15's "a new publish requirement must land in TWO places" rule cuts the other way here: adding
+  // them to this schema is exactly how a requirement becomes real, so they stay optional on purpose.
+  occupancyMode: z.enum(occupancyModeValues).optional(),
+  included: z.number().int().positive().optional(),
+  extraHeadFee: z.number().int().min(0).optional(),
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),

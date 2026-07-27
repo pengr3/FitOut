@@ -98,6 +98,50 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     ).toBe(false);
   });
 
+  // ── D-108 group pricing (08-05). The load-bearing property is a NEGATIVE one: adding these fields must
+  // NOT widen the publish gate. 07-15 established that a new publish requirement lands in TWO places
+  // (publishSchema + the persisted-row re-read); the inverse holds here — as long as they stay `.optional()`
+  // in this schema, a listing that never touched them publishes exactly as it did before Phase 8.
+  it("still publishes with NO group-pricing fields at all (D-108 — not a publish requirement)", () => {
+    // `validPublish` deliberately carries neither field. If either ever became required this flips red.
+    expect("extraHeadFee" in validPublish).toBe(false);
+    expect("included" in validPublish).toBe(false);
+    expect(publishSchema.safeParse(validPublish).success).toBe(true);
+    // Explicitly-absent is the same as never-supplied.
+    expect(
+      publishSchema.safeParse({ ...validPublish, extraHeadFee: undefined, included: undefined })
+        .success,
+    ).toBe(true);
+  });
+
+  it("accepts group pricing when the host DOES set it (fee in integer centavos, ₱0 allowed)", () => {
+    expect(
+      publishSchema.safeParse({ ...validPublish, extraHeadFee: 10000, included: 4 }).success,
+    ).toBe(true);
+    // ₱0 is the meaningful "flat pricing" value the wizard defaults to — it must parse, not be rejected
+    // as non-positive the way a rate would be.
+    expect(publishSchema.safeParse({ ...validPublish, extraHeadFee: 0 }).success).toBe(true);
+    expect(draftSchema.safeParse({ extraHeadFee: 0, included: 1 }).success).toBe(true);
+  });
+
+  it("rejects a negative or non-integer extra-guest fee (money is integer minor units — Pitfall 5)", () => {
+    expect(publishSchema.safeParse({ ...validPublish, extraHeadFee: -1 }).success).toBe(false);
+    expect(publishSchema.safeParse({ ...validPublish, extraHeadFee: 100.5 }).success).toBe(false);
+    expect(draftSchema.safeParse({ extraHeadFee: -1 }).success).toBe(false);
+    // `included` is a headcount — 0 people cannot be "included" in the base price.
+    expect(publishSchema.safeParse({ ...validPublish, included: 0 }).success).toBe(false);
+  });
+
+  it("accepts only the single v1 occupancy mode (D-109 — no second value exists yet)", () => {
+    expect(publishSchema.safeParse({ ...validPublish, occupancyMode: "exclusive" }).success).toBe(
+      true,
+    );
+    expect(publishSchema.safeParse({ ...validPublish, occupancyMode: "shared" }).success).toBe(
+      false,
+    );
+    expect(draftSchema.safeParse({ occupancyMode: "shared" }).success).toBe(false);
+  });
+
   it("rejects a space type outside the D-08 vocabulary", () => {
     expect(
       publishSchema.safeParse({ ...validPublish, primarySpaceType: "helipad" }).success,
