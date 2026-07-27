@@ -113,11 +113,8 @@ describe("seat-claim no-overflow (GROUP-05 / SC#4 — the D-112 acceptance gate)
 
       // Every racer's transaction resolves (a loser commits without inserting — a calm "just filled up",
       // never a crash). Exactly one actually claimed a seat.
-      const claimed = results.filter(
-        (r): r is PromiseFulfilledResult<{ claimed: true; id: string }> =>
-          r.status === "fulfilled" && r.value.claimed === true,
-      );
-      expect(claimed).toHaveLength(1);
+      const claimedCount = results.filter((r) => r.status === "fulfilled" && r.value.claimed === true).length;
+      expect(claimedCount).toBe(1);
 
       // The load-bearing assertion: re-count committed 'yes' rows through the shared connection. Snapshot=1
       // → exactly one 'yes' survives, ever. Without the FOR UPDATE lock two racers both read count=0 and
@@ -136,11 +133,8 @@ describe("seat-claim no-overflow (GROUP-05 / SC#4 — the D-112 acceptance gate)
     try {
       const results = await Promise.allSettled(clients.map((client) => raceClaim(client, CAP2_GID)));
 
-      const claimed = results.filter(
-        (r): r is PromiseFulfilledResult<{ claimed: true; id: string }> =>
-          r.status === "fulfilled" && r.value.claimed === true,
-      );
-      expect(claimed).toHaveLength(2);
+      const claimedCount = results.filter((r) => r.status === "fulfilled" && r.value.claimed === true).length;
+      expect(claimedCount).toBe(2);
 
       const [{ n }] = await testDb.client`
         SELECT count(*)::int AS n FROM rsvp WHERE group_id = ${CAP2_GID} AND status = 'yes'`;
