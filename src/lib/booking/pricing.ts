@@ -21,6 +21,16 @@ export type QuoteInput = {
   fullDay: boolean;
   hourlyRateCents: number | null;
   dayRateCents: number | null;
+  // ── D-108 pax pricing (GROUP-01/GROUP-05) — all three OPTIONAL so the flat-listing call is unchanged ──
+  /** Base headcount folded into the flat rate; the organizer is attendee #1 (D-113). Defaults to 1. */
+  included?: number;
+  /**
+   * Per-extra-head surcharge in integer centavos. ABSENT or 0 ⇒ a flat rental with NO surcharge machinery:
+   * the quote is byte-identical to today (backward-compatible default, zero leak).
+   */
+  extraHeadFee?: number;
+  /** Organizer-declared attendee count; drives the surcharge ONLY when extraHeadFee > 0. Defaults to 1. */
+  declaredPax?: number;
 };
 
 export type Quote = {
@@ -28,6 +38,10 @@ export type Quote = {
   currency: string;
   hours: number;
   fullDay: boolean;
+  /** D-108 heads charged beyond `included` (0 when extraHeadFee is absent/0) — a breakdown line, not a sum. */
+  extraHeads: number;
+  /** D-108 per-extra-head fee applied, in centavos (0 when extraHeadFee is absent/0). The per-head figure. */
+  extraHeadCents: number;
 };
 
 const MS_PER_HOUR = 3_600_000;
@@ -48,22 +62,47 @@ export function windowHours(startUtc: Date | string, endUtc: Date | string): num
 
 /**
  * Re-derive and freeze the price for a selected window. `hours` comes from the window (never the client);
- * `totalCents` is `dayRateCents` for a full-day selection, else `hourlyRateCents × hours` (D-45 — distinct,
+ * the BASE is `dayRateCents` for a full-day selection, else `hourlyRateCents × hours` (D-45 — distinct,
  * no cap). Throws when the rate the selection requires is absent rather than freezing a $0 charge (a
  * mis-configured listing must never yield a free booking — money-correctness guard).
+ *
+ * D-108 pax surcharge: `total = base + max(0, declaredPax − included) × extraHeadFee`. The surcharge is
+ * HOST REVENUE folded into `totalCents` — the caller (createPendingHold) freezes that into
+ * `spacePriceCents`, so it becomes the payout gross basis AND the service-fee basis (A1). `extraHeadFee`
+ * absent/0 ⇒ zero surcharge, byte-identical to the flat quote (backward-compat). This module stays PURE
+ * over the listing's own rates: it knows nothing of the platform service fee (the 07-08 seam), and the
+ * client sends no price — a tampered pax cannot move the charge because the fee/included come from the
+ * listing row server-side (D-108, CLAUDE.md "never trust the client for price").
  */
 export function quoteWindow(input: QuoteInput): Quote {
   const { fullDay, hourlyRateCents, dayRateCents } = input;
   const hours = windowHours(input.startUtc, input.endUtc);
 
-  let totalCents: number;
+  let baseCents: number;
   if (fullDay) {
     if (dayRateCents == null) throw new Error("Listing has no day rate for a full-day booking");
-    totalCents = dayRateCents; // flat day rate — NO cap, NO auto-switch (D-45)
+    baseCents = dayRateCents; // flat day rate — NO cap, NO auto-switch (D-45)
   } else {
     if (hourlyRateCents == null) throw new Error("Listing has no hourly rate for an hourly booking");
-    totalCents = hourlyRateCents * hours;
+    baseCents = hourlyRateCents * hours;
   }
 
-  return { totalCents, currency: DISPLAY_CURRENCY, hours, fullDay };
+  // D-108 surcharge — integer centavos throughout (fee and extraHeads are both integers, so no float and no
+  // second rounding). Gated on `fee > 0` so a flat listing yields exactly zero and stays byte-identical to
+  // today; `Math.max(0, …)` floors it so `declaredPax ≤ included` (incl. organizer-only, D-113) never
+  // produces a negative surcharge.
+  const included = input.included ?? 1; // organizer is attendee #1, folded into the base (D-113)
+  const fee = input.extraHeadFee ?? 0;
+  const pax = input.declaredPax ?? 1;
+  const extraHeads = fee > 0 ? Math.max(0, pax - included) : 0;
+  const surchargeCents = extraHeads * fee;
+
+  return {
+    totalCents: baseCents + surchargeCents,
+    currency: DISPLAY_CURRENCY,
+    hours,
+    fullDay,
+    extraHeads,
+    extraHeadCents: fee,
+  };
 }
