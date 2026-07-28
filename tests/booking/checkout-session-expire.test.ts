@@ -32,7 +32,7 @@ import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, booking } from "@/lib/db/schema";
 import { createPendingHold } from "@/lib/availability/units";
 import { computeServiceFee } from "@/lib/payments/service-fee";
-import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
+import type { RateLimitResult } from "@/lib/rate-limit";
 
 const HOUR = 3_600_000;
 const LEAD_MS = 3 * HOUR; // past MIN_LEAD_INSTANT_MINUTES so the D-96 guard never interferes
@@ -68,8 +68,10 @@ vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 /** The mocked session identity — set per test to drive the owner gate. */
 const session: { userId: string | null } = { userId: null };
 
-/** The limiter is stubbed so a dozen seeded confirm/re-price calls don't exhaust the real module-level Map. */
-const fakeRateLimit = (_key: string, _opts: RateLimitOptions): RateLimitResult => ({ ok: true });
+/** The limiter is stubbed so a dozen seeded confirm/re-price calls don't exhaust the real module-level Map.
+ *  Takes no parameters on purpose — this file asserts nothing about the budget (tests/booking/pax-reprice
+ *  case 9 owns that), and a zero-arg function satisfies every rateLimit(key, opts) call site. */
+const fakeRateLimit = (): RateLimitResult => ({ ok: true });
 
 let testDb: TestDb;
 type BookingActions = typeof import("@/app/actions/booking");
