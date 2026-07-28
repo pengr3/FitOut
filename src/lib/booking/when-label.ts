@@ -10,13 +10,28 @@
 // The correctness rules this module owns:
 //   - Times render in the VENUE timezone via tz(input.timezone) — never the viewer's clock (D-105/C5).
 //     Both bounds are absolute UTC instants (timestamptz); only the DISPLAY is converted, at the edge.
-//   - `fullDay` is NOT persisted, so it is re-derived from the frozen SPACE PRICE — biasing to hourly on
-//     an exact coincidence so the real hours show. This is the shipped behaviour; do not "improve" it.
-//     ⚠️ It compares against `spacePriceCents`, NOT the all-in charged total. Under D-74 the charged total
-//     is `space + service fee`, so it can NEVER equal `hourlyRate × hours` — deriving from it would make
-//     EVERY hourly booking render "Full day", on every surface this module feeds, silently and with no
-//     test failure. The space price is the listing-priced portion and is the only figure comparable to a
-//     listing rate. `quotedTotalCents` remains only as the pre-Phase-7 fallback (see below).
+//   - `fullDay` IS PERSISTED (booking.full_day, drizzle 0016 / WR-06) and is the sole authority for which
+//     branch renders. It is the same flag the price was frozen with, so the label and the money agree by
+//     construction. It is a REQUIRED input, not an optional one: an optional field would let a call site
+//     silently omit it and keep the old defect alive on that one surface, whereas a required field makes
+//     the COMPILER enumerate every projection that must supply it.
+//   - ⚠️ THE OLD PRICE-INEQUALITY DERIVATION IS GONE, AND MUST NOT COME BACK (CR-01, 08-RESEARCH
+//     Pitfall 3). It concluded "Full day" whenever the frozen space price did not equal the plain
+//     hour-rate run total. The D-108 extra-guest surcharge is folded INTO `spacePriceCents`
+//     (pricing.ts quoteWindow → units.ts createPendingHold), so that inequality is TRUE of a perfectly
+//     ordinary hourly booking with one extra guest — which made every surcharged hourly booking render
+//     "Full day" on all eighteen surfaces this module feeds, silently and with no test failure. An
+//     inequality against a price can never come back here.
+//   - The price comparison survives ONLY as the pre-0016 fallback (full_day IS NULL on legacy rows), and
+//     ONLY as a POSITIVE day-rate match — the same idiom already shipped in listings/[id]/book/page.tsx,
+//     (app)/bookings/[id]/page.tsx and actions/re-request.ts. A positive match can only ever ADD
+//     "Full day" on an exact day-rate coincidence, so nothing hourly — surcharged or not — can be
+//     mislabeled by it. With no day rate to match, the window reads as real hours.
+//   - GREP TRIPWIRE (the 07-04 payout-sweep idiom, restated by 08-05 deviation 5). The absence of the old
+//     derivation is checked by grepping this file for the identifier it was written with. A grep is only a
+//     real guard if it cannot be tripped by the very comment forbidding it — so that identifier is not
+//     spelled anywhere in this file, comments included. If you are tempted to name it "just in prose",
+//     don't: it disarms the check for good.
 //   - The city suffix is omitted entirely when the listing has no city (never a dangling " ( time)").
 //
 // Pure/isomorphic: this file carries NO client and NO server directive, so Server Components, server
@@ -25,8 +40,6 @@
 
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
-
-import { windowHours } from "@/lib/booking/pricing";
 
 /** The structural input every call site projects its own row shape onto (no ORM row type leaks in here). */
 export type WhenLabelInput = {
@@ -39,9 +52,14 @@ export type WhenLabelInput = {
   /** Venue city for the " ({City} time)" suffix; null omits the suffix entirely. */
   city: string | null;
   /**
-   * The frozen SPACE price (D-74) — compared against hourlyRate × hours to re-derive fullDay. REQUIRED
-   * (not optional) so tsc forces every call site to supply it: a call site that silently omitted it would
-   * fall back to the all-in total and mislabel every hourly booking as "Full day".
+   * The PERSISTED `booking.full_day` snapshot (drizzle 0016 / WR-06) — the creation-time flag the price
+   * was frozen with, and the sole authority for which branch renders. REQUIRED, so tsc enumerates every
+   * call site. `null` means a pre-0016 row and ONLY then is the fallback below consulted.
+   */
+  fullDay: boolean | null;
+  /**
+   * The frozen SPACE price (D-74) — the listing-priced portion, i.e. the only figure comparable to a
+   * listing rate. Read ONLY by the pre-0016 fallback, and only as a positive `=== dayRateCents` match.
    */
   spacePriceCents: number | null;
   /**
@@ -49,22 +67,24 @@ export type WhenLabelInput = {
    * is null — a pre-Phase-7 row, where no service fee existed and the two figures were equal by definition.
    */
   quotedTotalCents: number | null;
-  /** The listing's hourly rate; null means there is nothing to compare, so the window reads as a full day. */
-  hourlyRateCents: number | null;
+  /**
+   * The listing's day rate — the ONLY rate this module consults, and only for the pre-0016 positive match.
+   * `null` means there is no day rate to match, so a legacy row renders its real hours.
+   */
+  dayRateCents: number | null;
 };
 
 /**
  * The shared body. `dateFormat` is the ONLY difference between the long and short variants — keeping one
- * implementation means the time range, the fullDay re-derivation and the city suffix can never diverge.
+ * implementation means the time range, the fullDay resolution and the city suffix can never diverge.
  */
 function compose(input: WhenLabelInput, dateFormat: string): string {
   const inTz = tz(input.timezone);
-  const hours = windowHours(input.startsAt, input.endsAt);
   // The listing-priced portion. Falls back to the all-in total only for a pre-Phase-7 row whose split was
   // never frozen — for those rows the fee was 0, so the two are the same number.
   const spaceCents = input.spacePriceCents ?? input.quotedTotalCents ?? 0;
-  const hourlyTotal = input.hourlyRateCents != null ? input.hourlyRateCents * hours : null;
-  const fullDay = hourlyTotal == null || spaceCents !== hourlyTotal;
+  // The persisted snapshot wins outright. The positive day-rate match is the pre-0016 legacy path ONLY.
+  const fullDay = input.fullDay ?? (input.dayRateCents != null && spaceCents === input.dayRateCents);
   const dateLabel = format(input.startsAt, dateFormat, { in: inTz });
   const timeLabel = fullDay
     ? "Full day"
@@ -81,11 +101,10 @@ export const composeWhenLabelShort = (input: WhenLabelInput): string => compose(
 /**
  * A single DEADLINE instant, venue-local — "Thu, Jul 3, 8:00 PM (Manila time)".
  *
- * `composeWhenLabel` renders a booking WINDOW (two bounds, a fullDay re-derivation, a range). A deadline is
- * one instant and has none of that, so it gets its own export rather than a fake zero-length window — but
- * it lives HERE, in the module that owns venue-local rendering, for the reason stated in this file's
- * header: every new time surface imports from here, and the tz + city-suffix rules must never be
- * re-implemented at a call site.
+ * `composeWhenLabel` renders a booking WINDOW (two bounds, a mode, a range). A deadline is one instant and
+ * has none of that, so it gets its own export rather than a fake zero-length window — but it lives HERE, in
+ * the module that owns venue-local rendering, for the reason stated in this file's header: every new time
+ * surface imports from here, and the tz + city-suffix rules must never be re-implemented at a call site.
  *
  * Feeds the `payByLabel` / `respondByLabel` display strings on the D-86 notification payloads (07-10), and
  * is what Plan 13's reminders must use — under D-96 a cap-shortened SLA means the real deadline is
