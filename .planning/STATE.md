@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: plan_ready
-stopped_at: Completed 08-06-PLAN.md
-last_updated: "2026-07-27T11:12:15.103Z"
-last_activity: 2026-07-27
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-07-28T01:37:12.740Z"
+last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 69
-  completed_plans: 67
+  completed_plans: 68
   percent: 78
 ---
 
@@ -26,13 +26,13 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Next action: `/gsd-execute-phase 8`
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
-Last activity: 2026-07-27
+Last activity: 2026-07-28
 
-Progress: [██████████] 97%
+Progress: [██████████] 99%
 
 **08-06 landed — the GROUP LOGIC LAYER ships (createGroup / submitRsvp / removeAttendee / regenerateLink + the D-121 auto-void).** `tests/booking/ group/ security/ notifications/`: **34 files / 347 tests, exit 0**; tsc clean; `npx eslint src tests` 0 errors; `npm run build` exit 0 (27 routes). GROUP-01…GROUP-05 are closed at the logic layer; the surfaces that call these actions are 08-07 (`/bookings/[id]/group`) and 08-08 (`/invite/[token]`).
 
@@ -216,6 +216,7 @@ Progress: [██████████] 97%
 | Phase 08 P04 | 30 | 2 tasks | 13 files |
 | Phase 08 P05 | 35 | 2 tasks | 13 files |
 | Phase 08 P06 | 38min | 3 tasks | 9 files |
+| Phase 08 P07 | 16min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -336,6 +337,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-06: the group attendee confirmation fires ONLY for a 'yes' (the shipped copy on both channels is "you're on the list", false to send to a decliner) and there is deliberately no declined notification type to invent; a blank-email guest gets NO send on any channel and submitRsvp returns reachable:false so the UI can say so (D-117/G3)
 - [Phase ?]: 08-06: removeAttendee DELETEs the rsvp row (never flips it to 'no' — "removed by the organizer" and "can't make it" are different facts) and takes the seat-claim's own group-row FOR UPDATE lock so a removal and a concurrent claim serialise
 - [Phase ?]: 08-06: the RSVP submit budget is keyed on the LINK and deliberately generous (30/60s — a group of ten answering at once is the success case); the real anti-abuse control is the per-normalized-address guest-email budget (3/hr), and the D-117 opt-in guard is structural: the emitted address is derived from THIS request body, never read back out of the roster
+- [Phase ?]: 08-07: the Remove control renders on 'yes' roster rows only — the locked confirm copy 'this frees up their spot' would be a false statement over a declined row (the organizer's own row stays structurally excluded)
+- [Phase ?]: 08-07: RegenerateLinkButton deliberately does not read the accessToken the action returns — the refreshed owner-scoped RSC re-reads it, keeping the bearer credential's only client-side existence inside one read-only input (D-118)
+- [Phase ?]: 08-07: the D-114 top-up nudge renders no money figure and no money-moving control — the in-app top-up is the deferred A3 fast-follow, and a quoted client-side amount would violate G8's server-computed rule
 
 ### Pending Todos
 
@@ -385,7 +389,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-27T11:11:38.847Z
+Last session: 2026-07-28T01:36:49.292Z
 Stopped at: Completed 08-04-PLAN.md
 Resume file: None
 
