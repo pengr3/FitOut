@@ -1,6 +1,96 @@
 # Phase 08 — Deferred Items
 
-Out-of-scope discoveries logged during execution. Nothing here blocks the phase.
+Out-of-scope discoveries logged during execution. **Item 5 is the exception to "nothing here blocks the
+phase": it is a live double-charge on the money path, found by a human in the 08-17 walkthrough, and it is
+the next `/gsd-plan-phase 8 --gaps` input.**
+
+---
+
+## 5. 🔴 **`confirmBooking` double-charges on a plain double-submit — PayMongo does NOT honor `Idempotency-Key` on `/v1/checkout_sessions`** (08-17, OPEN, BLOCKER-class)
+
+**Found during:** 08-17 Task 2, step 4 — the first human exercise of the per-head money path.
+
+**What happened.** The human clicked **Confirm & pay**, did not pay, opened a second tab, clicked
+**Confirm & pay** again and paid there — then returned to the first, orphaned tab and paid that too.
+**Both succeeded. The booker was charged twice for one booking.**
+
+`GET /v1/payments` — both `status: paid`, both `metadata.booking_id = aff63acb-b6a5-45f7-8b47-6a01d589f765`,
+both `Booking FIT-JSHBVKFP`:
+
+| Payment id | Amount | `paid_at` | Payment intent |
+|---|---|---|---|
+| `pay_YFn1jgMWyau46ECydfPR2LdN` | ₱735.00 | 2026-07-28T10:00:35Z | `pi_qkDvR7HpTin8kGQSbkrzhHqy` |
+| `pay_iw2zsj3ehcRzgRYzgn7hkoUP` | ₱735.00 | 2026-07-28T10:08:29Z | `pi_pUSRd6pLXNNvyVHat5pTTE35` |
+
+**₱1,470.00 collected against a ₱735.00 booking.** The recorded session `cs_beffe381eb4694b42d4f3662` lists
+only the FIRST payment — the second was paid on a session whose id the database never held, because
+`confirmBooking`'s write had already overwritten `checkout_session_id`.
+
+**ROOT CAUSE — a documented invariant the provider does not actually provide.** Two
+`POST /v1/checkout_sessions` with a byte-identical `Idempotency-Key` and an identical body, against
+`sk_test_`:
+
+```
+POST #1: HTTP 200  id=cs_ed60840548c9ccadc27ba6c3
+POST #2 (same Idempotency-Key): HTTP 200  id=cs_6c4e54d253178994b94934b8
+-> DIFFERENT ids
+```
+
+**Every POST mints a new payable session.** (Both probes were expired afterwards;
+`POST /v1/checkout_sessions/{id}/expire` returned HTTP 200 both times — 08-12's `expireCheckoutSession`
+works correctly against the real API. The defect is never calling it.)
+
+**Three shipped comments assert the opposite and are now known false:**
+
+| File:line | The false claim |
+|---|---|
+| `src/app/actions/booking.ts:582` | "Within ONE frozen amount the stable Idempotency-Key collapses a double-click / retry onto the SAME session." |
+| `src/app/actions/booking.ts:592` | "…while a double-click (same booking, same amount) still resolves to the same key and the same session." |
+| `src/lib/paymongo.ts:172` | "Idempotency-Key is set by the caller (e.g. `checkout:<bookingId>`) so a double-click / retry can't create a second charge." |
+
+**Scope — NOT a CR-02 regression, and WIDER than CR-02.** No re-price occurred: both charges were ₱735 at
+`declared_pax = 3`, so both calls built the same key `checkout:<holdId>:73500`. CR-02's expire gate lives in
+`updateDeclaredPax` and fires only on a re-price; **`confirmBooking` expires nothing before creating.** So:
+
+1. Plain double-submission of **Confirm & pay** is an unguarded double-charge path — no re-price needed.
+2. **Flat-priced bookings are equally exposed.** Their `checkout:<bookingId>` key was believed to be a
+   double-charge guard (08-12 contract 1 reasoned from that belief); it is not one. **This predates Phase 8.**
+
+**Downstream effects were CONTAINED.** Both `checkout_session.payment.paid` events were processed and the
+handler deduped correctly: exactly ONE `booking_confirmed` notification, and no duplicated
+`host_payout_ledger` row (0 rows — the ledger is written at payout time, not at confirm). But
+`booking.payment_id` ended up naming `pay_iw2zsj…`, the later event having overwritten the earlier — a
+lesser but real **recording** defect: the row names one of two real payments with nothing pointing at the
+other. The overcharge is **unrefundable through the API** because both payments are `qrph`
+(`src/lib/paymongo.ts:257`). Test-mode money, so no real loss — on a live rail this needs an out-of-band
+operator refund.
+
+**Why not fixed here:** 08-17 declares `files_modified: []` and is a human-verification plan; a money-path
+fix is Rule-4 territory and was routed to `/gsd-plan-phase 8 --gaps` by operator decision.
+
+**When to close — the suggested shape.** `confirmBooking` should **expire the persisted
+`checkout_session_id` before creating a new one**, mirroring what `updateDeclaredPax` already does. The fix
+**needs a test that drives the real PayMongo API rather than a mock** — a mock that echoes the idempotency
+key back is exactly what let this belief survive four plans of test coverage. Fold in the still-unproven
+half of CR-02 while that harness exists (see item 6).
+
+---
+
+## 6. CR-02's live re-price assertion was never exercised by a human (08-17, OPEN)
+
+**Found during:** 08-17 Task 2, step 4.
+
+**What:** the plan's step 4 script was *set pax 3 → Confirm & pay → cancel back → step to pax 4 → Confirm &
+pay → reload the FIRST tab and confirm it is no longer payable.* That is not the sequence that ran. Two
+submissions were made at the **same** headcount, so `updateDeclaredPax` was never entered and the
+expire-before-refreeze gate was never exercised. Recorded as **NOT VERIFIED**, per the plan's own criterion
+that an unrun step is never passed by assumption.
+
+**Impact:** CR-02's only evidence remains 08-13's automated mutation proofs (A/B/C). Those are strong, but
+they are **mock-backed** — and item 5 above is a demonstration of what a mock-backed proof of a provider
+guarantee is worth.
+
+**When to close:** alongside item 5, on the same real-API test harness.
 
 ---
 
