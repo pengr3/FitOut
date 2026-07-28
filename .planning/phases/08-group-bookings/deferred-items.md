@@ -90,7 +90,24 @@ in an inline neutral alert instead.
 
 ---
 
-## 4. The SHIPPED `claimSeat` `FOR UPDATE` has NO mutation coverage (found 08-09 Task 1)
+## 4. ~~The SHIPPED `claimSeat` `FOR UPDATE` has NO mutation coverage~~ — **CLOSED (`4d263aa`, plan 08-16)**
+
+> **Closed 2026-07-28 by `4d263aa`** — `tests/group/seat-claim-race.test.ts` now has TWO layers.
+> Cases 3-4 drive the **real** `claimSeat` imported from `@/lib/group/seat-claim`, with one
+> `drizzle(client)` over one INDEPENDENT `makeRacingClients` connection per racer and a name-only
+> guest identity (so the de-dup predicate is `false` and every racer genuinely attempts a fresh
+> insert). Deleting `FOR UPDATE` from `src/lib/group/seat-claim.ts:54` now turns this file **RED** —
+> measured, not asserted: `expected 3 to be 1` committed `yes` at `capacity_snapshot = 1` and
+> `expected 4 to be 2` at `= 2` — and restoring it returns it to GREEN (4/4) with
+> `git diff --exit-code src/lib/group/seat-claim.ts` clean. The two inlined-SQL cases are kept
+> byte-identical as the **pattern** proof, and their own mutation still holds independently
+> (deleting the test's inlined `FOR UPDATE` fails cases 1-2 with the same 3/4 over-cap counts while
+> cases 3-4 stay green). The file header now names **both** mutation targets, each against its own
+> file and its own line — the single instruction it carried before was the thing 08-09 found was not
+> executable as written. No production file was modified. The original entry is kept below for the
+> record.
+
+<details><summary>Original entry (08-09)</summary>
 
 **Found during:** 08-09 Task 1, executing the phase's acceptance-gate mutation.
 
@@ -118,3 +135,5 @@ boundary, and the honest reading is that it needs its own task.
 **When to close:** add one racing case to `tests/group/seat-claim-race.test.ts` that routes through the real
 `claimSeat` (bind each racer's own connection as its `DbConn`) so the production lock is mutation-covered
 too, keeping the existing inlined cases as the pattern proof. Good `/gsd:plan-phase 8 --gaps` input.
+
+</details>
