@@ -14,6 +14,7 @@ import { readDbNow } from "@/lib/booking/bookings-query";
 import { countUnread, listRecent, NOTIFICATIONS_MAX_LIMIT } from "@/lib/notifications";
 import { ModeSwitch } from "@/components/mode-switch";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { Toaster } from "@/components/ui/sonner";
 import {
   toNotificationItems,
   type NotificationItemData,
@@ -91,6 +92,15 @@ export default async function AppLayout({
         </div>
       </header>
       <main className="flex flex-1 flex-col">{children}</main>
+      {/* WR-04: mount the Toaster exactly once at the shared ancestor, the same idiom the host
+          availability page uses. Until now it was mounted ONLY on three host pages, so every
+          `toast()` on the booker side resolved into silence — Phase 7's cancel/refund surfaces and
+          all four Phase 8 group controls among them. ShareLinkBox's "Link copied" is the ONLY
+          confirmation the organizer gets that the copy worked, and RemoveAttendeeButton's calm
+          error sentences are its only failure channel; both were unreachable. Mounting it here
+          covers every page under (app) at once. Do NOT also mount it per-page underneath this —
+          two Toasters render a toast twice. */}
+      <Toaster />
     </div>
   );
 }
