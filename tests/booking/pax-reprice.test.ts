@@ -19,6 +19,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, booking } from "@/lib/db/schema";
 import { createPendingHold } from "@/lib/availability/units";
 import { computeServiceFee } from "@/lib/payments/service-fee";
@@ -126,6 +127,7 @@ async function readRow(id: string) {
       spacePriceCents: booking.spacePriceCents,
       serviceFeeCents: booking.serviceFeeCents,
       quotedTotalCents: booking.quotedTotalCents,
+      checkoutSessionId: booking.checkoutSessionId,
     })
     .from(booking)
     .where(eq(booking.id, id));
@@ -160,6 +162,16 @@ beforeAll(async () => {
     rateLimit: fakeRateLimit,
     requireWithinRateLimit: fakeRateLimit,
   }));
+  // CR-02 (08-13): cases 1-9 never reach a checkout session (their rows hold checkout_session_id = NULL), so
+  // the expire gate is skipped and they are unaffected. Case 10 drives the FAILURE branch, which needs the
+  // client stubbed — no re-price may ever touch the network.
+  vi.doMock("@/lib/paymongo", () => ({
+    createCheckoutSession: mockPayMongo.createCheckoutSession,
+    expireCheckoutSession: mockPayMongo.expireCheckoutSession,
+    createRefund: mockPayMongo.createRefund,
+    createBatchTransfer: mockPayMongo.createBatchTransfer,
+    listWalletAccounts: mockPayMongo.listWalletAccounts,
+  }));
   vi.resetModules();
   ({ updateDeclaredPax } = await import("@/app/actions/booking"));
 });
@@ -169,6 +181,7 @@ afterAll(async () => {
   vi.doUnmock("@/lib/db");
   vi.doUnmock("next/cache");
   vi.doUnmock("@/lib/rate-limit");
+  vi.doUnmock("@/lib/paymongo");
   await teardownTestDb(testDb);
 });
 
@@ -356,5 +369,33 @@ describe("updateDeclaredPax — the D-108 server-side re-quote", () => {
     expect(rateLimitCalls[0].opts.max).toBeGreaterThan(0);
     // Refused BEFORE any write.
     expect((await readRow(id)).declaredPax).toBe(1);
+  });
+
+  it("(10) a re-price whose EXPIRE fails is refused — every case above passes only because the expire succeeds (CR-02)", async () => {
+    const listingId = await makeListing({ included: 1, extraHeadFee: FEE_PER_HEAD });
+    const { id } = await hold(listingId, { hours: 2, declaredPax: 1 });
+    // The booking has been to checkout once: it NAMES a live session (what confirmBooking persists).
+    await testDb.db
+      .update(booking)
+      .set({ checkoutSessionId: "cs_rp_stale" })
+      .where(eq(booking.id, id));
+    const before = await readRow(id);
+
+    await login(BOOKER_EMAIL);
+    mockPayMongo.expireCheckoutSession.mockRejectedValueOnce(new Error("PayMongo 502 expire failed"));
+    const res = await updateDeclaredPax(id, 6);
+
+    // THE ORDERING IS WHAT THIS CASE PINS. The nine cases above are green because the superseded session was
+    // retired FIRST; when it cannot be, the amount must not move at all — a booking quoted at ₱Y with a live
+    // session payable at ₱X is the CR-02 defect. So the failure leaves the row exactly as it was, still
+    // naming the session an operator has to retire by hand.
+    expect(res.ok).toBe(false);
+    expect(mockPayMongo.expireCheckoutSession).toHaveBeenCalledWith("cs_rp_stale");
+    const after = await readRow(id);
+    expect(after.declaredPax).toBe(before.declaredPax);
+    expect(after.spacePriceCents).toBe(before.spacePriceCents);
+    expect(after.serviceFeeCents).toBe(before.serviceFeeCents);
+    expect(after.quotedTotalCents).toBe(before.quotedTotalCents);
+    expect(after.checkoutSessionId).toBe("cs_rp_stale");
   });
 });

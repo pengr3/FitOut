@@ -82,7 +82,11 @@ async function seedBooking(opts: {
 
 async function readBooking(id: string) {
   const [row] = await testDb.db
-    .select({ status: booking.status, expiresAt: booking.expiresAt })
+    .select({
+      status: booking.status,
+      expiresAt: booking.expiresAt,
+      checkoutSessionId: booking.checkoutSessionId,
+    })
     .from(booking)
     .where(eq(booking.id, id));
   return row;
@@ -117,6 +121,9 @@ beforeAll(async () => {
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
     createCheckoutSession: mockPayMongo.createCheckoutSession,
+    // CR-02 (08-13): confirmBooking imports this too. It is never CALLED here — no case in this file
+    // re-prices — but the mock must expose it or the module namespace is incomplete.
+    expireCheckoutSession: mockPayMongo.expireCheckoutSession,
     createRefund: mockPayMongo.createRefund,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
@@ -181,6 +188,11 @@ describe("confirmBooking — Confirm & pay checkout (D-49/D-57/D-58)", () => {
     const row = await readBooking(id);
     expect(row.status).toBe("pending");
     expect(row.expiresAt!.getTime()).toBeGreaterThan(Date.now() + 50 * 60 * 1000);
+
+    // CR-02 (08-13): the session just created is NAMED on the row before the booker is sent off-site. This
+    // is a FLAT-priced booking (no declared_pax) — the column is not conditional on the pricing mode, and a
+    // session nobody recorded could never be retired by a later re-price.
+    expect(row.checkoutSessionId).toBe("cs_test_123");
   });
 
   it("charge integrity: the mock receives the row's frozen quotedTotalCents, never any other number", async () => {
