@@ -236,7 +236,7 @@ Plans:
   3. The organizer can see the confirmed headcount and who is coming
   4. Confirmed RSVPs are hard-capped at the listing's capacity (atomic, no overflow), and a partial RSVP leaves the booking valid
 
-**Plans**: 9 plans in 5 waves
+**Plans**: 17 plans in 9 waves (9 original + 8 gap-closure after `gaps_found` verification)
 Plans:
 **Wave 1**
 
@@ -261,6 +261,26 @@ Plans:
 **Wave 5** *(blocked on Wave 4 completion)*
 
 - [x] 08-09-PLAN.md — Human-verify checkpoint: cross-session guest RSVP + real email + GROUP-05 mutation-verify
+
+**Wave 6** *(gap closure — 08-VERIFICATION.md `gaps_found` + 08-REVIEW.md)*
+
+- [ ] 08-10-PLAN.md — CR-03: clamp declaredPax to the listing's maxOccupancy inside createPendingHold + a .max() schema bound
+- [ ] 08-11-PLAN.md — CR-04: bound the rate-limit store and resolve the invite token before charging a token-keyed budget
+- [ ] 08-12-PLAN.md — CR-02 (1/2): booking.checkout_session_id + migration 0019 [BLOCKING] + expireCheckoutSession
+- [ ] 08-16-PLAN.md — Deferred item 4: race the REAL claimSeat so the shipped FOR UPDATE has mutation coverage
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 08-13-PLAN.md — CR-02 (2/2): persist the session id in confirmBooking; expire-before-refreeze in updateDeclaredPax
+- [ ] 08-14-PLAN.md — WR-03/WR-04: reserve the organizer's seat in capacity_snapshot; one organizer-inclusive convention on the organizer surface
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [ ] 08-15-PLAN.md — CR-01: composeWhenLabel reads the persisted booking.full_day; thread it through all 18 call sites
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [ ] 08-17-PLAN.md — Human-verify checkpoint: the pax-pricing surcharge walkthrough 08-09 skipped (extra_head_fee now configured)
 
 **UI hint**: yes
 
