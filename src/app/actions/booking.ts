@@ -38,7 +38,7 @@ import { bookingCreateSchema } from "@/lib/validation/booking";
 import { createPendingHold } from "@/lib/availability/units";
 import { quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
-import { createCheckoutSession } from "@/lib/paymongo";
+import { createCheckoutSession, expireCheckoutSession } from "@/lib/paymongo";
 import { PAYMENT_WINDOW_MINUTES, APPROVAL_SLA_HOURS } from "@/lib/payments/config";
 import { bookingReference } from "@/lib/booking/reference";
 import { composeDeadlineLabel, composeWhenLabel } from "@/lib/booking/when-label";
@@ -355,6 +355,9 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
       // WR-06 pricing-mode snapshot — the SAME flag the original quote was frozen with.
       fullDay: booking.fullDay,
       declaredPax: booking.declaredPax,
+      // CR-02: the session this booking last sent a booker to pay at, or NULL if it never reached checkout
+      // (a legitimate, expected state — never an error). Read here so the expire gate below has an id.
+      checkoutSessionId: booking.checkoutSessionId,
       hourlyRateCents: listing.hourlyRateCents,
       dayRateCents: listing.dayRateCents,
       included: listing.included,
@@ -395,6 +398,42 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
   }
   const fee = computeServiceFee(quote.totalCents);
 
+  // ── THE EXPIRE GATE (CR-02). ORDER IS EXPIRE → RE-FREEZE, AND THAT ORDER IS THE WHOLE FIX. ─────────────
+  // A per-head booking's checkout Idempotency-Key is scoped to the frozen AMOUNT (D-108), so the moment the
+  // amount below moves, a later "Confirm & pay" mints a genuinely NEW session — while the one this booker
+  // may still have open in another tab or one Back away stays payable at the OLD total. The confirm webhook
+  // keys purely on `reference_number` and confirms on `status='pending'` alone (D-57): it cannot tell the
+  // two apart, so a stale payment is captured and never refunded. So the superseded session is retired
+  // FIRST, and only then is the new amount frozen.
+  //
+  // ⚠️ DO NOT REORDER THIS INTO "re-freeze first, expire best-effort". That is the exact CR-02 defect: a
+  // failed expire would leave the booking quoted at ₱Y with a live session payable at ₱X, money captured
+  // against a total the row no longer claims, no refund and no alert. Expire-first fails the other way — the
+  // booking keeps its PREVIOUS amount, which is precisely the amount the still-live session charges, so the
+  // row and the payable session never disagree. Refusing costs a booker one retry (T-08-45, accepted);
+  // proceeding costs an unrefunded double capture.
+  //
+  // NULL is normal, not an error: a hold that never reached checkout has no session to retire, and calling
+  // PayMongo for it would be a fabricated request (08-12 contract 2).
+  if (row.checkoutSessionId != null) {
+    try {
+      await expireCheckoutSession(row.checkoutSessionId);
+    } catch {
+      // The session id belongs in this audit meta precisely BECAUSE an operator needs it to retire the
+      // session by hand — it is an API resource identifier, not a bearer credential (unlike the group invite
+      // token, which is deliberately never audited). PayMongo's own error text stays out of both the audit
+      // and the response (T-05-15 / T-08-44): the booker gets the same calm retryable sentence every other
+      // transient failure in this action returns.
+      await recordAudit({
+        actorId: userId,
+        action: "checkout_expire_failed",
+        outcome: "needs_attention",
+        meta: { holdId, checkoutSessionId: row.checkoutSessionId },
+      });
+      return { ok: false, error: "We couldn't update your booking. Please try again." };
+    }
+  }
+
   // The re-freeze. Scoped to (id, owner, live-and-unpaid) so it can never touch a confirmed row, and the
   // expiry is compared against the POSTGRES clock in the same statement that writes — the same authority
   // every other expiry decision in the system uses. Zero rows back = the hold lapsed while they stepped.
@@ -406,6 +445,10 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
       spacePriceCents: quote.totalCents,
       serviceFeeCents: fee.serviceFeeCents,
       quotedTotalCents: fee.allInCents,
+      // The row stops claiming a live session in the SAME write that moves the amount — the session named
+      // here was just expired, and the next "Confirm & pay" will name its replacement. Clearing it in a
+      // later statement would leave a window where a retry expires an already-dead id.
+      checkoutSessionId: null,
     })
     .where(
       and(
