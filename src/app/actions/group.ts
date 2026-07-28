@@ -26,6 +26,18 @@
 //   - NOTIFICATIONS EMIT AFTER THE CLAIM RETURNS, NEVER INSIDE A TRANSACTION (the notifications.ts
 //     contract). `claimSeat` owns its own transaction and RESOLVES before any emit below runs; every emit
 //     is additionally wrapped so a notification outage can never fail an RSVP that already committed.
+//   - NO RATE-LIMIT KEY ON THE PUBLIC PATH IS DERIVED FROM UNVALIDATED CALLER INPUT (CR-04/T-08-33).
+//     `rateLimit` stores its counters in a module-level Map, so a key is durable process memory. Every
+//     other caller in the app keys on an authenticated `userId` — bounded by the user table. This one is
+//     session-less, so `submitRsvp` RESOLVES the token against the database FIRST and keys its budget on
+//     the resolved `group.groupId`: the key space is real `booking_group` rows, and a token naming no
+//     group mints nothing at all. Resolving before budgeting leaks NOTHING — unknown, voided and
+//     regenerated tokens already collapse onto one identical INVITE_INACTIVE sentence (T-08-17), so
+//     there is no new distinguishable response to read. The residual (one indexed lookup per
+//     unauthenticated request) is dispositioned `accept`: a coarse pre-resolution budget would put a
+//     single shared key on the app's only public write, which is a global availability lever — one
+//     caller could deny every RSVP in the system. `src/lib/rate-limit.ts` carries the second, independent
+//     bound (a hard 50,000-bucket ceiling) so no FUTURE caller can reintroduce the class.
 //
 // THE D-117 OPT-IN EMAIL GUARD (T-08-16 — the spam cannon), stated once, deliberately: an invite link is
 // public and shareable, so "email the attendee" is one careless line away from "email anyone, on demand,
@@ -112,9 +124,15 @@ const CREATE_GROUP_RATE_LIMIT = { window: 60, max: 5 } as const;
 /** Roster management is chattier than a money move (remove a few, regenerate once) — a looser budget. */
 const MANAGE_GROUP_RATE_LIMIT = { window: 60, max: 20 } as const;
 /**
- * The PER-LINK RSVP budget. Deliberately generous: a real group of ten answering at once is the SUCCESS
- * case, and a limit tuned for a single identity would throttle exactly that. It bounds the link, not the
- * person — the anti-abuse control that matters here is the email budget below, not the row write.
+ * The PER-GROUP RSVP budget. Deliberately generous: a real group of ten answering at once is the SUCCESS
+ * case, and a limit tuned for a single identity would throttle exactly that. The anti-abuse control that
+ * matters here is the email budget below, not the row write.
+ *
+ * KEYED ON THE RESOLVED GROUP, NEVER ON THE TOKEN (CR-04). The token is a caller-supplied string with
+ * `32^20` possible values; the group id is a row that exists. Keying on the token let an unauthenticated
+ * caller mint a durable bucket per request — see the ordering note in `submitRsvp`. The visible
+ * consequence of the fix: a link that `regenerateLink` replaced SHARES its predecessor's budget, because
+ * the budget was never about the credential, it was about the group behind it.
  */
 const RSVP_RATE_LIMIT = { window: 60, max: 30 } as const;
 /** The per-identity budget for a SIGNED-IN attendee — one person changing their mind, not a crowd. */
@@ -322,17 +340,24 @@ export async function submitRsvp(
   const parsed = rsvpSchema.safeParse({ ...input, name });
   if (!parsed.success) return { ok: false, error: RSVP_FAILED };
 
-  // Bound the LINK before doing any work. A shared credential is the abusable surface here, not the person.
-  const linkBudget = rateLimit(`rsvp:${parsedToken.data}`, RSVP_RATE_LIMIT);
+  // RESOLVE FIRST. Nothing above this line has touched a rate-limit key (CR-04) — see the budget block
+  // immediately below for why the order is the control.
+  const group = await getGroupByToken(db, parsedToken.data);
+  if (!group.active) return { ok: false, error: INVITE_INACTIVE };
+  if (group.rsvpClosed) return { ok: false, error: RSVP_CLOSED };
+
+  // THE BUDGETS, both keyed on something the DATABASE confirmed (CR-04/T-08-33). The link budget is keyed
+  // on the RESOLVED `group.groupId`, so its key space is real `booking_group` rows — a token that names no
+  // group mints no bucket at all, and the module-level store cannot be grown by anyone who can type. The
+  // consequence to know about: a REGENERATED link shares its predecessor's budget, because the budget was
+  // never about the credential, it was about the group behind it. The identity budget was always bounded
+  // by the user table; it sits here so the ordering reads as one obvious step.
+  const linkBudget = rateLimit(`rsvp:${group.groupId}`, RSVP_RATE_LIMIT);
   if (!linkBudget.ok) return { ok: false, error: TOO_FAST };
   if (session) {
     const identityBudget = rateLimit(`rsvp-identity:${session.id}`, RSVP_IDENTITY_RATE_LIMIT);
     if (!identityBudget.ok) return { ok: false, error: TOO_FAST };
   }
-
-  const group = await getGroupByToken(db, parsedToken.data);
-  if (!group.active) return { ok: false, error: INVITE_INACTIVE };
-  if (group.rsvpClosed) return { ok: false, error: RSVP_CLOSED };
 
   // D-116/D-117 single-path identity. When a session exists the submitted address is DROPPED: writing both
   // would give one person two de-dup keys and therefore two possible rows.
