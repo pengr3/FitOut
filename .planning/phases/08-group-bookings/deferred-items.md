@@ -74,3 +74,34 @@ in an inline neutral alert instead.
 
 **When to close:** before the 08-09 UAT walkthrough of the ORGANIZER flow, or as a one-line addition to
 `(app)/layout.tsx` whenever the booker shell is next touched.
+
+---
+
+## 4. The SHIPPED `claimSeat` `FOR UPDATE` has NO mutation coverage (found 08-09 Task 1)
+
+**Found during:** 08-09 Task 1, executing the phase's acceptance-gate mutation.
+
+**What:** `tests/group/seat-claim-race.test.ts` deliberately INLINES the seat-claim SQL inside each racer's
+transaction (its header says so, and the reason is sound — it makes the `FOR UPDATE` lock itself the thing
+under test, mirroring `exclusion-race.test.ts` testing the EXCLUDE constraint directly). The consequence,
+which the header does not state, is that the race file **never imports `claimSeat`**. Measured this plan:
+deleting `FOR UPDATE` from `src/lib/group/seat-claim.ts:54` leaves `tests/group/seat-claim-race.test.ts`
+**GREEN (2/2)** and the whole of `tests/group/` **GREEN (6 files / 60 tests)**.
+
+So the gate proves the *pattern* is race-free; it does **not** prove the *shipped* claim still contains the
+lock. Someone deleting that line in production code ships an over-cap bug with a fully green 792-test suite.
+(The 08-09 PLAN's Task-1 text — "remove `FOR UPDATE` from `src/lib/group/seat-claim.ts` … confirm it goes
+RED" — is therefore not executable as written; the mutation that genuinely goes RED is the test file's own
+inlined `FOR UPDATE`, which is what its header and 08-VALIDATION.md's gate actually point at.)
+
+**Impact:** a coverage gap in the regression net, not a defect in shipped behaviour. `claimSeat` **does**
+carry the lock today (verified byte-identical at `seat-claim.ts:54` after the mutation was reverted), and
+`tests/group/seat-claim.test.ts` covers its functional contract.
+
+**Why not fixed here:** 08-09's Task 1 declares `<files></files>` and the plan states "no code changes in
+this plan" — adding a racing test that drives `claimSeat` is new test authorship outside this plan's scope
+boundary, and the honest reading is that it needs its own task.
+
+**When to close:** add one racing case to `tests/group/seat-claim-race.test.ts` that routes through the real
+`claimSeat` (bind each racer's own connection as its `DbConn`) so the production lock is mutation-covered
+too, keeping the existing inlined cases as the pattern proof. Good `/gsd:plan-phase 8 --gaps` input.
