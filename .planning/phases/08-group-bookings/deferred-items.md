@@ -4,7 +4,21 @@ Out-of-scope discoveries logged during execution. Nothing here blocks the phase.
 
 ---
 
-## 1. A stale hosted-checkout session can still be paid after a re-price (D-108, 08-05)
+## 1. ~~A stale hosted-checkout session can still be paid after a re-price~~ — **CLOSED (`18c9047` + `0eefcbd` + `ca9d3cb`, plans 08-12 → 08-13)**
+
+> **Closed 2026-07-28 by 08-13** — both halves of the option this entry named ("persist
+> `checkout_session_id` on the booking and expire the old session on re-price") are now shipped.
+> `confirmBooking` writes `checkout.id` to `booking.checkout_session_id` after `createCheckoutSession`
+> resolves and BEFORE the redirect, for per-head AND flat bookings alike. `updateDeclaredPax` expires
+> that session **before** it freezes the new amount, clears the column in the same write, and **refuses**
+> the re-price if the expire throws — recording `action: "checkout_expire_failed"`,
+> `outcome: "needs_attention"` with the session id in the meta so an operator can retire it by hand.
+> Order and persistence are mutation-proven (A/B/C in `08-13-SUMMARY.md`). The residual edge below —
+> "a booker holding that older PayMongo tab open could still pay the previous amount" — no longer
+> exists: the older session is expired, or the amount never moved. The original entry is kept for the
+> record.
+
+<details><summary>Original entry (08-05)</summary>
 
 **Found during:** 08-05 Task 2 (`updateDeclaredPax`).
 
@@ -27,6 +41,8 @@ holds out of Phase 8's scope, and an architectural call (Rule 4) rather than an 
 "reconcile charged-vs-quoted" seam. Options: persist `checkout_session_id` on the booking and expire the
 old session on re-price, or have the webhook compare the paid amount against `quoted_total_cents` and
 route a mismatch to the existing operator-alert path.
+
+</details>
 
 ---
 
