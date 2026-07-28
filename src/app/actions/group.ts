@@ -203,6 +203,17 @@ function whenLabelFor(group: Extract<GroupByToken, { active: true }>): string {
  * shape in which a client could propose a cap of its own. It mirrors how the D-67 cancellation tier is
  * snapshotted inside `createPendingHold`'s transaction.
  *
+ * ⚠️ `capacity_snapshot` COUNTS RSVP-ABLE SEATS, NOT PEOPLE (D-113 · WR-03). The organizer is attendee #1 and
+ * holds one of the listing's places — structurally, because they are a display fixture on the roster with no
+ * `rsvp` row of their own, and the seat-claim caps `rsvp` ROWS. So the snapshot reserves their seat:
+ * `GREATEST(l.max_occupancy - 1, 0)`. A group on a `maxOccupancy = N` listing therefore admits at most
+ * `N - 1` yes-RSVPs, and the organizer plus the roster can never exceed the number the host rated the room
+ * for. `listing.max_occupancy`, `declaredPax` and every organizer-facing figure are organizer-INCLUSIVE;
+ * `capacity_snapshot` is the one organizer-EXCLUSIVE number, and it is exclusive because of what it caps.
+ *
+ * EXISTING ROWS ARE FORWARD-ONLY. D-111 makes the snapshot immutable precisely so a later change cannot move
+ * a cap people have already answered against; groups created before this rule keep their original number.
+ *
  * IDEMPOTENT BY CONSTRUCTION. `ON CONFLICT (booking_id) DO NOTHING` is the at-most-one-group lock (the
  * booking_id UNIQUE, D-115) — a double-click returns the EXISTING group rather than a second one or an
  * error. There is deliberately no app-level "does a group exist?" pre-query: a read-then-write is exactly
@@ -242,7 +253,13 @@ export async function createGroup(bookingId: string): Promise<CreateGroupResult>
   // A published listing always carries maxOccupancy (it is required by publishSchema), so this is a
   // legacy/draft-data guard rather than an expected path — but a group with no cap has no seat-claim, and
   // silently inventing one would be a cap nobody chose.
-  if (gate.maxOccupancy == null || gate.maxOccupancy < 1) {
+  //
+  // THE FLOOR IS 2, NOT 1 (D-113 · WR-03). One of the listing's places is the organizer's, so a space rated
+  // for a single person cannot host a group at all: the only seat is already taken. Below 2 the snapshot
+  // would be 0 and the group would be one nobody could ever join — immutable, by D-111. The denial reuses
+  // the shared DENIED sentence: "this listing cannot host a group" is not a state worth distinguishing from
+  // "this booking isn't yours" to a caller walking booking ids.
+  if (gate.maxOccupancy == null || gate.maxOccupancy < 2) {
     await recordAudit({
       actorId: userId,
       action: "create_group",
@@ -257,19 +274,25 @@ export async function createGroup(bookingId: string): Promise<CreateGroupResult>
 
   const created = (await db.execute(sql`
     INSERT INTO booking_group (id, booking_id, capacity_snapshot, access_token)
-    SELECT ${groupId}, b.id, l.max_occupancy, ${accessToken}
+    -- D-113 — the organizer's seat comes out of the listing's rating BEFORE the cap is frozen, because the
+    -- cap governs rsvp ROWS and the organizer never has one. GREATEST(…, 0) is belt-and-braces beside the
+    -- >= 2 floor below: the snapshot is a NOT NULL integer that can never legally go negative.
+    SELECT ${groupId}, b.id, GREATEST(l.max_occupancy - 1, 0), ${accessToken}
     FROM booking b
     JOIN listing l ON l.id = b.listing_id
     -- DEFENCE IN DEPTH: the owner scope and the status scope are repeated HERE, inside the write, so even a
     -- future refactor that broke the pre-read gate above could not create a group on a stranger's — or an
-    -- unpaid — booking.
+    -- unpaid — booking. The capacity floor is repeated for the same reason and one more: a host capacity
+    -- edit landing BETWEEN the gate and this INSERT would otherwise freeze a capacity_snapshot of 0 — a
+    -- group nobody can ever join, and immutable by D-111. Zero rows is the right answer to that race.
     WHERE b.id = ${parsed.data.bookingId}
       AND b.booker_id = ${userId}
       AND b.status = 'confirmed'
       AND l.max_occupancy IS NOT NULL
+      AND l.max_occupancy >= 2
     ON CONFLICT (booking_id) DO NOTHING
-    RETURNING id, access_token AS "accessToken"
-  `)) as unknown as { id: string; accessToken: string }[];
+    RETURNING id, access_token AS "accessToken", capacity_snapshot AS "capacitySnapshot"
+  `)) as unknown as { id: string; accessToken: string; capacitySnapshot: number }[];
 
   if (created.length === 0) {
     // Either the group already exists (the common case — a double submit) or the guards above changed
@@ -296,7 +319,13 @@ export async function createGroup(bookingId: string): Promise<CreateGroupResult>
     action: "create_group",
     outcome: "ok",
     // NEVER the access token — it is a bearer credential, not an identifier (08-UI-SPEC §2).
-    meta: { bookingId: parsed.data.bookingId, groupId: created[0].id, capacity: gate.maxOccupancy },
+    // `capacity` is the SNAPSHOTTED cap read back off the row this statement just wrote — not the listing's
+    // raw rating. Auditing the rating would record a number that was never enforced (T-08-48).
+    meta: {
+      bookingId: parsed.data.bookingId,
+      groupId: created[0].id,
+      capacity: created[0].capacitySnapshot,
+    },
   });
 
   revalidateGroupSurfaces(parsed.data.bookingId);

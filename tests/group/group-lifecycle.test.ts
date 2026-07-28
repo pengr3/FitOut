@@ -8,8 +8,10 @@
 // THE FIVE PROPERTIES UNDER TEST:
 //   1. D-119 — a group can be created ONLY on a confirmed booking the caller owns, and the denial for
 //      "not confirmed", "not yours" and "does not exist" is the SAME sentence (no enumeration oracle).
-//   2. D-111 — `capacity_snapshot` equals the LISTING's maxOccupancy, frozen at creation, and a later edit
-//      to the listing does not move it.
+//   2. D-111/D-113 — `capacity_snapshot` equals the LISTING's maxOccupancy MINUS the organizer's own seat
+//      (`GREATEST(max_occupancy - 1, 0)`, WR-03), frozen at creation, and a later edit to the listing does
+//      not move it. Every `seedListing` cap below is therefore ONE MORE than the RSVP-able seats the case
+//      is about: a listing rated for 6 people seats the organizer plus 5 yes-RSVPs.
 //   3. D-118 — the access token is minted (20 Crockford symbols), and `createGroup` is idempotent: a second
 //      call returns the SAME group rather than a second one.
 //   4. D-121 — `regenerateLink` kills the old link (which then renders identically to an unknown one) while
@@ -218,10 +220,12 @@ beforeAll(async () => {
     "@/app/actions/cancel-booking"
   ));
 
-  await seedListing("L_gl_main", 5);
-  await seedListing("L_gl_cap", 2);
-  await seedListing("L_gl_past", 4);
-  await seedListing("L_gl_cancel", 6);
+  // Each rating is the RSVP-able seats the case needs PLUS ONE for the organizer (D-113 · WR-03), so every
+  // assertion below still tests the cap it was written to test.
+  await seedListing("L_gl_main", 6); // → capacity_snapshot 5
+  await seedListing("L_gl_cap", 3); // → capacity_snapshot 2
+  await seedListing("L_gl_past", 5); // → capacity_snapshot 4
+  await seedListing("L_gl_cancel", 7); // → capacity_snapshot 6
 
   await seedBooking("bk_gl_confirmed", "L_gl_main", organizerId, "confirmed");
   await seedBooking("bk_gl_unpaid", "L_gl_main", organizerId, "approved");
@@ -258,7 +262,8 @@ describe("createGroup — D-119 owner + confirmed gate", () => {
 
     const rows = await groupRow("bk_gl_confirmed");
     expect(rows).toHaveLength(1);
-    // D-111 — the cap comes from the LISTING, transactionally, and is never client-proposed.
+    // D-111 — the cap comes from the LISTING, transactionally, and is never client-proposed. D-113 — with
+    // the organizer's own seat reserved out of it: the listing is rated 6, so 5 invitees can say yes.
     expect(rows[0].capacitySnapshot).toBe(5);
     // D-118 — 20 Crockford symbols of crypto-random, and no "FIT-" display prefix.
     expect(rows[0].accessToken).toMatch(/^[0-9A-HJKMNP-TV-Z]{20}$/);
@@ -315,7 +320,7 @@ describe("createGroup — D-119 owner + confirmed gate", () => {
     const after = await groupRow("bk_gl_confirmed");
     expect(after[0].capacitySnapshot).toBe(before[0].capacitySnapshot);
     expect(after[0].capacitySnapshot).toBe(5);
-    await testDb.db.execute(sql`UPDATE listing SET max_occupancy = 5 WHERE id = 'L_gl_main'`);
+    await testDb.db.execute(sql`UPDATE listing SET max_occupancy = 6 WHERE id = 'L_gl_main'`);
   });
 });
 
