@@ -15,6 +15,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   createCheckoutSession,
+  expireCheckoutSession,
   createBatchTransfer,
   createRefund,
   listWalletAccounts,
@@ -25,6 +26,28 @@ function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200 });
 }
 
+/** The Nth fetch call recorded on the stub: [url, init]. `rawBody` is the UNPARSED init.body, so a
+ *  test can distinguish "no body was sent at all" (undefined) from "an empty JSON body was sent". */
+function callAt(
+  fetchMock: ReturnType<typeof vi.fn>,
+  index: number,
+): {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+  rawBody: BodyInit | null | undefined;
+} {
+  const [url, init] = fetchMock.mock.calls[index] as [string, RequestInit];
+  return {
+    url,
+    method: (init.method ?? "GET") as string,
+    headers: init.headers as Record<string, string>,
+    body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {},
+    rawBody: init.body,
+  };
+}
+
 /** The single fetch call recorded on the stub: [url, init]. */
 function lastCall(fetchMock: ReturnType<typeof vi.fn>): {
   url: string;
@@ -32,13 +55,7 @@ function lastCall(fetchMock: ReturnType<typeof vi.fn>): {
   headers: Record<string, string>;
   body: Record<string, unknown>;
 } {
-  const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-  return {
-    url,
-    method: (init.method ?? "GET") as string,
-    headers: init.headers as Record<string, string>,
-    body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {},
-  };
+  return callAt(fetchMock, 0);
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -77,6 +94,78 @@ describe("createCheckoutSession — hosted charge (/v1, D-53/54)", () => {
     expect(attributes.payment_method_types).toEqual(["card", "gcash", "paymaya", "qrph"]);
     expect((attributes.line_items as Array<{ amount: number }>)[0].amount).toBe(150000);
     expect(attributes.reference_number).toBe("FIT-ABC12345");
+  });
+});
+
+// CR-02 (08-12): a re-priced hold mints a SECOND payable session under D-108's amount-scoped key, and
+// nothing could retire the first. These cases pin the retire call itself — the URL (which session gets
+// expired), the key (whether a retry is a no-op), and that a failure is THROWN rather than swallowed.
+describe("expireCheckoutSession — retire a superseded session (/v1, CR-02)", () => {
+  it("POSTs to /v1/checkout_sessions/<id>/expire with Basic auth and a session-scoped Idempotency-Key", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "cs_abc", attributes: { status: "expired" } } }));
+
+    const result = await expireCheckoutSession("cs_abc");
+    expect(result).toEqual({ id: "cs_abc" });
+
+    const call = lastCall(fetchMock);
+    // Full path, not a substring match on `expire` — the SESSION ID in the path is the whole point:
+    // expiring the wrong session leaves the payable one live and kills the one the booker is looking at.
+    expect(call.url).toBe("https://api.paymongo.com/v1/checkout_sessions/cs_abc/expire");
+    expect(call.method).toBe("POST");
+    expect(call.headers["Idempotency-Key"]).toBe("checkout-expire:cs_abc");
+    expect(call.headers.Authorization).toMatch(/^Basic /);
+  });
+
+  it("sends NO request body (the endpoint takes none)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "cs_abc", attributes: { status: "expired" } } }));
+
+    await expireCheckoutSession("cs_abc");
+
+    expect(lastCall(fetchMock).rawBody).toBeUndefined();
+  });
+
+  it("uses the IDENTICAL Idempotency-Key on a retry of the same session, so a duplicate expire is a no-op", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "cs_abc", attributes: { status: "expired" } } }));
+
+    await expireCheckoutSession("cs_abc");
+    await expireCheckoutSession("cs_abc");
+
+    expect(fetchMock.mock.calls).toHaveLength(2);
+    expect(callAt(fetchMock, 0).headers["Idempotency-Key"]).toBe("checkout-expire:cs_abc");
+    expect(callAt(fetchMock, 1).headers["Idempotency-Key"]).toBe("checkout-expire:cs_abc");
+    expect(callAt(fetchMock, 1).headers["Idempotency-Key"]).toBe(
+      callAt(fetchMock, 0).headers["Idempotency-Key"],
+    );
+  });
+
+  it("scopes the key to the SESSION, not the booking — two sessions of one booking expire independently", async () => {
+    // A booking legitimately has more than one session over its life (that is what a re-price creates).
+    // A booking-scoped key would make the SECOND expire replay the FIRST response and silently leave a
+    // live session payable — the createRefund trap, restated here. Different id ⇒ different key.
+    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "cs_two", attributes: { status: "expired" } } }));
+
+    await expireCheckoutSession("cs_one");
+    await expireCheckoutSession("cs_two");
+
+    expect(callAt(fetchMock, 0).headers["Idempotency-Key"]).toBe("checkout-expire:cs_one");
+    expect(callAt(fetchMock, 1).headers["Idempotency-Key"]).toBe("checkout-expire:cs_two");
+    expect(callAt(fetchMock, 1).headers["Idempotency-Key"]).not.toBe(
+      callAt(fetchMock, 0).headers["Idempotency-Key"],
+    );
+  });
+
+  it("THROWS the module's descriptive error on a non-2xx — a failed expire is never swallowed", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ errors: [{ detail: "Checkout session is already paid." }] }), {
+        status: 400,
+      }),
+    );
+
+    // The caller (08-13) refuses the re-price on a throw; swallowing here would let a re-price proceed
+    // with two payable sessions and no signal.
+    await expect(expireCheckoutSession("cs_abc")).rejects.toThrow(
+      "PayMongo POST /v1/checkout_sessions/cs_abc/expire failed (400): Checkout session is already paid.",
+    );
   });
 });
 
