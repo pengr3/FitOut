@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: plan_ready
-stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-07-28T01:37:12.740Z"
+stopped_at: Completed 08-08-PLAN.md
+last_updated: "2026-07-28T02:06:54.793Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 69
-  completed_plans: 68
+  completed_plans: 69
   percent: 78
 ---
 
@@ -26,13 +26,28 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Next action: `/gsd-execute-phase 8`
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
+
+**08-08 landed — the PUBLIC INVITE PAGE ships (`/invite/[token]`), and GROUP-03 is now true end-to-end.** Full suite: **92 files / 792 tests, exit 0**; `npx tsc --noEmit` clean; `npx eslint src tests` **0 errors** (7 pre-existing warnings, none in touched files); `npm run build` **exit 0** with no env workaround. A person with no account can open the link, read the session in venue-local time at an address the host agreed to share, and answer yes or no with a name and an optional email. Every rendered state was driven against a running dev server and a real row (unknown / malformed / voided / closed / open-guest / full), then the scratch data was deleted and the seed restored.
+
+📌 **New contracts from 08-08 (load-bearing for anyone touching a public route or a URL-borne credential):**
+
+1. *The invite route is at the ROOT and must stay there.* `next build` lists `ƒ /invite/[token]` beside `/listings/[id]`. Moving it under `(app)`/`(host)` would make `(app)/layout.tsx`'s `redirect("/login")` reach it and silently reverse GROUP-03 **while every test still passed** — a layout redirect is invisible to page-level tests. The page calls `auth.api.getSession` and then never branches on its absence: `grep` finds **no** `redirect(` and **no** `notFound(` in the file, and that is the assertion.
+2. *One inactive branch, one pair of constants.* Malformed = unknown = regenerated = voided = cancelled all render `This invite is no longer active` / `Ask the organizer for the latest link.` with HTTP 200. The **malformed** case is FOLDED onto `GROUP_INACTIVE` rather than handled, so the Zod shape check can never become a probe. Measured live: four token classes returned byte-identical rendered content (the only payload differences were Next's per-request `__next_r` nonce and internal RSC chunk numbering, which also differ between two requests for the *same* token). The one token echo in the HTML is Next's own router state (`"c":["","invite","<token>"]`), present identically for every class and already in `location.pathname`.
+3. *A page whose URL carries a bearer credential owes two lines of metadata:* `robots: { index: false, follow: false }` (an indexed invite link is a public one) and `referrer: "no-referrer"` (or the token rides out in a `Referer` header on any navigation away). Both are unfixable after the fact. **Apply this to any future token-in-URL surface.** The token is re-emitted in exactly one place — the D-116 `callbackURL` on `Log in instead` — composed from the *resolved* `group.accessToken`, never the raw route param.
+4. *The client renders the server's error string VERBATIM when the server owns the invariant.* `RsvpForm` never composes a "full" message and never re-checks the cap; a raced yes displays whatever `submitRsvp` returned, composed with the real `capacity_snapshot`. A client-side second opinion about a value only a `FOR UPDATE` row lock can know could only ever be the wrong one (D-112/GROUP-05). Likewise `grep -c "new Date(" ` on the page is **0** — `rsvpClosed` arrives pre-computed from `now() >= b.starts_at` (D-120).
+5. *`getMyRsvpStatus` (new, `src/lib/group/rsvp.ts`) is ACCOUNT-ONLY, and the absence of a guest equivalent is a decision.* It is self-scoped (`r.user_id = $userId`) and keyed on a group id the caller already resolved from a token it presented. Recognising a returning **guest** on a plain GET would mean looking an RSVP up by an address they have not typed — an oracle over who was invited. A guest-with-email changes their answer by answering again with the same address, which `rsvp_group_email_uq` resolves onto their existing row.
+6. *The "we've emailed you a copy" line is gated on `answer === "yes"`, not on `reachable`.* `submitRsvp` emits the attendee confirmation only for a yes (08-06 contract 5), so claiming a send on a decline would be a false statement printed to the person who just made it.
+
+⚠️ **No `<Toaster />` is mounted on ANY booker-side page** (only three `(host)` pages mount one; neither the root layout nor `(app)/layout.tsx` does). Every `toast.*` on a booker surface is therefore **silent** today — including 08-07's `ShareLinkBox` `Link copied` / `Couldn't copy` and `CreateGroupButton`'s error, plus the Phase-07 cancel/refund toasts. Pre-existing and out of 08-08's scope; logged in `08-.../deferred-items.md` (item 3). **It is the first thing an 08-09 UAT walkthrough of the ORGANIZER flow will hit.** The invite page deliberately mounts no Toaster and raises no toast — every failure is an inline neutral alert.
+
+⚠️ **The seed has no future-dated confirmed booking** (all confirmed rows start `2026-07-25` or earlier), so a freshly created group lands straight in the `closed` state. Move a booking's `starts_at`/`ends_at` forward before walking the RSVP flow in UAT.
 
 **08-06 landed — the GROUP LOGIC LAYER ships (createGroup / submitRsvp / removeAttendee / regenerateLink + the D-121 auto-void).** `tests/booking/ group/ security/ notifications/`: **34 files / 347 tests, exit 0**; tsc clean; `npx eslint src tests` 0 errors; `npm run build` exit 0 (27 routes). GROUP-01…GROUP-05 are closed at the logic layer; the surfaces that call these actions are 08-07 (`/bookings/[id]/group`) and 08-08 (`/invite/[token]`).
 
@@ -217,6 +232,7 @@ Progress: [██████████] 99%
 | Phase 08 P05 | 35 | 2 tasks | 13 files |
 | Phase 08 P06 | 38min | 3 tasks | 9 files |
 | Phase 08 P07 | 16min | 3 tasks | 11 files |
+| Phase 08 P08 | 26min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -340,6 +356,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-07: the Remove control renders on 'yes' roster rows only — the locked confirm copy 'this frees up their spot' would be a false statement over a declined row (the organizer's own row stays structurally excluded)
 - [Phase ?]: 08-07: RegenerateLinkButton deliberately does not read the accessToken the action returns — the refreshed owner-scoped RSC re-reads it, keeping the bearer credential's only client-side existence inside one read-only input (D-118)
 - [Phase ?]: 08-07: the D-114 top-up nudge renders no money figure and no money-moving control — the in-app top-up is the deferred A3 fast-follow, and a quoted client-side amount would violate G8's server-computed rule
+- [Phase ?]: 08-08: the public /invite/[token] RSC lives at the ROOT and reads the session without requiring it — a signed-out invitee is never redirected to /login (GROUP-03 holds structurally, not by convention)
+- [Phase ?]: 08-08: malformed, unknown, regenerated, voided and cancelled invite tokens all fold onto ONE inactive branch over ONE pair of constants — measured live, four token classes returned byte-identical rendered content
+- [Phase ?]: 08-08: a page whose URL carries a bearer credential declares robots:noindex + referrer:no-referrer in its own metadata — the two leak paths a URL-borne token has that a header-borne one does not
+- [Phase ?]: 08-08: the invite form renders submitRsvp's error string VERBATIM and performs no client-side cap re-check — only the FOR UPDATE seat-claim can know what 'full' means (D-112)
 
 ### Pending Todos
 
@@ -389,8 +409,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T01:36:49.292Z
-Stopped at: Completed 08-04-PLAN.md
+Last session: 2026-07-28T02:06:54.730Z
+Stopped at: Completed 08-08-PLAN.md
 Resume file: None
 
 Prior session: 2026-07-24T04:37:54.671Z

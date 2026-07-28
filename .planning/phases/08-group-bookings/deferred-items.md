@@ -46,3 +46,31 @@ one 08-05 scopes, and the "what exactly did the host approve" question is a prod
 
 **When to close:** whenever the group entry point on the listing page is revisited — either surface the
 stepper pre-`placeHold`, or freeze `declaredPax` at approval for request mode.
+
+---
+
+## 3. No `<Toaster />` is mounted on any booker-side page, so booker toasts are silent (pre-existing, found 08-08)
+
+**Found during:** 08-08 Task 2, while deciding whether the public invite page should report failures via
+`sonner` or inline.
+
+**What:** `grep -rn "Toaster" src/app src/components` finds it mounted in exactly three places, all under
+`(host)`: `host/listings/page.tsx`, `host/listings/[id]/availability/page.tsx` and
+`host/listings/[id]/edit/wizard.tsx`. Neither the root layout nor `(app)/layout.tsx` mounts one. Every
+`toast.*` call on a booker surface therefore renders nothing at all — including `ShareLinkBox`'s
+`Link copied` / `Couldn't copy — select the link and copy it manually.` and `CreateGroupButton`'s error
+toast (both 08-07), and the shipped `cancel-confirm.tsx` / `refund-destination-form.tsx` toasts from
+Phase 07.
+
+**Impact:** silent failure reporting, not incorrect behaviour. The worst case is `Copy link` on a browser
+with no clipboard API: the field is still selected for a manual copy, but the sentence explaining why is
+never shown.
+
+**Why not fixed here:** it is out of 08-08's scope boundary — the fix belongs in `(app)/layout.tsx` (a
+shipped, UAT-adjacent shell touched by neither task of this plan), and choosing between "mount once in the
+root layout" and "mount once per shell" is a decision about app chrome, not about this plan's surface.
+The invite page sidesteps it entirely: it mounts no Toaster and raises no toast, reporting every failure
+in an inline neutral alert instead.
+
+**When to close:** before the 08-09 UAT walkthrough of the ORGANIZER flow, or as a one-line addition to
+`(app)/layout.tsx` whenever the booker shell is next touched.
