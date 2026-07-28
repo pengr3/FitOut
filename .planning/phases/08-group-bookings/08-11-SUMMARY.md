@@ -331,3 +331,12 @@ carry a passing test that states the accepted cost out loud.
 4. **The single-instance caveat is unchanged and now the only one left.** The store is still per-process; a
    distributed limiter (Redis) remains the >1-instance hardening the `rate-limit.ts` header flags, and it is
    what T-08-34 says to revisit the residual lookup with.
+
+## Self-Check: PASSED
+
+All four claimed files exist on disk; all five claimed commits resolve in `git log`. Artifact contracts from
+the plan's `must_haves` verified: `src/lib/rate-limit.ts` contains `MAX_BUCKETS` (7 occurrences) and
+`buckets.delete` (2 — the sweep and the eviction loop); `src/app/actions/group.ts` contains
+`rsvp:${group.groupId}` (1) and `getGroupByToken` (4); `tests/security/rate-limit-bound.test.ts` is 149
+lines (min 30); `tests/group/rsvp-rate-limit.test.ts` is 310 lines (min 40). Key link verified by line
+number: `getGroupByToken(db` at :345 precedes `rateLimit(\`rsvp:${group.groupId}\`)` at :355.

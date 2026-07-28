@@ -265,7 +265,7 @@ Plans:
 **Wave 6** *(gap closure — 08-VERIFICATION.md `gaps_found` + 08-REVIEW.md)*
 
 - [x] 08-10-PLAN.md — CR-03: clamp declaredPax to the listing's maxOccupancy inside createPendingHold + a .max() schema bound
-- [ ] 08-11-PLAN.md — CR-04: bound the rate-limit store and resolve the invite token before charging a token-keyed budget
+- [x] 08-11-PLAN.md — CR-04: bound the rate-limit store and resolve the invite token before charging a token-keyed budget
 - [ ] 08-12-PLAN.md — CR-02 (1/2): booking.checkout_session_id + migration 0019 [BLOCKING] + expireCheckoutSession
 - [ ] 08-16-PLAN.md — Deferred item 4: race the REAL claimSeat so the shipped FOR UPDATE has mutation coverage
 
@@ -313,5 +313,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
-| 8. Group Bookings | 10/17 | In Progress|  |
+| 8. Group Bookings | 11/17 | In Progress|  |
 | 9. Open-Capacity Bookings | 0/TBD | Not started | - |

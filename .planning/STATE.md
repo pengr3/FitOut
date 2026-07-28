@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 08-10-PLAN.md (wave 6) — CR-03 CLOSED. declaredPax is bounded twice: .max(10_000) shape ceiling at bookingCreateSchema + a min(declaredPax, listing.maxOccupancy) clamp read inside createPendingHold's OWN tx. grep -c 'input.declaredPax' units.ts = 1 (the clamp expression only). BOTH mutations recorded RED->GREEN in the SUMMARY: reverting the clamp fails 3/10 including a live Postgres 22003 ('value "3150000103425" is out of range for type integer' — the exact raw-500 chain CR-03 described); removing .max(10_000) fails only the 10_001 shape case. Full suite 92 files / 797 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). DEVIATION: the pre-CR-03 fixture had to GAIN a default maxOccupancy (12) — it never set one, so the deliberate fail-closed fallback clamped two shipped D-108 cases to 1. No assertion weakened. Commits 4ab8c58 (clamp), 113445d (regression cases). Next: 08-11 (CR-04), 08-12 (CR-02 1/2), 08-16 (deferred item 4) — rest of wave 6."
-last_updated: "2026-07-28T05:31:41.491Z"
+stopped_at: "Completed 08-11-PLAN.md (wave 6) — CR-04 CLOSED. Both halves mutation-proven: submitRsvp resolves the invite token BEFORE charging any budget and keys it on group.groupId (unknown-token bucket delta 200 -> 0), and src/lib/rate-limit.ts hard-caps at RATE_LIMIT_MAX_BUCKETS = 50,000. Full suite 94 files / 810 tests exit 0 (+13); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). Wave 6 remaining: 08-12 (CR-02 1/2), 08-16 (deferred item 4)."
+last_updated: "2026-07-28T05:58:08.843Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 77
-  completed_plans: 71
-  percent: 78
+  completed_plans: 72
+  percent: 94
 ---
 
 # Project State
@@ -26,13 +26,26 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 10 of 17 — **08-10 DONE** (SUMMARY on disk, 10/17 summaries). Wave 6 remaining: 08-11, 08-12, 08-16.
-Next action: `/gsd-execute-phase 8` — finish wave 6 (08-11/12/16), then waves 7→9 (08-13/14 → 08-15 → 08-17).
+Plan: 11 of 17 — **08-11 DONE** (SUMMARY on disk, 11/17 summaries). Wave 6 remaining: 08-12, 08-16.
+Next action: `/gsd-execute-phase 8` — finish wave 6 (08-12/16), then waves 7→9 (08-13/14 → 08-15 → 08-17).
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
-Progress: [█████████░] 92%
+Progress: [█████████░] 94%
+
+✅ **08-11 LANDED — CR-04 (BLOCKER) is CLOSED, both halves mutation-proven.** The app's one unauthenticated write no longer lets a caller mint durable process memory. `submitRsvp` now RESOLVES the invite token (`getGroupByToken`, :345) **before** it charges any budget (:355), and the link budget is keyed on the resolved `group.groupId` — so the key space is real `booking_group` rows, not `32^20` caller-selectable strings. Measured, not inferred: **200 distinct well-formed unknown tokens moved the bucket count by exactly 0** (it was 200 before). Independently, `src/lib/rate-limit.ts` is now **hard-bounded at `RATE_LIMIT_MAX_BUCKETS = 50,000`** — after a 60,000-distinct-key flood inside one window the store measures exactly 50,000. Full suite **94 files / 810 tests exit 0** (+2 files / +13 tests); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0 (27 routes), no env workaround.
+
+📌 **New contracts from 08-11 (load-bearing for anyone adding an unauthenticated endpoint or touching the limiter):**
+
+1. *A `rateLimit` key on an unauthenticated path must name something the DATABASE confirmed.* `rateLimit` stores counters in a module-level `Map`, so a key is durable process memory. Resolve first, then budget on the resolved id. Resolving first leaks nothing here — unknown, voided and regenerated tokens already collapse onto one identical `INVITE_INACTIVE` sentence (T-08-17) — and it *reduces* timing variance, because the lookup now happens for every caller rather than only those under budget.
+2. *The 50,000 ceiling is the SECOND line, not the first.* It caps blast radius; it does NOT make an attacker-chosen key safe (they still churn the store and evict live budgets — that is T-08-36, accepted and pinned by a passing test). Bound the key space at the caller **as well**.
+3. *The ceiling's arithmetic is `size >= MAX` → evict until `size < MAX`, deliberately NOT the review's `> / <=`.* The latter settles at MAX+1 under flood. The invariant as shipped is a clean post-condition: **after every `rateLimit` call, `buckets.size <= MAX_BUCKETS`.** The sweep alone can never be the ceiling (a flood inside one window expires nothing) — the unconditional insertion-order eviction is the load-bearing half, and mutation 1 proves it (`expected 60000 to be less than or equal to 50000`).
+4. *`sweepExpired` is throttled to 1/s; the eviction is not.* Sweeping on every over-ceiling call is an O(size) scan — ~5×10⁸ iterations in the 60k flood. The throttle gates only the sweep, so the ceiling is untouched by it. `__resetRateLimit()` clears the sweep clock too.
+5. *A REGENERATED invite link now shares its predecessor's budget.* Correct (the group is what is hammered, not the string) and asserted — but remember it before anyone builds "rotate the link to escape abuse".
+6. *`__rateLimitBucketCount` / `__resetRateLimit` are TEST SEAMS, not the contract.* Any test touching the real limiter must call `__resetRateLimit()` in `beforeEach`, and — the subtle one — must import `@/lib/rate-limit` **after** `vi.resetModules()`, from the same registry as the action under test, or the Map it counts is not the Map being written. `tests/group/rsvp-rate-limit.test.ts` carries a "a resolving token mints exactly one bucket" positive control precisely to catch that mistake.
+
+⚠️ **`guest-email:${guestEmailNorm}` was left byte-identical** (it sits behind a resolved, active token and a committed claim, and is now covered by the ceiling). Widening it is **WR-05, still open and out of scope**. Likewise **no coarse pre-resolution budget was added** — one shared key on the app's only public write is a global availability lever; T-08-34 `accept`s the residual instead (one indexed lookup per unauthenticated request, no write, no transaction — measured exactly 1, and exactly 0 for a malformed token).
 
 ✅ **08-10 LANDED — CR-03 (BLOCKER) is CLOSED, both halves mutation-proven.** `declaredPax` is bounded twice: a `.max(10_000)` SHAPE ceiling at `bookingCreateSchema` (keeps any accepted value orders of magnitude below int4) and a `min(declaredPax, listing.maxOccupancy)` clamp read INSIDE `createPendingHold`'s own transaction, alongside the rates it prices against (D-111). `grep -c "input.declaredPax" src/lib/availability/units.ts` prints **1** — the clamp expression is the only place the raw input is read; `quoteWindow` and `declaredPaxToPersist` both take the clamped local. Full suite **92 files / 797 tests exit 0** (+5); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0 (27 routes), no env workaround.
 
@@ -47,7 +60,7 @@ Progress: [█████████░] 92%
 
 ⚠️ **A host who sets `extra_head_fee` but leaves `max_occupancy` empty now collects NO surcharge at hold time** (every booker clamps to 1). Safe — it can only undercharge — but product-visible. A publish-time nudge pairing the two fields is the real close; 08-14's `max_occupancy >= 2` floor moves toward it for the group path. **08-17's pax-surcharge UAT must set BOTH fields** or the stepper will correctly render nothing and repeat the 08-09 non-verification.
 
-**GAP CLOSURE (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. 1 of 8 executed (08-10).** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
+**GAP CLOSURE (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. 2 of 8 executed (08-10, 08-11).** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
 
 | Plan | Wave | Closes |
 |---|---|---|
@@ -285,6 +298,7 @@ Progress: [█████████░] 92%
 | Phase 08 P07 | 16min | 3 tasks | 11 files |
 | Phase 08 P08 | 26min | 2 tasks | 4 files |
 | Phase 08 P10 | 25min | 2 tasks | 3 files |
+| Phase 08 P11 | 22min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -419,6 +433,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-08: the invite form renders submitRsvp's error string VERBATIM and performs no client-side cap re-check — only the FOR UPDATE seat-claim can know what 'full' means (D-112)
 - [Phase 08]: CR-03 closed: declaredPax is bounded twice — a .max(10_000) SHAPE ceiling at bookingCreateSchema (keeps any accepted value away from the int4 money columns) and a min(declaredPax, listing.maxOccupancy) clamp read INSIDE createPendingHold's own transaction (the real cap, D-111). The raw input now reaches exactly one expression: the clamp.
 - [Phase 08]: The creation-path null-maxOccupancy fallback is 1 (fail CLOSED, surcharge-free), deliberately DIFFERENT from updateDeclaredPax's fallback to the client value — createPendingHold is the entry point a crafted POST reaches, so an uncapped listing charges for nobody extra rather than for whoever asked.
+- [Phase ?]: 08-11: the RSVP rate-limit key is the RESOLVED group.groupId, never the invite token — submitRsvp resolves before it budgets, so an unknown token mints zero buckets (measured 200 -> 0)
+- [Phase ?]: 08-11: src/lib/rate-limit.ts is hard-bounded at RATE_LIMIT_MAX_BUCKETS = 50,000 via throttled expired-sweep + unconditional insertion-order eviction; size <= MAX holds after every call
+- [Phase ?]: 08-11: NO coarse pre-resolution budget on the public RSVP path — one shared key on the app's only public write is a global availability lever (T-08-34 accepts one indexed lookup per request instead)
 
 ### Pending Todos
 
@@ -468,8 +485,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T05:31:41.465Z
-Stopped at: Completed 08-10-PLAN.md (wave 6) — CR-03 CLOSED. declaredPax is bounded twice: .max(10_000) shape ceiling at bookingCreateSchema + a min(declaredPax, listing.maxOccupancy) clamp read inside createPendingHold's OWN tx. grep -c 'input.declaredPax' units.ts = 1 (the clamp expression only). BOTH mutations recorded RED->GREEN in the SUMMARY: reverting the clamp fails 3/10 including a live Postgres 22003 ('value "3150000103425" is out of range for type integer' — the exact raw-500 chain CR-03 described); removing .max(10_000) fails only the 10_001 shape case. Full suite 92 files / 797 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). DEVIATION: the pre-CR-03 fixture had to GAIN a default maxOccupancy (12) — it never set one, so the deliberate fail-closed fallback clamped two shipped D-108 cases to 1. No assertion weakened. Commits 4ab8c58 (clamp), 113445d (regression cases). Next: 08-11 (CR-04), 08-12 (CR-02 1/2), 08-16 (deferred item 4) — rest of wave 6.
+Last session: 2026-07-28T05:58:08.819Z
+Stopped at: Completed 08-11-PLAN.md (wave 6) — CR-04 CLOSED. Both halves mutation-proven: submitRsvp resolves the invite token BEFORE charging any budget and keys it on group.groupId (unknown-token bucket delta 200 -> 0), and src/lib/rate-limit.ts hard-caps at RATE_LIMIT_MAX_BUCKETS = 50,000. Full suite 94 files / 810 tests exit 0 (+13); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). Wave 6 remaining: 08-12 (CR-02 1/2), 08-16 (deferred item 4).
 Resume file: None
 
 Prior session: 2026-07-28T02:06:54.730Z
