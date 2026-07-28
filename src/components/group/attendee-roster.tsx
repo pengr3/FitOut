@@ -30,9 +30,18 @@
 // holding a seat, and a plain falsehood over a row in the "Can't make it" list, which holds no seat and
 // counts toward nothing. Tidying declines is not worth a dialog that misstates what it does.
 //
-// ⚠️ THE ORGANIZER ROW IS NOT COUNTED HERE, AND MUST NOT BE. The focal headcount comes from `getHeadcount`
-// (`yes` RSVP rows only, D-113) — this row is a display fixture. Adding "+1 for the organizer" in either
-// place would put the page's own two numbers into disagreement.
+// ⚠️ THE ORGANIZER IS COUNTED EXACTLY ONCE ON THIS PAGE, AND THIS ROW IS NOT WHERE IT HAPPENS (D-113 · WR-03).
+// Three facts, in the order they matter:
+//   1. Row #1 is a display FIXTURE. The organizer has no `rsvpId` and no `rsvp` row of their own — which is
+//      also the reason `capacity_snapshot` excludes them (it caps rows, and they never occupy one).
+//   2. The management page adds the organizer back ONCE, at the one place with the organizer as its
+//      audience: it renders the meter as `confirmed + 1` of `capacity + 1` and hands the nudge an
+//      organizer-inclusive `attendingTotal`. So the figure above this list and the list itself agree —
+//      they would only disagree if the meter left out the person the roster visibly puts first.
+//   3. THE ONE THING THAT MUST NEVER HAPPEN IS COUNTING THEM TWICE. `submitRsvp` deliberately lets an
+//      organizer answer their own link, so a real `rsvp` row can exist for the same person this fixture
+//      renders; adding a second `+ 1` anywhere — here, in `getHeadcount`, or in a second call site — would
+//      claim a body that does not exist and, via the nudge, an overage nobody owes.
 //
 // `no` rows live in a COLLAPSED native `<details>`: they are real information the organizer asked for, but
 // they are not the point of the surface, and a native disclosure is keyboard-operable and screen-reader

@@ -13,8 +13,9 @@
 // component must not grow arithmetic over money in the meantime.
 //
 // ⚠️ GREP TRIPWIRE (the 07-04 idiom). That absence is checked by grepping this file for the missing CTA's own
-// label and for the verb of moving money against a card — so neither is spelled out anywhere here, comments
-// included. A grep that the comment forbidding the thing can trip is not a guard.
+// label, for the verb of billing a saved payment instrument, and for the instrument itself — so none of the
+// three is spelled out anywhere here, comments included. A grep that the comment forbidding the thing can
+// trip is not a guard, which is why this sentence describes them instead of naming them.
 //
 // ⚠️ IT IS NOT A WARNING (G5 / 08-UI-SPEC §Color). Neutral `alert`, default variant, muted body. Over-RSVP is
 // CORROBORATION, not a violation: the RSVP list is not the door policy, and the D-112 seat-claim cap is the
@@ -26,15 +27,23 @@
 //   1. `extraHeadFee > 0` — the listing prices extra heads at all. On a FLAT listing (the common case, and
 //      `null` on any listing predating D-108) this block does not exist: there is no extra head to owe for,
 //      so the nudge would be a fee the UI invented out of nothing.
-//   2. `confirmedYes > declaredPax` — more people said yes than the booking was quoted for. At or under the
-//      declared count there is no gap, and narrating a non-gap is noise on the surface whose focal point is
-//      the headcount two blocks up.
+//   2. `attendingTotal > declaredPax` — more people are coming than the booking was quoted for. At or under
+//      the declared count there is no gap, and narrating a non-gap is noise on the surface whose focal point
+//      is the headcount two blocks up.
 // The component returns null rather than rendering an empty shell, so "absent" is structurally absent.
 //
-// EVERY NUMBER IS THE SERVER'S. `confirmedYes` is `getHeadcount`'s owner-scoped count of `yes` rows,
-// `declaredPax` and `extraHeadFee` come off the same owner-scoped booking/listing read (08-06). The one piece
-// of arithmetic here is the difference between two server-supplied counts, restated so the organizer does not
-// have to do it in their head.
+// ⚠️ BOTH SIDES OF THAT COMPARISON ARE ORGANIZER-INCLUSIVE, AND THAT IS THE WHOLE OF WR-04. `declaredPax` has
+// always included the organizer — `pax-stepper.tsx` tells them so in as many words ("This includes you"). The
+// count it used to be compared against did not, because the organizer is a roster fixture rather than an
+// `rsvp` row (D-113). Comparing the two bases silently cost exactly one person: with `declaredPax = 3` and
+// three friends saying yes, four people were coming and `3 <= 3` kept this block quiet on the very first case
+// it exists to catch. The prop is named `attendingTotal` rather than a count of RSVPs precisely so the basis
+// is STATED at every call site instead of inferred — the silent mismatch is how this shipped wrong once.
+//
+// EVERY NUMBER IS THE SERVER'S. `attendingTotal` is `getHeadcount`'s owner-scoped count of `yes` rows plus the
+// organizer, added once by the management page; `declaredPax` and `extraHeadFee` come off the same
+// owner-scoped booking/listing read (08-06). The one piece of arithmetic here is the difference between two
+// server-supplied counts, restated so the organizer does not have to do it in their head.
 //
 // Not "use client" — pure presentation, rendered directly by the management RSC.
 
@@ -43,13 +52,17 @@ import { UsersRoundIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function TopUpNudge({
-  confirmedYes,
+  attendingTotal,
   declaredPax,
   extraHeadFee,
 }: {
-  /** Server-computed count of `yes` RSVPs — the SAME figure HeadcountMeter renders (no second count). */
-  confirmedYes: number;
-  /** What the booking was quoted for (D-108). Null on a booking predating the field. */
+  /**
+   * The ORGANIZER-INCLUSIVE head count: server-computed `yes` RSVPs plus the organizer (D-113), which is the
+   * SAME figure HeadcountMeter renders (no second count) and the SAME basis as `declaredPax`, which
+   * `pax-stepper.tsx` tells the organizer includes them. The `+ 1` is added ONCE, by the management page.
+   */
+  attendingTotal: number;
+  /** What the booking was quoted for (D-108), organizer included. Null on a booking predating the field. */
   declaredPax: number | null;
   /** The listing's per-extra-head price in minor units (D-108). Null or 0 ⇒ a flat listing. */
   extraHeadFee: number | null;
@@ -57,9 +70,9 @@ export function TopUpNudge({
   // GUARD 1 — the listing prices extra heads. Null (unpriced/legacy) and 0 (flat) both mean "never render".
   if (extraHeadFee == null || extraHeadFee <= 0) return null;
   // GUARD 2 — more people are coming than the booking declared. Null declaredPax has no gap to report.
-  if (declaredPax == null || confirmedYes <= declaredPax) return null;
+  if (declaredPax == null || attendingTotal <= declaredPax) return null;
 
-  const extra = confirmedYes - declaredPax;
+  const extra = attendingTotal - declaredPax;
 
   return (
     // Default (neutral) variant, deliberately — see the header. The alarm variant is not passed and must not
@@ -68,8 +81,11 @@ export function TopUpNudge({
       <UsersRoundIcon aria-hidden="true" />
       <AlertTitle>More people are coming than you booked for</AlertTitle>
       <AlertDescription>
-        {confirmedYes} people have RSVP&apos;d, but you booked for {declaredPax}. You may owe a bit more for
-        the extra {extra} {extra === 1 ? "person" : "people"} at check-in.
+        {/* "are coming", NOT "have RSVP'd" (08-UI-SPEC §2's original wording): the figure now includes the
+            organizer, who never RSVP'd to anything. Stating a total as a count of RSVPs would be off by the
+            same one person this component was fixed to stop losing. */}
+        {attendingTotal} people are coming, but you booked for {declaredPax}. You may owe a bit more for the
+        extra {extra} {extra === 1 ? "person" : "people"} at check-in.
       </AlertDescription>
     </Alert>
   );

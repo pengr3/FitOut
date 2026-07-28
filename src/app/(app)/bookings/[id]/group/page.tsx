@@ -24,6 +24,10 @@
 //     handed to ShareLinkBox as a finished absolute URL; this file has no `console` call.
 //   - EVERY NUMBER IS SERVER-COMPUTED. The headcount is `getHeadcount`'s owner-scoped count of `yes` RSVPs
 //     against the D-111 `capacity_snapshot` — never live `listing.maxOccupancy`, and never a client count.
+//     THIS PAGE ADDS THE ORGANIZER BACK, ONCE (D-113): the audience here is the organizer, who is row #1 of
+//     their own roster, so the meter and the nudge both read organizer-INCLUSIVE. That `+ 1` lives at these
+//     two render sites and nowhere else — not in `getHeadcount`, not in the components, and never on the
+//     public invite page, whose audience is an invitee claiming an invitee seat.
 //   - FRESHNESS is the D-84 bounded `router.refresh()` poller, paused on `document.hidden`, silent.
 //   - NO CORAL ANYWHERE ON THIS PAGE. 08-UI-SPEC §Color enumerates the accent exhaustively and nothing here
 //     is on the list: `Copy link`, `Regenerate link` and `Remove attendee` are all neutral. The one coral in
@@ -162,10 +166,18 @@ export default async function GroupManagementPage({
           <p className="text-xs text-muted-foreground">{tzNote}</p>
         </div>
 
-        {/* GROUP-04's focal point — the one Display-scale figure on the page. */}
+        {/* GROUP-04's focal point — the one Display-scale figure on the page.
+            D-113 — THE `+ 1` ON BOTH SIDES IS THE ORGANIZER, and this is the ONE place on the surface that
+            adds them (see the roster's own header). They are row #1 of the list directly below this figure
+            and they hold one of the listing's places, so `confirmed + 1` is the number of people who will be
+            in the room, and `capacity + 1` is the listing's `maxOccupancy` as it stood at group creation —
+            `capacity_snapshot` is organizer-EXCLUSIVE because it caps `rsvp` rows, which the organizer never
+            occupies. `full` is passed THROUGH, unmodified: it was decided server-side against the raw
+            snapshot by the same query that produced these counts, and re-deriving it from the two displayed
+            numbers would replace a fact about the seat-claim with a restatement of the display. */}
         <HeadcountMeter
-          confirmed={counts.confirmed}
-          capacity={counts.capacity}
+          confirmed={counts.confirmed + 1}
+          capacity={counts.capacity + 1}
           full={counts.full}
         />
 
@@ -173,10 +185,15 @@ export default async function GroupManagementPage({
 
         <AttendeeRoster entries={roster} />
 
-        {/* D-114 — renders NOTHING unless the listing prices extra heads AND more people said yes than the
-            booking declared. Both halves of that guard live in the component, in one place. */}
+        {/* D-114 — renders NOTHING unless the listing prices extra heads AND more people are coming than the
+            booking declared. Both halves of that guard live in the component, in one place.
+            D-113 — `attendingTotal` is `counts.confirmed + 1`, the same organizer-inclusive figure the meter
+            above renders, because `declaredPax` is organizer-inclusive too (the pax stepper says so: "This
+            includes you"). Comparing a count of RSVPs against it lost exactly one person and kept this block
+            silent on the first over-subscription; the prop is NAMED for its basis so no future call site can
+            make that mistake quietly. */}
         <TopUpNudge
-          confirmedYes={counts.confirmed}
+          attendingTotal={counts.confirmed + 1}
           declaredPax={group.declaredPax}
           extraHeadFee={group.extraHeadFee}
         />

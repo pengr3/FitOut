@@ -5,10 +5,15 @@
 // treatment the booking reference and the cancel review's question carry, and the only thing on this page
 // allowed to have it.
 //
-// EVERY FIGURE IS SERVER-COMPUTED. `confirmed` is the owner-scoped `count(*)` of `yes` RSVPs and `capacity`
-// is the D-111 `capacity_snapshot` — NOT the listing's live `maxOccupancy`, which a host may have edited
-// since. This component does no arithmetic of any kind: even `full` arrives decided (`getHeadcount`), so the
-// number the organizer reads and the number the seat-claim enforces cannot drift by restatement.
+// EVERY FIGURE IS SERVER-COMPUTED, AND BOTH ARE ORGANIZER-INCLUSIVE (D-113 · WR-03). `confirmed` is the
+// owner-scoped `count(*)` of `yes` RSVPs PLUS the organizer, and `capacity` is the D-111 `capacity_snapshot`
+// PLUS the organizer — which is the listing's `maxOccupancy` as it stood at group creation, NOT its live
+// value, which a host may have edited since. The organizer is added back exactly once, by the management
+// page, because they are visibly row #1 of the roster below this figure: a meter that omitted them would
+// disagree with the list directly underneath it. This component still does no arithmetic of any kind — it
+// does not add the organizer, and it does not derive `full`, which arrives already decided (`getHeadcount`,
+// against the raw snapshot) so the number the organizer reads and the number the seat-claim enforces cannot
+// drift by restatement.
 //
 // "FULL" IS A HAPPY STATE, NOT AN ERROR (G4/D-112). At the cap the caption becomes "This group is full." in
 // the SAME muted treatment — never red, never an alarm, never `--destructive`. A full group is the success
@@ -30,11 +35,22 @@ export function HeadcountMeter({
   capacity,
   full,
 }: {
-  /** Server-computed count of `yes` RSVPs (owner-scoped in the query's own WHERE, 08-06). */
+  /**
+   * The organizer-inclusive attending count: the owner-scoped `count(*)` of `yes` RSVPs (08-06) plus the
+   * organizer, added by the caller (D-113). This is people in the room, not rows in a table.
+   */
   confirmed: number;
-  /** The D-111 `capacity_snapshot` — the cap AUTHORITY, frozen at group creation. */
+  /**
+   * The organizer-inclusive cap: the D-111 `capacity_snapshot` — the cap AUTHORITY, frozen at group creation
+   * and organizer-EXCLUSIVE because it governs `rsvp` rows — plus 1, added by the same caller. It therefore
+   * equals the listing's `maxOccupancy` at the moment the group was created.
+   */
   capacity: number;
-  /** Decided server-side (`confirmed >= capacity`); this component never compares the two itself. */
+  /**
+   * Decided server-side against the RAW snapshot (`getHeadcount`: `yes` rows >= `capacity_snapshot`) and
+   * passed straight through. It is deliberately NOT re-derived from the two organizer-inclusive numbers
+   * above: `full` is a fact about the seat-claim, and only the seat-claim's own basis can decide it.
+   */
   full: boolean;
 }) {
   const spotsLabel = `${confirmed} of ${capacity} spots filled`;
