@@ -64,6 +64,9 @@ export default async function HostBookingDetailPage({
       startsAt: booking.startsAt,
       endsAt: booking.endsAt,
       quotedTotalCents: booking.quotedTotalCents,
+      // The WR-06 pricing-mode snapshot — the AUTHORITY composeWhenLabel renders "Full day" vs an hour
+      // range from (08-15 / CR-01). Never re-derived from a price.
+      fullDay: booking.fullDay,
       spacePriceCents: booking.spacePriceCents,
       refundCents: booking.refundCents,
       currency: booking.currency,
@@ -71,7 +74,8 @@ export default async function HostBookingDetailPage({
       title: listing.title,
       timezone: listing.timezone,
       city: listing.city,
-      hourlyRateCents: listing.hourlyRateCents,
+      // The formatter's pre-0016 positive-match reference only.
+      dayRateCents: listing.dayRateCents,
       bookerFirstName: user.firstName,
       payoutState: hostPayoutLedger.state,
     })
@@ -98,9 +102,10 @@ export default async function HostBookingDetailPage({
     endsAt: row.endsAt,
     timezone: row.timezone,
     city: row.city,
+    fullDay: row.fullDay,
     spacePriceCents: row.spacePriceCents,
     quotedTotalCents: row.quotedTotalCents,
-    hourlyRateCents: row.hourlyRateCents,
+    dayRateCents: row.dayRateCents,
   });
 
   // The cancel entry point exists ONLY while the booking is genuinely cancellable — the same two conditions

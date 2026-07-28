@@ -303,9 +303,14 @@ export async function reRequestSameWindow(bookingId: string): Promise<ReRequestR
       endsAt: row.endsAt,
       timezone: row.timezone,
       city: row.city,
+      // 08-15 / CR-01: the local `fullDay` above is EXACTLY what `createPendingHold` just froze into the
+      // new row's `booking.full_day` — the persisted snapshot itself, reused rather than re-projected.
+      // `dayRateCents` is the same column the local fallback read, and it feeds only the formatter's own
+      // pre-0016 positive match.
+      fullDay,
       spacePriceCents: res.spacePriceCents,
       quotedTotalCents: res.quotedTotalCents,
-      hourlyRateCents: row.hourlyRateCents,
+      dayRateCents: row.dayRateCents,
     });
     // The host's real SLA deadline, off the row the insert just wrote. Under D-96 a session-start cap splits
     // the remaining time proportionally, so rendering APPROVAL_SLA_HOURS would be wrong on exactly the

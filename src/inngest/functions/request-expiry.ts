@@ -152,7 +152,9 @@ async function emitDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
         endsAt: booking.endsAt,
         quotedTotalCents: booking.quotedTotalCents,
         spacePriceCents: booking.spacePriceCents,
-        hourlyRateCents: listing.hourlyRateCents,
+        // WR-06 pricing-mode snapshot + the formatter's pre-0016 positive-match reference (08-15).
+        fullDay: booking.fullDay,
+        dayRateCents: listing.dayRateCents,
         // D-93: written by approveRequest when the host tried to approve inside the minimum window. It is
         // the ONLY thing that distinguishes "the host never answered" from "the host tried, but the session
         // was already too close" — two genuinely different things to tell a booker.
@@ -165,16 +167,18 @@ async function emitDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
     if (!row) return false;
 
     // The SHARED venue-local formatter (07-02) — this body was one of three verbatim duplicates before
-    // Phase 7. "Full day" vs hourly is re-derived inside it from the FROZEN quote (fullDay is not
-    // persisted). Do NOT reintroduce a local copy: every time surface renders the SC#2 venue tz from here.
+    // Phase 7. "Full day" vs an hour range comes from the booking's own PERSISTED `full_day` snapshot
+    // (08-15 / CR-01), never from a price. Do NOT reintroduce a local copy: every time surface renders
+    // the SC#2 venue tz from here.
     const whenLabel = composeWhenLabel({
       startsAt: row.startsAt,
       endsAt: row.endsAt,
       timezone: row.timezone,
       city: row.city,
+      fullDay: row.fullDay,
       spacePriceCents: row.spacePriceCents,
       quotedTotalCents: row.quotedTotalCents,
-      hourlyRateCents: row.hourlyRateCents,
+      dayRateCents: row.dayRateCents,
     });
 
     // D-93 honest reason. `expired` stays TRUE either way — the hold genuinely lapsed, and the two email

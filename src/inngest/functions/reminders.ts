@@ -95,12 +95,17 @@ export type DueReminder = {
   city: string | null;
   quotedTotalCents: number | null;
   /**
-   * The frozen SPACE price. REQUIRED by `composeWhenLabel` to re-derive "Full day" — under D-74 the
-   * charged total is all-in (space + service fee) and can NEVER equal `hourlyRate × hours`, so deriving
-   * from it would label EVERY hourly booking "Full day" in every reminder, silently.
+   * The booking's PERSISTED creation-time full-day snapshot (booking.full_day, drizzle 0016 / WR-06) —
+   * REQUIRED by `composeWhenLabel` and the sole AUTHORITY for "Full day" vs an hour range. 08-15 / CR-01:
+   * the mode is never re-derived from a price. The D-108 per-head surcharge is folded into
+   * `spacePriceCents`, so a price comparison would label ordinary surcharged hourly bookings "Full day"
+   * in every reminder, silently.
    */
+  fullDay: boolean | null;
+  /** The frozen SPACE price — read by the formatter ONLY for pre-0016 rows, as a positive day-rate match. */
   spacePriceCents: number | null;
-  hourlyRateCents: number | null;
+  /** The listing's day rate — the formatter's pre-0016 positive-match reference, nothing else. */
+  dayRateCents: number | null;
   currency: string;
 };
 
@@ -227,8 +232,9 @@ async function runDue(
       l.timezone               AS "timezone",
       l.city                   AS "city",
       b.quoted_total_cents     AS "quotedTotalCents",
+      b.full_day               AS "fullDay",
       b.space_price_cents      AS "spacePriceCents",
-      l.hourly_rate_cents      AS "hourlyRateCents",
+      l.day_rate_cents         AS "dayRateCents",
       b.currency               AS "currency",
       ${isoUtc("b.starts_at")}  AS "startsAtIso",
       ${isoUtc("b.ends_at")}    AS "endsAtIso",
@@ -263,8 +269,9 @@ function hydrate(r: RawDueRow, kind: ReminderKind): DueReminder {
     timezone: r.timezone,
     city: r.city,
     quotedTotalCents: r.quotedTotalCents,
+    fullDay: r.fullDay,
     spacePriceCents: r.spacePriceCents,
-    hourlyRateCents: r.hourlyRateCents,
+    dayRateCents: r.dayRateCents,
     currency: r.currency,
   };
 }
@@ -354,9 +361,10 @@ function buildEvent(r: DueReminder): Parameters<typeof emitNotify>[0] {
     endsAt: r.endsAt,
     timezone: r.timezone,
     city: r.city,
+    fullDay: r.fullDay,
     spacePriceCents: r.spacePriceCents,
     quotedTotalCents: r.quotedTotalCents,
-    hourlyRateCents: r.hourlyRateCents,
+    dayRateCents: r.dayRateCents,
   });
   const href = hrefFor(r.kind, r);
 

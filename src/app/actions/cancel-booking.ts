@@ -188,13 +188,18 @@ async function loadBookingRow(bookingId: string) {
       spacePriceCents: booking.spacePriceCents,
       serviceFeeCents: booking.serviceFeeCents,
       quotedTotalCents: booking.quotedTotalCents,
+      // The WR-06 pricing-mode snapshot — the AUTHORITY the shared formatter renders "Full day" vs an
+      // hour range from (08-15 / CR-01), including on the group-cancellation email. Never re-derived
+      // from a price: the D-108 per-head surcharge is folded into spacePriceCents.
+      fullDay: booking.fullDay,
       currency: booking.currency,
       paymentId: booking.paymentId,
       paymentMethod: booking.paymentMethod,
       title: listing.title,
       timezone: listing.timezone,
       city: listing.city,
-      hourlyRateCents: listing.hourlyRateCents,
+      // The formatter's pre-0016 positive-match reference only.
+      dayRateCents: listing.dayRateCents,
       hostId: listing.hostId,
       hostCanHost: hostUser.canHost,
       hostEmail: hostUser.email,
@@ -243,9 +248,10 @@ const whenLabelInput = (row: OwnedBooking): WhenLabelInput => ({
   endsAt: row.endsAt,
   timezone: row.timezone,
   city: row.city,
+  fullDay: row.fullDay,
   spacePriceCents: row.spacePriceCents,
   quotedTotalCents: row.quotedTotalCents,
-  hourlyRateCents: row.hourlyRateCents,
+  dayRateCents: row.dayRateCents,
 });
 
 /**

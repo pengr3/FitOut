@@ -67,14 +67,18 @@ export default async function HostRequestsPage() {
       // the row's real expires_at is what tells the reason line whether this deadline is cap-derived.
       createdAt: booking.createdAt,
       quotedTotalCents: booking.quotedTotalCents,
-      // D-74: the listing-priced portion, used ONLY to re-derive fullDay in composeWhenLabelShort. The
-      // all-in charged total can never equal hourlyRate × hours, so it cannot drive that comparison.
+      // The WR-06 pricing-mode snapshot — the AUTHORITY composeWhenLabelShort renders "Full day" vs an
+      // hour range from (08-15 / CR-01). Never re-derived from a price.
+      fullDay: booking.fullDay,
+      // D-74: the listing-priced portion. Read by the formatter ONLY for pre-0016 rows, and only as a
+      // positive match against the listing's day rate.
       spacePriceCents: booking.spacePriceCents,
       currency: booking.currency,
       title: listing.title,
       timezone: listing.timezone,
       city: listing.city,
-      hourlyRateCents: listing.hourlyRateCents,
+      // The formatter's pre-0016 positive-match reference only.
+      dayRateCents: listing.dayRateCents,
       bookerFirstName: user.firstName,
     })
     .from(booking)
@@ -85,7 +89,8 @@ export default async function HostRequestsPage() {
 
   // Per-row display: the venue-tz-safe window label comes from the SHARED formatter (07-02) in its SHORT
   // "EEE, MMM d" form — this derivation was one of three verbatim duplicates before Phase 7 and must never
-  // be re-inlined here. fullDay is re-derived inside it from the FROZEN quote (the actions never re-price).
+  // be re-inlined here. The full-day vs hour-range choice comes from the booking's own PERSISTED snapshot
+  // (08-15 / CR-01) — nothing here infers it from a price.
   // Money is the frozen quotedTotalCents via formatMoney (zero arithmetic).
   // D-99 (07-12): the reason line is rendered from the DB clock, read ONCE here and threaded into every row —
   // so "Session starts in Xh" and the row's own countdown deadline can never disagree about what time it is.
@@ -99,9 +104,10 @@ export default async function HostRequestsPage() {
       endsAt: r.endsAt,
       timezone: r.timezone,
       city: r.city,
+      fullDay: r.fullDay,
       spacePriceCents: r.spacePriceCents,
       quotedTotalCents: r.quotedTotalCents,
-      hourlyRateCents: r.hourlyRateCents,
+      dayRateCents: r.dayRateCents,
     }),
     bookerLabel: r.bookerFirstName?.trim() || "A guest",
     totalLabel: formatMoney(r.quotedTotalCents ?? 0, r.currency ?? DISPLAY_CURRENCY),

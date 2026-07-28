@@ -103,13 +103,17 @@ async function loadOwnedRequest(requestId: string, userId: string) {
       endsAt: booking.endsAt,
       quotedTotalCents: booking.quotedTotalCents,
       spacePriceCents: booking.spacePriceCents,
+      // The WR-06 pricing-mode snapshot — the AUTHORITY the shared formatter renders "Full day" vs an
+      // hour range from (08-15 / CR-01). Never re-derived from a price.
+      fullDay: booking.fullDay,
       currency: booking.currency,
       hostId: listing.hostId,
       hostCanHost: hostUser.canHost,
       title: listing.title,
       timezone: listing.timezone,
       city: listing.city,
-      hourlyRateCents: listing.hourlyRateCents,
+      // The formatter's pre-0016 positive-match reference only.
+      dayRateCents: listing.dayRateCents,
       bookerEmail: bookerUser.email,
     })
     .from(booking)
@@ -134,9 +138,10 @@ const whenLabelInput = (row: OwnedRequest): WhenLabelInput => ({
   endsAt: row.endsAt,
   timezone: row.timezone,
   city: row.city,
+  fullDay: row.fullDay,
   spacePriceCents: row.spacePriceCents,
   quotedTotalCents: row.quotedTotalCents,
-  hourlyRateCents: row.hourlyRateCents,
+  dayRateCents: row.dayRateCents,
 });
 
 /**

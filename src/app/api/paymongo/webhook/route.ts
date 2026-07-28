@@ -230,7 +230,9 @@ async function emitBookingConfirmed(bookingId: string): Promise<void> {
         spacePriceCents: booking.spacePriceCents,
         quotedTotalCents: booking.quotedTotalCents,
         currency: booking.currency,
-        hourlyRateCents: listing.hourlyRateCents,
+        // WR-06 pricing-mode snapshot + the formatter's pre-0016 positive-match reference (08-15).
+        fullDay: booking.fullDay,
+        dayRateCents: listing.dayRateCents,
       })
       .from(booking)
       .innerJoin(user, eq(booking.bookerId, user.id))
@@ -238,19 +240,21 @@ async function emitBookingConfirmed(bookingId: string): Promise<void> {
       .where(eq(booking.id, bookingId));
     if (!row) return;
 
-    // The SHARED venue-local formatter (07-02). This replaces a verbatim inline copy of the fullDay
-    // re-derivation that compared the ALL-IN `quotedTotalCents` against `hourlyRate × hours` — under D-74
-    // the total is space + service fee, so that comparison can never match and EVERY hourly booking would
-    // have rendered "Full day" in the confirmation. `composeWhenLabel` compares `spacePriceCents`, which is
-    // the only figure comparable to a listing rate (07-08 made the field required for exactly this reason).
+    // The SHARED venue-local formatter (07-02). This replaced a verbatim inline copy that INFERRED the
+    // mode by comparing a frozen price against a rate run-total — an inference that has since been deleted
+    // outright (08-15 / CR-01), because the D-108 per-head surcharge is folded into `spacePriceCents` and
+    // made it true of ordinary surcharged hourly bookings, printing "Full day" on this very receipt. The
+    // mode now comes from the booking's own PERSISTED `full_day` snapshot, and the price is consulted only
+    // by the formatter's pre-0016 positive day-rate match.
     const whenLabel = composeWhenLabel({
       startsAt: row.startsAt,
       endsAt: row.endsAt,
       timezone: row.timezone,
       city: row.city,
+      fullDay: row.fullDay,
       spacePriceCents: row.spacePriceCents,
       quotedTotalCents: row.quotedTotalCents,
-      hourlyRateCents: row.hourlyRateCents,
+      dayRateCents: row.dayRateCents,
     });
     const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
     await emitNotify({
