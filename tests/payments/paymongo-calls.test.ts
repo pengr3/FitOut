@@ -125,7 +125,10 @@ describe("expireCheckoutSession — retire a superseded session (/v1, CR-02)", (
   });
 
   it("uses the IDENTICAL Idempotency-Key on a retry of the same session, so a duplicate expire is a no-op", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "cs_abc", attributes: { status: "expired" } } }));
+    // A FRESH Response per call — a Response body can only be read once, and paymongoFetch reads it.
+    fetchMock.mockImplementation(async () =>
+      jsonResponse({ data: { id: "cs_abc", attributes: { status: "expired" } } }),
+    );
 
     await expireCheckoutSession("cs_abc");
     await expireCheckoutSession("cs_abc");
@@ -142,7 +145,10 @@ describe("expireCheckoutSession — retire a superseded session (/v1, CR-02)", (
     // A booking legitimately has more than one session over its life (that is what a re-price creates).
     // A booking-scoped key would make the SECOND expire replay the FIRST response and silently leave a
     // live session payable — the createRefund trap, restated here. Different id ⇒ different key.
-    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "cs_two", attributes: { status: "expired" } } }));
+    // A FRESH Response per call (see the retry case above).
+    fetchMock.mockImplementation(async () =>
+      jsonResponse({ data: { id: "cs_two", attributes: { status: "expired" } } }),
+    );
 
     await expireCheckoutSession("cs_one");
     await expireCheckoutSession("cs_two");

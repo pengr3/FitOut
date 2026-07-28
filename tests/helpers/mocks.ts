@@ -188,6 +188,12 @@ export const mockPayMongo = {
     id: "cs_test_123",
     checkoutUrl: "https://checkout.paymongo.test/cs_test_123",
   })),
+  /**
+   * CR-02 (08-12) — retire a superseded checkout session. Echoes the id it was handed so a caller test
+   * can assert WHICH session was expired (the whole point: expiring the wrong one leaves the payable one
+   * live). Override per-case with `mockRejectedValueOnce` to drive 08-13's refuse-the-re-price branch.
+   */
+  expireCheckoutSession: vi.fn(async (id: string = "cs_test_123") => ({ id })),
   createRefund: vi.fn(async (_input?: unknown) => ({ id: "ref_test_123", status: "pending" })),
   createBatchTransfer: vi.fn(async (_input?: unknown) => ({
     batchId: "batch_tr_123",
@@ -229,6 +235,7 @@ export const mockPayMongo = {
     mockPayMongo.createLinkedAccount.mockClear();
     mockPayMongo.createOnboardingLink.mockClear();
     mockPayMongo.createCheckoutSession.mockClear();
+    mockPayMongo.expireCheckoutSession.mockClear();
     mockPayMongo.createRefund.mockClear();
     mockPayMongo.createBatchTransfer.mockClear();
     mockPayMongo.listWalletAccounts.mockClear();

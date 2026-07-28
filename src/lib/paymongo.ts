@@ -213,6 +213,40 @@ export async function createCheckoutSession(input: {
   return { id: json.data.id, checkoutUrl: json.data.attributes.checkout_url };
 }
 
+/**
+ * Expire a hosted Checkout Session (POST /v1/checkout_sessions/{id}/expire) so it can never be paid —
+ * the CR-02 close. Takes no request body and returns the expired session's id.
+ *
+ * WHY THIS EXISTS. D-108 scoped the checkout Idempotency-Key to the frozen AMOUNT for per-head bookings,
+ * so a re-priced hold mints a genuinely NEW session instead of replaying the old one at the old total.
+ * Correct for what the booker is shown — but it leaves the SUPERSEDED session payable in a second tab or
+ * the browser Back stack, and the confirm webhook keys purely on `reference_number` with no amount check,
+ * so that stale payment would be captured and never refunded. The caller (updateDeclaredPax) expires the
+ * persisted `booking.checkout_session_id` BEFORE minting a new session, keeping at most one payable.
+ *
+ * ⚠️ THE KEY IS SCOPED TO THE SESSION ID, NEVER TO THE BOOKING — the same trap createRefund records below
+ * for refunds, restated here because this is the second place it bites. Expiring one session twice must be
+ * a no-op, which the stable key gives us. But a booking legitimately owns MORE THAN ONE session over its
+ * life (that is exactly what a re-price creates), so a booking-scoped key would make the SECOND session's
+ * expire replay the FIRST call's response: PayMongo would answer 200, we would believe the session was
+ * retired, and it would still be payable. A session-scoped key cannot collide that way.
+ *
+ * Failures THROW through paymongoFetch's descriptive error shape and are deliberately not swallowed — the
+ * caller catches, records a `needs_attention` audit and REFUSES the re-price, because proceeding costs an
+ * unrefunded double capture while refusing costs the booker one retry.
+ */
+export async function expireCheckoutSession(id: string): Promise<{ id: string }> {
+  const json = await paymongoFetch<{ data: { id: string } }>(
+    `/v1/checkout_sessions/${id}/expire`,
+    {
+      method: "POST",
+      idempotencyKey: `checkout-expire:${id}`,
+      // No body — the endpoint takes none.
+    },
+  );
+  return { id: json.data.id };
+}
+
 export type Refund = { id: string; status: string };
 
 /**
