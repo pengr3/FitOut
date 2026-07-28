@@ -49,12 +49,7 @@ function callAt(
 }
 
 /** The single fetch call recorded on the stub: [url, init]. */
-function lastCall(fetchMock: ReturnType<typeof vi.fn>): {
-  url: string;
-  method: string;
-  headers: Record<string, string>;
-  body: Record<string, unknown>;
-} {
+function lastCall(fetchMock: ReturnType<typeof vi.fn>): ReturnType<typeof callAt> {
   return callAt(fetchMock, 0);
 }
 
