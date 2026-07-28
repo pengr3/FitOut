@@ -23,6 +23,7 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { user, listing, booking } from "@/lib/db/schema";
 import { createPendingHold } from "@/lib/availability/units";
 import { computeServiceFee } from "@/lib/payments/service-fee";
+import { bookingCreateSchema } from "@/lib/validation/booking";
 
 let testDb: TestDb;
 
@@ -184,5 +185,105 @@ describe("D-108 a flat listing is unchanged and a client-sent declaredPax cannot
     expect(a.quotedTotalCents).toBe(b.quotedTotalCents);
     expect(a.declaredPax).toBeNull();
     expect(b.declaredPax).toBeNull();
+  });
+});
+
+// ── 3. CR-03: an over-cap declaredPax NEVER reaches the frozen price ───────────────────────────────────
+//
+// The pre-CR-03 code passed `input.declaredPax` verbatim into `quoteWindow` and into `declared_pax`, and
+// `createPendingHold` never even SELECTed `listing.max_occupancy`. So a crafted POST multiplied an
+// attacker-chosen headcount straight into `space_price_cents` — the payout gross basis, the service-fee
+// basis and the refundable basis — and a large enough one overflowed the int4 money columns into a
+// Postgres 22003 that `mapBookingError` re-throws as a raw 500 (T-08-30 / T-08-31).
+//
+// Every case below is written to go RED if either half of the fix is deleted: the clamp in
+// `src/lib/availability/units.ts` (cases 1-3) or the `.max(10_000)` in `src/lib/validation/booking.ts`
+// (case 4). Each asserts on the PERSISTED row, because the frozen row — not the return value — is what
+// the payout and refund paths read back.
+describe("CR-03 declaredPax is clamped to the LISTING's maxOccupancy inside the price-freezing tx", () => {
+  it("declaredPax 500 against maxOccupancy 6 freezes the price for 6, and persists declared_pax = 6", async () => {
+    const listingId = await makeListing({
+      hourlyRateCents: 50000,
+      included: 1,
+      extraHeadFee: 1500,
+      maxOccupancy: 6,
+    });
+    const res = await hold(listingId, { hours: 2, declaredPax: 500 });
+    const row = await readRow(res.id);
+
+    const base = 50000 * 2; // 100000
+    const space = base + (6 - 1) * 1500; // clamped to the CAP, not to the submitted 500 ⇒ 107500
+    const expectedFee = computeServiceFee(space);
+
+    expect(row.declaredPax).toBe(6); // never the submitted number
+    expect(row.spacePriceCents).toBe(space);
+    expect(res.spacePriceCents).toBe(space);
+    expect(row.serviceFeeCents).toBe(expectedFee.serviceFeeCents);
+    expect(row.quotedTotalCents).toBe(expectedFee.allInCents);
+    // The D-74 triple still holds on the clamped row — CR-03 may not be closed by breaking it.
+    expect(row.quotedTotalCents).toBe(row.spacePriceCents! + row.serviceFeeCents!);
+  });
+
+  it("an int4-overflowing declaredPax resolves cleanly and freezes the SAME clamped figures (no 22003)", async () => {
+    const listingId = await makeListing({
+      hourlyRateCents: 50000,
+      included: 1,
+      extraHeadFee: 1500,
+      maxOccupancy: 6,
+    });
+    // Unclamped this is (2_000_000_000 − 1) × 1500 ≈ 3e12 centavos into an `integer` column: Postgres 22003,
+    // re-thrown by mapBookingError as a raw 500. Clamped, it is indistinguishable from the case above.
+    const res = await hold(listingId, { hours: 2, declaredPax: 2_000_000_000 });
+    const row = await readRow(res.id);
+
+    const space = 50000 * 2 + (6 - 1) * 1500; // 107500 — byte-identical to declaredPax 500
+    const expectedFee = computeServiceFee(space);
+
+    expect(row.declaredPax).toBe(6);
+    expect(row.spacePriceCents).toBe(space);
+    expect(row.serviceFeeCents).toBe(expectedFee.serviceFeeCents);
+    expect(row.quotedTotalCents).toBe(expectedFee.allInCents);
+    expect(row.quotedTotalCents).toBe(row.spacePriceCents! + row.serviceFeeCents!);
+  });
+
+  it("a listing with NO recorded maxOccupancy fails CLOSED: declared_pax = 1 and no surcharge", async () => {
+    const listingId = await makeListing({
+      hourlyRateCents: 50000,
+      included: 1,
+      extraHeadFee: 1500,
+      maxOccupancy: null,
+    });
+    const res = await hold(listingId, { hours: 2, declaredPax: 9 });
+    const row = await readRow(res.id);
+
+    const base = 50000 * 2; // 100000 — max(0, 1 − 1) = 0 heads over the included one
+    const expectedFee = computeServiceFee(base);
+
+    // Deliberately UNLIKE updateDeclaredPax, which falls back to the client's own value on a null cap.
+    // This is the creation path reachable by a crafted POST, so an uncapped listing charges for nobody
+    // extra rather than for whoever asked.
+    expect(row.declaredPax).toBe(1);
+    expect(row.spacePriceCents).toBe(base);
+    expect(row.serviceFeeCents).toBe(expectedFee.serviceFeeCents);
+    expect(row.quotedTotalCents).toBe(expectedFee.allInCents);
+    expect(row.quotedTotalCents).toBe(row.spacePriceCents! + row.serviceFeeCents!);
+  });
+});
+
+// ── 4. CR-03 shape ceiling: the schema itself keeps the value away from the int4 columns ───────────────
+describe("CR-03 bookingCreateSchema bounds declaredPax before it can reach the quote", () => {
+  const payload = (declaredPax: number) => ({
+    listingId: "L_shape",
+    startUtc: new Date(Date.now() + LEAD_MS).toISOString(),
+    endUtc: new Date(Date.now() + LEAD_MS + HOUR).toISOString(),
+    declaredPax,
+  });
+
+  it("rejects declaredPax = 10_001", () => {
+    expect(bookingCreateSchema.safeParse(payload(10_001)).success).toBe(false);
+  });
+
+  it("accepts declaredPax = 10_000 (the ceiling itself is valid — the LISTING is the real cap)", () => {
+    expect(bookingCreateSchema.safeParse(payload(10_000)).success).toBe(true);
   });
 });
