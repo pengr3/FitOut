@@ -68,7 +68,7 @@ completed: 2026-07-28
 
 ### Task 1 — `confirmBooking` names every session it creates (`18c9047`)
 
-`src/app/actions/booking.ts:600-610` — after `createCheckoutSession` resolves and **before**
+`src/app/actions/booking.ts:630-654` — after `createCheckoutSession` resolves and **before**
 `redirect(checkout.checkoutUrl)` (which throws by design, so nothing after it ever runs):
 
 ```ts
@@ -108,7 +108,7 @@ guard.
 
 Four changes, all inside the existing action:
 
-1. `checkoutSessionId: booking.checkoutSessionId` joins the owner-gated select (`:357-359`).
+1. `checkoutSessionId: booking.checkoutSessionId` joins the owner-gated select (`:358-360`).
 2. The expire gate at `:401-435`, **after** the quote is computed and **before** the re-freeze:
 
 ```ts
@@ -141,7 +141,7 @@ neither the audit nor the browser (T-05-15 / T-08-44): the booker gets the same 
 quote-misconfiguration branch already returns.
 
 **A NULL session id makes zero PayMongo calls** (08-12 contract 2 — pre-0019 rows and holds that never reached
-checkout), and the flat-listing no-op at `:373` is byte-identical: it returns before the gate is reached, so a
+checkout), and the flat-listing no-op at `:376` is byte-identical: it returns before the gate is reached, so a
 flat booking still makes no PayMongo call of any kind. The clamp, the quote, the D-74 triple composition and
 the re-freeze's WHERE scope are untouched.
 
@@ -373,7 +373,7 @@ endpoint, auth path, file access pattern or trust-boundary schema change was int
 - `tests/booking/checkout-session-expire.test.ts` — FOUND
 
 **Files claimed modified — all carry the claimed content:**
-- `src/app/actions/booking.ts` — `checkoutSessionId` at `:359`, `:451`, `:603`; `expireCheckoutSession` at
+- `src/app/actions/booking.ts` — `checkoutSessionId` at `:360`, `:451`, `:646`; `expireCheckoutSession` at
   `:41` and `:420`; `checkout_expire_failed` at `:429`; `never a second charge` **0 matches**
 - `tests/booking/pax-reprice.test.ts` — case `(10)` present, `expireCheckoutSession` mock wired
 - `tests/payments/checkout-create.test.ts` — `checkoutSessionId` asserted as `cs_test_123`
