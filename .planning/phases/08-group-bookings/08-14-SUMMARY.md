@@ -216,6 +216,10 @@ None - no external service configuration required.
 - **Relevant to 08-17's UAT:** any listing seeded for the group walkthrough now needs `max_occupancy >= 2`, and a group on `max_occupancy = N` will show `x of N` where the last seat is the organizer's. Combined with the 08-10 warning (a host who sets `extra_head_fee` but leaves `max_occupancy` empty collects no surcharge), the UAT fixture must set **both** fields and set the cap to at least 2.
 - **The mirror-image half of WR-03 noted in the review is NOT closed and was out of scope by the plan:** an organizer who RSVPs to their own link still appears twice on the roster (once as the "You" fixture, once as a real row). The review's suggested `getRoster` predicate was not applied — `getRoster` is explicitly named as untouched. The new roster comment flags the double-count risk in prose; closing it is a separate change.
 
+## Self-Check: PASSED
+
+All 8 claimed files exist on disk; all 4 claimed commits (`3cbdff5`, `61645a7`, `cdc9ae1`, `4e8251d`) exist in the repository.
+
 ---
 *Phase: 08-group-bookings*
 *Completed: 2026-07-28*

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 08-13-PLAN.md (wave 7) — CR-02 CLOSED + deferred item 1 CLOSED. confirmBooking names every session it creates; updateDeclaredPax expires-then-refreezes and refuses on a failed expire. Mutations A/B/C red→green. Full suite 95 files / 824 tests exit 0 (+1 file / +7 tests); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. Next: 08-14 (WR-03/WR-04), then waves 8-9 (08-15, 08-17)."
-last_updated: "2026-07-28T07:26:26.716Z"
+stopped_at: "Completed 08-14-PLAN.md (wave 7) — WR-03 + WR-04 CLOSED. capacity_snapshot reserves the organizer's seat; the organizer surface reads one convention. Mutations A/B red-to-green. Full suite 96 files / 835 tests exit 0 (+1 file / +11 tests); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. WAVE 7 COMPLETE. Next: wave 8 (08-15, CR-01), then wave 9 (08-17)."
+last_updated: "2026-07-28T08:16:29.889Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 77
-  completed_plans: 75
-  percent: 97
+  completed_plans: 76
+  percent: 99
 ---
 
 # Project State
@@ -26,13 +26,32 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 14 of 17 — **08-13 DONE, CR-02 CLOSED** (14/17 summaries on disk: 08-01…08-13 + 08-16).
-Next action: `/gsd-execute-phase 8` — finish wave 7 (08-14 → WR-03/WR-04), then waves 8→9 (08-15 → 08-17).
+Plan: 15 of 17 — **08-14 DONE, WR-03 + WR-04 CLOSED, WAVE 7 COMPLETE** (15/17 summaries on disk: 08-01…08-14 + 08-16).
+Next action: `/gsd-execute-phase 8` — wave 8 (08-15 → CR-01), then wave 9 (08-17 → the pax-surcharge UAT checkpoint).
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
-Progress: [██████████] 97%
+Progress: [██████████] 99%
+
+✅ **08-14 LANDED — WR-03 + WR-04 are CLOSED and WAVE 7 IS COMPLETE. SC4's "hard-capped at the listing's capacity" is now literally true.** `createGroup` freezes `GREATEST(l.max_occupancy - 1, 0)` inside the same atomic INSERT that creates the group, so a `maxOccupancy = 12` listing admits **11** RSVP-yes attendees and 11 + the organizer = 12 — the number the host rated the room for. Before this, 12 could say yes and the organizer made **13 bodies in a space rated for 12**. The organizer surface now reads ONE convention end to end: the meter renders `confirmed + 1` of `capacity + 1`, `TopUpNudge`'s prop is RENAMED `confirmedYes` → `attendingTotal` and fed `counts.confirmed + 1`, and the roster's now-inverted "MUST NOT BE COUNTED" comment is rewritten. Full suite **96 files / 835 tests exit 0** (+1 file / +11 tests); tsc 0; lint **0 errors** (7 pre-existing warnings — the new jsdom file added none); `npm run build` exit 0 (27 routes, bare). **Zero changes to `claimSeat`, `getHeadcount`, `getRoster`, `removeAttendee`, `src/lib/group/rsvp.ts` or the public invite page.**
+
+📌 **New contracts from 08-14 (load-bearing for Phase 9's open-capacity work, 08-17's UAT, and anyone rendering a group headcount):**
+
+1. *`capacity_snapshot` is the ONE organizer-EXCLUSIVE number in the whole feature, and it is exclusive because of WHAT IT CAPS.* It caps `rsvp` ROWS; the organizer is a display fixture with no `rsvpId` and no row, so they never occupy one. `listing.maxOccupancy`, `declaredPax` and every organizer-facing figure are organizer-INCLUSIVE (`pax-stepper.tsx` says so in as many words: "This includes you"). **Anything reading the snapshot for an organizer-facing surface owes a `+ 1`; anything reading it for the public invite page or the seat-claim does not.** The `+ 1` currently lives at exactly two adjacent lines in `src/app/(app)/bookings/[id]/group/page.tsx` and must not be duplicated — `submitRsvp` deliberately lets an organizer answer their own link, so a real `rsvp` row can already exist for that person, and a second `+ 1` would claim a body that does not exist.
+2. *`full` is a fact about the seat-claim, not about the display.* It is decided server-side in `getHeadcount` against the RAW snapshot and passed THROUGH `HeadcountMeter` unmodified. Re-deriving it from the two organizer-inclusive numbers on screen would replace the fact with a restatement of the display; the meter still does no arithmetic of any kind.
+3. *Existing `booking_group` rows are FORWARD-ONLY — no backfill, by decision.* D-111 makes the snapshot immutable precisely so a later change cannot retroactively move a cap people have already answered against. Pre-change groups keep their old cap; every group created after this reserves the organizer's seat. Stated in the code comment, not silent (T-08-51, `accept`).
+4. *The capacity floor is 2, in TWO places, and the second is not redundant.* The pre-read gate rejects `maxOccupancy < 2` (a one-person space cannot host a group — the only seat is the organizer's), and the INSERT's own `WHERE` repeats `l.max_occupancy >= 2` to close the read-then-write window where a host capacity edit could freeze a `capacity_snapshot` of **0** — a group nobody can ever join, immutable by D-111. Zero rows is the right answer to that race. This also closes the write-side half of **WR-09 for the group path**; WR-09 itself stays open.
+5. *A `+ 1` at a call site cannot be mutation-proven by a component test alone.* The management page is an async RSC with a database and `next/headers` behind it. `tests/group/top-up-nudge.test.tsx` therefore ships **two separable layers** (the 08-16 idiom): LAYER 1 renders the component with the page's expression mirrored locally, LAYER 2 asserts the page's own SOURCE wires it that way. Delete either and half of WR-04 re-opens — layer 1 alone passes with the page mis-wired; layer 2 alone passes with the arithmetic broken.
+6. *An audited number must be the number that was ENFORCED.* `meta.capacity` is read back off the INSERT's `RETURNING capacity_snapshot`, not recomputed from the listing's rating, so the trail and the enforcement cannot disagree even under a racing host edit (T-08-48).
+
+⚠️ **Both mutations had to be REORDERED after their first run, for the same reason, and it is now three plans in a row.** Mutation A first failed the fill case on `expected 3 to be 2` (the frozen cap — true, but a fact three other cases already assert); reordered to read the committed roster first, it fails with **`expected [ … ] to have a length of 2 but got 3`** — three attendees admitted plus the organizer, four bodies in a room rated for three, which is the actual defect. Mutation B first failed on `expected '' not to be ''`; reordered to assert the overage first, it fails with **`expected '' to match /extra 1 person at check-in/`** — the organizer told *nothing* at the first over-subscription, which is WR-04 exactly. **Order assertions so the mutation's message names the truth, not a proxy.**
+
+⚠️ **A shipped grep tripwire was itself tripping.** `top-up-nudge.tsx:16` contained the very word its tripwire forbids ("…moving money against a **card**"), so the plan's `grep -ci "pay now\|charge\|card"` acceptance criterion printed **1** on the untouched file. Rewritten to describe the three forbidden strings without naming any. The file's own header states the rule this broke: *"a grep that the comment forbidding the thing can trip is not a guard."* **Worth auditing the other 07-04-idiom tripwires for the same defect.** Note also that `charge` is a substring of `surcharge` and `card` of `discard` — neither word may appear in that file.
+
+⚠️ **08-17's UAT fixture now needs `max_occupancy >= 2`, and a group on `max_occupancy = N` renders `x of N` where the last seat is the organizer's.** Combined with the standing 08-10 warning (a host who sets `extra_head_fee` but leaves `max_occupancy` empty collects no surcharge), the UAT listing must set **both** fields.
+
+🚫 **NOT closed, and out of scope by the plan:** the mirror-image half of WR-03 — an organizer who RSVPs to their own link still appears **twice** on the roster (the "You" fixture plus their real row). The review's suggested `getRoster` predicate was NOT applied; `getRoster` is explicitly named untouched. The new roster comment flags the double-count risk in prose; closing it is a separate change.
 
 ✅ **08-13 LANDED — CR-02 (BLOCKER) is CLOSED, and with it `deferred-items.md` item 1. At most ONE PayMongo checkout session is payable for a booking at any instant.** 08-12's column and call now have production callers: `confirmBooking` writes `checkout.id` to `booking.checkout_session_id` **after `createCheckoutSession` resolves and before the `redirect`** (which throws by design), owner-scoped to `status IN ('pending','approved')` — for per-head **and** flat bookings alike. `updateDeclaredPax` reads that id, **expires the session BEFORE it freezes the new amount**, clears the column in the same write, and on a throw records `action: "checkout_expire_failed"` / `outcome: "needs_attention"` (session id in the meta, PayMongo's text nowhere) and **REFUSES the re-price**. Full suite **95 files / 824 tests exit 0** (+1 file / +7 tests); tsc 0; lint **0 errors** (7 pre-existing warnings — the new file's two were removed rather than left); `npm run build` exit 0.
 
@@ -344,6 +363,7 @@ Progress: [██████████] 97%
 | Phase 08 P12 | 20min | 3 tasks | 7 files |
 | Phase 08 P16 | 25min | 2 tasks | 2 files |
 | Phase 08 P13 | 25min | 3 tasks | 5 files |
+| Phase 08 P14 | 46min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -486,6 +506,9 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-16: seat-claim race testing ships TWO layers — inlined SQL proves the pattern, an imported claimSeat proves the shipment; each layer's MUTATION-VERIFY names its own file and line
 - [Phase 08]: 08-16: a racing case must give each racer its OWN drizzle(client) and a name-only guest identity — a shared max:1 db serializes and a de-dupable identity makes a loser return ok:true by replay
 - [Phase ?]: 08-13: CR-02 closed — confirmBooking persists checkout.id on the booking row; updateDeclaredPax expires the superseded session BEFORE re-freezing and REFUSES the re-price on failure (needs_attention audit)
+- [Phase 08]: 08-14: capacity_snapshot is the ONE organizer-EXCLUSIVE number in group bookings — GREATEST(max_occupancy - 1, 0) — because it caps rsvp ROWS and the organizer structurally never occupies one (D-113). maxOccupancy, declaredPax and the whole organizer surface are organizer-INCLUSIVE; the public invite page stays organizer-exclusive and unchanged.
+- [Phase 08]: 08-14: existing booking_group rows are FORWARD-ONLY — no backfill. D-111 makes capacity_snapshot immutable precisely so a later change cannot retroactively move a cap people already answered against; pre-change groups keep their original cap.
+- [Phase 08]: 08-14: the createGroup capacity floor is 2 (not 1), enforced in BOTH the pre-read gate and the INSERT's own WHERE, so a host capacity edit racing the create cannot freeze an unjoinable, immutable capacity_snapshot of 0.
 
 ### Pending Todos
 
@@ -535,8 +558,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T07:26:26.690Z
-Stopped at: Completed 08-13-PLAN.md (wave 7) — CR-02 CLOSED + deferred item 1 CLOSED. confirmBooking names every session it creates; updateDeclaredPax expires-then-refreezes and refuses on a failed expire. Mutations A/B/C red→green. Full suite 95 files / 824 tests exit 0 (+1 file / +7 tests); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. Next: 08-14 (WR-03/WR-04), then waves 8-9 (08-15, 08-17).
+Last session: 2026-07-28T08:16:21.045Z
+Stopped at: Completed 08-14-PLAN.md (wave 7) — WR-03 + WR-04 CLOSED. capacity_snapshot reserves the organizer's seat; the organizer surface reads one convention. Mutations A/B red-to-green. Full suite 96 files / 835 tests exit 0 (+1 file / +11 tests); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. WAVE 7 COMPLETE. Next: wave 8 (08-15, CR-01), then wave 9 (08-17).
 Resume file: None
 
 Prior session: 2026-07-28T02:06:54.730Z
