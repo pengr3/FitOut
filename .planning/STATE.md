@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 08-11-PLAN.md (wave 6) — CR-04 CLOSED. Both halves mutation-proven: submitRsvp resolves the invite token BEFORE charging any budget and keys it on group.groupId (unknown-token bucket delta 200 -> 0), and src/lib/rate-limit.ts hard-caps at RATE_LIMIT_MAX_BUCKETS = 50,000. Full suite 94 files / 810 tests exit 0 (+13); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). Wave 6 remaining: 08-12 (CR-02 1/2), 08-16 (deferred item 4)."
-last_updated: "2026-07-28T05:58:08.843Z"
+stopped_at: "Completed 08-12-PLAN.md (wave 6) — CR-02 PART 1 of 2 landed (NOT a closure). booking.checkout_session_id applied to the live DB via drizzle 0019 (information_schema: text / is_nullable=YES) and expireCheckoutSession shipped in src/lib/paymongo.ts with a SESSION-scoped stable Idempotency-Key (checkout-expire:<sessionId>), mutation-proven twice. Full suite 94 files / 815 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. Wave 6 remaining: 08-16 (deferred item 4)."
+last_updated: "2026-07-28T06:16:10.849Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 77
-  completed_plans: 72
-  percent: 94
+  completed_plans: 73
+  percent: 95
 ---
 
 # Project State
@@ -26,13 +26,27 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 11 of 17 — **08-11 DONE** (SUMMARY on disk, 11/17 summaries). Wave 6 remaining: 08-12, 08-16.
-Next action: `/gsd-execute-phase 8` — finish wave 6 (08-12/16), then waves 7→9 (08-13/14 → 08-15 → 08-17).
+Plan: 12 of 17 — **08-12 DONE** (SUMMARY on disk, 12/17 summaries). Wave 6 remaining: 08-16.
+Next action: `/gsd-execute-phase 8` — finish wave 6 (08-16), then waves 7→9 (08-13/14 → 08-15 → 08-17).
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
-Progress: [█████████░] 94%
+Progress: [██████████] 95%
+
+🟡 **08-12 LANDED — CR-02 PART 1 of 2. This is the ENABLING HALF and is deliberately NOT a closure.** Two things now exist that did not: `booking.checkout_session_id` is **applied to the live database** (drizzle `0019_booking_checkout_session.sql`, a single backfill-free `ALTER TABLE "booking" ADD COLUMN "checkout_session_id" text;` — `information_schema` confirms `text` / `is_nullable=YES`, and it replays cleanly from zero into a fresh isolated schema), and `expireCheckoutSession(id)` ships in `src/lib/paymongo.ts` (`POST /v1/checkout_sessions/{id}/expire`, no body, throws on non-2xx). **The column is empty on every row and the function has NO production caller** — a re-priced hold still leaves two payable sessions until **08-13** wires both in. Full suite **94 files / 815 tests exit 0** (+5 tests, 0 new files); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0.
+
+📌 **New contracts from 08-12 (load-bearing for 08-13 and anyone touching a checkout session or an idempotency key):**
+
+1. *The expire key is `checkout-expire:<sessionId>` — SESSION-scoped, never booking-scoped, and that is the whole decision.* Expiring one session twice must be a no-op (the stable key gives that), but a booking legitimately owns **more than one session over its life** — that is exactly what a D-108 re-price creates. A booking-scoped key would make the second session's expire **replay the first call's 200**: PayMongo reports success, we believe the session was retired, and it stays payable. Proven twice, not asserted: a random key turns **3 cases RED**, and a constant booking-scoped key turns the same **3 RED** with `expected 'checkout-expire:booking' to be 'checkout-expire:cs_one'`. This is the identical trap `createRefund`'s one-refund-per-payment key records, and it is now stated in **both** places because the second occurrence proved it generalises.
+2. *A NULL `checkout_session_id` is NORMAL, not an error.* Pre-0019 bookings and any booking that never reached checkout hold NULL. The re-price path must attempt **no** expire for a NULL and must not treat it as a failure. The column is deliberately **NOT UNIQUE** (a UNIQUE would turn a retried write into a constraint error on the money path; PayMongo ids are already distinct) and **NOT indexed** (read by primary key only).
+3. *`expireCheckoutSession` THROWS; there is no failure sentinel.* 08-13 must `try/catch` → `needs_attention` audit → **refuse** the re-price (ordering is **expire → refreeze**, a planning decision, not the executor's to revisit). An uncaught throw in a server action is a raw 500 on the money path, and no PayMongo error text may reach the browser (T-05-15 / T-08-39).
+4. *`mockPayMongo.expireCheckoutSession` ECHOES the id it was handed, and is in `reset()`.* Assert on the **argument** to prove *which* session was expired — expiring the wrong one kills the session the booker is looking at while leaving the stale payable one alive. Override with `mockRejectedValueOnce` to drive the refuse branch.
+5. *A `[BLOCKING]` migration is verified against `information_schema` + a fresh-schema replay, NEVER against `tsc`.* Types come from `schema.ts`, so a declared-but-unmigrated column leaves `tsc` and `next build` green while every integration test runs against a table without the column (T-08-40). **The next migration is 0020** — `drizzle/meta/_journal.json` now ends at `idx: 19`.
+
+⚠️ **drizzle-kit named the migration `0019_mushy_hobgoblin.sql`; it was RENAMED to `0019_booking_checkout_session.sql` with the journal `tag` updated to match.** Keep doing this — a random adjective in the migration history is unreadable at review time. Also worth recording: drizzle-kit proposed **exactly one statement and nothing else**, which independently confirms `schema.ts` and the live DB had **not** drifted before this plan.
+
+⚠️ **Two `tsc`-vs-vitest traps hit inside this plan, both worth remembering.** (a) `fetchMock.mockResolvedValue(new Response(...))` hands back the **same** `Response` on every call, and a body reads **once** — any multi-call fetch test must use `mockImplementation(async () => ...)` or the second call throws `Body is unusable`. (b) A hand-written return-type annotation on a test helper silently hid a new field, so **vitest passed while `tsc` failed** (`TS2339`). Vitest transpiles without typechecking: **a green test run is not a green `tsc`** — run both before committing.
 
 ✅ **08-11 LANDED — CR-04 (BLOCKER) is CLOSED, both halves mutation-proven.** The app's one unauthenticated write no longer lets a caller mint durable process memory. `submitRsvp` now RESOLVES the invite token (`getGroupByToken`, :345) **before** it charges any budget (:355), and the link budget is keyed on the resolved `group.groupId` — so the key space is real `booking_group` rows, not `32^20` caller-selectable strings. Measured, not inferred: **200 distinct well-formed unknown tokens moved the bucket count by exactly 0** (it was 200 before). Independently, `src/lib/rate-limit.ts` is now **hard-bounded at `RATE_LIMIT_MAX_BUCKETS = 50,000`** — after a 60,000-distinct-key flood inside one window the store measures exactly 50,000. Full suite **94 files / 810 tests exit 0** (+2 files / +13 tests); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0 (27 routes), no env workaround.
 
@@ -60,7 +74,7 @@ Progress: [█████████░] 94%
 
 ⚠️ **A host who sets `extra_head_fee` but leaves `max_occupancy` empty now collects NO surcharge at hold time** (every booker clamps to 1). Safe — it can only undercharge — but product-visible. A publish-time nudge pairing the two fields is the real close; 08-14's `max_occupancy >= 2` floor moves toward it for the group path. **08-17's pax-surcharge UAT must set BOTH fields** or the stepper will correctly render nothing and repeat the 08-09 non-verification.
 
-**GAP CLOSURE (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. 2 of 8 executed (08-10, 08-11).** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
+**GAP CLOSURE (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. 3 of 8 executed (08-10, 08-11, 08-12 — the last being CR-02 part 1 of 2, so CR-02 itself is still OPEN until 08-13).** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
 
 | Plan | Wave | Closes |
 |---|---|---|
@@ -299,6 +313,7 @@ Progress: [█████████░] 94%
 | Phase 08 P08 | 26min | 2 tasks | 4 files |
 | Phase 08 P10 | 25min | 2 tasks | 3 files |
 | Phase 08 P11 | 22min | 2 tasks | 4 files |
+| Phase 08 P12 | 20min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -436,6 +451,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-11: the RSVP rate-limit key is the RESOLVED group.groupId, never the invite token — submitRsvp resolves before it budgets, so an unknown token mints zero buckets (measured 200 -> 0)
 - [Phase ?]: 08-11: src/lib/rate-limit.ts is hard-bounded at RATE_LIMIT_MAX_BUCKETS = 50,000 via throttled expired-sweep + unconditional insertion-order eviction; size <= MAX holds after every call
 - [Phase ?]: 08-11: NO coarse pre-resolution budget on the public RSVP path — one shared key on the app's only public write is a global availability lever (T-08-34 accepts one indexed lookup per request instead)
+- [Phase 08]: CR-02 expire key is session-scoped (checkout-expire:<sessionId>), never booking-scoped — A booking owns more than one checkout session over its life — that is exactly what a D-108 re-price creates. A booking-scoped key would make the SECOND session's expire replay the FIRST call's 200: PayMongo answers success, we believe the session was retired, and it stays payable. Two mutations (random key, constant booking-scoped key) each turn 3 cases RED. Same trap createRefund records for refunds; now stated in both places.
+- [Phase 08]: booking.checkout_session_id is deliberately NOT UNIQUE and NOT indexed — PayMongo session ids are already distinct on their side, so a UNIQUE here adds nothing and would turn a harmless retried write into a constraint error ON THE MONEY PATH. The column is only ever read by primary key alongside the rest of the booking row, so an index would be dead weight. Nullable and backfill-free: NULL is a legitimate state (never reached checkout, or confirmed pre-0019) for which no expire is attempted.
 
 ### Pending Todos
 
@@ -485,8 +502,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T05:58:08.819Z
-Stopped at: Completed 08-11-PLAN.md (wave 6) — CR-04 CLOSED. Both halves mutation-proven: submitRsvp resolves the invite token BEFORE charging any budget and keys it on group.groupId (unknown-token bucket delta 200 -> 0), and src/lib/rate-limit.ts hard-caps at RATE_LIMIT_MAX_BUCKETS = 50,000. Full suite 94 files / 810 tests exit 0 (+13); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). Wave 6 remaining: 08-12 (CR-02 1/2), 08-16 (deferred item 4).
+Last session: 2026-07-28T06:16:10.823Z
+Stopped at: Completed 08-12-PLAN.md (wave 6) — CR-02 PART 1 of 2 landed (NOT a closure). booking.checkout_session_id applied to the live DB via drizzle 0019 (information_schema: text / is_nullable=YES) and expireCheckoutSession shipped in src/lib/paymongo.ts with a SESSION-scoped stable Idempotency-Key (checkout-expire:<sessionId>), mutation-proven twice. Full suite 94 files / 815 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. Wave 6 remaining: 08-16 (deferred item 4).
 Resume file: None
 
 Prior session: 2026-07-28T02:06:54.730Z
