@@ -279,3 +279,13 @@ all dispositioned `mitigate` and all three are now closed:
 |---|---|---|
 | 1 | `4d263aa` | `test(08-16): race the real claimSeat so the shipped FOR UPDATE is mutation-covered` |
 | 2 | `80c0097` | `docs(08-16): mark deferred item 4 closed by 4d263aa` |
+
+## Self-Check: PASSED
+
+- Files verified on disk: `tests/group/seat-claim-race.test.ts`,
+  `.planning/phases/08-group-bookings/deferred-items.md`,
+  `.planning/phases/08-group-bookings/08-16-SUMMARY.md`, `src/lib/group/seat-claim.ts` (present and
+  unmodified).
+- Commits verified in `git log`: `4d263aa`, `80c0097`, `99e2f81`.
+- `grep -c "claimSeat" tests/group/seat-claim-race.test.ts` → **12**;
+  `grep -c "drizzle" tests/group/seat-claim-race.test.ts` → **5**.

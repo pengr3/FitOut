@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 08-12-PLAN.md (wave 6) — CR-02 PART 1 of 2 landed (NOT a closure). booking.checkout_session_id applied to the live DB via drizzle 0019 (information_schema: text / is_nullable=YES) and expireCheckoutSession shipped in src/lib/paymongo.ts with a SESSION-scoped stable Idempotency-Key (checkout-expire:<sessionId>), mutation-proven twice. Full suite 94 files / 815 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. Wave 6 remaining: 08-16 (deferred item 4)."
-last_updated: "2026-07-28T06:16:10.849Z"
+stopped_at: "Completed 08-16-PLAN.md (wave 6) — deferred item 4 CLOSED. tests/group/seat-claim-race.test.ts now races the REAL claimSeat on per-racer drizzle(client) connections, so deleting FOR UPDATE from src/lib/group/seat-claim.ts:54 goes RED (3 committed yes at snapshot=1, 4 at =2); the inlined cases remain as the pattern proof and their own mutation still holds. No production file modified (git diff --stat fc43ac0..HEAD -- src empty). Full suite 94 files / 817 tests exit 0 (+2); tsc 0; lint 0 errors / 7 pre-existing warnings. WAVE 6 COMPLETE. Next: wave 7 (08-13, 08-14)."
+last_updated: "2026-07-28T06:29:35.166Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 77
-  completed_plans: 73
-  percent: 95
+  completed_plans: 74
+  percent: 96
 ---
 
 # Project State
@@ -26,13 +26,22 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 12 of 17 — **08-12 DONE** (SUMMARY on disk, 12/17 summaries). Wave 6 remaining: 08-16.
-Next action: `/gsd-execute-phase 8` — finish wave 6 (08-16), then waves 7→9 (08-13/14 → 08-15 → 08-17).
+Plan: 13 of 17 — **08-16 DONE, WAVE 6 COMPLETE** (13/17 summaries on disk: 08-01…08-12 + 08-16).
+Next action: `/gsd-execute-phase 8` — wave 7 (08-13 → CR-02 part 2/2, and 08-14 → WR-03/WR-04), then waves 8→9 (08-15 → 08-17).
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
-Progress: [██████████] 95%
+Progress: [██████████] 96%
+
+✅ **08-16 LANDED — deferred item 4 is CLOSED and WAVE 6 IS COMPLETE. The GROUP-05 no-overflow guarantee now survives a one-line edit to production.** `tests/group/seat-claim-race.test.ts` has **two layers**: the two pre-existing cases still INLINE the seat-claim SQL (the *pattern* proof, byte-identical), and two NEW cases drive the **real `claimSeat`** imported from `@/lib/group/seat-claim` — one `drizzle(client)` over one INDEPENDENT `makeRacingClients` connection **per racer**, with a **name-only guest identity** (`userId: null`, `guestEmailNorm: null`) so the de-dup predicate is `sql\`false\`` and every racer genuinely attempts a fresh insert. Measured, not asserted: deleting `FOR UPDATE` from `src/lib/group/seat-claim.ts:54` now fails the file with **`expected 3 to be 1`** committed `yes` at `capacity_snapshot = 1` and **`expected 4 to be 2`** at `= 2`; restoring returns it to GREEN (4/4) with `git diff --exit-code src/lib/group/seat-claim.ts` clean. **Zero production files touched** — `git diff --stat fc43ac0..HEAD -- src` is empty. Full suite **94 files / 817 tests exit 0** (+2); tsc 0; lint **0 errors** (7 pre-existing warnings). `npm run build` not re-run (nothing reaching the bundle changed).
+
+📌 **New contracts from 08-16 (load-bearing for Phase 9, which reuses this lock, and for anyone touching a race test):**
+
+1. *A race test that INLINES the SQL proves the PATTERN; only a case that IMPORTS the shipped function proves the SHIPMENT.* Keep both layers and keep them separable — deleting the inlined cases loses the idiom proof, deleting the real ones re-opens deferred item 4 exactly. The file header now carries **two** MUTATION-VERIFY instructions, each naming its **own file and its own line** (`raceClaim`'s inlined SELECT in the test vs. `src/lib/group/seat-claim.ts:54`). The single instruction it carried before was the thing 08-09 found was not executable as written.
+2. *The racers' IDENTITY is the subtle half, not the connections.* An account or guest-with-email identity would make `claimSeat` de-dup, so a loser returns `{ ok: true }` by matching the winner's row and the cap is never contested — a green test that proves nothing. **Name-only is the only identity that races.** Pair it with one `drizzle(client)` per racer: a shared `testDb.db` (`max: 1`) serializes the lock window (RESEARCH Pitfall 1).
+3. *Assert the COMMITTED row count BEFORE the returned results.* The first mutation run failed on `expect(winners).toHaveLength(1)` — correct but a proxy; reordered, the same mutation reads `expected 3 to be 1` on committed rows, which is the actual over-cap. A mutation's failure message should name the database truth.
+4. *Layer 2 gets its OWN fixture groups* (`REAL1_GID`/`REAL2_GID`, own bookings, non-overlapping windows). Sharing a group with the inlined cases would let their committed rows pre-fill the cap. And `voided_at` is left NULL deliberately — `claimSeat` fails **closed** on a voided group, which would make the new cases pass for entirely the wrong reason.
 
 🟡 **08-12 LANDED — CR-02 PART 1 of 2. This is the ENABLING HALF and is deliberately NOT a closure.** Two things now exist that did not: `booking.checkout_session_id` is **applied to the live database** (drizzle `0019_booking_checkout_session.sql`, a single backfill-free `ALTER TABLE "booking" ADD COLUMN "checkout_session_id" text;` — `information_schema` confirms `text` / `is_nullable=YES`, and it replays cleanly from zero into a fresh isolated schema), and `expireCheckoutSession(id)` ships in `src/lib/paymongo.ts` (`POST /v1/checkout_sessions/{id}/expire`, no body, throws on non-2xx). **The column is empty on every row and the function has NO production caller** — a re-priced hold still leaves two payable sessions until **08-13** wires both in. Full suite **94 files / 815 tests exit 0** (+5 tests, 0 new files); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0.
 
@@ -74,14 +83,14 @@ Progress: [██████████] 95%
 
 ⚠️ **A host who sets `extra_head_fee` but leaves `max_occupancy` empty now collects NO surcharge at hold time** (every booker clamps to 1). Safe — it can only undercharge — but product-visible. A publish-time nudge pairing the two fields is the real close; 08-14's `max_occupancy >= 2` floor moves toward it for the group path. **08-17's pax-surcharge UAT must set BOTH fields** or the stepper will correctly render nothing and repeat the 08-09 non-verification.
 
-**GAP CLOSURE (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. 3 of 8 executed (08-10, 08-11, 08-12 — the last being CR-02 part 1 of 2, so CR-02 itself is still OPEN until 08-13).** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
+**GAP CLOSURE (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. 4 of 8 executed and WAVE 6 IS COMPLETE (08-10, 08-11, 08-12, 08-16 — 08-12 being CR-02 part 1 of 2, so CR-02 itself is still OPEN until 08-13).** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
 
 | Plan | Wave | Closes |
 |---|---|---|
 | 08-10 | 6 | **CR-03** — clamp `declaredPax` to the listing's `maxOccupancy` inside `createPendingHold`'s own tx + `.max(10_000)` shape bound, so no headcount reaches the int4 money columns |
 | 08-11 | 6 | **CR-04** — bound the rate-limit `Map` (sweep + insertion-order eviction at 50k) and resolve the invite token **before** charging any caller-keyed budget (RSVP key becomes `group.groupId`) |
 | 08-12 | 6 | **CR-02 (1/2)** — `booking.checkout_session_id` + **`[BLOCKING]` migration 0019** + `expireCheckoutSession` in the PayMongo client |
-| 08-16 | 6 | **deferred item 4** — race the *real* `claimSeat` (one `drizzle(client)` per racer) so deleting `FOR UPDATE` from `seat-claim.ts:54` finally goes RED |
+| 08-16 | 6 | ✅ **DONE** — **deferred item 4** — race the *real* `claimSeat` (one `drizzle(client)` per racer) so deleting `FOR UPDATE` from `seat-claim.ts:54` finally goes RED |
 | 08-13 | 7 | **CR-02 (2/2)** — persist the session id in `confirmBooking`; **expire-before-refreeze** in `updateDeclaredPax`, and a failed expire **refuses** the re-price |
 | 08-14 | 7 | **WR-03 + WR-04** — `capacity_snapshot = GREATEST(max_occupancy - 1, 0)`; one organizer-inclusive convention across meter, roster docs and the renamed `attendingTotal` nudge prop |
 | 08-15 | 8 | **CR-01** — `composeWhenLabel` reads the persisted `booking.full_day`; `fullDay` becomes **required** and `hourlyRateCents` is removed so `tsc` enumerates all 18 call sites |
@@ -101,7 +110,13 @@ Progress: [██████████] 95%
 
 **08-09 landed — the PHASE GATE is satisfied and a HUMAN has walked the whole group-booking loop.** Full suite **92 files / 792 tests, exit 0** (+14 files / +137 tests over the Phase-7 baseline of 78 / 655). Zero product-code changes in this plan (`git diff --stat 4f85741..HEAD -- src tests` is empty). The human ran the cross-session UAT and **approved steps 1–5**: a session-less private window opened a real invite link and was NOT bounced to `/login`; a name-only guest RSVP'd and saw the "only confirmation" copy; a guest-with-email RSVP'd and the confirmation email **actually arrived via real Resend**; the organizer's headcount + roster reflected both (organizer row #1, yes rows first) refreshing on their own via the poller; and cancelling the parent booking voided the link ("no longer active"), notified the guest-with-email, and left the blank-email guest correctly unreachable. **Both 08-VALIDATION.md Manual-Only rows are closed.**
 
+✅ **RESOLVED BY 08-16 (`4d263aa`) — the green suite IS now a regression guard on `claimSeat`.** The block below is the 08-09 finding, kept for the record: the gate covered only the pattern, and deleting the production lock left everything green. That is no longer true — `tests/group/seat-claim-race.test.ts` now imports `claimSeat` and races it on per-racer connections, so `src/lib/group/seat-claim.ts:54` is mutation-covered (`expected 3 to be 1` committed `yes` at `capacity_snapshot = 1`). Deferred item 4 is closed. **Do not delete either layer of that file — see the 08-16 contracts above.**
+
+<details><summary>Original 08-09 finding (superseded 2026-07-28)</summary>
+
 🚨 **THE GROUP-05 ACCEPTANCE GATE DOES NOT COVER THE SHIPPED SEAT-CLAIM LOCK. Do not read the green suite as a regression guard on `claimSeat`.** `tests/group/seat-claim-race.test.ts` **never imports or calls `claimSeat`** — it INLINES its own copy of the seat-claim SQL inside each racer's transaction (documented at that file's **line 12**; the reason is sound — it makes the `FOR UPDATE` lock itself the thing under test, mirroring `exclusion-race.test.ts`). Measured this plan, **not inferred**: deleting `FOR UPDATE` from `src/lib/group/seat-claim.ts:54` leaves the race test **GREEN (2/2)**, all of `tests/group/` **GREEN (6 files / 60 tests)**, and the **full 792-test suite GREEN** — while shipping an over-cap bug. The lock **is** present and correct today (verified byte-identical after the mutation was reverted) and `tests/group/seat-claim.test.ts` covers its functional contract, but it has **NO mutation coverage**: anyone deleting that line ships an overflow defect past a fully green suite and a "passing" gate. The gate as executed proves the *pattern* is race-free (via the test's own inlined `FOR UPDATE` at `:91` → RED with **3 committed `yes` at `capacity_snapshot=1`** and **4 at `=2`**, read back through an independent connection → restore → GREEN). ⚠️ **The 08-09 PLAN's Task-1 text is therefore not executable as written.** Logged as `08-.../deferred-items.md` **item 4**; the close is one racing case that routes through the real `claimSeat` (bind each racer's own connection as its `DbConn`), keeping the inlined cases as the pattern proof. **This is the #1 `/gsd-plan-phase 8 --gaps` item — Phase 9 reuses this same lock.**
+
+</details>
 
 ⚠️ **The pax-pricing surcharge UI has NEVER been human-verified.** 08-09's optional step 6 (PaxStepper server-side re-quote, "Extra guests" breakdown line, organizer top-up nudge) was **NOT exercised** — `uat_listing_bookable.extra_head_fee` is **NULL**, so none of that UI renders (correct per 08-05 contract 6). It is covered only by the 08-03/08-05 automated tests. Exercising it needs a listing with an extra-guest fee set in the wizard.
 
@@ -314,6 +329,7 @@ Progress: [██████████] 95%
 | Phase 08 P10 | 25min | 2 tasks | 3 files |
 | Phase 08 P11 | 22min | 2 tasks | 4 files |
 | Phase 08 P12 | 20min | 3 tasks | 7 files |
+| Phase 08 P16 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -453,6 +469,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-11: NO coarse pre-resolution budget on the public RSVP path — one shared key on the app's only public write is a global availability lever (T-08-34 accepts one indexed lookup per request instead)
 - [Phase 08]: CR-02 expire key is session-scoped (checkout-expire:<sessionId>), never booking-scoped — A booking owns more than one checkout session over its life — that is exactly what a D-108 re-price creates. A booking-scoped key would make the SECOND session's expire replay the FIRST call's 200: PayMongo answers success, we believe the session was retired, and it stays payable. Two mutations (random key, constant booking-scoped key) each turn 3 cases RED. Same trap createRefund records for refunds; now stated in both places.
 - [Phase 08]: booking.checkout_session_id is deliberately NOT UNIQUE and NOT indexed — PayMongo session ids are already distinct on their side, so a UNIQUE here adds nothing and would turn a harmless retried write into a constraint error ON THE MONEY PATH. The column is only ever read by primary key alongside the rest of the booking row, so an index would be dead weight. Nullable and backfill-free: NULL is a legitimate state (never reached checkout, or confirmed pre-0019) for which no expire is attempted.
+- [Phase 08]: 08-16: seat-claim race testing ships TWO layers — inlined SQL proves the pattern, an imported claimSeat proves the shipment; each layer's MUTATION-VERIFY names its own file and line
+- [Phase 08]: 08-16: a racing case must give each racer its OWN drizzle(client) and a name-only guest identity — a shared max:1 db serializes and a de-dupable identity makes a loser return ok:true by replay
 
 ### Pending Todos
 
@@ -502,8 +520,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T06:16:10.823Z
-Stopped at: Completed 08-12-PLAN.md (wave 6) — CR-02 PART 1 of 2 landed (NOT a closure). booking.checkout_session_id applied to the live DB via drizzle 0019 (information_schema: text / is_nullable=YES) and expireCheckoutSession shipped in src/lib/paymongo.ts with a SESSION-scoped stable Idempotency-Key (checkout-expire:<sessionId>), mutation-proven twice. Full suite 94 files / 815 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. Wave 6 remaining: 08-16 (deferred item 4).
+Last session: 2026-07-28T06:29:35.101Z
+Stopped at: Completed 08-16-PLAN.md (wave 6) — deferred item 4 CLOSED. tests/group/seat-claim-race.test.ts now races the REAL claimSeat on per-racer drizzle(client) connections, so deleting FOR UPDATE from src/lib/group/seat-claim.ts:54 goes RED (3 committed yes at snapshot=1, 4 at =2); the inlined cases remain as the pattern proof and their own mutation still holds. No production file modified (git diff --stat fc43ac0..HEAD -- src empty). Full suite 94 files / 817 tests exit 0 (+2); tsc 0; lint 0 errors / 7 pre-existing warnings. WAVE 6 COMPLETE. Next: wave 7 (08-13, 08-14).
 Resume file: None
 
 Prior session: 2026-07-28T02:06:54.730Z
