@@ -51,7 +51,9 @@ import { Separator } from "@/components/ui/separator";
 import { AttendeeRoster } from "@/components/group/attendee-roster";
 import { GroupPoller, RefreshGroupButton } from "@/components/group/group-refresh";
 import { HeadcountMeter } from "@/components/group/headcount-meter";
+import { RegenerateLinkButton } from "@/components/group/regenerate-link-button";
 import { ShareLinkBox } from "@/components/group/share-link-box";
+import { TopUpNudge } from "@/components/group/top-up-nudge";
 
 export default async function GroupManagementPage({
   params,
@@ -171,7 +173,25 @@ export default async function GroupManagementPage({
 
         <AttendeeRoster entries={roster} />
 
+        {/* D-114 — renders NOTHING unless the listing prices extra heads AND more people said yes than the
+            booking declared. Both halves of that guard live in the component, in one place. */}
+        <TopUpNudge
+          confirmedYes={counts.confirmed}
+          declaredPax={group.declaredPax}
+          extraHeadFee={group.extraHeadFee}
+        />
+
         <Separator />
+
+        {/* Manage actions (D-121, 08-UI-SPEC §2) — below the roster because they are maintenance, not the
+            point of the visit. Neutral, like everything else on this page. */}
+        <div className="space-y-2">
+          <RegenerateLinkButton groupId={group.groupId} />
+          <p className="text-sm text-muted-foreground">
+            Shared the link too widely? Get a new one — the old link stops working, and everyone who&apos;s
+            already RSVP&apos;d stays on your list.
+          </p>
+        </div>
 
         {/* A ghost link back, deliberately the quietest thing on the page. */}
         <Button asChild variant="ghost" className="w-full">

@@ -1,0 +1,76 @@
+// TopUpNudge (D-114 / A3 · 08-UI-SPEC §2, G5, Open Q10) — the over-RSVP corroboration signal.
+//
+// WHAT IT IS. The organizer booked for `declaredPax` people on a listing that prices extra heads, and more
+// people than that have now said yes. That discrepancy is worth telling them BEFORE they turn up, so the
+// conversation with the host at the door is not a surprise. Stating the gap plainly, once, is the whole job.
+//
+// ⚠️ WHAT IT IS NOT — AND THE OMISSION IS THE DECISION, NOT AN UNFINISHED EDGE (Open Q10 / A3 / D-114). There
+// is NO money-moving control in this block: no button, no link, no amount, no total. The automated in-app
+// top-up is an EXPLICIT deferred fast-follow, so a control promising to settle the difference in-app would be
+// a lie told in a button label — it would take an organizer's intent to square up and drop it on the floor.
+// v1 records and nudges; the difference is settled with the host at check-in, which is exactly, and only,
+// what the copy claims. When the rail lands, the amount it quotes must be server-computed (G8/D-46) — this
+// component must not grow arithmetic over money in the meantime.
+//
+// ⚠️ GREP TRIPWIRE (the 07-04 idiom). That absence is checked by grepping this file for the missing CTA's own
+// label and for the verb of moving money against a card — so neither is spelled out anywhere here, comments
+// included. A grep that the comment forbidding the thing can trip is not a guard.
+//
+// ⚠️ IT IS NOT A WARNING (G5 / 08-UI-SPEC §Color). Neutral `alert`, default variant, muted body. Over-RSVP is
+// CORROBORATION, not a violation: the RSVP list is not the door policy, and the D-112 seat-claim cap is the
+// only hard limit in this feature. An alarm colour would tell an organizer they had done something wrong by
+// being popular, and the phase adds no alarm colour anywhere. §New Tokens forbids inventing a "top-up amber"
+// for this block specifically.
+//
+// ⚠️ THE DOUBLE GUARD IS THE CONTRACT (08-UI-SPEC §2 + G5), and both halves are checked below in one place:
+//   1. `extraHeadFee > 0` — the listing prices extra heads at all. On a FLAT listing (the common case, and
+//      `null` on any listing predating D-108) this block does not exist: there is no extra head to owe for,
+//      so the nudge would be a fee the UI invented out of nothing.
+//   2. `confirmedYes > declaredPax` — more people said yes than the booking was quoted for. At or under the
+//      declared count there is no gap, and narrating a non-gap is noise on the surface whose focal point is
+//      the headcount two blocks up.
+// The component returns null rather than rendering an empty shell, so "absent" is structurally absent.
+//
+// EVERY NUMBER IS THE SERVER'S. `confirmedYes` is `getHeadcount`'s owner-scoped count of `yes` rows,
+// `declaredPax` and `extraHeadFee` come off the same owner-scoped booking/listing read (08-06). The one piece
+// of arithmetic here is the difference between two server-supplied counts, restated so the organizer does not
+// have to do it in their head.
+//
+// Not "use client" — pure presentation, rendered directly by the management RSC.
+
+import { UsersRoundIcon } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+export function TopUpNudge({
+  confirmedYes,
+  declaredPax,
+  extraHeadFee,
+}: {
+  /** Server-computed count of `yes` RSVPs — the SAME figure HeadcountMeter renders (no second count). */
+  confirmedYes: number;
+  /** What the booking was quoted for (D-108). Null on a booking predating the field. */
+  declaredPax: number | null;
+  /** The listing's per-extra-head price in minor units (D-108). Null or 0 ⇒ a flat listing. */
+  extraHeadFee: number | null;
+}) {
+  // GUARD 1 — the listing prices extra heads. Null (unpriced/legacy) and 0 (flat) both mean "never render".
+  if (extraHeadFee == null || extraHeadFee <= 0) return null;
+  // GUARD 2 — more people are coming than the booking declared. Null declaredPax has no gap to report.
+  if (declaredPax == null || confirmedYes <= declaredPax) return null;
+
+  const extra = confirmedYes - declaredPax;
+
+  return (
+    // Default (neutral) variant, deliberately — see the header. The alarm variant is not passed and must not
+    // be: this is information the organizer asked for by inviting people, not a problem they caused.
+    <Alert>
+      <UsersRoundIcon aria-hidden="true" />
+      <AlertTitle>More people are coming than you booked for</AlertTitle>
+      <AlertDescription>
+        {confirmedYes} people have RSVP&apos;d, but you booked for {declaredPax}. You may owe a bit more for
+        the extra {extra} {extra === 1 ? "person" : "people"} at check-in.
+      </AlertDescription>
+    </Alert>
+  );
+}

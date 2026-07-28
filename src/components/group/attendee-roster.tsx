@@ -22,7 +22,13 @@
 // D-113 — THE ORGANIZER IS ROW #1. They booked the space and they are attendee #1, so the roster opens with
 // them rather than making them hunt for themselves in a list of guests. Their row carries no Remove control
 // (you cannot remove yourself from your own booking; cancelling is the action for that, and it lives on the
-// booking detail).
+// booking detail). That is STRUCTURAL rather than conditional: row #1 is a hand-written display fixture with
+// no `rsvpId` to remove, so there is no branch here that a later edit could flip the wrong way.
+//
+// THE REMOVE CONTROL IS ON `yes` ROWS ONLY, and that is a copy-honesty decision (08-UI-SPEC §Copywriting >
+// Destructive confirmations). The locked confirm copy promises "this frees up their spot" — true of someone
+// holding a seat, and a plain falsehood over a row in the "Can't make it" list, which holds no seat and
+// counts toward nothing. Tidying declines is not worth a dialog that misstates what it does.
 //
 // ⚠️ THE ORGANIZER ROW IS NOT COUNTED HERE, AND MUST NOT BE. The focal headcount comes from `getHeadcount`
 // (`yes` RSVP rows only, D-113) — this row is a display fixture. Adding "+1 for the organizer" in either
@@ -44,8 +50,9 @@ import { CircleUserRoundIcon, UserRoundCogIcon, UserRoundIcon } from "lucide-rea
 import type { RosterEntry } from "@/lib/group/rsvp";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { RemoveAttendeeButton } from "@/components/group/remove-attendee-button";
 
-function AttendeeRow({ entry }: { entry: RosterEntry }) {
+function AttendeeRow({ entry, removable }: { entry: RosterEntry; removable: boolean }) {
   // D-116 — a display distinction only. It NEVER drives an authorization decision: an account RSVP and a
   // guest RSVP occupy exactly the same kind of seat.
   const AccountIcon = entry.isAccount ? CircleUserRoundIcon : UserRoundIcon;
@@ -64,6 +71,9 @@ function AttendeeRow({ entry }: { entry: RosterEntry }) {
           <AccountIcon className="size-3.5" aria-hidden="true" />
           {entry.isAccount ? "Account" : "Guest"}
         </Badge>
+        {/* The one interactive control on a row — a client island inside this server component. The name is
+            passed so the confirm dialog can name the person; it is escaped React text there too (G6). */}
+        {removable && <RemoveAttendeeButton rsvpId={entry.rsvpId} name={entry.name} />}
       </div>
     </li>
   );
@@ -94,7 +104,7 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
             </Badge>
           </li>
           {coming.map((entry) => (
-            <AttendeeRow key={entry.rsvpId} entry={entry} />
+            <AttendeeRow key={entry.rsvpId} entry={entry} removable />
           ))}
         </ul>
 
@@ -116,7 +126,7 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
             </summary>
             <ul className="mt-1 divide-y">
               {declined.map((entry) => (
-                <AttendeeRow key={entry.rsvpId} entry={entry} />
+                <AttendeeRow key={entry.rsvpId} entry={entry} removable={false} />
               ))}
             </ul>
           </details>
