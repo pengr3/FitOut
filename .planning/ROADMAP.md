@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
  (completed 2026-07-20)
 
 - [x] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
-- [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity
+- [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity — all 17 plans EXECUTED (2026-07-28), phase NOT closed: 08-17's UAT found a live double-charge (deferred item 5)
 - [ ] **Phase 9: Open-Capacity Bookings** - Host-set open/common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail
 
 ## Phase Details
@@ -280,7 +280,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 08-17-PLAN.md — Human-verify checkpoint: the pax-pricing surcharge walkthrough 08-09 skipped (extra_head_fee now configured)
+- [x] 08-17-PLAN.md — Human-verify checkpoint: the pax-pricing surcharge walkthrough 08-09 skipped (extra_head_fee now configured)
 
 **UI hint**: yes
 
@@ -313,5 +313,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
-| 8. Group Bookings | 16/17 | In Progress|  |
+| 8. Group Bookings | 17/17 | Plans executed — NOT verified (08-17 UAT found a BLOCKER double-charge; needs /gsd-plan-phase 8 --gaps) |  |
 | 9. Open-Capacity Bookings | 0/TBD | Not started | - |

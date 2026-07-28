@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 08-15-PLAN.md (wave 8) — CR-01 CLOSED. composeWhenLabel reads the persisted booking.full_day snapshot on all 18 call sites; WhenLabelInput.fullDay is REQUIRED and hourlyRateCents is REMOVED. Mutations A/B red-to-green. Full suite 96 files / 838 tests exit 0 (+3 tests, 0 new files); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 bare. WAVE 8 COMPLETE. Next: wave 9 (08-17, the pax-surcharge UAT checkpoint — autonomous: false)."
-last_updated: "2026-07-28T08:35:14.684Z"
+stopped_at: "Completed 08-17-PLAN.md (wave 9) — the pax-surcharge human walkthrough. ALL 17 PHASE-8 PLANS ARE NOW EXECUTED, but the phase is NOT closed: step 4 of the UAT found a LIVE DOUBLE-CHARGE. PayMongo does NOT honor Idempotency-Key on /v1/checkout_sessions (probed: two byte-identical POSTs -> two different session ids), so a plain double-submit of Confirm & pay charged the booker twice for one booking (₱1,470 against a ₱735 booking, both qrph and therefore UNREFUNDABLE via the API). NOT a CR-02 regression and WIDER than CR-02 — flat-priced bookings are equally exposed and this predates Phase 8. Steps 2,3,5,6,7,8 all APPROVED (CR-01 confirmed on 4 surfaces, CR-03's clamp at 12, WR-03's 1-of-12, WR-04's nudge and its silence, SC4's live cap at 11+organizer). Logged as deferred-items.md items 5 (the double-charge) and 6 (CR-02's live re-price assertion never exercised). NEXT: /gsd-plan-phase 8 --gaps."
+last_updated: "2026-07-28T10:45:00.000Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 77
-  completed_plans: 76
-  percent: 99
+  completed_plans: 77
+  percent: 100
 ---
 
 # Project State
@@ -25,14 +25,67 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 08 (group-bookings) — EXECUTING
-Plan: 17 of 17 — **08-15 DONE, CR-01 CLOSED, WAVE 8 COMPLETE** (16/17 summaries on disk: 08-01…08-16; only 08-17 remains).
-Next action: `/gsd-execute-phase 8` — wave 9 (08-17 → the pax-surcharge UAT checkpoint, `autonomous: false`). **All four Phase-8 BLOCKERS (CR-01…CR-04) are now closed.**
+Phase: 08 (group-bookings) — **ALL 17 PLANS EXECUTED, PHASE NOT CLOSED**
+Plan: 17 of 17 — **08-17 DONE (the human UAT). 17/17 summaries on disk: 08-01…08-17. There is no next plan to execute.**
+
+🔴 **STOP — READ THIS BEFORE DOING ANYTHING ELSE. Phase 8 executed every plan and then the human walkthrough found a NEW BLOCKER on the money path that no plan in this phase was looking for.**
+
+> **A booker can be charged TWICE for one booking by simply submitting "Confirm & pay" twice.**
+> Measured live in 08-17 step 4: two `paid` PayMongo payments of ₱735.00 each
+> (`pay_YFn1jgMWyau46ECydfPR2LdN` @ 10:00:35Z, `pay_iw2zsj3ehcRzgRYzgn7hkoUP` @ 10:08:29Z) against one
+> booking `aff63acb-b6a5-45f7-8b47-6a01d589f765` / `FIT-JSHBVKFP`. **₱1,470.00 collected for a ₱735.00
+> booking**, and both are `qrph` so they are **UNREFUNDABLE through the API** (`src/lib/paymongo.ts:257`).
+>
+> **ROOT CAUSE:** `Idempotency-Key` is **NOT honored by PayMongo on `/v1/checkout_sessions`.** Probed
+> directly against `sk_test_` with a byte-identical key and body: `POST #1 → cs_ed60840548c9ccadc27ba6c3`,
+> `POST #2 → cs_6c4e54d253178994b94934b8`. **Every POST mints a new payable session.** Three shipped
+> comments assert the opposite and are now known false: `src/app/actions/booking.ts:582`,
+> `src/app/actions/booking.ts:592`, `src/lib/paymongo.ts:172`.
+>
+> **This is NOT a CR-02 regression and it is WIDER than CR-02.** No re-price occurred (both charges ₱735 at
+> `declared_pax = 3`, same key `checkout:<holdId>:73500`). CR-02's expire gate lives in `updateDeclaredPax`
+> and fires only on a re-price; **`confirmBooking` expires nothing before creating.** So (1) plain
+> double-submission is an unguarded double-charge path, and (2) **flat-priced bookings are equally exposed** —
+> their `checkout:<bookingId>` key was believed to be the guard (08-12 contract 1 reasoned from that belief)
+> and it is not one. **This predates Phase 8.**
+>
+> **Contained:** the webhook handler deduped correctly (exactly ONE `booking_confirmed` notification, no
+> duplicate `host_payout_ledger` row). But `booking.payment_id` names only the LATER payment — a real,
+> lesser recording defect.
+>
+> **Suggested close (do not shortcut it):** `confirmBooking` must expire the persisted `checkout_session_id`
+> before creating a new one, mirroring `updateDeclaredPax`. **The fix needs a test that drives the REAL
+> PayMongo API, not a mock** — a mock echoing the idempotency key back is exactly what let this false belief
+> survive four plans of test coverage.
+
+Next action: **`/gsd-plan-phase 8 --gaps`** — inputs are `deferred-items.md` **item 5** (the double-charge, BLOCKER) and **item 6** (CR-02's live re-price assertion was never exercised by a human; its only evidence is 08-13's mock-backed mutation proofs). Do **not** run `/gsd-execute-phase 8` — there is nothing left to execute. Do **not** close the phase; `/gsd-verify-work` on Phase 8 is premature until item 5 is fixed.
+
+⚠️ **Tracking note:** `state.update-progress` and `roadmap.update-plan-progress 8` again OVER-reached on the last plan (the documented v1.42.3 bug) — they ticked the ROADMAP **phase** checkbox, flipped the progress row to `Complete 2026-07-28`, and bumped `completed_phases` to 8. **All three were reverted by hand.** `completed_plans: 77 / 77` and the 100% bar mean *every planned plan has been executed*; they do **not** mean the phase is done.
+
+**The four original Phase-8 BLOCKERS (CR-01…CR-04) all remain closed** — and every one with a visible surface was seen working by a human in this walkthrough (CR-01 on four surfaces, CR-03's clamp, plus WR-03, WR-04 and the SC4 cap). The new finding is a fifth, independent defect that no Phase-8 plan was looking for.
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
-Progress: [██████████] 99%
+Progress: [██████████] 100%
+
+🟥 **08-17 LANDED — the pax-surcharge human walkthrough ran, SIX of seven steps were APPROVED, and step 4 FAILED with a live double-charge. WAVE 9 IS COMPLETE; the PHASE is not.** Task 1's gate: full suite **96 files / 838 tests exit 0** (unchanged from 08-15's close — nothing regressed), `npm run build` exit 0 bare (Next 16.2.7 Turbopack, TS 38.5s, full route table). `uat_listing_bookable` was patched through the containerised DB and **read back**: `published | instant | max_occupancy 12 | included 1 | extra_head_fee 10000 | cancellation_policy standard` — the `extra_head_fee` NULL that made 08-09 skip its own step 6 is finally gone, so this is the FIRST time the per-head money path has been driven by a human. `RESEND_API_KEY` was set, so step 8's email was real delivery. No repository file was modified by either task (`git status --short -- src/` empty).
+
+📌 **What a human confirmed on screen (per-step, no blanket sign-off — T-08-62):**
+
+1. **Step 2 ✅ (D-108 + CR-03).** `PaxStepper` present; stepping it re-renders a **NEW server total** (page refresh, not browser arithmetic). At pax 4: `₱500.00/hr × 1 hour → ₱500.00`, `Extra guests (3 × ₱100.00) → ₱300.00`, `Service fee → ₱40.00`, `Total ₱840.00`. At the clamp: `Extra guests (11 × ₱100.00) → ₱1,100.00`, `Service fee ₱80.00`, `Total ₱1,680.00`. **The stepper stopped at 12 and refused to go higher**; helper text `This includes you. Up to 12.` With `included = 1`, pax 4 charges 3 extra and pax 12 charges 11 — coherent at both ends.
+2. **Step 3 ✅ (CR-01).** Reserve page rendered **`Tuesday, Jul 28`** / **`7:00 PM – 8:00 PM · 1 hour`** — **not "Full day"**, on exactly the case that broke it (a surcharged HOURLY booking, where the deleted price-inequality would have concluded "Full day" with certainty).
+3. **Step 5 ✅ (WR-03 / D-113).** Before any RSVP: **`1 of 12`**, one roster row `You · Organizer` / "You booked this space". Counted exactly once.
+4. **Step 6 ✅ (WR-04 / D-114), at SHIFTED thresholds.** The booking froze at `declared_pax = 3` (not the plan's assumed 4), so the thresholds moved by one and were verified there: **silent at 3-vs-3**, and at the FIRST over-subscription (4-vs-3) the nudge fired verbatim — title `More people are coming than you booked for`, body `4 people are coming, but you booked for 3. You may owe a bit more for the extra 1 person at check-in.` **Neutral alert, no payment button, no amount** (G5 / 08-UI-SPEC). Roster: `You · Organizer` + `Titeng Galit` / `Titang Galit` / `Paepal`, each `Coming` with `Remove attendee`.
+5. **Step 7 ✅ (SC4 / GROUP-05) — and it settles the 11-vs-12 question.** The invite page rendered `This group is full` / **`All 11 spots are taken. You can still let the organizer know you can't make it`** with "Yes, I'm coming" disabled. Confirmed against the live row: **`capacity_snapshot = 11`, `yes_rows = 11`, `listing.max_occupancy = 12`.** This is the **WR-03 convention working end to end**: the public invite page is organizer-**EXCLUSIVE** by design (`src/components/group/rsvp-form.tsx:98` reads `capacity_snapshot` for that sentence) while the organizer page is organizer-**INCLUSIVE** (`12 of 12`). 11 invitees + the organizer = the listing's rating of 12. **The two numbers a human sees differing by one is the intended design, not an inconsistency** — say so before anyone "fixes" it.
+6. **Step 8 ✅ (CR-01, second half).** Public invite page: **`Tuesday, Jul 28, 7:00 PM – 8:00 PM (Makati time)`** — not "Full day". Address line `Approximate area — Makati. The organizer has the exact address.` (Q-16 / `showExactAddress`). Email confirmed. **CR-01 is now human-confirmed on FOUR surfaces.**
+7. **Step 4 ❌ FAILED — the double-charge. See the block under Current Position above; full detail in `08-17-SUMMARY.md` and `deferred-items.md` item 5.**
+
+⚠️ **A second, quieter finding from step 4: CR-02's own scripted assertion was NEVER EXERCISED.** The script was *pax 3 → Confirm & pay → cancel back → step to pax 4 → Confirm & pay → reload the FIRST tab and confirm it is unpayable.* What actually ran was two submissions at the **same** headcount, so `updateDeclaredPax` was never entered and the expire-before-refreeze gate never fired. Recorded **NOT VERIFIED**, per the plan's own rule that an unrun step is never passed by assumption — **there is no verbatim first-tab-reload string to record because no reload happened.** CR-02's only evidence remains 08-13's mutation proofs A/B/C, which are strong but **mock-backed**, and step 4 is a demonstration of what a mock-backed proof of a *provider* guarantee is worth. Logged as `deferred-items.md` item 6; fold it into the same real-API harness that closes item 5.
+
+📌 **The generalisable lesson, and it is the reason this walkthrough was worth running:** *a third-party guarantee written into a comment must be PROBED against the real sandbox before it is relied on.* `mockPayMongo` was built to model the idempotency behaviour we **believed** PayMongo had; every test then passed against that belief, and four plans of coverage confirmed the mock rather than the provider. **A mock that faithfully implements your assumption can only ever validate your assumption.** Two `POST`s with the same key against `sk_test_` took under a minute and falsified it. (The same probe independently confirmed 08-12's `expireCheckoutSession` **does** work — `POST /v1/checkout_sessions/{id}/expire` returned HTTP 200 on both probe sessions. The defect is never calling it, not the call.)
+
+⚠️ **UAT ENVIRONMENT LESSON (not a product defect): a tunnel started inside a subagent does not outlive it.** The ngrok tunnel started during Task 1 **died when that agent exited**, so no webhook reached the app and the booking sat `pending` — **steps 5-8 were BLOCKED, not failing.** The human restarted `ngrok http 3000`, which reclaimed the same static domain `eloquent-pounce-entangled.ngrok-free.dev`, and **PayMongo retried both deliveries automatically** (`evt_RVZMkSu3S6y15ThmG2BKA1yJ` @ 10:17:28Z, `evt_rY8iwHDct3aiHfXhx9Xs3Eeq` @ 10:18:13Z, both HTTP 200), confirming the booking with no manual replay. **Start long-lived UAT processes (ngrok, `npm run dev`, `npm run dev:inngest`) in your OWN terminal** — same class of trap as the standing two-process Inngest requirement. Silver lining worth keeping: PayMongo's own retry recovered a dead tunnel, which is independent evidence that D-57's webhook-as-confirm-authority tolerates one.
 
 ✅ **08-15 LANDED — CR-01 (BLOCKER) is CLOSED, both halves mutation-proven, and WAVE 8 IS COMPLETE. With it, all four Phase-8 BLOCKERS (CR-01…CR-04) are closed.** A surcharged hourly booking now states its real time range everywhere. `composeWhenLabel` / `composeWhenLabelShort` read the PERSISTED `booking.full_day` snapshot (drizzle 0016 / WR-06) and nothing else; the price inequality that concluded "Full day" whenever the frozen space price differed from the plain per-hour run total is **gone**. It was true by construction of any hourly booking with a D-108 per-head surcharge — `quoteWindow` folds the surcharge into `totalCents` and `createPendingHold` freezes that into `spacePriceCents` — so every such booking read "Full day" on the public invite page, both RSVP emails, both group notifications, the organizer page, the cancel review screen, `/bookings`, `/host/bookings`, `/host/requests`, every reminder, the request-expiry mail and the payment-webhook receipt. `WhenLabelInput.fullDay` is **REQUIRED** and `hourlyRateCents` is **REMOVED** (replaced by `dayRateCents`), so the change produced **10 compiler errors across 10 files** — the compiler's own census of the call sites — rather than relying on a reviewer. Full suite **96 files / 838 tests exit 0** (+3 tests, 0 new files); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0 (27 routes, bare). **`src/app/listings/[id]/book/page.tsx` and `src/app/(app)/bookings/[id]/page.tsx` are byte-untouched** — 08-05's two inline fixes still stand and still pass their own grep tripwires.
 
@@ -526,6 +579,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-15: WhenLabelInput.fullDay is REQUIRED and hourlyRateCents is REMOVED (replaced by dayRateCents) — the compiler, not a reviewer, enumerates all 18 call sites; a future time surface that forgets the snapshot cannot compile
 - [Phase ?]: 08-15: the pre-0016 fallback is a POSITIVE day-rate match, never an inequality — it can only ever ADD "Full day" on an exact coincidence, so nothing hourly can be mislabeled by it; with no day rate to match, the real hours render
 - [Phase ?]: 08-15: re-request.ts keeps hourlyRateCents (a second, non-formatter consumer feeding quoteWindow) and reuses the fullDay it minted the hold with; placeHold passes `fullDay ?? false`, byte-identical to what createPendingHold freezes
+- [Phase 08]: 08-17: **PayMongo does NOT honor `Idempotency-Key` on `/v1/checkout_sessions`** — probed against `sk_test_` with a byte-identical key and body: two POSTs, two different session ids. Every POST mints a new payable session. The comments at `booking.ts:582`, `booking.ts:592` and `paymongo.ts:172` assert the opposite and are FALSE.
+- [Phase 08]: 08-17: a third-party guarantee must be PROBED against the real sandbox before it is written into a comment or relied on for correctness — a mock built to model the guarantee you *believe* you have can only ever validate that belief (four plans of coverage confirmed `mockPayMongo`, not PayMongo)
+- [Phase 08]: 08-17: the group-booking UI shows TWO capacity numbers that differ by one BY DESIGN — the public invite page is organizer-EXCLUSIVE (`All 11 spots are taken`, from `capacity_snapshot`) and the organizer page is organizer-INCLUSIVE (`12 of 12`); confirmed live at `capacity_snapshot = 11` / `yes_rows = 11` / `max_occupancy = 12`. Do not "harmonise" them.
+- [Phase 08]: 08-17: the 08-17 fixture recipe for any future per-head UAT — `uat_listing_bookable` needs `extra_head_fee`, `included`, `max_occupancy` AND `booking_mode = instant` set together, plus a non-NULL `cancellation_policy`; a NULL in any one of them silently produces a walkthrough that exercises nothing (which is how 08-09 step 6 was skipped)
 
 ### Pending Todos
 
@@ -536,6 +593,10 @@ None yet.
 ### Blockers/Concerns
 
 [Issues that affect future work]
+
+🔴 **OPEN BLOCKER — `confirmBooking` double-charges (found 2026-07-28 by the 08-17 human UAT; `deferred-items.md` item 5).** A booker who submits **Confirm & pay** twice is charged twice: measured live, ₱1,470.00 collected against a ₱735.00 booking (`pay_YFn1jgMWyau46ECydfPR2LdN` + `pay_iw2zsj3ehcRzgRYzgn7hkoUP`, booking `FIT-JSHBVKFP`), both `qrph` and therefore **unrefundable via the API**. Root cause: **PayMongo does not honor `Idempotency-Key` on `/v1/checkout_sessions`** (probed: identical key + body → two different session ids), while three shipped comments assert it does (`booking.ts:582`, `booking.ts:592`, `paymongo.ts:172`). **Not a CR-02 regression and wider than CR-02 — flat-priced bookings are equally exposed and this predates Phase 8.** Fix: `confirmBooking` must expire the persisted `checkout_session_id` before creating a new one, mirroring `updateDeclaredPax`, **with a test that drives the real PayMongo API rather than a mock.** Route via `/gsd-plan-phase 8 --gaps`.
+
+🟡 **OPEN — CR-02's live re-price assertion has never been exercised by a human** (`deferred-items.md` item 6). 08-17 step 4 ran two submissions at the same headcount, so `updateDeclaredPax` was never entered. Its only evidence is 08-13's mock-backed mutation proofs. Close it on the same real-API harness as the blocker above.
 
 Open product decisions to resolve before their relevant phase begins (from research):
 
@@ -575,7 +636,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T08:35:14.660Z
+Last session: 2026-07-28T10:45:00.000Z
+Stopped at: Completed 08-17-PLAN.md (wave 9) — the pax-surcharge human walkthrough. **ALL 17 PHASE-8 PLANS EXECUTED; PHASE NOT CLOSED.** Task 1 gate: 96 files / 838 tests exit 0, bare `npm run build` exit 0; `uat_listing_bookable` patched and read back (`published | instant | max_occupancy 12 | included 1 | extra_head_fee 10000 | standard`). Steps 2,3,5,6,7,8 APPROVED per-step with literal strings (CR-01 on 4 surfaces, CR-03's clamp at 12, WR-03's `1 of 12`, WR-04's nudge at the first over-subscription plus its silence one below, SC4's live cap at 11+organizer). **Step 4 FAILED: a live DOUBLE-CHARGE** — ₱1,470 collected against a ₱735 booking (`FIT-JSHBVKFP`), because **PayMongo does not honor `Idempotency-Key` on `/v1/checkout_sessions`** (probed: identical key → two session ids) and `confirmBooking` expires nothing before creating. Wider than CR-02; flat bookings exposed too; predates Phase 8. Also NOT VERIFIED: CR-02's own re-price assertion (the scripted sequence was never run). Logged as `deferred-items.md` items 5 + 6. No source file modified. **Next: `/gsd-plan-phase 8 --gaps` — NOT `/gsd-execute-phase 8`, and not a phase close.**
+Resume file: None
+
+Prior session: 2026-07-28T08:35:14.660Z
 Stopped at: Completed 08-15-PLAN.md (wave 8) — CR-01 CLOSED
 Resume file: None
 

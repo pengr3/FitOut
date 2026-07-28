@@ -346,6 +346,13 @@ None. This plan wrote no code.
 - 🟡 **CR-02's live re-price assertion is still unproven by a human.** Fold it into the same gaps plan — the same real-API test harness that closes item 5 can drive it.
 - 🟡 **Deferred item 2** (request-mode listings can't declare a headcount pre-approval) remains open and out of scope, as it has been since 08-05.
 
+## Self-Check: PASSED
+
+- `.planning/phases/08-group-bookings/08-17-SUMMARY.md` — FOUND
+- `.planning/phases/08-group-bookings/deferred-items.md` (items 5 + 6 added) — FOUND
+- Commit `2c86ff4` — FOUND
+- No deletions in the commit; `git status --short -- src/` empty (0 lines)
+
 ---
 *Phase: 08-group-bookings*
 *Completed: 2026-07-28*
