@@ -82,6 +82,20 @@ const guestEmailsOf = (kind: string) =>
 /** Distinct windows per listing so the GiST exclusion never fires for an unrelated reason. */
 let slot = 0;
 
+// recordAudit's v1 sink is a single structured `console.info("[audit]", <json>)` line (src/lib/audit.ts —
+// deliberately NOT a table yet), so the denial assertion reads the emitted line. Idiom lifted verbatim from
+// tests/booking/checkout-session-expire.test.ts.
+let infoSpy: ReturnType<typeof vi.spyOn>;
+type AuditLine = { action: string; outcome: string; meta?: Record<string, unknown> };
+function auditLines(): AuditLine[] {
+  // `calls` is re-typed once here rather than annotating each callback — a hand-written spy type is exactly
+  // what let vitest pass while tsc failed in 08-12.
+  const calls = infoSpy.mock.calls as unknown as unknown[][];
+  return calls
+    .filter((c) => c[0] === "[audit]")
+    .map((c) => JSON.parse(String(c[1])) as AuditLine);
+}
+
 async function login(email: string): Promise<void> {
   const res = await testAuth.api.signInEmail({
     body: { email, password: PASSWORD },
@@ -157,6 +171,7 @@ async function groupRow(bookingId: string) {
 }
 
 beforeAll(async () => {
+  infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
   testDb = await setupTestDb();
   testAuth = makeTestAuth(testDb);
 
@@ -227,6 +242,13 @@ beforeAll(async () => {
   await seedListing("L_gl_past", 5); // → capacity_snapshot 4
   await seedListing("L_gl_cancel", 7); // → capacity_snapshot 6
 
+  // WR-03 fixtures. These name their OWN rating because the rating IS the thing under test — the point of
+  // each is the arithmetic between `listing.max_occupancy` and the frozen `capacity_snapshot`.
+  await seedListing("L_gl_wr03_12", 12);
+  await seedListing("L_gl_wr03_2", 2);
+  await seedListing("L_gl_wr03_1", 1);
+  await seedListing("L_gl_wr03_fill", 3);
+
   await seedBooking("bk_gl_confirmed", "L_gl_main", organizerId, "confirmed");
   await seedBooking("bk_gl_unpaid", "L_gl_main", organizerId, "approved");
   await seedBooking("bk_gl_stranger", "L_gl_main", strangerId, "confirmed");
@@ -236,9 +258,14 @@ beforeAll(async () => {
   await seedBooking("bk_gl_cancel_booker", "L_gl_cancel", organizerId, "confirmed");
   await seedBooking("bk_gl_cancel_host", "L_gl_cancel", organizerId, "confirmed");
   await seedBooking("bk_gl_cancel_self", "L_gl_cancel", organizerId, "confirmed");
+  await seedBooking("bk_gl_wr03_12", "L_gl_wr03_12", organizerId, "confirmed");
+  await seedBooking("bk_gl_wr03_2", "L_gl_wr03_2", organizerId, "confirmed");
+  await seedBooking("bk_gl_wr03_1", "L_gl_wr03_1", organizerId, "confirmed");
+  await seedBooking("bk_gl_wr03_fill", "L_gl_wr03_fill", organizerId, "confirmed");
 });
 
 afterAll(async () => {
+  infoSpy.mockRestore();
   vi.doUnmock("@/lib/auth");
   vi.doUnmock("@/lib/db");
   vi.doUnmock("next/cache");
@@ -250,6 +277,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   inngestSend.mockClear();
+  infoSpy.mockClear();
 });
 
 describe("createGroup — D-119 owner + confirmed gate", () => {
@@ -321,6 +349,78 @@ describe("createGroup — D-119 owner + confirmed gate", () => {
     expect(after[0].capacitySnapshot).toBe(before[0].capacitySnapshot);
     expect(after[0].capacitySnapshot).toBe(5);
     await testDb.db.execute(sql`UPDATE listing SET max_occupancy = 6 WHERE id = 'L_gl_main'`);
+  });
+});
+
+// ── WR-03 · D-113 — the organizer's seat is reserved OUT of the cap ────────────────────────────────────────
+//
+// ⚠️ MUTATION-VERIFY (A). Revert `src/app/actions/group.ts`'s INSERT ... SELECT from
+// `GREATEST(l.max_occupancy - 1, 0)` back to a bare `l.max_occupancy` and this block MUST go red — the
+// snapshot cases on the frozen number itself (`expected 12 to be 11`) and the fill case on the committed
+// roster (`expected 3 to be 2`). Both failures name a fact about the DATABASE rather than a downstream
+// message, which is the point: the defect is a body in the room, not a sentence on a screen.
+describe("createGroup — the cap reserves the organizer's own place (WR-03 · D-113)", () => {
+  it("a listing rated for 12 freezes capacity_snapshot = 11 — 11 invitees plus the organizer is 12", async () => {
+    await login(ORG_EMAIL);
+    const res = await createGroup("bk_gl_wr03_12");
+    expect(res.ok).toBe(true);
+
+    const [row] = await groupRow("bk_gl_wr03_12");
+    expect(row.capacitySnapshot).toBe(11);
+  });
+
+  it("the smallest group-capable listing (rated 2) freezes capacity_snapshot = 1 — one invitee", async () => {
+    await login(ORG_EMAIL);
+    const res = await createGroup("bk_gl_wr03_2");
+    expect(res.ok).toBe(true);
+
+    const [row] = await groupRow("bk_gl_wr03_2");
+    expect(row.capacitySnapshot).toBe(1);
+  });
+
+  it("a listing rated for 1 CANNOT host a group — the only seat is the organizer's", async () => {
+    await login(ORG_EMAIL);
+    const denied = await createGroup("bk_gl_wr03_1");
+    expect(denied.ok).toBe(false);
+
+    // (1) NOTHING was written. A group with a capacity_snapshot of 0 would be immutable by D-111 and
+    //     unjoinable forever, so the right answer is no row at all.
+    expect(await groupRow("bk_gl_wr03_1")).toHaveLength(0);
+
+    // (2) The audit records WHY, on the shared v1 console sink.
+    const denials = auditLines().filter((a) => a.action === "create_group" && a.outcome === "denied");
+    expect(denials).toHaveLength(1);
+    expect(denials[0].meta).toMatchObject({ reason: "no_capacity", bookingId: "bk_gl_wr03_1" });
+
+    // (3) …and the caller is told nothing they could distinguish. "This listing can't host a group" and
+    //     "that booking isn't yours" are the SAME sentence, compared to each other rather than to a literal.
+    const missing = await createGroup("bk_gl_does_not_exist");
+    if (denied.ok || missing.ok) throw new Error("both must be denials");
+    expect(denied.error).toBe(missing.error);
+  });
+
+  it("a listing rated for 3 seats TWO invitees plus the organizer — the rating exactly, never one over", async () => {
+    await login(ORG_EMAIL);
+    const created = await createGroup("bk_gl_wr03_fill");
+    if (!created.ok) throw new Error("setup: group must be created");
+
+    sessionHeaders.cookie = "";
+    expect((await submitRsvp(created.accessToken, { name: "First Fay", answer: "yes" })).ok).toBe(true);
+    expect((await submitRsvp(created.accessToken, { name: "Second Sid", answer: "yes" })).ok).toBe(true);
+    const third = await submitRsvp(created.accessToken, { name: "Third Thea", answer: "yes" });
+
+    // THE ACTUAL PROPERTY (SC4), ASSERTED FIRST AND OFF THE DATABASE. The bodies are the defect — the
+    // refusal sentence and the frozen number below are how it is achieved. Ordering matters: if the message
+    // came first, removing the fix would fail this case on a string, and a mutation's failure should name
+    // the over-cap itself (the 08-16 lesson).
+    const roster = await getRoster(testDb.db, { groupId: created.groupId, organizerId });
+    const yes = roster.filter((r) => r.status === "yes");
+    expect(yes).toHaveLength(2);
+    expect(yes.length + 1).toBe(3); // + the organizer, who holds a seat without holding an rsvp row
+
+    expect(third.ok).toBe(false);
+    if (!third.ok) expect(third.error).toMatch(/just filled up — all 2 spots/i);
+    expect((await groupRow("bk_gl_wr03_fill"))[0].capacitySnapshot).toBe(2);
   });
 });
 
