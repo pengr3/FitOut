@@ -388,12 +388,16 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
             // price). Nullable on a flat listing → coalesced by quoteWindow; a NULL fee means no surcharge.
             included: listing.included,
             extraHeadFee: listing.extraHeadFee,
+            // CR-03 / D-111: the headcount CAP, read in the SAME transaction as the rates so the clamp is
+            // transactionally consistent with the price it bounds. The client never supplies a bound.
+            maxOccupancy: listing.maxOccupancy,
             leadOk: sql<boolean>`(${startIso}::timestamptz >= now() + ${leadIntervalSql})`,
           })
           .from(listing)
           .where(eq(listing.id, input.listingId));
         if (listingRows.length === 0) throw new NoUnitAvailableError(); // unknown listing → nothing to hold
-        const { unitCount, hourlyRateCents, dayRateCents, included, extraHeadFee, leadOk } = listingRows[0];
+        const { unitCount, hourlyRateCents, dayRateCents, included, extraHeadFee, maxOccupancy, leadOk } =
+          listingRows[0];
         const listingCancellationPolicy = listingRows[0].cancellationPolicy;
 
         // D-93/D-96 lead-time guard, enforced SERVER-SIDE against now(). The SlotPicker's unselectable
@@ -435,6 +439,20 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         // quote.totalCents, which is frozen as spacePriceCents below — so it becomes the payout gross basis AND
         // the service-fee basis (computeServiceFee(quote.totalCents)) automatically, and quoted == space + fee
         // still holds by construction. The Phase-5 hold-until-session rail is untouched (D-107).
+        //
+        // CR-03: the headcount is CLAMPED here, before it can reach the quote. The cap is the LISTING's own
+        // maxOccupancy (read above, in this same tx) — the stepper's `max` and the schema's `.max(10_000)` are
+        // a courtesy and a shape ceiling respectively, never the gate (Security V4 / T-08-30). A clamped value
+        // is a SUCCESS, not a refusal: the booker gets the price for the headcount the listing can hold.
+        //
+        // ⚠️ The null-maxOccupancy fallback is 1, and it is DELIBERATELY DIFFERENT from `updateDeclaredPax`'s
+        // fallback (`src/app/actions/booking.ts:376`, which falls back to the client's own value). Do NOT
+        // "harmonise" the two: this is the CREATION path reachable by a crafted POST, so a listing with no
+        // capacity recorded must fail CLOSED to a surcharge-free headcount of 1 rather than trust the
+        // submitted number. The re-price path is already owner-gated on an existing hold.
+        const paxCap = maxOccupancy != null && maxOccupancy > 0 ? maxOccupancy : 1;
+        const declaredPax =
+          input.declaredPax == null ? undefined : Math.min(Math.max(1, input.declaredPax), paxCap);
         const quote = quoteWindow({
           startUtc: startsAt,
           endUtc: endsAt,
@@ -443,11 +461,12 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
           dayRateCents,
           included: included ?? undefined,
           extraHeadFee: extraHeadFee ?? undefined,
-          declaredPax: input.declaredPax,
+          declaredPax,
         });
         // D-108: record declaredPax ONLY when the listing actually charges per head (extra_head_fee > 0). On a
         // flat listing there is no surcharge machinery and no declaredPax to persist — the column stays NULL.
-        const declaredPaxToPersist = (extraHeadFee ?? 0) > 0 ? (input.declaredPax ?? null) : null;
+        // The CLAMPED value is what persists (CR-03) — booking.declared_pax can never exceed the listing's cap.
+        const declaredPaxToPersist = (extraHeadFee ?? 0) > 0 ? (declaredPax ?? null) : null;
         // Finding 2 — THREE frozen values, not one. `quotedTotalCents` stays "the amount actually charged"
         // (ALL-IN: what PayMongo charges and what a refund references). `spacePriceCents` is the PAYOUT
         // basis; `serviceFeeCents` is NON-REFUNDABLE platform revenue (D-74). Paying out 90% of the all-in

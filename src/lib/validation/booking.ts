@@ -96,9 +96,16 @@ export const bookingCreateSchema = z
     idempotencyKey: z.string().min(1).optional(),
     // D-108 group pricing: the organizer-declared attendee headcount. SHAPE-ONLY here (an optional coerced
     // positive int) — the PRICE is re-derived server-side inside createPendingHold from the listing's OWN
-    // included/extra_head_fee, and this only drives the charge when extra_head_fee > 0. The real seat-cap
-    // enforcement is D-112's seat-claim, not this field, so no upper bound is asserted here.
-    declaredPax: z.coerce.number().int().min(1).optional(),
+    // included/extra_head_fee, and this only drives the charge when extra_head_fee > 0.
+    //
+    // CR-03: the `.max()` is a SHAPE ceiling, not the cap. It exists so no accepted value can multiply
+    // through `(pax − included) × extra_head_fee` into the `integer` money columns
+    // (space_price_cents / service_fee_cents / quoted_total_cents) and raise a Postgres 22003 that
+    // `mapBookingError` would re-throw as a raw 500 (T-03-500). The REAL cap is the listing's own
+    // `maxOccupancy`, read inside `createPendingHold`'s transaction and applied there (D-111 / Security V4)
+    // — never a client-supplied bound. Same ceiling as `declaredPaxSchema` on the re-price path
+    // (`src/app/actions/booking.ts:81`): one shape bound, one number.
+    declaredPax: z.coerce.number().int().min(1).max(10_000).optional(),
   })
   .refine(endAfterStart, endAfterStartIssue);
 

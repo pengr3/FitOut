@@ -39,7 +39,17 @@ type ListingOpts = {
   dayRateCents?: number | null;
   included?: number | null;
   extraHeadFee?: number | null;
+  maxOccupancy?: number | null;
 };
+
+/**
+ * The default capacity every case inherits unless it names its own. CR-03 made `maxOccupancy` load-bearing
+ * at hold time: the clamp fails CLOSED to a headcount of 1 when the listing records no capacity, so a
+ * fixture that leaves it NULL can no longer express an at-or-below-cap surcharge. This default is
+ * comfortably above every headcount the pre-CR-03 cases use (1-12) so those cases keep their meaning; the
+ * fail-closed case passes `maxOccupancy: null` explicitly, and the over-cap cases pass a small cap.
+ */
+const DEFAULT_MAX_OCCUPANCY = 12;
 
 /** A dedicated listing per case so seeded holds never collide on the booking_no_overlap EXCLUDE. */
 async function makeListing(opts: ListingOpts = {}): Promise<string> {
@@ -56,6 +66,7 @@ async function makeListing(opts: ListingOpts = {}): Promise<string> {
     dayRateCents: opts.dayRateCents === undefined ? 300000 : opts.dayRateCents,
     included: opts.included ?? null,
     extraHeadFee: opts.extraHeadFee ?? null,
+    maxOccupancy: opts.maxOccupancy === undefined ? DEFAULT_MAX_OCCUPANCY : opts.maxOccupancy,
     currency: "php",
   });
   return id;
