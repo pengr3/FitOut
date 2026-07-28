@@ -81,6 +81,10 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
       // The D-67 SNAPSHOT — never listing.cancellationPolicy. A host retiering the listing after this
       // booking was made does not get to restate its terms on the very screen that discloses them.
       cancellationPolicy: booking.cancellationPolicy,
+      // The WR-06 pricing-mode snapshot — the AUTHORITY for "Full day" vs an hour range in the shared
+      // formatter (08-15 / CR-01). Never re-derived from a price: the D-108 per-head surcharge is folded
+      // into spacePriceCents, so a price comparison mislabels ordinary surcharged hourly bookings.
+      fullDay: booking.fullDay,
       spacePriceCents: booking.spacePriceCents,
       serviceFeeCents: booking.serviceFeeCents,
       quotedTotalCents: booking.quotedTotalCents,
@@ -106,7 +110,8 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
       title: listing.title,
       city: listing.city,
       timezone: listing.timezone,
-      hourlyRateCents: listing.hourlyRateCents,
+      // The formatter's pre-0016 positive-match reference only.
+      dayRateCents: listing.dayRateCents,
     })
     .from(listing)
     .where(eq(listing.id, bk.listingId));
@@ -123,9 +128,10 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
     endsAt: bk.endsAt,
     timezone: lst.timezone,
     city: lst.city,
+    fullDay: bk.fullDay,
     spacePriceCents: bk.spacePriceCents,
     quotedTotalCents: bk.quotedTotalCents,
-    hourlyRateCents: lst.hourlyRateCents,
+    dayRateCents: lst.dayRateCents,
   });
   const tzNote = venueTzNote(lst.city, lst.timezone);
 

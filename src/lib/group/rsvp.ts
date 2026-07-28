@@ -78,10 +78,16 @@ export type GroupByToken =
       addressLine2: string | null;
       startsAt: Date;
       endsAt: Date;
-      /** The three `composeWhenLabel` inputs, so no caller re-queries the listing to render a time. */
+      /**
+       * The four `composeWhenLabel` inputs, so no caller re-queries the listing to render a time.
+       * `fullDay` is the booking's PERSISTED creation-time snapshot and is the AUTHORITY for
+       * "Full day" vs an hour range (08-15 / CR-01); the two price figures and `dayRateCents` are
+       * consulted only by the formatter's pre-0016 positive day-rate fallback.
+       */
+      fullDay: boolean | null;
       spacePriceCents: number | null;
       quotedTotalCents: number | null;
-      hourlyRateCents: number | null;
+      dayRateCents: number | null;
     }
   | { active: false };
 
@@ -110,9 +116,10 @@ type RawTokenRow = {
   addressLine2: string | null;
   startsAtIso: string;
   endsAtIso: string;
+  fullDay: boolean | null;
   spacePriceCents: number | null;
   quotedTotalCents: number | null;
-  hourlyRateCents: number | null;
+  dayRateCents: number | null;
 };
 
 /**
@@ -145,9 +152,10 @@ export async function getGroupByToken(dbConn: DbConn, token: string): Promise<Gr
       l.address_line2 AS "addressLine2",
       ${isoUtc("b.starts_at")} AS "startsAtIso",
       ${isoUtc("b.ends_at")} AS "endsAtIso",
+      b.full_day AS "fullDay",
       b.space_price_cents AS "spacePriceCents",
       b.quoted_total_cents AS "quotedTotalCents",
-      l.hourly_rate_cents AS "hourlyRateCents"
+      l.day_rate_cents AS "dayRateCents"
     FROM booking_group g
     JOIN booking b ON b.id = g.booking_id
     JOIN listing l ON l.id = b.listing_id
@@ -183,9 +191,10 @@ export async function getGroupByToken(dbConn: DbConn, token: string): Promise<Gr
     addressLine2: r.addressLine2,
     startsAt: new Date(r.startsAtIso),
     endsAt: new Date(r.endsAtIso),
+    fullDay: r.fullDay,
     spacePriceCents: r.spacePriceCents,
     quotedTotalCents: r.quotedTotalCents,
-    hourlyRateCents: r.hourlyRateCents,
+    dayRateCents: r.dayRateCents,
   };
 }
 
@@ -233,9 +242,15 @@ export type OwnedGroup = {
   city: string | null;
   startsAt: Date;
   endsAt: Date;
+  /**
+   * The four `composeWhenLabel` inputs. `fullDay` is the booking's PERSISTED creation-time snapshot
+   * and is the AUTHORITY for "Full day" vs an hour range (08-15 / CR-01); the prices and `dayRateCents`
+   * feed only the formatter's pre-0016 positive day-rate fallback.
+   */
+  fullDay: boolean | null;
   spacePriceCents: number | null;
   quotedTotalCents: number | null;
-  hourlyRateCents: number | null;
+  dayRateCents: number | null;
   declaredPax: number | null;
   extraHeadFee: number | null;
 };
@@ -259,9 +274,10 @@ const ownedGroupColumns = sql`
   l.city,
   ${isoUtc("b.starts_at")} AS "startsAtIso",
   ${isoUtc("b.ends_at")} AS "endsAtIso",
+  b.full_day AS "fullDay",
   b.space_price_cents AS "spacePriceCents",
   b.quoted_total_cents AS "quotedTotalCents",
-  l.hourly_rate_cents AS "hourlyRateCents",
+  l.day_rate_cents AS "dayRateCents",
   b.declared_pax AS "declaredPax",
   l.extra_head_fee AS "extraHeadFee"
 `;
@@ -280,9 +296,10 @@ function hydrateOwnedGroup(r: RawOwnedGroupRow): OwnedGroup {
     city: r.city,
     startsAt: new Date(r.startsAtIso),
     endsAt: new Date(r.endsAtIso),
+    fullDay: r.fullDay,
     spacePriceCents: r.spacePriceCents,
     quotedTotalCents: r.quotedTotalCents,
-    hourlyRateCents: r.hourlyRateCents,
+    dayRateCents: r.dayRateCents,
     declaredPax: r.declaredPax,
     extraHeadFee: r.extraHeadFee,
   };

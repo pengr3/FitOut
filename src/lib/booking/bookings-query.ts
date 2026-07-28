@@ -67,9 +67,16 @@ export type BookingListRow = {
   /** The all-in CHARGED total (D-49) — what the booker actually paid. Rendered as `amountLabel`. */
   quotedTotalCents: number | null;
   /**
+   * The booking's PERSISTED creation-time full-day snapshot (booking.full_day, drizzle 0016 / WR-06) —
+   * the AUTHORITY `composeWhenLabelShort` renders "Full day" vs an hour range from. Nothing here
+   * re-derives the mode from a price any more (08-15 / CR-01): the D-108 per-head surcharge is folded
+   * into `spacePriceCents`, so a price comparison mislabels ordinary surcharged hourly bookings.
+   */
+  fullDay: boolean | null;
+  /**
    * The frozen SPACE price (D-74) — the listing-priced portion, WITHOUT the booker-facing service fee.
-   * Needed by `composeWhenLabelShort` to re-derive `fullDay`: the all-in total can never equal
-   * `hourlyRate × hours`, so deriving from it mislabels every hourly booking as "Full day".
+   * Read by the formatter ONLY for pre-0016 rows (`fullDay IS NULL`), and only as a positive match
+   * against the listing's day rate.
    */
   spacePriceCents: number | null;
   refundCents: number | null;
@@ -79,7 +86,8 @@ export type BookingListRow = {
   listingPhotoUrl: string | null;
   timezone: string;
   city: string | null;
-  hourlyRateCents: number | null;
+  /** The listing's day rate — the formatter's pre-0016 positive-match reference, nothing else. */
+  dayRateCents: number | null;
   /** Host view only — the booker's first name, or null when withheld. */
   bookerFirstName?: string | null;
   /** Host view only — the payout ledger state, scoped to kind='payout'. Null when there is no payout yet. */
@@ -239,6 +247,7 @@ export async function queryBookerBookings(
       ${displayStatusExpr} AS "displayStatus",
       b.cancelled_by::text AS "cancelledBy",
       b.quoted_total_cents AS "quotedTotalCents",
+      b.full_day AS "fullDay",
       b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",
       b.currency,
@@ -247,7 +256,7 @@ export async function queryBookerBookings(
       ph.url AS "listingPhotoUrl",
       l.timezone,
       l.city,
-      l.hourly_rate_cents AS "hourlyRateCents"
+      l.day_rate_cents AS "dayRateCents"
     FROM booking b
     INNER JOIN listing l ON l.id = b.listing_id
     LEFT JOIN listing_photo ph ON ph.listing_id = l.id AND ph.position = 0
@@ -293,6 +302,7 @@ export async function queryHostBookings(
       ${displayStatusExpr} AS "displayStatus",
       b.cancelled_by::text AS "cancelledBy",
       b.quoted_total_cents AS "quotedTotalCents",
+      b.full_day AS "fullDay",
       b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",
       b.currency,
@@ -301,7 +311,7 @@ export async function queryHostBookings(
       NULL::text AS "listingPhotoUrl",
       l.timezone,
       l.city,
-      l.hourly_rate_cents AS "hourlyRateCents",
+      l.day_rate_cents AS "dayRateCents",
       u.first_name AS "bookerFirstName",
       p.state::text AS "payoutState"
     FROM booking b

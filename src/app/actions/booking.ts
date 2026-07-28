@@ -141,8 +141,9 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       title: listing.title,
       timezone: listing.timezone,
       city: listing.city,
-      // The listing rate, for the SHARED whenLabel formatter's fullDay re-derivation (07-02/07-08).
-      hourlyRateCents: listing.hourlyRateCents,
+      // The listing's DAY rate, for the SHARED whenLabel formatter's pre-0016 positive-match fallback
+      // only (07-02 / 08-15). The mode itself comes from the persisted snapshot, never from a rate.
+      dayRateCents: listing.dayRateCents,
       // The host's user id — the notification RECIPIENT for the new-request alert (T-07-56). Taken from the
       // listing row this action already read server-side; never anything the caller supplied.
       hostId: listing.hostId,
@@ -214,17 +215,19 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
         .from(booking)
         .where(eq(booking.id, res.id));
       const currency = q?.currency ?? DISPLAY_CURRENCY;
-      // The SHARED venue-local formatter (07-02). `fullDay` is re-derived inside it from the frozen SPACE
-      // price — deliberately NOT from the local `fullDay` flag, so this label is composed from exactly the
-      // same inputs, by exactly the same code, as every other time surface in the app.
+      // The SHARED venue-local formatter (07-02), composed from exactly the same inputs, by exactly the
+      // same code, as every other time surface in the app. 08-15 / CR-01: the mode is no longer re-derived
+      // from a price — it is `fullDay ?? false`, byte-identical to what `createPendingHold` just froze into
+      // `booking.full_day` (units.ts applies the same `?? false`), i.e. the persisted snapshot itself.
       const whenLabel = composeWhenLabel({
         startsAt: new Date(startUtc),
         endsAt: new Date(endUtc),
         timezone: lr.timezone,
         city: lr.city,
+        fullDay: fullDay ?? false,
         spacePriceCents: res.spacePriceCents,
         quotedTotalCents: res.quotedTotalCents,
-        hourlyRateCents: lr.hourlyRateCents,
+        dayRateCents: lr.dayRateCents,
       });
       // The host's SLA deadline, from the row's own `expires_at`. Under D-96 a session-start cap splits the
       // remaining time proportionally, so this is frequently NOT `APPROVAL_SLA_HOURS` out — rendering the

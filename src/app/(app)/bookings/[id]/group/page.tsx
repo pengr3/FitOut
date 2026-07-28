@@ -112,9 +112,10 @@ export default async function GroupManagementPage({
     endsAt: group.endsAt,
     timezone: group.timezone,
     city: group.city,
+    fullDay: group.fullDay,
     spacePriceCents: group.spacePriceCents,
     quotedTotalCents: group.quotedTotalCents,
-    hourlyRateCents: group.hourlyRateCents,
+    dayRateCents: group.dayRateCents,
   });
   const tzNote = venueTzNote(group.city, group.timezone);
 
