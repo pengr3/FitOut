@@ -200,3 +200,7 @@ None blocking. The `tsc`-vs-vitest trap that hit 08-12, 08-13 and 08-14 did **no
 - **A new required field is a standing contract for phase 9.** Any new time surface must project `booking.full_day` and `listing.day_rate_cents`. It cannot forget: the compiler will refuse it.
 - **Legacy pre-0016 rows still take the fallback path.** There is no backfill and none is planned — the positive match is safe by construction (it can only add "Full day" on an exact day-rate coincidence). If a backfill is ever run, the fallback becomes dead code and can be deleted, but not before.
 - **`deferred-items.md` is unchanged by this plan.** No new deferred items; none closed.
+
+## Self-Check: PASSED
+- Files verified on disk: `src/lib/booking/when-label.ts`, `tests/booking/when-label.test.ts`, `src/lib/group/rsvp.ts`, `src/inngest/functions/reminders.ts`, `.planning/phases/08-group-bookings/08-15-SUMMARY.md`
+- Commits verified in git log: `8d2e8a5` (Task 1), `cfb351a` (Task 2), `9cedc2f` (Task 3), `5564c23` (SUMMARY)

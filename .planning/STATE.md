@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 08-14-PLAN.md (wave 7) — WR-03 + WR-04 CLOSED. capacity_snapshot reserves the organizer's seat; the organizer surface reads one convention. Mutations A/B red-to-green. Full suite 96 files / 835 tests exit 0 (+1 file / +11 tests); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. WAVE 7 COMPLETE. Next: wave 8 (08-15, CR-01), then wave 9 (08-17)."
-last_updated: "2026-07-28T08:16:29.889Z"
+stopped_at: "Completed 08-15-PLAN.md (wave 8) — CR-01 CLOSED. composeWhenLabel reads the persisted booking.full_day snapshot on all 18 call sites; WhenLabelInput.fullDay is REQUIRED and hourlyRateCents is REMOVED. Mutations A/B red-to-green. Full suite 96 files / 838 tests exit 0 (+3 tests, 0 new files); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 bare. WAVE 8 COMPLETE. Next: wave 9 (08-17, the pax-surcharge UAT checkpoint — autonomous: false)."
+last_updated: "2026-07-28T08:35:14.684Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
@@ -26,13 +26,25 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 ## Current Position
 
 Phase: 08 (group-bookings) — EXECUTING
-Plan: 15 of 17 — **08-14 DONE, WR-03 + WR-04 CLOSED, WAVE 7 COMPLETE** (15/17 summaries on disk: 08-01…08-14 + 08-16).
-Next action: `/gsd-execute-phase 8` — wave 8 (08-15 → CR-01), then wave 9 (08-17 → the pax-surcharge UAT checkpoint).
+Plan: 17 of 17 — **08-15 DONE, CR-01 CLOSED, WAVE 8 COMPLETE** (16/17 summaries on disk: 08-01…08-16; only 08-17 remains).
+Next action: `/gsd-execute-phase 8` — wave 9 (08-17 → the pax-surcharge UAT checkpoint, `autonomous: false`). **All four Phase-8 BLOCKERS (CR-01…CR-04) are now closed.**
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
 Progress: [██████████] 99%
+
+✅ **08-15 LANDED — CR-01 (BLOCKER) is CLOSED, both halves mutation-proven, and WAVE 8 IS COMPLETE. With it, all four Phase-8 BLOCKERS (CR-01…CR-04) are closed.** A surcharged hourly booking now states its real time range everywhere. `composeWhenLabel` / `composeWhenLabelShort` read the PERSISTED `booking.full_day` snapshot (drizzle 0016 / WR-06) and nothing else; the price inequality that concluded "Full day" whenever the frozen space price differed from the plain per-hour run total is **gone**. It was true by construction of any hourly booking with a D-108 per-head surcharge — `quoteWindow` folds the surcharge into `totalCents` and `createPendingHold` freezes that into `spacePriceCents` — so every such booking read "Full day" on the public invite page, both RSVP emails, both group notifications, the organizer page, the cancel review screen, `/bookings`, `/host/bookings`, `/host/requests`, every reminder, the request-expiry mail and the payment-webhook receipt. `WhenLabelInput.fullDay` is **REQUIRED** and `hourlyRateCents` is **REMOVED** (replaced by `dayRateCents`), so the change produced **10 compiler errors across 10 files** — the compiler's own census of the call sites — rather than relying on a reviewer. Full suite **96 files / 838 tests exit 0** (+3 tests, 0 new files); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0 (27 routes, bare). **`src/app/listings/[id]/book/page.tsx` and `src/app/(app)/bookings/[id]/page.tsx` are byte-untouched** — 08-05's two inline fixes still stand and still pass their own grep tripwires.
+
+📌 **New contracts from 08-15 (load-bearing for 08-17's UAT, Phase 9, and anyone adding a time surface):**
+
+1. *A displayed SCHEDULING fact is read from its own persisted snapshot, never inferred from a MONEY column.* That is the whole lesson of CR-01: `space_price_cents` is a pricing output, and a pricing change (D-108) silently rewrote what people were told about when to turn up. The comment block that used to defend the inference ("`fullDay` is NOT persisted, so it is re-derived from the frozen SPACE PRICE … do not 'improve' it") was **rewritten, not annotated** — it had become the bug's own defence.
+2. *`fullDay` is REQUIRED on `WhenLabelInput`, and `hourlyRateCents` was REMOVED rather than deprecated.* An optional field lets a call site silently omit the snapshot and keep the bug alive on that one surface; a field left in place lets a call site keep feeding the old inference. **Any new time surface must project `booking.full_day` + `listing.day_rate_cents` — it cannot forget, because it will not compile.**
+3. *The pre-0016 fallback is a POSITIVE day-rate match (`spaceCents === dayRateCents`), never an inequality.* Dropping it outright (`?? false`) would relabel legacy NULL-`full_day` full-day bookings as an hour range; an inequality reintroduces CR-01 on legacy rows. Both directions are mutation-pinned. Note the fallback INVERTS one pre-08-15 behaviour deliberately: with **no** day rate to match, the window now renders its real hours rather than "Full day" — that bias belonged to the deleted inequality.
+4. *The grep tripwire discipline held.* `grep -c "hourlyRate" src/lib/booking/when-label.ts` prints **0** — the removed identifier is spelled nowhere in the file, comments included. The formatter-scoped repo check `grep -rn "hourlyRateCents" src/ | grep -c "composeWhenLabel"` prints **0**; the three files that still carry both strings (`actions/booking.ts`, `actions/re-request.ts`, `db/schema.ts`) are the `quoteWindow` re-price, the WR-06 local price-determining fallback and the column definition — none are display consumers.
+5. *`re-request.ts` KEEPS its `hourlyRateCents`, by the plan's own grep-before-drop rule.* It has a second, non-formatter consumer at `:233`. Its compose call reuses the `fullDay` it already minted the hold with rather than re-projecting the column. `placeHold` likewise passes `fullDay ?? false` — byte-identical to what `createPendingHold` applies before freezing `booking.full_day`.
+
+⚠️ **`tsc` was INTENTIONALLY RED between Task 1 and Task 3, and that was the mechanism, not a regression.** This is also the first plan in four where the tsc-vs-vitest trap did NOT bite — precisely because the plan's mechanism *was* a type change, so `tsc` was the primary signal at every step instead of an afterthought. **Both mutation messages named the rendered string** (`expected 'Thursday, Jul 2, Full day (Makati time)' to be 'Thursday, Jul 2, 8:00 AM – 10:00 AM (Makati time)'`) — the thing a person would actually have read on the invite page — rather than a downstream proxy. Four plans running, that ordering discipline has paid.
 
 ✅ **08-14 LANDED — WR-03 + WR-04 are CLOSED and WAVE 7 IS COMPLETE. SC4's "hard-capped at the listing's capacity" is now literally true.** `createGroup` freezes `GREATEST(l.max_occupancy - 1, 0)` inside the same atomic INSERT that creates the group, so a `maxOccupancy = 12` listing admits **11** RSVP-yes attendees and 11 + the organizer = 12 — the number the host rated the room for. Before this, 12 could say yes and the organizer made **13 bodies in a space rated for 12**. The organizer surface now reads ONE convention end to end: the meter renders `confirmed + 1` of `capacity + 1`, `TopUpNudge`'s prop is RENAMED `confirmedYes` → `attendingTotal` and fed `counts.confirmed + 1`, and the roster's now-inverted "MUST NOT BE COUNTED" comment is rewritten. Full suite **96 files / 835 tests exit 0** (+1 file / +11 tests); tsc 0; lint **0 errors** (7 pre-existing warnings — the new jsdom file added none); `npm run build` exit 0 (27 routes, bare). **Zero changes to `claimSeat`, `getHeadcount`, `getRoster`, `removeAttendee`, `src/lib/group/rsvp.ts` or the public invite page.**
 
@@ -364,6 +376,7 @@ Progress: [██████████] 99%
 | Phase 08 P16 | 25min | 2 tasks | 2 files |
 | Phase 08 P13 | 25min | 3 tasks | 5 files |
 | Phase 08 P14 | 46min | 3 tasks | 7 files |
+| Phase 08 P15 | 35m | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -509,6 +522,10 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-14: capacity_snapshot is the ONE organizer-EXCLUSIVE number in group bookings — GREATEST(max_occupancy - 1, 0) — because it caps rsvp ROWS and the organizer structurally never occupies one (D-113). maxOccupancy, declaredPax and the whole organizer surface are organizer-INCLUSIVE; the public invite page stays organizer-exclusive and unchanged.
 - [Phase 08]: 08-14: existing booking_group rows are FORWARD-ONLY — no backfill. D-111 makes capacity_snapshot immutable precisely so a later change cannot retroactively move a cap people already answered against; pre-change groups keep their original cap.
 - [Phase 08]: 08-14: the createGroup capacity floor is 2 (not 1), enforced in BOTH the pre-read gate and the INSERT's own WHERE, so a host capacity edit racing the create cannot freeze an unjoinable, immutable capacity_snapshot of 0.
+- [Phase ?]: 08-15: CR-01 closed — composeWhenLabel reads the PERSISTED booking.full_day snapshot and never re-derives the mode from a price; the D-108 surcharge folded into spacePriceCents is what made the old inequality true of ordinary hourly bookings (this SUPERSEDES the 07-08 decision line above)
+- [Phase ?]: 08-15: WhenLabelInput.fullDay is REQUIRED and hourlyRateCents is REMOVED (replaced by dayRateCents) — the compiler, not a reviewer, enumerates all 18 call sites; a future time surface that forgets the snapshot cannot compile
+- [Phase ?]: 08-15: the pre-0016 fallback is a POSITIVE day-rate match, never an inequality — it can only ever ADD "Full day" on an exact coincidence, so nothing hourly can be mislabeled by it; with no day rate to match, the real hours render
+- [Phase ?]: 08-15: re-request.ts keeps hourlyRateCents (a second, non-formatter consumer feeding quoteWindow) and reuses the fullDay it minted the hold with; placeHold passes `fullDay ?? false`, byte-identical to what createPendingHold freezes
 
 ### Pending Todos
 
@@ -558,8 +575,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T08:16:21.045Z
-Stopped at: Completed 08-14-PLAN.md (wave 7) — WR-03 + WR-04 CLOSED. capacity_snapshot reserves the organizer's seat; the organizer surface reads one convention. Mutations A/B red-to-green. Full suite 96 files / 835 tests exit 0 (+1 file / +11 tests); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0. WAVE 7 COMPLETE. Next: wave 8 (08-15, CR-01), then wave 9 (08-17).
+Last session: 2026-07-28T08:35:14.660Z
+Stopped at: Completed 08-15-PLAN.md (wave 8) — CR-01 CLOSED
 Resume file: None
 
 Prior session: 2026-07-28T02:06:54.730Z
