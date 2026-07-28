@@ -189,6 +189,36 @@ export async function getGroupByToken(dbConn: DbConn, token: string): Promise<Gr
   };
 }
 
+/**
+ * The SIGNED-IN viewer's own answer on a group they already hold the invite to (D-120, the change-answer
+ * affordance on `/invite/[token]`). Returns null when they have not answered yet.
+ *
+ * SELF-SCOPED BY CONSTRUCTION, and that is the whole security story: `r.user_id = ${userId}` is the WHERE,
+ * so this read can only ever return the caller's OWN row. It is deliberately keyed on the group id the
+ * caller just resolved from the token it presented — not on the token again — so it cannot be used to probe
+ * for anything the caller has not already proven possession of.
+ *
+ * THERE IS NO GUEST EQUIVALENT, and its absence is a decision rather than a gap (D-116/D-117). A guest is
+ * identified by the address they type on the form; on a plain GET they have typed nothing, so recognising a
+ * returning guest would mean either matching them on something they did not supply or handing the page a
+ * way to look up an RSVP by address — which is an oracle over who has been invited. A guest-with-email
+ * changes their answer by answering again with the same address, which the `rsvp_group_email_uq` partial
+ * unique index resolves onto their existing row (08-01/08-02).
+ */
+export async function getMyRsvpStatus(
+  dbConn: DbConn,
+  args: { groupId: string; userId: string },
+): Promise<"yes" | "no" | null> {
+  const rows = (await dbConn.execute(sql`
+    SELECT r.status::text AS "status"
+    FROM rsvp r
+    WHERE r.group_id = ${args.groupId}
+      AND r.user_id = ${args.userId}
+    LIMIT 1
+  `)) as unknown as { status: "yes" | "no" }[];
+  return rows[0]?.status ?? null;
+}
+
 /** The organizer's own group, as `/bookings/[id]/group` and the management actions read it. */
 export type OwnedGroup = {
   groupId: string;
