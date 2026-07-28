@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_for_verification
-stopped_at: Completed 08-09-PLAN.md
-last_updated: "2026-07-28T02:52:00.000Z"
-last_activity: 2026-07-28
+status: executing
+stopped_at: "GAP-CLOSURE PLANNED — `/gsd-plan-phase 8 --gaps` wrote 8 new plans (`08-10` … `08-17`, waves 6–9), committed `1cbac46`. NOTHING IS EXECUTED YET: plans 08-01 … 08-09 remain the shipped record (9/9 SUMMARYs on disk, untouched); 08-10 … 08-17 have NO summaries. Next: `/gsd-execute-phase 8` (start a fresh context — `/clear` first). Closing 7 findings: CR-03 (unclamped `declaredPax` → int4 overflow into the frozen price basis), CR-04 (unbounded rate-limit `Map` on the one unauthenticated write path), CR-02 (a re-priced hold mints a 2nd payable PayMongo session — 08-12 adds `booking.checkout_session_id` + `[BLOCKING]` migration 0019, 08-13 wires expire-before-refreeze), WR-03/WR-04 (organizer seat not reserved in `capacity_snapshot`; nudge off-by-one), CR-01 (surcharged hourly bookings render \"Full day\"), and deferred-items.md item 4 (the SHIPPED `claimSeat` `FOR UPDATE` finally gets mutation coverage). 08-17 is a blocking human-verify checkpoint (`autonomous: false`) for the pax-surcharge UI walkthrough 08-09 skipped. OUT of scope by operator decision: WR-01/02/05–10. ⚠️ Plan-checker WARNING to carry into execution: 08-15 touches 19 files across 3 tasks (past the 15-file threshold; accepted because making `WhenLabelInput.fullDay` required forces `tsc` to enumerate every call site, and tsc is intentionally RED between its Task 1 and Task 3) — watch context during Task 3's 9-file pass. UAT fixture `uat-08-09-group` is still in the local DB — reversal SQL is in 08-09-SUMMARY.md."
+last_updated: "2026-07-28T04:15:21.800Z"
+last_activity: 2026-07-28 -- Phase 08 planning complete
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 69
+  total_plans: 77
   completed_plans: 69
   percent: 78
 ---
@@ -25,14 +25,39 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 08 (group-bookings) — ALL 9 PLANS EXECUTED, awaiting verification (the phase is NOT marked complete; `/gsd-verify-work` owns that call)
-Plan: 9 of 9 — 08-09 done (08-09-SUMMARY.md on disk)
-Next action: `/gsd-verify-work` — then `/gsd-plan-phase 8 --gaps` for the one open gap below
+Phase: 08 (group-bookings) — VERIFIED `gaps_found`, GAP CLOSURE NOW PLANNED. 08-01 … 08-09 executed and shipped; 08-10 … 08-17 planned, none executed.
+Plan: 9 of 17 — 08-09 done (SUMMARY on disk); 08-10 … 08-17 have no summaries yet
+Next action: `/gsd-execute-phase 8` — runs waves 6→9 (08-10/11/12/16 → 08-13/14 → 08-15 → 08-17). `/clear` first.
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
-Last activity: 2026-07-28
+Last activity: 2026-07-28 -- Phase 08 planning complete
 
-Progress: [██████████] 100%
+Progress: [█████░░░░░] 53% (9 of 17 phase-8 plans executed)
+
+**GAP CLOSURE PLANNED (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. Nothing executed yet.** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
+
+| Plan | Wave | Closes |
+|---|---|---|
+| 08-10 | 6 | **CR-03** — clamp `declaredPax` to the listing's `maxOccupancy` inside `createPendingHold`'s own tx + `.max(10_000)` shape bound, so no headcount reaches the int4 money columns |
+| 08-11 | 6 | **CR-04** — bound the rate-limit `Map` (sweep + insertion-order eviction at 50k) and resolve the invite token **before** charging any caller-keyed budget (RSVP key becomes `group.groupId`) |
+| 08-12 | 6 | **CR-02 (1/2)** — `booking.checkout_session_id` + **`[BLOCKING]` migration 0019** + `expireCheckoutSession` in the PayMongo client |
+| 08-16 | 6 | **deferred item 4** — race the *real* `claimSeat` (one `drizzle(client)` per racer) so deleting `FOR UPDATE` from `seat-claim.ts:54` finally goes RED |
+| 08-13 | 7 | **CR-02 (2/2)** — persist the session id in `confirmBooking`; **expire-before-refreeze** in `updateDeclaredPax`, and a failed expire **refuses** the re-price |
+| 08-14 | 7 | **WR-03 + WR-04** — `capacity_snapshot = GREATEST(max_occupancy - 1, 0)`; one organizer-inclusive convention across meter, roster docs and the renamed `attendingTotal` nudge prop |
+| 08-15 | 8 | **CR-01** — `composeWhenLabel` reads the persisted `booking.full_day`; `fullDay` becomes **required** and `hourlyRateCents` is removed so `tsc` enumerates all 18 call sites |
+| 08-17 | 9 | open `human_verification` — `autonomous: false` checkpoint for the pax-surcharge walkthrough 08-09 skipped, with `extra_head_fee` actually configured on `uat_listing_bookable` |
+
+📌 **Planning decisions that are NOT the executor's to revisit:**
+
+1. *CR-02 is persist+expire, **not** revert.* Reverting to the stable per-booking idempotency key re-opens exactly what D-108 closed (a re-priced hold replaying the *old* amount). Ordering is **expire → refreeze**; a failed expire **refuses** the re-price — refusing costs a booker one retry, proceeding costs an unrefunded double capture.
+2. *WR-03 is forward-only — no data migration.* D-111 makes `capacity_snapshot` a frozen creation-time snapshot; rewriting shipped snapshots would violate the decision the column encodes.
+3. *The capacity convention:* `capacity_snapshot` is organizer-**exclusive** (it caps RSVP rows, which the organizer never occupies); `declaredPax`, `maxOccupancy` and the whole organizer surface are organizer-**inclusive**; the public invite page stays organizer-exclusive and unchanged. The now-inverted `attendee-roster.tsx:33-35` comment must be rewritten, not left.
+4. *CR-01 composes with 08-05 rather than reverting it* — the positive day-rate-match fallback 08-05 shipped inline is what moves into `when-label.ts`; `book/page.tsx` and `bookings/[id]/page.tsx` stay untouched.
+5. *CR-04 deliberately omits a coarse pre-resolution budget* — one shared key on the app's only public write path would itself be a global availability lever. Residual (one indexed lookup per unauthenticated request) is dispositioned `accept` in the threat model.
+
+⚠️ **Carry into execution (plan-checker WARNING, no blockers found):** **08-15 touches 19 files across 3 tasks**, past the 15-file threshold. Accepted because making `WhenLabelInput.fullDay` required forces `tsc` to fail loudly on any missed call site rather than silently shipping a partial fix — and `tsc` is **intentionally RED between its Task 1 and Task 3**, so do not treat that as a regression. Watch context during Task 3's 9-file pass and checkpoint if quality degrades.
+
+🚫 **OUT of scope by operator decision:** WR-01, WR-02, WR-05 … WR-10 from `08-REVIEW.md` remain open and logged. One authorized incidental: 08-14's `max_occupancy >= 2` floor also closes the write-side half of WR-09 for the group path.
 
 **08-09 landed — the PHASE GATE is satisfied and a HUMAN has walked the whole group-booking loop.** Full suite **92 files / 792 tests, exit 0** (+14 files / +137 tests over the Phase-7 baseline of 78 / 655). Zero product-code changes in this plan (`git diff --stat 4f85741..HEAD -- src tests` is empty). The human ran the cross-session UAT and **approved steps 1–5**: a session-less private window opened a real invite link and was NOT bounced to `/login`; a name-only guest RSVP'd and saw the "only confirmation" copy; a guest-with-email RSVP'd and the confirmation email **actually arrived via real Resend**; the organizer's headcount + roster reflected both (organizer row #1, yes rows first) refreshing on their own via the poller; and cancelling the parent booking voided the link ("no longer active"), notified the guest-with-email, and left the blank-email guest correctly unreachable. **Both 08-VALIDATION.md Manual-Only rows are closed.**
 
