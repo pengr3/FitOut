@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "GAP-CLOSURE PLANNED — `/gsd-plan-phase 8 --gaps` wrote 8 new plans (`08-10` … `08-17`, waves 6–9), committed `1cbac46`. NOTHING IS EXECUTED YET: plans 08-01 … 08-09 remain the shipped record (9/9 SUMMARYs on disk, untouched); 08-10 … 08-17 have NO summaries. Next: `/gsd-execute-phase 8` (start a fresh context — `/clear` first). Closing 7 findings: CR-03 (unclamped `declaredPax` → int4 overflow into the frozen price basis), CR-04 (unbounded rate-limit `Map` on the one unauthenticated write path), CR-02 (a re-priced hold mints a 2nd payable PayMongo session — 08-12 adds `booking.checkout_session_id` + `[BLOCKING]` migration 0019, 08-13 wires expire-before-refreeze), WR-03/WR-04 (organizer seat not reserved in `capacity_snapshot`; nudge off-by-one), CR-01 (surcharged hourly bookings render \"Full day\"), and deferred-items.md item 4 (the SHIPPED `claimSeat` `FOR UPDATE` finally gets mutation coverage). 08-17 is a blocking human-verify checkpoint (`autonomous: false`) for the pax-surcharge UI walkthrough 08-09 skipped. OUT of scope by operator decision: WR-01/02/05–10. ⚠️ Plan-checker WARNING to carry into execution: 08-15 touches 19 files across 3 tasks (past the 15-file threshold; accepted because making `WhenLabelInput.fullDay` required forces `tsc` to enumerate every call site, and tsc is intentionally RED between its Task 1 and Task 3) — watch context during Task 3's 9-file pass. UAT fixture `uat-08-09-group` is still in the local DB — reversal SQL is in 08-09-SUMMARY.md."
-last_updated: "2026-07-28T04:15:21.800Z"
-last_activity: 2026-07-28 -- Phase 08 planning complete
+stopped_at: "Completed 08-10-PLAN.md (wave 6) — CR-03 CLOSED. declaredPax is bounded twice: .max(10_000) shape ceiling at bookingCreateSchema + a min(declaredPax, listing.maxOccupancy) clamp read inside createPendingHold's OWN tx. grep -c 'input.declaredPax' units.ts = 1 (the clamp expression only). BOTH mutations recorded RED->GREEN in the SUMMARY: reverting the clamp fails 3/10 including a live Postgres 22003 ('value "3150000103425" is out of range for type integer' — the exact raw-500 chain CR-03 described); removing .max(10_000) fails only the 10_001 shape case. Full suite 92 files / 797 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). DEVIATION: the pre-CR-03 fixture had to GAIN a default maxOccupancy (12) — it never set one, so the deliberate fail-closed fallback clamped two shipped D-108 cases to 1. No assertion weakened. Commits 4ab8c58 (clamp), 113445d (regression cases). Next: 08-11 (CR-04), 08-12 (CR-02 1/2), 08-16 (deferred item 4) — rest of wave 6."
+last_updated: "2026-07-28T05:31:41.491Z"
+last_activity: 2026-07-28
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 77
-  completed_plans: 69
+  completed_plans: 71
   percent: 78
 ---
 
@@ -25,16 +25,29 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 08 (group-bookings) — VERIFIED `gaps_found`, GAP CLOSURE NOW PLANNED. 08-01 … 08-09 executed and shipped; 08-10 … 08-17 planned, none executed.
-Plan: 9 of 17 — 08-09 done (SUMMARY on disk); 08-10 … 08-17 have no summaries yet
-Next action: `/gsd-execute-phase 8` — runs waves 6→9 (08-10/11/12/16 → 08-13/14 → 08-15 → 08-17). `/clear` first.
+Phase: 08 (group-bookings) — EXECUTING
+Plan: 10 of 17 — **08-10 DONE** (SUMMARY on disk, 10/17 summaries). Wave 6 remaining: 08-11, 08-12, 08-16.
+Next action: `/gsd-execute-phase 8` — finish wave 6 (08-11/12/16), then waves 7→9 (08-13/14 → 08-15 → 08-17).
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
-Last activity: 2026-07-28 -- Phase 08 planning complete
+Last activity: 2026-07-28
 
-Progress: [█████░░░░░] 53% (9 of 17 phase-8 plans executed)
+Progress: [█████████░] 92%
 
-**GAP CLOSURE PLANNED (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. Nothing executed yet.** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
+✅ **08-10 LANDED — CR-03 (BLOCKER) is CLOSED, both halves mutation-proven.** `declaredPax` is bounded twice: a `.max(10_000)` SHAPE ceiling at `bookingCreateSchema` (keeps any accepted value orders of magnitude below int4) and a `min(declaredPax, listing.maxOccupancy)` clamp read INSIDE `createPendingHold`'s own transaction, alongside the rates it prices against (D-111). `grep -c "input.declaredPax" src/lib/availability/units.ts` prints **1** — the clamp expression is the only place the raw input is read; `quoteWindow` and `declaredPaxToPersist` both take the clamped local. Full suite **92 files / 797 tests exit 0** (+5); tsc 0; lint **0 errors** (7 pre-existing warnings); `npm run build` exit 0 (27 routes), no env workaround.
+
+📌 **New contracts from 08-10 (load-bearing for anyone touching a client-supplied multiplier or the two pax clamps):**
+
+1. *The clamps on the two entry points are ASYMMETRIC on a null cap, and that asymmetry is the decision — do not "harmonise" them.* Creation (`createPendingHold`) falls back to **1**, fail CLOSED and surcharge-free; re-price (`updateDeclaredPax`, `src/app/actions/booking.ts:376`) falls back to the caller's own value because it is owner-gated on an existing hold. `createPendingHold` is the entry point a crafted POST reaches, so a listing with no recorded capacity must charge for nobody extra rather than for whoever asked. The rationale is stated in a comment at the clamp site.
+2. *A shape ceiling and a cap are different jobs and different numbers.* `.max(10_000)` exists ONLY so no accepted value can multiply through `(pax − included) × extra_head_fee` into the `integer` money columns; the REAL cap is the listing's own `maxOccupancy`, read in-transaction. Under mutation the overflow was **reproduced live** — `PostgresError: value "3150000103425" is out of range for type integer`, `code 22003`, `routine pg_strtoint32_safe` — which is exactly the `mapBookingError` re-throw → raw 500 chain (T-03-500) the review predicted. Apply the pair to any future client-supplied multiplier that reaches an int4 money column.
+3. *A clamped headcount is a SUCCESS, not a refusal.* No new error branch, no new failure shape for callers — the booker gets the price for the headcount the listing can actually hold. `quoteWindow`, `paxSurcharge`, `computeServiceFee` and the D-74 triple composition are untouched, and every new case re-asserts `quoted == space + fee` on the clamped row so CR-03 can never be closed later by breaking the triple.
+4. *The old comment at `validation/booking.ts` was a FALSE statement about the system and was rewritten, not annotated.* "The real seat-cap enforcement is D-112's seat-claim, not this field, so no upper bound is asserted here" is gone. D-112's seat-claim caps RSVP **rows**; it was never the thing standing between a crafted `declaredPax` and the frozen price.
+
+⚠️ **`tests/booking/pax-surcharge-hold.test.ts` fixtures now carry `maxOccupancy = 12` by DEFAULT.** The fixture never set one, so the (deliberate) fail-closed fallback clamped two shipped D-108 cases to 1 — the assertions and the code were both right and the FIXTURE was what no longer expressed "at or below the cap". No assertion was weakened; the fail-closed case passes `maxOccupancy: null` explicitly. **Any new case meaning to exercise the cap must name its own `maxOccupancy`.**
+
+⚠️ **A host who sets `extra_head_fee` but leaves `max_occupancy` empty now collects NO surcharge at hold time** (every booker clamps to 1). Safe — it can only undercharge — but product-visible. A publish-time nudge pairing the two fields is the real close; 08-14's `max_occupancy >= 2` floor moves toward it for the group path. **08-17's pax-surcharge UAT must set BOTH fields** or the stepper will correctly render nothing and repeat the 08-09 non-verification.
+
+**GAP CLOSURE (`1cbac46`) — 8 plans, `08-10` … `08-17`, waves 6–9. 1 of 8 executed (08-10).** Phase 8 verification returned `gaps_found` (2/5 truths clean; SC1/SC3/SC4 partial). `/gsd-plan-phase 8 --gaps` planned closure for **7** findings, scope chosen by the operator:
 
 | Plan | Wave | Closes |
 |---|---|---|
@@ -271,6 +284,7 @@ Progress: [█████░░░░░] 53% (9 of 17 phase-8 plans executed)
 | Phase 08 P06 | 38min | 3 tasks | 9 files |
 | Phase 08 P07 | 16min | 3 tasks | 11 files |
 | Phase 08 P08 | 26min | 2 tasks | 4 files |
+| Phase 08 P10 | 25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -403,6 +417,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-08: malformed, unknown, regenerated, voided and cancelled invite tokens all fold onto ONE inactive branch over ONE pair of constants — measured live, four token classes returned byte-identical rendered content
 - [Phase ?]: 08-08: a page whose URL carries a bearer credential declares robots:noindex + referrer:no-referrer in its own metadata — the two leak paths a URL-borne token has that a header-borne one does not
 - [Phase ?]: 08-08: the invite form renders submitRsvp's error string VERBATIM and performs no client-side cap re-check — only the FOR UPDATE seat-claim can know what 'full' means (D-112)
+- [Phase 08]: CR-03 closed: declaredPax is bounded twice — a .max(10_000) SHAPE ceiling at bookingCreateSchema (keeps any accepted value away from the int4 money columns) and a min(declaredPax, listing.maxOccupancy) clamp read INSIDE createPendingHold's own transaction (the real cap, D-111). The raw input now reaches exactly one expression: the clamp.
+- [Phase 08]: The creation-path null-maxOccupancy fallback is 1 (fail CLOSED, surcharge-free), deliberately DIFFERENT from updateDeclaredPax's fallback to the client value — createPendingHold is the entry point a crafted POST reaches, so an uncapped listing charges for nobody extra rather than for whoever asked.
 
 ### Pending Todos
 
@@ -452,8 +468,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T02:52:00.000Z
-Stopped at: Completed 08-09-PLAN.md — PHASE 8 PLANS ALL EXECUTED (9/9, every SUMMARY on disk); the PHASE is deliberately NOT marked complete (that is `/gsd-verify-work`'s call). Task 1: full suite 92 files / 792 tests exit 0 (+14/+137 over the Phase-7 baseline) and the GROUP-05 gate mutation-verified RED→GREEN via the test's own inlined `FOR UPDATE`. Task 2: blocking human-verify APPROVED for steps 1–5 (session-less guest RSVP on a real invite link, real Resend delivery to a real inbox, organizer headcount/roster via the poller, cancellation voids the link + notifies only the reachable attendee); optional step 6 NOT exercised (`extra_head_fee` is NULL — the pax-pricing surcharge UI is unverified by a human). 🚨 Carry forward: the SHIPPED `claimSeat` `FOR UPDATE` has NO mutation coverage — deleting `seat-claim.ts:54` leaves the full 792-test suite green (deferred-items.md item 4, the #1 `--gaps` item). Commits `4f85741` (Task-1 evidence), `dea2cd4` (out-of-plan Toaster fix, closes deferred item 3), `1ba3ff3` (SUMMARY). UAT fixture `uat-08-09-group` is still in the local DB — reversal SQL is in 08-09-SUMMARY.md. Next: `/gsd-verify-work`, then `/gsd-plan-phase 8 --gaps`.
+Last session: 2026-07-28T05:31:41.465Z
+Stopped at: Completed 08-10-PLAN.md (wave 6) — CR-03 CLOSED. declaredPax is bounded twice: .max(10_000) shape ceiling at bookingCreateSchema + a min(declaredPax, listing.maxOccupancy) clamp read inside createPendingHold's OWN tx. grep -c 'input.declaredPax' units.ts = 1 (the clamp expression only). BOTH mutations recorded RED->GREEN in the SUMMARY: reverting the clamp fails 3/10 including a live Postgres 22003 ('value "3150000103425" is out of range for type integer' — the exact raw-500 chain CR-03 described); removing .max(10_000) fails only the 10_001 shape case. Full suite 92 files / 797 tests exit 0 (+5); tsc 0; lint 0 errors / 7 pre-existing warnings; build exit 0 (27 routes). DEVIATION: the pre-CR-03 fixture had to GAIN a default maxOccupancy (12) — it never set one, so the deliberate fail-closed fallback clamped two shipped D-108 cases to 1. No assertion weakened. Commits 4ab8c58 (clamp), 113445d (regression cases). Next: 08-11 (CR-04), 08-12 (CR-02 1/2), 08-16 (deferred item 4) — rest of wave 6.
 Resume file: None
 
 Prior session: 2026-07-28T02:06:54.730Z
