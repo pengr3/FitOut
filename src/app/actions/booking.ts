@@ -532,8 +532,8 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     SET expires_at = GREATEST(expires_at, now() + make_interval(mins => ${PAYMENT_WINDOW_MINUTES}))
     WHERE id = ${holdId} AND booker_id = ${userId} AND status IN ('pending','approved')`);
 
-  // Create the hosted checkout for the SERVER-FROZEN amount (D-49). The stable Idempotency-Key
-  // checkout:<bookingId> makes a double-click / retry reuse the SAME session — never a second charge.
+  // Create the hosted checkout for the SERVER-FROZEN amount (D-49). Within ONE frozen amount the stable
+  // Idempotency-Key collapses a double-click / retry onto the SAME session.
   //
   // ── D-108: THE KEY IS AMOUNT-SCOPED **ONLY** WHEN A HEADCOUNT WAS DECLARED. ────────────────────────────
   // `declared_pax` is non-NULL exactly on a per-head-priced booking (units.ts writes it only when the
@@ -544,6 +544,14 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // which is precisely the trust failure `price-breakdown.tsx` is written to prevent. Folding the frozen
   // amount into the key makes a re-priced hold mint a session for the price actually agreed, while a
   // double-click (same booking, same amount) still resolves to the same key and the same session.
+  //
+  // ⚠️ THE ONE-LIVE-SESSION INVARIANT IS **NOT** HELD BY THIS KEY (CR-02). Precisely because the key is
+  // amount-scoped, a re-priced hold mints a genuinely NEW session — and the SUPERSEDED one stays payable in
+  // a second tab or the browser Back stack unless something retires it. What holds "at most one payable
+  // session per booking" is `updateDeclaredPax`: it EXPIRES the persisted `checkout_session_id` BEFORE it
+  // freezes the new amount, and REFUSES the re-price if that expire fails. This action's half of that
+  // contract is the write further down — every session created here is NAMED on its own booking row before
+  // the booker leaves the app, or there would be nothing for the re-price to expire.
   //
   // Flat-priced bookings keep the byte-identical `checkout:<bookingId>` key they have today — their quote
   // is immutable once frozen, so there is nothing for an amount to disambiguate, and the shipped
@@ -575,6 +583,31 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     });
     return { ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again." };
   }
+
+  // NAME the session we just created on its own booking row (CR-02). This is the only place a checkout
+  // session enters the system, so it is the only place that can record which one is live — and it has to
+  // happen BEFORE the redirect, which throws by design (nothing after it ever runs). `updateDeclaredPax`
+  // reads this column to expire the superseded session before re-freezing a new amount; a session that was
+  // never written here can never be retired.
+  //
+  // Scoped exactly like every other write in this action — owner + a still-live hold — so it can never
+  // touch a confirmed or terminal row (T-06-10).
+  //
+  // ⚠️ ZERO ROWS IS NOT A FAILURE, AND MUST NOT BECOME ONE. If the hold lapsed between the extension above
+  // and this write, the booker is ALREADY on their way to a real, payable session; refusing here would
+  // strand them mid-payment with money about to move and no page to move it on. The existing expiry /
+  // handleGoneSlot machinery (D-58) is what resolves that case. Say nothing to the client, and do not
+  // "harden" this into a refusal.
+  await db
+    .update(booking)
+    .set({ checkoutSessionId: checkout.id })
+    .where(
+      and(
+        eq(booking.id, holdId),
+        eq(booking.bookerId, userId),
+        inArray(booking.status, ["pending", "approved"]),
+      ),
+    );
 
   await recordAudit({ actorId: userId, action: "confirm_pay", outcome: "ok", meta: { holdId } });
   // The webhook (Plan 04) — NOT this browser return — is the confirm authority (D-57); we only send the
