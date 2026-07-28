@@ -49,7 +49,18 @@ stepper pre-`placeHold`, or freeze `declaredPax` at approval for request mode.
 
 ---
 
-## 3. No `<Toaster />` is mounted on any booker-side page, so booker toasts are silent (pre-existing, found 08-08)
+## 3. ~~No `<Toaster />` is mounted on any booker-side page, so booker toasts are silent~~ — **CLOSED (`dea2cd4`, during the 08-09 UAT setup)**
+
+> **Closed 2026-07-28 by `dea2cd4`** — `<Toaster />` is now mounted exactly once at the shared
+> ancestor, `src/app/(app)/layout.tsx` (the WR-04 idiom), so every booker-side `toast.*` is audible:
+> 08-07's `ShareLinkBox` / `CreateGroupButton` / `RemoveAttendeeButton` and the Phase-07 cancel/refund
+> surfaces. **Do NOT also mount one per-page underneath it** — two Toasters render each toast twice.
+> This landed outside any plan and is attributed in `08-09-SUMMARY.md`. The original entry is kept
+> below for the record; it correctly predicted this would be the first thing the 08-09 organizer
+> walkthrough hit.
+
+<details><summary>Original entry (08-08)</summary>
+
 
 **Found during:** 08-08 Task 2, while deciding whether the public invite page should report failures via
 `sonner` or inline.
@@ -74,6 +85,8 @@ in an inline neutral alert instead.
 
 **When to close:** before the 08-09 UAT walkthrough of the ORGANIZER flow, or as a one-line addition to
 `(app)/layout.tsx` whenever the booker shell is next touched.
+
+</details>
 
 ---
 

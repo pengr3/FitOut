@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: plan_ready
-stopped_at: Completed 08-08-PLAN.md
-last_updated: "2026-07-28T02:06:54.793Z"
+status: ready_for_verification
+stopped_at: Completed 08-09-PLAN.md
+last_updated: "2026-07-28T02:52:00.000Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 9
@@ -25,14 +25,24 @@ See: .planning/PROJECT.md (updated 2026-06-03)
 
 ## Current Position
 
-Phase: 08 (group-bookings) — EXECUTING
-Plan: 9 of 9
-Next action: `/gsd-execute-phase 8`
+Phase: 08 (group-bookings) — ALL 9 PLANS EXECUTED, awaiting verification (the phase is NOT marked complete; `/gsd-verify-work` owns that call)
+Plan: 9 of 9 — 08-09 done (08-09-SUMMARY.md on disk)
+Next action: `/gsd-verify-work` — then `/gsd-plan-phase 8 --gaps` for the one open gap below
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
 
 Progress: [██████████] 100%
+
+**08-09 landed — the PHASE GATE is satisfied and a HUMAN has walked the whole group-booking loop.** Full suite **92 files / 792 tests, exit 0** (+14 files / +137 tests over the Phase-7 baseline of 78 / 655). Zero product-code changes in this plan (`git diff --stat 4f85741..HEAD -- src tests` is empty). The human ran the cross-session UAT and **approved steps 1–5**: a session-less private window opened a real invite link and was NOT bounced to `/login`; a name-only guest RSVP'd and saw the "only confirmation" copy; a guest-with-email RSVP'd and the confirmation email **actually arrived via real Resend**; the organizer's headcount + roster reflected both (organizer row #1, yes rows first) refreshing on their own via the poller; and cancelling the parent booking voided the link ("no longer active"), notified the guest-with-email, and left the blank-email guest correctly unreachable. **Both 08-VALIDATION.md Manual-Only rows are closed.**
+
+🚨 **THE GROUP-05 ACCEPTANCE GATE DOES NOT COVER THE SHIPPED SEAT-CLAIM LOCK. Do not read the green suite as a regression guard on `claimSeat`.** `tests/group/seat-claim-race.test.ts` **never imports or calls `claimSeat`** — it INLINES its own copy of the seat-claim SQL inside each racer's transaction (documented at that file's **line 12**; the reason is sound — it makes the `FOR UPDATE` lock itself the thing under test, mirroring `exclusion-race.test.ts`). Measured this plan, **not inferred**: deleting `FOR UPDATE` from `src/lib/group/seat-claim.ts:54` leaves the race test **GREEN (2/2)**, all of `tests/group/` **GREEN (6 files / 60 tests)**, and the **full 792-test suite GREEN** — while shipping an over-cap bug. The lock **is** present and correct today (verified byte-identical after the mutation was reverted) and `tests/group/seat-claim.test.ts` covers its functional contract, but it has **NO mutation coverage**: anyone deleting that line ships an overflow defect past a fully green suite and a "passing" gate. The gate as executed proves the *pattern* is race-free (via the test's own inlined `FOR UPDATE` at `:91` → RED with **3 committed `yes` at `capacity_snapshot=1`** and **4 at `=2`**, read back through an independent connection → restore → GREEN). ⚠️ **The 08-09 PLAN's Task-1 text is therefore not executable as written.** Logged as `08-.../deferred-items.md` **item 4**; the close is one racing case that routes through the real `claimSeat` (bind each racer's own connection as its `DbConn`), keeping the inlined cases as the pattern proof. **This is the #1 `/gsd-plan-phase 8 --gaps` item — Phase 9 reuses this same lock.**
+
+⚠️ **The pax-pricing surcharge UI has NEVER been human-verified.** 08-09's optional step 6 (PaxStepper server-side re-quote, "Extra guests" breakdown line, organizer top-up nudge) was **NOT exercised** — `uat_listing_bookable.extra_head_fee` is **NULL**, so none of that UI renders (correct per 08-05 contract 6). It is covered only by the 08-03/08-05 automated tests. Exercising it needs a listing with an extra-guest fee set in the wizard.
+
+✅ **`<Toaster />` is now mounted (`dea2cd4`) — the item-3 deferred entry is CLOSED.** It sits once in `src/app/(app)/layout.tsx` (the WR-04 shared-ancestor idiom), so every booker-side `toast.*` is finally audible — 08-07's `ShareLinkBox` "Link copied", `CreateGroupButton`/`RemoveAttendeeButton` errors, and the Phase-07 cancel/refund toasts. **Do NOT also mount one per-page underneath it** — two Toasters render each toast twice. This commit belonged to no plan; it is attributed in 08-09-SUMMARY.md.
+
+🧪 **UAT fixture `uat-08-09-group` is STILL IN THE LOCAL DEV DB.** It was created because the seed has zero future-dated confirmed bookings (all confirmed rows start `2026-07-25` or earlier vs `now() = 2026-07-28`), so any group made on them lands straight in `closed`. A NEW row was used rather than moving an existing booking forward because `61726f09…` carries a stray `host_cancel_fee` ledger row and `42132ab1…` is the live PayMongo refund fixture that a cancellation must not touch; `uat-08-09-group` has `payment_id = NULL` so step 5 cancelled without a real refund. **Reversal SQL is in 08-09-SUMMARY.md** — run it at phase sign-off. Note also: with **no verified Resend domain**, the `onboarding@resend.dev` fallback sender delivers **only to the account owner** (`pengr.clmc.3@gmail.com`), which is the address any future email UAT must use.
 
 **08-08 landed — the PUBLIC INVITE PAGE ships (`/invite/[token]`), and GROUP-03 is now true end-to-end.** Full suite: **92 files / 792 tests, exit 0**; `npx tsc --noEmit` clean; `npx eslint src tests` **0 errors** (7 pre-existing warnings, none in touched files); `npm run build` **exit 0** with no env workaround. A person with no account can open the link, read the session in venue-local time at an address the host agreed to share, and answer yes or no with a name and an optional email. Every rendered state was driven against a running dev server and a real row (unknown / malformed / voided / closed / open-guest / full), then the scratch data was deleted and the seed restored.
 
@@ -170,6 +180,9 @@ Progress: [██████████] 100%
 | 01 | 4 | - | - |
 | 04 | 8 | - | - |
 | 06 | 10 | - | - |
+| 08 | 9 | - | - |
+
+*08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 
 **Recent Trend:**
 
@@ -245,6 +258,11 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [08-09]: A mutation gate must name the ARTIFACT it mutates. Mutating a test's inlined copy of production SQL proves the *pattern*; mutating the *production module* proves the *shipped code*. These are different claims and only the second is a regression guard. The GROUP-05 gate does the first only — recorded as such rather than reported as a clean pass.
+- [08-09]: Both mutations were run and both outcomes recorded, instead of silently substituting the one that works for the one the plan named. The divergence between them IS the finding.
+- [08-09]: The production-lock coverage gap was LOGGED, not closed — closing it is new test authorship, outside a plan declaring `<files></files>` and "no code changes". It is `deferred-items.md` item 4.
+- [08-09]: An optional verification step that could not be exercised is recorded as NOT-EXERCISED with its reason (NULL `extra_head_fee`), never quietly dropped and never counted as verified. An untested surface described as verified is worse than one described as untested.
+- [08-09]: A blocking checkpoint's completed-task evidence is parked in a `{phase}-{plan}-PROGRESS.md` so a long human pause cannot force a re-run of an expensive mutation; the PROGRESS file is folded into the SUMMARY and deleted on resume, so no stale `status: in-progress` artifact survives.
 - [Roadmap]: 8-phase dependency-driven order — identity → supply → availability + double-booking guarantee → booking core + search (no payment) → payments → full instant/request integration → bookings management + cancellation → group bookings. Ordering is non-negotiable for correctness.
 - [Roadmap]: Double-booking prevented at the DB level (Postgres GiST exclusion constraint on tstzrange, scoped by listing) — must exist before any booking insert (Phase 3).
 - [Roadmap]: Bookability gate built in Phase 2 (gate listing bookability, not creation, on payout-readiness) so it can never be bypassed later — now via PayMongo `merchant.activated`/`activation_status: activated` (D-20); previously Stripe Connect `payouts_enabled`.
@@ -409,7 +427,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T02:06:54.730Z
+Last session: 2026-07-28T02:52:00.000Z
+Stopped at: Completed 08-09-PLAN.md — PHASE 8 PLANS ALL EXECUTED (9/9, every SUMMARY on disk); the PHASE is deliberately NOT marked complete (that is `/gsd-verify-work`'s call). Task 1: full suite 92 files / 792 tests exit 0 (+14/+137 over the Phase-7 baseline) and the GROUP-05 gate mutation-verified RED→GREEN via the test's own inlined `FOR UPDATE`. Task 2: blocking human-verify APPROVED for steps 1–5 (session-less guest RSVP on a real invite link, real Resend delivery to a real inbox, organizer headcount/roster via the poller, cancellation voids the link + notifies only the reachable attendee); optional step 6 NOT exercised (`extra_head_fee` is NULL — the pax-pricing surcharge UI is unverified by a human). 🚨 Carry forward: the SHIPPED `claimSeat` `FOR UPDATE` has NO mutation coverage — deleting `seat-claim.ts:54` leaves the full 792-test suite green (deferred-items.md item 4, the #1 `--gaps` item). Commits `4f85741` (Task-1 evidence), `dea2cd4` (out-of-plan Toaster fix, closes deferred item 3), `1ba3ff3` (SUMMARY). UAT fixture `uat-08-09-group` is still in the local DB — reversal SQL is in 08-09-SUMMARY.md. Next: `/gsd-verify-work`, then `/gsd-plan-phase 8 --gaps`.
+Resume file: None
+
+Prior session: 2026-07-28T02:06:54.730Z
 Stopped at: Completed 08-08-PLAN.md
 Resume file: None
 

@@ -358,6 +358,13 @@ Carry forward:
 3. **`uat-08-09-group` is still in the local dev DB.** Reverse it (SQL above) at phase sign-off.
 4. Remaining open `deferred-items.md` entries: item 1 (stale checkout session after a re-price) and item 2 (request-mode group listings cannot declare a headcount pre-approval). Item 3 is now closed by `dea2cd4`.
 
+## Self-Check: PASSED
+
+- `FOUND: .planning/phases/08-group-bookings/08-09-SUMMARY.md`
+- `OK: 08-09-PROGRESS.md removed` (folded into this file)
+- `FOUND: 4f85741` (Task 1 evidence), `FOUND: dea2cd4` (out-of-plan Toaster fix), `FOUND: 1ba3ff3` (this SUMMARY)
+- `git diff --stat 4f85741..HEAD -- src tests` → **empty**: zero product-code changes across this plan, as the plan requires
+
 ---
 *Phase: 08-group-bookings*
 *Completed: 2026-07-28*

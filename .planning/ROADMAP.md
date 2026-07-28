@@ -260,7 +260,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 08-09-PLAN.md — Human-verify checkpoint: cross-session guest RSVP + real email + GROUP-05 mutation-verify
+- [x] 08-09-PLAN.md — Human-verify checkpoint: cross-session guest RSVP + real email + GROUP-05 mutation-verify
 
 **UI hint**: yes
 
@@ -293,5 +293,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
-| 8. Group Bookings | 8/9 | In Progress|  |
+| 8. Group Bookings | 9/9 | All 9 plans executed — pending /gsd:verify-work | - |
 | 9. Open-Capacity Bookings | 0/TBD | Not started | - |
