@@ -677,6 +677,26 @@ export const booking = pgTable(
     // (Plan 04 refund mechanism / D-58 auto-refund backstop) can reference the payment. Nullable
     // ADD COLUMN (backfill-free — no existing booking rows, A7).
     paymentId: text("payment_id"),
+    // The `cs_...` id of the CURRENTLY LIVE hosted PayMongo Checkout Session for this booking (CR-02).
+    // Written by `confirmBooking` immediately after `createCheckoutSession` resolves — the id the client
+    // already returns and, before this column, threw away.
+    //
+    // WHY IT MUST BE PERSISTED. D-108 scoped the checkout Idempotency-Key to the frozen AMOUNT for
+    // per-head bookings, so a re-priced hold mints a genuinely NEW session rather than replaying the old
+    // one at the old total. That is correct for what the booker is shown — but it leaves the SUPERSEDED
+    // session payable, and the confirm webhook keys purely on `reference_number` with no amount check, so
+    // a payment against the stale session would be captured and never refunded. Persisting the id makes
+    // that session ADDRESSABLE: a re-price (`updateDeclaredPax`) expires the id found here BEFORE minting
+    // a new one (`expireCheckoutSession`, src/lib/paymongo.ts), so at most ONE session per booking is ever
+    // payable. "Exactly one live checkout session per booking" is enforceable only because of this column.
+    //
+    // Nullable + backfill-free, like every payment column above it. A booking that never reached checkout,
+    // and any booking confirmed before this column existed, simply holds NULL — and the re-price path
+    // attempts no expire for a NULL. Deliberately NOT UNIQUE (PayMongo session ids are already distinct
+    // on their side, and a UNIQUE here would turn a harmless retried write into a constraint error ON THE
+    // MONEY PATH) and deliberately un-indexed (it is only ever read by primary key, alongside the rest of
+    // the booking row).
+    checkoutSessionId: text("checkout_session_id"),
     // The PAYMENT RAIL the booker actually used ("card" / "gcash" / "paymaya" / "qrph" / "dob_ubp" / …),
     // captured by the same payment.paid webhook that captures paymentId, from the SAME verified event
     // resource (never a client field). Phase-7 addition (07-09).
