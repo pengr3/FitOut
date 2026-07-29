@@ -501,6 +501,9 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       currency: booking.currency,
       // D-108 — read ONLY to scope the Idempotency-Key below. NULL on every flat-priced booking.
       declaredPax: booking.declaredPax,
+      // The session (if any) this booking already named on a PRIOR confirmBooking submission — the expire-
+      // before-create gate below retires it before minting the next, mirroring updateDeclaredPax.
+      checkoutSessionId: booking.checkoutSessionId,
     })
     .from(booking)
     .where(eq(booking.id, holdId));
@@ -578,8 +581,54 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     SET expires_at = GREATEST(expires_at, now() + make_interval(mins => ${PAYMENT_WINDOW_MINUTES}))
     WHERE id = ${holdId} AND booker_id = ${userId} AND status IN ('pending','approved')`);
 
-  // Create the hosted checkout for the SERVER-FROZEN amount (D-49). Within ONE frozen amount the stable
-  // Idempotency-Key collapses a double-click / retry onto the SAME session.
+  // ── EXPIRE-BEFORE-CREATE (deferred item 5 — the double-charge BLOCKER). ─────────────────────────────
+  // PayMongo does NOT honor the Idempotency-Key on POST /v1/checkout_sessions (probed against sk_test_:
+  // two byte-identical POSTs mint two DIFFERENT, independently payable session ids). So a plain
+  // double-submit of "Confirm & pay" — or a Back-then-retry — would mint a SECOND payable session and
+  // charge the booker twice, unrefundable on a qrph rail. The confirm webhook keys purely on
+  // reference_number and confirms on status='pending' alone (D-57), so it cannot tell the two apart. The
+  // ONLY real retirement mechanism is expire, so any session this booking already named is retired FIRST.
+  // This mirrors updateDeclaredPax's gate and protects BOTH per-head and flat bookings — the flat
+  // checkout:<bookingId> key was believed to be a double-charge guard and is not one.
+  //
+  // ⚠️ FAIL-CLOSED on a GENUINE failure: a thrown expire REFUSES the new checkout rather than leaking a
+  // second payable session. An operator retires the old session by hand from the needs_attention audit.
+  // NULL is normal — a hold that never reached checkout has nothing to retire, and calling PayMongo for it
+  // would be a fabricated request.
+  //
+  // NOT-TRAPPED RECOVERY: if createCheckoutSession fails AFTER this expire succeeds, the column still names
+  // the (now-expired) old id. On the booker's retry, this block expires that id AGAIN — a repeat expire is
+  // a NO-OP that replays PayMongo's prior 200 via the stable session-scoped Idempotency-Key
+  // (checkout-expire:<id>, 08-12 contract 1), so it RESOLVES (does not throw) and the retry proceeds to
+  // mint a fresh session. A harmless already-expired id is therefore tolerated as success — never a
+  // permanent fail-closed loop. (08-19's 4th real-API case PROBES this repeat-expire-no-op belief — the
+  // exact class of un-probed provider assumption that shipped the original double-charge.)
+  //
+  // ⚠️ CONCURRENCY RESIDUAL (T-08-79, ACCEPTED): this read-then-act gate is UNLOCKED, so two truly
+  // simultaneous confirmBooking calls for one holdId can both read a stale/NULL checkoutSessionId, both
+  // skip the expire, and both mint a payable session. NOT closed here on purpose — a SELECT … FOR UPDATE
+  // spanning expire+create would hold a DB row lock across two external PayMongo HTTP round-trips (a worse
+  // anti-pattern) and would diverge from the accepted updateDeclaredPax shape (CR-02, verified 08-13). This
+  // gate covers the SEQUENTIAL double-submit (the observed UAT failure), not a concurrent double-click.
+  if (bk.checkoutSessionId != null) {
+    try {
+      await expireCheckoutSession(bk.checkoutSessionId);
+    } catch {
+      await recordAudit({
+        actorId: userId,
+        action: "checkout_expire_failed",
+        outcome: "needs_attention",
+        meta: { holdId, checkoutSessionId: bk.checkoutSessionId },
+      });
+      return { ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again." };
+    }
+  }
+
+  // Create the hosted checkout for the SERVER-FROZEN amount (D-49).
+  //
+  // ⚠️ The Idempotency-Key is NOT a double-submit guard here: PayMongo does not honor it on
+  // POST /v1/checkout_sessions (probed — two identical POSTs return two different payable session ids).
+  // The guard is the expire-before-create ABOVE, which retires any session this row already named.
   //
   // ── D-108: THE KEY IS AMOUNT-SCOPED **ONLY** WHEN A HEADCOUNT WAS DECLARED. ────────────────────────────
   // `declared_pax` is non-NULL exactly on a per-head-priced booking (units.ts writes it only when the
@@ -588,8 +637,11 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // `cancelUrl`, step the headcount, and pay again. With a bookingId-only key that second attempt replays
   // the FIRST session and charges the OLD amount — the displayed total would not be the charged total,
   // which is precisely the trust failure `price-breakdown.tsx` is written to prevent. Folding the frozen
-  // amount into the key makes a re-priced hold mint a session for the price actually agreed, while a
-  // double-click (same booking, same amount) still resolves to the same key and the same session.
+  // amount into the key makes a re-priced hold mint a session for the price actually agreed. A double-click
+  // at the SAME amount resolves to the same KEY — but PayMongo mints a new session regardless (the key is
+  // not honored on checkout-session creation), so the expire-before-create above is what retires the
+  // superseded session on a SEQUENTIAL resubmission (a concurrent double-click is the accepted T-08-79
+  // residual).
   //
   // ⚠️ THE ONE-LIVE-SESSION INVARIANT IS **NOT** HELD BY THIS KEY (CR-02). Precisely because the key is
   // amount-scoped, a re-priced hold mints a genuinely NEW session — and the SUPERSEDED one stays payable in

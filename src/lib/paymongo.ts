@@ -168,8 +168,15 @@ export type CheckoutSession = { id: string; checkoutUrl: string };
  * authority (D-57).
  *
  * `amountCents` is integer CENTAVOS and MUST be the server-frozen `booking.quotedTotalCents` (D-49) —
- * NEVER a client-supplied number. `paymaya` is Maya's PayMongo API name. Idempotency-Key is set by the
- * caller (e.g. `checkout:<bookingId>`) so a double-click / retry can't create a second charge.
+ * NEVER a client-supplied number. `paymaya` is Maya's PayMongo API name.
+ *
+ * ⚠️ Idempotency-Key is sent on every POST (paymongoFetch adds it), but PayMongo does NOT honor it on
+ * POST /v1/checkout_sessions — probed against sk_test_, two POSTs with a byte-identical key + body return
+ * two DIFFERENT, independently payable session ids. It is therefore NOT a double-charge guard. The caller
+ * (confirmBooking / updateDeclaredPax) must expire the previously-persisted session via
+ * expireCheckoutSession BEFORE creating a new one; that is the only mechanism that retires a superseded
+ * session on a SEQUENTIAL resubmission (a truly concurrent double-click is an accepted residual — the
+ * read-then-act gate is unlocked, matching updateDeclaredPax).
  */
 export async function createCheckoutSession(input: {
   amountCents: number;
