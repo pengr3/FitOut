@@ -148,3 +148,62 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     ).toBe(false);
   });
 });
+
+// ── Gap C / deferred item 7 (08-20): surcharge REACHABILITY. `declaredPax` is clamped to `maxOccupancy`
+// BEFORE the surcharge is computed (units.ts + paxSurcharge), so `extraHeads = max(0, pax − included)` is
+// ALWAYS 0 when `included >= maxOccupancy` — the host would collect nothing extra forever. publishSchema
+// must reject that config, but ONLY when a per-head fee is actually set (a flat listing has no surcharge to
+// lose), and draftSchema must stay permissive so a half-filled draft still autosaves. The coalescing here
+// (`included ?? 1`, `extraHeadFee ?? 0`) mirrors paxSurcharge exactly so the gate and the pricing engine
+// can never disagree.
+describe("publishSchema — surcharge reachability (Gap C / deferred item 7)", () => {
+  it("REJECTS included == maxOccupancy when a fee is set (the operator's court-of-8 example)", () => {
+    // maxOccupancy 8, base covers 8 → declaredPax clamps to 8, extraHeads is always 0: zero surcharge forever.
+    expect(
+      publishSchema.safeParse({ ...validPublish, extraHeadFee: 500, included: 8 }).success,
+    ).toBe(false);
+  });
+
+  it("REJECTS included > maxOccupancy when a fee is set", () => {
+    expect(
+      publishSchema.safeParse({ ...validPublish, extraHeadFee: 500, included: 9 }).success,
+    ).toBe(false);
+  });
+
+  it("REJECTS the default included (1) when maxOccupancy is also 1 (1 >= 1)", () => {
+    // No `included` supplied → coalesces to 1, matching paxSurcharge; with maxOccupancy 1 it can never fire.
+    expect(
+      publishSchema.safeParse({ ...validPublish, extraHeadFee: 500, maxOccupancy: 1 }).success,
+    ).toBe(false);
+  });
+
+  it("ACCEPTS included < maxOccupancy when a fee is set (surcharge reachable at heads 8)", () => {
+    expect(
+      publishSchema.safeParse({ ...validPublish, extraHeadFee: 500, included: 7 }).success,
+    ).toBe(true);
+  });
+
+  it("ACCEPTS a fee with NO included (defaults to 1 < maxOccupancy 8)", () => {
+    expect(publishSchema.safeParse({ ...validPublish, extraHeadFee: 500 }).success).toBe(true);
+  });
+
+  it("EXEMPTS flat listings — included == maxOccupancy is fine with no fee / a ₱0 fee", () => {
+    // No surcharge to lose, so the rule does not apply and every pre-Phase-8 listing still publishes.
+    expect(publishSchema.safeParse({ ...validPublish, included: 8 }).success).toBe(true);
+    expect(
+      publishSchema.safeParse({ ...validPublish, extraHeadFee: 0, included: 8 }).success,
+    ).toBe(true);
+  });
+
+  it("targets the rejection at the `included` field (so the wizard shows it on the right input)", () => {
+    const result = publishSchema.safeParse({ ...validPublish, extraHeadFee: 500, included: 8 });
+    expect(result.success).toBe(false);
+    expect(result.error!.flatten().fieldErrors.included).toBeDefined();
+  });
+
+  it("leaves draftSchema permissive — a partial draft with included >= maxOccupancy still autosaves", () => {
+    expect(
+      draftSchema.safeParse({ extraHeadFee: 500, included: 8, maxOccupancy: 8 }).success,
+    ).toBe(true);
+  });
+});
