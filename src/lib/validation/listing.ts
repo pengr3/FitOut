@@ -104,6 +104,24 @@ export const publishSchema = z.object({
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),
+}).superRefine((data, ctx) => {
+  // Gap C (deferred item 7): when a per-head surcharge is set, the base-included headcount MUST be
+  // STRICTLY below max capacity, or the surcharge is mathematically unreachable. declaredPax is clamped
+  // to maxOccupancy BEFORE the surcharge is computed (units.ts + paxSurcharge), so
+  // extraHeads = max(0, pax − included) is ALWAYS 0 when included >= maxOccupancy — the host would
+  // collect nothing extra forever, silently. `included ?? 1` and `extraHeadFee ?? 0` match paxSurcharge's
+  // own coalescing so the gate and the pricing engine can never disagree. A flat listing (fee 0/absent)
+  // has no surcharge to lose, so the rule does not apply and every pre-Phase-8 listing still publishes.
+  const fee = data.extraHeadFee ?? 0;
+  const included = data.included ?? 1;
+  if (fee > 0 && included >= data.maxOccupancy) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["included"],
+      message:
+        "Base price covers must be fewer than the maximum capacity, or the extra guest fee never applies.",
+    });
+  }
 });
 
 /** The D-67 tier union, exported so the wizard cards and the publish gate share ONE source of truth. */
