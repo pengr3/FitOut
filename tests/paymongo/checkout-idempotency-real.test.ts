@@ -55,7 +55,7 @@ describe.skipIf(!runLive)("PayMongo checkout — real test-mode invariants", () 
       // Falsifies "the Idempotency-Key collapses duplicate checkout POSTs onto one session" — it does not.
       expect(s1.id).not.toBe(s2.id);
       // Surface the observed ids for the SUMMARY's provider-probed evidence.
-      // eslint-disable-next-line no-console
+       
       console.log(`[case1] s1=${s1.id} s2=${s2.id}`);
     },
     30_000,
@@ -68,14 +68,14 @@ describe.skipIf(!runLive)("PayMongo checkout — real test-mode invariants", () 
       const s = await newSession(50_000, `guard-${randomUUID()}`);
 
       const before = await getCheckoutSession(s.id);
-      // eslint-disable-next-line no-console
+       
       console.log(`[case2] pre-expire status=${before.status}`);
       expect(before.status).toBe("active");
 
       await expect(expireCheckoutSession(s.id)).resolves.toBeDefined();
 
       const after = await getCheckoutSession(s.id);
-      // eslint-disable-next-line no-console
+       
       console.log(`[case2] post-expire status=${after.status}`);
       // The session can no longer be paid: post-expire status differs from active AND is the expired marker.
       expect(after.status).not.toBe(before.status);
@@ -95,7 +95,7 @@ describe.skipIf(!runLive)("PayMongo checkout — real test-mode invariants", () 
       expect(s1.id).not.toBe(s2.id);
       const superseded = await getCheckoutSession(s1.id);
       const replacement = await getCheckoutSession(s2.id);
-      // eslint-disable-next-line no-console
+       
       console.log(`[case3] superseded=${s1.id}:${superseded.status} replacement=${s2.id}:${replacement.status}`);
       // This is the live assertion the 08-17 UAT never exercised (it submitted the SAME headcount twice).
       expect(superseded.status).toBe("expired"); // the old session can no longer be paid
@@ -128,7 +128,7 @@ describe.skipIf(!runLive)("PayMongo checkout — real test-mode invariants", () 
       await expect(expireCheckoutSession(s.id)).resolves.toBeDefined(); // first expire — retires it
       await expect(expireCheckoutSession(s.id)).resolves.toBeDefined(); // repeat — tolerated, no throw
 
-      // eslint-disable-next-line no-console
+       
       console.log(`[case4] repeat-expire of ${s.id} RESOLVED (wrapper tolerated the underlying 400 'already expired')`);
       // s.id is already in `created`; the afterAll re-expire now also resolves (same tolerated 400).
     },
