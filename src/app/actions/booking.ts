@@ -597,12 +597,12 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // would be a fabricated request.
   //
   // NOT-TRAPPED RECOVERY: if createCheckoutSession fails AFTER this expire succeeds, the column still names
-  // the (now-expired) old id. On the booker's retry, this block expires that id AGAIN — a repeat expire is
-  // a NO-OP that replays PayMongo's prior 200 via the stable session-scoped Idempotency-Key
-  // (checkout-expire:<id>, 08-12 contract 1), so it RESOLVES (does not throw) and the retry proceeds to
-  // mint a fresh session. A harmless already-expired id is therefore tolerated as success — never a
-  // permanent fail-closed loop. (08-19's 4th real-API case PROBES this repeat-expire-no-op belief — the
-  // exact class of un-probed provider assumption that shipped the original double-charge.)
+  // the (now-expired) old id. On the booker's retry, this block expires that id AGAIN — and a repeat expire
+  // returns HTTP 400 "already expired" (08-19 case 4, probed live — NOT a replayed 200; the Idempotency-Key
+  // is not honored on the expire endpoint either). expireCheckoutSession TOLERATES exactly that 400 as
+  // success (the session is already non-payable), so the retry RESOLVES here and proceeds to mint a fresh
+  // session — never a permanent fail-closed loop. A genuine expire failure (500 / network / any other 400)
+  // still throws and still refuses below.
   //
   // ⚠️ CONCURRENCY RESIDUAL (T-08-79, ACCEPTED): this read-then-act gate is UNLOCKED, so two truly
   // simultaneous confirmBooking calls for one holdId can both read a stale/NULL checkoutSessionId, both

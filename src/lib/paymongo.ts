@@ -231,27 +231,49 @@ export async function createCheckoutSession(input: {
  * so that stale payment would be captured and never refunded. The caller (updateDeclaredPax) expires the
  * persisted `booking.checkout_session_id` BEFORE minting a new session, keeping at most one payable.
  *
- * ⚠️ THE KEY IS SCOPED TO THE SESSION ID, NEVER TO THE BOOKING — the same trap createRefund records below
- * for refunds, restated here because this is the second place it bites. Expiring one session twice must be
- * a no-op, which the stable key gives us. But a booking legitimately owns MORE THAN ONE session over its
- * life (that is exactly what a re-price creates), so a booking-scoped key would make the SECOND session's
- * expire replay the FIRST call's response: PayMongo would answer 200, we would believe the session was
- * retired, and it would still be payable. A session-scoped key cannot collide that way.
+ * ⚠️ THE KEY IS SCOPED TO THE SESSION ID, NEVER TO THE BOOKING. A booking legitimately owns MORE THAN
+ * ONE session over its life (a re-price creates exactly that), so a booking-scoped key would let one
+ * session's expire be confused with another's. But the key is NOT what makes a repeat expire safe:
+ * PayMongo does NOT honor the Idempotency-Key on this endpoint (08-19 probed it — a repeat expire
+ * returns HTTP 400 "already expired", not a replayed 200). Idempotence is provided HERE, in the catch
+ * below, which tolerates exactly that already-expired 400 as success because the session is already
+ * non-payable. Every other failure still throws.
  *
- * Failures THROW through paymongoFetch's descriptive error shape and are deliberately not swallowed — the
- * caller catches, records a `needs_attention` audit and REFUSES the re-price, because proceeding costs an
- * unrefunded double capture while refusing costs the booker one retry.
+ * GENUINE failures (500, network, any non-already-expired 4xx) THROW through paymongoFetch's descriptive
+ * error shape and are NOT swallowed — the caller catches, records a `needs_attention` audit and REFUSES,
+ * because proceeding on a session that might still be payable costs an unrefunded double capture. The one
+ * tolerated case is the already-expired 400 (see the catch) — retiring an already-retired session is the
+ * success the caller wanted, not a failure to refuse over.
  */
 export async function expireCheckoutSession(id: string): Promise<{ id: string }> {
-  const json = await paymongoFetch<{ data: { id: string } }>(
-    `/v1/checkout_sessions/${id}/expire`,
-    {
-      method: "POST",
-      idempotencyKey: `checkout-expire:${id}`,
-      // No body — the endpoint takes none.
-    },
-  );
-  return { id: json.data.id };
+  try {
+    const json = await paymongoFetch<{ data: { id: string } }>(
+      `/v1/checkout_sessions/${id}/expire`,
+      {
+        method: "POST",
+        idempotencyKey: `checkout-expire:${id}`,
+        // No body — the endpoint takes none.
+      },
+    );
+    return { id: json.data.id };
+  } catch (err) {
+    // IDEMPOTENT EXPIRE (08-19 case 4, probed live). A repeat expire of an already-expired session
+    // returns HTTP 400 "Checkout session is already expired" — NOT the 200-replay the session-scoped
+    // Idempotency-Key was once believed to give (the key is not honored on this endpoint either). But
+    // the POSTCONDITION of expire — this session can never be paid — ALREADY HOLDS for an
+    // already-expired session, so tolerating exactly that 400 as success is correct, and it is what
+    // makes the confirmBooking / updateDeclaredPax post-expire-then-create-failure RETRY recover
+    // instead of livelocking on a permanent fail-closed refusal.
+    //
+    // ⚠️ ONLY the already-expired 400 is tolerated. A 500, a network error, or any other 400 detail
+    // still THROWS — so a session that might STILL be payable is never silently treated as retired, and
+    // the callers' fail-closed refusal (the double-charge guard) is fully preserved.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/\(400\)/.test(msg) && /already\b.*\bexpired/i.test(msg)) {
+      return { id };
+    }
+    throw err;
+  }
 }
 
 export type CheckoutSessionState = { id: string; status: string };
