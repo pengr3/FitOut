@@ -166,3 +166,110 @@ describe("listing CRUD via the real server action (LIST-01/04)", () => {
     expect(amen2.map((a) => a.amenity)).toEqual(["mirrors"]);
   });
 });
+
+// MUTATION-VERIFY (run before committing): delete the `if (owned.status === "published") { … }` guard
+// from saveListingStep → the published-reject cases (1),(2),(6) go RED; (3),(4),(5) stay GREEN. Restore → GREEN.
+describe("saveListingStep — surcharge reachability on edit (HG-01 / 08-22)", () => {
+  /**
+   * Create a draft, autosave the baseline group-pricing fields into it (permissive, draft), then flip the
+   * row to `published` directly in the DB — publishListing's photo/email gates aren't needed to reach the
+   * edit-path guard, only that the persisted row's status is "published".
+   */
+  async function publishedListingWith(
+    email: string,
+    pricing: { maxOccupancy: number; extraHeadFee: number; included: number },
+  ): Promise<string> {
+    await signInHost(email);
+    const created = await createDraftListing();
+    if (!created.ok) throw new Error("setup failed");
+    const id = created.id!;
+    const seed = await saveListingStep(id, pricing);
+    expect(seed.ok).toBe(true); // baseline autosave is permissive while still a draft
+    await testDb.db.update(listing).set({ status: "published" }).where(eq(listing.id, id));
+    return id;
+  }
+
+  it("(1) published + fee>0 + included raised to == maxOccupancy → REJECT, no write", async () => {
+    const id = await publishedListingWith("surcharge.raise@example.com", {
+      maxOccupancy: 8,
+      extraHeadFee: 500,
+      included: 7,
+    });
+    const res = await saveListingStep(id, { included: 8 });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.fieldErrors?.included).toBeDefined();
+    // The rejected edit never landed — the persisted included is STILL 7.
+    const row = await readListing(id);
+    expect(row.included).toBe(7);
+  });
+
+  it("(2) published + fee>0 + maxOccupancy lowered below included → REJECT (second vector)", async () => {
+    const id = await publishedListingWith("surcharge.lowermax@example.com", {
+      maxOccupancy: 8,
+      extraHeadFee: 500,
+      included: 6,
+    });
+    const res = await saveListingStep(id, { maxOccupancy: 5 }); // 6 >= 5 → unreachable
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.fieldErrors?.included).toBeDefined();
+    const row = await readListing(id);
+    expect(row.maxOccupancy).toBe(8); // unchanged
+  });
+
+  it("(3) published + fee>0 + included stays < maxOccupancy → ACCEPT", async () => {
+    const id = await publishedListingWith("surcharge.ok@example.com", {
+      maxOccupancy: 8,
+      extraHeadFee: 500,
+      included: 5,
+    });
+    const res = await saveListingStep(id, { included: 6 }); // 6 < 8 → still reachable
+    expect(res.ok).toBe(true);
+    const row = await readListing(id);
+    expect(row.included).toBe(6);
+  });
+
+  it("(4) DRAFT stays permissive — included == maxOccupancy autosaves (publishSchema gates at publish)", async () => {
+    // Publishes NOTHING: the row remains a draft, so the edit-path guard does not apply.
+    await signInHost("surcharge.draft@example.com");
+    const created = await createDraftListing();
+    if (!created.ok) throw new Error("setup failed");
+    const id = created.id!;
+    const seed = await saveListingStep(id, { maxOccupancy: 8, extraHeadFee: 500, included: 3 });
+    expect(seed.ok).toBe(true);
+    const res = await saveListingStep(id, { included: 8 }); // included == maxOccupancy, but it's a DRAFT
+    expect(res.ok).toBe(true);
+    const row = await readListing(id);
+    expect(row.included).toBe(8);
+    expect(row.status).toBe("draft");
+  });
+
+  it("(5) published + FLAT (fee 0) + included == maxOccupancy → ACCEPT (no surcharge to lose)", async () => {
+    const id = await publishedListingWith("surcharge.flat@example.com", {
+      maxOccupancy: 8,
+      extraHeadFee: 0,
+      included: 8,
+    });
+    const res = await saveListingStep(id, { included: 8 });
+    expect(res.ok).toBe(true);
+    const row = await readListing(id);
+    expect(row.included).toBe(8);
+  });
+
+  it("(6) SPARSE save proves EFFECTIVE-value evaluation → REJECT (incoming max vs persisted included)", async () => {
+    const id = await publishedListingWith("surcharge.sparse@example.com", {
+      maxOccupancy: 8,
+      extraHeadFee: 500,
+      included: 3,
+    });
+    // Send ONLY maxOccupancy: 3 — effective included is the PERSISTED 3, effective max the incoming 3, so
+    // 3 >= 3 is unreachable. This fails if the guard reads only the incoming field instead of the row.
+    const res = await saveListingStep(id, { maxOccupancy: 3 });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.fieldErrors?.included).toBeDefined();
+    const row = await readListing(id);
+    expect(row.maxOccupancy).toBe(8); // unchanged
+  });
+});
