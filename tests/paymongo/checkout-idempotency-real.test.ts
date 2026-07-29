@@ -104,41 +104,33 @@ describe.skipIf(!runLive)("PayMongo checkout — real test-mode invariants", () 
     30_000,
   );
 
-  // (4) W2(a) — a REPEAT expire of the SAME session id. 08-12 contract 1 and 08-18's not-trapped recovery
-  // ASSUMED the session-scoped Idempotency-Key `checkout-expire:<id>` replays the prior 200, making a
-  // second expire a harmless no-op. This probe FALSIFIES that against the real API:
+  // (4) W2(a) — a REPEAT expire of the SAME session id. 08-19 FOUND here (probed live) that PayMongo does
+  // NOT honor the Idempotency-Key on the expire endpoint: the second expire returns HTTP 400 "Checkout
+  // session is already expired", not a replayed 200. 08-18's fail-closed catch would have permanently
+  // refused a legitimate retry whose prior session was already expired by an earlier attempt — a
+  // recovery-path livelock.
   //
-  //   PROBED (sk_test_, 2026-07-29): the second expire is REJECTED, not replayed —
-  //   `PayMongo POST /v1/checkout_sessions/{id}/expire failed (400): Checkout session is already expired`.
+  //   PROBED (sk_test_, 2026-07-29): the underlying second expire is rejected 400 "already expired".
   //
-  // So the Idempotency-Key is NOT honored on the expire endpoint either (same class of bug as POST
-  // /v1/checkout_sessions). This is a NEW finding: 08-18's fail-closed catch, which REFUSES the checkout
-  // when expireCheckoutSession throws, would permanently refuse a legitimate retry whose prior session was
-  // already expired by an earlier attempt. 08-18's catch must be hardened to treat a 400 "already expired"
-  // as a benign no-op. Surfaced prominently in 08-19-SUMMARY.md (Provider-Probed Findings) as a
-  // recommended follow-up for 08-18 hardening; asserted here as the true contract.
+  // 08-21 FIXES that: expireCheckoutSession now TOLERATES exactly that 400 as idempotent success (the
+  // session is already non-payable), while every genuine failure still throws. This case is the LIVE proof
+  // of the fix — the second expireCheckoutSession on the same id must now RESOLVE against the real API,
+  // where before the wrapper let the 400 escape. (The underlying provider 400 is unchanged; the wrapper
+  // absorbs it.)
   it(
-    "a repeat expire of the same session id is REJECTED with 400 'already expired' (PROBED — not a no-op)",
+    "a repeat expire of the same session id RESOLVES — the wrapper tolerates the real 400 'already expired' (08-21 fix)",
     async () => {
+      // 08-21: expireCheckoutSession is now IDEMPOTENT — a repeat expire of an already-expired session
+      // resolves (the wrapper tolerates PayMongo's 400 "already expired"). This is the live proof of the fix
+      // for the livelock 08-19 originally FOUND here.
       const s = await newSession(50_000, `repeat-${randomUUID()}`);
 
-      await expect(expireCheckoutSession(s.id)).resolves.toBeDefined(); // first expire → 200
+      await expect(expireCheckoutSession(s.id)).resolves.toBeDefined(); // first expire — retires it
+      await expect(expireCheckoutSession(s.id)).resolves.toBeDefined(); // repeat — tolerated, no throw
 
-      // Second expire on the SAME, now-expired id. The real endpoint throws — capture the exact shape.
-      let repeatError: unknown;
-      try {
-        await expireCheckoutSession(s.id);
-      } catch (err) {
-        repeatError = err;
-      }
-      expect(repeatError).toBeInstanceOf(Error);
-      const message = (repeatError as Error).message;
       // eslint-disable-next-line no-console
-      console.log(`[case4] repeat-expire of ${s.id} THREW: ${message}`);
-      expect(message).toMatch(/\(400\)/);
-      expect(message).toMatch(/already expired/i);
-      // s.id is already in `created`; the afterAll re-expire is itself another already-expired throw,
-      // swallowed by the afterAll try/catch — so the harness leaks no payable session despite the throw.
+      console.log(`[case4] repeat-expire of ${s.id} RESOLVED (wrapper tolerated the underlying 400 'already expired')`);
+      // s.id is already in `created`; the afterAll re-expire now also resolves (same tolerated 400).
     },
     30_000,
   );

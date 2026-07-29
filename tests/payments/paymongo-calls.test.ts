@@ -170,6 +170,55 @@ describe("expireCheckoutSession — retire a superseded session (/v1, CR-02)", (
   });
 });
 
+// MUTATION-VERIFY (run before committing): in src/lib/paymongo.ts expireCheckoutSession, delete the
+// tolerate branch (the `if (/\(400\)/… already… expired/) return { id };`) so it rethrows every error →
+// the "resolves on already-expired 400" case (a) goes RED. Restore → GREEN. Proves the tolerance is real,
+// not incidental.
+//
+// 08-19 case 4 probed the REAL API: a repeat expire of an already-expired session returns HTTP 400
+// "Checkout session is already expired" — NOT the 200-replay the session-scoped Idempotency-Key was once
+// believed to give. 08-21 makes expireCheckoutSession TOLERATE exactly that 400 as idempotent success (the
+// session is already non-payable), while every genuine failure (a different 400, a 500, a network error)
+// still THROWS — so the confirmBooking / updateDeclaredPax fail-closed double-charge guard is preserved.
+describe("expireCheckoutSession — idempotent on already-expired (08-21 / 08-19 case 4)", () => {
+  /** A non-2xx Response carrying PayMongo's error envelope, exactly as paymongoFetch parses it. */
+  function errorResponse(status: number, detail: string): Response {
+    return new Response(JSON.stringify({ errors: [{ detail }] }), { status });
+  }
+
+  it("(a) RESOLVES on a 400 'Checkout session is already expired' — the idempotent repeat expire", async () => {
+    fetchMock.mockResolvedValue(errorResponse(400, "Checkout session is already expired"));
+
+    // The tolerate path parses no 200 body, so the id is echoed from the argument.
+    await expect(expireCheckoutSession("cs_x")).resolves.toEqual({ id: "cs_x" });
+
+    // The request shape is unchanged — still a POST to THIS session's /expire path.
+    const call = lastCall(fetchMock);
+    expect(call.url).toBe("https://api.paymongo.com/v1/checkout_sessions/cs_x/expire");
+    expect(call.method).toBe("POST");
+  });
+
+  it("(b) THROWS on a DIFFERENT 400 detail — ONLY the already-expired 400 is tolerated", async () => {
+    // A 400 whose detail is anything else could mean the session is STILL payable; tolerating it would
+    // silently retire a session that isn't retired and weaken the double-charge guard. It must throw.
+    fetchMock.mockResolvedValue(errorResponse(400, "amount is invalid"));
+
+    await expect(expireCheckoutSession("cs_y")).rejects.toThrow(/amount is invalid/);
+  });
+
+  it("(c) THROWS on a 500 — a genuine failure still fails-closed (double-charge guard preserved)", async () => {
+    fetchMock.mockResolvedValue(errorResponse(500, "internal server error"));
+
+    await expect(expireCheckoutSession("cs_err")).rejects.toThrow(/\(500\)/);
+  });
+
+  it("(d) RESOLVES on a 200 with the provider id — the normal first-expire path is unchanged", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "cs_z", attributes: { status: "expired" } } }));
+
+    await expect(expireCheckoutSession("cs_z")).resolves.toEqual({ id: "cs_z" });
+  });
+});
+
 describe("createBatchTransfer — inhouse payout (/v2, D-52/PAY-03)", () => {
   it("POSTs to /v2/batch_transfers (NOT /v1/v2/...) sending provider=paymongo, amount=netCents, stable Idempotency-Key", async () => {
     fetchMock.mockResolvedValue(
