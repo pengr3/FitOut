@@ -254,6 +254,21 @@ export async function expireCheckoutSession(id: string): Promise<{ id: string }>
   return { id: json.data.id };
 }
 
+export type CheckoutSessionState = { id: string; status: string };
+
+/**
+ * Read a hosted Checkout Session (GET /v1/checkout_sessions/{id}). Returns the id + the provider's
+ * `attributes.status` ("active" while payable, "expired" once retired). Used to PROVE a superseded
+ * session is no longer payable after expireCheckoutSession — the guarantee the confirm webhook (which
+ * keys on reference_number alone, D-57) cannot enforce on its own. Throws through paymongoFetch on non-2xx.
+ */
+export async function getCheckoutSession(id: string): Promise<CheckoutSessionState> {
+  const json = await paymongoFetch<{ data: { id: string; attributes: { status?: string } } }>(
+    `/v1/checkout_sessions/${id}`,
+  );
+  return { id: json.data.id, status: json.data.attributes.status ?? "" };
+}
+
 export type Refund = { id: string; status: string };
 
 /**
