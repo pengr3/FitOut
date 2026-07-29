@@ -802,7 +802,10 @@ export function ListingWizard({
                           />
                         </FormControl>
                         <FormDescription>
-                          How many people your rate includes before the extra guest fee applies.
+                          How many people your rate includes before the extra guest fee applies. Keep
+                          this below your maximum capacity
+                          {values.maxOccupancy ? ` (${values.maxOccupancy})` : ""} — if it equals or
+                          exceeds capacity, the extra guest fee can never apply.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
