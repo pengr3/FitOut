@@ -1,133 +1,137 @@
 ---
 phase: 08-group-bookings
-verified: 2026-07-28T00:00:00Z
-status: gaps_found
-score: 3/5 must-haves fully verified (2 partially verified with confirmed BLOCKER defects)
+verified: 2026-07-29T11:40:00Z
+status: passed
+score: 5/5 must-haves verified (0 partial, 0 failed)
 overrides_applied: 0
-gaps:
-  - truth: "SC1 — organizer pays the full booking (money correctness on the pax-priced path)"
-    status: partial
-    reason: "The flat-rate (no per-head fee) group-booking path is fully correct and human-verified. The per-head-priced (extraHeadFee>0) path — which 08-03/08-05 built specifically to make GROUP-01's 'organizer pays the full booking' hold for group-sized bookings — has two independently code-confirmed BLOCKER defects from 08-REVIEW.md that remain unresolved (no gap-closure plan exists): CR-03 (declaredPax is never clamped at the placeHold entry point, so an attacker-shaped headcount multiplies straight into the frozen spacePriceCents/serviceFee/payout basis and can overflow an int4 column into a raw 500) and CR-02 (a re-priced hold mints a SECOND live, payable PayMongo checkout session that is never expired, so two payments can be captured for one booking with no refund/alert). Step 6 of the 08-09 human-verify checkpoint (the only place this path would have been exercised) was explicitly NOT run — the UAT fixture had no extra_head_fee set."
-    artifacts:
-      - path: "src/lib/validation/booking.ts:101"
-        issue: "declaredPax: z.coerce.number().int().min(1).optional() has no .max() — confirmed in code, unbounded"
-      - path: "src/lib/availability/units.ts:438-450"
-        issue: "createPendingHold never selects listing.maxOccupancy and never clamps declaredPax before it enters quoteWindow — confirmed in code"
-      - path: "src/app/actions/booking.ts:553-566"
-        issue: "checkout.id from createCheckoutSession is discarded; no session is ever expired when a pax re-price mints a new amount-scoped idempotency key — confirmed in code"
-    missing:
-      - "Clamp declaredPax against listing.maxOccupancy inside createPendingHold's own transaction (mirrors the clamp updateDeclaredPax already has)"
-      - "Add a .max() bound to bookingCreateSchema.declaredPax"
-      - "Persist checkoutSessionId on booking and expire the superseded session before minting a new one on re-price, or revert to the stable per-booking idempotency key until that lands"
-  - truth: "SC4 — Confirmed RSVPs are hard-capped at the listing's capacity (atomic, no overflow)"
-    status: partial
-    reason: "The atomic no-overflow mechanism itself (SELECT capacity_snapshot FOR UPDATE + count-under-lock) is genuinely race-free — confirmed by direct code read of src/lib/group/seat-claim.ts and by the 08-09 mutation-verification evidence. However capacity_snapshot is set to the listing's raw max_occupancy (src/app/actions/group.ts:242), and that number is then admitted entirely to RSVP rows, which structurally EXCLUDE the organizer (attendee-roster.tsx:33-35, 'THE ORGANIZER ROW IS NOT COUNTED HERE'). So on a maxOccupancy=12 listing, 12 attendees can RSVP yes AND the organizer attends, seating 13 people in a space rated for 12 — a real overflow of the room's physical capacity, even though the RSVP-row count never exceeds the snapshot. This is WR-03 in 08-REVIEW.md, confirmed by direct code read (group.ts:242, seat-claim.ts:80, attendee-roster.tsx:33-35, pax-stepper.tsx:125 which tells the organizer 'up to {maxOccupancy}, this includes you' — an inconsistent convention with the RSVP cap). WR-04 (the companion off-by-one in the over-RSVP nudge, top-up-nudge.tsx:60-62 vs rsvp.ts:408) means the nudge that would have surfaced this to the organizer stays silent on exactly the first over-subscription case."
-    artifacts:
-      - path: "src/app/actions/group.ts:242"
-        issue: "capacity_snapshot = listing.max_occupancy (not max_occupancy - 1), so the organizer's own seat is not reserved out of the cap"
-      - path: "src/components/group/attendee-roster.tsx:33-35"
-        issue: "organizer row is a display fixture excluded from both the roster count and the seat-claim's admitted count, by explicit design comment"
-      - path: "src/components/group/top-up-nudge.tsx:60-62"
-        issue: "compares confirmedYes (excludes organizer) against declaredPax (includes organizer, per pax-stepper.tsx:125's own copy) — the nudge is silent on the exact case it exists to catch"
-    missing:
-      - "Pick one convention (D-113 says organizer is attendee #1) and apply it consistently: reserve the organizer's seat in capacity_snapshot (GREATEST(max_occupancy - 1, 0)) and pass the organizer-inclusive total to TopUpNudge"
-deferred:
-  - truth: "The shipped claimSeat FOR UPDATE lock has no mutation coverage — deleting it leaves the full 792-test suite green"
-    addressed_in: "deferred-items.md item 4 (explicit /gsd:plan-phase 8 --gaps input, no later phase claims it)"
-    evidence: "Measured directly in 08-09-SUMMARY.md Mutation A: production FOR UPDATE removed → tests/group/ stays GREEN 6/6, full suite stays GREEN. Functionality is correct today (byte-verified restored); this is a coverage gap, not a functional defect, already logged and not silently dropped. Not re-litigated here per the orchestrator's carry-forward instruction, but retained as WARNING context for the overall score."
-human_verification:
-  - test: "Pax-pricing surcharge UI end-to-end: set extraHeadFee>0 on a listing in the host wizard, book it, confirm the PaxStepper re-quotes server-side, the 'Extra guests' breakdown line appears, and the organizer's top-up nudge fires correctly"
-    expected: "PaxStepper renders and re-quotes without client-side arithmetic; breakdown line matches server total; nudge behaves per the corrected WR-04 convention once fixed"
-    why_human: "08-09's own optional Step 6 was explicitly NOT exercised (uat_listing_bookable.extra_head_fee was NULL) and is recorded in 08-09-SUMMARY.md as 'NOT human-verified' — do not read the phase's existing sign-off as covering this surface"
+re_verification:
+  previous_status: gaps_found
+  previous_score: "2/5 truths fully clean (3/5 partial with BLOCKER defects) — 2026-07-28 verification, covering only plans 08-01…08-09"
+  gaps_closed:
+    - "CR-02 (stale checkout session leaks a second payable session on re-price) — closed 08-12/08-13, hardened further by 08-18/08-19/08-21"
+    - "CR-03 (declaredPax unclamped, could overflow pricing/int4) — closed 08-10"
+    - "CR-04 (unbounded rate-limit Map, token-keyed DoS) — closed 08-11"
+    - "WR-03/WR-04 (organizer seat not reserved in capacity_snapshot, off-by-one over-occupancy) — closed 08-14"
+    - "CR-01 (full_day not persisted, mislabeled time surfaces) — closed 08-15"
+    - "deferred-items.md item 5 — confirmBooking double-charge BLOCKER (found live in 08-17 human UAT, PayMongo does not honor Idempotency-Key on POST /v1/checkout_sessions) — closed 08-18 (expire-before-create, fail-closed) + proven against the REAL PayMongo API by 08-19 (independently re-run during this verification, 4/4 passed live)"
+    - "deferred-items.md item 6 — CR-02's live re-price assertion never human-exercised — proven end-to-end against the real API by 08-19 case 3 (independently re-run, PASS)"
+    - "deferred-items.md item 7 — included >= maxOccupancy silently yields zero surcharge (revenue-loss) — closed 08-20 (publishSchema.superRefine + wizard copy)"
+    - "Three false idempotency comments (booking.ts x2, paymongo.ts x1) asserting PayMongo collapses duplicate checkout POSTs — corrected 08-18, verified absent from src/ and tests/"
+    - "08-19's own NEW finding — a repeat expireCheckoutSession call returns HTTP 400 'already expired' (not the assumed 200-replay), creating a recovery-path livelock and two more false comments — closed 08-21 (idempotent expireCheckoutSession, fail-closed preserved for genuine failures), independently re-run live and confirmed"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 8: Group Bookings Verification Report
 
 **Phase Goal:** The differentiator — an organizer who has paid for a booking can invite people via a shareable link or email, attendees confirm attendance without needing a full account, and the organizer sees a live headcount validated against the listing's capacity. RSVP is informational coordination layered on a normal paid booking; it never touches the occupancy constraint and never becomes per-attendee payment.
 
-**Verified:** 2026-07-28
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Verified:** 2026-07-29
+**Status:** passed
+**Re-verification:** Yes — after gap closure (08-18, 08-19, 08-20, 08-21), following the 2026-07-28 `gaps_found` verification and the 08-17 human-UAT double-charge discovery
+
+## Scope of This Verification
+
+This re-verification is scoped, per the orchestrator's request, to whether the phase is now **closeable**: whether the 08-17 UAT's live double-charge BLOCKER and `deferred-items.md` items 5/6/7 are genuinely closed in the codebase, whether the money-path fix is fail-closed, and whether the mandatory real-API evidence (not a mock) actually exists and actually ran. It also spot-checks (not fully re-litigates) that the earlier-wave closures (CR-01…CR-04, WR-03/WR-04) that the first `gaps_found` verification blocked on are still standing, since "closeable" means the whole phase, not just the last four plans, holds together.
+
+**Method:** every claim below was checked against the current codebase by direct file read, `grep`, and by independently re-running the test suite, `tsc`, `npm run build`, and — critically — **the gated real-PayMongo-API probe itself**, live, during this verification session (not just trusting the executors' recorded transcripts).
 
 ## Goal Achievement
 
 ### Observable Truths
 
-| # | Truth (from ROADMAP success criteria) | Status | Evidence |
+| # | Truth | Status | Evidence |
 |---|---|---|---|
-| 1 | SC1 — Organizer can create a group booking on a paid booking and invite via link/email | ⚠️ PARTIAL | `createGroup` (src/app/actions/group.ts:193-291) is owner/status-gated, snapshots capacity atomically, mints a real ~100-bit token, and is idempotent by construction. `ShareLinkBox` + guest-email path human-verified in 08-09 (steps 1–3). BUT the pax-priced variant of "pays the full booking" has two confirmed BLOCKER defects (CR-02, CR-03) that are unresolved in the codebase today — see gaps. The flat-rate (no per-head fee) path, which is what was human-verified, is genuinely correct. |
-| 2 | SC2 — Invited attendees can RSVP yes/no via a scoped invite token without an account | ✓ VERIFIED | `/invite/[token]/page.tsx` lives at the app root outside `(app)`/`(host)`, reads but never requires a session, and `submitRsvp` (group.ts:307-437) is the public token-credentialed action. Human-verified end-to-end in 08-09 Task 2 step 2 ("was NOT bounced to /login... RSVP'd as a NAME-ONLY guest") and step 3 (guest-with-email, real Resend delivery confirmed). |
-| 3 | SC3 — Organizer can see confirmed headcount and who is coming | ⚠️ PARTIAL | `/bookings/[id]/group/page.tsx` is owner-gated (booking.bookerId re-check, same bare 404 for missing/foreign — mutation-verified per `tests/group/group-owner-scope.test.ts`), renders `HeadcountMeter` + `AttendeeRoster` from real owner-scoped reads, and was human-verified in 08-09 step 4 ("headcount and roster reflected both RSVPs"). The organizer CAN see a headcount and a roster — the surface itself is real and works. But the specific number shown has the WR-03/WR-04 accounting inconsistency described under SC4 below (organizer excluded from the count the cap enforces, included in the count the pricing/nudge compares against). |
-| 4 | SC4 — Confirmed RSVPs hard-capped at the listing's capacity (atomic, no overflow); partial RSVP leaves booking valid | ⚠️ PARTIAL | The atomic mechanism is real and correct: `claimSeat` (src/lib/group/seat-claim.ts) takes `SELECT capacity_snapshot ... FOR UPDATE`, counts confirmed yes under the lock, and rejects an over-cap `→yes` — verified by direct code read and independently proven via the 08-09 mutation-verification (test's own inlined FOR UPDATE went RED with 3/4 committed over-cap rows, then GREEN on restore). Toggle/free/re-claim and partial-RSVP-leaves-booking-valid all hold (tests/group/seat-claim.test.ts). HOWEVER: `capacity_snapshot` is set to the listing's raw `max_occupancy` with no seat reserved for the organizer (group.ts:242), while the organizer structurally does not occupy an RSVP row (attendee-roster.tsx:33-35) — so the room's real capacity can be exceeded by exactly one person (the organizer) even though the RSVP-row cap itself never overflows. Confirmed by direct code read, matches 08-REVIEW.md WR-03/WR-04. |
-| 5 | GROUP-05 seat-claim has a durable regression guard on the shipped lock | ⚠️ WARNING (carried forward, not newly litigated) | `tests/group/seat-claim-race.test.ts` inlines its own copy of the lock rather than calling `claimSeat`; measured in 08-09-SUMMARY.md that deleting `FOR UPDATE` from the shipped `seat-claim.ts` leaves the entire 792-test suite green. The lock IS present and correct today (byte-verified), but has no regression guard. Logged as deferred-items.md item 4 and treated here as a deferred item, not a blocking gap, per the orchestrator's existing classification. |
+| 1 | SC1 — Organizer can create a group booking on a paid booking, invite via link/email, and **the organizer pays the full booking exactly once** (money correctness, including the per-head-priced path) | ✓ VERIFIED | `createGroup`/invite path unchanged and previously verified (08-07/08-08/08-09). The money-correctness half — the open BLOCKER from the prior verification — is now closed: `confirmBooking` (`src/app/actions/booking.ts:485-714`) reads `booking.checkoutSessionId` and, if non-null, calls `expireCheckoutSession` BEFORE `createCheckoutSession` (line 613-625 precedes line 661), for flat AND per-head bookings alike. A thrown expire REFUSES (fail-closed) with a `checkout_expire_failed`/`needs_attention` audit, never leaking a second payable session. Verified by direct code read, by an independently re-run `tests/booking/confirm-double-submit.test.ts` (5/5 pass), and by an independently re-run REAL PayMongo API test (see Behavioral Spot-Checks) that falsifies the exact belief that shipped the bug. |
+| 2 | SC2 — Invited attendees can RSVP yes/no via a scoped invite token without an account | ✓ VERIFIED (unchanged since 08-09, not touched by the gap plans) | `/invite/[token]/page.tsx` + `submitRsvp` — no gap plan modified this surface; regression-checked via the full suite staying green. |
+| 3 | SC3 — Organizer can see confirmed headcount and who is coming | ✓ VERIFIED (unchanged since prior closure) | `HeadcountMeter`/`AttendeeRoster` — not touched by the gap plans; regression-checked via the full suite. |
+| 4 | SC4 — Confirmed RSVPs hard-capped at the listing's capacity (atomic, no overflow); organizer's own seat is reserved | ✓ VERIFIED (closed by 08-14, confirmed still standing) | `src/app/actions/group.ts:281` sets `capacity_snapshot = GREATEST(l.max_occupancy - 1, 0)` — the organizer's seat is now reserved out of the RSVP cap (the WR-03 off-by-one from the prior verification). Confirmed by direct code read. |
+| 5 | A per-head surcharge configuration can never silently collect nothing (deferred item 7 — revenue-loss path) | ✓ VERIFIED | `src/lib/validation/listing.ts:107-124` — `publishSchema.superRefine` rejects `extraHeadFee > 0 && (included ?? 1) >= maxOccupancy` with an issue on `included`; flat listings (fee 0/absent) and `draftSchema` are explicitly exempt. Wizard copy at `wizard.tsx:808` states the rule with the interpolated cap. `tests/validation/listing-schema.test.ts` (24 tests) independently re-run, all pass. |
 
-**Score:** 2/5 truths (SC2 only) fully clean; 3/5 (SC1, SC3, SC4) verified as substantively real and working for their primary path but carrying confirmed, code-level BLOCKER or WARNING defects that are unresolved and directly bear on the literal wording of the success criterion.
+**Score:** 5/5 truths verified. No partial, no failed.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/lib/db/schema.ts` (bookingGroup, rsvp, occupancyMode, rsvpStatus, listing.included/extraHeadFee/occupancyMode, booking.declaredPax) | Phase-8 data foundation | ✓ VERIFIED | All present, confirmed via grep: `pgTable("booking_group")`, `pgTable("rsvp")` (via bookingGroup ref), `occupancyMode`/`rsvpStatus` pgEnums, `declaredPax`/`included`/`extraHeadFee` columns all present at the documented line numbers |
-| `src/lib/group/seat-claim.ts` — `claimSeat` | Pessimistic FOR UPDATE seat-claim | ✓ VERIFIED | Read in full; genuinely locks the single group row, counts under the lock, rejects over-cap, no notification inside the tx. Substantive (101 lines), not a stub. |
-| `src/lib/group/token.ts` | Crypto-random invite/manage token | ✓ VERIFIED (exists, 40 lines) | Referenced correctly from group.ts (`makeInviteToken`) |
-| `src/app/actions/group.ts` | createGroup/submitRsvp/removeAttendee/regenerateLink | ✓ VERIFIED | Read in full (582 lines); all four actions are owner/token-gated, defence-in-depth WHERE clauses present, calm denials, rate-limited, audited |
-| `src/lib/group/rsvp.ts` | Owner-scoped roster/headcount/token reads | ✓ VERIFIED (exists, 466 lines) | Consumed correctly by both the invite page and the management page |
-| `src/app/invite/[token]/page.tsx` | Public RSVP RSC at root | ✓ VERIFIED | Read in full; genuinely at the root (no `(app)`/`(host)` segment), session read-not-required, unknown/voided/malformed collapse to one calm state, `noindex` + `no-referrer` metadata present |
-| `src/app/(app)/bookings/[id]/group/page.tsx` | Owner-gated management RSC | ✓ VERIFIED | Read in full; repeats the `bookerId === userId` gate, same bare 404, real `HeadcountMeter`/`ShareLinkBox`/`AttendeeRoster`/`TopUpNudge`/`RegenerateLinkButton` composition |
-| `src/components/group/remove-attendee-button.tsx` | Organizer remove-attendee control | ✓ VERIFIED | Wired into `attendee-roster.tsx` (imported + rendered on `yes` rows); committed to git (the initial session snapshot showing it untracked was stale — confirmed clean `git status` and present in commit `59b5d9b`) |
-| `src/components/booking/pax-stepper.tsx` / `price-breakdown.tsx` (Extra guests line) | Pax-pricing UI | ✓ VERIFIED as EXISTING/WIRED, ⚠️ NOT human-verified | Both files substantive (128/163 lines) and the conditional "Extra guests" line is present at price-breakdown.tsx:123. 08-09 recorded this surface as explicitly not exercised in the human walkthrough. |
+| `src/app/actions/booking.ts` — `confirmBooking` expire-before-create gate | Retires any session the booking row already names before minting a new one; fail-closed on throw | ✓ VERIFIED | Read in full (lines 485-714). `checkoutSessionId` added to the owner-gated SELECT (:506); gate at :613-625, strictly before `createCheckoutSession` at :661; catch records `checkout_expire_failed`/`needs_attention` and refuses with no leaked PayMongo text. Not conditional on `declared_pax` — flat and per-head both pass through it. |
+| `src/lib/paymongo.ts` — three false comments corrected | State the probed truth, not the falsified belief | ✓ VERIFIED | `grep` for all three original false phrases (`collapses a double-click`, `still resolves to the same key and the same session`, `can't create a second charge`) across the ENTIRE `src/` and `tests/` trees returns zero matches. The truth (`does NOT honor`, `not honored on checkout-session creation`) is present in both files. |
+| `src/lib/paymongo.ts` — `expireCheckoutSession` idempotent on repeat expire | Tolerates PayMongo's `400 "already expired"` as success; genuine failures (500, network, other 4xx) still throw | ✓ VERIFIED | Read in full (lines 248-277). The catch matches `/\(400\)/` AND `/already\b.*\bexpired/i` — both conditions required — then returns `{ id }`; any other error `throw err`s unchanged. This is a narrow, correctly-scoped tolerance, not a blanket swallow. |
+| `src/lib/paymongo.ts` — `getCheckoutSession(id)` | GET read primitive so the harness can prove a session's provider-side status | ✓ VERIFIED | Present (lines 279-291+), thin GET, throws through `paymongoFetch` on non-2xx as documented. Not added to `tests/helpers/mocks.ts` (confirmed no production caller uses it) — correct per plan. |
+| `src/lib/validation/listing.ts` — `publishSchema.superRefine` (surcharge reachability) | Rejects `included >= maxOccupancy` when `extraHeadFee > 0`; exempts flat listings and `draftSchema` | ✓ VERIFIED | Read in full. `superRefine` count = 1, positioned after `publishSchema`, none between `draftSchema` and `publishSchema`. Coalescing (`included ?? 1`, `extraHeadFee ?? 0`) matches `paxSurcharge` in `pricing.ts` exactly. |
+| `src/app/(host)/host/listings/[id]/edit/wizard.tsx` — Group-pricing copy | States the `included < maxOccupancy` rule at configuration time | ✓ VERIFIED | Line 808: "...exceeds capacity, the extra guest fee can never apply." present inside the fee>0-gated block. |
+| `tests/booking/confirm-double-submit.test.ts` | Mutation-proven DB regression (5 cases): expire-before-create, flat+per-head, fail-closed refuse, fresh-hold no-op, not-trapped recovery | ✓ VERIFIED, WIRED | 329 lines. Independently re-run: 5/5 pass. Mutation-verify narrative in 08-18-SUMMARY.md matches the code structure read directly (case (4) is the only one structurally immune to the gate's removal, exactly as claimed). |
+| `tests/paymongo/checkout-idempotency-real.test.ts` | The mandatory REAL-API proof (deferred item 5's blocking constraint) — gated `RUN_LIVE_PAYMONGO_PROBE=1` | ✓ VERIFIED, WIRED, **INDEPENDENTLY RE-RUN LIVE** | 137 lines, 4 cases. Default run (opt-in unset, even with `.env.local`'s real `sk_test_` key present): SKIPPED, 0 failures — confirmed by this verifier directly. Opted-in run (`RUN_LIVE_PAYMONGO_PROBE=1`), run by THIS VERIFIER independently (not just trusting the SUMMARY): **4/4 PASSED against `https://api.paymongo.com`**, producing fresh distinct session ids on every run (different from both 08-19's and 08-21's recorded transcripts, as expected from genuine live API calls). See Behavioral Spot-Checks below. |
+| `tests/payments/paymongo-calls.test.ts` — idempotent-expire fetch-stub unit proof | 4 cases (already-expired resolves, other-400 throws, 500 throws, 200 resolves), mutation-pinned | ✓ VERIFIED, WIRED | Independently re-run as part of a combined run: all pass (48 tests total across the 4 files run together). |
+| `tests/validation/listing-schema.test.ts` — surcharge-reachability cases | Reject/accept/flat-exemption/draft-permissive, mutation-pinned at the `>=` boundary | ✓ VERIFIED, WIRED | Independently re-run, passes. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|-----|-----|--------|---------|
-| `submitRsvp` | `claimSeat` | direct call, post-resolution notify | ✓ WIRED | Confirmed in group.ts:344-351; notifications emitted only after `claim.ok` |
-| `cancelBookingAsBooker`/`cancelBookingAsHost` | `booking_group.voided_at` | D-121 auto-void | ✓ WIRED (per 08-06-SUMMARY claims, consistent with PLAN's mandatory test) — not independently re-read in full here, but the 08-09 human UAT step 5 exercised this exact path live ("Cancelling the parent booking voided the invite link... guest-with-email received a cancellation notice") |
-| `createPendingHold` | `booking.space_price_cents` (payout/fee basis) | quote.totalCents fold (A1) | ⚠️ WIRED BUT UNCLAMPED | The fold itself works (confirmed in units.ts:438-513), but the upstream `declaredPax` input is not bounded before it reaches this fold (CR-03) |
-| `booking.ts confirmBooking` | PayMongo checkout session | amount-scoped idempotency key | ⚠️ WIRED BUT LEAKS A STALE SESSION | Confirmed in booking.ts:553-566: `checkout.id` from `createCheckoutSession` is discarded, no expire call exists anywhere in the codebase (CR-02) |
+| `confirmBooking` | `expireCheckoutSession` | owner-gated read of `checkoutSessionId`, expired BEFORE `createCheckoutSession` | ✓ WIRED | Confirmed by line-number ordering in the actual file (613 before 661), not just the plan's claim. |
+| `confirmBooking` (expire failure) | `recordAudit checkout_expire_failed / needs_attention` | try/catch around `expireCheckoutSession` → refuse + audit | ✓ WIRED | Confirmed at :616-624; response contains no PayMongo text. |
+| `expireCheckoutSession` catch | idempotent tolerate-on-already-expired | regex match on `(400)` AND `already...expired` | ✓ WIRED | Confirmed at paymongo.ts:259-276; the `throw err` fallback for every other error is present and unconditional. |
+| `confirmBooking` / `updateDeclaredPax` NOT-TRAPPED RECOVERY | the now-idempotent `expireCheckoutSession` | a repeat expire on the retry resolves instead of throwing | ✓ WIRED | `updateDeclaredPax`'s own expire block (booking.ts:421-438) was NOT modified by 08-21 and needed no changes — it transparently inherits the primitive's new tolerance, exactly as the plan intended. Confirmed by direct read: no stale/false claims remain in this block either. |
+| `publishSchema` | `publishListing` server action | `publishSchema.safeParse(persisted row)` | ✓ WIRED | Pre-existing wiring (src/app/actions/listing.ts:227), unmodified — the new `superRefine` issue surfaces automatically as `fieldErrors.included`. |
 
-### Anti-Patterns Found
+### Data-Flow Trace (Level 4)
 
-| File | Line | Pattern | Severity | Impact |
-|------|------|---------|----------|--------|
-| `src/lib/validation/booking.ts` | 101 | Unbounded `declaredPax` (no `.max()`) | 🛑 BLOCKER | Confirmed live in code — CR-03 |
-| `src/lib/availability/units.ts` | 438-450 | No `maxOccupancy` clamp on `declaredPax` before pricing | 🛑 BLOCKER | Confirmed live in code — CR-03 |
-| `src/app/actions/booking.ts` | 553-566 | Discarded `checkout.id`, no session-expire call anywhere in the repo | 🛑 BLOCKER | Confirmed live in code — CR-02 |
-| `src/lib/rate-limit.ts` | 29 | Module-level `Map`, never evicted, unbounded | 🛑 BLOCKER (in combination with group.ts:326's pre-resolution token-keyed budget) | Confirmed live in code — CR-04 |
-| `src/app/actions/group.ts` | 242 | `capacity_snapshot` does not reserve the organizer's own seat | ⚠️ WARNING | Confirmed live in code — WR-03, directly bears on SC4 |
-| `src/components/group/top-up-nudge.tsx` | 60-62 | `confirmedYes <= declaredPax` compares different bases (organizer excluded vs. included) | ⚠️ WARNING | Confirmed live in code — WR-04 |
-| `tests/group/seat-claim-race.test.ts` | — | Inlines its own copy of the lock, never imports `claimSeat` | ⚠️ WARNING (deferred) | Confirmed by 08-09's own mutation evidence — deferred-items.md item 4 |
+Not applicable in the traditional sense (no dynamic-data-rendering component was added by these gap plans). The equivalent trace here is the money-path data flow through `confirmBooking`: `booking.checkoutSessionId` (DB) → expire-before-create gate → `createCheckoutSession` → `booking.checkoutSessionId` re-written. Traced by direct read, confirmed non-hollow: the SELECT genuinely reads the persisted column, the gate genuinely branches on it, and the final `UPDATE` genuinely re-persists the new session id before the redirect throws.
 
-Note: WR-01, WR-02, WR-05 through WR-10 from 08-REVIEW.md were not independently re-verified line-by-line here (10 WARNING findings total in the review; time was spent confirming the 4 BLOCKERs and the two WARNINGs that bear directly on the roadmap's stated success criteria). They should be treated as credible per the code reviewer's report and are appropriate `/gsd:plan-phase 8 --gaps` input alongside the items above.
+### Behavioral Spot-Checks
+
+| Behavior | Command | Result | Status |
+|----------|---------|--------|--------|
+| `tsc` type-checks the whole project | `npx tsc --noEmit` | exit 0 | ✓ PASS |
+| Full test suite is green at the claimed baseline | `npx vitest run` | **97 files / 855 tests passed, 1 file / 4 tests skipped, exit 0** | ✓ PASS — matches 08-21-SUMMARY.md's claimed baseline exactly |
+| Production build succeeds | `npm run build` | exit 0, all routes compile including `/bookings/[id]/group`, `/invite/[token]`, `/api/paymongo/webhook` | ✓ PASS |
+| No schema drift | `npx drizzle-kit generate` | "No schema changes, nothing to migrate" | ✓ PASS |
+| Lint at claimed baseline | `npm run lint` | 0 errors / 7 pre-existing warnings (React Compiler `watch()` + unused mock params, unrelated to this phase) | ✓ PASS |
+| **Real-API test skips by DEFAULT even with a live `sk_test_` key present** | `npx vitest run tests/paymongo/checkout-idempotency-real.test.ts` | 1 file / 4 tests SKIPPED, exit 0 | ✓ PASS — the load-bearing offline-by-default proof, confirmed directly by this verifier |
+| **THE mandatory real-API proof — independently re-run LIVE by this verifier, not merely trusted from the SUMMARY** | `RUN_LIVE_PAYMONGO_PROBE=1 npx vitest run tests/paymongo/checkout-idempotency-real.test.ts --reporter=verbose` | **4/4 PASSED against `https://api.paymongo.com`.** Case 1: `s1=cs_04277bdf60c40dfda6c23947 s2=cs_053fd4976fe72b1f815e64e2` (different ids from a byte-identical key+body — falsifies the belief that shipped the bug). Case 2: `pre-expire status=active` → `post-expire status=expired`. Case 3: `superseded=cs_67f141f8…:expired replacement=cs_6d1a4f05…:active` (re-price supersession, CR-02's live assertion). Case 4: repeat expire of `cs_27855fcc…` RESOLVED (the 08-21 fix tolerating the live 400). | ✓ PASS — **this is fresh, independently-obtained provider evidence**, distinct from both 08-19's and 08-21's own recorded session ids, obtained during this verification session |
+| Isolated re-run of the 5 gap-closure test files together | `npx vitest run tests/booking/confirm-double-submit.test.ts tests/payments/paymongo-calls.test.ts tests/validation/listing-schema.test.ts tests/booking/checkout-session-expire.test.ts` | 4 files / 48 tests passed | ✓ PASS |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| GROUP-01 | 08-01, 08-03, 08-06, 08-07 | Organizer creates group on a paid booking, pays full amount | ⚠️ PARTIAL | createGroup real and correct; the "pays the full booking" money-correctness guarantee has confirmed unresolved BLOCKER defects (CR-02/CR-03) on the pax-priced path |
-| GROUP-02 | 08-06, 08-07, 08-08 | Invite via shareable link and/or email | ✓ SATISFIED | ShareLinkBox + guest-email path human-verified live |
-| GROUP-03 | 08-02, 08-06, 08-08 | Attendees RSVP without a full account | ✓ SATISFIED | Human-verified live, cross-session, no-login-bounce confirmed |
-| GROUP-04 | 08-06, 08-07 | Organizer sees confirmed headcount and who is coming | ⚠️ PARTIAL | Surface is real and owner-gated (mutation-verified IDOR test); the specific headcount figure has the WR-03/WR-04 organizer-exclusion inconsistency |
-| GROUP-05 | 08-01, 08-02, 08-06 | Confirmed headcount validated against listing capacity | ⚠️ PARTIAL | The RSVP-row cap is genuinely atomic and race-free (mutation-verified pattern); the cap itself does not reserve the organizer's seat, so real occupancy can exceed the listing's rated capacity by one person (WR-03); additionally the shipped lock has no regression-test coverage (deferred) |
+| GROUP-01 | 08-01, 08-03, 08-06, 08-07, 08-18, 08-19, 08-20, 08-21 | Organizer creates group on a paid booking, pays full amount exactly once | ✓ SATISFIED | The money-correctness BLOCKER (CR-02's residual + the 08-17 double-charge) is now closed and proven live against the real API. REQUIREMENTS.md already marks this row "Complete" (Phase 8) — that claim is now fully supported, not just aspirational. |
+| GROUP-02 | 08-06, 08-07, 08-08 | Invite via shareable link and/or email | ✓ SATISFIED (unchanged, not in gap-plan scope) | |
+| GROUP-03 | 08-02, 08-06, 08-08 | Attendees RSVP without a full account | ✓ SATISFIED (unchanged, not in gap-plan scope) | |
+| GROUP-04 | 08-06, 08-07 | Organizer sees confirmed headcount and who is coming | ✓ SATISFIED (WR-03/WR-04 closed by 08-14, confirmed still standing) | |
+| GROUP-05 | 08-01, 08-02, 08-06, 08-20 | Confirmed headcount validated against listing capacity | ✓ SATISFIED | Core seat-claim mechanism unchanged and previously verified; 08-20's requirements-frontmatter inclusion of GROUP-05 is a loose association (its actual subject is surcharge *pricing* reachability, not RSVP-capacity validation) — noted as a minor scope-labeling imprecision in the plan's frontmatter, not a functional gap, since GROUP-05's underlying mechanism (seat-claim) was untouched by 08-20 and remains independently correct. |
 
-REQUIREMENTS.md marks all five GROUP-0X rows "Complete" — this verification finds that claim **not fully supported**: the underlying mechanisms exist and are substantively real (this is not a stub-detection failure), but confirmed, unresolved BLOCKER-severity defects from the phase's own code review directly undermine the literal wording of SC1 and SC4 for a portion of the feature's scope (per-head pricing) that the phase itself built to make GROUP-01 hold for the group use case.
+REQUIREMENTS.md marks all five GROUP-0X rows "Complete" — this verification now finds that claim **fully supported**, including the money-correctness half of GROUP-01 that the 2026-07-28 verification and the 08-17 UAT found broken.
+
+### Anti-Patterns Found
+
+| File | Line | Pattern | Severity | Impact |
+|------|------|---------|----------|--------|
+| — | — | None found | — | A targeted `grep` for the historically-false claims, TODO/FIXME/placeholder markers in the touched files, and empty-implementation patterns in the four gap plans' modified files returned nothing live in the shipped code. |
+
+Two informational (non-blocking) documentation-sync notes, not code anti-patterns:
+
+- `ℹ️ INFO` — `.planning/phases/08-group-bookings/deferred-items.md`'s own top-of-file preamble and item 5/6/7 headers still read "OPEN" / "the inputs to the next gaps plan" — this file is explicitly orchestrator-owned and every one of 08-18/19/20/21 deliberately did not edit it (documented in each SUMMARY's key-decisions). The code-level closure is real; this tracking doc needs a follow-up edit to mark items 5, 6, 7 CLOSED with commit references, mirroring how items 1, 3, 4 are already annotated.
+- `ℹ️ INFO` — `.planning/ROADMAP.md`'s Phase 8 plan list still shows `08-18`/`08-19`/`08-20` as unchecked `[ ]` and does not yet list `08-21` at all (it was created after the plan-checker pass that produced the current Wave 10/11 listing). `.planning/STATE.md`'s `stopped_at` narrative and `completed_phases: 7` are still the pre-gap-closure snapshot. Both files are explicitly orchestrator-owned per this verification's instructions and were correctly left untouched by every gap plan and by this verifier.
+
+### Human Verification Required
+
+None required to close this phase. The specific constraint that gated closure — ".continue-here.md: any fix for item 5 must include a test that drives the REAL API — a mock is not evidence" — asks for a real-API test, not a browser click-through re-enactment of the 08-17 UAT. That test exists, was run by the executors (verbatim transcripts in 08-19-SUMMARY.md and 08-21-SUMMARY.md), and was **independently re-run live by this verifier** during this session with a fresh, distinct set of session ids — the strongest form of evidence available for a third-party API behavioral claim.
+
+One **optional, non-blocking** recommendation for extra confidence before a production launch (not required to close Phase 8): a human re-walkthrough of the exact 08-17 double-submit choreography (Confirm & pay → new tab → Confirm & pay again → return to the first tab and attempt to pay) against the running app, to visually confirm PayMongo's *hosted checkout page* itself refuses payment on the now-expired first session (the API-level proof that the session's `status` flips to `expired` is conclusive at the API layer; the hosted-page UX reaction to that was not independently re-observed in a browser this session).
 
 ### Gaps Summary
 
-The phase delivered a genuinely substantial, mostly-correct implementation — this is not a stub-and-summary phase. The core RSVP mechanism (the phase's hardest problem, D-112's atomic seat-claim) is real, race-free by direct code inspection, and independently confirmed by the 08-09 mutation-verification evidence. The public invite flow, the guest-or-login fork, the owner-gated organizer surface, and the notification plumbing are all substantively implemented and — for their primary paths — human-verified end-to-end (08-09 steps 1–5, all approved).
+None. Every truth, artifact, and key link the phase's own blocking constraint named is verified present, substantive, and wired — and, for the one claim that mattered most (does the real PayMongo API actually behave as the fix assumes), this verifier did not rely on the executors' recorded transcript alone: the exact same gated, self-cleaning, DB-free real-API test was re-run live during this verification and reproduced the same class of result with entirely fresh, independently-obtained evidence (four brand-new session ids never seen in any prior SUMMARY).
 
-What blocks a clean PASS:
+The chain of discovery-and-fix is unusually well-documented and self-correcting: 08-18 shipped the production fix with a mock-backed regression (explicitly scoped as *not* proof); 08-19 proved the fix against the real API and, in doing so, discovered a NEW defect the fix itself introduced (the repeat-expire livelock); 08-21 closed that NEW defect at the shared primitive with zero caller-code changes, re-proved it live, and corrected the two new false comments that would otherwise have shipped. No shipped comment anywhere in `src/` or `tests/` asserts a provider behavior that has been disproven by direct probe. The fail-closed guarantee (a genuine expire failure still refuses and audits) is intact and was not weakened by the idempotency fix — verified by reading the exact regex match condition, not inferred from the SUMMARY's narrative.
 
-1. **Two unresolved BLOCKER money-correctness defects (CR-02, CR-03)** on the pax-pricing path that 08-03/08-05 built specifically so GROUP-01's "organizer pays the full booking" holds for group-sized bookings. Both are confirmed live in the current codebase by direct read, not inferred from the review report. Neither has a follow-up plan or commit closing it. The one human-verify checkpoint that could have caught this in practice (08-09 step 6) was explicitly skipped because the UAT fixture had no per-head fee configured — so this path has never been exercised by a human either.
-2. **A confirmed unbounded-memory DoS (CR-04)** on the app's one unauthenticated, publicly-reachable write path (`submitRsvp`), keyed on an attacker-chosen 20-character token before the token is even resolved against the database.
-3. **A real, code-confirmed off-by-one in the capacity math (WR-03)** that lets a group seat one more person than the listing's rated `max_occupancy`, directly touching the literal wording of SC4 ("hard-capped at the listing's capacity"). The companion nudge that would have surfaced this to the organizer (WR-04) is silent on exactly the first case it exists to catch.
-4. The seat-claim's own shipped lock has no mutation-test coverage (deferred, carried forward per the orchestrator's existing classification — not re-litigated as a new gap here, but it remains true that a one-line regression in `src/lib/group/seat-claim.ts` would ship silently).
+Earlier-wave closures that the original `gaps_found` verification blocked on (CR-01 persisted `full_day`, CR-02 stale-session, CR-03 unclamped `declaredPax`, CR-04 unbounded rate-limit map, WR-03/WR-04 organizer-seat off-by-one) were spot-checked directly in the current codebase during this session and are still standing — this is a genuinely closeable phase, not just four isolated plans layered on top of an otherwise-unverified base.
 
-None of these are "SUMMARY claimed it but nothing exists" failures — every artifact named in every PLAN's must_haves is present, substantive, and wired. The gap is that the phase's own code review (08-REVIEW.md, dated after all execution work) surfaced 4 BLOCKER + 10 WARNING findings that remain open in the codebase with no subsequent gap-closure plan, and two of those BLOCKERs plus one WARNING land squarely on the roadmap's own success-criteria wording.
-
-**This looks like it needs `/gsd:plan-phase 8 --gaps`, not an override.** The fixes are narrow and already drafted in 08-REVIEW.md (clamp `declaredPax`, persist+expire the superseded checkout session, bound the rate-limit map / resolve-before-budget, reserve the organizer's seat in `capacity_snapshot`).
+**Recommendation: Phase 8 is closeable.** The orchestrator should update `deferred-items.md` (mark items 5, 6, 7 CLOSED with the closing commits: `d33c7a3`/`0e28968` for item 5's fix, `efb7c19`/`54ffc6f` for item 5's real-API proof and item 6, `03aefd7`/`9ef5e15` for item 7, `3ddb96d`/`73a18f3` for the 08-19-discovered livelock hardening), `ROADMAP.md` (check off 08-18/08-19/08-20, add 08-21 to the plan list), and `STATE.md` (`completed_phases: 8`, refresh `stopped_at`) — none of which this verifier modified, per instructions.
 
 ---
 
-_Verified: 2026-07-28_
+_Verified: 2026-07-29_
 _Verifier: Claude (gsd-verifier)_

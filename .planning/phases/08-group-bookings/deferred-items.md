@@ -1,12 +1,35 @@
 # Phase 08 — Deferred Items
 
-Out-of-scope discoveries logged during execution. **Item 5 is the exception to "nothing here blocks the
-phase": it is a live double-charge on the money path, found by a human in the 08-17 walkthrough, and it is
-the next `/gsd-plan-phase 8 --gaps` input.**
+Out-of-scope discoveries logged during execution. **Items 5, 6 and 7 — including the BLOCKER-class
+double-charge — are now CLOSED** by the gap-closure plans 08-18 → 08-22 (executed 2026-07-29), each
+mutation-proven and, for the money-path items, **proven against the real PayMongo `sk_test_` API** (the
+blocking constraint that a mock cannot falsify the assumption it was written from). See each item's closure
+note below. Items 1, 3 and 4 were already closed; item 2 remains open and out of scope by operator decision.
+
+> Residual review nits from the gap-closure code review (`08-REVIEW-gaps.md`, non-blocking, 0 blocking / 0
+> high / 0 medium): **LW-01** — `expireCheckoutSession`'s already-expired tolerance matches on unstructured
+> provider error text (fails SAFE — a future PayMongo reword would re-open the recovery livelock, a denial
+> not a double-charge); **NT-01** — a pre-existing test title is now stale; **NT-02** — the wizard's autosave
+> does not surface the specific surcharge field-error, so a host tripping the edit guard sees the generic
+> "check the form" toast (the edit is still correctly rejected — UX polish only).
 
 ---
 
-## 5. 🔴 **`confirmBooking` double-charges on a plain double-submit — PayMongo does NOT honor `Idempotency-Key` on `/v1/checkout_sessions`** (08-17, OPEN, BLOCKER-class)
+## 5. ~~`confirmBooking` double-charges on a plain double-submit — PayMongo does NOT honor `Idempotency-Key` on `/v1/checkout_sessions`~~ — **CLOSED (`d33c7a3`+`0e28968` 08-18, `efb7c19`+`54ffc6f` 08-19, `3ddb96d`+`73a18f3` 08-21)**
+
+> **Closed 2026-07-29 by 08-18 → 08-21.** `confirmBooking` now **expires any persisted `checkout_session_id`
+> before creating a new one** (expire-before-create, `src/app/actions/booking.ts`), mirroring
+> `updateDeclaredPax`, fail-closed on a genuine expire failure (`needs_attention` audit + refuse), for flat
+> AND per-head bookings alike — so a SEQUENTIAL double-submit (tab-switch / Back-then-reconfirm) leaves at
+> most one payable session. The three false idempotency comments are corrected to the probed truth. **08-19
+> proved it against the REAL `sk_test_` API** (opt-in `RUN_LIVE_PAYMONGO_PROBE=1`): two byte-identical POSTs
+> mint two DIFFERENT payable session ids (the belief that shipped the bug, falsified — not mocked), and
+> `expire` retires a session at the provider. 08-19 case 4 then FOUND a follow-on defect — a repeat expire
+> returns HTTP 400 "already expired" (not the assumed 200-replay), a recovery-path livelock — which **08-21
+> closed** by making `expireCheckoutSession` idempotent (tolerate exactly that 400; genuine failures still
+> throw and still fail-closed), corrected two more false comments, and re-proved it live (case 4 now resolves).
+> A truly concurrent double-click (T-08-79) and the already-captured `qrph` overcharge (T-08-74) remain
+> accepted residuals. The original entry is kept below for the record.
 
 **Found during:** 08-17 Task 2, step 4 — the first human exercise of the per-head money path.
 
@@ -76,7 +99,14 @@ half of CR-02 while that harness exists (see item 6).
 
 ---
 
-## 6. CR-02's live re-price assertion was never exercised by a human (08-17, OPEN)
+## 6. ~~CR-02's live re-price assertion was never exercised by a human~~ — **CLOSED (`54ffc6f`, 08-19 case 3)**
+
+> **Closed 2026-07-29 by 08-19.** The re-price supersession is now proven **against the real `sk_test_`
+> API**, not a mock: `tests/paymongo/checkout-idempotency-real.test.ts` case 3 models `updateDeclaredPax`'s
+> expire-then-replace — the superseded session is `expired` at the provider while its replacement is
+> `active`, so at most one payable session survives a re-price. This is the live assertion the 08-17 UAT
+> never exercised (it submitted the SAME headcount twice). Opt-in via `RUN_LIVE_PAYMONGO_PROBE=1`; both the
+> executor and the verifier ran it live with distinct fresh session ids. The original entry is kept below.
 
 **Found during:** 08-17 Task 2, step 4.
 
@@ -91,6 +121,41 @@ they are **mock-backed** — and item 5 above is a demonstration of what a mock-
 guarantee is worth.
 
 **When to close:** alongside item 5, on the same real-API test harness.
+
+---
+
+## 7. ~~`included >= max_occupancy` silently yields ZERO surcharge — an intuitive host config collects nothing~~ — **CLOSED (`7d6d4e8`+`03aefd7`+`9ef5e15` 08-20 publish path; `a3e3cfa`+`a066c5d` 08-22 edit path / HG-01)**
+
+> **Closed 2026-07-29 by 08-20 + 08-22.** `publishSchema.superRefine` (`src/lib/validation/listing.ts`)
+> rejects `included >= maxOccupancy` at publish whenever `extraHeadFee > 0` (flat listings exempt; drafts
+> stay permissive), and the wizard's Group-pricing block states the rule. The gap-closure **code review then
+> found HG-01**: the guard fired only at PUBLISH, so a host could edit an already-published listing's pricing
+> via `saveListingStep` and silently re-create the unreachable surcharge. **08-22 closed that edit path** —
+> `saveListingStep` re-enforces the rule on already-published rows against the EFFECTIVE post-save values
+> (sparse-aware, both vectors: raising `included` or lowering `maxOccupancy`), sharing one
+> `SURCHARGE_UNREACHABLE_MESSAGE` constant with the publish gate so the two cannot drift. Mutation-proven;
+> the reviewer independently re-verified `saveListingStep` is the only edit path that writes these columns.
+> The original entry is kept below.
+
+**Found during:** operator review after the 08-17 walkthrough. Surfaced verbally at pause ("i just want it
+be known"); logged here on resume 2026-07-29 by operator decision, and routed as a secondary input to
+`/gsd-plan-phase 8 --gaps` alongside items 5 and 6.
+
+**What.** `included` ("Base price covers") and `max_occupancy` are independent fields with **no enforced
+relationship**, and `declaredPax` is clamped to `max_occupancy` **before** the surcharge is computed
+(`src/lib/availability/units.ts:455`). So on any listing where `included >= max_occupancy` the surcharge is
+**mathematically unreachable**: `extraHeads = max(0, pax − included)` is always 0, the host collects nothing
+extra forever, and nothing warns them.
+
+**Why it matters — this is the shape a host is MOST likely to configure**, because it is the intuitive
+reading of the feature. Operator's own example: a pickleball court rated for 8 where the surcharge should
+apply *above* 8 — setting `included = 8`, `max_occupancy = 8` silently yields zero surcharge. For it to fire,
+`max_occupancy` must be **strictly greater** than `included` (e.g. holds 12, base covers 8, heads 9–12
+surcharged). The two fields also sit in **different steps of the wizard** with no cross-reference. This is a
+revenue-loss path, not polish.
+
+**Suggested close.** Cross-field validation (`included < maxOccupancy`) plus a line of copy in the Group
+pricing block so the relationship is visible at configuration time.
 
 ---
 

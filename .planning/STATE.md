@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 08-17-PLAN.md (wave 9) — the pax-surcharge human walkthrough. ALL 17 PHASE-8 PLANS ARE NOW EXECUTED, but the phase is NOT closed: step 4 of the UAT found a LIVE DOUBLE-CHARGE. PayMongo does NOT honor Idempotency-Key on /v1/checkout_sessions (probed: two byte-identical POSTs -> two different session ids), so a plain double-submit of Confirm & pay charged the booker twice for one booking (₱1,470 against a ₱735 booking, both qrph and therefore UNREFUNDABLE via the API). NOT a CR-02 regression and WIDER than CR-02 — flat-priced bookings are equally exposed and this predates Phase 8. Steps 2,3,5,6,7,8 all APPROVED (CR-01 confirmed on 4 surfaces, CR-03's clamp at 12, WR-03's 1-of-12, WR-04's nudge and its silence, SC4's live cap at 11+organizer). Logged as deferred-items.md items 5 (the double-charge) and 6 (CR-02's live re-price assertion never exercised). NEXT: /gsd-plan-phase 8 --gaps."
-last_updated: "2026-07-28T10:45:00.000Z"
-last_activity: 2026-07-28
+stopped_at: "Phase 8 (group-bookings) CLOSED 2026-07-29. All 22 plans executed & verified. The 08-17 double-charge BLOCKER and deferred items 5/6/7 are closed by gap plans 08-18 -> 08-22: confirmBooking now expires any persisted checkout session before creating a new one (expire-before-create, fail-closed, flat + per-head); expireCheckoutSession is idempotent on the already-expired 400 (closing the repeat-expire livelock 08-19 found live); publishSchema AND saveListingStep both reject an unreachable per-head surcharge (included >= maxOccupancy, closing HG-01's edit path). The money-path fixes were PROVEN against the REAL PayMongo sk_test_ API (RUN_LIVE_PAYMONGO_PROBE=1): two identical checkout POSTs mint different payable session ids, expire retires a session, and the re-price supersession holds — run live by both the executor and the verifier with distinct fresh session ids. Verifier passed 5/5; gap-closure code review left 0 blocking / 0 high (1 low LW-01 + 2 nits, documented in 08-REVIEW-gaps.md). Full suite 861 passed / 4 skipped (gated real-API probe), tsc 0, build 0, lint 0 errors / 7 baseline warnings, no schema drift. NEXT: Phase 9 (open-capacity bookings) — not started."
+last_updated: "2026-07-29T04:04:59.467Z"
+last_activity: 2026-07-29
 progress:
   total_phases: 9
-  completed_phases: 7
-  total_plans: 77
-  completed_plans: 77
+  completed_phases: 8
+  total_plans: 82
+  completed_plans: 82
   percent: 100
 ---
 
@@ -21,48 +21,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 08 — group-bookings
+**Current focus:** Phase 09 — open-capacity bookings (Phase 08 complete)
 
 ## Current Position
 
-Phase: 08 (group-bookings) — **ALL 17 PLANS EXECUTED, PHASE NOT CLOSED**
-Plan: 17 of 17 — **08-17 DONE (the human UAT). 17/17 summaries on disk: 08-01…08-17. There is no next plan to execute.**
+Phase: 08 (group-bookings) — **COMPLETE & CLOSED (22/22 plans, verified 2026-07-29).**
+Plan: 22 of 22 — all summaries on disk (08-01…08-22). Next focus: Phase 9 (open-capacity bookings), not started.
 
-🔴 **STOP — READ THIS BEFORE DOING ANYTHING ELSE. Phase 8 executed every plan and then the human walkthrough found a NEW BLOCKER on the money path that no plan in this phase was looking for.**
+✅ **Phase 8 is closed.** The 08-17 human walkthrough found a live money-path double-charge; gap plans 08-18 → 08-22 closed it and the two related deferred items (6, 7), and the fix set was **proven against the REAL PayMongo `sk_test_` API** — the mock-only coverage that let the bug survive four plans is no longer the whole story.
 
-> **A booker can be charged TWICE for one booking by simply submitting "Confirm & pay" twice.**
-> Measured live in 08-17 step 4: two `paid` PayMongo payments of ₱735.00 each
-> (`pay_YFn1jgMWyau46ECydfPR2LdN` @ 10:00:35Z, `pay_iw2zsj3ehcRzgRYzgn7hkoUP` @ 10:08:29Z) against one
-> booking `aff63acb-b6a5-45f7-8b47-6a01d589f765` / `FIT-JSHBVKFP`. **₱1,470.00 collected for a ₱735.00
-> booking**, and both are `qrph` so they are **UNREFUNDABLE through the API** (`src/lib/paymongo.ts:257`).
+> **What closed the blocker (deferred item 5):** `confirmBooking` now EXPIRES any session already named on the booking row BEFORE creating a new one (`src/app/actions/booking.ts`, expire-before-create, mirroring `updateDeclaredPax`), fail-closed on a genuine expire failure, for flat AND per-head bookings — so a SEQUENTIAL double-submit leaves at most one payable session. The three false idempotency comments were corrected. **08-19 proved the provider behaviour against the live `sk_test_` API** (opt-in `RUN_LIVE_PAYMONGO_PROBE=1`): two byte-identical `POST /v1/checkout_sessions` mint two DIFFERENT payable session ids, and `expire` retires a session.
 >
-> **ROOT CAUSE:** `Idempotency-Key` is **NOT honored by PayMongo on `/v1/checkout_sessions`.** Probed
-> directly against `sk_test_` with a byte-identical key and body: `POST #1 → cs_ed60840548c9ccadc27ba6c3`,
-> `POST #2 → cs_6c4e54d253178994b94934b8`. **Every POST mints a new payable session.** Three shipped
-> comments assert the opposite and are now known false: `src/app/actions/booking.ts:582`,
-> `src/app/actions/booking.ts:592`, `src/lib/paymongo.ts:172`.
+> **A follow-on defect 08-19 discovered and 08-21 closed:** a repeat expire returns HTTP 400 "already expired" (NOT the assumed 200-replay), which would livelock the fail-closed retry. `expireCheckoutSession` is now IDEMPOTENT — it tolerates exactly that 400 as success while every genuine failure still throws — re-proven live (08-19 case 4 now resolves).
 >
-> **This is NOT a CR-02 regression and it is WIDER than CR-02.** No re-price occurred (both charges ₱735 at
-> `declared_pax = 3`, same key `checkout:<holdId>:73500`). CR-02's expire gate lives in `updateDeclaredPax`
-> and fires only on a re-price; **`confirmBooking` expires nothing before creating.** So (1) plain
-> double-submission is an unguarded double-charge path, and (2) **flat-priced bookings are equally exposed** —
-> their `checkout:<bookingId>` key was believed to be the guard (08-12 contract 1 reasoned from that belief)
-> and it is not one. **This predates Phase 8.**
+> **Deferred item 6 (CR-02 live re-price supersession):** proven end-to-end against the real API (08-19 case 3 — superseded session `expired`, replacement `active`).
 >
-> **Contained:** the webhook handler deduped correctly (exactly ONE `booking_confirmed` notification, no
-> duplicate `host_payout_ledger` row). But `booking.payment_id` names only the LATER payment — a real,
-> lesser recording defect.
+> **Deferred item 7 (revenue-loss, `included >= maxOccupancy`):** `publishSchema` rejects it at publish (08-20) and `saveListingStep` rejects it on edits of an already-published listing (08-22 / HG-01 from the gap-closure review), sharing one `SURCHARGE_UNREACHABLE_MESSAGE` constant so the two gates cannot drift.
 >
-> **Suggested close (do not shortcut it):** `confirmBooking` must expire the persisted `checkout_session_id`
-> before creating a new one, mirroring `updateDeclaredPax`. **The fix needs a test that drives the REAL
-> PayMongo API, not a mock** — a mock echoing the idempotency key back is exactly what let this false belief
-> survive four plans of test coverage.
+> **Residual (non-blocking, in `08-REVIEW-gaps.md`):** LW-01 (the already-expired tolerance matches unstructured provider text — fails SAFE), NT-01 (a stale test title), NT-02 (the wizard autosave doesn't surface the specific surcharge field-error — UX polish; the edit is still correctly rejected). Accepted residuals: T-08-79 (concurrent double-click) and T-08-74 (an already-captured qrph overcharge is unrefundable via API).
 
-Next action: **`/gsd-plan-phase 8 --gaps`** — inputs are `deferred-items.md` **item 5** (the double-charge, BLOCKER) and **item 6** (CR-02's live re-price assertion was never exercised by a human; its only evidence is 08-13's mock-backed mutation proofs). Do **not** run `/gsd-execute-phase 8` — there is nothing left to execute. Do **not** close the phase; `/gsd-verify-work` on Phase 8 is premature until item 5 is fixed.
+⚠️ **Tracking note (v1.42.3 bug watch):** the SDK's `state.update-progress` / `roadmap.update-plan-progress` were NOT used to close this phase — the orchestrator wrote STATE/ROADMAP by hand to avoid the known phase-checkbox over-reach. `completed_phases` is now legitimately **8** because verification passed, not because a plan finished.
 
-⚠️ **Tracking note:** `state.update-progress` and `roadmap.update-plan-progress 8` again OVER-reached on the last plan (the documented v1.42.3 bug) — they ticked the ROADMAP **phase** checkbox, flipped the progress row to `Complete 2026-07-28`, and bumped `completed_phases` to 8. **All three were reverted by hand.** `completed_plans: 77 / 77` and the 100% bar mean *every planned plan has been executed*; they do **not** mean the phase is done.
-
-**The four original Phase-8 BLOCKERS (CR-01…CR-04) all remain closed** — and every one with a visible surface was seen working by a human in this walkthrough (CR-01 on four surfaces, CR-03's clamp, plus WR-03, WR-04 and the SC4 cap). The new finding is a fifth, independent defect that no Phase-8 plan was looking for.
+**The four original Phase-8 BLOCKERS (CR-01…CR-04) plus WR-03/WR-04/SC4 remain closed** — all human-confirmed in the 08-17 walkthrough. The gap plans added the fifth-defect fix (the double-charge) that no original Phase-8 plan was looking for, now closed and live-proven.
 Prior: Phase 07 (bookings-management-cancellation-notifications) — code-complete (07-01 … 07-17; frontmatter `completed_phases: 7`).
 Outstanding phase-7 debt: **security gate DONE** (07-SECURITY.md, threats_open 0, verified 2026-07-23 — the earlier "not yet run" note was stale). **Playwright e2e DONE** (2026-07-24): all 7 specs executed and green (16/16, two consecutive full runs) — search-and-book.spec was a stale Phase-4 test (never run) rewritten to the current instant-book flow in quick 260724-l1s; public-listing.spec serialized to fix a parallel `CONNECTION_ENDED` flake. **build-guard DONE** (quick 260724-lmy): both fail-closed guards (paymongo wallet, Inngest signing key) now exempt `NEXT_PHASE==="phase-production-build"`, so plain `npm run build` passes (27 routes) with no env workaround while still firing at real runtime boot. **lint hygiene DONE** (260724-lmy): eslint ignores `.claude/worktrees/**` + `**/.next/**` (bare `npm run lint` now usable, 0 errors), and the `react-hooks/set-state-in-effect` error in address-autocomplete.tsx is fixed (derived short-query state; behavior preserved). REFUND-WORKFLOW VERIFICATION GAP (flagged 2026-07-24, documented in deferred-items.md): refund logic + HTTP contract + webhook handling are all tested against STUBBED fetch/mocks — a real paid→refunded round-trip against PayMongo test mode (real Refund object + real refund webhook + ledger/notification effects) has NEVER been driven. Card/GCash rail is testable now via manual UAT (a ready fixture exists: booking 42132ab1 / pay_C4PW6fRGtUTNm6GsKCpt4P36); QRPh/InstaPay (D-72) blocked. Also note: local Inngest requires TWO processes — `npm run dev` (app :3000) AND `npm run dev:inngest` (dev server :8288) — the app half was left stopped after the build task. BLOCKED on PayMongo Money Movement (external): A3 + live receiving_institutions manual UAT, and the refund-transfer reconcile poller. DEFERRED to UI/product: weekly-hours editor UX polish, duplicated /host/requests vs /host/bookings approve-decline surfaces.
 Last activity: 2026-07-28
@@ -636,7 +616,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-28T10:45:00.000Z
+Last session: 2026-07-29 (resume)
+Stopped at: Session resumed via /gsd-resume-work; HANDOFF.json consumed. Restored full Phase-8 context (17/17 executed, phase NOT closed, blocked on the confirmBooking double-charge). Operator decisions on resume: (1) the unlogged `included >= max_occupancy` unreachable-surcharge finding is LOGGED as deferred-items.md **item 7** and FOLDED into the gaps plan; (2) the three false idempotency comments (booking.ts:582/592, paymongo.ts:172) are FOLDED into the gaps plan; (3) proceed by showing the plan command. Working tree clean; HEAD af67c94 (pause commit). **Next: `/gsd-plan-phase 8 --gaps`** with inputs deferred-items.md items 5 (BLOCKER double-charge), 6 (CR-02 live re-price unverified) and 7 (unreachable surcharge), plus correcting the three false comments.
+Resume file: None (HANDOFF.json consumed this session — safe to delete)
+
+Prior session: 2026-07-28T10:45:00.000Z
 Stopped at: Completed 08-17-PLAN.md (wave 9) — the pax-surcharge human walkthrough. **ALL 17 PHASE-8 PLANS EXECUTED; PHASE NOT CLOSED.** Task 1 gate: 96 files / 838 tests exit 0, bare `npm run build` exit 0; `uat_listing_bookable` patched and read back (`published | instant | max_occupancy 12 | included 1 | extra_head_fee 10000 | standard`). Steps 2,3,5,6,7,8 APPROVED per-step with literal strings (CR-01 on 4 surfaces, CR-03's clamp at 12, WR-03's `1 of 12`, WR-04's nudge at the first over-subscription plus its silence one below, SC4's live cap at 11+organizer). **Step 4 FAILED: a live DOUBLE-CHARGE** — ₱1,470 collected against a ₱735 booking (`FIT-JSHBVKFP`), because **PayMongo does not honor `Idempotency-Key` on `/v1/checkout_sessions`** (probed: identical key → two session ids) and `confirmBooking` expires nothing before creating. Wider than CR-02; flat bookings exposed too; predates Phase 8. Also NOT VERIFIED: CR-02's own re-price assertion (the scripted sequence was never run). Logged as `deferred-items.md` items 5 + 6. No source file modified. **Next: `/gsd-plan-phase 8 --gaps` — NOT `/gsd-execute-phase 8`, and not a phase close.**
 Resume file: None
 

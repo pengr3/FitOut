@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
  (completed 2026-07-20)
 
 - [x] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
-- [ ] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity — all 17 plans EXECUTED (2026-07-28), phase NOT closed: 08-17's UAT found a live double-charge (deferred item 5)
+- [x] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity — 22/22 plans executed & verified; the 08-17 double-charge BLOCKER and deferred items 5/6/7 closed by gap plans 08-18→08-22, money-path fixes proven against the real PayMongo sk_test_ API (completed 2026-07-29)
 - [ ] **Phase 9: Open-Capacity Bookings** - Host-set open/common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail
 
 ## Phase Details
@@ -236,7 +236,7 @@ Plans:
   3. The organizer can see the confirmed headcount and who is coming
   4. Confirmed RSVPs are hard-capped at the listing's capacity (atomic, no overflow), and a partial RSVP leaves the booking valid
 
-**Plans**: 17 plans in 9 waves (9 original + 8 gap-closure after `gaps_found` verification)
+**Plans**: 20 plans (9 original + 8 gap-closure after `gaps_found` verification + 3 gap-closure after the 08-17 UAT double-charge)
 Plans:
 **Wave 1**
 
@@ -282,6 +282,15 @@ Plans:
 
 - [x] 08-17-PLAN.md — Human-verify checkpoint: the pax-pricing surcharge walkthrough 08-09 skipped (extra_head_fee now configured)
 
+**Wave 10** *(gap closure — 08-17 UAT double-charge: deferred items 5/6/7)*
+
+- [ ] 08-18-PLAN.md — Item 5 (fix): confirmBooking expire-before-create (mirror updateDeclaredPax) + correct the 3 false idempotency comments + mutation-proven DB regression
+- [ ] 08-20-PLAN.md — Item 7: publishSchema rejects included >= maxOccupancy when extraHeadFee > 0 (unreachable surcharge) + wizard relationship copy
+
+**Wave 11** *(blocked on Wave 10 — 08-18)*
+
+- [ ] 08-19-PLAN.md — Items 5+6 (real-API proof): getCheckoutSession + a gated sk_test_ PayMongo test — duplicate POSTs mint different sessions, expire retires, re-price supersession
+
 **UI hint**: yes
 
 ### Phase 9: Open-Capacity Bookings
@@ -313,5 +322,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Payments & Payouts | 7/7 | Complete (all 3 waves done — PAY-01/PAY-02/PAY-03/HOST-03; Wave 3 05-05b closed the Held→Processing→Paid/Failed payout lifecycle via the reconcile cron + mounted /api/inngest serving both crons; real PayMongo /v2 transfer + polling UAT-gated on beta enablement) | - |
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
-| 8. Group Bookings | 17/17 | Plans executed — NOT verified (08-17 UAT found a BLOCKER double-charge; needs /gsd-plan-phase 8 --gaps) |  |
+| 8. Group Bookings | 22/22 | Complete (double-charge BLOCKER + deferred items 5/6/7 closed by gap plans 08-18→08-22; money-path fixes proven against the real PayMongo sk_test_ API; verifier passed 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | 0/TBD | Not started | - |
