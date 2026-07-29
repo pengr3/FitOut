@@ -27,6 +27,16 @@ const cancellationPolicyValues = ["flexible", "standard", "strict"] as const;
  *  and so a client can never smuggle a value outside the enum. */
 const occupancyModeValues = ["exclusive"] as const;
 
+/**
+ * The ONE user-facing reject copy for the surcharge-reachability rule (`included < maxOccupancy` whenever
+ * `extraHeadFee > 0`). Exported so the two enforcement points can never drift apart: the publishSchema
+ * superRefine below (08-20, publish-time gate) AND the saveListingStep edit-path guard (08-22, HG-01) both
+ * reference this single constant. Keeping the reject copy in exactly one place also preserves 08-20's grep
+ * gate that the surcharge message literal appears exactly once in this file.
+ */
+export const SURCHARGE_UNREACHABLE_MESSAGE =
+  "Base price covers must be fewer than the maximum capacity, or the extra guest fee never applies.";
+
 /** Draft autosave (D-01) — everything optional; the wizard saves partial progress between steps. */
 export const draftSchema = z.object({
   title: z.string().max(120).optional(),
@@ -118,8 +128,7 @@ export const publishSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["included"],
-      message:
-        "Base price covers must be fewer than the maximum capacity, or the extra guest fee never applies.",
+      message: SURCHARGE_UNREACHABLE_MESSAGE,
     });
   }
 });

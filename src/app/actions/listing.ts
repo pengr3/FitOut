@@ -38,6 +38,7 @@ import {
 import {
   draftSchema,
   publishSchema,
+  SURCHARGE_UNREACHABLE_MESSAGE,
   type DraftListingInput,
 } from "@/lib/validation/listing";
 
@@ -118,6 +119,27 @@ export async function saveListingStep(
     };
   }
   const d = parsed.data;
+
+  // ── HG-01 (08-22): surcharge reachability on the EDIT path. ─────────────────────────────────────────
+  // 08-20 rejects included >= maxOccupancy at PUBLISH (publishSchema). But this autosave writes
+  // included/extraHeadFee/maxOccupancy straight to the live row with NO publish re-gate, so without this a
+  // host could silently make the per-head surcharge unreachable AFTER publishing (raise included, or lower
+  // maxOccupancy below it) — the exact revenue-loss 08-20 closes, one step later, on the routine edit-my-
+  // price workflow. Evaluate the EFFECTIVE post-save values (incoming ?? persisted ?? default), mirroring
+  // paxSurcharge's `included ?? 1` / `extraHeadFee ?? 0`, so a SPARSE save carrying only one field is still
+  // caught. PUBLISHED rows only — a draft stays permissive because publishSchema catches it at publish.
+  if (owned.status === "published") {
+    const effFee = d.extraHeadFee ?? owned.extraHeadFee ?? 0;
+    const effIncluded = d.included ?? owned.included ?? 1;
+    const effMax = d.maxOccupancy ?? owned.maxOccupancy ?? 0;
+    if (effFee > 0 && effIncluded >= effMax) {
+      return {
+        ok: false,
+        error: "Please check the form and try again.",
+        fieldErrors: { included: [SURCHARGE_UNREACHABLE_MESSAGE] },
+      };
+    }
+  }
 
   // Build the editable-field patch. status / hostId / publishedAt are NOT here — they can never be
   // set via autosave (they aren't in draftSchema, and Zod strips any smuggled keys). updatedAt is
