@@ -183,9 +183,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | GROUP-04 | Phase 8 | Complete |
 | GROUP-05 | Phase 8 | Complete |
 | OPEN-01 | Phase 9 | Complete (09-06 server gate + 09-10 host wizard control) |
-| OPEN-02 | Phase 9 | In progress (09-07 `placeOpenHold` + 09-11 the pre-hold `PassStepper`; the booker-facing picker/rail is 09-12) |
+| OPEN-02 | Phase 9 | In progress (09-07 `placeOpenHold` + 09-11 the pre-hold `PassStepper` + **09-12 the booker surface: `DatePassPicker`, the calendar fork, the open rail and the `BookCta` branch that sends `{listingId, date, requestedPasses}`**; the paying half — the per-person reserve page + OC-07 partial-grant alert — is 09-13) |
 | OPEN-03 | Phase 9 | Pending |
-| OPEN-04 | Phase 9 | In progress (09-04 server-derived `state`/`remaining` + 09-11 `SpotsLeftChip`/`DropInBadge` + 09-05 search: `spots` on the result row, date-only Stage-2 filter, effective-price filter/sort; the remaining mount points are 09-12/09-13/09-14) |
+| OPEN-04 | Phase 9 | In progress (09-04 server-derived `state`/`remaining` + 09-11 `SpotsLeftChip`/`DropInBadge` + 09-05 search: `spots` on the result row, date-only Stage-2 filter, effective-price filter/sort + **09-12 the availability mount: the day panel's chip, the month grid's programmatically-disabled full dates from `getOpenMonthAvailability`, and the `/person` rail rate**; the remaining mount points are 09-13/09-14) |
 
 **Coverage:**
 - v1 requirements: 49 total
