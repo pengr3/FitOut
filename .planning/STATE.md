@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Phase 8 (group-bookings) CLOSED 2026-07-29. All 22 plans executed & verified. The 08-17 double-charge BLOCKER and deferred items 5/6/7 are closed by gap plans 08-18 -> 08-22: confirmBooking now expires any persisted checkout session before creating a new one (expire-before-create, fail-closed, flat + per-head); expireCheckoutSession is idempotent on the already-expired 400 (closing the repeat-expire livelock 08-19 found live); publishSchema AND saveListingStep both reject an unreachable per-head surcharge (included >= maxOccupancy, closing HG-01's edit path). The money-path fixes were PROVEN against the REAL PayMongo sk_test_ API (RUN_LIVE_PAYMONGO_PROBE=1): two identical checkout POSTs mint different payable session ids, expire retires a session, and the re-price supersession holds — run live by both the executor and the verifier with distinct fresh session ids. Verifier passed 5/5; gap-closure code review left 0 blocking / 0 high (1 low LW-01 + 2 nits, documented in 08-REVIEW-gaps.md). Full suite 861 passed / 4 skipped (gated real-API probe), tsc 0, build 0, lint 0 errors / 7 baseline warnings, no schema drift. NEXT: Phase 9 (open-capacity bookings) — not started."
-last_updated: "2026-07-29T04:04:59.467Z"
-last_activity: 2026-07-29
+stopped_at: "Phase 8 (group-bookings) CLOSED 2026-07-29. All 22 plans executed & verified. The 08-17 double-charge BLOCKER and deferred items 5/6/7 are closed by gap plans 08-18 -> 08-22: confirmBooking now expires any persisted checkout session before creating a new one (expire-before-create, fail-closed, flat + per-head); expireCheckoutSession is idempotent on the already-expired 400 (closing the repeat-expire livelock 08-19 found live); publishSchema AND saveListingStep both reject an unreachable per-head surcharge (included >= maxOccupancy, closing HG-01's edit path). The money-path fixes were PROVEN against the REAL PayMongo sk_test_ API (RUN_LIVE_PAYMONGO_PROBE=1): two identical checkout POSTs mint different payable session ids, expire retires a session, and the re-price supersession holds — run live by both the executor and the verifier with distinct fresh session ids. Verifier passed 5/5; gap-closure code review left 0 blocking / 0 high (1 low LW-01 + 2 nits, documented in 08-REVIEW-gaps.md). Full suite 861 passed / 4 skipped (gated real-API probe), tsc 0, build 0, lint 0 errors / 7 baseline warnings, no schema drift. Phase 9 context now GATHERED 2026-07-30 (/gsd-discuss-phase): 09-CONTEXT.md + 09-DISCUSSION-LOG.md written & committed b19d577. Decisions locked (OC-01..OC-18): occupancy_mode gains 'open_capacity'; slot model = DATE=one-pass (benchmark-grounded drop-in — Gympass/Hussle — flat per-head, no duration scaling); cap = sum-of-heads admissions per (listing,date); multiple heads / one payment + offer-the-partial at the boundary; instant-book only; spots-left = exact-only-when-low (≤5) + greyed 'Fully booked'; cancellation reuses the Phase-7 tier ladder with starts_at = opening-time-on-date; per-booking host-cancel (bulk close-date deferred); mode editable until a live booking exists. Research owns the DB-atomic no-overbook mechanism (units-as-spots vs serializable/advisory counter) — OPEN-03/SC#3, must ship a genuine concurrent-race test. NEXT: /gsd-plan-phase 9."
+last_updated: "2026-07-30T00:00:00.000Z"
+last_activity: 2026-07-30
 progress:
   total_phases: 9
   completed_phases: 8
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 09 — open-capacity bookings (Phase 08 complete)
+**Current focus:** Phase 09 — open-capacity bookings — CONTEXT gathered 2026-07-30; next: `/gsd-plan-phase 9`
 
 ## Current Position
 
