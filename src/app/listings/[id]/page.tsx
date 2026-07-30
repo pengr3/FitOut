@@ -23,7 +23,7 @@ import { tz } from "@date-fns/tz";
 import { UsersIcon } from "lucide-react";
 
 import { db } from "@/lib/db";
-import { getAvailability } from "@/lib/availability/read-model";
+import { getAvailability, getOpenMonthAvailability } from "@/lib/availability/read-model";
 import { DISPLAY_CURRENCY } from "@/lib/money";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
 import { SERVICE_FEE_BPS } from "@/lib/payments/config";
@@ -47,6 +47,7 @@ import {
 } from "@/lib/listing-vocab";
 import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { ListingMapPanel } from "@/components/listing/listing-map-panel";
+import { DropInBadge } from "@/components/listing/drop-in-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -177,6 +178,19 @@ export default async function PublicListingPage({
   };
   const initialDay = await getAvailability(db, id, initialDate);
 
+  // Phase-9 (OPEN-02/OC-01) — WHICH availability surface this listing gets, decided from the persisted
+  // listing row here on the server and threaded down. A drop-in listing also needs the visible month's
+  // fully-booked dates on the FIRST paint, so the grid never briefly offers a date that is already gone.
+  const isOpenCapacity = row.listing.occupancyMode === "open_capacity";
+  const initialFullDates = isOpenCapacity
+    ? (
+        await getOpenMonthAvailability(db, id, {
+          year: initialDate.year,
+          month: initialDate.month,
+        })
+      ).fullDates
+    : [];
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
       <PhotoGallery photos={pub.photos} title={title} />
@@ -251,8 +265,13 @@ export default async function PublicListingPage({
 
           <Separator />
           <section className="space-y-3">
-            {/* Heading stays server-rendered; the calendar itself is the client boundary (SC#2). */}
-            <h2 className="text-xl font-semibold">Availability</h2>
+            {/* Heading stays server-rendered; the calendar itself is the client boundary (SC#2).
+                09-UI-SPEC § 2: the section NAMES the mode before the picker is used, so a booker knows
+                what they are about to buy without having to infer it from a missing hour grid. */}
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+              Availability
+              {isOpenCapacity && <DropInBadge />}
+            </h2>
             <AvailabilityCalendar
               listingId={id}
               timezone={timezone}
@@ -262,6 +281,8 @@ export default async function PublicListingPage({
               bookable={bookable}
               initialDate={initialDate}
               initialDay={initialDay}
+              occupancyMode={row.listing.occupancyMode}
+              initialFullDates={initialFullDates}
             />
           </section>
         </div>

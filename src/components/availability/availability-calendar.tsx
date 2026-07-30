@@ -15,6 +15,11 @@
 // The calendar is ADVISORY (Pitfall 6): the DB EXCLUDE constraint is the sole authority and Phase 4
 // re-derives + re-validates the selection. Selection is enabled ONLY when the listing is `bookable`
 // (deriveBookable) — a published-but-not-payable listing renders the real availability read-only.
+//
+// PHASE 9 (OPEN-02) — this file FORKS, it does not change. A listing sold as day passes renders the
+// DatePassPicker instead of the hour grid, and the rail renders RailPassSummary instead of
+// RailSelectionSummary. Everything below the fork is the shipped exclusive surface, untouched: the fork
+// ADDS a branch, it does not replace a surface.
 
 import * as React from "react";
 import { format } from "date-fns";
@@ -28,8 +33,22 @@ import { computeServiceFee } from "@/lib/payments/service-fee";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
+import { DatePassPicker } from "@/components/availability/date-pass-picker";
 
-type DayLocal = { year: number; month: number; day: number };
+export type DayLocal = { year: number; month: number; day: number };
+
+/**
+ * Phase-9 (OPEN-02 · OC-02 / OC-06) — the DROP-IN selection. A calendar DATE and a number of passes, with
+ * NO window shape of any kind: `dateIso` is the venue-local `YYYY-MM-DD` the hold action canonicalizes, and
+ * the entry-window instants are derived server-side from the listing's own operating hours (T-09-26). A
+ * booker never gets to say when their pass starts, because a pass does not start — it covers the day.
+ */
+export type OpenSelectionValue = {
+  kind: "open";
+  date: DayLocal;
+  dateIso: string;
+  passes: number;
+};
 
 // ---------------------------------------------------------------------------
 // Shared lifted-selection context (calendar → rail summary)
@@ -38,6 +57,10 @@ type DayLocal = { year: number; month: number; day: number };
 type SelectionContext = {
   selection: SlotSelectionValue | null;
   setSelection: (sel: SlotSelectionValue | null) => void;
+  /** Phase-9: the drop-in selection ({date, passes}). Null on an exclusive listing, and vice versa —
+   *  the two are mutually exclusive because a listing is exactly one mode. */
+  openSelection: OpenSelectionValue | null;
+  setOpenSelection: (sel: OpenSelectionValue | null) => void;
 };
 
 const BookingSelectionContext = React.createContext<SelectionContext | null>(null);
@@ -45,7 +68,11 @@ const BookingSelectionContext = React.createContext<SelectionContext | null>(nul
 /** Provides the lifted booker selection to the calendar + the rail summary. Wrap the booking grid. */
 export function BookingSelectionProvider({ children }: { children: React.ReactNode }) {
   const [selection, setSelection] = React.useState<SlotSelectionValue | null>(null);
-  const value = React.useMemo(() => ({ selection, setSelection }), [selection]);
+  const [openSelection, setOpenSelection] = React.useState<OpenSelectionValue | null>(null);
+  const value = React.useMemo(
+    () => ({ selection, setSelection, openSelection, setOpenSelection }),
+    [selection, openSelection],
+  );
   return (
     <BookingSelectionContext.Provider value={value}>{children}</BookingSelectionContext.Provider>
   );
@@ -73,6 +100,14 @@ type AvailabilityCalendarProps = {
   bookable: boolean;
   initialDate: DayLocal;
   initialDay: DayAvailability | null;
+  /**
+   * Phase-9 (OC-01) — which surface this listing gets, read from the LISTING ROW server-side and threaded
+   * here by the RSC. This is the only input the fork below is allowed to consult: never a URL param, never
+   * a client flag, never the shape of a payload a booker could influence (Security V4).
+   */
+  occupancyMode: "exclusive" | "open_capacity";
+  /** Phase-9 — the initial month's fully-booked venue-local dates, seeded server-side. Drop-in only. */
+  initialFullDates?: string[];
 };
 
 const TZ_NOTE_ID = "availability-tz-note";
@@ -86,8 +121,10 @@ export function AvailabilityCalendar({
   bookable,
   initialDate,
   initialDay,
+  occupancyMode,
+  initialFullDates,
 }: AvailabilityCalendarProps) {
-  const { setSelection } = useBookingSelection();
+  const { setSelection, setOpenSelection } = useBookingSelection();
   const [day, setDay] = React.useState<DayLocal>(initialDate);
   const [dayAvail, setDayAvail] = React.useState<DayAvailability | null>(initialDay);
   const [loading, setLoading] = React.useState(false);
@@ -114,6 +151,35 @@ export function AvailabilityCalendar({
     () => new TZDate(day.year, day.month - 1, day.day, timezone),
     [day, timezone],
   );
+
+  // ─── Phase-9 fork (OPEN-02) ──────────────────────────────────────────────────────────────────────
+  // A drop-in listing asks a DIFFERENT question ("which day?" instead of "which hours?"), so it gets a
+  // different surface rather than a disabled version of this one. The branch is taken on the PERSISTED
+  // mode threaded from the RSC — the same row the claim itself arbitrates on, so the picker a booker sees
+  // and the mutation that admits them can never disagree.
+  //
+  // It sits AFTER the hooks above rather than at the very first line, so this component's hook order is
+  // identical on every render (rules-of-hooks). The exclusive day state those hooks hold is simply unused
+  // on this branch — DatePassPicker owns its own.
+  if (occupancyMode === "open_capacity") {
+    return (
+      <DatePassPicker
+        listingId={listingId}
+        timezone={timezone}
+        cityLabel={cityLabel}
+        gmtLabel={gmtLabel}
+        bookable={bookable}
+        initialDate={initialDate}
+        initialDay={initialDay}
+        initialFullDates={initialFullDates ?? []}
+        // Same seam SlotPicker uses one screen down: the picker writes the lifted selection through a
+        // callback instead of reaching into the context itself, so the two modules stay acyclic and the
+        // picker renders standalone in a test.
+        onSelectionChange={setOpenSelection}
+      />
+    );
+  }
+  // ─── the shipped exclusive surface, unchanged, from here down ────────────────────────────────────
 
   async function handleDaySelect(picked: Date | undefined) {
     if (!picked) return;
