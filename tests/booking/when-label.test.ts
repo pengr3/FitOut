@@ -18,6 +18,11 @@
 //     never frozen (`spacePriceCents IS NULL`), where space == total by definition.
 //   - the trailing " ({City} time)" suffix is omitted entirely when the listing has no city;
 //   - composeWhenLabel renders "EEEE, MMM d"; composeWhenLabelShort renders "EEE, MMM d".
+//   - 09-08 / OC-03: `openCapacity` is the PERSISTED `booking.open_capacity` snapshot (drizzle 0021) and is
+//     REQUIRED for exactly the same reason `fullDay` is. A drop-in row's starts_at/ends_at are the venue's
+//     opening/closing instants with full_day=false, so without this fork every drop-in pass renders as a
+//     sixteen-hour reservation — CR-01 in a new costume. Its branch resolves BEFORE any price-derived
+//     resolution; the OC-03 ORDERING case below pins that and must never be deleted.
 
 import { describe, it, expect } from "vitest";
 import {
@@ -36,12 +41,31 @@ const HOURLY: WhenLabelInput = {
   timezone: "Asia/Manila",
   city: "Makati",
   fullDay: false,
+  openCapacity: false,
   spacePriceCents: 100000,
   quotedTotalCents: 105000,
   dayRateCents: 250000,
 };
 
 const HOURLY_LABEL = "Thursday, Jul 2, 8:00 AM – 10:00 AM (Makati time)";
+
+// A drop-in day pass (OC-03): the persisted window is the venue's OPENING → CLOSING instants on the booked
+// DATE — 2025-08-07T22:00:00Z is 6:00 AM Manila on Friday, Aug 8; 2025-08-08T14:00:00Z is 10:00 PM the same
+// venue day. `fullDay` is false on the row (the pass is not a whole-space day booking), and the price fields
+// carry the per-head freeze, which says nothing about a duration. The year is 2025 for one reason only: it
+// is the year in which Aug 8 actually falls on a Friday, so these cases pin 09-UI-SPEC § 5a's two literals
+// byte-for-byte (`Friday, Aug 8 …` / `Fri, Aug 8 …`) rather than approximately.
+const DROP_IN: WhenLabelInput = {
+  startsAt: new Date("2025-08-07T22:00:00Z"),
+  endsAt: new Date("2025-08-08T14:00:00Z"),
+  timezone: "Asia/Manila",
+  city: "Makati",
+  fullDay: false,
+  openCapacity: true,
+  spacePriceCents: 35000,
+  quotedTotalCents: 36750,
+  dayRateCents: 250000,
+};
 
 describe("composeWhenLabel — the single venue-local booking-window formatter", () => {
   it("renders the hourly time range, in the venue tz, with the city suffix", () => {
@@ -184,5 +208,72 @@ describe("composeWhenLabel — the single venue-local booking-window formatter",
   it("uses an EN DASH between the two times (the shipped separator, not a hyphen)", () => {
     expect(composeWhenLabel(HOURLY)).toContain("–");
     expect(composeWhenLabel(HOURLY)).not.toContain(" - ");
+  });
+});
+
+describe("composeWhenLabel — the OC-03 drop-in pass fork (09-08 / 09-UI-SPEC § 5a)", () => {
+  it("long form: a drop-in pass reads as a DATE plus an entry window, never a reservation", () => {
+    // The exact literal from 09-UI-SPEC § 5a. The hours are still shown — a booker needs to know when they
+    // may turn up — but they are framed as "any time", and the leading separator is a middot, not the comma
+    // the exclusive form uses, so the two shapes cannot be confused at a glance.
+    expect(composeWhenLabel(DROP_IN)).toBe(
+      "Friday, Aug 8 · Drop-in pass, any time 6:00 AM – 10:00 PM (Makati time)",
+    );
+    // The defect this whole plan exists to prevent: the persisted window rendered as a bare range would
+    // announce that the booker reserved the space from 6 AM to 10 PM.
+    expect(composeWhenLabel(DROP_IN)).not.toBe(
+      "Friday, Aug 8, 6:00 AM – 10:00 PM (Makati time)",
+    );
+    expect(composeWhenLabel(DROP_IN)).not.toContain("Full day");
+  });
+
+  it("short form: the dense row form carries NO hours and NO city suffix", () => {
+    // 09-UI-SPEC § 5a specifies this exactly. A table cell has no room for an entry window, and the whole
+    // point of a pass is that the hour does not matter.
+    expect(composeWhenLabelShort(DROP_IN)).toBe("Fri, Aug 8 · Drop-in pass");
+    expect(composeWhenLabelShort(DROP_IN)).not.toContain("AM");
+    expect(composeWhenLabelShort(DROP_IN)).not.toContain("time)");
+  });
+
+  it("renders the entry window in the VENUE timezone, never UTC or the viewer's", () => {
+    // Same instants, different venue tz — the opening/closing wall-clock must move with the venue.
+    expect(composeWhenLabel({ ...DROP_IN, timezone: "UTC", city: null })).toBe(
+      "Thursday, Aug 7 · Drop-in pass, any time 10:00 PM – 2:00 PM",
+    );
+  });
+
+  it("omits the ' (… time)' suffix entirely when the listing has no city", () => {
+    const label = composeWhenLabel({ ...DROP_IN, city: null });
+    expect(label).toBe("Friday, Aug 8 · Drop-in pass, any time 6:00 AM – 10:00 PM");
+    expect(label).not.toContain("time)");
+  });
+
+  it("OC-03 ORDERING: the open branch wins over price inputs that would say 'Full day'", () => {
+    // THE CR-01-IN-A-NEW-COSTUME CASE, and the reason the open branch is resolved FIRST. These price inputs
+    // are exactly the pre-0016 positive day-rate coincidence (spacePrice === dayRate) that makes the
+    // exclusive path answer "Full day". An open row's price fields describe a per-head freeze and can never
+    // be evidence about a duration, so they must not be consulted at all. Move the open branch BELOW the
+    // fullDay resolution and this case goes red.
+    const label = composeWhenLabel({
+      ...DROP_IN,
+      fullDay: null,
+      spacePriceCents: 105000,
+      quotedTotalCents: 105000,
+      dayRateCents: 105000,
+    });
+    expect(label).toBe("Friday, Aug 8 · Drop-in pass, any time 6:00 AM – 10:00 PM (Makati time)");
+    expect(label).not.toContain("Full day");
+    // …and the same is true if the row somehow also carried fullDay: true.
+    expect(composeWhenLabel({ ...DROP_IN, fullDay: true })).not.toContain("Full day");
+  });
+
+  it("openCapacity: false leaves EVERY exclusive label byte-identical (no shipped string moved)", () => {
+    expect(composeWhenLabel(HOURLY)).toBe(HOURLY_LABEL);
+    expect(composeWhenLabel({ ...HOURLY, fullDay: true })).toBe(
+      "Thursday, Jul 2, Full day (Makati time)",
+    );
+    expect(composeWhenLabelShort(HOURLY)).toBe("Thu, Jul 2, 8:00 AM – 10:00 AM (Makati time)");
+    expect(composeWhenLabel(HOURLY)).not.toContain("Drop-in");
+    expect(composeWhenLabelShort(HOURLY)).not.toContain("·");
   });
 });

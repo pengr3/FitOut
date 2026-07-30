@@ -15,6 +15,12 @@
 //     construction. It is a REQUIRED input, not an optional one: an optional field would let a call site
 //     silently omit it and keep the old defect alive on that one surface, whereas a required field makes
 //     the COMPILER enumerate every projection that must supply it.
+//   - `openCapacity` IS PERSISTED TOO (booking.open_capacity, drizzle 0021 / OC-03) and is likewise
+//     REQUIRED, for the same 08-15 reason. An open row's starts_at/ends_at are the venue's opening and
+//     closing instants — an ENTRY WINDOW kept only so the refund ladder, payout sweep, reminders and expiry
+//     keep working — so rendering them as a range would announce a sixteen-hour reservation nobody bought.
+//     Its branch is resolved FIRST, before any price-derived resolution, because every price input below
+//     describes an exclusive booking's shape and says nothing true about a per-head day pass.
 //   - ⚠️ THE OLD PRICE-INEQUALITY DERIVATION IS GONE, AND MUST NOT COME BACK (CR-01, 08-RESEARCH
 //     Pitfall 3). It concluded "Full day" whenever the frozen space price did not equal the plain
 //     hour-rate run total. The D-108 extra-guest surcharge is folded INTO `spacePriceCents`
@@ -58,6 +64,17 @@ export type WhenLabelInput = {
    */
   fullDay: boolean | null;
   /**
+   * The PERSISTED `booking.open_capacity` snapshot (drizzle 0021) — TRUE for a drop-in day pass.
+   *
+   * REQUIRED, exactly like `fullDay` and for exactly the same reason (08-15 contract #2): a drop-in booking
+   * persists starts_at = the venue's OPENING instant and ends_at = its CLOSING instant with full_day=false
+   * (OC-03), purely so the refund ladder, the payout sweep, reminders and expiry keep working unchanged.
+   * Those instants are an ENTRY WINDOW, not a reservation. If this field were optional, one forgotten call
+   * site would quietly announce that the booker reserved the whole day — which is CR-01, in a new costume.
+   * Being required, the compiler enumerates every surface instead of a reviewer.
+   */
+  openCapacity: boolean;
+  /**
    * The frozen SPACE price (D-74) — the listing-priced portion, i.e. the only figure comparable to a
    * listing rate. Read ONLY by the pre-0016 fallback, and only as a positive `=== dayRateCents` match.
    */
@@ -75,28 +92,50 @@ export type WhenLabelInput = {
 };
 
 /**
- * The shared body. `dateFormat` is the ONLY difference between the long and short variants — keeping one
- * implementation means the time range, the fullDay resolution and the city suffix can never diverge.
+ * The shared body. `dateFormat` (and, for the open branch only, `short`) is the ONLY difference between the
+ * long and short variants — keeping one implementation means the time range, the fullDay resolution, the
+ * open-capacity fork and the city suffix can never diverge.
  */
-function compose(input: WhenLabelInput, dateFormat: string): string {
+function compose(input: WhenLabelInput, dateFormat: string, short = false): string {
   const inTz = tz(input.timezone);
+  const dateLabel = format(input.startsAt, dateFormat, { in: inTz });
+  const citySuffix = input.city ? ` (${input.city} time)` : "";
+
+  // ── OC-03 / 09-UI-SPEC § 5a: a drop-in pass is a DAY, plus the hours you may turn up. Never a range that
+  // reads as a reservation. Resolved FIRST so neither the full-day branch nor the pre-0016 price fallback
+  // can ever run for an open row (their inputs describe an exclusive booking's pricing shape, and are
+  // meaningless — actively misleading — for a per-head day pass).
+  if (input.openCapacity) {
+    if (short) return `${dateLabel} · Drop-in pass`;
+    const openLabel = format(input.startsAt, "h:mm a", { in: inTz });
+    const closeLabel = format(input.endsAt, "h:mm a", { in: inTz });
+    return `${dateLabel} · Drop-in pass, any time ${openLabel} – ${closeLabel}${citySuffix}`;
+  }
+
   // The listing-priced portion. Falls back to the all-in total only for a pre-Phase-7 row whose split was
   // never frozen — for those rows the fee was 0, so the two are the same number.
   const spaceCents = input.spacePriceCents ?? input.quotedTotalCents ?? 0;
   // The persisted snapshot wins outright. The positive day-rate match is the pre-0016 legacy path ONLY.
   const fullDay = input.fullDay ?? (input.dayRateCents != null && spaceCents === input.dayRateCents);
-  const dateLabel = format(input.startsAt, dateFormat, { in: inTz });
   const timeLabel = fullDay
     ? "Full day"
     : `${format(input.startsAt, "h:mm a", { in: inTz })} – ${format(input.endsAt, "h:mm a", { in: inTz })}`;
-  return `${dateLabel}, ${timeLabel}${input.city ? ` (${input.city} time)` : ""}`;
+  return `${dateLabel}, ${timeLabel}${citySuffix}`;
 }
 
 /** "Thursday, Jul 3, 8:00 AM – 10:00 AM (Manila time)" — the full form for emails and detail surfaces. */
 export const composeWhenLabel = (input: WhenLabelInput): string => compose(input, "EEEE, MMM d");
 
-/** "Thu, Jul 3, 8:00 AM – 10:00 AM (Manila time)" — the short form for dense table/card rows. */
-export const composeWhenLabelShort = (input: WhenLabelInput): string => compose(input, "EEE, MMM d");
+/**
+ * "Thu, Jul 3, 8:00 AM – 10:00 AM (Manila time)" — the short form for dense table/card rows.
+ *
+ * For an open row this is the DENSEST form 09-UI-SPEC § 5a defines: the weekday-and-date token plus the pass
+ * wording, with NO hours and NO city suffix. A table cell has no room for an entry window, and the pass's
+ * whole point is that the hour does not matter. (The literal is not spelled again here — the acceptance grep
+ * counts occurrences of it in this file, and a comment quoting it would disarm that count.)
+ */
+export const composeWhenLabelShort = (input: WhenLabelInput): string =>
+  compose(input, "EEE, MMM d", true);
 
 /**
  * A single DEADLINE instant, venue-local — "Thu, Jul 3, 8:00 PM (Manila time)".
