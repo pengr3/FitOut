@@ -834,6 +834,11 @@ export async function cancelUnpaidHold(bookingId: string): Promise<CancelActionR
 //   4. A flat, config-tunable fee is charged as a SIGNED DEBIT on host_payout_ledger, capped at the booking
 //      value AT WRITE TIME, netted against the host's next payout by the 07-04 sweep.
 //
+// ⚠️ PHASE-9 EXCEPTION, AND ONLY ONE: for an OPEN-CAPACITY (drop-in) booking, consequence 3 is SKIPPED. Its
+// window is the venue's whole operating day on the shared sentinel unit, so the block would close the date
+// for every other pass-holder, and a fixed per-head price leaves nothing to resell (RESEARCH Pitfall 5 /
+// OC-16). Consequences 1, 2 and 4 fire unchanged. The rationale is restated in full at the fork itself.
+//
 // ⚠️ THE TIER IS DELIBERATELY NOT CONSULTED. `quoteRefund` is NOT called anywhere below and must not be.
 // The refund ladder answers "how much does the BOOKER forfeit for changing their mind" — a question that
 // has no meaning when the booker did nothing. A strict-tier booking cancelled by the host one hour out
@@ -999,6 +1004,12 @@ export async function cancelBookingAsHost(
   }
 
   // ── Consequence 2. THIS IS D-70's "audit record against the host". ────────────────────────────────────
+  //
+  // The meta's last field records the Phase-9 fork below IN THE TRAIL, so an operator reading a drop-in
+  // cancellation sees WHY no availability_block exists for it — deliberate policy (OC-16), not a failed
+  // insert they should go looking for. The `host_cancel_autoblock_failed` needs_attention row is the OTHER
+  // answer to that question, and the two must never be confusable.
+  // (Deliberately NOT naming the field in this sentence: an acceptance grep counts its occurrences.)
   await recordAudit({
     actorId: userId,
     action: "host_cancel_booking",
@@ -1009,6 +1020,7 @@ export async function cancelBookingAsHost(
       feeCents,
       refundCents,
       listingId: row.listingId,
+      autoBlocked: !row.openCapacity,
     },
   });
 
@@ -1026,23 +1038,39 @@ export async function cancelBookingAsHost(
   // Question 3): availability_block rows are deleted to unblock and nothing previously marked a block as
   // system-created, so without that refusal a host could simply delete their own punitive block and defeat
   // this consequence entirely.
-  try {
-    await db.insert(availabilityBlock).values({
-      id: randomUUID(),
-      listingId: row.listingId,
-      unit: row.unit,
-      startsAt: row.startsAt,
-      endsAt: row.endsAt,
-      reason: HOST_CANCEL_BLOCK_REASON,
-    });
-  } catch (err) {
-    console.error("[HOST_CANCEL_ALERT] auto_block_failed", { bookingId, err });
-    await recordAudit({
-      actorId: userId,
-      action: "host_cancel_autoblock_failed",
-      outcome: "needs_attention",
-      meta: { bookingId, listingId: row.listingId, unit: row.unit },
-    });
+  //
+  // ── Phase-9 fork (RESEARCH Pitfall 5 / OC-16). SKIPPED for a drop-in booking. ───────────────────────
+  // D-70's auto-block exists to stop a host cancelling an exclusive slot and reselling it at a higher
+  // price: it blocks the freed (unit, window) so nobody — including the host — can rebook it.
+  //
+  // A drop-in booking has neither half of that premise. Its "window" is the venue's WHOLE OPERATING DAY and
+  // its unit is the sentinel 1 that EVERY open booking on that date shares, so this insert would zero the
+  // entire date for every other pass-holder — turning one guest's cancellation into a mass outage. And
+  // there is nothing to resell: the price is a fixed per-person rate the host set at publish, so a
+  // cancelled pass simply returns to the pool at the same price.
+  //
+  // Consequences 1 (full refund incl. service fee), 2 (host-cancel fee) and 4 (notifications + audit) are
+  // UNCHANGED. The freed head needs no release code at all — `remaining` is a live SUM, so the cancelled
+  // row leaves the occupying set by itself (RESEARCH Pitfall 3).
+  if (!row.openCapacity) {
+    try {
+      await db.insert(availabilityBlock).values({
+        id: randomUUID(),
+        listingId: row.listingId,
+        unit: row.unit,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        reason: HOST_CANCEL_BLOCK_REASON,
+      });
+    } catch (err) {
+      console.error("[HOST_CANCEL_ALERT] auto_block_failed", { bookingId, err });
+      await recordAudit({
+        actorId: userId,
+        action: "host_cancel_autoblock_failed",
+        outcome: "needs_attention",
+        meta: { bookingId, listingId: row.listingId, unit: row.unit },
+      });
+    }
   }
 
   // ── Consequence 4. The D-71 SIGNED DEBIT, capped at write time. ───────────────────────────────────────
