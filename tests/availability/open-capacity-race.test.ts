@@ -47,6 +47,16 @@
 // Every case asserts the COMMITTED rows FIRST, read back through `testDb.client` (an INDEPENDENT
 // connection), so a mutation's failure message names the DATABASE TRUTH — a committed SUM over the cap —
 // and not a returned-value proxy.
+//
+// BOTH MUTATIONS WERE EXECUTED 2026-07-30 (09-03). A mutation that is described but never run is a
+// comment; these are the observed failures, verbatim:
+//   MUTATION 1 (inlined lock deleted, this file) — 2 failed | 4 passed
+//     case 1: AssertionError: expected 4 to be 3 // Object.is equality   (committedHeads, cap 3)
+//     case 2: AssertionError: expected 6 to be less than or equal to 5   (committedHeads, cap 5)
+//   MUTATION 2 (shipped lock deleted, src/lib/availability/units.ts) — 2 failed | 4 passed
+//     case 3: AssertionError: expected 4 to be 3 // Object.is equality   (committed SUM, cap 3)
+//     case 4: AssertionError: expected 6 to be 5 // Object.is equality   (committedHeads, cap 5)
+//   Both restored → `git diff --exit-code src/lib/availability/units.ts` exit 0 → this file 6/6 green.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
