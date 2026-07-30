@@ -315,7 +315,7 @@ Plans:
 
 - [x] 09-02-PLAN.md — The capacity claim: shared open-capacity module (one occupying SUM, OC-03 day window, OC-11 threshold) + quoteOpenCapacity + createOpenCapacityHold under pg_advisory_xact_lock
 - [x] 09-06-PLAN.md — Mode-forked publish gate (per-person price + daily cap, instant-only, single-unit, no group pricing) + the OC-17 mode lock enforced server-side
-- [ ] 09-08-PLAN.md — composeWhenLabel gains a REQUIRED openCapacity field — compiler-driven census across 13 call sites (a drop-in pass is never a 16-hour reservation)
+- [x] 09-08-PLAN.md — composeWhenLabel gains a REQUIRED openCapacity field — compiler-driven census across 13 call sites (a drop-in pass is never a 16-hour reservation)
 
 **Wave 3** *(blocked on Wave 2 completion; 09-07 additionally ordered after 09-08's compiler census)*
 
