@@ -156,12 +156,16 @@ export const spaceType = pgEnum("space_type", [
 // use may share one migration transaction.
 export const cancellationPolicy = pgEnum("cancellation_policy", ["flexible", "standard", "strict"]);
 
-// Phase-8 group bookings (D-109/D-116). BRAND-NEW enums — exactly like cancellationPolicy above, a brand-new
-// CREATE TYPE and its FIRST USE may share one migration; the 55P04 two-migration split (0010/0012) applies
-// ONLY to ALTER TYPE ... ADD VALUE on an EXISTING type. occupancy_mode has EXACTLY ONE value in v1
-// (D-109 — 'exclusive'); Phase 9 adds shared/capacity modes and v1 NEVER writes another value. rsvp_status
-// is the yes/no attendance answer (D-116). Declared before `listing` (const TDZ), mirroring the enum idioms above.
-export const occupancyMode = pgEnum("occupancy_mode", ["exclusive"]);
+// Phase-8 group bookings (D-109/D-116) + Phase-9 open capacity (OC-01). `occupancy_mode` / `rsvp_status`
+// were BRAND-NEW enums in drizzle/0017, so their CREATE TYPE and first use shared one migration. That
+// exemption does NOT apply here any more: `occupancy_mode` now EXISTS, so adding 'open_capacity' is an
+// `ALTER TYPE ... ADD VALUE` and takes the 55P04 two-migration split (drizzle/0020 adds the value and
+// does nothing else; drizzle/0021 and everything after it may never NAME the literal — the EXCLUDE narrow
+// in 0022 keys on the BOOLEAN booking.open_capacity precisely so it stays 55P04-safe). The first and only
+// use of 'open_capacity' is a RUNTIME write from the publish action, exactly like 0018's notification types.
+export const occupancyMode = pgEnum("occupancy_mode", ["exclusive", "open_capacity"]);
+// rsvp_status is the yes/no attendance answer (D-116). Declared before `listing` (const TDZ), mirroring
+// the enum idioms above.
 export const rsvpStatus = pgEnum("rsvp_status", ["yes", "no"]);
 
 export const listing = pgTable(
@@ -202,9 +206,19 @@ export const listing = pgTable(
     // Phase-8 group bookings (D-108/D-109). Backfill-free: occupancyMode carries a NOT NULL default so every
     // existing listing reads 'exclusive' (the only v1 value, D-109); included/extraHeadFee are nullable so a
     // flat-priced listing is byte-identical to today (the app coalesces extraHeadFee to 0 — a NULL fee = no surcharge).
-    occupancyMode: occupancyMode("occupancy_mode").default("exclusive").notNull(), // D-109 v1 = exclusive only
+    // Phase 9 (OC-01) adds the SECOND occupancyMode value, 'open_capacity'; the default and every existing row
+    // are untouched, so the backfill-free property holds for the new columns below too.
+    occupancyMode: occupancyMode("occupancy_mode").default("exclusive").notNull(), // D-109 exclusive | D-123 open_capacity
     included: integer("included"), // D-108 base headcount included in the flat price (nullable)
     extraHeadFee: integer("extra_head_fee"), // D-108 per-extra-head surcharge in integer centavos (nullable → app-coalesced to 0)
+    // Phase-9 open capacity (D-125 / OC-08 / OC-09 / RESEARCH A3). The ONE flat per-head day-pass price in
+    // integer centavos. Open-capacity pricing is purely LINEAR — price = perHeadPriceCents × granted heads —
+    // so it deliberately does NOT reuse the D-108 included/extraHeadFee base+surcharge pair, which has no
+    // meaningful `included` base here (D-110: open capacity never combines with group pricing). Nullable and
+    // backfill-free: every existing (exclusive) listing keeps NULL. It is publish-REQUIRED only when
+    // occupancy_mode = 'open_capacity' (src/lib/validation/listing.ts), and hourly/day rates are the
+    // publish-required pair only for 'exclusive'.
+    perHeadPriceCents: integer("per_head_price_cents"),
     status: listingStatus("status").default("draft").notNull(), // D-02/LIST-05
     publishedAt: timestamp("published_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // soft-delete (Claude's discretion)
@@ -631,6 +645,11 @@ export const availabilityBlock = pgTable(
 // already-migrated DB. The GiST EXCLUDE is the SOLE double-booking authority — every read/occupancy
 // predicate must mirror this occupying set (pending/confirmed/requested/approved).
 //
+// PHASE 9 (drizzle/0022): the predicate is now `status NOT IN ('cancelled','declined','completed') AND
+// open_capacity = false`. The EXCLUDE remains the SOLE arbiter for EXCLUSIVE bookings; open-capacity rows
+// are arbitrated instead by the per-(listing,date) advisory-lock admissions counter (D-123). Any new
+// occupancy predicate must therefore state WHICH arbiter it mirrors.
+//
 // Phase-4 adds the pending-hold lifecycle columns (expiresAt/quotedTotalCents/currency/idempotencyKey)
 // + the booking_idem_uq partial-unique index. Unlike EXCLUDE, these ARE Drizzle-expressible and go
 // through `drizzle-kit generate` (drizzle/0006_booking_hold.sql) — only the EXCLUDE stays hand-authored.
@@ -742,6 +761,20 @@ export const booking = pgTable(
     // Phase-8 group bookings (D-108). The declared attendee headcount, captured at hold time ONLY when the
     // listing's extra_head_fee > 0 (a flat-priced listing leaves this NULL). Nullable, backfill-free ADD COLUMN.
     declaredPax: integer("declared_pax"),
+    // Phase-9 open capacity (D-123 / RESEARCH Pattern 3). Creation-time snapshot, exactly like bookingMode
+    // (D-61) and cancellationPolicy (D-67): TRUE ⇒ this row's capacity is arbitrated by the
+    // per-(listing,date) advisory-lock admissions counter (src/lib/availability/units.ts
+    // createOpenCapacityHold), NOT by the booking_no_overlap EXCLUDE.
+    //
+    // LOAD-BEARING: drizzle/0022 narrows booking_no_overlap's partial WHERE with `AND open_capacity = false`.
+    // Every open booking on one date carries the SAME unit (1) and the IDENTICAL [dayOpen, dayClose) window,
+    // so without this flag the SECOND open booking of the day is rejected 23P01 as a double-book. A boolean
+    // literal is IMMUTABLE, so the narrowed index predicate is 55P04-safe (an enum literal would not be).
+    //
+    // NOT NULL DEFAULT false ⇒ backfill-free; every pre-Phase-9 row reads exclusive by construction.
+    // For an open row, declaredPax above is ALWAYS the granted head count (even 1) — the read-model SUM
+    // depends on it being present on every open row, which diverges from D-108's fee>0-only rule.
+    openCapacity: boolean("open_capacity").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
