@@ -306,23 +306,57 @@ Plans:
   4. Availability and search reflect remaining capacity (spots left), not merely free/taken
 
 **Plans**: 16 plans in 7 waves
+Plans:
+**Wave 1**
 
-  - [ ] 09-01-PLAN.md — Wave 1: schema (occupancy_mode += open_capacity, listing.per_head_price_cents, booking.open_capacity) + 3 hand-authored migrations (55P04 split + EXCLUDE narrowed to open_capacity=false) + [BLOCKING] db:migrate + D-123..D-126
-  - [ ] 09-02-PLAN.md — Wave 2: the capacity claim — shared open-capacity module (one occupying SUM, OC-03 day window, OC-11 threshold) + quoteOpenCapacity + createOpenCapacityHold under pg_advisory_xact_lock
-  - [ ] 09-03-PLAN.md — Wave 3: the SC#3 acceptance gate — two-layer concurrent-overbook race against the SHIPPED claim + the Pitfall-1 EXCLUDE test + both lock-deletion mutations
-  - [ ] 09-04-PLAN.md — Wave 3: read-model spots-left fork (remaining/cap/server-derived state) + month fully-booked map + public read actions
-  - [ ] 09-05-PLAN.md — Wave 4: search — /person all-in rate, Stage-1 effective-price filter+sort fix, Stage-2 spots-left branch (ignores the time window)
-  - [ ] 09-06-PLAN.md — Wave 2: mode-forked publish gate (per-person price + daily cap, instant-only, single-unit, no group pricing) + the OC-17 mode lock enforced server-side
-  - [ ] 09-07-PLAN.md — Wave 3: placeOpenHold + both cross-mode refusals + D-126 step-up refusal + the unchanged payment-paid webhook proof
-  - [ ] 09-08-PLAN.md — Wave 2: composeWhenLabel gains a REQUIRED openCapacity field — compiler-driven census across 13 call sites (a drop-in pass is never a 16-hour reservation)
-  - [ ] 09-09-PLAN.md — Wave 3: cancellation — host-cancel skips the anti-resell auto-block for drop-in bookings (Pitfall 5) + three copy forks
-  - [ ] 09-10-PLAN.md — Wave 3: host wizard — the occupancy step, mode-forked pricing + checklist, removed-and-explained booking-mode step, the OC-17 lock notice
-  - [ ] 09-11-PLAN.md — Wave 3: SpotsLeftChip + DropInBadge + PaxStepper split into a presentational control and two bindings (pre-hold pass stepper)
-  - [ ] 09-12-PLAN.md — Wave 4: DatePassPicker (month grid + day panel, no hour chips) + calendar fork + open rail + BookCta open branch
-  - [ ] 09-13-PLAN.md — Wave 4: reserve page — per-person breakdown + the OC-07 partial-grant alert with both server-computed figures
-  - [ ] 09-14-PLAN.md — Wave 5: search card (Drop-in badge, /person, never a time range, date-only link) + host listing card
-  - [ ] 09-15-PLAN.md — Wave 6: e2e two-booker shared-date decrement + sold-out, then the full repository gate and the validation map
-  - [ ] 09-16-PLAN.md — Wave 7: human walkthrough against the live PayMongo sk_test_ rail (checkpoint)
+- [ ] 09-01-PLAN.md — Schema (occupancy_mode += open_capacity, listing.per_head_price_cents, booking.open_capacity) + 3 hand-authored migrations (55P04 split + EXCLUDE narrowed to open_capacity=false) + [BLOCKING] db:migrate + D-123..D-126
+
+**Wave 2** *(blocked on Wave 1 completion — the live enum value + narrowed EXCLUDE)*
+
+- [ ] 09-02-PLAN.md — The capacity claim: shared open-capacity module (one occupying SUM, OC-03 day window, OC-11 threshold) + quoteOpenCapacity + createOpenCapacityHold under pg_advisory_xact_lock
+- [ ] 09-06-PLAN.md — Mode-forked publish gate (per-person price + daily cap, instant-only, single-unit, no group pricing) + the OC-17 mode lock enforced server-side
+- [ ] 09-08-PLAN.md — composeWhenLabel gains a REQUIRED openCapacity field — compiler-driven census across 13 call sites (a drop-in pass is never a 16-hour reservation)
+
+**Wave 3** *(blocked on Wave 2 completion; 09-07 additionally ordered after 09-08's compiler census)*
+
+- [ ] 09-03-PLAN.md — **The SC#3 acceptance gate** — two-layer concurrent-overbook race against the SHIPPED claim + the Pitfall-1 EXCLUDE test + both lock-deletion mutations
+- [ ] 09-04-PLAN.md — Read-model spots-left fork (remaining/cap/server-derived state) + month fully-booked map + public read actions
+- [ ] 09-07-PLAN.md — placeOpenHold + both cross-mode refusals + D-126 step-up refusal + the unchanged payment-paid webhook proof
+- [ ] 09-09-PLAN.md — Cancellation: host-cancel skips the anti-resell auto-block for drop-in bookings (Pitfall 5) + three copy forks
+- [ ] 09-10-PLAN.md — Host wizard: the occupancy step, mode-forked pricing + checklist, removed-and-explained booking-mode step, the OC-17 lock notice
+- [ ] 09-11-PLAN.md — SpotsLeftChip + DropInBadge + PaxStepper split into a presentational control and two bindings (pre-hold pass stepper)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 09-05-PLAN.md — Search: /person all-in rate, Stage-1 effective-price filter+sort fix, Stage-2 spots-left branch (ignores the time window)
+- [ ] 09-12-PLAN.md — DatePassPicker (month grid + day panel, no hour chips) + calendar fork + open rail + BookCta open branch
+- [ ] 09-13-PLAN.md — Reserve page: per-person breakdown + the OC-07 partial-grant alert with both server-computed figures
+
+**Wave 5** *(blocked on Wave 4 — needs 09-05's search row + 09-11's chip)*
+
+- [ ] 09-14-PLAN.md — Search card (Drop-in badge, /person, never a time range, date-only link) + host listing card
+
+**Wave 6** *(blocked on Wave 5 — full-stack gate over every prior wave)*
+
+- [ ] 09-15-PLAN.md — E2E two-booker shared-date decrement + sold-out, then the full repository gate and the validation map
+
+**Wave 7** *(blocked on Wave 6 — checkpoint, `autonomous: false`)*
+
+- [ ] 09-16-PLAN.md — Human walkthrough against the live PayMongo sk_test_ rail (9 separately-confirmed steps)
+
+  **Waves:** W1 (09-01) → W2 (09-02, 09-06, 09-08 — parallel) → W3 (09-03, 09-04, 09-07, 09-09, 09-10, 09-11 — parallel) → W4 (09-05, 09-12, 09-13 — parallel) → W5 (09-14) → W6 (09-15) → W7 (09-16, human-verify checkpoint). Zero `files_modified` overlap within any wave.
+
+  **Cross-cutting constraints** (invariants spanning ≥2 plans — every executor must hold these):
+
+    - **The DB is the sole overbook arbiter** — `pg_advisory_xact_lock` is the first in-transaction statement and is held across SUM → INSERT in ONE transaction; never an app-level count-then-insert (09-01, 09-02, 09-03, 09-07).
+    - **One occupying-SUM predicate, imported not copied** — the claim and the read model share the same SQL fragment so `remaining` can never drift from what the claim counts (Pitfall 4 — 09-02, 09-03, 09-04, 09-05).
+    - **Freed seats need no worker** — `remaining` is a live SUM, never a stored counter, so a cancelled booking or a lapsed pending hold leaves the occupying set automatically (Pitfall 3 — 09-02, 09-03, 09-04, 09-09).
+    - **Scarcity state is server-derived** (open / low / full) and rides on the payload; the client never re-derives the threshold and the chip is never red — "Fully booked" is a calm, normal state (OC-11 — 09-04, 09-05, 09-11, 09-12, 09-14).
+    - **A drop-in booking is a DAY PASS with an entry window, never a sixteen-hour reservation**, on every surface that names a time — enforced by `openCapacity` being a REQUIRED field on `WhenLabelInput` so a new surface cannot forget it (OC-03 — 09-08, 09-12, 09-13, 09-14, 09-15, 09-16).
+    - **Head count is FIXED at hold time** — the capacity claim lives at hold, `updateDeclaredPax` refuses open bookings (D-126), and no pass stepper renders on the reserve page (09-07, 09-11, 09-13).
+    - **Money is server-frozen with zero client arithmetic** — per-head × granted heads, no duration term; the same server-composed all-in rate drives both the browse card and the checkout breakdown (OC-02/OC-08, D-49/D-75 — 09-02, 09-05, 09-13).
+    - **Race-loss copy is exactly `Just sold out — pick another date.`**, defined in exactly one place (OC-13 — 09-02, 09-07, 09-12).
+    - **Exclusive and group surfaces stay byte-unchanged** — every fork adds a branch, it never replaces a shipped, UAT-passed surface (09-01, 09-04, 09-08, 09-11, 09-12).
 
 **UI hint**: yes
 
