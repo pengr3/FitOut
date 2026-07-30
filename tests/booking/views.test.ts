@@ -63,6 +63,8 @@ async function seedBooking(opts: {
   status: SeedStatus;
   window: { startsAt: Date; endsAt: Date };
   refundCents?: number | null;
+  /** OC-03: a drop-in day pass. Defaults to false, leaving every pre-existing fixture untouched. */
+  openCapacity?: boolean;
 }): Promise<void> {
   await testDb.db.insert(booking).values({
     id: opts.id,
@@ -75,6 +77,7 @@ async function seedBooking(opts: {
     quotedTotalCents: 5000,
     currency: "php",
     refundCents: opts.refundCents ?? null,
+    openCapacity: opts.openCapacity ?? false,
   });
 }
 
@@ -328,5 +331,46 @@ describe("T-07-33 — a host_cancel_fee debit is never read as a payout state", 
 
     expect(unfiltered.rows.length).toBeGreaterThan(0);
     expect(foreign.rows).toEqual([]);
+  });
+});
+
+describe("OC-03 — both list queries carry the persisted open_capacity snapshot (09-08)", () => {
+  // These two SELECTs are RAW SQL, so `b.open_capacity AS "openCapacity"` is the one link the compiler
+  // cannot check. Mis-alias or drop it and `openCapacity` arrives `undefined` — falsy — and every drop-in
+  // row on /bookings and /host/bookings silently reverts to a sixteen-hour range with a green type-check.
+  // That is precisely how CR-01 survived four plans, so the alias gets a real row and a real assertion.
+  it("projects TRUE for a drop-in pass and FALSE for an exclusive booking, in both views", async () => {
+    await seedBooking({
+      id: "bk_open_pass",
+      bookerId: BOOKER,
+      status: "confirmed",
+      window: pastWindow(25),
+      openCapacity: true,
+    });
+    await seedBooking({
+      id: "bk_exclusive",
+      bookerId: BOOKER,
+      status: "confirmed",
+      window: pastWindow(26),
+    });
+
+    const booker = await queryBookerBookings(testDb.db, {
+      bookerId: BOOKER,
+      tab: "past",
+      cursor: null,
+      limit: 50,
+    });
+    expect(booker.rows.find((r) => r.id === "bk_open_pass")?.openCapacity).toBe(true);
+    expect(booker.rows.find((r) => r.id === "bk_exclusive")?.openCapacity).toBe(false);
+
+    const host = await queryHostBookings(testDb.db, {
+      hostId: HOST,
+      tab: "past",
+      listingId: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(host.rows.find((r) => r.id === "bk_open_pass")?.openCapacity).toBe(true);
+    expect(host.rows.find((r) => r.id === "bk_exclusive")?.openCapacity).toBe(false);
   });
 });

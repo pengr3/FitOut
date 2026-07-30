@@ -87,6 +87,11 @@ type BookingOpts = {
   /** Minutes BEFORE now() the booking was created. Defaults to 30 days — comfortably reachable. */
   createdAgoMin?: number;
   durationMin?: number;
+  /**
+   * OC-03: write `booking.open_capacity = true`, i.e. a drop-in day pass whose starts_at/ends_at are the
+   * venue's opening/closing instants. Defaults to false, so every pre-existing fixture is untouched.
+   */
+  openCapacity?: boolean;
 };
 
 /**
@@ -103,12 +108,14 @@ async function makeBooking(
   const createdAgo = opts.createdAgoMin ?? 30 * 24 * 60;
   await testDb.db.execute(sql`
     INSERT INTO booking (id, listing_id, unit, booker_id, starts_at, ends_at, status,
+      open_capacity,
       quoted_total_cents, space_price_cents, service_fee_cents, currency, expires_at, created_at)
     VALUES (
       ${id}, ${listingId}, 1, ${BOOKER},
       now() + make_interval(mins => ${opts.startsInMin}::int),
       now() + make_interval(mins => ${opts.startsInMin + duration}::int),
       ${opts.status}::booking_status,
+      ${opts.openCapacity ?? false},
       105000, 100000, 5000, 'php',
       ${
         opts.expiresInMin === null
@@ -564,5 +571,58 @@ describe("reminders — terminal bookings are never reminded (T-07-79)", () => {
     expect(res).toEqual({ status: "skipped-not-due" });
     expect(await countClaims(id)).toBe(0);
     expect(sendSpy.mock.calls.length).toBe(before);
+  });
+
+  it("OC-03: a drop-in reminder says 'Drop-in pass', not the venue's opening-to-closing span", async () => {
+    // 09-08. The reminder query is RAW SQL, so `b.open_capacity AS "openCapacity"` is the one link in this
+    // chain the compiler cannot check: mis-alias it, drop it, or let the hydrate step forget it, and every
+    // drop-in reminder silently reverts to announcing a sixteen-hour reservation — with a green type-check
+    // and no failing unit test, which is exactly how CR-01 survived four plans. This case drives the REAL
+    // projection against a REAL row, so the alias is load-bearing at last.
+    const { listingId } = await makeHostListing();
+    const id = await makeBooking(listingId, {
+      status: "confirmed",
+      startsInMin: (PRE_SESSION_HOST_REMINDER_HOURS - 1) * H,
+      // The pass's window is the venue day, not an hour — 12h wide here, and long enough that a leaked
+      // range label would be unmistakable.
+      durationMin: 12 * H,
+      expiresInMin: null,
+      openCapacity: true,
+    });
+
+    // The projection itself: the persisted snapshot must survive the raw SELECT and the hydrate step.
+    const due = await queryDuePreSessionBooker(testDb.db);
+    const row = due.find((r) => r.bookingId === id);
+    expect(row?.openCapacity).toBe(true);
+
+    // …and the label the booker actually receives.
+    expect(await remindOne(testDb.db, { bookingId: id, kind: "pre_session_booker" })).toEqual({
+      status: "sent",
+    });
+    const [event] = sentFor(id);
+    expect(event.data.payload.whenLabel).toContain("· Drop-in pass, any time ");
+    expect(event.data.payload.whenLabel).not.toContain("Full day");
+    // The hours are still there — a booker needs to know when they may turn up — but they can never appear
+    // in the EXCLUSIVE shape (`{date}, {start} – {end}`), which is the one that reads as a reservation.
+    expect(event.data.payload.whenLabel).not.toMatch(/^\w+, \w+ \d+, \d+:\d\d [AP]M – /);
+  });
+
+  it("an EXCLUSIVE reminder is byte-identical to what shipped before 09-08", async () => {
+    // The other half of the guard: the fork must be invisible to every existing booking. Same fixture shape
+    // as the case above with the one flag off — the label keeps its comma, its hour range and its city.
+    const { listingId } = await makeHostListing();
+    const id = await makeBooking(listingId, {
+      status: "confirmed",
+      startsInMin: (PRE_SESSION_HOST_REMINDER_HOURS - 1) * H,
+      expiresInMin: null,
+    });
+    expect(await remindOne(testDb.db, { bookingId: id, kind: "pre_session_booker" })).toEqual({
+      status: "sent",
+    });
+    const [event] = sentFor(id);
+    expect(event.data.payload.whenLabel).not.toContain("Drop-in");
+    expect(event.data.payload.whenLabel).toMatch(
+      /^\w+, \w+ \d+, \d+:\d\d [AP]M – \d+:\d\d [AP]M \(Manila time\)$/,
+    );
   });
 });
