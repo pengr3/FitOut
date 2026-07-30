@@ -283,9 +283,17 @@ export default async function PublicListingPage({
               </div>
 
               {/* D-81 — the refund promise, next to the price it qualifies. GENERIC mode: there is no
-                  booking yet, so rungs are stated relative to session start; checkout re-states the same
-                  ladder as concrete dates once a window is picked. A NULL tier renders nothing. */}
-              <CancellationPolicyDisclosure tier={row.listing.cancellationPolicy} />
+                  booking yet, so rungs are stated relative to the listing's own deadline anchor; checkout
+                  re-states the same ladder as concrete dates once a window is picked. A NULL tier renders
+                  nothing.
+
+                  09-UI-SPEC § 5b: the anchor is the LISTING's persisted occupancy mode — a drop-in listing
+                  sells passes for a DATE, so its deadline is when the space opens, not when a session
+                  starts. The ladder itself is byte-identical in both modes (OC-15). */}
+              <CancellationPolicyDisclosure
+                tier={row.listing.cancellationPolicy}
+                openCapacity={row.listing.occupancyMode === "open_capacity"}
+              />
 
               {pub.maxOccupancy != null && (
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground">

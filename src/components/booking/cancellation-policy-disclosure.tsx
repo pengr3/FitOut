@@ -42,6 +42,23 @@ const TIER_LABELS: Record<CancellationTier, string> = {
   strict: "Strict",
 };
 
+/**
+ * 09-UI-SPEC § 5b — WHICH INSTANT THE DEADLINE COPY NAMES. The ladder itself is reused UNCHANGED for a
+ * drop-in pass (OC-15: `quoteRefund`, `LADDER` and `rungBoundaries` are byte-identical); the ONLY thing that
+ * differs is the word for what `starts_at` is. On an exclusive booking it is when the SESSION starts; on an
+ * open-capacity booking OC-03 makes it the instant the SPACE OPENS on the booked date.
+ *
+ * REQUIRED, never optional — the same argument `when-label.ts` makes for `WhenLabelInput.openCapacity`
+ * (09-08): an optional flag lets one surface silently keep telling a drop-in booker to cancel "before the
+ * session", a session that does not exist. It is declared ONCE, here, and intersected into every consumer's
+ * props/params below, so the compiler asks the question at every call site and there is exactly one place a
+ * future reader has to look to learn why.
+ */
+export type DeadlineAnchorInput = {
+  /** True ⇒ this booking (or listing) sells drop-in passes: the deadline is the venue's opening time. */
+  openCapacity: boolean;
+};
+
 /** One rendered rung: WHEN the booker must cancel by, and WHAT they get if they do. */
 export type PolicyDisclosureLine = { when: string; outcome: string };
 
@@ -70,6 +87,7 @@ function outcomeFor(refundBps: number): string {
  */
 export function policyDisclosureLines(
   tier: CancellationTier,
+  { openCapacity }: DeadlineAnchorInput,
   boundaryLabels?: readonly string[],
 ): PolicyDisclosureLine[] {
   const rungs = LADDER[tier];
@@ -79,9 +97,14 @@ export function policyDisclosureLines(
     );
   }
   const lines: PolicyDisclosureLine[] = rungs.map((rung, i) => ({
+    // CONCRETE mode names an INSTANT and therefore no anchor word at all — which is why the drop-in fork
+    // touches the generic branch only (09-UI-SPEC § 5b). Both sentences are spelled out in full rather than
+    // interpolated from a shared noun, so a copy audit can grep either one whole.
     when: boundaryLabels
       ? `Cancel before ${boundaryLabels[i]}`
-      : `Cancel at least ${rung.minHours} hours before the session`,
+      : openCapacity
+        ? `Cancel at least ${rung.minHours} hours before the space opens`
+        : `Cancel at least ${rung.minHours} hours before the session`,
     outcome: outcomeFor(rung.refundBps),
   }));
   // The last rung's floor is where refunds stop. Stated explicitly so the ladder has no silent bottom.
@@ -107,16 +130,20 @@ export function policyDisclosureLines(
  */
 export function policySummaryLine(
   tier: CancellationTier,
+  { openCapacity }: DeadlineAnchorInput,
   boundaryLabels?: readonly string[],
   bestRungIndex?: number,
 ): string {
-  // GENERIC MODE (the listing page, no concrete instants): unchanged — state the ladder's own free
-  // cancellation lead time relative to session start. `bestRungIndex` is a per-booking, time-relative fact
-  // that only makes sense against concrete boundaries, so it is deliberately ignored here.
+  // GENERIC MODE (the listing page, no concrete instants): state the ladder's own free cancellation lead
+  // time relative to the anchor this listing actually has — the session start for an hourly booking, the
+  // venue's opening time for a drop-in pass (09-UI-SPEC § 5b). `bestRungIndex` is a per-booking,
+  // time-relative fact that only makes sense against concrete boundaries, so it is ignored here.
   if (!boundaryLabels) {
     const i = LADDER[tier].findIndex((r) => r.refundBps >= 10000);
     if (i === -1) return `${TIER_LABELS[tier]} cancellation policy`;
-    return `Free cancellation up to ${LADDER[tier][i].minHours} hours before the session.`;
+    return openCapacity
+      ? `Free cancellation up to ${LADDER[tier][i].minHours} hours before the space opens.`
+      : `Free cancellation up to ${LADDER[tier][i].minHours} hours before the session.`;
   }
 
   // CONCRETE MODE (checkout, dates for THIS booking).
@@ -126,6 +153,12 @@ export function policySummaryLine(
   //     no-100%-rung case returns) — NEVER "Free cancellation";
   //   - otherwise → lead with the best still-future rung: a full-refund rung reads "Free cancellation
   //     until <date>", any lesser rung names its percentage ("50% refund until <date>").
+  //
+  // ⚠️ DELIBERATELY NOT FORKED FOR A DROP-IN PASS. Every line below names a concrete venue-local INSTANT and
+  // no anchor noun, and OC-03 already makes that instant the venue's opening time — so "Free cancellation
+  // until Thu 7 Aug, 8:00 AM (Makati time)" is ALREADY correct in both modes. 09-UI-SPEC § 5b lists these
+  // strings as unchanged on purpose. Do not "finish the fork" here: a second wording for the same instant is
+  // drift, not accuracy, and `openCapacity` is intentionally unread past this point.
   if (bestRungIndex === undefined) {
     const i = LADDER[tier].findIndex((r) => r.refundBps >= 10000);
     if (i === -1) return `${TIER_LABELS[tier]} cancellation policy`;
@@ -138,11 +171,8 @@ export function policySummaryLine(
   return `${rung.refundBps / 100}% refund until ${label}`;
 }
 
-export function CancellationPolicyDisclosure({
-  tier,
-  boundaryLabels,
-  bestRungIndex,
-}: {
+/** `openCapacity` is REQUIRED by intersection — see DeadlineAnchorInput for why it is not optional. */
+export type CancellationPolicyDisclosureProps = DeadlineAnchorInput & {
   /**
    * At checkout this MUST be the booking's own snapshotted tier (`booking.cancellation_policy`), not the
    * listing's current one — that snapshot is what `quoteRefund` will later read, so sourcing the display
@@ -160,7 +190,14 @@ export function CancellationPolicyDisclosure({
    * no date math (its header rule). Omitted ⇒ the summary keeps its pre-T4-rung top-rung lead.
    */
   bestRungIndex?: number;
-}) {
+};
+
+export function CancellationPolicyDisclosure({
+  tier,
+  openCapacity,
+  boundaryLabels,
+  bestRungIndex,
+}: CancellationPolicyDisclosureProps) {
   // ── NULL-TIER BEHAVIOUR (D-77's deliberate no-default, and what it implies for old rows) ─────────────
   // A NULL tier renders nothing at all — not an empty shell, not a fallback policy.
   //
@@ -175,8 +212,8 @@ export function CancellationPolicyDisclosure({
   // no disclosure — that is the rule this branch encodes.
   if (!tier) return null;
 
-  const summary = policySummaryLine(tier, boundaryLabels, bestRungIndex);
-  const lines = policyDisclosureLines(tier, boundaryLabels);
+  const summary = policySummaryLine(tier, { openCapacity }, boundaryLabels, bestRungIndex);
+  const lines = policyDisclosureLines(tier, { openCapacity }, boundaryLabels);
 
   return (
     <details className="rounded-lg border bg-muted/40 p-3 text-sm">

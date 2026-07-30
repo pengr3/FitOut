@@ -29,7 +29,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
-import { composeWhenLabel } from "@/lib/booking/when-label";
+import { composeDateLabel, composeWhenLabel } from "@/lib/booking/when-label";
 import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { LADDER, quoteRefund, rungBoundaries, tierOrDefault } from "@/lib/payments/cancellation";
@@ -49,17 +49,28 @@ const TIER_LABELS = { flexible: "Flexible", standard: "Standard", strict: "Stric
  * The `{rung description}` clause of the D-78 rationale sentence, derived from the SAME `LADDER` the quote
  * was computed from — so the prose explaining the number can never describe a different policy than the one
  * that produced it. Rungs are descending by `minHours`, so index 0 is the most generous.
+ *
+ * `openCapacity` renames the ANCHOR and nothing else (09-UI-SPEC § 5b): the ladder, the rung boundaries and
+ * every peso are byte-identical for a drop-in pass (OC-15). What differs is that OC-03 makes `starts_at` the
+ * instant the SPACE OPENS on the booked date rather than the start of a session — so "6 hours before the
+ * session" would be describing an event a pass-holder does not have. Required, not optional, for the same
+ * reason the components' props are.
  */
-function rungDescription(tier: "flexible" | "standard" | "strict", refundBps: number): string {
+function rungDescription(
+  tier: "flexible" | "standard" | "strict",
+  refundBps: number,
+  openCapacity: boolean,
+): string {
   const rungs = LADDER[tier];
+  const anchor = openCapacity ? "before the space opens" : "before the session";
   const i = rungs.findIndex((r) => r.refundBps === refundBps);
   if (i === -1) {
     // No rung satisfied — the booker is inside the final, unrefunded stretch.
     const last = rungs[rungs.length - 1];
-    return `under ${last.minHours} hours before the session`;
+    return `under ${last.minHours} hours ${anchor}`;
   }
-  if (i === 0) return `${rungs[0].minHours} hours or more before the session`;
-  return `${rungs[i - 1].minHours}–${rungs[i].minHours} hours before the session`;
+  if (i === 0) return `${rungs[0].minHours} hours or more ${anchor}`;
+  return `${rungs[i - 1].minHours}–${rungs[i].minHours} hours ${anchor}`;
 }
 
 export default async function CancelBookingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -241,6 +252,11 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
             <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
               Cancel this booking?
             </h1>
+            {/* 09-UI-SPEC § 5b's drop-in context line arrives through the SHARED formatter, not through a
+                fork here: 09-08 made `composeWhenLabel` render an open row as "{date} · Drop-in pass, any
+                time {open} – {close} ({City} time)". Re-composing "{date} drop-in pass ({City} time)"
+                locally would give this one surface its own wording for the same booking — exactly the
+                drift when-label.ts exists to prevent. */}
             <p className="text-sm text-muted-foreground">
               {title} · {whenLabel}
             </p>
@@ -249,13 +265,27 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
           <Separator />
 
           {/* D-78's "which tier applies and why", composed server-side from the quote and the LADDER it
-              came from. Verbatim per 07-UI-SPEC § 3 — do not paraphrase. */}
+              came from. Verbatim per 07-UI-SPEC § 3 — do not paraphrase.
+
+              09-UI-SPEC § 5b renames the ANCHOR for a drop-in pass and nothing else: `hoursToStart`, the
+              rung, the percentage and every peso are byte-identical (OC-15), but OC-03 makes `startsAt` the
+              instant the SPACE OPENS on the booked date, so "before the session starts" would describe an
+              event a pass-holder does not have. The date is named because a pass is bought for a DAY. */}
           <div className="space-y-2">
             <p className="text-sm">
               This space uses the {TIER_LABELS[tier]} cancellation policy. You&apos;re cancelling{" "}
-              {hoursToStart} hours before the session starts, which falls in the{" "}
-              {rungDescription(tier, quote.refundBps)} window — {percentLabel} of the space price is
-              refunded.
+              {bk.openCapacity ? (
+                <>
+                  {hoursToStart} hours before the space opens on{" "}
+                  {composeDateLabel(bk.startsAt, lst.timezone)}, which falls in the{" "}
+                </>
+              ) : (
+                <>
+                  {hoursToStart} hours before the session starts, which falls in the{" "}
+                </>
+              )}
+              {rungDescription(tier, quote.refundBps, bk.openCapacity)} window — {percentLabel} of the
+              space price is refunded.
             </p>
             {nextDrop && (
               <p className="text-sm text-muted-foreground">

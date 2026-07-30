@@ -123,8 +123,12 @@ function compose(input: WhenLabelInput, dateFormat: string, short = false): stri
   return `${dateLabel}, ${timeLabel}${citySuffix}`;
 }
 
+/** The two date tokens, named once so every export below renders the SAME date the same way. */
+const LONG_DATE = "EEEE, MMM d";
+const SHORT_DATE = "EEE, MMM d";
+
 /** "Thursday, Jul 3, 8:00 AM – 10:00 AM (Manila time)" — the full form for emails and detail surfaces. */
-export const composeWhenLabel = (input: WhenLabelInput): string => compose(input, "EEEE, MMM d");
+export const composeWhenLabel = (input: WhenLabelInput): string => compose(input, LONG_DATE);
 
 /**
  * "Thu, Jul 3, 8:00 AM – 10:00 AM (Manila time)" — the short form for dense table/card rows.
@@ -135,7 +139,21 @@ export const composeWhenLabel = (input: WhenLabelInput): string => compose(input
  * counts occurrences of it in this file, and a comment quoting it would disarm that count.)
  */
 export const composeWhenLabelShort = (input: WhenLabelInput): string =>
-  compose(input, "EEE, MMM d", true);
+  compose(input, SHORT_DATE, true);
+
+/**
+ * Just the DATE, venue-local — "Friday, Aug 8". No time, no city suffix.
+ *
+ * Added by 09-09 for the cancel review's tier-rationale sentence, which for a drop-in pass must say
+ * "…before the space opens on {date}" (09-UI-SPEC § 5b). That sentence is prose ABOUT a date, not a rendered
+ * window, so it cannot use `composeWhenLabel` — and the alternative was a bare `format()` call on the page,
+ * which is precisely the fourth copy this module's header forbids. Rendering it here, off the SAME
+ * `LONG_DATE` token `composeWhenLabel` uses, means the sentence and the label above it can never name the
+ * same instant two different ways.
+ */
+export function composeDateLabel(instant: Date, timezone: string): string {
+  return format(instant, LONG_DATE, { in: tz(timezone) });
+}
 
 /**
  * A single DEADLINE instant, venue-local — "Thu, Jul 3, 8:00 PM (Manila time)".

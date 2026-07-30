@@ -66,6 +66,16 @@ export type HostCancelDialogProps = {
   outstandingLabel: string | null;
   /** Venue-local "{date}, {time} ({City} time)" for the window that will be blocked. */
   whenLabel: string;
+  /**
+   * The booking's OC-03 mode snapshot (`booking.open_capacity`) — true ⇒ a drop-in pass, and the third
+   * consequence below is NOT rendered because the action deliberately does not perform it.
+   *
+   * REQUIRED, never optional, for the same reason `WhenLabelInput.openCapacity` is (09-08 / 08-15 contract
+   * #2): an optional flag lets a host surface silently keep promising a calendar block that will never
+   * exist. The dialog's copy and `cancelBookingAsHost`'s behaviour fork on the SAME persisted column, so
+   * they cannot disagree (threat T-09-32).
+   */
+  openCapacity: boolean;
 };
 
 export function HostCancelDialog({
@@ -75,6 +85,7 @@ export function HostCancelDialog({
   feeLabel,
   outstandingLabel,
   whenLabel,
+  openCapacity,
 }: HostCancelDialogProps) {
   const [open, setOpen] = React.useState(false);
   const [pane, setPane] = React.useState<1 | 2>(1);
@@ -171,13 +182,17 @@ export function HostCancelDialog({
           <>
             <DialogHeader>
               <DialogTitle>Cancelling this booking will:</DialogTitle>
+              {/* The count is INTERPOLATED, not hardcoded: this description used to say "three" always,
+                  which stopped being true the moment the block bullet became conditional. A screen-reader
+                  user must not be told to expect a consequence the list does not contain. */}
               <DialogDescription className="sr-only">
-                The three consequences of cancelling, and an acknowledgment you must tick to continue.
+                The {openCapacity ? "two" : "three"} consequences of cancelling, and an acknowledgment you
+                must tick to continue.
               </DialogDescription>
             </DialogHeader>
 
-            {/* THE CONSEQUENCES LIST IS THE FOCAL POINT OF THIS DIALOG — not the confirm button. All three
-                D-70 consequences are stated plainly, in full, every time. */}
+            {/* THE CONSEQUENCES LIST IS THE FOCAL POINT OF THIS DIALOG — not the confirm button. Every D-70
+                consequence that will ACTUALLY fire is stated plainly, in full, every time. */}
             <ul className="list-disc space-y-2 pl-5 text-sm">
               <li>
                 Refund <strong>{refundLabel}</strong> to {guestLabel} in full — regardless of your
@@ -189,9 +204,15 @@ export function HostCancelDialog({
                 Charge you a <strong className="text-destructive">{feeLabel}</strong> cancellation fee,
                 deducted from your next payout.
               </li>
-              <li>
-                Block <strong>{whenLabel}</strong> on this space, so the slot can&apos;t be rebooked.
-              </li>
+              {/* D-70's block bullet is OMITTED for a drop-in booking, because Consequence 3 is deliberately
+                  skipped for one (cancel-booking.ts: a whole-date block would close the day for every other
+                  pass-holder). Promising a block that will not happen is a false statement about the host's
+                  own calendar — 09-UI-SPEC O8. */}
+              {!openCapacity && (
+                <li>
+                  Block <strong>{whenLabel}</strong> on this space, so the slot can&apos;t be rebooked.
+                </li>
+              )}
             </ul>
 
             {outstandingLabel ? (

@@ -180,6 +180,10 @@ export default async function HostBookingDetailPage({
                   : null
               }
               whenLabel={whenLabel}
+              // The SAME persisted column cancelBookingAsHost forks on (09-UI-SPEC § 5c / O8), so the
+              // promised consequences and the performed ones cannot drift: a drop-in cancel writes no
+              // availability_block, and the dialog therefore does not claim one.
+              openCapacity={row.openCapacity}
             />
           </div>
         </>

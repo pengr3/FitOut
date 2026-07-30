@@ -84,6 +84,11 @@ export default async function ReservePage({
       currency: booking.currency,
       // WR-06 (drizzle 0016) — the PERSISTED pricing-mode snapshot, read instead of re-derived (see below).
       fullDay: booking.fullDay,
+      // The OC-03 mode SNAPSHOT (drizzle 0021). The CONCRETE-mode disclosure copy below is identical in
+      // both modes — its deadline is a venue-local instant, and OC-03 already makes that instant the
+      // venue's opening time for a pass — but the flag is REQUIRED, so this projection is what proves the
+      // question was asked rather than assumed (09-UI-SPEC § 5b).
+      openCapacity: booking.openCapacity,
       // D-108 — the headcount that priced this hold. NULL on every flat-priced listing.
       declaredPax: booking.declaredPax,
     })
@@ -281,6 +286,7 @@ export default async function ReservePage({
       />
       <CancellationPolicyDisclosure
         tier={tier}
+        openCapacity={bk.openCapacity}
         boundaryLabels={boundaryLabels}
         bestRungIndex={bestRungIndex}
       />

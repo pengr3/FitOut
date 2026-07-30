@@ -32,10 +32,19 @@ import {
 import {
   policyDisclosureLines,
   policySummaryLine,
+  type DeadlineAnchorInput,
 } from "@/components/booking/cancellation-policy-disclosure";
 
 const HOUR = 60 * 60 * 1000;
 const TIERS: CancellationTier[] = ["flexible", "standard", "strict"];
+
+/**
+ * 09-09: the deadline anchor is a REQUIRED argument (09-UI-SPEC § 5b). Every case in this file is about the
+ * D-68 LADDER, which is byte-identical in both occupancy modes (OC-15) — so they all pass the EXCLUSIVE
+ * anchor, and the drop-in wording is pinned separately in tests/booking/cancellation-copy.test.tsx.
+ * Named rather than inlined so the compiler census this argument creates is visible at a glance.
+ */
+const EXCLUSIVE: DeadlineAnchorInput = { openCapacity: false };
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -261,7 +270,7 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
     // would keep rendering the old promise and this test would go red.
     for (const tier of TIERS) {
       const rungs = LADDER[tier];
-      const lines = policyDisclosureLines(tier);
+      const lines = policyDisclosureLines(tier, EXCLUSIVE);
 
       expect(lines).toHaveLength(rungs.length + 1);
 
@@ -281,7 +290,7 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
   it("(8) the collapsed summary names the LADDER's own free-cancellation lead time", () => {
     for (const tier of TIERS) {
       const freeRung = LADDER[tier].find((r) => r.refundBps >= 10000)!;
-      expect(policySummaryLine(tier)).toContain(String(freeRung.minHours));
+      expect(policySummaryLine(tier, EXCLUSIVE)).toContain(String(freeRung.minHours));
     }
   });
 
@@ -289,18 +298,18 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
     const startsAt = new Date("2026-07-10T12:00:00Z");
     for (const tier of TIERS) {
       const labels = rungBoundaries(tier, startsAt).map((r) => r.boundary.toISOString());
-      const lines = policyDisclosureLines(tier, labels);
+      const lines = policyDisclosureLines(tier, EXCLUSIVE, labels);
 
       // Every rung line names a CONCRETE instant — never a bare percentage (D-81 / C3).
       labels.forEach((label, i) => expect(lines[i].when).toContain(label));
-      expect(policySummaryLine(tier, labels)).toContain(labels[0]);
+      expect(policySummaryLine(tier, EXCLUSIVE, labels)).toContain(labels[0]);
     }
 
     // Boundaries formatted for one tier and passed with a different tier would disclose dates from a
     // policy the booker isn't under. It throws instead of rendering — a wrong date here is worse than
     // an error, because only the booker would ever see it.
     const flexibleLabels = rungBoundaries("flexible", startsAt).map((r) => r.boundary.toISOString());
-    expect(() => policyDisclosureLines("standard", flexibleLabels)).toThrow(/boundary labels/);
+    expect(() => policyDisclosureLines("standard", EXCLUSIVE, flexibleLabels)).toThrow(/boundary labels/);
   });
 
   it("(10) every DISCLOSED boundary is the exact instant quoteRefund changes its answer", () => {
@@ -314,7 +323,7 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
     for (const tier of TIERS) {
       const boundaries = rungBoundaries(tier, startsAt);
       // Index-aligned with the disclosure's rung lines — the same array the checkout page formats.
-      expect(policyDisclosureLines(tier)).toHaveLength(boundaries.length + 1);
+      expect(policyDisclosureLines(tier, EXCLUSIVE)).toHaveLength(boundaries.length + 1);
 
       boundaries.forEach(({ refundBps, boundary }, i) => {
         const onTheDot = quoteRefund({ ...money, tier, now: boundary });
@@ -350,18 +359,18 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
 
     // bestRungIndex = 1: the 100% window has lapsed; the summary leads with the 50% rung's own date and
     // never re-advertises the lapsed top rung or the word "Free".
-    const midLine = policySummaryLine("standard", labels, 1);
+    const midLine = policySummaryLine("standard", EXCLUSIVE, labels, 1);
     expect(midLine).toContain("50%");
     expect(midLine).toContain(labels[1]);
     expect(midLine).not.toContain("Free cancellation");
     expect(midLine).not.toContain(labels[0]); // the lapsed 100% boundary is never named
 
     // bestRungIndex = 0: the unchanged happy path — free cancellation up to the top boundary.
-    expect(policySummaryLine("standard", labels, 0)).toBe(`Free cancellation until ${labels[0]}`);
+    expect(policySummaryLine("standard", EXCLUSIVE, labels, 0)).toBe(`Free cancellation until ${labels[0]}`);
 
     // bestRungIndex = -1: every boundary has passed. A truthful line that promises NO window — it names the
     // tier (the same fallback the no-100%-rung case returns) and NEVER says "Free cancellation".
-    const lapsedLine = policySummaryLine("standard", labels, -1);
+    const lapsedLine = policySummaryLine("standard", EXCLUSIVE, labels, -1);
     expect(lapsedLine).toBe("Standard cancellation policy");
     expect(lapsedLine).not.toMatch(/free cancellation/i);
     expect(lapsedLine).not.toContain(labels[0]);
@@ -369,15 +378,15 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
 
     // An omitted index in concrete mode keeps the pre-T4-rung top-rung lead, so a caller that has not
     // adopted the index cannot regress (this is exactly what case (9) above still asserts).
-    expect(policySummaryLine("standard", labels)).toBe(`Free cancellation until ${labels[0]}`);
+    expect(policySummaryLine("standard", EXCLUSIVE, labels)).toBe(`Free cancellation until ${labels[0]}`);
   });
 
   it("(T4-rung) generic mode (no labels, no index) is byte-unchanged", () => {
     // The listing page passes no boundaryLabels; `bestRungIndex` must be ignored there. The summary stays
     // relative-to-session-start, exactly as case (8) pins.
-    expect(policySummaryLine("standard")).toBe("Free cancellation up to 24 hours before the session.");
-    expect(policySummaryLine("flexible")).toBe("Free cancellation up to 12 hours before the session.");
-    expect(policySummaryLine("strict")).toBe("Free cancellation up to 48 hours before the session.");
+    expect(policySummaryLine("standard", EXCLUSIVE)).toBe("Free cancellation up to 24 hours before the session.");
+    expect(policySummaryLine("flexible", EXCLUSIVE)).toBe("Free cancellation up to 12 hours before the session.");
+    expect(policySummaryLine("strict", EXCLUSIVE)).toBe("Free cancellation up to 48 hours before the session.");
   });
 
   it("(T4-rung) end-to-end: bestFutureRungIndex feeds a truthful summary as `now` crosses the ladder", () => {
@@ -388,13 +397,14 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
     // Well before start → the 100% rung is open.
     const early = new Date(startsAt.getTime() - 30 * HR);
     expect(
-      policySummaryLine("standard", labels, bestFutureRungIndex("standard", startsAt, early)),
+      policySummaryLine("standard", EXCLUSIVE, labels, bestFutureRungIndex("standard", startsAt, early)),
     ).toBe(`Free cancellation until ${labels[0]}`);
 
     // Between the two boundaries → the 50% rung is the best still open.
     const mid = new Date(startsAt.getTime() - 12 * HR);
     const midLine = policySummaryLine(
       "standard",
+      EXCLUSIVE,
       labels,
       bestFutureRungIndex("standard", startsAt, mid),
     );
@@ -405,7 +415,7 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
     // Near start → every boundary lapsed; the summary must not advertise ANY window.
     const late = new Date(startsAt.getTime() - 3 * HR);
     expect(
-      policySummaryLine("standard", labels, bestFutureRungIndex("standard", startsAt, late)),
+      policySummaryLine("standard", EXCLUSIVE, labels, bestFutureRungIndex("standard", startsAt, late)),
     ).toBe("Standard cancellation policy");
   });
 
