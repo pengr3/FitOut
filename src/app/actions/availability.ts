@@ -36,6 +36,11 @@ const EMPTY_AVAILABILITY: DayAvailability = {
   // unknown-listing fallback and the listing table's default, so the two can never drift apart.
   bookingMode: "instant",
   slots: [],
+  // Phase-9 (OC-01), on the same reasoning as `bookingMode` directly above: `exclusive` is what the read
+  // model's own unknown-listing fallback returns AND the listing table's column default, so this literal
+  // and that one cannot drift. There is no date to project, so there is no open payload to carry.
+  occupancyMode: "exclusive",
+  openCapacity: null,
 };
 
 /**

@@ -10,7 +10,10 @@
 // would reject, nor hide a bookable back-to-back hour.
 
 import { and, eq, sql } from "drizzle-orm";
-import { TZDate } from "@date-fns/tz";
+import { format } from "date-fns";
+// `tz` is aliased because getAvailability already binds a local `tz` to the venue timezone STRING; two
+// different things called `tz` in one module is exactly the kind of quiet mixup this file exists to avoid.
+import { TZDate, tz as venueTz } from "@date-fns/tz";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { listing, operatingHours } from "@/lib/db/schema";
 import { MIN_LEAD_INSTANT_MINUTES, MIN_LEAD_REQUEST_HOURS } from "@/lib/payments/config";
@@ -20,6 +23,15 @@ import {
   slotStartsInFuture,
   isWithinHorizon,
 } from "./slots";
+// Phase 9 (OC-13). These are IMPORTED, never re-typed: the open branch below must count the same rows the
+// admissions claim counts, and the only way to guarantee that structurally is to share the fragment.
+import {
+  OPEN_OCCUPYING_STATUS_SQL,
+  loadOpenDayWindow,
+  openTakenSql,
+  spotsState,
+  type SpotsState,
+} from "./open-capacity";
 
 // Accept either the prod schema-typed db (Plan 05 RSC) or the isolated-schema test db. Both are
 // assignable to a Record<string, unknown> schema; only the (unused here) relational `.query` builder
@@ -48,6 +60,39 @@ export type AvailabilitySlot = {
   unitCount: number;
 };
 
+/**
+ * Phase-9 open-capacity projection for ONE venue-local date (OC-02: a date is one pass, so there is exactly
+ * one of these per day and `slots` is empty).
+ *
+ * `state` is decided HERE, server-side, from the shared scarcity threshold that open-capacity.ts owns — the
+ * client MUST NOT re-derive it. That threshold's ceiling is a NON-PUBLIC server constant, so it is not
+ * inlined into the browser bundle and a client-side default would silently disagree with the server exactly
+ * as the D-75 serviceFeeBps trap does (availability-calendar.tsx:235-242). Same reasoning that put
+ * `bookingMode` on this payload under D-100, and the same contract headcount-meter.tsx:48-53 states for
+ * `full`: only the claim's own basis may decide it.
+ */
+export type OpenCapacityDay = {
+  /** cap − the occupying head sum. Clamped at 0 — never negative, even if a cap edit shrank below live heads. */
+  remaining: number;
+  /** listing.max_occupancy — the daily admissions cap (D-124 / OC-04). */
+  cap: number;
+  state: SpotsState;
+  /** listing.per_head_price_cents (D-125). Null only for a mis-published listing; the publish gate requires it. */
+  perHeadPriceCents: number | null;
+  /** OC-03: the pass's ENTRY WINDOW as ISO instants — never a reservation. No consumer may render these as
+   *  "your 6:00 AM – 10:00 PM booking" (09-UI-SPEC O2); that is the CR-01 repeat 09-08 forked the label to
+   *  prevent. They are here because they are what a hold persists as starts_at / ends_at. */
+  dayOpenUtc: string;
+  dayCloseUtc: string;
+  /** venue-local "HH:mm:ss" ends, for the "Open 6:00 AM – 10:00 PM · {City} time" line. */
+  openTime: string;
+  closeTime: string;
+  /** false when the pass window has already closed or the date lies beyond BOOKING_HORIZON_DAYS. The CTA
+   *  stays disabled; createOpenCapacityHold refuses the same two cases server-side (PAST_DATE_MESSAGE), so
+   *  this is a courtesy and never the gate (Security V4). */
+  bookable: boolean;
+};
+
 export type DayAvailability = {
   timezone: string;
   unitCount: number;
@@ -55,7 +100,25 @@ export type DayAvailability = {
   /** D-100: which mode's minimum notice applies — also what the picker's `too_soon` copy keys off. */
   bookingMode: "instant" | "request";
   slots: AvailabilitySlot[];
+  /** Phase-9 (OC-01). Which arbiter governs this listing: the GiST EXCLUDE ('exclusive') or the D-123
+   *  advisory-lock admissions counter ('open_capacity'). Every consumer forks on THIS — the listing row's
+   *  persisted mode — never on a client flag. */
+  occupancyMode: "exclusive" | "open_capacity";
+  /** Present ONLY for an open-capacity listing on a date the venue is open. Null for every exclusive
+   *  listing (so all shipped consumers are byte-unchanged) and null when the venue is closed that weekday. */
+  openCapacity: OpenCapacityDay | null;
 };
+
+/** The fully-booked date set for one venue-local month (OC-11), for the calendar's `disabled` matcher. */
+export type OpenMonthAvailability = {
+  cap: number;
+  /** venue-local "YYYY-MM-DD" dates in the queried month with remaining <= 0. Everything not listed is
+   *  selectable. The month grid is deliberately BINARY (09-UI-SPEC Open Q3) — 42 counts competing with 42
+   *  date numerals is illegible at 320px, so exact counts live only in the day panel and the search card. */
+  fullDates: string[];
+};
+
+const EMPTY_MONTH: OpenMonthAvailability = { cap: 0, fullDates: [] };
 
 /**
  * D-96/D-100 minimum notice before a slot's start, in ms, for a listing's booking mode. ONE mechanism,
@@ -102,15 +165,39 @@ export async function getAvailability(
       timezone: listing.timezone,
       // D-100: the mode selects WHICH minimum-notice threshold applies to this listing's slots.
       bookingMode: listing.bookingMode,
+      // Phase-9 (OC-01/D-124/D-125): the persisted arbiter + the two fields only the open branch reads.
+      occupancyMode: listing.occupancyMode,
+      maxOccupancy: listing.maxOccupancy,
+      perHeadPriceCents: listing.perHeadPriceCents,
     })
     .from(listing)
     .where(eq(listing.id, listingId));
 
   if (listingRows.length === 0) {
     // Defensive: unknown listing → empty calendar (no crash). Callers normally pre-load the listing.
-    return { timezone: "UTC", unitCount: 0, hasHours: false, bookingMode: "instant", slots: [] };
+    // `exclusive` matches the listing table's own column default, so this fallback and a real row for a
+    // pre-Phase-9 listing describe the same thing.
+    return {
+      timezone: "UTC",
+      unitCount: 0,
+      hasHours: false,
+      bookingMode: "instant",
+      slots: [],
+      occupancyMode: "exclusive",
+      openCapacity: null,
+    };
   }
-  const { unitCount, timezone: tz, bookingMode } = listingRows[0];
+  const lr = listingRows[0];
+
+  // ── PHASE-9 FORK (OC-01). Which ARBITER governs the listing decides the whole SHAPE of the answer: an
+  // exclusive listing is adjudicated by the booking_no_overlap EXCLUDE and answers with an hour grid; an
+  // open-capacity listing is adjudicated by the D-123 admissions counter and answers with spots-left for
+  // the DATE. Everything below this branch is the untouched exclusive path.
+  if (lr.occupancyMode === "open_capacity") {
+    return getOpenDay(dbConn, listingId, dayLocal, lr, now);
+  }
+
+  const { unitCount, timezone: tz, bookingMode } = lr;
   // D-98/D-100: the earliest start this listing will accept. Compared against the SAME `now` that drives
   // `past`/`beyond_horizon`, so all three display states share one clock and can never disagree.
   const earliestStartMs = now.getTime() + leadTimeMsFor(bookingMode);
@@ -208,5 +295,154 @@ export async function getAvailability(
   }
 
   slots.sort((a, b) => (a.startUtc < b.startUtc ? -1 : a.startUtc > b.startUtc ? 1 : 0));
-  return { timezone: tz, unitCount, hasHours, bookingMode, slots };
+  // `openCapacity: null` on every exclusive payload is what keeps the OC-01 change a FORK and not a
+  // replacement — every shipped consumer of DayAvailability reads exactly what it read before.
+  return {
+    timezone: tz,
+    unitCount,
+    hasHours,
+    bookingMode,
+    slots,
+    occupancyMode: "exclusive",
+    openCapacity: null,
+  };
+}
+
+/**
+ * The open-capacity branch of getAvailability (OC-13). A date IS one pass (OC-02), so there is no hour grid
+ * to compose: the projection is `cap − occupying heads` for the whole venue-local day, plus the entry window
+ * and the server-derived scarcity state.
+ *
+ * ⚠️ PITFALL-4 INVARIANT, in the open dialect. This projection and `createOpenCapacityHold` count the SAME
+ * rows because they call the SAME `openTakenSql`. Do NOT inline a second predicate here, and do NOT
+ * "optimise" the sum into a stored counter: lazy expiry (D-48a) has no writer at the moment a hold lapses,
+ * so any stored count drifts by construction (09-RESEARCH Pitfall 3) — which is also precisely why OC-15's
+ * "cancelling frees the spot" needs no release code at all. A projection that disagrees with the arbiter is
+ * experienced by the booker as "Just sold out" on a date the calendar had just called open.
+ */
+async function getOpenDay(
+  dbConn: DbConn,
+  listingId: string,
+  dayLocal: { year: number; month: number; day: number },
+  lr: {
+    unitCount: number;
+    timezone: string;
+    bookingMode: "instant" | "request";
+    maxOccupancy: number | null;
+    perHeadPriceCents: number | null;
+  },
+  now: Date,
+): Promise<DayAvailability> {
+  const base = {
+    timezone: lr.timezone,
+    unitCount: lr.unitCount,
+    bookingMode: lr.bookingMode,
+    slots: [] as AvailabilitySlot[],
+    occupancyMode: "open_capacity" as const,
+  };
+
+  // The OC-03 window (and the OC-02 split-shift envelope rule) lives in ONE place — loadOpenDayWindow — for
+  // the same reason the predicate does. null here means the venue is CLOSED that weekday (the listing is
+  // known to exist; we just read its row): hasHours:false + openCapacity:null is the "Closed on {day}" empty
+  // state, and `occupancyMode` still rides along so the UI knows which surface to render on a closed date.
+  const dayWindow = await loadOpenDayWindow(dbConn, listingId, dayLocal);
+  if (dayWindow === null) return { ...base, hasHours: false, openCapacity: null };
+
+  const { dayOpenUtc, dayCloseUtc, openTime, closeTime } = dayWindow;
+  const dayOpenIso = dayOpenUtc.toISOString();
+
+  // THE occupying count — one statement, the shared fragment, no inlined predicate (see the invariant above).
+  const takenRows = (await dbConn.execute(
+    sql`SELECT ${openTakenSql(listingId, dayOpenIso)} AS taken`,
+  )) as unknown as { taken: number }[];
+  const taken = Number(takenRows[0]?.taken ?? 0);
+
+  // A NULL max_occupancy FAILS CLOSED to zero admissions — the identical choice createOpenCapacityHold
+  // makes, so the calendar can never advertise a spot the claim would then refuse.
+  const cap = lr.maxOccupancy ?? 0;
+  const remaining = Math.max(0, cap - taken);
+
+  // THE CLOCK SPLIT, restating the rule stated at the exclusive predicate above (Pitfall 7): OCCUPANCY is
+  // counted against SQL now() inside openTakenSql — the DB transaction clock, one source, shared with the
+  // claim — while `bookable` is a DISPLAY state and therefore uses the injectable `now`, exactly as
+  // `past`/`beyond_horizon` do. The two must never be swapped.
+  const bookable = dayCloseUtc.getTime() > now.getTime() && isWithinHorizon(dayOpenIso, now);
+
+  return {
+    ...base,
+    hasHours: true,
+    openCapacity: {
+      remaining,
+      cap,
+      state: spotsState(remaining, cap),
+      perHeadPriceCents: lr.perHeadPriceCents,
+      dayOpenUtc: dayOpenIso,
+      dayCloseUtc: dayCloseUtc.toISOString(),
+      openTime,
+      closeTime,
+      bookable,
+    },
+  };
+}
+
+/**
+ * The set of venue-local dates in ONE month that are already fully booked, for an open-capacity listing
+ * (OPEN-04 / OC-11). Feeds the calendar's `disabled` matcher so a full date is PROGRAMMATICALLY disabled
+ * rather than merely greyed. Returns the empty map for an unknown listing and for any EXCLUSIVE listing —
+ * an exclusive month grid is driven by the hour grid, not by an admissions count.
+ */
+export async function getOpenMonthAvailability(
+  dbConn: DbConn,
+  listingId: string,
+  monthLocal: { year: number; month: number },
+): Promise<OpenMonthAvailability> {
+  const listingRows = await dbConn
+    .select({
+      timezone: listing.timezone,
+      maxOccupancy: listing.maxOccupancy,
+      occupancyMode: listing.occupancyMode,
+    })
+    .from(listing)
+    .where(eq(listing.id, listingId));
+  if (listingRows.length === 0) return EMPTY_MONTH;
+  const { timezone, maxOccupancy, occupancyMode: mode } = listingRows[0];
+  if (mode !== "open_capacity") return EMPTY_MONTH;
+  const cap = maxOccupancy ?? 0; // NULL cap fails closed, as in getOpenDay
+
+  const m0 = monthLocal.month - 1; // 0-based month for TZDate (JS Date convention)
+  // Venue-local month bounds normalized through the epoch exactly as the day window is, and WIDENED one day
+  // on each side: a venue's opening instant can land in the previous UTC day (06:00 Asia/Manila is 22:00Z
+  // the day before), so an un-widened UTC range would silently drop the month's first date. TZDate day 0 is
+  // the last day of the previous month and day 2 of month+1 clears the last date; the extra days are
+  // filtered back out by the venue-local month prefix below.
+  const fromIso = new Date(
+    new TZDate(monthLocal.year, m0, 0, 0, 0, 0, timezone).getTime(),
+  ).toISOString();
+  const toIso = new Date(
+    new TZDate(monthLocal.year, m0 + 1, 2, 0, 0, 0, timezone).getTime(),
+  ).toISOString();
+
+  // ONE grouped query per month, never 31 round trips. Only the STATUS half of the occupying set is
+  // shareable here — a per-date aggregate necessarily has a different shape from openTakenSql's single-date
+  // scalar — so that half is IMPORTED rather than retyped, for exactly the Pitfall-4 reason: WHICH rows
+  // occupy a spot must be decided in one place, or the grid disables a date the counter would happily sell.
+  const takenRows = (await dbConn.execute(sql`
+    SELECT b.starts_at AS day_open, SUM(b.declared_pax)::int AS taken
+    FROM booking b
+    WHERE b.listing_id = ${listingId}
+      AND b.open_capacity = true
+      AND b.starts_at >= ${fromIso}::timestamptz
+      AND b.starts_at < ${toIso}::timestamptz
+      AND ${OPEN_OCCUPYING_STATUS_SQL}
+    GROUP BY b.starts_at
+  `)) as unknown as { day_open: string | Date; taken: number }[];
+
+  const monthPrefix = `${monthLocal.year}-${String(monthLocal.month).padStart(2, "0")}-`;
+  const full = takenRows
+    .filter((r) => Number(r.taken) >= cap)
+    // The opening INSTANT maps back to its venue-local calendar date — never the server's or viewer's
+    // (D-105): the whole point of the map is which date cell to disable in the venue's own calendar.
+    .map((r) => format(new Date(r.day_open), "yyyy-MM-dd", { in: venueTz(timezone) }))
+    .filter((d) => d.startsWith(monthPrefix));
+  return { cap, fullDates: [...new Set(full)].sort() };
 }
