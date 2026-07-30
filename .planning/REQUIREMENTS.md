@@ -84,8 +84,8 @@ Requirements for initial release. Each maps to roadmap phases.
 Host-set open / common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail. A separate occupancy mode from exclusive group bookings (Phase 8); the new engineering is a capacity-counter availability model, not per-attendee payment. Added 2026-07-27 (Phase 9).
 
 - [x] **OPEN-01**: Host can set a listing to open-capacity mode with a per-head price and a capacity cap
-- [ ] **OPEN-02**: Multiple independent bookers can each reserve their own spot on the same shared time slot, each paying for their own head(s) via the existing rail
-- [ ] **OPEN-03**: Concurrent bookings on a shared slot are hard-capped at capacity with no overbooking — enforced atomically at the database level and proven under a race
+- [x] **OPEN-02**: Multiple independent bookers can each reserve their own spot on the same shared time slot, each paying for their own head(s) via the existing rail
+- [x] **OPEN-03**: Concurrent bookings on a shared slot are hard-capped at capacity with no overbooking — enforced atomically at the database level and proven under a race
 - [x] **OPEN-04**: Availability and search show remaining capacity (spots left) for open-capacity listings
 
 ## v2 Requirements
@@ -183,8 +183,8 @@ Which phases cover which requirements. Populated during roadmap creation.
 | GROUP-04 | Phase 8 | Complete |
 | GROUP-05 | Phase 8 | Complete |
 | OPEN-01 | Phase 9 | Complete (09-06 server gate + 09-10 host wizard control) |
-| OPEN-02 | Phase 9 | In progress (09-07 `placeOpenHold` + 09-11 the pre-hold `PassStepper` + **09-12 the booker surface: `DatePassPicker`, the calendar fork, the open rail and the `BookCta` branch that sends `{listingId, date, requestedPasses}`**; the paying half — the per-person reserve page + OC-07 partial-grant alert — is 09-13) |
-| OPEN-03 | Phase 9 | Pending |
+| OPEN-02 | Phase 9 | In progress (09-07 `placeOpenHold` + 09-11 the pre-hold `PassStepper` + **09-12 the booker surface: `DatePassPicker`, the calendar fork, the open rail and the `BookCta` branch that sends `{listingId, date, requestedPasses}`**; the paying half — the per-person reserve page + OC-07 partial-grant alert — is 09-13 + **09-15 the browser proof: two independent bookers on ONE shared date, the spots-left figure decrementing between their views, and no surface rendering the day pass as an hour range**. ⚠️ One manual-only verification remains and is assigned to **09-16**: a real PayMongo hosted-checkout charge for a drop-in booking against `sk_test_`. The rail itself is byte-unchanged from Phase 6/8 and proven so (`git diff --exit-code` on the webhook route = 0), and the open-booking confirm path has automated coverage in `tests/paymongo/webhook-payment-paid.test.ts`.) |
+| OPEN-03 | Phase 9 | **Complete** (09-01 the DDL — `booking_no_overlap` narrowed to `… AND open_capacity = false`, read back from the live catalog; 09-02 `createOpenCapacityHold` taking `pg_advisory_xact_lock(hashtextextended(listing‖':'‖dayOpenIso))` as its FIRST in-tx statement across sweep→SUM→INSERT; **09-03 the SC#3 gate — 6 cases over two layers firing N+1 genuinely concurrent claims through independent `makeRacingClients` backends, asserting the COMMITTED head SUM, with the shipped lock line DELETED and the suite watched go RED (`expected 4 to be 3`) then restored**. This is the phase's one non-negotiable gate and it is mutation-measured, not merely green.) |
 | OPEN-04 | Phase 9 | Complete (09-04 server-derived `state`/`remaining` + 09-11 `SpotsLeftChip`/`DropInBadge` + 09-05 search: `spots` on the result row, date-only Stage-2 filter, effective-price filter/sort + 09-12 the availability mount (day-panel chip, month grid's disabled full dates from `getOpenMonthAvailability`, `/person` rail rate) + 09-13 the reserve summary + **09-14 the search card: the `Drop-in` badge, the all-in `/person` price, the chip only when a date is in play, no clock time ever, and a `?date=`-only forward link**. All three chip mount points the UI-SPEC enumerates are live) |
 
 **Coverage:**
