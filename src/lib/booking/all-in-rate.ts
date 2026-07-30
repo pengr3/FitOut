@@ -22,14 +22,41 @@ import { computeServiceFee } from "@/lib/payments/service-fee";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 
 /**
+ * What a listing advertises a price FOR. The Phase-9 fields are OPTIONAL (the D-108 optional-props
+ * precedent, price-breakdown.tsx:56-67) rather than a discriminated union, so all three shipped exclusive
+ * call sites keep compiling untouched and keep rendering byte-for-byte what they render today.
+ */
+type RateSource = {
+  hourlyRateCents: number | null;
+  dayRateCents: number | null;
+  /** Phase-9 (D-125). Present only on an open-capacity listing. */
+  perHeadPriceCents?: number | null;
+  /**
+   * Phase-9 (OC-01). When the listing is sold as day passes, the hourly/day rate columns are IRRELEVANT and
+   * must not be advertised — 09-06 requires a per-head price but never CLEARS the exclusive rate columns, so
+   * a drop-in listing can genuinely still carry them (09-07's lesson). Quoting one for a drop-in listing
+   * would be a lie about what the booker gets: duration never scales the price (OC-02).
+   */
+  occupancyMode?: "exclusive" | "open_capacity" | null;
+};
+
+/**
  * The advertised rate parts for a listing, fee-inclusive: `["₱525/hr", "₱2,625/day"]`. A null rate is
  * omitted (a listing may offer only one of the two), so the result may be empty — callers render their
  * own "Price on request" fallback, exactly as they did before the fee existed.
+ *
+ * An open-capacity listing advertises exactly ONE part, `₱367/person` (09-UI-SPEC § 4): what one person pays
+ * for one day pass, all-in. Still a rate, not a total — the booker may buy several passes at checkout.
  */
 export function allInRateParts(
-  listing: { hourlyRateCents: number | null; dayRateCents: number | null },
+  listing: RateSource,
   currency: string = DISPLAY_CURRENCY,
 ): string[] {
+  if (listing.occupancyMode === "open_capacity") {
+    return listing.perHeadPriceCents == null
+      ? []
+      : [`${formatMoney(computeServiceFee(listing.perHeadPriceCents).allInCents, currency)}/person`];
+  }
   const parts: string[] = [];
   if (listing.hourlyRateCents != null) {
     parts.push(`${formatMoney(computeServiceFee(listing.hourlyRateCents).allInCents, currency)}/hr`);
@@ -40,10 +67,14 @@ export function allInRateParts(
   return parts;
 }
 
-/** Whether any all-in rate is being shown — i.e. whether the `Service fee included` qualifier applies. */
-export function hasAllInRate(listing: {
-  hourlyRateCents: number | null;
-  dayRateCents: number | null;
-}): boolean {
+/**
+ * Whether any all-in rate is being shown — i.e. whether the `Service fee included` qualifier applies.
+ *
+ * This MUST carry the same open-capacity branch as `allInRateParts` above, or a drop-in card would show the
+ * fee-inclusive `/person` price with the muted qualifier missing: a price silently composed all-in and never
+ * said to be, which is the exact browse-vs-checkout mismatch D-75 exists to prevent.
+ */
+export function hasAllInRate(listing: RateSource): boolean {
+  if (listing.occupancyMode === "open_capacity") return listing.perHeadPriceCents != null;
   return listing.hourlyRateCents != null || listing.dayRateCents != null;
 }
