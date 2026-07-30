@@ -14,7 +14,9 @@ import {
   listingAmenity,
   listingActivityTag,
 } from "@/lib/db/schema";
-import { ListingWizard, type WizardListing } from "./wizard";
+import { getModeLockState } from "@/lib/listing/mode-lock";
+import { composeDeadlineLabel } from "@/lib/booking/when-label";
+import { ListingWizard, type ModeLockDisplay, type WizardListing } from "./wizard";
 
 export default async function EditListingPage({
   params,
@@ -46,11 +48,28 @@ export default async function EditListingPage({
     notFound();
   }
 
-  const [photos, amenities, tags] = await Promise.all([
+  const [photos, amenities, tags, lock] = await Promise.all([
     db.select().from(listingPhoto).where(eq(listingPhoto.listingId, id)),
     db.select().from(listingAmenity).where(eq(listingAmenity.listingId, id)),
     db.select().from(listingActivityTag).where(eq(listingActivityTag.listingId, id)),
+    // OC-17 — the mode lock is computed HERE, on the server, from the DB clock (09-06). The wizard renders
+    // it and derives nothing: a browser clock that runs fast must not be able to un-grey a card.
+    getModeLockState(db, id),
   ]);
+
+  // D-105 / copy rule O10: the unlock instant is rendered venue-local with the timezone named, HERE, by the
+  // shipped label helper — the alert component formats nothing. A client-side format would show the host's
+  // own clock, which for a host travelling is a different instant from the one the lock actually lifts at.
+  // `unlocksAt` is non-null exactly when `locked` is true (MAX(ends_at) over the counted set), and the
+  // discriminated union makes the compiler insist on both values for the locked branch.
+  const modeLock: ModeLockDisplay =
+    lock.locked && lock.unlocksAt
+      ? {
+          locked: true,
+          lockedByCount: lock.lockedByCount,
+          unlocksAtLabel: composeDeadlineLabel(lock.unlocksAt, row.timezone, row.city),
+        }
+      : { locked: false };
 
   const wizardListing: WizardListing = {
     id: row.id,
@@ -69,6 +88,11 @@ export default async function EditListingPage({
     maxOccupancy: row.maxOccupancy,
     hourlyRateCents: row.hourlyRateCents,
     dayRateCents: row.dayRateCents,
+    // D-123/D-125 — the mode drives which pricing fields the wizard renders and which publish-checklist
+    // rows it lists. `occupancyMode` is NOT NULL (default `exclusive`), so the wizard decides from the row
+    // as a whole whether that value was ever actually CHOSEN; passing it through unmassaged is what lets it.
+    occupancyMode: row.occupancyMode,
+    perHeadPriceCents: row.perHeadPriceCents,
     // D-108 — passed through INCLUDING null; the wizard seeds the app-level defaults (fee ₱0, includes 1)
     // so a pre-Phase-8 listing renders as the flat-priced space it already is.
     included: row.included,
@@ -100,6 +124,7 @@ export default async function EditListingPage({
         listing={wizardListing}
         hostEmail={u.email ?? session.user.email ?? ""}
         emailVerified={Boolean(u.emailVerified ?? session.user.emailVerified)}
+        modeLock={modeLock}
       />
     </div>
   );

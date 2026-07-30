@@ -19,14 +19,23 @@ import { toast } from "sonner";
 import {
   CheckIcon,
   ChevronLeftIcon,
+  DoorClosedIcon,
+  LockIcon,
   MinusIcon,
+  UsersIcon,
 } from "lucide-react";
 
 import {
   draftSchema,
+  OCCUPANCY_MODE_VALUES,
   type CancellationPolicyValue,
   type DraftListingInput,
+  type OccupancyModeValue,
 } from "@/lib/validation/listing";
+import {
+  ModeLockNotice,
+  MODE_LOCK_NOTICE_ID,
+} from "@/components/host/mode-lock-notice";
 import {
   SPACE_TYPES,
   ACTIVITY_TAGS,
@@ -99,6 +108,14 @@ export type WizardListing = {
   maxOccupancy: number | null;
   hourlyRateCents: number | null;
   dayRateCents: number | null;
+  /**
+   * D-123 — how the space is sold. NOT nullable: the column carries a NOT NULL DEFAULT of `exclusive`, so
+   * a listing nobody has decided about is indistinguishable from one deliberately set to whole-space. See
+   * `hasChosenMode` below for how the wizard tells those apart without inventing a column.
+   */
+  occupancyMode: OccupancyModeValue;
+  /** D-125 — the drop-in price per person, integer centavos. NULL on every exclusive listing. */
+  perHeadPriceCents: number | null;
   /** D-108 — how many people the flat rate covers before the extra-guest fee applies. NULL ⇒ 1. */
   included: number | null;
   /** D-108 — per-extra-guest surcharge in integer centavos. NULL or 0 ⇒ flat pricing (no surcharge). */
@@ -120,6 +137,12 @@ const STEPS = [
   { key: "details", title: "Tell guests about your space" },
   { key: "location", title: "Where is it?" },
   { key: "photos", title: "Add photos of your space" },
+  // OPEN-01 / 09-UI-SPEC § 1a — the occupancy choice gets its OWN screen, immediately before pricing.
+  // It must precede pricing because the mode decides which fields the pricing step renders, and it must
+  // precede booking mode because in drop-in mode that step does not exist at all. Burying a mutually
+  // exclusive business-model choice inside a scroll of currency inputs is how listings get misconfigured:
+  // a host who misreads this either sells their whole gym to one person or sells one court thirty times.
+  { key: "occupancy", title: "How do people use your space?" },
   { key: "pricing", title: "Set your rates" },
   { key: "booking", title: "How do you want to accept bookings?" },
   // Title phrased as a question to match the other steps' voice ("How do you want to accept bookings?"),
@@ -172,6 +195,73 @@ const CANCELLATION_TIERS: { value: CancellationPolicyValue; title: string; body:
   },
 ];
 
+/**
+ * The two occupancy modes, host-facing (09-UI-SPEC § 1b, copy rule O1). Plain language with a worked
+ * example each; the enum names, "occupancy mode", "per-head" and "admissions" appear NOWHERE a host can
+ * read them — this is the phase's highest-stakes comprehension moment and DB vocabulary is how a host
+ * mis-sells their space.
+ *
+ * Keyed by the enum value and rendered by mapping OCCUPANCY_MODE_VALUES (the 09-06 export), so the union is
+ * never retyped here and a future third mode is a COMPILE error in this file rather than a silently missing
+ * card. ORDER IS NOT A RANKING and neither card is recommended — see the no-pre-selection note on the step.
+ */
+const OCCUPANCY_MODE_CARDS: Record<
+  OccupancyModeValue,
+  { Icon: typeof DoorClosedIcon; title: string; body: string; example: string }
+> = {
+  exclusive: {
+    Icon: DoorClosedIcon,
+    title: "Whole space",
+    body: "One booking at a time. Whoever books gets the space to themselves for the hours they picked.",
+    example: "Best for court rentals, studio hire, and private training.",
+  },
+  open_capacity: {
+    Icon: UsersIcon,
+    title: "Drop-in passes",
+    body: "Lots of people share the space on the same day. Each person buys a day pass and can come any time you're open. You set the price per person and how many people you'll let in each day.",
+    example: "Best for gyms with day passes, open court sessions, and open-mat classes.",
+  },
+};
+
+/**
+ * The OC-17 lock, as the wizard consumes it. A DISCRIMINATED UNION, not three loose props: O7 requires the
+ * lock to name why, WHEN it lifts, and a way out, so when `locked` is true the compiler makes both the count
+ * and the already-formatted unlock instant mandatory. There is no shape of this type that can render a bare
+ * "you can't" with no date. Computed server-side (09-06 `getModeLockState` + the shipped label helpers) —
+ * the wizard derives neither the lock nor the timezone.
+ */
+export type ModeLockDisplay =
+  | { locked: false }
+  | { locked: true; lockedByCount: number; unlocksAtLabel: string };
+
+/**
+ * Has a HUMAN ever chosen how this space is sold?
+ *
+ * 09-UI-SPEC § 1b: no card is pre-selected on a NEW listing (same D-77 reasoning as the cancellation tier —
+ * this governs real money and must not be set by accident), while an EXISTING listing shows its stored mode.
+ * Telling those apart is not free: unlike `cancellation_policy`, `occupancy_mode` is NOT NULL with a DEFAULT
+ * of `exclusive`, so a freshly created draft already reads "exclusive" without anyone having decided that.
+ * Rather than add a column to record a click, the wizard asks whether the row carries EVIDENCE of a decision:
+ *
+ *   1. the stored mode is the non-default one — that value can only have come from a deliberate write; or
+ *   2. the listing is no longer a draft — it passed the publish gate, which validates the listing AGAINST
+ *      its mode, so the stored mode is genuinely how the space is sold today and showing it unselected
+ *      would misstate the host's live configuration; or
+ *   3. it already carries pricing that only one mode uses — the host has been through the mode-forked
+ *      pricing step, which sits immediately after this one.
+ *
+ * Residual, and accepted: a host who picks "Whole space" and abandons the draft BEFORE entering any price
+ * sees the card unselected on return. That is the safe direction to be wrong in — the alternative is
+ * pre-selecting a whole-space listing for someone who never read the screen, which is exactly the
+ * mis-selling this step exists to prevent. A locked listing always has bookings, hence is published, hence
+ * satisfies (2) — so the lock can never render with nothing selected.
+ */
+function hasChosenMode(l: WizardListing): boolean {
+  if (l.occupancyMode !== "exclusive") return true;
+  if (l.status !== "draft") return true;
+  return l.hourlyRateCents != null || l.dayRateCents != null || l.perHeadPriceCents != null;
+}
+
 /** Minimal currency-symbol map (single-region launch — the column future-proofs multi-currency). */
 function currencySymbol(code: string): string {
   const c = code.toLowerCase();
@@ -206,6 +296,10 @@ function toPayload(v: DraftListingInput): DraftListingInput {
     // saving them is a no-op for a host who never opens the subsection.
     included: num(v.included),
     extraHeadFee: num(v.extraHeadFee),
+    // OPEN-01 — `undefined` until the host actually picks a card, which leaves the column untouched. That
+    // matters for OC-17: saveListingStep refuses only a genuine CHANGE, so an autosave from any other step
+    // must never invent a mode the host didn't choose.
+    occupancyMode: v.occupancyMode,
     bookingMode: v.bookingMode,
     cancellationPolicy: v.cancellationPolicy,
     showExactAddress: v.showExactAddress,
@@ -218,10 +312,13 @@ export function ListingWizard({
   listing,
   hostEmail,
   emailVerified,
+  modeLock,
 }: {
   listing: WizardListing;
   hostEmail: string;
   emailVerified: boolean;
+  /** OC-17, server-computed on the edit page. Required — a lock this wizard forgets to render is a lock. */
+  modeLock: ModeLockDisplay;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -254,6 +351,9 @@ export function ListingWizard({
       // 1), so an untouched listing round-trips to exactly the flat price it has today.
       included: listing.included ?? 1,
       extraHeadFee: listing.extraHeadFee ?? 0,
+      // OPEN-01 — `undefined`, never the column's default, when nobody has chosen yet. An unchosen mode must
+      // reach the RadioGroup as unchosen so no card renders selected (09-UI-SPEC § 1b, the D-77 precedent).
+      occupancyMode: hasChosenMode(listing) ? listing.occupancyMode : undefined,
       bookingMode: listing.bookingMode,
       // D-77 — `undefined`, never a fallback tier. An unchosen policy must reach the RadioGroup as
       // unchosen so no card renders selected; seeding a default here would silently make the choice.
@@ -379,6 +479,16 @@ export function ListingWizard({
   ];
   const publishEligible = checklist.every((c) => c.done);
 
+  /**
+   * The step being rendered, BY KEY — every render guard below tests this rather than a numeric index.
+   *
+   * Same rot as the checklist's old literals, but worse: inserting `occupancy` shifts pricing, booking mode,
+   * cancellation and review each up by one, so an index-keyed guard would render the WRONG SCREEN with a
+   * green typecheck. Keys are also what makes the drop-in flow possible at all — there the walked list has
+   * no `booking` entry, so the same index means different things in the two modes.
+   */
+  const currentKey = STEPS[step].key;
+
   const progress = ((step + 1) / STEPS.length) * 100;
   const advanceLabel = step === 0 ? "Get started" : "Save and continue";
 
@@ -418,8 +528,8 @@ export function ListingWizard({
       <Form {...form}>
         {/* We intentionally do NOT use handleSubmit here — advancing autosaves via saveListingStep. */}
         <form onSubmit={(e) => e.preventDefault()} className="space-y-8">
-          {/* --- Step 0: Type + activity tags ------------------------------------------------- */}
-          {step === 0 && (
+          {/* --- Step "type": Type + activity tags -------------------------------------------- */}
+          {currentKey === "type" && (
             <div className="space-y-6">
               <FormField
                 control={form.control}
@@ -513,8 +623,8 @@ export function ListingWizard({
             </div>
           )}
 
-          {/* --- Step 1: Details + amenities -------------------------------------------------- */}
-          {step === 1 && (
+          {/* --- Step "details": Details + amenities ------------------------------------------ */}
+          {currentKey === "details" && (
             <div className="space-y-6">
               <FormField
                 control={form.control}
@@ -605,8 +715,8 @@ export function ListingWizard({
             </div>
           )}
 
-          {/* --- Step 2: Location ------------------------------------------------------------- */}
-          {step === 2 && (
+          {/* --- Step "location": Location ---------------------------------------------------- */}
+          {currentKey === "location" && (
             <div className="space-y-6">
               <FormItem>
                 <FormLabel>Address</FormLabel>
@@ -659,8 +769,8 @@ export function ListingWizard({
             </div>
           )}
 
-          {/* --- Step 3: Photos (Plan-04 — signed direct-to-Cloudinary uploader + dnd reorder) - */}
-          {step === 3 && (
+          {/* --- Step "photos" (Plan-04 — signed direct-to-Cloudinary uploader + dnd reorder) -- */}
+          {currentKey === "photos" && (
             <PhotoUploader
               listingId={listing.id}
               initialPhotos={listing.photos}
@@ -668,8 +778,100 @@ export function ListingWizard({
             />
           )}
 
-          {/* --- Step 4: Pricing -------------------------------------------------------------- */}
-          {step === 4 && (
+          {/* --- Step "occupancy": how the space is sold (OPEN-01 / OC-08 / OC-17) ------------- */}
+          {/*
+            NO CARD IS PRE-SELECTED ON A NEW LISTING, DELIBERATELY — the same D-77 reasoning the
+            cancellation step below records, and for a bigger number: this choice decides whether one
+            booking takes the whole space or thirty people buy a pass for the same day. It must be made by
+            a human who read the screen, never inherited from a column default (see `hasChosenMode`).
+
+            Both cards render at EQUAL WEIGHT and the selection marker is neutral `border-primary`, NEVER
+            coral. Coral is reserved for booker CTAs (09-UI-SPEC § Color); using it here would advertise a
+            recommendation the product deliberately does not make — 09-CONTEXT records that the same space
+            type goes both ways, so neither mode can ever be a preset.
+
+            THE LOCK BELOW IS A COURTESY, NOT THE GATE. `saveListingStep` re-reads the PERSISTED mode and
+            re-runs `getModeLockState` before accepting any change (09-06, threat T-09-19), because a stale
+            tab or a crafted client never sees this disabled card at all. Both halves are load-bearing:
+            do not delete either one as "redundant".
+          */}
+          {currentKey === "occupancy" && (
+            <FormField
+              control={form.control}
+              name="occupancyMode"
+              render={({ field }) => (
+                <FormItem>
+                  {/* Read FIRST — the reason a control is locked has to arrive before the control. */}
+                  {modeLock.locked && (
+                    <ModeLockNotice
+                      lockedByCount={modeLock.lockedByCount}
+                      unlocksAtLabel={modeLock.unlocksAtLabel}
+                    />
+                  )}
+                  <FormControl>
+                    <RadioGroup
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      className="gap-3"
+                      // O7: the reason must be ANNOUNCED to anyone reaching the radios, not merely
+                      // visible above them.
+                      aria-describedby={modeLock.locked ? MODE_LOCK_NOTICE_ID : undefined}
+                    >
+                      {OCCUPANCY_MODE_VALUES.map((value) => {
+                        const opt = OCCUPANCY_MODE_CARDS[value];
+                        const selected = field.value === value;
+                        // Only the card the listing is NOT currently sold under locks; the stored mode
+                        // stays selected and legible.
+                        const cardLocked = modeLock.locked && !selected;
+                        return (
+                          <label
+                            key={value}
+                            aria-disabled={cardLocked ? "true" : undefined}
+                            className={cn(
+                              "flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                              selected && "border-primary",
+                              cardLocked && "pointer-events-none opacity-60",
+                            )}
+                          >
+                            <RadioGroupItem
+                              value={value}
+                              className="mt-1"
+                              disabled={cardLocked}
+                            />
+                            <span className="space-y-0.5">
+                              <span className="flex items-center gap-2 text-sm font-medium">
+                                <opt.Icon className="size-4 text-muted-foreground" />
+                                {opt.title}
+                                {/* Never opacity-only: a glyph AND the word, so the state survives
+                                    low contrast, greyscale and a screen reader alike. */}
+                                {cardLocked && (
+                                  <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                                    <LockIcon className="size-3" />
+                                    Locked
+                                  </span>
+                                )}
+                              </span>
+                              <span className="block text-sm text-muted-foreground">{opt.body}</span>
+                              <span className="block text-sm text-muted-foreground">
+                                {opt.example}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormDescription>
+                    {"This changes how you're paid and how people book. You can change it later, as long as you have no bookings still to come."}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* --- Step "pricing" ---------------------------------------------------------------- */}
+          {currentKey === "pricing" && (
             <div className="space-y-6">
               <FormField
                 control={form.control}
@@ -829,8 +1031,8 @@ export function ListingWizard({
             </div>
           )}
 
-          {/* --- Step 5: Booking mode --------------------------------------------------------- */}
-          {step === 5 && (
+          {/* --- Step "booking": Booking mode -------------------------------------------------- */}
+          {currentKey === "booking" && (
             <FormField
               control={form.control}
               name="bookingMode"
@@ -880,7 +1082,7 @@ export function ListingWizard({
             />
           )}
 
-          {/* --- Step 6: Cancellation policy (D-77) ------------------------------------------- */}
+          {/* --- Step "cancellation": Cancellation policy (D-77) ------------------------------- */}
           {/*
             NO CARD IS PRE-SELECTED, DELIBERATELY. This breaks the D-62 precedent of defaulting to the
             most booker-friendly option, because the cancellation tier is not a setting that should be
@@ -892,7 +1094,7 @@ export function ListingWizard({
             NEVER coral. Coral is reserved for booker CTAs (07-UI-SPEC § Color) and using it here would
             advertise a recommendation the product deliberately doesn't make.
           */}
-          {step === 6 && (
+          {currentKey === "cancellation" && (
             <FormField
               control={form.control}
               name="cancellationPolicy"
@@ -931,8 +1133,8 @@ export function ListingWizard({
             />
           )}
 
-          {/* --- Step 7: Review --------------------------------------------------------------- */}
-          {step === 7 && (
+          {/* --- Step "review" ----------------------------------------------------------------- */}
+          {currentKey === "review" && (
             <div className="space-y-6">
               {publishEligible ? (
                 <div className="rounded-lg border bg-muted/40 p-4 text-sm">
