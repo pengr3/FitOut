@@ -12,12 +12,24 @@
 // runtime — a NaN/"abc" would otherwise reach new Date(NaN).toISOString() → a 500). It is strictly a
 // read; it performs NO mutation. All correctness (venue tz, the identical '[)' overlap bound, per-slot
 // free-unit counts) lives in the Plan-02 read model — this is a thin server entry point around it.
+//
+// Phase 9 (OPEN-04) adds a SECOND public read here, getOpenMonthAvailability, under the identical posture:
+// no session, the same published + non-deleted re-gate written out again, the same Zod-validated
+// venue-local input, the same "empty payload, never a throw" failure mode. Both remain thin — the open
+// fork's occupancy math lives in the same read model, next to the exclusive one.
 
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
-import { getAvailability, type DayAvailability } from "@/lib/availability/read-model";
+import {
+  getAvailability,
+  // Aliased: the exported ACTION below carries the same name on purpose (it is the public entry point for
+  // exactly this read model function, mirroring getDayAvailability → getAvailability).
+  getOpenMonthAvailability as readOpenMonthAvailability,
+  type DayAvailability,
+  type OpenMonthAvailability,
+} from "@/lib/availability/read-model";
 
 // Runtime validation for the untrusted dayLocal arg (WR-01). A crafted { year: "abc" }/NaN must not
 // reach the read model's date math (new Date(NaN).toISOString() → a 500); an invalid shape returns the
@@ -27,6 +39,15 @@ const dayLocalSchema = z.object({
   month: z.number().int().min(1).max(12),
   day: z.number().int().min(1).max(31),
 });
+
+// The month twin of dayLocalSchema, for the same reason and with the same bounds — a crafted
+// { year: "abc" } must not reach TZDate's month arithmetic.
+const monthLocalSchema = z.object({
+  year: z.number().int().min(2000).max(2100),
+  month: z.number().int().min(1).max(12),
+});
+
+const EMPTY_MONTH: OpenMonthAvailability = { cap: 0, fullDates: [] };
 
 const EMPTY_AVAILABILITY: DayAvailability = {
   timezone: "UTC",
@@ -65,4 +86,34 @@ export async function getDayAvailability(
   if (!row || row.status !== "published") return EMPTY_AVAILABILITY;
 
   return getAvailability(db, listingId, parsed.data);
+}
+
+/**
+ * The fully-booked date set for ONE venue-local month on an open-capacity listing (OPEN-04 / OC-11).
+ * `monthLocal.month` is 1-based (calendar-natural). Feeds the calendar's react-day-picker `disabled`
+ * matcher so a full date is PROGRAMMATICALLY disabled, never merely greyed (09-UI-SPEC § 2a, an a11y
+ * non-negotiable).
+ *
+ * Same public-read posture as getDayAvailability — no session (an open listing's occupancy is exactly as
+ * public as an exclusive listing's calendar, T-09-15 accept) — and the SAME published + non-deleted re-gate
+ * repeated inline rather than shared, so neither action can lose it in a refactor of the other (WR-01).
+ * Malformed input, an unknown/unpublished/deleted id, and an EXCLUSIVE listing all return the empty map
+ * rather than throwing. It is strictly a read; it performs NO mutation.
+ */
+export async function getOpenMonthAvailability(
+  listingId: string,
+  monthLocal: unknown,
+): Promise<OpenMonthAvailability> {
+  const parsed = monthLocalSchema.safeParse(monthLocal);
+  if (!parsed.success) return EMPTY_MONTH;
+
+  // The gate is SERVER-DERIVED — the caller never gets to say which listing statuses count (threat
+  // T-09-12). A leaked draft/unlisted id reveals nothing about the host's schedule.
+  const [row] = await db
+    .select({ status: listing.status })
+    .from(listing)
+    .where(and(eq(listing.id, listingId), isNull(listing.deletedAt)));
+  if (!row || row.status !== "published") return EMPTY_MONTH;
+
+  return readOpenMonthAvailability(db, listingId, parsed.data);
 }
