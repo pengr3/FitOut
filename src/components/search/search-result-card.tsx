@@ -10,16 +10,30 @@
 //     since D-75 they arrive ALL-IN and pre-formatted from the server (see the price block below).
 // The WHOLE card is a single Link to the listing, carrying the searched window so the listing calendar
 // can pre-open that day. Neutral throughout — coral is reserved for the Search button (no per-card accent).
+//
+// PHASE 9 (OC-12 · 09-UI-SPEC § 4) forks FOUR things for an open-capacity ("drop-in") listing and nothing
+// else — the badge on the type line, the availability line, the scarcity chip, and the link params. The
+// cover photo, the distance line, the title, the container and the spacing are shared, byte-for-byte.
+//
+// The fork keys on the PERSISTED occupancy mode, NEVER on the accident of a null rate column: 09-06
+// requires a per-head price but never CLEARS hourly/day, and OC-17 lets a host switch modes, so a drop-in
+// listing can genuinely still carry every exclusive rate column (09-07's lesson).
 
 import Link from "next/link";
 import { format } from "date-fns";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { DropInBadge } from "@/components/listing/drop-in-badge";
+import { SpotsLeftChip } from "@/components/availability/spots-left-chip";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import type { SearchResultRow } from "@/lib/search/query";
 
-/** The booker's searched window, threaded onto the card link + the "Available …" line. */
+/**
+ * The booker's searched window, threaded onto the card link + the "Available …" line.
+ *
+ * An open-capacity listing uses `date` ALONE — see the link params and `datePassLine` below.
+ */
 export type SearchedWindow = {
   date?: string; // YYYY-MM-DD (venue-local calendar day)
   start?: string; // HH:mm (venue-local, on-the-hour)
@@ -44,23 +58,50 @@ function cityLabelFor(city: string | null, timezone: string): string {
   return seg ? seg.replace(/_/g, " ") : "local";
 }
 
+/**
+ * "2026-08-08" → "Fri, Aug 8" (the searched venue-local calendar day), or null when absent/malformed.
+ *
+ * ONE definition, shared by both modes' lines below, so an exclusive card and a drop-in card can never
+ * name the same searched day two different ways. Composed from the parsed components (never
+ * `new Date("YYYY-MM-DD")`, which is UTC midnight and renders the previous day west of Greenwich).
+ */
+function niceDateOf(date: string | undefined): string | null {
+  const m = date ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(date) : null;
+  if (!m) return null;
+  return format(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])), "EEE, MMM d");
+}
+
 /** The searched-window line, always naming the venue tz (SC#2). Null when no date was searched. */
 function windowLine(
   win: SearchedWindow | undefined,
   city: string | null,
   timezone: string,
 ): string | null {
-  if (!win?.date) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(win.date);
-  if (!m) return null;
-  const niceDate = format(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])), "EEE, MMM d");
-  const startLabel = win.start ? to12h(win.start) : null;
-  const endLabel = win.end ? to12h(win.end) : null;
+  const niceDate = niceDateOf(win?.date);
+  if (niceDate === null) return null;
+  const startLabel = win?.start ? to12h(win.start) : null;
+  const endLabel = win?.end ? to12h(win.end) : null;
   const cityLabel = cityLabelFor(city, timezone);
   if (startLabel && endLabel) {
     return `Available ${startLabel}–${endLabel} on ${niceDate} · ${cityLabel} time`;
   }
   return `Available ${niceDate} · ${cityLabel} time`;
+}
+
+/**
+ * The drop-in availability line: the searched DATE and the venue tz, and never an hour (09-UI-SPEC § 4).
+ *
+ * It takes the date STRING, not the searched window — the searched hours are not in scope inside this
+ * function, so no later edit to it can render one by accident. O2 expressed as a signature, not a comment.
+ */
+function datePassLine(
+  date: string | undefined,
+  city: string | null,
+  timezone: string,
+): string | null {
+  const niceDate = niceDateOf(date);
+  if (niceDate === null) return null;
+  return `${niceDate} · ${cityLabelFor(city, timezone)} time`;
 }
 
 export function SearchResultCard({
@@ -75,6 +116,9 @@ export function SearchResultCard({
     ? (SPACE_TYPE_LABELS[listing.primarySpaceType as SpaceTypeValue] ?? listing.primarySpaceType)
     : null;
 
+  // The one fork (OC-01). Read from the persisted mode the search query projects, never inferred.
+  const isDropIn = listing.occupancyMode === "open_capacity";
+
   // D-75: search and listing pages display the ALL-IN rate so the number never goes up between browsing
   // and paying. These surfaces create no hold, so nothing is frozen here and the frozen-quote contract is
   // unaffected — the invariant holds because both surfaces and checkout use the SAME SERVICE_FEE_BPS.
@@ -88,17 +132,34 @@ export function SearchResultCard({
   // this card is rendered from a "use client" shell, so composing the fee here would put SERVICE_FEE_BPS
   // in the browser bundle, where a non-public env override does not reach it — the browse rate would
   // silently keep showing 5% while checkout charged the configured rate. Zero arithmetic in this file.
+  //
+  // Phase 9: a drop-in listing arrives here as exactly ONE part — `₱367.50/person` — from the SAME
+  // server-side `allInRateParts` (its open branch, 09-05). So this file needs no drop-in price code at
+  // all, and the muted qualifier below keeps rendering because `hasAllInRate` gained the matching branch.
   const priceParts = listing.allInRateParts;
 
   // Distance renders ONLY when the search had an origin (distanceM is NULL in the default city view, D-30).
   const distanceKm = listing.distanceM != null ? (listing.distanceM / 1000).toFixed(1) : null;
-  const availabilityLine = windowLine(searchedWindow, listing.city, listing.timezone);
+  // Exactly one of these is ever non-null: an exclusive card keeps the shipped "Available …" line, a
+  // drop-in card gets the date-only line and never reaches `windowLine` at all (see the render, O2).
+  const availabilityLine = isDropIn
+    ? null
+    : windowLine(searchedWindow, listing.city, listing.timezone);
+  const dropInDateLine = isDropIn
+    ? datePassLine(searchedWindow?.date, listing.city, listing.timezone)
+    : null;
 
   // Whole card = a Link to the listing, carrying the searched window (?date=&start=&end=).
   const params = new URLSearchParams();
   if (searchedWindow?.date) params.set("date", searchedWindow.date);
-  if (searchedWindow?.start) params.set("start", searchedWindow.start);
-  if (searchedWindow?.end) params.set("end", searchedWindow.end);
+  // A drop-in listing links forward with the DATE ALONE (09-UI-SPEC § 4 · OC-02). The listing page has no
+  // hour picker in this mode, so a `start`/`end` window it cannot resume would be a dead link — and worse,
+  // a promise of hours the pass does not reserve. The two params are not merely unused here; they are
+  // never put on the URL.
+  if (!isDropIn) {
+    if (searchedWindow?.start) params.set("start", searchedWindow.start);
+    if (searchedWindow?.end) params.set("end", searchedWindow.end);
+  }
   const qs = params.toString();
   const href = qs ? `/listings/${listing.id}?${qs}` : `/listings/${listing.id}`;
 
@@ -121,7 +182,18 @@ export function SearchResultCard({
 
         <CardContent className="space-y-1 py-4">
           <h3 className="font-semibold leading-snug">{title}</h3>
-          {typeLabel && <p className="text-sm text-muted-foreground">{typeLabel}</p>}
+          {isDropIn ? (
+            /* `Gym · [Drop-in]` — the badge sits INLINE on the space-type line, deliberately NOT as an
+               overlay on the cover photo: contrast over arbitrary host photography is unreliable in both
+               themes, and this card is a text-forward layout (09-UI-SPEC § 4). It renders even when the
+               listing has no space type, because the mode must never be the silent thing on the card. */
+            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {typeLabel}
+              <DropInBadge />
+            </p>
+          ) : (
+            typeLabel && <p className="text-sm text-muted-foreground">{typeLabel}</p>
+          )}
           <p className="text-sm tabular-nums">
             {priceParts.length ? priceParts.join(" · ") : "Price on request"}
           </p>
@@ -132,6 +204,22 @@ export function SearchResultCard({
             <p className="text-sm text-muted-foreground tabular-nums">{distanceKm} km away</p>
           )}
           {availabilityLine && <p className="text-sm text-muted-foreground">{availabilityLine}</p>}
+
+          {/* UI-SPEC O2: an open listing matches on DATE ONLY, so the searched start/end are ignored here and a
+              time range is NEVER rendered — "Available 9:00 AM–11:00 AM" would describe a reservation the booker
+              is not buying. The window line's two-hour branch is unreachable for this mode by construction. */}
+          {dropInDateLine && <p className="text-sm text-muted-foreground">{dropInDateLine}</p>}
+
+          {/* Scarcity appears ONLY with a date in play (OC-12): with no date the row carries no spots and
+              this renders nothing at all — no chip, no number, no hint. The state is passed STRAIGHT
+              THROUGH from the read model, which derived it from a non-public server threshold (T-09-13);
+              this card compares nothing and imports no ceiling.
+              There is deliberately no sold-out treatment here: Stage-2 keeps an open candidate only when
+              the picked date still has a spot (OC-12 · 09-05), so `full` can never reach a search card and
+              a branch for it would be dead UI that nothing can reach and no test can pin. */}
+          {isDropIn && listing.spots && (
+            <SpotsLeftChip state={listing.spots.state} remaining={listing.spots.remaining} />
+          )}
         </CardContent>
       </Card>
     </Link>
