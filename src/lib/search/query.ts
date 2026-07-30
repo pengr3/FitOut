@@ -40,6 +40,18 @@ export type SearchResultRow = {
    * SERVICE_FEE_BPS in the browser bundle. Empty when the listing advertises neither rate.
    */
   allInRateParts: string[];
+  /** Phase-9 (OC-01). Which arbiter governs the listing; the card forks its badge, price line and link
+   *  params on it — never on the accident of a NULL rate column (a drop-in listing may still carry one). */
+  occupancyMode: "exclusive" | "open_capacity";
+  /** Phase-9 (D-125). The listing's per-person day-pass BASE price; null on every exclusive listing. */
+  perHeadPriceCents: number | null;
+  /**
+   * Server-derived scarcity for the PICKED date, or null when no date is in play or the listing is
+   * exclusive. OC-12: with no date chosen a drop-in card shows the badge and the rate and NO number at all.
+   * `state` is computed by the read model from a NON-PUBLIC server threshold — never here and never in the
+   * card (OC-11 / 09-UI-SPEC "The state must be SERVER-DERIVED").
+   */
+  spots: { remaining: number; cap: number; state: "open" | "low" | "full" } | null;
 };
 
 export type SearchResult = { results: SearchResultRow[]; hasMore: boolean };
@@ -100,10 +112,15 @@ type RawRow = {
   city: string | null;
   cover_photo_url: string | null;
   distance_m: number | null;
+  occupancy_mode: string | null;
+  per_head_price_cents: number | null;
 };
 
 function toRow(r: RawRow): SearchResultRow {
   const rates = { hourlyRateCents: r.hourly_rate_cents, dayRateCents: r.day_rate_cents };
+  // The column is NOT NULL DEFAULT 'exclusive', so the coalesce is belt-and-braces for a hand-written
+  // fixture — it names the same thing the column default names, never a client-supplied flag.
+  const occupancyMode = (r.occupancy_mode ?? "exclusive") as SearchResultRow["occupancyMode"];
   return {
     id: r.id,
     title: r.title,
@@ -115,7 +132,16 @@ function toRow(r: RawRow): SearchResultRow {
     distanceM: r.distance_m === null ? null : Number(r.distance_m),
     // D-75: composed HERE (server-side) rather than in the card, so the browse rate and the checkout
     // breakdown are guaranteed to use the same SERVICE_FEE_BPS. See src/lib/booking/all-in-rate.ts.
-    allInRateParts: allInRateParts(rates),
+    // Phase-9: the two extra fields select the `/person` branch for a drop-in listing (09-UI-SPEC § 4).
+    allInRateParts: allInRateParts({
+      ...rates,
+      perHeadPriceCents: r.per_head_price_cents,
+      occupancyMode,
+    }),
+    occupancyMode,
+    perHeadPriceCents: r.per_head_price_cents,
+    // Stage-2 fills this for an open listing on a picked date; it stays null everywhere else (OC-12).
+    spots: null,
   };
 }
 
@@ -142,8 +168,22 @@ export async function searchListings(
     ? sql`ST_Distance(l.location::geography, ${originGeog}::geography)`
     : sql`NULL`;
 
+  // Phase-9: the listing's ADVERTISED unit price, whichever unit it sells in — hourly for an exclusive
+  // listing, per-person for a drop-in (D-125). Written ONCE and used by BOTH the price filter and the price
+  // sort, so a drop-in listing can never be invisible to one and mis-ranked by the other.
+  //
+  // THE TRAP THIS CLOSES: the filter used to read `l.hourly_rate_cents <= ${priceMax}` directly. That column
+  // is NULL on an open-capacity listing that prices only per head, and `NULL <= n` is NULL, not false — so a
+  // price ceiling SILENTLY DELETED every drop-in listing from results, in both directions, while the same
+  // expression on the ORDER BY buried them last. Comparing an hourly rate against a per-person day pass is
+  // imperfect, and deliberately so: ranking a drop-in listing approximately is strictly better than making
+  // it invisible. The `::text` cast on the enum matches the shipped `l.primary_space_type::text` idiom
+  // below; this is a RUNTIME query, so naming an enum value here carries no 55P04 migration hazard.
+  const effectivePriceSql = sql`(CASE WHEN l.occupancy_mode::text = 'open_capacity'
+                                      THEN l.per_head_price_cents ELSE l.hourly_rate_cents END)`;
+
   const orderBy = sort === "price"
-    ? sql`l.hourly_rate_cents ASC, l.created_at DESC`
+    ? sql`${effectivePriceSql} ASC, l.created_at DESC`
     : sql`distance_m ASC NULLS LAST, l.created_at DESC`; // no-origin ⇒ all distance NULL ⇒ created_at DESC (D-30)
 
   // Stage-2 (per-candidate availability) can drop candidates below the page size, so over-fetch when a
@@ -155,6 +195,7 @@ export async function searchListings(
   const rows = (await db.execute(sql`
     SELECT
       l.id, l.title, l.primary_space_type, l.hourly_rate_cents, l.day_rate_cents, l.timezone, l.city,
+      l.occupancy_mode, l.per_head_price_cents,
       (SELECT lp.url FROM listing_photo lp
          WHERE lp.listing_id = l.id ORDER BY lp.position ASC LIMIT 1) AS cover_photo_url,
       ${distanceSelect} AS distance_m
@@ -172,7 +213,7 @@ export async function searchListings(
         l.primary_space_type::text = ${category}
         OR EXISTS (SELECT 1 FROM listing_activity_tag t WHERE t.listing_id = l.id AND t.tag = ${category})
       )` : sql``}
-      ${priceMax !== undefined ? sql`AND l.hourly_rate_cents <= ${priceMax}` : sql``}
+      ${priceMax !== undefined ? sql`AND ${effectivePriceSql} <= ${priceMax}` : sql``}
       ${picked ? sql`AND EXISTS (SELECT 1 FROM operating_hours oh
         WHERE oh.listing_id = l.id AND oh.day_of_week = EXTRACT(DOW FROM ${picked.iso}::date))` : sql``}
     ORDER BY ${orderBy}
@@ -200,6 +241,23 @@ export async function searchListings(
   const kept: SearchResultRow[] = [];
   for (const c of candidates) {
     const avail = await getAvailability(db, c.id, picked, now);
+
+    // ── PHASE-9 FORK (OC-12). A drop-in listing matches on DATE ONLY. `hasWindow` is deliberately NOT
+    // consulted below: the searched start/end hours are IGNORED because a pass is not an hour window, and
+    // filtering (or captioning) one by an hour range would advertise a reservation the booker is not buying
+    // (09-UI-SPEC O2). Kept iff the date is open for business and still has at least one spot — so a `full`
+    // date can never reach a search card (09-UI-SPEC "The three chip states").
+    //
+    // `avail.openCapacity` is the SAME read model the listing page renders (D-34) — this branch adds no SQL
+    // of its own, exactly as the file header requires.
+    if (avail.occupancyMode === "open_capacity") {
+      const oc = avail.openCapacity; // null when the venue is closed that weekday
+      if (oc && oc.bookable && oc.remaining >= 1) {
+        kept.push({ ...c, spots: { remaining: oc.remaining, cap: oc.cap, state: oc.state } });
+      }
+      continue;
+    }
+
     if (hasWindow) {
       const winStartUtc = new Date(
         new TZDate(picked.year, picked.month - 1, picked.day, startHour, 0, 0, avail.timezone).getTime(),
