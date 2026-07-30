@@ -6,7 +6,13 @@
 // itself: it calls publishListing, which re-runs the full D-02 gate SERVER-SIDE (all core fields +
 // both integer-cents rates + ≥3 photos + verified email). status is never set from the client.
 //
-// Steps (D-01): type → details → location → photos → pricing → booking mode → cancellation → review.
+// Steps (D-01, + the OPEN-01 occupancy fork): the whole-space flow walks
+//   type → details → location → photos → occupancy → pricing → booking mode → cancellation → review,
+// and the drop-in flow walks the same list WITHOUT `booking mode` (OC-10 — drop-in passes are instant
+// only, so the step is removed from the walked list rather than shown and ignored, and its removal is
+// explained once on the review step). Nothing here is addressed by numeric index: the walked list is
+// mode-dependent, so both the render guards and the checklist's links resolve steps by KEY.
+//
 // The PHOTOS step is a documented seam — the signed direct-to-Cloudinary uploader grid lands in
 // Plan 04 (Wave 3). Until then the review checklist's "3+ photos" row stays unmet (photoCount comes
 // from the server), so publish is correctly blocked on photos this phase.
@@ -27,11 +33,13 @@ import {
 
 import {
   draftSchema,
+  DROP_IN_INSTANT_ONLY_MESSAGE,
   OCCUPANCY_MODE_VALUES,
   type CancellationPolicyValue,
   type DraftListingInput,
   type OccupancyModeValue,
 } from "@/lib/validation/listing";
+import { formatMoney } from "@/lib/money";
 import {
   ModeLockNotice,
   MODE_LOCK_NOTICE_ID,
@@ -153,21 +161,7 @@ const STEPS = [
   { key: "review", title: "Review and publish" },
 ] as const;
 
-/**
- * The index of a step, BY KEY. Generalises the single `CANCELLATION_STEP` idiom below to every step the
- * publish checklist links back to.
- *
- * WHY THIS EXISTS (09-UI-SPEC § 1a migration note): each checklist row used to carry a bare NUMERIC LITERAL
- * as its link target. A literal is correct only for one exact ordering of `STEPS`, so inserting a step —
- * which 09-10 does, adding `occupancy` before `pricing` — silently repoints every row after it: the host
- * clicks "Hourly rate" and lands on photos. Deriving the index from the key means the rows follow the list.
- * Never reintroduce a numeric literal there. (Deliberately NOT quoting the old shape, so the acceptance grep
- * that asserts no literal remains cannot be tripped by the very comment forbidding it.)
- */
-const stepIndex = (key: (typeof STEPS)[number]["key"]) => STEPS.findIndex((s) => s.key === key);
-
-/** Index of the D-77 tier step, so the publish-checklist row links back to it without a magic number. */
-const CANCELLATION_STEP = stepIndex("cancellation");
+type StepKey = (typeof STEPS)[number]["key"];
 
 /**
  * The three D-67 tiers, host-facing (07-UI-SPEC § 6). Plain language, no dates — there is no booking yet;
@@ -300,6 +294,9 @@ function toPayload(v: DraftListingInput): DraftListingInput {
     // matters for OC-17: saveListingStep refuses only a genuine CHANGE, so an autosave from any other step
     // must never invent a mode the host didn't choose.
     occupancyMode: v.occupancyMode,
+    // D-125 — the drop-in price per person. Same forward-only semantics as every other rate: a booking
+    // freezes its own price at hold time, so editing this never reprices a booking already made.
+    perHeadPriceCents: num(v.perHeadPriceCents),
     bookingMode: v.bookingMode,
     cancellationPolicy: v.cancellationPolicy,
     showExactAddress: v.showExactAddress,
@@ -354,6 +351,7 @@ export function ListingWizard({
       // OPEN-01 — `undefined`, never the column's default, when nobody has chosen yet. An unchosen mode must
       // reach the RadioGroup as unchosen so no card renders selected (09-UI-SPEC § 1b, the D-77 precedent).
       occupancyMode: hasChosenMode(listing) ? listing.occupancyMode : undefined,
+      perHeadPriceCents: listing.perHeadPriceCents ?? undefined,
       bookingMode: listing.bookingMode,
       // D-77 — `undefined`, never a fallback tier. An unchosen policy must reach the RadioGroup as
       // unchosen so no card renders selected; seeding a default here would silently make the choice.
@@ -365,6 +363,37 @@ export function ListingWizard({
   });
 
   const values = form.watch();
+
+  // ── The mode fork (OPEN-01). `undefined` — nobody has chosen yet — reads as the whole-space flow, which
+  // is both the column's default and the shape every pre-Phase-9 listing already has.
+  const openMode = values.occupancyMode === "open_capacity";
+
+  /**
+   * The steps this host actually WALKS, which is not always `STEPS`.
+   *
+   * OC-10: drop-in passes are instant only — approval on a shared daily counter would need a
+   * held-seat-pending-approval lifecycle for no real use case — so the booking-mode step is removed from
+   * the flow rather than shown and ignored. It is removed from the LIST, not merely skipped, so the
+   * "Step X of Y" line and the progress bar stay truthful (8 steps, not 9 with one missing). A control
+   * cannot simply vanish, though: the review step below carries the one line that explains it.
+   */
+  const steps = openMode ? STEPS.filter((s) => s.key !== "booking") : STEPS;
+
+  /**
+   * The index of a step, BY KEY, against the WALKED list.
+   *
+   * WHY (09-UI-SPEC § 1a migration note): each checklist row used to carry a bare NUMERIC LITERAL as its
+   * link target. A literal is correct only for one exact ordering, so inserting `occupancy` before pricing
+   * silently repoints every row after it — the host clicks "Hourly rate" and lands on photos. And the
+   * walked list is now MODE-DEPENDENT, so even a constant derived from `STEPS` would be wrong in drop-in
+   * mode (cancellation sits one place earlier there). Never reintroduce a numeric literal as a link target.
+   * (Deliberately NOT quoting the old shape, so the grep asserting no literal remains cannot be tripped by
+   * the very comment forbidding it.)
+   */
+  const stepIndex = (key: StepKey) => steps.findIndex((s) => s.key === key);
+
+  /** Index of the D-77 tier step, so the publish-checklist row links back to it without a magic number. */
+  const CANCELLATION_STEP = stepIndex("cancellation");
 
   /** Autosave the current form state. Returns true on success. */
   async function persist(): Promise<boolean> {
@@ -382,7 +411,7 @@ export function ListingWizard({
     setSaving(false);
     if (ok) {
       toast.success("Saved");
-      if (step < STEPS.length - 1) setStep((s) => s + 1);
+      if (step < steps.length - 1) setStep((s) => s + 1);
     }
   }
 
@@ -457,9 +486,44 @@ export function ListingWizard({
     { label: "Description", done: Boolean(values.description), step: stepIndex("details") },
     { label: "Space type", done: Boolean(values.primarySpaceType), step: stepIndex("type") },
     { label: "Address", done: Boolean(values.addressLine1 && values.city && values.region && values.country) && hasCoords, step: stepIndex("location") },
-    { label: "Capacity", done: Boolean(values.maxOccupancy && values.maxOccupancy > 0), step: stepIndex("details") },
-    { label: "Hourly rate", done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0), step: stepIndex("pricing") },
-    { label: "Day rate", done: Boolean(values.dayRateCents && values.dayRateCents > 0), step: stepIndex("pricing") },
+    // ── The mode-forked rows (09-UI-SPEC § 1e). ────────────────────────────────────────────────────────
+    // THIS LIST AND `publishSchema`'S MODE FORK ARE TWO HALVES OF ONE RULE (07-15: a new publish
+    // requirement must land in TWO places — the gate that enforces it and the checklist that names it).
+    // They must change together: a row here that the gate does not require sends the host chasing a field
+    // that was never blocking, and a gate requirement with no row leaves them staring at a dead Publish
+    // button with nothing marked unmet. The gate is `src/lib/validation/listing.ts`; this is only the
+    // telling. Whole space needs both rates; drop-in needs a price per person and a daily cap instead —
+    // and the cap is named for the job it does in this mode, not for the column it lives in.
+    ...(openMode
+      ? [
+          {
+            label: "Drop-in cap",
+            done: Boolean(values.maxOccupancy && values.maxOccupancy > 0),
+            step: stepIndex("pricing"),
+          },
+          {
+            label: "Price per person",
+            done: Boolean(values.perHeadPriceCents && values.perHeadPriceCents > 0),
+            step: stepIndex("pricing"),
+          },
+        ]
+      : [
+          {
+            label: "Capacity",
+            done: Boolean(values.maxOccupancy && values.maxOccupancy > 0),
+            step: stepIndex("details"),
+          },
+          {
+            label: "Hourly rate",
+            done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0),
+            step: stepIndex("pricing"),
+          },
+          {
+            label: "Day rate",
+            done: Boolean(values.dayRateCents && values.dayRateCents > 0),
+            step: stepIndex("pricing"),
+          },
+        ]),
     { label: "3+ photos", done: photoCount >= 3, step: stepIndex("photos") },
     // D-77 joins the EXISTING checklist rather than inventing a new blocked affordance — the shipped
     // "Almost there — finish these to publish:" panel already renders unmet rows with a Fix link, and
@@ -480,6 +544,27 @@ export function ListingWizard({
   const publishEligible = checklist.every((c) => c.done);
 
   /**
+   * The drop-in listing, in one line, on the review step (09-UI-SPEC § 1d) —
+   * `Drop-in passes · ₱350.00 per person · up to 30 people a day · Instant book`.
+   *
+   * Built by joining the parts that exist rather than interpolated into JSX text: a half-filled draft still
+   * gets a truthful line instead of "₱undefined", and one expression container cannot be bitten by SWC's
+   * JSX whitespace transform (the "₱300.00in cancellation fees" defect — see cancellation-fee-notice.tsx).
+   */
+  const openSummaryLine = [
+    "Drop-in passes",
+    values.perHeadPriceCents && values.perHeadPriceCents > 0
+      ? `${formatMoney(values.perHeadPriceCents, listing.currency)} per person`
+      : null,
+    values.maxOccupancy && values.maxOccupancy > 0
+      ? `up to ${values.maxOccupancy} people a day`
+      : null,
+    "Instant book",
+  ]
+    .filter((part): part is string => part !== null)
+    .join(" · ");
+
+  /**
    * The step being rendered, BY KEY — every render guard below tests this rather than a numeric index.
    *
    * Same rot as the checklist's old literals, but worse: inserting `occupancy` shifts pricing, booking mode,
@@ -487,9 +572,13 @@ export function ListingWizard({
    * green typecheck. Keys are also what makes the drop-in flow possible at all — there the walked list has
    * no `booking` entry, so the same index means different things in the two modes.
    */
-  const currentKey = STEPS[step].key;
+  // Clamp defensively. Today the mode can only be changed ON the occupancy step, whose index is identical
+  // in both walked lists, so the list can never shrink out from under a later step — but a white screen is
+  // an expensive way to discover that a future edit broke that property.
+  const stepInList = Math.min(step, steps.length - 1);
+  const currentKey = steps[stepInList].key;
 
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const progress = ((stepInList + 1) / steps.length) * 100;
   const advanceLabel = step === 0 ? "Get started" : "Save and continue";
 
   return (
@@ -499,12 +588,12 @@ export function ListingWizard({
       {/* --- Stepper + progress --------------------------------------------------------------- */}
       <div className="space-y-3">
         <p className="text-sm font-medium text-muted-foreground">
-          Step {step + 1} of {STEPS.length}
+          Step {stepInList + 1} of {steps.length}
         </p>
         <Progress value={progress} />
         <ol className="flex flex-wrap gap-2" aria-label="Listing steps">
-          {STEPS.map((s, i) => {
-            const state = i < step ? "done" : i === step ? "current" : "future";
+          {steps.map((s, i) => {
+            const state = i < stepInList ? "done" : i === stepInList ? "current" : "future";
             return (
               <li key={s.key} aria-current={state === "current" ? "step" : undefined}>
                 <span
@@ -523,7 +612,7 @@ export function ListingWizard({
         </ol>
       </div>
 
-      <h1 className="text-2xl font-semibold tracking-tight">{STEPS[step].title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{steps[stepInList].title}</h1>
 
       <Form {...form}>
         {/* We intentionally do NOT use handleSubmit here — advancing autosaves via saveListingStep. */}
@@ -682,8 +771,13 @@ export function ListingWizard({
                         }}
                       />
                     </FormControl>
+                    {/* Mode-aware (09-UI-SPEC § 1c): the SAME number does a different job in each mode,
+                        and the host meets it here first. The drop-in wording is repeated on the pricing
+                        step under the label "People per day" — same field, two views, one value. */}
                     <FormDescription>
-                      Most people allowed at once — the cap for group bookings later.
+                      {openMode
+                        ? "The most people you'll let in on one day — your drop-in cap."
+                        : "Most people allowed at once — the cap for group bookings later."}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -870,8 +964,94 @@ export function ListingWizard({
             />
           )}
 
-          {/* --- Step "pricing" ---------------------------------------------------------------- */}
-          {currentKey === "pricing" && (
+          {/* --- Step "pricing" — MODE-FORKED (OC-08 / 09-UI-SPEC § 1c) ------------------------ */}
+          {/*
+            Whole space is priced by TIME (an hourly rate, a day rate, and optionally more when the group
+            is bigger). Drop-in passes are priced by PERSON — one flat price per head, however long they
+            stay — so the two field sets have nothing in common and rendering both would ask the host to
+            answer a question their mode does not pose. D-110 also forbids the pair outright: a per-extra-
+            guest surcharge alongside a per-person price is two different answers to "what does one more
+            person cost". The whole group-pricing block is therefore absent in drop-in mode, not disabled.
+          */}
+          {currentKey === "pricing" && openMode && (
+            <div className="space-y-6">
+              <FormField
+                control={form.control}
+                name="perHeadPriceCents"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Price per person</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
+                          {symbol}
+                        </span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          className="pl-8"
+                          placeholder="0.00"
+                          value={field.value != null ? (field.value / 100).toString() : ""}
+                          onChange={(e) => {
+                            const major = parseFloat(e.target.value);
+                            field.onChange(
+                              Number.isNaN(major) ? undefined : Math.round(major * 100),
+                            );
+                          }}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      What one person pays for a day pass. The same price applies whether they stay one
+                      hour or all day.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/*
+                THE SAME FIELD THE DETAILS STEP ALREADY SHOWED, ON PURPOSE (09-UI-SPEC § 1c).
+
+                D-124 puts the drop-in cap on `maxOccupancy`, which the host met in step 1 as "most people
+                allowed at once". In drop-in mode that number quietly stops meaning "how many fit" and
+                starts meaning "how many passes I sell for a day" — a materially different promise, and one
+                the host is about to attach a price to. So it is rendered a second time, here, under the
+                label it actually performs. Same RHF `name` ⇒ ONE value ⇒ the two views can never drift;
+                this is deliberately not a second piece of state.
+              */}
+              <FormField
+                control={form.control}
+                name="maxOccupancy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>People per day</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        inputMode="numeric"
+                        placeholder="e.g. 30"
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value, 10);
+                          field.onChange(Number.isNaN(n) ? undefined : n);
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      The most people you&apos;ll let in on one day. This is your drop-in cap.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
+          {currentKey === "pricing" && !openMode && (
             <div className="space-y-6">
               <FormField
                 control={form.control}
@@ -1136,6 +1316,24 @@ export function ListingWizard({
           {/* --- Step "review" ----------------------------------------------------------------- */}
           {currentKey === "review" && (
             <div className="space-y-6">
+              {/*
+                OC-10 / 09-UI-SPEC § 1d — THE ONLY PLACE THE REMOVED BOOKING-MODE STEP IS EXPLAINED, and
+                therefore mandatory. A control that simply vanishes leaves the host wondering whether they
+                skipped something or whether approval quietly got switched on; saying it plainly, once, on
+                the screen where they review the whole listing, is the whole obligation.
+
+                The sentence is the SHARED constant, not a retyped copy: `publishSchema` rejects a drop-in
+                listing that somehow carries `request` with exactly these words (09-06), and the explanation
+                a host reads here and the refusal they'd hit there must be one sentence, not two that drift.
+                Renders in both branches below — a listing that is ready to publish needs the explanation
+                just as much as one that is not.
+              */}
+              {openMode && (
+                <div className="space-y-1 rounded-lg border bg-muted/40 p-4">
+                  <p className="text-sm font-medium">{openSummaryLine}</p>
+                  <p className="text-sm text-muted-foreground">{DROP_IN_INSTANT_ONLY_MESSAGE}</p>
+                </div>
+              )}
               {publishEligible ? (
                 <div className="rounded-lg border bg-muted/40 p-4 text-sm">
                   Everything looks ready. Publishing makes your listing public. It becomes bookable
@@ -1208,7 +1406,7 @@ export function ListingWizard({
               <ChevronLeftIcon className="size-4" /> Back
             </Button>
 
-            {step < STEPS.length - 1 ? (
+            {stepInList < steps.length - 1 ? (
               <Button type="button" onClick={saveAndContinue} disabled={saving}>
                 {saving ? "Saving…" : advanceLabel}
               </Button>

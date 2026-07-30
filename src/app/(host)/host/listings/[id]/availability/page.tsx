@@ -101,6 +101,20 @@ export default async function HostAvailabilityPage({
         <p className="text-sm text-muted-foreground">
           Set when your space is open and block off any dates you can&apos;t host.
         </p>
+        {/*
+          09-UI-SPEC § 1g — ONE line, no redesign. This editor is UNCHANGED for a drop-in listing: the same
+          weekly hours still define when the space is open. What changes is what those hours MEAN. For a
+          whole-space listing they are the bookable slots; for a drop-in listing they are the entry window
+          a pass is good for (OC-03), and the booker never picks an hour at all. A host who reads this
+          screen as "the times people can book" would be quietly wrong about their own calendar, which is
+          why the line is here and not left to be inferred.
+        */}
+        {row.occupancyMode === "open_capacity" && (
+          <p className="text-sm text-muted-foreground">
+            These are the hours your drop-in passes are good for. A pass covers the whole day
+            you&apos;re open.
+          </p>
+        )}
       </div>
 
       <section className="space-y-3">
