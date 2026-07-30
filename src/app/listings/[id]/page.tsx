@@ -66,8 +66,8 @@ import {
 } from "@/components/availability/availability-calendar";
 import { BookCta } from "@/components/booking/book-cta";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
-import { placeHold } from "@/app/actions/booking";
-import { slotSelectionSchema } from "@/lib/validation/booking";
+import { placeHold, placeOpenHold } from "@/app/actions/booking";
+import { openHoldSchema, slotSelectionSchema } from "@/lib/validation/booking";
 // venue-tz labels + the shared DISPLAY_CURRENCY are now imported (Plan 07 promoted both out of this file
 // so the reserve + confirmation surfaces share ONE source and can never drift from the listing page).
 import { gmtLabelFor, cityLabelFor } from "@/lib/venue-time";
@@ -77,7 +77,15 @@ export default async function PublicListingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ start?: string; end?: string; fullDay?: string; resume?: string }>;
+  searchParams: Promise<{
+    start?: string;
+    end?: string;
+    fullDay?: string;
+    resume?: string;
+    /** Phase-9 (OPEN-02) — the drop-in resume pair; a pass has a date and a count, never a window. */
+    date?: string;
+    passes?: string;
+  }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -169,6 +177,21 @@ export default async function PublicListingPage({
   // hourly rate — 09-06 requires a price per person but never CLEARS the exclusive rate columns, and OC-17
   // permits switching modes, so "open listing ⇒ null rates" is never a safe assumption (09-07's lesson).
   const isOpenCapacity = row.listing.occupancyMode === "open_capacity";
+
+  // The drop-in half of the D-41 sign-in resume: `?date=YYYY-MM-DD&passes=N&resume=1`. Re-validated with
+  // the SAME schema placeOpenHold enforces, so this page can never hand the CTA a pair the action would
+  // then reject. Exactly one resume shape survives, chosen by the LISTING's persisted mode — a
+  // window-shaped resume on a drop-in listing (or a date-shaped one on an hourly listing) is dropped
+  // rather than auto-fired into a refusal the booker did nothing to earn.
+  const openResumeParsed =
+    sp.resume === "1" && isOpenCapacity
+      ? openHoldSchema.safeParse({ listingId: id, date: sp.date, requestedPasses: sp.passes })
+      : null;
+  const resumeOpen = openResumeParsed?.success
+    ? { dateIso: openResumeParsed.data.date, passes: openResumeParsed.data.requestedPasses }
+    : null;
+  const resumeWindowForMode = isOpenCapacity ? null : resumeWindow;
+
   const priceParts = allInRateParts(
     {
       ...pub,
@@ -371,10 +394,19 @@ export default async function PublicListingPage({
               )}
 
               {bookable ? (
-                // Bookable → placeHold mints the pending hold on ENTERING checkout (D-39) then redirects to
-                // the reserve page; when sign-in is required the window is threaded through the callbackURL
-                // so checkout resumes on return (D-41). The lifted picker selection drives it via context.
-                <BookCta listingId={id} placeHold={placeHold} resumeWindow={resumeWindow} />
+                // Bookable → the hold action mints the pending hold on ENTERING checkout (D-39) then
+                // redirects to the reserve page; when sign-in is required the selection is threaded through
+                // the callbackURL so checkout resumes on return (D-41). The lifted picker selection drives
+                // it via context. BOTH mutations are threaded so the wiring stays visible at this seam;
+                // which one fires is decided by the persisted mode, inside the control.
+                <BookCta
+                  listingId={id}
+                  placeHold={placeHold}
+                  placeOpenHold={placeOpenHold}
+                  occupancyMode={row.listing.occupancyMode}
+                  resumeWindow={resumeWindowForMode}
+                  resumeOpen={resumeOpen}
+                />
               ) : (
                 // Published but not payable → disabled neutral affordance + explanatory tooltip (D-13).
                 <TooltipProvider>

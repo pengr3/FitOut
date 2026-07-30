@@ -8,14 +8,21 @@
 //
 // Result mapping (placeHold returns a discriminated union on failure; SUCCESS redirects, so the awaited
 // value is undefined — same idiom as ReserveActions with confirmBooking):
-//   - sign-in (D-41): route to /login with a callbackURL that encodes the listing + the selected window +
-//     resume=1, so on return checkout resumes WITHOUT re-selecting the slot.
+//   - sign-in (D-41): route to /login with a callbackURL that encodes the listing + the selection +
+//     resume=1, so on return checkout resumes WITHOUT re-picking.
 //   - activate-booking (!canBook): surface the Phase-1 "Start booking" activate action, then continue.
-//   - taken (SC#4 race) / not-bookable / invalid: a calm neutral notice (NEVER red — occupancy is normal)
-//     + a calendar refresh so the freed/taken slot re-reflects.
+//   - taken / sold-out (SC#4 race) / not-bookable / invalid: a calm neutral notice (NEVER red — occupancy
+//     is normal) + a calendar refresh so the freed/taken capacity re-reflects.
 //
-// Resume (D-41): when the page mounts with a restored window (resume=1 after sign-in), auto-invoke placeHold
-// once so a single Book click round-trips through sign-in without the booker re-picking the window.
+// Resume (D-41): when the page mounts with a restored selection (resume=1 after sign-in), auto-invoke the
+// hold action once so a single Book click round-trips through sign-in without the booker re-picking.
+//
+// PHASE 9 (OPEN-02 · OC-02) — ONE CONTROL, TWO PAYLOAD SHAPES. An exclusive listing sends a window
+// ({startUtc, endUtc, fullDay}); a drop-in listing sends a DATE and a pass count ({date, requestedPasses})
+// and nothing that resembles a time window. That is not cosmetic: `openHoldSchema` carries no window fields
+// at all, so a smuggled one is stripped server-side (T-09-26), and the entry-window instants are derived
+// from the listing's own operating hours inside the claim. The branch is taken on the LISTING's persisted
+// occupancy mode, threaded from the RSC — never on which selection happens to be populated.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -28,41 +35,82 @@ import type { PlaceHoldResult } from "@/app/actions/booking";
 
 type PlaceHoldFn = (input: unknown) => Promise<PlaceHoldResult>;
 
+/** A drop-in selection restored from the sign-in callbackURL, or picked in the calendar. */
+type OpenPick = { dateIso: string; passes: number };
+
+/**
+ * What this control is about to submit. Discriminated rather than a merged bag of optional fields so the
+ * two payloads cannot be half-built: an open submit has no window to forget to strip.
+ */
+type CtaSelection =
+  | { kind: "exclusive"; window: SlotSelectionValue }
+  | { kind: "open"; pick: OpenPick };
+
 export function BookCta({
   listingId,
   placeHold,
+  placeOpenHold,
+  occupancyMode,
   resumeWindow,
+  resumeOpen,
 }: {
   listingId: string;
   /** The placeHold server action, threaded from the RSC so the wiring is visible at the listing seam. */
   placeHold: PlaceHoldFn;
+  /** Its drop-in twin (OPEN-02), threaded the same way. Each action admits exactly one occupancy mode. */
+  placeOpenHold: PlaceHoldFn;
+  /** The LISTING ROW's persisted mode — the only input that decides which payload shape is sent. */
+  occupancyMode: "exclusive" | "open_capacity";
   /** A window restored from the sign-in callbackURL (resume=1) — auto-resumes checkout on mount (D-41). */
   resumeWindow?: SlotSelectionValue | null;
+  /** The drop-in twin of resumeWindow: `?date=YYYY-MM-DD&passes=N&resume=1`, re-validated server-side. */
+  resumeOpen?: OpenPick | null;
 }) {
-  const { selection } = useBookingSelection();
+  const { selection, openSelection } = useBookingSelection();
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [needsActivate, setNeedsActivate] = React.useState(false);
 
+  const isOpen = occupancyMode === "open_capacity";
+
   const submit = React.useCallback(
-    async (window: SlotSelectionValue) => {
+    async (sel: CtaSelection) => {
       setPending(true);
       setNotice(null);
-      // SUCCESS → placeHold redirects to the reserve page, so on the client the promise resolves to
+      // SUCCESS → the action redirects to the reserve page, so on the client the promise resolves to
       // undefined (navigation) and we stay `pending` as this control unmounts. A failure resolves a result.
-      const result = (await placeHold({
-        listingId,
-        startUtc: window.startUtc,
-        endUtc: window.endUtc,
-        fullDay: window.fullDay,
-      })) as PlaceHoldResult | undefined;
+      const result = (await (sel.kind === "open"
+        ? // A DATE and a head count. No instants, no duration, no full-day flag — there is nothing here for
+          // the server to trust about time, which is exactly the point (T-09-26).
+          placeOpenHold({
+            listingId,
+            date: sel.pick.dateIso,
+            requestedPasses: sel.pick.passes,
+          })
+        : placeHold({
+            listingId,
+            startUtc: sel.window.startUtc,
+            endUtc: sel.window.endUtc,
+            fullDay: sel.window.fullDay,
+          }))) as PlaceHoldResult | undefined;
       if (!result) return;
 
       if (result.reason === "sign-in") {
-        // Thread the listing + the selected window into the return path so checkout resumes on return (D-41).
-        const params = new URLSearchParams({ start: window.startUtc, end: window.endUtc, resume: "1" });
-        if (window.fullDay) params.set("fullDay", "1");
+        // Thread the listing + the selection into the return path so checkout resumes on return (D-41).
+        const params =
+          sel.kind === "open"
+            ? new URLSearchParams({
+                date: sel.pick.dateIso,
+                passes: String(sel.pick.passes),
+                resume: "1",
+              })
+            : new URLSearchParams({
+                start: sel.window.startUtc,
+                end: sel.window.endUtc,
+                resume: "1",
+              });
+        if (sel.kind === "exclusive" && sel.window.fullDay) params.set("fullDay", "1");
         const callback = `/listings/${listingId}?${params.toString()}`;
         router.push(`/login?callbackURL=${encodeURIComponent(callback)}`);
         return;
@@ -73,21 +121,47 @@ export function BookCta({
         setPending(false);
         return;
       }
-      // taken / not-bookable / invalid — calm neutral notice + refresh the calendar so it reflects reality.
+      // taken / sold-out / not-bookable / invalid — calm neutral notice + refresh the calendar so it
+      // reflects reality. `sold-out` is the drop-in twin of `taken` (OC-13) and deliberately reuses this
+      // exact path: one grammar, one treatment, never red, never a modal. The sentence itself comes from
+      // the server, which is also where the claim decided it — a second copy here would be a second source
+      // of truth, and the one that drifts is always the one nobody is looking at.
       setNotice(result.error);
       setPending(false);
-      if (result.reason === "taken") router.refresh();
+      if (result.reason === "taken" || result.reason === "sold-out") router.refresh();
     },
-    [listingId, placeHold, router],
+    [listingId, placeHold, placeOpenHold, router],
   );
 
-  // D-41 resume: fire the restored window exactly once on mount (ref-guarded against strict-mode double run).
+  // The restored selection, normalized to ONE shape before the effect sees it: exactly one of the two can
+  // be present, because the page only parses the resume shape its own listing's mode uses.
+  const resumeSelection = React.useMemo<CtaSelection | null>(
+    () =>
+      resumeWindow
+        ? { kind: "exclusive", window: resumeWindow }
+        : resumeOpen
+          ? { kind: "open", pick: resumeOpen }
+          : null,
+    [resumeWindow, resumeOpen],
+  );
+
+  // D-41 resume: fire the restored selection exactly once on mount (ref-guarded against strict-mode double run).
   const resumedRef = React.useRef(false);
   React.useEffect(() => {
-    if (resumedRef.current || !resumeWindow) return;
+    if (resumedRef.current || !resumeSelection) return;
     resumedRef.current = true;
-    void submit(resumeWindow);
-  }, [resumeWindow, submit]);
+    void submit(resumeSelection);
+  }, [resumeSelection, submit]);
+
+  // The active selection is the live picker selection (fresh click) — resume drives its own auto-submit
+  // above. Reading the mode-matching half of the lifted context, never "whichever one is populated".
+  const active: CtaSelection | null = isOpen
+    ? openSelection
+      ? { kind: "open", pick: { dateIso: openSelection.dateIso, passes: openSelection.passes } }
+      : null
+    : selection
+      ? { kind: "exclusive", window: selection }
+      : null;
 
   async function handleActivate() {
     setPending(true);
@@ -98,11 +172,11 @@ export function BookCta({
       setPending(false);
       return;
     }
-    // canBook is now true in the DB (placeHold re-reads the row, not the session) → continue checkout.
-    const window = resumeWindow ?? selection;
-    if (window) {
+    // canBook is now true in the DB (the hold action re-reads the row, not the session) → continue checkout.
+    const sel = resumeSelection ?? active;
+    if (sel) {
       setNeedsActivate(false);
-      await submit(window);
+      await submit(sel);
       return;
     }
     setNeedsActivate(false);
@@ -110,22 +184,23 @@ export function BookCta({
     router.refresh();
   }
 
-  // The active window is the live picker selection (fresh click) — resume drives its own auto-submit above.
-  const window = selection;
-
   return (
     <div className="space-y-2">
       <Button
         size="lg"
-        disabled={pending || !window}
-        onClick={() => window && submit(window)}
+        disabled={pending || !active}
+        onClick={() => active && submit(active)}
         className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
       >
         {pending ? "Starting…" : "Book this space"}
       </Button>
 
-      {!window && !pending && (
-        <p className="text-center text-xs text-muted-foreground">Pick a time above to book.</p>
+      {!active && !pending && (
+        // The hint names the thing this listing actually asks for. A drop-in booker is never picking a
+        // time, so telling them to would send them looking for a control that does not exist.
+        <p className="text-center text-xs text-muted-foreground">
+          {isOpen ? "Pick a day above to book." : "Pick a time above to book."}
+        </p>
       )}
 
       {notice && (
