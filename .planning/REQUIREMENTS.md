@@ -83,7 +83,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 Host-set open / common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail. A separate occupancy mode from exclusive group bookings (Phase 8); the new engineering is a capacity-counter availability model, not per-attendee payment. Added 2026-07-27 (Phase 9).
 
-- [ ] **OPEN-01**: Host can set a listing to open-capacity mode with a per-head price and a capacity cap
+- [x] **OPEN-01**: Host can set a listing to open-capacity mode with a per-head price and a capacity cap
 - [ ] **OPEN-02**: Multiple independent bookers can each reserve their own spot on the same shared time slot, each paying for their own head(s) via the existing rail
 - [ ] **OPEN-03**: Concurrent bookings on a shared slot are hard-capped at capacity with no overbooking — enforced atomically at the database level and proven under a race
 - [ ] **OPEN-04**: Availability and search show remaining capacity (spots left) for open-capacity listings
@@ -182,7 +182,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | GROUP-03 | Phase 8 | Complete |
 | GROUP-04 | Phase 8 | Complete |
 | GROUP-05 | Phase 8 | Complete |
-| OPEN-01 | Phase 9 | Pending |
+| OPEN-01 | Phase 9 | Complete (09-06 server gate + 09-10 host wizard control) |
 | OPEN-02 | Phase 9 | Pending |
 | OPEN-03 | Phase 9 | Pending |
 | OPEN-04 | Phase 9 | Pending |
