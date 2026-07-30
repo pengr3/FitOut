@@ -130,8 +130,21 @@ const STEPS = [
   { key: "review", title: "Review and publish" },
 ] as const;
 
+/**
+ * The index of a step, BY KEY. Generalises the single `CANCELLATION_STEP` idiom below to every step the
+ * publish checklist links back to.
+ *
+ * WHY THIS EXISTS (09-UI-SPEC § 1a migration note): each checklist row used to carry a bare NUMERIC LITERAL
+ * as its link target. A literal is correct only for one exact ordering of `STEPS`, so inserting a step —
+ * which 09-10 does, adding `occupancy` before `pricing` — silently repoints every row after it: the host
+ * clicks "Hourly rate" and lands on photos. Deriving the index from the key means the rows follow the list.
+ * Never reintroduce a numeric literal there. (Deliberately NOT quoting the old shape, so the acceptance grep
+ * that asserts no literal remains cannot be tripped by the very comment forbidding it.)
+ */
+const stepIndex = (key: (typeof STEPS)[number]["key"]) => STEPS.findIndex((s) => s.key === key);
+
 /** Index of the D-77 tier step, so the publish-checklist row links back to it without a magic number. */
-const CANCELLATION_STEP = STEPS.findIndex((s) => s.key === "cancellation");
+const CANCELLATION_STEP = stepIndex("cancellation");
 
 /**
  * The three D-67 tiers, host-facing (07-UI-SPEC § 6). Plain language, no dates — there is no booking yet;
@@ -340,14 +353,14 @@ export function ListingWizard({
   // The live D-02 publish checklist (drives the review step). Each row links back to its step.
   const hasCoords = typeof values.lat === "number" && typeof values.lng === "number";
   const checklist: { label: string; done: boolean; step: number | null; action?: () => void }[] = [
-    { label: "Title", done: Boolean(values.title), step: 1 },
-    { label: "Description", done: Boolean(values.description), step: 1 },
-    { label: "Space type", done: Boolean(values.primarySpaceType), step: 0 },
-    { label: "Address", done: Boolean(values.addressLine1 && values.city && values.region && values.country) && hasCoords, step: 2 },
-    { label: "Capacity", done: Boolean(values.maxOccupancy && values.maxOccupancy > 0), step: 1 },
-    { label: "Hourly rate", done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0), step: 4 },
-    { label: "Day rate", done: Boolean(values.dayRateCents && values.dayRateCents > 0), step: 4 },
-    { label: "3+ photos", done: photoCount >= 3, step: 3 },
+    { label: "Title", done: Boolean(values.title), step: stepIndex("details") },
+    { label: "Description", done: Boolean(values.description), step: stepIndex("details") },
+    { label: "Space type", done: Boolean(values.primarySpaceType), step: stepIndex("type") },
+    { label: "Address", done: Boolean(values.addressLine1 && values.city && values.region && values.country) && hasCoords, step: stepIndex("location") },
+    { label: "Capacity", done: Boolean(values.maxOccupancy && values.maxOccupancy > 0), step: stepIndex("details") },
+    { label: "Hourly rate", done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0), step: stepIndex("pricing") },
+    { label: "Day rate", done: Boolean(values.dayRateCents && values.dayRateCents > 0), step: stepIndex("pricing") },
+    { label: "3+ photos", done: photoCount >= 3, step: stepIndex("photos") },
     // D-77 joins the EXISTING checklist rather than inventing a new blocked affordance — the shipped
     // "Almost there — finish these to publish:" panel already renders unmet rows with a Fix link, and
     // `publishEligible = checklist.every(c => c.done)` picks this up with no other change. The real gate
