@@ -356,3 +356,67 @@ export function RailSelectionSummary({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// RailPassSummary — the drop-in branch of the rail summary (09-UI-SPEC § 2d)
+// ---------------------------------------------------------------------------
+
+type RailPassSummaryProps = {
+  timezone: string;
+  currency: string;
+  /** listing.per_head_price_cents (D-125) — the SPACE price for ONE pass, before the service fee. */
+  perHeadPriceCents: number | null;
+  /**
+   * D-74/D-75 — the applied service-fee rate, passed in FROM THE SERVER, for exactly the reason spelled out
+   * on RailSelectionSummary's own prop above. Restating the consequence because this is a money surface and
+   * the trap is silent: this module is `"use client"`, so it must NEVER fall back to the default exported by
+   * `@/lib/payments/config`. A non-public env override is not inlined into the browser bundle, so the rail
+   * would keep quoting 5% while checkout charged 7% — the number going UP between browsing and paying,
+   * which is exactly what D-75 forbids. Threading it from the RSC keeps the two provably on the same rate.
+   */
+  serviceFeeBps: number;
+};
+
+/** In the booking rail, ABOVE the CTA: the chosen date · pass count · est. all-in price (display-only). */
+export function RailPassSummary({
+  timezone,
+  currency,
+  perHeadPriceCents,
+  serviceFeeBps,
+}: RailPassSummaryProps) {
+  const { openSelection } = useBookingSelection();
+  if (!openSelection) return null;
+
+  const { date, passes } = openSelection;
+  const dateLabel = format(new TZDate(date.year, date.month - 1, date.day, timezone), "EEE, MMM d", {
+    in: tz(timezone),
+  });
+
+  // D-75, and here the figure is EXACT rather than approximate. Open pricing is purely linear — no duration
+  // term, no surcharge band, no rounding on a rate the booker never sees — so `computeServiceFee(perHead ×
+  // N)` is precisely the total `quoteOpenCapacity` freezes on the row inside the claim's transaction. The
+  // shared pure module is used; the fee formula is never re-implemented here.
+  //
+  // The one case it can differ is a lost race: if the claim grants FEWER heads than were asked for, the
+  // frozen total is lower, and the reserve page (09-13) states both figures before anything is charged.
+  // The number can go DOWN with an explicit confirmation; it can never go up.
+  const cents =
+    perHeadPriceCents == null
+      ? null
+      : computeServiceFee(perHeadPriceCents * passes, serviceFeeBps).allInCents;
+
+  return (
+    <div className="space-y-1 rounded-lg border p-3 text-sm">
+      <p className="font-semibold">{dateLabel}</p>
+      <p className="text-muted-foreground">
+        <span className="tabular-nums">{passes}</span> {passes === 1 ? "pass" : "passes"}
+      </p>
+      {cents != null && (
+        <p className="pt-0.5">
+          <span className="text-muted-foreground">Est. </span>
+          <span className="font-semibold tabular-nums">{formatMoney(cents, currency)}</span>
+        </p>
+      )}
+    </div>
+  );
+}

@@ -61,6 +61,7 @@ import {
 import {
   AvailabilityCalendar,
   BookingSelectionProvider,
+  RailPassSummary,
   RailSelectionSummary,
 } from "@/components/availability/availability-calendar";
 import { BookCta } from "@/components/booking/book-cta";
@@ -162,7 +163,32 @@ export default async function PublicListingPage({
   // that would create a promise the checkout could break by a centavo.
   //
   // Composed by the SHARED helper both browse surfaces use, so this page and the search grid cannot drift.
-  const priceParts = allInRateParts(pub, DISPLAY_CURRENCY);
+  //
+  // Phase-9 (OC-01/D-125): the mode and the per-head price are read straight off the LISTING ROW rather
+  // than from `pub`, which carries neither. Without them this page quoted a drop-in listing's leftover
+  // hourly rate — 09-06 requires a price per person but never CLEARS the exclusive rate columns, and OC-17
+  // permits switching modes, so "open listing ⇒ null rates" is never a safe assumption (09-07's lesson).
+  const isOpenCapacity = row.listing.occupancyMode === "open_capacity";
+  const priceParts = allInRateParts(
+    {
+      ...pub,
+      occupancyMode: row.listing.occupancyMode,
+      perHeadPriceCents: row.listing.perHeadPriceCents,
+    },
+    DISPLAY_CURRENCY,
+  );
+
+  // OC-04 — a drop-in listing's cap is a DAILY admissions count, not a room size, so the line has to say
+  // which it is. Written out per branch rather than assembled from a suffix: this is booker-facing copy,
+  // and copy that only exists as a concatenation cannot be read or reviewed in one place.
+  const capacityLine =
+    pub.maxOccupancy === 1
+      ? isOpenCapacity
+        ? "Up to 1 person a day"
+        : "Up to 1 person"
+      : isOpenCapacity
+        ? `Up to ${pub.maxOccupancy} people a day`
+        : `Up to ${pub.maxOccupancy} people`;
 
   // Availability (AVAIL-03) — always render in the venue's local timezone (SC#2). Seed the FIRST day
   // (today, venue-tz) server-side via the read model; the client calendar fetches later day-changes.
@@ -178,10 +204,8 @@ export default async function PublicListingPage({
   };
   const initialDay = await getAvailability(db, id, initialDate);
 
-  // Phase-9 (OPEN-02/OC-01) — WHICH availability surface this listing gets, decided from the persisted
-  // listing row here on the server and threaded down. A drop-in listing also needs the visible month's
-  // fully-booked dates on the FIRST paint, so the grid never briefly offers a date that is already gone.
-  const isOpenCapacity = row.listing.occupancyMode === "open_capacity";
+  // Phase-9 (OPEN-02) — a drop-in listing needs the visible month's fully-booked dates on the FIRST paint,
+  // so the grid never briefly offers a date that is already gone.
   const initialFullDates = isOpenCapacity
     ? (
         await getOpenMonthAvailability(db, id, {
@@ -319,20 +343,32 @@ export default async function PublicListingPage({
               {pub.maxOccupancy != null && (
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <UsersIcon className="size-4" aria-hidden="true" />
-                  Up to {pub.maxOccupancy} {pub.maxOccupancy === 1 ? "person" : "people"}
+                  {capacityLine}
                 </p>
               )}
 
-              {/* Selection summary — appears once the booker picks a run/full day (display-only). */}
-              <RailSelectionSummary
-                timezone={timezone}
-                currency={DISPLAY_CURRENCY}
-                hourlyRateCents={pub.hourlyRateCents}
-                dayRateCents={pub.dayRateCents}
-                // D-75: threaded from the server so the rail's estimate uses the SAME rate checkout
-                // charges — a client-side default could silently disagree with a configured override.
-                serviceFeeBps={SERVICE_FEE_BPS}
-              />
+              {/* Selection summary — appears once the booker picks a run/full day, or a date and a number
+                  of passes (display-only either way). Both branches compose their money with the SAME
+                  server-threaded fee rate; a client-side default could silently disagree with a configured
+                  override and quote less than checkout charges (D-75). */}
+              {isOpenCapacity ? (
+                <RailPassSummary
+                  timezone={timezone}
+                  currency={DISPLAY_CURRENCY}
+                  perHeadPriceCents={row.listing.perHeadPriceCents}
+                  serviceFeeBps={SERVICE_FEE_BPS}
+                />
+              ) : (
+                <RailSelectionSummary
+                  timezone={timezone}
+                  currency={DISPLAY_CURRENCY}
+                  hourlyRateCents={pub.hourlyRateCents}
+                  dayRateCents={pub.dayRateCents}
+                  // D-75: threaded from the server so the rail's estimate uses the SAME rate checkout
+                  // charges — a client-side default could silently disagree with a configured override.
+                  serviceFeeBps={SERVICE_FEE_BPS}
+                />
+              )}
 
               {bookable ? (
                 // Bookable → placeHold mints the pending hold on ENTERING checkout (D-39) then redirects to
