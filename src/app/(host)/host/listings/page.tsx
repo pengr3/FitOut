@@ -91,6 +91,10 @@ export default async function HostListingsPage() {
               currency: r.currency,
               status: r.status,
               coverUrl: coverByListing.get(r.id) ?? null,
+              // Phase 9 (OC-01/D-125): the persisted mode + per-head price, so the card prices a drop-in
+              // listing per person. Read straight off the row — never inferred from which rate is null.
+              occupancyMode: r.occupancyMode,
+              perHeadPriceCents: r.perHeadPriceCents,
             };
             const bookable = deriveBookable(
               { status: r.status },

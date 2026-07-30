@@ -9,6 +9,15 @@
 // Status badge (UI-SPEC): draft → "Draft" (neutral); published+bookable → "Live" (success);
 // published-not-payable → "Published · not bookable" (neutral); unlisted → "Unlisted" (neutral).
 // bookable is DERIVED upstream (deriveBookable) and passed in — the card never re-derives it.
+//
+// PHASE 9 (09-UI-SPEC § 4, final paragraph): a drop-in listing's price line reads `₱…/person`, composed by
+// the SAME `allInRateParts` open branch the search card and the listing rail use — one definition of what
+// a per-person rate says, so the three surfaces cannot drift.
+//
+// There is deliberately NO `Drop-in` badge and NO spots-left chip on this card, and adding them later is
+// not a consistency fix. This is a MANAGEMENT surface, not a marketplace one: the host chose how the space
+// is sold and does not need to be told, the status badge is the one badge this tile carries, and scarcity
+// is a booker-facing signal about a SPECIFIC DATE — which this card has no date to be about.
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -31,6 +40,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
+import { allInRateParts } from "@/lib/booking/all-in-rate";
 import { formatMoney } from "@/lib/money";
 
 export type ListingCardData = {
@@ -42,6 +52,17 @@ export type ListingCardData = {
   currency: string;
   status: "draft" | "published" | "unlisted";
   coverUrl: string | null;
+  /**
+   * Phase 9 (OC-01). How the space is sold. The price line forks on THIS and never on the accident of a
+   * null rate column — 09-06 requires a per-head price but never CLEARS hourly/day, and OC-17 lets a host
+   * switch modes, so a drop-in listing can genuinely still carry both exclusive rates (09-07's lesson).
+   *
+   * REQUIRED, not optional-with-a-default: the column is NOT NULL, and a defaulted mode here would quietly
+   * price a drop-in listing by the hour on the host's own dashboard.
+   */
+  occupancyMode: "exclusive" | "open_capacity";
+  /** Phase 9 (D-125). The per-person day-pass base price; null on every exclusive listing. */
+  perHeadPriceCents: number | null;
 };
 
 type ActionResult = { ok: boolean; error?: string };
@@ -130,12 +151,34 @@ export function ListingCard({
   const badge = statusBadge(listing.status, bookable);
   const hasActions = Boolean(editHref || availabilityHref || onUnlist || onDelete);
 
+  // The price line. A drop-in listing is priced per person, and that string comes from the ONE shared
+  // definition (`allInRateParts`) rather than being spelled a second time here — the alternative is two
+  // places for the `/person` unit and the fee rule to drift apart, on surfaces the same host reads.
+  //
+  // Note the deliberate asymmetry, which 09-UI-SPEC § 4 asks for: the `/person` part is the ADVERTISED
+  // all-in rate (what a booker is quoted, D-75), while the `/hr` and `/day` parts below print the raw rate
+  // the host set, exactly as they have always done. The drop-in line is the number the host's own listing
+  // shows in search — no card arithmetic in either branch.
   const priceParts: string[] = [];
-  if (listing.hourlyRateCents != null) {
-    priceParts.push(`${formatMoney(listing.hourlyRateCents, listing.currency)}/hr`);
-  }
-  if (listing.dayRateCents != null) {
-    priceParts.push(`${formatMoney(listing.dayRateCents, listing.currency)}/day`);
+  if (listing.occupancyMode === "open_capacity") {
+    priceParts.push(
+      ...allInRateParts(
+        {
+          hourlyRateCents: listing.hourlyRateCents,
+          dayRateCents: listing.dayRateCents,
+          perHeadPriceCents: listing.perHeadPriceCents,
+          occupancyMode: listing.occupancyMode,
+        },
+        listing.currency,
+      ),
+    );
+  } else {
+    if (listing.hourlyRateCents != null) {
+      priceParts.push(`${formatMoney(listing.hourlyRateCents, listing.currency)}/hr`);
+    }
+    if (listing.dayRateCents != null) {
+      priceParts.push(`${formatMoney(listing.dayRateCents, listing.currency)}/day`);
+    }
   }
 
   async function runAction(

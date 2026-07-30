@@ -48,6 +48,8 @@ function makeListing(overrides: Partial<ListingCardData> = {}): ListingCardData 
     currency: "php",
     status: "published",
     coverUrl: null,
+    occupancyMode: "exclusive",
+    perHeadPriceCents: null,
     ...overrides,
   };
 }
@@ -79,5 +81,47 @@ describe("ListingCard availability link (T4-hours)", () => {
     // Positive control: the search card renders (its title is present) but carries no availability link.
     expect(screen.getByText("Sunset Court")).toBeTruthy();
     expect(availabilityAnchor(container)).toBeNull();
+  });
+});
+
+// 09-14 (09-UI-SPEC § 4, final paragraph) — the host's own tile prices a drop-in listing PER PERSON, from
+// the shared `allInRateParts` definition, and stays a management surface: no `Drop-in` badge, no scarcity.
+//
+// The drop-in fixture deliberately KEEPS both exclusive rate columns (09-07's lesson: 09-06 requires a
+// per-head price but never clears them, and OC-17 permits the mode switch), so case (3) can only pass by
+// keying on the persisted MODE — a fork written against `hourlyRateCents == null` fails it.
+describe("ListingCard price line by occupancy mode (09-14)", () => {
+  it("(3) a drop-in listing reads per person, with no badge and no scarcity", () => {
+    const { container } = render(
+      <ListingCard
+        listing={makeListing({
+          occupancyMode: "open_capacity",
+          perHeadPriceCents: 35000,
+          hourlyRateCents: 30750,
+          dayRateCents: 180000,
+        })}
+        bookable
+      />,
+    );
+
+    const text = container.textContent ?? "";
+    expect(text).toContain("₱367.50/person"); // ₱350 + the D-74 service fee, the same string search shows
+    expect(text).not.toContain("/hr");
+    expect(text).not.toContain("/day");
+    // A management surface: the mode badge and every scarcity string belong to booker-facing cards only.
+    expect(screen.queryByText("Drop-in")).toBeNull();
+    expect(text).not.toContain("Spots available");
+    expect(text).not.toContain("left");
+    expect(text).not.toContain("Fully booked");
+  });
+
+  it("(4) an exclusive listing's shipped /hr · /day line is unchanged", () => {
+    const { container } = render(
+      <ListingCard listing={makeListing({ dayRateCents: 180000 })} bookable />,
+    );
+
+    // The host's own set rates, not the all-in booker price — exactly as this card has always printed them.
+    expect(container.textContent ?? "").toContain("₱307.50/hr · ₱1,800.00/day");
+    expect(container.textContent ?? "").not.toContain("/person");
   });
 });
