@@ -314,7 +314,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion — the live enum value + narrowed EXCLUDE)*
 
 - [x] 09-02-PLAN.md — The capacity claim: shared open-capacity module (one occupying SUM, OC-03 day window, OC-11 threshold) + quoteOpenCapacity + createOpenCapacityHold under pg_advisory_xact_lock
-- [ ] 09-06-PLAN.md — Mode-forked publish gate (per-person price + daily cap, instant-only, single-unit, no group pricing) + the OC-17 mode lock enforced server-side
+- [x] 09-06-PLAN.md — Mode-forked publish gate (per-person price + daily cap, instant-only, single-unit, no group pricing) + the OC-17 mode lock enforced server-side
 - [ ] 09-08-PLAN.md — composeWhenLabel gains a REQUIRED openCapacity field — compiler-driven census across 13 call sites (a drop-in pass is never a 16-hour reservation)
 
 **Wave 3** *(blocked on Wave 2 completion; 09-07 additionally ordered after 09-08's compiler census)*
@@ -375,4 +375,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
 | 8. Group Bookings | 22/22 | Complete (double-charge BLOCKER + deferred items 5/6/7 closed by gap plans 08-18→08-22; money-path fixes proven against the real PayMongo sk_test_ API; verifier passed 5/5) | 2026-07-29 |
-| 9. Open-Capacity Bookings | 2/16 | Executing (Wave 1 done — DDL live; 09-02 done — createOpenCapacityHold ships under pg_advisory_xact_lock with the single shared occupying SUM; 09-06 + 09-08 remain in Wave 2) | - |
+| 9. Open-Capacity Bookings | 3/16 | Executing (Wave 1 done — DDL live; 09-02 — createOpenCapacityHold under pg_advisory_xact_lock; 09-06 — publishSchema forks per mode + the OC-17 lock is enforced server-side; 09-08 remains in Wave 2) | - |
