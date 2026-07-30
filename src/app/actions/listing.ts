@@ -39,8 +39,10 @@ import {
   draftSchema,
   publishSchema,
   SURCHARGE_UNREACHABLE_MESSAGE,
+  MODE_LOCKED_MESSAGE,
   type DraftListingInput,
 } from "@/lib/validation/listing";
+import { getModeLockState } from "@/lib/listing/mode-lock";
 
 const MIN_PHOTOS = 3; // D-02/D-04 — minimum photos to publish.
 
@@ -141,6 +143,27 @@ export async function saveListingStep(
     }
   }
 
+  // ── OC-17: the occupancy-mode lock. ─────────────────────────────────────────────────────────────────
+  // The wizard disables the other mode card and explains why (09-UI-SPEC § 1f), but a stale tab or a
+  // crafted client can still POST a different mode — so the refusal lives HERE, evaluated against the
+  // PERSISTED mode and the LIVE booking set (Security V4, threat T-09-19). It matters more than a normal
+  // courtesy-vs-gate split because 09-01 deliberately narrowed `booking_no_overlap` to
+  // `... AND open_capacity = false`: the DB will happily hold both row shapes for one listing, so this
+  // gate (plus the publish fork) is the ONLY thing keeping a listing's bookings all one kind.
+  //
+  // Only a genuine CHANGE is refused. Every autosave of an unrelated step re-sends the same stored mode,
+  // and freezing those would freeze the whole wizard for any host with a booking on the calendar.
+  if (d.occupancyMode !== undefined && d.occupancyMode !== owned.occupancyMode) {
+    const lock = await getModeLockState(db, listingId);
+    if (lock.locked) {
+      return {
+        ok: false,
+        error: "Please check the form and try again.",
+        fieldErrors: { occupancyMode: [MODE_LOCKED_MESSAGE] },
+      };
+    }
+  }
+
   // Build the editable-field patch. status / hostId / publishedAt are NOT here — they can never be
   // set via autosave (they aren't in draftSchema, and Zod strips any smuggled keys). updatedAt is
   // always set so the SET clause is never empty on a sparse save.
@@ -168,9 +191,14 @@ export async function saveListingStep(
     // already made. `undefined` (a step that doesn't carry them) leaves the columns untouched.
     included: d.included,
     extraHeadFee: d.extraHeadFee,
-    // D-109: accepted for shape-completeness but there is NO wizard control — the Zod enum has exactly one
-    // member (`exclusive`), so even a crafted client can only ever write the value the column already
-    // defaults to. Phase 9 introduces the second mode and the picker together.
+    // D-123 open-capacity price per person. Same forward-only semantics as the fields above: every booking
+    // freezes its own price at hold time (booking.space_price_cents, quoteOpenCapacity), so editing this
+    // can never reprice a booking already made.
+    perHeadPriceCents: d.perHeadPriceCents,
+    // D-109/D-123: the host now genuinely chooses this — Phase 9 adds both the second enum member
+    // (`open_capacity`) and the wizard's occupancy step, retiring the "there is NO wizard control, so a
+    // crafted client can only write the default" note that stood here. What still holds: Zod pins the value
+    // to the two-member enum, and the OC-17 lock above refuses a CHANGE while any booking is still ahead.
     occupancyMode: d.occupancyMode,
     showExactAddress: d.showExactAddress,
     updatedAt: new Date(),
@@ -274,6 +302,12 @@ export async function publishListing(listingId: string): Promise<ListingResult> 
     included: row.included ?? undefined,
     extraHeadFee: row.extraHeadFee ?? undefined,
     occupancyMode: row.occupancyMode,
+    // OPEN-01 — the open-mode half of the gate, re-validated from the PERSISTED row exactly like the rest.
+    // A crafted client that skipped the wizard's occupancy/pricing steps lands here with a NULL price per
+    // person and is rejected; `unitCount` is not a form field at all, so the PERSISTED value is the only
+    // honest source for the single-space rule (threat T-09-20).
+    perHeadPriceCents: row.perHeadPriceCents ?? undefined,
+    unitCount: row.unitCount ?? undefined,
     showExactAddress: row.showExactAddress,
   });
 
