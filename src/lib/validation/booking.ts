@@ -110,3 +110,30 @@ export const bookingCreateSchema = z
   .refine(endAfterStart, endAfterStartIssue);
 
 export type BookingCreate = z.infer<typeof bookingCreateSchema>;
+
+/**
+ * The OPEN-CAPACITY hold payload (OC-02/OC-06). A drop-in booker picks a DATE — never a time window — and a
+ * number of passes. There is deliberately no window shape here at all (no start/end instants, no full-day
+ * flag): the entry window is derived SERVER-SIDE from the listing's operating hours for that date (OC-03),
+ * so the client cannot choose, widen or shift the window the refund ladder and payout sweep will later key
+ * on. Zod strips unknown keys, so a payload that smuggles the exclusive path's fields loses them here
+ * (threat T-09-26) rather than carrying them into the claim.
+ *
+ * `date` is a venue-local calendar day. The regex is a SHAPE gate only: it accepts syntactically-well-formed
+ * but impossible days (2026-02-31). Those die in the action, at `parsePickedDate` (src/lib/search/query.ts),
+ * which canonicalizes the value and round-trip-guards it before anything reaches SQL.
+ *
+ * CR-03 restated for passes: the `.max()` is a SHAPE ceiling, not the cap. It exists so no accepted value
+ * can multiply through `per_head_price_cents × passes` into the `integer` money columns and raise a
+ * Postgres 22003 that `mapBookingError` would re-throw as a raw 500 (T-03-500). The REAL cap is the
+ * listing's own `max_occupancy`, read inside `createOpenCapacityHold`'s transaction and applied there
+ * against the live admissions SUM (D-124 / Security V4) — never a client-supplied bound.
+ */
+export const openHoldSchema = z.object({
+  listingId: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a day to book."),
+  requestedPasses: z.coerce.number().int().min(1).max(10_000),
+  idempotencyKey: z.string().max(200).optional(),
+});
+
+export type OpenHoldInput = z.infer<typeof openHoldSchema>;
