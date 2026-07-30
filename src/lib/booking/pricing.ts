@@ -133,3 +133,44 @@ export function quoteWindow(input: QuoteInput): Quote {
     extraHeadCents,
   };
 }
+
+/** OC-08 open-capacity quote input. NO amount field and NO window (D-49 discipline + OC-02): the price comes
+ *  only from the listing's own per-head rate, read server-side inside the claim transaction. */
+export type OpenCapacityQuoteInput = { perHeadPriceCents: number | null; heads: number };
+
+/** The frozen open-capacity quote. `totalCents` is the SPACE price only — the D-74 service fee is composed
+ *  at the caller, exactly as it is for quoteWindow. */
+export type OpenCapacityQuote = {
+  totalCents: number;
+  currency: string;
+  perHeadPriceCents: number;
+  heads: number;
+};
+
+/**
+ * OC-08 open-capacity price freeze: PURELY LINEAR, per head, with NO duration term. A drop-in pass costs the
+ * same whether the guest stays one hour or all day (OC-02 — duration NEVER scales price), so this function
+ * takes no window at all. It deliberately does NOT reuse the D-108 included/extraHeadFee base+surcharge pair:
+ * open pricing has no included base (D-125).
+ *
+ * THROWS when perHeadPriceCents is null — mirroring quoteWindow's "no rate for this booking shape" rule
+ * above. Freezing a ₱0 charge would sell a pass for nothing; the publish gate makes the column non-null for
+ * every open listing, so a null here is a real invariant break, not a user error.
+ *
+ * The platform service fee is composed AT THE CALLER (createOpenCapacityHold), never here — this module
+ * stays pure over the listing's own rates, exactly as it does for quoteWindow (the 07-08 seam).
+ */
+export function quoteOpenCapacity(input: OpenCapacityQuoteInput): OpenCapacityQuote {
+  if (input.perHeadPriceCents == null) {
+    throw new Error("Listing has no per-head price for an open-capacity booking");
+  }
+  if (!Number.isInteger(input.heads) || input.heads < 1) {
+    throw new Error("Open-capacity heads must be a positive integer");
+  }
+  return {
+    totalCents: input.perHeadPriceCents * input.heads,
+    currency: DISPLAY_CURRENCY,
+    perHeadPriceCents: input.perHeadPriceCents,
+    heads: input.heads,
+  };
+}
