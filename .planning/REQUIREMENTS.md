@@ -183,9 +183,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | GROUP-04 | Phase 8 | Complete |
 | GROUP-05 | Phase 8 | Complete |
 | OPEN-01 | Phase 9 | Complete (09-06 server gate + 09-10 host wizard control) |
-| OPEN-02 | Phase 9 | Pending |
+| OPEN-02 | Phase 9 | In progress (09-07 `placeOpenHold` + 09-11 the pre-hold `PassStepper`; the booker-facing picker/rail is 09-12) |
 | OPEN-03 | Phase 9 | Pending |
-| OPEN-04 | Phase 9 | Pending |
+| OPEN-04 | Phase 9 | In progress (09-04 server-derived `state`/`remaining` + 09-11 `SpotsLeftChip`/`DropInBadge`; the three mount points are 09-12/09-13/09-14) |
 
 **Coverage:**
 - v1 requirements: 49 total
