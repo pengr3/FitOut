@@ -305,7 +305,25 @@ Plans:
   3. The (cap+1)-th concurrent booking is rejected atomically at the database level with no overbooking — proven under a genuine concurrent race (analogous to Phase 3 SC#4 for exclusive listings)
   4. Availability and search reflect remaining capacity (spots left), not merely free/taken
 
-**Plans**: TBD
+**Plans**: 16 plans in 7 waves
+
+  - [ ] 09-01-PLAN.md — Wave 1: schema (occupancy_mode += open_capacity, listing.per_head_price_cents, booking.open_capacity) + 3 hand-authored migrations (55P04 split + EXCLUDE narrowed to open_capacity=false) + [BLOCKING] db:migrate + D-123..D-126
+  - [ ] 09-02-PLAN.md — Wave 2: the capacity claim — shared open-capacity module (one occupying SUM, OC-03 day window, OC-11 threshold) + quoteOpenCapacity + createOpenCapacityHold under pg_advisory_xact_lock
+  - [ ] 09-03-PLAN.md — Wave 3: the SC#3 acceptance gate — two-layer concurrent-overbook race against the SHIPPED claim + the Pitfall-1 EXCLUDE test + both lock-deletion mutations
+  - [ ] 09-04-PLAN.md — Wave 3: read-model spots-left fork (remaining/cap/server-derived state) + month fully-booked map + public read actions
+  - [ ] 09-05-PLAN.md — Wave 4: search — /person all-in rate, Stage-1 effective-price filter+sort fix, Stage-2 spots-left branch (ignores the time window)
+  - [ ] 09-06-PLAN.md — Wave 2: mode-forked publish gate (per-person price + daily cap, instant-only, single-unit, no group pricing) + the OC-17 mode lock enforced server-side
+  - [ ] 09-07-PLAN.md — Wave 3: placeOpenHold + both cross-mode refusals + D-126 step-up refusal + the unchanged payment-paid webhook proof
+  - [ ] 09-08-PLAN.md — Wave 2: composeWhenLabel gains a REQUIRED openCapacity field — compiler-driven census across 13 call sites (a drop-in pass is never a 16-hour reservation)
+  - [ ] 09-09-PLAN.md — Wave 3: cancellation — host-cancel skips the anti-resell auto-block for drop-in bookings (Pitfall 5) + three copy forks
+  - [ ] 09-10-PLAN.md — Wave 3: host wizard — the occupancy step, mode-forked pricing + checklist, removed-and-explained booking-mode step, the OC-17 lock notice
+  - [ ] 09-11-PLAN.md — Wave 3: SpotsLeftChip + DropInBadge + PaxStepper split into a presentational control and two bindings (pre-hold pass stepper)
+  - [ ] 09-12-PLAN.md — Wave 4: DatePassPicker (month grid + day panel, no hour chips) + calendar fork + open rail + BookCta open branch
+  - [ ] 09-13-PLAN.md — Wave 4: reserve page — per-person breakdown + the OC-07 partial-grant alert with both server-computed figures
+  - [ ] 09-14-PLAN.md — Wave 5: search card (Drop-in badge, /person, never a time range, date-only link) + host listing card
+  - [ ] 09-15-PLAN.md — Wave 6: e2e two-booker shared-date decrement + sold-out, then the full repository gate and the validation map
+  - [ ] 09-16-PLAN.md — Wave 7: human walkthrough against the live PayMongo sk_test_ rail (checkpoint)
+
 **UI hint**: yes
 
 ## Progress
@@ -323,4 +341,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
 | 8. Group Bookings | 22/22 | Complete (double-charge BLOCKER + deferred items 5/6/7 closed by gap plans 08-18→08-22; money-path fixes proven against the real PayMongo sk_test_ API; verifier passed 5/5) | 2026-07-29 |
-| 9. Open-Capacity Bookings | 0/TBD | Not started | - |
+| 9. Open-Capacity Bookings | 0/16 | Planned (16 plans, 7 waves) | - |
