@@ -21,11 +21,16 @@ const bookingModeValues = ["instant", "request"] as const;
  *  booking at creation (D-67) and is what `quoteRefund` later applies. */
 const cancellationPolicyValues = ["flexible", "standard", "strict"] as const;
 
-/** D-109 occupancy modes. EXACTLY ONE value in v1 (`exclusive`) — Phase 9 adds open-capacity. Mirrors the
- *  `occupancy_mode` pgEnum. There is deliberately NO host-facing control for this in v1 (08-UI-SPEC § 6 /
- *  Open Q8): a picker with one choice is noise. The field is accepted here so the shape is forward-compatible
- *  and so a client can never smuggle a value outside the enum. */
-const occupancyModeValues = ["exclusive"] as const;
+/** D-109 occupancy modes, mirroring the `occupancy_mode` pgEnum. Phase 9 adds the second mode (D-123 / OC-01)
+ *  and with it the wizard's occupancy step, so the "there is deliberately NO host-facing control" note that
+ *  stood here is RETIRED — it would otherwise read as this change's own alibi. Exported so the wizard's mode
+ *  cards and the publish gate below share ONE source of truth (the CANCELLATION_POLICY_VALUES idiom at the
+ *  foot of this file). A client still cannot smuggle a value outside the enum. */
+const occupancyModeValues = ["exclusive", "open_capacity"] as const;
+
+/** The D-123 mode union, exported so the wizard cards and the publish gate share ONE source of truth. */
+export type OccupancyModeValue = (typeof occupancyModeValues)[number];
+export const OCCUPANCY_MODE_VALUES = occupancyModeValues;
 
 /**
  * The ONE user-facing reject copy for the surcharge-reachability rule (`included < maxOccupancy` whenever
@@ -36,6 +41,31 @@ const occupancyModeValues = ["exclusive"] as const;
  */
 export const SURCHARGE_UNREACHABLE_MESSAGE =
   "Base price covers must be fewer than the maximum capacity, or the extra guest fee never applies.";
+
+// ── Phase-9 reject copy (OPEN-01). Same single-literal discipline SURCHARGE_UNREACHABLE_MESSAGE established:
+// every one of these is exported and appears EXACTLY ONCE in this file, so the publish gate, the wizard
+// checklist and the tests can never drift into three slightly different sentences. Host-facing voice per
+// 09-UI-SPEC § Copywriting O1 — never "occupancy mode", "exclusive", "open capacity", "per-head", or "cap"
+// as a bare noun; say whole space, drop-in passes, price per person, people per day.
+
+/** The unchanged Phase-2/D-03 both-rates requirement, now stated in host words because the requirement MOVED
+ *  into the superRefine (see publishSchema) and a moved requirement needs its own voice. */
+export const EXCLUSIVE_RATES_REQUIRED_MESSAGE = "Set an hourly rate and a day rate to publish.";
+export const PER_HEAD_PRICE_REQUIRED_MESSAGE = "Set a price per person to publish drop-in passes.";
+export const DROP_IN_CAP_REQUIRED_MESSAGE =
+  "Set how many people you'll let in each day to publish drop-in passes.";
+/** OC-10 — drop-in passes are instant only. */
+export const DROP_IN_INSTANT_ONLY_MESSAGE =
+  "Drop-in passes are always instant — people book without waiting for your approval.";
+/** 09-RESEARCH A4 / Q3 — open capacity is many bookers sharing ONE bookable unit. */
+export const DROP_IN_SINGLE_SPACE_MESSAGE =
+  "Drop-in passes work on one space. List each court or room separately.";
+/** D-110 — open capacity never combines with the Phase-8 per-extra-head surcharge. */
+export const DROP_IN_NO_GUEST_PRICING_MESSAGE =
+  "Drop-in passes are priced per person, so extra guest pricing doesn't apply.";
+/** OC-17 / 09-UI-SPEC § 1f title. The lock ALWAYS names why, when it lifts, and a way out (O7) — the alert
+ *  copy supplies the last two; THIS is the reason. Consumed by saveListingStep's server-side refusal. */
+export const MODE_LOCKED_MESSAGE = "You can't change this while bookings are still to come";
 
 /** Draft autosave (D-01) — everything optional; the wizard saves partial progress between steps. */
 export const draftSchema = z.object({
@@ -64,6 +94,10 @@ export const draftSchema = z.object({
   // ≥ 0, not positive: ₱0 IS the meaningful "flat pricing, no surcharge" value and is the default the
   // wizard shows. Integer CENTAVOS (Pitfall 5 — money is never a float).
   extraHeadFee: z.number().int().min(0).optional(),
+  // D-123 open-capacity price per person. ≥ 0 rather than .positive() so a half-typed value (the instant the
+  // host has typed "0" on the way to "350") still AUTOSAVES — the draft schema never blocks progress (D-01).
+  // The publish gate below is where it must actually be positive. Integer CENTAVOS (Pitfall 5).
+  perHeadPriceCents: z.number().int().min(0).optional(),
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),
@@ -89,8 +123,14 @@ export const publishSchema = z.object({
   lat: z.number(),
   lng: z.number(),
   maxOccupancy: z.number().int().positive(),
-  hourlyRateCents: z.number().int().positive(),
-  dayRateCents: z.number().int().positive(),
+  // ── THE MODE FORK (OPEN-01). These two were `.positive()` REQUIRED here from Phase 2 until Phase 9. ──
+  // They had to become optional AT THE OBJECT LEVEL because an open-capacity listing has no hourly or day
+  // rate at all (OC-08: one flat price per person, and the wizard never renders the rate inputs), so a
+  // top-level requirement would make every drop-in listing permanently unpublishable. The requirement did
+  // NOT weaken — it MOVED: the superRefine at the foot of this schema re-imposes it for `exclusive` exactly
+  // as before, and the both-rates test cases that guarded it still go red if that branch is deleted.
+  hourlyRateCents: z.number().int().positive().optional(),
+  dayRateCents: z.number().int().positive().optional(),
   bookingMode: z.enum(bookingModeValues),
   // D-77: REQUIRED to publish, and deliberately with NO default. This breaks the D-62 precedent of
   // defaulting to the most booker-friendly option, because the tier governs real money: it decides how
@@ -111,24 +151,106 @@ export const publishSchema = z.object({
   occupancyMode: z.enum(occupancyModeValues).optional(),
   included: z.number().int().positive().optional(),
   extraHeadFee: z.number().int().min(0).optional(),
+  // D-123 — required to publish in OPEN mode only (enforced in the superRefine, never here).
+  perHeadPriceCents: z.number().int().positive().optional(),
+  // D-21 unit count. Read-only from the host's point of view (there is no wizard control), but it is
+  // re-parsed from the PERSISTED row at publish so the open-mode single-space rule below can see it.
+  unitCount: z.number().int().positive().optional(),
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),
 }).superRefine((data, ctx) => {
-  // Gap C (deferred item 7): when a per-head surcharge is set, the base-included headcount MUST be
-  // STRICTLY below max capacity, or the surcharge is mathematically unreachable. declaredPax is clamped
-  // to maxOccupancy BEFORE the surcharge is computed (units.ts + paxSurcharge), so
-  // extraHeads = max(0, pax − included) is ALWAYS 0 when included >= maxOccupancy — the host would
-  // collect nothing extra forever, silently. `included ?? 1` and `extraHeadFee ?? 0` match paxSurcharge's
-  // own coalescing so the gate and the pricing engine can never disagree. A flat listing (fee 0/absent)
-  // has no surcharge to lose, so the rule does not apply and every pre-Phase-8 listing still publishes.
-  const fee = data.extraHeadFee ?? 0;
-  const included = data.included ?? 1;
-  if (fee > 0 && included >= data.maxOccupancy) {
+  // Every pre-Phase-9 listing carries NULL/absent here and must read as `exclusive` — the column's own
+  // NOT NULL DEFAULT says the same thing, so the two can never disagree.
+  const mode = data.occupancyMode ?? "exclusive";
+
+  if (mode === "exclusive") {
+    // ── UNCHANGED Phase-2/D-03 gate, re-imposed HERE now that the object-level rule had to move (see the
+    // rate fields above). BOTH rates are still required to publish a whole-space listing; the only thing
+    // that changed is where the requirement is written.
+    if (data.hourlyRateCents == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["hourlyRateCents"],
+        message: EXCLUSIVE_RATES_REQUIRED_MESSAGE,
+      });
+    }
+    if (data.dayRateCents == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["dayRateCents"],
+        message: EXCLUSIVE_RATES_REQUIRED_MESSAGE,
+      });
+    }
+
+    // Gap C (deferred item 7): when a per-head surcharge is set, the base-included headcount MUST be
+    // STRICTLY below max capacity, or the surcharge is mathematically unreachable. declaredPax is clamped
+    // to maxOccupancy BEFORE the surcharge is computed (units.ts + paxSurcharge), so
+    // extraHeads = max(0, pax − included) is ALWAYS 0 when included >= maxOccupancy — the host would
+    // collect nothing extra forever, silently. `included ?? 1` and `extraHeadFee ?? 0` match paxSurcharge's
+    // own coalescing so the gate and the pricing engine can never disagree. A flat listing (fee 0/absent)
+    // has no surcharge to lose, so the rule does not apply and every pre-Phase-8 listing still publishes.
+    // Scoped to exclusive because an open listing rejects extraHeadFee outright below (D-110).
+    const fee = data.extraHeadFee ?? 0;
+    const included = data.included ?? 1;
+    if (fee > 0 && included >= data.maxOccupancy) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["included"],
+        message: SURCHARGE_UNREACHABLE_MESSAGE,
+      });
+    }
+    return;
+  }
+
+  // ── open_capacity (OPEN-01) ──────────────────────────────────────────────────────────────────────────
+  // OC-08: ONE flat price per person plus a daily people cap. Hourly/day rates are NOT required and the
+  // wizard does not render them; a converted listing that still carries them is simply ignored — the open
+  // path never reads them (quoteOpenCapacity takes per_head_price_cents only).
+  if (data.perHeadPriceCents == null) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["included"],
-      message: SURCHARGE_UNREACHABLE_MESSAGE,
+      path: ["perHeadPriceCents"],
+      message: PER_HEAD_PRICE_REQUIRED_MESSAGE,
+    });
+  }
+  // maxOccupancy is already .positive() at the object level, so this issue is not what BLOCKS publish —
+  // it is what the host READS. A2 reuses that same number as the daily admissions cap (D-124), so a bad
+  // value must be explained in drop-in words rather than as a generic "expected a positive number".
+  if (!Number.isInteger(data.maxOccupancy) || data.maxOccupancy < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["maxOccupancy"],
+      message: DROP_IN_CAP_REQUIRED_MESSAGE,
+    });
+  }
+  // OC-10: instant only. Approval on a SHARED counter would need a held-seat-pending-approval lifecycle
+  // for no real use case, and the wizard removes the booking-mode step entirely in this mode — so a
+  // `request` value here can only have come from a stale or crafted client.
+  if (data.bookingMode !== "instant") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["bookingMode"],
+      message: DROP_IN_INSTANT_ONLY_MESSAGE,
+    });
+  }
+  // 09-RESEARCH A4/Q3: open capacity is defined as many bookers sharing ONE bookable unit. Multi-unit +
+  // open is out of scope and would silently MIS-COUNT, because the admissions claim inserts the sentinel
+  // unit = 1 — N units' worth of inventory would be sold against one unit's counter.
+  if ((data.unitCount ?? 1) !== 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["unitCount"],
+      message: DROP_IN_SINGLE_SPACE_MESSAGE,
+    });
+  }
+  // D-110: open capacity never combines with the Phase-8 per-extra-head surcharge. Two per-head pricing
+  // models on one listing is two different answers to "what does one more person cost".
+  if ((data.extraHeadFee ?? 0) > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["extraHeadFee"],
+      message: DROP_IN_NO_GUEST_PRICING_MESSAGE,
     });
   }
 });
