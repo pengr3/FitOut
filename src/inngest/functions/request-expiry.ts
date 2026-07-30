@@ -176,6 +176,9 @@ async function emitDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
       timezone: row.timezone,
       city: row.city,
       fullDay: row.fullDay,
+      // This sweep only ever retires `requested` rows, and only `placeOpenHold` mints an open row, so an
+      // expired request is exclusive by construction — open capacity is instant-only (OC-10).
+      openCapacity: false,
       spacePriceCents: row.spacePriceCents,
       quotedTotalCents: row.quotedTotalCents,
       dayRateCents: row.dayRateCents,

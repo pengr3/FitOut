@@ -32,7 +32,13 @@ export type BookingRowData = {
   listingId: string;
   spaceTitle: string;
   photoUrl: string | null;
-  /** Pre-formatted, venue-tz-safe, e.g. "Thu, Jul 3, 8:00 AM – 10:00 AM (Makati time)". */
+  /**
+   * Pre-formatted, venue-tz-safe, e.g. "Thu, Jul 3, 8:00 AM – 10:00 AM (Makati time)" — or, for an OC-03
+   * drop-in row, the pass form the shared formatter produces from the booking's persisted `open_capacity`
+   * snapshot (09-08). This component receives the finished STRING and no time inputs at all, which is why
+   * the 09-08 census did not need to thread `openCapacity` down here: there is nothing here that could
+   * mis-render a mode. Keep it that way — never format a date in this file.
+   */
   whenLabel: string;
   /** Pre-formatted server-frozen total (formatMoney) — the UI does ZERO price arithmetic. */
   amountLabel: string;

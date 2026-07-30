@@ -139,6 +139,9 @@ const whenLabelInput = (row: OwnedRequest): WhenLabelInput => ({
   timezone: row.timezone,
   city: row.city,
   fullDay: row.fullDay,
+  // Request-to-book is exclusive-only: an open (drop-in) hold is instant-only and is minted solely by
+  // `placeOpenHold`, so a row that reached `requested`/`approved` is exclusive by construction (OC-10).
+  openCapacity: false,
   spacePriceCents: row.spacePriceCents,
   quotedTotalCents: row.quotedTotalCents,
   dayRateCents: row.dayRateCents,

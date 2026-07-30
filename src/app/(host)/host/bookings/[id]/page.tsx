@@ -67,6 +67,9 @@ export default async function HostBookingDetailPage({
       // The WR-06 pricing-mode snapshot — the AUTHORITY composeWhenLabel renders "Full day" vs an hour
       // range from (08-15 / CR-01). Never re-derived from a price.
       fullDay: booking.fullDay,
+      // The OC-03 mode SNAPSHOT (drizzle 0021) — a drop-in pass renders as a pass, never as a claim on the
+      // host's whole day (09-08).
+      openCapacity: booking.openCapacity,
       spacePriceCents: booking.spacePriceCents,
       refundCents: booking.refundCents,
       currency: booking.currency,
@@ -103,6 +106,7 @@ export default async function HostBookingDetailPage({
     timezone: row.timezone,
     city: row.city,
     fullDay: row.fullDay,
+    openCapacity: row.openCapacity,
     spacePriceCents: row.spacePriceCents,
     quotedTotalCents: row.quotedTotalCents,
     dayRateCents: row.dayRateCents,

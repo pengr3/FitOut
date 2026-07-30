@@ -232,6 +232,9 @@ async function emitBookingConfirmed(bookingId: string): Promise<void> {
         currency: booking.currency,
         // WR-06 pricing-mode snapshot + the formatter's pre-0016 positive-match reference (08-15).
         fullDay: booking.fullDay,
+        // The OC-03 mode SNAPSHOT (drizzle 0021). The payment receipt is the most quoted-back surface in
+        // the app, so a drop-in pass must read as a pass here above all (09-08).
+        openCapacity: booking.openCapacity,
         dayRateCents: listing.dayRateCents,
       })
       .from(booking)
@@ -252,6 +255,7 @@ async function emitBookingConfirmed(bookingId: string): Promise<void> {
       timezone: row.timezone,
       city: row.city,
       fullDay: row.fullDay,
+      openCapacity: row.openCapacity,
       spacePriceCents: row.spacePriceCents,
       quotedTotalCents: row.quotedTotalCents,
       dayRateCents: row.dayRateCents,

@@ -308,6 +308,9 @@ export async function reRequestSameWindow(bookingId: string): Promise<ReRequestR
       // `dayRateCents` is the same column the local fallback read, and it feeds only the formatter's own
       // pre-0016 positive match.
       fullDay,
+      // Guarded by `asRequest`: request-to-book is exclusive-only, and only `placeOpenHold` can mint an
+      // open row, so this branch never composes a label for a drop-in pass (OC-10).
+      openCapacity: false,
       spacePriceCents: res.spacePriceCents,
       quotedTotalCents: res.quotedTotalCents,
       dayRateCents: row.dayRateCents,

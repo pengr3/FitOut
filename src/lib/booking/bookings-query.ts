@@ -74,6 +74,13 @@ export type BookingListRow = {
    */
   fullDay: boolean | null;
   /**
+   * The booking's PERSISTED occupancy-mode snapshot (booking.open_capacity, drizzle 0021 / OC-03) — TRUE
+   * for a drop-in day pass, whose startsAt/endsAt are the venue's opening/closing instants rather than a
+   * reserved window. REQUIRED by `composeWhenLabelShort`, which renders it as `… · Drop-in pass` instead of
+   * a sixteen-hour range (09-08). `NOT NULL DEFAULT false` in the DB, so this is always a real boolean.
+   */
+  openCapacity: boolean;
+  /**
    * The frozen SPACE price (D-74) — the listing-priced portion, WITHOUT the booker-facing service fee.
    * Read by the formatter ONLY for pre-0016 rows (`fullDay IS NULL`), and only as a positive match
    * against the listing's day rate.
@@ -248,6 +255,7 @@ export async function queryBookerBookings(
       b.cancelled_by::text AS "cancelledBy",
       b.quoted_total_cents AS "quotedTotalCents",
       b.full_day AS "fullDay",
+      b.open_capacity AS "openCapacity",
       b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",
       b.currency,
@@ -303,6 +311,7 @@ export async function queryHostBookings(
       b.cancelled_by::text AS "cancelledBy",
       b.quoted_total_cents AS "quotedTotalCents",
       b.full_day AS "fullDay",
+      b.open_capacity AS "openCapacity",
       b.space_price_cents AS "spacePriceCents",
       b.refund_cents AS "refundCents",
       b.currency,

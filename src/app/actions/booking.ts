@@ -225,6 +225,10 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
         timezone: lr.timezone,
         city: lr.city,
         fullDay: fullDay ?? false,
+        // This is the `bookingMode === "request"` branch, and the only path that can mint an open row is
+        // `placeOpenHold`, never `createPendingHold`. Open capacity is INSTANT-ONLY, so a request is
+        // exclusive by construction — a literal, not a projection (OC-10).
+        openCapacity: false,
         spacePriceCents: res.spacePriceCents,
         quotedTotalCents: res.quotedTotalCents,
         dayRateCents: lr.dayRateCents,

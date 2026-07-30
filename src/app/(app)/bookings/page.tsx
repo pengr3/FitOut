@@ -99,6 +99,9 @@ export default async function BookingsPage({
       timezone: r.timezone,
       city: r.city,
       fullDay: r.fullDay,
+      // OC-03: the persisted mode snapshot, so a drop-in row reads "· Drop-in pass" here rather than the
+      // venue's whole opening–closing span (09-08).
+      openCapacity: r.openCapacity,
       spacePriceCents: r.spacePriceCents,
       quotedTotalCents: r.quotedTotalCents,
       dayRateCents: r.dayRateCents,

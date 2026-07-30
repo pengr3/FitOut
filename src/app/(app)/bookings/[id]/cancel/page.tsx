@@ -85,6 +85,10 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
       // formatter (08-15 / CR-01). Never re-derived from a price: the D-108 per-head surcharge is folded
       // into spacePriceCents, so a price comparison mislabels ordinary surcharged hourly bookings.
       fullDay: booking.fullDay,
+      // The OC-03 mode SNAPSHOT (drizzle 0021). The refund ladder is unchanged — it still anchors on
+      // startsAt, which for a drop-in pass is when the space opens — but the context line above the
+      // breakdown must name a drop-in pass, not a sixteen-hour reservation (09-08).
+      openCapacity: booking.openCapacity,
       spacePriceCents: booking.spacePriceCents,
       serviceFeeCents: booking.serviceFeeCents,
       quotedTotalCents: booking.quotedTotalCents,
@@ -129,6 +133,7 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
     timezone: lst.timezone,
     city: lst.city,
     fullDay: bk.fullDay,
+    openCapacity: bk.openCapacity,
     spacePriceCents: bk.spacePriceCents,
     quotedTotalCents: bk.quotedTotalCents,
     dayRateCents: lst.dayRateCents,

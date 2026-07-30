@@ -147,6 +147,9 @@ export default async function InvitePage({
     timezone: group.timezone,
     city: group.city,
     fullDay: group.fullDay,
+    // An invite only ever exists for an exclusive booking: open capacity does not combine with Phase-8
+    // group bookings in v1 (D-110).
+    openCapacity: false,
     spacePriceCents: group.spacePriceCents,
     quotedTotalCents: group.quotedTotalCents,
     dayRateCents: group.dayRateCents,

@@ -83,6 +83,11 @@ export type GroupByToken =
        * `fullDay` is the booking's PERSISTED creation-time snapshot and is the AUTHORITY for
        * "Full day" vs an hour range (08-15 / CR-01); the two price figures and `dayRateCents` are
        * consulted only by the formatter's pre-0016 positive day-rate fallback.
+       *
+       * `openCapacity` is DELIBERATELY ABSENT (09-08, Rule B): under D-110 open capacity does not combine
+       * with group bookings in v1, so every group's booking is exclusive by construction and its callers
+       * pass the literal `false`. If groups ever open up, this read model must carry the column and those
+       * literals become projections — the compiler will not remind you here, only there.
        */
       fullDay: boolean | null;
       spacePriceCents: number | null;
@@ -245,7 +250,8 @@ export type OwnedGroup = {
   /**
    * The four `composeWhenLabel` inputs. `fullDay` is the booking's PERSISTED creation-time snapshot
    * and is the AUTHORITY for "Full day" vs an hour range (08-15 / CR-01); the prices and `dayRateCents`
-   * feed only the formatter's pre-0016 positive day-rate fallback.
+   * feed only the formatter's pre-0016 positive day-rate fallback. `openCapacity` is absent for the same
+   * D-110 reason as `GroupByToken` above (09-08, Rule B): a group booking is exclusive by construction.
    */
   fullDay: boolean | null;
   spacePriceCents: number | null;

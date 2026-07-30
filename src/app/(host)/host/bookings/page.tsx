@@ -122,6 +122,9 @@ export default async function HostBookingsPage({
       timezone: r.timezone,
       city: r.city,
       fullDay: r.fullDay,
+      // OC-03: the persisted mode snapshot. A host scanning their day must see "· Drop-in pass", not a row
+      // claiming someone booked the whole space from opening to closing (09-08).
+      openCapacity: r.openCapacity,
       spacePriceCents: r.spacePriceCents,
       quotedTotalCents: r.quotedTotalCents,
       dayRateCents: r.dayRateCents,

@@ -105,6 +105,9 @@ export default async function HostRequestsPage() {
       timezone: r.timezone,
       city: r.city,
       fullDay: r.fullDay,
+      // This list is `status = 'requested'` only, and only `placeOpenHold` mints an open row, so nothing
+      // on this page can be a drop-in pass — open capacity is instant-only (OC-10).
+      openCapacity: false,
       spacePriceCents: r.spacePriceCents,
       quotedTotalCents: r.quotedTotalCents,
       dayRateCents: r.dayRateCents,

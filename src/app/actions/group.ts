@@ -183,6 +183,9 @@ function whenLabelFor(group: Extract<GroupByToken, { active: true }>): string {
     timezone: group.timezone,
     city: group.city,
     fullDay: group.fullDay,
+    // A group can only ever be created on an exclusive booking, so no group surface ever renders a drop-in
+    // pass: open capacity does not combine with Phase-8 group bookings in v1 (D-110).
+    openCapacity: false,
     spacePriceCents: group.spacePriceCents,
     quotedTotalCents: group.quotedTotalCents,
     dayRateCents: group.dayRateCents,

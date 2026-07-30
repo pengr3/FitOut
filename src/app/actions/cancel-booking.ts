@@ -192,6 +192,10 @@ async function loadBookingRow(bookingId: string) {
       // hour range from (08-15 / CR-01), including on the group-cancellation email. Never re-derived
       // from a price: the D-108 per-head surcharge is folded into spacePriceCents.
       fullDay: booking.fullDay,
+      // The OC-03 mode SNAPSHOT (drizzle 0021). A drop-in booking's startsAt/endsAt are the venue's
+      // opening/closing instants — the refund ladder still anchors on startsAt, but the LABEL must say
+      // "drop-in pass", never a sixteen-hour range (09-08).
+      openCapacity: booking.openCapacity,
       currency: booking.currency,
       paymentId: booking.paymentId,
       paymentMethod: booking.paymentMethod,
@@ -249,6 +253,7 @@ const whenLabelInput = (row: OwnedBooking): WhenLabelInput => ({
   timezone: row.timezone,
   city: row.city,
   fullDay: row.fullDay,
+  openCapacity: row.openCapacity,
   spacePriceCents: row.spacePriceCents,
   quotedTotalCents: row.quotedTotalCents,
   dayRateCents: row.dayRateCents,

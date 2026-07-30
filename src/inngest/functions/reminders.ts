@@ -102,6 +102,13 @@ export type DueReminder = {
    * in every reminder, silently.
    */
   fullDay: boolean | null;
+  /**
+   * The booking's PERSISTED occupancy-mode snapshot (booking.open_capacity, drizzle 0021 / OC-03) — also
+   * REQUIRED by `composeWhenLabel`. A drop-in reminder must say "your drop-in pass is tomorrow", never
+   * recite the venue's opening-to-closing span as if the space were reserved (09-08). `NOT NULL DEFAULT
+   * false` in the DB, so the projection is always a real boolean.
+   */
+  openCapacity: boolean;
   /** The frozen SPACE price — read by the formatter ONLY for pre-0016 rows, as a positive day-rate match. */
   spacePriceCents: number | null;
   /** The listing's day rate — the formatter's pre-0016 positive-match reference, nothing else. */
@@ -233,6 +240,7 @@ async function runDue(
       l.city                   AS "city",
       b.quoted_total_cents     AS "quotedTotalCents",
       b.full_day               AS "fullDay",
+      b.open_capacity          AS "openCapacity",
       b.space_price_cents      AS "spacePriceCents",
       l.day_rate_cents         AS "dayRateCents",
       b.currency               AS "currency",
@@ -270,6 +278,7 @@ function hydrate(r: RawDueRow, kind: ReminderKind): DueReminder {
     city: r.city,
     quotedTotalCents: r.quotedTotalCents,
     fullDay: r.fullDay,
+    openCapacity: r.openCapacity,
     spacePriceCents: r.spacePriceCents,
     dayRateCents: r.dayRateCents,
     currency: r.currency,
@@ -362,6 +371,7 @@ function buildEvent(r: DueReminder): Parameters<typeof emitNotify>[0] {
     timezone: r.timezone,
     city: r.city,
     fullDay: r.fullDay,
+    openCapacity: r.openCapacity,
     spacePriceCents: r.spacePriceCents,
     quotedTotalCents: r.quotedTotalCents,
     dayRateCents: r.dayRateCents,
