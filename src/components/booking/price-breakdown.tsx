@@ -65,6 +65,17 @@ type PriceBreakdownProps = {
   extraHeads?: number;
   extraHeadCents?: number;
   extraSurchargeCents?: number;
+  /**
+   * Phase-9 drop-in pricing (OC-08). Both server-computed; when `passes` is non-null the run line reads
+   * per person instead of per hour or per day. Absent on every exclusive booking, so the shipped
+   * breakdown is unchanged for them.
+   *
+   * Deliberately OPTIONAL PROPS rather than a discriminated run-line union (09-UI-SPEC Open Q10, the
+   * planner's explicit call): this is a UAT-passed money surface, and optional props leave every existing
+   * call site byte-identical instead of forcing a census over one. Same device as the D-108 trio above.
+   */
+  perHeadPriceCents?: number | null;
+  passes?: number | null;
   /** Frozen display currency (booking.currency); defaults to the shared PHP source (D-46). */
   currency?: string;
   /** Full-day selection → the flat day-rate line; else the hourly run (D-45, distinct — no cap). */
@@ -83,6 +94,8 @@ export function PriceBreakdown({
   extraHeads = 0,
   extraHeadCents = 0,
   extraSurchargeCents = 0,
+  perHeadPriceCents,
+  passes,
   currency = DISPLAY_CURRENCY,
   fullDay,
   hours,
@@ -90,9 +103,18 @@ export function PriceBreakdown({
   dayRateCents,
 }: PriceBreakdownProps) {
   // Line label is `{₱rate}/hr × {N} hours` or `{₱rate}/day × 1 day` — formatting only, no multiplication.
-  const runLabel = fullDay
-    ? `${formatMoney(dayRateCents ?? 0, currency)}/day × 1 day`
-    : `${formatMoney(hourlyRateCents ?? 0, currency)}/hr × ${hours} ${hours === 1 ? "hour" : "hours"}`;
+  //
+  // OC-08 adds a THIRD form for a drop-in day pass, resolved FIRST for the same reason composeWhenLabel
+  // resolves its open branch first: a pass is priced per head with NO duration term at all (OC-02), so
+  // neither `fullDay` nor `hours` says anything true about one. Still formatting only — the run VALUE
+  // below is the server-frozen prop, and nothing here multiplies a rate by a count. A product computed in
+  // the browser could disagree with what PayMongo charges, which is the trust failure the header forbids.
+  const runLabel =
+    passes != null
+      ? `${formatMoney(perHeadPriceCents ?? 0, currency)}/person × ${passes} ${passes === 1 ? "pass" : "passes"}`
+      : fullDay
+        ? `${formatMoney(dayRateCents ?? 0, currency)}/day × 1 day`
+        : `${formatMoney(hourlyRateCents ?? 0, currency)}/hr × ${hours} ${hours === 1 ? "hour" : "hours"}`;
 
   return (
     <div className="space-y-3">
