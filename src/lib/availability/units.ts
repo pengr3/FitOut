@@ -25,12 +25,25 @@
 // D-96 mode-scoped lead-time guards live here too, enforced SERVER-SIDE against now() in the same
 // transaction. The SlotPicker's unselectable `too_soon` chips (D-98/D-100) are a COURTESY, never the
 // gate — this check runs unconditionally at submit (Security V4).
+//
+// ── Phase 9 (D-123): THIS FILE NOW CARRIES TWO ARBITERS, NOT ONE ─────────────────────────────────────
+// EXCLUSIVE rows (everything above) are arbitrated by the booking_no_overlap GiST EXCLUDE — a DECLARATIVE
+// guarantee the database enforces whether or not the app remembers to ask. OPEN-CAPACITY rows
+// (createOpenCapacityHold, at the bottom of this file) are arbitrated by a per-(listing, date) admissions
+// counter serialized by a TRANSACTION-SCOPED ADVISORY LOCK, because a sum-of-heads cap is not expressible
+// as an exclusion constraint (drizzle/0022 therefore removes open rows from the EXCLUDE entirely).
+//
+// That difference is the thing to remember: the counter's guarantee is PROCEDURAL. It holds only while the
+// claim actually takes the lock before it counts. Deleting one line silently converts the counter into the
+// count-then-insert race CLAUDE.md forbids, and nothing in the schema would object. This is the Phase-8
+// Layer-2 scar (tests/group/seat-claim-race.test.ts): tests/availability/open-capacity-race.test.ts drives
+// the REAL createOpenCapacityHold over two connections and goes RED when the lock line is removed.
 
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { booking, listing } from "@/lib/db/schema";
 import { isPgError } from "@/lib/pg";
-import { quoteWindow } from "@/lib/booking/pricing";
+import { quoteOpenCapacity, quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import {
   APPROVAL_SLA_HOURS,
@@ -38,6 +51,8 @@ import {
   MIN_LEAD_INSTANT_MINUTES,
   MIN_LEAD_REQUEST_HOURS,
 } from "@/lib/payments/config";
+import { openTakenSql, PAST_DATE_MESSAGE, SOLD_OUT_MESSAGE } from "./open-capacity";
+import { BOOKING_HORIZON_DAYS } from "./slots";
 import type { DbConn } from "./read-model";
 
 /** Thrown when every unit is occupied for the requested window (units exhausted). */
@@ -602,4 +617,283 @@ export function mapBookingError(e: unknown): { error: string } {
     return { error: "That time was just taken. Pick another slot." };
   }
   throw e;
+}
+
+// ── Phase 9 (OPEN-03 / D-123): the OPEN-CAPACITY admissions claim ────────────────────────────────────
+// A drop-in pass sells ADMISSIONS on a date, not exclusive use of a window (OC-02/OC-03), so the cap is a
+// SUM of heads and the arbiter is the advisory-lock counter described in this file's header — never the
+// EXCLUDE (drizzle/0022 removed open rows from it, which is exactly what lets many bookers hold the same
+// date/unit/window simultaneously).
+//
+// The claim happens at HOLD time, not pay time (09-RESEARCH Pattern 2). That is what leaves the entire
+// PayMongo single-payer rail untouched (OC-09) and makes the OC-07 partial fill a PRE-MONEY interaction:
+// the booker learns "only 2 of the 4 you asked for are left" before a peso is quoted, and the frozen price
+// below is for the GRANTED heads only.
+
+/** A placed (or replayed) open-capacity hold. Extends the exclusive HoldSuccess so every downstream
+ *  consumer of the frozen triple / expiry works unchanged. */
+export type OpenHoldSuccess = HoldSuccess & {
+  /** heads actually claimed — min(requested, remaining) (OC-07). ALWAYS reported, never a silent partial. */
+  granted: number;
+  /** what the booker asked for, echoed back so the caller can detect a reduction without re-deriving it. */
+  requested: number;
+};
+/** `soldOut` distinguishes OC-13's race-loss from a generic conflict, so the action can return a distinct
+ *  reason and the CTA can refresh the calendar (09-UI-SPEC § 3). */
+export type OpenHoldResult = OpenHoldSuccess | { error: string; soldOut?: true };
+
+export type CreateOpenCapacityHoldInput = {
+  listingId: string;
+  bookerId: string;
+  /** OC-03: the venue's opening/closing instants on the PICKED DATE (loadOpenDayWindow). Persisted as
+   *  starts_at/ends_at so the Phase-7 refund ladder, the payout sweep, reminders and expiry all apply
+   *  unchanged — an open booking is an ordinary booking row with one extra flag. */
+  dayOpenUtc: Date | string;
+  dayCloseUtc: Date | string;
+  /** OC-06 heads on one payment. Shape-validated by the caller; the REAL bound is the listing's cap, read
+   *  INSIDE this transaction (Security V4 — never a client-supplied bound). */
+  requestedHeads: number;
+  idempotencyKey?: string | null;
+};
+
+/**
+ * The booker's OWN active open hold for this listing + date (D-42 idempotency), or null. Mirrors
+ * findOwnActiveHold, with two deliberate differences: the occupying set drops requested/approved (open
+ * capacity is INSTANT-ONLY, OC-10) and the window match is on `starts_at` alone — a date IS the window, so
+ * there is nothing else to compare. Returns the row's frozen triple + granted heads so a replay hands back
+ * exactly what the original insert froze, never a fresh recompute (the D-49 drift rule).
+ */
+async function findOwnOpenHold(
+  tx: SqlExecutor,
+  args: { listingId: string; bookerId: string; openIso: string; idempotencyKey: string | null },
+): Promise<{
+  id: string;
+  unit: number;
+  expiresAt: Date | null;
+  spacePriceCents: number | null;
+  serviceFeeCents: number | null;
+  quotedTotalCents: number | null;
+  granted: number;
+} | null> {
+  const rows = (await tx.execute(sql`
+    SELECT id, unit, expires_at, space_price_cents, service_fee_cents, quoted_total_cents, declared_pax
+    FROM booking
+    WHERE listing_id = ${args.listingId}
+      AND open_capacity = true
+      AND (status = 'confirmed' OR (status = 'pending' AND expires_at > now()))
+      AND (
+        ${args.idempotencyKey != null ? sql`idempotency_key = ${args.idempotencyKey}` : sql`false`}
+        OR (booker_id = ${args.bookerId} AND starts_at = ${args.openIso}::timestamptz)
+      )
+    ORDER BY created_at ASC
+    LIMIT 1
+  `)) as unknown as {
+    id: string;
+    unit: number;
+    expires_at: Date | string | null;
+    space_price_cents: number | null;
+    service_fee_cents: number | null;
+    quoted_total_cents: number | null;
+    declared_pax: number | null;
+  }[];
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    unit: r.unit,
+    expiresAt: r.expires_at == null ? null : new Date(r.expires_at),
+    spacePriceCents: r.space_price_cents,
+    serviceFeeCents: r.service_fee_cents,
+    quotedTotalCents: r.quoted_total_cents,
+    // An open row ALWAYS carries declared_pax (that is what the counter sums); the coalesce is type honesty
+    // for the nullable column, not a real branch.
+    granted: r.declared_pax ?? 1,
+  };
+}
+
+/**
+ * Claim `requestedHeads` admissions on one (listing, date) and mint ONE ordinary booking row for them
+ * (D-123). Grants min(requested, remaining) and REPORTS the granted count (OC-07) — never a silent partial;
+ * refuses at 0 remaining with the OC-13 sold-out copy. Bind `db` (the transactional client), NOT an
+ * auto-commit connection: the advisory lock is transaction-scoped, so without a real transaction it would
+ * release immediately and guarantee nothing.
+ */
+export async function createOpenCapacityHold(
+  db: DbConn,
+  input: CreateOpenCapacityHoldInput,
+): Promise<OpenHoldResult> {
+  const dayOpen = new Date(input.dayOpenUtc); // Date for the drizzle timestamptz insert
+  const dayClose = new Date(input.dayCloseUtc);
+  const openIso = dayOpen.toISOString(); // ISO strings for the raw sql binds (postgres.js casts)
+  const closeIso = dayClose.toISOString();
+  const idempotencyKey = input.idempotencyKey ?? null;
+
+  // ── The D-94 invariant, with the cap moved from starts_at to ENDS_AT — a DELIBERATE divergence ───────
+  // "No hold ever outlives its own SESSION" still holds; what changed is where the session ends. A drop-in
+  // pass's starts_at is the venue's OPENING instant, so createPendingHold's LEAST(now() + ttl, starts_at)
+  // would be ALREADY IN THE PAST for any same-day claim made after opening — the hold would lapse the
+  // instant it was minted and the booker could never reach checkout (a silent showstopper, not a slow bug).
+  // The session a pass buys runs until CLOSING, so ends_at is the correct cap: the invariant is preserved,
+  // not weakened. Computed by POSTGRES (the file's zero-JS-clock rule), re-evaluated per tx attempt.
+  const openExpiresAtSql = sql`LEAST(
+    now() + make_interval(mins => ${HOLD_TTL_MINUTES}::int),
+    ${closeIso}::timestamptz
+  )`;
+
+  for (let txAttempt = 0; ; txAttempt++) {
+    try {
+      return await db.transaction(async (tx): Promise<OpenHoldResult> => {
+        // (1) TAKE THE LOCK — the FIRST statement in the transaction, spanning sweep → SUM → INSERT.
+        //
+        // Transaction-scoped, so it auto-releases at COMMIT *and* ROLLBACK (09-RESEARCH Pitfall 6): a
+        // crashed or rolled-back claim can never wedge a date. The session-scoped `pg_advisory_lock` is
+        // deliberately NOT used, and the lock must be taken on THIS connection — acquiring it elsewhere
+        // leaves the SUM→insert unprotected, which is the whole failure mode.
+        //
+        // `hashtextextended` is IMMUTABLE and returns the bigint the lock takes. Keying on
+        // `listing_id || ':' || dayOpen` means only same-date claimers contend — that answers D-112's "a
+        // per-parent-row lock is too coarse" WITHOUT inventing a physical capacity row to lock. A hash
+        // collision can only ever OVER-serialize two unrelated (listing, date) pairs, never under-serialize
+        // them, so it is correctness-safe by construction.
+        //
+        // ⚠️ NO EXTERNAL I/O MAY OCCUR BETWEEN THIS LINE AND COMMIT — no fetch, no email, no job emit. Every
+        // statement below is local SQL, and the notification (if any) is emitted post-commit by the caller.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(
+          hashtextextended(${input.listingId}::text || ':' || ${openIso}::text, 0))`);
+
+        // (2) Own-hold idempotency pre-check (D-42), INSIDE the lock. The plan sketched this ahead of the
+        // lock; it runs after it so the "lock first" rule above is literal and a replay observes the same
+        // serialized view as a fresh claim. A double-click therefore returns the SAME booking with the SAME
+        // granted heads instead of claiming a second set of seats (threat T-09-08).
+        const existing = await findOwnOpenHold(tx, {
+          listingId: input.listingId,
+          bookerId: input.bookerId,
+          openIso,
+          idempotencyKey,
+        });
+        if (existing) return { ok: true, ...existing, replayed: true, requested: input.requestedHeads };
+
+        // (3) In-tx lazy-expiry sweep, scoped to this listing + date. A lapsed open hold must leave the
+        // counted set inside THIS transaction or its heads stay claimed for the SUM below. The terminal
+        // status is always `cancelled` — there is no requested→declined branch, because open capacity is
+        // instant-only (OC-10). No email crosses this boundary (see the lock's I/O rule).
+        await tx.execute(sql`
+          UPDATE booking SET status = 'cancelled', expires_at = NULL
+          WHERE listing_id = ${input.listingId} AND open_capacity = true
+            AND status = 'pending' AND expires_at <= now()
+            AND starts_at = ${openIso}::timestamptz`);
+
+        // (4) Read the cap + per-head rate + cancellation tier and SUM the occupied heads UNDER THE LOCK,
+        // in ONE statement. Both date guards are evaluated against the DB clock in the SAME transaction as
+        // the rows they gate (zero JS clock). The heads SUM comes from the SHARED openTakenSql fragment —
+        // never re-inlined here, so the counter and the read model cannot drift (Pitfall 4).
+        const rows = (await tx.execute(sql`
+          SELECT l.max_occupancy AS cap,
+                 l.per_head_price_cents AS per_head,
+                 l.cancellation_policy AS cancellation_policy,
+                 ${openTakenSql(input.listingId, openIso)} AS taken,
+                 (${closeIso}::timestamptz > now()) AS day_open_ok,
+                 (${openIso}::timestamptz < now() + make_interval(days => ${BOOKING_HORIZON_DAYS}::int)) AS horizon_ok
+          FROM listing l WHERE l.id = ${input.listingId}
+        `)) as unknown as {
+          cap: number | null;
+          per_head: number | null;
+          cancellation_policy: "flexible" | "standard" | "strict" | null;
+          taken: number;
+          day_open_ok: boolean;
+          horizon_ok: boolean;
+        }[];
+        if (rows.length === 0) throw new NoUnitAvailableError(); // unknown listing → nothing to claim
+        const { cap, per_head: perHead, cancellation_policy: listingCancellationPolicy, taken } = rows[0];
+
+        // (5) Refuse a date whose pass window has already closed, or one beyond the booking horizon. The
+        // calendar disables those dates, but a picker is a COURTESY and never the gate (Security V4) — a
+        // crafted date is refused right here, before any write. Not a race loss, so no `soldOut` flag.
+        if (!rows[0].day_open_ok || !rows[0].horizon_ok) return { error: PAST_DATE_MESSAGE };
+
+        // (6) The grant (OC-07). `remaining` is the LISTING's own cap minus the DB's own SUM, both read in
+        // this transaction under the lock — a client number can only ever request LESS (threat T-09-05).
+        //
+        // A listing with NO recorded capacity fails CLOSED to zero admissions (the same fail-closed rule as
+        // createPendingHold's paxCap fallback): a mis-configured open listing must never sell an unbounded
+        // number of passes. The 09-06 publish gate makes max_occupancy present for every open listing.
+        //
+        // OC-18: there is deliberately NO separate per-booker head cap in v1 — a booker may take up to
+        // whatever is remaining, bounded only by the day's cap, and offer-the-partial is how "not enough
+        // left" is handled. Do not add a per-booking bound here; it is a recorded fast-follow, not scope.
+        const remaining = (cap ?? 0) - taken;
+        if (remaining <= 0) return { error: SOLD_OUT_MESSAGE, soldOut: true };
+        // Floored to a positive integer so a crafted non-integer / non-positive body cannot reach the quote
+        // as a throw; `remaining` is already ≥ 1 here, so the floor can never grant more than is left.
+        const granted = Math.max(1, Math.floor(Math.min(input.requestedHeads, remaining)));
+
+        // (7) Freeze the money for the GRANTED heads (OC-08 linear per-head, no duration term) and compose
+        // the D-74 service fee AT THE CALLER, exactly as the exclusive path does — quoteOpenCapacity stays
+        // pure over the listing's own rate. quoted == space + fee by construction (addition, not a second
+        // rounding), so the Phase-5/7 charge, refund and payout math applies to an open row unchanged.
+        const quote = quoteOpenCapacity({ perHeadPriceCents: perHead, heads: granted });
+        const fee = computeServiceFee(quote.totalCents);
+        const id = randomUUID();
+
+        const inserted = await tx
+          .insert(booking)
+          .values({
+            id,
+            listingId: input.listingId,
+            bookerId: input.bookerId,
+            // A SENTINEL, not an assignment: the COUNTER governs open capacity, not the unit. Open listings
+            // are single-unit (publish-enforced unitCount = 1, 09-06) and every open row on a date
+            // deliberately shares unit 1 — which is exactly why drizzle/0022 removed open rows from
+            // booking_no_overlap, whose (listing, unit, range) key they would otherwise all collide on.
+            unit: 1,
+            status: "pending",
+            bookingMode: "instant", // OC-10 creation-time snapshot (D-61) — open capacity is instant-only
+            openCapacity: true, // D-123: this row is arbitrated by the counter, not the EXCLUDE
+            // A drop-in pass is NOT a full-day rental: the price does not come from the day rate and the
+            // display branch keys on booking.open_capacity, never on this flag (09-08 when-label.ts).
+            fullDay: false,
+            startsAt: dayOpen, // OC-03 — the venue's opening instant on the picked date
+            endsAt: dayClose, // …and its closing instant. One date = one pass.
+            // ALWAYS set, even when granted === 1. This DELIBERATELY diverges from D-108's
+            // `declaredPaxToPersist` fee>0 rule above: the counter's SUM is over declared_pax, so an open
+            // row missing it would occupy a seat the read model cannot see. Do not reuse that conditional.
+            declaredPax: granted,
+            expiresAt: openExpiresAtSql, // LEAST(now() + TTL, ends_at) — see the divergence note above
+            spacePriceCents: quote.totalCents,
+            serviceFeeCents: fee.serviceFeeCents,
+            quotedTotalCents: fee.allInCents,
+            currency: quote.currency,
+            // D-67 creation-time tier snapshot, so OC-15's refund ladder applies to a pass unchanged.
+            cancellationPolicy: listingCancellationPolicy,
+            idempotencyKey,
+          })
+          .returning({
+            expiresAt: booking.expiresAt,
+            spacePriceCents: booking.spacePriceCents,
+            serviceFeeCents: booking.serviceFeeCents,
+            quotedTotalCents: booking.quotedTotalCents,
+          });
+        const frozen = inserted[0] ?? null;
+
+        return {
+          ok: true,
+          id,
+          unit: 1,
+          granted,
+          requested: input.requestedHeads,
+          replayed: false,
+          // Read the frozen values straight back OUT of the insert rather than echoing the locals — the
+          // caller must see what was PERSISTED, the same guarantee the replay path gives.
+          expiresAt: frozen?.expiresAt ?? null,
+          spacePriceCents: frozen?.spacePriceCents ?? null,
+          serviceFeeCents: frozen?.serviceFeeCents ?? null,
+          quotedTotalCents: frozen?.quotedTotalCents ?? null,
+        };
+      });
+    } catch (e) {
+      // 40P01 aborts the whole tx and postgres.js does not auto-retry — re-run the whole claim.
+      if (isPgError(e, "40P01") && txAttempt < MAX_TX_RETRIES - 1) continue;
+      return mapBookingError(e); // NoUnitAvailableError | 23P01 | 40P01 → "just taken"; else re-throw
+    }
+  }
 }
