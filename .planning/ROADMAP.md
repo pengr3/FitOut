@@ -309,7 +309,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Schema (occupancy_mode += open_capacity, listing.per_head_price_cents, booking.open_capacity) + 3 hand-authored migrations (55P04 split + EXCLUDE narrowed to open_capacity=false) + [BLOCKING] db:migrate + D-123..D-126
+- [x] 09-01-PLAN.md — Schema (occupancy_mode += open_capacity, listing.per_head_price_cents, booking.open_capacity) + 3 hand-authored migrations (55P04 split + EXCLUDE narrowed to open_capacity=false) + [BLOCKING] db:migrate + D-123..D-126
 
 **Wave 2** *(blocked on Wave 1 completion — the live enum value + narrowed EXCLUDE)*
 
@@ -375,4 +375,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Full Booking + Payment Integration | 10/10 | Gap G-06-01 closed in code (06-10) — re-UAT pending (re-run 06-09 with G-06-02's full /api/paymongo/webhook URL) | - |
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
 | 8. Group Bookings | 22/22 | Complete (double-charge BLOCKER + deferred items 5/6/7 closed by gap plans 08-18→08-22; money-path fixes proven against the real PayMongo sk_test_ API; verifier passed 5/5) | 2026-07-29 |
-| 9. Open-Capacity Bookings | 0/16 | Planned (16 plans, 7 waves) | - |
+| 9. Open-Capacity Bookings | 1/16 | Executing (Wave 1 done — DDL live: enum value, both columns, EXCLUDE narrowed to open_capacity=false; Wave 2 unblocked) | - |
