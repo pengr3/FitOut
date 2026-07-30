@@ -74,7 +74,12 @@ const OPEN_TITLE = "E2E Drop-In Pilates Loft";
 const EXCLUSIVE_TITLE = "E2E Whole-Space Pilates Room";
 const CITY = "Makati";
 
-const CAP = 3; // → lowStockThreshold(3) = clamp(floor(3/2), 1, 5) = 1, so `low` fires at exactly 1 left.
+// CAP 3 → lowStockThreshold(3) = clamp(floor(3/2), 1, OPEN_LOW_STOCK_MAX=5) = 1, so `low` fires at exactly
+// 1 remaining. CONSEQUENCE, asserted in case 2 and NOT an accident: at this cap the FIRST pass sold moves the
+// count 3 → 2 with NO visible change at all (both are the digit-free `Spots available`); only the second head
+// crosses the threshold. Case 2 buys the two heads ONE AT A TIME so that silent transition is a pinned
+// contract rather than a blind spot — 09-16's human walkthrough hit it and read it as a broken counter.
+const CAP = 3;
 const PER_HEAD_PRICE_CENTS = 35000;
 const HOURLY_RATE_CENTS = 47000;
 const DAY_RATE_CENTS = 290000;
@@ -361,7 +366,7 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await expect(page.getByRole("button", { name: /book full day/i })).toBeVisible();
   });
 
-  test("2 · spots decrement in a booker's browser because ANOTHER booker took passes (OPEN-02/04)", async ({
+  test("2 · spots decrement in a booker's browser because ANOTHER booker took passes — one pass at a time, and the first one is deliberately silent (OPEN-02/04, OC-11)", async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -378,13 +383,41 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
       "the `open` chip carries no digit — no invented urgency",
     ).toBeNull();
 
-    // ── Meanwhile, Booker B reserves TWO of the three passes for that same date. ──
-    await takePasses(spotsDate, bookerBId, 2);
+    // ── ONE PASS AT A TIME — the INVISIBLE first decrement, pinned as INTENTIONAL (OC-11). ──
+    // Booker B takes exactly ONE pass: 3 − 1 = 2 remaining. lowStockThreshold(3) = clamp(floor(3/2), 1, 5)
+    // = 1, and 2 > 1, so the state is still `open` and the chip STILL reads "Spots available" with no digit.
+    // The count MOVED in the database and, by design, NOT on screen.
+    //
+    // WHY THIS CASE EXISTS. 09-16's human walkthrough bought passes one at a time on a cap-3 listing, crossed
+    // exactly this 3 → 2 transition, saw nothing change, and reported "i dont see chip auto deducting". The
+    // arithmetic was correct the whole time; the DISPLAY RULE is what hid it. The half-capacity clamp is
+    // deliberate (O4 / T-09-39 — invented urgency is a dark pattern: a chip that counts down from the first
+    // booking is always-on noise), so the honest thing is to ASSERT the invisibility rather than leave it as
+    // a blind spot the suite happens not to cover. The block below is the only place in the repository that
+    // proves a real decrement can be correct AND unobservable, and it is why 09-15's "the spots-left figure
+    // decrements between them" must be read as "at cap 3, only the SECOND head is disclosed".
+    await takePasses(spotsDate, bookerBId, 1);
 
-    // ── Booker A reloads and looks at the same date again. The figure has MOVED, and it moved because
-    // somebody else is coming: cap 3 − 2 heads = 1 remaining, and lowStockThreshold(3) = 1, so the exact
-    // count is disclosed (`low`). A reload re-renders the page seeded on TODAY, so the date is re-picked —
-    // this is a genuinely fresh server read of the same date, not a client-side re-render.
+    await page.reload();
+    await pickDay(page, spotsDate);
+    await expect(
+      chip,
+      "cap 3, 2 remaining: still `open` — the first pass sold is deliberately not announced",
+    ).toHaveText("Spots available");
+    expect(
+      (await chip.innerText()).match(/\d/),
+      "2 of 3 left still carries NO digit — the count is disclosed only at the threshold",
+    ).toBeNull();
+    // The invisibility is a display rule, never a stale read: the server DID see the head. If the fork ever
+    // stopped counting, `Only 1 left` below would not arrive either — so the two halves are read together.
+
+    // ── Meanwhile, Booker B reserves a SECOND pass for that same date (2 of 3 heads taken in total). ──
+    await takePasses(spotsDate, bookerBId, 1);
+
+    // ── Booker A reloads and looks at the same date again. NOW the figure has moved on screen, and it moved
+    // because somebody else is coming: cap 3 − 2 heads = 1 remaining, which is exactly the threshold, so the
+    // exact count is disclosed (`low`). A reload re-renders the page seeded on TODAY, so the date is
+    // re-picked — this is a genuinely fresh server read of the same date, not a client-side re-render.
     await page.reload();
     await pickDay(page, spotsDate);
     await expect(chip).toHaveText("Only 1 left");
