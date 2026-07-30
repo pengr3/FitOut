@@ -26,10 +26,15 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, listingPhoto } from "@/lib/db/schema";
 import { windowHours, paxSurcharge } from "@/lib/booking/pricing";
+import { computeServiceFee } from "@/lib/payments/service-fee";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
-import { composeDeadlineLabel } from "@/lib/booking/when-label";
+import {
+  composeDeadlineLabel,
+  composeDateLabel,
+  composeWhenLabel,
+} from "@/lib/booking/when-label";
 // `rungBoundaries` + `bestFutureRungIndex` only — deliberately NOT `tierOrDefault`. The Flexible fallback
 // is a legacy safety net for the refund ENGINE; using it here would put a policy the host never chose in
 // front of a booker.
@@ -37,15 +42,19 @@ import { rungBoundaries, bestFutureRungIndex } from "@/lib/payments/cancellation
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
+import { PartialGrantNotice } from "@/components/booking/partial-grant-notice";
 import { PaxStepper } from "@/components/booking/pax-stepper";
 import { ReserveView } from "@/components/booking/reserve-view";
+import { DropInBadge } from "@/components/listing/drop-in-badge";
 
 export default async function ReservePage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ hold?: string | string[] }>;
+  // `requested` is appended by placeOpenHold ONLY when the claim granted fewer passes than were asked for
+  // (09-07). It is a display-only hint and is treated as hostile input below (T-09-24).
+  searchParams: Promise<{ hold?: string | string[]; requested?: string | string[] }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -128,6 +137,9 @@ export default async function ReservePage({
       included: listing.included,
       extraHeadFee: listing.extraHeadFee,
       maxOccupancy: listing.maxOccupancy,
+      // OC-08 — the drop-in rate. NULL on every exclusive listing; a published open listing always has one
+      // (09-06's publish gate), which is why the reduction estimate below can treat a null as unrenderable.
+      perHeadPriceCents: listing.perHeadPriceCents,
     })
     .from(listing)
     .where(eq(listing.id, bk.listingId));
@@ -190,21 +202,113 @@ export default async function ReservePage({
     extraHeadFee: lst.extraHeadFee,
     declaredPax: bk.declaredPax,
   });
+  // ⚠️ THE OPEN-CAPACITY EXCLUSION IS LOAD-BEARING, NOT DEFENSIVE. A drop-in listing can still carry
+  // `included` / `extra_head_fee` columns: 09-06 requires a per-head price to publish but never CLEARS the
+  // exclusive ones, and OC-17 lets a host switch modes on a listing that already had them (09-07's lesson).
+  // A drop-in booking's price is `perHead × granted` with no surcharge term whatsoever (quoteOpenCapacity),
+  // so recomputing `paxSurcharge` from those leftover columns would disclose an "Extra guests" line for
+  // centavos that are not in the frozen price — and drop the run line to a base that is not what was
+  // charged. The mode decides, not the columns.
   const showSurcharge =
-    surcharge.surchargeCents > 0 && surcharge.surchargeCents < spacePriceCents;
+    !bk.openCapacity && surcharge.surchargeCents > 0 && surcharge.surchargeCents < spacePriceCents;
   const runPriceCents = showSurcharge ? spacePriceCents - surcharge.surchargeCents : spacePriceCents;
 
   // The stepper exists ONLY on a listing that actually charges per head (D-108). On every flat listing the
   // component is never mounted and this page is byte-for-byte what it was before Phase 8.
-  const chargesPerHead = (lst.extraHeadFee ?? 0) > 0;
+  //
+  // AND NEVER ON A DROP-IN BOOKING (D-126). The pass count is FINAL at hold time: the capacity claim granted
+  // it inside the hold's own transaction, and `updateDeclaredPax` refuses an open row outright, because a
+  // re-price that does not re-enter the claim is simultaneously an overbook vector and a price-tamper
+  // vector (09-07). The drop-in stepper is PRE-hold and lives on the listing rail (09-11/09-12). So the
+  // absence of a stepper here is a decision, not an oversight — and without this term a drop-in listing
+  // that still carries a leftover `extra_head_fee` would mount a control every press of which fails.
+  const chargesPerHead = !bk.openCapacity && (lst.extraHeadFee ?? 0) > 0;
 
   const dateLabel = format(bk.startsAt, "EEEE, MMM d", { in: inTz });
   const timeLabel = fullDay
     ? "Full day"
     : `${format(bk.startsAt, "h:mm a", { in: inTz })} – ${format(bk.endsAt, "h:mm a", { in: inTz })}`;
 
+  // ── OC-02 / OC-03 — what a drop-in booking actually says it is (09-UI-SPEC O2) ─────────────────────────
+  // A pass persists starts_at = the venue's OPENING instant and ends_at = its CLOSING instant so the refund
+  // ladder, payout sweep, reminders and expiry keep working unchanged. Those instants are an ENTRY WINDOW,
+  // not a reservation, so this branch renders the SHARED formatter's drop-in line — "{date} · Drop-in pass,
+  // any time {open} – {close} ({City} time)" — and NOTHING else: no second line, no start/end fields and no
+  // run-length term. Composing it locally would be the fourth copy when-label.ts exists to prevent, and it
+  // is also what guarantees this page and every other booking surface name the same pass the same way.
+  //
+  // Composed only when it is actually rendered: an exclusive booking keeps the shipped two-line block above
+  // verbatim, and a label built for it here would be a value nothing reads.
+  const whenLabel = bk.openCapacity
+    ? composeWhenLabel({
+        startsAt: bk.startsAt,
+        endsAt: bk.endsAt,
+        timezone,
+        city: lst.city,
+        fullDay: bk.fullDay,
+        openCapacity: bk.openCapacity,
+        spacePriceCents: bk.spacePriceCents,
+        quotedTotalCents: bk.quotedTotalCents,
+        dayRateCents: lst.dayRateCents,
+      })
+    : null;
+
+  // ── OC-07 — the reduction, and the two figures it is stated with (09-UI-SPEC § 3) ─────────────────────
+  // `granted` is the PERSISTED head count on the row: what the claim actually granted and what was priced.
+  const granted = bk.declaredPax ?? 1;
+  // `requested` arrives as a query param from placeOpenHold and is UNTRUSTED and DISPLAY-ONLY (T-09-24).
+  // The CHARGE is booking.quotedTotalCents — frozen at hold time and completely unaffected by this value.
+  // Clamp it into the only range where a reduction notice is meaningful before rendering anything with it:
+  //   - not an integer, or not actually ABOVE what was granted ⇒ there is no reduction to state, so null;
+  //   - otherwise pinned to [granted + 1, cap], so `?requested=99999` renders the listing's own ceiling
+  //     rather than an absurd estimate. The ceiling is floored at granted + 1 so that a host who edited
+  //     max_occupancy DOWN during a live hold cannot collapse the range and silence a genuine reduction.
+  const rawRequested = Number(Array.isArray(sp.requested) ? sp.requested[0] : sp.requested);
+  const requestedCeiling = Math.max(lst.maxOccupancy ?? 0, granted + 1);
+  const requested =
+    Number.isInteger(rawRequested) && rawRequested > granted
+      ? Math.min(Math.max(rawRequested, granted + 1), requestedCeiling)
+      : null;
+  // A per-head price is guaranteed on a published open listing (09-06) and is what froze this hold's price;
+  // with none there is no honest estimate to show, and a ₱0.00 "estimate" would be worse than silence.
+  const showPartial = bk.openCapacity && requested != null && lst.perHeadPriceCents != null;
+  // BOTH figures are composed HERE, server-side, exactly like every other price on this page. The alert
+  // formats nothing: the new figure is the row's FROZEN total (the amount PayMongo will charge) and the old
+  // one is a display-only all-in estimate through the SAME computeServiceFee checkout uses (D-75).
+  const currency = bk.currency ?? DISPLAY_CURRENCY;
+  const oldTotalLabel =
+    showPartial && requested != null
+      ? formatMoney(
+          computeServiceFee((lst.perHeadPriceCents ?? 0) * requested).allInCents,
+          currency,
+        )
+      : null;
+  // Server-formatted charged amount for the `Confirm & pay` reassurance (D-57) — the frozen quote (D-49),
+  // never a client recompute. The SAME string is the alert's "new" figure: the amount the booker is told
+  // they are consenting to and the amount named on the confirm must not be two separate renderings.
+  const totalLabel = formatMoney(quoted, currency);
+
   const summary = (
     <div className="space-y-6">
+      {/* OC-07 — the reduction alert, FIRST in the DOM (09-UI-SPEC § 3: "top of the reserve page, above
+          the `Your booking` summary"). Its position is the accessibility contract, not decoration: the
+          summary column precedes the action column, so the alert is reachable in the tab order BEFORE
+          `Confirm & pay` and cannot be paid past unheard (T-09-43).
+
+          It lives INSIDE `summary` rather than beside ReserveView on purpose — ReserveView drops the
+          summary when the hold lapses, so a booker looking at "Your hold expired" is never also told
+          their booking is set to N passes. */}
+      {showPartial && requested != null && oldTotalLabel != null && (
+        <PartialGrantNotice
+          grantedPasses={granted}
+          requestedPasses={requested}
+          dateLabel={composeDateLabel(bk.startsAt, timezone, lst.city)}
+          newTotalLabel={totalLabel}
+          oldTotalLabel={oldTotalLabel}
+          pickAnotherHref={`/listings/${bk.listingId}`}
+        />
+      )}
+
       <div className="flex items-start gap-4">
         <div className="size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
           {cover?.url ? (
@@ -223,14 +327,28 @@ export default async function ReservePage({
         </div>
       </div>
 
-      <div className="rounded-lg border p-4">
-        <h3 className="text-sm font-semibold">Your booking</h3>
-        <p className="mt-1 text-base">{dateLabel}</p>
-        <p className="text-base text-muted-foreground">
-          <span className="tabular-nums">{timeLabel}</span>
-          {!fullDay && ` · ${hours} ${hours === 1 ? "hour" : "hours"}`}
-        </p>
-      </div>
+      {/* The drop-in fork is written as two whole blocks rather than three interleaved conditionals so the
+          EXCLUSIVE branch below is the shipped markup character-for-character (a UAT-passed money surface;
+          08-05's inline fixes still stand in it). The open block states a DAY and the hours you may turn up
+          — never a range, never a run length (O2). */}
+      {bk.openCapacity ? (
+        <div className="rounded-lg border p-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">Your booking</h3>
+            <DropInBadge />
+          </div>
+          <p className="mt-1 text-base">{whenLabel}</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border p-4">
+          <h3 className="text-sm font-semibold">Your booking</h3>
+          <p className="mt-1 text-base">{dateLabel}</p>
+          <p className="text-base text-muted-foreground">
+            <span className="tabular-nums">{timeLabel}</span>
+            {!fullDay && ` · ${hours} ${hours === 1 ? "hour" : "hours"}`}
+          </p>
+        </div>
+      )}
 
       {/* D-108 — the headcount control, and ONLY on a listing that charges per head. `declaredPax` is the
           PERSISTED value (organizer counts as #1, D-113), so a refresh or a Back never resurrects a stale
@@ -268,6 +386,10 @@ export default async function ReservePage({
   // boundary has passed, which the disclosure renders as a truthful no-window line.
   const bestRungIndex = tier ? bestFutureRungIndex(tier, bk.startsAt, now) : undefined;
 
+  // OC-08 — `perHeadPriceCents` / `passes` are supplied ONLY for a drop-in booking, which flips the run
+  // line to the per-person form. Both are null on every exclusive booking, so that run line is unchanged
+  // (09-UI-SPEC Open Q10). `passes` is the PERSISTED granted head count, so a partial grant reads as what
+  // was actually claimed — the same number the frozen total was priced from.
   const breakdown = (
     <>
       <PriceBreakdown
@@ -278,7 +400,9 @@ export default async function ReservePage({
         extraHeads={showSurcharge ? surcharge.extraHeads : 0}
         extraHeadCents={showSurcharge ? surcharge.extraHeadCents : 0}
         extraSurchargeCents={showSurcharge ? surcharge.surchargeCents : 0}
-        currency={bk.currency ?? DISPLAY_CURRENCY}
+        perHeadPriceCents={bk.openCapacity ? lst.perHeadPriceCents : null}
+        passes={bk.openCapacity ? granted : null}
+        currency={currency}
         fullDay={fullDay}
         hours={hours}
         hourlyRateCents={lst.hourlyRateCents}
@@ -292,10 +416,6 @@ export default async function ReservePage({
       />
     </>
   );
-
-  // Server-formatted charged amount for the `Confirm & pay` reassurance (D-57) — the frozen quote (D-49),
-  // never a client recompute.
-  const totalLabel = formatMoney(quoted, bk.currency ?? DISPLAY_CURRENCY);
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">

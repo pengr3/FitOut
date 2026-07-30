@@ -142,7 +142,7 @@ export const composeWhenLabelShort = (input: WhenLabelInput): string =>
   compose(input, SHORT_DATE, true);
 
 /**
- * Just the DATE, venue-local — "Friday, Aug 8". No time, no city suffix.
+ * Just the DATE, venue-local — "Friday, Aug 8", or "Friday, Aug 8 (Makati time)" when a city is supplied.
  *
  * Added by 09-09 for the cancel review's tier-rationale sentence, which for a drop-in pass must say
  * "…before the space opens on {date}" (09-UI-SPEC § 5b). That sentence is prose ABOUT a date, not a rendered
@@ -150,9 +150,15 @@ export const composeWhenLabelShort = (input: WhenLabelInput): string =>
  * which is precisely the fourth copy this module's header forbids. Rendering it here, off the SAME
  * `LONG_DATE` token `composeWhenLabel` uses, means the sentence and the label above it can never name the
  * same instant two different ways.
+ *
+ * `city` is OPTIONAL and defaults to omitted, so 09-09's call site is byte-unchanged. 09-13 supplies it for
+ * the OC-07 reduction alert's title, where the date stands alone as the headline and rule O10 requires the
+ * zone to be named — composed HERE, off the same suffix rule `compose` uses, rather than concatenated at
+ * the call site (which is the fourth copy this module exists to prevent).
  */
-export function composeDateLabel(instant: Date, timezone: string): string {
-  return format(instant, LONG_DATE, { in: tz(timezone) });
+export function composeDateLabel(instant: Date, timezone: string, city?: string | null): string {
+  const label = format(instant, LONG_DATE, { in: tz(timezone) });
+  return `${label}${city ? ` (${city} time)` : ""}`;
 }
 
 /**
