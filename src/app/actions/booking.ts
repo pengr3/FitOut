@@ -85,6 +85,10 @@ const REPRICE_PAX_RATE_LIMIT = { window: 60, max: 30 } as const;
  *  clamped server-side below — this only refuses obvious junk before a DB round trip. */
 const declaredPaxSchema = z.coerce.number().int().min(1).max(10_000);
 
+/** 09-UI-SPEC § 6, "step-up disallowed by design" row (D-126). The one sentence a drop-in booker sees if
+ *  they ever reach the re-price path — a next step, not a rejection. */
+const PASSES_FIXED_MESSAGE = "To add more passes, book them separately.";
+
 /** Resolve the signed-in user's id, or null if there is no session (cloned from blocks.ts). */
 async function requireUserId(): Promise<string | null> {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -474,6 +478,8 @@ export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
  * Guards, in order:
  *   - SESSION + OWNERSHIP (T-04-HOLDIDOR): a missing row and someone else's row return the SAME calm
  *     sentence — a leaked id reveals nothing.
+ *   - OPEN CAPACITY IS REFUSED OUTRIGHT (D-126): a drop-in booking's head count is FIXED at hold time,
+ *     because it IS the capacity claim. See the guard's own note below for why both directions go.
  *   - LIVE + UNPAID ONLY: `pending` (instant) or `approved` (pay-on-approval) with `expires_at > now()`,
  *     evaluated against the POSTGRES clock inside the UPDATE's own WHERE. A `confirmed` booking has already
  *     been charged and can NEVER be re-priced here — the top-up for an over-subscribed group is D-114's
@@ -516,6 +522,8 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
       endsAt: booking.endsAt,
       // WR-06 pricing-mode snapshot — the SAME flag the original quote was frozen with.
       fullDay: booking.fullDay,
+      // D-123 arbitration snapshot — read here so the D-126 guard below can refuse a drop-in row.
+      openCapacity: booking.openCapacity,
       declaredPax: booking.declaredPax,
       // CR-02: the session this booking last sent a booker to pay at, or NULL if it never reached checkout
       // (a legitimate, expected state — never an error). Read here so the expire gate below has an id.
@@ -531,6 +539,20 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
     .where(eq(booking.id, holdId));
   if (!row || row.bookerId !== userId) {
     return { ok: false, error: "We can't show this booking." };
+  }
+
+  // ── D-126 (RESEARCH Open Question 2, planner's call): open-capacity holds are NOT re-priceable. ───────
+  // For a drop-in booking the head count IS the capacity claim: it was granted under the advisory lock
+  // against the day's live admissions SUM. This action re-quotes WITHOUT re-entering that claim, so
+  // allowing it here would let a booker raise declared_pax past the cap after the fact — an overbook AND a
+  // price change, on the money path, through a single server action (T-09-25). Stepping DOWN is harmless
+  // but has no shipped surface (the pass stepper is PRE-hold for open listings, 09-UI-SPEC § 2c), so both
+  // directions are refused with one guard rather than half a mechanism. More passes = another booking.
+  //
+  // This must precede the flat-listing short-circuit below: an open listing has no extra_head_fee, so that
+  // branch would report success and the booker would never learn the count cannot move.
+  if (row.openCapacity) {
+    return { ok: false, error: PASSES_FIXED_MESSAGE };
   }
 
   // D-108 zero-leak: a listing that does not charge per head has no surcharge machinery at all. Report

@@ -29,11 +29,12 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { user, listing, booking, paymongoEvent } from "@/lib/db/schema";
 import { mockPayMongo, mockResend } from "../helpers/mocks";
 import { bookingReference } from "@/lib/booking/reference";
+import { computeServiceFee } from "@/lib/payments/service-fee";
 
 const SECRET = "whsec_test_payment";
 const TS = 1_700_000_000;
@@ -392,6 +393,94 @@ describe("checkout_session.payment.paid — confirm authority (D-57)", () => {
     expect(row.paymentId).toBe("pay_post_start");
 
     // And it went through the ordinary confirm path — NOT the gone-slot refund backstop.
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
+  });
+
+  it("confirms an OPEN-CAPACITY (drop-in) booking with the rail UNCHANGED — no capacity re-derivation (OPEN-02 / OC-09)", async () => {
+    // ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+    // │ Phase 9 added a whole second occupancy model, and this is the case that proves it did NOT     │
+    // │ reach the money rail. The admissions claim happens at HOLD time (09-RESEARCH Pattern 2), so   │
+    // │ by the time a payment lands the heads are already claimed and frozen. The webhook stays a     │
+    // │ pure `pending → confirmed` flip keyed on booking.id.                                          │
+    // │                                                                                              │
+    // │ IF SOMEONE EVER ADDS A CAPACITY RE-CHECK HERE, THIS CASE IS WHAT SHOULD STOP THEM. Re-summing │
+    // │ the day and refusing on a full date would take a booker's money and leave the booking         │
+    // │ unconfirmable — the exact D-57 / Pitfall-4 failure the start-time guard above already bans,   │
+    // │ in open-capacity clothing. The date is full BECAUSE this booking's own heads are on it.       │
+    // └──────────────────────────────────────────────────────────────────────────────────────────────┘
+    const id = "bk_paid_open";
+    const HEADS = 3;
+    const PER_HEAD = 35000;
+    const space = PER_HEAD * HEADS;
+    const fee = computeServiceFee(space);
+    // The venue's opening/closing instants for one date — a drop-in row is an ORDINARY booking row with
+    // `open_capacity = true`, `unit = 1` and `declared_pax` set (D-123). Raw SQL so every field the counter
+    // reads is written explicitly, in the shape production writes it.
+    const dayOpen = "2026-11-19T22:00:00.000Z";
+    const dayClose = "2026-11-20T14:00:00.000Z";
+    await testDb.db.execute(sql`
+      INSERT INTO booking (id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
+                           open_capacity, full_day, declared_pax, expires_at,
+                           space_price_cents, service_fee_cents, quoted_total_cents, currency)
+      VALUES (${id}, ${LISTING}, 1, ${BOOKER}, ${dayOpen}::timestamptz, ${dayClose}::timestamptz,
+              'pending', 'instant', true, false, ${HEADS}, now() + interval '30 minutes',
+              ${space}, ${fee.serviceFeeCents}, ${fee.allInCents}, 'php')`);
+
+    const res = await post(
+      paidEventBody({ eventId: `evt_${randomUUID()}`, bookingId: id, paymentId: "pay_open_1", method: "gcash" }),
+    );
+    expect(res.status).toBe(200);
+
+    const [row] = (await testDb.client`
+      SELECT status, unit, open_capacity, full_day, declared_pax, payment_id, expires_at,
+             starts_at, ends_at, space_price_cents, service_fee_cents, quoted_total_cents
+      FROM booking WHERE id = ${id}`) as unknown as {
+      status: string;
+      unit: number;
+      open_capacity: boolean;
+      full_day: boolean;
+      declared_pax: number;
+      payment_id: string | null;
+      expires_at: Date | null;
+      starts_at: Date | string;
+      ends_at: Date | string;
+      space_price_cents: number;
+      service_fee_cents: number;
+      quoted_total_cents: number;
+    }[];
+
+    // The SAME single writer, doing the SAME three things it does for an hourly booking.
+    expect(row.status).toBe("confirmed");
+    expect(row.expires_at).toBeNull();
+    expect(row.payment_id).toBe("pay_open_1");
+
+    // …and nothing else moved. The head count, the arbitration flag, the sentinel unit, the OC-03 window
+    // and the frozen triple are all exactly as the claim wrote them.
+    expect(row.declared_pax).toBe(HEADS);
+    expect(row.open_capacity).toBe(true);
+    expect(row.unit).toBe(1);
+    expect(row.full_day).toBe(false);
+    expect(new Date(row.starts_at).toISOString()).toBe(dayOpen);
+    expect(new Date(row.ends_at).toISOString()).toBe(dayClose);
+    expect(row.space_price_cents).toBe(space);
+    expect(row.service_fee_cents).toBe(fee.serviceFeeCents);
+    expect(row.quoted_total_cents).toBe(fee.allInCents);
+
+    // The occupying SUM for that date is still exactly this booking's heads: confirming moved the row from
+    // one half of the occupying predicate (live pending) to the other (confirmed) without double-counting
+    // it or dropping it — which is what keeps the calendar agreeing with the counter (Pitfall 4).
+    const [{ heads }] = (await testDb.client`
+      SELECT COALESCE(SUM(b.declared_pax), 0)::int AS heads
+      FROM booking b
+      WHERE b.listing_id = ${LISTING} AND b.open_capacity = true
+        AND b.starts_at = ${dayOpen}::timestamptz
+        AND (b.status = 'confirmed' OR (b.status = 'pending' AND b.expires_at > now()))`) as unknown as {
+      heads: number;
+    }[];
+    expect(heads).toBe(HEADS);
+
+    // A genuine confirm earns the BOOK-06 receipt, for a drop-in booking exactly as for an hourly one.
+    expectConfirmedNotification(id);
     expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
   });
 
