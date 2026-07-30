@@ -141,6 +141,27 @@
       "when": 1785218508230,
       "tag": "0019_booking_checkout_session",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785401530876,
+      "tag": "0020_open_capacity_enum",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785401581104,
+      "tag": "0021_open_capacity_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1785401588124,
+      "tag": "0022_booking_exclusion_v3",
+      "breakpoints": true
     }
   ]
 }
