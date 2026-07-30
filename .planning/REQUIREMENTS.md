@@ -86,7 +86,7 @@ Host-set open / common-use mode — many independent bookers share one slot up t
 - [x] **OPEN-01**: Host can set a listing to open-capacity mode with a per-head price and a capacity cap
 - [ ] **OPEN-02**: Multiple independent bookers can each reserve their own spot on the same shared time slot, each paying for their own head(s) via the existing rail
 - [ ] **OPEN-03**: Concurrent bookings on a shared slot are hard-capped at capacity with no overbooking — enforced atomically at the database level and proven under a race
-- [ ] **OPEN-04**: Availability and search show remaining capacity (spots left) for open-capacity listings
+- [x] **OPEN-04**: Availability and search show remaining capacity (spots left) for open-capacity listings
 
 ## v2 Requirements
 
@@ -185,7 +185,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | OPEN-01 | Phase 9 | Complete (09-06 server gate + 09-10 host wizard control) |
 | OPEN-02 | Phase 9 | In progress (09-07 `placeOpenHold` + 09-11 the pre-hold `PassStepper` + **09-12 the booker surface: `DatePassPicker`, the calendar fork, the open rail and the `BookCta` branch that sends `{listingId, date, requestedPasses}`**; the paying half — the per-person reserve page + OC-07 partial-grant alert — is 09-13) |
 | OPEN-03 | Phase 9 | Pending |
-| OPEN-04 | Phase 9 | In progress (09-04 server-derived `state`/`remaining` + 09-11 `SpotsLeftChip`/`DropInBadge` + 09-05 search: `spots` on the result row, date-only Stage-2 filter, effective-price filter/sort + **09-12 the availability mount: the day panel's chip, the month grid's programmatically-disabled full dates from `getOpenMonthAvailability`, and the `/person` rail rate**; the remaining mount points are 09-13/09-14) |
+| OPEN-04 | Phase 9 | Complete (09-04 server-derived `state`/`remaining` + 09-11 `SpotsLeftChip`/`DropInBadge` + 09-05 search: `spots` on the result row, date-only Stage-2 filter, effective-price filter/sort + 09-12 the availability mount (day-panel chip, month grid's disabled full dates from `getOpenMonthAvailability`, `/person` rail rate) + 09-13 the reserve summary + **09-14 the search card: the `Drop-in` badge, the all-in `/person` price, the chip only when a date is in play, no clock time ever, and a `?date=`-only forward link**. All three chip mount points the UI-SPEC enumerates are live) |
 
 **Coverage:**
 - v1 requirements: 49 total
