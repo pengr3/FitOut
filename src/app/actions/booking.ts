@@ -34,8 +34,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing, user, hostPayout } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
-import { bookingCreateSchema } from "@/lib/validation/booking";
-import { createPendingHold } from "@/lib/availability/units";
+import { bookingCreateSchema, openHoldSchema } from "@/lib/validation/booking";
+import { createPendingHold, createOpenCapacityHold } from "@/lib/availability/units";
+import { loadOpenDayWindow } from "@/lib/availability/open-capacity";
+import { parsePickedDate } from "@/lib/search/query";
 import { quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { createCheckoutSession, expireCheckoutSession } from "@/lib/paymongo";
@@ -53,7 +55,10 @@ export type PlaceHoldResult =
   | { ok: false; reason: "activate-booking"; error: string }
   | { ok: false; reason: "not-bookable"; error: string }
   | { ok: false; reason: "invalid"; error: string; fieldErrors?: Record<string, string[]> }
-  | { ok: false; reason: "taken"; error: string };
+  | { ok: false; reason: "taken"; error: string }
+  /** OC-13 race loss on a shared date. Distinct from `taken` so the CTA can use the drop-in copy and still
+   *  refresh the calendar through the shipped notice path (09-UI-SPEC § 3). */
+  | { ok: false; reason: "sold-out"; error: string };
 
 /**
  * confirmBooking failure shapes (SUCCESS redirects — off-site to the hosted checkout on a fresh pay, or to
@@ -138,6 +143,9 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       // D-61: the booking MODE is read SERVER-SIDE from the listing row here (never a client flag —
       // T-06-09 elevation). The request branch below forks on it; the reserve route group is not the gate.
       bookingMode: listing.bookingMode,
+      // D-123: the OCCUPANCY mode, read from the same row for the same reason. The refusal just below is
+      // what keeps this mutation to exclusive listings only.
+      occupancyMode: listing.occupancyMode,
       title: listing.title,
       timezone: listing.timezone,
       city: listing.city,
@@ -163,6 +171,16 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
     );
   if (!lr || !bookable) {
     return { ok: false, reason: "not-bookable", error: "This space isn't accepting bookings right now." };
+  }
+
+  // (4a) Phase-9 (Security V4, threat T-09-23). The occupancy mode is read from the LISTING ROW, never from
+  // the payload. This branch is load-bearing, not defensive tidying: drizzle/0022 removed open-capacity rows
+  // from booking_no_overlap, so a hold minted here on a drop-in listing would be arbitrated by NOTHING — not
+  // the EXCLUDE (it no longer sees open rows) and not the admissions counter (this path never takes the
+  // advisory lock). An exclusive-shaped payload against a drop-in listing is therefore refused outright, and
+  // `placeOpenHold` carries the exact mirror of this guard: each mutation admits exactly one mode.
+  if (lr.occupancyMode === "open_capacity") {
+    return { ok: false, reason: "invalid", error: "This space sells day passes — pick a day to book." };
   }
 
   // (4b) Fork on the SERVER-READ booking mode (D-61 / BOOK-04 / BOOK-05). A `request` listing mints a
@@ -305,6 +323,143 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   revalidatePath(`/listings/${listingId}`);
   revalidatePath("/");
   redirect(`/listings/${listingId}/book?hold=${res.id}`);
+}
+
+/**
+ * placeOpenHold — the OPEN-CAPACITY entering-checkout mutation (OPEN-02 / OC-02 / OC-06, D-123). The
+ * drop-in sibling of `placeHold`: a booker picks a DATE and a number of passes, and the admissions claim
+ * grants `min(requested, remaining)` under the per-(listing, date) advisory lock (09-RESEARCH Pattern 2).
+ *
+ * A POST server action, never a GET side-effect (Pitfall 2). It repeats `placeHold`'s gates IN THE SAME
+ * ORDER, and deliberately by RE-STATEMENT rather than extraction: the two payload shapes differ, and the
+ * gates ARE the security surface — they belong where they are enforced, not behind a shared helper whose
+ * next edit would silently move both mutations at once.
+ *
+ * The gates, in order:
+ *   1. SESSION (D-41)                — no session ⇒ the same calm sign-in result `placeHold` returns.
+ *   2. CAPABILITY (T-04-BOOKCAP)     — canBook re-read from the DB row; a client flag is never trusted.
+ *   3. SHAPE (openHoldSchema)        — a date + a pass count and nothing else; a smuggled window is
+ *                                      stripped by Zod (T-09-26), so it cannot reach the claim.
+ *   4. DATE (parsePickedDate)        — the attacker-controlled `YYYY-MM-DD` is canonicalized and
+ *                                      round-trip-guarded before any instant is derived.
+ *   5. BOOKABILITY (Security V4)     — the same deriveBookable join, re-derived server-side.
+ *   6. OCCUPANCY MODE (T-09-23)      — the mirror of placeHold's refusal: this mutation admits ONLY
+ *                                      `open_capacity`, so neither payload shape can cross into the other
+ *                                      listing's arbitration.
+ *   7. THE CLAIM                     — createOpenCapacityHold owns the cap, the price and the window
+ *                                      instants; this action supplies none of them.
+ *
+ * MONEY: this action never computes, accepts or echoes an amount. The frozen triple is written inside the
+ * claim's transaction from the LISTING's own `per_head_price_cents` × the GRANTED heads (OC-07/OC-08).
+ */
+export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
+  // (1) Session gate (D-41) — same copy as placeHold; the CTA threads the return-to-booking callbackURL.
+  const userId = await requireUserId();
+  if (!userId) {
+    return { ok: false, reason: "sign-in", error: "Sign in to book this space." };
+  }
+
+  // (2) Capability gate (T-04-BOOKCAP) — re-read from the user ROW. Only the capability is selected here:
+  // the open path emits no notification (see the tail of this action), so there is no name/email to carry.
+  const [me] = await db.select({ canBook: user.canBook }).from(user).where(eq(user.id, userId));
+  if (!me?.canBook) {
+    return { ok: false, reason: "activate-booking", error: "Turn on booking to reserve this space." };
+  }
+
+  // (3) Re-validate the untrusted payload SHAPE. There are no window fields to validate — that is the point
+  // (T-09-26): the entry window comes from the listing's own operating hours in step (7), not the client.
+  const parsed = openHoldSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      reason: "invalid",
+      error: "Please check your selection and try again.",
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+  const { listingId, requestedPasses, idempotencyKey } = parsed.data;
+
+  // (4) Canonicalize the picked calendar day with the STRICT parser search already uses for exactly this
+  // attacker-controlled shape. It round-trip-guards impossible days (2026-02-31) that the schema's regex
+  // deliberately lets through, so nothing malformed can reach the day-window derivation or SQL.
+  const picked = parsePickedDate(parsed.data.date);
+  if (!picked) {
+    return { ok: false, reason: "invalid", error: "Pick a day to book." };
+  }
+
+  // (5) Re-derive bookability SERVER-SIDE (Security V4 — the reserve route group is NOT the gate): the same
+  // published + host emailVerified + host payoutsEnabled join placeHold uses, plus the occupancy mode.
+  const [lr] = await db
+    .select({
+      status: listing.status,
+      occupancyMode: listing.occupancyMode,
+      emailVerified: user.emailVerified,
+      payoutsEnabled: hostPayout.payoutsEnabled,
+    })
+    .from(listing)
+    .innerJoin(user, eq(listing.hostId, user.id))
+    .leftJoin(hostPayout, eq(hostPayout.userId, user.id))
+    .where(and(eq(listing.id, listingId), isNull(listing.deletedAt)));
+  const bookable =
+    !!lr &&
+    deriveBookable(
+      { status: lr.status },
+      { emailVerified: lr.emailVerified, payoutsEnabled: lr.payoutsEnabled ?? false },
+    );
+  if (!lr || !bookable) {
+    return { ok: false, reason: "not-bookable", error: "This space isn't accepting bookings right now." };
+  }
+
+  // (6) The MIRROR of placeHold's refusal (T-09-23) — each mutation admits exactly ONE occupancy mode, both
+  // decided from the persisted listing row. Refusing here matters less for arbitration (an exclusive listing
+  // is still covered by the EXCLUDE) and more for shape: a date-only payload against an hourly listing has
+  // no window to book, and minting the venue's whole operating day as an exclusive booking would sell out a
+  // court for the price of one drop-in pass.
+  if (lr.occupancyMode !== "open_capacity") {
+    return { ok: false, reason: "invalid", error: "This space is booked by the hour — pick a time to book." };
+  }
+
+  // (7) The OC-03 entry window for the picked date, derived from the LISTING's own operating hours. Null =
+  // the venue is closed that weekday, so there is no pass to sell (never a crash, never a guessed window).
+  const win = await loadOpenDayWindow(db, listingId, picked);
+  if (!win) {
+    return { ok: false, reason: "invalid", error: "This space isn't open that day. Pick another date." };
+  }
+
+  // (8) THE CLAIM (D-123). Everything that decides money or capacity lives inside its transaction: the cap
+  // (listing.max_occupancy) and the rate (listing.per_head_price_cents) are read there under the advisory
+  // lock, against the live admissions SUM. This action passes a head REQUEST, never a bound (T-09-05). A
+  // past/out-of-horizon date is refused in there too, against the DB clock (Security V4).
+  const res = await createOpenCapacityHold(db, {
+    listingId,
+    bookerId: userId,
+    dayOpenUtc: win.dayOpenUtc,
+    dayCloseUtc: win.dayCloseUtc,
+    requestedHeads: requestedPasses,
+    idempotencyKey: idempotencyKey ?? null,
+  });
+  if ("error" in res) {
+    // OC-13's race loss gets its OWN reason so the CTA can render the drop-in copy and refresh the calendar;
+    // every other refusal (a closed/past date, an unknown listing) reuses the shipped calm `taken` branch.
+    return res.soldOut
+      ? { ok: false, reason: "sold-out", error: res.error }
+      : { ok: false, reason: "taken", error: res.error };
+  }
+
+  // NO notification is emitted here, and that is deliberate — not an omission. Open capacity is instant-only
+  // (OC-10): there is no host to alert and no approval to await, the booker is looking at the page they will
+  // be redirected to, and the confirmation receipt is the EXISTING payment-paid webhook's (BOOK-06).
+
+  // (9) The pending hold occupies its heads immediately in BOTH the day calendar and search, so revalidate
+  // both before redirecting to the reserve page.
+  revalidatePath(`/listings/${listingId}`);
+  revalidatePath("/");
+  // `requested` is carried ONLY so the reserve page can render the OC-07 reduction notice, and it is
+  // DISPLAY-ONLY (threat T-09-24): the CHARGE is the frozen `quoted_total_cents` on the row, which the claim
+  // computed for the GRANTED heads. The reserve page recomputes both figures server-side and clamps
+  // `requested` before rendering it (09-13), so a crafted value can move a caption and nothing else.
+  const partial = res.granted < res.requested ? `&requested=${res.requested}` : "";
+  redirect(`/listings/${listingId}/book?hold=${res.id}${partial}`);
 }
 
 /**
