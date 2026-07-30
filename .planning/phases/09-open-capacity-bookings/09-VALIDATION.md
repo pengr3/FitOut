@@ -73,7 +73,7 @@ completed: 2026-07-30
 | 09-12 T1-T3 | 09-12 | 4 | OPEN-02 | — | `DatePassPicker` mounts no hour picker of any kind; a full date rides react-day-picker's own `disabled` matcher; the exclusive calendar is byte-identical | component | `npx vitest run tests/availability/date-pass-picker.test.tsx` | ✅ | ✅ green |
 | 09-13 T1-T2 | 09-13 | 4 | OPEN-02 | T-09-PARTIAL | OC-07 partial grant: the notice states the granted count, the FROZEN new total and `Nothing has been charged yet.`, precedes `Confirm & pay` in the tab order, and has no control that can hide it | component | `npx vitest run tests/booking/price-breakdown-open.test.tsx tests/booking/partial-grant-notice.test.tsx` | ✅ | ✅ green |
 | 09-14 T1-T2 | 09-14 | 5 | OPEN-04 | — | a drop-in search card names the mode, prices `/person`, shows the chip only with a date in play (OC-12), and its link carries `?date=` alone | component | `npx vitest run tests/search/search-card-open.test.tsx tests/listing/listing-card.test.tsx` | ✅ | ✅ green |
-| 09-15 T1 | 09-15 | 6 | OPEN-04 | T-09-46 | **E2E: two bookers share a date, spots-left decrements between their views, sold out is calm + programmatically disabled, and a full date leaves search** | e2e (real browser) | `npx playwright test e2e/open-capacity.spec.ts` | ✅ | ✅ green |
+| 09-15 T1 (amended 09-16) | 09-15 | 6 | OPEN-04 | T-09-46 | **E2E: two bookers share a date; the head count decrements in the DB on every pass and is DISCLOSED on screen only from `lowStockThreshold(cap) = clamp(floor(cap/2), 1, OPEN_LOW_STOCK_MAX)` downward — at the fixture's cap 3 the threshold is 1, so the first pass sold is deliberately INVISIBLE (`Spots available` at both 3 and 2 remaining) and only the second head reads `Only 1 left`. Both steps are now asserted (09-16 added the one-pass-at-a-time case). Sold out is calm + programmatically disabled, and a full date leaves search** | e2e (real browser) | `npx playwright test e2e/open-capacity.spec.ts` | ✅ | ✅ green |
 | 09-15 T1 | 09-15 | 6 | OPEN-02 | T-09-CR01 | **UI-SPEC O2 against a REAL rendered page**: the only clock-time range in the drop-in document is the venue's own "Open …" hours line; no drop-in search card renders a `:` at all | e2e (real browser) | `npx playwright test e2e/open-capacity.spec.ts` | ✅ | ✅ green |
 | 09-15 T2 | 09-15 | 6 | OPEN-01..04 | T-09-47 / T-09-48 | repository gate: full suite + tsc + lint + build + e2e green, and `npm run db:generate` proposes no migration (no schema drift) | gate | `npx vitest run && npx tsc --noEmit && npm run lint && npm run build && npm run db:generate && git status --short -- drizzle/` | ✅ | ✅ green |
 
@@ -88,7 +88,7 @@ completed: 2026-07-30
 - [x] `tests/availability/open-capacity-readmodel.test.ts` — spots-left projection `{ remaining, cap, state }` (OPEN-04). **Shipped 09-04**, with both predicate mutations executed RED and restored.
 - [x] Extend `tests/validation/listing-schema.test.ts` — mode-forked publish gate (OPEN-01). **Shipped 09-06**, all four mutation kills confirmed RED. *(Stale-path correction: the research map seeded a `listing` test path in that directory that has never existed on disk; the shipped file is and always was `listing-schema.test.ts`.)*
 - [x] Extend `tests/paymongo/webhook-payment-paid.test.ts` — open booking confirm (OPEN-02). **Shipped 09-07**; the PayMongo rail itself is byte-untouched and proven so (`git diff --exit-code` on the webhook route = 0).
-- [x] Playwright E2E — two-booker shared-date decrement + sold-out (OPEN-04). **Shipped 09-15** as `e2e/open-capacity.spec.ts` (5 serial cases). *(Stale-path correction: the research map left the Playwright spec unnamed; it resolves to this path.)*
+- [x] Playwright E2E — two-booker shared-date decrement + sold-out (OPEN-04). **Shipped 09-15** as `e2e/open-capacity.spec.ts` (5 serial cases). *(Stale-path correction: the research map left the Playwright spec unnamed; it resolves to this path.)* **Wording correction, 2026-07-31 / 09-16:** "decrement" here means the DB count moves on every head, while the SCREEN discloses an exact figure only at `remaining <= lowStockThreshold(cap)`. 09-15's case took 2 heads in ONE insert (3 → 1) and so never crossed the invisible 3 → 2 step a human buying one pass at a time hits first; 09-16 added that step as an explicit assertion (chip still `Spots available`, still digit-free, at 2 of 3), mutation-measured. See 09-15-SUMMARY's Correction note and `deferred-items.md` item 2.
 - Framework install: **none** (Vitest + Playwright + `makeRacingClients` all present, as predicted).
 
 ---
@@ -102,6 +102,15 @@ completed: 2026-07-30
 *This is the ONLY remaining manual-only verification in the phase. All correctness-critical
 (no-overbook / spots-left / publish-gate / mode-refusal / partial-grant) behaviors have automated
 verification, and the no-overbook gate is mutation-measured rather than merely green.*
+
+**✅ DISCHARGED 2026-07-31 by the 09-16 walkthrough.** Three REAL PayMongo `checkout_session.payment.paid`
+deliveries confirmed three drop-in bookings on the live `sk_test_` rail (Makati time):
+`evt_oGtPa9Vd7ZqWFiPRntuSjacm` @ 01:31:16 → booking `215d2739-cca3-441b-a9d7-c9d5a339bcea`;
+`evt_zBVdHpjZL1N6hmVtasiZ5K6X` @ 01:34:56 → `340b5323-b619-469a-81ae-dd79173e6e37`;
+`evt_BRQR1Xx9FQcJhy2Dgvmti6m4` @ 01:36:14 → `5b992c46-abaf-4f16-b680-23c6b9296f81`. A `booking_confirmed`
+notification row landed within ONE SECOND of each (01:31:16→:16, 01:34:56→:57, 01:36:14→:15), so the whole
+chain — PayMongo → tunnel → webhook route → status flip → `inngest.send` → notify function → notification row
+— is proven live, not mocked. See `09-16-SUMMARY.md` step 3.
 
 ---
 

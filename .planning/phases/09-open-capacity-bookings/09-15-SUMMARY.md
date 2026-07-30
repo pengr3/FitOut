@@ -11,7 +11,7 @@ requires:
   - phase: 07-bookings-management-cancellation-notifications
     provides: "the shipped e2e idiom — direct dev-Postgres seeding, unique randomUUID ids per run, cascade-correct afterAll teardown, and the serial-describe fix for the parallel CONNECTION_ENDED flake"
 provides:
-  - "e2e/open-capacity.spec.ts — the two-booker shared-date browser proof (5 serial cases): the drop-in page is day-shaped, spots decrement across bookers, sold out is calm + programmatically disabled, a drop-in search card renders no clock time and links with `date=` alone, and a full date leaves search"
+  - "e2e/open-capacity.spec.ts — the two-booker shared-date browser proof (5 serial cases): the drop-in page is day-shaped, spots decrement across bookers *and the decrement is DISPLAYED only from lowStockThreshold(cap) down* (see the Correction note below — at cap 3 the first head sold is deliberately invisible), sold out is calm + programmatically disabled, a drop-in search card renders no clock time and links with `date=` alone, and a full date leaves search"
   - "the browser-level UI-SPEC O2 proof: the ONLY clock-time range in a rendered drop-in document is the venue's own 'Open …' hours line, measured over document text"
   - "a completed, signed-off 09-VALIDATION.md — every row names a real plan/task, an on-disk file and a run command; nyquist_compliant + wave_0_complete set"
   - "the phase's repository gate: 1035 tests, tsc 0, lint 0 errors, build 0, 21 e2e, no schema drift"
@@ -56,6 +56,40 @@ completed: 2026-07-30
 
 **A real Chromium browser now watches one booker's spots-left figure drop from "Spots available" to "Only 1 left" because a different booker took two of the three passes — plus a calm, programmatically disabled sold-out date, a drop-in search card with no clock time anywhere on it, and a fully green repository with no schema drift.**
 
+---
+
+## ⚠️ Correction (2026-07-31, entered by 09-16) — what "spots decrement between them" actually means
+
+**The claim below is true as written and was misleading as read.** 09-16's human walkthrough bought drop-in
+passes ONE AT A TIME on a cap-3 listing, crossed the 3 → 2 transition, saw **no change on screen at all**, and
+reported *"i dont see chip auto deducting or what."* The arithmetic was correct throughout (live data: cap 3,
+taken 3, remaining 0 on the sold date; cap 3, taken 0, remaining 3 on the untouched one — every claim
+decremented). **The DISPLAY RULE is what hid it**, and this summary never named it:
+
+> `lowStockThreshold(cap) = clamp(floor(cap / 2), 1, OPEN_LOW_STOCK_MAX)` — `src/lib/availability/open-capacity.ts:32`.
+> The chip shows an exact count **only** in the `low` state, i.e. only once `remaining <= lowStockThreshold(cap)`.
+> At **cap 3 the threshold is 1**, so `remaining = 3` and `remaining = 2` are BOTH the digit-free
+> `Spots available`. **On a cap-3 listing the first pass sold produces no visible change whatsoever**; only the
+> second head crosses into `Only 1 left`.
+
+This is **deliberate** (OC-11 / O4 / T-09-39: a chip that counts down from the first booking is always-on
+noise, and invented urgency is a dark pattern), and it was verified 6/6 by the UI checker. It is **not** a
+counter defect. The operator reviewed it on 2026-07-31 and chose *"accepted design — record and move on"*;
+the threshold question is logged as an accepted-design deferred item (Phase 09 `deferred-items.md`, item 2).
+
+**Why the automated proof did not surface it:** `e2e/open-capacity.spec.ts` used the same `CAP = 3`, but case 2
+moved **two heads in one INSERT** (3 → 1), so the chip visibly changed and the invisible 3 → 2 step was never
+crossed. The claim was literally satisfied while the human experience was "nothing happened." **09-16 closed
+that gap** — case 2 now buys the two heads one at a time and ASSERTS that the chip still reads
+`Spots available` (and still carries no digit) at 2 of 3 remaining, so the invisibility is a pinned contract
+rather than a blind spot. Mutation-measured: forcing `lowStockThreshold` to `cap - 1` turns the new assertion
+RED (`Expected: "Spots available" / Received: "Only 2 left"`), restored, `git diff --exit-code src/` = 0.
+
+**Read every "decrement" claim in this document as: the count decrements in the database on every head, and
+is DISCLOSED on screen from `lowStockThreshold(cap)` downward.** The original wording is left in place below.
+
+---
+
 ## Performance
 
 - **Duration:** ~34 min
@@ -66,7 +100,7 @@ completed: 2026-07-30
 
 ## Accomplishments
 
-- **The decrement is observable, not inferred.** `e2e/open-capacity.spec.ts` case 2 loads the listing page as booker A (chip: `Spots available`, and the chip is asserted to carry **no digit at all** — O4's "no invented urgency" as an executable rule), has booker B take 2 of 3 heads, then reloads and re-picks the same date and reads `Only 1 left`. No unit test can show this; it is the whole point of open capacity.
+- **The decrement is observable, not inferred.** `e2e/open-capacity.spec.ts` case 2 loads the listing page as booker A (chip: `Spots available`, and the chip is asserted to carry **no digit at all** — O4's "no invented urgency" as an executable rule), has booker B take 2 of 3 heads, then reloads and re-picks the same date and reads `Only 1 left`. No unit test can show this; it is the whole point of open capacity. *(Corrected 2026-07-31 — see the Correction note above: "observable" is true of the SECOND head at cap 3. The first head decrements the database and, by design, changes nothing on screen, because `lowStockThreshold(3) = 1`. 09-16 amended this case to take the heads one at a time and to assert that first, silent step explicitly.)*
 - **UI-SPEC O2 is now measured against a REAL rendered page.** Case 1 collects every `h:mm AM/PM – h:mm AM/PM` match in `document.body.innerText` and proves each one is the venue's own `Open 6:00 AM – 10:00 PM · Makati time` line — exactly one, and nothing else. The CR-01-class 16-hour range that 09-08 forked out of `composeWhenLabel`, and the exclusive rail's `5:00 PM – 7:00 PM · 2 hours`, cannot hide anywhere on that document.
 - **The absences are proven to be a FORK, not a regression.** A second, EXCLUSIVE listing on the same host, space type, hours and city is seeded as a control. The drop-in page has no `Available hours` toggle group, no `Book full day`, and no `h:00 AM/PM` chip; the control page, same day, still has all three. Without the control, case 1 would also pass on a build that rendered no picker at all.
 - **Selling out is calm, disabled and never a dead end.** Case 4 drives a second date to zero via three different bookers, reads `Fully booked` + `All 3 passes for this day are taken. Try another day.`, asserts there is **no** waitlist/notify affordance (OC-14) and no pass stepper, then reloads and asserts the month cell is `toBeDisabled()` under the replaced `— fully booked` aria-label, and that the other date is still selectable and still sells.
