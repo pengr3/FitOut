@@ -52,6 +52,9 @@ import {
   MIN_LEAD_REQUEST_HOURS,
 } from "@/lib/payments/config";
 import { openTakenSql, PAST_DATE_MESSAGE, SOLD_OUT_MESSAGE } from "./open-capacity";
+// CR-02, on a SECOND import statement so the line above stays byte-identical: it is the shared-predicate
+// import the Pitfall-4 diff gates read, and a closed date is a different fact from an occupied one.
+import { BLOCKED_DATE_MESSAGE, openBlockedSql } from "./open-capacity";
 import { BOOKING_HORIZON_DAYS } from "./slots";
 import type { DbConn } from "./read-model";
 
@@ -839,6 +842,7 @@ export async function createOpenCapacityHold(
                  l.per_head_price_cents AS per_head,
                  l.cancellation_policy AS cancellation_policy,
                  ${openTakenSql(input.listingId, dayStartIso, dayEndIso)} AS taken,
+                 NOT ${openBlockedSql(input.listingId, dayStartIso, dayEndIso)} AS not_blocked,
                  (${closeIso}::timestamptz > now()) AS day_open_ok,
                  (${openIso}::timestamptz < now() + make_interval(days => ${BOOKING_HORIZON_DAYS}::int)) AS horizon_ok
           FROM listing l WHERE l.id = ${input.listingId}
@@ -847,6 +851,7 @@ export async function createOpenCapacityHold(
           per_head: number | null;
           cancellation_policy: "flexible" | "standard" | "strict" | null;
           taken: number;
+          not_blocked: boolean;
           day_open_ok: boolean;
           horizon_ok: boolean;
         }[];
@@ -857,6 +862,14 @@ export async function createOpenCapacityHold(
         // calendar disables those dates, but a picker is a COURTESY and never the gate (Security V4) — a
         // crafted date is refused right here, before any write. Not a race loss, so no `soldOut` flag.
         if (!rows[0].day_open_ok || !rows[0].horizon_ok) return { error: PAST_DATE_MESSAGE };
+
+        // …and refuse a date the HOST has closed (CR-02). Same reasoning, same place, and the placement is
+        // the whole point: the block test rode in on the statement above, so it was evaluated INSIDE this
+        // transaction and UNDER the advisory lock, against the same shared predicate `getOpenDay` uses. A
+        // check in the picker, or a second statement outside the lock, would leave a crafted date payload
+        // free to buy a pass for a day the host shut (T-09-64). Bare `{ error }`, no `soldOut`: nothing was
+        // sold, so this is not a race and the CTA must not invite a retry on the same date.
+        if (!rows[0].not_blocked) return { error: BLOCKED_DATE_MESSAGE };
 
         // (6) The grant (OC-07). `remaining` is the LISTING's own cap minus the DB's own SUM, both read in
         // this transaction under the lock — a client number can only ever request LESS (threat T-09-05).

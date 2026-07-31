@@ -23,10 +23,13 @@ import {
 // Phase 9 (OC-13). These are IMPORTED, never re-typed: the open branch below must count the same rows the
 // admissions claim counts, and the only way to guarantee that structurally is to share the fragment.
 import {
+  OPEN_BLOCK_UNIT_SCOPE_SQL,
   OPEN_OCCUPYING_STATUS_SQL,
   loadOpenDayWindow,
+  openBlockedSql,
   openTakenSql,
   spotsState,
+  venueDayBoundsUtc,
   type SpotsState,
 } from "./open-capacity";
 
@@ -140,6 +143,18 @@ type RangeRow = { unit: number | null; starts_at: string | Date; ends_at: string
 function parseHour(t: string): number {
   return parseInt(t.slice(0, 2), 10);
 }
+
+/** An instant's VENUE-LOCAL calendar date parts (`month` 1-BASED, this file's convention). TZDate's getters
+ *  read the wall clock in the given zone, so this is the VENUE's own date — never the server's and never the
+ *  viewer's (D-105). Used to walk the dates a host block covers. */
+function venueLocalDateParts(instant: Date, tz: string): { year: number; month: number; day: number } {
+  const z = new TZDate(instant.getTime(), tz);
+  return { year: z.getFullYear(), month: z.getMonth() + 1, day: z.getDate() };
+}
+
+/** Upper bound on the block walk below. The queried window is the venue-local month WIDENED one day on each
+ *  side — at most 33 dates — so 40 can only ever be reached by a bug, and reaching it costs nothing. */
+const MONTH_WALK_GUARD = 40;
 
 /**
  * Compute a listing's availability for a single venue-local calendar day. `dayLocal.month` is
@@ -347,26 +362,41 @@ async function getOpenDay(
 
   const { dayOpenUtc, dayCloseUtc, openTime, closeTime, dayStartUtc, dayEndUtc } = dayWindow;
   const dayOpenIso = dayOpenUtc.toISOString();
+  const dayStartIso = dayStartUtc.toISOString();
+  const dayEndIso = dayEndUtc.toISOString();
 
-  // THE occupying count — one statement, the shared fragment, no inlined predicate (see the invariant above).
-  // Counted over the VENUE-LOCAL CALENDAR DAY, not the opening instant (CR-03): an hours edit must change
-  // what a pass covers without changing which passes count, or this projection would advertise a whole
-  // second cap on a date that is already sold out.
-  const takenRows = (await dbConn.execute(
-    sql`SELECT ${openTakenSql(listingId, dayStartUtc.toISOString(), dayEndUtc.toISOString())} AS taken`,
-  )) as unknown as { taken: number }[];
-  const taken = Number(takenRows[0]?.taken ?? 0);
+  // THE occupying count and THE host-block test — one statement, ONE round trip, both from shared fragments
+  // and neither inlined here (see the invariant above). Counted over the VENUE-LOCAL CALENDAR DAY, not the
+  // opening instant (CR-03): an hours edit must change what a pass covers without changing which passes
+  // count, or this projection would advertise a whole second cap on a date that is already sold out. The
+  // block half is CR-02: before it, `availability_block` was read in exactly one place in the codebase — the
+  // exclusive branch above — so a host could close a date, see it listed under "Blocked dates", and watch
+  // this projection keep advertising `Spots available` for it.
+  const dayRows = (await dbConn.execute(
+    sql`SELECT ${openTakenSql(listingId, dayStartIso, dayEndIso)} AS taken,
+               ${openBlockedSql(listingId, dayStartIso, dayEndIso)} AS blocked`,
+  )) as unknown as { taken: number; blocked: boolean }[];
+  const taken = Number(dayRows[0]?.taken ?? 0);
+  const blocked = dayRows[0]?.blocked === true;
 
   // A NULL max_occupancy FAILS CLOSED to zero admissions — the identical choice createOpenCapacityHold
   // makes, so the calendar can never advertise a spot the claim would then refuse.
   const cap = lr.maxOccupancy ?? 0;
-  const remaining = Math.max(0, cap - taken);
+  // A blocked date has NO admissions left to sell, whatever the cap and whoever already holds a pass. Note
+  // what this deliberately does NOT do: it does not invent a fourth SpotsState. `remaining = 0` renders as
+  // the shipped `full` + not-bookable vocabulary that the calendar, SpotsLeftChip and DatePassPicker already
+  // speak, so a closed day needs no new component branch, no new copy and no new e2e assertion. A
+  // `"blocked"` state would ripple into all three for no booker-visible gain — the booker learns the same
+  // thing either way ("not this day"), and the host learns the real reason from their own block list.
+  const remaining = blocked ? 0 : Math.max(0, cap - taken);
 
   // THE CLOCK SPLIT, restating the rule stated at the exclusive predicate above (Pitfall 7): OCCUPANCY is
   // counted against SQL now() inside openTakenSql — the DB transaction clock, one source, shared with the
   // claim — while `bookable` is a DISPLAY state and therefore uses the injectable `now`, exactly as
-  // `past`/`beyond_horizon` do. The two must never be swapped.
-  const bookable = dayCloseUtc.getTime() > now.getTime() && isWithinHorizon(dayOpenIso, now);
+  // `past`/`beyond_horizon` do. The two must never be swapped. The block test is neither: it is a fact about
+  // the host's own configuration, evaluated in SQL beside the count, and it disables the CTA outright.
+  const bookable =
+    !blocked && dayCloseUtc.getTime() > now.getTime() && isWithinHorizon(dayOpenIso, now);
 
   return {
     ...base,
@@ -436,24 +466,60 @@ export async function getOpenMonthAvailability(
   // `GROUP BY 1` (the first select expression) rather than a restatement of it: two copies of the timezone
   // conversion could drift, and a grouping key that differs from the projected key is the same class of bug
   // this whole change closes. Cast to text in SQL so the driver cannot hand back a Date-or-string ambiguity.
-  const takenRows = (await dbConn.execute(sql`
-    SELECT to_char((b.starts_at AT TIME ZONE ${timezone}::text)::date, 'YYYY-MM-DD') AS day_local,
-           SUM(b.declared_pax)::int AS taken
-    FROM booking b
-    WHERE b.listing_id = ${listingId}
-      AND b.open_capacity = true
-      AND b.starts_at >= ${fromIso}::timestamptz
-      AND b.starts_at < ${toIso}::timestamptz
-      AND ${OPEN_OCCUPYING_STATUS_SQL}
-    GROUP BY 1
-  `)) as unknown as { day_local: string; taken: number }[];
+  const [takenRows, blockResult] = await Promise.all([
+    dbConn.execute(sql`
+      SELECT to_char((b.starts_at AT TIME ZONE ${timezone}::text)::date, 'YYYY-MM-DD') AS day_local,
+             SUM(b.declared_pax)::int AS taken
+      FROM booking b
+      WHERE b.listing_id = ${listingId}
+        AND b.open_capacity = true
+        AND b.starts_at >= ${fromIso}::timestamptz
+        AND b.starts_at < ${toIso}::timestamptz
+        AND ${OPEN_OCCUPYING_STATUS_SQL}
+      GROUP BY 1
+    `) as unknown as Promise<{ day_local: string; taken: number }[]>,
+    // CR-02 — the HOST-BLOCK half of "which dates are not for sale". Same import-only-the-drifting-half rule
+    // as the line above and for the same reason: a per-date EXPANSION necessarily has a different shape from
+    // openBlockedSql's single-date EXISTS, so only the UNIT SCOPE — the half that would silently drift if a
+    // future listing gained units — is imported rather than retyped. The `'[)'` overlap is the same bound the
+    // day panel and the exclusive read use.
+    dbConn.execute(sql`
+      SELECT ab.starts_at, ab.ends_at FROM availability_block ab
+      WHERE ab.listing_id = ${listingId}
+        AND ${OPEN_BLOCK_UNIT_SCOPE_SQL}
+        AND tstzrange(ab.starts_at, ab.ends_at, '[)')
+            && tstzrange(${fromIso}::timestamptz, ${toIso}::timestamptz, '[)')
+    `) as unknown as Promise<{ starts_at: string | Date; ends_at: string | Date }[]>,
+  ]);
+
+  // Expand each block to the venue-local dates it COVERS. In TS rather than SQL because each step re-derives
+  // the date's `[midnight, next midnight)` bounds through `venueDayBoundsUtc` — the very fact the day panel's
+  // SQL predicate overlaps against — so the grid and the panel cannot disagree about which dates a block
+  // closes. The dates come from the LISTING's timezone, never the server's. The walk is clamped to the
+  // queried window at both ends, so even a decade-long block costs a month's worth of iterations.
+  const fromMs = new Date(fromIso).getTime();
+  const toMs = new Date(toIso).getTime();
+  const blockedDates: string[] = [];
+  for (const b of blockResult) {
+    const blockStartMs = new Date(b.starts_at).getTime();
+    const stopMs = Math.min(new Date(b.ends_at).getTime(), toMs);
+    let cursor = venueLocalDateParts(new Date(Math.max(blockStartMs, fromMs)), timezone);
+    for (let step = 0; step < MONTH_WALK_GUARD; step++) {
+      const { dayStartUtc, dayEndUtc, dateKey } = venueDayBoundsUtc({ ...cursor, timezone });
+      if (dayStartUtc.getTime() >= stopMs) break;
+      if (dayEndUtc.getTime() > blockStartMs) blockedDates.push(dateKey);
+      // The next venue-local date, taken from the bound itself so a DST day is never assumed to be 24h long.
+      cursor = venueLocalDateParts(dayEndUtc, timezone);
+    }
+  }
 
   const monthPrefix = `${monthLocal.year}-${String(monthLocal.month).padStart(2, "0")}-`;
-  const full = takenRows
-    .filter((r) => Number(r.taken) >= cap)
+  const full = [
+    ...takenRows.filter((r) => Number(r.taken) >= cap).map((r) => r.day_local),
+    ...blockedDates,
+  ]
     // Already the venue's own calendar date — never the server's or the viewer's (D-105): the whole point of
-    // the map is which date cell to disable in the VENUE's calendar, and the row now carries it directly.
-    .map((r) => r.day_local)
+    // the map is which date cell to disable in the VENUE's calendar, and both halves carry it directly.
     .filter((d) => d.startsWith(monthPrefix));
   return { cap, fullDates: [...new Set(full)].sort() };
 }

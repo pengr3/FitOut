@@ -1,12 +1,16 @@
 // Open-capacity (drop-in pass) primitives — the ONE place the phase's shared facts live (D-123, OC-02/OC-03/
-// OC-11/OC-13). This module owns exactly four things:
+// OC-11/OC-13). This module owns exactly five things:
 //   (1) THE occupying predicate for open-capacity rows and the drift-free heads SUM built on it,
 //   (2) the OC-03 "a date is one pass" day window (venue-local date → the UTC opening/closing instants),
 //   (3) the CR-03 counter identity — the venue-local CALENDAR DAY bounds (venueDayBoundsUtc) that (1) counts
 //       over and that the admissions claim's advisory lock is keyed on. (2) and (3) are DIFFERENT FACTS about
 //       the same date and this module is where they are joined: (2) is what a pass COVERS, (3) is what a pass
 //       COUNTS AGAINST. Only (2) moves when a host edits operating hours; (3) is fixed by the calendar.
-//   (4) the OC-11 scarcity threshold + the derived display state, and the two user-facing refusal literals.
+//   (4) THE HOST-BLOCK predicate for a drop-in date (CR-02) — the unit scope a whole-listing/sentinel block
+//       occupies, and the EXISTS fragment the day panel, the month grid and the claim all evaluate. A block
+//       is not occupancy: nobody bought those admissions, so it is a SEPARATE fact from (1), which is why it
+//       zeroes the date rather than consuming heads.
+//   (5) the OC-11 scarcity threshold + the derived display state, and the user-facing refusal literals.
 //
 // Why one module: the ADMISSIONS CLAIM (units.ts createOpenCapacityHold), the day read model, the month map
 // and search all need the SAME notion of "which rows occupy a seat on this date". Two copies of that
@@ -57,6 +61,60 @@ export const SOLD_OUT_MESSAGE = "Just sold out — pick another date.";
  *  rendered red). The calendar disables such dates, but a picker is a COURTESY and never the gate
  *  (Security V4) — a crafted date must be refused server-side. */
 export const PAST_DATE_MESSAGE = "That day has already passed — pick another date.";
+
+/** Server-side refusal for a date the HOST has closed with an availability block (CR-02). Same O3 grammar as
+ *  the two literals above (statement + imperative next step, no exclamation, never rendered red), and
+ *  deliberately NOT the sold-out line: nothing was sold, so "just sold out" would be a lie that also invites
+ *  the booker to retry the same date. Returned as a bare `{ error }` with NO `soldOut` flag — a closed day is
+ *  not a race loss, so the CTA must not offer the refresh-and-retry affordance OC-13 gives a real race. */
+export const BLOCKED_DATE_MESSAGE = "The host has closed this day — pick another date.";
+
+/**
+ * WHICH `availability_block` rows can zero a DROP-IN date.
+ *
+ * `availability_block.unit` is NULL for a whole-listing block and an integer ≥ 1 for one unit (D-24). An
+ * open-capacity listing is publish-enforced `unitCount = 1` and every open booking row uses the SENTINEL
+ * `unit = 1` (units.ts), so the only two scopes that can exist on such a listing — and therefore the only two
+ * that can withdraw the date — are the whole listing and that sentinel. A block on unit 7 of a one-unit
+ * listing is a phantom and is deliberately ignored here, exactly as the exclusive read model's `inRange`
+ * clamp ignores it.
+ *
+ * Requires the availability_block table to be aliased `ab`.
+ */
+export const OPEN_BLOCK_UNIT_SCOPE_SQL = sql`(ab.unit IS NULL OR ab.unit = 1)`;
+
+/**
+ * Is this drop-in date closed by a host block? An `EXISTS` over the scope above, using the SAME half-open
+ * `tstzrange(..., '[)')` overlap form the exclusive read model uses (Pitfall 5 / T-03-RANGE-MISMATCH), so a
+ * block ending at midnight cannot bleed into the next date.
+ *
+ * ⚠️ DO NOT COPY THIS PREDICATE. `getOpenDay`, the month grid (via OPEN_BLOCK_UNIT_SCOPE_SQL) and the
+ * admissions claim (createOpenCapacityHold) ALL decide "is this date blocked?" from here. Two copies drifting
+ * is the same class as two copies of the occupying predicate: the calendar advertises a date the claim then
+ * refuses, or hides one it would have granted — and in this direction it is worse, because the host is
+ * looking at their own block in the "Blocked dates" list while passes keep selling behind it.
+ *
+ * ── THE RANGE DECISION, stated once and applied at all three call sites. ────────────────────────────────
+ * The bounds handed in are the VENUE-LOCAL CALENDAR DAY `[dayStartUtc, dayEndUtc)` (venueDayBoundsUtc), NOT
+ * the pass window `[dayOpenUtc, dayCloseUtc)`. Three reasons, in order of weight:
+ *   - OC-02 makes a date ONE pass. There is no sub-day inventory to withhold, so a host blocking any part of
+ *     a date is saying "not that date", and any overlap must zero it.
+ *   - The month grid cannot cheaply know each date's operating hours, so a pass-window rule would make the
+ *     grid and the day panel disagree — the NT-02 class of bug, deliberately not reintroduced here.
+ *   - The reviewer's suggested pass-window form is therefore the REJECTED ALTERNATIVE, and it is rejected for
+ *     DRIFT, not for difficulty.
+ *
+ * The accepted consequence, recorded so nobody "fixes" it later: a partial block (say 10:00–12:00) closes the
+ * WHOLE date for a drop-in listing. The alternative — ignoring blocks that do not cover the whole window —
+ * would let a host block 06:00–21:59 and still sell passes for that day, which is strictly worse.
+ */
+export function openBlockedSql(listingId: string, dayStartUtcIso: string, dayEndUtcIso: string) {
+  return sql`EXISTS (SELECT 1 FROM availability_block ab
+    WHERE ab.listing_id = ${listingId}
+      AND ${OPEN_BLOCK_UNIT_SCOPE_SQL}
+      AND tstzrange(ab.starts_at, ab.ends_at, '[)')
+          && tstzrange(${dayStartUtcIso}::timestamptz, ${dayEndUtcIso}::timestamptz, '[)'))`;
+}
 
 /**
  * THE COUNTER'S IDENTITY for a date (CR-03): the venue-local calendar day `[dayStartUtc, dayEndUtc)` as UTC
