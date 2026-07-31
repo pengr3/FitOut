@@ -115,6 +115,35 @@ const PAST_START: CancelActionResult = {
     "This session has already started, so it can't be cancelled here. Message the host if something's wrong.",
 };
 
+/**
+ * WR-05 / NT-01 — the SAME refusal in PASS words. A drop-in pass has no session that began: OC-03 makes its
+ * `starts_at` the venue's OPENING instant and its `ends_at` the closing one, so what runs out on a
+ * pass-holder is the DAY. Told the exclusive sentence instead, a booker is handed a description of an event
+ * they never had — the exact framing 09-08 forked `when-label.ts` to eliminate and 09-17 forked the
+ * checkout-initiation copy to eliminate.
+ *
+ * The constant beside this one is DELIBERATELY left byte-identical: its sentence is true of an exclusive
+ * booking, and the shipped Phase-7 tests assert it verbatim.
+ */
+const PASSES_ENDED: CancelActionResult = {
+  ok: false,
+  error:
+    "This day's passes have already ended, so they can't be cancelled here. Message the host if something's wrong.",
+};
+
+/**
+ * T-09-92 — BOTH past-window refusals must still audit as `past_start`.
+ *
+ * The two denial sites below used to compare against a single constant BY IDENTITY. With a second constant
+ * an identity test would silently reclassify every drop-in past-window denial as `not_active`, and that is a
+ * repudiation problem rather than a copy one: the audit trail would stop distinguishing "refused because the
+ * window had closed" from "refused because the booking was already gone" — two different disputes, one of
+ * which involves money the booker expected back.
+ */
+function isPastWindow(result: CancelActionResult): boolean {
+  return result === PAST_START || result === PASSES_ENDED;
+}
+
 const NEEDS_SESSION: CancelActionResult = { ok: false, error: "Sign in to manage your bookings." };
 
 const TOO_FAST: CancelActionResult = {
@@ -260,17 +289,44 @@ const whenLabelInput = (row: OwnedBooking): WhenLabelInput => ({
 });
 
 /**
- * Distinguish the two calm 0-row cases with ONE extra read, so the booker is told which of them happened.
- * `starts_at > now()` is evaluated by Postgres, matching the UPDATE's own guard exactly.
+ * WHICH instant the calling path's UPDATE compared against — so an explanation can never describe a guard
+ * different from the one that actually refused.
+ *
+ * The two paths DIVERGE for a drop-in pass, deliberately (WR-05 / T-09-91): the BOOKER's window closes when
+ * the venue closes, the HOST's when it opens. Handing this the wrong value would not change what happened;
+ * it would change what the booker is TOLD happened, which on this path is the entire product.
  */
-async function explainNoRows(bookingId: string): Promise<CancelActionResult> {
+type CancelWindow = "booker" | "host";
+
+/**
+ * Distinguish the two calm 0-row cases with ONE extra read, so the booker is told which of them happened.
+ * The comparison is evaluated by Postgres, matching the calling UPDATE's own guard exactly.
+ */
+async function explainNoRows(
+  bookingId: string,
+  cancelWindow: CancelWindow,
+): Promise<CancelActionResult> {
+  // The booker path's window ends at the venue's CLOSING instant for an open row (WR-05) and at the
+  // session's start for an exclusive one. The host path's ends at the session's start in BOTH modes.
+  const windowEnd =
+    cancelWindow === "booker"
+      ? sql`(CASE WHEN open_capacity THEN ends_at ELSE starts_at END)`
+      : sql`starts_at`;
   const [row] = (await db.execute(sql`
-    SELECT status::text AS "status", starts_at > now() AS "future"
+    SELECT status::text AS "status",
+           open_capacity AS "openCapacity",
+           ${windowEnd} > now() AS "future"
     FROM booking WHERE id = ${bookingId}
-  `)) as unknown as { status: string; future: boolean }[];
-  // A still-confirmed booking that only failed the start-time guard is the post-start case; anything else
+  `)) as unknown as { status: string; openCapacity: boolean; future: boolean }[];
+  // A still-confirmed booking that only failed the window guard is the past-window case; anything else
   // (already cancelled, declined, never confirmed, raced) is the generic no-longer-active case.
-  if (row && row.status === "confirmed" && !row.future) return PAST_START;
+  //
+  // WHICH refusal is decided by WHAT ran out, which is precisely the instant this path just compared: on the
+  // booker path an open row's window ended when the venue CLOSED, so the day's passes are over. Everywhere
+  // else the instant is the session's own start and the shipped sentence is already true of it.
+  if (row && row.status === "confirmed" && !row.future) {
+    return row.openCapacity && cancelWindow === "booker" ? PASSES_ENDED : PAST_START;
+  }
   return NOT_ACTIVE;
 }
 
@@ -548,9 +604,36 @@ export async function cancelBookingAsBooker(
   // to OCCUPYING and permanently block the slot of every partially-refunded cancellation. D-79 did not avoid
   // an audit; it avoided a live bug. Freeing the slot is therefore automatic and needs no slot manipulation.
   //
-  // `AND starts_at > now()`: cancellation is permitted only BEFORE the session begins (D-94). This
-  // STRUCTURALLY eliminates the payout clawback problem — payout is not eligible until endsAt + 24h (D-55),
-  // so a refund is always just a platform-wallet reversal with the host never yet paid.
+  // ── THE WINDOW GUARD (D-94), FORKED ON THE PERSISTED OCCUPANCY MODE (WR-05). ─────────────────────────
+  // Cancellation is permitted only BEFORE this booking's own session is over. That STRUCTURALLY eliminates
+  // the payout clawback problem — payout is not eligible until endsAt + 24h (D-55), so a refund is always
+  // just a platform-wallet reversal with the host never yet paid.
+  //
+  // WHICH instant ends that session is NOT the same in both modes. An EXCLUSIVE booking's session begins at
+  // its `starts_at`, so that is its cutoff and it is unchanged here. A DROP-IN pass's `starts_at` is the
+  // venue's OPENING instant and the session it buys runs until CLOSING (OC-03), so an open row's cutoff is
+  // `ends_at`. Comparing an open row against its opening instant made the WHOLE day a pass is valid for a
+  // day on which it could be neither cancelled nor refunded — a purchase final from the moment the venue
+  // opened, with nothing on the reserve page saying so. That was WR-05.
+  //
+  // THE CLAWBACK PROPERTY IS PRESERVED, NOT WEAKENED. While a pass window is still live, `ends_at + 24h` is
+  // by construction still in the future, so the host has not been paid at the moment this refund is issued —
+  // which is the same reason the guard was safe before it moved.
+  //
+  // AND NO MONEY MATH MOVES WITH IT. The ladder already returns 0% for a negative `hoursToStart`
+  // (src/lib/payments/cancellation.ts:92-96 — nothing satisfied falls through to 0), so a live-window cancel
+  // refunds nothing, retains the FULL space price for the host, and simply returns the head to the pool.
+  // That release needs no code at all: `remaining` is a live SUM, so a cancelled row leaves the occupying
+  // set by itself (RESEARCH Pitfall 3).
+  //
+  // The mode is read from the PERSISTED `open_capacity` column and from nothing else — never inferred from a
+  // null rate, a null `declared_pax` or `full_day`. A drop-in listing may legally still carry
+  // `hourly_rate_cents` / `day_rate_cents` (OC-17 lets a host switch modes without wiping them).
+  //
+  // ⚠️ THE HOST FLIP FURTHER DOWN THIS FILE IS DELIBERATELY *NOT* FORKED (T-09-91). A host withdrawing a
+  // pass from a guest who may already be inside the venue using it is a support case, not a self-serve one,
+  // and widening it would be a product decision nobody asked for. The asymmetry is a choice; this is where
+  // the choice is recorded.
   //
   // `retained_space_cents` is what reaches the host: 07-04's payout basis is
   // COALESCE(retained_space_cents, space_price_cents), so writing it here IS the D-69 mechanism.
@@ -565,17 +648,17 @@ export async function cancelBookingAsBooker(
     WHERE id = ${parsed.data.bookingId}
       AND booker_id = ${userId}
       AND status = 'confirmed'
-      AND starts_at > now()
+      AND (CASE WHEN open_capacity THEN ends_at ELSE starts_at END) > now()
     RETURNING id
   `)) as unknown as { id: string }[];
 
   if (flipped.length === 0) {
-    const reason = await explainNoRows(parsed.data.bookingId);
+    const reason = await explainNoRows(parsed.data.bookingId, "booker");
     await recordAudit({
       actorId: userId,
       action: "cancel_booking",
       outcome: "denied",
-      meta: { reason: reason === PAST_START ? "past_start" : "not_active", bookingId },
+      meta: { reason: isPastWindow(reason) ? "past_start" : "not_active", bookingId },
     });
     return reason; // calm, never a throw
   }
@@ -965,9 +1048,15 @@ export async function cancelBookingAsHost(
   // through to `COALESCE(retained, space_price)` and pay the host the full space price — the exact
   // inversion of the consequence.
   //
-  // `AND starts_at > now()` (D-94) is the same guard the booker path carries, and it structurally eliminates
-  // the payout clawback problem: payout is not eligible until endsAt + PAYOUT_DELAY_HOURS (D-55), so the
-  // host has never been paid at the moment a refund is issued.
+  // `AND starts_at > now()` (D-94) structurally eliminates the payout clawback problem: payout is not
+  // eligible until endsAt + PAYOUT_DELAY_HOURS (D-55), so the host has never been paid at the moment a
+  // refund is issued.
+  //
+  // ⚠️ AND IT IS DELIBERATELY *NOT* FORKED ON `open_capacity` (WR-05 / T-09-91), which makes this guard NO
+  // LONGER identical to the booker path's. A booker may cancel a drop-in pass for the whole day it covers;
+  // a HOST withdrawing that pass from a guest who may already be inside the venue using it is a support
+  // case, not a self-serve one, and widening this window would be a product decision nobody asked for. The
+  // asymmetry is a choice, not an oversight — do not "complete the fork" here without one.
   const flipped = (await db.execute(sql`
     UPDATE booking
     SET status = 'cancelled',
@@ -993,12 +1082,12 @@ export async function cancelBookingAsHost(
   `)) as unknown as { id: string }[];
 
   if (flipped.length === 0) {
-    const calm = await explainNoRows(parsed.data.bookingId);
+    const calm = await explainNoRows(parsed.data.bookingId, "host");
     await recordAudit({
       actorId: userId,
       action: "host_cancel_booking",
       outcome: "denied",
-      meta: { reason: calm === PAST_START ? "past_start" : "not_active", bookingId },
+      meta: { reason: isPastWindow(calm) ? "past_start" : "not_active", bookingId },
     });
     return calm; // calm, never a throw
   }

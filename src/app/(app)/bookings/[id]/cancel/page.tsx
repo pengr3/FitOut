@@ -151,18 +151,44 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   });
   const tzNote = venueTzNote(lst.city, lst.timezone);
 
-  // D-94: past start, there is nothing to cancel here. Calm refusal, no confirm button — matched word for
-  // word to the action's own PAST_START result, so the page and the server never contradict each other.
-  if (bk.startsAt.getTime() <= now.getTime()) {
+  // ── D-94's window, FORKED ON THE PERSISTED OCCUPANCY MODE (WR-05) ─────────────────────────────────────
+  // Past the window there is nothing to cancel here: a calm refusal with no confirm button, matched word for
+  // word to the action's own refusal so the page and the server never contradict each other.
+  //
+  // WHICH instant closes the window is the same fork `cancelBookingAsBooker` applies, for the same reason: a
+  // drop-in pass's `starts_at` is the venue's OPENING instant and the session it buys runs until CLOSING
+  // (OC-03), so an open booking is cancellable for the whole day it covers. Comparing `startsAt` here would
+  // refuse to RENDER a cancellation the action would happily perform — a dead end one click earlier, which
+  // is the worse half of the same bug.
+  const windowEnd = bk.openCapacity ? bk.endsAt : bk.startsAt;
+  if (windowEnd.getTime() <= now.getTime()) {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
           <CardContent role="status" aria-live="polite" className="space-y-4 py-10 text-center">
-            <h1 className="text-xl leading-tight font-semibold">This session has already started</h1>
-            <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-              This session has already started, so it can&apos;t be cancelled here. Message the host if
-              something&apos;s wrong.
-            </p>
+            {/* NT-01 — the refusal is stated in the words of the thing that actually ran out. A pass-holder
+                never had a session that started; their DAY ended. Both sentences are the action's, verbatim. */}
+            {bk.openCapacity ? (
+              <>
+                <h1 className="text-xl leading-tight font-semibold">
+                  This day&apos;s passes have already ended
+                </h1>
+                <p className="mx-auto max-w-prose text-sm text-muted-foreground">
+                  This day&apos;s passes have already ended, so they can&apos;t be cancelled here. Message
+                  the host if something&apos;s wrong.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-xl leading-tight font-semibold">
+                  This session has already started
+                </h1>
+                <p className="mx-auto max-w-prose text-sm text-muted-foreground">
+                  This session has already started, so it can&apos;t be cancelled here. Message the host if
+                  something&apos;s wrong.
+                </p>
+              </>
+            )}
             <p className="text-sm text-muted-foreground">
               {title} · {whenLabel}
             </p>

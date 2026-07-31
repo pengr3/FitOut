@@ -61,6 +61,15 @@ import type { RateLimitResult } from "@/lib/rate-limit";
  *  rename is a deliberate act. Mirrors the constant the action keeps private. */
 const HOST_CANCEL_BLOCK_REASON = "host_cancellation";
 
+// ── The SHIPPED refusals (NT-01), asserted as literals so a wording change is a deliberate act ──────────
+/** The EXCLUSIVE sentence, preserved byte-for-byte by the WR-05 fork — it is true of an exclusive booking
+ *  and only of one. Asserted verbatim by case (7). */
+const PAST_START_MESSAGE =
+  "This session has already started, so it can't be cancelled here. Message the host if something's wrong.";
+/** The DROP-IN sentence the fork adds. A pass-holder never had a session that started; their DAY ended. */
+const PASSES_ENDED_MESSAGE =
+  "This day's passes have already ended, so they can't be cancelled here. Message the host if something's wrong.";
+
 const HOST_EMAIL = "occ_host@example.com";
 const BOOKER_EMAIL = "occ_booker@example.com";
 const OTHER_BOOKER_EMAIL = "occ_other_booker@example.com";
@@ -75,6 +84,8 @@ const EXCL_TOTAL = HOURLY + SERVICE_FEE_EXCL;
 
 const L_DROPIN = "L_occ_dropin"; // open_capacity, hours every weekday
 const L_EXCL = "L_occ_excl"; // exclusive — the D-70 regression guard's listing
+const L_TODAY = "L_occ_today"; // open_capacity, a day that OPENED EARLIER TODAY and closes at 23:59 (WR-05)
+const L_ENDED = "L_occ_ended"; // open_capacity, a day whose pass window has ALREADY CLOSED
 
 const TIMEZONE = "Asia/Manila";
 const MANILA_OFFSET_HOURS = 8; // UTC+8 all year, no DST — so the instants below are plain UTC arithmetic
@@ -120,6 +131,44 @@ const D_NOBLOCK = daysOut(30); // (1) the host cancel that must write NO block
 const D_SHARED = daysOut(31); // (3) two pass-holders, one host cancel
 const D_FREE = daysOut(32); // (4) booker cancel → the heads are re-sellable
 const D_LADDER = daysOut(33); // (5) the refund ladder against the opening instant
+
+// ── WR-05 fixtures: the LIVE pass window and the CLOSED one (cases 6, 8, 9) ─────────────────────────────
+// Both are clock-relative like everything else in this file, and both are DETERMINISTIC AT ANY HOUR — the
+// 09-17 rule, restated because it is what makes case 6 provable rather than lucky.
+
+/** The venue-local wall clock for an instant, as plain shifted-UTC fields (no DST in Asia/Manila). */
+function venueLocal(at: Date): LocalDate & { hour: number; dow: number } {
+  const shifted = new Date(at.getTime() + MANILA_OFFSET_HOURS * HOUR_MS);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+    dow: shifted.getUTCDay(),
+  };
+}
+/** A venue-local wall clock (date + h:m) as the real UTC instant it names. */
+function venueInstant(d: LocalDate, hour: number, minute = 0): Date {
+  return new Date(Date.UTC(d.year, d.month - 1, d.day, hour - MANILA_OFFSET_HOURS, minute, 0));
+}
+const hhmmss = (h: number, m = 0) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+
+const NOW_LOCAL = venueLocal(new Date());
+/** Two hours ago, floored to the hour, clamped at venue midnight — ALREADY OPEN at every hour of the day
+ *  (at venue-local 01:31, the hour that hid CR-01 from nine human steps, it resolves to 00:00:00). */
+const TODAY_OPEN_HOUR = Math.max(0, NOW_LOCAL.hour - 2);
+const TODAY_OPEN_UTC = venueInstant(NOW_LOCAL, TODAY_OPEN_HOUR, 0);
+/** 23:59 local — so the pass window is unconditionally still LIVE at run time. */
+const TODAY_CLOSE_UTC = venueInstant(NOW_LOCAL, 23, 59);
+
+// ⚠️ THE "FULLY ENDED DAY" IS YESTERDAY, NOT AN EARLIER WINDOW TODAY — a deliberate deviation from the
+// plan's wording, for the reason 09-17 recorded when it hit the identical shape: a window that both opened
+// and closed EARLIER TODAY does not exist at every hour (a run between venue-local 00:00 and 00:0N would
+// find it still open, and the case would assert the wrong branch). Yesterday's full 00:00–23:59 window has
+// closed at every instant of today, which is the property cases 8 and 9 actually need.
+const YESTERDAY_LOCAL = venueLocal(new Date(Date.now() - 24 * HOUR_MS));
+const ENDED_OPEN_UTC = venueInstant(YESTERDAY_LOCAL, 0, 0);
+const ENDED_CLOSE_UTC = venueInstant(YESTERDAY_LOCAL, 23, 59);
 
 // The mocked next/headers reads this at CALL time, so login() can swap the session cookie.
 const sessionHeaders: { cookie: string } = { cookie: "" };
@@ -202,6 +251,58 @@ async function seedDropIn(
   return { spacePriceCents, quotedTotalCents: fee.allInCents, startsAt };
 }
 
+/**
+ * A CONFIRMED drop-in booking at EXPLICIT instants on an EXPLICIT listing — the WR-05 cases need windows the
+ * 06:00–22:00 fixture above cannot express (one live right now, one already closed). Same row SHAPE as
+ * `seedDropIn`; only the listing and the two instants are caller-supplied.
+ */
+async function seedDropInAt(args: {
+  id: string;
+  listingId: string;
+  startsAt: Date;
+  endsAt: Date;
+  heads: number;
+  owner: string;
+}): Promise<{ spacePriceCents: number; quotedTotalCents: number }> {
+  const spacePriceCents = PER_HEAD_CENTS * args.heads;
+  const fee = computeServiceFee(spacePriceCents);
+  await testDb.db.insert(booking).values({
+    id: args.id,
+    listingId: args.listingId,
+    unit: 1,
+    bookerId: args.owner,
+    startsAt: args.startsAt,
+    endsAt: args.endsAt,
+    status: "confirmed",
+    bookingMode: "instant",
+    openCapacity: true,
+    fullDay: false,
+    declaredPax: args.heads,
+    cancellationPolicy: "standard",
+    spacePriceCents,
+    serviceFeeCents: fee.serviceFeeCents,
+    quotedTotalCents: fee.allInCents,
+    currency: "php",
+    paymentId: `pay_${args.id}`,
+    paymentMethod: "gcash",
+    expiresAt: null,
+  });
+  return { spacePriceCents, quotedTotalCents: fee.allInCents };
+}
+
+/**
+ * Flip a claim-minted `pending` hold to `confirmed`, exactly as the PayMongo webhook does (D-57 — payment is
+ * the sole confirm authority, so this is the only honest way to reach `confirmed` without a live rail). Used
+ * by case 6, which needs a row minted by the REAL claim rather than hand-inserted.
+ */
+async function confirmClaimedRow(id: string): Promise<void> {
+  await testDb.db.execute(sql`
+    UPDATE booking
+    SET status = 'confirmed', expires_at = NULL,
+        payment_id = ${`pay_${id}`}, payment_method = 'gcash'
+    WHERE id = ${id}`);
+}
+
 /** A CONFIRMED EXCLUSIVE booking on L_EXCL, `msToStart` from the DB clock — the case-2 control. */
 async function seedExclusive(id: string, msToStart: number): Promise<{ startsAt: Date; endsAt: Date }> {
   const base = await readDbNow(testDb.db);
@@ -241,6 +342,9 @@ async function readRow(id: string) {
       cancelledBy: booking.cancelledBy,
       declineReason: booking.declineReason,
       startsAt: booking.startsAt,
+      // WR-05 — the other end of the pass window. Cases 6/8 read it back so "the window really was live /
+      // really had closed" is a fact about the PERSISTED row, never about the fixture's own arithmetic.
+      endsAt: booking.endsAt,
     })
     .from(booking)
     .where(eq(booking.id, id));
@@ -265,8 +369,11 @@ async function readDebits(bookingId: string) {
 }
 
 /** The read model's own answer for a drop-in date — the shape a booker's calendar renders from. */
-async function readSpots(day: LocalDate): Promise<{ remaining: number; cap: number; state: string }> {
-  const availability = await getAvailability(testDb.db, L_DROPIN, day);
+async function readSpots(
+  day: LocalDate,
+  listingId: string = L_DROPIN,
+): Promise<{ remaining: number; cap: number; state: string }> {
+  const availability = await getAvailability(testDb.db, listingId, day);
   expect(availability.occupancyMode).toBe("open_capacity");
   expect(availability.openCapacity).not.toBeNull();
   return {
@@ -366,20 +473,85 @@ beforeAll(async () => {
       hourlyRateCents: HOURLY,
       dayRateCents: DAY_RATE,
     },
+    // The two WR-05 listings. Each owns its own dates so no case above can pre-fill its cap, and each keeps
+    // the deliberately adversarial hourly/day rates for the reason spelled out on L_DROPIN.
+    {
+      id: L_TODAY,
+      hostId,
+      title: "Drop-in floor (today)",
+      status: "published",
+      occupancyMode: "open_capacity",
+      bookingMode: "instant",
+      cancellationPolicy: "standard",
+      maxOccupancy: CAP,
+      unitCount: 1,
+      perHeadPriceCents: PER_HEAD_CENTS,
+      timezone: TIMEZONE,
+      city: "Makati",
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+    },
+    {
+      id: L_ENDED,
+      hostId,
+      title: "Drop-in floor (closed day)",
+      status: "published",
+      occupancyMode: "open_capacity",
+      bookingMode: "instant",
+      cancellationPolicy: "standard",
+      maxOccupancy: CAP,
+      unitCount: 1,
+      perHeadPriceCents: PER_HEAD_CENTS,
+      timezone: TIMEZONE,
+      city: "Makati",
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+    },
   ]);
 
   // L_DROPIN is open EVERY weekday, so each case can own its own date without a "closed that day" surprise.
   // `loadOpenDayWindow` needs these rows: without them the read model returns the "Closed" empty state and
   // case 3 would assert against a null payload rather than against the counter.
-  await testDb.db.insert(operatingHours).values(
-    Array.from({ length: 7 }, (_, dow) => ({
+  await testDb.db.insert(operatingHours).values([
+    ...Array.from({ length: 7 }, (_, dow) => ({
       id: `oh_occ_${dow}`,
       listingId: L_DROPIN,
       dayOfWeek: dow,
       openTime: "06:00:00",
       closeTime: "22:00:00",
     })),
-  );
+    // The LIVE window: opened earlier today, closes at 23:59. `createOpenCapacityHold` takes the window as
+    // an argument, but `getAvailability` re-derives it from THIS row — so case 6's spots-left assertions
+    // read the same day the claim wrote into.
+    {
+      id: "oh_occ_today",
+      listingId: L_TODAY,
+      dayOfWeek: NOW_LOCAL.dow,
+      openTime: hhmmss(TODAY_OPEN_HOUR),
+      closeTime: "23:59:00",
+    },
+    // The CLOSED window: yesterday, all day.
+    {
+      id: "oh_occ_ended",
+      listingId: L_ENDED,
+      dayOfWeek: YESTERDAY_LOCAL.dow,
+      openTime: "00:00:00",
+      closeTime: "23:59:00",
+    },
+  ]);
+
+  // Fixture preconditions as THROWS rather than expects: if these windows were mis-computed, case 6 would
+  // pass vacuously (a future `starts_at` satisfies the OLD guard too) and prove nothing whatsoever.
+  const nowMs = Date.now();
+  if (!(TODAY_OPEN_UTC.getTime() < nowMs)) {
+    throw new Error(`fixture broken: the venue has not opened yet (${TODAY_OPEN_UTC.toISOString()})`);
+  }
+  if (!(TODAY_CLOSE_UTC.getTime() > nowMs)) {
+    throw new Error(`fixture broken: the pass window already closed (${TODAY_CLOSE_UTC.toISOString()})`);
+  }
+  if (!(ENDED_CLOSE_UTC.getTime() < nowMs)) {
+    throw new Error(`fixture broken: the "ended" day is still open (${ENDED_CLOSE_UTC.toISOString()})`);
+  }
 
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
@@ -658,5 +830,208 @@ describe("cancelBookingAsBooker — OC-15: no drop-in-specific refund rule exist
       sql`SELECT count(*)::int AS n FROM availability_block WHERE listing_id = ${L_DROPIN}`,
     )) as unknown as { n: number }[];
     expect(n).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// WR-05 / NT-01 — the cancellation WINDOW is forked on the persisted mode, and so are the refusals
+//
+// THE DEFECT, stated as a booker experiences it: `cancelBookingAsBooker`'s flip was scoped
+// `AND starts_at > now()`, and a drop-in pass's `starts_at` IS the venue's OPENING instant (OC-03). So from
+// the moment a venue opened, the entire day a pass was valid for was a day on which it could be neither
+// cancelled nor refunded — a purchase final the second it was made, with nothing on the reserve page saying
+// so. 09-17 removed the mask (CR-01 meant a same-day pass could not be BOUGHT at all); these cases are the
+// gate that keeps it closed.
+//
+// WHAT MAKES THESE CASES BITE RATHER THAN NARRATE (.continue-here.md, seam-blind test design): every one of
+// them reads the BOOKING TABLE back. Case 6 asserts the PERSISTED status, the zero refund and the returned
+// spot — never a returned sentence — because a fix that refused politely and left the row confirmed would
+// satisfy any assertion made against the action's return value alone.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// MUTATION, EXECUTED 2026-08-01 (09-25). A mutation that is described but never executed is a comment, not
+// a proof. Reverted the fork in the PRODUCTION file src/app/actions/cancel-booking.ts — restored the bare
+// `AND starts_at > now()` in cancelBookingAsBooker's flip, leaving everything else in place — then ran
+// `npx vitest run tests/booking/open-capacity-cancel.test.ts`. Observed output, VERBATIM:
+//
+//    ❯ tests/booking/open-capacity-cancel.test.ts (9 tests | 1 failed) 3461ms
+//        × (6) a drop-in pass can be cancelled while the venue is open 129ms
+//
+//    FAIL  tests/booking/open-capacity-cancel.test.ts > cancelBookingAsBooker — WR-05: a live drop-in pass
+//    is still cancellable > (6) a drop-in pass can be cancelled while the venue is open
+//   AssertionError: expected 'confirmed' to be 'cancelled' // Object.is equality
+//
+//   Expected: "cancelled"
+//   Received: "confirmed"
+//
+//    ❯ tests/booking/open-capacity-cancel.test.ts:891:24
+//       889|     // spot, which names the defect exactly. A `res.ok` assertion woul…
+//       890|     const row = await readRow(claim.id);
+//       891|     expect(row.status).toBe("cancelled");
+//          |                        ^
+//       892|     expect(row.cancelledBy).toBe("booker");
+//
+//    Test Files  1 failed (1)
+//         Tests  1 failed | 8 passed (9)
+//
+// That is the defect in one line: a pass the booker ASKED to cancel is still `confirmed`, still occupying a
+// spot, and still unrefunded — with the action having returned no error the booker could act on.
+//
+// Cases 7, 8 and 9 stayed GREEN under the mutation, and each for a reason worth stating:
+//   - (7) drives the EXCLUSIVE path, which the mutation restores to its shipped form — which is exactly what
+//     makes it the guard against "fixing" WR-05 by widening the cutoff for everyone;
+//   - (8) and (9) drive a day that has ALREADY CLOSED, so both cutoffs refuse it and only the WORDING is at
+//     stake — and the mutation left the copy fork and the audit predicate intact.
+//
+// ⚠️ ONE UNPLANNED ARTIFACT, RECORDED RATHER THAN DISCARDED. Under the mutation the audit line printed
+// `"reason":"not_active"` for case 6's refusal, because `explainNoRows` was still forked while the flip was
+// not: the two halves disagreed about which instant closes the window, so the trail described a live pass as
+// a booking that no longer existed. The halves are one change and must move together; a partial revert is
+// observable in the audit trail before it is observable anywhere else.
+//
+// The fork was restored and `git diff --exit-code src/` printed nothing before this file shipped.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("cancelBookingAsBooker — WR-05: a live drop-in pass is still cancellable", () => {
+  it("(6) a drop-in pass can be cancelled while the venue is open", async () => {
+    // Minted by the REAL claim for TODAY, on a listing that opened earlier today — so the row is genuinely
+    // drop-in-shaped (open_capacity, unit 1, declared_pax, the venue's own instants, a frozen price triple
+    // and the D-67 tier snapshot) rather than an approximation of one. Confirmed the way payment confirms it.
+    const claim = await createOpenCapacityHold(testDb.db, {
+      listingId: L_TODAY,
+      bookerId,
+      dayOpenUtc: TODAY_OPEN_UTC,
+      dayCloseUtc: TODAY_CLOSE_UTC,
+      ...dayBounds(NOW_LOCAL),
+      requestedHeads: 2,
+    });
+    if ("error" in claim) throw new Error(`the same-day claim was refused: ${claim.error}`);
+    await confirmClaimedRow(claim.id);
+    const spacePriceCents = claim.spacePriceCents ?? 0;
+    expect(spacePriceCents).toBe(PER_HEAD_CENTS * 2);
+
+    // The window really is LIVE, measured on the PERSISTED row: opened in the past, closing in the future.
+    // Without this the case could go green against a pass that never entered the window where WR-05 lived.
+    const seededRow = await readRow(claim.id);
+    expect(seededRow.openCapacity).toBe(true);
+    expect(seededRow.startsAt.getTime()).toBeLessThan(Date.now());
+    expect(seededRow.endsAt.getTime()).toBeGreaterThan(Date.now());
+
+    const before = await readSpots(NOW_LOCAL, L_TODAY);
+    expect(before.remaining).toBe(CAP - 2); // the fixture is genuinely occupied
+
+    await login(BOOKER_EMAIL);
+    const res = await cancelBookingAsBooker(claim.id);
+
+    // ── THE ASSERTION ORDER IS LOAD-BEARING. The DATABASE comes first, because that is what the booker
+    // actually gets: with the fork reverted this line fails with the pass still live and still occupying a
+    // spot, which names the defect exactly. A `res.ok` assertion would only say "the action said no".
+    const row = await readRow(claim.id);
+    expect(row.status).toBe("cancelled");
+    expect(row.cancelledBy).toBe("booker");
+
+    // The money is EXACTLY what the shipped ladder already awards past every rung: nothing back, the full
+    // space price retained for the host. No refund rule was added, moved or invented by this fork — the 0%
+    // rung is the existing behaviour of a negative `hoursToStart`.
+    expect(row.refundCents).toBe(0);
+    expect(row.retainedSpaceCents).toBe(spacePriceCents);
+    expect(row.retainedSpaceCents).toBe(row.spacePriceCents);
+    expect(res).toEqual({ ok: true, refundCents: 0 });
+    // …and nothing was dispatched to PayMongo: a ₱0 refund is not a money event.
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
+
+    // THE POINT OF ALLOWING IT AT ALL: the spot goes back into the pool, so a booker who cannot come frees a
+    // head that would otherwise be a paid no-show. No release code exists — `remaining` is a live SUM.
+    const after = await readSpots(NOW_LOCAL, L_TODAY);
+    expect(after.remaining).toBe(before.remaining + 2); // EXACTLY the cancelled heads, never more
+    expect(after.remaining).toBe(CAP);
+
+    // A booker cancel is not a host cancel: no anti-resell block anywhere on this listing.
+    expect(await readBlocks(L_TODAY)).toHaveLength(0);
+  });
+
+  it("(7) an exclusive booking is still uncancellable once its session has started", async () => {
+    // THE D-94 REGRESSION GUARD. `ends_at` is deliberately in the FUTURE (the session is in progress right
+    // now), so the sloppy way to "fix" WR-05 — widening the cutoff to `ends_at` for EVERY mode — turns this
+    // case RED instead of silently weakening D-94 on the exclusive path (T-09-51).
+    await seedExclusive("bk_occ_started", -30 * 60 * 1000);
+
+    await login(BOOKER_EMAIL);
+    const res = await cancelBookingAsBooker("bk_occ_started");
+
+    // The PERSISTED row first: the booking is untouched, not merely "the action returned an error".
+    const row = await readRow("bk_occ_started");
+    expect(row.status).toBe("confirmed");
+    expect(row.refundCents).toBeNull();
+    expect(row.cancelledBy).toBeNull();
+
+    // …and the exclusive sentence is byte-identical to the shipped one. It is TRUE of this booking, which is
+    // exactly why the fork adds a second constant instead of rewording this one.
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toBe(PAST_START_MESSAGE);
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
+  });
+
+  it("(8) a drop-in pass for a day that has fully ended cannot be cancelled, and says so in pass words", async () => {
+    const seeded = await seedDropInAt({
+      id: "bk_occ_ended",
+      listingId: L_ENDED,
+      startsAt: ENDED_OPEN_UTC,
+      endsAt: ENDED_CLOSE_UTC,
+      heads: 1,
+      owner: bookerId,
+    });
+
+    await login(BOOKER_EMAIL);
+    const res = await cancelBookingAsBooker("bk_occ_ended");
+
+    // Untouched — the window guard genuinely refused, it did not merely word a refusal differently.
+    const row = await readRow("bk_occ_ended");
+    expect(row.status).toBe("confirmed");
+    expect(row.refundCents).toBeNull();
+    expect(row.retainedSpaceCents).toBeNull();
+    expect(row.endsAt.getTime()).toBeLessThan(Date.now());
+    expect(row.spacePriceCents).toBe(seeded.spacePriceCents);
+
+    // NT-01 — a pass-holder never had a session that started. The DAY's passes ended.
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toBe(PASSES_ENDED_MESSAGE);
+    expect(res.ok === false && res.error).not.toBe(PAST_START_MESSAGE);
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
+  });
+
+  it("(9) the audit trail still records past_start for a drop-in past-window refusal", async () => {
+    // T-09-92. The two denial sites used to compare against `PAST_START` BY IDENTITY; a second constant
+    // makes that test silently false for every drop-in refusal, reclassifying it as `not_active` — which
+    // would stop the trail distinguishing "the window had closed" from "the booking was already gone". This
+    // case pins the predicate that replaced the identity comparison.
+    await seedDropInAt({
+      id: "bk_occ_ended_audit",
+      listingId: L_ENDED,
+      startsAt: ENDED_OPEN_UTC,
+      endsAt: ENDED_CLOSE_UTC,
+      heads: 1,
+      owner: bookerId,
+    });
+
+    const auditSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    let entries: ReturnType<typeof auditEntriesFor>;
+    let res: Awaited<ReturnType<CancelActions["cancelBookingAsBooker"]>>;
+    try {
+      await login(BOOKER_EMAIL);
+      res = await cancelBookingAsBooker("bk_occ_ended_audit");
+      entries = auditEntriesFor(auditSpy, "cancel_booking");
+    } finally {
+      auditSpy.mockRestore();
+    }
+
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toBe(PASSES_ENDED_MESSAGE);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].outcome).toBe("denied");
+    expect(entries[0].meta?.reason).toBe("past_start");
+    expect(entries[0].meta?.reason).not.toBe("not_active");
   });
 });
