@@ -115,7 +115,7 @@ commit; each was greped against `src/`.
 | booker browser → `confirmBooking` | mints a PayMongo checkout against a server-frozen amount | `holdId` only; charge is the persisted `quoted_total_cents` |
 | PayMongo → `/api/paymongo/webhook` | external confirm authority (D-57) | signed event body; **untouched this phase** (verified: no start-time condition, `route.ts` projects `startsAt` only for notification data at `:228`, `:253`) |
 | URL query string → reserve page RSC | `?requested=` fully attacker-controlled | display-only integer, clamped |
-| operator env → `OPEN_LOW_STOCK_MAX` | server-only config governing a booker-visible disclosure | **unvalidated** `Number(env)` — see T-09-84 / T-09-86 |
+| operator env → `OPEN_LOW_STOCK_MAX` | server-only config governing a booker-visible disclosure | **unvalidated** `Number(env)` — see T-09-84 / T-09-86; the clamp arrives with 09-24 |
 | host operating-hours rows → admissions counter | host-mutable data that derives the counter's identity key | **unguarded** — see T-09-54 |
 
 ---
@@ -220,12 +220,12 @@ introduced by the same unexecuted plan, so there is **no live exposure today**).
 | T-09-83 | DoS | hold born already expired on a split-shift day | mitigate | **ABSENT.** `open-capacity.ts:160-161` still `min(open_time)` / `max(close_time)` in SQL — `MAX` on a wall-clock `time` cannot express a shift rolling past midnight; `:119` `rollsPastMidnight` is computed from the collapsed envelope, not per row. **LIVE** (WR-02). | **open** |
 | T-09-84 | Info disclosure (suppressed) | OPEN-04 scarcity off from a config typo | mitigate | **ABSENT.** `open-capacity.ts:27` — `export const OPEN_LOW_STOCK_MAX = Number(process.env.OPEN_LOW_STOCK_MAX ?? 5);` with no `Number.isFinite` and no positivity check. Grep `Number.isFinite(parsed)` → 0. `Math.min(x, NaN)` → `NaN`; `remaining <= NaN` is always false. **LIVE** (WR-03). | **open** |
 | T-09-85 | Info disclosure / stale availability | month grid offering dates the day panel refuses | mitigate | **ABSENT.** `read-model.ts:410` `cap = maxOccupancy ?? 0`; `:442` `.filter(r => Number(r.taken) >= cap)` — with `cap = 0` a date with no bookings produces no row and stays selectable, while `getOpenDay` (`:362-363`) renders "Fully booked". **LIVE** (NT-02). | **open** |
-| T-09-86 | Tampering | operator env value reaching arithmetic unvalidated | accept (bounded) | **ACCEPTANCE RATIONALE NOT SATISFIED.** The rationale reads "…is now clamped to a finite integer ≥ 1". No clamp exists (`open-capacity.ts:27`). The value IS server-only (no `NEXT_PUBLIC_` prefix — verified), so the disclosure half of the rationale holds; the clamp half does not. Not acceptable as written. | **open** |
+| T-09-86 | Tampering | operator env value reaching arithmetic unvalidated | accept (bounded) | **ABSENT (pending 09-24).** No clamp exists yet — `open-capacity.ts:27` is a bare `Number(env)`; 09-24 is the plan that adds it (`09-24-PLAN.md:194`). The value IS server-only (no `NEXT_PUBLIC_` prefix — verified), so the disclosure half of the rationale already holds. **LIVE**, alongside its twin T-09-84. *(Corrected 2026-07-31 — the original cell read "ACCEPTANCE RATIONALE NOT SATISFIED … Not acceptable as written", rejecting the acceptance on wording that is simply the register's post-mitigation present tense. See Correction 2.)* | **open** |
 | T-09-87 | DoS (booker) | pass uncancellable for the whole day it is valid | mitigate | **ABSENT.** `cancel-booking.ts:568` `AND starts_at > now()` on the booker flip, unforked. Grep `openCapacity ? … endsAt` → 0. Currently masked by T-09-50; closing T-09-50 exposes it directly (WR-05). | **open** |
 | T-09-88 | Repudiation | charging for a non-refundable purchase with no disclosure | mitigate | **ABSENT.** Grep `windowAlreadyOpen` across `src/` → **0 occurrences**. No such prop exists on `CancellationPolicyDisclosure` (`cancellation-policy-disclosure.tsx:174-215`). | **open** |
 | T-09-89 | Tampering (money) | refund path changing while the window moves | mitigate | **ABSENT** as a gate (no diff gate, no case) — but `quoteRefund`/`LADDER` are in fact untouched (`cancel-booking.ts:61`, `:508`). No live exposure. | open-deferred |
 | T-09-90 | Tampering (payout) | host paid for a cancelled pass / clawback | accept (structurally safe) | **VERIFIED.** `inngest/functions/payout-sweep.ts:122` — `b.ends_at + make_interval(hours => ${PAYOUT_DELAY_HOURS}) <= now()` with `PAYOUT_DELAY_HOURS` default 24 (`payments/config.ts:16`). Booker cancel requires `starts_at > now()` (`cancel-booking.ts:568`) ⇒ always pre-payout. `retained_space_cents` written at `:561`. | closed |
-| T-09-91 | EoP | widening the window for the HOST cancel path | mitigate | **VERIFIED (by inaction).** The host flip retains `AND starts_at > now()` at `cancel-booking.ts:991`. ⚠️ The plan's acceptance grep ("appears exactly once") is **mis-specified**: the literal occurs **4 times** in this file (`:568`, `:991`, plus 2 in comments at `:551`, `:968`). Fix the gate before 09-25 runs. | closed |
+| T-09-91 | EoP | widening the window for the HOST cancel path | mitigate | **VERIFIED (by inaction).** The host flip retains `AND starts_at > now()` at `cancel-booking.ts:991`. ~~⚠️ The plan's acceptance grep ("appears exactly once") is **mis-specified**: the literal occurs **4 times** in this file (`:568`, `:991`, plus 2 in comments at `:551`, `:968`). Fix the gate before 09-25 runs.~~ *(Corrected 2026-07-31 — the gate is `grep -v '^\s*//' src/app/actions/cancel-booking.ts \| grep -c "AND starts_at > now()"` (`09-25-PLAN.md:209`, `:341`), which filters those two comment lines on purpose; it prints `2` today and `1` after the fork. Correctly specified and correctly calibrated — do not change it. See Correction 1.)* | closed |
 | T-09-92 | Repudiation | past-window denials reclassified in the audit trail | mitigate | **ABSENT.** `cancel-booking.ts:578` and `:1001` still use the identity comparison `reason === PAST_START ? "past_start" : "not_active"`; only one `PAST_START` constant exists (`:112`). Greps: `isPastStart` → 0, `PAST_START_OPEN` → 0. No live exposure (nothing has been reclassified yet). | open-deferred |
 | T-09-SC | Tampering | npm/pip/cargo installs (supply chain) | mitigate | **VERIFIED.** `git log --since=2026-07-29 -- package.json` returns no commits; working tree clean. No package was installed by any gap plan. The Package Legitimacy Gate was never triggered because no install occurred. | closed |
 
@@ -246,11 +246,20 @@ assuming them open on the strength of the missing commit would have been wrong:
 | T-09-72 | `assertOwnership` in `saveListingStep` (`listing.ts:109`) + `(id AND hostId)` re-scope (`:216`). |
 | T-09-77 | The shared `DENIED` sentence already exists (`group.ts:105,109`). |
 | T-09-90 | Payout eligibility is genuinely `ends_at + 24h` (`payout-sweep.ts:122`), and the booker cancel window is strictly pre-`starts_at`. |
-| T-09-91 | The host flip's `AND starts_at > now()` is present at `cancel-booking.ts:991`. |
+| T-09-91 | The host flip's `AND starts_at > now()` is present at `cancel-booking.ts:991`, and 09-25's comment-filtered acceptance grep measures it correctly (see Correction 1). |
 
-**Plan-gate defect found:** T-09-91's acceptance grep ("`AND starts_at > now()` still appears exactly once")
+~~**Plan-gate defect found:** T-09-91's acceptance grep ("`AND starts_at > now()` still appears exactly once")
 is unsatisfiable — the literal occurs 4× in `cancel-booking.ts`. 09-25 will fail this gate for the wrong
-reason. Scope the grep to the host UPDATE statement.
+reason. Scope the grep to the host UPDATE statement.~~
+
+**Plan-gate re-verified — no defect (2026-07-31).** The sentence struck through above quoted 09-25's
+mitigation PROSE (`09-25-PLAN.md:331`), not its gate. The actual acceptance gate, given twice at
+`09-25-PLAN.md:209` and `:341`, is
+`grep -v '^\s*//' src/app/actions/cancel-booking.ts | grep -c "AND starts_at > now()"` — it strips comment
+lines first, so it counts only the two real guards (the booker flip at `cancel-booking.ts:568`, which 09-25
+forks, and the host flip at `:991`, which 09-25 leaves alone) and ignores the two comments at `:551` and
+`:968` that quote the literal. Re-run today it prints `2`, exactly the pre-fix value the plan predicts
+("was `2`"); after the fork it prints `1`. **Leave the gate exactly as written.** See Correction 1.
 
 ---
 
@@ -273,7 +282,7 @@ reason. Scope the grep to the host UPDATE statement.
 | AR-13 | T-09-72 | `assertOwnership` unchanged; no new entry point. | `listing.ts:109`, `:216` | 09-21 planner | 2026-07-31 |
 | AR-14 | T-09-77 | Shared `DENIED` sentence; the distinction lives only in the audit trail. | `group.ts:105,109` | 09-22 planner | 2026-07-31 |
 | AR-15 | T-09-90 | Cancel is always pre-payout (`starts_at > now()` ≪ `ends_at + 24h`). | `cancel-booking.ts:568`; `payout-sweep.ts:122` | 09-25 planner | 2026-07-31 |
-| ~~AR-16~~ | ~~T-09-86~~ | **REJECTED.** Rationale asserts the value "is now clamped to a finite integer ≥ 1". No clamp exists. Re-file once `open-capacity.ts:27` is fixed. | `open-capacity.ts:27` — bare `Number(env)` | — | — |
+| AR-16 | T-09-86 | **Pending — takes effect when 09-24 lands.** The threshold env value is clamped to a finite integer ≥ 1 by 09-24 (`09-24-PLAN.md:194`); it is already server-only with no `NEXT_PUBLIC_` prefix, so the disclosure half holds today. *(Un-rejected 2026-07-31 — the original row was struck through and marked REJECTED on a misreading of the register's post-mitigation present tense. See Correction 2.)* | `open-capacity.ts:27` — clamp pending 09-24; no `NEXT_PUBLIC_` prefix | 09-24 planner | 2026-07-31 |
 
 ---
 
@@ -281,7 +290,7 @@ reason. Scope the grep to the host UPDATE statement.
 
 | Flag | Detail |
 |---|---|
-| **UF-01** | **`PAST_START` copy has no threat mapping.** Review finding NT-01 (`cancel-booking.ts:111-116`) — the cancel refusal says "This session has already started" to a drop-in booker, the exact framing 09-08 forked `when-label.ts` to eliminate. The `booking.ts:726-728` half is covered by T-09-50's mitigation text; the `cancel-booking.ts` half appears in no gap plan's register. Repudiation-adjacent (a booker is told something untrue about what they bought). |
+| **UF-01** *(downgraded 2026-07-31 — tracking note, NOT an unregistered flag)* | **`PAST_START` copy, tracked as review finding NT-01.** NT-01 (`cancel-booking.ts:111-116`) — the cancel refusal says "This session has already started" to a drop-in booker, the exact framing 09-08 forked `when-label.ts` to eliminate. The `booking.ts:726-728` half is covered by T-09-50's mitigation text and is declared at `09-17-PLAN.md:13` (`closes: [CR-01, NT-01-booking-half]`); ~~the `cancel-booking.ts` half appears in no gap plan's register~~ — that half is declared at `09-25-PLAN.md:17` (`closes: [WR-05, NT-01]`), with the objective at `:44` and the split restated at `:52-54`. NT-01 is a review-finding ID, not a `T-09-NN` register ID, which is presumably what a register-scoped search missed. Repudiation-adjacent (a booker is told something untrue about what they bought), and owned end-to-end by 09-17 + 09-25. See Correction 3. |
 | **UF-02** | **8 of 16 SUMMARYs carry no `## Threat Flags` section**: 09-02, 09-03, 09-05, 09-08, 09-09, 09-11, 09-14, 09-15. Several substitute a "Threat Register Status" / "Threat Model Coverage" discharge table (09-02:169, 09-08:198, 09-09:170), which is a different artifact — it discharges *known* threats and cannot assert *no new attack surface appeared*. `placeOpenHold` (a new authenticated server-action entry point) was declared in 09-07's section; nothing comparable exists for 09-05's new search SQL branch (`effectivePriceSql`) or 09-02's new claim transaction. Process gap, not a defect. |
 | **UF-03** | **Two review findings resolved outside the register.** 09-16 Step 4's reported FAIL was reclassified PASS-with-note by operator decision (`09-16-SUMMARY.md:42`), and NT-03's three items are recorded in `deferred-items.md`. Both are legitimate dispositions; noted so a later auditor does not read them as silent dismissals. |
 
@@ -335,9 +344,9 @@ plans that introduce their surface.
 
 - [x] All 93 threats have a disposition (mitigate / accept / transfer) — 0 `transfer` in this phase
 - [x] Every `mitigate` threat verified by grep against the cited file, or absence proven by empty grep
-- [x] Every `accept` threat's rationale re-checked against shipped code (one rejected: T-09-86)
-- [x] Accepted risks documented in Accepted Risks Log (15 accepted, 1 rejected)
-- [x] Unregistered flags logged (UF-01 … UF-03)
+- [x] Every `accept` threat's rationale re-checked against shipped code — the one rejection (T-09-86 / AR-16) was retracted 2026-07-31, so the count is now **0 rejected** (see Correction 2)
+- [x] Accepted risks documented in Accepted Risks Log (16 accepted — AR-16 pending 09-24; 0 rejected)
+- [x] Unregistered flags logged (UF-02, UF-03; UF-01 downgraded 2026-07-31 to a tracking note — see Correction 3)
 - [x] No implementation file modified by this audit
 - [ ] `threats_open: 0` confirmed — **NO: 35 open (27 live, 8 deferred)**
 - [ ] `status: verified` set in frontmatter — **NO: `issues_found`**
