@@ -21,17 +21,26 @@
 //   - the read model vs the CLAIM → after createOpenCapacityHold grants heads, the projection reports
 //                                   cap − granted. THIS is the Pitfall-4 assertion: if the projection's
 //                                   predicate ever drifts from the counter's, this case is where it shows.
+//   - a SPLIT SHIFT past midnight → the pass covers the WHOLE envelope (12) and a SAME-DAY claim on it
+//                                   mints a PAYABLE hold rather than one born expired (13) — WR-02.
+//   - an unusable scarcity ceiling→ a mistyped OPEN_LOW_STOCK_MAX falls back to the documented default
+//                                   instead of switching the "low" state off everywhere (14, WR-03).
+//   - a NULL max_occupancy        → the month grid and the day panel FAIL CLOSED THE SAME WAY, asserted
+//                                   together in ONE case (15, NT-02); a positive cap is untouched (16).
 //
 // ⚠️ EVERY FIXTURE DATE IS CLOCK-RELATIVE, never a calendar literal (the 09-03 lesson). The shipped claim
 // refuses a date whose pass window has already closed and one beyond the 90-day horizon, so a hardcoded
 // 2026 date would quietly turn case 10 into a PAST_DATE refusal the moment the calendar passed it — and the
 // whole file would go green by vacuum.
+//
+// ── RECORDED MUTATION OUTPUT — see the block above case 12. ──────────────────────────────────────────────
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { user, listing, operatingHours } from "@/lib/db/schema";
 import { getAvailability, getOpenMonthAvailability } from "@/lib/availability/read-model";
+import { loadOpenDayWindow } from "@/lib/availability/open-capacity";
 import { createOpenCapacityHold } from "@/lib/availability/units";
 
 let testDb: TestDb;
@@ -40,6 +49,7 @@ const HOST = "oc_rm_host";
 const BOOKER_A = "oc_rm_booker_a";
 const BOOKER_B = "oc_rm_booker_b";
 const CLAIMER = "oc_rm_claimer";
+const SPLIT_CLAIMER = "oc_rm_split_claimer";
 
 const CAP = 10;
 const PER_HEAD_CENTS = 35000;
@@ -73,6 +83,26 @@ function toLocalDate(d: Date): LocalDate {
 }
 function ymd(d: LocalDate): string {
   return `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+}
+/** A venue-local wall-clock HOUR on a venue-local date → the UTC instant. Same plain +08 arithmetic as the
+ *  two helpers above, so it stays an INDEPENDENT second opinion on the TZDate math under test rather than a
+ *  re-run of it. Used by the split-shift case, whose hours are not the fixture's 06:00/22:00 pair. */
+function localInstant(d: LocalDate, hour: number): Date {
+  return new Date(Date.UTC(d.year, d.month - 1, d.day, hour - MANILA_OFFSET_HOURS, 0, 0));
+}
+/** The NEXT venue-local calendar date (month/year roll over via Date math). */
+function nextDate(d: LocalDate): LocalDate {
+  return toLocalDate(new Date(Date.UTC(d.year, d.month - 1, d.day + 1, 12, 0, 0)));
+}
+/** The venue-local calendar date a UTC instant falls on. */
+function venueDateOf(at: Date): LocalDate {
+  return toLocalDate(new Date(at.getTime() + MANILA_OFFSET_HOURS * 60 * 60 * 1000));
+}
+/** Every venue-local `YYYY-MM-DD` in a month — what a listing with NO usable capacity must withdraw from
+ *  sale (NT-02). The day count is a pure Gregorian fact (day 0 of the next month), so it needs no timezone. */
+function allDatesOfMonth(m: { year: number; month: number }): string[] {
+  const days = new Date(Date.UTC(m.year, m.month, 0)).getUTCDate();
+  return Array.from({ length: days }, (_, i) => ymd({ ...m, day: i + 1 }));
 }
 /** The CR-03 counter identity for a venue-local date: `[midnight, next midnight)` + the `YYYY-MM-DD` key.
  *  Same plain +08 arithmetic as the two instant helpers above — an independent second opinion on
@@ -117,6 +147,24 @@ const L_CLAIM = "l_oc_rm_claim"; // case 10
 // Case 11 gets its OWN listing rather than reusing L_MONTH: case 9 asserts L_MONTH's fullDates EXACTLY, and
 // a shared fixture would make one case's rows silently decide the other's expectation.
 const L_REKEY = "l_oc_rm_rekey"; // case 11
+const L_SPLIT = "l_oc_rm_split"; // case 12 (a)+(b) — the split shift on a FUTURE date
+const L_SPLIT_TODAY = "l_oc_rm_split_today"; // case 12 (c) — the same split shift on TODAY, for the claim
+const L_ZEROCAP = "l_oc_rm_zerocap"; // cases 14 — max_occupancy NULL
+
+// ── WR-02 fixture: the split shift whose evening session rolls past midnight. ────────────────────────────
+// `MIN(open_time)` / `MAX(close_time)` compare WALL CLOCKS, and '12:00:00' sorts AFTER '02:00:00', so the
+// SQL envelope collapsed to 06:00–12:00: the evening session vanished from the pass entirely.
+const SPLIT_MORNING = { openTime: "06:00:00", closeTime: "12:00:00" };
+const SPLIT_EVENING = { openTime: "18:00:00", closeTime: "02:00:00" }; // closes on the NEXT calendar day
+// ~45 days out — inside the 90-day horizon and a different date from every other fixture's.
+const SPLIT_DAY = toLocalDate(new Date(Date.now() + 45 * 24 * 60 * 60 * 1000));
+// 15:00 venue-local on that date: AFTER the truncated envelope's noon, BEFORE the real 02:00 close. This is
+// the injected display clock, so it is deterministic at whatever hour the suite happens to run.
+const SPLIT_AFTERNOON = localInstant(SPLIT_DAY, 15);
+// The claim half must be TODAY. `expires_at = LEAST(now() + TTL, ends_at)` only mints a dead hold when
+// `ends_at` is behind the REAL clock, and on a future date even the truncated noon is still ahead of it —
+// which is precisely why a window-only assertion would have missed the unpayable-hold half of WR-02.
+const SPLIT_TODAY = venueDateOf(NOW);
 
 // Live vs lapsed vs never-expiring, expressed against the DB CLOCK — the same clock openTakenSql's
 // `expires_at > now()` reads. A JS timestamp here would be testing the test's clock, not the read model's.
@@ -188,7 +236,7 @@ function openListing(id: string, cap: number) {
 beforeAll(async () => {
   testDb = await setupTestDb();
   await testDb.db.insert(user).values(
-    [HOST, BOOKER_A, BOOKER_B, CLAIMER].map((id) => ({
+    [HOST, BOOKER_A, BOOKER_B, CLAIMER, SPLIT_CLAIMER].map((id) => ({
       id,
       name: `OC ${id}`,
       email: `${id}@example.com`,
@@ -202,6 +250,11 @@ beforeAll(async () => {
     openListing(L_MONTH, CAP),
     openListing(L_CLAIM, CAP),
     openListing(L_REKEY, CAP),
+    openListing(L_SPLIT, CAP),
+    openListing(L_SPLIT_TODAY, CAP),
+    // The NT-02 fixture: a drop-in listing whose daily admissions cap is NULL — the shape a mis-configured
+    // or mid-edit listing genuinely has, since the wizard's occupancy step can land before its cap is set.
+    { ...openListing(L_ZEROCAP, CAP), maxOccupancy: null },
     {
       id: L_EXCL,
       hostId: HOST,
@@ -235,6 +288,33 @@ beforeAll(async () => {
       id: "oh_oc_claim",
       listingId: L_CLAIM,
       dayOfWeek: dowOf(CLAIM_DAY),
+      openTime: "06:00:00",
+      closeTime: "22:00:00",
+    },
+    // TWO rows on ONE weekday — legal by design (D-25), and the shape WR-02 collapses. Seeded in
+    // close-time-descending order so the case cannot pass merely because the driver happened to return the
+    // overnight row last.
+    { id: "oh_oc_split_pm", listingId: L_SPLIT, dayOfWeek: dowOf(SPLIT_DAY), ...SPLIT_MORNING },
+    { id: "oh_oc_split_am", listingId: L_SPLIT, dayOfWeek: dowOf(SPLIT_DAY), ...SPLIT_EVENING },
+    {
+      id: "oh_oc_split_today_pm",
+      listingId: L_SPLIT_TODAY,
+      dayOfWeek: dowOf(SPLIT_TODAY),
+      ...SPLIT_MORNING,
+    },
+    {
+      id: "oh_oc_split_today_am",
+      listingId: L_SPLIT_TODAY,
+      dayOfWeek: dowOf(SPLIT_TODAY),
+      ...SPLIT_EVENING,
+    },
+    // The NULL-cap listing is OPEN on the sampled date's weekday: the whole point of NT-02 is that the day
+    // panel has real hours, computes remaining = 0 and says "Fully booked" — while the month grid, seeing no
+    // booking rows at all, left the very same date selectable.
+    {
+      id: "oh_oc_zerocap",
+      listingId: L_ZEROCAP,
+      dayOfWeek: dowOf(ANCHOR),
       openTime: "06:00:00",
       closeTime: "22:00:00",
     },
@@ -500,5 +580,195 @@ describe("open-capacity read model — spots left for a DATE (OPEN-04 / OC-13)",
     const month = await getOpenMonthAvailability(testDb.db, L_REKEY, MONTH);
     expect(month.cap).toBe(CAP);
     expect(month.fullDates).toEqual([ymd(M_FULL_MID)]);
+  });
+
+  // ══ RECORDED MUTATION OUTPUT — cases 12-15 against the PRE-FIX source (branch A) ═══════════════════════
+  //
+  // These four cases were written FIRST and run against unchanged `src/`. The pre-fix source IS the state
+  // the plan's mandated WR-02 mutation asks for ("restore the SQL min()/max() envelope"), so this run is
+  // that mutation, recorded verbatim rather than re-staged after the fact. Case 16 — the positive-cap
+  // control — stayed GREEN throughout, which is what makes case 15's red attributable to the cap branch
+  // rather than to the month grid breaking outright.
+  //
+  //   Tests  4 failed | 12 passed (16)
+  //
+  // [1/4] 12. covers the WHOLE envelope of a split shift that rolls past midnight (WR-02)
+  //   AssertionError: expected '2026-09-14T04:00:00.000Z' to be '2026-09-14T18:00:00.000Z' // Object.is equality
+  //   Expected: "2026-09-14T18:00:00.000Z"
+  //   Received: "2026-09-14T04:00:00.000Z"
+  //   ❯ tests/availability/open-capacity-readmodel.test.ts:597:44
+  //     → the truncated envelope, exactly: 04:00Z is venue-local NOON on the picked date, where the
+  //       venue-local 02:00 of the NEXT day (18:00Z) was expected. The evening session is simply gone.
+  //
+  // [2/4] 13. mints a PAYABLE hold on a same-day split shift — not one born expired (WR-02)
+  //   AssertionError: expected '2026-08-01T04:00:00.000Z' to be '2026-08-01T18:00:00.000Z' // Object.is equality
+  //   Expected: "2026-08-01T18:00:00.000Z"
+  //   Received: "2026-08-01T04:00:00.000Z"
+  //   ❯ tests/availability/open-capacity-readmodel.test.ts:653:53
+  //     → THE PERSISTED `ends_at` of a real hold minted by the real claim: venue-local noon, on a day the
+  //       venue is open until 2 AM. Note WHICH assertion went red and which did not. `still_live` PASSED
+  //       under the defect, because this run happened at ~03:00 venue-local and `LEAST(now() + 15min,
+  //       today-noon)` is still in the future at 3 AM. The dead-hold symptom is HOUR-DEPENDENT; the
+  //       truncated `ends_at` that causes it is not. A case asserting only the expiry would therefore have
+  //       gone GREEN over a live defect for the first half of every day — which is exactly why this case
+  //       asserts the persisted envelope as well as the persisted expiry.
+  //
+  // [3/4] 14. falls back to the documented ceiling when OPEN_LOW_STOCK_MAX is unusable (WR-03)
+  //   AssertionError: expected 'open' to be 'low' // Object.is equality
+  //   Expected: "low"
+  //   Received: "open"
+  //   ❯ tests/availability/open-capacity-readmodel.test.ts:674:34
+  //     → 3 of 10 spots left reported as "open". `Number("five")` is NaN, `remaining <= NaN` is false, so
+  //       the urgency band can never be entered and the figure is never disclosed on ANY listing.
+  //
+  // [4/4] 15. offers NO date at all when the cap is unusable — grid and panel agree (NT-02)
+  //   AssertionError: expected [] to deeply equal [ '2026-08-01', '2026-08-02', …(29) ]
+  //   - Expected
+  //   + Received
+  //   - [
+  //   -   "2026-08-01",
+  //   -   "2026-08-02",
+  //   -   "2026-08-03",
+  //   -   …(the month's remaining 27 dates, 27 identically-shaped lines, elided here for length; the full
+  //   -     untouched dump is in 09-24-SUMMARY.md. Nothing describing the failure is elided.)
+  //   -   "2026-08-31",
+  //   - ]
+  //   + []
+  //   ❯ tests/availability/open-capacity-readmodel.test.ts:699:29
+  //     → the grid offered EVERY date of the month on a listing whose day panel refuses all of them. The
+  //       empty set is not "nothing is full", it is "nothing was asked" — no booking rows, so no group rows,
+  //       so no date could ever reach `taken >= cap`.
+  // ══════════════════════════════════════════════════════════════════════════════════════════════════════
+  it("12. covers the WHOLE envelope of a split shift that rolls past midnight (WR-02)", async () => {
+    // (a) THE WINDOW. Two operating-hours rows on one weekday — 06:00–12:00 and 18:00–02:00 — is a legal
+    // split shift (D-25). Reducing them with `MIN(open_time)` / `MAX(close_time)` compares WALL CLOCKS, and
+    // no wall clock can order 02:00 AFTER 12:00, so the envelope collapsed to 06:00–12:00 and the evening
+    // session simply disappeared from the pass. The envelope has to be reduced over real INSTANTS.
+    const win = await loadOpenDayWindow(testDb.db, L_SPLIT, SPLIT_DAY);
+    expect(win).not.toBeNull();
+    expect(win?.dayOpenUtc.toISOString()).toBe(localInstant(SPLIT_DAY, 6).toISOString());
+    // The assertion a wall-clock MAX cannot satisfy: the closing instant belongs to the NEXT calendar day.
+    expect(win?.dayCloseUtc.toISOString()).toBe(localInstant(nextDate(SPLIT_DAY), 2).toISOString());
+    // The "Open 6:00 AM – 2:00 AM" line must describe the envelope the pass actually covers, so the display
+    // strings come from the rows that WON the reduction — the earliest opener and the latest closer.
+    expect(win?.openTime).toBe("06:00:00");
+    expect(win?.closeTime).toBe("02:00:00");
+    // …and the CR-03 counter anchor is NOT dragged along by the overnight envelope (09-18): an overnight
+    // day still counts against the venue-local date it OPENED on, so the lock key and the counted range are
+    // exactly one calendar day. A reader who "fixed" this to follow the envelope would re-open CR-03.
+    expect(win?.dateKey).toBe(ymd(SPLIT_DAY));
+    expect(win!.dayStartUtc.toISOString()).toBe(dayBounds(SPLIT_DAY).dayStartUtc.toISOString());
+    expect(win!.dayEndUtc.getTime() - win!.dayStartUtc.getTime()).toBe(24 * 60 * 60 * 1000);
+
+    // (b) THE DAY PANEL at 15:00 venue-local — between the two shifts, and PAST the truncated noon. The
+    // display clock is injected, so this half is deterministic at whatever hour the suite runs.
+    const avail = await getAvailability(testDb.db, L_SPLIT, SPLIT_DAY, SPLIT_AFTERNOON);
+    expect(avail.hasHours).toBe(true);
+    expect(avail.openCapacity?.bookable).toBe(true);
+    expect(avail.openCapacity?.closeTime).toBe("02:00:00");
+    expect(avail.openCapacity?.dayCloseUtc).toBe(localInstant(nextDate(SPLIT_DAY), 2).toISOString());
+    expect(avail.openCapacity?.remaining).toBe(CAP);
+  });
+
+  it("13. mints a PAYABLE hold on a same-day split shift — not one born expired (WR-02)", async () => {
+    // THE UNPAYABLE-HOLD HALF, in its own case so its failure is attributable rather than hidden behind
+    // case 12's first assertion. This is why WR-02 is the CR-01 shape reached by another route:
+    // `expires_at = LEAST(now() + TTL, ends_at)`, so a truncated envelope on a SAME-DAY claim mints a hold
+    // that is born already expired and can never reach checkout.
+    //
+    // TODAY, not a future date: on a future date even the truncated noon is still ahead of the real clock,
+    // so the dead hold cannot form and a future-dated case would go green over a live defect.
+    //
+    // The claim re-derives its window through the REAL loadOpenDayWindow, exactly as placeOpenHold does, so
+    // a truncated envelope flows all the way into the persisted row rather than stopping at the projection.
+    const todayWin = await loadOpenDayWindow(testDb.db, L_SPLIT_TODAY, SPLIT_TODAY);
+    expect(todayWin).not.toBeNull();
+    const claim = await createOpenCapacityHold(testDb.db, {
+      listingId: L_SPLIT_TODAY,
+      bookerId: SPLIT_CLAIMER,
+      dayOpenUtc: todayWin!.dayOpenUtc,
+      dayCloseUtc: todayWin!.dayCloseUtc,
+      dayStartUtc: todayWin!.dayStartUtc,
+      dayEndUtc: todayWin!.dayEndUtc,
+      dateKey: todayWin!.dateKey,
+      requestedHeads: 1,
+      idempotencyKey: null,
+    });
+    expect("ok" in claim).toBe(true);
+
+    // PERSISTED STATE, read back and compared against the DB's OWN clock — the clock that wrote the row.
+    // A JS comparison here would be testing the test's clock, not the hold's.
+    const held = (await testDb.db.execute(sql`
+      SELECT ends_at, (expires_at > now()) AS still_live
+      FROM booking WHERE id = ${"ok" in claim ? claim.id : ""}
+    `)) as unknown as { ends_at: string | Date; still_live: boolean }[];
+    expect(held).toHaveLength(1);
+    expect(held[0].still_live).toBe(true); // a hold born already expired IS the finding
+    expect(new Date(held[0].ends_at).toISOString()).toBe(
+      localInstant(nextDate(SPLIT_TODAY), 2).toISOString(),
+    );
+  });
+
+  it("14. falls back to the documented ceiling when OPEN_LOW_STOCK_MAX is unusable (WR-03)", async () => {
+    // `Number("five")` is NaN; `Math.min(x, NaN)` is NaN; `remaining <= NaN` is ALWAYS false. So one typo in
+    // a server-only env var made spotsState skip "low" on EVERY listing and the exact figure was never
+    // disclosed anywhere — the OPEN-04 scarcity signal silently off, with nothing to see in the UI.
+    //
+    // Driven through the PUBLIC functions and the shipped read model rather than by reading the constant:
+    // the constant is not what a booker sees, and a test that asserts on it would still pass if the
+    // fallback never reached spotsState. Module re-import under stubEnv is the repo's existing idiom for a
+    // server-only constant (tests/auth/secret-config.test.ts, tests/auth/email-dev-fallback.test.ts).
+    vi.stubEnv("OPEN_LOW_STOCK_MAX", "five");
+    vi.resetModules();
+    const { spotsState } = await import("@/lib/availability/open-capacity");
+    const { getAvailability: freshGetAvailability } = await import("@/lib/availability/read-model");
+    try {
+      // The ACCEPTED-DESIGN formula is untouched: clamp(floor(10 / 2), 1, 5) = 5 once the default ceiling
+      // is restored, so 3 left on a cap of 10 is inside the urgency band and 8 is above it.
+      expect(spotsState(3, CAP)).toBe("low");
+      expect(spotsState(8, CAP)).toBe("open");
+
+      await occupy(7); // 10 − 7 = 3 left
+      expect((await freshGetAvailability(testDb.db, L_OPEN, ANCHOR, NOW)).openCapacity?.state).toBe(
+        "low",
+      );
+      await occupy(2); // 8 left — the band must stay silent
+      expect((await freshGetAvailability(testDb.db, L_OPEN, ANCHOR, NOW)).openCapacity?.state).toBe(
+        "open",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
+  });
+
+  it("15. offers NO date at all when the cap is unusable — grid and panel agree (NT-02)", async () => {
+    // THE INVARIANT, asserted as an AGREEMENT rather than as two separate facts: the month grid and the day
+    // panel must fail closed THE SAME WAY. getOpenDay has always computed remaining = 0 for a NULL cap (the
+    // identical choice createOpenCapacityHold makes), but getOpenMonthAvailability marked a date full only
+    // when `taken >= cap` — and with cap 0 a date carrying NO bookings produces no row at all, so every date
+    // stayed selectable. Checking either projection ALONE passes; only comparing them catches this.
+    const month = await getOpenMonthAvailability(testDb.db, L_ZEROCAP, MONTH);
+    expect(month.cap).toBe(0);
+    expect(month.fullDates).toEqual(allDatesOfMonth(MONTH));
+
+    // The SAMPLED date, taken from the very set the grid just reported, put to the panel the booker would
+    // land on after clicking it. The two answers are compared in ONE case, on ONE date, deliberately.
+    expect(month.fullDates).toContain(ymd(ANCHOR));
+    const day = await getAvailability(testDb.db, L_ZEROCAP, ANCHOR, NOW);
+    expect(day.hasHours).toBe(true); // the venue IS open — this is a capacity fact, not an hours fact
+    expect(day.openCapacity?.remaining).toBe(0);
+    expect(day.openCapacity?.state).toBe("full");
+    expect(day.openCapacity?.bookable).toBe(false);
+  });
+
+  it("16. leaves a listing with a POSITIVE cap untouched — only saturated dates are withdrawn", async () => {
+    // The control for case 15: failing closed on an unusable cap must not turn into failing closed on a
+    // healthy one. L_MONTH's rows are case 9's, so this re-asserts the exact same expectation from the
+    // other side of the new branch.
+    const month = await getOpenMonthAvailability(testDb.db, L_MONTH, MONTH);
+    expect(month.cap).toBe(CAP);
+    expect(month.fullDates).toEqual([ymd(M_FULL_FIRST), ymd(M_FULL_MID)]);
+    expect(month.fullDates).not.toEqual(allDatesOfMonth(MONTH));
   });
 });
