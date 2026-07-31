@@ -8,15 +8,39 @@
 // NORMALIZED via .slice(0, 5) before seeding initialWindows — otherwise re-saving an untouched, DB-origin
 // window after a reload would false-reject on server validation.
 
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { and, eq, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, operatingHours, availabilityBlock } from "@/lib/db/schema";
+import { getOpenHoursLockState } from "@/lib/listing/hours-lock";
+import { composeDateLabel } from "@/lib/booking/when-label";
+import { HOURS_LOCKED_MESSAGE } from "@/lib/validation/availability";
 import { WeeklyHoursEditor } from "@/components/availability/weekly-hours-editor";
 import { BlocksEditor } from "@/components/availability/blocks-editor";
 import { Toaster } from "@/components/ui/sonner";
+
+/** 0=Sun..6=Sat — the `operating_hours.day_of_week` convention the lock state below reports its weekdays in.
+ *  (weekly-hours-editor.tsx keeps its own copy: it is a client component, and the acceptance gate for this
+ *  change forbids touching it — so the two lists are deliberately left as they are rather than refactored
+ *  into a shared export as a side effect of a lock fix.) */
+const WEEKDAY_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+/** "Monday", "Monday and Tuesday", "Monday, Tuesday and Wednesday" — never a bare comma list. */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
 
 /** Current short GMT offset for an IANA zone, e.g. "GMT+8" for Asia/Manila. */
 function gmtLabelFor(timezone: string): string {
@@ -66,9 +90,14 @@ export default async function HostAvailabilityPage({
     notFound();
   }
 
-  const [hours, blocks] = await Promise.all([
+  const [hours, blocks, hoursLock] = await Promise.all([
     db.select().from(operatingHours).where(eq(operatingHours.listingId, id)),
     db.select().from(availabilityBlock).where(eq(availabilityBlock.listingId, id)),
+    // CR-03 layer 2 — computed HERE, on the server, from the DB clock, and only for a drop-in listing (the
+    // result is empty by construction for an exclusive one, so the query is simply not worth paying for).
+    // `saveOperatingHours` is the gate; this render is the courtesy that stops the host discovering the
+    // refusal only after they have edited a row (Security V4 / the D-77 courtesy-vs-gate split).
+    row.occupancyMode === "open_capacity" ? getOpenHoursLockState(db, id) : Promise.resolve(null),
   ]);
 
   // BLOCKER fix: Postgres `time` round-trips as "HH:mm:ss"; normalize to "HH:mm" so an untouched,
@@ -89,6 +118,20 @@ export default async function HostAvailabilityPage({
 
   const cityLabel = cityLabelFor(row.city, row.timezone);
   const gmtLabel = gmtLabelFor(row.timezone);
+
+  // The advisory's sentence, assembled as ONE string (the cancellation-fee-notice.tsx lesson: SWC's JSX
+  // whitespace transform strips the leading space of text following an expression container, which is how
+  // "₱300.00in cancellation fees" once shipped). Rendered only when something is actually frozen; the
+  // unlock date is formatted server-side, venue-local with the zone named (D-105).
+  const lockedDays = hoursLock?.lockedWeekdays ?? [];
+  const lockNotice =
+    hoursLock && lockedDays.length > 0 && hoursLock.unlocksAt
+      ? `${HOURS_LOCKED_MESSAGE} ${joinNames(lockedDays.map((d) => WEEKDAY_LABELS[d]))} ` +
+        `${lockedDays.length === 1 ? "is" : "are"} held by ${hoursLock.lockedByCount} ` +
+        `pass${hoursLock.lockedByCount === 1 ? "" : "es"} still to come — the last is for ` +
+        `${composeDateLabel(hoursLock.unlocksAt, row.timezone, row.city)}. To change them sooner, ` +
+        `cancel those passes first — that refunds those guests in full. `
+      : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
@@ -113,6 +156,21 @@ export default async function HostAvailabilityPage({
           <p className="text-sm text-muted-foreground">
             These are the hours your drop-in passes are good for. A pass covers the whole day
             you&apos;re open.
+          </p>
+        )}
+        {/*
+          CR-03 layer 2 / 09-UI-SPEC O7 — WHY those weekdays are frozen, WHEN the freeze lifts, and the WAY
+          OUT. Calm muted information, never an alarm (§ Color — this phase ships no alert variant on any
+          host surface): nothing has gone wrong, the host simply cannot move hours that passes are already
+          sold against. It names weekdays and a date only — never a booker — and renders inside the
+          already owner-gated (host) page from the same `row` that page loaded.
+        */}
+        {lockNotice && (
+          <p className="text-sm text-muted-foreground">
+            {lockNotice}
+            <Link href="/host/bookings" className="underline underline-offset-4">
+              View your bookings
+            </Link>
           </p>
         )}
       </div>

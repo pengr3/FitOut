@@ -21,11 +21,44 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, operatingHours } from "@/lib/db/schema";
+import { composeDateLabel } from "@/lib/booking/when-label";
+import { getOpenHoursLockState } from "@/lib/listing/hours-lock";
 import { weeklyHoursSchema, type WeeklyHoursInput } from "@/lib/validation/availability";
+// Deliberately a SECOND import statement from the same module rather than a widened first one: the shipped
+// validation import is part of this file's security contract (see the header), and the acceptance diff-gate
+// for this change asserts that contract was ADDED TO and never rewritten — a reformatted import line would
+// read as a removal.
+import { HOURS_LOCKED_MESSAGE } from "@/lib/validation/availability";
 
 export type AvailabilityResult =
   | { ok: true; id?: string }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+
+/**
+ * Postgres/Drizzle `time` round-trips as "HH:mm:ss" while the form (and the :ss-TOLERANT weeklyHoursSchema)
+ * happily sends "HH:mm" — so "06:00" and "06:00:00" are the SAME window and must never read as a change.
+ * Getting this wrong is not a cosmetic bug: it would refuse EVERY save on a locked weekday, including the
+ * no-op autosave the editor fires with the untouched, DB-origin windows it was seeded with, and freeze the
+ * whole editor for any host with a pass on the calendar (the same trap OC-17's "only a genuine CHANGE is
+ * refused" idiom exists to avoid — listing.ts:154-156).
+ */
+function normalizeTime(t: string): string {
+  return t.length >= 8 ? t.slice(0, 8) : `${t}:00`;
+}
+
+/** weekday → its windows as SORTED "HH:mm:ss-HH:mm:ss" strings, so two sets compare by value alone. */
+function canonicalWindowsByDay(
+  rows: { dayOfWeek: number; openTime: string; closeTime: string }[],
+): Map<number, string[]> {
+  const byDay = new Map<number, string[]>();
+  for (const w of rows) {
+    const list = byDay.get(w.dayOfWeek) ?? [];
+    list.push(`${normalizeTime(w.openTime)}-${normalizeTime(w.closeTime)}`);
+    byDay.set(w.dayOfWeek, list);
+  }
+  for (const list of byDay.values()) list.sort();
+  return byDay;
+}
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from listing.ts). */
 async function requireUserId(): Promise<string | null> {
@@ -76,6 +109,56 @@ export async function saveOperatingHours(
     };
   }
   const { windows } = parsed.data;
+
+  // ── CR-03 layer 2: the operating-hours lock. ────────────────────────────────────────────────────────
+  // This is NOT about overbooking. 09-18 re-anchored the admissions counter on the venue-local calendar day
+  // over the STORED `booking.starts_at`, so an hours edit no longer changes WHICH passes count — it changes
+  // only what a pass COVERS. The harm left over is STRANDING: a drop-in pass persists concrete
+  // `starts_at`/`ends_at` at hold time (OC-03), and those instants are what the refund ladder, the payout
+  // sweep (`ends_at + delay`), the reminders and expiry all key on. Shifting a weekday's opening forward
+  // leaves every pass already sold for a future instance of that weekday claiming an entry window the venue
+  // will not honour; DELETING the weekday's hours is worse — `loadOpenDayWindow` returns null, the day panel
+  // renders "Closed on {day}", and those passes go invisible in every read model while still occupying
+  // admissions. So the edit itself is refused, on OC-17's shape one level down: a host may change HOW a space
+  // is sold only while nothing is still to come, and now may change WHEN it is open only for the weekdays
+  // nothing is still to come on.
+  //
+  // Scoped to the PERSISTED mode (Security V4 — never the client's word for it), so the exclusive path pays
+  // nothing and behaves exactly as Phase 3 shipped it. And, mirroring `saveListingStep`'s OC-17 idiom
+  // (listing.ts:154-156), only a GENUINE CHANGE is refused: the editor autosaves the same set it was seeded
+  // with, and freezing those would freeze the editor for any host with a pass on the calendar.
+  if (owned.occupancyMode === "open_capacity") {
+    const lock = await getOpenHoursLockState(db, listingId);
+    if (lock.lockedWeekdays.length > 0) {
+      const persisted = await db
+        .select()
+        .from(operatingHours)
+        .where(eq(operatingHours.listingId, listingId));
+      const before = canonicalWindowsByDay(persisted);
+      const after = canonicalWindowsByDay(windows);
+      const changed = lock.lockedWeekdays.some((dow) => {
+        const a = before.get(dow) ?? [];
+        const b = after.get(dow) ?? [];
+        return a.length !== b.length || a.some((w, i) => w !== b[i]);
+      });
+      if (changed) {
+        // 09-UI-SPEC O7: a locked control that says only "you can't" is the dead end this product does not
+        // ship. WHY + a concrete WHEN + a way out. The date is formatted HERE, server-side, venue-local with
+        // the timezone named (D-105) by the shipped label helper — a raw Date handed to a client formatter
+        // would render the host's own browser clock, a different instant from the one the lock lifts at.
+        const unlocksLabel = lock.unlocksAt
+          ? composeDateLabel(lock.unlocksAt, owned.timezone, owned.city)
+          : null;
+        const sentence = unlocksLabel
+          ? `${HOURS_LOCKED_MESSAGE} The last one is for ${unlocksLabel}, so you can change them after that. ` +
+            `To change them sooner, cancel those passes from your bookings — that refunds those guests in full.`
+          : HOURS_LOCKED_MESSAGE;
+        // BOTH halves: weekly-hours-editor.tsx:136-146 already toasts `error` and pins `fieldErrors.windows[0]`
+        // onto the form, so the refusal is visible with NO component change.
+        return { ok: false, error: sentence, fieldErrors: { windows: [sentence] } };
+      }
+    }
+  }
 
   await db.transaction(async (tx) => {
     // Replace the set: clear all existing windows for THIS listing, then insert the new set.
