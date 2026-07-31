@@ -195,6 +195,38 @@ phase's `.continue-here.md` already flags (the file is ~755 lines / ~108k tokens
 
 ---
 
-*Logged 2026-07-31 during 09-16 (items 1-2) and 09-17 (items 3-4). Path note: this file follows the shipped per-phase convention
+## 5. D-110 (`extraHeadFee > 0` on a drop-in listing) is enforced at PUBLISH but not on the EDIT path — **DELIBERATE SCOPE DECISION, 09-21**
+
+**Found during:** 09-21 Task 2, while mirroring `publishSchema`'s open branch into `saveListingStep`'s
+published-row guard.
+
+**What.** `publishSchema`'s open branch carries **five** checks; the edit-path guard 09-21 added carries the
+**four** the plan enumerates (price per person, daily cap, instant booking, single space). The fifth — D-110,
+`extraHeadFee > 0` is refused in drop-in mode because two per-head pricing models on one listing are two
+different answers to "what does one more person cost" — is **not** re-imposed on the edit path. So a
+published listing switched to drop-in mode while carrying a Phase-8 extra-guest fee keeps that column, and
+`publishListing` would refuse the same shape.
+
+**Why it was not added, and why that is not the same omission CR-04 was.** The four rules 09-21 enforces are
+all **correctness** rules whose absence reaches money or a 500: a null price raises out of the claim, a
+non-positive cap sells nothing forever, approval mode has no lifecycle on a shared counter, and multi-unit
+mis-counts against the sentinel unit. D-110 is a **pricing-model cleanliness** rule with no such reach —
+`quoteOpenCapacity` is purely `per_head_price_cents × heads` and never reads `extra_head_fee` at all, so a
+stale surcharge on a drop-in listing changes no charge, no payout and no refund.
+
+And enforcing it here would create a **dead end**: an exclusive listing legitimately carrying an extra-guest
+fee is exactly the listing a host converts to drop-in, but the wizard removes the group-pricing fields in
+drop-in mode — so the host would be refused with "extra guest pricing doesn't apply" and shown no control
+with which to clear it. Refusing a save a host cannot un-refuse is a worse outcome than a dormant column.
+
+**How to close, if it is worth closing.** Either (a) have `saveListingStep` NULL/zero `extra_head_fee` when
+the effective mode is `open_capacity` (a write, not a refusal — no dead end, and it makes the persisted row
+match the mode), or (b) keep the columns and delete the D-110 branch from `publishSchema`, on the grounds
+that an ignored column needs no gate. (a) is the better shape; both are one-liners. Not urgent: nothing
+reads the column on the drop-in path.
+
+---
+
+*Logged 2026-07-31 during 09-16 (items 1-2) and 09-17 (items 3-4); item 5 added 2026-08-01 during 09-21. Path note: this file follows the shipped per-phase convention
 (`.planning/phases/{phase}/deferred-items.md`, as in phases 04, 07 and 08); there is no repo-root
 `.planning/deferred-items.md`.*

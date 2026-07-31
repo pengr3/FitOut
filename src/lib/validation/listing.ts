@@ -67,6 +67,43 @@ export const DROP_IN_NO_GUEST_PRICING_MESSAGE =
  *  copy supplies the last two; THIS is the reason. Consumed by saveListingStep's server-side refusal. */
 export const MODE_LOCKED_MESSAGE = "You can't change this while bookings are still to come";
 
+// ── WR-04: the HOST-INPUT MONEY CEILINGS — the bound that is actually real. ───────────────────────────
+//
+// THE ARITHMETIC, SPELLED OUT SO IT IS CHECKABLE RATHER THAN ASSERTED. `booking.space_price_cents`,
+// `service_fee_cents` and `quoted_total_cents` are all Postgres `integer` (int4), so their ceiling is
+// 2,147,483,647 centavos. A drop-in pass is priced purely linearly — price per person × granted heads
+// (OC-08) — and granted heads is bounded by the day's remaining admissions, i.e. by `max_occupancy`. The
+// two ceilings below therefore bound the PRODUCT:
+//
+//     1_000 people × 1_000_000 centavos = 1_000_000_000 centavos of space price,
+//     + the D-74 service fee riding on top (SERVICE_FEE_BPS = 500 bps ⇒ +5%) = 1_050_000_000 all-in,
+//     which is comfortably under int4's 2_147_483_647.
+//
+// THAT is what makes the two `.max(10_000)` docblocks in validation/booking.ts true. The shape ceiling on
+// the REQUEST never was the protection — a request is bounded by what is left on the day, not by what the
+// client asked for — and a comment claiming a protection that is not there is how the next reader stops
+// thinking about it. The runtime product guard in the claim (units.ts, MAX_MONEY_CENTS) is the third and
+// last layer, for rows written BEFORE these ceilings existed.
+//
+// Both bounds sit in draftSchema AND publishSchema. Draft-time matters as much as publish-time here: the
+// wizard autosaves straight onto a LIVE row, so a bound applied only at publish would leave a published
+// listing free to grow a stadium cap on the next Save and continue (that is CR-04's whole lesson, one file
+// over).
+
+/** ₱10,000 per person, in integer centavos — a generous ceiling for a drop-in pass, and half of the
+ *  product that must stay inside int4. */
+export const MAX_PER_HEAD_PRICE_CENTS = 1_000_000;
+
+/** 1,000 admissions a day. Also bounds `maxOccupancy` for a WHOLE-SPACE listing, where the same column
+ *  means the room's rating rather than a daily admissions cap — one number for one column, and 1,000
+ *  people is past the point where a single bookable space is plausible in either sense. */
+export const MAX_OPEN_CAPACITY = 1_000;
+
+/** O3 grammar (statement + imperative, no exclamation), and deliberately mode-neutral: `maxOccupancy` is
+ *  shared, so this sentence must read correctly to a whole-space host as well as a drop-in one. */
+export const DROP_IN_CAP_TOO_HIGH_MESSAGE = "Enter 1,000 people or fewer.";
+export const PER_HEAD_PRICE_TOO_HIGH_MESSAGE = "Enter a price per person of ₱10,000 or less.";
+
 /** Draft autosave (D-01) — everything optional; the wizard saves partial progress between steps. */
 export const draftSchema = z.object({
   title: z.string().max(120).optional(),
@@ -81,7 +118,9 @@ export const draftSchema = z.object({
   neighborhood: z.string().max(120).optional(),
   lat: z.number().optional(),
   lng: z.number().optional(),
-  maxOccupancy: z.number().int().optional(),
+  // WR-04 upper bound. `.max` and not `.positive()`: the draft schema still never blocks progress (D-01),
+  // it only refuses a number no space can mean.
+  maxOccupancy: z.number().int().max(MAX_OPEN_CAPACITY, DROP_IN_CAP_TOO_HIGH_MESSAGE).optional(),
   hourlyRateCents: z.number().int().optional(),
   dayRateCents: z.number().int().optional(),
   bookingMode: z.enum(bookingModeValues).optional(),
@@ -96,8 +135,14 @@ export const draftSchema = z.object({
   extraHeadFee: z.number().int().min(0).optional(),
   // D-123 open-capacity price per person. ≥ 0 rather than .positive() so a half-typed value (the instant the
   // host has typed "0" on the way to "350") still AUTOSAVES — the draft schema never blocks progress (D-01).
-  // The publish gate below is where it must actually be positive. Integer CENTAVOS (Pitfall 5).
-  perHeadPriceCents: z.number().int().min(0).optional(),
+  // The publish gate below is where it must actually be positive. Integer CENTAVOS (Pitfall 5). The WR-04
+  // upper bound applies here too — see the ceiling block above for why draft-time is not optional.
+  perHeadPriceCents: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_PER_HEAD_PRICE_CENTS, PER_HEAD_PRICE_TOO_HIGH_MESSAGE)
+    .optional(),
   showExactAddress: z.boolean().optional(),
   amenities: z.array(z.enum(amenityValues)).optional(),
   activityTags: z.array(z.enum(activityTagValues)).optional(),
@@ -122,7 +167,9 @@ export const publishSchema = z.object({
   neighborhood: z.string().max(120).optional(),
   lat: z.number(),
   lng: z.number(),
-  maxOccupancy: z.number().int().positive(),
+  // WR-04: bounded ABOVE as well as below. In open mode this number is the day's admissions cap and is one
+  // half of the money product that must stay inside int4 (see the ceiling block near the top of this file).
+  maxOccupancy: z.number().int().positive().max(MAX_OPEN_CAPACITY, DROP_IN_CAP_TOO_HIGH_MESSAGE),
   // ── THE MODE FORK (OPEN-01). These two were `.positive()` REQUIRED here from Phase 2 until Phase 9. ──
   // They had to become optional AT THE OBJECT LEVEL because an open-capacity listing has no hourly or day
   // rate at all (OC-08: one flat price per person, and the wizard never renders the rate inputs), so a
@@ -151,8 +198,14 @@ export const publishSchema = z.object({
   occupancyMode: z.enum(occupancyModeValues).optional(),
   included: z.number().int().positive().optional(),
   extraHeadFee: z.number().int().min(0).optional(),
-  // D-123 — required to publish in OPEN mode only (enforced in the superRefine, never here).
-  perHeadPriceCents: z.number().int().positive().optional(),
+  // D-123 — required to publish in OPEN mode only (enforced in the superRefine, never here). The WR-04
+  // upper bound IS enforced here, because a ceiling is about the value, not about which mode needs it.
+  perHeadPriceCents: z
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PER_HEAD_PRICE_CENTS, PER_HEAD_PRICE_TOO_HIGH_MESSAGE)
+    .optional(),
   // D-21 unit count. Read-only from the host's point of view (there is no wizard control), but it is
   // re-parsed from the PERSISTED row at publish so the open-mode single-space rule below can see it.
   unitCount: z.number().int().positive().optional(),

@@ -98,13 +98,26 @@ export const bookingCreateSchema = z
     // positive int) — the PRICE is re-derived server-side inside createPendingHold from the listing's OWN
     // included/extra_head_fee, and this only drives the charge when extra_head_fee > 0.
     //
-    // CR-03: the `.max()` is a SHAPE ceiling, not the cap. It exists so no accepted value can multiply
-    // through `(pax − included) × extra_head_fee` into the `integer` money columns
-    // (space_price_cents / service_fee_cents / quoted_total_cents) and raise a Postgres 22003 that
-    // `mapBookingError` would re-throw as a raw 500 (T-03-500). The REAL cap is the listing's own
-    // `maxOccupancy`, read inside `createPendingHold`'s transaction and applied there (D-111 / Security V4)
-    // — never a client-supplied bound. Same ceiling as `declaredPaxSchema` on the re-price path
-    // (`src/app/actions/booking.ts:81`): one shape bound, one number.
+    // WR-04 — WHAT THIS `.max()` IS, AND WHAT IT IS NOT. It is a SHAPE ceiling: it bounds an UNTRUSTED
+    // REQUEST before it reaches the DB, so a crafted body cannot make the server carry an absurd number
+    // around. It is NOT the overflow protection, and the comment that used to stand here said it was.
+    // A request can only ever ask for LESS than the listing allows — the effective headcount is clamped to
+    // the listing's own `maxOccupancy` inside `createPendingHold`'s transaction (D-111 / Security V4) —
+    // so the size of the money product is decided by the HOST's numbers, not by this one.
+    //
+    // THE CHAIN THAT IS REAL, in order:
+    //   1. host-input ceilings — `MAX_OPEN_CAPACITY` and `MAX_PER_HEAD_PRICE_CENTS` in
+    //      `publishSchema`/`draftSchema` (src/lib/validation/listing.ts), whose product is arithmetically
+    //      proven below int4 in the comment that declares them;
+    //   2. the runtime product guard in the admissions claim, against `MAX_MONEY_CENTS`
+    //      (src/lib/booking/pricing.ts), which catches rows written before (1) existed;
+    //   3. this shape bound, which only keeps a nonsense request out of the machinery.
+    // `MAX_MONEY_CENTS` is int4's own limit on `space_price_cents` / `service_fee_cents` /
+    // `quoted_total_cents`; exceeding it is a Postgres 22003 that `mapBookingError` re-raises as a raw 500
+    // (T-03-500), which is why layers (1) and (2) exist at all.
+    //
+    // Same ceiling as `declaredPaxSchema` on the re-price path (`src/app/actions/booking.ts:81`): one shape
+    // bound, one number.
     declaredPax: z.coerce.number().int().min(1).max(10_000).optional(),
   })
   .refine(endAfterStart, endAfterStartIssue);
@@ -123,11 +136,19 @@ export type BookingCreate = z.infer<typeof bookingCreateSchema>;
  * but impossible days (2026-02-31). Those die in the action, at `parsePickedDate` (src/lib/search/query.ts),
  * which canonicalizes the value and round-trip-guards it before anything reaches SQL.
  *
- * CR-03 restated for passes: the `.max()` is a SHAPE ceiling, not the cap. It exists so no accepted value
- * can multiply through `per_head_price_cents × passes` into the `integer` money columns and raise a
- * Postgres 22003 that `mapBookingError` would re-throw as a raw 500 (T-03-500). The REAL cap is the
- * listing's own `max_occupancy`, read inside `createOpenCapacityHold`'s transaction and applied there
- * against the live admissions SUM (D-124 / Security V4) — never a client-supplied bound.
+ * WR-04 restated for passes: the `.max()` is a SHAPE ceiling and NOTHING MORE. It bounds an untrusted
+ * request before it reaches the machinery; it does not and cannot bound the money product, because
+ * `granted` is `min(requested, remaining)` and `remaining` comes from the HOST's `max_occupancy`, read
+ * inside `createOpenCapacityHold`'s transaction against the live admissions SUM (D-124 / Security V4). A
+ * booker asking for fewer passes than are left cannot make the product smaller than the host's own numbers
+ * already allow, so a ceiling on the request was never the thing standing between
+ * `per_head_price_cents × passes` and a Postgres 22003 on the `integer` money columns — the raw 500
+ * `mapBookingError` would produce (T-03-500).
+ *
+ * What actually stands there: `MAX_OPEN_CAPACITY` × `MAX_PER_HEAD_PRICE_CENTS` in
+ * `publishSchema`/`draftSchema` (src/lib/validation/listing.ts), whose product plus the D-74 service fee is
+ * arithmetically proven below `MAX_MONEY_CENTS` where those two are declared — plus the runtime product
+ * guard in the claim itself, for listings priced before those ceilings existed.
  */
 export const openHoldSchema = z.object({
   listingId: z.string().min(1),

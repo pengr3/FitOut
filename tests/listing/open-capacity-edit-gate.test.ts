@@ -139,6 +139,47 @@
 //
 // Restored → 5/5 green → `git diff --exit-code src/lib/availability/units.ts` printed nothing.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// TASK-3 MUTATION — also EXECUTED. WR-04 arrived as a WARNING about a comment, so the question worth
+// answering was whether the mechanism it describes is real or merely arithmetically conceivable. The
+// runtime product guard was deleted from `createOpenCapacityHold` (units.ts step 6→7 boundary), leaving the
+// new host-input ceilings in place — i.e. the exact position a listing priced BEFORE those ceilings is in.
+// Case 7 went RED. Observed, VERBATIM apart from the bound-parameter dump noted below:
+//
+//     FAIL  … > 7 · a legacy stadium row is refused calmly instead of raising a 22003, and mints NO booking
+//    Error: Failed query: insert into "booking" (…) values (…) returning …
+//     ❯ src/lib/availability/units.ts:940:26
+//        938|         const id = randomUUID();
+//        939|
+//        940|         const inserted = await tx
+//           |                          ^
+//        941|           .insert(booking)
+//        942|           .values({
+//     ❯ createOpenCapacityHold src/lib/availability/units.ts:779:14
+//     ❯ placeOpenHold src/app/actions/booking.ts:441:15
+//     ❯ tests/listing/open-capacity-edit-gate.test.ts:711:17
+//
+//    Caused by: PostgresError: value "3150000000" is out of range for type integer
+//    { severity: 'ERROR', code: '22003', routine: 'pg_strtoint32_safe' }
+//
+//     Test Files  1 failed (1)
+//          Tests  1 failed | 6 passed (7)
+//
+// THE REVIEWER'S PREDICTION, OBSERVED. `space_price_cents` 3,000,000,000 and `quoted_total_cents`
+// 3,150,000,000 — the all-in figure, fee included, is the parameter that actually blew up — and the 22003
+// unwinds out through `createOpenCapacityHold` and `placeOpenHold` uncaught, because 22003 is neither 23P01
+// nor 40P01 and `mapBookingError` re-raises everything else. So WR-04 is not only a comment that overstated
+// a protection: the protection it described was genuinely absent, and its absence is reachable.
+//
+// (Elided from the block above: the `params:`/`parameters:` dumps postgres.js prints, which echo this
+// file's own clock-relative fixture instants back as ISO strings — recording them would put
+// calendar-literal-shaped text in a file whose acceptance criterion forbids it. The full untouched dump is
+// in 09-21-SUMMARY.md, which carries no such constraint. Nothing describing the FAILURE is elided.)
+//
+// Restored → 7/7 green → `git diff --exit-code src/lib/availability/units.ts` against the restored form
+// shows only this plan's two intended additions.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { sql } from "drizzle-orm";
@@ -150,7 +191,14 @@ import {
   PER_HEAD_PRICE_REQUIRED_MESSAGE,
   DROP_IN_INSTANT_ONLY_MESSAGE,
   DROP_IN_SINGLE_SPACE_MESSAGE,
+  DROP_IN_CAP_TOO_HIGH_MESSAGE,
+  PER_HEAD_PRICE_TOO_HIGH_MESSAGE,
+  MAX_OPEN_CAPACITY,
+  MAX_PER_HEAD_PRICE_CENTS,
+  draftSchema,
+  publishSchema,
 } from "@/lib/validation/listing";
+import { MAX_MONEY_CENTS } from "@/lib/booking/pricing";
 import type { RateLimitResult } from "@/lib/rate-limit";
 
 let testDb: TestDb;
@@ -173,9 +221,18 @@ const L_PUB_REQUEST = "l_ocedit_pub_request"; // case 3a — approval-mode listi
 const L_PUB_MULTI = "l_ocedit_pub_multi"; // case 3b — multi-unit listing
 const L_DRAFT = "l_ocedit_draft"; // case 4 — a draft mid-wizard stays permissive
 const L_LEGACY = "l_ocedit_legacy"; // case 5 — the row that is ALREADY in the bypass state
+const L_STADIUM = "l_ocedit_stadium"; // case 7 — a cap and a price that PREDATE the WR-04 ceilings
 
 const CAP = 3;
 const PER_HEAD_CENTS = 35_000; // ₱350.00 per person
+
+// Case 7's legacy numbers, both past the ceilings this plan introduces — 12,000 admissions a day at ₱3,000
+// each. The reviewer's own scenario, and the product is what matters: 10,000 granted heads × ₱3,000 is
+// 3,000,000,000 centavos, comfortably past int4. Asserted against MAX_MONEY_CENTS below rather than
+// restated, so the fixture cannot quietly stop overflowing if the ceiling ever moves.
+const STADIUM_CAP = 12_000;
+const STADIUM_PER_HEAD_CENTS = 300_000;
+const STADIUM_REQUEST = 10_000; // the shape ceiling in openHoldSchema — the most a request may ask for
 const HOURLY = 90_000;
 const DAY_RATE = 400_000;
 const TIMEZONE = "Asia/Manila";
@@ -204,6 +261,7 @@ function dayBounds(d: LocalDate): { dayStartUtc: Date; dayEndUtc: Date } {
 }
 
 const D_LEGACY = daysOut(30); // case 5 — the date the mis-configured listing is claimed for
+const D_STADIUM = daysOut(31); // case 7 — its own date, so case 5's refusal cannot pre-fill anything
 
 // The mocked next/headers reads this at CALL time, so login() can swap between the host and the booker.
 const sessionHeaders: { cookie: string } = { cookie: "" };
@@ -426,11 +484,31 @@ beforeAll(async () => {
       dayRateCents: DAY_RATE,
       timezone: TIMEZONE,
     },
+    {
+      // Case 7 — a listing priced BEFORE the WR-04 ceilings existed, written directly to the table for
+      // exactly that reason: no schema change reprices an existing row, so this shape survives the
+      // ceilings and is the only shape the runtime product guard is there for.
+      id: L_STADIUM,
+      hostId: HOST_ID,
+      title: "Stadium open session",
+      status: "published",
+      publishedAt: new Date(),
+      primarySpaceType: "multi_purpose_event",
+      city: "Makati",
+      currency: "php",
+      occupancyMode: "open_capacity",
+      bookingMode: "instant",
+      cancellationPolicy: "standard",
+      maxOccupancy: STADIUM_CAP,
+      unitCount: 1,
+      perHeadPriceCents: STADIUM_PER_HEAD_CENTS,
+      timezone: TIMEZONE,
+    },
   ]);
 
   // Open EVERY weekday, so each case owns its own date with no "closed that day" surprise.
   await testDb.db.insert(operatingHours).values(
-    [L_PUB_EXCL, L_LEGACY].flatMap((listingId) =>
+    [L_PUB_EXCL, L_LEGACY, L_STADIUM].flatMap((listingId) =>
       Array.from({ length: 7 }, (_, dow) => ({
         id: `oh_${listingId}_${dow}`,
         listingId,
@@ -592,6 +670,93 @@ describe("CR-04 — the claim itself fails CLOSED on a listing already in the by
     // …and only then, that the booker was actually refused, calmly, through a shipped branch.
     expect(res.ok).toBe(false);
     expect(typeof res.error).toBe("string");
+    expect(res.error.length).toBeGreaterThan(0);
+    expect(res.reason).toBe("taken");
+  });
+});
+
+describe("WR-04 — the money ceilings that are real, and the legacy row they exist for", () => {
+  it("6 · both schemas refuse a price per person and a capacity above the ceilings", async () => {
+    // The DRAFT schema matters as much as the publish one: the wizard autosaves onto a LIVE row, so a bound
+    // applied only at publish would leave an already-published listing free to grow a stadium cap on its
+    // very next Save and continue. Each refusal carries its OWN sentence, so a host is told which number is
+    // the problem rather than that "input was invalid".
+    const draftPrice = draftSchema.safeParse({ perHeadPriceCents: MAX_PER_HEAD_PRICE_CENTS + 1 });
+    expect(draftPrice.success).toBe(false);
+    if (draftPrice.success) return;
+    expect(draftPrice.error.flatten().fieldErrors.perHeadPriceCents).toContain(
+      PER_HEAD_PRICE_TOO_HIGH_MESSAGE,
+    );
+
+    const draftCap = draftSchema.safeParse({ maxOccupancy: MAX_OPEN_CAPACITY + 1 });
+    expect(draftCap.success).toBe(false);
+    if (draftCap.success) return;
+    expect(draftCap.error.flatten().fieldErrors.maxOccupancy).toContain(DROP_IN_CAP_TOO_HIGH_MESSAGE);
+
+    // …and the same two numbers at the publish gate, read from a complete, otherwise-valid drop-in listing,
+    // so nothing else in the payload can be what refused it.
+    const publishable = {
+      title: "Stadium open session",
+      description: "A very large room",
+      primarySpaceType: "multi_purpose_event" as const,
+      addressLine1: "1 Big Street",
+      city: "Makati",
+      region: "NCR",
+      country: "PH",
+      lat: 14.55,
+      lng: 121.02,
+      bookingMode: "instant" as const,
+      cancellationPolicy: "standard" as const,
+      occupancyMode: "open_capacity" as const,
+      unitCount: 1,
+      maxOccupancy: 100,
+      perHeadPriceCents: PER_HEAD_CENTS,
+    };
+    // The baseline publishes, so each refusal below is attributable to the ONE number that changed.
+    expect(publishSchema.safeParse(publishable).success).toBe(true);
+
+    const pubPrice = publishSchema.safeParse({
+      ...publishable,
+      perHeadPriceCents: MAX_PER_HEAD_PRICE_CENTS + 1,
+    });
+    expect(pubPrice.success).toBe(false);
+    if (pubPrice.success) return;
+    expect(pubPrice.error.flatten().fieldErrors.perHeadPriceCents).toContain(
+      PER_HEAD_PRICE_TOO_HIGH_MESSAGE,
+    );
+
+    const pubCap = publishSchema.safeParse({ ...publishable, maxOccupancy: MAX_OPEN_CAPACITY + 1 });
+    expect(pubCap.success).toBe(false);
+    if (pubCap.success) return;
+    expect(pubCap.error.flatten().fieldErrors.maxOccupancy).toContain(DROP_IN_CAP_TOO_HIGH_MESSAGE);
+
+    // THE ARITHMETIC THE DOCBLOCKS NOW CLAIM, asserted rather than asserted-about: the largest product the
+    // two ceilings jointly permit, with the D-74 service fee riding on top, is inside int4.
+    expect(MAX_OPEN_CAPACITY * MAX_PER_HEAD_PRICE_CENTS).toBeLessThan(MAX_MONEY_CENTS);
+  });
+
+  it("7 · a legacy stadium row is refused calmly instead of raising a 22003, and mints NO booking", async () => {
+    await login(BOOKER_EMAIL);
+
+    // The fixture predates the ceilings and is therefore untouched by them — which is the argument for the
+    // runtime guard existing at all.
+    const row = await readListingRow(L_STADIUM);
+    expect(row.max_occupancy).toBe(STADIUM_CAP);
+    expect(row.per_head_price_cents).toBe(STADIUM_PER_HEAD_CENTS);
+    // The claim would grant min(request, remaining) heads, and THAT product is past what the money columns
+    // can hold — the precondition for the whole case, stated as a fact rather than trusted.
+    expect(STADIUM_REQUEST * STADIUM_PER_HEAD_CENTS).toBeGreaterThan(MAX_MONEY_CENTS);
+
+    // Again a plain await: a Postgres 22003 raised by the INSERT is neither 23P01 nor 40P01, so
+    // mapBookingError re-raises it and the booker gets a digest instead of a sentence.
+    const res = await placeOpenHold({
+      listingId: L_STADIUM,
+      date: ymd(D_STADIUM),
+      requestedPasses: STADIUM_REQUEST,
+    });
+
+    expect(await bookingsOn(L_STADIUM, D_STADIUM)).toHaveLength(0);
+    expect(res.ok).toBe(false);
     expect(res.error.length).toBeGreaterThan(0);
     expect(res.reason).toBe("taken");
   });

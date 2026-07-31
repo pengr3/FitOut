@@ -43,7 +43,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { booking, listing } from "@/lib/db/schema";
 import { isPgError } from "@/lib/pg";
-import { quoteOpenCapacity, quoteWindow } from "@/lib/booking/pricing";
+import { MAX_MONEY_CENTS, quoteOpenCapacity, quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import {
   APPROVAL_SLA_HOURS,
@@ -912,6 +912,29 @@ export async function createOpenCapacityHold(
         // Floored to a positive integer so a crafted non-integer / non-positive body cannot reach the quote
         // as a throw; `remaining` is already ≥ 1 here, so the floor can never grant more than is left.
         const granted = Math.max(1, Math.floor(Math.min(input.requestedHeads, remaining)));
+
+        // …and the LAST money input to settle before the quote: the PRODUCT (WR-04). Everything above
+        // bounds one number; this bounds what two of them multiply to. The three money columns are int4, so
+        // a product past MAX_MONEY_CENTS is a Postgres 22003 raised by the INSERT — neither 23P01 nor 40P01,
+        // therefore re-raised by mapBookingError as a raw 500 on the money path, which is the same T-09-69
+        // failure the rate refusal above exists to prevent, reached by arithmetic instead of by a NULL.
+        //
+        // THIS LAYER IS FOR LEGACY ROWS, and saying so is the point: publishSchema/draftSchema now cap the
+        // host's own inputs (MAX_OPEN_CAPACITY × MAX_PER_HEAD_PRICE_CENTS, proven below int4 where they are
+        // declared), so no listing priced AFTER those ceilings landed can reach this branch. A listing
+        // priced BEFORE them can, and no schema change reprices an existing row — so without this, the
+        // ceilings would protect only listings that never needed protecting. Both figures are checked: the
+        // space price and the D-74 all-in, because the fee rides ON TOP and quoted_total_cents is int4 too.
+        //
+        // Same calm refusal as the rate check — bare `{ error }`, no `soldOut` flag: nothing was sold.
+        const spaceCents = perHead * granted;
+        if (
+          !Number.isSafeInteger(spaceCents) ||
+          spaceCents > MAX_MONEY_CENTS ||
+          computeServiceFee(spaceCents).allInCents > MAX_MONEY_CENTS
+        ) {
+          return { error: SOLD_OUT_MESSAGE };
+        }
 
         // (7) Freeze the money for the GRANTED heads (OC-08 linear per-head, no duration term) and compose
         // the D-74 service fee AT THE CALLER, exactly as the exclusive path does — quoteOpenCapacity stays

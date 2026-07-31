@@ -46,6 +46,19 @@ export type Quote = {
 
 const MS_PER_HOUR = 3_600_000;
 
+/**
+ * THE INT4 CEILING for every money column a booking freezes (WR-04). `booking.space_price_cents`,
+ * `service_fee_cents` and `quoted_total_cents` are all Postgres `integer`, so 2,147,483,647 centavos is a
+ * hard limit of the storage, not a policy — a larger value is a `22003` raised by the INSERT, which is
+ * neither 23P01 nor 40P01 and so escapes `mapBookingError` as a raw 500 on the money path.
+ *
+ * Declared HERE, once, beside the functions that compute the products it bounds, and exported so the
+ * admissions claim can compare against the same number the docblocks in validation/booking.ts cite. This
+ * module still does no enforcing of its own: it stays a pure quote over the listing's own rates, and the
+ * claim refuses calmly before a product can reach this size.
+ */
+export const MAX_MONEY_CENTS = 2_147_483_647;
+
 /** The D-108 surcharge, split into the three figures the breakdown line needs. Never summed by a UI. */
 export type PaxSurcharge = {
   /** Heads charged beyond `included` — 0 whenever the listing does not charge per head. */
