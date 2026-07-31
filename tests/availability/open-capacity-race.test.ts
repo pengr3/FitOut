@@ -98,6 +98,14 @@ const DAY_CLOSE = new Date(DAY_OPEN.getTime() + 16 * 60 * 60 * 1000); // 10:00 P
 const DAY_OPEN_ISO = DAY_OPEN.toISOString();
 const DAY_CLOSE_ISO = DAY_CLOSE.toISOString();
 
+// The CR-03 counter identity for that same venue-local date — what a pass COUNTS AGAINST, as opposed to the
+// window above, which is what it COVERS. Manila is UTC+8 with no DST, so venue-local midnight is simply the
+// 06:00 opening less six hours and the date key is the opening instant shifted into venue-local time. Plain
+// UTC arithmetic on purpose: an independent second opinion on `venueDayBoundsUtc`, never a re-run of it.
+const DAY_START = new Date(DAY_OPEN.getTime() - 6 * 60 * 60 * 1000);
+const DAY_END = new Date(DAY_START.getTime() + 24 * 60 * 60 * 1000);
+const DATE_KEY = new Date(DAY_OPEN.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 /**
  * The committed head count for one (listing, date), read through an INDEPENDENT connection and over the
  * OCCUPYING set — confirmed, or pending and not yet lapsed. Deliberately re-typed here instead of importing
@@ -173,6 +181,9 @@ function realClaim(
     bookerId,
     dayOpenUtc: DAY_OPEN,
     dayCloseUtc: DAY_CLOSE,
+    dayStartUtc: DAY_START,
+    dayEndUtc: DAY_END,
+    dateKey: DATE_KEY,
     requestedHeads: heads,
     // NULL on purpose: the idempotency TOKEN must not be what separates the racers. Identity does
     // (distinct bookerIds) — see the header. A shared token would make every loser a replay.

@@ -142,6 +142,20 @@ function venueInstant(d: LocalDate, hour: number, minute = 0): Date {
   return new Date(Date.UTC(d.year, d.month - 1, d.day, hour - MANILA_OFFSET_HOURS, minute, 0));
 }
 const hhmmss = (h: number, m = 0) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+/**
+ * The CR-03 counter identity for a venue-local date: `[midnight, next midnight)` plus the `YYYY-MM-DD` key.
+ * Derived with the same plain +08 arithmetic as everything else in this file — an INDEPENDENT second opinion
+ * on `venueDayBoundsUtc`, never a re-run of it. What the pass COVERS stays `TODAY_OPEN_UTC`/`TODAY_CLOSE_UTC`;
+ * this is only what it COUNTS AGAINST, and nothing in this file's assertions depends on it.
+ */
+function dayBounds(d: LocalDate): { dayStartUtc: Date; dayEndUtc: Date; dateKey: string } {
+  const dayStartUtc = venueInstant(d, 0, 0);
+  return {
+    dayStartUtc,
+    dayEndUtc: new Date(dayStartUtc.getTime() + 24 * HOUR_MS),
+    dateKey: `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`,
+  };
+}
 
 // ── The clock-relative fixture windows (see the ANY HOUR note in the header) ────────────────────────────
 const NOW_LOCAL = venueLocal(new Date());
@@ -395,6 +409,7 @@ describe("CR-01 — a drop-in pass for TODAY is payable for the whole day it is 
       bookerId: BOOKER,
       dayOpenUtc: TODAY_OPEN_UTC,
       dayCloseUtc: TODAY_CLOSE_UTC,
+      ...dayBounds(NOW_LOCAL),
       requestedHeads: 2,
     });
     if ("error" in claim) throw new Error(`the same-day claim was refused: ${claim.error}`);

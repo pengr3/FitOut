@@ -434,11 +434,18 @@ export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
   // (listing.max_occupancy) and the rate (listing.per_head_price_cents) are read there under the advisory
   // lock, against the live admissions SUM. This action passes a head REQUEST, never a bound (T-09-05). A
   // past/out-of-horizon date is refused in there too, against the DB clock (Security V4).
+  // The window instants say what the pass COVERS (persisted as starts_at/ends_at); the day bounds + date key
+  // say what it COUNTS AGAINST (the lock, the sweep and the heads SUM — never a column). Both come from the
+  // SAME OpenDayWindow step (7) loaded, so an hours edit can move the former without touching the latter
+  // (CR-03). This action still supplies no cap, no price and no bound of any kind.
   const res = await createOpenCapacityHold(db, {
     listingId,
     bookerId: userId,
     dayOpenUtc: win.dayOpenUtc,
     dayCloseUtc: win.dayCloseUtc,
+    dayStartUtc: win.dayStartUtc,
+    dayEndUtc: win.dayEndUtc,
+    dateKey: win.dateKey,
     requestedHeads: requestedPasses,
     idempotencyKey: idempotencyKey ?? null,
   });

@@ -645,11 +645,21 @@ export type OpenHoldResult = OpenHoldSuccess | { error: string; soldOut?: true }
 export type CreateOpenCapacityHoldInput = {
   listingId: string;
   bookerId: string;
-  /** OC-03: the venue's opening/closing instants on the PICKED DATE (loadOpenDayWindow). Persisted as
+  /** OC-03: the venue's opening/closing instants on the PICKED DATE (loadOpenDayWindow). PERSISTED as
    *  starts_at/ends_at so the Phase-7 refund ladder, the payout sweep, reminders and expiry all apply
-   *  unchanged — an open booking is an ordinary booking row with one extra flag. */
+   *  unchanged — an open booking is an ordinary booking row with one extra flag.
+   *
+   *  This pair is WHAT THE PASS COVERS. It is derived from the listing's CURRENT operating hours, so it
+   *  MOVES when a host edits them — which is correct, and is exactly why it must not also be the counter. */
   dayOpenUtc: Date | string;
   dayCloseUtc: Date | string;
+  /** The venue-local calendar day and its `YYYY-MM-DD` key (venueDayBoundsUtc). This triple is WHAT THE PASS
+   *  COUNTS AGAINST — the lock key, the expiry sweep's scope, the replay scope and the heads SUM — and it is
+   *  NEVER written to a column. Fixed by the calendar, so a host cannot move it (CR-03). Keeping the two
+   *  pairs apart is the whole fix: an hours edit changes what a pass covers, never which passes count. */
+  dayStartUtc: Date | string;
+  dayEndUtc: Date | string;
+  dateKey: string;
   /** OC-06 heads on one payment. Shape-validated by the caller; the REAL bound is the listing's cap, read
    *  INSIDE this transaction (Security V4 — never a client-supplied bound). */
   requestedHeads: number;
@@ -659,13 +669,26 @@ export type CreateOpenCapacityHoldInput = {
 /**
  * The booker's OWN active open hold for this listing + date (D-42 idempotency), or null. Mirrors
  * findOwnActiveHold, with two deliberate differences: the occupying set drops requested/approved (open
- * capacity is INSTANT-ONLY, OC-10) and the window match is on `starts_at` alone — a date IS the window, so
- * there is nothing else to compare. Returns the row's frozen triple + granted heads so a replay hands back
+ * capacity is INSTANT-ONLY, OC-10) and the window match is the VENUE-LOCAL DAY alone — a date IS the window,
+ * so there is nothing else to compare. Returns the row's frozen triple + granted heads so a replay hands back
  * exactly what the original insert froze, never a fresh recompute (the D-49 drift rule).
+ *
+ * The day match is the half-open range rather than an equality against the venue's re-derived opening
+ * instant (CR-03): after a host edits operating hours a booker's own live hold sits on the OLD instant, and
+ * an equality would miss it — the replay would silently become a SECOND claim by the same person.
+ *
+ * ⚠️ THIS PREDICATE IS NOT FINISHED, and the rest of it is deliberately out of scope here: the
+ * `status = 'confirmed'` branch (CR-06) and the UNSCOPED `idempotency_key` branch (WR-01) are 09-23's.
  */
 async function findOwnOpenHold(
   tx: SqlExecutor,
-  args: { listingId: string; bookerId: string; openIso: string; idempotencyKey: string | null },
+  args: {
+    listingId: string;
+    bookerId: string;
+    dayStartIso: string;
+    dayEndIso: string;
+    idempotencyKey: string | null;
+  },
 ): Promise<{
   id: string;
   unit: number;
@@ -683,7 +706,9 @@ async function findOwnOpenHold(
       AND (status = 'confirmed' OR (status = 'pending' AND expires_at > now()))
       AND (
         ${args.idempotencyKey != null ? sql`idempotency_key = ${args.idempotencyKey}` : sql`false`}
-        OR (booker_id = ${args.bookerId} AND starts_at = ${args.openIso}::timestamptz)
+        OR (booker_id = ${args.bookerId}
+            AND starts_at >= ${args.dayStartIso}::timestamptz
+            AND starts_at < ${args.dayEndIso}::timestamptz)
       )
     ORDER BY created_at ASC
     LIMIT 1
@@ -726,6 +751,12 @@ export async function createOpenCapacityHold(
   const dayClose = new Date(input.dayCloseUtc);
   const openIso = dayOpen.toISOString(); // ISO strings for the raw sql binds (postgres.js casts)
   const closeIso = dayClose.toISOString();
+  // THE COUNTER'S IDENTITY (CR-03), kept in locals distinct from the pair above so the two can never be
+  // confused at a call site: the open/close instants say what the pass COVERS, these say what it COUNTS
+  // AGAINST. Neither dayStartIso/dayEndIso nor dateKey is ever written to a column.
+  const dayStartIso = new Date(input.dayStartUtc).toISOString();
+  const dayEndIso = new Date(input.dayEndUtc).toISOString();
+  const dateKey = input.dateKey;
   const idempotencyKey = input.idempotencyKey ?? null;
 
   // ── The D-94 invariant, with the cap moved from starts_at to ENDS_AT — a DELIBERATE divergence ───────
@@ -751,15 +782,22 @@ export async function createOpenCapacityHold(
         // leaves the SUM→insert unprotected, which is the whole failure mode.
         //
         // `hashtextextended` is IMMUTABLE and returns the bigint the lock takes. Keying on
-        // `listing_id || ':' || dayOpen` means only same-date claimers contend — that answers D-112's "a
-        // per-parent-row lock is too coarse" WITHOUT inventing a physical capacity row to lock. A hash
-        // collision can only ever OVER-serialize two unrelated (listing, date) pairs, never under-serialize
-        // them, so it is correctness-safe by construction.
+        // `listing_id || ':' || <venue-local YYYY-MM-DD>` means only same-date claimers contend — that
+        // answers D-112's "a per-parent-row lock is too coarse" WITHOUT inventing a physical capacity row to
+        // lock. A hash collision can only ever OVER-serialize two unrelated (listing, date) pairs, never
+        // under-serialize them, so it is correctness-safe by construction.
+        //
+        // ⚠️ THE KEY'S SECOND TERM IS THE CALENDAR DATE, NOT THE VENUE'S OPENING INSTANT — that was CR-03.
+        // The opening instant is re-derived from the listing's CURRENT operating hours, so a host shifting
+        // Monday's opening 06:00 → 07:00 produced a DIFFERENT key: two disjoint lock domains for one date,
+        // each blind to the other's rows, and the second could sell a whole extra cap with no constraint
+        // violation and no error. A stable date key means only the venue's own calendar can change what
+        // contends. Never re-point this at anything a host can edit.
         //
         // ⚠️ NO EXTERNAL I/O MAY OCCUR BETWEEN THIS LINE AND COMMIT — no fetch, no email, no job emit. Every
         // statement below is local SQL, and the notification (if any) is emitted post-commit by the caller.
         await tx.execute(sql`SELECT pg_advisory_xact_lock(
-          hashtextextended(${input.listingId}::text || ':' || ${openIso}::text, 0))`);
+          hashtextextended(${input.listingId}::text || ':' || ${dateKey}::text, 0))`);
 
         // (2) Own-hold idempotency pre-check (D-42), INSIDE the lock. The plan sketched this ahead of the
         // lock; it runs after it so the "lock first" rule above is literal and a replay observes the same
@@ -768,30 +806,39 @@ export async function createOpenCapacityHold(
         const existing = await findOwnOpenHold(tx, {
           listingId: input.listingId,
           bookerId: input.bookerId,
-          openIso,
+          dayStartIso,
+          dayEndIso,
           idempotencyKey,
         });
         if (existing) return { ok: true, ...existing, replayed: true, requested: input.requestedHeads };
 
-        // (3) In-tx lazy-expiry sweep, scoped to this listing + date. A lapsed open hold must leave the
-        // counted set inside THIS transaction or its heads stay claimed for the SUM below. The terminal
-        // status is always `cancelled` — there is no requested→declined branch, because open capacity is
-        // instant-only (OC-10). No email crosses this boundary (see the lock's I/O rule).
+        // (3) In-tx lazy-expiry sweep, scoped to this listing + VENUE-LOCAL DAY — the same range the SUM
+        // below counts, never the opening instant (CR-03). A lapsed open hold must leave the counted set
+        // inside THIS transaction or its heads stay claimed for the SUM; a hold minted under the OLD
+        // operating hours would otherwise be invisible to a claim made under the NEW ones and stay claimed
+        // FOREVER, since nothing else ever writes at expiry (D-48a). The terminal status is always
+        // `cancelled` — there is no requested→declined branch, because open capacity is instant-only
+        // (OC-10). No email crosses this boundary (see the lock's I/O rule).
         await tx.execute(sql`
           UPDATE booking SET status = 'cancelled', expires_at = NULL
           WHERE listing_id = ${input.listingId} AND open_capacity = true
             AND status = 'pending' AND expires_at <= now()
-            AND starts_at = ${openIso}::timestamptz`);
+            AND starts_at >= ${dayStartIso}::timestamptz
+            AND starts_at < ${dayEndIso}::timestamptz`);
 
         // (4) Read the cap + per-head rate + cancellation tier and SUM the occupied heads UNDER THE LOCK,
         // in ONE statement. Both date guards are evaluated against the DB clock in the SAME transaction as
         // the rows they gate (zero JS clock). The heads SUM comes from the SHARED openTakenSql fragment —
-        // never re-inlined here, so the counter and the read model cannot drift (Pitfall 4).
+        // never re-inlined here, so the counter and the read model cannot drift (Pitfall 4) — over the
+        // venue-local DAY, so it counts every pass sold for this date whatever hours were in force when it
+        // was sold. `day_open_ok` and `horizon_ok` deliberately keep using the CLOSING and OPENING instants:
+        // they are about what a pass COVERS, and a venue-local day starting at midnight is not the same fact
+        // as a pass window being open. Do not re-point them at the day bounds.
         const rows = (await tx.execute(sql`
           SELECT l.max_occupancy AS cap,
                  l.per_head_price_cents AS per_head,
                  l.cancellation_policy AS cancellation_policy,
-                 ${openTakenSql(input.listingId, openIso)} AS taken,
+                 ${openTakenSql(input.listingId, dayStartIso, dayEndIso)} AS taken,
                  (${closeIso}::timestamptz > now()) AS day_open_ok,
                  (${openIso}::timestamptz < now() + make_interval(days => ${BOOKING_HORIZON_DAYS}::int)) AS horizon_ok
           FROM listing l WHERE l.id = ${input.listingId}

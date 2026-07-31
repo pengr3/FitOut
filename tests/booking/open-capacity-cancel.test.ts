@@ -100,6 +100,20 @@ function openInstant(d: LocalDate): Date {
 function closeInstant(d: LocalDate): Date {
   return new Date(Date.UTC(d.year, d.month - 1, d.day, CLOSE_HOUR - MANILA_OFFSET_HOURS, 0, 0));
 }
+/**
+ * The CR-03 counter identity for a venue-local date: `[midnight, next midnight)` plus the `YYYY-MM-DD` key.
+ * NEVER persisted — it is what a pass COUNTS AGAINST, while openInstant/closeInstant are what it COVERS.
+ * Derived with the same plain +08 arithmetic as the two above, so it is an independent second opinion on
+ * `venueDayBoundsUtc` rather than a re-run of it.
+ */
+function dayBounds(d: LocalDate): { dayStartUtc: Date; dayEndUtc: Date; dateKey: string } {
+  const dayStartUtc = new Date(Date.UTC(d.year, d.month - 1, d.day, -MANILA_OFFSET_HOURS, 0, 0));
+  return {
+    dayStartUtc,
+    dayEndUtc: new Date(dayStartUtc.getTime() + 24 * HOUR_MS),
+    dateKey: `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`,
+  };
+}
 
 // One date per case, so one case's committed heads can never pre-fill the cap another case needs.
 const D_NOBLOCK = daysOut(30); // (1) the host cancel that must write NO block
@@ -581,6 +595,7 @@ describe("cancelBookingAsBooker — OC-15: the seat release is a property of the
       bookerId: otherBookerId,
       dayOpenUtc: openInstant(D_FREE),
       dayCloseUtc: closeInstant(D_FREE),
+      ...dayBounds(D_FREE),
       requestedHeads: 2,
     });
     expect("ok" in claim).toBe(true);
