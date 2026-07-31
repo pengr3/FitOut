@@ -439,6 +439,33 @@ export async function getOpenMonthAvailability(
   if (mode !== "open_capacity") return EMPTY_MONTH;
   const cap = maxOccupancy ?? 0; // NULL cap fails closed, as in getOpenDay
 
+  // THE INVARIANT, not the branch: THE MONTH GRID AND THE DAY PANEL MUST FAIL CLOSED THE SAME WAY (NT-02).
+  //
+  // Both projections already default a NULL `max_occupancy` to 0, and both are right to — it is the same
+  // choice createOpenCapacityHold makes, so nothing can advertise a spot the claim would refuse. But only
+  // the day panel failed closed VISIBLY: it computes `remaining = 0` and renders "Fully booked". The grid
+  // decided fullness from `taken >= cap`, which is evaluated per BOOKING ROW — and a listing with no usable
+  // capacity has no bookings either, so it produced no rows, so no date ever reached the test and EVERY date
+  // stayed selectable. The booker was handed a calendar of open dates leading to a panel that refuses each
+  // one on arrival. An empty result set is not "nothing is full"; here it is "nothing was asked".
+  //
+  // So a zero-or-negative cap withdraws the WHOLE month, through the SAME `fullDates` channel the calendar
+  // already uses to disable a saturated date — no new state, no new matcher, no component change. Short-
+  // circuited BEFORE the aggregate query, so a mis-configured listing costs one fewer round trip, not one
+  // more. The dates are the venue-local calendar's own, in the `YYYY-MM-DD` shape the month filter below
+  // expects, so they need no timezone conversion: which month a date belongs to is settled by construction.
+  if (cap <= 0) {
+    const daysInMonth = new Date(Date.UTC(monthLocal.year, monthLocal.month, 0)).getUTCDate();
+    return {
+      cap,
+      fullDates: Array.from(
+        { length: daysInMonth },
+        (_, i) =>
+          `${monthLocal.year}-${String(monthLocal.month).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`,
+      ),
+    };
+  }
+
   const m0 = monthLocal.month - 1; // 0-based month for TZDate (JS Date convention)
   // Venue-local month bounds normalized through the epoch exactly as the day window is, and WIDENED one day
   // on each side: a venue's opening instant can land in the previous UTC day (06:00 Asia/Manila is 22:00Z

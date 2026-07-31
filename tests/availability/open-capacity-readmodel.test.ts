@@ -759,7 +759,12 @@ describe("open-capacity read model — spots left for a DATE (OPEN-04 / OC-13)",
     expect(day.hasHours).toBe(true); // the venue IS open — this is a capacity fact, not an hours fact
     expect(day.openCapacity?.remaining).toBe(0);
     expect(day.openCapacity?.state).toBe("full");
-    expect(day.openCapacity?.bookable).toBe(false);
+    // …and `bookable` is deliberately NOT asserted false here. It is the server's PAST-DATE / HORIZON
+    // verdict about the window, not a verdict about capacity — a genuinely saturated date carries
+    // `bookable: true` too (case 6), and the CTA is gated by BOTH: date-pass-picker.tsx:216 requires
+    // `oc.bookable && oc.state !== "full"`. Asserting it false would demand that the two facts be merged,
+    // which is the opposite of what this phase keeps learning.
+    expect(day.openCapacity?.cap).toBe(0);
   });
 
   it("16. leaves a listing with a POSITIVE cap untouched — only saturated dates are withdrawn", async () => {
