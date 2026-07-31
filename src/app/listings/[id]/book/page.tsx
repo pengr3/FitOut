@@ -386,6 +386,17 @@ export default async function ReservePage({
   // boundary has passed, which the disclosure renders as a truthful no-window line.
   const bestRungIndex = tier ? bestFutureRungIndex(tier, bk.startsAt, now) : undefined;
 
+  // WR-05 / T-09-88 — is this pass being bought for a day that has ALREADY opened? OC-03 makes an open row's
+  // `startsAt` the venue's opening instant, so this is the one comparison that decides whether the ladder
+  // still has anything to offer. It is FALSE for every exclusive booking by construction: `confirmBooking`
+  // refuses one past its own start (D-94), so the state cannot be reached and the disclosure below stays
+  // byte-identical on that path.
+  //
+  // Computed here, server-side, from the page's own `now` — the same instant every other time decision on
+  // this page uses, and never a client clock (D-105). This is a DISCLOSURE, not an enforcement: what a
+  // booker is actually refunded still recomputes against the Postgres clock at cancel time.
+  const windowAlreadyOpen = bk.openCapacity && bk.startsAt.getTime() <= now.getTime();
+
   // OC-08 — `perHeadPriceCents` / `passes` are supplied ONLY for a drop-in booking, which flips the run
   // line to the per-person form. Both are null on every exclusive booking, so that run line is unchanged
   // (09-UI-SPEC Open Q10). `passes` is the PERSISTED granted head count, so a partial grant reads as what
@@ -411,6 +422,7 @@ export default async function ReservePage({
       <CancellationPolicyDisclosure
         tier={tier}
         openCapacity={bk.openCapacity}
+        windowAlreadyOpen={windowAlreadyOpen}
         boundaryLabels={boundaryLabels}
         bestRungIndex={bestRungIndex}
       />

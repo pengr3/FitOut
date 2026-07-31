@@ -64,6 +64,7 @@ vi.mock("@/components/ui/select", () => ({
 
 import {
   CancellationPolicyDisclosure,
+  PASS_NON_REFUNDABLE_MESSAGE,
   policyDisclosureLines,
   policySummaryLine,
 } from "@/components/booking/cancellation-policy-disclosure";
@@ -107,7 +108,7 @@ describe("CancellationPolicyDisclosure — § 5b: the deadline ANCHOR forks, the
   });
 
   it("(2) the RENDERED generic disclosure carries the drop-in anchor, and still discloses the service fee", () => {
-    render(<CancellationPolicyDisclosure tier="standard" openCapacity />);
+    render(<CancellationPolicyDisclosure tier="standard" openCapacity windowAlreadyOpen={false} />);
 
     expect(
       screen.getByText("Free cancellation up to 24 hours before the space opens."),
@@ -134,6 +135,100 @@ describe("CancellationPolicyDisclosure — § 5b: the deadline ANCHOR forks, the
         policyDisclosureLines(tier, EXCLUSIVE, CONCRETE_LABELS),
       );
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// WR-05 / T-09-88 — a pass bought for a day that has ALREADY OPENED says so, BEFORE the booker pays
+//
+// 09-25 made a live drop-in pass cancellable for the whole day it covers, and the refund for one bought
+// after opening is what the ladder has always awarded past its last rung: nothing. The disclosure has to say
+// that BEFORE the money moves, because "you bought it, it's final, and nothing told you" is the failure this
+// prop exists to prevent. `windowAlreadyOpen` is REQUIRED, so no surface can silently keep the old promise.
+//
+// Every case below asserts RENDERED output. A props type cannot prove which sentence a booker read, and the
+// sentence itself is IMPORTED rather than retyped, so a copy change is a one-line, one-file act.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("CancellationPolicyDisclosure — WR-05: the already-open pass states its own outcome", () => {
+  it("(5) an ALREADY-OPEN drop-in pass replaces the rungs with the plain statement, fee note intact", () => {
+    const { container } = render(
+      <CancellationPolicyDisclosure
+        tier="standard"
+        openCapacity
+        windowAlreadyOpen
+        boundaryLabels={CONCRETE_LABELS}
+        bestRungIndex={-1}
+      />,
+    );
+
+    // THE STATEMENT the booker reads before paying — imported, never retyped.
+    expect(screen.getByText(PASS_NON_REFUNDABLE_MESSAGE)).toBeDefined();
+
+    // NO rung survives. Not the percentages, not the outcome clauses, not the ladder's own no-refund close —
+    // restating a window that lapsed before this purchase was made is the disclosure defect, not the fix.
+    expect(container.querySelectorAll("li")).toHaveLength(0);
+    expect(container.textContent).not.toContain("%");
+    expect(container.textContent).not.toContain("full refund of the space price");
+    expect(container.textContent).not.toContain("Cancel at least");
+    expect(container.textContent).not.toContain("Cancel before");
+
+    // …and C2 is untouched: the service fee promise is mandatory in EVERY state, and a non-refundable pass is
+    // the state where a booker is most likely to assume the whole charge is a lost cause in one direction or
+    // recoverable in the other.
+    expect(screen.getByText("The service fee isn't refunded.")).toBeDefined();
+    // The tier is still named, so the booking's policy is still disclosed rather than replaced.
+    expect(container.textContent).toContain("Standard cancellation policy");
+  });
+
+  it("(6) with the window NOT yet open the shipped 09-09 drop-in output is unchanged", () => {
+    // The regression guard for the fork: without it the statement could be rendered for EVERY pass and case
+    // (5) would stay green while every future-dated booker lost their refund promise.
+    const { container } = render(
+      <CancellationPolicyDisclosure tier="standard" openCapacity windowAlreadyOpen={false} />,
+    );
+
+    expect(container.textContent).not.toContain(PASS_NON_REFUNDABLE_MESSAGE);
+    expect(
+      screen.getByText("Free cancellation up to 24 hours before the space opens."),
+    ).toBeDefined();
+
+    // Every rung line is present and is EXACTLY what `policyDisclosureLines` derives from LADDER — the
+    // disclosure-equals-enforcement tie this component's header calls load-bearing, re-asserted through the
+    // rendered DOM rather than through the pure function alone.
+    const rendered = [...container.querySelectorAll("li")].map((li) => li.textContent);
+    const expected = policyDisclosureLines("standard", DROP_IN).map(
+      (l) => `${l.when} — ${l.outcome}`,
+    );
+    expect(rendered).toEqual(expected);
+    expect(screen.getByText("The service fee isn't refunded.")).toBeDefined();
+  });
+
+  it("(7) the flag can never leak into the EXCLUSIVE path", () => {
+    // A combination the two call sites never produce — an exclusive booking past its own start cannot reach
+    // checkout at all (D-94). Asserted anyway: if a future surface ever hands this component the pair, an
+    // hourly booker must still read the ladder, not a sentence about passes and an open space.
+    const { container } = render(
+      <CancellationPolicyDisclosure tier="standard" openCapacity={false} windowAlreadyOpen />,
+    );
+
+    expect(container.textContent).not.toContain(PASS_NON_REFUNDABLE_MESSAGE);
+    expect(screen.getByText(/Cancel at least 24 hours before the session/)).toBeDefined();
+    expect(container.querySelectorAll("li").length).toBeGreaterThan(0);
+  });
+
+  it("(8) the non-refundable statement is never rendered in the destructive colour", () => {
+    // 09-UI-SPEC colour rule O3. This is a fact about money stated calmly, not an error and not an alarm —
+    // and the booker is being told it at the moment they are deciding to pay, which is exactly when a red
+    // banner would read as "something went wrong" rather than "here is what you are agreeing to".
+    const { container } = render(
+      <CancellationPolicyDisclosure tier="standard" openCapacity windowAlreadyOpen />,
+    );
+
+    const statement = screen.getByText(PASS_NON_REFUNDABLE_MESSAGE);
+    expect(statement.className).not.toContain("destructive");
+    // …and nowhere in the rendered tree either, so it cannot arrive via an ancestor.
+    expect(container.innerHTML).not.toContain("destructive");
   });
 });
 

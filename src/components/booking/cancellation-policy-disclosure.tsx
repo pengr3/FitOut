@@ -43,6 +43,33 @@ const TIER_LABELS: Record<CancellationTier, string> = {
 };
 
 /**
+ * WR-05 / T-09-88 — the ONE sentence a booker reads when they are buying a pass for a day that has ALREADY
+ * opened. Every rung on the ladder has lapsed by then, so restating the ladder here would be disclosing a
+ * refund window that closed before the purchase was made: "you bought it, it's final, and nothing told you"
+ * is the outcome this string exists to prevent.
+ *
+ * O3 grammar — a statement plus what it means. No exclamation, and never rendered in the red error variant
+ * this design system reserves for failures: it is a fact about money, not an alarm. (The class name is
+ * DELIBERATELY not spelled anywhere in this file, because an acceptance grep counts its occurrences and a
+ * guard a comment can trip is not a guard — the same tripwire discipline this file's header already uses
+ * for the client directive.)
+ *
+ * ══ A TS STRING CONSTANT, NOT JSX TEXT — three reasons this file already demonstrates ══════════════════
+ *   - LINT. `react/no-unescaped-entities` makes a literal apostrophe in JSX text an ERROR, which is exactly
+ *     why the service-fee paragraph below is written with an HTML entity. Inside a string literal no escape
+ *     is needed, so the SOURCE and the RENDERED sentence are the same bytes and a copy audit can grep the
+ *     one it is actually looking for.
+ *   - ONE COPY. Every O3 sentence in this phase lives in exactly one place (`SOLD_OUT_MESSAGE`,
+ *     `PAST_DATE_MESSAGE`, `MODE_LOCKED_MESSAGE`, `HOURS_LOCKED_MESSAGE`). The jsdom cases IMPORT this
+ *     rather than retyping it, so a copy change stays a one-line, one-file act.
+ *   - WHITESPACE. `mode-lock-notice.tsx`'s header records that SWC's JSX whitespace transform strips the
+ *     leading space of text following an expression container — the defect that once shipped
+ *     "₱300.00in cancellation fees". A single string literal cannot have it.
+ */
+export const PASS_NON_REFUNDABLE_MESSAGE =
+  "The space is already open, so this pass can't be refunded if you cancel.";
+
+/**
  * 09-UI-SPEC § 5b — WHICH INSTANT THE DEADLINE COPY NAMES. The ladder itself is reused UNCHANGED for a
  * drop-in pass (OC-15: `quoteRefund`, `LADDER` and `rungBoundaries` are byte-identical); the ONLY thing that
  * differs is the word for what `starts_at` is. On an exclusive booking it is when the SESSION starts; on an
@@ -181,6 +208,19 @@ export type CancellationPolicyDisclosureProps = DeadlineAnchorInput & {
    * NULL renders NOTHING. See the note below the component.
    */
   tier: CancellationTier | null | undefined;
+  /**
+   * WR-05 / T-09-88 — TRUE ⇒ the day this pass covers has ALREADY opened, so no rung can still be awarded
+   * and the disclosure states the outcome plainly instead of restating the ladder.
+   *
+   * REQUIRED, never optional, for the same reason `openCapacity` is (09-08 / 09-09): an optional flag lets a
+   * surface silently keep rendering the future-date refund promise for a pass that is already non-refundable
+   * — and still typecheck. There are exactly TWO call sites, so requiring it is a two-file compiler census
+   * rather than a burden.
+   *
+   * Computed SERVER-SIDE at both call sites and never from a client clock (D-105); the component performs no
+   * date math of its own (this file's header rule).
+   */
+  windowAlreadyOpen: boolean;
   /** Present ⇒ concrete mode. Index-aligned with `LADDER[tier]`, already formatted venue-local. */
   boundaryLabels?: readonly string[];
   /**
@@ -195,6 +235,7 @@ export type CancellationPolicyDisclosureProps = DeadlineAnchorInput & {
 export function CancellationPolicyDisclosure({
   tier,
   openCapacity,
+  windowAlreadyOpen,
   boundaryLabels,
   bestRungIndex,
 }: CancellationPolicyDisclosureProps) {
@@ -212,13 +253,30 @@ export function CancellationPolicyDisclosure({
   // no disclosure — that is the rule this branch encodes.
   if (!tier) return null;
 
+  // ── WR-05 / T-09-88 — THE PASS WHOSE DAY HAS ALREADY OPENED ──────────────────────────────────────────
+  // The ladder is not wrong for this purchase; it is SPENT. Every rung's boundary sits before the venue's
+  // opening instant, so a booker buying at 15:00 for today qualifies for none of them, and the honest
+  // disclosure is the outcome rather than a list of windows that all closed before they arrived.
+  //
+  // Scoped to `openCapacity` on purpose: an EXCLUSIVE booking past its own start cannot be bought at all
+  // (D-94 refuses at checkout initiation), so the combination has no call site — and if a future one ever
+  // produced it, the exclusive rung copy must still render rather than a pass sentence. A jsdom case pins
+  // exactly that, so the flag can never leak into the exclusive path.
+  const nonRefundable = openCapacity && windowAlreadyOpen;
+
   const summary = policySummaryLine(tier, { openCapacity }, boundaryLabels, bestRungIndex);
   const lines = policyDisclosureLines(tier, { openCapacity }, boundaryLabels);
 
   return (
     <details className="rounded-lg border bg-muted/40 p-3 text-sm">
       <summary className="cursor-pointer list-none">
-        <span className="font-medium">{summary}</span>{" "}
+        {/* The statement goes in the COLLAPSED summary, where it is read without any interaction — a
+            disclosure a booker has to expand to find is not a disclosure they demonstrably saw (D-81). */}
+        {nonRefundable ? (
+          <span className="font-medium">{PASS_NON_REFUNDABLE_MESSAGE}</span>
+        ) : (
+          <span className="font-medium">{summary}</span>
+        )}{" "}
         <span className="text-muted-foreground underline underline-offset-4">
           See cancellation policy
         </span>
@@ -226,13 +284,18 @@ export function CancellationPolicyDisclosure({
 
       <div className="mt-3 space-y-2 border-t pt-3">
         <p className="font-medium">{TIER_LABELS[tier]} cancellation policy</p>
-        <ul className="space-y-1 text-muted-foreground">
-          {lines.map((line) => (
-            <li key={line.when}>
-              <span className="text-foreground">{line.when}</span> — {line.outcome}
-            </li>
-          ))}
-        </ul>
+        {/* The rung list is SUPPRESSED, not restated, once the window has opened: printing "24 hours or
+            more — full refund" beside "this pass can't be refunded" would contradict itself on a money
+            surface, and the tier name above already says which policy the booking is under. */}
+        {!nonRefundable && (
+          <ul className="space-y-1 text-muted-foreground">
+            {lines.map((line) => (
+              <li key={line.when}>
+                <span className="text-foreground">{line.when}</span> — {line.outcome}
+              </li>
+            ))}
+          </ul>
+        )}
         {/*
           MANDATORY on EVERY expanded view, in BOTH modes, at EVERY tier — including Flexible, where a
           full refund is the only rung and a booker is therefore MOST likely to assume everything comes

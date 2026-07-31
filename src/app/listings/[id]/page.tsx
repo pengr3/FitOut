@@ -358,9 +358,17 @@ export default async function PublicListingPage({
                   09-UI-SPEC § 5b: the anchor is the LISTING's persisted occupancy mode — a drop-in listing
                   sells passes for a DATE, so its deadline is when the space opens, not when a session
                   starts. The ladder itself is byte-identical in both modes (OC-15). */}
+              {/* WR-05 — ALWAYS false here, and that is a decision rather than a default. This page has no
+                  booking and no picked date at render time, so there is no specific pass whose day could
+                  have opened: the disclosure describes the LISTING's policy in general, and the concrete
+                  "already open, so nothing comes back" statement belongs on the surface where a particular
+                  pass is being paid for (the reserve page, which does have both). Making the prop required
+                  is what forced this question to be answered out loud instead of inherited. A date-aware
+                  version of this page is not in scope. */}
               <CancellationPolicyDisclosure
                 tier={row.listing.cancellationPolicy}
                 openCapacity={row.listing.occupancyMode === "open_capacity"}
+                windowAlreadyOpen={false}
               />
 
               {pub.maxOccupancy != null && (
