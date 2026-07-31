@@ -100,6 +100,45 @@
 // Next.js error digest on the money path. The two halves are the same defect at its two ends — the gate
 // that let the row into the state, and the claim that had no answer once it was there.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// TASK-2 MUTATION — EXECUTED, not merely described. The fail-closed rate refusal was deleted from
+// `createOpenCapacityHold` (units.ts step 5), leaving the `saveListingStep` gate FULLY in place — i.e. the
+// half of the fix that stops NEW rows entering the bad state, without the half that survives the rows
+// already in it. Observed output, VERBATIM:
+//
+//    ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+//
+//     FAIL  … > 5 · a published drop-in row with no price per person RETURNS a refusal and mints NO booking
+//    Error: Listing has no per-head price for an open-capacity booking
+//     ❯ quoteOpenCapacity src/lib/booking/pricing.ts:165:11
+//        163| export function quoteOpenCapacity(input: OpenCapacityQuoteInput): Open…
+//        164|   if (input.perHeadPriceCents == null) {
+//        165|     throw new Error("Listing has no per-head price for an open-capacit…
+//           |           ^
+//        166|   }
+//        167|   if (!Number.isInteger(input.heads) || input.heads < 1) {
+//     ❯ src/lib/availability/units.ts:920:23
+//     ❯ scope node_modules/postgres/src/index.js:260:18
+//     ❯ sql.begin node_modules/postgres/src/index.js:243:14
+//     ❯ createOpenCapacityHold src/lib/availability/units.ts:779:14
+//     ❯ placeOpenHold src/app/actions/booking.ts:441:15
+//     ❯ tests/listing/open-capacity-edit-gate.test.ts:544:17
+//
+//    ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+//
+//     Test Files  1 failed (1)
+//          Tests  1 failed | 4 passed (5)
+//
+// It reproduces the Task-1 confirming failure EXACTLY — same sentence, same raising site, same unwinding
+// out through `placeOpenHold`. Note WHICH cases stayed green under it: 1, 2, 3 and 4 all pass, because the
+// action-level gate was untouched. **An action-level fix alone therefore looks like four-fifths of a
+// success**, and the only case that can tell you otherwise is the one whose fixture was written DIRECTLY to
+// the table. That is the whole reason case 5 does not go through `saveListingStep`: a gate can only ever
+// govern rows created after it, and the listing that mattered was already in the bad state when it shipped.
+//
+// Restored → 5/5 green → `git diff --exit-code src/lib/availability/units.ts` printed nothing.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { sql } from "drizzle-orm";
@@ -107,7 +146,11 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, hostPayout, operatingHours } from "@/lib/db/schema";
-import { PER_HEAD_PRICE_REQUIRED_MESSAGE } from "@/lib/validation/listing";
+import {
+  PER_HEAD_PRICE_REQUIRED_MESSAGE,
+  DROP_IN_INSTANT_ONLY_MESSAGE,
+  DROP_IN_SINGLE_SPACE_MESSAGE,
+} from "@/lib/validation/listing";
 import type { RateLimitResult } from "@/lib/rate-limit";
 
 let testDb: TestDb;
@@ -125,6 +168,10 @@ let HOST_ID = "";
 
 // One listing per concern, so one case's persisted state can never decide another case's expectation.
 const L_PUB_EXCL = "l_ocedit_pub_excl"; // case 1 — the wizard's own bypass, on a published listing
+const L_PUB_OK = "l_ocedit_pub_ok"; // case 2 — the SAME switch, done properly, must still go through
+const L_PUB_REQUEST = "l_ocedit_pub_request"; // case 3a — approval-mode listing
+const L_PUB_MULTI = "l_ocedit_pub_multi"; // case 3b — multi-unit listing
+const L_DRAFT = "l_ocedit_draft"; // case 4 — a draft mid-wizard stays permissive
 const L_LEGACY = "l_ocedit_legacy"; // case 5 — the row that is ALREADY in the bypass state
 
 const CAP = 3;
@@ -279,6 +326,82 @@ beforeAll(async () => {
       timezone: TIMEZONE,
     },
     {
+      // Case 2 — identical to case 1's fixture in every respect. The ONLY difference is what the autosave
+      // carries. This is the control that keeps the guard honest: it must block the invalid TRANSITION, not
+      // the feature, or the wizard's drop-in flow would be unreachable for every published listing.
+      id: L_PUB_OK,
+      hostId: HOST_ID,
+      title: "Whole gym floor, convertible",
+      status: "published",
+      publishedAt: new Date(),
+      primarySpaceType: "gym_fitness_floor",
+      city: "Makati",
+      currency: "php",
+      occupancyMode: "exclusive",
+      bookingMode: "instant",
+      cancellationPolicy: "standard",
+      maxOccupancy: 10,
+      unitCount: 1,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+      timezone: TIMEZONE,
+    },
+    {
+      // Case 3a — approval mode (OC-10). It already carries a price per person and a cap, so the ONLY rule
+      // it can fail is the instant-booking one; that is what makes the asserted sentence attributable.
+      id: L_PUB_REQUEST,
+      hostId: HOST_ID,
+      title: "Approval-only studio",
+      status: "published",
+      publishedAt: new Date(),
+      primarySpaceType: "yoga_studio",
+      city: "Makati",
+      currency: "php",
+      occupancyMode: "exclusive",
+      bookingMode: "request",
+      cancellationPolicy: "standard",
+      maxOccupancy: 10,
+      unitCount: 1,
+      perHeadPriceCents: PER_HEAD_CENTS,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+      timezone: TIMEZONE,
+    },
+    {
+      // Case 3b — three bookable units (D-21). Same construction: priced, capped and instant, so the single-
+      // space rule is the only one left to fail.
+      id: L_PUB_MULTI,
+      hostId: HOST_ID,
+      title: "Three courts",
+      status: "published",
+      publishedAt: new Date(),
+      primarySpaceType: "multi_sport_court",
+      city: "Makati",
+      currency: "php",
+      occupancyMode: "exclusive",
+      bookingMode: "instant",
+      cancellationPolicy: "standard",
+      maxOccupancy: 10,
+      unitCount: 3,
+      perHeadPriceCents: PER_HEAD_CENTS,
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+      timezone: TIMEZONE,
+    },
+    {
+      // Case 4 — a DRAFT mid-wizard. Nothing about it is bookable, and publishListing is still its gate.
+      id: L_DRAFT,
+      hostId: HOST_ID,
+      title: "Half-finished draft",
+      status: "draft",
+      city: "Makati",
+      currency: "php",
+      occupancyMode: "exclusive",
+      bookingMode: "instant",
+      unitCount: 1,
+      timezone: TIMEZONE,
+    },
+    {
       // Case 5 — the row ALREADY in the bypass state, written directly to the table so the case survives
       // whatever the action-level gate does: published + drop-in + NO price per person. This is both what
       // the wizard produces today and what every listing switched before the gate existed looks like.
@@ -383,6 +506,62 @@ describe("CR-04 — a published listing may not enter drop-in mode without what 
     expect(after.occupancy_mode).toBe("exclusive");
     expect(after.per_head_price_cents).toBeNull();
     expect(after.status).toBe("published");
+  });
+
+  it("2 · the SAME autosave carrying a price per person goes through, and the row changes", async () => {
+    await login(HOST_EMAIL);
+
+    // The guard blocks an invalid TRANSITION, never the feature. If this case ever goes red, drop-in mode
+    // has become unreachable for every published listing — which is a worse bug than the one being fixed.
+    const res = await saveListingStep(L_PUB_OK, {
+      occupancyMode: "open_capacity",
+      perHeadPriceCents: PER_HEAD_CENTS,
+    });
+    expect(res.ok).toBe(true);
+
+    const after = await readListingRow(L_PUB_OK);
+    expect(after.occupancy_mode).toBe("open_capacity");
+    expect(after.per_head_price_cents).toBe(PER_HEAD_CENTS);
+    expect(after.booking_mode).toBe("instant");
+    expect(after.unit_count).toBe(1);
+  });
+
+  it("3 · approval mode and multi-unit are each refused with their OWN sentence", async () => {
+    await login(HOST_EMAIL);
+
+    // (3a) OC-10 — approval on a shared daily counter has no lifecycle to run.
+    const request = await saveListingStep(L_PUB_REQUEST, { occupancyMode: "open_capacity" });
+    expect(request.ok).toBe(false);
+    if (request.ok) return;
+    expect(request.fieldErrors?.bookingMode).toContain(DROP_IN_INSTANT_ONLY_MESSAGE);
+    // Its price per person is already set, so the price rule is NOT what refused it — the sentence is
+    // attributable to the rule it names.
+    expect(request.fieldErrors?.perHeadPriceCents).toBeUndefined();
+    expect((await readListingRow(L_PUB_REQUEST)).occupancy_mode).toBe("exclusive");
+
+    // (3b) 09-RESEARCH A4/Q3 — the claim inserts the sentinel unit 1, so N units' worth of inventory would
+    // be sold against one unit's counter.
+    const multi = await saveListingStep(L_PUB_MULTI, { occupancyMode: "open_capacity" });
+    expect(multi.ok).toBe(false);
+    if (multi.ok) return;
+    expect(multi.fieldErrors?.unitCount).toContain(DROP_IN_SINGLE_SPACE_MESSAGE);
+    expect(multi.fieldErrors?.perHeadPriceCents).toBeUndefined();
+    expect((await readListingRow(L_PUB_MULTI)).occupancy_mode).toBe("exclusive");
+  });
+
+  it("4 · a DRAFT may still be saved into drop-in mode with no price — publish is still its gate", async () => {
+    await login(HOST_EMAIL);
+
+    // THE PERMISSIVENESS CASE, and it is not a courtesy: the wizard's occupancy step comes BEFORE its
+    // pricing step, so this exact state is what a host in the middle of building a listing is standing in.
+    // A guard applied to every row rather than to published rows would freeze the wizard at step 5.
+    const res = await saveListingStep(L_DRAFT, { occupancyMode: "open_capacity" });
+    expect(res.ok).toBe(true);
+
+    const after = await readListingRow(L_DRAFT);
+    expect(after.status).toBe("draft");
+    expect(after.occupancy_mode).toBe("open_capacity");
+    expect(after.per_head_price_cents).toBeNull();
   });
 });
 

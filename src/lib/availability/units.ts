@@ -871,12 +871,38 @@ export async function createOpenCapacityHold(
         // sold, so this is not a race and the CTA must not invite a retry on the same date.
         if (!rows[0].not_blocked) return { error: BLOCKED_DATE_MESSAGE };
 
+        // …and refuse a listing whose PRICE PER PERSON is missing or non-positive (CR-04). THE RULE, named
+        // once for both money columns this statement reads: EVERY money input the claim takes from the
+        // listing row is a FAIL-CLOSED REFUSAL, never a raised error. `mapBookingError` maps only
+        // NoUnitAvailableError / 23P01 / 40P01 and re-raises everything else, so anything raised in here IS
+        // a 500 on the money path — a Next.js error digest on a booker's payment click (T-09-69/T-09-70).
+        // A null cap already obeys this rule at step (6); a null rate now obeys it here, one step earlier,
+        // because it must be settled BEFORE quoteOpenCapacity is reached.
+        //
+        // quoteOpenCapacity's own guard is deliberately LEFT ALONE. It is correct for a pure function
+        // holding an invariant, and every other caller still needs it; the fix is that the CLAIM must never
+        // hand it a null, not that the invariant should be softened.
+        //
+        // `<= 0` and not merely `== null`: draftSchema admits 0 on purpose (the instant a host has typed "0"
+        // on the way to "350" must still autosave), so a listing switched to drop-in mid-keystroke can carry
+        // a persisted zero — and freezing a ₱0 charge sells a pass for nothing.
+        //
+        // Bare `{ error }` with NO `soldOut` flag, the PAST_DATE_MESSAGE shape: nothing was sold, so this is
+        // not a race loss and the CTA must not offer the refresh-and-retry affordance OC-13 gives a real
+        // one. It reuses the existing literal rather than inventing a fifth sentence, exactly as the
+        // null-cap path does — a booker cannot act on "this listing has no price" and should not be shown a
+        // host's configuration mistake as if it were theirs to fix.
+        if (perHead == null || perHead <= 0) return { error: SOLD_OUT_MESSAGE };
+
         // (6) The grant (OC-07). `remaining` is the LISTING's own cap minus the DB's own SUM, both read in
         // this transaction under the lock — a client number can only ever request LESS (threat T-09-05).
         //
         // A listing with NO recorded capacity fails CLOSED to zero admissions (the same fail-closed rule as
         // createPendingHold's paxCap fallback): a mis-configured open listing must never sell an unbounded
-        // number of passes. The 09-06 publish gate makes max_occupancy present for every open listing.
+        // number of passes. The 09-06 publish gate makes max_occupancy present for every open listing —
+        // and, since CR-04, so does the edit path (saveListingStep's published-row guard). This is the cap
+        // half of the money rule stated at the rate refusal above: BOTH columns this statement reads are
+        // fail-closed refusals rather than raised errors, and neither may reach the quote unsettled.
         //
         // OC-18: there is deliberately NO separate per-booker head cap in v1 — a booker may take up to
         // whatever is remaining, bounded only by the day's cap, and offer-the-partial is how "not enough

@@ -40,6 +40,10 @@ import {
   publishSchema,
   SURCHARGE_UNREACHABLE_MESSAGE,
   MODE_LOCKED_MESSAGE,
+  PER_HEAD_PRICE_REQUIRED_MESSAGE,
+  DROP_IN_CAP_REQUIRED_MESSAGE,
+  DROP_IN_INSTANT_ONLY_MESSAGE,
+  DROP_IN_SINGLE_SPACE_MESSAGE,
   type DraftListingInput,
 } from "@/lib/validation/listing";
 import { getModeLockState } from "@/lib/listing/mode-lock";
@@ -140,6 +144,45 @@ export async function saveListingStep(
         error: "Please check the form and try again.",
         fieldErrors: { included: [SURCHARGE_UNREACHABLE_MESSAGE] },
       };
+    }
+
+    // ── CR-04: the same lesson, applied to the fields Phase 9 added. ────────────────────────────────────
+    // publishSchema's open branch requires four things of a drop-in listing — a price per person, a
+    // positive daily people cap, instant booking, and a single space. This autosave writes occupancyMode
+    // straight to the live row and NEVER re-runs that gate, so without this the four rules hold only at the
+    // instant of publishing and never again. The wizard makes the bypass the NORMAL route, not an edge
+    // case: STEPS puts `occupancy` BEFORE `pricing`, and saveAndContinue persists the whole form on every
+    // step — so a host who picks "Drop-in passes" and clicks Save and continue leaves a published, bookable
+    // listing in drop-in mode with no price at all, and the next booker's click reaches the claim with a
+    // NULL rate. That is a real interval on the money path, not a theoretical one.
+    //
+    // Same effective-value idiom as HG-01 above (incoming ?? persisted ?? default), for the same reason: a
+    // SPARSE autosave carrying only the mode must still be caught. `effMax` is deliberately the SAME local
+    // the surcharge rule reads — one definition of "the capacity this save would leave behind". unitCount
+    // has no form field at all (D-21), so the persisted value is the only honest source.
+    //
+    // Every sentence here is IMPORTED from the publish gate, never retyped: there stays exactly one copy of
+    // each, so the publish path and the edit path cannot drift into two slightly different refusals.
+    //
+    // DRAFT ROWS STAY PERMISSIVE — the guard is inside the `published` branch only. A draft mid-wizard MUST
+    // be able to sit in drop-in mode with no price yet, because that is precisely the state the occupancy
+    // step leaves behind on the way to the pricing step, and publishListing catches it at publish. Anyone
+    // "tightening" this to all rows breaks the wizard's own step order.
+    const effMode = d.occupancyMode ?? owned.occupancyMode;
+    if (effMode === "open_capacity") {
+      const effPerHead = d.perHeadPriceCents ?? owned.perHeadPriceCents ?? 0;
+      const effBookingMode = d.bookingMode ?? owned.bookingMode;
+      const effUnitCount = owned.unitCount ?? 1;
+      const openErrors: Record<string, string[]> = {};
+      if (!(effPerHead > 0)) openErrors.perHeadPriceCents = [PER_HEAD_PRICE_REQUIRED_MESSAGE];
+      if (!(effMax > 0)) openErrors.maxOccupancy = [DROP_IN_CAP_REQUIRED_MESSAGE];
+      if (effBookingMode !== "instant") openErrors.bookingMode = [DROP_IN_INSTANT_ONLY_MESSAGE];
+      if (effUnitCount !== 1) openErrors.unitCount = [DROP_IN_SINGLE_SPACE_MESSAGE];
+      if (Object.keys(openErrors).length > 0) {
+        // The SAME outer sentence the surcharge guard returns, so the wizard's existing failure surface
+        // handles this with no component change.
+        return { ok: false, error: "Please check the form and try again.", fieldErrors: openErrors };
+      }
     }
   }
 
