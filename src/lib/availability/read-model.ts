@@ -10,10 +10,7 @@
 // would reject, nor hide a bookable back-to-back hour.
 
 import { and, eq, sql } from "drizzle-orm";
-import { format } from "date-fns";
-// `tz` is aliased because getAvailability already binds a local `tz` to the venue timezone STRING; two
-// different things called `tz` in one module is exactly the kind of quiet mixup this file exists to avoid.
-import { TZDate, tz as venueTz } from "@date-fns/tz";
+import { TZDate } from "@date-fns/tz";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { listing, operatingHours } from "@/lib/db/schema";
 import { MIN_LEAD_INSTANT_MINUTES, MIN_LEAD_REQUEST_HOURS } from "@/lib/payments/config";
@@ -348,12 +345,15 @@ async function getOpenDay(
   const dayWindow = await loadOpenDayWindow(dbConn, listingId, dayLocal);
   if (dayWindow === null) return { ...base, hasHours: false, openCapacity: null };
 
-  const { dayOpenUtc, dayCloseUtc, openTime, closeTime } = dayWindow;
+  const { dayOpenUtc, dayCloseUtc, openTime, closeTime, dayStartUtc, dayEndUtc } = dayWindow;
   const dayOpenIso = dayOpenUtc.toISOString();
 
   // THE occupying count — one statement, the shared fragment, no inlined predicate (see the invariant above).
+  // Counted over the VENUE-LOCAL CALENDAR DAY, not the opening instant (CR-03): an hours edit must change
+  // what a pass covers without changing which passes count, or this projection would advertise a whole
+  // second cap on a date that is already sold out.
   const takenRows = (await dbConn.execute(
-    sql`SELECT ${openTakenSql(listingId, dayOpenIso)} AS taken`,
+    sql`SELECT ${openTakenSql(listingId, dayStartUtc.toISOString(), dayEndUtc.toISOString())} AS taken`,
   )) as unknown as { taken: number }[];
   const taken = Number(takenRows[0]?.taken ?? 0);
 
@@ -426,23 +426,34 @@ export async function getOpenMonthAvailability(
   // shareable here — a per-date aggregate necessarily has a different shape from openTakenSql's single-date
   // scalar — so that half is IMPORTED rather than retyped, for exactly the Pitfall-4 reason: WHICH rows
   // occupy a spot must be decided in one place, or the grid disables a date the counter would happily sell.
+  //
+  // GROUPED BY THE VENUE-LOCAL CALENDAR DATE, not by the stored instant (CR-03). Grouping on the instant meant
+  // one date could produce SEVERAL groups the moment a host edited operating hours — 06:00 rows in one, 07:00
+  // rows in another — and each group was then compared against `cap` SEPARATELY, so a date carrying 10 + 20
+  // heads on a cap of 20 never appeared full. One group per venue-local date is what makes `taken >= cap`
+  // mean what it says, and it matches exactly what openTakenSql counts for the day panel.
+  //
+  // `GROUP BY 1` (the first select expression) rather than a restatement of it: two copies of the timezone
+  // conversion could drift, and a grouping key that differs from the projected key is the same class of bug
+  // this whole change closes. Cast to text in SQL so the driver cannot hand back a Date-or-string ambiguity.
   const takenRows = (await dbConn.execute(sql`
-    SELECT b.starts_at AS day_open, SUM(b.declared_pax)::int AS taken
+    SELECT to_char((b.starts_at AT TIME ZONE ${timezone}::text)::date, 'YYYY-MM-DD') AS day_local,
+           SUM(b.declared_pax)::int AS taken
     FROM booking b
     WHERE b.listing_id = ${listingId}
       AND b.open_capacity = true
       AND b.starts_at >= ${fromIso}::timestamptz
       AND b.starts_at < ${toIso}::timestamptz
       AND ${OPEN_OCCUPYING_STATUS_SQL}
-    GROUP BY b.starts_at
-  `)) as unknown as { day_open: string | Date; taken: number }[];
+    GROUP BY 1
+  `)) as unknown as { day_local: string; taken: number }[];
 
   const monthPrefix = `${monthLocal.year}-${String(monthLocal.month).padStart(2, "0")}-`;
   const full = takenRows
     .filter((r) => Number(r.taken) >= cap)
-    // The opening INSTANT maps back to its venue-local calendar date — never the server's or viewer's
-    // (D-105): the whole point of the map is which date cell to disable in the venue's own calendar.
-    .map((r) => format(new Date(r.day_open), "yyyy-MM-dd", { in: venueTz(timezone) }))
+    // Already the venue's own calendar date — never the server's or the viewer's (D-105): the whole point of
+    // the map is which date cell to disable in the VENUE's calendar, and the row now carries it directly.
+    .map((r) => r.day_local)
     .filter((d) => d.startsWith(monthPrefix));
   return { cap, fullDates: [...new Set(full)].sort() };
 }

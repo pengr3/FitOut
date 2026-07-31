@@ -1,8 +1,12 @@
 // Open-capacity (drop-in pass) primitives — the ONE place the phase's shared facts live (D-123, OC-02/OC-03/
-// OC-11/OC-13). This module owns exactly three things:
+// OC-11/OC-13). This module owns exactly four things:
 //   (1) THE occupying predicate for open-capacity rows and the drift-free heads SUM built on it,
 //   (2) the OC-03 "a date is one pass" day window (venue-local date → the UTC opening/closing instants),
-//   (3) the OC-11 scarcity threshold + the derived display state, and the two user-facing refusal literals.
+//   (3) the CR-03 counter identity — the venue-local CALENDAR DAY bounds (venueDayBoundsUtc) that (1) counts
+//       over and that the admissions claim's advisory lock is keyed on. (2) and (3) are DIFFERENT FACTS about
+//       the same date and this module is where they are joined: (2) is what a pass COVERS, (3) is what a pass
+//       COUNTS AGAINST. Only (2) moves when a host edits operating hours; (3) is fixed by the calendar.
+//   (4) the OC-11 scarcity threshold + the derived display state, and the two user-facing refusal literals.
 //
 // Why one module: the ADMISSIONS CLAIM (units.ts createOpenCapacityHold), the day read model, the month map
 // and search all need the SAME notion of "which rows occupy a seat on this date". Two copies of that
@@ -55,6 +59,50 @@ export const SOLD_OUT_MESSAGE = "Just sold out — pick another date.";
 export const PAST_DATE_MESSAGE = "That day has already passed — pick another date.";
 
 /**
+ * THE COUNTER'S IDENTITY for a date (CR-03): the venue-local calendar day `[dayStartUtc, dayEndUtc)` as UTC
+ * instants, plus the `YYYY-MM-DD` key the admissions claim's advisory lock is taken on.
+ *
+ * WHY THIS AND NOT THE OPENING INSTANT. `booking.starts_at` on an open row is the venue's opening instant ON
+ * THE PICKED DATE, so its venue-local calendar date IS that date by construction. Venue-local days therefore
+ * partition every open row into DISJOINT sets, and a host editing operating hours moves a pass WITHIN its own
+ * day instead of OUT of the counted set. Before this existed, the counter's identity was that re-derived
+ * opening instant — the equality form of the predicate below, plus the same value inside the lock key — and
+ * that was the CR-03 OVERBOOK PATH: shifting Monday's opening 06:00 → 07:00 emptied the counted set, split
+ * the lock into two disjoint domains for one date and made a SECOND FULL CAP sellable, with no constraint
+ * violation and no error. What a pass COVERS may move; WHICH passes COUNT may not. Layer 2 — refusing the
+ * hours edit itself while live passes exist — is 09-19; this is layer 1 and it stands alone.
+ *
+ * Both instants are built with `TZDate` at the venue wall clock and normalised through the epoch, exactly as
+ * `openDayWindow` and the exclusive read model's day bounds do — NEVER by adding fixed milliseconds (the
+ * slots.ts DST rule), because a DST day is not 24h long.
+ *
+ * `dateKey` is composed from the NUMERIC year/month/day arguments with zero-padding, never by formatting a
+ * Date: a formatted instant can be shifted a day by a timezone conversion, and a lock key that disagrees with
+ * the range it protects would serialise two claimers into different domains — the very failure being fixed.
+ * Callers hand this function an already-canonicalised calendar date (`parsePickedDate` round-trip-guards
+ * impossible days such as 2026-02-31 before it reaches here), so the key and the bounds cannot describe
+ * different days.
+ *
+ * `month` is 1-BASED (getAvailability's convention).
+ */
+export function venueDayBoundsUtc(args: {
+  year: number;
+  month: number;
+  day: number;
+  timezone: string;
+}): { dayStartUtc: Date; dayEndUtc: Date; dateKey: string } {
+  const m0 = args.month - 1; // 0-based month for TZDate (JS Date convention)
+  const startInstant = new TZDate(args.year, m0, args.day, 0, 0, 0, args.timezone);
+  // day + 1 rolls month/year over via Date math; the half-open upper bound is the NEXT day's midnight.
+  const endInstant = new TZDate(args.year, m0, args.day + 1, 0, 0, 0, args.timezone);
+  return {
+    dayStartUtc: new Date(startInstant.getTime()),
+    dayEndUtc: new Date(endInstant.getTime()),
+    dateKey: `${args.year}-${String(args.month).padStart(2, "0")}-${String(args.day).padStart(2, "0")}`,
+  };
+}
+
+/**
  * THE occupying set for OPEN-CAPACITY rows, in ONE place. Open capacity is INSTANT-ONLY (OC-10), so the set
  * is {confirmed} ∪ {pending not yet expired} — deliberately NARROWER than the exclusive predicate, which
  * also carries requested/approved (D-63). Uses SQL now(), the DB transaction clock, exactly as the exclusive
@@ -68,17 +116,36 @@ export const PAST_DATE_MESSAGE = "That day has already passed — pick another d
  */
 export const OPEN_OCCUPYING_STATUS_SQL = sql`(b.status = 'confirmed' OR (b.status = 'pending' AND b.expires_at > now()))`;
 
-/** `SUM(declared_pax)` over the occupying set for one (listing, date). Drift-free by construction — there is
- *  NO stored counter (Pitfall 3): a cancelled row and a lapsed hold both leave the set automatically, which
- *  is why OC-15's "cancelling frees the seat" needs no release code at all. */
-export function openTakenSql(listingId: string, dayOpenIso: string) {
+/** `SUM(declared_pax)` over the occupying set for one (listing, VENUE-LOCAL DAY). Drift-free by construction —
+ *  there is NO stored counter (Pitfall 3): a cancelled row and a lapsed hold both leave the set automatically,
+ *  which is why OC-15's "cancelling frees the seat" needs no release code at all.
+ *
+ *  The range is HALF-OPEN `[dayStartUtcIso, dayEndUtcIso)` — the CLAUDE.md `'[)'` rule, so a venue-local day
+ *  and the next one can never both claim the midnight instant. It replaced an EQUALITY against the venue's
+ *  re-derived opening instant; see venueDayBoundsUtc for why that equality was the CR-03 overbook path.
+ *
+ *  ⚠️ DO NOT COPY THIS RANGE either. Pass the bounds from `venueDayBoundsUtc` (they ride on OpenDayWindow) —
+ *  a second, hand-rolled day range is the same T-03-RANGE-MISMATCH class as a second status predicate. */
+export function openTakenSql(listingId: string, dayStartUtcIso: string, dayEndUtcIso: string) {
   return sql`COALESCE((SELECT SUM(b.declared_pax) FROM booking b
     WHERE b.listing_id = ${listingId}
       AND b.open_capacity = true
-      AND b.starts_at = ${dayOpenIso}::timestamptz
+      AND b.starts_at >= ${dayStartUtcIso}::timestamptz
+      AND b.starts_at < ${dayEndUtcIso}::timestamptz
       AND ${OPEN_OCCUPYING_STATUS_SQL}), 0)::int`;
 }
 
+/**
+ * One picked date, in the TWO senses a drop-in pass needs — and they are not the same fact.
+ *
+ * WHAT THE PASS COVERS (`dayOpenUtc` / `dayCloseUtc` / `openTime` / `closeTime`): derived from the listing's
+ * CURRENT operating hours, persisted as `booking.starts_at` / `ends_at`, and rendered as "Open 6:00 AM –
+ * 10:00 PM". A host may change these at any time and a future pass's window legitimately moves with them.
+ *
+ * WHAT THE PASS COUNTS AGAINST (`dayStartUtc` / `dayEndUtc` / `dateKey`): the venue-local calendar day. Fixed
+ * by the calendar, never by host config, never written to a column. This is the counter's identity and the
+ * admissions lock's key (CR-03). Keeping the two apart IS the fix — see venueDayBoundsUtc.
+ */
 export type OpenDayWindow = {
   timezone: string;
   /** the venue's opening instant on the picked date — persisted as booking.starts_at (OC-03) */
@@ -87,6 +154,12 @@ export type OpenDayWindow = {
   dayCloseUtc: Date;
   openTime: string; // venue-local "HH:mm:ss", for the "Open 6:00 AM – 10:00 PM" line
   closeTime: string;
+  /** venue-local midnight — the INCLUSIVE lower bound of the counted set (CR-03). Never persisted. */
+  dayStartUtc: Date;
+  /** the NEXT venue-local midnight — the EXCLUSIVE upper bound. Never persisted. */
+  dayEndUtc: Date;
+  /** venue-local `YYYY-MM-DD` — the admissions lock's key. Never persisted. */
+  dateKey: string;
 };
 
 /** venue-local `HH:mm:ss` (Postgres time) → {hour, minute}. Windows are on-the-hour in practice (D-22 / A2);
@@ -168,5 +241,8 @@ export async function loadOpenDayWindow(
   if (openTime == null || closeTime == null) return null; // venue closed that weekday → no pass to sell
 
   const { dayOpenUtc, dayCloseUtc } = openDayWindow({ ...dayLocal, timezone, openTime, closeTime });
-  return { timezone, dayOpenUtc, dayCloseUtc, openTime, closeTime };
+  // The counter's identity for the SAME date, from the SAME dayLocal + timezone — one source, so the window
+  // a pass covers and the day it counts against can never be derived from different inputs (CR-03).
+  const { dayStartUtc, dayEndUtc, dateKey } = venueDayBoundsUtc({ ...dayLocal, timezone });
+  return { timezone, dayOpenUtc, dayCloseUtc, openTime, closeTime, dayStartUtc, dayEndUtc, dateKey };
 }

@@ -15,6 +15,9 @@
 //   - getOpenMonthAvailability    → exactly the fully-booked venue-local dates of the QUERIED month, incl.
 //                                   the 1st (whose opening instant falls in the previous UTC month) and
 //                                   excl. a full date belonging to the previous month
+//   - two DIFFERENT starts_at     → ONE month entry for the venue-local date they share (CR-03, case 11).
+//     on one venue-local date       Grouping on the stored instant produced one group PER opening time, each
+//                                   compared against `cap` separately, so an hours-edited date never read full.
 //   - the read model vs the CLAIM → after createOpenCapacityHold grants heads, the projection reports
 //                                   cap − granted. THIS is the Pitfall-4 assertion: if the projection's
 //                                   predicate ever drifts from the counter's, this case is where it shows.
@@ -50,9 +53,11 @@ const CLOSE_HOUR = 22; // 22:00 venue-local
 
 type LocalDate = { year: number; month: number; day: number }; // month is 1-BASED (getAvailability's rule)
 
-/** The venue's OPENING instant on a venue-local date: 06:00 +08 == 22:00Z the PREVIOUS day. */
-function openInstant(d: LocalDate): Date {
-  return new Date(Date.UTC(d.year, d.month - 1, d.day, OPEN_HOUR - MANILA_OFFSET_HOURS, 0, 0));
+/** The venue's OPENING instant on a venue-local date: 06:00 +08 == 22:00Z the PREVIOUS day. `hour` is the
+ *  venue-local opening WALL CLOCK and defaults to the fixture's 06:00 — case 11 overrides it to seed the
+ *  second opening time an hours edit produces, on the SAME venue-local date. */
+function openInstant(d: LocalDate, hour: number = OPEN_HOUR): Date {
+  return new Date(Date.UTC(d.year, d.month - 1, d.day, hour - MANILA_OFFSET_HOURS, 0, 0));
 }
 /** The venue's CLOSING instant on a venue-local date: 22:00 +08 == 14:00Z the same day. */
 function closeInstant(d: LocalDate): Date {
@@ -68,6 +73,17 @@ function toLocalDate(d: Date): LocalDate {
 }
 function ymd(d: LocalDate): string {
   return `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+}
+/** The CR-03 counter identity for a venue-local date: `[midnight, next midnight)` + the `YYYY-MM-DD` key.
+ *  Same plain +08 arithmetic as the two instant helpers above — an independent second opinion on
+ *  `venueDayBoundsUtc`, not a re-run of it. Never persisted: it is what a pass COUNTS AGAINST. */
+function dayBounds(d: LocalDate): { dayStartUtc: Date; dayEndUtc: Date; dateKey: string } {
+  const dayStartUtc = new Date(Date.UTC(d.year, d.month - 1, d.day, -MANILA_OFFSET_HOURS, 0, 0));
+  return {
+    dayStartUtc,
+    dayEndUtc: new Date(dayStartUtc.getTime() + 24 * 60 * 60 * 1000),
+    dateKey: ymd(d),
+  };
 }
 
 // ~30 days out: comfortably inside the 90-day horizon, comfortably in the future.
@@ -98,6 +114,9 @@ const L_OPEN = "l_oc_rm_open"; // cases 1-7
 const L_EXCL = "l_oc_rm_excl"; // case 8
 const L_MONTH = "l_oc_rm_month"; // case 9
 const L_CLAIM = "l_oc_rm_claim"; // case 10
+// Case 11 gets its OWN listing rather than reusing L_MONTH: case 9 asserts L_MONTH's fullDates EXACTLY, and
+// a shared fixture would make one case's rows silently decide the other's expectation.
+const L_REKEY = "l_oc_rm_rekey"; // case 11
 
 // Live vs lapsed vs never-expiring, expressed against the DB CLOCK — the same clock openTakenSql's
 // `expires_at > now()` reads. A JS timestamp here would be testing the test's clock, not the read model's.
@@ -118,12 +137,14 @@ async function insertOpenBooking(args: {
   heads: number;
   status: "pending" | "confirmed" | "cancelled";
   expires: typeof LIVE;
+  /** venue-local opening wall clock; defaults to the fixture's 06:00 (see openInstant). Case 11 only. */
+  openHour?: number;
 }): Promise<void> {
   await testDb.db.execute(sql`
     INSERT INTO booking (id, listing_id, unit, booker_id, starts_at, ends_at, status,
                          open_capacity, declared_pax, expires_at)
     VALUES (${args.id}, ${args.listingId}, 1, ${args.bookerId},
-            ${openInstant(args.day).toISOString()}::timestamptz,
+            ${openInstant(args.day, args.openHour).toISOString()}::timestamptz,
             ${closeInstant(args.day).toISOString()}::timestamptz,
             ${args.status}, true, ${args.heads}, ${args.expires})
   `);
@@ -180,6 +201,7 @@ beforeAll(async () => {
     openListing(L_OPEN, CAP),
     openListing(L_MONTH, CAP),
     openListing(L_CLAIM, CAP),
+    openListing(L_REKEY, CAP),
     {
       id: L_EXCL,
       hostId: HOST,
@@ -428,6 +450,7 @@ describe("open-capacity read model — spots left for a DATE (OPEN-04 / OC-13)",
       bookerId: CLAIMER,
       dayOpenUtc: openInstant(CLAIM_DAY),
       dayCloseUtc: closeInstant(CLAIM_DAY),
+      ...dayBounds(CLAIM_DAY),
       requestedHeads: 4,
       idempotencyKey: null,
     });
@@ -438,5 +461,44 @@ describe("open-capacity read model — spots left for a DATE (OPEN-04 / OC-13)",
     const after = await getAvailability(testDb.db, L_CLAIM, CLAIM_DAY, NOW);
     expect(after.openCapacity?.remaining).toBe(CAP - granted);
     expect(after.openCapacity?.state).toBe("open"); // 6 left on cap 10 is above the threshold
+  });
+
+  it("11. sums two DIFFERENT starts_at values on ONE venue-local date into a single entry (CR-03)", async () => {
+    // The `read-model.ts` half of CR-03. An operating-hours edit leaves already-sold passes on the OLD
+    // opening instant while new ones are minted on the NEW one, so one venue-local date legitimately holds
+    // rows with two different `starts_at`. Grouping on the stored instant produced TWO groups, each compared
+    // against `cap` SEPARATELY — 4 and 6 on a cap of 10, neither reaching it — so the date never appeared
+    // full and the calendar happily kept selling it. Grouping on the venue-local date makes `taken >= cap`
+    // mean what it says.
+    await insertOpenBooking({
+      id: "bk_rekey_open6",
+      listingId: L_REKEY,
+      bookerId: BOOKER_A,
+      day: M_FULL_MID,
+      heads: 4,
+      status: "confirmed",
+      expires: NO_EXPIRY,
+    });
+    await insertOpenBooking({
+      id: "bk_rekey_open7",
+      listingId: L_REKEY,
+      bookerId: BOOKER_B,
+      day: M_FULL_MID,
+      heads: 6, // 4 + 6 = 10 = CAP, but ONLY if the two instants are counted as one date
+      status: "confirmed",
+      expires: NO_EXPIRY,
+      openHour: 7, // the venue-local 07:00 opening an hours edit produces
+    });
+
+    // The fixture's own precondition, asserted rather than assumed: two DISTINCT stored instants. Without
+    // this the case could pass vacuously if openInstant ever stopped honouring its hour argument.
+    const rows = (await testDb.db.execute(sql`
+      SELECT DISTINCT starts_at FROM booking WHERE listing_id = ${L_REKEY}
+    `)) as unknown as { starts_at: string | Date }[];
+    expect(rows).toHaveLength(2);
+
+    const month = await getOpenMonthAvailability(testDb.db, L_REKEY, MONTH);
+    expect(month.cap).toBe(CAP);
+    expect(month.fullDates).toEqual([ymd(M_FULL_MID)]);
   });
 });
