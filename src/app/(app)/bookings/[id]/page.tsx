@@ -546,8 +546,11 @@ export default async function BookingConfirmationPage({
   //     later adding a status to this branch.
   //   - `sessionAhead`          — see above. A finished or in-progress session has no one left to invite.
   //   - `occupancyMode`         — D-109; see the select above.
-  // ALL THREE ARE COURTESIES. `createGroup` re-checks ownership and confirmation server-side before it
-  // writes anything, so a hand-crafted POST that skipped this UI gains nothing (Security V4).
+  // ALL THREE ARE COURTESIES. `createGroup` re-checks ownership, confirmation AND the listing's occupancy
+  // mode server-side before it writes anything — the mode in BOTH its pre-read gate and the INSERT's own
+  // WHERE — so a hand-crafted POST that skipped this UI gains nothing (Security V4). Until CR-05 this
+  // sentence named only the first two, and the mode was the one condition NO server check enforced: a
+  // direct POST on a drop-in pass minted the listing's daily admissions cap as RSVP seats.
   //
   // The reads are owner-scoped IN their own WHERE (`organizerId` is an argument to both, 08-06) — this page
   // never filters a group in JS after reading it, because a foreign roster must be UNREADABLE, not merely

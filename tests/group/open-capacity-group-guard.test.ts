@@ -69,9 +69,45 @@
 // with a group id and a live invite token.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 //
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// TASK 2 — THE MUTATION. The fix is load-bearing, measured rather than asserted.
+//
+// The plan was RESUMED after the first executor was interrupted mid-fix; the branch-A run above had already
+// landed as its own commit, and this block was added when the guard shipped. Mutation applied to
+// src/app/actions/group.ts: the gate's projected boolean replaced with a constant `true AS "modeOk"` (so
+// the refusal branch is reached but can never fire) AND `AND l.occupancy_mode = 'exclusive'` deleted from
+// the INSERT's WHERE — i.e. BOTH statements' guards removed at once. Observed output, VERBATIM:
+//
+//    ❯ tests/group/open-capacity-group-guard.test.ts (3 tests | 2 failed) 2363ms
+//        × (1) a confirmed drop-in pass cannot mint a group offering the whole day's cap as RSVP seats 65ms
+//        × (3) BOTH statements carry the mode predicate, so a bypassed pre-read gate still writes nothing 23ms
+//
+//   ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+//
+//    FAIL  tests/group/open-capacity-group-guard.test.ts > CR-05 — a drop-in pass cannot mint a group > (1)
+//    a confirmed drop-in pass cannot mint a group offering the whole day's cap as RSVP seats
+//   AssertionError: expected 29 to be +0 // Object.is equality
+//
+//   - Expected
+//   + Received
+//
+//   - 0
+//   + 29
+//
+//    ❯ tests/group/open-capacity-group-guard.test.ts:369:41
+//
+// THE SAME SEAT COUNT, from the same assertion — the mutation reproduces the confirming failure exactly,
+// which is what makes case (1) a measurement of the guard rather than a restatement of it. Case (2) stayed
+// GREEN throughout: removing the guard does not disturb exclusive group creation, so case (1)'s red is
+// attributable to the mode predicate and to nothing else. Restored → 3 passed, and `git diff --exit-code
+// src/` prints nothing against the shipped fix.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
 // Harness cloned from tests/booking/open-capacity-confirm.test.ts (09-17): real Postgres via `setupTestDb`,
 // a faked session identity, a stubbed limiter, `@/inngest/client` swapped so the module graph can never
 // touch the network, and read-the-row-back assertions throughout.
+
+import { readFileSync } from "node:fs";
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
@@ -90,6 +126,13 @@ const ORGANIZER = "ocg_organizer";
 
 /** The drop-in listing under test. 30 admissions a day — so a group on it would mint 29 RSVP-able seats. */
 const L_OPEN = "L_ocg_open";
+/**
+ * The EXCLUSIVE control, identical to `L_OPEN` in every respect that matters except the mode — same cap,
+ * same rates, same venue, same trading hours. It exists so case (2) can prove the guard keys on the mode
+ * and ONLY on the mode: without it, "a drop-in pass mints no group" would be equally satisfied by a fix
+ * that broke group creation outright, and the whole Phase-8 feature would fail silently.
+ */
+const L_EXCL = "L_ocg_excl";
 /** The daily admissions cap. The number the defect turns into RSVP seats. */
 const CAP = 30;
 const PER_HEAD_CENTS = 35_000; // ₱350.00 per pass
@@ -189,6 +232,31 @@ async function readRow(id: string) {
  * is put in that state directly — the same shape tests/group/group-lifecycle.test.ts seeds a paid booking in
  * (a confirmed booking carries a captured payment).
  */
+/**
+ * Seed a confirmed, paid EXCLUSIVE booking — an ordinary hour-shaped reservation on `L_EXCL`, in the same
+ * shape tests/group/group-lifecycle.test.ts seeds one. Clock-relative like everything else here.
+ */
+async function seedExclusiveBooking(id: string): Promise<void> {
+  const startsAt = venueInstant(D_PASS, 9);
+  await testDb.db.insert(booking).values({
+    id,
+    listingId: L_EXCL,
+    unit: 1,
+    bookerId: ORGANIZER,
+    startsAt,
+    endsAt: new Date(startsAt.getTime() + HOUR_MS),
+    status: "confirmed" as const,
+    bookingMode: "instant" as const,
+    cancellationPolicy: "standard" as const,
+    spacePriceCents: HOURLY,
+    serviceFeeCents: 5_000,
+    quotedTotalCents: HOURLY + 5_000,
+    currency: "php",
+    paymentId: `pay_${id}`,
+    paymentMethod: "gcash" as const,
+  });
+}
+
 async function markPaid(bookingId: string): Promise<void> {
   await testDb.db
     .update(booking)
@@ -231,17 +299,38 @@ beforeAll(async () => {
       hourlyRateCents: HOURLY,
       dayRateCents: DAY_RATE,
     },
+    {
+      id: L_EXCL,
+      hostId: HOST,
+      title: "Reservable court",
+      status: "published" as const,
+      // The ONE field that differs from L_OPEN. Everything else is held constant so case (2)'s green is
+      // attributable to the mode and to nothing else.
+      occupancyMode: "exclusive" as const,
+      bookingMode: "instant" as const,
+      cancellationPolicy: "standard" as const,
+      maxOccupancy: CAP,
+      unitCount: 1,
+      perHeadPriceCents: PER_HEAD_CENTS,
+      timezone: TIMEZONE,
+      city: "Makati",
+      currency: "php",
+      hourlyRateCents: HOURLY,
+      dayRateCents: DAY_RATE,
+    },
   ]);
 
   // Open EVERY weekday, so the clock-relative date above always lands on a day the venue trades.
   await testDb.db.insert(operatingHours).values(
-    Array.from({ length: 7 }, (_, dow) => ({
-      id: `oh_ocg_open_${dow}`,
-      listingId: L_OPEN,
-      dayOfWeek: dow,
-      openTime: `${pad(OPEN_HOUR)}:00:00`,
-      closeTime: `${pad(CLOSE_HOUR)}:00:00`,
-    })),
+    [L_OPEN, L_EXCL].flatMap((listingId) =>
+      Array.from({ length: 7 }, (_, dow) => ({
+        id: `oh_${listingId}_${dow}`,
+        listingId,
+        dayOfWeek: dow,
+        openTime: `${pad(OPEN_HOUR)}:00:00`,
+        closeTime: `${pad(CLOSE_HOUR)}:00:00`,
+      })),
+    ),
   );
 
   vi.doMock("@/lib/auth", () => ({
@@ -317,5 +406,53 @@ describe("CR-05 — a drop-in pass cannot mint a group", () => {
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error("unreachable");
     expect(res.error).toBe(DENIED);
+  });
+
+  it("(2) an exclusive booking on the SAME cap still mints a group with the organizer's seat reserved", async () => {
+    // THE SCOPE GUARD. Case (1) can be passed by a fix that keys on the mode — or by one that simply breaks
+    // group creation. This case is what tells the two apart: same host, same cap, same rates, same venue,
+    // same trading hours, mode `exclusive`. It must still mint exactly what D-113 says it should.
+    const bookingId = "bk_ocg_exclusive";
+    await seedExclusiveBooking(bookingId);
+
+    const res = await createGroup(bookingId);
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error(`exclusive group creation was refused: ${res.error}`);
+
+    // 29 = GREATEST(30 - 1, 0) — the organizer holds one of the room's places and has no rsvp row of their
+    // own (D-113 · WR-03). The very number case (1) refuses to mint is the correct answer HERE, because
+    // here the organizer actually reserved the room those seats are in.
+    expect(await mintedSeats(bookingId)).toBe(CAP - 1);
+  });
+
+  it("(3) BOTH statements carry the mode predicate, so a bypassed pre-read gate still writes nothing", async () => {
+    // DEFENCE IN DEPTH (T-09-73). The guard has to live in the INSERT's own WHERE as well as the gate, so a
+    // future refactor that breaks the gate cannot create a group on a drop-in booking.
+    //
+    // This case asserts that STRUCTURALLY, on the shipped source, rather than faking a bypass — which is
+    // what the plan prescribes when the harness cannot cleanly defeat the gate, and it cannot: the gate is
+    // internal to `createGroup`, and any seam wide enough for a test to reach around it would be a seam
+    // that did not exist in production. Monkey-patching `db.execute` to swallow the gate would prove a
+    // property of the mock, not of the action. So: read the real file, cut out the two statements, and
+    // require the predicate in each. A grep over the whole file would pass if BOTH copies landed in the
+    // gate; slicing the statements is what makes this an assertion about placement.
+    const source = readFileSync(new URL("../../src/app/actions/group.ts", import.meta.url), "utf8");
+
+    const gateStart = source.indexOf('SELECT b.id, l.max_occupancy AS "maxOccupancy"');
+    expect(gateStart).toBeGreaterThan(-1);
+    const insertStart = source.indexOf("INSERT INTO booking_group");
+    expect(insertStart).toBeGreaterThan(gateStart);
+    const insertEnd = source.indexOf("RETURNING id, access_token", insertStart);
+    expect(insertEnd).toBeGreaterThan(insertStart);
+
+    const gateStatement = source.slice(gateStart, insertStart);
+    const insertStatement = source.slice(insertStart, insertEnd);
+
+    // The gate reads the mode (as a projected boolean, so the refusal can be audited as `open_capacity`
+    // rather than vanishing into the same empty result as "no such booking" — T-09-77).
+    expect(gateStatement).toContain("occupancy_mode = 'exclusive'");
+    // The write re-states it as a hard predicate. This is the one that survives a broken gate.
+    expect(insertStatement).toContain("AND l.occupancy_mode = 'exclusive'");
   });
 });

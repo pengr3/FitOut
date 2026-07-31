@@ -233,14 +233,21 @@ export async function createGroup(bookingId: string): Promise<CreateGroupResult>
 
   // Owner + status gate BEFORE any write. Missing, cross-user and not-yet-confirmed all fall through to
   // the SAME sentence — a booker walking ids learns nothing about which of them exist or are paid.
+  // The occupancy mode is SELECTED as a boolean rather than filtered in the WHERE, deliberately (CR-05).
+  // Filtering would collapse "this is a drop-in pass" into the same empty result as "no such booking", and
+  // the whole point of the `open_capacity` audit reason below is that an OPERATOR can tell those two apart
+  // in the trail — a row the WHERE discarded cannot say whether the caller was walking stranger ids or
+  // holding a genuine pass they paid for. The CALLER still learns nothing: both paths return the same
+  // DENIED sentence (T-09-77). Same single-round-trip idiom as `not_blocked` in availability/units.ts.
   const [gate] = (await db.execute(sql`
-    SELECT b.id, l.max_occupancy AS "maxOccupancy"
+    SELECT b.id, l.max_occupancy AS "maxOccupancy",
+           (l.occupancy_mode = 'exclusive') AS "modeOk"
     FROM booking b
     JOIN listing l ON l.id = b.listing_id
     WHERE b.id = ${parsed.data.bookingId}
       AND b.booker_id = ${userId}
       AND b.status = 'confirmed'
-  `)) as unknown as { id: string; maxOccupancy: number | null }[];
+  `)) as unknown as { id: string; maxOccupancy: number | null; modeOk: boolean }[];
   if (!gate) return { ok: false, error: NOT_CONFIRMED };
 
   const limit = rateLimit(`create-group:${userId}`, CREATE_GROUP_RATE_LIMIT);
@@ -252,6 +259,30 @@ export async function createGroup(bookingId: string): Promise<CreateGroupResult>
       meta: { reason: "rate_limit", bookingId: parsed.data.bookingId, retryAfter: limit.retryAfter },
     });
     return { ok: false, error: TOO_FAST };
+  }
+
+  // OCCUPANCY MODE — the rule D-110 always asserted and nothing ever enforced (CR-05 · T-09-73/T-09-74).
+  // A group can only ever exist on an EXCLUSIVE booking, because a group is a claim on a RESERVED SPACE:
+  // the organizer bought the room, and the seats they hand out are seats in the room they bought. A drop-in
+  // pass buys ADMISSIONS, not the room — so there is no space to divide and no seat to give away.
+  //
+  // THIS IS CHECKED BEFORE THE CAPACITY FLOOR ON PURPOSE. On an open-capacity listing `max_occupancy` is
+  // the venue's DAILY ADMISSIONS CAP, not a room rating (OC-01), so the floor below would be judging a
+  // number that means something else entirely — and, left unchecked, `GREATEST(max_occupancy - 1, 0)` would
+  // freeze that daily cap as `capacity_snapshot`: on a 30-admission gym, twenty-nine RSVP-able seats minted
+  // against ONE pass that was paid for, every one of them a promise made to a stranger. Refusing on the
+  // mode first means the cap is never read in a context where it does not mean what the floor thinks.
+  //
+  // The denial reuses the shared DENIED sentence for the same reason the `no_capacity` case does; the
+  // distinct `open_capacity` audit reason is what keeps the two legible to an operator (T-09-77).
+  if (!gate.modeOk) {
+    await recordAudit({
+      actorId: userId,
+      action: "create_group",
+      outcome: "denied",
+      meta: { reason: "open_capacity", bookingId: parsed.data.bookingId },
+    });
+    return { ok: false, error: DENIED };
   }
 
   // A published listing always carries maxOccupancy (it is required by publishSchema), so this is a
@@ -284,14 +315,22 @@ export async function createGroup(bookingId: string): Promise<CreateGroupResult>
     SELECT ${groupId}, b.id, GREATEST(l.max_occupancy - 1, 0), ${accessToken}
     FROM booking b
     JOIN listing l ON l.id = b.listing_id
-    -- DEFENCE IN DEPTH: the owner scope and the status scope are repeated HERE, inside the write, so even a
-    -- future refactor that broke the pre-read gate above could not create a group on a stranger's — or an
+    -- DEFENCE IN DEPTH: the owner scope, the status scope and the OCCUPANCY-MODE scope are repeated HERE,
+    -- inside the write, so even a future refactor that broke the pre-read gate above could not create a
+    -- group on a stranger's — or a DROP-IN, or an
     -- unpaid — booking. The capacity floor is repeated for the same reason and one more: a host capacity
     -- edit landing BETWEEN the gate and this INSERT would otherwise freeze a capacity_snapshot of 0 — a
     -- group nobody can ever join, and immutable by D-111. Zero rows is the right answer to that race.
+    --
+    -- The mode scope earns its place here more than any of them, because on a drop-in booking this
+    -- statement does not merely write a row it should not: the GREATEST(...) above reads the
+    -- listing's DAILY ADMISSIONS CAP and freezes it as RSVP-able seats (CR-05 · T-09-73). A 30-admission
+    -- gym would mint twenty-nine seats against the ONE pass that was paid for, D-111 would make that number
+    -- immutable, and every seat handed out is a stranger told they are coming to a space nobody reserved.
     WHERE b.id = ${parsed.data.bookingId}
       AND b.booker_id = ${userId}
       AND b.status = 'confirmed'
+      AND l.occupancy_mode = 'exclusive'
       AND l.max_occupancy IS NOT NULL
       AND l.max_occupancy >= 2
     ON CONFLICT (booking_id) DO NOTHING
