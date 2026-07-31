@@ -40,7 +40,7 @@
 // switch modes, so "open listing ⇒ null rates" is never safe — a fork keyed on a null rate rather than on
 // the persisted mode would quote ₱472.50/hr here and this spec would catch it (09-07's lesson).
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { format } from "date-fns";
@@ -62,6 +62,17 @@ const exclusiveListingId = `e2e_open_control_${randomUUID()}`;
 const bookerAId = `e2e_open_bookerA_${randomUUID()}`;
 const bookerBId = `e2e_open_bookerB_${randomUUID()}`;
 const bookerCId = `e2e_open_bookerC_${randomUUID()}`;
+
+// ── Case 6's OWN fixture (09-17 / CR-01). Deliberately separate from the five-case one above. ──────────
+// Case 6 buys a pass for TODAY, which needs (a) a listing whose venue has ALREADY OPENED at run time and
+// (b) a genuinely signed-in `canBook` session, because `Book this space` is gated (D-41). Its own listing,
+// its own space type and its own cap keep it out of cases 3 and 5's category-scoped search counts and out
+// of cases 1/2/4's date occupancy, so nothing above it moves.
+const todayListingId = `e2e_open_today_${randomUUID()}`;
+const todayBookerEmail = `e2e.open.today.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
+const todayBookerPassword = "averylongpassword";
+/** The signed-up booker's session, captured once and re-applied per test (search-and-book.spec.ts's idiom). */
+let todayBookerState: Awaited<ReturnType<BrowserContext["storageState"]>>;
 
 // A space type NO other seeded spec uses (availability/cancel/public-listing seed yoga_studio;
 // search-and-book seeds tennis_court) and which the dev DB has none of, so the category filter narrows to
@@ -85,6 +96,12 @@ const HOURLY_RATE_CENTS = 47000;
 const DAY_RATE_CENTS = 290000;
 const OPEN_HOUR = 6; // 06:00 → "6:00 AM"
 const CLOSE_HOUR = 22; // 22:00 → "10:00 PM"
+
+// Case 6's listing: its own type/title (invisible to cases 3 and 5, which filter on SPACE_TYPE) and its own
+// cap (so the stepper ceiling and the chip state are its own).
+const TODAY_SPACE_TYPE = "dance_studio";
+const TODAY_TITLE = "E2E Same-Day Drop-In Dance Loft";
+const TODAY_CAP = 4;
 
 // ---- Target dates: venue-local, a few days out (future + inside the 90-day horizon) ----------------
 const inTz = tz(VENUE_TZ);
@@ -113,6 +130,16 @@ const spotsDate = dayAt(offset);
 /** Driven to zero: empty → 3 heads taken → fully booked. */
 const soldDate = dayAt(offset + 2);
 const crossesMonth = spotsDate.month !== initMonth || spotsDate.year !== initYear;
+
+// ── Case 6's date: TODAY, with a window that has ALREADY OPENED (09-17 / CR-01). ───────────────────────
+// The rule is identical to the one tests/booking/open-capacity-confirm.test.ts uses, on purpose — both
+// proof layers exercise the same shape. `open_time` is the venue-local wall clock two hours ago floored to
+// the hour, clamped at venue midnight; `close_time` is 23:59. Together they make this fixture deterministic
+// at ANY hour of the day: at 01:31 Makati — the hour the 09-16 walkthrough ran, before that fixture's 06:00
+// opening, which is precisely how CR-01 escaped nine human steps — this resolves to 00:00, still open.
+const todayDate = dayAt(0);
+const nowVenueHour = Number(format(now, "H", { in: inTz }));
+const TODAY_OPEN_HOUR = Math.max(0, nowVenueHour - 2);
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -144,6 +171,12 @@ function panelHeading(d: DayLocal): string {
   return format(new Date(d.year, d.month - 1, d.day), "EEEE, MMM d");
 }
 
+/** The venue-local weekday (0 = Sunday, the `operating_hours.day_of_week` convention). Noon UTC is 20:00
+ *  Manila on the SAME calendar date, so this needs no timezone library and cannot inherit a bug from one. */
+function dowOf(d: DayLocal): number {
+  return new Date(Date.UTC(d.year, d.month - 1, d.day, 12, 0, 0)).getUTCDay();
+}
+
 // ---- Seeding ----------------------------------------------------------------
 
 async function seedUser(id: string, name: string): Promise<void> {
@@ -159,6 +192,9 @@ type SeedListingArgs = {
   occupancyMode: "exclusive" | "open_capacity";
   perHeadPriceCents: number | null;
   maxOccupancy: number;
+  /** Case 6's listing overrides these; omitted everywhere else, so cases 1-5 seed exactly as before. */
+  spaceType?: string;
+  hours?: { daysOfWeek: number[]; openTime: string; closeTime: string };
 };
 
 async function seedListing({
@@ -167,6 +203,12 @@ async function seedListing({
   occupancyMode,
   perHeadPriceCents,
   maxOccupancy,
+  spaceType = SPACE_TYPE,
+  hours = {
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+    openTime: `${pad2(OPEN_HOUR)}:00`,
+    closeTime: `${pad2(CLOSE_HOUR)}:00`,
+  },
 }: SeedListingArgs): Promise<void> {
   // Both rate columns are set on BOTH listings on purpose — see the header. A drop-in listing that carried
   // NULL rates would let a fork keyed on the wrong thing (a null column instead of the persisted mode) pass.
@@ -179,7 +221,7 @@ async function seedListing({
       currency, booking_mode, cancellation_policy, status, published_at, created_at, updated_at
     ) VALUES (
       ${id}, ${hostId}, ${title},
-      ${"A warm reformer studio with props, mats and a sprung floor."}, ${SPACE_TYPE}::space_type,
+      ${"A warm reformer studio with props, mats and a sprung floor."}, ${spaceType}::space_type,
       ${"7 Real Street"}, ${CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
       ST_SetSRID(ST_MakePoint(${121.0345}, ${14.5679}), 4326), ${false}, ${maxOccupancy}, ${1}, ${VENUE_TZ},
       ${HOURLY_RATE_CENTS}, ${DAY_RATE_CENTS}, ${perHeadPriceCents}, ${occupancyMode}::occupancy_mode,
@@ -193,11 +235,12 @@ async function seedListing({
       (${randomUUID()}, ${id}, ${`fitout/e2e-open/${id}/1`}, ${"https://example.com/e2e-open-1.jpg"}, ${1}),
       (${randomUUID()}, ${id}, ${`fitout/e2e-open/${id}/2`}, ${"https://example.com/e2e-open-2.jpg"}, ${2})
   `;
-  // 06:00–22:00 every weekday, so whichever weekday the clock-relative target dates land on is open.
-  for (let dow = 0; dow < 7; dow++) {
+  // 06:00–22:00 every weekday by default, so whichever weekday the clock-relative target dates land on is
+  // open. Case 6 passes its own already-opened window for today's weekday only.
+  for (const dow of hours.daysOfWeek) {
     await sql`
       INSERT INTO "operating_hours" (id, listing_id, day_of_week, open_time, close_time, created_at)
-      VALUES (${randomUUID()}, ${id}, ${dow}, ${`${pad2(OPEN_HOUR)}:00`}, ${`${pad2(CLOSE_HOUR)}:00`}, now())
+      VALUES (${randomUUID()}, ${id}, ${dow}, ${hours.openTime}, ${hours.closeTime}, now())
     `;
   }
 }
@@ -230,7 +273,7 @@ async function takePasses(date: DayLocal, bookerId: string, pax: number): Promis
 
 test.describe.configure({ mode: "serial" });
 
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
   await seedUser(hostId, "E2E Open Host");
   await seedUser(bookerAId, "E2E Open Booker A");
   await seedUser(bookerBId, "E2E Open Booker B");
@@ -255,14 +298,47 @@ test.beforeAll(async () => {
     perHeadPriceCents: null,
     maxOccupancy: 8,
   });
+
+  // ── Case 6's same-day listing: open since two hours ago, closing at 23:59, TODAY's weekday only. ──────
+  await seedListing({
+    id: todayListingId,
+    title: TODAY_TITLE,
+    occupancyMode: "open_capacity",
+    perHeadPriceCents: PER_HEAD_PRICE_CENTS,
+    maxOccupancy: TODAY_CAP,
+    spaceType: TODAY_SPACE_TYPE,
+    hours: {
+      daysOfWeek: [dowOf(todayDate)],
+      openTime: `${pad2(TODAY_OPEN_HOUR)}:00`,
+      closeTime: "23:59",
+    },
+  });
+
+  // Case 6's booker signs up through the UI (intent "book" → canBook server-side, D-41) and the session
+  // cookie is captured as storageState, exactly as e2e/search-and-book.spec.ts does. The raw-SQL bookers
+  // above have no Better Auth account and could never reach a reserve page.
+  const ctx = await browser.newContext();
+  const signupPage = await ctx.newPage();
+  await signupPage.goto(`${BASE}/signup`);
+  await signupPage.getByRole("radio", { name: "Book a space" }).click();
+  await signupPage.getByLabel("First name").fill("Sameday");
+  await signupPage.getByLabel("Email").fill(todayBookerEmail);
+  await signupPage.getByLabel("Password").fill(todayBookerPassword);
+  await signupPage.getByRole("button", { name: /sign up to book/i }).click();
+  await signupPage.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 20_000 });
+  todayBookerState = await ctx.storageState();
+  await ctx.close();
 });
 
 test.afterAll(async () => {
   // Bookings FIRST (booker_id is ON DELETE RESTRICT), then the host (cascades listings/photos/hours), then
-  // the bookers. Order is load-bearing — mirrors availability.spec.ts:134-141.
-  await sql`DELETE FROM booking WHERE listing_id IN (${openListingId}, ${exclusiveListingId})`;
+  // the bookers. Order is load-bearing — mirrors availability.spec.ts:134-141. Case 6 mints a REAL pending
+  // hold on todayListingId, so that listing joins the booking sweep and its signed-up booker is removed by
+  // email (Better Auth chose the id).
+  await sql`DELETE FROM booking WHERE listing_id IN (${openListingId}, ${exclusiveListingId}, ${todayListingId})`;
   await sql`DELETE FROM "user" WHERE id = ${hostId}`;
   await sql`DELETE FROM "user" WHERE id IN (${bookerAId}, ${bookerBId}, ${bookerCId})`;
+  await sql`DELETE FROM "user" WHERE email = ${todayBookerEmail}`;
   await sql.end();
 });
 
@@ -541,5 +617,87 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await page.goto(`${BASE}/?category=${SPACE_TYPE}&date=${isoOf(spotsDate)}&start=09:00&end=11:00`);
     await expect(page.locator(`a[href*="/listings/${openListingId}"]`)).toBeVisible();
     await expect(page.locator(`a[href*="/listings/${exclusiveListingId}"]`)).toBeVisible();
+  });
+
+  // ── 09-17 · CR-01. THE BLIND SPOT THIS CASE EXISTS TO REMOVE. ────────────────────────────────────────
+  // Cases 1-5 all book `offset >= 3` days out — not by preference but by construction: the month-alignment
+  // loop above (`while (dayAt(offset).month !== dayAt(offset + 2).month) offset++`) starts at 3 and only
+  // ever climbs, so before this case NOTHING in the browser proof ever placed a same-day booking. The 09-16
+  // human walkthrough had the mirror-image gap: it ran at 01:31 Makati, before its fixture's 06:00 opening.
+  // CR-01 — a pass for today that can be held but never paid for — lived in exactly the gap between those
+  // two blind spots and survived 21/21 Playwright and 9/9 human steps.
+  //
+  // ⚠️ AND THIS CASE STILL CANNOT CATCH CR-01. Say it plainly: the defect lives on the click that LEAVES for
+  // PayMongo, and `Confirm & pay` opens a HOSTED CHECKOUT Playwright cannot drive (the spec header's
+  // documented boundary, which stands — see (d) below). Everything this case can reach renders correctly
+  // both with and without the fix, and that was MEASURED, not assumed: with the CR-01 fork reverted in
+  // src/app/actions/booking.ts this case still PASSES (recorded verbatim in 09-17-SUMMARY.md). That negative
+  // result is the artifact. It demonstrates, rather than asserts, why a green browser proof said nothing
+  // about CR-01, and why the gate for this class has to sit one layer down. The mutation-measured gate for
+  // CR-01 is `tests/booking/open-capacity-confirm.test.ts` case 1, which drives the REAL confirmBooking.
+  //
+  // What this case DOES buy: the same-day path is now walked end to end by a real browser, so any future
+  // regression that breaks it BEFORE the checkout click — a calendar that disables today, a rail that
+  // refuses a same-day selection, a hold that lapses the instant it is minted (the `expires_at` divergence
+  // in units.ts, whose absence would surface right here as the hold-expired state) — is caught.
+  test("6 · a pass for TODAY can be bought after the venue has already opened (CR-01)", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    // The Book gate is D-41, so this is the one case that needs a real session.
+    await page.context().addCookies(todayBookerState.cookies);
+
+    await page.goto(`${BASE}/listings/${todayListingId}`);
+    await expect(page.getByRole("heading", { name: /availability\s+drop-in/i })).toBeVisible();
+
+    // TODAY is always in the CURRENT month, so the month-alignment loop and `showMonthOf` are irrelevant
+    // here — the cell is on the first grid the page paints. It is also never disabled: DatePassPicker's
+    // matcher is `{ before: todayStart }`, which excludes yesterday and earlier, not today.
+    await pickDay(page, dayAt(0));
+
+    await expect(page.getByRole("heading", { name: panelHeading(todayDate) })).toBeVisible();
+    // The venue opened up to two hours ago and closes at 23:59, so the day is live RIGHT NOW: the pass
+    // framing renders, not the "Closed for today" evening state.
+    await expect(
+      page.getByText("Your pass covers the whole day — come any time while they're open.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("Closed for today", { exact: true })).toHaveCount(0);
+
+    // ONE pass — the stepper's own reset value whenever a date is picked (pass-stepper.tsx), asserted
+    // rather than clicked so the case measures the shipped default a walk-in booker actually gets.
+    await expect(page.getByText("How many passes?", { exact: true })).toBeVisible();
+    await expect(page.locator("#requested-passes")).toHaveValue("1");
+
+    const bookBtn = page.getByRole("button", { name: "Book this space" });
+    await expect(bookBtn).toBeEnabled();
+    await bookBtn.click();
+
+    // ── The reserve page for a SAME-DAY pass: a real pending hold, minted minutes after the venue opened. ─
+    await page.waitForURL(/\/book\?hold=/, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: /review and book/i })).toBeVisible();
+
+    // NOT the hold-expired interstitial. Before the `expires_at` divergence in createOpenCapacityHold this
+    // is precisely what a same-day claim would have rendered — the hold would lapse at the instant it was
+    // minted, because the pass's `starts_at` is the venue's OPENING instant and it is already in the past.
+    await expect(page.getByRole("heading", { name: /your hold expired/i })).toHaveCount(0);
+    await expect(page.getByText(/We released the slot/i)).toHaveCount(0);
+
+    // The PAYABLE summary: the per-person run line (OC-08 — priced per head, no duration term), a Total,
+    // and the live hold countdown.
+    await expect(page.getByText(/₱[\d,]+\.\d{2}\/person × 1 pass/)).toBeVisible();
+    await expect(page.getByText("Total", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Held for/i)).toBeVisible();
+
+    // …and the terminal control is PRESENT and ENABLED. This is the frontier of the browser proof.
+    const confirm = page.getByRole("button", { name: /confirm & pay/i });
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toBeEnabled();
+
+    // (d) The click is DELIBERATELY NOT MADE. Pressing it would mint a live `sk_test_` PayMongo checkout
+    // session from an automated run; the spec's documented money-path boundary stands, and the human
+    // walkthrough (09-16) plus the integration gate named above are what cover the far side of it.
   });
 });
