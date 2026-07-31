@@ -678,6 +678,12 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       status: booking.status,
       listingId: booking.listingId,
       startsAt: booking.startsAt,
+      // CR-01 — the two facts the checkout-initiation cutoff below forks on: the PERSISTED occupancy mode,
+      // and the instant this booking's own session ENDS. Both come from the drizzle schema object (never a
+      // raw SQL alias), so `tsc` types them and a dropped column is a compile error, not a silent
+      // `undefined → falsy` that would render a drop-in pass as a 16-hour reservation.
+      openCapacity: booking.openCapacity,
+      endsAt: booking.endsAt,
       quotedTotalCents: booking.quotedTotalCents,
       currency: booking.currency,
       // D-108 — read ONLY to scope the Idempotency-Key below. NULL on every flat-priced booking.
@@ -709,22 +715,46 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     };
   }
 
-  // D-94: pay is refused once starts_at has passed. This is the CHECKOUT-INITIATION guard — the safe place
-  // to refuse, BEFORE any money moves. `now` is read from POSTGRES, not the JS clock, so it is the same
-  // clock every other expiry decision in the system uses (a skewed process clock must never decide whether
-  // a session has begun).
+  // ── D-94, FORKED ON THE PERSISTED OCCUPANCY MODE (CR-01). ────────────────────────────────────────────
+  // Pay is refused once this booking's OWN SESSION is over. This is the CHECKOUT-INITIATION guard — the
+  // safe place to refuse, BEFORE any money moves. `now` is read from POSTGRES, not the JS clock, so it is
+  // the same clock every other expiry decision in the system uses (a skewed process clock must never decide
+  // whether a session has begun).
   //
-  // ⚠️ The mirror of this guard does NOT belong in the payment webhook (D-57 / Pitfall 4). That handler
-  // confirms on `status='pending'` ALONE because payment is the confirm authority; a start-time condition
-  // there would take the booker's money and leave the booking unconfirmable. A payment that lands
-  // post-start anyway is handled by the existing handleGoneSlot auto-refund backstop (D-58).
+  // WHICH instant ends the session is NOT the same in both occupancy modes. An EXCLUSIVE booking's session
+  // begins at its `starts_at`, so that is its cutoff and it is unchanged here. A DROP-IN PASS's `starts_at`
+  // is the venue's OPENING instant and the session it buys runs until CLOSING (OC-03) — so an open row's
+  // cutoff is `ends_at`. Comparing an open row against `starts_at` refused every same-day pass from the
+  // moment the venue opened: holdable all day, payable never, with each retry silently occupying a spot for
+  // the hold TTL. That was CR-01.
+  //
+  // This is the SAME divergence `createOpenCapacityHold` already applies to `expires_at`
+  // (src/lib/availability/units.ts — LEAST(now() + ttl, dayClose) rather than LEAST(now() + ttl, starts_at)),
+  // for the identical reason, so the invariant is PRESERVED, not weakened: no hold and no payment ever
+  // outlives its own session; only where that session ends moved. The exclusive sentence and comparison
+  // below are byte-for-byte what they were, and case 2 of tests/booking/open-capacity-confirm.test.ts
+  // refuses an exclusive booking past its own start — so this fork can never silently become a deletion.
+  //
+  // The mode is read from the PERSISTED `open_capacity` column and from nothing else: never inferred from a
+  // null rate, a null `declared_pax` or `full_day`. A drop-in listing may legally still carry
+  // `hourly_rate_cents` / `day_rate_cents` (OC-17 lets a host switch modes without wiping them).
+  //
+  // ⚠️ The mirror of this guard does NOT belong in the payment webhook (D-57 / Pitfall 4), and this fork
+  // does not put one there — src/app/api/paymongo/webhook/route.ts is untouched and must stay so. That
+  // handler confirms on `status='pending'` ALONE because payment is the confirm authority; ANY start-time
+  // or end-time condition there would take the booker's money and leave the booking unconfirmable. A
+  // payment that lands past the window anyway is handled by the existing handleGoneSlot auto-refund
+  // backstop (D-58).
   const nowRows = (await db.execute(sql`SELECT now() AS "now"`)) as unknown as { now: Date | string }[];
   const nowFromDb = new Date(nowRows[0].now);
-  if (bk.startsAt.getTime() <= nowFromDb.getTime()) {
+  const cutoff = bk.openCapacity ? bk.endsAt : bk.startsAt;
+  if (cutoff.getTime() <= nowFromDb.getTime()) {
     return {
       ok: false,
       reason: "expired",
-      error: "This session has already started, so it can't be paid for now. Check availability again.",
+      error: bk.openCapacity
+        ? "This day's passes are no longer available. Check availability again."
+        : "This session has already started, so it can't be paid for now. Check availability again.",
     };
   }
 

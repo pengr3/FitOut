@@ -123,6 +123,37 @@ and was confirmed in step 2), which is also why this should be looked at togethe
 
 ---
 
-*Logged 2026-07-31 during 09-16. Path note: this file follows the shipped per-phase convention
+## 3. `date-pass-picker.test.tsx` case 4 times out under multi-suite parallel load — **PRE-EXISTING, out of 09-17's scope**
+
+**Found during:** 09-17 Task 1, running the plan's own regression gate
+`npx vitest run tests/booking tests/payments tests/availability`.
+
+**What.** `tests/availability/date-pass-picker.test.tsx > (4) picking a new date resets the pass count to 1
+and re-bounds it (§ 2c)` fails with `Error: Test timed out in 5000ms` when the three suites are run together
+(54 files, ~85s wall, ~226s of parallel import time). The same file passes **9/9 in ~13s** when run alone.
+
+**Proven pre-existing, not a 09-17 regression.** The baseline was measured, not assumed: with
+`src/app/actions/booking.ts` reverted to HEAD (`git checkout --`) **and** the new
+`tests/booking/open-capacity-confirm.test.ts` moved out of the tree, the identical command still fails the
+identical case — `Test Files 1 failed | 52 passed (53) · Tests 1 failed | 567 passed (568)`. With 09-17's
+changes present the numbers are `53 passed (54)` / `570 passed (568+3)` and the **same single** failure. So
+no pre-existing test is *newly* failing, which is the acceptance criterion 09-17 owes.
+
+**Why it is out of scope.** It is a jsdom component test that mocks `getDayAvailability`; nothing in it
+touches `confirmBooking`, the checkout-initiation cutoff, or any file 09-17 modifies. Per the executor scope
+boundary, only issues directly caused by the current task's changes are auto-fixed.
+
+**The likely cause and the likely fix.** The case awaits an async re-render after a date change against
+vitest's default 5s `testTimeout`; under full-suite CPU contention on this box the wait is borderline. The
+fix is a timeout/`waitFor` adjustment on that one case (or a raised global `testTimeout` in
+`vitest.config.ts`), **not** a source change — the behaviour under test is correct, as the isolated 9/9 run
+shows.
+
+**When to close.** Next time `tests/availability` is touched, or during phase-09 verification if a fully
+green single-command run is required to sign the phase off.
+
+---
+
+*Logged 2026-07-31 during 09-16 (items 1-2) and 09-17 (item 3). Path note: this file follows the shipped per-phase convention
 (`.planning/phases/{phase}/deferred-items.md`, as in phases 04, 07 and 08); there is no repo-root
 `.planning/deferred-items.md`.*
