@@ -31,8 +31,27 @@ import type { DbConn } from "./read-model";
  *  non-public override is not inlined into the browser bundle, so a client that re-derived the state would
  *  silently disagree with the server (the D-75 serviceFeeBps trap, availability-calendar.tsx:235-242). The
  *  `state` field is computed HERE and rides on the read-model payload; the client renders it, never derives
- *  it (the D-100 bookingMode-on-DayAvailability precedent). */
-export const OPEN_LOW_STOCK_MAX = Number(process.env.OPEN_LOW_STOCK_MAX ?? 5);
+ *  it (the D-100 bookingMode-on-DayAvailability precedent).
+ *
+ *  ⚠️ VALIDATED, NOT MERELY COERCED (WR-03) — and the reason is what a BOOKER stopped seeing. This was a
+ *  bare `Number(process.env.OPEN_LOW_STOCK_MAX ?? 5)`. An operator typing `five`, or leaving a trailing
+ *  space, or setting an empty string, produced NaN or 0; `lowStockThreshold` then returned NaN (`Math.min`
+ *  of anything with NaN is NaN) and `remaining <= NaN` is ALWAYS false — so `spotsState` could never return
+ *  `"low"`, and the exact spots-left figure was never disclosed on ANY listing, on ANY date. Every date
+ *  rendered the digit-free "Spots available" chip right up to the instant it flipped to "Fully booked": the
+ *  OPEN-04 scarcity signal switched off platform-wide, silently, with nothing broken to notice and nowhere
+ *  to see it except this one server-only constant.
+ *
+ *  So: accept the override only when it is a finite number ≥ 1, floored to an integer; otherwise fall back
+ *  to the documented default of 5. A ceiling below 1 is refused rather than clamped up, because it is a
+ *  typo, not an intention — `lowStockThreshold` already clamps its own floor at 1. Fail-to-default, not
+ *  fail-to-off: a misconfigured ceiling must degrade to the shipped behaviour, never to no behaviour. */
+const OPEN_LOW_STOCK_MAX_DEFAULT = 5;
+const parsedLowStockMax = Number(process.env.OPEN_LOW_STOCK_MAX);
+export const OPEN_LOW_STOCK_MAX =
+  Number.isFinite(parsedLowStockMax) && parsedLowStockMax >= 1
+    ? Math.floor(parsedLowStockMax)
+    : OPEN_LOW_STOCK_MAX_DEFAULT;
 
 /** 09-UI-SPEC § Spots-left: clamp(floor(cap / 2), 1, OPEN_LOW_STOCK_MAX). A flat ≤5 would mark a 6-person
  *  studio urgent from the FIRST booking; the half-capacity clamp guarantees urgency can never fire while
