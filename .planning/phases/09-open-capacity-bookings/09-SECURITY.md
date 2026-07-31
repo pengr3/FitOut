@@ -21,6 +21,68 @@ register_origin: authored_at_plan_time (25 PLAN files, all carry a parseable <th
 
 ---
 
+## ⚠️ Corrections (2026-07-31, entered by quick 260731-lsx) — three findings retracted
+
+**The audit's verdict is unchanged.** 93 threats · 58 closed · 35 open (27 live, 8 deferred) ·
+`status: issues_found` · ship gate **BLOCKED**. No threat was re-audited, no threat changed status, and no
+count moved. What follows retracts three *findings* recorded alongside that verdict which, on re-verification
+against the gap plans and the shipped code, are factually wrong. Because this is a committed, signed-off
+audit artifact, the original wording is left standing in place — struck through or marked, never silently
+rewritten — so the record of what was claimed, and when it was withdrawn, survives.
+
+### Correction 1 — T-09-91's "plan-gate defect" is retracted. 09-25's gate is correct.
+
+The audit read the mitigation PROSE in 09-25's own threat register (`09-25-PLAN.md:331` — "an acceptance grep
+asserts `AND starts_at > now()` still appears exactly once") and then greped that literal with no comment
+filter, getting 4 hits: the two real guards at `cancel-booking.ts:568` and `:991`, plus `:551` and `:968`,
+which are comment lines that merely *quote* the guard.
+
+09-25's ACTUAL acceptance gate, stated twice at `09-25-PLAN.md:209` and `:341`, is
+`grep -v '^\s*//' src/app/actions/cancel-booking.ts | grep -c "AND starts_at > now()"`. It filters those
+comments on purpose, so the tripwire measures code rather than prose. Re-run against current
+`src/app/actions/cancel-booking.ts` it prints `2` — exactly the pre-fix value the plan itself predicts
+("prints `1` (was `2`…)") — from the booker flip at `:568`, which 09-25 forks, and the host flip at `:991`,
+which 09-25 deliberately leaves alone. After the fork it becomes `1`.
+
+**The gate is correctly specified and correctly calibrated — do not change it.** T-09-91 remains `closed`;
+that half of the original finding was right and stands.
+
+### Correction 2 — T-09-86's rationale is the register's present tense, not a false claim. AR-16 restored.
+
+The audit rejected AR-16 because the rationale reads "…is now clamped to a finite integer ≥ 1" while
+`open-capacity.ts:27` is a bare `Number(process.env.OPEN_LOW_STOCK_MAX ?? 5)`. The clamp is absent because
+**09-24 is the unexecuted plan that ADDS it** — `09-24-PLAN.md:194` specifies exactly that
+parse-then-validate: accept the env value "only when it is a finite number ≥ 1, flooring it to an integer;
+otherwise fall back to the documented default of `5`".
+
+Every GSD threat register's `Mitigation Plan` column is written in the post-mitigation present tense, and the
+three sibling rows in the SAME table prove the convention: T-09-83 — "The envelope **is** reduced over real
+instants"; T-09-84 — "The ceiling **is** validated and falls back to the documented default"; T-09-85 — "A
+zero-or-negative cap **now** returns every in-month date as unavailable". None of those three was rejected on
+that wording.
+
+T-09-86 therefore stays **open**, and stays counted among the **27 live**-open — open *pending 09-24*, like
+every other unexecuted gap-plan threat, and *live* because the unvalidated value sits in shipped code today,
+exactly as its twin T-09-84 records. What is withdrawn is only the "acceptance rationale not satisfied / not
+acceptable as written" verdict: AR-16 is restored as a **pending** accepted risk that takes effect when 09-24
+lands. The audit's one genuinely new observation stands — the value is server-only with no `NEXT_PUBLIC_`
+prefix (verified), so the disclosure half of the rationale already holds today.
+
+### Correction 3 — UF-01 is not an unregistered flag. NT-01 is registered in both halves.
+
+UF-01 recorded that the `cancel-booking.ts` half of review finding NT-01 "appears in no gap plan's register".
+It is in fact explicitly owned across both halves, declared in plan frontmatter: `09-17-PLAN.md:13`
+`closes: [CR-01, NT-01-booking-half]`, with the body at `:48-50` handing the `cancel-booking.ts` half to
+09-25; and `09-25-PLAN.md:17` `closes: [WR-05, NT-01]`, with the objective at `:44` ("Close **WR-05** and the
+`cancel-booking.ts` half of **NT-01**") and the body at `:52-54` restating the split ("09-17 forked the
+`booking.ts` copy; this plan forks the `cancel-booking.ts` one").
+
+NT-01 is a review-finding ID rather than a `T-09-NN` register ID, which is presumably what a register-scoped
+search missed. UF-01 is therefore downgraded from an unregistered flag to a tracking note. **UF-02 and UF-03
+were re-checked and are accurate — untouched.**
+
+---
+
 ## Audit Scope and Method
 
 **Two populations, verified separately.**
