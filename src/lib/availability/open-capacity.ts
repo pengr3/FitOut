@@ -269,8 +269,30 @@ export function openDayWindow(args: {
  * listing is unknown or has NO hours for that weekday (the venue is closed → nothing is bookable, which the
  * callers render as the "Closed on {day}" empty state, never a crash).
  *
- * Hours: MIN(open_time) / MAX(close_time) across the weekday's rows — a split-shift day is ONE pass covering
- * the outer envelope (OC-02: a date is one pass, and its price does not scale with duration).
+ * Hours: a split-shift day is ONE pass covering the OUTER ENVELOPE of that weekday's rows (OC-02 — a date is
+ * one pass, and its price does not scale with duration). That RULE is unchanged; only its COMPUTATION moved.
+ *
+ * ⚠️ THE ENVELOPE IS REDUCED OVER REAL INSTANTS, NEVER OVER WALL-CLOCK STRINGS (WR-02). It used to be a SQL
+ * `MIN(open_time)` / `MAX(close_time)` across the weekday's rows, and no ordering of wall clocks can place
+ * 02:00 AFTER 12:00. A gym storing Saturday as `06:00–12:00` AND `18:00–02:00` therefore collapsed to
+ * `MIN(open) = 06:00` / `MAX(close) = 12:00`: the next-day roll never fired, the evening session vanished
+ * from the pass, the day panel advertised "Open 6:00 AM – 12:00 PM", and `ends_at` was noon on a day the
+ * venue is open until 2 AM. Because `expires_at = LEAST(now() + TTL, ends_at)`, an afternoon claim then
+ * minted a hold BORN ALREADY EXPIRED that could never reach checkout, while `day_open_ok` refused claims
+ * outright after noon — the same unpayable-hold shape as CR-01, reached by a different route.
+ *
+ * So each row is turned into its own instant pair FIRST, through the pure `openDayWindow` below, and the
+ * envelope is then the EARLIEST opening instant to the LATEST closing one. Reusing that function rather than
+ * re-deriving the roll here is deliberate: the `close <= open ⇒ next calendar day` rule and the DST-safe
+ * construction stay defined in exactly one place, so this reduction cannot drift from what the claim path
+ * persists. The display strings come from the rows that WON the reduction (the earliest opener's
+ * `open_time`, the latest closer's `close_time`), so "Open 6:00 AM – 2:00 AM" names the envelope the pass
+ * actually covers rather than some other pair of rows.
+ *
+ * ⚠️ THIS DOES NOT MOVE THE COUNTER (CR-03). `dayStartUtc` / `dayEndUtc` / `dateKey` come from the
+ * venue-local CALENDAR DATE and are deliberately NOT affected by an overnight envelope: a pass running to
+ * 02:00 still counts against — and locks on — the date it OPENED on. Re-pointing the anchor at the envelope
+ * so the two "agree" would re-open the CR-03 overbook path; see venueDayBoundsUtc for why.
  */
 export async function loadOpenDayWindow(
   dbConn: DbConn,
@@ -286,21 +308,38 @@ export async function loadOpenDayWindow(
 
   // The weekday is computed in the VENUE tz (never the server tz), exactly as the exclusive read model does.
   const dow = venueDayOfWeek(dayLocal.year, dayLocal.month - 1, dayLocal.day, timezone);
+  // Every ROW for the weekday — multiple rows per (listing_id, day_of_week) are legal by design (D-25) and
+  // are exactly what a split shift is. Ordered by opening wall clock so the reduction below is stable when
+  // two rows tie on an instant (duplicate hours), and so a reader of the query sees the shifts in the order
+  // the host thinks about them. The ORDER is a courtesy; the ENVELOPE is decided on instants, not on this.
   const hoursRows = await dbConn
-    .select({
-      openTime: sql<string | null>`min(${operatingHours.openTime})`,
-      closeTime: sql<string | null>`max(${operatingHours.closeTime})`,
-    })
+    .select({ openTime: operatingHours.openTime, closeTime: operatingHours.closeTime })
     .from(operatingHours)
-    .where(and(eq(operatingHours.listingId, listingId), eq(operatingHours.dayOfWeek, dow)));
+    .where(and(eq(operatingHours.listingId, listingId), eq(operatingHours.dayOfWeek, dow)))
+    .orderBy(operatingHours.openTime);
 
-  const openTime = hoursRows[0]?.openTime ?? null;
-  const closeTime = hoursRows[0]?.closeTime ?? null;
-  if (openTime == null || closeTime == null) return null; // venue closed that weekday → no pass to sell
+  if (hoursRows.length === 0) return null; // venue closed that weekday → no pass to sell
 
-  const { dayOpenUtc, dayCloseUtc } = openDayWindow({ ...dayLocal, timezone, openTime, closeTime });
+  // One instant pair PER ROW, each carrying the wall-clock strings it came from, then reduce over the
+  // instants. `reduce` without a seed is safe: the array is non-empty by the guard above.
+  const windows = hoursRows.map((row) => ({
+    ...row,
+    ...openDayWindow({ ...dayLocal, timezone, openTime: row.openTime, closeTime: row.closeTime }),
+  }));
+  const earliest = windows.reduce((a, b) => (b.dayOpenUtc.getTime() < a.dayOpenUtc.getTime() ? b : a));
+  const latest = windows.reduce((a, b) => (b.dayCloseUtc.getTime() > a.dayCloseUtc.getTime() ? b : a));
+
   // The counter's identity for the SAME date, from the SAME dayLocal + timezone — one source, so the window
   // a pass covers and the day it counts against can never be derived from different inputs (CR-03).
   const { dayStartUtc, dayEndUtc, dateKey } = venueDayBoundsUtc({ ...dayLocal, timezone });
-  return { timezone, dayOpenUtc, dayCloseUtc, openTime, closeTime, dayStartUtc, dayEndUtc, dateKey };
+  return {
+    timezone,
+    dayOpenUtc: earliest.dayOpenUtc,
+    dayCloseUtc: latest.dayCloseUtc,
+    openTime: earliest.openTime,
+    closeTime: latest.closeTime,
+    dayStartUtc,
+    dayEndUtc,
+    dateKey,
+  };
 }
