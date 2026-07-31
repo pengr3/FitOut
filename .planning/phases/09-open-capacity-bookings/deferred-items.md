@@ -154,6 +154,47 @@ green single-command run is required to sign the phase off.
 
 ---
 
-*Logged 2026-07-31 during 09-16 (items 1-2) and 09-17 (item 3). Path note: this file follows the shipped per-phase convention
+## 4. `.planning/STATE.md` frontmatter is not valid YAML — **PRE-EXISTING, latent, out of 09-17's scope**
+
+**Found during:** 09-17's state update, when the edited frontmatter was validated before committing.
+
+**What.** `yaml.parse` rejects the frontmatter block with
+`YAMLParseError: Nested mappings are not allowed in compact mappings at line 5, column 13`
+(`code: BLOCK_AS_IMPLICIT_KEY`). The offending line is `stopped_at:`, a single double-quoted scalar that
+contains **raw, unescaped `"` characters** — the walkthrough quotes it carries verbatim, e.g.
+`("i dont see chip auto deducting")` and `Received "Only 2 left"`. In a YAML double-quoted scalar those
+must be `\"`.
+
+**Proven pre-existing.** The same parse fails identically at `HEAD`, at `fe288e3` and at `b363991` — i.e.
+before 09-17 touched the file at all. 09-17's own additions to the line introduce **no** raw quotes (an
+earlier draft did; it was rewritten to quote-free prose precisely so as not to deepen this).
+
+**Why it matters.** Anything that machine-reads STATE frontmatter — `gsd-sdk query state.load`, the
+progress recalculation, a future verifier — either fails or silently falls back. It is plausibly one
+contributor to the v1.42.3 tracking misbehaviour already recorded in STATE's own frontmatter note. The rest
+of the frontmatter parses cleanly once this one line is excluded (`completed_plans: 100`, `percent: 93`,
+`total_plans: 107` all read correctly), so the damage is confined to this field.
+
+**Why not fixed here.** The fix means editing hand-maintained prose inside a ~1-screen quoted string, and
+09-17's execution constraint was explicit: make **targeted** edits to the Current Position / Plan lines
+only, never rewrite the surrounding prose. Escaping ~10 quote pairs across a paragraph the operator wrote
+is not a targeted edit, and getting it wrong would corrupt the phase's own record of the 09-16 walkthrough.
+
+**How to close (mechanical, ~2 minutes).** Either (a) escape every embedded `"` as `\"` inside the
+`stopped_at` value, or better (b) convert the field to a YAML block scalar:
+
+```yaml
+stopped_at: |
+  ...prose, with quotes needing no escaping at all...
+```
+
+(b) is preferable: it is immune to the same mistake recurring, and STATE's `stopped_at` is exactly the
+field most likely to keep accreting verbatim operator quotes. Worth doing alongside the STATE pruning the
+phase's `.continue-here.md` already flags (the file is ~755 lines / ~108k tokens against a documented
+150-line guidance).
+
+---
+
+*Logged 2026-07-31 during 09-16 (items 1-2) and 09-17 (items 3-4). Path note: this file follows the shipped per-phase convention
 (`.planning/phases/{phase}/deferred-items.md`, as in phases 04, 07 and 08); there is no repo-root
 `.planning/deferred-items.md`.*
