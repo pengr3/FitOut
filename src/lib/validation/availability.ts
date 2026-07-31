@@ -20,6 +20,22 @@
 
 import { z } from "zod";
 
+/**
+ * CR-03 layer 2 — the server-side refusal when a host tries to change the hours of a weekday that still
+ * carries upcoming or active drop-in passes (`src/lib/listing/hours-lock.ts`).
+ *
+ * The hours-level twin of `MODE_LOCKED_MESSAGE` (src/lib/validation/listing.ts), and it lives in the
+ * validation module for the very same reason: ONE copy of the sentence, importable by the action, by the
+ * host-facing advisory, by a test and by any future surface — so the gate and the copy can never drift.
+ *
+ * O3 grammar, like every refusal this phase ships: a statement plus an imperative next step, no exclamation,
+ * never rendered red. The caller EXTENDS it with the concrete date the lock lifts and the way out (09-UI-SPEC
+ * O7 — a locked control that says only "you can't" is a dead end), which is why the constant itself stops at
+ * the WHY: the WHEN is per-listing and cannot be baked into a shared literal.
+ */
+export const HOURS_LOCKED_MESSAGE =
+  "You can't change these hours while drop-in passes are still to come for that day.";
+
 // 24-hour HH:mm, TOLERANT of an optional :ss so Postgres/Drizzle `time` round-trips ("HH:mm:ss")
 // re-validate (see RESEARCH line 472 / the 03-04 edit round-trip).
 const hhmm = z
