@@ -78,6 +78,59 @@
 // header has since grown by the block you are reading, so they no longer point at those assertions.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
+// TASK 2 — FOUR MUTATIONS, ALL EXECUTED 1 August 2026, all restored (`git diff --exit-code src/` clean).
+// The fix has TWO halves and they had to be mutated SEPARATELY, because either one alone is enough to keep
+// case 2 green — which is a finding, not a formality (see MUTATION 2a).
+//
+//   MUTATION 1 — restore `status = 'confirmed'` to the TOKENLESS arm of findOwnOpenHold.
+//     → case 1 RED, verbatim:
+//
+//        FAIL  … > 1 · a booker who already PAID for passes on a date can buy more for the same date (CR-06)
+//       AssertionError: expected 2 to be 4 // Object.is equality
+//
+//       - Expected
+//       + Received
+//
+//       - 4
+//       + 2
+//
+//        Test Files  1 failed (1)
+//             Tests  1 failed | 6 passed (7)
+//
+//       Cases 3-6 stayed GREEN under it, which is the point of the pair: the confirmed-pass match is the
+//       ONLY thing that arm loses, and the D-42 double-submit replay is not collateral.
+//
+//   MUTATION 2a — delete `AND booker_id = …` from the KEY arm of findOwnOpenHold (the plan's prescribed
+//     WR-01 mutation), leaving the booker-namespaced STORED key in place.
+//     → ALL 7 GREEN. Recorded because it is the honest observed result and it is informative: the
+//       predicate scope is defence in depth, not the load-bearing half. Alice's key is STORED as
+//       `<len>:<alice id>:shared-token-alice` and Mallory looks up `<len>:<mallory id>:…`, so the two can
+//       never name one row whatever the predicate says. A mutation that cannot go red is a gate that is
+//       not measuring anything, so the assertion is measured by 2b and 2c below instead.
+//
+//   MUTATION 2b — revert `scopedIdempotencyKey` to the identity (the raw client key), keeping the
+//     predicate scope. This is the shape the reviewer's literal fix would have shipped.
+//     → cases 2 AND 7 RED with the driver's own error (full text in 09-23-SUMMARY.md — it quotes
+//       parameter values that include calendar-shaped instants, which this file's tripwire forbids):
+//
+//       Caused by: PostgresError: duplicate key value violates unique constraint "booking_idem_uq"
+//       Serialized Error: { … code: '23505',
+//         detail: 'Key (idempotency_key)=(shared-token-alice) already exists.' … }
+//
+//       i.e. scoping the predicate WITHOUT namespacing the stored value trades WR-01's information
+//       disclosure for a raw 500 on the money path (T-09-80 / the CR-04 class), on BOTH the open and the
+//       exclusive claim. That is why the fix has two halves.
+//
+//   MUTATION 2c — BOTH halves reverted: the true pre-fix key arm.
+//     → case 2 RED with exactly the Task-1 shape, verbatim:
+//
+//        FAIL  … > 2 · one caller's idempotency key can never return another caller's booking (WR-01)
+//       AssertionError: expected '/listings/L_oc_replay/book?hold=40069…' not to contain '40069e9f-62ad-4c1c-9453-b6d9ae3d3858'
+//
+//       Expected: "40069e9f-62ad-4c1c-9453-b6d9ae3d3858"
+//       Received: "/listings/L_oc_replay/book?hold=40069e9f-62ad-4c1c-9453-b6d9ae3d3858"
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
@@ -85,6 +138,7 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, booking, hostPayout, operatingHours } from "@/lib/db/schema";
+import { createPendingHold } from "@/lib/availability/units";
 import type { RateLimitResult } from "@/lib/rate-limit";
 
 const HOST_EMAIL = "replay_host@example.com";
@@ -218,6 +272,23 @@ async function readRow(id: string) {
 const D_CONFIRMED = daysOut(30); // case 1 — CR-06
 const D_KEY_ALICE = daysOut(31); // case 2 — WR-01, Alice's date
 const D_KEY_MALLORY = daysOut(32); // case 2 — Mallory's date, DIFFERENT on purpose (see the case)
+const D_DOUBLE = daysOut(33); // case 3 — the tokened double-submit
+const D_TOKENLESS = daysOut(34); // case 4 — the tokenless double-submit
+const D_LAPSED = daysOut(35); // case 5 — a dead hold must not block its own owner
+const D_LAPSED_KEY = daysOut(36); // case 6 — the design-decision case (no 23505 may escape)
+
+// ── The EXCLUSIVE control (case 7). Windows are plain UTC instants: `createPendingHold` takes them
+// directly and matches an own-hold on the exact pair, which is why CR-06 never reached that path. Four
+// NON-overlapping windows, because a single-unit listing is arbitrated by booking_no_overlap. ──────────
+const L_EXCL = "L_oc_replay_excl";
+const HOURLY_CENTS = 50000;
+function exclWindow(dayOffset: number, startHourUtc: number): { startsAt: Date; endsAt: Date } {
+  const base = new Date(Date.now() + dayOffset * 24 * HOUR_MS);
+  const startsAt = new Date(
+    Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), startHourUtc, 0, 0),
+  );
+  return { startsAt, endsAt: new Date(startsAt.getTime() + HOUR_MS) };
+}
 
 beforeAll(async () => {
   testDb = await setupTestDb();
@@ -260,20 +331,37 @@ beforeAll(async () => {
   });
 
   // Shaped exactly like a listing the 09-06 publish gate would accept.
-  await testDb.db.insert(listing).values({
-    id: L_OPEN,
-    hostId,
-    title: "Drop-in replay floor",
-    status: "published" as const,
-    occupancyMode: "open_capacity" as const,
-    bookingMode: "instant" as const, // OC-10 — open capacity is instant-only
-    cancellationPolicy: "standard" as const,
-    maxOccupancy: CAP,
-    unitCount: 1,
-    perHeadPriceCents: PER_HEAD_CENTS,
-    timezone: TIMEZONE,
-    city: "Makati",
-  });
+  await testDb.db.insert(listing).values([
+    {
+      id: L_OPEN,
+      hostId,
+      title: "Drop-in replay floor",
+      status: "published" as const,
+      occupancyMode: "open_capacity" as const,
+      bookingMode: "instant" as const, // OC-10 — open capacity is instant-only
+      cancellationPolicy: "standard" as const,
+      maxOccupancy: CAP,
+      unitCount: 1,
+      perHeadPriceCents: PER_HEAD_CENTS,
+      timezone: TIMEZONE,
+      city: "Makati",
+    },
+    {
+      // The EXCLUSIVE control (case 7). The pre-Phase-9 shape, spelled out rather than left to the column
+      // default: this fixture's job is to prove the exclusive path changed in exactly ONE respect.
+      id: L_EXCL,
+      hostId,
+      title: "Whole court",
+      status: "published" as const,
+      occupancyMode: "exclusive" as const,
+      bookingMode: "instant" as const,
+      cancellationPolicy: "standard" as const,
+      unitCount: 1,
+      hourlyRateCents: HOURLY_CENTS,
+      timezone: TIMEZONE,
+      city: "Makati",
+    },
+  ]);
 
   // Open EVERY weekday, so each case can own its own clock-relative date.
   await testDb.db.insert(operatingHours).values(
@@ -411,5 +499,150 @@ describe("findOwnOpenHold — the drop-in replay predicate (CR-06 / WR-01)", () 
     expect(hers.status).toBe("pending");
     expect(hers.declaredPax).toBe(1);
     expect(await headsFor(L_OPEN, aliceId, D_KEY_ALICE)).toBe(1);
+  });
+
+  it("3 · a genuine double-submit carrying ONE token still replays into ONE booking (D-42)", async () => {
+    // The guarantee CR-06's fix must not cost. Narrowing the tokenless arm to a live hold is only safe if
+    // the double-click it used to absorb is still absorbed — here, by the token BookCta now mints per
+    // selection, which is stable across repeated clicks on the same date and pass count.
+    const KEY = "double-submit-token";
+    await login(ALICE_EMAIL);
+    const first = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_DOUBLE), requestedPasses: 2, idempotencyKey: KEY }),
+    );
+    const second = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_DOUBLE), requestedPasses: 2, idempotencyKey: KEY }),
+    );
+
+    expect(holdIdIn(second)).toBe(holdIdIn(first));
+    // The seats were claimed ONCE. This is the assertion that would catch a "replay" that quietly minted a
+    // second row — the id could still match while the counter had moved.
+    expect(await headsFor(L_OPEN, aliceId, D_DOUBLE)).toBe(2);
+    expect(await idsFor(L_OPEN, aliceId, D_DOUBLE)).toHaveLength(1);
+  });
+
+  it("4 · a double-submit with NO token still replays while the hold is live (D-42)", async () => {
+    // The shipped tokenless protection, preserved: an old client (or a resume round-trip that lost the
+    // token) must still not claim a second set of seats inside the TTL. The tokenless arm keeps matching a
+    // LIVE `pending` hold — only `status = 'confirmed'` was dropped from it.
+    await login(ALICE_EMAIL);
+    const first = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_TOKENLESS), requestedPasses: 2 }),
+    );
+    const second = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_TOKENLESS), requestedPasses: 2 }),
+    );
+
+    expect(holdIdIn(second)).toBe(holdIdIn(first));
+    expect(await headsFor(L_OPEN, aliceId, D_TOKENLESS)).toBe(2);
+    expect(await idsFor(L_OPEN, aliceId, D_TOKENLESS)).toHaveLength(1);
+  });
+
+  it("5 · a LAPSED tokenless hold does not replay — a booker is never stuck behind their own dead hold", async () => {
+    await login(ALICE_EMAIL);
+    const first = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_LAPSED), requestedPasses: 2 }),
+    );
+    const firstId = holdIdIn(first);
+
+    // Drive the hold past its TTL against the DB clock (never the JS one — the claim reads now() in SQL).
+    await testDb.db.execute(sql`
+      UPDATE booking SET expires_at = now() - interval '1 minute' WHERE id = ${firstId}`);
+
+    const second = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_LAPSED), requestedPasses: 2 }),
+    );
+    const secondId = holdIdIn(second);
+    expect(secondId).not.toBe(firstId);
+
+    // The claim's in-tx sweep freed the dead hold's heads, so the booker holds 2 — not 4, and not 0.
+    expect((await readRow(firstId)).status).toBe("cancelled");
+    expect(await headsFor(L_OPEN, aliceId, D_LAPSED)).toBe(2);
+    expect(await idsFor(L_OPEN, aliceId, D_LAPSED)).toHaveLength(2);
+  });
+
+  it("6 · a key naming a LAPSED or CANCELLED row replays — it never falls through into a 23505", async () => {
+    // THE DESIGN-DECISION CASE. `booking_idem_uq` is a GLOBAL partial-unique index, so a key whose row
+    // exists can never be re-inserted. If the key arm ever grew a status filter (the "obvious cleanup"),
+    // the claim would sail past the pre-check, reach the INSERT and raise a 23505 — which mapBookingError
+    // re-throws as a raw 500 on the money path. Every call below asserts through `expectRedirect`, so a
+    // unique violation escaping the claim fails this case with the driver's own error rather than silently.
+    const KEY = "lapsed-token";
+    await login(ALICE_EMAIL);
+    const first = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_LAPSED_KEY), requestedPasses: 1, idempotencyKey: KEY }),
+    );
+    const firstId = holdIdIn(first);
+
+    // (a) the row is LAPSED but still `pending`.
+    await testDb.db.execute(sql`
+      UPDATE booking SET expires_at = now() - interval '1 minute' WHERE id = ${firstId}`);
+    const afterLapse = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_LAPSED_KEY), requestedPasses: 1, idempotencyKey: KEY }),
+    );
+    expect(holdIdIn(afterLapse)).toBe(firstId);
+
+    // (b) …and now the row is terminally CANCELLED, the furthest a status can get from "active". The
+    // replay is HONEST rather than convenient: the reserve page renders HoldExpiredState for exactly this,
+    // which is strictly better than a Next.js error digest on a booker's payment click.
+    await testDb.db.execute(sql`
+      UPDATE booking SET status = 'cancelled', expires_at = NULL WHERE id = ${firstId}`);
+    const afterCancel = await expectRedirect(
+      placeOpenHold({ listingId: L_OPEN, date: ymd(D_LAPSED_KEY), requestedPasses: 1, idempotencyKey: KEY }),
+    );
+    expect(holdIdIn(afterCancel)).toBe(firstId);
+
+    // Three calls, ONE row: nothing was re-inserted behind the replay.
+    expect(await idsFor(L_OPEN, aliceId, D_LAPSED_KEY)).toHaveLength(1);
+  });
+
+  it("7 · the EXCLUSIVE path changed in exactly one respect — its key arm is now booker-scoped", async () => {
+    // (a) two DIFFERENT windows are still two DIFFERENT bookings. CR-06 never reached this path — an
+    // exclusive own-hold is matched on the exact (starts_at, ends_at) pair — and this case exists so a
+    // future edit cannot quietly generalise the open path's day-range narrowing onto it.
+    const w1 = exclWindow(40, 10);
+    const w2 = exclWindow(40, 12);
+    const r1 = await createPendingHold(testDb.db, { listingId: L_EXCL, bookerId: aliceId, ...w1 });
+    const r2 = await createPendingHold(testDb.db, { listingId: L_EXCL, bookerId: aliceId, ...w2 });
+    expect("ok" in r1 && r1.ok).toBe(true);
+    expect("ok" in r2 && r2.ok).toBe(true);
+    if (!("id" in r1) || !("id" in r2)) throw new Error("both exclusive holds must succeed");
+    expect(r2.id).not.toBe(r1.id);
+    expect(r2.replayed).toBe(false);
+
+    // (b) WR-01 on the exclusive twin: Mallory posting Alice's key gets HER OWN booking for HER OWN
+    // window — never Alice's id, and never a unique violation on the global index either (the claim
+    // returning `{error}` instead of throwing is not enough here; it must be a real hold).
+    const KEY = "shared-token-exclusive";
+    const w3 = exclWindow(41, 10);
+    const w4 = exclWindow(41, 12);
+    const alice = await createPendingHold(testDb.db, {
+      listingId: L_EXCL,
+      bookerId: aliceId,
+      ...w3,
+      idempotencyKey: KEY,
+    });
+    const mallory = await createPendingHold(testDb.db, {
+      listingId: L_EXCL,
+      bookerId: malloryId,
+      ...w4,
+      idempotencyKey: KEY,
+    });
+    if (!("id" in alice) || !("id" in mallory)) throw new Error("both exclusive holds must succeed");
+    expect(mallory.id).not.toBe(alice.id);
+    expect(mallory.replayed).toBe(false);
+    expect((await readRow(mallory.id)).bookerId).toBe(malloryId);
+    expect((await readRow(alice.id)).bookerId).toBe(aliceId);
+
+    // …and Alice re-submitting her OWN key still replays onto her OWN booking (D-42 intact).
+    const aliceAgain = await createPendingHold(testDb.db, {
+      listingId: L_EXCL,
+      bookerId: aliceId,
+      ...w3,
+      idempotencyKey: KEY,
+    });
+    if (!("id" in aliceAgain)) throw new Error("the exclusive replay must succeed");
+    expect(aliceAgain.id).toBe(alice.id);
+    expect(aliceAgain.replayed).toBe(true);
   });
 });

@@ -23,6 +23,11 @@
 // at all, so a smuggled one is stripped server-side (T-09-26), and the entry-window instants are derived
 // from the listing's own operating hours inside the claim. The branch is taken on the LISTING's persisted
 // occupancy mode, threaded from the RSC — never on which selection happens to be populated.
+//
+// The open payload also carries a PER-SELECTION idempotency token (CR-06). The exclusive payload does not,
+// and that asymmetry is deliberate: `placeHold` matches an own-hold on the exact `(starts_at, ends_at)`
+// window, so a different pick is already a different booking there. On the open path a DATE is the window,
+// so "the same submit" is a thing only the client can say — see the memo below.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -74,6 +79,29 @@ export function BookCta({
 
   const isOpen = occupancyMode === "open_capacity";
 
+  // The drop-in pick this control would submit — the live picker selection, or the restored one on a
+  // resume mount. Read only on an open listing, so an exclusive listing mints nothing.
+  const openPick: OpenPick | null = isOpen ? (openSelection ?? resumeOpen ?? null) : null;
+
+  // ── THE PER-SELECTION IDEMPOTENCY TOKEN (CR-06 / D-42) — the dependency list IS the design ──────────
+  // Sent on the OPEN payload only, and memoized on exactly three things: the listing, the picked DATE and
+  // the pass COUNT.
+  //
+  //  - STABLE across repeated clicks on the SAME selection, so a genuine double-submit carries one token
+  //    and replays into one booking instead of claiming a second set of seats. (The server's tokenless arm
+  //    still matches a live pending hold, so this is the second lock on that door, not the only one.)
+  //  - CHANGES when the booker picks a different date or a different number of passes, and a fresh mount
+  //    after the post-booking redirect mints a fresh one. That is CR-06's journey — buy 2 passes for
+  //    Saturday, pay, come back for 2 more — and it must read as a NEW purchase, never a replay. Keying
+  //    the token to the selection is what makes "the same submit" a thing the client can actually say.
+  //
+  // The random nonce is what stops two BOOKERS (or two sessions) sharing a token for the same selection;
+  // the selection prefix is what makes a token legible in a log. Well under the 200-char schema bound.
+  const openIdempotencyKey = React.useMemo(
+    () => `${listingId}:${openPick?.dateIso ?? ""}:${openPick?.passes ?? ""}:${crypto.randomUUID()}`,
+    [listingId, openPick?.dateIso, openPick?.passes],
+  );
+
   const submit = React.useCallback(
     async (sel: CtaSelection) => {
       setPending(true);
@@ -87,6 +115,7 @@ export function BookCta({
             listingId,
             date: sel.pick.dateIso,
             requestedPasses: sel.pick.passes,
+            idempotencyKey: openIdempotencyKey,
           })
         : placeHold({
             listingId,
@@ -130,7 +159,7 @@ export function BookCta({
       setPending(false);
       if (result.reason === "taken" || result.reason === "sold-out") router.refresh();
     },
-    [listingId, placeHold, placeOpenHold, router],
+    [listingId, placeHold, placeOpenHold, router, openIdempotencyKey],
   );
 
   // The restored selection, normalized to ONE shape before the effect sees it: exactly one of the two can

@@ -227,6 +227,31 @@ reads the column on the drop-in path.
 
 ---
 
-*Logged 2026-07-31 during 09-16 (items 1-2) and 09-17 (items 3-4); item 5 added 2026-08-01 during 09-21. Path note: this file follows the shipped per-phase convention
+## 6. A CONCURRENT reuse of one idempotency key across two DIFFERENT dates can still raise a 23505 (pre-existing)
+
+**Status:** deferred — pre-existing, unreachable from the shipped UI, and unchanged by 09-23.
+
+**What.** `createOpenCapacityHold` has no 23505 handler of its own (`createPendingHold` does, at
+`units.ts:584`). Two *simultaneous* claims by the SAME booker reusing the SAME idempotency key on two
+DIFFERENT dates take two different advisory locks, so neither serialises the other; both miss the own-hold
+pre-check and both insert the same (now booker-namespaced) key, and the loser's 23505 is re-thrown by
+`mapBookingError` as a raw 500.
+
+**Why it was not fixed here.** It is pre-existing — the same race existed before 09-23 with the raw key —
+and it is not reachable from the shipped client: `BookCta`'s token is memoized on
+`[listingId, dateIso, passes]`, so two dates *cannot* share a token. Reaching it needs a hand-crafted
+concurrent pair of POSTs. Fixing it properly means re-checking own-hold after a 23505 in a FRESH transaction
+(the aborted one cannot be reused), which is a new retry shape on the money path — more risk than the
+finding carries, and outside a gap plan's remit.
+
+**Sequential reuse is already safe and is covered:** the key arm is date-agnostic, so a second submit with
+the same token on another date replays onto the first booking (correct D-42 semantics for a token that
+names one submit), and `open-capacity-replay.test.ts` case 6 pins that an existing key always replays
+rather than falling through to the INSERT.
+
+---
+
+*Logged 2026-07-31 during 09-16 (items 1-2) and 09-17 (items 3-4); item 5 added 2026-08-01 during 09-21;
+item 6 added 2026-08-01 during 09-23. Path note: this file follows the shipped per-phase convention
 (`.planning/phases/{phase}/deferred-items.md`, as in phases 04, 07 and 08); there is no repo-root
 `.planning/deferred-items.md`.*

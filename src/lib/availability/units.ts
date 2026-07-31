@@ -234,6 +234,33 @@ export type HoldResult = HoldSuccess | { error: string };
 type SqlExecutor = Pick<DbConn, "execute">;
 
 /**
+ * The STORED form of a client-supplied idempotency key: NAMESPACED by the booker who supplied it (WR-01).
+ *
+ * A key is a de-dup token for ONE caller's submits, never a lookup handle. Scoping the two `findOwn*Hold`
+ * predicates with `AND booker_id = …` is half of saying that; this is the other half, and without it the
+ * scoping alone would trade an information disclosure for a raw 500. `booking_idem_uq` is a GLOBAL
+ * partial-unique index on `idempotency_key` ALONE, so the moment the predicate stops matching another
+ * caller's row the claim falls straight through to the INSERT and Postgres raises a 23505 — which
+ * `mapBookingError` re-throws (it maps only NoUnitAvailableError / 23P01 / 40P01) and `createPendingHold`'s
+ * own 23505 handler can no longer rescue (its own-hold re-check is now booker-scoped too). That is a
+ * Next.js error digest on a booker's payment click: the same T-03-500 class as CR-04, reached from the
+ * other side. `openHoldSchema` admits ANY string up to 200 chars, so it is not only Mallory who trips it —
+ * a client that ever used a non-random key would break every other booker who sent the same one.
+ *
+ * Namespacing the stored value makes the global index effectively per-booker: two callers may supply the
+ * same string and neither collides, while one caller re-supplying their OWN string still lands on their own
+ * row (the D-42 replay, preserved exactly). LENGTH-PREFIXED so the encoding is INJECTIVE — without it
+ * ("u1", "2:x") and ("u1:2", "x") would both render `u1:2:x`, re-opening at the character level the very
+ * collision this exists to close. `idempotency_key` is `text`, so the prefix costs nothing.
+ *
+ * Applied at the ONE place the key enters the claim, so the value looked up and the value inserted can
+ * never be different strings.
+ */
+function scopedIdempotencyKey(bookerId: string, key: string | null): string | null {
+  return key == null ? null : `${bookerId.length}:${bookerId}:${key}`;
+}
+
+/**
  * The booker's own ACTIVE hold (an unexpired pending|requested|approved hold | confirmed) for this exact
  * window OR idempotency key, if any. The PRIMARY idempotency guard (D-42): re-entering checkout for a
  * window you already hold — or a concurrent same-key submit whose winner has committed — returns the SAME
@@ -260,12 +287,19 @@ async function findOwnActiveHold(
   serviceFeeCents: number | null;
   quotedTotalCents: number | null;
 } | null> {
+  // WR-01: the key arm is scoped to the CALLER. A key is a de-dup token for one caller's submits, never a
+  // lookup handle — unscoped, `idempotency_key = ${key}` returned another booker's row to whoever guessed
+  // or replayed their key. The stored value is booker-namespaced too (scopedIdempotencyKey), which is what
+  // keeps this narrowing from turning into a 23505 on the global `booking_idem_uq` index. Nothing else in
+  // this predicate changes: the status set (including the D-63 requested/approved states) and the exact
+  // `(starts_at, ends_at)` window match are correct for the EXCLUSIVE path and are out of scope here — a
+  // window really is the thing being re-entered, which is exactly why CR-06 never reached this function.
   const rows = (await tx.execute(sql`
     SELECT id, unit, expires_at, space_price_cents, service_fee_cents, quoted_total_cents FROM booking
     WHERE listing_id = ${args.listingId}
       AND (status = 'confirmed' OR (status IN ('pending','requested','approved') AND expires_at > now()))
       AND (
-        ${args.idempotencyKey != null ? sql`idempotency_key = ${args.idempotencyKey}` : sql`false`}
+        ${args.idempotencyKey != null ? sql`(idempotency_key = ${args.idempotencyKey} AND booker_id = ${args.bookerId})` : sql`false`}
         OR (booker_id = ${args.bookerId} AND starts_at = ${args.startIso} AND ends_at = ${args.endIso})
       )
     ORDER BY created_at ASC
@@ -325,7 +359,9 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
   const startIso = startsAt.toISOString(); // ISO strings for the raw sql range/instant binds (Pitfall 3)
   const endIso = endsAt.toISOString();
   const fullDay = input.fullDay ?? false;
-  const idempotencyKey = input.idempotencyKey ?? null;
+  // WR-01 — namespaced ONCE, here, so the value the own-hold pre-check looks up and the value the INSERT
+  // persists are the same string by construction.
+  const idempotencyKey = scopedIdempotencyKey(input.bookerId, input.idempotencyKey ?? null);
   const holdStatus = input.holdStatus ?? "pending"; // D-63: default keeps the instant hold unchanged
   // Default per mode so an omitted ttlMs can never mint a 15-minute approval SLA (D-95: the request
   // window IS APPROVAL_SLA_HOURS). Converted to whole MINUTES for make_interval — the SQL expression is
@@ -671,17 +707,30 @@ export type CreateOpenCapacityHoldInput = {
 
 /**
  * The booker's OWN active open hold for this listing + date (D-42 idempotency), or null. Mirrors
- * findOwnActiveHold, with two deliberate differences: the occupying set drops requested/approved (open
- * capacity is INSTANT-ONLY, OC-10) and the window match is the VENUE-LOCAL DAY alone — a date IS the window,
- * so there is nothing else to compare. Returns the row's frozen triple + granted heads so a replay hands back
- * exactly what the original insert froze, never a fresh recompute (the D-49 drift rule).
+ * findOwnActiveHold, with THREE deliberate differences:
+ *
+ *  1. the occupying set drops requested/approved — open capacity is INSTANT-ONLY (OC-10);
+ *  2. the window match is the VENUE-LOCAL DAY alone — a date IS the window, so there is nothing else to
+ *     compare;
+ *  3. the status filter is NOT one clause over the whole predicate. It lives INSIDE the tokenless arm, and
+ *     the key arm has none at all. That asymmetry is the whole of CR-06 and half of WR-01 — see below.
+ *
+ * Returns the row's frozen triple + granted heads so a replay hands back exactly what the original insert
+ * froze, never a fresh recompute (the D-49 drift rule).
  *
  * The day match is the half-open range rather than an equality against the venue's re-derived opening
  * instant (CR-03): after a host edits operating hours a booker's own live hold sits on the OLD instant, and
  * an equality would miss it — the replay would silently become a SECOND claim by the same person.
  *
- * ⚠️ THIS PREDICATE IS NOT FINISHED, and the rest of it is deliberately out of scope here: the
- * `status = 'confirmed'` branch (CR-06) and the UNSCOPED `idempotency_key` branch (WR-01) are 09-23's.
+ * ⚠️ WHY THE TWO ARMS DISAGREE ABOUT STATUS. Both halves are load-bearing and easy to "clean up" into a
+ * regression, so both are spelled out at the arms themselves. In one line each: the tokenless arm must
+ * match a LIVE hold and nothing else, because on this path a date IS the window and a confirmed pass is not
+ * a hold being re-entered (CR-06); the key arm must match a row of ANY status, because a key that already
+ * exists can never legally be re-inserted and refusing to replay it guarantees a 23505 (T-09-80).
+ *
+ * When a supplied key AND a live own-day hold both match, `ORDER BY created_at ASC` picks the older row —
+ * the same tie-break findOwnActiveHold has always used. A per-selection token names one submit, so in the
+ * shipped UI the two arms cannot name different rows; a crafted key can only ever reach the caller's own.
  */
 async function findOwnOpenHold(
   tx: SqlExecutor,
@@ -701,17 +750,55 @@ async function findOwnOpenHold(
   quotedTotalCents: number | null;
   granted: number;
 } | null> {
+  // ── THE KEY ARM (WR-01 + T-09-80) ──────────────────────────────────────────────────────────────────
+  // Scoped to the CALLER, and DELIBERATELY CARRYING NO STATUS FILTER.
+  //
+  // The scope is WR-01: unscoped, `idempotency_key = ${key}` handed whoever guessed or replayed a key the
+  // booking it named — `{ ok: true, replayed: true }` with SOMEONE ELSE's booking id and a redirect to it,
+  // an existence oracle — while the poster's own purchase was silently swallowed. A key is a de-dup token
+  // for ONE caller's submits, never a lookup handle. The stored value is booker-namespaced as well
+  // (scopedIdempotencyKey), which is what keeps this narrowing from becoming a 23505 for the next caller.
+  //
+  // The MISSING status filter is the deliberate half, and it is not an oversight to tidy away:
+  // `booking_idem_uq` is a GLOBAL partial-unique index, so a key whose row exists but no longer matched a
+  // status filter would fall through to the INSERT and raise a 23505 — re-thrown by `mapBookingError`
+  // (which maps only NoUnitAvailableError / 23P01 / 40P01) as a raw 500 on the money path. So the key arm
+  // matches ANY row carrying that key for this booker, whatever its status: a key that already exists can
+  // never legally be re-inserted. Replaying a lapsed or cancelled row is HONEST — the reserve page already
+  // renders HoldExpiredState for one — and strictly better than a Next.js error digest at checkout.
+  const keyArm =
+    args.idempotencyKey != null
+      ? sql`(idempotency_key = ${args.idempotencyKey} AND booker_id = ${args.bookerId})`
+      : sql`false`;
+
+  // ── THE TOKENLESS ARM (CR-06) ──────────────────────────────────────────────────────────────────────
+  // The booker's own LIVE hold on this venue-local day — a hold being re-entered, and nothing else.
+  //
+  // `status = 'confirmed'` is deliberately ABSENT here. On the exclusive path the equivalent arm compares
+  // an exact `(starts_at, ends_at)` window, so a different slot is a different booking; on THIS path a date
+  // IS the window, so accepting a confirmed row collapsed every purchase a booker ever made for a date into
+  // the first one. A booker who bought and PAID for 2 passes on Saturday and came back for 2 more was
+  // redirected to the booking they already had — no new row, no message, and the reserve page's
+  // `status === 'confirmed'` short-circuit bounced them on to /bookings/{old id}. The app's own copy for
+  // that situation is PASSES_FIXED_MESSAGE, "To add more passes, book them separately.", so following the
+  // instruction was what triggered the silent no-op. OC-18 says there is deliberately NO per-booker head
+  // cap, which makes this idempotency machinery enforcing a policy nobody chose.
+  //
+  // A LIVE `pending` hold still matches, so the D-42 double-click guarantee is untouched: a second submit
+  // inside the TTL returns the SAME booking and claims no second set of seats, with or without a token.
+  const liveOwnDayArm = sql`(booker_id = ${args.bookerId}
+            AND starts_at >= ${args.dayStartIso}::timestamptz
+            AND starts_at < ${args.dayEndIso}::timestamptz
+            AND status = 'pending' AND expires_at > now())`;
+
   const rows = (await tx.execute(sql`
     SELECT id, unit, expires_at, space_price_cents, service_fee_cents, quoted_total_cents, declared_pax
     FROM booking
     WHERE listing_id = ${args.listingId}
       AND open_capacity = true
-      AND (status = 'confirmed' OR (status = 'pending' AND expires_at > now()))
       AND (
-        ${args.idempotencyKey != null ? sql`idempotency_key = ${args.idempotencyKey}` : sql`false`}
-        OR (booker_id = ${args.bookerId}
-            AND starts_at >= ${args.dayStartIso}::timestamptz
-            AND starts_at < ${args.dayEndIso}::timestamptz)
+        ${keyArm}
+        OR ${liveOwnDayArm}
       )
     ORDER BY created_at ASC
     LIMIT 1
@@ -760,7 +847,9 @@ export async function createOpenCapacityHold(
   const dayStartIso = new Date(input.dayStartUtc).toISOString();
   const dayEndIso = new Date(input.dayEndUtc).toISOString();
   const dateKey = input.dateKey;
-  const idempotencyKey = input.idempotencyKey ?? null;
+  // WR-01 — namespaced ONCE, here, so the value the own-hold pre-check looks up and the value the INSERT
+  // persists are the same string by construction.
+  const idempotencyKey = scopedIdempotencyKey(input.bookerId, input.idempotencyKey ?? null);
 
   // ── The D-94 invariant, with the cap moved from starts_at to ENDS_AT — a DELIBERATE divergence ───────
   // "No hold ever outlives its own SESSION" still holds; what changed is where the session ends. A drop-in

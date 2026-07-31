@@ -283,7 +283,7 @@ describe("DatePassPicker — a day and a pass count, never an hour (OPEN-02 · �
     expect(screen.getByText("Pick a day above to book.")).toBeTruthy();
   });
 
-  it("(6) Book sends EXACTLY {listingId, date, requestedPasses} — no window rides along (T-09-26)", async () => {
+  it("(6) Book sends EXACTLY {listingId, date, requestedPasses, idempotencyKey} — no window rides along (T-09-26)", async () => {
     const { container, placeOpenHold } = renderPicker({});
 
     fireEvent.click(screen.getByRole("button", { name: "Add a pass" }));
@@ -293,13 +293,46 @@ describe("DatePassPicker — a day and a pass count, never an hour (OPEN-02 · �
 
     await waitFor(() => expect(placeOpenHold).toHaveBeenCalledTimes(1));
     const payload = placeOpenHold.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload).toEqual({ listingId: LISTING_ID, date: iso(DAY_A), requestedPasses: 2 });
+    expect(payload).toMatchObject({ listingId: LISTING_ID, date: iso(DAY_A), requestedPasses: 2 });
+    // 09-23 (CR-06) widened this payload by exactly ONE field: a per-selection idempotency token. It is
+    // opaque to this assertion (it carries a nonce) but its PRESENCE and its type are pinned, because the
+    // server's tokenless replay arm was narrowed on the strength of it existing.
+    expect(typeof payload.idempotencyKey).toBe("string");
+    expect((payload.idempotencyKey as string).length).toBeGreaterThan(0);
     // Asserted as a KEY SET, not just by presence: a smuggled window field would be a client asserting
     // when a pass starts, and a pass does not start.
-    expect(Object.keys(payload).sort()).toEqual(["date", "listingId", "requestedPasses"]);
+    expect(Object.keys(payload).sort()).toEqual(["date", "idempotencyKey", "listingId", "requestedPasses"]);
     for (const forbidden of ["startUtc", "endUtc", "fullDay"]) {
       expect(payload).not.toHaveProperty(forbidden);
     }
+  });
+
+  it("(6b) the idempotency token is STABLE per selection and CHANGES when the selection does (CR-06)", async () => {
+    // The memo's dependency list IS the design, and nothing else measures it. A `sold-out` mock is used so
+    // the CTA leaves `pending` and can be clicked again — a success redirects and unmounts the control.
+    const placeOpenHold = makeHold({ ok: false, reason: "sold-out", error: SOLD_OUT_MESSAGE });
+    const { container } = renderPicker({ placeOpenHold });
+    const bookButton = () => screen.getByRole("button", { name: "Book this space" });
+    const keyOf = (call: number) =>
+      (placeOpenHold.mock.calls[call][0] as Record<string, unknown>).idempotencyKey as string;
+    const bookAgain = async (nth: number) => {
+      await waitFor(() => expect(bookButton().hasAttribute("disabled")).toBe(false));
+      fireEvent.click(bookButton());
+      await waitFor(() => expect(placeOpenHold).toHaveBeenCalledTimes(nth));
+    };
+
+    await bookAgain(1);
+    await bookAgain(2);
+    // Same listing, same date, same pass count → the SAME token. This is the D-42 double-submit guarantee
+    // the server's tokenless arm used to provide by accident, now stated deliberately by the client.
+    expect(keyOf(1)).toBe(keyOf(0));
+
+    // Change the SELECTION and the token must change with it. Without this, CR-06's journey — buy 2
+    // passes, pay, come back for 2 more — would read as a replay of the first purchase forever.
+    fireEvent.click(screen.getByRole("button", { name: "Add a pass" }));
+    expect(container.querySelector<HTMLInputElement>("#requested-passes")!.value).toBe("2");
+    await bookAgain(3);
+    expect(keyOf(2)).not.toBe(keyOf(0));
   });
 
   it("(7) a lost race renders the SERVER's sold-out sentence and refreshes the calendar (OC-13)", async () => {
