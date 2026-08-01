@@ -3,6 +3,11 @@
 // payout flag, then render the card grid with per-card actions. deriveBookable (D-15) decides the
 // "Live" vs "Published · not bookable" badge — payoutsEnabled defaults false until Plan 06 wires
 // PayMongo onboarding, so this plan stays payment-agnostic (it only READS the cached gate flag).
+//
+// v1.0 audit finding #4: the page also reports which of the host's PUBLISHED listings have no weekly
+// hours — read ONCE for the whole grid (never per card) and passed down as a boolean — so a host can
+// learn that their live listing shows every date as closed. It is a signal only: no listing's
+// bookability, badge, or search eligibility changes because of it.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -12,6 +17,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, listingPhoto, hostPayout } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
+import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
 import { unlistListing, softDeleteListing } from "@/app/actions/listing";
 import {
   ListingCard,
@@ -56,6 +62,15 @@ export default async function HostListingsPage() {
     .where(eq(hostPayout.userId, session.user.id));
   const payoutsEnabled = payoutRows[0]?.payoutsEnabled ?? false;
   const emailVerified = Boolean(u.emailVerified ?? session.user.emailVerified);
+
+  // v1.0 audit finding #4 — which published listings have no weekly hours, in ONE owner-scoped query,
+  // collapsed to a Set the render reads from. Same idiom as coverByListing above; deliberately NOT
+  // called inside rows.map, which would put a query in a render loop (T-IU7-04). The helper already
+  // filters to published + non-deleted + this host, so `.has(id)` is false for a draft or an unlisted
+  // listing by construction — no second status check belongs in the render or in the card.
+  const missingHours = new Set(
+    (await loadPublishedListingsMissingHours(db, session.user.id)).map((l) => l.id),
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
@@ -105,6 +120,7 @@ export default async function HostListingsPage() {
                 key={r.id}
                 listing={data}
                 bookable={bookable}
+                hoursMissing={missingHours.has(r.id)}
                 editHref={`/host/listings/${r.id}/edit`}
                 availabilityHref={`/host/listings/${r.id}/availability`}
                 onUnlist={unlistListing}

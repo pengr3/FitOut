@@ -42,6 +42,11 @@ import {
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
 import { formatMoney } from "@/lib/money";
+import {
+  HOURS_MISSING_STATE,
+  HOURS_MISSING_REASON,
+  HOURS_MISSING_CTA,
+} from "@/lib/listing/hours-signal";
 
 export type ListingCardData = {
   id: string;
@@ -135,6 +140,7 @@ function ConfirmDialog({
 export function ListingCard({
   listing,
   bookable = false,
+  hoursMissing = false,
   editHref,
   availabilityHref,
   onUnlist,
@@ -142,6 +148,16 @@ export function ListingCard({
 }: {
   listing: ListingCardData;
   bookable?: boolean;
+  /**
+   * v1.0 audit finding #4. This listing is published and has no weekly hours, so every date reads as
+   * closed to a booker. DERIVED UPSTREAM in one grouped query (loadPublishedListingsMissingHours) and
+   * passed in — the card never asks the DB, and never re-derives it from anything on `listing`.
+   *
+   * It changes NOTHING about bookability or the badge: a listing with no hours still reads "Live" if it
+   * is otherwise bookable, and the notice sits below as additional information. That is the decided
+   * behaviour (this is a signal, not a gate).
+   */
+  hoursMissing?: boolean;
   editHref?: string;
   availabilityHref?: string;
   onUnlist?: (id: string) => Promise<ActionResult>;
@@ -180,6 +196,14 @@ export function ListingCard({
       priceParts.push(`${formatMoney(listing.dayRateCents, listing.currency)}/day`);
     }
   }
+
+  // The no-hours sentence, assembled as ONE string (the cancellation-fee-notice.tsx lesson: SWC's JSX
+  // whitespace transform strips the leading space of text following an expression container, which is how
+  // "₱300.00in cancellation fees" once shipped). The `availabilityHref` half of the guard is what keeps
+  // this a HOST-ONLY signal (T-IU7-02): a Phase-4 search card passes neither prop, so it is structurally
+  // unable to render a management notice — not merely conventionally unlikely to.
+  const hoursNotice =
+    hoursMissing && availabilityHref ? `${HOURS_MISSING_STATE} — ${HOURS_MISSING_REASON}` : null;
 
   async function runAction(
     action: (id: string) => Promise<ActionResult>,
@@ -225,6 +249,20 @@ export function ListingCard({
           </p>
         )}
         <p className="text-sm">{priceParts.length ? priceParts.join(" · ") : "No pricing yet"}</p>
+        {/*
+          v1.0 audit finding #4 / rule O7 — the state, the reason, and the way out. Calm muted
+          information, never an alert variant and never red: nothing has gone wrong, the host simply has
+          not finished setting up. Same treatment as the shipped hours-lock notice on the availability
+          page. `availabilityHref` is non-null inside this branch by the guard above.
+        */}
+        {hoursNotice && availabilityHref && (
+          <p className="text-sm text-muted-foreground">
+            {hoursNotice}{" "}
+            <Link href={availabilityHref} className="underline underline-offset-4">
+              {HOURS_MISSING_CTA}
+            </Link>
+          </p>
+        )}
       </CardContent>
 
       {hasActions && (
