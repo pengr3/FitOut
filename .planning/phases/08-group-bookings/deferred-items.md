@@ -28,8 +28,24 @@ note below. Items 1, 3 and 4 were already closed; item 2 remains open and out of
 > returns HTTP 400 "already expired" (not the assumed 200-replay), a recovery-path livelock — which **08-21
 > closed** by making `expireCheckoutSession` idempotent (tolerate exactly that 400; genuine failures still
 > throw and still fail-closed), corrected two more false comments, and re-proved it live (case 4 now resolves).
-> A truly concurrent double-click (T-08-79) and the already-captured `qrph` overcharge (T-08-74) remain
-> accepted residuals. The original entry is kept below for the record.
+> **T-08-79 (the truly concurrent double-click) was CLOSED 2026-08-01 by quick task `260801-kv2`.** The
+> expire-before-create gate above closed only the SEQUENTIAL path; the concurrent one now has its own guard.
+> `confirmBooking` claims a **compare-and-swap checkout lease** on `booking.checkout_lock_at` before it makes
+> any PayMongo call — one autocommit `UPDATE … WHERE <lease is free> RETURNING` (`drizzle/0023`,
+> `src/lib/payments/checkout-lease.ts`) — so a concurrent second caller matches zero rows and is refused with
+> a calm inline sentence before a second payable session can exist. **No DB lock is held across either HTTP
+> round-trip**: the claim has COMMITTED before the first `fetch`, which is why this is not the
+> `SELECT … FOR UPDATE` anti-pattern the acceptance rested on. A `CHECKOUT_LEASE_TTL_SECONDS` (90s) TTL is a
+> term of the CAS predicate, so a crashed attempt self-heals with no sweep and no operator. Proven over
+> INDEPENDENT Postgres connections (`tests/booking/checkout-lease-race.test.ts`, 8 cases) and
+> mutation-measured at three layers: the pattern (M1), the shipped module (M2a/2b/2c) and the call site
+> (`tests/booking/confirm-double-submit.test.ts` cases 6-10, mutations A-D).
+>
+> **T-08-74 — the already-captured `qrph` overcharge — REMAINS AN ACCEPTED RESIDUAL.** That is unchanged and
+> deliberate: this work prevents the second capture, it does not add a refund rail, and an overcharge that
+> HAS been captured on `qrph` is still not API-refundable and still needs an out-of-band operator refund.
+>
+> The original entry is kept below for the record.
 
 **Found during:** 08-17 Task 2, step 4 — the first human exercise of the per-head money path.
 
