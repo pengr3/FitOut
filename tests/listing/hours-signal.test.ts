@@ -14,6 +14,18 @@
 //   (5) a soft-DELETED published, hours-less listing is absent — kills dropping isNull(deletedAt)
 //   (6) a second host's hours-less listing is absent for host A — kills dropping the owner scope (T-IU7-01, IDOR)
 //       and present for host B, so the case cannot pass by the helper simply returning less.
+//
+// MUTATION-MEASURED (each mutation applied to loadPublishedListingsMissingHours, observed, reverted).
+// Recorded as OBSERVED, not as predicted — two of the three killed MORE than the plan expected, because
+// case (2)'s `toEqual([PUBLISHED_NO_HOURS])` is an exact-set assertion and therefore catches any term
+// that widens the result, not just the one it was written for:
+//   1. delete `eq(listing.status, "published")` → 3 failed / 3 passed: (2), (3), (4) RED.
+//      Predicted (3) and (4); (2) additionally RED because the draft and unlisted rows widen the set.
+//   2. delete `eq(listing.hostId, hostId)`      → 2 failed / 4 passed: (2), (6) RED.
+//      Predicted (6); (2) additionally RED because host B's row widens the set.
+//   3. flip `notExists` → `exists`              → 3 failed / 3 passed: (1), (2), (6) RED.
+//      Predicted (1) and (2); (6) additionally RED because its host-B half then returns empty.
+// Reverted, re-run clean: 6 passed (6).
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
