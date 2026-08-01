@@ -674,6 +674,7 @@ means the task predates that flag being used here, not that it failed.
 | 260731-lsx | Correct three erroneous findings in 09-SECURITY.md (T-09-91 plan-gate defect, T-09-86 rejected accept, UF-01 unmapped flag) — verdict unchanged | 2026-07-31 | 68853f8 | | [260731-lsx-correct-09-security-findings](./quick/260731-lsx-correct-09-security-findings/) |
 | 260801-iu7 | Signal on host surfaces when a published listing has no operating hours (v1.0 audit finding #4) | 2026-08-01 | b37b6a3 | | [260801-iu7-signal-on-host-surfaces-when-a-published](./quick/260801-iu7-signal-on-host-surfaces-when-a-published/) |
 | 260801-kv2 | Close T-08-79: CAS checkout lease so a concurrent double-click cannot double-charge (v1.0 audit finding #5) | 2026-08-01 | 1a85510 | Verified | [260801-kv2-close-t-08-79-cas-checkout-lease-so-a-co](./quick/260801-kv2-close-t-08-79-cas-checkout-lease-so-a-co/) |
+| (fast) | Load `.env.local` in `drizzle.config.ts` so `npm run db:migrate` stops failing with `url: undefined` | 2026-08-01 | acf4269 | | _(no directory — /gsd:fast runs inline)_ |
 
 ## Deferred Items
 
