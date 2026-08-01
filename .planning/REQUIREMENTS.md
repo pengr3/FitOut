@@ -17,20 +17,20 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Listings (Host Supply)
 
-- [ ] **LIST-01**: Host can create and edit a listing with title, description, space type, address, capacity, and amenities
-- [ ] **LIST-02**: Host can upload and order multiple photos on a listing
-- [ ] **LIST-03**: Host can set an hourly rate and a day rate for a listing
-- [ ] **LIST-04**: Host can choose instant-book or request-to-book per listing
-- [ ] **LIST-05**: Host can set listing status (draft / published / unlisted)
-- [ ] **LIST-06**: Anyone can view a listing detail page (photos, description, amenities, location, price, availability, book CTA)
+- [x] **LIST-01**: Host can create and edit a listing with title, description, space type, address, capacity, and amenities
+- [x] **LIST-02**: Host can upload and order multiple photos on a listing
+- [x] **LIST-03**: Host can set an hourly rate and a day rate for a listing
+- [x] **LIST-04**: Host can choose instant-book or request-to-book per listing
+- [x] **LIST-05**: Host can set listing status (draft / published / unlisted)
+- [x] **LIST-06**: Anyone can view a listing detail page (photos, description, amenities, location, price, availability, book CTA)
 
 ### Availability
 
-- [ ] **AVAIL-01**: Host can define recurring weekly operating hours for a listing
-- [ ] **AVAIL-02**: Host can block and unblock specific dates/times as overrides
-- [ ] **AVAIL-03**: Listing shows a real, up-to-date availability calendar reflecting existing bookings, operating hours, and blocks
-- [ ] **AVAIL-04**: Booker can select an hourly time window or a full day from availability
-- [ ] **AVAIL-05**: Occupied or unavailable times are visibly blocked and cannot be selected
+- [x] **AVAIL-01**: Host can define recurring weekly operating hours for a listing
+- [x] **AVAIL-02**: Host can block and unblock specific dates/times as overrides
+- [x] **AVAIL-03**: Listing shows a real, up-to-date availability calendar reflecting existing bookings, operating hours, and blocks
+- [x] **AVAIL-04**: Booker can select an hourly time window or a full day from availability
+- [x] **AVAIL-05**: Occupied or unavailable times are visibly blocked and cannot be selected
 
 ### Search & Discovery
 
@@ -55,7 +55,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PAY-01**: Booker can pay for a booking by card online
 - [x] **PAY-02**: Platform deducts a commission from each booking
 - [x] **PAY-03**: Host receives a payout for completed bookings, with funds held until after the session
-- [ ] **PAY-04**: Host completes payout onboarding (Stripe Connect KYC) before their listing becomes bookable
+- [x] **PAY-04**: Host completes payout onboarding (Stripe Connect KYC) before their listing becomes bookable
 - [x] **PAY-05**: For request-to-book, the slot is held with no charge at request; the booker pays on host approval (pay-on-approval) and the slot frees on decline/expiry/non-payment — *mechanism revised from authorize→capture per D-63 (Phase 6): PayMongo cannot hold funds on QRPh/e-wallets and card manual-capture is sales-gated; pay-on-approval works on all rails with no fee bleed*
 - [x] **PAY-06**: Cancellations issue refunds according to the cancellation policy
 
@@ -176,7 +176,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | HOST-02 | Phase 7 | Complete (07-06 shipped `/host/bookings` — Upcoming/Past tabs, desktop table + mobile cards, per-booking payout state via `PayoutStateBadge` reused verbatim, keyset paging. Ownership is `listing.host_id` inside the query WHERE, mutation-verified in `tests/security/bookings-owner-scope.test.ts`) |
 | MANAGE-01 | Phase 7 | Complete (07-06 shipped `/bookings` — Upcoming/Past tabs partitioned on the DB clock, venue-local labels, keyset `Load more`, and the single D-104 inline `Pay now`. Rows are scoped by `booking.booker_id` in the query WHERE, mutation-verified) |
 | MANAGE-02 | Phase 7 | Complete (07-06 made the lifecycle visible on BOTH surfaces from 07-02's single derivation. D-102 `completed` is derived in SQL and proven to write nothing — `tests/booking/views.test.ts` reads the stored row back and asserts it still says `confirmed`. Booking-detail states are extended further in 07-12) |
-| MANAGE-03 | Phase 7 | In progress — 4 of the 5 named events ship (07-10). 07-07 built the layer (`fitout/notify` fans out to a durable notification row in step 1 and the email in step 2, so an email retry cannot duplicate the row; `emitNotify` is proven not to throw when the transport rejects — the "never blocks the booking transaction" clause — and `onFailure` writes a `needs_attention` audit entry, closing WR-04). **07-10 wired it**: confirmation, request received, approved, declined and cancelled all emit post-commit through the one event, and a real lifecycle action now writes a real notification row (proven against a real DB, plus an independent-connection assertion that the emission happens AFTER the durable write commits). **07-14 landed the in-app RENDER half**: a `NotificationBell` popover mounted in both headers (D-92), owner-scoped `markNotificationRead`/`markAllNotificationsRead`, a bounded hidden-aware poller (D-84), and an exhaustive item renderer whose three reminder cases already have copy and icons. Cross-user reads and mark-read writes are mutation-proven impossible, and a `javascript:` href is proven never to reach a rendered anchor. **COMPLETE as of 07-13**, which shipped the fifth and last named event: the four D-85 reminders on an hourly singleton cron at `:45`, at-most-once by `booking_reminder`'s `UNIQUE(booking_id, kind)` claim (the INSERT is the lock; Inngest's 24h dedupe TTL is explicitly not relied on) with the claim written BEFORE the send, so a crash loses a reminder rather than double-sending one — proven under a genuine two-connection race. 07-13 also closed two correctness gaps the plan carried: a reminder whose offset instant predates the booking now sends NOTHING (a range-only predicate fires it immediately — mutation-verified), and the send path re-reads the booking so a booking cancelled after being scheduled is never reminded about. **07-17 closed the CONTENT-ACCURACY gaps 07-VERIFICATION flagged (CR-01/CR-02/WR-04)**: lifecycle emails now render the row's D-96-capped payByLabel/respondByLabel instead of the flat config constants (in-app and email copy agree per D-91, request-received states no number), a zero-refund cancellation sends no refund-issued claim, and the host's copy of a host cancellation states the host's own situation (side discriminant + sendHostCancellationRecord, fee consequence in writing) while the booker's copy and durable pre-fix rows stay byte-unchanged — "keeps everyone informed" no longer means misinformed. |
+| MANAGE-03 | Phase 7 | Complete (status corrected 2026-08-01 by the v1.0 milestone audit — this cell opened "In progress" while its own body concluded COMPLETE as of 07-13 and 07-VERIFICATION.md marks it ✓ SATISFIED; the prefix was never updated when 07-13/07-14/07-17 closed the remaining halves). Originally: 4 of the 5 named events shipped at 07-10. 07-07 built the layer (`fitout/notify` fans out to a durable notification row in step 1 and the email in step 2, so an email retry cannot duplicate the row; `emitNotify` is proven not to throw when the transport rejects — the "never blocks the booking transaction" clause — and `onFailure` writes a `needs_attention` audit entry, closing WR-04). **07-10 wired it**: confirmation, request received, approved, declined and cancelled all emit post-commit through the one event, and a real lifecycle action now writes a real notification row (proven against a real DB, plus an independent-connection assertion that the emission happens AFTER the durable write commits). **07-14 landed the in-app RENDER half**: a `NotificationBell` popover mounted in both headers (D-92), owner-scoped `markNotificationRead`/`markAllNotificationsRead`, a bounded hidden-aware poller (D-84), and an exhaustive item renderer whose three reminder cases already have copy and icons. Cross-user reads and mark-read writes are mutation-proven impossible, and a `javascript:` href is proven never to reach a rendered anchor. **COMPLETE as of 07-13**, which shipped the fifth and last named event: the four D-85 reminders on an hourly singleton cron at `:45`, at-most-once by `booking_reminder`'s `UNIQUE(booking_id, kind)` claim (the INSERT is the lock; Inngest's 24h dedupe TTL is explicitly not relied on) with the claim written BEFORE the send, so a crash loses a reminder rather than double-sending one — proven under a genuine two-connection race. 07-13 also closed two correctness gaps the plan carried: a reminder whose offset instant predates the booking now sends NOTHING (a range-only predicate fires it immediately — mutation-verified), and the send path re-reads the booking so a booking cancelled after being scheduled is never reminded about. **07-17 closed the CONTENT-ACCURACY gaps 07-VERIFICATION flagged (CR-01/CR-02/WR-04)**: lifecycle emails now render the row's D-96-capped payByLabel/respondByLabel instead of the flat config constants (in-app and email copy agree per D-91, request-received states no number), a zero-refund cancellation sends no refund-issued claim, and the host's copy of a host cancellation states the host's own situation (side discriminant + sendHostCancellationRecord, fee consequence in writing) while the booker's copy and durable pre-fix rows stay byte-unchanged — "keeps everyone informed" no longer means misinformed. |
 | GROUP-01 | Phase 8 | Complete |
 | GROUP-02 | Phase 8 | Complete |
 | GROUP-03 | Phase 8 | Complete |
@@ -191,9 +191,26 @@ Which phases cover which requirements. Populated during roadmap creation.
 - v1 requirements: 49 total
 - Mapped to phases: 49 (100%) ✓
 - Unmapped: 0
+- **Verified by a phase VERIFICATION.md: 49 (100%) ✓** — was 42/49 until 2026-08-01; see below
+- Checked off in the requirement lists above: 49 (100%) ✓
 
 > Note: the original summary count of "42 total" undercounted the enumerated requirements; the v1 requirement IDs now number 49 (AUTH 5, LIST 6, AVAIL 5, SEARCH 5, BOOK 7, PAY 6, HOST 3, MANAGE 3, GROUP 5, OPEN 4). All 49 are mapped. (OPEN-01..04 added 2026-07-27 with Phase 9: Open-Capacity Bookings.)
 
+> **v1.0 milestone audit reconciliation (2026-08-01).** The audit found this file disagreeing with itself
+> in three places, all now corrected:
+> 1. **Twelve requirements were `[ ]` unchecked** in the lists above (LIST-01…06, AVAIL-01…05, PAY-04)
+>    while the traceability table below marked every one of them Complete. All twelve are now `[x]`.
+> 2. **MANAGE-03's traceability status read "In progress"** while its own cell body concluded COMPLETE
+>    as of 07-13 and `07-VERIFICATION.md` marks it ✓ SATISFIED. Corrected to Complete.
+> 3. **LIST-01…06 and PAY-04 were *orphaned*** — Phase 2 shipped without running its verification gate,
+>    so these seven appeared in no VERIFICATION.md anywhere in the milestone. Closed by a retroactive
+>    `02-VERIFICATION.md` (2026-08-01, 4/4 success criteria, 144 Phase-2 tests + 3/3 LIST-06 E2E re-run
+>    first-hand). PAY-04 carries one human item — the live PayMongo hosted-KYC round trip, blocked on
+>    PayMongo's sales-gated Platforms beta since 2026-07-10. The *gate* PAY-04 describes is fully proven:
+>    `payoutsEnabled` has exactly two writers in the whole `src/` tree, both inside the signature-verified
+>    webhook, and `deriveBookable` is re-derived server-side at every sell point in Phases 4, 6 and 9.
+
 ---
 *Requirements defined: 2026-06-03*
-*Last updated: 2026-07-27 — added Phase 9 (Open-Capacity Bookings) + OPEN-01..04; v1 count 45 → 49*
+*Last updated: 2026-08-01 — v1.0 milestone audit reconciliation: 12 checkboxes ticked, MANAGE-03 status corrected, Phase-2 orphans closed by a retroactive 02-VERIFICATION.md*
+*Previously: 2026-07-27 — added Phase 9 (Open-Capacity Bookings) + OPEN-01..04; v1 count 45 → 49*

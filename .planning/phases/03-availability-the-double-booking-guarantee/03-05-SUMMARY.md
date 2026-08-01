@@ -51,7 +51,7 @@ patterns-established:
   - "Booker availability surface: venue-tz month grid → day → SlotPicker, day changes fetched via getDayAvailability, selection summarized in the rail above the unchanged bookable/not-bookable CTA fork"
   - "E2E for public availability: direct postgres.js dev-DB seed (host + published listing + operating_hours + block + occupying booking), no login, getByRole assertions, unique ids + cascade-delete teardown"
 
-requirements-completed: []  # AVAIL-03/04/05 booker calendar is BUILT here but stays Pending until the human-verify checkpoint is approved AND the Phase-3 transition flips REQUIREMENTS.md (matches 03-01/02/03/04 convention)
+requirements-completed: [AVAIL-01, AVAIL-02, AVAIL-03, AVAIL-04, AVAIL-05]  # Recorded 2026-08-01 by the v1.0 milestone audit. ORIGINAL NOTE (kept for the record): "[] — AVAIL-03/04/05 booker calendar is BUILT here but stays Pending until the human-verify checkpoint is approved AND the Phase-3 transition flips REQUIREMENTS.md (matches 03-01/02/03/04 convention)". Both conditions were met — the 03-04/03-05 human-verify checkpoints were approved 2026-07-14 (commit c6ee277) and the transition flipped the traceability table — but the flip never reached any Phase-3 SUMMARY, so all five AVAIL ids scored `partial` in the audit's 3-source cross-reference despite 03-VERIFICATION.md marking them VERIFIED. As the phase's LAST plan, this file carries the full set.
 
 # Metrics
 duration: ~22min (executor, interrupted) + orchestrator finish

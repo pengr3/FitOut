@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 7: Bookings Management, Cancellation & Notifications** - My Bookings both sides, cancellation/refund policy tiers, transactional email layer
 - [x] **Phase 8: Group Bookings** - Organizer wraps a paid booking, invites via link/email, attendees RSVP, headcount validated against capacity — 22/22 plans executed & verified; the 08-17 double-charge BLOCKER and deferred items 5/6/7 closed by gap plans 08-18→08-22, money-path fixes proven against the real PayMongo sk_test_ API (completed 2026-07-29)
-- [ ] **Phase 9: Open-Capacity Bookings** - Host-set open/common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail
+- [x] **Phase 9: Open-Capacity Bookings** - Host-set open/common-use mode — many independent bookers share one slot up to a capacity cap (drop-in gym, host-run open court), each paying per head on the existing rail — 25/25 plans executed & verified; `09-VERIFICATION.md` passed **12/12** and all 14 code-review findings closed; the concurrent-overbook cap is proven by a genuine two-connection race, and the one human item (DatePassPicker first-click reliability) was discharged 2026-08-01 against a production build (4×6/6, then 22/22 across all 8 e2e specs). *(Checkbox ticked 2026-08-01 by the v1.0 milestone audit — the phase completed 2026-08-01 but ROADMAP/STATE were never flipped.)* (completed 2026-08-01)
 
 ## Phase Details
 
@@ -284,12 +284,18 @@ Plans:
 
 **Wave 10** *(gap closure — 08-17 UAT double-charge: deferred items 5/6/7)*
 
-- [ ] 08-18-PLAN.md — Item 5 (fix): confirmBooking expire-before-create (mirror updateDeclaredPax) + correct the 3 false idempotency comments + mutation-proven DB regression
-- [ ] 08-20-PLAN.md — Item 7: publishSchema rejects included >= maxOccupancy when extraHeadFee > 0 (unreachable surcharge) + wizard relationship copy
+- [x] 08-18-PLAN.md — Item 5 (fix): confirmBooking expire-before-create (mirror updateDeclaredPax) + correct the 3 false idempotency comments + mutation-proven DB regression
+- [x] 08-20-PLAN.md — Item 7: publishSchema rejects included >= maxOccupancy when extraHeadFee > 0 (unreachable surcharge) + wizard relationship copy
 
 **Wave 11** *(blocked on Wave 10 — 08-18)*
 
-- [ ] 08-19-PLAN.md — Items 5+6 (real-API proof): getCheckoutSession + a gated sk_test_ PayMongo test — duplicate POSTs mint different sessions, expire retires, re-price supersession
+- [x] 08-19-PLAN.md — Items 5+6 (real-API proof): getCheckoutSession + a gated sk_test_ PayMongo test — duplicate POSTs mint different sessions, expire retires, re-price supersession
+- [x] 08-21-PLAN.md — The defect 08-19 case 4 DISCOVERED: a repeat expire returns HTTP 400 "already expired", a recovery livelock. Made expireCheckoutSession idempotent (tolerate exactly that 400; genuine failures still throw and still fail closed), corrected two more false comments, re-proved live
+- [x] 08-22-PLAN.md — Final money-path closure against the real PayMongo `sk_test_` API
+
+*(08-21 and 08-22 were created after the plan-checker pass that produced this Wave 10/11 listing, so
+they were absent from it; the three checkboxes above were left unticked. Both corrected 2026-08-01 by
+the v1.0 milestone audit — `08-VERIFICATION.md` flagged exactly this and passed 5/5 on 2026-07-29.)*
 
 **UI hint**: yes
 

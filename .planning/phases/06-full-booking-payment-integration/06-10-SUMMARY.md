@@ -35,7 +35,7 @@ key-decisions:
 patterns-established:
   - "Single-mode PayMongo signature shape (te-XOR-li) is now a first-class test fixture, so a regression to the both-required predicate is caught"
 
-requirements-completed: [PAY-05, BOOK-06, BOOK-04]
+requirements-completed: [PAY-05, BOOK-06, BOOK-04, BOOK-05, HOST-01]  # BOOK-05 + HOST-01 appended 2026-08-01 by the v1.0 milestone audit — both were live-verified in the 06-09 UAT and closed by the 2026-07-20 re-UAT that this plan gated on, but were never recorded here, so they read as unclosed in the 3-source cross-reference
 
 # Metrics
 duration: ~12min

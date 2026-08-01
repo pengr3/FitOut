@@ -73,15 +73,31 @@ human_verification:
 
 ### Requirements Coverage
 
+> **AMENDED 2026-08-01 (v1.0 milestone audit).** The five rows below were written *before* the
+> 2026-07-20 live re-UAT, when the phase was still `human_needed` and the re-UAT was the open gate.
+> That re-UAT then **PASSED** (booking `42132ab1` → `confirmed`, `payment_id`
+> `pay_C4PW6fRGtUTNm6GsKCpt4P36`, confirmed state rendered in the browser, Resend email `faa1481e`
+> delivered — see the Gaps Summary below and `06-HUMAN-UAT.md`), and this file's frontmatter was
+> flipped to `status: passed`. The rows were not refreshed, so `BOOK-05` and `HOST-01` were left
+> reading `NEEDS HUMAN (REQUIREMENTS.md still [ ] Pending)` — contradicting both this file's own
+> frontmatter and REQUIREMENTS.md, which now marks all five `[x]` Complete. The Status column is
+> corrected below; the Evidence column is preserved verbatim and the correction appended, so the
+> original record is not overwritten.
+
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| PAY-05 | 06-01, 06-02, 06-04, 06-06, 06-07, 06-09, 06-10 | Request-to-book: no charge at request, pay-on-approval, slot frees on decline/expiry/non-payment | SATISFIED (code) / re-UAT pending for live confirm | REQUIREMENTS.md marks `[x]` Complete; hold/free logic live-verified 06-09 and regression-confirmed here; confirm-on-pay code-verified via Case A/B, live round trip pending |
-| BOOK-04 | 06-01, 06-03, 06-04, 06-10 | Instant-book listings confirm immediately on successful payment | SATISFIED (code) / re-UAT pending for live confirm | REQUIREMENTS.md marks `[x]` Complete; fork+hold live-verified in the 06-04 automated suite; confirm path code-verified via Case A/B, live round trip pending |
-| BOOK-05 | 06-01, 06-02, 06-04, 06-06, 06-07, 06-08, 06-09 | Request-to-book creates a pending request the host approves/declines, auto-expiring if no response | NEEDS HUMAN (REQUIREMENTS.md still `[ ]` Pending) | Live-verified in the 06-09 UAT for the request/approve/decline/inbox/countdown surfaces; REQUIREMENTS.md deliberately left unchecked pending the overall phase re-UAT sign-off (06-09's blocking-gate contract) — a project-tracking decision, not new evidence of a defect |
-| BOOK-06 | 06-03, 06-05, 06-10 | Booker receives on-screen and email confirmation of a booking | SATISFIED (code) / re-UAT pending for live email delivery | REQUIREMENTS.md marks `[x]` Complete; email-fire logic code/regression-verified (Case A/B); a real Resend delivery has not been re-observed since the fix |
-| HOST-01 | 06-07, 06-08, 06-09 | Host can approve or decline pending booking requests within a deadline | NEEDS HUMAN (REQUIREMENTS.md still `[ ]` Pending) | Live-verified in the 06-09 UAT (approve/decline atomicity, SLA guard, owner isolation); REQUIREMENTS.md deliberately left unchecked pending overall phase re-UAT sign-off, same as BOOK-05 |
+| PAY-05 | 06-01, 06-02, 06-04, 06-06, 06-07, 06-09, 06-10 | Request-to-book: no charge at request, pay-on-approval, slot frees on decline/expiry/non-payment | ✓ SATISFIED | REQUIREMENTS.md marks `[x]` Complete; hold/free logic live-verified 06-09 and regression-confirmed here; confirm-on-pay code-verified via Case A/B. **Live round trip completed 2026-07-20 — gate closed.** |
+| BOOK-04 | 06-01, 06-03, 06-04, 06-10 | Instant-book listings confirm immediately on successful payment | ✓ SATISFIED | REQUIREMENTS.md marks `[x]` Complete; fork+hold live-verified in the 06-04 automated suite; confirm path code-verified via Case A/B. **Live round trip completed 2026-07-20 — gate closed.** |
+| BOOK-05 | 06-01, 06-02, 06-04, 06-06, 06-07, 06-08, 06-09 | Request-to-book creates a pending request the host approves/declines, auto-expiring if no response | ✓ SATISFIED | Live-verified in the 06-09 UAT for the request/approve/decline/inbox/countdown surfaces; REQUIREMENTS.md was deliberately left unchecked pending the overall phase re-UAT sign-off (06-09's blocking-gate contract) — a project-tracking decision, not new evidence of a defect. **That sign-off landed 2026-07-20; REQUIREMENTS.md now marks it `[x]` Complete. Auto-expiry additionally has standing automated coverage in `src/inngest/functions/request-expiry.ts`, whose terminal mapping the v1.0 integration check confirmed matches `units.ts`'s in-transaction stale-hold sweep byte-for-byte.** |
+| BOOK-06 | 06-03, 06-05, 06-10 | Booker receives on-screen and email confirmation of a booking | ✓ SATISFIED | REQUIREMENTS.md marks `[x]` Complete; email-fire logic code/regression-verified (Case A/B). **A real Resend delivery WAS re-observed on 2026-07-20 (email id `faa1481e`) — this row's "not re-observed" caveat is superseded.** |
+| HOST-01 | 06-07, 06-08, 06-09 | Host can approve or decline pending booking requests within a deadline | ✓ SATISFIED | Live-verified in the 06-09 UAT (approve/decline atomicity, SLA guard, owner isolation); REQUIREMENTS.md was deliberately left unchecked pending overall phase re-UAT sign-off, same as BOOK-05. **That sign-off landed 2026-07-20; REQUIREMENTS.md now marks it `[x]` Complete. `host-requests.ts:161-351` implements the DB-clock SLA-guarded atomic flips, re-confirmed by the v1.0 integration check.** |
 
 **Orphaned requirements:** None — REQUIREMENTS.md's Phase 6 row set (BOOK-04, BOOK-05, BOOK-06, PAY-05, HOST-01) matches the union of `requirements:` fields declared across all ten 06-* plans.
+
+**Frontmatter cross-check (added 2026-08-01):** the milestone audit found that `BOOK-05` and `HOST-01`
+appeared in no Phase-6 SUMMARY's `requirements-completed` list — 06-10 closed out `PAY-05`, `BOOK-06`
+and `BOOK-04` but not these two, because at the time they were still gated on the re-UAT. Both are now
+recorded in `06-10-SUMMARY.md` (the plan that closed the phase), so all three sources agree.
 
 ### Anti-Patterns Found
 
