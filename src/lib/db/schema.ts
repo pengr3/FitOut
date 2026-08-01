@@ -716,6 +716,41 @@ export const booking = pgTable(
     // MONEY PATH) and deliberately un-indexed (it is only ever read by primary key, alongside the rest of
     // the booking row).
     checkoutSessionId: text("checkout_session_id"),
+    // T-08-79 — the COMPARE-AND-SWAP CHECKOUT LEASE. Non-NULL means "a checkout attempt for this booking
+    // is in flight"; the value is the instant that attempt claimed it. Claimed and released by
+    // src/lib/payments/checkout-lease.ts, which is the single authority for it.
+    //
+    // WHY A COLUMN AND NOT `pg_try_advisory_lock`. The expire-before-create gate above (checkoutSessionId)
+    // closed the SEQUENTIAL double-submit but is READ-THEN-ACT: two CONCURRENT confirmBooking calls for one
+    // holdId both read a stale/NULL session id, both skip the expire, and both mint an independently payable
+    // PayMongo session. Only the sequential half of that had been closed — after a real ₱1,470.00 capture
+    // against a ₱735.00 booking in Phase-8 UAT — and on the qrph rail a captured overcharge is not
+    // API-refundable at all (refund-rail.ts fails closed), so the second capture costs an out-of-band
+    // operator refund.
+    //
+    // A session-scoped advisory lock cannot close it here. src/lib/db/index.ts is
+    // `drizzle(postgres(DATABASE_URL))` with NO options — postgres.js's default pool of max: 10 — and a
+    // session advisory lock belongs to the BACKEND CONNECTION that took it. Across the `await` boundaries of
+    // a server action Drizzle pins no connection without an explicit transaction, so the release can land on
+    // a different backend, `pg_advisory_unlock` returns false, and the lock leaks until that pooled
+    // connection is recycled — with no TTL available to heal it. (units.ts documents the same hazard when it
+    // deliberately chose the TRANSACTION-scoped variant.) The xact-scoped variant is unusable for the
+    // opposite reason: it releases at COMMIT, which is BEFORE the two PayMongo HTTP round-trips even begin —
+    // and a transaction held ACROSS those round-trips is the anti-pattern this whole design exists to avoid.
+    // A column claimed by one autocommit `UPDATE … WHERE <free> RETURNING` holds its row lock only for the
+    // duration of that one statement, is atomic under READ COMMITTED (a blocked racer re-evaluates the WHERE
+    // against the newly committed row version and matches zero rows), carries its own TTL as a term of the
+    // predicate, and is INSPECTABLE — an operator can list every wedged checkout with
+    // `SELECT id, checkout_lock_at FROM booking WHERE checkout_lock_at IS NOT NULL`.
+    //
+    // Nullable, no default, backfill-free — every existing row reads "no checkout in flight" by
+    // construction — and deliberately un-indexed: like checkoutSessionId directly above it, this column is
+    // only ever touched by primary key.
+    //
+    // STRUCTURALLY INERT FOR OCCUPANCY. It appears in no booking_no_overlap EXCLUDE predicate, no in-tx
+    // stale-hold sweep, no cron expiry sweep and no read model, so it can never change what a slot's
+    // availability says. A lease is about who may talk to PayMongo, never about who holds the slot.
+    checkoutLockAt: timestamp("checkout_lock_at", { withTimezone: true }),
     // The PAYMENT RAIL the booker actually used ("card" / "gcash" / "paymaya" / "qrph" / "dob_ubp" / …),
     // captured by the same payment.paid webhook that captures paymentId, from the SAME verified event
     // resource (never a client field). Phase-7 addition (07-09).

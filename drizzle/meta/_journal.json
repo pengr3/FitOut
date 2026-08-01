@@ -162,6 +162,13 @@
       "when": 1785401588124,
       "tag": "0022_booking_exclusion_v3",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785570443312,
+      "tag": "0023_booking_checkout_lease",
+      "breakpoints": true
     }
   ]
 }

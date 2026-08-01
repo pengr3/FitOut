@@ -91,3 +91,32 @@ export const PRE_SLA_REMINDER_HOURS = Number(process.env.PRE_SLA_REMINDER_HOURS 
 export const PRE_SESSION_BOOKER_REMINDER_HOURS = Number(process.env.PRE_SESSION_BOOKER_REMINDER_HOURS ?? 24);
 /** The host needs prep lead time, not cancellation lead time. */
 export const PRE_SESSION_HOST_REMINDER_HOURS = Number(process.env.PRE_SESSION_HOST_REMINDER_HOURS ?? 12);
+
+// ---------------------------------------------------------------------------
+// Phase-8 residual closure (T-08-79, quick task 260801-kv2) — the checkout-lease TTL. Same contract as
+// everything above: the exported NAME is bound into the lease predicate, never a literal at a call site.
+// ---------------------------------------------------------------------------
+
+/** T-08-79 checkout-lease TTL, in SECONDS. `src/lib/payments/checkout-lease.ts` claims a compare-and-swap
+ *  lease on a booking before confirmBooking talks to PayMongo; a lease older than this is re-claimable, so a
+ *  crashed or SIGKILLed attempt self-heals with no sweep, no cron and no operator.
+ *
+ *  WHY 90, IN BOTH DIRECTIONS — this number is bounded from below AND above, and the floor is the dangerous
+ *  side:
+ *   - FLOOR. The lease covers exactly two PayMongo HTTPS round-trips (expire + create) plus two local
+ *     UPDATEs. `paymongoFetch` sets NO timeout — plain fetch, no AbortSignal — so a degraded provider can
+ *     take tens of seconds. A TTL shorter than that slow path would let a retry OVERTAKE a still-live
+ *     attempt and re-open the very race this closes. 90s is roughly 45x the normal ~2s cost.
+ *   - CEILING. A crashed attempt must not wedge the booker for a meaningful slice of the 60-minute
+ *     PAYMENT_WINDOW_MINUTES — 90s is 2.5% of it — and one wait-then-retry must still fit the 5/60s
+ *     confirm-pay budget, which it does with room to spare.
+ *
+ *  NAMED RESIDUAL (T-KV2-04, accepted): this bounds the LEASE, not the HTTP call. A request hung beyond 90s
+ *  can still be overtaken; adding an AbortSignal.timeout to `paymongoFetch` is the follow-up that would make
+ *  the bound total.
+ *
+ *  `Math.round` is load-bearing, not decoration: the value is bound into `make_interval(secs => ...::int)`,
+ *  so a fractional env override would raise a cast error ON THE MONEY PATH instead of quietly working. */
+export const CHECKOUT_LEASE_TTL_SECONDS = Math.round(
+  Number(process.env.CHECKOUT_LEASE_TTL_SECONDS ?? 90),
+);
