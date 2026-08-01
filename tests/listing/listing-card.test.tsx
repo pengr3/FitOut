@@ -35,6 +35,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { ListingCard, type ListingCardData } from "@/components/listing/listing-card";
+import {
+  HOURS_MISSING_STATE,
+  HOURS_MISSING_REASON,
+  HOURS_MISSING_CTA,
+} from "@/lib/listing/hours-signal";
 
 afterEach(cleanup);
 
@@ -123,5 +128,75 @@ describe("ListingCard price line by occupancy mode (09-14)", () => {
     // The host's own set rates, not the all-in booker price — exactly as this card has always printed them.
     expect(container.textContent ?? "").toContain("₱307.50/hr · ₱1,800.00/day");
     expect(container.textContent ?? "").not.toContain("/person");
+  });
+});
+
+// v1.0 audit finding #4 — the no-weekly-hours notice on the host's own tile.
+//
+// The card is SHARED with Phase-4 search cards, which is the whole reason the render guard is
+// `hoursMissing && availabilityHref` rather than `hoursMissing` alone (T-IU7-02): a search card supplies
+// NEITHER prop, so a host-management signal is structurally unable to reach a booker-facing surface —
+// the same "the prop truly gates it" discipline case (2) above already establishes for the Availability
+// link. Every assertion below is against the IMPORTED constants, never a re-typed literal; that is the
+// point of the constants existing, and a copy edit in hours-signal.ts must not need an edit here.
+describe("ListingCard no-hours notice (v1.0 audit finding #4)", () => {
+  function ctaAnchor(container: HTMLElement): HTMLAnchorElement | null {
+    return (
+      (Array.from(container.querySelectorAll("a")).find(
+        (a) => (a.textContent ?? "").trim() === HOURS_MISSING_CTA,
+      ) as HTMLAnchorElement | undefined) ?? null
+    );
+  }
+
+  it("(7) shows the state, the reason and the way out on a host card whose listing has no hours", () => {
+    const { container } = render(
+      <ListingCard
+        listing={makeListing()}
+        bookable
+        hoursMissing
+        availabilityHref="/host/listings/abc/availability"
+        editHref="/host/listings/abc/edit"
+      />,
+    );
+
+    const text = container.textContent ?? "";
+    expect(text).toContain(HOURS_MISSING_STATE);
+    expect(text).toContain(HOURS_MISSING_REASON);
+
+    // Rule O7: the way out is a real link into the editor the card already knows the route to.
+    const cta = ctaAnchor(container);
+    expect(cta).not.toBeNull();
+    expect(cta?.getAttribute("href")).toBe("/host/listings/abc/availability");
+
+    // The badge is untouched — this listing is still Live, the notice is additional information.
+    expect(screen.getByText("Live")).toBeTruthy();
+  });
+
+  it("(8) shows nothing when the host's listing HAS hours", () => {
+    const { container } = render(
+      <ListingCard
+        listing={makeListing()}
+        bookable
+        hoursMissing={false}
+        availabilityHref="/host/listings/abc/availability"
+        editHref="/host/listings/abc/edit"
+      />,
+    );
+
+    const text = container.textContent ?? "";
+    expect(text).not.toContain(HOURS_MISSING_STATE);
+    expect(text).not.toContain(HOURS_MISSING_REASON);
+    expect(ctaAnchor(container)).toBeNull();
+  });
+
+  it("(9) never leaks the host-only notice onto a search card (availabilityHref omitted)", () => {
+    const { container } = render(<ListingCard listing={makeListing()} bookable hoursMissing />);
+
+    // Positive control: the search card renders, it simply carries no host-management signal.
+    expect(screen.getByText("Sunset Court")).toBeTruthy();
+    const text = container.textContent ?? "";
+    expect(text).not.toContain(HOURS_MISSING_STATE);
+    expect(text).not.toContain(HOURS_MISSING_REASON);
+    expect(ctaAnchor(container)).toBeNull();
   });
 });
