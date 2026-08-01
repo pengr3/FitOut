@@ -42,6 +42,11 @@ import { quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { createCheckoutSession, expireCheckoutSession } from "@/lib/paymongo";
 import { PAYMENT_WINDOW_MINUTES, APPROVAL_SLA_HOURS } from "@/lib/payments/config";
+import {
+  claimCheckoutLease,
+  releaseCheckoutLease,
+  CHECKOUT_IN_FLIGHT_MESSAGE,
+} from "@/lib/payments/checkout-lease";
 import { bookingReference } from "@/lib/booking/reference";
 import { composeDeadlineLabel, composeWhenLabel } from "@/lib/booking/when-label";
 import { emitNotify } from "@/lib/notifications";
@@ -64,12 +69,21 @@ export type PlaceHoldResult =
  * confirmBooking failure shapes (SUCCESS redirects — off-site to the hosted checkout on a fresh pay, or to
  * the confirmation page on an idempotent already-confirmed re-entry). `checkout` is the calm "couldn't
  * start checkout / going too fast" retry state (the hold is still active — never a red error).
+ *
+ * `in-flight` (T-08-79) is the checkout-lease refusal: ANOTHER attempt by this same booker is already
+ * talking to PayMongo for this booking. It is a SEPARATE reason and NOT a flavour of `checkout`, and that
+ * distinction is load-bearing rather than taxonomic: reserve-view.tsx flips the ENTIRE page to
+ * <HoldExpiredState> for `expired | denied | checkout`, and this booker's hold has NOT expired — it is
+ * alive and their own other attempt is winning. Folding it into `checkout` would tell them a falsehood AND
+ * destroy the page they would retry from. ReserveActions renders it inline instead, so `in-flight` must
+ * stay out of that three-literal list.
  */
 export type ConfirmResult =
   | { ok: false; reason: "sign-in"; error: string }
   | { ok: false; reason: "denied"; error: string }
   | { ok: false; reason: "expired"; error: string }
-  | { ok: false; reason: "checkout"; error: string };
+  | { ok: false; reason: "checkout"; error: string }
+  | { ok: false; reason: "in-flight"; error: string };
 
 /** updateDeclaredPax failure shapes. Every one is a calm, retryable sentence — nothing here is red. */
 export type UpdatePaxResult = { ok: true } | { ok: false; error: string };
@@ -799,6 +813,29 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     SET expires_at = GREATEST(expires_at, now() + make_interval(mins => ${PAYMENT_WINDOW_MINUTES}))
     WHERE id = ${holdId} AND booker_id = ${userId} AND status IN ('pending','approved')`);
 
+  // ── CLAIM THE CHECKOUT LEASE (T-08-79, quick task 260801-kv2). ──────────────────────────────────────
+  // One atomic compare-and-swap on booking.checkout_lock_at, in AUTOCOMMIT — it has COMMITTED before the
+  // first PayMongo fetch below. A concurrent second caller's claim matches zero rows and is refused HERE,
+  // so it never reaches the expire-before-create gate and never mints a session. Full reasoning (including
+  // why this is a column and not an advisory lock) lives in src/lib/payments/checkout-lease.ts.
+  //
+  // Placed as LATE as possible — immediately before the block below — so every guard above it (sign-in,
+  // owner gate, confirmed short-circuit, status, the D-94 cutoff, the rate limit, the null-quote bail) can
+  // still return without a lease outstanding.
+  const lease = await claimCheckoutLease(db, { holdId, bookerId: userId });
+  if (!lease.claimed) {
+    await recordAudit({
+      actorId: userId,
+      action: "confirm_pay",
+      outcome: "denied",
+      meta: { reason: "checkout_in_flight", holdId },
+    });
+    // A money-adjacent refusal is non-repudiable (WR-06) — this mirrors the rate-limit denial four
+    // statements above. The loser does NOT release: it holds nothing, and releaseCheckoutLease requires the
+    // claimed instant it never received, so it could not release the winner's lease even by mistake.
+    return { ok: false, reason: "in-flight", error: CHECKOUT_IN_FLIGHT_MESSAGE };
+  }
+
   // ── EXPIRE-BEFORE-CREATE (deferred item 5 — the double-charge BLOCKER). ─────────────────────────────
   // PayMongo does NOT honor the Idempotency-Key on POST /v1/checkout_sessions (probed against sk_test_:
   // two byte-identical POSTs mint two DIFFERENT, independently payable session ids). So a plain
@@ -822,12 +859,27 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // session — never a permanent fail-closed loop. A genuine expire failure (500 / network / any other 400)
   // still throws and still refuses below.
   //
-  // ⚠️ CONCURRENCY RESIDUAL (T-08-79, ACCEPTED): this read-then-act gate is UNLOCKED, so two truly
-  // simultaneous confirmBooking calls for one holdId can both read a stale/NULL checkoutSessionId, both
-  // skip the expire, and both mint a payable session. NOT closed here on purpose — a SELECT … FOR UPDATE
-  // spanning expire+create would hold a DB row lock across two external PayMongo HTTP round-trips (a worse
-  // anti-pattern) and would diverge from the accepted updateDeclaredPax shape (CR-02, verified 08-13). This
-  // gate covers the SEQUENTIAL double-submit (the observed UAT failure), not a concurrent double-click.
+  // ⚠️ CONCURRENCY. This block is read-then-act, but it is NO LONGER UNLOCKED: the compare-and-swap lease
+  // claimed a few lines above admits exactly one attempt per booking, so a concurrent second caller is
+  // refused before it ever reaches here and can never mint a parallel payable session. T-08-79 is closed by
+  // that lease (quick task 260801-kv2); this block's own job is unchanged — it covers the SEQUENTIAL
+  // double-submit, which is the failure actually observed in UAT.
+  //
+  // ⚠️ AND THE OLD RULE STILL STANDS, WHICH IS WHY IT IS RESTATED RATHER THAN DELETED: a SELECT … FOR UPDATE
+  // spanning expire+create would hold a DB row lock across two external PayMongo HTTP round-trips, and that
+  // is still forbidden. The lease is NOT that. It is one autocommit UPDATE that has COMMITTED before the
+  // first fetch, so no lock is ever held across the network. Anyone tempted to "simplify" the lease into a
+  // transaction around this block is re-introducing the exact anti-pattern the residual was originally
+  // accepted to avoid — and would make things worse, not better.
+  //
+  // Crash recovery is the lease TTL (CHECKOUT_LEASE_TTL_SECONDS, src/lib/payments/config.ts): a process that
+  // dies mid-flight leaves a lease behind, and it becomes re-claimable on its own with no sweep and no
+  // operator.
+  //
+  // CORRECTION to what this comment used to claim: this action no longer "matches updateDeclaredPax", and it
+  // should not. That action mints no payable session — it only EXPIRES one and re-freezes an amount — so its
+  // worst concurrent outcome is a redundant expire, not a double charge. It is deliberately out of scope for
+  // the lease.
   if (bk.checkoutSessionId != null) {
     try {
       await expireCheckoutSession(bk.checkoutSessionId);
@@ -838,6 +890,10 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
         outcome: "needs_attention",
         meta: { holdId, checkoutSessionId: bk.checkoutSessionId },
       });
+      // Release the lease before refusing. Without this, the DOCUMENTED recovery — the booker's retry, whose
+      // repeat expire returns the tolerated already-expired 400 and proceeds (08-19 case 4 / 08-21) — would
+      // be blocked for the whole TTL, turning a one-retry cost into a 90-second dead end.
+      await releaseCheckoutLease(db, holdId, lease.lockedAt);
       return { ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again." };
     }
   }
@@ -858,8 +914,8 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // amount into the key makes a re-priced hold mint a session for the price actually agreed. A double-click
   // at the SAME amount resolves to the same KEY — but PayMongo mints a new session regardless (the key is
   // not honored on checkout-session creation), so the expire-before-create above is what retires the
-  // superseded session on a SEQUENTIAL resubmission (a concurrent double-click is the accepted T-08-79
-  // residual).
+  // superseded session on a SEQUENTIAL resubmission, and the checkout lease above that is what refuses a
+  // CONCURRENT double-click before it can mint one at all (T-08-79, closed by quick task 260801-kv2).
   //
   // ⚠️ THE ONE-LIVE-SESSION INVARIANT IS **NOT** HELD BY THIS KEY (CR-02). Precisely because the key is
   // amount-scoped, a re-priced hold mints a genuinely NEW session — and the SUPERSEDED one stays payable in
@@ -897,6 +953,9 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       outcome: "error",
       meta: { reason: "paymongo_error", holdId },
     });
+    // Release the lease before refusing, for the same reason as the expire-failure branch: without it the
+    // documented NOT-TRAPPED recovery above would be blocked for the whole TTL.
+    await releaseCheckoutLease(db, holdId, lease.lockedAt);
     return { ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again." };
   }
 
@@ -914,9 +973,14 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // strand them mid-payment with money about to move and no page to move it on. The existing expiry /
   // handleGoneSlot machinery (D-58) is what resolves that case. Say nothing to the client, and do not
   // "harden" this into a refusal.
+  //
+  // The checkout lease is CLEARED in this SAME statement (T-08-79), never a later one: the write that names
+  // the session is the moment this attempt is done talking to PayMongo, and clearing in a separate statement
+  // would leave a window — the identical reasoning as updateDeclaredPax's re-freeze. If this owner+live-scoped
+  // write matches zero rows (the hold lapsed), the lease is simply left set and the TTL clears it.
   await db
     .update(booking)
-    .set({ checkoutSessionId: checkout.id })
+    .set({ checkoutSessionId: checkout.id, checkoutLockAt: null })
     .where(
       and(
         eq(booking.id, holdId),

@@ -175,8 +175,10 @@ export type CheckoutSession = { id: string; checkoutUrl: string };
  * two DIFFERENT, independently payable session ids. It is therefore NOT a double-charge guard. The caller
  * (confirmBooking / updateDeclaredPax) must expire the previously-persisted session via
  * expireCheckoutSession BEFORE creating a new one; that is the only mechanism that retires a superseded
- * session on a SEQUENTIAL resubmission (a truly concurrent double-click is an accepted residual — the
- * read-then-act gate is unlocked, matching updateDeclaredPax).
+ * session on a SEQUENTIAL resubmission. A truly CONCURRENT double-click is handled one layer up instead:
+ * confirmBooking claims a compare-and-swap lease on the booking (src/lib/payments/checkout-lease.ts) before
+ * it calls this function at all, so a second simultaneous caller is refused before any session is minted
+ * (T-08-79, closed by quick task 260801-kv2).
  */
 export async function createCheckoutSession(input: {
   amountCents: number;
