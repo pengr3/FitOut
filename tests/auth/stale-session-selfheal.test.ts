@@ -26,20 +26,36 @@
 //   - Case 4 is the open-redirect allowlist (threat T-IR9-01). `next` is attacker-controlled.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// MUTATIONS — NOT YET EXECUTED at this commit. This block is filled in with the VERBATIM observed
-// failure output once the implementation exists and both mutations have actually been run.
-// A mutation that is described but never run is a comment; predictions are hypotheses.
+// MUTATIONS — BOTH EXECUTED 2026-08-05. A mutation that is described but never run is a comment.
+// Predictions are hypotheses; what follows is the OBSERVED output, verbatim.
 //
-//   MUTATION 2 (planned) — delete `for (const c of emitted) out.headers.append("set-cookie", c);`
-//     from sessionCheckResponse (src/lib/session-check.ts).
-//   MUTATION 3 (planned) — drop the `session?.user ? "/" :` condition so the redirect target is
-//     always `target`.
+//   MUTATION 2 — delete `for (const c of emitted) out.headers.append("set-cookie", c);` from
+//     sessionCheckResponse (src/lib/session-check.ts).
+//     PREDICTED: case 1 RED "and possibly 3".
+//     OBSERVED — Tests  1 failed | 3 passed (4):
+//       × case 1 (THE BUG): a stale session cookie is cleared and the user is sent back to /login
+//         AssertionError: expected undefined not to be undefined
+//          ❯ tests/auth/stale-session-selfheal.test.ts:173:25
+//     DIVERGENCE FROM THE PREDICTION, resolved by measuring rather than by adjusting code: case 3
+//     stayed GREEN. Better Auth's forwarded header is what carries case 1; the explicit fallback is
+//     what carries case 3. They cover DISJOINT paths and neither substitutes for the other — which
+//     is precisely why both exist. Restored by EDITING THE FILE BACK -> 4/4 green.
 //
-// RESTORE EVIDENCE WILL BE THE GREEN RE-RUN, NOT git. src/lib/session-check.ts is UNTRACKED while
-// these mutations run, and `git diff --exit-code` is blind to untracked files. `git add -N` does NOT
-// fix that — it pins an EMPTY index baseline (so the gate can never pass) and makes
-// `git checkout --` truncate the file to 0 bytes. Both verified empirically in this repo. Each
-// mutation is restored by EDITING THE FILE BACK.
+//   MUTATION 3 — drop the `signedIn ? "/" :` condition so the redirect target is always `target`.
+//     PREDICTED: case 2 RED (constraint 4 held by CODE, not luck).
+//     OBSERVED — Tests  1 failed | 3 passed (4):
+//       × case 2 (CONVERSE, constraint 4): a VALID session is still bounced to / and is NOT cleared
+//         AssertionError: expected '/login' to be '/' // Object.is equality
+//         Expected: "/"
+//         Received: "/login"
+//          ❯ tests/auth/stale-session-selfheal.test.ts:193:38
+//     Restored by EDITING THE FILE BACK -> 4/4 green.
+//
+// RESTORE EVIDENCE IS THE GREEN RE-RUN, NOT git. src/lib/session-check.ts was UNTRACKED while these
+// mutations ran, and `git diff --exit-code` is blind to untracked files. `git add -N` does NOT fix
+// that — it pins an EMPTY index baseline (so the gate can never pass) and makes `git checkout --`
+// truncate the file to 0 bytes. Both verified empirically in this repo. Each mutation was restored
+// by EDITING THE FILE BACK.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
