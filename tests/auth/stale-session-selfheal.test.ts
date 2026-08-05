@@ -51,11 +51,24 @@
 //          ❯ tests/auth/stale-session-selfheal.test.ts:193:38
 //     Restored by EDITING THE FILE BACK -> 4/4 green.
 //
-// RESTORE EVIDENCE IS THE GREEN RE-RUN, NOT git. src/lib/session-check.ts was UNTRACKED while these
-// mutations ran, and `git diff --exit-code` is blind to untracked files. `git add -N` does NOT fix
-// that — it pins an EMPTY index baseline (so the gate can never pass) and makes `git checkout --`
-// truncate the file to 0 bytes. Both verified empirically in this repo. Each mutation was restored
-// by EDITING THE FILE BACK.
+// BOTH MUTATIONS WERE RE-RUN against the FINAL shipped implementation after it was restructured to
+// call `auth.handler` instead of `auth.api.getSession` (see below); the output above is from those
+// re-runs, so the record describes the code that actually ships, not an earlier draft.
+//
+// ⚠️ WHAT THIS FILE STRUCTURALLY CANNOT CATCH — read before trusting it alone.
+// The shipped module MUST route through `auth.handler`. Switching it back to `auth.api.getSession`
+// leaves EVERY case in this file green while shipping a broken cookie clear: in-process, both calls
+// return identical headers. The corruption happens only inside a REAL Next.js route handler, where
+// the nextCookies() after-hook replays the header through next/headers cookies() and drops
+// `Max-Age=0`, so the browser keeps a zombie empty cookie instead of deleting it. That regression is
+// caught ONLY by e2e/stale-session-selfheal.spec.ts, which asserts the cookie is gone from a real
+// Chrome cookie jar. It was found there, not here. Do not delete that spec.
+//
+// RESTORE EVIDENCE IS THE GREEN RE-RUN, NOT git. src/lib/session-check.ts was UNTRACKED while the
+// first round of these mutations ran, and `git diff --exit-code` is blind to untracked files.
+// `git add -N` does NOT fix that — it pins an EMPTY index baseline (so the gate can never pass) and
+// makes `git checkout --` truncate the file to 0 bytes. Both verified empirically in this repo. Each
+// mutation was restored by EDITING THE FILE BACK.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";

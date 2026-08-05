@@ -24,8 +24,11 @@
 //
 // WHERE THE CLEARING HEADER COMES FROM. Better Auth already produces exactly the right header:
 // /get-session calls deleteSessionCookie(ctx) when findSession returns null or the row is expired
-// (dist/api/routes/session.mjs). We take it VERBATIM via getSession({ asResponse: true }) — cookie
-// names, prefixes and attributes are NEVER hand-rolled here.
+// (dist/api/routes/session.mjs). We take it VERBATIM off `auth.handler`'s Response — cookie names,
+// prefixes and attributes are NEVER hand-rolled here. See the long comment at the call site for why
+// it MUST be auth.handler and not auth.api.getSession: the direct server-API call routes the header
+// through nextCookies() -> next/headers cookies(), which silently drops `Max-Age=0` and leaves the
+// browser holding a zombie empty cookie. That was caught in a real browser, not in review.
 //
 // THE ONE PATH BETTER AUTH SKIPS, and why the fallback below is not optional. session.mjs:41-42 is
 // `const sessionCookieToken = await ctx.getSignedCookie(...); if (!sessionCookieToken) return null;`
@@ -100,10 +103,11 @@ export function safeReturnPath(raw: string | null): string {
  * makeTestAuth(testDb) while the route handler injects the production instance.
  */
 export type SessionCheckAuth = {
-  api: {
-    getSession: (options: { headers: Headers; asResponse: true }) => Promise<Response>;
-  };
+  /** Better Auth's HTTP entry point — the same one src/app/api/auth/[...all]/route.ts mounts. */
+  handler: (request: Request) => Promise<Response>;
   $context: Promise<{
+    /** Origin + basePath, e.g. "http://localhost:3000/api/auth". */
+    baseURL: string;
     authCookies: {
       sessionToken: { name: string; attributes: Record<string, unknown> };
     };
@@ -128,17 +132,47 @@ export async function sessionCheckResponse(
   let emitted: string[] = [];
 
   try {
-    // asResponse is LOAD-BEARING: it is the only way deleteSessionCookie's headers are reachable.
-    const res = await auth.api.getSession({ headers: request.headers, asResponse: true });
+    // WHY auth.handler AND NOT auth.api.getSession — measured in a real browser, not assumed.
+    //
+    // Both return the same JSON and the same Set-Cookie headers. The difference is what Next.js
+    // then does to them. `auth.api.getSession()` is a DIRECT server-API call, so Better Auth's
+    // nextCookies() after-hook treats it as "no HTTP response of its own" and replays the headers
+    // through next/headers cookies(). This route handler IS a writable cookie scope, so unlike in
+    // an RSC that replay SUCCEEDS — and corrupts the header on the way:
+    //
+    //   emitted by Better Auth : better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax
+    //   received by Chrome     : better-auth.session_token=;            Path=/; HttpOnly; SameSite=lax
+    //
+    // parseSetCookieHeader maps "Max-Age=0" to the NUMBER 0, and next/headers cookies().set() drops
+    // a FALSY maxAge. Next then merges that request-scoped store OVER the response, so the correct
+    // header cannot be rescued from this side — measured: appending it and re-setting it via
+    // NextResponse.cookies both lost to the merge. Result: a zombie cookie with an empty value that
+    // the browser keeps, instead of a deleted one.
+    //
+    // Going through auth.handler routes the call via better-call, which sets `_flag: "router"`, and
+    // the nextCookies after-hook returns early on exactly that flag — because a routed call already
+    // carries its Set-Cookie on a real HTTP response, which is precisely our situation. So there is
+    // exactly ONE writer of Set-Cookie here and it is Better Auth's own header, verbatim.
+    //
+    // It also removes a TEST/PROD DIVERGENCE that is the reason this class of bug hides: the
+    // in-process tests inject makeTestAuth() and take the same routed path production takes.
+    const { baseURL } = await auth.$context;
+    const res = await auth.handler(
+      new Request(`${baseURL}/get-session`, { headers: request.headers }),
+    );
+
+    // NOT AUTHORITATIVE unless it is a clean 200. Better Auth answers 200 + body `null` for "no
+    // session", so anything else (429 from the rateLimit config, 5xx) means we do not KNOW. Never
+    // clear a cookie on a non-200: a rate-limited burst must not log a legitimate user out.
+    if (res.status !== 200) return degradedRedirect(target, request);
+
     session = (await res.json()) as { user?: unknown } | null;
     emitted = res.headers.getSetCookie();
   } catch {
     // Bias EVERY failure toward "/login is reachable", never toward the lockout. A logged-in user
     // briefly seeing the public login page during a DB outage is not a security event — the real
     // gate is the per-page auth.api.getSession() on each protected route.
-    const degraded = NextResponse.redirect(new URL(target, request.url));
-    degraded.headers.set("cache-control", "no-store");
-    return degraded;
+    return degradedRedirect(target, request);
   }
 
   const signedIn = Boolean(session?.user);
@@ -156,6 +190,8 @@ export async function sessionCheckResponse(
     if (!alreadyCleared) {
       // The measured bad-signature / rotated-secret path: Better Auth returned before
       // deleteSessionCookie, so nothing was emitted and the cookie would survive forever.
+      // Names and attributes still come from the framework so production's __Secure- prefix is
+      // never hand-typed. NextResponse's own cookies.set() serializes maxAge:0 correctly.
       out.cookies.set(sessionToken.name, "", { ...sessionToken.attributes, maxAge: 0 });
     }
   }
@@ -163,4 +199,15 @@ export async function sessionCheckResponse(
   // No CDN or router cache may memoise a redirect whose target depends on cookie state.
   out.headers.set("cache-control", "no-store");
   return out;
+}
+
+/**
+ * The failure/degraded redirect: go where the user was headed, WITHOUT touching any cookie.
+ * Every uncertain path routes here, so the worst case is "the login page is reachable", never the
+ * lockout and never a cleared cookie we were not sure about.
+ */
+function degradedRedirect(target: string, request: NextRequest): Response {
+  const res = NextResponse.redirect(new URL(target, request.url));
+  res.headers.set("cache-control", "no-store");
+  return res;
 }
