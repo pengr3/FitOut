@@ -20,13 +20,37 @@
 // human check cover. Noted so nobody mistakes this file for full proof of the browser's behaviour.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// MUTATION 1 — NOT YET EXECUTED at this commit. Filled in with the VERBATIM observed failure output
-// once the middleware rewrite exists and the mutation has actually been run. A mutation that is
-// described but never run is a comment; predictions are hypotheses.
+// MUTATION 1 — EXECUTED 2026-08-05. A mutation that is described but never run is a comment;
+// predictions are hypotheses. What follows is the OBSERVED output, verbatim.
 //
-//   MUTATION 1 (planned) — restore the OLD line in src/middleware.ts:
+//   MUTATION 1 — restore the OLD line in src/middleware.ts (literally the shipped bug):
 //     `return NextResponse.redirect(new URL("/", request.url))` in place of the delegation.
-//     That is literally the shipped bug, so this file should go RED where it counts.
+//     PREDICTED: "the Layer 1 cases and case 6 RED".
+//     OBSERVED — Tests  5 failed | 2 passed (7):
+//       × case 1: a cookie-bearing /login request is sent to the verifier, NOT to /
+//         AssertionError: expected '/' to be '/auth/session-check' // Object.is equality
+//         Expected: "/auth/session-check"
+//         Received: "/"
+//          ❯ tests/auth/login-reachable-after-reset.test.ts:142:32
+//       × case 2: the post-reset ?reset=1 notice survives the delegation hop
+//         AssertionError: expected null to be '/login?reset=1' // Object.is equality
+//          ❯ tests/auth/login-reachable-after-reset.test.ts:150:54
+//       × case 5: /signup delegates identically
+//         AssertionError: expected '/' to be '/auth/session-check' // Object.is equality
+//          ❯ tests/auth/login-reachable-after-reset.test.ts:168:32
+//       × case 6: middleware -> session-check -> browser jar -> middleware, in one process
+//         AssertionError: expected '/' to be '/auth/session-check' // Object.is equality
+//          ❯ tests/auth/login-reachable-after-reset.test.ts:191:28
+//       × case 6b (constraint 4): the same journey with a VALID session still ends at /
+//         AssertionError: expected '/' to be '/auth/session-check' // Object.is equality
+//          ❯ tests/auth/login-reachable-after-reset.test.ts:235:27
+//     DIVERGENCE FROM THE PREDICTION, recorded rather than smoothed over: NOT every Layer 1 case
+//     went red. Cases 3 (no cookie) and 4 (loop guard) stayed GREEN, because neither reaches the
+//     delegation line — case 3 returns at the cookie check and case 4 returns at the guard, which
+//     deliberately sits ABOVE it. That is the correct blast radius for this mutation, and it is a
+//     useful negative result: case 4 alone would NOT have caught the shipped bug, so it is not
+//     redundant with case 1, it is guarding a different failure (ERR_TOO_MANY_REDIRECTS).
+//     Restored by EDITING THE FILE BACK -> 7/7 green.
 //
 // NOTE ON THE RESTORE GATE, so a later reader does not read a missing gate into it: src/middleware.ts
 // is a TRACKED file that this plan LEGITIMATELY modifies, so `git diff --exit-code src/middleware.ts`
