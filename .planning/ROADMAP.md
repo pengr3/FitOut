@@ -412,3 +412,64 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Bookings Management, Cancellation & Notifications | 20/20 | Complete   | 2026-07-24 |
 | 8. Group Bookings | 22/22 | Complete (double-charge BLOCKER + deferred items 5/6/7 closed by gap plans 08-18→08-22; money-path fixes proven against the real PayMongo sk_test_ API; verifier passed 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | 16/16 | **ALL 16 PLANS EXECUTED (2026-07-31) — phase NOT yet closed; verification + close are the orchestrator's.** (**Waves 1-7 COMPLETE.** 09-16's human walkthrough discharged the phase's ONE manual-only verification: three REAL PayMongo `sk_test_` `checkout_session.payment.paid` deliveries confirmed three drop-in bookings, each followed by a `booking_confirmed` notification row **within one second** (PayMongo → tunnel → webhook → status flip → `inngest.send` → notify → row, T-09-49); `availability_block` = **0 rows** after a host-cancel, with the date still bookable for everyone else (T-09-31 / Pitfall 5). Nine steps recorded individually: 1/2/3/5/8a/8b/8c/9 PASS, 6 PASS-but-not-reachable-through-the-UI by design, 7 PASS with a deferred copy finding. Step 4's reported FAIL was **reclassified by the operator to accepted design** — `lowStockThreshold(3) = 1`, so the first pass sold on a cap-3 listing is invisible by design (OC-11 / T-09-39); **`src/` untouched**, and the invisible 3→2 step is now a mutation-measured e2e contract (`70c392a`) with the misleading 09-15/09-VALIDATION wording corrected in place. Prior: **Waves 1-6 — the automated gate is CLOSED.** 09-15 shipped `e2e/open-capacity.spec.ts` — 5 serial browser cases proving the day-shaped drop-in page against an exclusive control, the spots-left decrement ACROSS two bookers, a calm + programmatically disabled sold-out date, a drop-in search card with no clock time and a `date=`-only link, and a full date leaving search; UI-SPEC O2 measured over the rendered document; 2 mutations executed RED and restored. Repository gate: suite **1035 passed / 4 skipped**, tsc 0, lint 0 errors / 7 baseline warnings, build 0, **21 e2e across 8 specs**, no schema drift. `09-VALIDATION.md` complete and signed off. Prior: DDL live, `createOpenCapacityHold` under `pg_advisory_xact_lock`, mode-forked publish gate + OC-17 lock, required `openCapacity` on `WhenLabelInput`, the SC#3 race gate (09-03), the spots-left read model (09-04), the drop-in mutation + both cross-mode refusals + D-126 (09-07), the host-cancel auto-block skip + § 5b/5c copy forks (09-09), the host wizard occupancy fork (09-10, **OPEN-01 complete**), the display primitives + byte-identical `PaxStepper` split (09-11), the searchable drop-in listing + the `priceMax` NULL trap fix (09-05), the `DatePassPicker` booker surface (09-12), the per-person breakdown + OC-07 alert (09-13), and the drop-in search card — badge, `/person`, never a clock time, `?date=`-only link — plus the per-person host tile (09-14, **OPEN-04 search half complete**); every guard mutation-measured RED and restored, every UAT-passed exclusive surface hashed byte-identical. Next: `/gsd-verify-phase 9`, then phase close. Two non-blocking product items are logged in the phase's `deferred-items.md`: the unexplained "Drop-in" word on the search card, and the accepted-design small-cap scarcity threshold) | - |
+
+## Backlog
+
+Unsequenced ideas parked outside the active phase sequence (999.x). Promote with `/gsd:review-backlog`.
+
+### Phase 999.1: Auth flow tells the user nothing — thin emails + silent post-reset landing (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD (touches AUTH-03, AUTH-05 surfaces; neither requirement is unmet — both are SATISFIED. This is the experience around them.)
+**Plans:** 0 plans
+
+**Captured:** 2026-08-05, during the v1.0 milestone audit, while closing Phase-1 human item 2
+(password-reset delivery to a real inbox). **That item PASSED** — the mechanism is correct and
+verified end to end: the email reached a real inbox, the password rotated, and every prior session
+was revoked. What follows is what *surrounds* the working mechanism. Two halves of one complaint:
+*the auth flow does not tell you what is happening.*
+
+**Part A — the emails are one-liners.** `src/lib/email.ts:54-62`:
+
+```
+sendVerificationEmail -> "Verify your FitOut email"    | Verify: <a href="URL">URL</a>
+sendResetPassword     -> "Reset your FitOut password"  | Reset:  <a href="URL">URL</a>
+```
+
+The raw URL is its own anchor text. Compare the Phase-7 D-66 lifecycle emails
+(`sendBookingConfirmed`, `src/lib/email.ts:101+`), which get a bolded heading, named detail lines
+and a labelled CTA. The auth emails are Phase-1 artifacts that never got that treatment.
+
+Not merely cosmetic: the reset email states **neither the token expiry nor the standard "if you
+didn't request this, ignore it" line** — both baseline security-hygiene expectations on a
+password-reset email specifically.
+
+**Part B — the post-reset landing is silent.** Observed live on 2026-08-05:
+
+```
+POST /api/auth/reset-password -> 200
+GET  /                        -> 200      ... and ZERO session rows for that user
+```
+
+`revokeSessionsOnPasswordReset: true` correctly kills every prior session, and Better Auth's
+`resetPassword` mints no new one — so the user is definitively signed **out**. But they land on `/`,
+the PUBLIC search home, which renders identically for an anonymous visitor, with no "password
+changed — please sign in" anywhere. A real user in that session believed they were logged in and
+reported "got in" when no login had occurred. That is the sharper half of the two.
+
+**Constraints any fix MUST preserve** (each is a deliberate prior decision, not an oversight):
+
+- Keep `escapeHtml()` on the URL before interpolation — that is the WR-01 fix; never interpolate a
+  raw url into HTML.
+- Do NOT introduce React Email or any new email stack. D-66 deliberately keeps thin plain-HTML sends
+  over the same `send()`/`escapeHtml()` helpers.
+- Keep `revokeSessionsOnPasswordReset: true`.
+- Do NOT auto-create a session on reset. Silently signing someone in from an emailed link is worse
+  than the current confusion — **the fix is a confirmation plus a route to `/login`, not an auto-login.**
+- `tests/auth/email-escaping.test.ts` and `tests/auth/email-dev-fallback.test.ts` assert on these
+  paths. Extend them; do not weaken them.
+
+**Do both parts together** — fixing one alone leaves the complaint half-answered.
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
