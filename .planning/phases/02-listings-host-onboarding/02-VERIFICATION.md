@@ -10,9 +10,11 @@ human_verification:
   - test: "Complete PayMongo hosted Linked-Accounts onboarding (KYC) end to end from /host, return via the return_url, and confirm the merchant.activated webhook flips payoutsEnabled=true and the listing becomes bookable"
     expected: "The hosted onboarding redirect resolves, PayMongo delivers merchant.activated for the stored paymongo_account_id, host_payout.payouts_enabled becomes true, and the public listing CTA changes from 'Not bookable yet' to 'Book this space'"
     why_human: "PayMongo Platforms / Linked Accounts is sales-gated and NOT enabled on this account — the same standing external blocker recorded in 05-VERIFICATION.md and 02-UAT.md test 11. The webhook branch itself IS proven by tests/paymongo/webhook-merchant-activated.test.ts (signature-verified, idempotent, both activate and decline arms), but the real hosted-KYC round trip cannot be exercised."
+    status: "OPEN (re-checked 2026-08-05) — unchanged. PayMongo's Platforms beta is still not enabled on this account, so the hosted-KYC round trip has never been walked. This is the entry that keeps the phase at human_needed."
   - test: "Upload a listing photo through the wizard against real Cloudinary credentials"
     expected: "The CldUploadWidget obtains a signature from /api/cloudinary/sign, uploads directly to Cloudinary, and the photo persists with a position and renders as the cover at position 0"
     why_human: "The server-side Cloudinary secret (CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET) is NOT present in the current .env.local — only the two NEXT_PUBLIC_* client vars are. The signing logic is proven by tests/listing/cloudinary-sign.test.ts and the flow was exercised against real Cloudinary during the 2026-07-10 UAT (02-UAT.md test 8), but it cannot be re-exercised in the current environment."
+    status: "DISCHARGED on historical evidence (2026-08-05) — 02-UAT.md test 8 'Photo upload + reorder | upload >=3, drag-reorder, first = cover' is recorded pass ('✅ after env + signature fixes'), and that UAT's own verdict line states 'Verified against real Postgres + real Cloudinary'. A human did walk this against real Cloudinary on 2026-07-10. It CANNOT be re-exercised today (server-side secret still absent), so this is discharged on the historical record, not re-observed."
 ---
 
 # Phase 2: Listings & Host Onboarding — Verification Report
@@ -163,7 +165,7 @@ a standing external blocker since 2026-07-10 (`02-UAT.md` test 11), independentl
 `05-VERIFICATION.md`. The webhook branch, signature verification, idempotency and the derived gate are
 all proven by automated tests; only the third party's hosted flow is unexercised.
 
-### 2. Real Cloudinary listing-photo upload (LIST-02)
+### 2. Real Cloudinary listing-photo upload (LIST-02) — **DISCHARGED on historical evidence (2026-08-05)**
 
 **Test:** Upload a photo through the wizard's photo step with real Cloudinary credentials configured.
 **Expected:** Signature minted, direct upload succeeds, metadata persists, position 0 renders as cover.
@@ -171,6 +173,22 @@ all proven by automated tests; only the third party's hosted flow is unexercised
 two `NEXT_PUBLIC_*` client vars are set), so the sign endpoint cannot mint a real signature here. The
 flow *was* exercised against real Cloudinary during the 2026-07-10 UAT (`02-UAT.md` test 8, after the
 `985c250`/`ad9c9b7`/`8d9c475` fixes), but this verifier cannot re-observe it.
+
+**Reconciled 2026-08-05 — discharged, on the historical record rather than a fresh observation.**
+This item was carried as outstanding when the evidence to close it already existed. `02-UAT.md` test 8
+— *"Photo upload + reorder | upload ≥3, drag-reorder, first = cover"* — is recorded **✅ (after env +
+signature fixes)**, and that UAT's own verdict line reads *"Verified against real Postgres + real
+Cloudinary."* A human did upload, drag-reorder, and see position 0 render as the cover, against the real
+service, on 2026-07-10. That is precisely what this item asks for, so it is **discharged**.
+
+Two honest qualifications, because the distinction matters:
+1. It **cannot be re-exercised today** — the server-side secret is still absent, so nothing here is a
+   re-observation. The discharge rests entirely on the 2026-07-10 record.
+2. It discharges the **listing-photo** surface only. The **avatar** upload path (`01-HUMAN-UAT.md` item
+   4, AUTH-05) is a different surface and remains open on the same missing credentials.
+
+This closes the second of this phase's two human items. Item 1 (PayMongo hosted KYC) stays **OPEN**, so
+the phase status stays `human_needed`.
 
 ---
 
@@ -190,6 +208,13 @@ also independently corroborated by the v1.0 milestone audit's cross-phase integr
 Status is `human_needed` rather than `passed` for two external-dependency items only, neither of which
 is a code deficiency: PayMongo's sales-gated Platforms beta (unchanged since this phase shipped, and the
 same blocker Phase 5 carries) and an absent server-side Cloudinary secret in the current environment.
+
+> **Reconciled 2026-08-05.** Of those two, the Cloudinary item is now **discharged on historical
+> evidence** — the 2026-07-10 UAT (test 8) already recorded a human uploading and reordering photos
+> against real Cloudinary, which is exactly what the item asked for; it was being carried as outstanding
+> only because this verifier could not re-run it. See Human Verification item 2 for the qualifications.
+> **Item 1 (PayMongo hosted Linked-Accounts KYC) remains OPEN and unchanged**, so the phase stays
+> `human_needed` on that one external, sales-gated dependency.
 
 **Retroactive-verification caveat, stated plainly:** this report verifies the code as it stands on
 2026-08-01, after Phases 3–9 have modified several Phase-2 files (`publishSchema` gained the Phase-8
