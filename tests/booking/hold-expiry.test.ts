@@ -9,22 +9,100 @@
 //     before inserting, so the constraint sees the freed slot.
 // The inverse guards the guarantee: a LIVE (future-expiry) hold still occupies the slot AND blocks a new
 // overlapping hold by someone else — mapped to the clean "just taken", never a double-book.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THREE MUTATIONS, ALL EXECUTED 2026-08-05 (quick task 260805-nb7, closing DEF-IR9-01). The date fix
+// below had to be proven NOT to hollow the file out — a test that passes because it stopped asserting is
+// a false green, and this file guards the money path. Each mutation broke ONE production behaviour, was
+// observed RED on the EXACT case that behaviour belongs to, and was then restored by editing the file
+// back (`git diff --exit-code src/` clean before this file shipped). Verbatim output:
+//
+//   MUTATION A — src/lib/availability/units.ts: neuter createPendingHold's in-tx stale-hold sweep
+//     (step (2)'s UPDATE gated to `AND false`, so no expired hold is ever flipped out of the way)
+//     → case 1 (b) RED: `AssertionError: expected false to be true // Object.is equality`
+//       at `expect("ok" in res && res.ok).toBe(true)` — i.e. the new hold was refused "just taken"
+//       against a slot the read model had, one line earlier, correctly called FREE. THE EXACT
+//       lazy-reads-alone-are-not-enough failure this file exists to name.
+//
+//   MUTATION B — src/lib/availability/read-model.ts: delete the D-48a lazy-expiry treatment from the
+//     occupying predicate (`AND expires_at > now()` removed, so a lapsed hold keeps occupying)
+//     → case 1 (a) RED: `AssertionError: expected 'unavailable' to be 'available'`
+//       — a dead hold blanking a bookable hour off the calendar forever; no background worker exists
+//       to free it, which is why the lazy read IS the release.
+//
+//   MUTATION C — src/lib/availability/units.ts: widen the SAME sweep to ignore expiry
+//     (`AND expires_at <= now()` removed, so it flips LIVE holds out too)
+//     → case 2 RED: `AssertionError: expected false to be true // Object.is equality`
+//       at `expect("error" in res).toBe(true)` — a stranger's createPendingHold CANCELLED a live hold
+//       and took the slot. The double-book itself, named: this is why case 2's inverse must exist.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { TZDate } from "@date-fns/tz";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { user, listing, operatingHours, booking } from "@/lib/db/schema";
 import { getAvailability } from "@/lib/availability/read-model";
 import { createPendingHold } from "@/lib/availability/units";
+import { BOOKING_HORIZON_DAYS } from "@/lib/availability/slots";
+import { MIN_LEAD_INSTANT_MINUTES, MIN_LEAD_REQUEST_HOURS } from "@/lib/payments/config";
 
 let testDb: TestDb;
 
-// A fixed "now" before the Aug 3 2026 (Monday) test day → the slot is future & within the 90-day horizon.
-const NOW = new Date("2026-07-15T00:00:00.000Z");
-const DAY = { year: 2026, month: 8, day: 3 } as const; // month 1-based; Aug 3 2026 = Monday (dow 1)
-// The 06:00-07:00 Asia/Manila slot on Aug 3 2026 = UTC [2026-08-02T22:00Z, 2026-08-02T23:00Z).
-const SLOT_0600_START = "2026-08-02T22:00:00.000Z";
-const S = new Date("2026-08-02T22:00:00.000Z");
-const E = new Date("2026-08-02T23:00:00.000Z");
+// ── WHY EVERY DATE BELOW IS COMPUTED AND NOT PINNED (DEF-IR9-01 — do NOT "simplify" this back) ───────
+// This file used to carry THREE independent calendar literals: an injected `NOW` (2026-07-15), a target
+// `DAY` (Aug 3 2026), and the slot's UTC instants ("2026-08-02T22:00Z"). They rotted on 2026-08-03 and
+// left the suite red, because the two clocks in play are NOT the same clock:
+//   - `NOW` is a JS value and reaches getAvailability ONLY — it drives the past/horizon/too_soon DISPLAY
+//     states and nothing else.
+//   - createPendingHold takes NO clock. Its D-96 lead-time guard is a SQL expression evaluated against
+//     POSTGRES's now() (units.ts documents this as deliberate: "never the JS clock"), so it moves with
+//     real time whatever the test injects.
+// So the moment real time passed Aug 3 2026 the guard began refusing the fixture window and the "just
+// taken" case started asserting against "That start time is too soon to book." instead. A pinned literal
+// is a time bomb here BY CONSTRUCTION — the JS clock can be frozen, the DB clock cannot.
+//
+// The fix: pick the target Monday RELATIVE TO REAL NOW, then DERIVE the day parts and both UTC instants
+// from that one value, so the three can never disagree again. Instants are built with TZDate from the
+// venue-local wall clock — the src/lib/availability/slots.ts idiom. NEVER hand-roll a "+8" offset: Manila
+// is UTC+8 with no DST today, but a hardcoded offset is the same class of rot as a hardcoded date.
+const TZ = "Asia/Manila";
+const MONDAY = 1; // operating_hours.dayOfWeek / JS Date.getDay — the weekday makeListing() seeds hours on
+
+type LocalDate = { year: number; month: number; day: number }; // month is 1-BASED
+
+/** An instant's VENUE-LOCAL calendar date (read-model.ts venueLocalDateParts idiom). */
+function venueDateOf(instant: Date): LocalDate {
+  const z = new TZDate(instant.getTime(), TZ);
+  return { year: z.getFullYear(), month: z.getMonth() + 1, day: z.getDate() };
+}
+/** Venue-local `hour`:00 on a venue-local date → the TRUE UTC instant (slotsForWindow's exact idiom:
+ *  TZDate for the DST-correct mapping, then normalize through the epoch so it renders as "…Z"). */
+function instantAt(d: LocalDate, hour: number): Date {
+  return new Date(new TZDate(d.year, d.month - 1, d.day, hour, 0, 0, TZ).getTime());
+}
+/** Venue-local day-of-week (slots.ts venueDayOfWeek idiom; noon avoids midnight-boundary ambiguity). */
+function venueDow(d: LocalDate): number {
+  return new TZDate(d.year, d.month - 1, d.day, 12, 0, 0, TZ).getDay();
+}
+/** `n` venue-local days later; the TZDate constructor rolls month/year over via Date math. */
+function plusDays(d: LocalDate, n: number): LocalDate {
+  const z = new TZDate(d.year, d.month - 1, d.day + n, 12, 0, 0, TZ);
+  return { year: z.getFullYear(), month: z.getMonth() + 1, day: z.getDate() };
+}
+
+// The next STRICTLY-FUTURE Monday in the VENUE's own calendar (1..7 days out — `|| 7` is what makes it
+// never "today", so a run ON a Monday can't land on a 06:00 slot that has already passed).
+const DAY: LocalDate = (() => {
+  const today = venueDateOf(new Date());
+  return plusDays(today, ((MONDAY - venueDow(today) + 7) % 7) || 7);
+})();
+// The 06:00-07:00 venue-local slot on THAT Monday, derived from DAY — one source, three consistent values.
+const S = instantAt(DAY, 6);
+const E = instantAt(DAY, 7);
+const SLOT_0600_START = S.toISOString();
+// The injected read-model clock is REAL now, because DAY is derived from real now: the display states and
+// the SQL guards now reason about the same era, which is precisely what the pinned literals broke.
+const NOW = new Date();
 
 const HOST = "he_host";
 const BOOKER = "he_booker";
@@ -39,7 +117,8 @@ async function makeListing(id: string): Promise<void> {
     title: `Listing ${id}`,
     status: "published",
     unitCount: 1,
-    timezone: "Asia/Manila",
+    timezone: TZ, // the SAME zone the slot instants above were derived in — one source, never two
+
     hourlyRateCents: HOURLY,
     dayRateCents: DAYRATE,
   });
@@ -53,6 +132,16 @@ async function makeListing(id: string): Promise<void> {
 }
 
 beforeAll(async () => {
+  // ── FIXTURE SELF-CHECK — assert the derivation, don't assume it (the other half of the DEF-IR9-01 fix).
+  // A derived fixture that silently derives the WRONG day is no better than a rotted literal, so the three
+  // properties the two cases depend on are checked here, where a break is a loud suite failure rather than
+  // a confusing assertion about "just taken" three cases later.
+  expect(venueDow(DAY)).toBe(MONDAY); // makeListing seeds operating hours on dayOfWeek 1 ONLY
+  const leadMs = Date.now() + Math.max(MIN_LEAD_INSTANT_MINUTES * 60_000, MIN_LEAD_REQUEST_HOURS * 3_600_000);
+  expect(S.getTime()).toBeGreaterThan(leadMs); // clears BOTH D-96 lead-time guards (SQL now(), not NOW)
+  expect(S.getTime()).toBeLessThan(Date.now() + BOOKING_HORIZON_DAYS * 86_400_000); // D-26 horizon
+  expect(E.getTime() - S.getTime()).toBe(3_600_000); // one on-the-hour slot (D-22)
+
   testDb = await setupTestDb();
   await testDb.db.insert(user).values([
     { id: HOST, name: "HE Host", email: "he_host@example.com", firstName: "Host", emailVerified: true },
