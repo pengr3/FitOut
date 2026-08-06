@@ -19,12 +19,34 @@
 //   4. THE ROW ACTUALLY LANDS. One case drives the whole path — real action → real emission → the notify
 //      handler's two steps → a real `notification` row read back out of the real database, plus the email.
 //      Everything else in this suite observes the emission; this one refuses to stop there.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// MUTATION, EXECUTED 2026-08-06 (quick task 260806-gwt, TIER1-06). The pinned window in the T11 describe
+// ("2027-03-01T02:00Z") became derived, and the conversion had to be proven not to hollow the case out.
+//
+// WHY THIS TARGET AND NOT THE POST-COMMIT ORDERING HARNESS: case (7) is the ONLY case in this file that
+// uses the converted window — the ordering cases (1)-(6) build their fixtures from `seedRequest`'s
+// clock-relative `msToStart` and were already safe. Reddening one of THOSE would prove the file still
+// asserts something, while saying nothing whatsoever about whether THIS conversion still asserts. A
+// mutation aimed away from the changed code is theatre.
+//
+//   src/app/actions/booking.ts: remove the `!res.replayed` guard on the request branch's emission pair,
+//   so an idempotent double-submit re-emits and the host is told about the same request twice
+//     → case (7) RED: `AssertionError: expected [ { envelope: { …(2) }, …(1) }, …(1) ] to have a length
+//       of 1 but got 2` at `expect(emissionsFor("request_received", holdId)).toHaveLength(1)` (line ~549)
+//     → DIVERGENCE FROM PREDICTION (recorded as observed): the plan expected the red at
+//       `expect(forThisBooking).toHaveLength(2)` (receives 4), two lines later. The PER-TYPE assertions
+//       fire first and are the tighter check — the aggregate count would also have caught it, but it is
+//       the second line of defence here, not the first.
+// Restored by EDITING THE LINE BACK; `git status --porcelain -- src/` clean before this file shipped.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import postgres from "postgres";
 
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
+import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockResend } from "../helpers/mocks";
 import { user, listing, booking, hostPayout } from "@/lib/db/schema";
@@ -500,10 +522,18 @@ describe("the wire is live end-to-end — a real action produces a real notifica
 });
 
 describe("placeHold suppresses the request notification pair on an idempotent replay (T11)", () => {
-  // A far-future, on-instant window well beyond MIN_LEAD_REQUEST_HOURS, dedicated to this case's listing so
-  // it never collides with another case on the booking_no_overlap EXCLUDE.
-  const START = "2027-03-01T02:00:00.000Z";
-  const END = "2027-03-01T03:00:00.000Z";
+  // A DERIVED future on-instant window well beyond MIN_LEAD_REQUEST_HOURS, dedicated to this case's
+  // listing so it never collides with another case on the booking_no_overlap EXCLUDE.
+  // Derived, never pinned (TIER1-06; DEF-IR9-01 — see @tests/helpers/dates.ts): placeHold reaches
+  // createPendingHold, whose D-96 lead-time guard is SQL evaluated against POSTGRES's now(), so the
+  // literal that used to sit here ("2027-03-01T02:00Z") would have been refused from that date on.
+  // "Far-future" was never the protection — being AHEAD OF REAL NOW is. Venue-local hour 10 IS 02:00Z in
+  // Asia/Manila, so this is the same window it always was. No `weekday`: this file seeds no
+  // operating_hours and the write path does not consult them.
+  const W = venueWindow({ hour: 10, minDaysOut: 3 });
+  const START = W.startUtc;
+  const END = W.endUtc;
+  beforeAll(() => assertBookableWindow(W)); // the check lives beside its window, inside this describe
 
   it("(7) a first request emits ONE pair; a REPLAYED double-submit emits NOTHING (the host is notified once)", async () => {
     await seedListing("L_ne_replay");

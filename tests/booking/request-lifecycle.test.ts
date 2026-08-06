@@ -16,10 +16,43 @@
 // tests/booking/state-machine.test.ts (mock @/lib/auth, @/lib/db, @/lib/paymongo, next/navigation → import
 // the real request-to-book actions) to drive host approve/decline + pay-on-approval. This wave lands only
 // the DB-level correctness gate the whole request-to-book fork depends on.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// TWO MUTATIONS, BOTH EXECUTED 2026-08-06 (quick task 260806-gwt, TIER1-03 + TIER1-05). This file owns
+// TWO Tier-1 window families (B/HOLD_W at ~line 119 and HR_W in the host describe), and each was
+// converted from a pinned literal to a derived window. A conversion can hollow a file out silently, so
+// EACH FAMILY WAS PROVEN INDEPENDENTLY — one mutation per family, because a red on family B says nothing
+// about whether family HR still asserts.
+//
+//   MUTATION 1 (HOLD_W family) — src/lib/availability/units.ts: hardcode the inserted status to
+//     'pending' instead of the `holdStatus` parameter, so the 06-04 request branch can no longer mint a
+//     `requested` hold at all
+//     → "mints a REQUESTED hold with the longer TTL when { holdStatus:'requested', ttlMs } is passed"
+//       RED: `AssertionError: expected 'pending' to be 'requested' // Object.is equality`
+//       at `expect(rows[0].status).toBe("requested")` (line ~336)
+//     → also RED, same message, both on the START/END window: "(a) request-mode: mints a `requested`
+//       hold…" at line ~535 and "(c) mode-flip independence…" at line ~571. (a) was predicted; (c) was
+//       NOT — recorded as observed: (c) places its own request-mode hold before flipping the mode, so it
+//       depends on the same insert.
+//
+//   MUTATION 2 (HR_W family) — src/app/actions/host-requests.ts: delete `AND expires_at > now()` from
+//     approveRequest's UPDATE WHERE, so a host can approve past an SLA the DB clock has already closed
+//     → "(b) SLA guard: approve on a LAPSED `requested` row → calm 'no longer pending'…" RED:
+//       `AssertionError: expected true to be false // Object.is equality`
+//       at `expect(res.ok).toBe(false)` (line ~763). Matched the prediction exactly.
+//
+// Both restored by EDITING THE LINES BACK; `git status --porcelain -- src/` clean before this shipped.
+//
+// NOTE the asymmetry between the two window families below, and do NOT "unify" them: family A is pinned
+// ON PURPOSE (getAvailability takes an INJECTABLE `now`, pinned right beside its pinned day, so the pair
+// is internally consistent forever — Tier 2 of the DEF-IR9-01 inventory). Families B and HR reach
+// createPendingHold, whose guard is SQL `now()`, and MUST be derived.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
+import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
 import { isPgError } from "@/lib/pg";
@@ -116,9 +149,18 @@ const SLOT_0600_START = "2026-08-02T22:00:00.000Z"; // venue-local 06:00 → pri
 const AVAIL_S = new Date(SLOT_0600_START);
 const AVAIL_E = new Date("2026-08-02T23:00:00.000Z");
 
-// B) createPendingHold / the raw exclusion race work on absolute UTC instants — no operating hours needed.
-const START = "2026-10-01T02:00:00.000Z";
-const END = "2026-10-01T03:00:00.000Z";
+// B) createPendingHold / the raw exclusion race work on absolute UTC instants — no operating hours needed
+//    (VERIFIED, not assumed: the only addMondayHours calls in this file are 244/264/284, all inside the
+//    family-A `getAvailability occupancy fan-out` describe; nothing in family B seeds hours, and neither
+//    placeHold nor createPendingHold consults operating_hours on the write path).
+//    DERIVED, never pinned (TIER1-03; DEF-IR9-01 — see @tests/helpers/dates.ts): family B reaches
+//    createPendingHold, whose D-96 lead-time guard is SQL evaluated against POSTGRES's now(), so a pinned
+//    window is refused the moment real time passes it. That is the opposite of family A above, which is
+//    SAFE pinned precisely because getAvailability takes an INJECTABLE `now` pinned right beside its day.
+//    Venue-local hour 10 IS 02:00Z in Asia/Manila, so this is the same window it always was.
+const HOLD_W = venueWindow({ hour: 10, minDaysOut: 3 });
+const START = HOLD_W.startUtc;
+const END = HOLD_W.endUtc;
 
 // DB-atomic rejection codes for a double-book attempt against the widened EXCLUDE (03-01 finding):
 //   23P01 exclusion_violation (the winner committed first) OR 40P01 deadlock_detected (both inserted then
@@ -157,6 +199,8 @@ const insRaw = (
   VALUES (${args.id}, ${args.listingId}, ${args.unit}, ${args.bookerId}, ${START}, ${END}, ${args.status})`;
 
 beforeAll(async () => {
+  assertBookableWindow(HOLD_W); // assert the derivation, don't assume it — loud setup failure, not a
+  // confusing "too soon to book" deep in a hold case. (Family A needs no check: its `now` is injected.)
   testDb = await setupTestDb();
   await testDb.db.insert(user).values([
     { id: HOST, name: "RL Host", email: "rl_host@example.com", firstName: "Host", emailVerified: true },
@@ -623,10 +667,18 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
   let hostAId: string;
   let hostBId: string;
 
-  // A fixed absolute window; each test uses a DISTINCT listing so occupying rows never collide on the
-  // booking_no_overlap EXCLUDE (which is scoped by listing_id + unit).
-  const HR_START = "2026-11-02T02:00:00.000Z";
-  const HR_END = "2026-11-02T03:00:00.000Z";
+  // A DERIVED absolute window (TIER1-05; DEF-IR9-01 — see @tests/helpers/dates.ts). Each test uses a
+  // DISTINCT listing so occupying rows never collide on the booking_no_overlap EXCLUDE (which is scoped
+  // by listing_id + unit); a different day from HOLD_W also preserves the two-distinct-families property.
+  //
+  // `minDaysOut: 5` IS LOAD-BEARING, not taste. approveRequest sets
+  //   expires_at = LEAST(now() + APPROVAL_PAYMENT_WINDOW_HOURS, starts_at)
+  // and case (a) below asserts that lands within ±1h of now()+12h. So HR_START must be MORE THAN 11h out
+  // or the D-94 cap silently shortens the window and the case fails for a reason that has nothing to do
+  // with what it tests. 5 days clears it with room even on a 23:59 venue-local run (~106h worst case).
+  const HR_W = venueWindow({ hour: 10, minDaysOut: 5 });
+  const HR_START = HR_W.startUtc;
+  const HR_END = HR_W.endUtc;
 
   /** Seed a published request-mode listing owned by `hostId`. */
   async function seedHostListing(id: string, hostId: string): Promise<void> {
@@ -671,6 +723,7 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
   }
 
   beforeAll(async () => {
+    assertBookableWindow(HR_W); // and its own check, beside its own window
     testAuth = makeTestAuth(testDb);
     // Two REAL signed-up hosts (intent 'host' → canHost) whose sessions drive the host actions. The plain-
     // inserted HOST ("rl_host") has no credential account and cannot sign in, so use dedicated hosts here.

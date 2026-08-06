@@ -13,25 +13,54 @@ when it is fed to a code path whose guard is evaluated against **Postgres `now()
 can be frozen (`vi.setSystemTime`, an injected `now` param), the DB clock cannot. That is exactly
 what broke `hold-expiry.test.ts`: `createPendingHold`'s D-96 lead-time guard is SQL, not JS.
 
-### Tier 1 — WILL go red on a known date (same shape as DEF-IR9-01)
+### Tier 1 — ✅ **CLOSED** by quick task **260806-gwt** (2026-08-06)
+
+**All 6 sites converted. No Tier-1 window is a calendar literal any more** — every window handed to
+`createPendingHold` / `placeHold` is derived from real `now()` at run time through the shared
+`tests/helpers/dates.ts` (`venueWindow` + the `assertBookableWindow` fixture self-check). The 2026-09-01
+double fuse, and the four behind it, cannot fire.
+
+The original inventory is kept below as the historical record, with what each site derives from now.
 
 A pinned window handed to `createPendingHold` / `placeHold`, whose SQL lead-time guard
 (`MIN_LEAD_INSTANT_MINUTES` / `MIN_LEAD_REQUEST_HOURS`) refuses it once real time passes it.
 **6 sites across 5 files.**
 
-| # | file:line | pinned window | goes red on |
-|---|-----------|---------------|-------------|
-| 1 | `tests/booking/pending-hold.test.ts:34-35` | `2026-09-01T02:00Z` → `03:00Z` | 2026-09-01 |
-| 2 | `tests/booking/state-machine.test.ts:57-58` | `2026-09-01T02:00Z` → `03:00Z` | 2026-09-01 |
-| 3 | `tests/booking/request-lifecycle.test.ts:120-121` | `2026-10-01T02:00Z` → `03:00Z` | 2026-10-01 |
-| 4 | `tests/booking/request-expiry.test.ts:69-70, 77-78` | `2026-11-01T*` (hour-templated) | 2026-11-01 |
-| 5 | `tests/booking/request-lifecycle.test.ts:628-629` | `2026-11-02T02:00Z` → `03:00Z` | 2026-11-02 |
-| 6 | `tests/booking/notify-emission.test.ts:505-506` | `2027-03-01T02:00Z` → `03:00Z` | 2027-03-01 |
+| # | file:line | pinned window | goes red on | now derives from |
+|---|-----------|---------------|-------------|------------------|
+| 1 | `tests/booking/pending-hold.test.ts:34-35` | `2026-09-01T02:00Z` → `03:00Z` | ~~2026-09-01~~ | `venueWindow({ hour: 10, minDaysOut: 3 })` → `W` |
+| 2 | `tests/booking/state-machine.test.ts:57-58` | `2026-09-01T02:00Z` → `03:00Z` | ~~2026-09-01~~ | `venueWindow({ hour: 10, minDaysOut: 3 })` → `W` |
+| 3 | `tests/booking/request-lifecycle.test.ts:120-121` | `2026-10-01T02:00Z` → `03:00Z` | ~~2026-10-01~~ | `venueWindow({ hour: 10, minDaysOut: 3 })` → `HOLD_W` |
+| 4 | `tests/booking/request-expiry.test.ts:69-70, 77-78` | `2026-11-01T*` (hour-templated) | ~~2026-11-01~~ | `venueWindow({ hour: 2, minDaysOut: 3 })` → `BASE`; `windowAt(h)` templates off `BASE.day` in venue-local hours (still six disjoint windows) |
+| 5 | `tests/booking/request-lifecycle.test.ts:628-629` | `2026-11-02T02:00Z` → `03:00Z` | ~~2026-11-02~~ | `venueWindow({ hour: 10, minDaysOut: 5 })` → `HR_W` (`minDaysOut: 5` is load-bearing: `approveRequest`'s `LEAST(now()+12h, starts_at)` cap needs `HR_START > now()+11h`) |
+| 6 | `tests/booking/notify-emission.test.ts:505-506` | `2027-03-01T02:00Z` → `03:00Z` | ~~2027-03-01~~ | `venueWindow({ hour: 10, minDaysOut: 3 })` → `W` |
 
-Note #1 and #2 share a date: **2026-09-01 breaks two files at once**, ~4 weeks out. That is the
-nearest fuse and the one worth pre-empting.
+Note #1 and #2 share a date: **2026-09-01 breaks two files at once**, ~4 weeks out. That was the
+nearest fuse and the one worth pre-empting. (It was pre-empted with ~26 days to spare.)
 
-### Tier 2 — literals ALREADY in the past; green today, latent
+Venue-local hour 10 **is** `02:00Z` in Asia/Manila, so every converted window is venue-locally identical
+to the literal it replaced — nothing about what these tests exercise changed.
+
+**Anti-vacuity:** each of the six files carries a NEW dated mutation record in its header with verbatim
+RED output, from a mutation targeting what THAT file uniquely proves on a case that runs through the
+derived window. `hold-expiry.test.ts` re-ran its original MUTATION A to prove the extraction into the
+shared helper was faithful rather than a hollowing.
+
+### Tier 2 — **STILL OPEN, and still deliberately unfixed** (literals already in the past; green today, latent)
+
+Re-confirmed 2026-08-06 (260806-gwt): these were NOT converted, on purpose. Each file's injected `NOW` is
+pinned **right beside** its pinned day, so the pair stays internally consistent forever and the files are
+harmless as written — `getAvailability` reasons entirely off the injected clock and never touches
+Postgres `now()`. Converting them would be churn on working tests.
+
+`tests/helpers/dates.ts` now makes a Tier-2 conversion **trivial** if one is ever wanted. **The trigger is
+not a calendar date** — it is one of these files gaining a write path: the moment a
+`createPendingHold` / `placeHold` call appears in any of them, that file reproduces DEF-IR9-01 immediately
+and with no warning, and the fix is a one-line `venueWindow(...)` + `assertBookableWindow(...)`.
+
+`tests/booking/request-lifecycle.test.ts` is the live illustration: it now holds **both** tiers side by
+side, its family-A read-model anchor pinned and its families B/HR derived, with a header note saying not
+to "unify" them.
 
 Read-model-only fixtures. They pass because `getAvailability` takes an **injectable** `now` and the
 pinned `NOW` is pinned right alongside the pinned day, so the pair stays internally consistent
@@ -63,14 +92,36 @@ re-litigate them:
 
 **Counts:** 6 Tier-1 sites / 5 files · 4 Tier-2 files · ~6 Tier-3 groups. `e2e/` clean.
 
-### Suggested fix (when someone picks this up)
+### The landed pattern (Tier 1 used this; anything new should too)
 
-The pattern is already in the repo, twice over, and the two are complementary:
+**`tests/helpers/dates.ts`** — the single source of clock-relative fixture windows, landed by 260806-gwt.
+It carries the full two-clocks rationale, so nobody has to re-derive why a pinned window is a time bomb.
 
-- `tests/booking/open-capacity-hold.test.ts:97-128` — `daysOut(n)` clock-relative helpers with the
-  rationale stated in its header ("EVERY FIXTURE DATE IS CLOCK-RELATIVE, never a calendar literal").
-- `tests/booking/hold-expiry.test.ts` (this task) — the same idea via **TZDate**, plus a `beforeAll`
-  fixture self-check that asserts the derived window actually clears the guards it claims to.
+```ts
+import { venueWindow, assertBookableWindow } from "../helpers/dates";
 
-Tier 1 is a mechanical port. Tier 2 needs no code change — only the Tier-1 discipline if those files
-ever gain a write path.
+const W = venueWindow({ hour: 10, minDaysOut: 3 }); // venue-local 10:00 == 02:00Z in Asia/Manila
+const START = W.startUtc;
+const END = W.endUtc;
+
+beforeAll(() => { assertBookableWindow(W); /* ...rest of setup */ });
+```
+
+Rules that came out of the sweep and are worth keeping:
+- **Pass `weekday` ONLY if the file seeds `operating_hours`** — verify with
+  `grep -n "operatingHours\|operating_hours" <file>` rather than assuming. Neither `placeHold` nor
+  `createPendingHold` consults operating hours on the write path, so pinning a weekday on a pure hold
+  fixture is noise. (This premise was stated wrongly once during planning and caught in review —
+  `request-lifecycle.test.ts` DOES seed hours, just not on its Tier-1 sites. Check, don't recall.)
+- **`minDaysOut` can be load-bearing.** `approveRequest` caps `expires_at` at
+  `LEAST(now() + APPROVAL_PAYMENT_WINDOW_HOURS, starts_at)`, so any case asserting the full 12h window
+  needs its start more than 11h out. State the reason in the comment when it is.
+- **Hour-templated fixtures keep templating** — rebase the template on `BASE.day` via `instantAt`, so the
+  per-booking window distinctness that keeps seeded rows off `booking_no_overlap` is preserved.
+- **Prove the conversion with a mutation.** A converted file that quietly stopped asserting is strictly
+  worse than a test that fails on a known date.
+
+Predecessors this generalises: `tests/booking/open-capacity-hold.test.ts:97-128` (`daysOut(n)`) and
+`tests/booking/hold-expiry.test.ts` (the TZDate + `beforeAll` self-check version this was lifted from).
+
+Tier 2 needs no code change — only this discipline if those files ever gain a write path.
