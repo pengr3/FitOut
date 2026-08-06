@@ -305,6 +305,72 @@ export const paymongoEvent = pgTable("paymongo_event", {
   processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// DURABLE AUDIT TRAIL — closes the v1 tradeoff `src/lib/audit.ts` documented in its own header. That file
+// shipped recordAudit as a console-only sink and said so out loud: "deliberately NOT a durable DB table
+// (STATE.md 'do not over-build') … the entry shape (actorId + action + outcome [+ meta]) is intentionally
+// stable so a durable sink can adopt it later unchanged, and the function is async so that swap needs no
+// call-site changes." This table IS that later sink; the shape below is that shape, unchanged.
+//
+// WHY IT EARNS ITS KEEP (D-58): the rows worth having are the `outcome: "needs_attention"` money seams —
+// failed auto-refunds, `refund_after_payout`, stranded checkout sessions, host-cancel autoblock failures,
+// and the QRPh/UBP unrefundable-rail manual-refund alert. On the `qrph` rail that is REAL HELD MONEY, and
+// until this table existed there was no queryable record of who is owed it — only a log line to grep. An
+// operator queue must be a query, not a log search.
+//
+// D4 — `actor_id` carries NO FOREIGN KEY, deliberately. Verified across all 57 call sites: 8 pass a literal
+// non-user string ("system" ×7, "guest" ×1). One of those 8 is `api/paymongo/webhook/route.ts`'s
+// `auto_refund_manual` — the unrefundable-rail alert this table exists for. An FK would 23503 exactly that
+// INSERT, and because recordAudit swallows its own write failure the alert would never land durably. This
+// column is PROVENANCE, not a join key. Do not "tighten" it later.
+//
+// D3 — `outcome` is `text`, not a `pgEnum`, even though this codebase leans on pgEnum heavily. Nothing
+// branches on audit.outcome: it is a record of what happened, not a state machine like booking.status
+// (whose values steer the EXCLUDE predicate and the payout sweep). The `AuditOutcome` union in audit.ts
+// already constrains all 57 sites at COMPILE time. An enum would invert the design — a value not yet
+// ADD VALUE'd on the live enum makes the INSERT throw, and this function swallows throws, so the money
+// alert would lose exactly the queryable row this table is built to provide (the console line still lands,
+// so it does not vanish outright — but the durable half is what is being bought here). It would also make
+// any future outcome value a 55P04 two-migration split for a column with no correctness role. Shipped
+// precedent for a documented text status: host_payout.activation_status (line ~289).
+//
+// PII CONTRACT, now COLUMN-LEVEL (D-72). `meta` was a log field; it is now a stored jsonb column, which is
+// exactly where the rule starts to bite. NO SECRETS AND NO PII in `meta`. cancel-booking.ts:755-756 already
+// binds this column by name: "ONLY the transfer id and a masked last-4 outlive the call. No account number,
+// no account name, no BIC — not in this audit meta, not in any log line, NOT IN ANY COLUMN." That last
+// clause is this column.
+//
+// D5 — `resolved_at`: NULL means unresolved. It is what makes "every UNRESOLVED needs_attention, newest
+// first" a real operator query rather than "every needs_attention ever", which is useless the moment the
+// first alert is handled (the operator would re-see it forever). Its ONLY v1 writer is the operator's own
+// `UPDATE audit SET resolved_at = now() WHERE id = …`; there is no ops UI anywhere in this project yet, so
+// a hand-run queue is the complete workflow, not a stub. The partial index below deliberately mirrors
+// notification_unread_idx (line ~534), including its stated property: it indexes only the OPEN rows, so it
+// stays tiny forever while resolved history grows without bound.
+//
+// RETENTION: DEFERRED, ON THE RECORD — an omission would be worse than a decision. Because the index is
+// partial, the operator query stays O(unresolved) no matter how large the table gets, so growth is a
+// disk-cost question, not a correctness or latency one. An audit trail on money paths that silently
+// auto-deletes is worse than a large one. When it does become worth addressing, the honest first move is
+// PARTITIONING or ARCHIVAL to cold storage — never a scheduled DELETE.
+export const audit = pgTable(
+  "audit",
+  {
+    id: text("id").primaryKey(), // randomUUID() — the shipped app-generated-id idiom
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    actorId: text("actor_id").notNull(), // NO .references() — see D4 above
+    action: text("action").notNull(),
+    outcome: text("outcome").notNull(), // AuditOutcome union, compile-time enforced (D3)
+    meta: jsonb("meta").$type<Record<string, unknown>>(), // nullable; NO secrets/PII (D-72)
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }), // NULL = unresolved (D5)
+  },
+  (t) => [
+    // The operator queue, in one index: every unresolved money seam, newest first.
+    index("audit_needs_attention_idx")
+      .on(t.createdAt.desc())
+      .where(sql`outcome = 'needs_attention' AND resolved_at IS NULL`),
+  ],
+);
+
 // Host payout state machine (D-59). SEPARATE from booking_status (line ~277): payout-eligibility is
 // DERIVED from confirmed + endsAt, NOT from a `completed` booking transition (D-56/Claude's discretion).
 // Peerspace vocabulary: held → processing → paid, plus refunded/failed. Declared before the table it

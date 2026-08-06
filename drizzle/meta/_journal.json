@@ -169,6 +169,13 @@
       "when": 1785570443312,
       "tag": "0023_booking_checkout_lease",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786015201079,
+      "tag": "0024_audit_table",
+      "breakpoints": true
     }
   ]
 }
