@@ -61,21 +61,48 @@ reconciled: |
 
 ### 3. QRPh operator-alert manual-refund workflow
 expected: Trigger a genuinely-gone-slot payment on the QRPh rail (test mode); the `[PAYMENT_ALERT] needs_manual_refund` + `recordAudit(needs_attention)` signal reaches wherever operators actually monitor, and an operator can discover and act on it to refund the booker out-of-band (no alerting/paging integration ships this phase — this checks the operational side of "never silently retain money").
-result: [pending] — OPEN, unchanged.
+result: partial — a DISCOVERY MECHANISM now exists; the routine that uses it does not.
 reconciled: |
   2026-08-05 — re-checked, still open, and not closable by code evidence. The alert path is a
   `console.error` plus a `recordAudit(needs_attention)` row; no alerting or paging integration ships.
   What this item asks is whether the signal reaches a human who can act on it, which is an operational
   process question — there is no operator monitoring destination to verify against, so there is nothing
   to observe. It stays open until such a destination exists.
+reconciled_2: |
+  2026-08-06 — MOVED TO PARTIAL by quick task 260806-p3y. Two things changed, and the distinction
+  matters.
+
+  FIRST, a correction to the note above: it said the alert path is "a `console.error` plus a
+  `recordAudit(needs_attention)` ROW". There was no row. `recordAudit`'s entire body was
+  `console.info("[audit]", JSON.stringify(line))` — no audit table existed in the schema or in the live
+  database. So the alert was TWO console lines, and an operator had no way to discover held money at all
+  without log access. Both this file and 05-VERIFICATION.md described a row that was never written.
+
+  SECOND, that is now fixed. `recordAudit` writes a durable row to a new `audit` table (migration 0024),
+  indexed for exactly this question:
+
+      audit_needs_attention_idx ON (created_at DESC) WHERE outcome='needs_attention' AND resolved_at IS NULL
+
+  So "what money is outstanding, newest first?" is now a query rather than a log grep, and the QRPh
+  unrefundable-rail alert (`auto_refund_manual`, webhook `handleGoneSlot`) lands in it along with the
+  other ~11 money seams. Zero call-site changes across all 57 awaited sites; `recordAudit` is proven
+  unable to throw (independently driven through a sync throw, a rejected promise, a circular `meta` and a
+  BigInt `meta`), which matters because it is awaited inside `catch` blocks on the webhook's 200-ACK path.
+
+  WHY THIS IS PARTIAL AND NOT PASSED: the item asks whether the signal "reaches wherever operators
+  actually monitor" and whether "an operator can discover and act on it". Discovery is now MECHANICALLY
+  possible and it was not before. But nothing runs that query on a schedule, no UI surfaces it, nothing
+  pages anyone, and `resolved_at` has no code writer — an operator closes a row by hand. Calling that
+  "passed" would be claiming an operational routine that does not exist. What remains is a process
+  decision plus (optionally) an ops surface, not code correctness.
 
 ## Summary
 
 total: 3
 passed: 0
-partial: 1
+partial: 2
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
