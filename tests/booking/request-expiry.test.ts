@@ -20,10 +20,33 @@
 // rely on: force a live hold's `expires_at` into the past with `UPDATE ... expires_at = now() - interval` so
 // it becomes selectable without sleeping. The seed helpers here insert an already-past `expires_at` directly
 // (the same-machine local Docker DB clock is the authority) for the same effect.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// MUTATION, EXECUTED 2026-08-06 (quick task 260806-gwt, TIER1-04). The pinned windows this file used to
+// carry ("2026-11-01T…", hour-templated) became derived; the templating is preserved, so hours
+// 2/4/5/6/7/8 are still six disjoint venue-local windows on one day and the seeded rows still cannot
+// collide on booking_no_overlap. The mutation proves the conversion did NOT hollow the file. It targets
+// what THIS file uniquely owns (the SLA sweep) on the case that RE-HOLDS the freed slot through the
+// derived window (`createPendingHold(windowAt(4))`, line ~201 — a too-soon window would throw there):
+//
+//   src/inngest/functions/request-expiry.ts: flip the `requested` terminal target declined → cancelled
+//     → "SLA auto-decline: a `requested` hold past expires_at → `declined`…" RED:
+//       `AssertionError: expected 'cancelled' to be 'declined' // Object.is equality`
+//       at `expect(await readStatus(row.id)).toBe("declined")` (line 196)
+//     → DIVERGENCE FROM PREDICTION, and an instructive one: the plan predicted the red would land one
+//       assertion EARLIER, at `expect(res).toEqual({ status: "declined", notified: true })` (line 193).
+//       It did NOT — `expireOne` returns a HARDCODED `{ status: "declined" }` literal rather than
+//       reading back what the UPDATE actually wrote, so the return-value assertion cannot detect a
+//       changed terminal status. Only the DB READBACK catches it. Worth knowing: line 193 is weaker
+//       than it looks, and line 196 is the one carrying the Warning-1 terminal-status contract.
+//     → Also RED (expected, same root): "each sweep is idempotent…" at line 246, same message.
+// Restored by EDITING THE LINE BACK; `git status --porcelain -- src/` clean before this file shipped.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { venueWindow, assertBookableWindow, instantAt } from "../helpers/dates";
 import { user, listing, booking } from "@/lib/db/schema";
 import { mockResend } from "../helpers/mocks";
 import { createPendingHold } from "@/lib/availability/units";
@@ -66,17 +89,23 @@ let testDb: TestDb;
 const HOST = "re_host";
 const BOOKER = "re_booker";
 
-const START = "2026-11-01T02:00:00.000Z";
-const END = "2026-11-01T03:00:00.000Z";
+// A DERIVED base window — never a calendar literal (DEF-IR9-01; see @tests/helpers/dates.ts). The
+// literal that used to sit here ("2026-11-01T…") was Tier-1: this file re-holds a freed slot through
+// createPendingHold, whose D-96 lead-time guard is SQL evaluated against POSTGRES's now(), so a pinned
+// window is refused the moment real time passes it. No `weekday` is passed — this file seeds no
+// operating_hours and the write path does not consult them.
+// START/END is exactly `windowAt(2)`, which is why they share ONE base: the day must be the same day the
+// templated windows below are built on, or the two families could drift apart.
+const BASE = venueWindow({ hour: 2, minDaysOut: 3 });
+const START = BASE.startUtc;
+const END = BASE.endUtc;
 
-/** A distinct 1-hour UTC window per booking so seeded rows never collide on the booking_no_overlap EXCLUDE. */
-function windowAt(hourUtc: number): { startsAt: Date; endsAt: Date } {
-  const h = String(hourUtc).padStart(2, "0");
-  const h1 = String(hourUtc + 1).padStart(2, "0");
-  return {
-    startsAt: new Date(`2026-11-01T${h}:00:00.000Z`),
-    endsAt: new Date(`2026-11-01T${h1}:00:00.000Z`),
-  };
+/** A distinct 1-hour window per booking so seeded rows never collide on the booking_no_overlap EXCLUDE.
+ *  `hour` is now VENUE-LOCAL (it templates off BASE.day through the same TZDate idiom), not UTC — the
+ *  per-booking DISTINCTNESS that keeps the seeded rows off each other's constraint is unchanged: hours
+ *  2/4/5/6/7/8 on ONE venue-local day are still six disjoint, non-adjacent 1-hour windows. */
+function windowAt(hour: number): { startsAt: Date; endsAt: Date } {
+  return { startsAt: instantAt(BASE.day, hour), endsAt: instantAt(BASE.day, hour + 1) };
 }
 
 /** Seed a request-to-book hold with an explicit status + `expires_at` (past = ready to sweep). */
@@ -122,6 +151,10 @@ function declinedEmissions(): NotifyEnvelope[] {
 }
 
 beforeAll(async () => {
+  // Assert the derivation, don't assume it. Checking BASE (hour 2) alone is SUFFICIENT: it is the
+  // EARLIEST templated hour, and every other window (4/5/6/7/8) is strictly later on the same day, so
+  // if hour 2 clears the lead guard they all do.
+  assertBookableWindow(BASE);
   testDb = await setupTestDb();
   await testDb.db.insert(user).values([
     { id: HOST, name: "RE Host", email: "re_host@example.com", firstName: "Host", emailVerified: true },

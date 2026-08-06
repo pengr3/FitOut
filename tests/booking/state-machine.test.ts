@@ -11,10 +11,29 @@
 //                                       redirect to the confirmation, with NO second checkout (D-42).
 // Plus the placeHold gates: sign-in (D-41), !canBook activate-booking, and the deriveBookable server
 // re-check (the route group is not the gate — Security V4).
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// MUTATION, EXECUTED 2026-08-06 (quick task 260806-gwt, TIER1-02). The pinned window this file used to
+// carry ("2026-09-01T02:00Z") became derived; the mutation proves the conversion did NOT hollow the
+// file. It targets what THIS file uniquely owns (the status transitions) on a case whose hold is placed
+// through the DERIVED window (`place("L_exp")` → placeHold → createPendingHold, which would refuse a
+// too-soon window outright):
+//
+//   src/app/actions/booking.ts: DELETE the D-58 extend UPDATE
+//   (`SET expires_at = GREATEST(expires_at, now() + make_interval(mins => PAYMENT_WINDOW_MINUTES))`)
+//     → "extend-hold: a lapsed-but-pending hold is EXTENDED (not refused)…" RED:
+//       `AssertionError: expected false to be true // Object.is equality`
+//       at `expect(future).toBe(true)` (line 228, over
+//       `SELECT expires_at > now() AS future FROM booking WHERE id = ${holdId}`)
+//       — the hold is no longer pushed forward, so the lazy-expiry sweep can take the slot out from
+//       under a booker who is mid-payment. Exactly the D-58 failure this case exists to name.
+//     → Matched the prediction exactly; no divergence. Restored by EDITING THE STATEMENT BACK.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, hostPayout, booking } from "@/lib/db/schema";
@@ -52,10 +71,17 @@ type BookingActions = typeof import("@/app/actions/booking");
 let placeHold: BookingActions["placeHold"];
 let confirmBooking: BookingActions["confirmBooking"];
 
-// A fixed future window (absolute UTC — createPendingHold works on instants; per-listing so windows on
-// distinct listings never collide on the booking_no_overlap EXCLUDE).
-const START = "2026-09-01T02:00:00.000Z";
-const END = "2026-09-01T03:00:00.000Z";
+// A DERIVED future window — never a calendar literal (DEF-IR9-01; see @tests/helpers/dates.ts). The
+// literal that used to sit here ("2026-09-01T02:00Z") was one of the two Tier-1 sites fused to fire on
+// the same day: placeHold reaches createPendingHold, whose D-96 lead-time guard is SQL evaluated against
+// POSTGRES's now() — the JS clock can be frozen, the DB clock cannot. Venue-local hour 10 IS 02:00Z in
+// Asia/Manila, so this is the same window it always was.
+// Absolute UTC — createPendingHold works on instants; per-listing so windows on distinct listings never
+// collide on the booking_no_overlap EXCLUDE. No `weekday`: this file seeds no operating_hours and the
+// write path does not consult them.
+const W = venueWindow({ hour: 10, minDaysOut: 3 });
+const START = W.startUtc;
+const END = W.endUtc;
 
 const HOST = "sm_host";
 const PASSWORD = "averylongpassword";
@@ -96,6 +122,8 @@ async function place(listingId: string): Promise<string> {
 }
 
 beforeAll(async () => {
+  assertBookableWindow(W); // assert the derivation, don't assume it — a loud setup failure here beats a
+  // confusing placeHold rejection deep in a transition case.
   testDb = await setupTestDb();
   testAuth = makeTestAuth(testDb);
 
