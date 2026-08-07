@@ -14,7 +14,12 @@ import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { user } from "@/lib/db/schema";
-import { avatarFileSchema, AVATAR_MAX_BYTES } from "@/app/actions/avatar";
+// avatarFileSchema/AVATAR_MAX_BYTES import from @/lib/validation/profile, NOT from the action.
+// They were exported from the "use server" module until quick-260807-fc6, which made Next refuse
+// to evaluate it (only async exports allowed) — these very assertions passed the whole time,
+// because Vitest does not enforce that rule. Only the path changed; the cases below are unaltered
+// and still drive the same schema. tests/use-server-exports.test.ts is what stops the regression.
+import { avatarFileSchema, AVATAR_MAX_BYTES } from "@/lib/validation/profile";
 
 let testDb: TestDb;
 let testAuth: TestAuth;

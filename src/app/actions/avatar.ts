@@ -15,28 +15,21 @@
 // CLIENT upload via cloudinary.utils.api_sign_request(...) so big files never transit our server.
 // Routing a single small avatar through the server action (here) is the deliberately simpler v1 choice
 // (RESEARCH Pattern 5 note). avatarUrl/avatarPublicId are the only Cloudinary results we persist.
+//
+// ⚠️ THIS FILE MAY EXPORT NOTHING BUT ASYNC FUNCTIONS (and types, which erase). Next enforces that at
+// MODULE EVALUATION, so one stray value export kills every action in the file, not just itself. This
+// module used to export AVATAR_MAX_BYTES (a number) and avatarFileSchema (a Zod object); Next refused
+// to load it — "A 'use server' file can only export async functions, found number" — and
+// uploadAvatarAction below never ran, i.e. avatar upload was dead in the browser for all of Phase 1
+// while tests/profile/avatar.test.ts stayed green against those same two exports. Both now live in
+// @/lib/validation/profile (directive-free, so the client form can share the contract) and are
+// deliberately NOT re-exported from here: a re-export out of a "use server" module is the same
+// violation wearing a compatibility shim. tests/use-server-exports.test.ts holds this line repo-wide.
 
 import { headers } from "next/headers";
-import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { uploadAvatar } from "@/lib/cloudinary";
-
-/** Max avatar size — 5 MB. Larger files are rejected before any upload (T-04-04). */
-export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-
-/**
- * Validate an uploaded avatar File: must be a non-empty image/* under the size cap. Exported so the
- * test suite can assert the guard in isolation and so callers re-validate the same contract.
- */
-export const avatarFileSchema = z
-  .instanceof(File, { message: "An image file is required." })
-  .refine((f) => f.size > 0, { message: "The file is empty." })
-  .refine((f) => f.type.startsWith("image/"), {
-    message: "Only image files are allowed.",
-  })
-  .refine((f) => f.size <= AVATAR_MAX_BYTES, {
-    message: "Image must be 5 MB or smaller.",
-  });
+import { avatarFileSchema } from "@/lib/validation/profile";
 
 export type AvatarResult =
   | { ok: true; avatarUrl: string }
