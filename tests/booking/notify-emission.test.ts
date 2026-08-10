@@ -49,7 +49,7 @@ import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../
 import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockResend } from "../helpers/mocks";
-import { user, listing, booking, hostPayout } from "@/lib/db/schema";
+import { user, listing, booking, hostPayout, operatingHours } from "@/lib/db/schema";
 import type { NotifyEvent } from "@/lib/notifications";
 
 const MIN = 60 * 1000;
@@ -158,6 +158,19 @@ async function seedListing(id: string): Promise<void> {
     hourlyRateCents: HOURLY,
     dayRateCents: 30000,
   });
+  // 260810-sti: hours are the FOURTH deriveBookable term, so a published listing with an empty calendar
+  // is no longer sellable and every placeHold case here would refuse with `not-bookable`. All 7 weekdays,
+  // because this file's windows are clock-derived and can land on any day. This addition is INERT to what
+  // the file measures — the notification WRITE path never reads operating hours.
+  await testDb.db.insert(operatingHours).values(
+    Array.from({ length: 7 }, (_, dow) => ({
+      id: `oh_ne_${id}_${dow}`,
+      listingId: id,
+      dayOfWeek: dow,
+      openTime: "06:00:00",
+      closeTime: "22:00:00",
+    })),
+  );
 }
 
 /**

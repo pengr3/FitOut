@@ -29,6 +29,23 @@
 //       under a booker who is mid-payment. Exactly the D-58 failure this case exists to name.
 //     → Matched the prediction exactly; no divergence. Restored by EDITING THE STATEMENT BACK.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
+// CONFIRM-THEN-FIX, BRANCH A (quick task 260810-sti, Task 1) — the EXCLUSIVE half of audit finding #4.
+// "A published, fully-payable listing with NO operating hours is refused server-side" was written FIRST
+// against byte-unchanged `src/` and FAILED. Observed, verbatim:
+//
+//   × a published, fully-payable listing with NO operating hours is refused server-side — the CTA is not the gate
+//   RedirectError: NEXT_REDIRECT:/listings/L_nohours/book?hold=4a7587c6-3901-4bc4-b8a2-f4ecd18df4f5
+//    ❯ redirect tests/booking/state-machine.test.ts:181:13
+//    ❯ placeHold src/app/actions/booking.ts:343:3
+//    ❯ tests/booking/state-machine.test.ts:259:17
+//
+// Read the failure for what it is: this is not an assertion about a sentence coming back wrong. The
+// action REDIRECTED, i.e. it MINTED A REAL HOLD (`hold=4a7587c6-…`) on a listing whose every date renders
+// Closed, and marched the booker on to the reserve page and from there to a hosted checkout. The
+// row-count assertion below never even ran. Fixed in Task 2 (hours became deriveBookable's fourth term);
+// measured by mutation M1 in Task 3, which must redden this case AND the open-capacity twin in
+// tests/booking/open-capacity-hold.test.ts from a single deletion in src/lib/bookability.ts.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
@@ -36,7 +53,7 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, hostPayout, booking } from "@/lib/db/schema";
+import { user, listing, hostPayout, booking, operatingHours } from "@/lib/db/schema";
 
 // --- Redirect capture -------------------------------------------------------
 // next/navigation redirect() throws NEXT_REDIRECT in Next; the mock throws a typed RedirectError carrying
@@ -77,8 +94,15 @@ let confirmBooking: BookingActions["confirmBooking"];
 // POSTGRES's now() — the JS clock can be frozen, the DB clock cannot. Venue-local hour 10 IS 02:00Z in
 // Asia/Manila, so this is the same window it always was.
 // Absolute UTC — createPendingHold works on instants; per-listing so windows on distinct listings never
-// collide on the booking_no_overlap EXCLUDE. No `weekday`: this file seeds no operating_hours and the
-// write path does not consult them.
+// collide on the booking_no_overlap EXCLUDE. No `weekday` is needed: the WRITE PATH still does not
+// consult operating hours, so the window can land on any day of the week.
+//
+// ⚠️ WHAT CHANGED (260810-sti). This file used to seed NO operating_hours at all, on the strength of that
+// same "the write path does not consult them" reasoning. Still true of the write path — but the
+// BOOKABILITY GATE now consults them: hours are the fourth term of deriveBookable, so a published,
+// payout-activated listing with an empty calendar is refused before `createPendingHold` is ever reached.
+// `seedBookableListing` therefore gives every listing it makes a full week of hours (any weekday the
+// derived window lands on is covered), and `L_nohours` below is the deliberate exception.
 const W = venueWindow({ hour: 10, minDaysOut: 3 });
 const START = W.startUtc;
 const END = W.endUtc;
@@ -100,6 +124,18 @@ async function seedBookableListing(id: string): Promise<void> {
     hourlyRateCents: 5000,
     dayRateCents: 30000,
   });
+  // The FOURTH deriveBookable term (260810-sti). All 7 weekdays, so the derived window W can land on any
+  // day without the gate refusing for a reason this file is not about. Withhold these and every placeHold
+  // case in the file returns `not-bookable` — which is precisely what `L_nohours` proves on purpose.
+  await testDb.db.insert(operatingHours).values(
+    Array.from({ length: 7 }, (_, dow) => ({
+      id: `oh_sm_${id}_${dow}`,
+      listingId: id,
+      dayOfWeek: dow,
+      openTime: "06:00:00",
+      closeTime: "22:00:00",
+    })),
+  );
 }
 
 async function login(email: string): Promise<void> {
@@ -183,6 +219,22 @@ beforeAll(async () => {
     hourlyRateCents: 5000,
     dayRateCents: 30000,
   });
+
+  // L_nohours — identical to a `seedBookableListing` row in EVERY respect that could refuse a sale
+  // (published, the SAME verified + payout-activated HOST, a real hourly rate, one unit), and failing on
+  // HOURS AND NOTHING ELSE. Inserted directly rather than through the helper precisely because the helper
+  // now adds the week of hours this fixture must NOT have. Sharing the host with L_happy is what makes
+  // the pair diagnostic: the two listings differ in exactly one input.
+  await testDb.db.insert(listing).values({
+    id: "L_nohours",
+    hostId: HOST,
+    title: "Live but with an empty calendar",
+    status: "published",
+    unitCount: 1,
+    timezone: "Asia/Manila",
+    hourlyRateCents: 5000,
+    dayRateCents: 30000,
+  });
 });
 
 afterAll(async () => {
@@ -213,6 +265,18 @@ describe("placeHold — capability + bookability gate (D-41, Security V4)", () =
     expect(res).toMatchObject({ ok: false, reason: "not-bookable" });
     const [{ n }] = await testDb.client`SELECT count(*)::int AS n FROM booking WHERE listing_id = 'L_draft'`;
     expect(n).toBe(0); // never minted a hold on a non-bookable listing
+  });
+
+  it("a published, fully-payable listing with NO operating hours is refused server-side — the CTA is not the gate", async () => {
+    // T-STI-01. The booker-facing CTA on an hours-less listing is already inert, but the CTA is a
+    // courtesy, never the gate (Security V4): this asserts what happens when the reserve route is reached
+    // by hand-typing the URL or by replaying a stale form POST. The listing is published and its host is
+    // fully payable — the ONLY thing wrong with it is an empty calendar.
+    await login(BOOKER_EMAIL);
+    const res = await placeHold({ listingId: "L_nohours", startUtc: START, endUtc: END, fullDay: false });
+    expect(res).toMatchObject({ ok: false, reason: "not-bookable" });
+    const [{ n }] = await testDb.client`SELECT count(*)::int AS n FROM booking WHERE listing_id = 'L_nohours'`;
+    expect(n).toBe(0); // the refusal ran BEFORE the hold, not after it
   });
 });
 

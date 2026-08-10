@@ -491,6 +491,22 @@ describe("placeHold forks on bookingMode + mode-flip independence + pay-on-appro
       hourlyRateCents: HOURLY,
       dayRateCents: DAY_RATE,
     });
+    // 260810-sti: hours are the FOURTH deriveBookable term, and THESE listings reach the real `placeHold`
+    // action, so without them every family-(f) case would refuse with `not-bookable`. Inert to what the
+    // file measures — the fork is on bookingMode, which hours do not touch.
+    //
+    // ⚠️ ONLY HERE. `makeListing` (the family-A helper further up) must NOT gain hours: its cases call
+    // `addMondayHours`, which writes id `oh_${listingId}`, and seeding there would collide on the
+    // primary key. Those cases drive `createPendingHold` directly, which has no bookability gate.
+    await testDb.db.insert(operatingHours).values(
+      Array.from({ length: 7 }, (_, dow) => ({
+        id: `oh_af_${id}_${dow}`,
+        listingId: id,
+        dayOfWeek: dow,
+        openTime: "06:00:00",
+        closeTime: "22:00:00",
+      })),
+    );
   }
 
   /** Sign in the action booker and thread the session cookie the mocked next/headers reads. */

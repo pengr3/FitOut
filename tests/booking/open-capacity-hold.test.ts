@@ -46,6 +46,43 @@
 // ⚠️ BOTH "adversarial fixture" notes in the seed below are what make A and C measure the REAL failure
 // rather than an incidental crash. Read them before simplifying the fixtures.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
+// CONFIRM-THEN-FIX, BRANCH A (quick task 260810-sti, Task 1) — the OPEN-CAPACITY half of audit finding
+// #4 (case 6b, fixture L_OPEN_NOHOURS). Written FIRST against byte-unchanged `src/` and it FAILED:
+//
+//   ❯ tests/booking/open-capacity-hold.test.ts (12 tests | 1 failed) 4680ms
+//     × (6b) a published, payout-activated DROP-IN listing with NO operating hours is refused by placeOpenHold's OWN re-stated gate 140ms
+//
+//   AssertionError: expected { ok: false, reason: 'invalid', …(1) } to deeply equal { ok: false, …(2) }
+//   - Expected
+//   + Received
+//     {
+//   -   "error": "This space isn't accepting bookings right now.",
+//   +   "error": "This space isn't open that day. Pick another date.",
+//       "ok": false,
+//   -   "reason": "not-bookable",
+//   +   "reason": "invalid",
+//     }
+//    ❯ tests/booking/open-capacity-hold.test.ts:551:17
+//
+// ⚠️ REPORTED AS OBSERVED, NOT AS PREDICTED — AND THE DIFFERENCE IS THE INTERESTING PART. The plan
+// predicted this case would MINT A HOLD, the way the exclusive twin did. It did not: `placeOpenHold`
+// happened to be saved by a LATER gate. Step (7) derives the day's entry window from the listing's own
+// operating hours and returns null when there are none, so the drop-in path already refused — three
+// gates too late, with the wrong reason and with copy that lies. "Pick another date" is a dead end on a
+// listing that has NO dates at all, and it is what every drop-in booker used to be told.
+//
+// THE FIXTURE IS NOT AT FAULT, and the received copy is what proves it. The plan's done-criterion says
+// an `invalid` here means the fixture has the wrong occupancy mode — but a mode mismatch is refused at
+// gate (6) with OPEN_ON_EXCLUSIVE ("This space is booked by the hour — pick a time to book."). What came
+// back is gate (7)'s CLOSED_THAT_DAY, so gates 1-6 all PASSED: the fixture really is a published,
+// verified, payout-activated `open_capacity` listing, and bookability (gate 5) really did let it
+// through. The two `invalid` sources are distinguishable by their sentence, which is why this case
+// asserts the exact error string rather than just the reason code.
+//
+// So the anchor is real and it measures the intended thing — the refusal must move from gate 7 to gate
+// 5 — but the pre-fix hole on THIS path was a wrong-and-misleading refusal, not an unbounded mint.
+// Recorded here rather than smoothed over. Measured by mutation M1 in Task 3.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
@@ -62,6 +99,8 @@ import type { RateLimitResult } from "@/lib/rate-limit";
 const OPEN_ON_EXCLUSIVE = "This space is booked by the hour — pick a time to book.";
 const EXCLUSIVE_ON_OPEN = "This space sells day passes — pick a day to book.";
 const CLOSED_THAT_DAY = "This space isn't open that day. Pick another date.";
+/** The gate-5 (bookability) refusal — the SAME sentence placeHold returns, by re-statement. */
+const NOT_BOOKABLE = "This space isn't accepting bookings right now.";
 const NEEDS_SIGN_IN = "Sign in to book this space.";
 const NEEDS_BOOKING_ON = "Turn on booking to reserve this space.";
 /** 09-UI-SPEC § 6 / D-126 — the one sentence a drop-in booker sees on the re-price path. */
@@ -81,6 +120,7 @@ const EXCL_MAX_OCCUPANCY = 8;
 
 const L_OPEN = "L_oc_open"; // the drop-in listing under test (hours every weekday)
 const L_CLOSED = "L_oc_closed"; // a drop-in listing open on ONE weekday only
+const L_OPEN_NOHOURS = "L_oc_open_nohours"; // drop-in, fully payable, ZERO hours (the 260810-sti anchor)
 const L_EXCL_MODE = "L_oc_excl_mode"; // exclusive; must stay row-free (the T-09-23 proof)
 const L_EXCL_PAX = "L_oc_excl_pax"; // exclusive + per-head surcharge (the untouched D-108 path)
 
@@ -126,6 +166,7 @@ const D_MODE = daysOut(33);
 const D_AUTH = daysOut(34);
 const D_PAST = daysOut(-7); // genuinely past — same weekday as D_HAPPY, so hours exist and the CLAIM refuses
 const D_CLOSED = daysOut(31); // a different weekday from L_CLOSED's single open day (+31d ⇒ +3 weekdays)
+const D_NOHOURS = daysOut(35); // a perfectly ordinary future date — the LISTING is what is wrong, not the day
 
 // next/navigation.redirect throws by design, so a SUCCESSFUL placeOpenHold is observed as a thrown target.
 class RedirectError extends Error {
@@ -297,6 +338,11 @@ beforeAll(async () => {
   await testDb.db.insert(listing).values([
     openListing(L_OPEN),
     openListing(L_CLOSED),
+    // Built by the SAME `openListing` factory as the two above, so it carries a real `maxOccupancy` and a
+    // real `perHeadPriceCents` — the file's DELIBERATELY ADVERSARIAL idiom. A fixture with a NULL cap
+    // would fail closed inside the claim and pass case (6b) for the wrong reason; this one would
+    // genuinely mint a priced hold if the bookability gate were absent. Its ONLY defect is hours.
+    openListing(L_OPEN_NOHOURS),
     {
       id: L_EXCL_MODE,
       hostId,
@@ -338,6 +384,10 @@ beforeAll(async () => {
   ]);
 
   // L_OPEN is open EVERY weekday (so each case can own its own date); L_CLOSED is open on exactly one.
+  //
+  // ⚠️ L_OPEN_NOHOURS IS DELIBERATELY ABSENT FROM THIS BLOCK AND MUST STAY ABSENT. Every other listing
+  // here has hours because every other case needs the venue to be open; that one has none because zero
+  // hours IS its fixture. Adding a row for it would silently turn case (6b) green for the wrong reason.
   await testDb.db.insert(operatingHours).values([
     ...Array.from({ length: 7 }, (_, dow) => ({
       id: `oh_open_${dow}`,
@@ -515,6 +565,31 @@ describe("placeOpenHold — the drop-in booking mutation (OPEN-02 / OC-02 / OC-0
 
     expect(res).toEqual({ ok: false, reason: "invalid", error: CLOSED_THAT_DAY });
     expect(await rowsFor(L_CLOSED)).toBe(0);
+  });
+
+  it("(6b) a published, payout-activated DROP-IN listing with NO operating hours is refused by placeOpenHold's OWN re-stated gate", async () => {
+    // T-STI-02, and it DUPLICATES state-machine.test.ts's L_nohours intent ON PURPOSE rather than
+    // inheriting it. `placeOpenHold`'s bookability block is written "deliberately by RE-STATEMENT rather
+    // than extraction" (booking.ts:351-354) — it is independently duplicated security code on the money
+    // path. A typo, a wrong table alias, a wrong field name or a missing `=== true` coercion in that
+    // duplicate would compile, pass tsc, pass the exclusive anchor and pass the whole suite while leaving
+    // a real drop-in booking hole open. An untested duplicate of a security check is WORSE than no
+    // duplicate, because it reads as covered. Mutation M1 is the measurement: one deletion in
+    // bookability.ts must redden this case AND the exclusive one.
+    //
+    // WHICH GATE ANSWERS IS THE ASSERTION. placeOpenHold's docblock puts BOOKABILITY at step 5, ahead of
+    // the occupancy-mode refusal (6) and the operating-hours WINDOW derivation (7). Both 6 and 7 return
+    // `invalid`, so a `not-bookable` here is what proves the new term landed in gate 5. In particular
+    // this must NOT come back as case (6)'s `CLOSED_THAT_DAY` — "pick another date" is a lie on a listing
+    // that has no dates at all, and it is exactly what the booker used to be told.
+    await login(BOOKER_EMAIL);
+    const res = await placeOpenHold({ listingId: L_OPEN_NOHOURS, date: ymd(D_NOHOURS), requestedPasses: 1 });
+
+    expect(res).toEqual({ ok: false, reason: "not-bookable", error: NOT_BOOKABLE });
+    // THE ASSERTION THAT MATTERS, mirroring case 4a: no row. A copy check alone would pass even if the
+    // refusal ran AFTER the claim had already granted and priced heads.
+    expect(await rowsOn(L_OPEN_NOHOURS, D_NOHOURS)).toBe(0);
+    expect(await rowsFor(L_OPEN_NOHOURS)).toBe(0);
   });
 
   it("(7) refuses a PAST date server-side — the calendar is a courtesy, never the gate (Security V4)", async () => {
