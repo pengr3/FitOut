@@ -473,3 +473,49 @@ reported "got in" when no login had occurred. That is the sharper half of the tw
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.2: Image crop/framing UI — profile picture and listing photos (BACKLOG)
+
+**Goal:** [Captured for future planning — UI-SPEC to be produced by /gsd:ui-phase before any code]
+**Requirements:** TBD (touches AUTH-05's "optional photo" and LIST-02; NEITHER requirement is unmet —
+both are SATISFIED and the round-trips are proven. This is the framing experience on top of them.)
+**Plans:** 0 plans
+
+**Captured:** 2026-08-10, raised by the operator immediately after the first real avatar upload
+succeeded. Their words: *"it just inserted the photo without confirming or adjusting the zoom and
+whatever. That's the standard."*
+
+**The gap, measured — it is TWO surfaces, and they are asymmetric.**
+
+*Avatar (`/profile`).* `profile-form.tsx:108` is a bare `<input type="file" accept="image/*">` that
+uploads on change. There is no hold, no preview, no confirm. The server then applies a **blind**
+transform, `src/lib/cloudinary.ts:29`:
+
+```
+transformation: { width: 400, height: 400, crop: "fill", gravity: "face" }
+```
+
+`gravity: "face"` on a source with no face falls back to an arbitrary region — which is exactly what
+the operator got, and why the complaint is about framing rather than upload. **No cropper library is
+installed** (`package.json` has nothing matching crop/cropper/image-edit), so this needs a real
+component.
+
+*Listing photos (wizard).* `photo-uploader.tsx:156-161` passes `CldUploadWidget` only
+`{ folder, multiple, maxFiles, sources }` — **no `cropping` key**, so the same complaint applies. But
+this one is nearly free: Cloudinary's own widget supports `cropping` / `croppingAspectRatio`.
+
+**Why this is a UI-SPEC job and not a quick task.** The hard part is the contract, not the code:
+frame size and mask shape, zoom range and what the bounds are, behaviour on a non-square or
+very-small source, mobile drag ergonomics, what a cancel leaves behind, and — the consistency
+question — whether the avatar's bespoke cropper and Cloudinary's widget UI should look like one
+product or are allowed to differ. Decide those before installing anything.
+
+**One thing the spec must settle:** once the user chooses their own framing, the server's
+`gravity: "face"` re-crop becomes actively wrong — it would re-frame what the user just framed. The
+spec should say what replaces it (a straight crop of the chosen region, or nothing).
+
+**Not blocking v1.0.** AUTH-05 calls the photo optional; LIST-02 is satisfied and proven. Both
+round-trips work against real Cloudinary as of 2026-08-10.
+
+Plans:
+- [ ] TBD (run /gsd:ui-phase 999.2 to produce the UI-SPEC, then promote with /gsd:review-backlog)
