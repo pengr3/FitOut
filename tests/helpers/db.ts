@@ -16,15 +16,31 @@
 //     dev tables. Rewriting `public.` -> the test schema keeps every table + FK self-contained.
 //   - teardownTestDb() drops the schema and closes the connection.
 //
-// Why a schema (not a separate database): postgres.js + drizzle connect via one URL; a schema
-// swap is a single search_path change and needs no extra DB provisioning, while still giving
-// full isolation from dev's public schema.
+// WHY A SCHEMA **AND** A SEPARATE DATABASE — T-01-04 IS NOW DEFENDED AT TWO LAYERS, NOT ONE.
+// This paragraph used to argue that a schema swap was sufficient because it "needs no extra DB
+// provisioning". That was wrong in a way that showed up as real rows in the DEV database.
+//
+//   - The SCHEMA layer (this file) stays, and its job is unchanged: PER-FILE isolation, so parallel
+//     Vitest workers never share state or race on CREATE SCHEMA.
+//   - The DATABASE layer was added ON TOP because a schema swap only isolates code that goes through
+//     THIS helper's connection — and the app's own db handle does not. `src/lib/db/index.ts` is a
+//     module-level singleton (`drizzle(postgres(DATABASE_URL))`) evaluated at import time on the
+//     default `search_path` (= `public`), so it wrote straight past this isolation. Every
+//     `npx vitest run` deposited a real `notify` + `guest-email` `needs_attention` row into dev's
+//     `public.audit` (deferred item D1), silently, because recordAudit swallows the insert failure
+//     by design (src/lib/audit.ts:111).
+//
+// So `tests/setup.ts` now forces DATABASE_URL onto a dedicated `fitout_test` database
+// (tests/helpers/test-db-url.ts; provision with `npm run db:test:setup`), and this helper carves its
+// per-file schemas inside THAT database. Stray singleton writes land in `fitout_test.public`, where
+// tests/global-setup.ts truncates them at the start of each run and names them loudly at the end.
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { testDatabaseUrl } from "./test-db-url";
 
 const MIGRATIONS_DIR = resolve(process.cwd(), "drizzle");
 
@@ -36,8 +52,14 @@ function nextSchemaName(): string {
   return `test_${process.pid}_${worker}_${counter++}`.replace(/[^a-z0-9_]/gi, "_");
 }
 
+// Delegates to the shared module rather than carrying its own copy of the dev URL literal. That
+// copy was a live hazard, not just duplication: whenever this helper ran outside `setupFiles` (any
+// direct `tsx`/script import, where nothing forces DATABASE_URL) it silently created and dropped
+// `test_%` schemas in the DEV database — which is exactly how dev came to hold an orphan test schema
+// from a crashed run. Going through testDatabaseUrl() means the `_test` suffix invariant now binds
+// the schema layer too, and cannot be opted out of.
 function baseUrl(): string {
-  return process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
+  return testDatabaseUrl();
 }
 
 /** Build a postgres.js client whose connections default to the given isolated schema. */

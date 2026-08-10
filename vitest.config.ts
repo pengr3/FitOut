@@ -10,6 +10,21 @@ import { resolve } from "node:path";
 //
 // No watch mode here — `vitest run` (see package.json "test" script) runs once
 // and exits, keeping feedback latency tight for the GSD sampling loop.
+//
+// DATABASE ISOLATION IS TWO LAYERS, AND BOTH ARE LOAD-BEARING (threat T-01-04):
+//
+//   1. DATABASE — `setupFiles: tests/setup.ts` FORCES `DATABASE_URL` onto the suite's own
+//      `fitout_test` database (tests/helpers/test-db-url.ts, provisioned by `npm run db:test:setup`).
+//      This is the outer wall, and it exists because the app's db handle is a MODULE-LEVEL singleton
+//      (`src/lib/db/index.ts`) bound to `public`: it does not go through the helper below, so layer 2
+//      alone never contained it and it wrote real audit rows into DEV on every run.
+//   2. SCHEMA — `tests/helpers/db.ts` still gives every test FILE its own `test_<pid>_<worker>_<n>`
+//      schema inside that database, so parallel workers never share state. That layer is unchanged.
+//
+//   `globalSetup: tests/global-setup.ts` sits around both: it preflights the test database (failing
+//   once, with the fix command, instead of 85 cryptic per-file errors), TRUNCATEs it so each run's
+//   measurement is per-run, and prints a LOUD end-of-run report naming anything that still escaped
+//   layer 2 — containment is demonstrated by relocation, not by a code path going quiet.
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -40,6 +55,8 @@ export default defineConfig({
     // mocked re-render) and without masking a genuinely hung test for minutes.
     testTimeout: 20_000,
     setupFiles: ["tests/setup.ts"],
+    // Runs ONCE in the main process, around the whole suite (it does NOT inherit setupFiles).
+    globalSetup: ["tests/global-setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     // E2E specs live in /e2e and are run by Playwright, not Vitest.
     exclude: ["e2e/**", "node_modules/**", ".next/**"],
