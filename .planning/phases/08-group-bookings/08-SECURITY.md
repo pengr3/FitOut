@@ -182,10 +182,21 @@ Net: **0 threats open across the whole phase; 0 HIGH/CRITICAL open.** The `block
 
 Not threats — carried for the record; none affects `threats_open`:
 
-- **LW-01** (low) — `expireCheckoutSession`'s already-expired tolerance matches on unstructured provider error
-  text (PayMongo gives no typed error code). Fails SAFE: a future reword would re-open the recovery livelock (a
-  booker denial, never a double-charge). Corroborates T-08-85's evidence.
-- **NT-01** (nit) — a pre-existing test title is now stale.
+- ~~**LW-01** (low) — `expireCheckoutSession`'s already-expired tolerance matches on unstructured provider
+  error text (PayMongo gives no typed error code). Fails SAFE: a future reword would re-open the recovery
+  livelock (a booker denial, never a double-charge). Corroborates T-08-85's evidence.~~ — **CLOSED 2026-08-10
+  by quick task `260810-i0v` (`2130ff2` source, `cd10687` tests).** The tolerance is no longer inferred from
+  provider prose: on any expire error the client does exactly ONE `getCheckoutSession(id)` re-probe and
+  resolves only when the provider itself reports `status === "expired"`. Wording, localization, and
+  status-code drift can therefore no longer re-open the T-08-84 recovery livelock. `paid` (money captured on
+  a session we were retiring), `active` (still payable), any unknown or empty status, and a failed re-probe
+  ALL rethrow the ORIGINAL error into the caller's `needs_attention` refusal — so the change strictly
+  narrows what is tolerated and never widens it. `threats_open` is UNCHANGED: this closed a durability note,
+  not a threat, and `src/app/actions/booking.ts` is byte-unchanged. Mutation-measured (5 mutants, 5 recorded
+  REDs) and confirmed live against the `sk_test_` API on 2026-08-10 (`active` → `expired`, 4/4 passed).
+- ~~**NT-01** (nit) — a pre-existing test title is now stale.~~ — **CLOSED 2026-08-10 by `260810-i0v`
+  (`cd10687`)**: the title now says the duplicate expire is *sent* identically and points at where the real
+  200-vs-400 behaviour is proven.
 - **NT-02** (nit) — the wizard's autosave doesn't surface the specific surcharge field-error, so a host tripping
   the edit guard sees a generic toast (the edit is still correctly rejected — UX polish).
 - Process note: `08-18-SUMMARY.md` lacks an explicit `## Threat Flags` section (its diff introduces no new

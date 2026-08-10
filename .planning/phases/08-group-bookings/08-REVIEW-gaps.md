@@ -20,10 +20,10 @@ findings:
   blocking: 0
   high: 0
   medium: 0
-  low: 1
-  nit: 2
-  total: 3
-  resolved: 1
+  low: 0
+  nit: 1
+  total: 1
+  resolved: 3
 status: issues
 ---
 
@@ -34,7 +34,12 @@ status: issues
 listing action ↔ wizard.tsx)
 **Files Reviewed:** 10 (6 source, 4 test — 08-22 added `src/app/actions/listing.ts` and
 `tests/listing/crud.test.ts` to the reviewed set)
-**Status:** issues — 1 RESOLVED (was HIGH), 1 LOW, 2 NIT remain. **No BLOCKER, HIGH, or MEDIUM open.**
+**Status:** issues — 3 RESOLVED (HG-01 was HIGH; LW-01 was LOW; NT-01 was NIT), 1 NIT remains (NT-02).
+**No BLOCKER, HIGH, MEDIUM, or LOW open.**
+
+> **Updated 2026-08-10 by quick task `260810-i0v` (`2130ff2` source, `cd10687` tests).** LW-01 and NT-01
+> are now CLOSED — see the Resolved section. NT-02 (the wizard's `fieldErrors` toast) is the one finding
+> still open in this review.
 
 ## Summary
 
@@ -118,9 +123,43 @@ already-documented `08-REVIEW.md` WR-09 pattern for `maxOccupancy` positivity.
 
 </details>
 
-## Low
+### ~~LW-01: `expireCheckoutSession`'s idempotent-tolerance branch matches on unstructured provider error text, with no re-probe safety net~~ — **RESOLVED (`2130ff2` + `cd10687`, quick task 260810-i0v)**
 
-### LW-01: `expireCheckoutSession`'s idempotent-tolerance branch matches on unstructured provider error text, with no re-probe safety net
+> **Closed 2026-08-10 by quick task 260810-i0v (`2130ff2` source, `cd10687` tests).** The string match on
+> PayMongo's prose is GONE. `expireCheckoutSession`'s catch now does exactly ONE `getCheckoutSession(id)`
+> re-probe and tolerates the expire error **only when the provider itself reports `status === "expired"`** —
+> the postcondition of expire (this session can never be paid) is now a fact read back from PayMongo
+> instead of an inference from an error sentence. A reword, a localization, or a status-code change can no
+> longer silently re-open the T-08-84 recovery livelock, which was this finding's entire concern.
+>
+> **`paid` THROWS — explicitly and by construction.** A superseded session the provider reports as `paid`
+> means money was CAPTURED on a session we were retiring; it is never reported as a successful expire and
+> always reaches the caller's `recordAudit(needs_attention)` refusal. `active` (still payable), any unknown
+> or empty status, and a re-probe that itself fails all rethrow the ORIGINAL expire error too. The
+> implementation is a single `expired`-only allow with a fall-through `throw` — deliberately NOT an
+> enumerated reject-list, which would silently tolerate every status PayMongo adds later.
+>
+> **Measured, not asserted.** `tests/payments/paymongo-calls.test.ts` went from 4 cases to 8 (file now 17
+> passed), and all five fail-closed rules carry their OWN dedicated case AND their OWN dedicated mutation
+> with verbatim RED recorded in the file's MUTATION-VERIFY header: active=case 3/M1, paid=case 4/M2,
+> unknown-or-empty=case 8/M3, probe-failure=case 6/M4, wording-independence=case 2/M5. M3 (the enumerated
+> reject-list mutant) reddens case 8 and ONLY case 8 — cases 3 and 4 stay green — which is precisely the
+> staleness bug the prescribed construction avoids.
+>
+> **This finding's own suggested mitigation is also discharged.** The entry below recommended periodically
+> re-running the gated `RUN_LIVE_PAYMONGO_PROBE=1` suite to detect wording drift. That monitoring burden is
+> now unnecessary: the code no longer depends on the wording. The live suite WAS run during closure
+> (2026-08-10, `sk_test_`, 4/4 passed) and confirmed the enum the fix rests on — `[case2] pre-expire
+> status=active` → `post-expire status=expired`, and `[case4] repeat-expire … RESOLVED`.
+>
+> ⚠️ **`src/app/actions/booking.ts` is byte-unchanged** by this closure (gated on every task). Neither
+> caller's fail-closed refusal was weakened, loosened, or re-ordered.
+>
+> The original LW-01 entry is kept below for the record.
+
+<details><summary>Original LW-01 entry (pre-260810-i0v)</summary>
+
+**Severity (at the time):** LOW
 
 **File:** `src/lib/paymongo.ts:271-276`
 
@@ -143,9 +182,23 @@ itself documents. Worth a note in `deferred-items.md` or an ops runbook: periodi
 the 400 detail string is unchanged, since a drift here degrades silently to "denial" (safe) rather than
 "double-charge" (unsafe) — so it fails in the safe direction, but still worth monitoring.
 
-## Nit
+</details>
 
-### NT-01: A pre-existing (untouched) test's title now overstates what it proves, given the 08-19/08-21 findings
+### ~~NT-01: A pre-existing (untouched) test's title now overstates what it proves, given the 08-19/08-21 findings~~ — **RESOLVED (`cd10687`, quick task 260810-i0v)**
+
+> **Closed 2026-08-10 by quick task 260810-i0v (`cd10687`).** The title now reads `"uses the IDENTICAL
+> Idempotency-Key on a retry of the same session — the duplicate expire is SENT identically"`, and a
+> comment above it states plainly that "a no-op at the wire level" is false (08-19 probed the live API: a
+> repeat expire returns HTTP 400; PayMongo does not honor the Idempotency-Key on this endpoint), and points
+> at where the real 200-vs-400 behaviour IS proven — the rewritten LW-01 describe block below it, and
+> `tests/paymongo/checkout-idempotency-real.test.ts` case 4 for the live proof. The test's mock, its
+> assertions, and its two calls were left exactly as they were, per this finding's own scoping.
+>
+> The original NT-01 entry is kept below for the record.
+
+<details><summary>Original NT-01 entry (pre-260810-i0v)</summary>
+
+**Severity (at the time):** NIT
 
 **File:** `tests/payments/paymongo-calls.test.ts:122-137` (not modified by the 08-18–21 diff — confirmed
 via `git diff af67c94..HEAD`, which only adds a new `describe` block starting at line 173)
@@ -162,6 +215,10 @@ title.
 update in a future pass — e.g. "...so a duplicate expire request is *sent* identically (the actual
 200-vs-400 provider behavior is proven in the 08-21 describe block below and in
 `checkout-idempotency-real.test.ts`)."
+
+</details>
+
+## Nit
 
 ### NT-02: `saveListingStep`'s new surcharge-reachability rejection is never surfaced to the host by field — the wizard shows only the generic autosave error
 

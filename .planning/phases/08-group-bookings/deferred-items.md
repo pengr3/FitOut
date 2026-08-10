@@ -7,11 +7,15 @@ blocking constraint that a mock cannot falsify the assumption it was written fro
 note below. Items 1, 3 and 4 were already closed; item 2 remains open and out of scope by operator decision.
 
 > Residual review nits from the gap-closure code review (`08-REVIEW-gaps.md`, non-blocking, 0 blocking / 0
-> high / 0 medium): **LW-01** — `expireCheckoutSession`'s already-expired tolerance matches on unstructured
+> high / 0 medium): ~~**LW-01** — `expireCheckoutSession`'s already-expired tolerance matches on unstructured
 > provider error text (fails SAFE — a future PayMongo reword would re-open the recovery livelock, a denial
-> not a double-charge); **NT-01** — a pre-existing test title is now stale; **NT-02** — the wizard's autosave
-> does not surface the specific surcharge field-error, so a host tripping the edit guard sees the generic
-> "check the form" toast (the edit is still correctly rejected — UX polish only).
+> not a double-charge)~~ — **CLOSED 2026-08-10 by quick task `260810-i0v` (`2130ff2` source, `cd10687`
+> tests):** the tolerance is now verified from the provider — one `getCheckoutSession(id)` re-probe, resolve
+> only on `status === "expired"`; `paid` / `active` / unknown / a failed probe all rethrow the ORIGINAL error.
+> ~~**NT-01** — a pre-existing test title is now stale~~ — **CLOSED 2026-08-10 by `260810-i0v` (`cd10687`).**
+> **NT-02** — the wizard's autosave does not surface the specific surcharge field-error, so a host tripping
+> the edit guard sees the generic "check the form" toast (the edit is still correctly rejected — UX polish
+> only) — **STILL OPEN.**
 
 ---
 

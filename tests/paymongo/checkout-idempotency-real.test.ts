@@ -112,17 +112,22 @@ describe.skipIf(!runLive)("PayMongo checkout — real test-mode invariants", () 
   //
   //   PROBED (sk_test_, 2026-07-29): the underlying second expire is rejected 400 "already expired".
   //
-  // 08-21 FIXES that: expireCheckoutSession now TOLERATES exactly that 400 as idempotent success (the
-  // session is already non-payable), while every genuine failure still throws. This case is the LIVE proof
-  // of the fix — the second expireCheckoutSession on the same id must now RESOLVE against the real API,
-  // where before the wrapper let the 400 escape. (The underlying provider 400 is unchanged; the wrapper
-  // absorbs it.)
+  // 08-21 FIXED that, and LW-01 (quick task 260810-i0v, 2026-08-10) changed WHY it works. The wrapper no
+  // longer tolerates the 400 because its TEXT matched a regex. It now issues exactly ONE
+  // getCheckoutSession(id) re-probe and tolerates the error only because THE PROVIDER ITSELF REPORTS THE
+  // SESSION `expired` — expire's postcondition (this session can never be paid) read back as a fact rather
+  // than inferred from an error sentence. A PayMongo reword or localization can no longer re-open the
+  // livelock. `paid`, `active`, any unknown status, and a failed probe all rethrow the ORIGINAL error.
+  //
+  // This case is therefore the LIVE proof of BOTH halves: the second expireCheckoutSession on the same id
+  // must RESOLVE against the real API, and it can only do so if the real GET came back `expired`. (The
+  // underlying provider 400 is unchanged; the wrapper absorbs it on provider-verified evidence.)
   it(
-    "a repeat expire of the same session id RESOLVES — the wrapper tolerates the real 400 'already expired' (08-21 fix)",
+    "a repeat expire of the same session id RESOLVES — the wrapper re-probes and the provider reports it expired (LW-01 / 08-21)",
     async () => {
-      // 08-21: expireCheckoutSession is now IDEMPOTENT — a repeat expire of an already-expired session
-      // resolves (the wrapper tolerates PayMongo's 400 "already expired"). This is the live proof of the fix
-      // for the livelock 08-19 originally FOUND here.
+      // The repeat expire resolves because the LW-01 re-probe read back `status === "expired"` from the
+      // live API, not because a regex matched PayMongo's 400 prose. This is the live proof of the fix for
+      // the livelock 08-19 originally FOUND here.
       const s = await newSession(50_000, `repeat-${randomUUID()}`);
 
       await expect(expireCheckoutSession(s.id)).resolves.toBeDefined(); // first expire — retires it
