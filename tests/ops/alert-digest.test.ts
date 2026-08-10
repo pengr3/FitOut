@@ -58,6 +58,17 @@
 //        AssertionError: expected [ 'audit_0', 'audit_1', 'audit_2' ] to not include 'audit_2'
 //        AssertionError: expected [ 'audit_14' ] to not include 'audit_14'
 //              Tests  3 failed | 14 passed (17)
+//
+// M4 — remove case 5's own `delete process.env.OPS_ALERT_EMAIL`. Run AFTER `.env.local` was given a REAL
+//      OPS_ALERT_EMAIL, as the regression gate for exactly the hazard called out in the case body: this is
+//      the mutation that proves case 5 still tests something rather than silently passing on a configured
+//      address. `npx vitest run tests/ops/alert-digest.test.ts` → VERBATIM:
+//        × case 5 — no recipient: a loud no-op that RESOLVES, never a throw 22ms
+//        ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+//        AssertionError: expected { sent: true, count: 1, …(2) } to deeply equal { sent: false, …(2) }
+//              Tests  1 failed | 7 passed (8)
+//      i.e. without the delete the digest finds a recipient and SENDS, so the no-recipient branch is never
+//      entered. The delete is load-bearing. If this file is ever refactored, keep it.
 // ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";

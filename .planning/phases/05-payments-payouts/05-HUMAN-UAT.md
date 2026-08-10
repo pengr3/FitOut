@@ -61,7 +61,7 @@ reconciled: |
 
 ### 3. QRPh operator-alert manual-refund workflow
 expected: Trigger a genuinely-gone-slot payment on the QRPh rail (test mode); the `[PAYMENT_ALERT] needs_manual_refund` + `recordAudit(needs_attention)` signal reaches wherever operators actually monitor, and an operator can discover and act on it to refund the booker out-of-band (no alerting/paging integration ships this phase — this checks the operational side of "never silently retain money").
-result: partial — a DISCOVERY MECHANISM now exists; the routine that uses it does not.
+result: partial — discovery, daily push delivery, a written redress runbook and a discharge command all exist now (2026-08-10); still no ops UI, and the QRPh rail is still not refundable.
 reconciled: |
   2026-08-05 — re-checked, still open, and not closable by code evidence. The alert path is a
   `console.error` plus a `recordAudit(needs_attention)` row; no alerting or paging integration ships.
@@ -95,6 +95,43 @@ reconciled_2: |
   pages anyone, and `resolved_at` has no code writer — an operator closes a row by hand. Calling that
   "passed" would be claiming an operational routine that does not exist. What remains is a process
   decision plus (optionally) an ops surface, not code correctness.
+reconciled_3: |
+  2026-08-10 — STAYS PARTIAL, with the gap materially shortened by quick task 260810-j3z. The four
+  reasons `reconciled_2` gave for withholding a pass are re-assessed here ONE BY ONE, because three of
+  them stopped being true and one did not.
+
+    1. "nothing runs that query on a schedule" — NO LONGER TRUE.
+       `src/inngest/functions/ops-alert-digest.ts` is registered in `serve()` and runs daily at
+       08:50 Asia/Manila (minute :50, colliding with none of the four existing hourly crons).
+
+    2. "nothing pages anyone" — CHANGED, AND STATED PRECISELY. It is a daily EMAIL DIGEST to
+       `OPS_ALERT_EMAIL`. That is a PUSH channel, which is the thing that did not exist before: the
+       alert now arrives without anyone going to look for it. It is NOT paging, and this note declines
+       to call it paging — paging is a latency claim, and a once-a-day email cannot back one. Money
+       held overnight still waits until 08:50. If a real latency guarantee is ever required, that is a
+       further piece of work, not something this closed.
+
+    3. "`resolved_at` has no code writer" — NO LONGER TRUE.
+       `resolveAlert` (`src/lib/ops/alerts.ts`) is its first code writer, reachable as
+       `npm run ops:alerts:resolve -- <audit-id>`. It is idempotent, it cannot rewrite an original
+       discharge time (the `AND resolved_at IS NULL` guard), and it exits non-zero on an unknown id.
+
+    4. "no UI surfaces it" — **STILL TRUE.** There is still no ops UI anywhere in this project. The two
+       surfaces are an EMAIL and a COMMAND LINE. A CLI is not a UI and a digest is not a UI: redress
+       still requires shell access to a machine with a database connection, and reading a row's `meta`
+       still requires psql or Drizzle Studio.
+
+  THEREFORE STILL `partial`, not `passed`. One of the item's own stated reasons remains true verbatim,
+  so flipping the result would be claiming something this task did not deliver. What HAS changed is that
+  the discovery-and-redress routine `reconciled_2` said "does not exist" now exists and is written down:
+  see **`.planning/ops/NEEDS-ATTENTION-RUNBOOK.md`** for the end-to-end operator procedure (how the alert
+  arrives, how to look the row up including where `meta` is readable, triage by `action` across all 13
+  real action names, the QRPh out-of-band manual refund, and how to discharge the row).
+
+  AND, UNCHANGED AND PERMANENT: none of this makes the QRPh overcharge refundable. A captured QRPh
+  payment cannot be refunded through the PayMongo API at all — a rail limitation, not a code gap.
+  **T-08-74 remains OPEN and AR-08-01 stands.** This item's underlying money problem still requires a
+  human executing a manual, out-of-band refund; what shipped is that the human now finds out.
 
 ## Summary
 
@@ -114,8 +151,18 @@ blocked: 0
   individually walked** — one hand-paid test-mode checkout on each closes it.
 - **Item 2 is the standing blocker.** PayMongo's /v2 money-movement beta is not enabled on this account
   (zero wallets; `receiving_institutions` 404s), so no real host payout has ever moved real money.
-- **Item 3 needs an operational process**, not a code check — there is no monitoring destination to
-  verify the `needs_manual_refund` signal against.
+- **Item 3: the monitoring destination now exists; the remaining gap is narrower.** *(Updated 2026-08-10,
+  quick task `260810-j3z` — supersedes "there is no monitoring destination to verify the
+  `needs_manual_refund` signal against", which is no longer true.)* The signal is now pushed daily to
+  `OPS_ALERT_EMAIL` at 08:50 Asia/Manila, the queue is listable via `npm run ops:alerts`, a row is
+  dischargeable via `npm run ops:alerts:resolve -- <audit-id>`, and the end-to-end operator procedure is
+  written down at `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md`. **What genuinely remains:** (a) **no ops
+  UI** — the surfaces are an email and a CLI, so redress still needs shell + DB access; (b) the delivery
+  is a daily digest, not paging, so an overnight alert waits until morning; (c) `resolved_at` records
+  *that* a row was discharged but not *by whom* (no `resolved_by` column — accepted, `T-J3Z-06`); and
+  (d) **the underlying QRPh rail is unchanged and permanent** — a captured QRPh payment is not refundable
+  through the PayMongo API, so redress is still a manual out-of-band refund. **T-08-74 stays OPEN and
+  AR-08-01 stands.**
 
 Phase status stays `partial`, and the phase's verification status stays `human_needed`, on items 2 and 3
 plus the unwalked half of item 1.
