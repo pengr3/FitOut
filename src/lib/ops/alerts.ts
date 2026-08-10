@@ -14,7 +14,8 @@
 //     CREATE INDEX "audit_needs_attention_idx" ON "audit" USING btree ("created_at" DESC NULLS LAST)
 //       WHERE outcome = 'needs_attention' AND resolved_at IS NULL;
 // `listUnresolvedAlerts` therefore carries a predicate byte-identical to that index predicate
-// (`outcome = 'needs_attention' AND resolved_at IS NULL`, composed here as eq() AND isNull()) and orders by
+// (`outcome = 'needs_attention' AND resolved_at IS NULL`, emitted as a LITERAL — see the measurement at
+// the `.where()` below) and orders by
 // `created_at DESC NULLS LAST` rather than a plain `.desc()`. The NULLS LAST is not decoration: `DESC`
 // alone means NULLS FIRST in Postgres, which does NOT match the index's declared ordering and forces a Sort
 // node on top of the scan. Matching it exactly is what keeps the shipped partial index usable — and a

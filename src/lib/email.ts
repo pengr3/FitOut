@@ -553,3 +553,105 @@ export const sendGuestRsvpEmail = async (d: GuestRsvpEmail): Promise<{ sent: tru
   }
   return { sent: true };
 };
+
+// ---------------------------------------------------------------------------
+// Ops alert digest (quick 260810-j3z) — the daily UNRESOLVED `needs_attention` money-alert digest.
+// ---------------------------------------------------------------------------
+// Same contract as every block above: a thin plain-HTML send over the SAME private send()/escapeHtml()
+// helpers, never a new email stack. Dispatched ONLY from an Inngest function
+// (src/inngest/functions/ops-alert-digest.ts, the daily 08:50 Asia/Manila cron) per the D-83 rule already
+// stated at lines 84-89 — do NOT reinstate a fire-and-forget `void sendOpsAlertDigest(...)` from an action
+// or a script. This one is NOT a user-facing lifecycle email: its single recipient is the operator address
+// in OPS_ALERT_EMAIL, and its subject line is the only notice anyone gets that real money is outstanding.
+//
+// THE `meta` COLUMN IS ABSENT, AND ITS ABSENCE IS THE CONTRACT (D-J3Z-02).
+// `OpsDigestRow` mirrors `UnresolvedAlert` (src/lib/ops/alerts.ts) plus two DERIVED display fields, and
+// like it has NO field for the audit table's jsonb `meta` column. That column carries booking ids, transfer
+// ids and masked last-4s under an explicit COLUMN-LEVEL rule (D-72), restated verbatim at
+// cancel-booking.ts:755-756: "No account number, no account name, no BIC — not in this audit meta, not in
+// any log line, NOT IN ANY COLUMN." An email body is where that rule bites hardest, because email is an
+// EXTERNAL service that forwards, archives and indexes — content that enters it does not come back out of
+// anyone's control. Re-exporting `meta` here would therefore silently widen a column-level contract across
+// a trust boundary, in the one direction that cannot be undone. Because the row type has no such field, an
+// attempt to do it is a TYPE ERROR at the renderer rather than something a reviewer has to notice.
+// The digest carries audit id / action / actor_id / created_at / age — enough to LOOK THE ROW UP, and
+// nothing more. Reading the full row is a LOCAL psql or Drizzle Studio session; see
+// .planning/ops/NEEDS-ATTENTION-RUNBOOK.md section 3.
+//
+// EVERY interpolated field is escapeHtml'd (WR-01). `action` and `actor_id` are free-text columns written
+// from ~20 `recordAudit` call sites, so they are untrusted for HTML purposes exactly like every other field
+// in this file — not because a call site is expected to be hostile, but because "trusted because we wrote
+// it" is the assumption that makes an injection sink.
+
+/**
+ * One row as the digest renders it: the four columns `listUnresolvedAlerts` returns, plus the two DERIVED
+ * display fields (`ageHours`, `aging`). Deliberately still has no `meta` — see the block above.
+ */
+export type OpsDigestRow = {
+  id: string;
+  action: string;
+  actorId: string;
+  createdAt: Date;
+  ageHours: number;
+  aging: boolean;
+};
+
+/**
+ * PURE renderer, exported on purpose: the PII assertion reads this body DIRECTLY rather than only through
+ * the transport, so the guarantee is pinned at the point the string is built, not merely at the point it is
+ * handed to Resend. Aging rows carry a plain-text `— AGING` marker; never colour alone.
+ *
+ * `opts.truncated` states an honest "N+ unresolved — showing the N newest" line (D-J3Z-09) instead of
+ * silently rendering a partial list as though it were the whole queue.
+ */
+export function renderOpsAlertDigest(
+  rows: OpsDigestRow[],
+  opts: { truncated: boolean; limit: number },
+): string {
+  const body = rows
+    .map((r) => {
+      const id = escapeHtml(r.id);
+      const action = escapeHtml(r.action); // free-text column — WR-01.
+      const actor = escapeHtml(r.actorId); // free-text column — WR-01.
+      const created = escapeHtml(r.createdAt.toISOString());
+      const age = `${r.ageHours}h${r.aging ? " — AGING" : ""}`;
+      return (
+        `<tr><td>${id}</td><td>${action}</td><td>${actor}</td>` +
+        `<td>${created}</td><td>${escapeHtml(age)}</td></tr>`
+      );
+    })
+    .join("");
+
+  const note = opts.truncated
+    ? `<p>${opts.limit}+ unresolved — showing the ${opts.limit} newest.</p>`
+    : "";
+
+  return (
+    `<p><strong>FitOut ops — unresolved money alerts</strong></p>` +
+    `<p>${rows.length} unresolved <code>needs_attention</code> audit row(s), newest first. ` +
+    `Look a row up with <code>npm run ops:alerts</code>; discharge it with ` +
+    `<code>npm run ops:alerts:resolve -- &lt;audit-id&gt;</code>. Procedure: ` +
+    `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md</p>` +
+    note +
+    `<table border="1" cellpadding="4" cellspacing="0">` +
+    `<tr><th>Audit id</th><th>Action</th><th>Actor</th><th>Created (UTC)</th><th>Age</th></tr>` +
+    body +
+    `</table>`
+  );
+}
+
+/**
+ * Send the digest to the single operator address. Never called with an empty `rows` — the caller returns
+ * before reaching here on a zero-row day (D-J3Z-05), because a daily "all clear" is how an alert channel
+ * gets filtered to trash.
+ */
+export const sendOpsAlertDigest = (
+  to: string,
+  rows: OpsDigestRow[],
+  opts: { truncated: boolean; limit: number },
+) =>
+  send(
+    to,
+    `FitOut ops — ${rows.length} unresolved money alert(s)`,
+    renderOpsAlertDigest(rows, opts),
+  );
