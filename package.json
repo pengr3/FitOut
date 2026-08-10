@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed.ts",
+    "db:test:setup": "tsx scripts/db-test-setup.ts",
     "db:studio": "drizzle-kit studio",
     "ops:alerts": "tsx scripts/ops-alerts.ts list",
     "ops:alerts:resolve": "tsx scripts/ops-alerts.ts resolve",
