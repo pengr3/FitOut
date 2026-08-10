@@ -501,8 +501,30 @@ installed** (`package.json` has nothing matching crop/cropper/image-edit), so th
 component.
 
 *Listing photos (wizard).* `photo-uploader.tsx:156-161` passes `CldUploadWidget` only
-`{ folder, multiple, maxFiles, sources }` — **no `cropping` key**, so the same complaint applies. But
-this one is nearly free: Cloudinary's own widget supports `cropping` / `croppingAspectRatio`.
+`{ folder, multiple, maxFiles, sources }` — **no `cropping` key**, so the same complaint applies.
+
+> ⚠️ **CORRECTION (2026-08-10, measured during `/gsd:ui-phase`).** This entry originally claimed the
+> listing side was "nearly free: Cloudinary's own widget supports `cropping`". **That was wrong on three
+> counts**, and the correction is what shaped the spec:
+> 1. Cloudinary supports `cropping` **only with `multiple: false`** — enabling it would break batch
+>    upload of up to 20 photos.
+> 2. It **does not crop the asset**. It writes `customCoordinates`; delivery must then request
+>    `gravity: custom`. All three delivery sites — `photo-gallery.tsx:43,56`, `listing-card.tsx:228`,
+>    `search-result-card.tsx:172` — render the raw `secure_url` through a plain `<img>`, so the flag
+>    would change nothing visible.
+> 3. It would **400 at our own sign endpoint**: `api/cloudinary/sign/route.ts:35` has an
+>    `ALLOWED_SIGN_KEYS` allow-list of `{folder, source, timestamp}`.
+>
+> **And there is no single cover aspect ratio to crop TO.** The cover renders **16:9** on the listing
+> hero (`photo-gallery.tsx:40`) and **4:3** on both the search card and the host card. Any destructive
+> cover crop bakes in the wrong framing for one of them. The avatar is the opposite case — one circle,
+> one stored 400×400 — which is precisely why a destructive crop is correct there and wrong here.
+
+**Decided 2026-08-10** (operator, during the UI-SPEC pass): the avatar gets a real cropper; listing
+photos get a **non-destructive cover-frame preview** on the wizard tile showing what the 16:9 hero and
+the 4:3 card each cut off — nothing baked in, no delivery-code change. Avatar **removal** is in scope
+(there is currently no way to unset one). The original is **discarded** — only the 400×400 result is
+stored, `overwrite: true`, so re-framing means re-uploading and no schema column is added.
 
 **Why this is a UI-SPEC job and not a quick task.** The hard part is the contract, not the code:
 frame size and mask shape, zoom range and what the bounds are, behaviour on a non-square or
