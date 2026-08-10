@@ -235,17 +235,38 @@ export async function createCheckoutSession(input: {
  *
  * ⚠️ THE KEY IS SCOPED TO THE SESSION ID, NEVER TO THE BOOKING. A booking legitimately owns MORE THAN
  * ONE session over its life (a re-price creates exactly that), so a booking-scoped key would let one
- * session's expire be confused with another's. But the key is NOT what makes a repeat expire safe:
- * PayMongo does NOT honor the Idempotency-Key on this endpoint (08-19 probed it — a repeat expire
- * returns HTTP 400 "already expired", not a replayed 200). Idempotence is provided HERE, in the catch
- * below, which tolerates exactly that already-expired 400 as success because the session is already
- * non-payable. Every other failure still throws.
+ * session's expire be confused with another's. But the key is STILL NOT what makes a repeat expire safe:
+ * PayMongo does NOT honor the Idempotency-Key on this endpoint (08-19 probed it live — a repeat expire
+ * returns HTTP 400, not a replayed 200). That finding stands and is still load-bearing.
  *
- * GENUINE failures (500, network, any non-already-expired 4xx) THROW through paymongoFetch's descriptive
- * error shape and are NOT swallowed — the caller catches, records a `needs_attention` audit and REFUSES,
- * because proceeding on a session that might still be payable costs an unrefunded double capture. The one
- * tolerated case is the already-expired 400 (see the catch) — retiring an already-retired session is the
- * success the caller wanted, not a failure to refuse over.
+ * WHAT MAKES IT SAFE IS THE POSTCONDITION CHECK (LW-01). On ANY error from the expire POST we ask the
+ * provider what the session's status actually IS — exactly ONE `getCheckoutSession(id)` re-probe — and
+ * tolerate the error only when the provider itself reports `expired`. At that point the POSTCONDITION of
+ * expire — this session can never be paid — demonstrably HOLDS, whatever the error text said. That is
+ * what keeps the confirmBooking / updateDeclaredPax post-expire-then-create-failure RETRY recovering
+ * instead of livelocking on a permanent fail-closed refusal (T-08-84).
+ *
+ * THIS IS DELIBERATELY WORDING-INDEPENDENT, and that is the whole point of LW-01. The previous
+ * implementation string-matched PayMongo's PROSE on the money path — a `(400)` status-code regex ANDed
+ * with a regex over the error sentence's wording. A reword, a localization, or a status-code change on
+ * their side would have silently stopped matching, reverted the tolerance to genuine-failure behaviour,
+ * and re-opened the T-08-84 recovery livelock — with no automated detector, because the unit tests pinned
+ * the currently observed sentence. The tolerance is now keyed on the provider's reported STATUS, which no
+ * rewording can move. (The exact regexes are preserved in git history and in mutation M5 of
+ * tests/payments/paymongo-calls.test.ts, which restores them to measure this claim.)
+ *
+ * THE `paid` CASE IS EXPLICITLY NEVER SWALLOWED. A superseded session the provider reports as `paid`
+ * means money was CAPTURED on a session we were retiring. It THROWS, and the caller's `needs_attention`
+ * audit is exactly where that belongs. Reporting it as a successful expire would hide a real capture from
+ * the only path that can act on it.
+ *
+ * GENUINE failures (500, network, an `active` session that is STILL PAYABLE, any status that is not a
+ * provider-confirmed `expired`, and a re-probe that itself fails) all THROW through paymongoFetch's
+ * descriptive error shape and are NOT swallowed — the caller catches, records a `needs_attention` audit
+ * and REFUSES, because proceeding on a session that might still be payable costs an unrefunded double
+ * capture.
+ *
+ * COST: one extra GET, on the ERROR path ONLY. The success path is unchanged and issues no probe.
  */
 export async function expireCheckoutSession(id: string): Promise<{ id: string }> {
   try {
@@ -259,21 +280,37 @@ export async function expireCheckoutSession(id: string): Promise<{ id: string }>
     );
     return { id: json.data.id };
   } catch (err) {
-    // IDEMPOTENT EXPIRE (08-19 case 4, probed live). A repeat expire of an already-expired session
-    // returns HTTP 400 "Checkout session is already expired" — NOT the 200-replay the session-scoped
-    // Idempotency-Key was once believed to give (the key is not honored on this endpoint either). But
-    // the POSTCONDITION of expire — this session can never be paid — ALREADY HOLDS for an
-    // already-expired session, so tolerating exactly that 400 as success is correct, and it is what
-    // makes the confirmBooking / updateDeclaredPax post-expire-then-create-failure RETRY recover
-    // instead of livelocking on a permanent fail-closed refusal.
-    //
-    // ⚠️ ONLY the already-expired 400 is tolerated. A 500, a network error, or any other 400 detail
-    // still THROWS — so a session that might STILL be payable is never silently treated as retired, and
-    // the callers' fail-closed refusal (the double-charge guard) is fully preserved.
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/\(400\)/.test(msg) && /already\b.*\bexpired/i.test(msg)) {
+    // POSTCONDITION-VERIFIED IDEMPOTENT EXPIRE (LW-01). The expire POST failed. Whether that failure is
+    // benign turns on exactly ONE fact: is this session actually retired at the provider? So ASK the
+    // provider — never infer it from the error's prose. (08-19 case 4, probed live: a repeat expire of a
+    // previously-expired session comes back HTTP 400, so this is the recovery path.)
+    let probed: CheckoutSessionState;
+    try {
+      probed = await getCheckoutSession(id);
+    } catch {
+      // The re-probe itself failed (network / 500 / timeout): we learned NOTHING, so we fail closed on
+      // the ORIGINAL expire error — never the probe's. It is deliberately not wrapped, chained,
+      // `cause`-attached, or logged: both callers discard the caught error on purpose (T-05-15 /
+      // T-08-44), and PayMongo prose must not gain a new route into an audit row or a booker response.
+      throw err;
+    }
+
+    // The ONLY tolerated outcome: the provider ITSELF reports the session retired, so expire's
+    // postcondition — this session can never be paid — demonstrably holds, whatever the error said.
+    // Strict equality on the RAW string: no trimming, no toLowerCase, no includes. Any normalization
+    // would widen the tolerance; a differently-cased or padded status is drift and must fail closed.
+    if (probed.status === "expired") {
+      // No 200 body on this path, so the id is echoed from the argument.
       return { id };
     }
+
+    // EVERY OTHER STATUS FALLS THROUGH TO THE THROW BELOW — deliberately NOT an enumerated reject-list.
+    // The two cases this fall-through exists to protect are `active` (the session is STILL PAYABLE — the
+    // double-charge case the callers' fail-closed refusal exists for) and `paid` (money was CAPTURED on a
+    // session we were retiring; it must reach the caller's `needs_attention` path and must NEVER be
+    // reported as a clean expire). Do NOT "helpfully" add them as explicit branches: an enumerated
+    // reject-list silently TOLERATES every status PayMongo adds later, whereas an `expired`-only allow
+    // with a fall-through throw can never go stale.
     throw err;
   }
 }
