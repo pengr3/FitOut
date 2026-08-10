@@ -42,9 +42,17 @@
 // Read the failure for what it is: this is not an assertion about a sentence coming back wrong. The
 // action REDIRECTED, i.e. it MINTED A REAL HOLD (`hold=4a7587c6-…`) on a listing whose every date renders
 // Closed, and marched the booker on to the reserve page and from there to a hosted checkout. The
-// row-count assertion below never even ran. Fixed in Task 2 (hours became deriveBookable's fourth term);
-// measured by mutation M1 in Task 3, which must redden this case AND the open-capacity twin in
-// tests/booking/open-capacity-hold.test.ts from a single deletion in src/lib/bookability.ts.
+// row-count assertion below never even ran. Fixed in Task 2 (hours became deriveBookable's fourth term).
+//
+// MUTATION M1, EXECUTED 2026-08-10 (260810-sti, Task 3) — src/lib/bookability.ts: DELETE
+// `listing.hasOperatingHours &&` from the return. Restored by editing the term back.
+//   → this case RED, and it is the SAME failure shape as the Task-1 confirmation, i.e. a real mint:
+//     RedirectError: NEXT_REDIRECT:/listings/L_nohours/book?hold=4252ed65-2ac9-40f7-b7c1-22d0213c4bb5
+//      ❯ tests/booking/state-machine.test.ts:276:17
+//   → The finding condition held: the same single deletion also reddened `L_OPEN_NOHOURS` in
+//     tests/booking/open-capacity-hold.test.ts, proving the two re-stated gates share ONE predicate.
+//     (M1 reddened 5 cases in total — see tests/listing/bookability.test.ts's header for the full list,
+//     including the one the plan did not predict.)
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";

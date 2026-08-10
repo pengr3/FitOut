@@ -81,7 +81,27 @@
 //
 // So the anchor is real and it measures the intended thing — the refusal must move from gate 7 to gate
 // 5 — but the pre-fix hole on THIS path was a wrong-and-misleading refusal, not an unbounded mint.
-// Recorded here rather than smoothed over. Measured by mutation M1 in Task 3.
+// Recorded here rather than smoothed over.
+//
+// MUTATION M1, EXECUTED 2026-08-10 (260810-sti, Task 3) — src/lib/bookability.ts: DELETE
+// `listing.hasOperatingHours &&` from the return. Restored by editing the term back.
+//   → case (6b) RED:
+//     AssertionError: expected { ok: false, reason: 'invalid', …(1) } to deeply equal { ok: false, …(2) }
+//     - Expected
+//     + Received
+//       {
+//     -   "error": "This space isn't accepting bookings right now.",
+//     +   "error": "This space isn't open that day. Pick another date.",
+//         "ok": false,
+//     -   "reason": "not-bookable",
+//     +   "reason": "invalid",
+//       }
+//      ❯ tests/booking/open-capacity-hold.test.ts:588:17
+//
+//   → THE FINDING CONDITION IS SATISFIED, and this is the whole reason case (6b) exists. One deletion
+//     in bookability.ts reddened THIS case AND `L_nohours` in tests/booking/state-machine.test.ts. Had
+//     this one stayed GREEN while the exclusive one went red, placeOpenHold's re-stated clause would
+//     not have been wired to the shared predicate — a defect to fix, not a pass to accept. It is wired.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";

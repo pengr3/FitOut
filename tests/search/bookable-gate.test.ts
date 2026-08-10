@@ -42,6 +42,38 @@
 // alongside the control, with nothing to tell a booker the two were different. The parity case ran
 // GREEN in the same run, exactly as predicted above (vacuous agreement — both sides ignored the field).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
+// TWO MUTATIONS, BOTH EXECUTED 2026-08-10 (260810-sti, Task 3), and TOGETHER they are what retire the
+// old byte-unchanged gate with something better: the parity assertion is now measured in BOTH
+// directions. Each was restored by editing the statement back; `git diff --exit-code src/` clean.
+//
+//   M2 — src/lib/search/query.ts: re-wrap the new unconditional EXISTS in its exact pre-task
+//        conditional form, `${picked ? sql`…` : sql``}` — i.e. SQL-side drift.
+//     → 2 RED (`Tests  2 failed | 1 passed (3)`):
+//       × a published, fully-payable listing with ZERO operating_hours rows is absent from a no-date browse search 11ms
+//         AssertionError: expected [ 'gate_nohours', 'gate_pub' ] to not include 'gate_nohours'
+//          ❯ tests/search/bookable-gate.test.ts:184:21
+//       × the SQL twin and the TypeScript predicate accept exactly the same set (Pitfall 5 drift guard) 10ms
+//         AssertionError: expected Set{ 'gate_nohours', 'gate_pub' } to deeply equal Set{ 'gate_pub' }
+//         - Expected
+//         + Received
+//           Set {
+//         +   "gate_nohours",
+//             "gate_pub",
+//           }
+//          ❯ tests/search/bookable-gate.test.ts:193:26
+//     → Matched the prediction exactly. This is what gives the parity assertion its teeth: SQL went
+//       permissive while the TypeScript predicate stayed strict, and the set-equality named it.
+//
+//   M1 — src/lib/bookability.ts: DELETE `listing.hasOperatingHours &&` from the return — i.e. TS-side
+//        drift. NOT PREDICTED to touch this file; reported as observed because it did.
+//     → 1 RED here:
+//       × the SQL twin and the TypeScript predicate accept exactly the same set (Pitfall 5 drift guard)
+//         AssertionError: expected Set{ 'gate_pub' } to deeply equal Set{ 'gate_pub', 'gate_nohours' }
+//          ❯ tests/search/bookable-gate.test.ts:193:26
+//     → The mirror image of M2: SQL stayed strict while the predicate went permissive. So the guard
+//       fails whichever half drifts, which is exactly the property the retired `git diff` gate had and
+//       the reason it could be retired.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";

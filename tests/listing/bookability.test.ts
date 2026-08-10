@@ -49,9 +49,30 @@
 // predicate defect. It is kept because it stops a future editor from adding a second true row to the
 // table by hand — but it must not be read as coverage of the function.
 //
-// Fixed in Task 2 by adding `&& listing.hasOperatingHours`; measured by mutation M1 in Task 3, which
-// deletes that term again and must redden these rows AND both server-side refusal anchors
-// (state-machine.test.ts's L_nohours and open-capacity-hold.test.ts's L_OPEN_NOHOURS).
+// Fixed in Task 2 by adding `&& listing.hasOperatingHours`.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// MUTATION M1, EXECUTED 2026-08-10 (260810-sti, Task 3). Restored by editing the term back;
+// `git diff --exit-code src/` clean afterwards.
+//
+//   M1 — src/lib/bookability.ts: DELETE `listing.hasOperatingHours &&` from the return
+//     → this file, 2 RED (`20 tests | 2 failed`):
+//       × status=published emailVerified=true payoutsEnabled=true hasOperatingHours=false → false 18ms
+//         AssertionError: expected true to be false // Object.is equality
+//          ❯ tests/listing/bookability.test.ts:103:9
+//       × un-sells the moment the host deletes their LAST hours row, with nothing else changed (consequence 2) 2ms
+//         AssertionError: expected true to be false // Object.is equality
+//          ❯ tests/listing/bookability.test.ts:144:76
+//
+//     THE FINDING CONDITION WAS SATISFIED. The same single deletion also reddened BOTH server-side
+//     refusal anchors — `L_nohours` in state-machine.test.ts and `L_OPEN_NOHOURS` in
+//     open-capacity-hold.test.ts — which is what proves `placeOpenHold`'s RE-STATED gate is wired to
+//     this predicate rather than refusing for some unrelated reason of its own.
+//
+//     UNPREDICTED, REPORTED AS OBSERVED: M1 reddened a FIFTH case the plan did not anticipate — the
+//     parity/drift guard in tests/search/bookable-gate.test.ts, with
+//     `expected Set{ 'gate_pub' } to deeply equal Set{ 'gate_pub', 'gate_nohours' }`. The SQL twin still
+//     excluded the hours-less listing while the mutated TypeScript predicate accepted it, so the guard
+//     caught the desync from the TS side. Between M1 and M2 it is now measured in BOTH directions.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from "vitest";
