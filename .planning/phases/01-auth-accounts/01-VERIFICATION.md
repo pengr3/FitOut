@@ -1,10 +1,38 @@
 ---
 phase: 01-auth-accounts
 verified: 2026-06-03T18:55:00Z
-status: human_needed
+status: passed
+status_history:
+  - "human_needed (2026-06-03 → 2026-08-10) — 6 human-verification items outstanding, then 3, then 0."
 score: 4/4
 overrides_applied: 0
 human_verification_partially_discharged: 2026-08-01T12:42:00Z
+human_verification_fully_discharged: 2026-08-10T04:32:30Z
+full_discharge_note: |
+  2026-08-10 — ALL SIX items are now discharged and the phase moves `human_needed` → `passed`.
+  The last three closed today (quick task 260810-hd6):
+    - item 3 (live Google OAuth)      -> WALKED. Creds configured; the per-boot "missing clientId or
+      clientSecret" warning is gone; POST /api/auth/sign-in/social went 500 -> 200 (a dead button on
+      /login and /signup until today). Round trip completed to the callback, and the D-08 auto-link was
+      observed for the first time: providers `credential,google` on ONE row, count(*)=1 for the email,
+      email_verified still true. ACCEPTED CONSEQUENCE: trustedProviders:["google"] makes a Google account
+      arrive emailVerified:true, bypassing the publish email-verification gate at
+      src/app/actions/listing.ts:375. The operator accepted this knowingly, wiring the button rather than
+      deleting it.
+    - item 4 (real Cloudinary avatar) -> WALKED against real Cloudinary. avatar_public_id
+      fitout/avatars/LTzAEbLxKpeSXM4PgOhrZjniVZT51PCg, avatar_url on res.cloudinary.com/da8uglpk6/, and
+      the asset fetches HTTP 200 / image/png / 60,933 bytes. Closing it uncovered a "use server" export
+      bug that had made avatar upload DEAD since Phase 1 (a number exported from a "use server" module ->
+      Next rejected the module at evaluation -> uploadAvatarAction never ran). Fixed in quick 260807-fc6.
+    - item 2 (password-reset)         -> partial -> PASSED. The 2026-08-05 partial was over-cautious, not
+      wrong on facts: that walkthrough delivered BOTH emails to a real inbox, and the dev log shows the
+      EMAILED LINK's own shape being followed —
+      `GET /api/auth/reset-password/OdCLwmNLMSa2LiFWYfykacCj?callbackURL=%2Freset-password 302`
+      (token as URL segment + callbackURL), not the `?token=` shape the spec drives from a DB read.
+      Kept on the record: e2e/password-reset.spec.ts still reads its token from Postgres because Resend
+      422s example.com recipients — a property of the spec's fixture, not of the product.
+  Items 1 and 5 were discharged 2026-08-01 by real-browser E2E; item 6 was signed off by the product
+  owner on 2026-06-03 and was never actually open (see 01-HUMAN-UAT.md item 6).
 discharge_note: |
   v1.0 milestone audit (2026-08-01). Items 1, 2 and 5 below are DISCHARGED by real-browser E2E specs
   that did not exist when this report was written, re-run first-hand in that session:
@@ -22,28 +50,73 @@ human_verification:
   - test: "Sign up with email/password, close the browser tab, reopen and visit http://localhost:3000 — verify you are still logged in without re-entering credentials"
     expected: "Session persists; the user lands on the authenticated surface without being redirected to /login"
     why_human: "30-day sliding session persistence requires a real browser cookie + server round-trip. Unit test proves config (expiresIn=2592000), but cookie lifetime on an actual browser session cannot be asserted programmatically without running the app."
+    discharged: 2026-06-03
+    discharged_evidence: "Signed off by the user on 2026-06-03 (signed up as a booker and used the signed-in app). Corroborated 2026-08-01 and re-run 2026-08-05 by e2e/login-persistence.spec.ts, which captures storageState and opens a BRAND-NEW browser context seeded with only those cookies. Config separately proven by session-config.test.ts. Human signature + real-browser corroboration."
   - test: "Trigger forgot-password for a real account, check the inbox (or .env.local console log when RESEND_API_KEY is unset), follow the link, set a new password, and log in with the new password"
     expected: "The reset link arrives (or is printed to the dev console); the new password works; any prior browser session for that account is invalidated after reset"
     why_human: "Real email delivery via Resend requires RESEND_API_KEY which has not been configured. Unit test (reset-revokes-sessions.test.ts) proves the token flow + session revocation against the real DB, but actual email delivery and the console-log fallback link path require a running app."
+    discharged: 2026-08-10
+    discharged_evidence: "Flow discharged 2026-08-01 by e2e/password-reset.spec.ts (forgot -> reset -> log in with the new password). Real-inbox DELIVERY discharged on the 2026-08-05 human walkthrough, which delivered BOTH emails to a real inbox — recognised only on 2026-08-10, which is why this sat at `partial` for five days. The proof is the log line `GET /api/auth/reset-password/OdCLwmNLMSa2LiFWYfykacCj?callbackURL=%2Freset-password 302`: token as a URL SEGMENT plus callbackURL is the EMAILED LINK's shape, distinct from the `?token=` shape the spec drives after reading Postgres. Standing caveat, not a gap: the spec still reads its token from the `verification` table because Resend 422s example.com recipients — a limitation of the fixture, not the product."
   - test: "Click 'Continue with Google' on the signup or login page; complete the Google OAuth flow"
     expected: "User is created/authenticated via Google; account has emailVerified=true; the user lands on the post-login surface"
     why_human: "Real Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are not yet configured. Unit test (oauth-verified.test.ts) proves the provider mapping + emailVerified persistence via Better Auth's internal adapter, but the live browser OAuth round-trip cannot be verified without real creds."
+    discharged: 2026-08-10
+    discharged_evidence: |
+      WALKED LIVE with real credentials. Three things changed state, in order:
+        1. The per-boot `WARN [Better Auth]: Social provider google is missing clientId or clientSecret`
+           — which had fired on EVERY boot since the phase shipped — is gone.
+        2. `POST /api/auth/sign-in/social` went from HTTP 500 to 200. Until today "Continue with Google"
+           was a DEAD BUTTON shipping on both /login and /signup. It now returns a valid Google authorize
+           URL carrying PKCE `code_challenge_method=S256`, a `state`, and `redirect_uri` exactly
+           `http://localhost:3000/api/auth/callback/google`.
+        3. The round trip completed:
+             POST /api/auth/sign-in/social 200
+             GET  /api/auth/callback/google?state=Lp6EiQF6_8upzVDeG89ARbSRdQb58-Aj&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AXEQ…
+      THE LOAD-BEARING RESULT — the D-08 auto-link, observed for the first time (previously only asserted
+      by oauth-verified.test.ts against Better Auth's internal adapter): the user row for
+      pengr.clmc.3@gmail.com lists providers `credential,google` on ONE row; SELECT count(*) for that
+      email is EXACTLY 1, so no duplicate identity was minted; email_verified stays true.
+      ACCEPTED CONSEQUENCE (recorded, not deferred): accountLinking.trustedProviders:["google"]
+      (auth.ts:100-104) means a Google account arrives emailVerified:true and therefore BYPASSES the
+      publish email-verification gate at src/app/actions/listing.ts:375 — a Google signup can publish a
+      listing without ever proving inbox control to FitOut. The operator accepted this knowingly,
+      choosing to wire the button rather than delete it.
   - test: "Upload an avatar photo on the profile page (/profile)"
     expected: "Photo appears as the user's avatar; avatarUrl and avatarPublicId columns are populated on the user row"
     why_human: "Real Cloudinary credentials (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) are not yet configured. Unit test (avatar.test.ts) proves the upload+persistence path via a mock, but the actual CDN upload to Cloudinary requires real creds."
+    discharged: 2026-08-10
+    discharged_evidence: |
+      WALKED against REAL Cloudinary on this item's OWN surface (no Phase-2 listing-photo evidence
+      borrowed — that refusal, recorded 2026-08-05, stands and is simply no longer needed):
+        avatar_public_id = fitout/avatars/LTzAEbLxKpeSXM4PgOhrZjniVZT51PCg
+        avatar_url       = res.cloudinary.com/da8uglpk6/…
+        the asset itself -> HTTP 200 · image/png · 60,933 bytes
+      The last line is the load-bearing one: the row could have been written with a URL pointing at
+      nothing. It was fetched, and it is a real 60 KB PNG.
+      WHAT CLOSING THIS UNCOVERED: avatar upload had been DEAD since Phase 1 and no test caught it.
+      src/app/actions/avatar.ts exported a plain NUMBER from a "use server" module, which Next rejects at
+      module evaluation — the whole module failed to load and uploadAvatarAction never ran. avatar.test.ts
+      passed throughout because it imports the function directly and never crosses the "use server"
+      boundary. Fixed in quick 260807-fc6. This is the phase's clearest argument for un-blocking
+      credential-gated items rather than reasoning about them: the code was not merely unproven, it was
+      broken, and only a real upload could show it.
   - test: "Create a booker account, then click 'Start hosting' in the mode switch — confirm you can access /host; create a host account, click 'Start booking', confirm you reach the booking surface"
     expected: "The other capability flag is granted and both capabilities coexist; the correct surface loads; canHost+canBook=true is reflected in the session"
     why_human: "The mode-switch UI component and the server-side capability gate in host/layout.tsx require a running browser session to verify end-to-end navigation + redirect behavior. Unit tests (capability-activate.test.ts, soft-gate-noop.test.ts) verify the DB layer; mode-switch UX needs a browser."
+    discharged: 2026-08-05
+    discharged_evidence: "Discharged by e2e/mode-switch.spec.ts, whose two cases are exactly this item's two halves — a host-capable user reaches the distinct /host dashboard via the mode switch (AUTH-04, D-04), and a booker-only user is redirected away from /host by the SERVER gate (T-04-02). Re-run first-hand 2026-08-05 inside `4 passed (29.5s)`. Stated plainly: the evidence is deterministic and real-browser, but the signature on it is the spec, not a human. The 2026-06-03 `skipped` result is preserved in 01-HUMAN-UAT.md rather than overwritten."
   - test: "Confirm the signup intent default: sign up via the API/test harness with no `intent` field (or an invalid value) and verify the account defaults to canBook=true, canHost=false"
     expected: "A user created without an intent is a booker by default — never left with both flags false"
     why_human: "The databaseHooks.user.create.before hook in auth.ts defaults to canBook when intent is absent/invalid. The capability-escalation.test.ts asserts this (canBook=true, both-false is impossible) but the product team should confirm that defaulting to booker is the intended UX for this edge case."
+    discharged: 2026-06-03
+    discharged_evidence: "Product sign-off recorded in 01-HUMAN-UAT.md item 6 on the day it was written: `passed — user accepted \"default to booker\" (approved 2026-06-03)`. This item was NEVER actually open. The v1.0 milestone audit asserted on 2026-08-01 that the default 'has never had recorded product sign-off' — that was false, and the audit corrected itself on 2026-08-05 against this record. Behavior separately proven by capability-escalation.test.ts (intent-less signup -> canBook=true; no user is ever both-false)."
 ---
 
 # Phase 1: Auth & Accounts — Verification Report
 
 **Phase Goal:** A person can create one FitOut identity that carries both booker and host capabilities, sign in reliably, and recover access — the foundation every other entity is owned by.
 **Verified:** 2026-06-03T18:55:00Z
-**Status:** human_needed
+**Status:** `passed` — *flipped from `human_needed` on 2026-08-10, when the last of the six human-verification items was discharged (quick `260810-hd6`). The 4/4 code verification below is unchanged from 2026-06-03; what changed is that nothing is outstanding against it.*
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
@@ -190,6 +263,32 @@ No blockers from anti-pattern scan. All blockers from the code review (CR-01, CR
 
 ### Human Verification Required
 
+> ## ✅ FULLY DISCHARGED 2026-08-10 — 6 of 6 items closed; phase status `human_needed` → `passed`
+>
+> The six items below are the historical record of what was asked, and are kept verbatim. Each now
+> carries a discharge annotation. Summary of how each closed:
+>
+> | Item | Closed | How |
+> |---|---|---|
+> | 1 — session persists across a browser restart | 2026-06-03 | Human sign-off, corroborated by `e2e/login-persistence.spec.ts` |
+> | 2 — password reset, emailed link → new password | **2026-08-10** | Flow by spec (2026-08-01); **real-inbox delivery** proven by the 2026-08-05 walk — recognised today |
+> | 3 — live Google OAuth round trip | **2026-08-10** | **Walked live.** 500 → 200; D-08 auto-link on ONE row |
+> | 4 — real Cloudinary avatar upload | **2026-08-10** | **Walked live.** Asset fetches 200 / image/png / 60,933 B |
+> | 5 — mode-switch capability activation in a browser | 2026-08-05 | `e2e/mode-switch.spec.ts`, both halves (spec's signature, not a human's) |
+> | 6 — signup-intent product sign-off | 2026-06-03 | Was **never open** — recorded in `01-HUMAN-UAT.md` all along |
+>
+> **Two things that closed today were not "more testing" — they were repairs.** Item 3's button was
+> returning HTTP 500 on `/login` and `/signup`, and item 4's upload action had never once executed
+> because of a `"use server"` export bug (fixed in quick `260807-fc6`). Both surfaces shipped dead
+> through nine phases. That is the argument against carrying credential-blocked items indefinitely: the
+> block was hiding breakage, not just proof.
+>
+> **One trade is accepted rather than closed:** `trustedProviders: ["google"]` makes a Google account
+> arrive `emailVerified: true`, bypassing the publish email-verification gate at
+> `src/app/actions/listing.ts:375`. The operator took this knowingly in exchange for a working button.
+>
+> ---
+>
 > **UPDATE 2026-08-01 (v1.0 milestone audit) — items 1, 2 and 5 are DISCHARGED.**
 > Three Playwright specs now cover exactly what these items asked for, and were re-run first-hand:
 >
@@ -213,23 +312,90 @@ No blockers from anti-pattern scan. All blockers from the code review (CR-01, CR
 **Expected:** User is still logged in (session cookie persists); no redirect to /login.
 **Why human:** Browser cookie lifetime requires a real browser session. Unit test asserts 30-day config; actual persistence on disk requires manual verification.
 
-#### 2. Password reset email delivery and flow (Resend) — ✅ FLOW DISCHARGED (`e2e/password-reset.spec.ts`, 2026-08-01); real-inbox *delivery* still unrun
+#### 2. Password reset email delivery and flow (Resend) — ✅ FULLY DISCHARGED 2026-08-10 *(was: flow discharged 2026-08-01, real-inbox delivery unrun)*
 
 **Test:** Use the forgot-password page for a real account. With RESEND_API_KEY unset, check the console log for the `[email:dev]` link; follow it; set a new password; log in.
 **Expected:** Reset link appears in console (dev mode); new password works; all other sessions for that account are revoked.
 **Why human:** RESEND_API_KEY not yet configured. Unit test proves the full flow against a real DB (token capture via mocked Resend, reset, session revocation), but the actual console-log link path and the browser flow need a running app.
 
-#### 3. Google OAuth sign-in (live credentials required) — ⚠️ STILL OPEN (`GOOGLE_CLIENT_ID`/`SECRET` absent from `.env.local`, re-checked 2026-08-01; not a v1 requirement)
+**Discharged 2026-08-10.** The flow half closed on 2026-08-01 via `e2e/password-reset.spec.ts`. The
+delivery half turns out to have closed on **2026-08-05** and gone unrecognised for five days: that
+walkthrough delivered **both emails to a real inbox**, and the dev log records the emailed link being
+followed —
+
+```
+GET /api/auth/reset-password/OdCLwmNLMSa2LiFWYfykacCj?callbackURL=%2Freset-password 302
+```
+
+Token as a **URL segment** plus `callbackURL` is the shape Better Auth puts in the **email**. The spec,
+which reads its token from Postgres, drives `/reset-password?token=…` instead. Different shapes, so the
+log line can only have come from a real message in a real inbox. The `partial` was a conservative reading
+of evidence already in hand — preserved in `01-HUMAN-UAT.md` rather than deleted, because the distinction
+it drew is a good one.
+
+**Standing caveat (not a gap):** the spec still reads its token from the `verification` table, because
+Resend refuses `example.com` recipients (`422 validation_error`). That is a limitation of the test
+fixture, not of the product.
+
+#### 3. Google OAuth sign-in (live credentials required) — ✅ DISCHARGED 2026-08-10, walked live *(was: OPEN, creds absent, re-checked 2026-08-01)*
 
 **Test:** Click "Continue with Google" on signup or login; complete the Google OAuth flow.
 **Expected:** User created/authenticated via Google; emailVerified=true; lands on post-login surface.
 **Why human:** GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET not yet configured. Unit test (oauth-verified.test.ts) proves D-08 mapping through Better Auth's internal adapter, but live browser OAuth requires real creds.
 
-#### 4. Cloudinary avatar upload (live credentials required) — ⚠️ STILL OPEN (server-side `CLOUDINARY_*` secrets absent from `.env.local`, re-checked 2026-08-01)
+**Discharged 2026-08-10.** `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` were configured and the round
+trip walked. Three state changes, in order:
+
+1. The per-boot `WARN [Better Auth]: Social provider google is missing clientId or clientSecret` —
+   which fired on **every** boot since the phase shipped — is **gone**.
+2. `POST /api/auth/sign-in/social` went **HTTP 500 → 200**. This is the uncomfortable part: until today
+   "Continue with Google" was a **dead button shipping on both `/login` and `/signup`**. It now returns
+   a valid Google authorize URL carrying PKCE `code_challenge_method=S256`, a `state`, and
+   `redirect_uri` exactly `http://localhost:3000/api/auth/callback/google`.
+3. The live round trip completed:
+
+```
+POST /api/auth/sign-in/social 200
+GET  /api/auth/callback/google?state=Lp6EiQF6_8upzVDeG89ARbSRdQb58-Aj&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AXEQ…
+```
+
+**The load-bearing result — the D-08 auto-link, observed for the first time.** `oauth-verified.test.ts`
+had only ever asserted this against Better Auth's internal adapter. Against the real provider, the user
+row for `pengr.clmc.3@gmail.com` now lists providers **`credential,google` on ONE row**; `SELECT count(*)`
+for that email is **exactly 1** (no duplicate identity minted); `email_verified` stays `true`. That is
+`accountLinking.trustedProviders: ["google"]` (`auth.ts:100-104`) doing precisely what D-08 specified.
+
+**Accepted consequence — recorded, not deferred.** The same `trustedProviders` setting means a Google
+account arrives `emailVerified: true` and therefore **bypasses the publish email-verification gate** at
+`src/app/actions/listing.ts:375` (`if (!emailVerified) fieldErrors.emailVerified = ["Verify your email to
+publish."]`). A Google signup can publish a listing having proven inbox control to Google, never to
+FitOut. The operator accepted this knowingly, choosing to **wire** the button rather than delete it.
+
+#### 4. Cloudinary avatar upload (live credentials required) — ✅ DISCHARGED 2026-08-10, walked against real Cloudinary *(was: OPEN, secrets absent, re-checked 2026-08-01)*
 
 **Test:** On the profile page, upload a photo.
 **Expected:** Photo visible as avatar; avatarUrl and avatarPublicId written to the user row in DB.
 **Why human:** CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET not yet configured. Unit test (avatar.test.ts) proves upload+persistence via mock, but the actual Cloudinary CDN upload requires real creds.
+
+**Discharged 2026-08-10** on this item's **own** surface — no Phase-2 listing-photo evidence borrowed.
+(The 2026-08-05 refusal to borrow it stands on principle; it is simply no longer needed.)
+
+```
+avatar_public_id = fitout/avatars/LTzAEbLxKpeSXM4PgOhrZjniVZT51PCg
+avatar_url       = res.cloudinary.com/da8uglpk6/…
+the asset itself → HTTP 200 · image/png · 60,933 bytes
+```
+
+The third line is the load-bearing one: the row could have been written with a URL pointing at nothing.
+It was fetched, and it is a real 60 KB PNG.
+
+**What closing this uncovered.** Avatar upload had been **dead since Phase 1** and no test caught it.
+`src/app/actions/avatar.ts` exported a plain **number** from a `"use server"` module — Next rejects that
+at module evaluation, so the entire module failed to load and `uploadAvatarAction` **never ran**.
+`avatar.test.ts` passed the whole time because it imports the function directly and never crosses the
+`"use server"` boundary. Fixed in quick `260807-fc6`. This is the phase's strongest argument for
+un-blocking credential-gated items instead of reasoning about them: the code was not merely unproven,
+it was broken, and only a real upload could reveal it.
 
 #### 5. Mode-switch UX — end-to-end capability activation in browser — ✅ DISCHARGED (`e2e/mode-switch.spec.ts`, 2026-08-01)
 
@@ -237,11 +403,18 @@ No blockers from anti-pattern scan. All blockers from the code review (CR-01, CR
 **Expected:** The opposite capability flag is granted; both coexist; navigation succeeds to the new surface.
 **Why human:** Client-side navigation and React state transition in ModeSwitch require a running browser. Unit tests verify the DB layer; the UI flow needs manual confirmation.
 
-#### 6. Signup intent default — product intent confirmation — ⚠️ STILL OPEN (behavior verified; the product sign-off was never recorded. Shipped unchanged through nine phases = de-facto acceptance)
+#### 6. Signup intent default — product intent confirmation — ✅ DISCHARGED 2026-06-03 *(and it was **never open** — the "still open" header this line replaces was itself the error)*
 
 **Test:** Ask the product owner: when a user reaches signup without selecting an intent (e.g., via a direct API call or an edge case), should they default to booker (canBook=true)?
 **Expected:** Product decision recorded — the `create.before` hook defaults to `canBook` when intent is absent/invalid.
 **Why human:** The code behavior is verified (capability-escalation.test.ts proves canBook=true for an intent-less signup and no user is ever both-false). But whether "default to booker" is the correct product behavior for this edge case requires product sign-off before Phase 2.
+
+**Discharged 2026-06-03** — the sign-off existed before this header ever claimed otherwise.
+`01-HUMAN-UAT.md` item 6 has read `passed — user accepted "default to booker" (approved 2026-06-03)`
+since the day it was written. The v1.0 milestone audit asserted on 2026-08-01 that the default "has never
+had recorded product sign-off"; that was **false**, and the audit corrected itself against this record on
+2026-08-05. Kept here as written, because a record that shows where it was wrong is worth more than one
+that reads as consistent.
 
 ---
 
@@ -251,9 +424,16 @@ No automated gaps found. All four success criteria are satisfied by shipped code
 
 Items requiring human verification are external-credential-dependent features (Google OAuth, Cloudinary, Resend live delivery) and one product-intent clarification, all of which are consistent with the credentials caveat in the verification request.
 
+> **Closed out 2026-08-10.** All six are now discharged and the phase is `passed`. The credential-dependent
+> three were unblocked and walked live rather than reasoned about — which was the right call, because two
+> of them turned out to be hiding real breakage behind the missing credentials (a Google button returning
+> HTTP 500, and an avatar action that had never executed due to a `"use server"` export bug). The product
+> item was never open. Nothing about the 4/4 code verification above changed.
+
 Deferred items (WR-04 fire-and-forget email reliability, WR-06 capability-activate rate limit + test coverage of the real actions) are pre-Phase-2 obligations tracked in the review document but do not block this phase's goal.
 
 ---
 
 _Verified: 2026-06-03T18:55:00Z_
 _Verifier: Claude (gsd-verifier)_
+_Human verification fully discharged: 2026-08-10 (quick `260810-hd6`) — status `human_needed` → `passed`, 6/6 items closed._
