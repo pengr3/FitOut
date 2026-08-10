@@ -141,3 +141,37 @@ remains stated OPEN, AR-08-01 stands untouched, and 05-HUMAN-UAT item 3 was not 
 
 _Verified: 2026-08-10T14:45:00Z_
 _Verifier: Claude (gsd-verifier)_
+
+---
+
+## Amendment — gap found after this report was written (2026-08-10)
+
+**This report's `status: passed` (11/11) stands as an assessment of the must_haves it was given. Those
+must_haves did not require an operator surface for REVIEWING resolved alerts, so their absence was not a
+miss against the contract — but it is a real gap in the delivered operator workflow, and this report should
+not be read as certifying otherwise.**
+
+**How it was found:** by the operator, during the human-verification checkpoint of the follow-on quick task
+`260810-km4` — not by any automated gate here. Asked to confirm that 27 discharged dev rows had genuinely
+been test noise rather than real failed sends, they reached for the CLI this task shipped and found no
+command for it. `npm run ops:alerts` calls `listUnresolvedAlerts`, which filters `resolved_at IS NULL` by
+definition; the instant a row is discharged it leaves the only surface the tooling provides. The
+verification had to be performed with hand-written psql:
+
+```
+docker compose exec -T db psql -U fitout -d fitout -c "SELECT id, action, created_at, meta->>'error' AS err FROM audit WHERE outcome='needs_attention' ORDER BY created_at DESC"
+```
+
+**Why it is more than a convenience gap.** `resolveAlert` is a money-path write: it records that a human
+discharged an obligation, and on the QRPh rail that obligation is real money owed to a real person that the
+PayMongo API cannot refund. Resolutions can be MADE through the CLI but only REVIEWED through ad-hoc SQL.
+`.planning/ops/NEEDS-ATTENTION-RUNBOOK.md` can tell an operator how to resolve a row; it cannot tell them
+how to check what a predecessor resolved, or on what basis.
+
+**Corrected claim.** Wherever this task is described as making the alert "reach a human and be
+dischargeable", the accurate scope is: **an alert can be discovered and discharged; a discharge cannot be
+reviewed.** `.planning/v1.0-MILESTONE-AUDIT.md` item 5 carries the same amendment.
+
+**Tracked as:** D2 in `deferred-items.md` (this directory), OPEN. Not fixed in `260810-km4` — that task's
+scope was database isolation, and the operator chose deliberately to flag it rather than have it added
+mid-checkpoint.

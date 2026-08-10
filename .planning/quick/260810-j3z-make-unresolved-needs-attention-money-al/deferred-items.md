@@ -88,3 +88,41 @@ run, was dropped in the same pass.
 
 **Operator consequence:** a `notify` or `guest-email` row in the daily digest is now a **REAL**
 failure. See `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md` §4a.
+
+---
+
+## D2 — The ops CLI can list UNRESOLVED alerts but cannot review RESOLVED history
+
+> **STATUS: OPEN GAP, not a deferred nicety.** Found during the `260810-km4` human-verification
+> checkpoint, so it is recorded as an audit finding: `260810-j3z-VERIFICATION.md` and
+> `.planning/v1.0-MILESTONE-AUDIT.md` item 5 both carry a dated amendment narrowing their claim from
+> "the alert reaches a human and can be discharged" to "an alert can be discovered and discharged; a
+> discharge cannot be reviewed." Filing a verification-surfaced gap as backlog-only is how a record
+> drifts from the product it describes.
+
+**Discovered:** 2026-08-10, by the operator, during the `260810-km4` human-verification checkpoint —
+i.e. found by someone actually trying to do the thing, not by a test.
+
+Asked to confirm that the 27 discharged dev rows had genuinely been test noise, the operator reached for
+the CLI and found no command for it. `npm run ops:alerts` lists only `resolved_at IS NULL`, and by that
+point all 27 were resolved — so the audit trail's own tooling could not answer "what was discharged, and
+on what basis?". The check had to be done with hand-written psql:
+
+```
+docker compose exec -T db psql -U fitout -d fitout -c "SELECT id, action, created_at, meta->>'error' AS err FROM audit WHERE outcome='needs_attention' ORDER BY created_at DESC"
+```
+
+**Why it matters, and why it is not cosmetic.** `resolveAlert` is a money-path write: it asserts a human
+discharged an obligation. An append-only audit table whose resolutions can only be *made* through the CLI
+and only *reviewed* through ad-hoc SQL has an asymmetry exactly where accountability lives — the review
+side is the half that matters after the fact, in a dispute or a reconciliation. `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md`
+tells an operator how to resolve a row; it cannot tell them how to check what a predecessor resolved.
+
+**Shape of the fix (not prescriptive):** a `history` verb over the same module — resolved rows newest-first,
+with `resolved_at`, and an age/date filter. The same structural PII rule binds it: four explicit columns,
+**no `meta`**. Note this is a REVIEW surface, so unlike the digest it may warrant showing more than the
+digest does — that is a real design question, not an oversight to paper over.
+
+**Deliberately not fixed in `260810-km4`:** that task's scope was database isolation; the operator explicitly
+chose to flag it rather than have it added mid-checkpoint. Recorded here rather than actioned so the decision
+is on the record either way.
