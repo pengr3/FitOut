@@ -121,11 +121,15 @@ describe("merchant.activated / merchant.declined gate (PAY-04/D-14)", () => {
     const listingId = await makePublishedListing(userId);
 
     // Before activation: published + email-verified but payouts pending → NOT bookable.
+    //
+    // `hasOperatingHours: true` throughout this file (deriveBookable's fourth term, added 260810-sti) is
+    // deliberate: these cases measure the PAYOUT flip, so every other term is held true to keep the
+    // observed change attributable to payouts alone. Hours are exercised in tests/listing/bookability.
     let payout = await readPayout(userId);
     let listingRow = await readListing(listingId);
     expect(
       deriveBookable(
-        { status: listingRow!.status },
+        { status: listingRow!.status, hasOperatingHours: true },
         { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled },
       ),
     ).toBe(false);
@@ -137,7 +141,7 @@ describe("merchant.activated / merchant.declined gate (PAY-04/D-14)", () => {
     listingRow = await readListing(listingId);
     expect(
       deriveBookable(
-        { status: listingRow!.status },
+        { status: listingRow!.status, hasOperatingHours: true },
         { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled },
       ),
     ).toBe(true);
@@ -177,7 +181,7 @@ describe("merchant.activated / merchant.declined gate (PAY-04/D-14)", () => {
     const payout = await readPayout(userId);
     expect(
       deriveBookable(
-        { status: after!.status },
+        { status: after!.status, hasOperatingHours: true },
         { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled },
       ),
     ).toBe(false);

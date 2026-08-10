@@ -5,18 +5,33 @@
 // Closed, with no route forward — and the host had no way to learn why nobody was booking. The missing
 // thing was never a refusal; it was a SENTENCE.
 //
-// SO THIS IS A SIGNAL, DELIBERATELY NOT A GATE, and that is a decision rather than an omission:
+// THE SIGNAL AND THE GATE ARE COMPLEMENTARY, and they shipped in that order:
 //
-//   - `deriveBookable` (src/lib/bookability.ts) stays PURE and stays BYTE-UNCHANGED. Its own docblock
-//     says so, and it has four consumers — one of which is an INLINED SQL COPY of the predicate in
-//     search Stage-1 (src/lib/search/query.ts). Adding an hours term in TypeScript would silently
-//     desynchronise the predicate from its SQL twin and change what search returns. Nothing here
-//     touches bookability: a listing with no hours still reads "Live" if it is otherwise bookable, and
-//     this notice sits beneath that badge as additional information.
-//   - `publishListing` and `publishSchema` are untouched. Publishing behaviour is exactly what it was.
-//     Turning this into a publish-time refusal would block a host mid-setup for something they can fix
-//     in thirty seconds afterwards, and would say nothing at all to the hosts who are already live —
-//     who are precisely the hosts the finding is about.
+//   - 260801-iu7 shipped THIS MODULE — the signal. It names the affected listings on the host's own
+//     surfaces and links into the availability editor.
+//   - 260810-sti shipped THE GATE. Hours became the FOURTH term of `deriveBookable`
+//     (src/lib/bookability.ts), together with its inlined SQL twin in search Stage-1
+//     (src/lib/search/query.ts) and both server-side re-derivations in booking.ts. A published listing
+//     with no hours is no longer sellable: it drops out of search and both hold mutations refuse it.
+//
+//     ⚠️ THIS SUPERSEDES what this header used to say. It previously claimed the fix was "a SIGNAL,
+//     DELIBERATELY NOT A GATE" and that `deriveBookable` would stay BYTE-UNCHANGED. Both statements are
+//     now false and were corrected in the same change that made them false. The desync worry behind the
+//     original wording was real but is addressed rather than avoided: the predicate and its SQL twin
+//     moved together in one commit, and tests/search/bookable-gate.test.ts now asserts set-equality
+//     between them (the Pitfall-5 drift guard that replaced the retired byte-unchanged gate).
+//
+//   The division of labour: THE GATE STOPS THE SALE, THE SIGNAL TELLS THE HOST WHY AND HOW TO FIX IT.
+//   Neither is sufficient alone — a gate with no signal is a listing that mysteriously stops earning,
+//   and a signal with no gate is the dead end this finding is about. The signal's own sentence ("every
+//   date on this listing shows as closed and no one can book it") became literally true rather than
+//   merely descriptive, which is why the copy constants below did not change.
+//
+//   - `publishListing` and `publishSchema` are STILL untouched. Publishing behaviour is exactly what it
+//     was, and that remains deliberate: turning this into a publish-time refusal would block a host
+//     mid-setup for something they can fix in thirty seconds afterwards, and would say nothing at all
+//     to the hosts who are already live — who are precisely the hosts the finding is about. The gate is
+//     a DERIVATION, so a host who sets hours becomes sellable again instantly, with no listing write.
 //
 // WHY `status = 'published'` IS PART OF THE PREDICATE. A draft with no hours is not a broken promise to
 // anyone; nobody can see it, so nothing is wrong yet. An unlisted listing is off the market by the
@@ -97,4 +112,34 @@ export async function loadPublishedListingsMissingHours(
       ),
     )
     .orderBy(desc(listing.updatedAt));
+}
+
+/**
+ * Does ONE listing have at least one weekly-hours row — the fourth `deriveBookable` term, for the
+ * single-listing call site (the booker-facing listing page).
+ *
+ * Built the same way as its neighbour above: a short-circuiting existence probe on
+ * `operating_hours_listing_idx` (schema.ts), `LIMIT 1`, so it costs the same on a listing with one hours
+ * row as on one with seventy. The listing page folds it into the `Promise.all` it was already awaiting,
+ * so the derive gains a term but not a round trip.
+ *
+ * TWO DIFFERENCES FROM `loadPublishedListingsMissingHours`, both deliberate:
+ *
+ *   - **It takes a LISTING ID, not a host id, so it is NOT owner-scoped.** That is safe here and the
+ *     reasoning is worth stating rather than assuming (T-STI-04). It answers only "does this listing
+ *     have a calendar", which is already public to any booker — an hours-less listing renders every date
+ *     Closed on a page anyone can open. It is called only with an id the caller has ALREADY resolved and
+ *     404-gated server-side, so it cannot be used to confirm the existence of a draft, unlisted or
+ *     soft-deleted listing. Nothing owner-scoped is read and nothing private is returned.
+ *
+ *   - **It does not filter on `status`.** The status question is answered by `deriveBookable` itself,
+ *     which ANDs the status term; asking it twice here would only invite the two answers to disagree.
+ */
+export async function listingHasOperatingHours(dbConn: DbConn, listingId: string): Promise<boolean> {
+  const rows = await dbConn
+    .select({ one: sql`1` })
+    .from(operatingHours)
+    .where(eq(operatingHours.listingId, listingId))
+    .limit(1);
+  return rows.length > 0;
 }

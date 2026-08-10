@@ -202,18 +202,31 @@ export async function searchListings(
     FROM listing l
     JOIN "user" u ON u.id = l.host_id
     LEFT JOIN host_payout hp ON hp.user_id = u.id
-    -- Inlined deriveBookable (src/lib/bookability.ts:16-21) — KEEP IN SYNC (Pitfall 5):
-    --   status==='published' && host.emailVerified && host.payoutsEnabled  (+ non-deleted)
+    -- Inlined deriveBookable (src/lib/bookability.ts) — KEEP IN SYNC (Pitfall 5). All FOUR terms:
+    --   status==='published' && listing.hasOperatingHours && host.emailVerified && host.payoutsEnabled
+    --   (+ non-deleted, which is a SQL-only term deriveBookable deliberately does not model)
+    -- NOTE: no backticks or dollar-braces in comments inside this template literal — they would end the
+    -- template / open an interpolation. The byte-unchanged git-diff gate that used to protect this
+    -- pairing is retired; the drift guard is now tests/search/bookable-gate.test.ts, which imports
+    -- deriveBookable and asserts this query's result set EQUALS the predicate's over shared fixtures.
     WHERE l.status = 'published'
       AND l.deleted_at IS NULL
       AND u.email_verified = true
       AND COALESCE(hp.payouts_enabled, false) = true
+      -- THE SELL GATE: does this listing have a calendar AT ALL (v1.0 audit finding #4). UNCONDITIONAL,
+      -- and that is the entire point — see the per-day EXISTS below, with which it deliberately coexists.
+      AND EXISTS (SELECT 1 FROM operating_hours oh_any WHERE oh_any.listing_id = l.id)
       ${originGeog ? sql`AND ST_DWithin(l.location::geography, ${originGeog}::geography, ${radiusMeters})` : sql``}
       ${category ? sql`AND (
         l.primary_space_type::text = ${category}
         OR EXISTS (SELECT 1 FROM listing_activity_tag t WHERE t.listing_id = l.id AND t.tag = ${category})
       )` : sql``}
       ${priceMax !== undefined ? sql`AND ${effectivePriceSql} <= ${priceMax}` : sql``}
+      -- The per-request FILTER, distinct from the sell gate above and left exactly as it was: is the
+      -- venue open on the day THIS booker picked. Two clauses, two jobs — oh_any asks whether the
+      -- listing may be sold at all, oh asks whether it is open on one date. The old term's
+      -- CONDITIONALITY is precisely why a no-hours listing survived until now: on the default no-date
+      -- browse view it is not emitted at all, so nothing anywhere excluded an empty-calendar listing.
       ${picked ? sql`AND EXISTS (SELECT 1 FROM operating_hours oh
         WHERE oh.listing_id = l.id AND oh.day_of_week = EXTRACT(DOW FROM ${picked.iso}::date))` : sql``}
     ORDER BY ${orderBy}

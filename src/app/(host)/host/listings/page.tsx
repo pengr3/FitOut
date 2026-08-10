@@ -111,8 +111,18 @@ export default async function HostListingsPage() {
               occupancyMode: r.occupancyMode,
               perHeadPriceCents: r.perHeadPriceCents,
             };
+            // The FOURTH deriveBookable term (v1.0 audit finding #4), taken from the ONE grouped query
+            // above rather than asked per card — free, and never an N+1 inside a render loop.
+            //
+            // ⚠️ SOUNDNESS, because the inversion is not obviously safe. `missingHours` contains PUBLISHED
+            // listings only (that is iu7's predicate), so for a DRAFT or UNLISTED row `!has(id)` reports
+            // the hours term as TRUE even when the calendar is genuinely empty. That is sound ONLY
+            // because deriveBookable ANDs the status term, which is already false for those rows. The
+            // truth table pins this: `draft × emailVerified × payoutsEnabled × hasOperatingHours=true`
+            // must derive false (tests/listing/bookability.test.ts), so nobody can later "simplify" the
+            // AND and silently make this grid claim a hours-less draft is sellable.
             const bookable = deriveBookable(
-              { status: r.status },
+              { status: r.status, hasOperatingHours: !missingHours.has(r.id) },
               { emailVerified, payoutsEnabled },
             );
             return (

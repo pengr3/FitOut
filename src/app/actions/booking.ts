@@ -153,8 +153,13 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   const { listingId, startUtc, endUtc, fullDay, idempotencyKey, declaredPax } = parsed.data;
 
   // (4) Re-derive bookability SERVER-SIDE (Security V4 — the reserve route group is NOT the gate). Mirrors
-  // the listing page's deriveBookable call (listings/[id]/page.tsx:113-119): published + host emailVerified
-  // + host payoutsEnabled. Keep this join in sync with bookability.ts (Pitfall 5).
+  // the listing page's deriveBookable call: published + THE LISTING HAS AT LEAST ONE operating_hours ROW
+  // + host emailVerified + host payoutsEnabled. Keep this join in sync with bookability.ts (Pitfall 5).
+  //
+  // The fourth condition (v1.0 audit finding #4) is a correlated EXISTS folded into the SELECT this
+  // action was already issuing — zero extra round trips, and it short-circuits on operating_hours_listing_idx.
+  // Anchored by `L_nohours` in tests/booking/state-machine.test.ts, which proved that WITHOUT it this
+  // action minted a real hold on a listing whose every date renders Closed.
   const [lr] = await db
     .select({
       status: listing.status,
@@ -176,6 +181,7 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       hostEmail: user.email, // the join reaches the host via listing.hostId = user.id — reuse it for the alert
       emailVerified: user.emailVerified,
       payoutsEnabled: hostPayout.payoutsEnabled,
+      hasOperatingHours: sql<boolean>`EXISTS (SELECT 1 FROM operating_hours oh WHERE oh.listing_id = ${listing.id})`,
     })
     .from(listing)
     .innerJoin(user, eq(listing.hostId, user.id))
@@ -184,7 +190,9 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   const bookable =
     !!lr &&
     deriveBookable(
-      { status: lr.status },
+      // The explicit `=== true` is not tidying: it keeps a driver-shape surprise (a `"t"` string, a `1`)
+      // from reading as truthy and silently re-opening the hole this term closes.
+      { status: lr.status, hasOperatingHours: lr.hasOperatingHours === true },
       { emailVerified: lr.emailVerified, payoutsEnabled: lr.payoutsEnabled ?? false },
     );
   if (!lr || !bookable) {
@@ -360,7 +368,16 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
  *                                      stripped by Zod (T-09-26), so it cannot reach the claim.
  *   4. DATE (parsePickedDate)        — the attacker-controlled `YYYY-MM-DD` is canonicalized and
  *                                      round-trip-guarded before any instant is derived.
- *   5. BOOKABILITY (Security V4)     — the same deriveBookable join, re-derived server-side.
+ *   5. BOOKABILITY (Security V4)     — the same deriveBookable join, re-derived server-side. Its FOURTH
+ *                                      term (v1.0 audit finding #4) rides the same join: a correlated
+ *                                      EXISTS proving the listing has at least one operating_hours row.
+ *                                      Because this whole block is a RE-STATEMENT, that duplicate is
+ *                                      kept honest by its OWN anchor — `L_OPEN_NOHOURS` in
+ *                                      tests/booking/open-capacity-hold.test.ts — never by inference
+ *                                      from placeHold's. Note the ORDER matters to what a booker is
+ *                                      told: refusing here returns `not-bookable`, whereas letting an
+ *                                      hours-less listing fall through to step (7) returned "pick
+ *                                      another date" — a lie on a listing that has no dates at all.
  *   6. OCCUPANCY MODE (T-09-23)      — the mirror of placeHold's refusal: this mutation admits ONLY
  *                                      `open_capacity`, so neither payload shape can cross into the other
  *                                      listing's arbitration.
@@ -406,13 +423,21 @@ export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
   }
 
   // (5) Re-derive bookability SERVER-SIDE (Security V4 — the reserve route group is NOT the gate): the same
-  // published + host emailVerified + host payoutsEnabled join placeHold uses, plus the occupancy mode.
+  // published + hasOperatingHours + host emailVerified + host payoutsEnabled join placeHold uses, plus the
+  // occupancy mode.
+  //
+  // ⚠️ A DELIBERATE RE-STATEMENT of placeHold's gate, not a call into a shared helper — see this
+  // function's docblock above for why. That makes it independently duplicated security code on the money
+  // path, so it carries its own RED anchor (`L_OPEN_NOHOURS`): a typo, a wrong alias, a wrong field name
+  // or a missing `=== true` here would compile, pass tsc, pass the exclusive anchor and pass the whole
+  // suite while leaving a real drop-in booking hole open. If you edit one gate, edit both.
   const [lr] = await db
     .select({
       status: listing.status,
       occupancyMode: listing.occupancyMode,
       emailVerified: user.emailVerified,
       payoutsEnabled: hostPayout.payoutsEnabled,
+      hasOperatingHours: sql<boolean>`EXISTS (SELECT 1 FROM operating_hours oh WHERE oh.listing_id = ${listing.id})`,
     })
     .from(listing)
     .innerJoin(user, eq(listing.hostId, user.id))
@@ -421,7 +446,8 @@ export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
   const bookable =
     !!lr &&
     deriveBookable(
-      { status: lr.status },
+      // `=== true` for the same reason as placeHold's: never let a driver shape read as truthy.
+      { status: lr.status, hasOperatingHours: lr.hasOperatingHours === true },
       { emailVerified: lr.emailVerified, payoutsEnabled: lr.payoutsEnabled ?? false },
     );
   if (!lr || !bookable) {

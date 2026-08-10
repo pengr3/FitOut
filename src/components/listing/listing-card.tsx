@@ -153,9 +153,17 @@ export function ListingCard({
    * closed to a booker. DERIVED UPSTREAM in one grouped query (loadPublishedListingsMissingHours) and
    * passed in — the card never asks the DB, and never re-derives it from anything on `listing`.
    *
-   * It changes NOTHING about bookability or the badge: a listing with no hours still reads "Live" if it
-   * is otherwise bookable, and the notice sits below as additional information. That is the decided
-   * behaviour (this is a signal, not a gate).
+   * WHAT THIS PROP NO LONGER MEANS (corrected by 260810-sti). It used to say that a listing with no
+   * hours "still reads Live if it is otherwise bookable" — that this was a signal, not a gate. Hours are
+   * now the FOURTH term of `deriveBookable`, so that combination is UNREACHABLE in production: a
+   * published listing with no hours is not bookable, and the badge above this notice therefore reads
+   * "Published · not bookable". The notice's job is to explain that badge rather than to sit beside a
+   * contradicting one.
+   *
+   * THIS COMPONENT'S OWN BEHAVIOUR IS UNCHANGED, and that is worth saying plainly so the next reader
+   * does not go hunting for a behavioural diff that is not here: the card still renders whatever
+   * `bookable` it is handed, still re-derives nothing, and `hoursMissing` still only controls the
+   * notice. What changed is upstream — the value of `bookable` that the host grid now computes.
    */
   hoursMissing?: boolean;
   editHref?: string;

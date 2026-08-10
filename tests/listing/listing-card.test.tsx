@@ -149,10 +149,16 @@ describe("ListingCard no-hours notice (v1.0 audit finding #4)", () => {
   }
 
   it("(7) shows the state, the reason and the way out on a host card whose listing has no hours", () => {
+    // ⚠️ RE-POINTED BY 260810-sti. This case used to render `bookable hoursMissing` and assert the badge
+    // still read "Live". That combination became UNREACHABLE in production when hours joined the
+    // sell-gate as deriveBookable's fourth term: a published listing with no hours is not bookable, so
+    // the host grid can no longer produce a Live card carrying this notice. Left as it was, the case
+    // would have gone on testing an impossible state — green, and meaningless. It now asserts the state
+    // the app can actually produce, which is also the more useful one: the notice EXPLAINS the badge.
     const { container } = render(
       <ListingCard
         listing={makeListing()}
-        bookable
+        bookable={false}
         hoursMissing
         availabilityHref="/host/listings/abc/availability"
         editHref="/host/listings/abc/edit"
@@ -168,8 +174,9 @@ describe("ListingCard no-hours notice (v1.0 audit finding #4)", () => {
     expect(cta).not.toBeNull();
     expect(cta?.getAttribute("href")).toBe("/host/listings/abc/availability");
 
-    // The badge is untouched — this listing is still Live, the notice is additional information.
-    expect(screen.getByText("Live")).toBeTruthy();
+    // The badge now says what is actually true of this listing, and the notice below explains it.
+    expect(screen.getByText("Published · not bookable")).toBeTruthy();
+    expect(screen.queryByText("Live")).toBeNull();
   });
 
   it("(8) shows nothing when the host's listing HAS hours", () => {

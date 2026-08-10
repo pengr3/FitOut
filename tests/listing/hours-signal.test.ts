@@ -1,10 +1,13 @@
 // v1.0 audit finding #4 — the host-side HOURS SIGNAL, proved against a real isolated schema.
 //
 // The finding: `publishListing` never requires operating hours, so a host can go Live with an empty
-// calendar, be told nothing, and send every booker to a dead end where each date renders Closed. The fix
-// is a SIGNAL, not a gate (`deriveBookable` stays pure, `publishListing` stays unchanged) — and the whole
-// signal is only as trustworthy as the predicate below, which is why this is an integration test against
-// real migrations rather than a mock.
+// calendar, be told nothing, and send every booker to a dead end where each date renders Closed. This
+// module is the SIGNAL half of the answer (260801-iu7); 260810-sti later shipped the GATE half — hours
+// became the fourth term of `deriveBookable`, so such a listing is no longer sellable. `deriveBookable`
+// is still pure and `publishListing` is still unchanged. The two halves are complementary: the gate
+// stops the sale, the signal below tells the host why and how to fix it — and the whole signal is only
+// as trustworthy as the predicate below, which is why this is an integration test against real
+// migrations rather than a mock.
 //
 // Six cases, each written so that ONE specific mutation of the WHERE clause kills it and nothing else:
 //   (1) the five seeded listings all carry 7 hours rows        — kills "returns everything"

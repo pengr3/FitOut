@@ -36,6 +36,7 @@ import {
   listingActivityTag,
 } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
+import { listingHasOperatingHours } from "@/lib/listing/hours-signal";
 import { publicListing } from "@/lib/listing-public";
 import { publicProfile } from "@/lib/profile";
 import {
@@ -114,16 +115,7 @@ export default async function PublicListingPage({
     notFound();
   }
 
-  // The sell-gate (never status alone). payoutsEnabled is false until Plan 06 → "Not bookable yet".
-  const bookable = deriveBookable(
-    { status: row.listing.status },
-    {
-      emailVerified: row.user.emailVerified,
-      payoutsEnabled: row.host_payout?.payoutsEnabled ?? false,
-    },
-  );
-
-  const [photoRows, amenityRows, tagRows] = await Promise.all([
+  const [photoRows, amenityRows, tagRows, hasOperatingHours] = await Promise.all([
     db
       .select()
       .from(listingPhoto)
@@ -131,7 +123,22 @@ export default async function PublicListingPage({
       .orderBy(asc(listingPhoto.position)),
     db.select().from(listingAmenity).where(eq(listingAmenity.listingId, id)),
     db.select().from(listingActivityTag).where(eq(listingActivityTag.listingId, id)),
+    // The FOURTH deriveBookable term (v1.0 audit finding #4). Added as an element of the Promise.all
+    // this page was ALREADY awaiting, so it costs no added latency — it rides an existing concurrent
+    // batch, and is itself a short-circuiting EXISTS probe on operating_hours_listing_idx.
+    listingHasOperatingHours(db, id),
   ]);
+
+  // The sell-gate (never status alone). payoutsEnabled is false until Plan 06 → "Not bookable yet".
+  // Moved BELOW the batch above so it can read `hasOperatingHours`; safe because `bookable` is not read
+  // until far further down the render, well after this point.
+  const bookable = deriveBookable(
+    { status: row.listing.status, hasOperatingHours },
+    {
+      emailVerified: row.user.emailVerified,
+      payoutsEnabled: row.host_payout?.payoutsEnabled ?? false,
+    },
+  );
 
   // Project to ONLY the public shape — withholds exact street/coords unless showExactAddress (D-09).
   const pub = publicListing(
