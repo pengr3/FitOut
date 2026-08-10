@@ -107,8 +107,51 @@ of them except where a real user id drove the action.
 | `host_cancel_fee_failed` | `cancel-booking.ts:1195` | The D-71 host-cancellation debit was not recorded. The host owes the fee and the ledger does not know. |
 | `host_cancel_autoblock_failed` | `cancel-booking.ts:1158` | After a host cancellation the slot was not auto-blocked — it may be rebookable when it should not be. Block it by hand on the listing's availability. |
 | `group_void_failed` | `cancel-booking.ts:478` | A group booking's void did not fan out. Attendees may still believe a cancelled session is on. |
-| `notify` | `inngest/functions/notify.ts:256` | A notification send failed *permanently* after Inngest exhausted its retries. Someone was not told something. Read `meta` for the recipient and the type, and contact them by hand. |
-| `guest-email` | `inngest/functions/guest-email.ts:55` | Same, for the guest-with-email RSVP path (guests have no account, so there is no in-app notification fallback). |
+| `notify` | `inngest/functions/notify.ts:256` | A notification send failed *permanently* after Inngest exhausted its retries. Someone was not told something. Read `meta` for the recipient and the type, and contact them by hand. **→ read §4a first.** |
+| `guest-email` | `inngest/functions/guest-email.ts:55` | Same, for the guest-with-email RSVP path (guests have no account, so there is no in-app notification fallback). **→ read §4a first.** |
+
+### 4a. `notify` / `guest-email` rows are REAL as of 2026-08-10 — they were not always
+
+**Read this before triaging either of those two actions.**
+
+**Until 2026-08-10 the test suite wrote real `notify` and `guest-email` rows into the dev database.**
+Every `npx vitest run` deposited exactly one of each. They were not failures; they were the
+permanently-failed-send *tests* driving the real code path. `recordAudit` inserts through the app's
+module-level db singleton (`src/lib/db/index.ts`), which is bound to `public` and bypassed the
+suite's per-file schema isolation, so the row landed in dev — silently, because that INSERT's failure
+is swallowed by design (`src/lib/audit.ts:111`, load-bearing for the PayMongo 200-ACK path). Logged
+as deferred item **D1** by `260810-j3z`.
+
+**This is closed.** Quick task `260810-km4` gave the suite its own `fitout_test` database
+(`npm run db:test:setup`, `tests/helpers/test-db-url.ts`), so those writes can no longer reach dev.
+They still happen — they are relocated and reported per run, not eliminated — but they land in
+`fitout_test`, where a `[test-db] LEAKED WRITES` block names them at the end of each run.
+
+**The operator-facing consequence, and the whole point of the change:**
+
+> **A `notify` or `guest-email` row in the digest is now a REAL permanent send failure. Triage it as
+> one — a real person was not told something real. Do not dismiss it as test noise.**
+
+**The historical batch, for the record.** 27 unresolved rows had accumulated (14 `notify` +
+13 `guest-email`, dating 2026-08-06 to 2026-08-10). They were classified **before** any was
+discharged, and **not on `action` alone** — a genuine permanent send failure is indistinguishable
+from test noise at that granularity. The discriminator was the literal error string the two tests
+inject, corroborated by their fixture markers:
+
+| Action | Discriminator (ALL parts had to match) |
+|---|---|
+| `notify` | `meta->>'error' = 'resend 503'` **and** `bookingId = 'bk_failed'` **and** `recipientId = 'user_failed'` **and** `notifyType = 'booking_cancelled_by_host'` (`tests/notifications/notify.test.ts:173-200`) |
+| `guest-email` | `meta->>'error' = 'resend 503'` **and** `guestEmailKind = 'rsvp_confirmed'` (`tests/notifications/guest-email.test.ts:106-128`) |
+
+Any row failing the discriminator would have been treated as **GENUINE and left alone**. 27 of 27
+matched; **zero were genuine**. Each was discharged individually via
+`npm run ops:alerts:resolve -- <id>` (section 6) — **nothing was deleted**; the total `audit` row
+count is still 27 and every row and its `meta` remain queryable. No row of any other `action` was
+touched: the `auto_refund_*` / `refund_*` / `checkout_expire_failed` / `host_cancel_*` /
+`group_void_failed` family in the table above are real money alerts and were explicitly out of scope.
+
+The full per-row dump lives in
+`.planning/quick/260810-km4-point-the-vitest-suite-at-its-own-databa/260810-km4-SUMMARY.md`.
 
 ---
 
@@ -215,3 +258,6 @@ rhetorical one — it means redress requires shell access to a machine with a da
 - `src/lib/payments/refund-rail.ts` — the single place the QRPh refundability question is answered
 - `.planning/v1.0-MILESTONE-AUDIT.md` item 5 — the tech-debt entry this procedure serves
 - `.planning/phases/05-payments-payouts/05-HUMAN-UAT.md` item 3 — the UAT item that asked for this
+- `tests/helpers/test-db-url.ts` / `tests/global-setup.ts` — the §4a containment: why the suite can no
+  longer write `notify` / `guest-email` rows into dev, and the per-run report that says where they went
+- `.planning/quick/260810-j3z-make-unresolved-needs-attention-money-al/deferred-items.md` — D1, closed
