@@ -34,20 +34,28 @@
 //     green, which is both the correct blast radius and the whole argument for the scan: a theme
 //     contract cannot tell you whether anything obeys it.
 //   • Reverted → exits 0 with **29 passed**.
+//   • [10-16] The four role names removed from the `extendTailwindMerge` registration in
+//     `src/lib/utils.ts` → **5 failed / 30 passed**: the four per-role merge assertions and the
+//     size-conflict assertion. The colour control stayed GREEN, which is the correct blast radius —
+//     the fix is a font-size registration, not a blanket `text-*` exemption. Restored → 35 passed.
 //
 // NOT COVERED — real blind spots, listed so the next reader under-trusts this file:
 //   • This proves the two themes declare different NUMBERS. It says nothing about whether the
 //     resulting type is legible, well-paired, or hierarchical — that is a human look at
 //     `/dev/theme`, and Phase 11's screenshot gate.
-//   • The scan proves the class NAMES are right. It cannot see `cn()`/tailwind-merge precedence at
-//     a call site, nor an inline `style={{ fontSize }}`, nor a font size arriving from a CSS module.
-//     Phase 11's GATE-01 screenshots see real pixels.
+//   • The scan proves the class NAMES are right. It cannot see general `cn()`/tailwind-merge
+//     precedence at a call site, nor an inline `style={{ fontSize }}`, nor a font size arriving from
+//     a CSS module. Phase 11's GATE-01 screenshots see real pixels. ONE specific case of that blind
+//     spot is now closed rather than merely listed — see the merge block added by plan 10-16 below,
+//     which found the four named roles being silently DELETED by the repo's own `cn()`.
 //   • It asserts the named steps COMPILE correctly, and separately that 12 call sites USE the
 //     Display step — not that any of the other three roles has an adopter yet.
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
+
+import { cn } from "@/lib/utils";
 
 import {
   readThemeTokens,
@@ -242,6 +250,44 @@ describe("the named steps compile to all four properties", () => {
         `var(--fs-${role})`,
       );
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DS-02, the class-composition half (plan 10-16). A role that survives the
+// compiler and dies in `cn()` is still a role nobody renders.
+// ---------------------------------------------------------------------------
+describe("the named steps survive the repo's own class merge", () => {
+  // MEASURED WHILE BUILDING `/dev/theme`, which is the first surface to use the three non-Display
+  // roles at all. tailwind-merge tries the font-size group first (t-shirt sizes, arbitrary lengths)
+  // and falls through to the text-COLOUR group, whose matcher accepts ANY value. `display`,
+  // `heading`, `body` and `label` match none of the size shapes, so out of the box every one of them
+  // was classified as a colour and lost to any colour utility merged after it:
+  //
+  //     twMerge("text-label", "text-muted-foreground")  →  "text-muted-foreground"
+  //
+  // Same defect class as the slash-modifier trap `globals.css` warns about, with a sharper edge: the
+  // call site looks migrated, `tsc` passes, the source scan above passes (the class NAME is right),
+  // and the element renders at the inherited size. `src/lib/utils.ts` now registers the four names
+  // under Tailwind's `--text-*` theme namespace; these assertions are what stop that being undone.
+  it.each(ROLES)("keeps `text-%s` when a colour utility is merged after it", (role) => {
+    const merged = cn(`text-${role}`, "text-muted-foreground");
+    expect(merged, `cn() deleted text-${role}`).toContain(`text-${role}`);
+    expect(merged, "cn() deleted the colour instead").toContain("text-muted-foreground");
+  });
+
+  it("still resolves a role against a SIZE as a genuine conflict", () => {
+    // The other half of the fix, and the reason it is a font-size registration rather than an
+    // exemption: two sizes on one element must still collapse to the last one, or the merge has
+    // stopped merging. `sm:text-display` beside `text-2xl` is the shipped shape this protects.
+    expect(cn("text-sm", "text-display")).toBe("text-display");
+    expect(cn("text-display", "text-sm")).toBe("text-sm");
+  });
+
+  it("leaves real colour conflicts resolving as colours", () => {
+    // THE CONTROL ON THE FIX. A registration that swallowed the whole `text-*` space would make this
+    // return both classes, and every colour merge in the app would silently stop working.
+    expect(cn("text-foreground", "text-muted-foreground")).toBe("text-muted-foreground");
   });
 });
 
