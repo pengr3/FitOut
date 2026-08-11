@@ -59,6 +59,8 @@ export default defineConfig({
     globalSetup: ["tests/global-setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     // E2E specs live in /e2e and are run by Playwright, not Vitest.
-    exclude: ["e2e/**", "node_modules/**", ".next/**"],
+    // The design suite is owned by vitest.design.config.ts and must NEVER pay the Postgres
+    // preflight above — without this entry the include globs would also collect tests/design/*.tsx.
+    exclude: ["e2e/**", "node_modules/**", ".next/**", "tests/design/**"],
   },
 });
