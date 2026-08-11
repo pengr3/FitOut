@@ -59,8 +59,22 @@
 //     control corners sit at 1000). Accepted for this phase and recorded as a Phase 18 rule: wrap
 //     the vendor in a stacking context rather than inflating the scale. Nothing here can catch it.
 //   • Whether the three steps read as a hierarchy is a human look at `/dev/theme`.
-//   • Z-INDEX call sites are deliberately NOT scanned here. Plan 10-13 extends this same file with
-//     that half; this section is shadows only.
+//
+// THE Z-INDEX HALF (plan 10-13) NOW LIVES AT THE BOTTOM OF THIS FILE, and closes DS-03's second
+// clause. The shadow sections above are unchanged and remain self-contained.
+//
+// OBSERVED RED FOR THE Z SECTION, TWICE, BECAUSE THE TWO FAILURE MODES HAVE DIFFERENT BLAST RADII:
+//   • `z-(--z-dialog)` reverted to `z-50` at `src/components/ui/popover.tsx:33` → **6 failed / 47
+//     passed**: the banned-value scan, the raw-z equality, the vocabulary check, the 20-site COUNT,
+//     the per-file dialog inventory (whose diff named `popover.tsx` as the missing file), and the
+//     compiled-output assertion, which caught `z-index: 50` in the emitted stylesheet rather than
+//     in the source. Every shadow and every token assertion stayed GREEN — the correct radius.
+//   • The z-index DELETED from that same line entirely → **2 failed / 51 passed**. Only the count
+//     and the per-file inventory fire. Every zero-violations assertion in this section passes
+//     PERFECTLY against a tree with no stacking at all, which is the whole argument for pinning
+//     exact numbers on both sides (T-10-49) and the reason a delete is the failure a gate like this
+//     is blindest to.
+//   • Reverted → exits 0 with **53 passed** (31 before this plan).
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
@@ -223,6 +237,30 @@ describe("guard-the-guard", () => {
         "shadow-floating",
       ]).then((css) => declarationsFor(css, ".shadow-floating")),
     ).resolves.toBeNull();
+  });
+
+  it("still refuses a safelist entry that could break out of `@source inline(\"…\")`", () => {
+    // Plan 10-13 WIDENED that character check, because the only legal spelling of a named z layer
+    // is `z-(--z-dialog)` and the original class rejected every parenthesis. A widened validator
+    // with no test on it is how a validator keeps widening, so the property it exists for is
+    // asserted here rather than left to the docstring: the value is interpolated into a CSS string
+    // literal, so a quote, a backslash, a newline, a `;` or a brace must still be refused.
+    for (const hostile of [
+      'shadow-md"); @import url(http://x/a.css); @source inline("x',
+      "shadow-md; content: bad",
+      "shadow-md\\",
+      "shadow-md\nshadow-lg",
+      "shadow-md{}",
+      "shadow-md ",
+    ]) {
+      expect(
+        () => compileGlobalsCssWith([hostile]),
+        `the safelist sanitiser accepted ${JSON.stringify(hostile)}`,
+      ).toThrow(/refusing to safelist/);
+    }
+    // …while both real shapes the gate depends on are still accepted.
+    expect(() => compileGlobalsCssWith(["shadow-raised"])).not.toThrow();
+    expect(() => compileGlobalsCssWith(["z-(--z-dialog)", "-z-(--z-sticky)"])).not.toThrow();
   });
 });
 
@@ -608,5 +646,381 @@ describe("DS-03 source scan — the control on the control", () => {
         `${name} was counted as a call site inside the token contract itself`,
       ).toBeUndefined();
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// DS-03, THE Z-INDEX CLAUSE — THE SOURCE SCAN AND THE SHIPPED STYLESHEET (plan 10-13)
+//
+// The token assertions near the top of this file prove the four-step scale EXISTS and is global.
+// They are completely blind to whether anything obeys it, and before this plan nothing did: TWO
+// magic numbers — `z-10` and `z-50` — arbitrated every stacking decision in the app, including
+// whether a dialog rendered above its own overlay. This section is the other half.
+//
+// THE CONSUMPTION FORM IS THE WHOLE HAZARD, AND IT FAILS SILENTLY. Tailwind v4 has NO z-index theme
+// namespace. A bare `z-dialog` is not an error and is not a warning — it simply produces no rule at
+// all, so the element keeps whatever stacking it inherits and the bug is invisible until something
+// renders behind something else. The parenthesised CSS-variable form `z-(--z-dialog)` is therefore
+// mandatory rather than stylistic, and this file asserts the failure directly: `z-dialog` emits
+// NOTHING even when force-safelisted, while `z-(--z-dialog)` emits `z-index: var(--z-dialog)`.
+//
+// THE ONE MAPPING THAT IS NOT VALUE-PRESERVING, STATED SO IT IS NOT DISCOVERED AS A REGRESSION.
+// `--z-sticky` is 10, so every former `z-10` renders identically. `--z-dialog` is 30, NOT 50, so all
+// nine former `z-50` layers moved DOWN together. Their relative order is unchanged (they all moved,
+// and the dialog overlay/content pair sits at equal z with DOM order deciding, exactly as before),
+// but anything that hard-coded a value between 30 and 50 would now sit above them. Nothing in the
+// shipped tree does — and the zero-raw-z assertion below is precisely what keeps that true.
+//
+// THE NEGATIVE SITES, which the plan's own inventory counted as plain `z-10`. The "or" dividers on
+// login and signup are `-z-10`: a decorative rule that must sit BEHIND the label it crosses. They
+// map to `-z-(--z-sticky)`, which compiles to `calc(var(--z-sticky) * -1)` — value-preserving, and
+// still reading from the scale rather than from a bare 10. Mapping them to the positive step would
+// have inverted two real surfaces while every count in this file still looked right.
+//
+// WHY `z-0` IS EXEMPT AND `-z-10` IS NOT. `z-0` is not a layer in a four-step scale; it is the
+// stacking-context origin, used on `calendar.tsx`'s range endpoints alongside `isolate` to give the
+// `::after` bleed something to sit against. `-z-10` contains the magic 10 that the scale exists to
+// name. So the two `z-0` stay, are asserted to stay, and are the positive control for this section.
+//
+// NOT COVERED — real blind spots, so the next reader under-trusts this section:
+//   • It proves the class NAMES and the emitted `z-index` values. It cannot see `cn()` /
+//     tailwind-merge precedence, an inline `style={{ zIndex }}`, or a stacking context created by
+//     `transform` / `filter` / `isolate` that makes a z-index irrelevant. Only a rendered dialog
+//     shows that; `npm run test:e2e` exercises the real dialogs, menus and popovers.
+//   • The scale is ADVISORY against a third-party widget with its own internal z-index. Leaflet's
+//     control corners sit at 1000 and its panes at 400–700, which already out-ranked the old 50 as
+//     well as the new 30 — lowering the portal layer changes nothing about that relationship. The
+//     Phase 18 rule stands: wrap the vendor in a CSS stacking context, never inflate the app scale.
+//   • `--z-sheet` and `--z-toast` have ZERO call sites and are asserted to have zero. `--z-sheet` is
+//     reserved for a genuine mobile overlay/sheet, which the tree does not yet have; the Sonner
+//     toaster sets its own z-index internally and is not edited here. Neither zero is a bug, and
+//     neither may be "fixed" by sprinkling the token somewhere to give it a home.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The whole allowed z vocabulary in source. A fifth name is a scale that has stopped being one. */
+const ALLOWED_Z = [
+  "z-0",
+  "z-(--z-sticky)",
+  "-z-(--z-sticky)",
+  "z-(--z-dialog)",
+] as const;
+
+/**
+ * Any z utility, including the negative form, arbitrary values and the non-compiling bare form.
+ *
+ * The `(?<![\w-])` lookbehind is 10-12's rule and is load-bearing three times here. It excludes the
+ * four `--z-*` TOKEN DECLARATIONS in `globals.css` — the contract this scan polices, not call sites
+ * of it — and every `var(--z-dialog)` reference to them. It excludes `tz-safe` / `tz-note`, which
+ * appear on 11 real lines across the booking and availability components and which a bare `z-`
+ * search folds straight into the z vocabulary. And by allowing an OPTIONAL leading `-` inside the
+ * match it separates `-z-10` from `z-10`, a distinction the plan's own inventory did not draw: it
+ * counted 12 `z-10`, of which two are negative dividers that must never become positive.
+ *
+ * It deliberately also matches a literal `z-index` in un-stripped CSS, which is why the control at
+ * the bottom of this file can prove the comment stripper is not a no-op.
+ */
+const Z_UTILITY = /(?<![\w-])-?z-[A-Za-z0-9_[\]().%/-]+/g;
+
+/** Any raw numeric or arbitrary z — the magic-number form the named scale replaces. */
+const RAW_Z = /(?<![\w-])-?z-(?:\d+|auto|\[[^\]]*\])(?![\w-])/g;
+
+/** The two numbers that used to arbitrate every stacking decision in this app. */
+const BANNED_Z = /(?<![\w-])-?z-(?:10|50)(?![\w-])/g;
+
+/** Every positive `z-(--z-sticky)` call site, per file. */
+const STICKY_INVENTORY: Readonly<Record<string, number>> = {
+  "src/components/booking/booking-row.tsx": 1,
+  "src/components/host/host-booking-row.tsx": 1,
+  "src/components/ui/avatar.tsx": 1,
+  "src/components/ui/calendar.tsx": 2,
+  "src/components/ui/select.tsx": 2,
+  "src/components/ui/toggle-group.tsx": 2,
+};
+
+/** The two NEGATIVE sticky sites — the "or" dividers, which must stay behind their labels. */
+const NEGATIVE_STICKY_INVENTORY: Readonly<Record<string, number>> = {
+  "src/app/(auth)/login/page.tsx": 1,
+  "src/app/(auth)/signup/page.tsx": 1,
+};
+
+/** Every `z-(--z-dialog)` call site, per file. All nine are Radix portal layers. */
+const DIALOG_INVENTORY: Readonly<Record<string, number>> = {
+  "src/components/ui/dialog.tsx": 2,
+  "src/components/ui/dropdown-menu.tsx": 2,
+  "src/components/ui/popover.tsx": 1,
+  "src/components/ui/select.tsx": 1,
+  "src/components/ui/tooltip.tsx": 3,
+};
+
+/** The two surviving `z-0` — the positive control, and the documented exemption. */
+const Z0_INVENTORY: Readonly<Record<string, number>> = {
+  "src/components/ui/calendar.tsx": 2,
+};
+
+interface ZScan {
+  scanned: string[];
+  gateFiles: string[];
+  /** `file: match` for every `z-10` / `z-50` (either sign) in non-comment source. */
+  banned: string[];
+  /** `file: match` for every raw numeric/arbitrary z in non-comment source. */
+  raw: string[];
+  vocabulary: string[];
+  byName: Record<string, Record<string, number>>;
+}
+
+/** Scanned ONCE at module level, reusing this file's walker, label() and comment stripper. */
+function scanZ(): ZScan {
+  const out: ZScan = { scanned: [], gateFiles: [], banned: [], raw: [], vocabulary: [], byName: {} };
+  const seen = new Set<string>();
+
+  for (const file of collectSourceFiles(SRC_DIR)) {
+    const name = label(file);
+    const code = stripLeadingComments(readFileSync(file, "utf8"));
+
+    out.scanned.push(name);
+    if (GATE_TREE.some((prefix) => name.startsWith(prefix))) out.gateFiles.push(name);
+
+    for (const m of code.matchAll(BANNED_Z)) out.banned.push(`${name}: ${m[0]}`);
+    for (const m of code.matchAll(RAW_Z)) out.raw.push(`${name}: ${m[0]}`);
+
+    for (const m of code.matchAll(Z_UTILITY)) {
+      seen.add(m[0]);
+      out.byName[m[0]] ??= {};
+      out.byName[m[0]][name] = (out.byName[m[0]][name] ?? 0) + 1;
+    }
+  }
+
+  out.vocabulary = [...seen].sort();
+  return out;
+}
+
+const zScan = scanZ();
+
+describe("DS-03 z scan — the scan itself reaches what it claims to police (T-10-49)", () => {
+  it("visits the whole source tree, not a fraction of it", () => {
+    // A zero-raw-z assertion passes just as happily against a scanner that visited nothing.
+    expect(zScan.scanned.length).toBeGreaterThan(200);
+    expect(zScan.gateFiles.length).toBeGreaterThan(100);
+  });
+
+  it("reaches `dialog.tsx`, the file that carries the overlay/content pair", () => {
+    // Named explicitly because the dialog is the surface where a mis-mapped z is not cosmetic: an
+    // overlay above its own content makes the booking flow unusable (T-10-48).
+    expect(zScan.scanned, "the walker never reached the dialog primitive").toContain(
+      "src/components/ui/dialog.tsx",
+    );
+    expect(zScan.scanned).toContain("src/components/ui/calendar.tsx");
+  });
+});
+
+describe("DS-03 z clause — the two magic numbers are gone from the source", () => {
+  it("finds zero `z-10` and zero `z-50`, of either sign, anywhere under src/", () => {
+    // Wider than DS-03's stated tree (app + components) on purpose: a raw stacking value in
+    // `src/lib/**` would be exactly as unreviewable, so there is no reason to scope the assertion
+    // more narrowly than the walk already goes.
+    expect(zScan.banned).toEqual([]);
+  });
+
+  it("leaves the two exempt `z-0` as the ONLY raw z values in the tree", () => {
+    // Stated as an equality rather than "no z-10 or z-50" so an invented `z-[999]`, a `z-auto`, or
+    // any other magic number is caught by the same assertion that catches a regression to 50.
+    expect(zScan.raw.sort()).toEqual([
+      "src/components/ui/calendar.tsx: z-0",
+      "src/components/ui/calendar.tsx: z-0",
+    ]);
+  });
+
+  it("uses no z utility outside the four-name vocabulary", () => {
+    // This is where a bare `z-dialog` is caught. It compiles to NOTHING, so no compiled-output
+    // assertion can ever see it and no rendering test would fail on a token the author believed
+    // they had applied — the source is the only place that mistake is legible.
+    const outside = zScan.vocabulary.filter(
+      (name) => !(ALLOWED_Z as readonly string[]).includes(name),
+    );
+    expect(outside, "z utilities outside the four-step scale").toEqual([]);
+  });
+});
+
+describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T-10-49)", () => {
+  it("carries exactly 20 mapped call sites — 11 sticky and 9 dialog", () => {
+    // The count is what makes a migration that DELETED the z-index instead of mapping it go red: a
+    // tree with no z-index at all satisfies every zero-violations assertion above perfectly.
+    const sticky =
+      totalOf(zScan.byName["z-(--z-sticky)"]) + totalOf(zScan.byName["-z-(--z-sticky)"]);
+    const dialog = totalOf(zScan.byName["z-(--z-dialog)"]);
+    expect(sticky, "the sticky layer lost or gained a surface").toBe(11);
+    expect(dialog, "the dialog layer lost or gained a surface").toBe(9);
+    expect(sticky + dialog).toBe(20);
+  });
+
+  it("pins the 9 positive sticky sites to the files that own them", () => {
+    expect(zScan.byName["z-(--z-sticky)"]).toEqual(STICKY_INVENTORY);
+  });
+
+  it("pins the 2 NEGATIVE sticky sites, which must never become positive", () => {
+    // The "or" divider crosses BEHIND its own label. A positive step here is a visible bug on the
+    // two highest-traffic unauthenticated pages in the app, and every other count in this file
+    // would still read correctly.
+    expect(zScan.byName["-z-(--z-sticky)"]).toEqual(NEGATIVE_STICKY_INVENTORY);
+  });
+
+  it("pins the 9 dialog sites to the five portal primitives that own them", () => {
+    expect(zScan.byName["z-(--z-dialog)"]).toEqual(DIALOG_INVENTORY);
+  });
+
+  it("counts `tooltip.tsx`'s two-on-one-line as two separate sites", () => {
+    // Line 45 carries the content layer AND `**:data-[slot=kbd]:z-(--z-dialog)`. A scan matching
+    // once per line reports 8 dialog sites and still looks tidy. `calendar.tsx` and
+    // `toggle-group.tsx` are the same shape on the sticky side.
+    expect(zScan.byName["z-(--z-dialog)"]["src/components/ui/tooltip.tsx"]).toBe(3);
+    expect(zScan.byName["z-(--z-sticky)"]["src/components/ui/calendar.tsx"]).toBe(2);
+    expect(zScan.byName["z-(--z-sticky)"]["src/components/ui/toggle-group.tsx"]).toBe(2);
+  });
+
+  it("still finds the 2 untouched `z-0` sites — THE POSITIVE CONTROL", () => {
+    // Without these, every zero above is indistinguishable from a scanner that read nothing, and a
+    // "migration" that stripped the z-index off `calendar.tsx`'s range endpoints would pass.
+    expect(zScan.byName["z-0"]).toEqual(Z0_INVENTORY);
+  });
+
+  it("leaves `--z-sheet` and `--z-toast` declared-but-unused, deliberately", () => {
+    // NOT oversights. `--z-sheet` is reserved for a genuine mobile overlay/sheet, which the tree
+    // does not have; the Sonner toaster sets its own z-index internally. Asserted so nobody gives
+    // either token a home just to make a number look complete — and the tokens must still exist.
+    expect(totalOf(zScan.byName["z-(--z-sheet)"])).toBe(0);
+    expect(totalOf(zScan.byName["z-(--z-toast)"])).toBe(0);
+    expect(globals["--z-sheet"], "…but the step must still be declared").toBe("20");
+    expect(globals["--z-toast"]).toBe("40");
+  });
+});
+
+describe("DS-03 z clause in the SHIPPED stylesheet", () => {
+  it("emits no `z-10`, `-z-10` or `z-50` rule at all, from any source", async () => {
+    // Only assertable since plan 10-12 narrowed the content root to `src/`; before that a sentence
+    // of planning prose emitted a real rule and this would have been red against a clean tree.
+    const css = await compileGlobalsCss();
+    for (const selector of [".z-10", ".-z-10", ".z-50"]) {
+      expect(
+        declarationsFor(css, selector),
+        `${selector} is still emitted into the shipped stylesheet`,
+      ).toBeNull();
+    }
+  });
+
+  it("emits the three named z rules UNFORCED, each resolving through its token", async () => {
+    // THE CONTROL ON THE NARROWING. A content root narrowed one level too far makes the absence
+    // assertion above pass perfectly while the app ships with no utilities whatsoever. These rules
+    // exist only because the scan still reaches `src/` — nothing here is safelisted.
+    const css = await compileGlobalsCss();
+    expect(
+      declarationsFor(css, ".z-\\(--z-sticky\\)"),
+      "the content scan no longer reaches src/ — the absence assertion above is now vacuous",
+    ).toBe("z-index: var(--z-sticky);");
+    expect(declarationsFor(css, ".z-\\(--z-dialog\\)")).toBe("z-index: var(--z-dialog);");
+    // Value-preserving negation, asserted as the emitted expression rather than assumed: the two
+    // dividers still compute to -10 exactly as `-z-10` did.
+    expect(declarationsFor(css, ".-z-\\(--z-sticky\\)")).toBe(
+      "z-index: calc(var(--z-sticky) * -1);",
+    );
+  });
+
+  it("still emits `.z-0`, so the exemption is a real surviving surface", async () => {
+    const css = await compileGlobalsCss();
+    expect(declarationsFor(css, ".z-0")).toBe("z-index: 0;");
+  });
+
+  it("omits the two unused steps precisely because nothing references them", async () => {
+    // Four declared steps, two shipped, and the difference is exactly the two with no call site —
+    // which is what proves the emitted set tracks real usage rather than prose.
+    const css = await compileGlobalsCss();
+    expect(declarationsFor(css, ".z-\\(--z-sheet\\)")).toBeNull();
+    expect(declarationsFor(css, ".z-\\(--z-toast\\)")).toBeNull();
+  });
+
+  it("would compile both unused steps theme-consistently IF a surface adopted one", async () => {
+    // States the `if` explicitly rather than leaving the two zeros above looking like dead tokens.
+    const css = await compileGlobalsCssWith(["z-(--z-sheet)", "z-(--z-toast)"]);
+    expect(declarationsFor(css, ".z-\\(--z-sheet\\)")).toBe("z-index: var(--z-sheet);");
+    expect(declarationsFor(css, ".z-\\(--z-toast\\)")).toBe("z-index: var(--z-toast);");
+  });
+});
+
+describe("DS-03 z clause — the bare form does not compile, which is why the parens are mandatory", () => {
+  it("emits NOTHING for `z-dialog`, `z-sticky`, `z-sheet` or `z-toast`, even force-safelisted", async () => {
+    // THE ASSERTION THIS WHOLE SECTION EXISTS TO CARRY. Tailwind v4 has no z-index theme namespace,
+    // so the readable-looking `z-dialog` is not an error, not a warning, and not a rule — it is
+    // silence. Forcing the safelist removes the only innocent explanation ("nothing uses it yet"):
+    // Tailwind is asked directly for the class and still produces no declaration. A reader who
+    // "tidies" `z-(--z-dialog)` into `z-dialog` fails here instead of shipping an invisible bug.
+    const css = await compileGlobalsCssWith([
+      "z-dialog",
+      "z-sticky",
+      "z-sheet",
+      "z-toast",
+      "z-(--z-dialog)",
+    ]);
+    for (const bare of [".z-dialog", ".z-sticky", ".z-sheet", ".z-toast"]) {
+      expect(
+        declarationsFor(css, bare),
+        `${bare} compiled — Tailwind grew a z-index namespace and this file's premise changed`,
+      ).toBeNull();
+    }
+    // The positive control on the same compile: the parenthesised form in the SAME safelist does
+    // emit, so the four nulls above are a fact about the bare syntax and not about the safelist.
+    expect(declarationsFor(css, ".z-\\(--z-dialog\\)")).toBe("z-index: var(--z-dialog);");
+  });
+});
+
+describe("DS-03 z scan — the control on the control", () => {
+  it("counts call sites in code, not the stylesheet comment that documents the form", () => {
+    // `globals.css`'s CONSUMPTION FORM comment names both `z-dialog` (the form that compiles to
+    // nothing) and `z-(--z-dialog)` (the one that works), and its z-scale block says `z-index` four
+    // times. Its raw text therefore carries 6 hits that its stripped code does not. If the stripper
+    // ever degrades to a no-op, the vocabulary assertion above goes red on `z-dialog` immediately —
+    // and without this control, that same "zero violations" result would be a statement about a
+    // scanner that had stopped scanning.
+    const raw = readFileSync(join(SRC_DIR, "app/globals.css"), "utf8");
+    const rawHits = [...raw.matchAll(Z_UTILITY)].map((m) => m[0]);
+    expect(
+      rawHits,
+      "the stylesheet's own warning should still name the non-compiling bare form",
+    ).toContain("z-dialog");
+    expect(rawHits).toContain("z-index");
+    expect(
+      zScan.vocabulary.filter((name) => name === "z-dialog" || name === "z-index"),
+      "the comment stripper is a no-op — every count in this section is unreliable",
+    ).toEqual([]);
+  });
+
+  it("counts call sites, not the four `:root` token declarations they resolve through", () => {
+    // `--z-dialog: 30` is the CONTRACT, not a use of it, and `var(--z-dialog)` inside a component
+    // would be a reference rather than a utility. This is what the lookbehind buys — without it
+    // every inventory above is off by the size of the token block.
+    const raw = readFileSync(join(SRC_DIR, "app/globals.css"), "utf8");
+    for (const [token] of Z_SCALE) {
+      expect(raw, `globals.css must still declare ${token}`).toContain(`${token}:`);
+    }
+    for (const name of ALLOWED_Z) {
+      expect(
+        zScan.byName[name]?.["src/app/globals.css"],
+        `${name} was counted as a call site inside the token contract itself`,
+      ).toBeUndefined();
+    }
+  });
+
+  it("never folds `tz-safe` and friends into the z vocabulary", () => {
+    // 11 real lines across the booking, host and availability components carry `tz-safe` / `tz-note`
+    // / `tz-independent`. A `z-` search without the lookbehind reports them as stacking utilities,
+    // and the vocabulary assertion above would fail against a perfectly clean tree.
+    const decoys = '<p className="tz-safe" /> // tz-note tz-independent';
+    expect([...decoys.matchAll(Z_UTILITY)].map((m) => m[0])).toEqual([]);
+    // …while the four real forms, including the negative one and a variant prefix, are all found.
+    const real = 'className="relative z-(--z-sticky) focus:z-(--z-dialog) -z-(--z-sticky) z-0"';
+    expect([...real.matchAll(Z_UTILITY)].map((m) => m[0])).toEqual([
+      "z-(--z-sticky)",
+      "z-(--z-dialog)",
+      "-z-(--z-sticky)",
+      "z-0",
+    ]);
   });
 });

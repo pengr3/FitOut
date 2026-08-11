@@ -196,8 +196,21 @@ export function compileGlobalsCssWith(
   // The list is interpolated into CSS text. Test-only or not, nothing here derives its input from
   // argv or the environment and nothing may smuggle a `"` or a `;` into the stylesheet, so the
   // shape is checked rather than trusted (same posture as GLOBALS_CSS_PATH's).
+  //
+  // WIDENED BY PLAN 10-13, and the widening is forced rather than convenient. The original class
+  // `[a-z0-9:/-]` admits only word-shaped utilities, which is every utility this repo had until the
+  // z scale arrived. Tailwind v4 has NO z-index theme namespace, so a named z layer has exactly one
+  // spelling — `z-(--z-dialog)`, the CSS-variable arbitrary-value form — and the old class rejected
+  // it outright. A helper that cannot express the only legal form of the thing under test forces
+  // the test to be dropped, which is the worse failure. So `(`, `)`, `[`, `]`, `.`, `_` and `%`
+  // (the arbitrary-value and CSS-variable syntaxes) are admitted, plus an optional leading `-` for
+  // Tailwind's negative utilities.
+  //
+  // The security property is UNCHANGED and is the only one that matters here: the value lands
+  // inside `@source inline("…")`, so the characters that can break out are `"`, a backslash and a
+  // newline. All three are still rejected, as are `;`, `{` and `}`.
   for (const utility of utilities) {
-    if (!/^[a-z0-9][a-z0-9:/-]*$/.test(utility)) {
+    if (!/^-?[a-z0-9][a-z0-9:/._()[\]%-]*$/.test(utility)) {
       throw new Error(
         `[compile-css] refusing to safelist a utility with unexpected characters: ${JSON.stringify(utility)}`,
       );
