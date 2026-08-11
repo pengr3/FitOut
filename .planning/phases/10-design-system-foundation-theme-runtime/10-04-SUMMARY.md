@@ -220,3 +220,7 @@ Threat register dispositions honoured: **T-10-13** (a token-only reduced-motion 
 ---
 *Phase: 10-design-system-foundation-theme-runtime*
 *Completed: 2026-08-11*
+
+## Self-Check: PASSED
+
+All 7 claimed artifacts verified on disk (`src/app/globals.css`, `tests/design/helpers/compile-css.ts`, `tests/design/type-scale.test.ts`, `tests/design/elevation-z.test.ts`, `tests/design/motion-budget.test.ts`, the phase's `deferred-items.md`, and this file) and all 4 commits verified in `git log` (`b76a77e`, `47a9005`, `06cac90`, `242bb49`). REQUIREMENTS.md re-read after the commit: `DS-04` reads `Complete`; `DS-02`, `DS-03`, `DS-05` and `THEME-02` still read `Pending`, which is the accurate state per deviation 2.
