@@ -23,6 +23,47 @@
 //
 // `next/link` is stubbed to a plain anchor (App-Router context is absent in jsdom), mirroring
 // tests/listing/listing-card.test.tsx.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// CASES (7)-(9) — quick task 260811-elm, the drop-in EXPLAINER line (v1.0 audit item #6, copy clause).
+//
+// Written FIRST against unchanged `src/` (the house confirm-then-fix discipline).
+//
+// Observed RED (pre-fix, 2026-08-11) — `npx vitest run tests/search/search-card-open.test.tsx`, VERBATIM:
+//
+//    ✓ … > (1) with NO date: badges Drop-in, prices per person, and shows no scarcity of any kind 192ms
+//    ✓ … > (2) with a date in play: renders the date + venue tz and the server's chip, and NO clock time 31ms
+//    ✓ … > (3) with a date AND a searched start/end: STILL no clock time (O2 — the default lie) 16ms
+//    ✓ … > (4) renders the server's `low` state verbatim — the exact count, not a re-derivation 17ms
+//    ✓ … > (5) links forward with the DATE ALONE — never a start/end window the listing page cannot resume 14ms
+//    ✓ … > (6) REGRESSION: an exclusive card with the same searched window is unchanged 12ms
+//    × … > (7) drop-in with NO date: the explainer renders, between the badge and the price 29ms
+//      → Unable to find an element with the text: Day pass · shared space, any time they're open. This
+//        could be because the text is broken up by multiple elements. In this case, you can provide a
+//        function for your text matcher to make your matcher more flexible.
+//
+//    FAIL  tests/search/search-card-open.test.tsx > SearchResultCard — drop-in listings (OC-12 / O2) >
+//    (7) drop-in with NO date: the explainer renders, between the badge and the price
+//   TestingLibraryElementError: Unable to find an element with the text: Day pass · shared space, any time
+//   they're open. This could be because the text is broken up by multiple elements. In this case, you can
+//   provide a function for your text matcher to make your matcher more flexible.
+//    ❯ tests/search/search-card-open.test.tsx:231:19
+//
+//    FAIL  tests/search/search-card-open.test.tsx > SearchResultCard — drop-in listings (OC-12 / O2) >
+//    (8) drop-in with a date AND searched hours: the explainer coexists with O2
+//   TestingLibraryElementError: Unable to find an element with the text: Day pass · shared space, any time
+//   they're open. This could be because the text is broken up by multiple elements. In this case, you can
+//   provide a function for your text matcher to make your matcher more flexible.
+//    ❯ tests/search/search-card-open.test.tsx:253:19
+//
+//    Test Files  1 failed (1)
+//         Tests  2 failed | 7 passed (9)
+//
+// THE CONTRAST IS THE EVIDENCE: cases (1)-(6) AND case (9) were GREEN in that same run. (9) is a
+// REGRESSION PIN of today's exclusive card, not a restatement of the new assertions — if it had gone red
+// alongside (7)/(8) it would be measuring the explainer rather than pinning the card it is meant to
+// protect. See the block above the cases themselves for what each one carries.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
@@ -44,6 +85,7 @@ vi.mock("next/link", () => ({
 
 import { SearchResultCard } from "@/components/search/search-result-card";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
+import { SPACE_TYPE_LABELS } from "@/lib/listing-vocab";
 import type { SearchResultRow } from "@/lib/search/query";
 
 afterEach(cleanup);
@@ -101,6 +143,28 @@ function makeExclusiveRow(overrides: Partial<SearchResultRow> = {}): SearchResul
 
 /** Any digit immediately followed by a colon — i.e. a wall-clock time anywhere in the rendered card. */
 const CLOCK_TIME = /\d:/;
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// Cases (7)-(9): the drop-in explainer line (quick task 260811-elm · audit item #6, copy clause).
+//
+// Pinned as a LITERAL, not imported from the component, on purpose — the house pattern case (2) already
+// uses for `Fri, Aug 8 · Makati time`. A copy change must fail HERE and force a deliberate re-read; an
+// imported constant would silently follow whatever the component was changed to say.
+//
+// Case (9) is the byte-identity gate, and it is the only assertion actually carrying the "the exclusive
+// card is unchanged" claim: case (6) checks NAMED strings and would not notice an extra node at all.
+// Mutation M1 (delete the `isDropIn &&` guard) is what proves that — (9) reddens while (6) stays green.
+//
+// `FORBIDDEN` is VACUOUS on its own: `open capacity` / `occupancy mode` appear nowhere in either card's
+// rendered output today, so the assertion passes on unchanged source and measures nothing. Mutation M2
+// (`Day pass` → `Open capacity`) is what gives it teeth (D-ELM-06); its RED is part of the deliverable.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The shipped explainer copy, verbatim (D-ELM-02). Its tail is `date-pass-picker.tsx:230`'s tail. */
+const BLURB = "Day pass · shared space, any time they're open";
+
+/** § Copywriting (09-UI-SPEC:444): booker-facing copy never says either of these. */
+const FORBIDDEN = /open capacity|occupancy mode/i;
 
 describe("SearchResultCard — drop-in listings (OC-12 / O2)", () => {
   it("(1) with NO date: badges Drop-in, prices per person, and shows no scarcity of any kind", () => {
@@ -200,5 +264,68 @@ describe("SearchResultCard — drop-in listings (OC-12 / O2)", () => {
     const href = container.querySelector("a")?.getAttribute("href") ?? "";
     expect(href).toContain("start=09%3A00");
     expect(href).toContain("end=11%3A00");
+  });
+
+  it("(7) drop-in with NO date: the explainer renders, between the badge and the price", () => {
+    const { container } = render(<SearchResultCard listing={makeOpenRow()} />);
+
+    expect(screen.getByText(BLURB)).toBeTruthy();
+
+    const text = container.textContent ?? "";
+    // The line answers the question the badge just raised, and it does so BEFORE the price — a booker
+    // reading top-down knows what they are buying before they are told what it costs.
+    expect(text.indexOf("Drop-in")).toBeLessThan(text.indexOf(BLURB));
+    expect(text.indexOf(BLURB)).toBeLessThan(text.indexOf("₱367.50/person"));
+    // …and it did NOT land between the price and its qualifier: those two are one unit (D-ELM-01).
+    expect(text.indexOf("Service fee included")).toBe(
+      text.indexOf("₱367.50/person") + "₱367.50/person".length,
+    );
+    expect(text).not.toMatch(FORBIDDEN);
+  });
+
+  it("(8) drop-in with a date AND searched hours: the explainer coexists with O2", () => {
+    const { container } = render(
+      <SearchResultCard
+        listing={makeOpenRow({ spots: { remaining: 8, cap: 20, state: "open" } })}
+        searchedWindow={{ date: FRIDAY, start: "09:00", end: "11:00" }}
+      />,
+    );
+
+    expect(screen.getByText(BLURB)).toBeTruthy();
+    expect(screen.getByText("Fri, Aug 8 · Makati time")).toBeTruthy();
+
+    // O2 now polices the NEW line too: both of these run over the WHOLE card text, so the explainer
+    // cannot advertise an hour the pass does not reserve. Mutation M3 puts one in and must go RED.
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(CLOCK_TIME);
+    expect(text).not.toContain("Available ");
+    expect(text).not.toMatch(FORBIDDEN);
+  });
+
+  it("(9) REGRESSION: the exclusive card's whole rendered text is byte-identical to today", () => {
+    const row = makeExclusiveRow();
+    const { container } = render(
+      <SearchResultCard
+        listing={row}
+        searchedWindow={{ date: FRIDAY, start: "09:00", end: "11:00" }}
+      />,
+    );
+
+    // EXACT equality, composed from the card's own inputs in render order (D-ELM-05). The price segment
+    // is `row.allInRateParts` — the SAME `allInRateParts` output the card renders from — and never a
+    // hardcoded peso figure, so a SERVICE_FEE_BPS change moves both sides together instead of producing a
+    // false failure here. Loosening this to `toContain` would remove the only teeth the case has.
+    const expected = [
+      "No photos yet",
+      row.title ?? "Untitled space",
+      SPACE_TYPE_LABELS.pickleball_court,
+      row.allInRateParts.join(" · "),
+      "Service fee included",
+      "Available 9:00 AM–11:00 AM on Fri, Aug 8 · Makati time",
+    ].join("");
+    expect(container.textContent).toBe(expected);
+
+    expect(screen.queryByText(BLURB)).toBeNull();
+    expect(container.textContent ?? "").not.toMatch(FORBIDDEN);
   });
 });
