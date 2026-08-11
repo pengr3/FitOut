@@ -40,8 +40,16 @@ const LIST_CLASS =
   "inline-flex w-fit items-center justify-center rounded-lg bg-muted p-[3px] text-muted-foreground";
 const TRIGGER_CLASS =
   "inline-flex min-h-11 min-w-24 items-center justify-center rounded-md border border-transparent px-4 text-sm font-medium whitespace-nowrap transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-1 focus-visible:outline-ring";
-const TRIGGER_ACTIVE = "bg-background text-foreground shadow-raised dark:bg-input/30";
-const TRIGGER_IDLE = "text-foreground/60 hover:text-foreground dark:text-muted-foreground";
+// THEME-05 / D-129: the two variants the vendored `tabs.tsx` trigger still carries for a second
+// colour scheme are deliberately ABSENT here, and the divergence from the recipe this file transcribes
+// is the point rather than drift. Nothing in the app ever activates that scheme — the provider sets
+// `data-theme`, never the class the variant keys off (globals.css, THEME-01) — so in app code those
+// utilities were dead weight that nonetheless had to be re-reasoned about on every edit. They survive
+// untouched in `src/components/ui/**` because stripping them there would fork 14 shadcn primitives
+// against every future `npx shadcn add`; the count of the survivors is pinned in
+// `tests/design/dark-scope.test.ts`. Do NOT restore them here to "match tabs.tsx".
+const TRIGGER_ACTIVE = "bg-background text-foreground shadow-raised";
+const TRIGGER_IDLE = "text-foreground/60 hover:text-foreground";
 
 /**
  * One trigger. The active and idle branches are written out separately so the current-page announcement is
