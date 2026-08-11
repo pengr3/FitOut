@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-05-PLAN.md (theme runtime mounted + FitOut identity metadata + the Sonner map + both override paths) — next 10-06
-last_updated: "2026-08-11T15:45:14.000Z"
-last_activity: 2026-08-11 -- Phase 10 plan 05 complete (next-themes provider finally mounted on data-theme with a fixed court default; tab says FitOut; toasts stop following the OS; the Playwright theme seam exists)
+stopped_at: Completed 10-06-PLAN.md (the Button CVA contract — brand variant, touch size, one solid focus recipe) — next 10-07
+last_updated: "2026-08-11T16:06:00.000Z"
+last_activity: 2026-08-11 -- Phase 10 plan 06 complete (coral is a variant with a hover that darkens; 44px is a named opt-in size; the focus ring lost the 50% alpha that made every control render at 2.32:1)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 5
-  percent: 29
+  completed_plans: 6
+  percent: 35
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 6 of 17
-Status: Executing Phase 10 — plans 01-05 complete. **The theme runtime is now MOUNTED**: `next-themes` had been a dependency for the whole life of the project with no provider ever mounted, and 10-05 mounted it on `data-theme` with a fixed `court` default and `enableSystem={false}` (D-06 — there is no user-facing switcher). Verified in a real browser: `<html data-theme="court">` pre-paint, tab title `FitOut` (was "Create Next App"), zero hydration warnings, `?theme=grove` flips the attribute and `--background`, and a crafted `?theme=evil"><script>` is rejected by the allowlist. Toasts no longer follow the OS colour scheme — one edit in `sonner.tsx` reached all four `<Toaster />` mount sites. The Playwright seam Phase 11 and Phase 17 depend on (`e2e/helpers/theme.ts` → `seedTheme`) exists and imports the provider's real storage key. Next: 10-06. NOTE — DS-05 is still open: `globals.css`'s `outline-ring/50` is gone, but the 13 `focus-visible:ring-ring/50` component sites (11 vendored) are 10-06/10-07. DS-14 is half-done: the metadata is real, but the starter SVGs and favicon deletions are 10-15, which must EXTEND `tests/design/scaffold-residue.test.ts` rather than add a file.
-Last activity: 2026-08-11 -- Phase 10 plan 05 complete (next-themes provider finally mounted on data-theme with a fixed court default; tab says FitOut; toasts stop following the OS; the Playwright theme seam exists)
+Plan: 7 of 17
+Status: Executing Phase 10 — plans 01-06 complete. **The Button CVA contract is now committed and three later plans write against it**: `variant="brand"` (coral is opt-in, never the default — D-21), `size="touch"` (44px, opt-in by D-22; nothing enforces adoption, so Phase 17's a11y audit is the declared catch), and THE focus recipe — `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`. Two contrast failures fixed at their source: the 50%-alpha ring (2.32:1 composited — no `--ring` value could fix it) and the brand hover (4.04 court / 3.87 grove as an alpha tint → 5.41 / 5.36 as a `color-mix` that darkens). `destructive`'s hover flips from a deeper tint (4.01) to a solid fill with `--destructive-foreground` (5.52 both themes). 199/199 design tests green, DB-free. Next: 10-07. NOTE — DS-05/DS-08/DS-09 all stay Pending on purpose: each has an ADOPTION clause owned by 10-07 (the 12 remaining `ring-ring/50` sites) and 10-08/10-09 (the 20 `<Button>` conversions; the 9 non-Button `bg-brand` recipes must NEVER be converted). New deferred item D-2: `button.tsx`'s `destructive` variant still overrides the ring with `ring-destructive/20`, which 10-07's `ring-ring/50` scan will not see.
+Last activity: 2026-08-11 -- Phase 10 plan 06 complete (coral is a variant with a hover that darkens; 44px is a named opt-in size; the focus ring lost the 50% alpha that made every control render at 2.32:1)
 
 ## Performance Metrics
 
@@ -142,6 +142,7 @@ Last activity: 2026-08-11 -- Phase 10 plan 05 complete (next-themes provider fin
 | Phase 10 P03 | 16min | 3 tasks tasks | 5 files files |
 | Phase 10 P04 | 20min | 3 tasks | 6 files |
 | Phase 10 P05 | 13min | 3 tasks | 7 files |
+| Phase 10 P06 | 12min | 1 task | 3 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,12 @@ Recent decisions affecting current work:
 - [10-05]: `THEME_STORAGE_KEY` is IMPORTED by `e2e/helpers/theme.ts` from the provider, never duplicated as the literal `"theme"`. A Playwright helper that seeds a key the provider does not read is a silent no-op with NO symptom: Phase 11's swap smoke would go green while screenshotting the same theme twice, and Phase 17's axe pass would audit court twice and report full two-theme coverage. The seam is therefore created in the phase that owns the key, not the phase that first needs it.
 - [10-05]: THEME-01 marked `Complete` (both clauses — provider mounted on `data-theme` never `class`, and the toast mapping named themes instead of passing them through — are delivered and asserted). DS-14 deliberately left `Pending`: its "starter SVGs and default favicon removed" clause is 10-15's, and 10-15 must EXTEND `tests/design/scaffold-residue.test.ts` rather than create a second file (its header says so).
 - [10-05]: The theme runtime was probed in a REAL browser rather than trusted from the test suite, because every assertion in that suite mocks `next-themes` and so proves the contract the app STATES, not that the library honours it. The probe closed T-10-02 with evidence (`?theme=evil"><script>` left the attribute at `court`) and confirmed zero hydration warnings across four navigations. The build output was checked for the corollary: the four static routes stayed `○ (Static)`, so reading `window.location.search` in an effect forced nothing dynamic.
+- [10-06]: The Button CVA is THE contract for the rest of the phase — `variant="brand"`, `size="touch"` and the one focus recipe live in `src/components/ui/button.tsx` and are copied FROM there by 10-07 (10 more vendored files) and 10-08/10-09 (20 call sites). A colour string at a call site is now a defect, not a style.
+- [10-06]: A hover that must darken is written `hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]`, NEVER an alpha modifier. An alpha tint over a light surface lightens: `bg-brand/90` measures 4.04:1 (court) / 3.87:1 (grove) against a 4.5 bar, the mix form 5.41 / 5.36. `10-RESEARCH.md` § Code Examples still ships the alpha form and is superseded — `tests/design/button-variants.test.ts` asserts the negative so copying it verbatim fails a committed gate.
+- [10-06]: The focus ring's `/50` had to go because no `--ring` value could ever fix it — at half alpha the lightest neutral reaching 3:1 still fails on `--muted` (2.93:1). The offset colour is declared explicitly because Tailwind's default `--tw-ring-offset-color` is a literal white, a leak in all but name; the design gate now proves the utility emits `var(--background)` by compiling it, not by grepping for the class.
+- [10-06]: DS-05, DS-08 and DS-09 stay Pending after the plan that defines them, because each requirement's wording contains an ADOPTION clause (`applies app-wide`, `the 19 literal recipes are replaced`, `is the standard for booker-facing primary actions`) owned by 10-07 through 10-09. Delivering a contract is not delivering its adoption.
+- [10-06]: The grep-versus-comment collision is now a FIVE-time pattern (10-01, 10-03, 10-04, 10-05, 10-06 — five banned literals in one file this time). Same resolution every time: keep the reasoning, name the literal descriptively, and attach the measured number so the prose says strictly more than the literal would have.
+- [10-06]: Negative assertions are observed RED before being trusted. Both of this plan's guards were reinstated as failures (alpha ring, alpha brand hover) and each turned exactly one test red — a negative that has never been seen to fail is indistinguishable from a typo'd matcher.
 - [10-04]: Tailwind v4 emits a utility only when its content scan finds the class name, and NOTHING in `src/` says `text-display` or `shadow-overlay` yet — the call-site migrations are later plans. So a compiled-CSS assertion on a newly declared `@theme inline` step is unreachable through the plain `compileGlobalsCss()`. Added `compileGlobalsCssWith(utilities)`, which appends Tailwind's own `@source inline(…)` safelist at TEST time rather than shipping a safelist in `globals.css`: the stylesheet stays the token contract with no build directive in it, and the forcing is visible at the assertion that needs it. Each such block carries a positive control (`text-figure`, `shadow-floating`) proving the safelist cannot fabricate a step whose `@theme` key was never declared.
 - [10-04]: Tailwind's automatic source detection scans `.planning/**/*.md`, so PROSE emits utilities — the compiled bundle carries `.bg-zinc-50` (a leak-gate fixture example in 10-RESEARCH.md) and `.outline-ring\/50` (the anti-pattern this plan deletes), neither of which appears anywhere in `src/`. Pre-existing and out of this plan's scope, so logged to the phase's `deferred-items.md` and flagged to 10-12: any assertion of the form "utility X exists in the compiled output" can be satisfied by a sentence in a markdown file.
 - [10-04]: `--font-weight-medium` is deliberately aliased onto each theme's emphasis weight rather than kept as a third step, and the resulting 500→600 shift in court is an ACCEPTED visible change on the same footing as the accent deepening. Two weights per theme is the contract; the alias is what lets the 70 shipped `font-medium` call sites need zero edits. Asserted in `type-scale.test.ts` so a future reader cannot "fix" it back to 500 silently.
