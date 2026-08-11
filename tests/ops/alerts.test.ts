@@ -18,8 +18,41 @@
 //     `UnresolvedAlert` has no `meta` field, so the omission is STRUCTURAL. Case 7 pins it at the query
 //     layer; the email-body half is pinned by the sentinel case in tests/ops/alert-digest.test.ts.
 //
+//   - AND THE DISCHARGE ITSELF IS REVIEWABLE (cases 8-13, `listResolvedAlerts`). Cases 1 and 4 pin that a
+//     discharged row LEAVES the queue; until 2026-08-11 nothing pinned that it ARRIVES anywhere. That
+//     absence was D2 — found by an operator at a human-verification checkpoint, not by a test, which is
+//     itself the argument for these six. Case 8 is case 1's mirror; case 13 is case 6b's.
+//
 // EVERY fixture timestamp is computed by POSTGRES (`now() - make_interval(...)`), never by the JS clock —
 // the 07-05 discipline. Host/Docker clock skew can otherwise make correct arithmetic look wrong.
+//
+// ---------------------------------------------------------------------------------------------------
+// CONFIRM-THEN-FIX — the RED for cases 8-13, recorded VERBATIM (quick task 260811-dj4, 2026-08-11).
+// Written FIRST against UNCHANGED `src/`; `git diff --exit-code src/ scripts/` was clean at this point.
+// `npx vitest run tests/ops/alerts.test.ts`, bare, no DATABASE_URL exported:
+//
+//    FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 8 — returns ONLY resolved rows; an open alert never appears in history
+//   TypeError: listResolvedAlerts is not a function
+//    FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 9 — newest DISCHARGE first, tie-broken by created_at DESC
+//   TypeError: listResolvedAlerts is not a function
+//    FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 10 — a 30-day default window, widenable by `days`
+//   AssertionError: expected undefined to be 30 // Object.is equality
+//    FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 11 — honours an explicit limit and defaults to DEFAULT_HISTORY_LIMIT
+//   AssertionError: expected undefined to be 200 // Object.is equality
+//    FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 12 — surfaces ONLY meta->>'error'; the rest of `meta` cannot reach the row
+//   TypeError: listResolvedAlerts is not a function
+//    FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 13 — a discharge on a NON-needs_attention row is visible here, and ONLY here
+//   TypeError: listResolvedAlerts is not a function
+//         Tests  6 failed | 9 passed (15)
+//
+// NOTE, because the prediction was wrong and the record should say so: the plan expected a MODULE-LEVEL
+// failure (the whole file failing to import, since the three named exports do not exist). That is NOT what
+// happened. Vite resolves a missing named export from a TypeScript module to `undefined` rather than
+// throwing at import time, so the file loaded, the nine EXISTING cases still PASSED, and each new case
+// failed individually — four on `listResolvedAlerts is not a function`, and cases 10/11 EARLIER than that,
+// on their `DEFAULT_HISTORY_DAYS`/`DEFAULT_HISTORY_LIMIT` constant assertions, which is why those two show
+// an AssertionError instead. Recorded as observed; not synthesised, and not "improved" by stubbing.
+// ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
@@ -29,6 +62,9 @@ import {
   listUnresolvedAlerts,
   resolveAlert,
   DEFAULT_ALERT_LIMIT,
+  listResolvedAlerts,
+  DEFAULT_HISTORY_DAYS,
+  DEFAULT_HISTORY_LIMIT,
 } from "@/lib/ops/alerts";
 
 let testDb: TestDb;
@@ -226,5 +262,162 @@ describe("resolveAlert", () => {
     const result = await resolveAlert(testDb.db, id);
 
     expect(result.outcome).toBe("resolved");
+  });
+});
+
+describe("listResolvedAlerts", () => {
+  it("case 8 — returns ONLY resolved rows; an open alert never appears in history", async () => {
+    const dischargedA = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 6,
+      resolvedAgoHours: 2,
+    });
+    const dischargedB = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 9,
+      resolvedAgoHours: 4,
+    });
+    const stillOpen = await makeAudit({ outcome: "needs_attention", agoHours: 3 });
+
+    const rows = await listResolvedAlerts(testDb.db);
+    const ids = rows.map((r) => r.id);
+
+    // The exact mirror of case 1. Case 1 pins "a discharged row LEAVES the queue"; this pins "and it
+    // arrives SOMEWHERE" — the absence of that somewhere is precisely what D2 recorded.
+    expect(ids).toContain(dischargedA);
+    expect(ids).toContain(dischargedB);
+    expect(ids).not.toContain(stillOpen);
+    expect(ids).toHaveLength(2);
+  });
+
+  it("case 9 — newest DISCHARGE first, tie-broken by created_at DESC", async () => {
+    const oldest = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 40,
+      resolvedAgoHours: 30,
+    });
+    const middle = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 20,
+      resolvedAgoHours: 5,
+    });
+    const newest = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 10,
+      resolvedAgoHours: 1,
+    });
+
+    // A review is over discharge ACTS, not money events (D-DJ4-02) — so the ORDER is the assertion, and
+    // it is deliberately NOT the created_at order the unresolved queue uses.
+    const rows = await listResolvedAlerts(testDb.db);
+    expect(rows.map((r) => r.id)).toEqual([newest, middle, oldest]);
+    expect(rows[0].resolvedAt.getTime()).toBeGreaterThan(rows[1].resolvedAt.getTime());
+    expect(rows[1].resolvedAt.getTime()).toBeGreaterThan(rows[2].resolvedAt.getTime());
+
+    // Now force a REAL tie. Two rows discharged in ONE statement share ONE transaction and ONE now(), so
+    // their resolved_at values are byte-identical. Two separate `execute` calls would NOT tie — each is
+    // its own transaction and now() differs by microseconds — which is why the single statement is
+    // load-bearing rather than stylistic.
+    const tieOlderEvent = await makeAudit({ outcome: "needs_attention", agoHours: 50 });
+    const tieNewerEvent = await makeAudit({ outcome: "needs_attention", agoHours: 2 });
+    await testDb.db.execute(sql`
+      UPDATE audit SET resolved_at = now() WHERE id IN (${tieOlderEvent}, ${tieNewerEvent})
+    `);
+
+    const tied = await listResolvedAlerts(testDb.db);
+    const [first, second] = tied;
+    expect(first.resolvedAt.getTime()).toBe(second.resolvedAt.getTime());
+    // The tie-break: same discharge instant → newest MONEY EVENT first.
+    expect(first.id).toBe(tieNewerEvent);
+    expect(second.id).toBe(tieOlderEvent);
+  });
+
+  it("case 10 — a 30-day default window, widenable by `days`", async () => {
+    const longAgo = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 24 * 41,
+      resolvedAgoHours: 24 * 40, // discharged 40 days ago — outside the default window
+    });
+    const recent = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 5,
+      resolvedAgoHours: 2,
+    });
+
+    expect(DEFAULT_HISTORY_DAYS).toBe(30);
+
+    const defaultIds = (await listResolvedAlerts(testDb.db)).map((r) => r.id);
+    expect(defaultIds).toContain(recent);
+    expect(defaultIds).not.toContain(longAgo);
+
+    const widenedIds = (await listResolvedAlerts(testDb.db, { days: 60 })).map((r) => r.id);
+    expect(widenedIds).toContain(recent);
+    expect(widenedIds).toContain(longAgo);
+  });
+
+  it("case 11 — honours an explicit limit and defaults to DEFAULT_HISTORY_LIMIT", async () => {
+    await makeAudit({ outcome: "needs_attention", agoHours: 4, resolvedAgoHours: 1 });
+    await makeAudit({ outcome: "needs_attention", agoHours: 5, resolvedAgoHours: 2 });
+    await makeAudit({ outcome: "needs_attention", agoHours: 6, resolvedAgoHours: 3 });
+
+    expect(DEFAULT_HISTORY_LIMIT).toBe(200);
+    expect(await listResolvedAlerts(testDb.db, { limit: 2 })).toHaveLength(2);
+    expect(await listResolvedAlerts(testDb.db)).toHaveLength(3);
+  });
+
+  it("case 12 — surfaces ONLY meta->>'error'; the rest of `meta` cannot reach the row", async () => {
+    const id = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 8,
+      resolvedAgoHours: 1,
+      meta: {
+        bookingId: "bk_HISTORY_LEAK_CANARY",
+        transferId: "tr_LEAK_CANARY",
+        last4: "4242",
+        error: "resend 503",
+      },
+    });
+
+    const [row] = await listResolvedAlerts(testDb.db);
+
+    // The audit id IS present — so this case cannot pass by returning an empty row.
+    expect(row.id).toBe(id);
+
+    // D-DJ4-04, structural: `ResolvedAlert` has NO `meta` field and the query never selects the column.
+    expect("meta" in row).toBe(false);
+    expect(Object.keys(row).sort()).toEqual([
+      "action",
+      "actorId",
+      "createdAt",
+      "error",
+      "id",
+      "outcome",
+      "resolvedAt",
+    ]);
+
+    // The ONE deliberate widening, pinned so it cannot silently regress to null (mutation H5).
+    expect(row.error).toBe("resend 503");
+
+    // …and pinned so it cannot silently widen to the whole column either (mutation H4). Identifiers live
+    // under separately-named keys, which is the content-based reason a single-key projection is narrow.
+    const serialised = JSON.stringify(row);
+    expect(serialised).not.toContain("bk_HISTORY_LEAK_CANARY");
+    expect(serialised).not.toContain("tr_LEAK_CANARY");
+    expect(serialised).not.toContain("4242");
+  });
+
+  it("case 13 — a discharge on a NON-needs_attention row is visible here, and ONLY here", async () => {
+    // The read-side mirror of case 6b. `resolveAlert` is deliberately unscoped by outcome, so history
+    // must be too (D-DJ4-01) — otherwise a discharge exists that no surface can review, which is D2 one
+    // level down.
+    const id = await makeAudit({ outcome: "error", action: "some_non_money_action", agoHours: 3 });
+    expect((await resolveAlert(testDb.db, id)).outcome).toBe("resolved");
+
+    const rows = await listResolvedAlerts(testDb.db);
+
+    expect(rows.map((r) => r.id)).toEqual([id]);
+    expect(rows[0].outcome).toBe("error");
+    // And it is visible NOWHERE else: the unresolved queue is scoped to needs_attention AND open.
+    expect(await listUnresolvedAlerts(testDb.db)).toHaveLength(0);
   });
 });
