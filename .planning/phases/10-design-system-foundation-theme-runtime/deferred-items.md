@@ -4,7 +4,70 @@ Discoveries logged rather than fixed, because they sit outside the scope of the 
 
 ---
 
-## D-1 — Tailwind's content scan reads `.planning/**/*.md`, so PROSE emits utilities
+## D-1 — CLOSED by 10-12 — Tailwind's content scan reads `.planning/**/*.md`, so PROSE emits utilities
+
+**Status: RESOLVED 2026-08-12 in plan 10-12 (commit `bf5584d`).** Fixed with one directive —
+`@import "tailwindcss" source("../")` in `src/app/globals.css`, which points automatic source
+detection at `src/` instead of the repository root. Taken by 10-12 as 10-04 and 10-09 both suggested,
+and made acute by 10-12 itself: migrating the 14 shadow call sites orphaned all five default
+`shadow-*` rules, which kept shipping anyway from the stylesheet's own comment and the phase's plan
+documents.
+
+**Measured on a clean `rm -rf .next && npm run build`, both sides:**
+
+| | before | after |
+|---|---|---|
+| shipped CSS | 134,132 bytes | **119,079 bytes** (−15,053, −11.2%) |
+| distinct selectors | 1,233 | **1,114** (−119, **0 added**) |
+| `.shadow-xs/sm/md/lg/2xl` | 5 rules | **0** |
+| `.bg-brand\/90`, `.outline-ring\/50`, `.focus-visible\:ring-ring\/50` | present | **0** |
+
+**Zero real utilities were lost, verified two independent ways.** (1) A strict standalone-class-token
+scan of all `src/**/*.tsx` found **0 of the 119** removed selectors used anywhere. (2) The eight
+highest-risk entries were checked by hand and their real prefixed forms confirmed still emitted:
+`sticky` → `lg:sticky`, `bg-white` → `dark:bg-white`, `ring-3` → `aria-invalid:ring-3`,
+`ring-offset-background` → `focus-visible:ring-offset-background`, `animate-in`/`zoom-in-95` →
+`data-open:…`, `@container` → `@container/card-header`, `hover:bg-primary/80` →
+`[a]:hover:bg-primary/80`, `focus-visible:ring-3` → genuinely unused. The removed list reads as what
+it is: `text-[NNpx]`, `text-[Nrem]`, `bg-[--x]`, `bg-[color-mix(in_oklch,...)]`, `text-display/7`,
+and the bare numbers `247031` / `2596` / `706708` — byte counts quoted in documents.
+
+**The fix is worth more than the bytes, because removing the prose exposed two live defects that had
+been masked by it.** Both had been passing tests for the wrong reason for the whole phase:
+
+1. **`tests/design/helpers/compile-css.ts` — `@tailwindcss/postcss` caches its compiled design system
+   KEYED ON THE INPUT FILE PATH.** Every compile passed `from: GLOBALS_CSS_PATH`, so the first one in
+   a test file won and every later one silently returned the first one's candidate set — the appended
+   `@source inline(…)` was accepted and ignored. `elevation-z.test.ts`'s "the default shadows are
+   still literal" control was therefore **not** passing because its safelist worked; it was passing
+   because a markdown file said `shadow-md`. Each compile is now attributed to a distinct filename in
+   the same directory (imports and the content root resolve identically; nothing is written to disk).
+2. **`tests/design/font-cycle.test.ts` — three DS-01 assertions read `.font-sans` / `.font-mono`
+   rules that no file in `src/` uses.** `font-sans` reaches the app through `@apply font-sans` in
+   `@layer base`, which *inlines* the declaration and never needs the utility to be generated. The
+   assertions now read the artifacts that actually carry DS-01 — the compiled `html { font-family }`
+   rule, and `.font-heading`, which has two real call sites — plus an explicit safelisted "IF it were
+   used" claim with its own positive control. DS-01 was never broken: `html{font-family:var(--font-geist-sans)}`
+   is present in the shipped bundle before and after.
+
+**What this unlocks.** Compiled-output assertions are now SOUND in this repo for the first time.
+`tests/design/elevation-z.test.ts` immediately makes the strongest DS-03 claim available — *no
+default shadow rule exists in the emitted stylesheet, from any source* — guarded by a control that
+the narrowed root still reaches `src/`, so a root narrowed one level too far (which would make every
+absence assertion pass perfectly against an app shipping no CSS at all) goes red. Plans 10-13 through
+10-17 may now assert against compiled output; before this they could not, and 10-07 and 10-11 both
+had to route around it.
+
+**One correction to the original item, recorded for accuracy:** it claimed `bg-zinc-50` "exists
+nowhere in `src/`". It does — `src/app/(auth)/layout.tsx:15` and `src/app/(host)/host/layout.tsx:84`
+both render it on real surfaces. It is still in the bundle after the narrowing, correctly. It is a
+raw-value leak for 10-17's DS-13 gate to judge, not a phantom.
+
+The three later UPDATE sections further down this file (from 10-07, 10-09 and 10-10) are all
+**superseded by this resolution** and are kept for the record — each measured a different phantom, and
+together they are why the fix was taken rather than deferred again.
+
+<details><summary>Original item as logged by 10-04</summary>
 
 **Found during:** 10-04 Task 3, while sanity-checking the compiled stylesheet.
 
@@ -37,6 +100,8 @@ those two are declared nowhere, so a document mentioning them still cannot fabri
 
 **Suggested owner:** plan 10-12 (the drift check) is the natural home — it is the other plan whose
 correctness depends on "what the compiled stylesheet contains" meaning "what the app uses".
+
+</details>
 
 ---
 
@@ -165,7 +230,7 @@ question is only the alpha, not the hue.
 
 ---
 
-## D-1 UPDATE (2026-08-11, from 10-07) — the phantom utility is now demonstrable in the SHIPPED bundle
+## D-1 UPDATE — SUPERSEDED by the 10-12 fix (2026-08-11, from 10-07) — the phantom utility is now demonstrable in the SHIPPED bundle
 
 `npm run build` at the end of 10-07 emits, into `.next/static/chunks/*.css`:
 
@@ -221,7 +286,7 @@ belong to whoever next owns e2e health; Phase 11's visual pass will be running t
 
 ---
 
-## D-1 UPDATE (2026-08-12, from 10-09) — now measured in bytes, and the accent case is the sharpest yet
+## D-1 UPDATE — SUPERSEDED by the 10-12 fix (2026-08-12, from 10-09) — now measured in bytes, and the accent case is the sharpest yet
 
 10-04 found the mechanism, 10-07 demonstrated it in the shipped bundle for the focus ring. 10-09 is
 the first plan to remove the LAST source usage of an accent recipe, which makes the leftover
@@ -284,7 +349,7 @@ The three lifecycle tones (`neutral`, `positive`, `attention`) are all genuinely
 by four call sites pinned as a set, `neutral` and `attention` by both derive functions driven over
 every status. `soft-accent` is the only tone with a declared-but-unwired adopter.
 
-## D-1 UPDATE (2026-08-12, from 10-10) — a fourth phantom recipe, from this plan's own gate
+## D-1 UPDATE — SUPERSEDED by the 10-12 fix (2026-08-12, from 10-10) — a fourth phantom recipe, from this plan's own gate
 
 `tests/design/status-vocab.test.ts` must name the retired filled pairing verbatim in order to pin it
 to one file, so `bg-success` and `text-success-foreground` now join the accent recipes in Tailwind's

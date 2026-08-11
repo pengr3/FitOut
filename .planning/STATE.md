@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-11-PLAN.md (DS-02 CLOSED — 14 arbitrary pixel font sizes migrated onto named steps, source-scan gate with a positive control) — next 10-12
-last_updated: "2026-08-12T02:25:00.000Z"
-last_activity: 2026-08-12 -- Phase 10 plan 11 complete (DS-02 closed: no surface pins a font size to a pixel literal; the gate was watched go red and proves it reaches the vendored tree it is not allowed to report)
+stopped_at: Completed 10-12-PLAN.md (all 14 shadow call sites on named elevation steps; deferred item D-1 CLOSED — Tailwind's content root narrowed to src/, 11.2% of the shipped CSS removed) — next 10-13
+last_updated: "2026-08-12T03:05:00.000Z"
+last_activity: 2026-08-12 -- Phase 10 plan 12 complete (DS-03 shadow clause closed; D-1 closed, which exposed two tests that had been passing on planning prose)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 11
-  percent: 65
+  completed_plans: 12
+  percent: 71
 ---
 
 # Project State
@@ -44,8 +44,14 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 12 of 17
-Status: Executing Phase 10 — plans 01-11 complete. **DS-02 IS CLOSED — both clauses.** 10-04 declared the four-role token contract; this plan removed the 14 arbitrary pixel font sizes that would have made it a lie. The inventory matched the plan exactly for the first time this phase: 14 px sites across 10 files (8 route-level `sm:` Display titles, 4 component money figures, 2 sub-label numerals), plus the 4 vendored rem sites left untouched by the px-only decision. **Every migrated site landed on a NAMED step** — 12 × `sm:text-display`, 2 × `text-xs` — and the slash-modifier form appears nowhere, which matters because `text-display/tight` compiles to size + leading only and would have dropped the per-theme tracking and weight while looking migrated. The gate (`tests/design/type-scale.test.ts`, now 29 assertions, was 17) **was watched go red**: an arbitrary pixel size reinstated at `src/app/page.tsx` produced 2 failed / 27 passed, the two failures being the px scan (naming the file and quoting the class) and the Display inventory (7 files where 8 are declared); reverted → 29 passed. Both observations are in the file header. **The plan's own two numeric criteria were both wrong against the tree, in opposite directions, and both from the same cause** — the grep-versus-comment collision, now a 10-time phase pattern. (a) `text-\[0.8rem\]` counts 5 lines in `src/components/ui`, not 4: `button.tsx:42` is a comment plan 10-08 wrote explaining WHY the site is exempt. (b) The forbidden slash-modifier grep over `src/app` returns a hit: `globals.css:67` is plan 10-04's warning never to use the form. Neither is a violation. The gate therefore strips comments before matching, and the stripper is **line-oriented on purpose**: a `/*…*/` regex treats `accept="image/*"` at `profile-form.tsx:109` as a comment opener and swallows the next 86 lines to the terminator at 195 — a violation scanner that eats a third of a file and then reports it clean. There is a control on the control: `button.tsx`'s raw text must carry MORE occurrences than its code does, so a raw-text count is provably the wrong instrument. Scan reach is proven (216 files, > 200 floor; the 3 vendored files reached by name), and the positive control requires the scan to FIND the 4 rem sites it is not allowed to report. The gate asserts SOURCE, not compiled output, per deferred item D-1 — a `.planning/**/*.md` sentence can satisfy a compiled-output claim. Design gate 251/251 (was 239), DB-free, ~4.5s; full DB suite 1197 passed / 4 skipped, unchanged. Next: 10-12.
+Plan: 13 of 17
+Status: Executing Phase 10 — plans 01-12 complete. **Every shadow in the app now maps to a named elevation step, and the stylesheet that ships contains only what the app uses.** The 14 call sites matched the plan exactly — 4 raised (`shadow-xs` ×1 + `shadow-sm` ×3), 5 overlay (`shadow-md` ×4 + `shadow-lg` ×1), 5 `shadow-none` deliberately untouched, across 10 files. This matters because Tailwind's default `shadow-md` compiles to a **literal**, not a `var()`: a theme block redeclaring `--shadow-md` does nothing, so all 14 surfaces were frozen against every theme and grove's pronounced elevation (D-02) could not reach them. `shadow-sticky` is left with **zero** call sites on purpose — reserved for bottom-anchored bars, none exist, and the zero is asserted so nobody invents a home for it; 10-16's `/dev/theme` ladder is its exerciser. **The plan's raw-grep criteria were ALL wrong against the tree, from one cause, and it is a new form of the phase's recurring collision**: the greps include `globals.css`, whose three `--shadow-*` TOKEN DECLARATIONS and explanatory comment are counted as call sites (raised 5 not 4, overlay 6 not 5, none 7 not 5, sticky 1 not 0). Eleven occurrences now, and the first where the artifact tripping the criterion was **the contract being tested**, not prose about it — fixed with a `(?<![\w-])` lookbehind. The `dark:` pin is **54**, not the plan's 56; D-2 already recorded the drop after 10-07, and it was proven unmoved rather than adjusted to fit. Gate: `tests/design/elevation-z.test.ts` 13 → **31** assertions, **watched go red at 5 failed / 26 passed** on a reinstated `shadow-md`, with the COUNT assertion firing — which is what makes a delete-instead-of-rename fail as loudly as a wrong name. **DEFERRED ITEM D-1 IS CLOSED**, the phase's oldest, nominated to this plan by 10-04 and 10-09 and owned by no later plan. One directive — `@import "tailwindcss" source("../")` — narrows Tailwind's content root from the REPOSITORY to `src/`. Measured on clean rebuilds: **134,132 → 119,079 bytes (−15,053, −11.2%), 119 dead selectors removed, 0 added, and 0 of the 119 used anywhere in `src/**/*.tsx`** (verified twice: a strict standalone-token scan, plus hand-checking the 8 highest-risk entries and confirming their real prefixed forms still emit). **The bytes are the least of it — removing the prose made two tests go red that had been green all phase, neither a regression.** (1) `@tailwindcss/postcss` caches its design system keyed on the INPUT FILE PATH, so every `compileGlobalsCssWith()` after the first silently returned the first one's output and `@source inline` was ignored; 10-04's "the default shadows are still literal" **control** had been passing because a markdown file said `shadow-md`. (2) Three DS-01 assertions read `.font-sans`/`.font-mono` rules no `src/` file uses — `font-sans` reaches the app via `@apply`, which inlines the declaration; DS-01 was never broken and is now asserted on the `html` rule and on `.font-heading`, which has two real call sites. **Compiled-output assertions are sound in this repo for the first time**, and DS-03 immediately takes the strongest form available: no default shadow rule in the emitted stylesheet, from any source — guarded by a control that the scan still reaches `src/`, since a root narrowed one level too far makes every absence assertion pass against an app shipping no CSS at all. Design gate 270/270 (was 251), DB-free, ~4.4s; full DB suite 1197 passed / 4 skipped, unchanged. DS-03 left **Pending** — its z-index clause is 10-13's declared part 2. Next: 10-13.
+
+<details><summary>Previous status (plan 10-11, superseded 2026-08-12)</summary>
+
+Executing Phase 10 — plans 01-11 complete. **DS-02 IS CLOSED — both clauses.** 10-04 declared the four-role token contract; 10-11 removed the 14 arbitrary pixel font sizes that would have made it a lie. The inventory matched the plan exactly for the first time this phase: 14 px sites across 10 files (8 route-level `sm:` Display titles, 4 component money figures, 2 sub-label numerals), plus the 4 vendored rem sites left untouched by the px-only decision. Every migrated site landed on a NAMED step — 12 × `sm:text-display`, 2 × `text-xs` — and the slash-modifier form appears nowhere, which matters because `text-display/tight` compiles to size + leading only and would have dropped the per-theme tracking and weight while looking migrated. The gate (`tests/design/type-scale.test.ts`, 29 assertions, was 17) was watched go red: an arbitrary pixel size reinstated at `src/app/page.tsx` produced 2 failed / 27 passed; reverted → 29 passed. The plan's own two numeric criteria were both wrong against the tree, in opposite directions, from the grep-versus-comment collision. The gate therefore strips comments before matching, and the stripper is line-oriented on purpose: a `/*…*/` regex treats `accept="image/*"` at `profile-form.tsx:109` as a comment opener and swallows the next 86 lines. There is a control on the control. Design gate 251/251 (was 239), DB-free, ~4.5s; full DB suite 1197 passed / 4 skipped.
+
+</details>
 
 <details><summary>Previous status (plan 10-10, superseded 2026-08-12)</summary>
 
@@ -53,7 +59,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-12 -- Phase 10 plan 11 complete (DS-02 closed: 12 Display sites + 2 sub-label numerals on named steps, 29-assertion gate watched red, comment-aware by necessity)
+Last activity: 2026-08-12 -- Phase 10 plan 12 complete (14 shadow call sites on three named steps; D-1 closed — content root narrowed to src/, 11.2% of the shipped CSS was prose-emitted dead rules)
 
 ## Performance Metrics
 
@@ -155,6 +161,7 @@ Last activity: 2026-08-12 -- Phase 10 plan 11 complete (DS-02 closed: 12 Display
 | Phase 10 P09 | 25min | 2 tasks | 9 files |
 | Phase 10 P10 | 22min | 3 tasks tasks | 11 files files |
 | Phase 10 P11 | 25min | 3 tasks | 11 files |
+| Phase 10 P12 | 35min | 3 tasks + 1 deviation commit | 13 files |
 
 ## Accumulated Context
 
@@ -454,8 +461,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-12T02:25:00.000Z
-Stopped at: Completed 10-11-PLAN.md (DS-02 CLOSED — 12 Display sites + 2 sub-label numerals on named steps; source-scan gate with a positive control, watched red) — next 10-12
+Last session: 2026-08-12T03:05:00.000Z
+Stopped at: Completed 10-12-PLAN.md (all 14 shadow call sites on three named elevation steps, 31-assertion gate watched red at 5/26; **deferred item D-1 CLOSED** — Tailwind's content root narrowed to `src/`, 15,053 bytes / 11.2% of the shipped CSS removed with zero real utilities lost, which exposed two tests that had been passing on planning prose) — next 10-13
 continued from v1.0's Phase 9, not reset), with `.planning/REQUIREMENTS.md` § Traceability populated:
 **75/75 requirements mapped, 0 orphans, 0 duplicates.** The shipped v1.0 `<details>` block, the v1.0
 Progress rows, and Backlog **999.1** are preserved verbatim; **999.2 was removed from the Backlog**
