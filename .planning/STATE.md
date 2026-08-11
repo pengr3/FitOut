@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-02-PLAN.md (shared design primitives + THEME-04 spike) — next 10-03
-last_updated: "2026-08-11T14:45:07.621Z"
-last_activity: 2026-08-11 -- Phase 10 plan 02 complete (shared leak-pattern list + token parser + THEME-04 spike verdict)
+stopped_at: Completed 10-03-PLAN.md (two-theme colour contract + DS-01 font fix) — next 10-04
+last_updated: "2026-08-11T15:07:13.106Z"
+last_activity: 2026-08-11 -- Phase 10 plan 03 complete (DS-01 font fix + the court/grove two-theme colour contract + the 29-pair AA proof)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 2
-  percent: 12
+  completed_plans: 3
+  percent: 18
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 3 of 17
-Status: Executing Phase 10 — plans 01-02 complete; the design gate, the ONE leak-pattern list and the ONE globals.css token parser are live, and THEME-04's assertion layer is decided
-Last activity: 2026-08-11 -- Phase 10 plan 02 complete (shared design primitives + THEME-04 spike verdict)
+Plan: 4 of 17
+Status: Executing Phase 10 — plans 01-03 complete. The app renders in Geist for the first time (DS-01), `court` and `grove` both ship as light-background `[data-theme]` blocks with identical 24-key sets, and all 29 declared pairings are proven to clear WCAG AA + 0.05 in both themes. Next: 10-04 (theme runtime) — which also owns the `/50` removal that DS-05 needs, because `--ring` at 7.46:1 still composites to 2.32:1 through `ring-ring/50`.
+Last activity: 2026-08-11 -- Phase 10 plan 03 complete (DS-01 font fix + the court/grove two-theme colour contract + the 29-pair AA proof)
 
 ## Performance Metrics
 
@@ -139,6 +139,7 @@ Last activity: 2026-08-11 -- Phase 10 plan 02 complete (shared design primitives
 | Phase 09 P15 | 34min | 2 tasks | 2 files |
 | Phase 10 P01 | 13min | 2 tasks | 5 files |
 | Phase 10 P02 | 15min | 2 tasks | 4 files |
+| Phase 10 P03 | 16min | 3 tasks tasks | 5 files files |
 
 ## Accumulated Context
 
@@ -308,6 +309,8 @@ Recent decisions affecting current work:
 - [Phase 10]: 10-02: the one leak-pattern list and the one globals.css token parser live in config/*.mjs (plain ESM) — eslint.config.mjs cannot import .ts, and a module holding the hex/palette regexes would flag itself under the scanned tree (D-16 / L15).
 - [Phase 10]: 10-02: raw-hex is colour-context anchored rather than escape-hatched, so 'see #3388 for details' is clean by construction and there is no per-site opt-out to abuse; color-function keeps a mandatory trailing '(' so button.tsx:16's color-mix(in_oklch,…) hover idiom stays legal.
 - [Phase 10]: 10-02: parseThemeTokens/parseGlobalTokens are total (return {} for an absent block) while readThemeTokens/readGlobalTokens THROW — the file-reading path is where an empty result is always a bug, and returning {} there is how a downstream gate passes vacuously (T-10-06).
+- [Phase ?]: 10-03: every corrected colour token is a solver output at AA_EPSILON=0.05, cited at its point of declaration — the culori test is the authority and reproduced the UI-SPEC table on all 29 pairs in both themes with zero discrepancies (D-12)
+- [Phase ?]: 10-03: failing-but-legal pairings are carried as data in EXCLUDED_PAIRS with a stated reason, never as a silently absent row; every new design gate carries a positive control so it cannot pass vacuously
 
 ### Pending Todos
 
@@ -408,8 +411,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-11T14:45:07.602Z
-Stopped at: Completed 10-02-PLAN.md (shared design primitives + THEME-04 spike) — next 10-03
+Last session: 2026-08-11T15:07:13.087Z
+Stopped at: Completed 10-03-PLAN.md (two-theme colour contract + DS-01 font fix) — next 10-04
 continued from v1.0's Phase 9, not reset), with `.planning/REQUIREMENTS.md` § Traceability populated:
 **75/75 requirements mapped, 0 orphans, 0 duplicates.** The shipped v1.0 `<details>` block, the v1.0
 Progress rows, and Backlog **999.1** are preserved verbatim; **999.2 was removed from the Backlog**

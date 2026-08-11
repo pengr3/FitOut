@@ -82,7 +82,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 10-03-PLAN.md — The colour contract — DS-01 font cycle, the court and grove theme blocks, and the 29-pair AA proof
+- [x] 10-03-PLAN.md — The colour contract — DS-01 font cycle, the court and grove theme blocks, and the 29-pair AA proof
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -347,7 +347,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 7. Bookings Management, Cancellation & Notifications | v1.0 | 20/20 | Complete (verified 4/4 · human UAT passed) | 2026-07-24 |
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
-| 10. Design-System Foundation & Theme Runtime | v1.1 | 2/17 | In Progress | - |
+| 10. Design-System Foundation & Theme Runtime | v1.1 | 3/17 | In Progress|  |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 0/? | Not started | - |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
