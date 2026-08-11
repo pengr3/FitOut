@@ -2,6 +2,73 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+import {
+  DESIGN_LEAK_PATTERNS,
+  LEAK_SCAN_GLOBS,
+} from "./config/design-leak-patterns.mjs";
+
+// The DS-13 leak rule, defined inline as a flat-config plugin.
+//
+// WHY INLINE AND NOT A PACKAGE (T-10-36): the rule is ~20 lines over a repo-local pattern list, so
+// publishing or vendoring a plugin would add npm supply-chain surface for no capability. Verified
+// working against this repository's installed ESLint 9 (RESEARCH § Pattern 7).
+//
+// WHY BOTH THIS AND A VITEST GATE (D-16): this half is the squiggle at the moment of typing — it
+// tells an author which literal is wrong, in the editor, before a commit. `tests/design/leak.test.ts`
+// is the authoritative half and the one wired into `build`. Both read the SAME exported list, so
+// there is exactly one answer to "what counts as a raw design value" and no way for the two to
+// drift apart.
+//
+// THE ESCAPE HATCH IS THE REPO'S EXISTING ONE. A genuinely-unavoidable literal is exempted with
+// `// eslint-disable-next-line fitout/no-raw-design-value`, the same mechanism already used at
+// `src/components/listing/listing-card.tsx:234` for `@next/next/no-img-element`. Do not invent a
+// second marker: a bespoke comment token would be invisible to ESLint and would need re-teaching to
+// every future gate.
+const noRawDesignValue = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "Ban raw design values (hex, colour functions, arbitrary px type sizes, numbered palette classes, white/black classes) in app and component source.",
+    },
+    schema: [],
+    messages: {
+      rawDesignValue:
+        'Raw design value "{{match}}" — use a design token (DS-13 / D-15).',
+    },
+  },
+  create(context) {
+    /** Test one chunk of string content against every pattern and report each class that matches. */
+    function check(node, text) {
+      if (typeof text !== "string" || text === "") return;
+      for (const entry of DESIGN_LEAK_PATTERNS) {
+        const match = entry.pattern.exec(text);
+        if (match === null) continue;
+        context.report({
+          node,
+          messageId: "rawDesignValue",
+          data: { match: match[0].trim() },
+        });
+      }
+    }
+
+    return {
+      // String literals: `const C = "#E8484E"`, `className="bg-zinc-50"`, `fill="#fff"`.
+      // `node.value` is a RegExp for regex literals and a number for numeric ones, so the type
+      // guard inside `check` is load-bearing rather than defensive.
+      Literal(node) {
+        check(node, node.value);
+      },
+      // Template chunks: the literal text either side of a `${…}` in a `cn(\`…\`)` class string.
+      // The interpolations themselves are expressions and are deliberately not inspected — this
+      // rule reads text, not values.
+      TemplateElement(node) {
+        check(node, node.value.raw);
+      },
+    };
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -18,6 +85,19 @@ const eslintConfig = defineConfig([
     ".claude/worktrees/**",
     "**/.next/**",
   ]),
+  // DS-13 / D-15 / D-16 — the raw-design-value rule, scoped to the two trees the gate polices.
+  //
+  // THE SCOPE IS IMPORTED, NOT RETYPED, so the ESLint half and the Vitest half cannot disagree
+  // about WHERE the rule applies any more than they can about WHAT it bans. Without the scope the
+  // rule fires on the gate's own synthetic fixtures under `tests/design/**` (which must name the
+  // banned shapes in order to ban them) and on `src/lib/db/schema.ts:730`'s GitHub issue
+  // references. `src/components/ui/**` is INSIDE this scope on purpose — D-17, no vendored
+  // exemption.
+  {
+    files: [...LEAK_SCAN_GLOBS],
+    plugins: { fitout: { rules: { "no-raw-design-value": noRawDesignValue } } },
+    rules: { "fitout/no-raw-design-value": "error" },
+  },
 ]);
 
 export default eslintConfig;

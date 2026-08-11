@@ -21,10 +21,11 @@
 //
 // NOT COVERED — real blind spots, listed so the next reader under-trusts this file rather than
 // over-trusts it:
-//   • A CROSS-ELEMENT pairing is invisible to the same-string drift check in plan 10-12. A
-//     `text-brand` child rendered inside a `bg-muted` parent is a real pairing that no string
-//     comparison can see, because the two class names never appear on the same element. That class
-//     of defect is covered instead by Phase 17's two-theme axe pass, on the rendered DOM.
+//   • A CROSS-ELEMENT pairing is invisible to the same-string drift check that reads this file
+//     (`tests/design/pair-drift.test.ts`). A `text-brand` child rendered inside a `bg-muted` parent
+//     is a real pairing that no string comparison can see, because the two class names never appear
+//     on the same element. That class of defect is covered instead by Phase 17's two-theme axe
+//     pass, on the rendered DOM.
 //   • This is an inventory of pairings the system DECLARES legal. Nothing here proves a component
 //     actually uses one of them — a surface can still hand-roll an undeclared pairing, and only the
 //     leak gate plus the drift check push back on that.
@@ -168,6 +169,12 @@ export const CONTRAST_PAIRS = [
     note: 'The <Button variant="brand"> label at rest. THE pairing that forced --brand to darken: the shipped coral measured 3.60 here, so the primary booker CTA failed AA.',
   },
   {
+    fg: "background",
+    bg: "foreground",
+    bar: TEXT_BAR,
+    note: "The INVERTED surface: `ui/tooltip.tsx:45` paints bg-foreground with text-background. WCAG contrast is symmetric so this measures the same as foreground-on-background, but it is a distinct DECLARED pairing — and declaring it is what stops the pair-drift check reporting the app's own tooltip as an undeclared invention. Added by plan 10-17 when the drift check first ran.",
+  },
+  {
     fg: "destructive",
     bg: "background",
     bar: TEXT_BAR,
@@ -281,6 +288,13 @@ export const CONTRAST_PAIRS = [
     bar: NON_TEXT_BAR,
     alpha: { value: 0.1, over: "background" },
     note: "The soft-accent chip's ICON on its own tint. The tightest alpha row in the inventory.",
+  },
+  {
+    fg: "background",
+    bg: "foreground",
+    bar: TEXT_BAR,
+    alpha: { value: 0.8, over: "background" },
+    note: "The photo uploader's Cover chip (`listing/photo-uploader.tsx:278`): bg-foreground/80 with text-background, sitting on top of a listing photograph. `over: background` is the WORST case rather than the true one — the real surface is an image, and any photo darker than the page background composites darker still, which only increases contrast against the near-white text. Added by plan 10-17 when the drift check first ran.",
   },
 
   // =========================================================================
