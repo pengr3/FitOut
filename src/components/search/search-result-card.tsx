@@ -166,7 +166,12 @@ export function SearchResultCard({
   return (
     <Link
       href={href}
-      className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      // DS-05: this recipe set an offset WIDTH without an offset COLOUR, so the 2px band around a
+      // focused search result painted Tailwind's default offset — a hardcoded white — instead of
+      // --background. On grove's tinted background that is a visible white halo, and it is a leak
+      // in all but name: a raw colour reaching the screen from a framework default rather than from
+      // a token. Naming the colour is the whole fix; the ring itself was already solid.
+      className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <Card className="h-full gap-0 overflow-hidden pt-0 transition-shadow group-hover:bg-muted/40 group-hover:shadow-md">
         <AspectRatio ratio={4 / 3} className="bg-muted">
