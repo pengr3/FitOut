@@ -94,10 +94,11 @@ export function RefundBreakdown({
 
       <Separator />
 
-      {/* ── The focal point (D-78 element 6). The ONE Display-scale (28px/600) number on the page. ───── */}
+      {/* ── The focal point (D-78 element 6). The ONE number on the page at the Display step, which is
+             named rather than measured so each theme sizes and weights it for itself. ─────────────── */}
       <div className="flex items-baseline justify-between gap-4">
         <dt className="text-sm font-semibold">Refund to you</dt>
-        <dd className="text-2xl font-semibold tabular-nums sm:text-[28px]">{totalRefundLabel}</dd>
+        <dd className="text-2xl font-semibold tabular-nums sm:text-display">{totalRefundLabel}</dd>
       </div>
     </dl>
   );

@@ -24,7 +24,7 @@ export function PayoutSummary({
       <Card>
         <CardContent className="space-y-1 p-6">
           <p className="text-sm font-semibold text-muted-foreground">Upcoming payouts</p>
-          <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-[28px]">
+          <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-display">
             {formatMoney(upcomingCents, currency)}
           </p>
         </CardContent>
@@ -32,7 +32,7 @@ export function PayoutSummary({
       <Card>
         <CardContent className="space-y-1 p-6">
           <p className="text-sm font-semibold text-muted-foreground">Paid out</p>
-          <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-[28px]">
+          <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-display">
             {formatMoney(paidCents, currency)}
           </p>
         </CardContent>

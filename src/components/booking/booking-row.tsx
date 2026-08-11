@@ -65,7 +65,7 @@ export function BookingRow({ row }: { row: BookingRowData }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={row.photoUrl} alt="" className="size-full object-cover" />
             ) : (
-              <span className="flex size-full items-center justify-center text-[10px] leading-tight text-muted-foreground">
+              <span className="flex size-full items-center justify-center text-xs leading-tight text-muted-foreground">
                 No photos yet
               </span>
             )}

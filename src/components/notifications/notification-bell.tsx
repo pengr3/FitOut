@@ -114,7 +114,7 @@ export function NotificationBell({
             <Badge
               variant="secondary"
               aria-hidden="true"
-              className="pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center px-1 py-0 text-[11px] tabular-nums"
+              className="pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center px-1 py-0 text-xs tabular-nums"
             >
               {badgeLabel}
             </Badge>

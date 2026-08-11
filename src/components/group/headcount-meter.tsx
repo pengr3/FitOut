@@ -60,7 +60,7 @@ export function HeadcountMeter({
       <p
         role="img"
         aria-label={full ? `${spotsLabel} — this group is full` : spotsLabel}
-        className="text-2xl leading-tight font-semibold tracking-tight tabular-nums sm:text-[28px]"
+        className="text-2xl leading-tight font-semibold tracking-tight tabular-nums sm:text-display"
       >
         {confirmed} of {capacity}
       </p>
