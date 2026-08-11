@@ -18,15 +18,36 @@
 // do neither: it does not substitute `var()` and it ignores `@layer` entirely (see the THEME-04
 // SPIKE verdict in helpers/compile-css.ts).
 //
+// THE SECOND CLAUSE, ADDED BY PLAN 10-11. DS-02 ends "…and no surface uses an arbitrary pixel font
+// size", and that half is not a token property at all — it is a property of the source tree. A
+// surface that measures its own font size in pixels is FROZEN: the theme switcher will resize every
+// step around it and never reach it, so a swap that looks complete in `globals.css` silently leaves
+// page titles and money figures at the old size. The scan at the bottom of this file is the half of
+// DS-02 the token assertions above cannot see.
+//
+// OBSERVED RED, NOT ASSUMED (T-10-42, recorded per the plan's acceptance criteria):
+//   • An arbitrary pixel display size reinstated on the `<h1>` in `src/app/page.tsx` → this file
+//     exits NON-ZERO: **2 failed / 27 passed**, on exactly the two assertions that should care —
+//     "finds zero arbitrary pixel font sizes anywhere under src/", whose diff named the file and
+//     quoted the offending class, and the Display inventory, whose diff showed `src/app/page.tsx`
+//     missing from the eight files that must carry the step. Every token assertion above stayed
+//     green, which is both the correct blast radius and the whole argument for the scan: a theme
+//     contract cannot tell you whether anything obeys it.
+//   • Reverted → exits 0 with **29 passed**.
+//
 // NOT COVERED — real blind spots, listed so the next reader under-trusts this file:
 //   • This proves the two themes declare different NUMBERS. It says nothing about whether the
 //     resulting type is legible, well-paired, or hierarchical — that is a human look at
 //     `/dev/theme`, and Phase 11's screenshot gate.
-//   • It cannot see a component that hardcodes `text-[28px]`; the leak gate owns that.
-//   • It asserts the named steps COMPILE correctly, not that anything uses them. The call-site
-//     migrations are later plans, which is precisely why the compile here is safelisted.
+//   • The scan proves the class NAMES are right. It cannot see `cn()`/tailwind-merge precedence at
+//     a call site, nor an inline `style={{ fontSize }}`, nor a font size arriving from a CSS module.
+//     Phase 11's GATE-01 screenshots see real pixels.
+//   • It asserts the named steps COMPILE correctly, and separately that 12 call sites USE the
+//     Display step — not that any of the other three roles has an adopter yet.
 
 import { describe, it, expect } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve, join, relative } from "node:path";
 
 import {
   readThemeTokens,
@@ -251,5 +272,306 @@ describe("guard-the-guard", () => {
         "text-figure",
       ]).then((css) => declarationsFor(css, ".text-figure")),
     ).resolves.toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// DS-02, SECOND CLAUSE — THE SOURCE SCAN (plan 10-11)
+//
+// WHY IT IS A SOURCE SCAN AND NOT A COMPILED-CSS ASSERTION. The obvious phrasing — "the compiled
+// bundle contains no arbitrary pixel font-size utility" — is UNSOUND in this repo, and provably so:
+// Tailwind's automatic content detection roots at the repository, so it also scans
+// `.planning/**/*.md`. A sentence of planning PROSE therefore emits a utility (deferred item D-1,
+// logged by plan 10-04, which measured `.bg-zinc-50` in the bundle from a fixture example in a
+// research doc). Any claim of the form "utility X is/ is not in the output" can be satisfied — or
+// broken — by a markdown file. The authored source is the only sound place to assert this.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+const SRC_DIR = resolve(process.cwd(), "src");
+
+/** The tree DS-02's second clause is written about. The walk is wider; the requirement is this. */
+const GATE_TREE = ["src/app/", "src/components/"] as const;
+
+/**
+ * Every `sm:`-prefixed Display call site this phase created, and how many each file carries.
+ *
+ * Pinned per file rather than as a bare total so a failure says WHICH surface moved. A future plan
+ * that legitimately adds a Display site updates this map — deliberately, in the same commit.
+ */
+const DISPLAY_INVENTORY: Readonly<Record<string, number>> = {
+  "src/app/(app)/bookings/[id]/cancel/page.tsx": 1,
+  "src/app/(app)/bookings/[id]/page.tsx": 4,
+  "src/app/listings/[id]/book/page.tsx": 1,
+  "src/app/listings/[id]/page.tsx": 1,
+  "src/app/page.tsx": 1,
+  "src/components/booking/refund-breakdown.tsx": 1,
+  "src/components/group/headcount-meter.tsx": 1,
+  "src/components/host/payout-summary.tsx": 2,
+};
+
+/**
+ * The four vendored `text-[0.8rem]` sites — recorded, tolerated debt (UI-SPEC Resolved Q2).
+ *
+ * These are THE POSITIVE CONTROL for the whole section, and they are the reason the leak pattern is
+ * deliberately px-only rather than "any arbitrary font size". A zero-violations assertion reads
+ * exactly the same whether the tree is clean or the walker visited nothing, so the scan must be
+ * shown finding something it is NOT allowed to report — in the vendored directory specifically,
+ * because that is the subtree an "it's upstream's code" exemption would have quietly excused.
+ */
+const VENDORED_EXEMPTION: Readonly<Record<string, number>> = {
+  "src/components/ui/button.tsx": 1,
+  "src/components/ui/calendar.tsx": 2,
+  "src/components/ui/toggle.tsx": 1,
+};
+
+/**
+ * An arbitrary PIXEL font size — the frozen form this clause bans.
+ *
+ * Note that this regex's own source text cannot match itself (the escapes and the character class
+ * are not the string it matches), so widening the walk to `tests/` later cannot make this file
+ * report itself. That is not a given: it is the failure this phase has hit nine times, where a
+ * comment naming a banned string is textually indistinguishable from the string.
+ */
+const ARBITRARY_PX = /text-\[-?[0-9.]+px\]/g;
+
+/** The Display step at its one adopted breakpoint. */
+const NAMED_DISPLAY = /sm:text-display/g;
+
+/**
+ * The forbidden slash-modifier form on any of the four roles (T-10-43).
+ *
+ * `text-display/tight` compiles to font-size and line-height ONLY. The per-theme letter-spacing and
+ * weight vanish silently — which is to say the migration would look done and D-01 would still be
+ * false on every migrated surface. All four roles are covered, not just the one in use today.
+ */
+const SLASH_MODIFIER = /text-(?:display|heading|body|label)\//g;
+
+/** The vendored rem sites. Written literally because the control's whole job is to find them. */
+const VENDORED_REM = /text-\[0\.8rem\]/g;
+
+/** Collect every `.ts`/`.tsx`/`.css` file under a directory — the walker from focus-recipe.test.ts. */
+function collectSourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectSourceFiles(full, out);
+    } else if (/\.(tsx?|css)$/.test(entry.name)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/**
+ * WINDOWS PATH NORMALISATION — the idiom from `focus-recipe.test.ts:89`, load-bearing rather than
+ * cosmetic. On this box `path.relative` emits backslash separators, while every path in the two
+ * inventory maps above is written forward-slash. Without this line those maps stop matching and the
+ * file passes vacuously — the exact shape the guard-the-guard block exists to catch.
+ */
+function label(file: string): string {
+  return relative(process.cwd(), file).split("\\").join("/");
+}
+
+/**
+ * Remove comments that OPEN their own line, and nothing else.
+ *
+ * WHY THIS IS NEEDED. Two comments in this tree name banned strings on purpose, and both are good
+ * comments: `button.tsx` records why its vendored rem site is exempt, and `globals.css` warns the
+ * next author never to use the slash-modifier form. A raw text scan reads both as violations and
+ * would push authors to stop writing the very warnings that prevent the defect.
+ *
+ * WHY IT IS LINE-ORIENTED AND NOT A `/\*…*\/` REGEX. Because that regex is actively wrong here, and
+ * measurably so: `src/app/(app)/profile/profile-form.tsx` carries `accept="image/*"` inside a JSX
+ * string at line 109, and the next block-comment terminator in that file is 86 lines later, at line
+ * 195 (this docstring cannot quote that terminator without ending itself, which is its own small
+ * illustration of the problem). A naive block strip therefore
+ * deletes 86 lines of real markup — and a violation scan whose stripper eats a third of a file
+ * reports a clean tree it never read. So a comment must OPEN its line (optionally wrapped in JSX
+ * braces) to be recognised, and a trailing `//` never truncates a line of code.
+ */
+function stripLeadingComments(text: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+
+  for (const raw of text.split("\n")) {
+    let line = raw;
+
+    if (inBlock) {
+      const close = line.indexOf("*/");
+      if (close === -1) {
+        out.push("");
+        continue;
+      }
+      line = line.slice(close + 2);
+      inBlock = false;
+    }
+
+    const opener = /^\s*\{?\s*\/\*/.exec(line);
+    if (opener) {
+      const close = line.indexOf("*/", opener[0].length);
+      if (close === -1) {
+        inBlock = true;
+        out.push("");
+        continue;
+      }
+      line = line.slice(close + 2);
+    }
+
+    if (/^\s*\/\//.test(line)) {
+      out.push("");
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join("\n");
+}
+
+interface TypeScan {
+  /** Normalised forward-slash paths of every file the walker visited. */
+  scanned: string[];
+  /** The subset under `src/app/**` or `src/components/**` — DS-02's stated tree. */
+  gateFiles: string[];
+  /** `file: match` for every arbitrary pixel font size found in non-comment source. */
+  arbitraryPx: string[];
+  /** `file: match` for every slash-modifier use of a named role. */
+  slashModifier: string[];
+  /** Per-file count of `sm:text-display`. */
+  display: Record<string, number>;
+  /** Per-file count of the vendored rem exemption. */
+  vendoredRem: Record<string, number>;
+}
+
+/** Scanned ONCE at module level; every `it()` below only asserts against this result. */
+function scanSrc(): TypeScan {
+  const scan: TypeScan = {
+    scanned: [],
+    gateFiles: [],
+    arbitraryPx: [],
+    slashModifier: [],
+    display: {},
+    vendoredRem: {},
+  };
+
+  for (const file of collectSourceFiles(SRC_DIR)) {
+    const name = label(file);
+    const code = stripLeadingComments(readFileSync(file, "utf8"));
+
+    scan.scanned.push(name);
+    if (GATE_TREE.some((prefix) => name.startsWith(prefix))) scan.gateFiles.push(name);
+
+    for (const m of code.matchAll(ARBITRARY_PX)) scan.arbitraryPx.push(`${name}: ${m[0]}`);
+    for (const m of code.matchAll(SLASH_MODIFIER)) scan.slashModifier.push(`${name}: ${m[0]}`);
+
+    const display = [...code.matchAll(NAMED_DISPLAY)].length;
+    if (display > 0) scan.display[name] = display;
+
+    const rem = [...code.matchAll(VENDORED_REM)].length;
+    if (rem > 0) scan.vendoredRem[name] = rem;
+  }
+
+  return scan;
+}
+
+const scan = scanSrc();
+
+const totalOf = (counts: Record<string, number>): number =>
+  Object.values(counts).reduce((sum, n) => sum + n, 0);
+
+describe("DS-02 source scan — the scan itself reaches what it claims to police (T-10-42)", () => {
+  it("visits the whole source tree, not a fraction of it", () => {
+    expect(scan.scanned.length).toBeGreaterThan(200);
+  });
+
+  it("covers both halves of DS-02's stated tree", () => {
+    expect(scan.gateFiles.some((f) => f.startsWith("src/app/"))).toBe(true);
+    expect(scan.gateFiles.some((f) => f.startsWith("src/components/"))).toBe(true);
+    expect(scan.gateFiles.length).toBeGreaterThan(100);
+  });
+
+  it("reaches the vendored tree, where an `it's upstream's code` exemption would have hidden", () => {
+    for (const file of Object.keys(VENDORED_EXEMPTION)) {
+      expect(scan.scanned, `the walker never reached ${file}`).toContain(file);
+    }
+  });
+});
+
+describe("DS-02 source scan — the comment stripper removes prose without eating code", () => {
+  it("drops a comment that opens its line, in all three syntaxes this tree uses", () => {
+    // Asserted as a property (the banned text is gone, the code survives) rather than as exact
+    // output: the JSX form leaves its closing brace behind, which is correct — the stripper keeps
+    // everything after a block terminator, and a brace carries no class names.
+    for (const prose of [
+      "// text-[9px]\nkeep",
+      "  {/* text-[9px] */}\nkeep",
+      "/* a\n text-[9px]\n */\nkeep",
+    ]) {
+      const stripped = stripLeadingComments(prose);
+      expect(stripped, `left a banned literal behind in: ${prose}`).not.toContain("text-[9px]");
+      expect(stripped, `ate real code in: ${prose}`).toContain("keep");
+    }
+  });
+
+  it("keeps whatever follows a block comment that closes mid-line", () => {
+    expect(stripLeadingComments('/* note */ <p className="text-[9px]" />')).toContain(
+      "text-[9px]",
+    );
+  });
+
+  it("never treats an in-string `/*` as a comment opener (the profile-form hazard)", () => {
+    // `accept="image/*"` is real, present markup. A block-comment regex swallows everything from
+    // there to the next `*/` — 86 lines in that file — and the scan then vouches for source it
+    // never read. This assertion is what keeps the stripper line-oriented.
+    const markup = '<input accept="image/*" />\n<p className="text-[9px]" />\n/* later */';
+    expect(stripLeadingComments(markup)).toContain("text-[9px]");
+  });
+});
+
+describe("DS-02 second clause — no surface pins a font size to a pixel literal", () => {
+  it("finds zero arbitrary pixel font sizes anywhere under src/", () => {
+    // Wider than DS-02 asks (it names app and components); a leak in `src/lib/**` would be the same
+    // frozen surface, so there is no reason to scope the scan more narrowly than the walk.
+    expect(scan.arbitraryPx).toEqual([]);
+  });
+
+  it("finds zero uses of the slash-modifier form on any named role (T-10-43)", () => {
+    expect(scan.slashModifier).toEqual([]);
+  });
+
+  it("carries exactly 12 Display call sites, in the 8 files that own them", () => {
+    expect(scan.display).toEqual(DISPLAY_INVENTORY);
+    expect(totalOf(scan.display)).toBe(12);
+  });
+
+  it("routes the two sub-label numerals onto the built-in `text-xs` step", () => {
+    // The anchor for the other half of the migration: these two were the only non-Display literals,
+    // and `text-xs` is a utility step for numerals and counters — NOT a fifth semantic role.
+    const rows = readFileSync(join(SRC_DIR, "components/booking/booking-row.tsx"), "utf8");
+    const bell = readFileSync(join(SRC_DIR, "components/notifications/notification-bell.tsx"), "utf8");
+    expect(rows).toContain("text-xs");
+    expect(bell).toContain("text-xs");
+  });
+});
+
+describe("DS-02 source scan — the positive control (T-10-42)", () => {
+  it("still finds the 4 vendored rem sites, in the 3 files that carry them", () => {
+    // THE CONTROL. Without this, all four zero-violation assertions above are indistinguishable
+    // from a scanner that visited nothing. The leak pattern is px-only by decision, so these four
+    // must be FOUND and NOT reported — which is a much stronger statement than "nothing found".
+    expect(scan.vendoredRem).toEqual(VENDORED_EXEMPTION);
+    expect(totalOf(scan.vendoredRem)).toBe(4);
+  });
+
+  it("counts the vendored sites in code, not the comment that documents them", () => {
+    // `button.tsx` explains in a line comment WHY its rem site is exempt, so the file's raw text
+    // says `text-[0.8rem]` twice and its code says it once. A raw-text control would have expected
+    // 5 and reported a violation that does not exist; worse, deleting the real site and leaving the
+    // comment would still satisfy it. This is the grep-versus-comment collision, on a control.
+    const raw = readFileSync(join(SRC_DIR, "components/ui/button.tsx"), "utf8");
+    expect([...raw.matchAll(VENDORED_REM)].length).toBeGreaterThan(
+      scan.vendoredRem["src/components/ui/button.tsx"],
+    );
+    expect(scan.vendoredRem["src/components/ui/button.tsx"]).toBe(1);
   });
 });
