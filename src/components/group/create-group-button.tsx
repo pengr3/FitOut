@@ -57,10 +57,11 @@ export function CreateGroupButton({ bookingId }: { bookingId: string }) {
 
   return (
     <Button
+      variant="brand"
       onClick={handleCreate}
       disabled={pending}
       aria-disabled={pending}
-      className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
+      className="w-full"
     >
       {pending ? "Setting up…" : "Invite people"}
     </Button>

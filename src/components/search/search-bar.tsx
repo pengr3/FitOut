@@ -400,10 +400,16 @@ export function SearchBar({
           <span className="sr-only">
             <Label htmlFor="search-submit">Search</Label>
           </span>
+          {/* D-22 — the 44px height is the named opt-in size, not a hand-rolled height class. The
+              wider gap and padding are kept explicitly: this CTA sits at the end of a filter row and
+              was already roomier than the size's own shape, and a class on the element wins the
+              tailwind-merge, so the rendered control is unchanged. */}
           <Button
             id="search-submit"
             type="submit"
-            className="h-11 w-full gap-2 bg-brand px-6 text-brand-foreground hover:bg-brand/90 lg:w-auto"
+            variant="brand"
+            size="touch"
+            className="w-full gap-2 px-6 lg:w-auto"
           >
             <SearchIcon className="size-4" /> Search
           </Button>

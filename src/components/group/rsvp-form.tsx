@@ -319,12 +319,17 @@ export function RsvpForm({
 
         {/* ── RSVP choice (D-120) — exactly TWO controls, and nothing else (rule 4). ─────────────────── */}
         <div className="flex flex-col gap-2 sm:flex-row">
+          {/* D-22 — the 44px height is the named opt-in size rather than a hand-rolled height class.
+              The size also carries the wider padding that goes with a touch target; both buttons in
+              this row are flex-1, so they stay the same width and the change is invisible here. */}
           <Button
             type="button"
+            variant="brand"
+            size="touch"
             onClick={form.handleSubmit((v) => onSubmit(v, "yes"))}
             disabled={pending || state === "full"}
             aria-disabled={pending || state === "full"}
-            className="h-11 flex-1 bg-brand text-brand-foreground hover:bg-brand/90"
+            className="flex-1"
           >
             {pendingAnswer === "yes" ? "Saving…" : "Yes, I'm coming"}
           </Button>
