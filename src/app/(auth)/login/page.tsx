@@ -39,13 +39,20 @@ import { Button } from "@/components/ui/button";
 
 // Shows the "password updated" confirmation after a successful reset (?reset=1).
 // In its own Suspense-wrapped component because useSearchParams() needs a boundary.
+//
+// COLOUR (DS-10 / D-14 / D-15): this was a numbered-green tint carrying numbered-green ink, plus a
+// dark-mode twin — four frozen values on one element. It is now the neutral tint with full-contrast
+// ink, a declared pairing (18.16 court / 16.89 grove). NO hue is added back: D-14 puts status hue in
+// an ICON and never in text, and the semantic green has no text-bar row in contrast-pairs.ts because
+// it cannot clear 4.5 on a light surface. Nothing is lost here — this notice renders ONLY on success
+// and its own sentence is the whole signal, so the colour was decoration rather than meaning.
 function ResetNotice() {
   const params = useSearchParams();
   if (params.get("reset") !== "1") return null;
   return (
     <p
       role="status"
-      className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+      className="rounded-md bg-muted px-3 py-2 text-sm text-foreground"
     >
       Password updated — please sign in.
     </p>

@@ -250,8 +250,14 @@ export function ProfileForm({
               {formError}
             </p>
           )}
+          {/* COLOUR (DS-10 / D-14 / D-15): was a numbered-green ink — a frozen value AND hue carried
+              by TEXT, which D-14 forbids: the semantic green has no text-bar row in contrast-pairs.ts
+              because it cannot clear 4.5 on a light surface. This is a bare inline line beside the
+              bare inline error line above it, with no chip surface to tint and no glyph to hold a
+              hue, and it renders only after a successful save — so its sentence is the whole signal
+              and the colour was decoration. Secondary ink on the page: a declared pairing. */}
           {saved && (
-            <p role="status" className="text-sm text-green-600">
+            <p role="status" className="text-sm text-muted-foreground">
               Profile saved.
             </p>
           )}

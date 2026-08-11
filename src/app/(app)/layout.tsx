@@ -37,9 +37,12 @@ export default async function AppLayout({
 
   // D-92 wants "a bell in the shared header". There IS no shared header component: the booker header
   // ((app)/layout.tsx) and the host header ((host)/host/layout.tsx) are duplicated inline, and D-04
-  // deliberately made the host shell distinct (different wordmark, bg-zinc-50). Merging them is out of
-  // scope and contradicts D-04. The BELL is the shared thing D-92 requires, not the header — so one
-  // component is mounted in both. Do NOT refactor the two headers into one here.
+  // deliberately made the host shell distinct (a different wordmark, and a header on the neutral tint
+  // rather than on the page surface). Merging them is out of scope and contradicts D-04. The BELL is
+  // the shared thing D-92 requires, not the header — so one component is mounted in both. Do NOT
+  // refactor the two headers into one here. The host header's surface is named descriptively rather
+  // than quoted, because the DS-13 leak gate counts that string and a comment that repeats it is
+  // indistinguishable from a real call site.
   //
   // Both reads are OWNER-SCOPED IN THE QUERY on session.user.id (T-07-82) — never post-filtered, and
   // never from anything the request supplied. The relative "2h ago" labels are composed here against the

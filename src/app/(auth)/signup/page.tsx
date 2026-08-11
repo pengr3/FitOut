@@ -98,9 +98,14 @@ export default function SignupPage() {
                         aria-checked={field.value === value}
                         data-intent={value}
                         onClick={() => field.onChange(value)}
+                        // DS-13 / D-15 / THEME-05: the selected branch used to be an absolute-black
+                        // fill with absolute-white ink and an inverted dark-mode twin — six frozen
+                        // values on one element. It is now the neutral CONTROL fill (D-21: the same
+                        // token an un-varianted <Button> paints, never the accent), whose label
+                        // pairing is declared in contrast-pairs.ts at the 4.5 text bar.
                         className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                           field.value === value
-                            ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                            ? "border-primary bg-primary text-primary-foreground"
                             : "border-input bg-background hover:bg-accent"
                         }`}
                       >

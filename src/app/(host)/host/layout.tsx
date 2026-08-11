@@ -55,9 +55,12 @@ export default async function HostLayout({
 
   // D-92 wants "a bell in the shared header". There IS no shared header component: the booker header
   // ((app)/layout.tsx) and the host header ((host)/host/layout.tsx) are duplicated inline, and D-04
-  // deliberately made the host shell distinct (different wordmark, bg-zinc-50). Merging them is out of
-  // scope and contradicts D-04. The BELL is the shared thing D-92 requires, not the header — so one
-  // component is mounted in both. Do NOT refactor the two headers into one here.
+  // deliberately made the host shell distinct (a different wordmark, and a header on the neutral tint
+  // rather than on the page surface — the element below). Merging them is out of scope and contradicts
+  // D-04. The BELL is the shared thing D-92 requires, not the header — so one component is mounted in
+  // both. Do NOT refactor the two headers into one here. The surface is named descriptively rather
+  // than quoted, because the DS-13 leak gate counts that string and a comment that repeats it is
+  // indistinguishable from a real call site.
   //
   // Same shape as the pending-request count above: OWNER-SCOPED IN THE QUERY on session.user.id
   // (T-07-82), never post-filtered. Relative labels are composed against the DATABASE clock (readDbNow),
@@ -81,7 +84,7 @@ export default async function HostLayout({
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
+      <header className="flex items-center justify-between border-b bg-muted px-4 py-3">
         <Link href="/host" className="text-lg font-semibold tracking-tight">
           FitOut <span className="text-muted-foreground">· Hosting</span>
         </Link>

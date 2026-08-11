@@ -31,6 +31,15 @@ function DialogClose({
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+// D-17 IN ACTION — the ONE vendored raw-palette site in the tree, and there is no vendored exemption.
+// The scrim was an absolute black at 10%: correct-looking in court and wrong in grove, whose ink is a
+// TINTED near-black, so the overlay was the one surface in a themed subtree that could not follow the
+// theme. It now reads the theme's own ink.
+//
+// THE ALPHA IS DELIBERATELY UNCHANGED AT 10%, not the 50% a stock shadcn overlay ships. This overlay
+// is paired with a backdrop blur (below), and the pair was tuned together: the blur does the occluding
+// and the tint only darkens. Deepening the tint to 50% on top of a blur would be a visible regression
+// in every dialog in the app, and it is not what "stop painting from a raw palette class" means.
 function DialogOverlay({
   className,
   ...props
@@ -39,7 +48,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-(--z-dialog) bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-(--z-dialog) bg-foreground/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
