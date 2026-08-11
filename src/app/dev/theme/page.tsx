@@ -53,14 +53,28 @@ import { THEME_NAMES, THEME_TOKENS } from "@/lib/design/tokens.generated";
 import { SpotsLeftChip } from "@/components/availability/spots-left-chip";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { PayoutStateBadge } from "@/components/host/payout-state-badge";
+import { SearchResultCard } from "@/components/search/search-result-card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { SlotPickerPreview } from "./slot-picker-preview";
 import {
   BOOKING_STATUS_FIXTURES,
   BUTTON_HIERARCHY,
   BUTTON_SIZES,
+  FORM_ROW,
   PAYOUT_STATE_FIXTURES,
+  RESULT_CARD,
+  RESULT_CARD_WINDOW,
   SPOTS_FIXTURES,
   TYPE_LADDER,
 } from "./fixtures";
@@ -77,6 +91,50 @@ export const metadata: Metadata = {
 
 /** The pane shell: each theme paints its OWN background, not a tint over the root theme's. */
 const PANE = "min-w-0 space-y-10 rounded-xl border border-border bg-background p-4 text-foreground";
+
+/**
+ * The three named elevation steps (DS-03), which are the only shadows this app is allowed to use.
+ *
+ * Tailwind's defaults compile to LITERAL values rather than var() references, so a theme block
+ * redeclaring them does nothing at all and any surface left on one is frozen against every theme.
+ * The third step has no product call site yet — it is reserved for bottom-anchored bars, and this
+ * ladder is its declared exerciser, which is why `tests/design/elevation-z.test.ts` pins it here.
+ */
+const ELEVATION_LADDER = [
+  { step: "raised", surface: "shadow-raised", role: "cards, toolbars, an active tab" },
+  { step: "overlay", surface: "shadow-overlay", role: "menus, popovers, dialogs" },
+  { step: "sticky", surface: "shadow-sticky", role: "bottom-anchored bars — casts upward" },
+] as const;
+
+/**
+ * The seven radius steps, every one derived by `calc()` from the theme's SINGLE `--radius`.
+ *
+ * This is the section that makes grove's shape difference legible: one number moves from 10px to
+ * 20px and the whole ladder doubles with no other edit anywhere.
+ */
+const RADIUS_LADDER = [
+  "rounded-sm",
+  "rounded-md",
+  "rounded-lg",
+  "rounded-xl",
+  "rounded-2xl",
+  "rounded-3xl",
+  "rounded-4xl",
+] as const;
+
+/**
+ * The surfaces, each labelled with its role — DELIBERATELY LAST.
+ *
+ * Swatches are the least useful comparison on this page. Putting them first is how a design-system
+ * page ends up being read as a palette instead of as a product, and the whole ordering above exists
+ * to prevent exactly that.
+ */
+const SURFACE_SWATCHES = [
+  { fill: "bg-background", role: "background — the page itself" },
+  { fill: "bg-card", role: "card — content lifted off the page" },
+  { fill: "bg-muted", role: "muted — status tints and hover fills" },
+  { fill: "bg-border", role: "border — decorative divider, never a sole boundary" },
+] as const;
 
 /** One section inside a pane. The heading renders in the PANE's theme, so headings compare too. */
 function Section({
@@ -200,6 +258,122 @@ function ThemePane({ name }: { name: string }) {
         note="The canonical accent-carries-meaning surface. Occupied hours are muted and struck through, never red; the only accent on the pane is the run the booker picked."
       >
         <SlotPickerPreview />
+      </Section>
+
+      <Section
+        index={5}
+        title="Result card"
+        note="The booker's search tile: photo placeholder, title, all-in price and the soft-accent scarcity chip."
+      >
+        <div className="max-w-xs">
+          <SearchResultCard listing={RESULT_CARD} searchedWindow={RESULT_CARD_WINDOW} />
+        </div>
+      </Section>
+
+      <Section
+        index={6}
+        title="Form row"
+        note="Real controls, one of them invalid — the focus recipe and the destructive border treatment on something a reviewer can actually tab into."
+      >
+        {/* IDS ARE THEME-PREFIXED. Both panes render this section, so an unprefixed id would put a
+            duplicate on the page and break every label association in the second pane — which is
+            also what Phase 17's axe pass would report, on a route it is meant to be auditing. */}
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor={`${name}-space-name`}>{FORM_ROW.nameLabel}</Label>
+            <Input
+              id={`${name}-space-name`}
+              defaultValue={FORM_ROW.nameValue}
+              placeholder={FORM_ROW.namePlaceholder}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`${name}-space-type`}>{FORM_ROW.typeLabel}</Label>
+            <Select defaultValue={FORM_ROW.typeValue}>
+              <SelectTrigger id={`${name}-space-type`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FORM_ROW.typeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`${name}-rate`}>{FORM_ROW.rateLabel}</Label>
+            <Input
+              id={`${name}-rate`}
+              defaultValue={FORM_ROW.rateValue}
+              aria-invalid
+              aria-describedby={`${name}-rate-error`}
+            />
+            <p id={`${name}-rate-error`} className={cn("text-label", "text-destructive")}>
+              {FORM_ROW.rateError}
+            </p>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <Checkbox id={`${name}-exact-address`} defaultChecked className="mt-0.5" />
+            <Label htmlFor={`${name}-exact-address`} className="leading-snug">
+              {FORM_ROW.checkboxLabel}
+            </Label>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        index={7}
+        title="Elevation ladder"
+        note="Three steps and no fourth. Court is shallow and neutral; grove roughly doubles every blur and tints the cast to its own ink hue."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          {ELEVATION_LADDER.map((entry) => (
+            <div
+              key={entry.step}
+              className={cn("space-y-1 rounded-lg bg-card p-4", entry.surface)}
+            >
+              <p className="text-label">{entry.step}</p>
+              <p className={cn("text-label", "text-muted-foreground")}>{entry.role}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        index={8}
+        title="Radius ladder"
+        note="Seven steps, all derived from one number. Court starts at 10px, grove at 20px — the shape difference, not just the colour one."
+      >
+        <div className="flex flex-wrap items-end gap-3">
+          {RADIUS_LADDER.map((step) => (
+            <div key={step} className="space-y-1">
+              <div className={cn("size-12 border border-border bg-muted", step)} />
+              <p className={cn("text-label", "text-muted-foreground")}>
+                {step.replace("rounded-", "")}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        index={9}
+        title="Surface swatches"
+        note="Last on purpose — the least useful comparison on this page, and the one a design-system page usually leads with."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SURFACE_SWATCHES.map((swatch) => (
+            <div key={swatch.fill} className="flex items-center gap-3">
+              <div className={cn("size-10 shrink-0 rounded-lg border border-border", swatch.fill)} />
+              <p className={cn("text-label", "text-muted-foreground")}>{swatch.role}</p>
+            </div>
+          ))}
+        </div>
       </Section>
     </>
   );

@@ -51,10 +51,13 @@
 //   • The scan proves the class NAMES are right. It cannot see `cn()`/tailwind-merge precedence at a
 //     call site, nor an inline `style={{ boxShadow }}`, nor a shadow arriving from a CSS module.
 //     Phase 11's GATE-01 screenshots see real pixels.
-//   • `shadow-sticky` has ZERO call sites and is asserted to have zero. It is reserved for
-//     bottom-anchored bars, no such surface exists in the shipped tree, and inventing one to give it
-//     a home would be worse than leaving it declared-but-unused. `/dev/theme`'s elevation ladder
-//     (plan 10-16) is what exercises it. Do not read the zero as an unused-token bug.
+//   • `shadow-sticky` has exactly ONE call site — `/dev/theme`'s elevation ladder — and it is pinned
+//     by name below. UPDATED BY PLAN 10-16, deliberately and in that plan's own commit: 10-12 wrote
+//     this section when the step had zero call sites, asserted the zero so nobody would "fix" it by
+//     sprinkling the class somewhere, and named the ladder as its future exerciser. That exerciser
+//     now exists, so the assertion moved rather than being worked around. NO PRODUCT surface uses
+//     the step yet — no bottom-anchored bar exists in the shipped tree — and the single-file
+//     inventory is what keeps that distinction visible instead of dissolving it into a total.
 //   • The z scale is ADVISORY against a third-party widget with its own internal z-index (Leaflet's
 //     control corners sit at 1000). Accepted for this phase and recorded as a Phase 18 rule: wrap
 //     the vendor in a stacking context rather than inflating the scale. Nothing here can catch it.
@@ -301,6 +304,7 @@ const ALLOWED_SHADOWS = ["shadow-none", "shadow-raised", "shadow-overlay", "shad
  */
 const RAISED_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/(host)/host/bookings/page.tsx": 1,
+  "src/app/dev/theme/page.tsx": 1,
   "src/components/booking/bookings-tabs.tsx": 1,
   "src/components/search/search-bar.tsx": 1,
   "src/components/ui/tabs.tsx": 1,
@@ -308,10 +312,31 @@ const RAISED_INVENTORY: Readonly<Record<string, number>> = {
 
 /** Every `shadow-overlay` call site, per file. `dropdown-menu` carries two (content + sub-content). */
 const OVERLAY_INVENTORY: Readonly<Record<string, number>> = {
+  "src/app/dev/theme/page.tsx": 1,
   "src/components/search/search-result-card.tsx": 1,
   "src/components/ui/dropdown-menu.tsx": 2,
   "src/components/ui/popover.tsx": 1,
   "src/components/ui/select.tsx": 1,
+};
+
+/**
+ * Every `shadow-sticky` call site, per file — one, and it is not a product surface.
+ *
+ * Plan 10-12 left this step with zero call sites and ASSERTED the zero, so that nobody would give
+ * the token an invented home; it named `/dev/theme`'s elevation ladder as the exerciser that would
+ * one day move the number. Plan 10-16 built that ladder and moved it here, in the same commit.
+ *
+ * The map matters more than the count for this step specifically. A bare `toBe(1)` would go green
+ * the day somebody put a bottom-anchored bar on a real screen AND deleted it from the ladder — which
+ * is a state where the design surface has stopped showing the third step. Naming the file keeps
+ * "declared, exercised by the preview, adopted by no product surface yet" a legible fact.
+ *
+ * The `SHADOW_` prefix is not decoration: this file carries BOTH halves of DS-03, and the z-index
+ * half at the bottom already owns a `STICKY_INVENTORY` for the `z-(--z-sticky)` call sites. The two
+ * clauses share the word "sticky" and share nothing else.
+ */
+const SHADOW_STICKY_INVENTORY: Readonly<Record<string, number>> = {
+  "src/app/dev/theme/page.tsx": 1,
 };
 
 /**
@@ -533,15 +558,18 @@ describe("DS-03 second clause — every shadow maps to one of exactly three name
 });
 
 describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME (T-10-45)", () => {
-  it("carries exactly 9 named-step call sites", () => {
+  it("carries exactly 12 named-step call sites", () => {
+    // 9 from plan 10-12's migration (4 raised + 5 overlay, all product surfaces) + 3 from plan
+    // 10-16's `/dev/theme` ladder, which renders one card per step. The three maps below are what
+    // stop this total being satisfied by 12 sites in the wrong twelve places.
     const named =
       totalOf(scan.byName["shadow-raised"]) +
       totalOf(scan.byName["shadow-overlay"]) +
       totalOf(scan.byName["shadow-sticky"]);
-    expect(named, "the 9 named elevation sites are the whole point of the migration").toBe(9);
+    expect(named, "the named elevation sites are the whole point of the migration").toBe(12);
   });
 
-  it("pins the 4 raised sites to the files that own them", () => {
+  it("pins the 5 raised sites to the files that own them", () => {
     expect(scan.byName["shadow-raised"]).toEqual(RAISED_INVENTORY);
   });
 
@@ -549,13 +577,18 @@ describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME 
     expect(scan.byName["shadow-overlay"]).toEqual(OVERLAY_INVENTORY);
   });
 
-  it("leaves `shadow-sticky` declared-but-unused, deliberately", () => {
-    // NOT a bug and NOT an oversight. The step is reserved for bottom-anchored sticky bars; no such
-    // surface exists in the shipped tree, and inventing one to give the token a home would be a
-    // worse outcome than a zero. `/dev/theme`'s elevation ladder (plan 10-16) is what exercises it.
-    // Asserted rather than left implicit so nobody later "fixes" it by sprinkling it somewhere.
-    expect(totalOf(scan.byName["shadow-sticky"])).toBe(0);
-    expect(themes.court["--elevation-sticky"], "…but the token must still be declared").toBeDefined();
+  it("gives `shadow-sticky` exactly one home, and it is the design surface, not a product one", () => {
+    // MOVED BY PLAN 10-16 FROM `toBe(0)`, on purpose and in that plan's own commit — 10-12 wrote the
+    // zero, named `/dev/theme`'s ladder as the exerciser that would move it, and flagged the change
+    // in advance. Working around it (skipping the third step in the ladder, or exempting the route
+    // from the scan) would have been the worse outcome: the ladder exists so a reviewer can see all
+    // three steps side by side, and a design system whose own preview cannot render one of its steps
+    // is not a system anybody can judge.
+    //
+    // The zero it replaces still holds for the half that mattered: NO PRODUCT SURFACE uses this step.
+    // The map is what keeps saying so.
+    expect(scan.byName["shadow-sticky"]).toEqual(SHADOW_STICKY_INVENTORY);
+    expect(themes.court["--elevation-sticky"], "…and the token must still be declared").toBeDefined();
     expect(themes.grove["--elevation-sticky"]).toBeDefined();
   });
 
@@ -594,11 +627,11 @@ describe("DS-03 in the SHIPPED stylesheet — the claim D-1 used to make unsound
     }
   });
 
-  it("still emits the two named steps that have real call sites", async () => {
+  it("still emits the named steps that have real call sites", async () => {
     // THE CONTROL ON THE NARROWING, and the assertion that matters most in this block. A content
     // root mistyped to a directory that does not exist — or narrowed one level too far — makes the
     // absence assertion above pass PERFECTLY while the app ships with no utilities whatsoever. These
-    // two rules are emitted only because the scan still reaches `src/`, unforced and unsafelisted.
+    // rules are emitted only because the scan still reaches `src/`, unforced and unsafelisted.
     const css = await compileGlobalsCss();
     expect(
       declarationsFor(css, ".shadow-raised"),
@@ -607,14 +640,27 @@ describe("DS-03 in the SHIPPED stylesheet — the claim D-1 used to make unsound
     expect(declarationsFor(css, ".shadow-overlay")).not.toBeNull();
   });
 
-  it("leaves `shadow-sticky` out of the bundle precisely because nothing uses it", async () => {
-    // The third step is declared in `@theme` and referenced by no component, so an honest content
-    // scan must NOT emit it. Together with the two above, this is what proves the emitted set tracks
-    // real usage rather than prose: three declared steps, two shipped, and the difference is exactly
-    // the one with no call site. `compileGlobalsCssWith` forces it elsewhere in this file to prove
-    // it would compile theme-aware IF adopted.
+  it("now emits `shadow-sticky` too, because `/dev/theme` genuinely uses it", async () => {
+    // MOVED BY PLAN 10-16 FROM `toBeNull()`. Until the elevation ladder existed, the third step was
+    // declared in `@theme` and referenced by nothing, and its ABSENCE from the bundle was the
+    // sharpest available proof that the emitted set tracks real usage rather than prose: three
+    // declared steps, two shipped, and the difference exactly the one with no call site.
+    //
+    // That proof is not lost, it has moved one file up — the two assertions in this block are now
+    // "the banned default ladder is absent" and "all three declared steps are present", and the
+    // control that the scan still reaches `src/` is what makes both mean something. The emitted rule
+    // must still resolve through the per-theme variable rather than a literal, which is asserted
+    // here rather than assumed, because a step that shipped as a frozen value would be the whole
+    // failure DS-03 exists to prevent arriving through its own preview.
     const css = await compileGlobalsCss();
-    expect(declarationsFor(css, ".shadow-sticky")).toBeNull();
+    const body = declarationsFor(css, ".shadow-sticky");
+    expect(body, "the ladder's third card no longer emits its step").not.toBeNull();
+    // `var(--elevation-sticky)`, NOT `var(--shadow-sticky)`: `@theme inline` substitutes the theme
+    // entry's value into the utility instead of emitting a variable of its own, which is the whole
+    // reason a nested themed subtree re-skins its depth. Reaching this rule UNFORCED — the sibling
+    // assertions in this file safelist all three steps — is what makes it a statement about the
+    // shipped bundle rather than about the compiler.
+    expect(body).toContain("var(--elevation-sticky)");
   });
 });
 

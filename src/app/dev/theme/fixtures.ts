@@ -27,6 +27,7 @@ import type { SlotPicker } from "@/components/availability/slot-picker";
 import type { SpotsLeftChip } from "@/components/availability/spots-left-chip";
 import type { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import type { PayoutStateBadge } from "@/components/host/payout-state-badge";
+import type { SearchResultCard } from "@/components/search/search-result-card";
 import type { Button } from "@/components/ui/button";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -245,3 +246,80 @@ export const SLOT_DAY: Omit<ComponentProps<typeof SlotPicker>, "onSelectionChang
   mode: "instant",
   disabled: false,
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// 5. Result card
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The booker-facing search result card, not the host management tile.
+ *
+ * WHY THIS COMPONENT AND NOT `ListingCard`: the section needs a photo, a title, a price AND a
+ * spots-left soft-accent chip on one real card. `ListingCard` is a HOST management surface and its
+ * own header states, at length, that it deliberately carries no spots chip — scarcity is a
+ * booker-facing signal about a specific date, and that tile has no date to be about. Rendering it
+ * here would have meant hand-placing the chip beside it, which is putting a booker signal on a
+ * management card: exactly what that component forbids, done in the one place a reviewer would then
+ * read as sanctioned. `SearchResultCard` renders the chip itself, from the same read-model shape the
+ * real search grid passes, so the chip is exercised through a surface rather than composed onto one.
+ *
+ * `coverPhotoUrl` is null ON PURPOSE, so the card paints its own token-coloured photo placeholder.
+ * The alternatives were an external URL (the page must render on a fresh clone with no network) or
+ * an inline SVG data URI, which can only carry a FROZEN colour — a raw-value leak in the newest file
+ * of the phase whose whole subject is that frozen colours cannot be themed.
+ *
+ * The card is a link to `/listings/preview`, which does not exist. That is accepted: this route is a
+ * design surface, and giving the fixture a real listing id would reintroduce the seed dependency
+ * D-10 removes.
+ */
+export const RESULT_CARD: ComponentProps<typeof SearchResultCard>["listing"] = {
+  id: "preview",
+  title: "Kingsley Court — Indoor Pickleball",
+  primarySpaceType: "pickleball_court",
+  hourlyRateCents: null,
+  dayRateCents: null,
+  timezone: "Asia/Manila",
+  city: "Manila",
+  coverPhotoUrl: null,
+  distanceM: 2300,
+  // Already fee-composed by the server in the real flow (D-75); a literal here, for the same reason
+  // every other value is one.
+  allInRateParts: ["₱367.50/person"],
+  occupancyMode: "open_capacity",
+  perHeadPriceCents: 35000,
+  spots: { remaining: 3, cap: 24, state: "low" },
+};
+
+/** The searched day the card was reached from — the same frozen calendar day the slot grid uses. */
+export const RESULT_CARD_WINDOW: ComponentProps<typeof SearchResultCard>["searchedWindow"] = {
+  date: "2026-03-14",
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// 6. Form row
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * One realistic listing-wizard row: a text field, a select, an invalid field and a checkbox.
+ *
+ * The invalid field is the point of the section. It is what puts the destructive border treatment
+ * and the error ring on a REAL control rather than on a swatch, and it is the only place on the page
+ * where the destructive token appears at rest — which is exactly the budget DS-10 intends: red means
+ * a genuine failure needing a human, and nothing else.
+ */
+export const FORM_ROW = {
+  nameLabel: "Space name",
+  namePlaceholder: "e.g. Kingsley Court",
+  nameValue: "Kingsley Court",
+  typeLabel: "Primary space type",
+  typeValue: "pickleball_court",
+  typeOptions: [
+    { value: "pickleball_court", label: "Pickleball court" },
+    { value: "tennis_court", label: "Tennis court" },
+    { value: "gym_fitness_floor", label: "Gym / fitness floor" },
+  ],
+  rateLabel: "Hourly rate",
+  rateValue: "0",
+  rateError: "Enter a rate above ₱0 so bookers can reserve by the hour.",
+  checkboxLabel: "Show the exact address to confirmed bookers",
+} as const;
