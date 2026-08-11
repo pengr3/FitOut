@@ -33,19 +33,25 @@ const geistMono = Geist_Mono({
  * free — the invite page (src/app/invite/[token]/page.tsx:60) already hand-wrote that suffix, and
  * the template is what stops the next twenty routes each hand-writing it slightly differently.
  *
- * DS-14 (part 2) / D-19 — the icon entry below points at the COURT mark, generated from the token
- * contract by scripts/generate-design-tokens.mjs. It is here rather than left to a file convention
- * for two reasons. First, the scaffold's `src/app/favicon.ico` has been DELETED: with both an .ico
- * and an SVG present a browser is free to choose either, so the two identities would race. Second,
- * this entry is what puts an icon in the SERVER HTML — FaviconSwap only ever retargets it once the
- * theme resolves, so without this line the tab would show the browser's default document glyph for
- * a frame on every cold load.
+ * DS-14 (part 2) / D-19 — THERE IS DELIBERATELY NO `icons` ENTRY IN THIS EXPORT, and its absence is
+ * load-bearing rather than an oversight. The plan for this change called for one, pointing at the
+ * court mark, so that the tab icon is right before hydration. Measured against a production build,
+ * that entry is what BREAKS the requirement it was meant to support: Next renders it as a `<link>`
+ * that React owns, <FaviconSwap /> re-points that element when the theme resolves, React loses track
+ * of its own node and re-creates it, and the page ends up shipping TWO icon links with the STALE one
+ * last. Which of two icon declarations a browser honours is not specified — so that page's tab
+ * identity is chosen by the user agent, which is exactly the ambiguity deleting the scaffold's
+ * `src/app/favicon.ico` was meant to remove.
+ *
+ * So the icon has ONE owner: src/components/theme/favicon-swap.tsx, which installs a plain element
+ * nothing else manages. The measured cost is a ~250ms window on a cold load where the tab shows the
+ * browser's generic glyph. The full measurement, and the two rejected shapes, are recorded in that
+ * component's header — read it before adding this entry back.
  */
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   title: { default: "FitOut", template: "%s · FitOut" },
   description: "Book gyms, courts and studios by the hour.",
-  icons: { icon: [{ url: "/icon-court.svg", type: "image/svg+xml" }] },
 };
 
 export default function RootLayout({
@@ -73,9 +79,10 @@ export default function RootLayout({
             this root layout, so one provider here covers all of them and no Toaster mount moves. */}
         <ThemeProvider>
           <ThemeQueryParam />
-          {/* D-19 — retargets the icon link above when the theme resolves, so the tab is one more
-              surface the grove swap proves. Mounted INSIDE the provider because it reads the
-              resolved theme, exactly like its sibling. */}
+          {/* D-19 — the SOLE owner of the tab icon link, so the tab is one more surface the grove
+              swap proves. Mounted INSIDE the provider because it reads the resolved theme, exactly
+              like its sibling. See the note above the metadata export for why nothing else in this
+              file declares an icon. */}
           <FaviconSwap />
           {children}
         </ThemeProvider>

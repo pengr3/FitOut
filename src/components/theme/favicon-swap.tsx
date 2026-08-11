@@ -7,14 +7,36 @@
 // but through ImageResponse, producing a PNG that is statically optimised at build time — and a
 // build-time raster has exactly one colour baked into it forever, so it can never follow a theme
 // chosen in the browser. `icon.svg` is a static file with the same problem. Two generated SVGs plus
-// a link swap is the only shape that re-skins at runtime (research landmine L9), which is why this
-// module exists instead of a file in `src/app/`.
+// a link swap is the only shape that re-skins at runtime (research landmine L9).
 //
-// IT RETARGETS, IT DOES NOT CREATE. The `icons` entry in src/app/layout.tsx's metadata export ships
-// the court icon in the server HTML, so the tab is never icon-less and never flashes the browser's
-// default document glyph. This effect finds that same element and changes its href — appending a
-// second icon link on every theme change would leave the browser to pick between them, which is the
-// exact ambiguity deleting `favicon.ico` was meant to remove.
+// THIS COMPONENT IS THE SOLE OWNER OF THE ICON LINK, AND THAT EXCLUSIVITY IS THE WHOLE FIX.
+// There is deliberately NO icons entry in src/app/layout.tsx's metadata export, and this component
+// deliberately renders `null` rather than a link element. Both choices are counter-intuitive, both
+// were measured against a production build (`npm start`, not the dev server), and the reason is the
+// same in each case: a `<link>` that React owns cannot be re-pointed at a different file.
+//
+//   • Metadata entry + this effect mutating the element React rendered → React loses track of its
+//     own node and re-creates it, leaving TWO icon links with the STALE one LAST. Measured, grove:
+//     `["/icon-grove.svg", "/icon-court.svg"]`, permanent.
+//   • This component returning `<link rel="icon" href={…}/>` instead → React hoists it into the head,
+//     but hoisted metadata links are keyed by href, so changing the href ADDS a second one and never
+//     removes the first. Measured, grove: `["/icon-court.svg", "/icon-grove.svg"]`, permanent and
+//     stable at two across navigations and reloads.
+//   • This shape — no metadata entry, a plain DOM element nothing else manages → exactly ONE link in
+//     every state measured: court on a cold load, grove when themed, and still one after two
+//     client-side navigations and a hard reload.
+//
+// Two `rel="icon"` declarations is not a cosmetic untidiness. Which one a browser honours is not
+// specified — in practice the last wins, but that is convention, not contract — so a page shipping
+// both is a page whose tab icon is chosen by the user agent. That is precisely the ambiguity that
+// deleting the scaffold's `favicon.ico` was meant to remove, and reintroducing it through the head
+// would have made this component's own requirement unprovable.
+//
+// THE COST, MEASURED RATHER THAN WAVED AWAY: with no icon in the server HTML there is a window on a
+// cold load where the tab shows the browser's generic document glyph. Measured at **252 ms** from
+// navigation commit to the link appearing. That is the price of the guarantee above, and it is the
+// cheaper side of the trade — a quarter-second of a generic glyph, against every page permanently
+// declaring two different identities and letting the browser pick between them.
 //
 // THE THREAT (T-10-04, ASVS V5). The theme value ends up in a DOM attribute, so it is checked for
 // MEMBERSHIP of the THEMES allowlist and then used as a KEY into a table of two literal paths.
@@ -47,8 +69,9 @@ export function FaviconSwap() {
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
-    // Undefined before the provider has resolved — leave the server-rendered icon alone rather than
-    // clearing the href and producing a momentarily icon-less tab.
+    // Undefined before the provider has resolved. Returning early leaves the head untouched for one
+    // more frame rather than installing a court icon that immediately becomes grove — a visible
+    // flicker in the tab on exactly the path D-19 exists to demonstrate.
     if (!resolvedTheme) return;
     // Allowlist membership, never a cast — the value is about to select a DOM attribute value.
     if (!(THEMES as readonly string[]).includes(resolvedTheme)) return;
@@ -56,6 +79,8 @@ export function FaviconSwap() {
     const href = ICON_HREF[resolvedTheme];
     if (!href) return;
 
+    // Find-or-create, never append-per-change: a second element here would recreate the exact
+    // ambiguity this module's header explains at length.
     let link = document.head.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) {
       link = document.createElement("link");

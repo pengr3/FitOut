@@ -33,8 +33,11 @@
 //   • That `suppressHydrationWarning` actually suppresses anything — that needs a real React
 //     hydration pass against a mutated <html>, which jsdom cannot stage faithfully.
 //   • That the icon link actually SWAPS when the theme changes. That needs a real browser with a
-//     real next-themes pre-paint script; the assertion here is that the component is mounted, which
-//     is the part a file revert would silently undo. Phase 11's GATE-01 pass sees the real tab.
+//     real next-themes pre-paint script; the assertion here is that the component is mounted and is
+//     the only declared owner, which is the part a file revert would silently undo. It WAS verified
+//     against a production build during 10-15 — one link, court by default, grove when themed, still
+//     one after two navigations and a reload — but that probe is not committed, and Phase 11's
+//     GATE-01 pass is where a real tab enters the permanent suite.
 //   • That the icons are the generator's output BYTE FOR BYTE — that is
 //     tests/design/token-drift.test.ts. What is asserted below is the weaker, independent claim that
 //     each icon still carries its own theme's brand colour, which is what catches an icon that
@@ -63,6 +66,7 @@ vi.mock("next/font/google", () => ({
 }));
 
 const LAYOUT_PATH = resolve(__dirname, "../../src/app/layout.tsx");
+const FAVICON_SWAP_PATH = resolve(__dirname, "../../src/components/theme/favicon-swap.tsx");
 const REPO_ROOT = resolve(__dirname, "../..");
 
 /**
@@ -225,15 +229,40 @@ describe("DS-14 (part 2) — the scaffold's assets are deleted, not left alongsi
     });
   }
 
-  it("mounts FaviconSwap in the root layout, and ships an icon in the server HTML", () => {
-    // Two independent halves of D-19. Without the mount the icon never follows the theme; without
-    // the metadata entry there is no icon in the server HTML at all, and the tab shows the
-    // browser's default document glyph until the first effect runs.
+  it("mounts FaviconSwap in the root layout", () => {
+    // Import plus JSX — a bare import with no mount would satisfy a single occurrence, and an
+    // unmounted swap component is indistinguishable from no themed favicon at all.
     const source = readFileSync(LAYOUT_PATH, "utf8");
     expect(source.split("FaviconSwap").length - 1).toBeGreaterThanOrEqual(2);
     expect(source).toMatch(/<FaviconSwap\s*\/>/);
-    expect(source).toContain("icons:");
-    expect(source).toContain("/icon-court.svg");
+  });
+
+  it("leaves the icon link to exactly ONE owner — no metadata icons entry", () => {
+    // THIS ENCODES A MEASUREMENT, not a preference, and it is the assertion most likely to be
+    // "fixed" by someone who has not read the reasoning. An `icons:` entry in the metadata export
+    // renders a <link> that React owns; FaviconSwap then re-points that element, React loses track
+    // of its own node and re-creates it, and the page ships TWO icon links with the STALE one last.
+    // Reproduced against a production build: grove ends up declaring both /icon-grove.svg and
+    // /icon-court.svg, permanently. Which of two icon declarations a browser honours is not
+    // specified, so that page's tab identity is decided by the user agent — the exact ambiguity
+    // deleting favicon.ico was meant to remove.
+    //
+    // The check is deliberately structural rather than a bare string search: the layout's comment
+    // EXPLAINS the absent entry at length, so it necessarily contains the word, and a criterion that
+    // counted the word would be satisfied by the prose that argues against it.
+    const source = readFileSync(LAYOUT_PATH, "utf8");
+    const metadata = source.slice(source.indexOf("export const metadata"));
+    const body = metadata.slice(0, metadata.indexOf("\n};"));
+    expect(
+      body,
+      "layout.tsx declares metadata icons again — see src/components/theme/favicon-swap.tsx for the measurement",
+    ).not.toMatch(/^\s*icons\s*:/m);
+
+    // The hrefs live in the one owner, and both themes are reachable from it.
+    const swap = readFileSync(FAVICON_SWAP_PATH, "utf8");
+    expect(swap).toContain("/icon-court.svg");
+    expect(swap).toContain("/icon-grove.svg");
+    expect(swap).toContain('rel="icon"');
   });
 
   // -------------------------------------------------------------------------
