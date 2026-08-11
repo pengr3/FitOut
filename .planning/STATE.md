@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-01-PLAN.md (design gate) — next 10-02
-last_updated: "2026-08-11T14:35:00.000Z"
-last_activity: 2026-08-11 -- Phase 10 plan 01 complete (DB-free design gate)
+stopped_at: Completed 10-02-PLAN.md (shared design primitives + THEME-04 spike) — next 10-03
+last_updated: "2026-08-11T14:45:07.621Z"
+last_activity: 2026-08-11 -- Phase 10 plan 02 complete (shared leak-pattern list + token parser + THEME-04 spike verdict)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 1
-  percent: 6
+  completed_plans: 2
+  percent: 12
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 2 of 17
-Status: Executing Phase 10 — plan 01 complete, `npm run test:design` is live and DB-free
-Last activity: 2026-08-11 -- Phase 10 plan 01 complete (DB-free design gate)
+Plan: 3 of 17
+Status: Executing Phase 10 — plans 01-02 complete; the design gate, the ONE leak-pattern list and the ONE globals.css token parser are live, and THEME-04's assertion layer is decided
+Last activity: 2026-08-11 -- Phase 10 plan 02 complete (shared design primitives + THEME-04 spike verdict)
 
 ## Performance Metrics
 
@@ -138,6 +138,7 @@ Last activity: 2026-08-11 -- Phase 10 plan 01 complete (DB-free design gate)
 | Phase 08 P15 | 35m | 3 tasks | 19 files |
 | Phase 09 P15 | 34min | 2 tasks | 2 files |
 | Phase 10 P01 | 13min | 2 tasks | 5 files |
+| Phase 10 P02 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -303,6 +304,10 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-17: a third-party guarantee must be PROBED against the real sandbox before it is written into a comment or relied on for correctness — a mock built to model the guarantee you *believe* you have can only ever validate that belief (four plans of coverage confirmed `mockPayMongo`, not PayMongo)
 - [Phase 08]: 08-17: the group-booking UI shows TWO capacity numbers that differ by one BY DESIGN — the public invite page is organizer-EXCLUSIVE (`All 11 spots are taken`, from `capacity_snapshot`) and the organizer page is organizer-INCLUSIVE (`12 of 12`); confirmed live at `capacity_snapshot = 11` / `yes_rows = 11` / `max_occupancy = 12`. Do not "harmonise" them.
 - [Phase 08]: 08-17: the 08-17 fixture recipe for any future per-head UAT — `uat_listing_bookable` needs `extra_head_fee`, `included`, `max_occupancy` AND `booking_mode = instant` set together, plus a non-NULL `cancellation_policy`; a NULL in any one of them silently produces a walkthrough that exercises nothing (which is how 08-09 step 6 was skipped)
+- [Phase 10]: 10-02: THEME-04 spike verdict: jsdom RESOLVES nested custom properties (jsdom 29.1.1, overturning assumption A7) — but jsdom does NOT substitute var() and IGNORES @layer entirely, so a jsdom assertion over Tailwind-compiled CSS is vacuous. Plan 10-16: the compiled-CSS check stays mandatory; a jsdom nested assertion is permitted only over raw [data-theme] blocks, asserting getPropertyValue('--token') directly. Verdict recorded in tests/design/helpers/compile-css.ts under the `THEME-04 SPIKE` marker.
+- [Phase 10]: 10-02: the one leak-pattern list and the one globals.css token parser live in config/*.mjs (plain ESM) — eslint.config.mjs cannot import .ts, and a module holding the hex/palette regexes would flag itself under the scanned tree (D-16 / L15).
+- [Phase 10]: 10-02: raw-hex is colour-context anchored rather than escape-hatched, so 'see #3388 for details' is clean by construction and there is no per-site opt-out to abuse; color-function keeps a mandatory trailing '(' so button.tsx:16's color-mix(in_oklch,…) hover idiom stays legal.
+- [Phase 10]: 10-02: parseThemeTokens/parseGlobalTokens are total (return {} for an absent block) while readThemeTokens/readGlobalTokens THROW — the file-reading path is where an empty result is always a bug, and returning {} there is how a downstream gate passes vacuously (T-10-06).
 
 ### Pending Todos
 
@@ -403,8 +408,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-11T12:49:45.965Z
-Stopped at: Phase 10 UI-SPEC approved
+Last session: 2026-08-11T14:45:07.602Z
+Stopped at: Completed 10-02-PLAN.md (shared design primitives + THEME-04 spike) — next 10-03
 continued from v1.0's Phase 9, not reset), with `.planning/REQUIREMENTS.md` § Traceability populated:
 **75/75 requirements mapped, 0 orphans, 0 duplicates.** The shipped v1.0 `<details>` block, the v1.0
 Progress rows, and Backlog **999.1** are preserved verbatim; **999.2 was removed from the Backlog**
@@ -463,7 +468,7 @@ Stopped at: **GAP PLANNING COMPLETE — 9 new plans `09-17` … `09-25` cover al
 
 Prior session: 2026-07-31 (/gsd-resume-work)
 Stopped at: **Session resumed from `HANDOFF.json` + the phase `.continue-here.md`. The pending human decision was ANSWERED: the gap-closure route is the FULL PLANNING ROUND-TRIP — `/gsd-plan-phase 9 --gaps`, not a direct strike at CR-01 + CR-03.** Phase 9 remains code-complete-but-open: 16/16 plans executed, every repository gate green (tsc 0 · vitest 1035 passed / 4 skipped · lint 0 errors / 7 baseline warnings · build 0 / 29 routes · Playwright 21/21), human UAT 9/9 including a real PayMongo `sk_test_` charge — and then `/gsd-code-review 9` found **6 blockers / 5 warnings / 3 info** (`09-REVIEW.md`, `d792f0a`). CR-01 (same-day drop-in pass holdable but never payable) and CR-03 (an operating-hours edit re-keys the admissions counter → up to 2× cap sellable) are ORCHESTRATOR-VERIFIED; CR-02/04/05/06 are reported-only and must each be confirmed before a fix is written. `HANDOFF.json` was deliberately NOT deleted — the gap-planning pass still needs its machine-readable per-blocker file:line detail; delete it once the gap plans exist. Working tree clean, no interrupted agents, no incomplete plans. NEXT: `/gsd-plan-phase 9 --gaps` → close CR-01 + CR-03 first → triage the rest → `gsd-verifier` → `/gsd-secure-phase 9` → phase close.
-Resume file: .planning/phases/10-design-system-foundation-theme-runtime/10-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-07-31 (/gsd-execute-phase 9 — 09-16)
 Stopped at: **Completed 09-16-PLAN.md (Wave 7) — the drop-in human walkthrough. ALL 16 PHASE-9 PLANS EXECUTED; the phase is NOT closed (verification + close are the orchestrator's).** Nine steps recorded individually with verbatim evidence; the phase's only manual-only verification is DISCHARGED against the real PayMongo `sk_test_` rail (3 webhooks → 3 confirmed drop-in bookings → 3 `booking_confirmed` rows within one second each), and `availability_block` = 0 rows after a host-cancel. Step 4's reported FAIL was reclassified by the operator to accepted design (the OC-11 half-capacity clamp) and pinned as an asserted e2e contract instead of a code change — `src/` untouched, `70c392a`. Two product items logged in the phase's `deferred-items.md`. NEXT: `/gsd-verify-phase 9` then phase close.
