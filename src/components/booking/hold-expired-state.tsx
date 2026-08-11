@@ -30,7 +30,7 @@ export function HoldExpiredState({ listingId }: { listingId: string }) {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           {/* The single coral recovery primary (UI-SPEC accent #3 — the one coral focal point here). */}
-          <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+          <Button asChild variant="brand">
             <Link href={`/listings/${listingId}`}>Back to availability</Link>
           </Button>
           <Button asChild variant="secondary">

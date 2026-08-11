@@ -74,11 +74,12 @@ export function ReserveActions({
   return (
     <div className="space-y-2">
       <Button
+        variant="brand"
         size="lg"
         onClick={handleConfirm}
         disabled={pending}
         aria-disabled={pending}
-        className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
+        className="w-full"
       >
         {pending ? "Taking you to checkout…" : "Confirm & pay"}
       </Button>

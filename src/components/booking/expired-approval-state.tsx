@@ -126,10 +126,11 @@ export function ExpiredApprovalState({
             // ── Variant A — the slot is still free. The ONE coral CTA on this surface (07-UI-SPEC accent #2).
             <div className="flex w-full flex-col items-center gap-2">
               <Button
+                variant="brand"
                 onClick={handleReRequest}
                 disabled={pending}
                 aria-disabled={pending}
-                className="w-full bg-brand text-brand-foreground hover:bg-brand/90 sm:w-auto sm:min-w-64"
+                className="w-full sm:w-auto sm:min-w-64"
               >
                 {pending ? "Sending…" : "Request these times again"}
               </Button>
@@ -142,10 +143,7 @@ export function ExpiredApprovalState({
             // one-click recovery that fails is worse than no button. The forward action goes to the listing,
             // where the calendar can offer what is actually open.
             <div className="flex w-full flex-col items-center gap-2">
-              <Button
-                asChild
-                className="w-full bg-brand text-brand-foreground hover:bg-brand/90 sm:w-auto sm:min-w-64"
-              >
+              <Button asChild variant="brand" className="w-full sm:w-auto sm:min-w-64">
                 <Link href={`/listings/${listingId}`}>Find another time</Link>
               </Button>
               <p className="text-xs text-muted-foreground">
