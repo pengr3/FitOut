@@ -926,26 +926,42 @@ describe.each(["court", "grove"] as const)("%s meets WCAG AA", (theme) => {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> **All five are closed.** Items 1–4 were closed as design decisions in
+> `10-UI-SPEC.md` § Resolved Open Questions, which carries the full computation for each. Item 5 is
+> operationalized as the 15-minute Wave-0 spike in plan `10-02-PLAN.md` Task 2, whose verdict is recorded
+> in `tests/design/helpers/compile-css.ts` under the `THEME-04 SPIKE` marker.
+>
+> The `What we know` / `Recommendation` bullets under each item below are the **pre-decision research
+> draft, retained deliberately and superseded** by the `RESOLVED` line at the top of each item. They are
+> kept — including the hue-160 grove brand and the `--destructive` `#d20817` candidate — so the record of
+> *why* the final values differ from the first pass is not lost. Read the `RESOLVED` line as authoritative
+> and the bullets as history.
 
 1. **Grove's `--success` hue (L13).**
+   - **RESOLVED (UI-SPEC §1):** shift grove's **brand** teal-ward to hue 190 — `oklch(0.5445 0.09 190)` = `#13807c` — and leave `--success` at hue 150 in **both** themes. No per-theme `--success`. Grove's neutrals are re-tinted from this draft's hue 160/165 to hue 190 for hue coherence; C 0.09 is the in-gamut constraint boundary at that hue, not a soft choice.
    - What we know: grove's brand is green/teal (hue 155–190). Today's `--success` is hue 150. Computed candidates that clear the 3:1 icon bar on grove's surfaces: `oklch(0.58 0.14 130)` = `#5e8a21` (3.95 / 4.09 / 3.63, 30° from brand), `oklch(0.55 0.10 120)` = `#6a7a31` (4.57 / 4.73 / 4.20, 40° from brand, reads olive), `oklch(0.60 0.15 135)` = `#56932b` (3.62 / 3.75 / 3.32, 25° from brand).
    - What's unclear: whether the right answer is a distinct grove success hue or a teal-ward grove brand (`oklch(0.5445 0.09 190)` = `#13807c` also passes all bars and puts 40° between brand and success).
    - Recommendation: **decide this at planning, in one line, and record it.** DS-10 ("never colour-only") makes either safe for accessibility; this is a legibility-of-meaning call, not an a11y one. Default if nobody decides: shift grove's brand teal-ward and leave `--success` at hue 150 in both themes — fewer per-theme values, and the hue gap is created by the token that is *supposed* to travel (D-02).
 
 2. **Arbitrary-text pattern scope: px-only or rem-inclusive (Pattern 7).**
+   - **RESOLVED (UI-SPEC §2):** **px-only** — `text-\[[0-9.]+px\]`. The 4 `text-[0.8rem]` vendored sites (`ui/button.tsx:27`, `ui/calendar.tsx:93,102`, `ui/toggle.tsx:20`) are recorded as known, tolerated debt and are asserted as a positive control by plan `10-11-PLAN.md`'s DS-02 gate.
    - What we know: px-only matches DS-13's literal wording and CONTEXT's measured baseline (14 app / 0 vendored). rem-inclusive adds 4 fixes in 3 vendored files (`button.tsx:27`, `calendar.tsx:93,102`, `toggle.tsx:20`).
    - Recommendation: **px-only.** D-15 already widened DS-13 once with a stated reason; widening it twice without one erodes the discipline. Record the 4 rem sites as known, tolerated debt.
 
 3. **`--success` margin in court (3.11:1 on `--muted`).**
+   - **RESOLVED (UI-SPEC §3):** `--success` moves to `oklch(0.58 0.15 150)` = `#1b9247` in both themes. The shipped `#03a14a` measures 3.01:1 on grove's `--muted` and was never viable once grove exists; the same `AA_EPSILON` rule the brand derivation uses is now applied uniformly.
    - What we know: it passes the 3:1 non-text bar with 0.11 to spare. Any in-gamut darkening requires reducing chroma too: `oklch(0.58 0.15 150)` = `#1b9247` gives 4.00 / 3.67.
    - Recommendation: apply the same `AA_EPSILON` the brand derivation uses. A 0.11 margin on a *derived* palette is inconsistent with rejecting a 0.02 margin on the brand.
 
 4. **Does `--destructive` need to be per-theme?**
+   - **RESOLVED (UI-SPEC §4):** **global, and re-derived** to `oklch(0.535 0.215 27.325)` = `#cd0916`. The `#d20817` candidate below is **superseded**: it lands at exactly 4.50 on grove's `/10` tint, failing `bar + 0.05`. The final value is declared identically in **both** theme blocks so THEME-02's key-set equality holds.
    - What we know: a single `oklch(0.546 0.22 27.325)` = `#d20817` clears every bar in both themes including both `/10` tints (court 4.64, grove 4.50 — grove is on the line).
    - Recommendation: keep it global for now and let the solver re-derive per-theme only if grove's background tint changes. Record it as a global token with a comment naming the grove 4.50 margin.
 
 5. **THEME-04's assertion mechanism (A7).**
+   - **RESOLVED (plan 10-02 Task 2):** operationalized as the 15-minute Wave-0 spike. The verdict is written into `tests/design/helpers/compile-css.ts` under the `THEME-04 SPIKE` marker and decides whether THEME-04 asserts in jsdom or on the compiled CSS; plan `10-16-PLAN.md` consumes that verdict.
    - Recommendation: Wave 0 spends 15 minutes proving whether jsdom + `getComputedStyle` resolves `var()` through a nested `[data-theme]`. If not, assert on the compiled CSS (every `@theme inline` entry's utility contains `var(--` and never `var(--color-`) and cover the visual claim with the `/dev/theme` page plus Phase 11's screenshot.
 
 ---
