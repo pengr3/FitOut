@@ -17,7 +17,7 @@
 - [ ] **DS-02**: A type scale exists as tokens (display / heading / body / label with paired line-heights and named weights), and no surface uses an arbitrary `text-[NNpx]` value
 - [ ] **DS-03**: An elevation scale of exactly three steps (raised / overlay / sticky) plus a four-step z-index scale (sticky bar < sheet < dialog < toast) exists, and every shadow in the app maps to one of the three
 - [x] **DS-04**: Motion tokens (fast / base / slow, one standard easing, nothing above 320ms) exist and a global `prefers-reduced-motion` reset is in force
-- [ ] **DS-05**: One focus-visible recipe applies app-wide, using a **darkened neutral** ring (D-132) that clears ≥3:1 against both `--background` and `--card`, and no control relies on a 50%-alpha ring as its only focus indicator
+- [x] **DS-05**: One focus-visible recipe applies app-wide, using a **darkened neutral** ring (D-132) that clears ≥3:1 against both `--background` and `--card`, and no control relies on a 50%-alpha ring as its only focus indicator
 - [ ] **DS-06**: Every colour token pair actually used on a surface meets WCAG AA (4.5:1 text, 3:1 non-text), verified by an automated contrast test rather than by inspection — this corrects the shipped coral CTA (3.60:1), success badge (3.24:1) and focus ring (2.58:1, and ~1.54:1 as rendered)
 - [x] **DS-07**: `--destructive` is brought inside the sRGB gamut so it renders identically across P3 and sRGB displays and does not produce false visual-regression diffs
 - [ ] **DS-08**: The coral accent is a button variant, not a repeated string — the 19 literal `bg-brand …` recipes are replaced by a CVA `brand` variant, and the button hierarchy (brand → default → outline → ghost → link, destructive edge-only) is expressed as variants
@@ -177,7 +177,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | DS-02 | Phase 10 | Pending |
 | DS-03 | Phase 10 | Pending |
 | DS-04 | Phase 10 | Complete |
-| DS-05 | Phase 10 | Pending |
+| DS-05 | Phase 10 | Complete |
 | DS-06 | Phase 10 | Pending |
 | DS-07 | Phase 10 | Complete |
 | DS-08 | Phase 10 | Pending |

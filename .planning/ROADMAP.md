@@ -95,7 +95,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 10-07-PLAN.md — The 12 remaining 50%-alpha focus rings removed, pinned by the DS-05 source-scan gate
+- [x] 10-07-PLAN.md — Every remaining 50%-alpha focus ring removed (14 sites / 15 files, not the 12 estimated), pinned by the DS-05 source-scan gate — **DS-05 complete**
 - [ ] 10-08-PLAN.md — 15 booker, group and search Button call sites converted onto variant="brand"
 
 **Wave 7** *(blocked on Wave 6 completion)*
@@ -347,7 +347,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 7. Bookings Management, Cancellation & Notifications | v1.0 | 20/20 | Complete (verified 4/4 · human UAT passed) | 2026-07-24 |
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
-| 10. Design-System Foundation & Theme Runtime | v1.1 | 6/17 | In Progress|  |
+| 10. Design-System Foundation & Theme Runtime | v1.1 | 7/17 | In Progress|  |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 0/? | Not started | - |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |

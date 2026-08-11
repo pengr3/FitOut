@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-06-PLAN.md (the Button CVA contract — brand variant, touch size, one solid focus recipe) — next 10-07
-last_updated: "2026-08-11T16:06:00.000Z"
-last_activity: 2026-08-11 -- Phase 10 plan 06 complete (coral is a variant with a hover that darkens; 44px is a named opt-in size; the focus ring lost the 50% alpha that made every control render at 2.32:1)
+stopped_at: Completed 10-07-PLAN.md (DS-05 closed — every focus ring in the app is solid, offset by a token, and pinned by a source scan) — next 10-08
+last_updated: "2026-08-11T16:23:38.441Z"
+last_activity: 2026-08-11 -- Phase 10 plan 07 complete (DS-05 closed: every focus ring is solid with a token-coloured offset band, across 15 sites not the 12 the plan counted, pinned by a source scan watched go red)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 6
-  percent: 35
+  completed_plans: 7
+  percent: 41
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 7 of 17
-Status: Executing Phase 10 — plans 01-06 complete. **The Button CVA contract is now committed and three later plans write against it**: `variant="brand"` (coral is opt-in, never the default — D-21), `size="touch"` (44px, opt-in by D-22; nothing enforces adoption, so Phase 17's a11y audit is the declared catch), and THE focus recipe — `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`. Two contrast failures fixed at their source: the 50%-alpha ring (2.32:1 composited — no `--ring` value could fix it) and the brand hover (4.04 court / 3.87 grove as an alpha tint → 5.41 / 5.36 as a `color-mix` that darkens). `destructive`'s hover flips from a deeper tint (4.01) to a solid fill with `--destructive-foreground` (5.52 both themes). 199/199 design tests green, DB-free. Next: 10-07. NOTE — DS-05/DS-08/DS-09 all stay Pending on purpose: each has an ADOPTION clause owned by 10-07 (the 12 remaining `ring-ring/50` sites) and 10-08/10-09 (the 20 `<Button>` conversions; the 9 non-Button `bg-brand` recipes must NEVER be converted). New deferred item D-2: `button.tsx`'s `destructive` variant still overrides the ring with `ring-destructive/20`, which 10-07's `ring-ring/50` scan will not see.
-Last activity: 2026-08-11 -- Phase 10 plan 06 complete (coral is a variant with a hover that darkens; 44px is a named opt-in size; the focus ring lost the 50% alpha that made every control render at 2.32:1)
+Plan: 8 of 17
+Status: Executing Phase 10 — plans 01-07 complete. **DS-05 is CLOSED — the first requirement this phase has marked complete.** Every focus indicator in the app is a solid `--ring` with a `--background`-coloured offset band, and a committed source scan (`tests/design/focus-recipe.test.ts`, 9 assertions) keeps it that way. THE COUNT WAS NOT 12. The plan estimated 12 remaining half-alpha rings; the truth was 14 sites across 15 files, and three separate widenings each found what the narrower spelling was structurally incapable of seeing: (1) focus-visible-PREFIXED → focus-SCOPED found `calendar.tsx` (react-day-picker's `data-focused` attribute) and `input-group.tsx` (a `has-` selector on the wrapper) — a grep for the plan's literal returns clean while both still ship at 2.32:1; (2) the literal → ANY alpha on a focus ring colour (D-2, absorbed) found `badge.tsx` carrying the identical override D-2 had only named in `button.tsx`; (3) ring COLOUR → ring OFFSET COLOUR found `search-result-card.tsx` setting an offset width with no offset colour, painting Tailwind's hardcoded white band on grove's tinted background. 208/208 design tests green, DB-free, 5.5s. The gate was watched go RED (3 failed / 6 passed on a reinstated alpha) before being trusted. Next: 10-08. NOTE — D-2 is CLOSED; new deferred items D-3 (3 controls now paint a 1px outline INSIDE the 2px ring — the UI-SPEC sanctions them, so Phase 11's visual pass owns the call), D-4 (invalid-state rings are still low-alpha, 18 occurrences, deliberately out of DS-05's "only focus indicator" wording), D-5 (`slot-picker.tsx`'s `ring-brand/50` anchor ring — a selection affordance, not focus). D-1 sharpened with build evidence: the banned rule is in the SHIPPED bundle right now with ZERO source references, emitted purely from prose — which is why this gate is a source scan and not a compile assertion.
+Last activity: 2026-08-11 -- Phase 10 plan 07 complete (DS-05 closed: every focus ring is solid with a token-coloured offset band, across 15 sites not the 12 the plan counted, pinned by a source scan watched go red)
 
 ## Performance Metrics
 
@@ -143,6 +143,7 @@ Last activity: 2026-08-11 -- Phase 10 plan 06 complete (coral is a variant with 
 | Phase 10 P04 | 20min | 3 tasks | 6 files |
 | Phase 10 P05 | 13min | 3 tasks | 7 files |
 | Phase 10 P06 | 12min | 1 task | 3 files |
+| Phase 10 P07 | 18min | 2 tasks tasks | 19 files files |
 
 ## Accumulated Context
 
@@ -329,6 +330,9 @@ Recent decisions affecting current work:
 - [Phase 10]: 10-02: parseThemeTokens/parseGlobalTokens are total (return {} for an absent block) while readThemeTokens/readGlobalTokens THROW — the file-reading path is where an empty result is always a bug, and returning {} there is how a downstream gate passes vacuously (T-10-06).
 - [Phase ?]: 10-03: every corrected colour token is a solver output at AA_EPSILON=0.05, cited at its point of declaration — the culori test is the authority and reproduced the UI-SPEC table on all 29 pairs in both themes with zero discrepancies (D-12)
 - [Phase ?]: 10-03: failing-but-legal pairings are carried as data in EXCLUDED_PAIRS with a stated reason, never as a silently absent row; every new design gate carries a positive control so it cannot pass vacuously
+- [Phase ?]: [10-07]: DS-05 closed. The plan estimated 12 remaining half-alpha focus rings; the true number was 14 sites across 15 files. Three widenings each found what the narrower spelling could not see: focus-visible-prefixed -> focus-SCOPED found calendar.tsx (data-attribute driven) and input-group.tsx (has-selector driven); the literal -> ANY alpha on a focus ring colour (D-2) found badge.tsx alongside button.tsx; ring colour -> ring OFFSET colour found search-result-card.tsx painting Tailwind's hardcoded white band.
+- [Phase ?]: [10-07]: The 'dark:' pin is TWO different metrics and nobody had said so. 4 is a LINE count over button.tsx; 56 is an OCCURRENCE count over src/components/ui/**; the awk -F: form written into 10-07's own acceptance criteria computes a THIRD number (24) that matched neither BEFORE any edit. Vendored occurrence total is now 54 (D-2's two dark-mode twins). Any future re-pin must state which metric it means.
+- [Phase ?]: [10-07]: The grep-versus-comment collision is now a SIX-time pattern, and this time it landed in a file the plan explicitly fenced off - globals.css carried the banned literal twice in PROSE while Task 1 said do not touch it and its own grep criterion demanded zero occurrences. Same resolution: comments only, literals named descriptively, and each rewritten comment now states WHY it is phrased that way so a later documentation improvement cannot break a committed gate.
 
 ### Pending Todos
 
@@ -429,8 +433,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-11T15:07:13.087Z
-Stopped at: Completed 10-03-PLAN.md (two-theme colour contract + DS-01 font fix) — next 10-04
+Last session: 2026-08-11T16:23:38.423Z
+Stopped at: Completed 10-07-PLAN.md (DS-05 closed — every focus ring in the app is solid, offset by a token, and pinned by a source scan) — next 10-08
 continued from v1.0's Phase 9, not reset), with `.planning/REQUIREMENTS.md` § Traceability populated:
 **75/75 requirements mapped, 0 orphans, 0 duplicates.** The shipped v1.0 `<details>` block, the v1.0
 Progress rows, and Backlog **999.1** are preserved verbatim; **999.2 was removed from the Backlog**
