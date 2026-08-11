@@ -104,11 +104,11 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 10-10-PLAN.md — Status vocabulary — one closed four-tone union, and green retreats to the icon
+- [x] 10-10-PLAN.md — Status vocabulary — one closed four-tone union, and green retreats to the icon
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 10-11-PLAN.md — The 14 arbitrary text-[NNpx] sizes onto the named type steps
+- [x] 10-11-PLAN.md — The 14 arbitrary text-[NNpx] sizes onto the named type steps
 - [ ] 10-12-PLAN.md — The 14 shadow call sites collapsed onto three named elevation steps
 
 **Wave 10** *(blocked on Wave 9 completion)*
@@ -347,7 +347,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 7. Bookings Management, Cancellation & Notifications | v1.0 | 20/20 | Complete (verified 4/4 · human UAT passed) | 2026-07-24 |
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
-| 10. Design-System Foundation & Theme Runtime | v1.1 | 9/17 | In Progress|  |
+| 10. Design-System Foundation & Theme Runtime | v1.1 | 11/17 | In Progress|  |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 0/? | Not started | - |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
