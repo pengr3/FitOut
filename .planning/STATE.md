@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-09-PLAN.md (DS-08 CLOSED — the last 5 host CTAs took variant="brand", and the 90%-alpha tint left the 5 places that were never buttons) — next 10-10
-last_updated: "2026-08-12T01:36:07.691Z"
-last_activity: 2026-08-12 -- Phase 10 plan 09 complete (DS-08 closed: 20 conversions gated by per-file maps, 9 non-Button token classes pinned by name across 6 files, zero bg-brand/90 anywhere under src/)
+stopped_at: Completed 10-10-PLAN.md (DS-10 CLOSED — one four-tone union, four green chips re-treated, one legal filled surface) — next 10-11
+last_updated: "2026-08-11T18:02:17.875Z"
+last_activity: 2026-08-12 -- Phase 10 plan 10 complete (DS-10 closed: one closed four-tone union replaces two drifted vocabularies, four filled-green chips re-treated, one legal filled surface pinned by name)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 9
-  percent: 53
+  completed_plans: 10
+  percent: 59
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 10 of 17
-Status: Executing Phase 10 — plans 01-09 complete. **DS-08 IS CLOSED, and the 20 / 9 split is now a fact the suite enforces rather than a claim in a spec.** The last 5 `<Button>` call sites (the wizard's publish button, both "Create listing" CTAs on `/host/listings` and both on `/host`) took `variant="brand"`, bringing the repo-wide total to exactly **20** across `src/app` + `src/components`. The other **9** accent lines stay token classes and are now pinned BY NAME and BY COUNT across 6 files — wizard 2, availability-calendar 1, date-pass-picker 1, slot-picker 3, spots-left-chip 1, notification-item 1 — so an over-eager future sweep fails with the broken file named instead of a count quietly moving. THE ALPHA BAN WAS APPLIED WHERE IT ACTUALLY LIVES: `bg-brand/90` measures 4.04:1 (court) / 3.87:1 (grove) because a tint over a light surface LIGHTENS, and that is a property of the alpha rather than of the `<Button>` element — so it was removed from 4 non-Button hovers under `availability/` (variant prefixes preserved) AND from the 1 STATIC occurrence on the wizard's done step marker, which no earlier plan owned. That last one takes the SOLID token rather than a `color-mix`, deliberately: done-vs-current is already carried by the `CheckIcon` and by `aria-current="step"`, and a `color-mix` would have silently dropped the pinned 9 to 8 (T-10-41, recorded in a code comment). The gate (`tests/design/brand-recipe.test.ts`, now 18 assertions, was 8) was watched go RED on a deliberately converted `slot-picker.tsx` — exit 1, 5 failed / 13 passed, each failure naming the file — then green at 18. 226/226 design tests, DB-free, ~5s; 1197/1197 DB suite; the `partial-grant-notice` regression watch holds 13/13. The replacement classes were verified to COMPILE from a cleared `.next`, not merely to be present in source. Next: 10-10. NOTE — DS-09 stays Pending (2 adopters of `size="touch"`; the requirement says "the standard for booker-facing primary actions and all mobile controls"). REQUIREMENTS.md says 19 literal recipes; the tree had 20 — recorded, not absorbed. The grep-versus-comment collision recurred for an EIGHTH time (self-inflicted: a comment quoting `variant="brand"` made the host count 6) and a NINTH (pre-existing prose in `src/lib/design/contrast-pairs.ts` quoted the banned class twice, making the plan's own repo-wide criterion unsatisfiable — rephrased rather than carving an exception into the ban). **D-1 got its third sighting and its first measurement:** after a clean `rm -rf .next` rebuild the shipped stylesheet still carries **770 bytes / 0.58%** of rules for a class that exists in no component, emitted by Tailwind's repo-rooted content scan from the phase's own planning markdown — provably including `10-09-PLAN.md:140`, the line ordering the deletion. Two scanners, two roots; the design gate's walker roots at `src/`, Tailwind's does not. Not fixed (owned by 10-12). D-6's remaining e2e failure was RE-PROVEN pre-existing by checking all 7 modified files out at `2db897f`.
-Last activity: 2026-08-12 -- Phase 10 plan 09 complete (DS-08 closed: 20 conversions gated by per-file maps, 9 non-Button token classes pinned by name across 6 files, zero bg-brand/90 anywhere under src/)
+Plan: 11 of 17
+Status: Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status vocabulary is now a TYPE rather than a claim.** Two tone vocabularies shipped and neither was the design system's: `booking-status.ts` declared a 3-value union, `payout-ledger-status.ts` a 4-value one, and the value they shared was a filled green chip measuring 3.24:1. Both are now typed against ONE `StatusTone` — `neutral / positive / attention / soft-accent` — with `STATUS_TONE_RECIPES` as a TOTAL `Record` over it. **The compile gate was watched, not assumed:** a fifth tone without a recipe produced `TS2741: Property 'warning' is missing … but required in type 'Record<…>'`, `tsc` exit 2, then reverted, and the verbatim error is recorded in the test header. D-14 is enforced STRUCTURALLY: the three lifecycle tones share `bg-muted` + `text-foreground` and differ ONLY in a distinct icon hue, so a `positive` whose text carried the hue fails a test before any pixel is drawn. **FOUR filled-green chips were retired, not the three the plan's own line references implied** — confirmed, paid, payouts-enabled and the listing card's Live badge; the survivor count is pinned to the ONE glyph-only wizard step marker BY NAME (3.83/3.84 non-text, the single legal `--success-foreground` pairing). TWO of the four had NO ICON AT ALL and were therefore colour-only: the payouts-enabled banner (the plan flagged this) and the Live listing chip (the plan said "keep the badge's existing icon" — there was none). Both gained one. The gate (`tests/design/status-vocab.test.ts`, 13 assertions) was watched go RED on a deliberately reinstated `paid` fill — 3 failed / 10 passed, each failure naming the file, and the type layer correctly unmoved. Class matching is BOUNDARY-SAFE (`text-success(?![\w-])`) because a plain substring check reads `text-success-foreground` as `text-success` and would have reported the wizard as a positive call site. Design gate 239/239 (was 226), DB-free, ~5s; full DB suite 1197/1197 unchanged. Two shipped suites asserted the retired tone names and were rewritten to assert the MEANINGS instead (approved is not the paid signal; only confirmed is). Replacement classes verified to COMPILE from the production stylesheet, not merely to be present in source. Next: 10-11. NOTE — `soft-accent` is the one tone declared with no adopter WIRED: `spots-left-chip.tsx` already renders those exact three classes literally, but rewiring it moves a count `brand-recipe.test.ts` pins by name, so it is logged as D-7 rather than absorbed. The grep-versus-comment collision was AVOIDED for the first time by design in three separate places (the tone module's header, the wizard's exemption comment, and the two retyped view modules) — each names things descriptively instead of quoting the string its own criterion counts.
+Last activity: 2026-08-12 -- Phase 10 plan 10 complete (DS-10 closed: one closed four-tone union, four green chips re-treated, 13-assertion gate watched red)
 
 ## Performance Metrics
 
@@ -146,6 +146,7 @@ Last activity: 2026-08-12 -- Phase 10 plan 09 complete (DS-08 closed: 20 convers
 | Phase 10 P07 | 18min | 2 tasks tasks | 19 files files |
 | Phase 10 P08 | 39min | 3 tasks | 13 files |
 | Phase 10 P09 | 25min | 2 tasks | 9 files |
+| Phase 10 P10 | 22min | 3 tasks tasks | 11 files files |
 
 ## Accumulated Context
 
@@ -338,6 +339,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [10-09]: DS-08 CLOSED: all 20 <Button> accent recipes are now the CVA variant; the 9 non-Button token classes are pinned BY NAME across 6 files, and the gate was watched go red on a deliberately converted slot-picker (5 failed / 13 passed, each failure naming the file). DS-09 stays Pending at 2 adopters. REQUIREMENTS.md says 19 literal recipes; the tree had 20 — recorded, not absorbed.
 - [Phase ?]: [10-09]: The bg-brand/90 ban is a property of the ALPHA, not of the <Button> element — an alpha tint over a light surface LIGHTENS, so 4.04:1 court / 3.87:1 grove holds wherever it appears. Removed from 4 availability hovers AND 1 STATIC wizard step marker, none of which is a button. The static one takes the SOLID token rather than a color-mix, because a color-mix would have silently dropped the pinned count from 9 to 8 (T-10-41).
 - [Phase ?]: [10-09]: Two scanners, two roots — and only one had ever been reasoned about. The design gate's walker roots at src/, so 'a file that bans a string may name it' holds for tests/. TAILWIND's content scan roots at the REPO, so it does not: 770 bytes / 0.58% of the shipped stylesheet is rules for a class in no component, emitted from planning markdown including the very plan line ordering its deletion. Third D-1 sighting, first measurement. Any assertion of the shape 'the banned recipe is absent from the COMPILED output' is unsatisfiable by construction; this is why the gate is a source scan.
+- [Phase ?]: DS-10 CLOSED: status tone is a closed four-tone union (neutral/positive/attention/soft-accent) with a TOTAL Record recipe map — a fifth tone without a recipe is TS2741, observed and reverted
+- [Phase ?]: The filled green badge is retired at all four status sites; --success-foreground survives with exactly ONE legal pairing, the wizard's glyph-only step marker, pinned by name in tests/design/status-vocab.test.ts
 
 ### Pending Todos
 
@@ -438,8 +441,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-11T17:36:07.673Z
-Stopped at: Completed 10-09-PLAN.md
+Last session: 2026-08-11T18:02:17.851Z
+Stopped at: Completed 10-10-PLAN.md (DS-10 CLOSED — one four-tone union, four green chips re-treated, one legal filled surface) — next 10-11
 continued from v1.0's Phase 9, not reset), with `.planning/REQUIREMENTS.md` § Traceability populated:
 **75/75 requirements mapped, 0 orphans, 0 duplicates.** The shipped v1.0 `<details>` block, the v1.0
 Progress rows, and Backlog **999.1** are preserved verbatim; **999.2 was removed from the Backlog**

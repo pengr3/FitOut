@@ -261,3 +261,34 @@ is absent from the compiled output"* is unsatisfiable by construction while this
 `src/app/globals.css`, which changes what the production bundle contains and is owned by 10-12.
 `src/app/globals.css` is not in 10-09's file scope, and 10-09's gate is deliberately a SOURCE scan
 for precisely this reason.
+
+---
+
+## D-7 (2026-08-12, from 10-10) — `soft-accent` is declared with no adopter wired to it
+
+`STATUS_TONE_RECIPES["soft-accent"]` ships as `bg-brand/10` / `text-foreground` / `text-brand`, which
+is **exactly** what `src/components/availability/spots-left-chip.tsx:64,66` already renders — as three
+literal classes that know nothing about the vocabulary. So the tone is correct and shipped, but the
+one surface that embodies it is not routed through it, and a future change to the soft accent would
+move the recipe and leave the chip behind.
+
+**Not fixed here, and the reason is a gate rather than laziness.** `spots-left-chip.tsx` is one of the
+6 files whose accent-line count `tests/design/brand-recipe.test.ts` pins BY NAME (1 line, part of the
+DS-08 nine). Rewiring it to read `STATUS_TONE_RECIPES` changes how many lines in that file match
+`bg-brand`, so the rewire and the gate have to move together — and the file is not in 10-10's scope.
+`status-vocab.test.ts` deliberately does NOT assert a soft-accent adopter for the same reason: an
+assertion that the chip imports the vocabulary would be asserting something this plan is not allowed
+to make true.
+
+The three lifecycle tones (`neutral`, `positive`, `attention`) are all genuinely reached — `positive`
+by four call sites pinned as a set, `neutral` and `attention` by both derive functions driven over
+every status. `soft-accent` is the only tone with a declared-but-unwired adopter.
+
+## D-1 UPDATE (2026-08-12, from 10-10) — a fourth phantom recipe, from this plan's own gate
+
+`tests/design/status-vocab.test.ts` must name the retired filled pairing verbatim in order to pin it
+to one file, so `bg-success` and `text-success-foreground` now join the accent recipes in Tailwind's
+repo-rooted content scan. `src/app/(host)/host/listings/[id]/edit/wizard.tsx` still carries the real
+one, so nothing is phantom *yet* — the day that marker changes, the utility survives in the bundle
+with no element using it, exactly as D-1 describes. `10-10-PLAN.md` itself quotes the pairing three
+times, which is the same self-inflicted shape 10-09 measured. Owned by 10-12 (`@source` narrowing).
