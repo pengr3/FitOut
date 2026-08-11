@@ -50,12 +50,17 @@
 //      produces the same shape across `not-data-[variant=destructive]:` and
 //      `data-[variant=destructive]:`.
 //
-//   B. `dark:`-SCOPED UTILITIES ARE SKIPPED. The inventory is measured against the two
-//      `[data-theme]` blocks, and `config/design-tokens-source.mjs` never reads the `.dark` block
-//      at all — by design, since it redeclares ~30 names and would corrupt every per-theme
-//      measurement. A `dark:bg-input/30` therefore has no measurable counterpart in the inventory,
-//      and pairing it against a light-mode foreground compares two colours that never coexist.
-//      The 54 remaining `dark:` occurrences are vendored, pinned debt (THEME-05 / dark-scope.test.ts).
+//   B. `dark:`-SCOPED UTILITIES ARE SKIPPED, because they cannot paint. `globals.css:32` defines the
+//      variant as `&:is(.dark *)`, and NOTHING ACTIVATES `.dark`: the provider writes
+//      `attribute="data-theme"` specifically to avoid that collision, `enableSystem` is false, and
+//      the theme list is overridden to court/grove (D-03/D-06 — both themes are light-background and
+//      the `.dark` block is dormant by decision, not by accident). The assertion below pins all
+//      three, so this narrowing cannot quietly outlive its justification. The 54 surviving `dark:`
+//      occurrences are vendored, pinned debt (THEME-05 / `dark-scope.test.ts`); they are also
+//      unmeasurable here even in principle, since `config/design-tokens-source.mjs` never reads the
+//      `.dark` block — by design, as it redeclares ~30 names and would corrupt every per-theme
+//      value. IF `.dark` IS EVER ACTIVATED, this narrowing must be replaced by a third theme in the
+//      inventory rather than left in place.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 //
 // NOT COVERED — real blind spots, listed so the next reader under-trusts this file rather than over-trusts it:
@@ -67,6 +72,10 @@
 //     DIFFERENT non-empty chains that CAN co-apply (`hover:bg-muted` with `focus:text-brand`) are
 //     not paired here. Chains are also compared as ordered strings, so `focus:hover:` and
 //     `hover:focus:` would read as different.
+//   • Narrowing B's dormancy pin covers the app-wide mechanisms, not a hand-written `dark` class on
+//     one subtree. Nothing in `src/` writes one today — the only two bare `dark` string literals are
+//     `ui/sonner.tsx:29`'s value for Sonner's own `theme` prop, which is not a CSS class — but that
+//     is a measurement, not an assertion, and a future one would silently make skipped utilities live.
 //   • The lookup is ALPHA-BLIND: it asks whether the (fg, bg) pair is declared somewhere in the
 //     inventory, not whether the specific opacity a call site uses is the declared one. A component
 //     writing `bg-destructive text-destructive` solid passes on the strength of the `/10` rows.
@@ -84,6 +93,16 @@ import ts from "typescript";
 import { LEAK_SCAN_PREFIXES } from "../../config/design-leak-patterns.mjs";
 import { readThemeTokens, THEME_NAMES } from "./helpers/compile-css";
 import { CONTRAST_PAIRS } from "../../src/lib/design/contrast-pairs";
+
+/**
+ * Read as TEXT rather than imported: the provider is a `"use client"` module that pulls React and
+ * next-themes, and this file runs in the node environment. `theme-nesting.test.ts` reads its
+ * sources the same way for the same reason.
+ */
+const THEME_PROVIDER_SOURCE = readFileSync(
+  resolve(process.cwd(), "src/components/theme/theme-provider.tsx"),
+  "utf8",
+);
 
 const SRC_DIR = resolve(process.cwd(), "src");
 
@@ -391,9 +410,24 @@ describe("the declared pair inventory matches what components render", () => {
     expect(keys).toHaveLength(2);
   });
 
-  it("skips dark:-scoped utilities, which the inventory cannot measure (narrowing B)", () => {
+  it("skips dark:-scoped utilities, which cannot paint (narrowing B)", () => {
     expect(pairingsIn("text-foreground dark:bg-input/30")).toEqual([]);
     expect(colourUsesIn("dark:bg-input/30")).toEqual([]);
+  });
+
+  it("pins the dormancy that makes narrowing B legitimate", () => {
+    // Skipping a live utility would be a hole in the gate. These three props are the mechanism by
+    // which the variant's selector could start matching, and all three are asserted so the
+    // narrowing cannot outlive its justification. If any of them ever changes, this goes red and
+    // the drift check must grow a third theme rather than keep skipping.
+    expect(THEME_PROVIDER_SOURCE).toContain('attribute="data-theme"');
+    expect(THEME_PROVIDER_SOURCE).toContain("enableSystem={false}");
+    expect(THEME_PROVIDER_SOURCE).toContain('export const THEMES = ["court", "grove"] as const;');
+    // The variant's own selector, from the stylesheet: it matches a descendant of `.dark`, and
+    // nothing in the app is `.dark`.
+    expect(
+      readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8"),
+    ).toContain("@custom-variant dark (&:is(.dark *));");
   });
 
   it("goes red on an undeclared pairing", () => {
