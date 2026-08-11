@@ -167,7 +167,7 @@ export default function LoginPage() {
 
         <div className="relative text-center text-xs text-muted-foreground">
           <span className="bg-card px-2">or</span>
-          <div className="absolute inset-x-0 top-1/2 -z-10 border-t" />
+          <div className="absolute inset-x-0 top-1/2 -z-(--z-sticky) border-t" />
         </div>
 
         <Button

@@ -107,11 +107,11 @@ export function BookingRow({ row }: { row: BookingRowData }) {
         </dl>
 
         {/* The stacking class on the CTA below lifts it above the card's stretched-link overlay, so
-            the button is clickable rather than swallowed by it. Plan 10-13 remaps that level onto a
-            z-index token and counts the sites it changes; it is deliberately untouched here, and
-            named descriptively rather than quoted, so this plan cannot inflate that count. */}
+            the button is clickable rather than swallowed by it. It now reads the sticky step of the
+            global four-layer scale instead of a bare 10, so the ordering is reviewable in one place.
+            Named descriptively rather than quoted, because the DS-03 gate counts that string. */}
         {row.showPayNow ? (
-          <Button asChild variant="brand" className="relative z-10 w-full">
+          <Button asChild variant="brand" className="relative z-(--z-sticky) w-full">
             <Link href={`/listings/${row.listingId}/book?hold=${row.bookingId}`}>Pay now</Link>
           </Button>
         ) : null}

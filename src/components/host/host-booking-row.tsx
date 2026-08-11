@@ -118,8 +118,11 @@ export function HostBookingRow({ row }: { row: HostBookingRowData }) {
         </dl>
 
         {row.status === "requested" ? (
-          // `relative z-10` lifts Approve/Decline ABOVE the card-overlay link so they stay clickable (T6).
-          <div className="relative z-10">
+          // The stacking class below lifts Approve/Decline ABOVE the card-overlay link so they stay
+          // clickable (T6). It reads the sticky step of the global four-layer scale rather than a
+          // bare 10; named descriptively rather than quoted, because the DS-03 gate counts that
+          // string and a comment that repeats it is indistinguishable from a real call site.
+          <div className="relative z-(--z-sticky)">
             <RequestActions
               requestId={row.bookingId}
               bookerLabel={row.bookerLabel}
