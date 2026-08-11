@@ -495,3 +495,36 @@ leak patterns; D-18, the generated tokens) is against second lists.
 bundle; or Phase 17's audit. If either takes it, the honest fix is probably not a safelist but a
 build-time decision about whether the route is emitted at all. Recording the number here so it is a
 known 0.93% rather than a surprise.
+
+### D-9 DISPOSITION (2026-08-12, from 10-17) — ACCEPTED as debt, with the number re-verified
+
+10-17 was the nominated owner and looked at it. **Accepted, not fixed**, and the reasoning is
+recorded here rather than left implicit.
+
+**The number is unchanged, verified WITHOUT a rebuild.** Summing the emitted stylesheet chunks after
+this plan's `npm run build` gives 105,550 + 10,572 + 3,713 = **119,835 bytes**, byte-identical to
+10-16's figure. This plan adds no class to any file under `src/`, so that is the expected result and
+it is stated as a measurement rather than an assumption.
+
+**Why neither removal mechanism was taken.** 10-16 priced both and this plan agrees with both
+verdicts. `@source not` on the directory makes `/dev/theme` render UNSTYLED in development — and
+`/dev/theme` is precisely the surface plan 10-17's own human checkpoint (Task 3) is performed on, so
+that fix would break the acceptance step it is competing with. An `@source inline(…)` safelist is a
+second list that drifts from the page the moment a section is edited, which is the exact failure
+D-16 (one pattern list, two consumers) and D-18 (generate, do not retype) exist to prevent.
+
+**Why the third option was NOT invented.** 10-16 gestured at "a build-time decision about whether the
+route is emitted at all". That means a conditional content root or a build variant — net-new build
+configuration, in the same class as the GitHub Actions workflow this plan is explicitly forbidden to
+create ("no CI exists to amend, and inventing one is net-new scope this phase did not agree to").
+Adding build-config machinery in the plan whose entire subject is that the build script is the only
+gate boundary would be the wrong trade.
+
+**The cost in context.** 10-12 narrowed the content root and took the shipped stylesheet from
+**134,132 → 119,079** bytes (−15,053, −11.2%). `/dev/theme` puts 1,103 of those bytes back. Net
+across the phase the app ships **134,132 → 119,835**, a **−14,297 byte (−10.66%)** improvement. The
+0.93% is real and it is a rounding error against what the same phase removed.
+
+**Still open, and re-nominated to Phase 17's audit** — not because anything is wrong, but so the
+number is re-checked once rather than carried forever. If `/dev/theme` grows, the delta grows with
+it; that is the thing to watch, not today's 1,103.
