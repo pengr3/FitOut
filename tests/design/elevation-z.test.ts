@@ -25,18 +25,27 @@
 //
 // OBSERVED RED, NOT ASSUMED (T-10-45, recorded per the plan's acceptance criteria):
 //   • `shadow-overlay` reverted to `shadow-md` at `src/components/ui/popover.tsx:33` → this file
-//     exits NON-ZERO: **4 failed / 24 passed**, on exactly the four assertions that should care —
+//     exits NON-ZERO: **5 failed / 26 passed**, on exactly the five assertions that should care —
 //     the default-ladder scan (diff naming the file and quoting the class), the allowed-vocabulary
 //     assertion (`shadow-md` surfacing in the observed name set), the named-site COUNT (8 where 9
-//     are contracted), and the overlay inventory (whose diff showed `popover.tsx` missing from the
-//     four files that must carry the step). Every token and compiled-CSS assertion above stayed
-//     GREEN — the correct blast radius, and the one-line argument for this whole section: a token
-//     contract cannot tell you whether anything obeys it.
+//     are contracted), the overlay inventory (whose diff showed `popover.tsx` missing from the four
+//     files that must carry the step), and the COMPILED-OUTPUT assertion, which caught the same
+//     regression in the emitted stylesheet rather than in the source. Every token assertion above
+//     stayed GREEN — the correct blast radius, and the one-line argument for this whole section: a
+//     token contract cannot tell you whether anything obeys it.
 //   • The count assertion firing is the part worth noticing. It is what makes a DELETE fail as
 //     loudly as a WRONG NAME, and a delete is the failure mode a zero-violations gate is blindest
-//     to. Four failures, not three, because the reinstated literal is simultaneously a banned name
-//     AND a missing named site.
-//   • Reverted → exits 0 with **28 passed** (13 before this plan).
+//     to. The reinstated literal is simultaneously a banned name AND a missing named site.
+//   • Reverted → exits 0 with **31 passed** (13 before this plan).
+//
+// AND A COMPILED-OUTPUT CLAIM, WHICH THIS PHASE COULD NOT SOUNDLY MAKE UNTIL NOW. Deferred item D-1
+// held that "utility X is absent from the compiled stylesheet" was unsatisfiable in this repo:
+// Tailwind's automatic source detection rooted at the REPOSITORY, so `.planning` markdown was
+// content and a sentence of prose emitted a real rule. Plan 10-12 closed it by narrowing the
+// detection root to `src/` (see the comment at the top of `globals.css`), which removed 119 dead
+// selectors and 15,053 bytes — 11.2% of the shipped CSS — with zero real utilities lost. So the
+// strongest DS-03 statement is now available and is asserted below: the SHIPPED stylesheet contains
+// no default shadow rule at all, not merely no source reference to one.
 //
 // NOT COVERED — real blind spots:
 //   • The scan proves the class NAMES are right. It cannot see `cn()`/tailwind-merge precedence at a
@@ -60,6 +69,7 @@ import { resolve, join, relative } from "node:path";
 import {
   readThemeTokens,
   readGlobalTokens,
+  compileGlobalsCss,
   compileGlobalsCssWith,
   declarationsFor,
   THEME_NAMES,
@@ -524,6 +534,49 @@ describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME 
     // that matched once per line would report 8 named sites and 4 survivors and still look tidy.
     expect(scan.byName["shadow-raised"]["src/components/ui/tabs.tsx"]).toBe(1);
     expect(scan.byName["shadow-none"]["src/components/ui/tabs.tsx"]).toBe(1);
+  });
+});
+
+describe("DS-03 in the SHIPPED stylesheet — the claim D-1 used to make unsound", () => {
+  /** Every step of Tailwind's default ladder. None may survive into the emitted CSS. */
+  const DEFAULT_LADDER = ["xs", "sm", "md", "lg", "xl", "2xl"] as const;
+
+  it("emits no default shadow rule at all, from any source", async () => {
+    // STRONGER THAN THE SOURCE SCAN, and only assertable since the content root was narrowed to
+    // `src/`. Before that, this repo's own planning documents and this very file emitted `.shadow-md`
+    // into the bundle, so the assertion was red against a perfectly clean tree — which is precisely
+    // why plan 10-11's gate deliberately refused to make it. It now says what DS-03 actually means:
+    // no user can receive a frozen shadow, not merely that no component references one.
+    const css = await compileGlobalsCss();
+    for (const step of DEFAULT_LADDER) {
+      expect(
+        declarationsFor(css, `.shadow-${step}`),
+        `.shadow-${step} is still emitted into the shipped stylesheet`,
+      ).toBeNull();
+    }
+  });
+
+  it("still emits the two named steps that have real call sites", async () => {
+    // THE CONTROL ON THE NARROWING, and the assertion that matters most in this block. A content
+    // root mistyped to a directory that does not exist — or narrowed one level too far — makes the
+    // absence assertion above pass PERFECTLY while the app ships with no utilities whatsoever. These
+    // two rules are emitted only because the scan still reaches `src/`, unforced and unsafelisted.
+    const css = await compileGlobalsCss();
+    expect(
+      declarationsFor(css, ".shadow-raised"),
+      "the content scan no longer reaches src/ — the absence assertion above is now vacuous",
+    ).not.toBeNull();
+    expect(declarationsFor(css, ".shadow-overlay")).not.toBeNull();
+  });
+
+  it("leaves `shadow-sticky` out of the bundle precisely because nothing uses it", async () => {
+    // The third step is declared in `@theme` and referenced by no component, so an honest content
+    // scan must NOT emit it. Together with the two above, this is what proves the emitted set tracks
+    // real usage rather than prose: three declared steps, two shipped, and the difference is exactly
+    // the one with no call site. `compileGlobalsCssWith` forces it elsewhere in this file to prove
+    // it would compile theme-aware IF adopted.
+    const css = await compileGlobalsCss();
+    expect(declarationsFor(css, ".shadow-sticky")).toBeNull();
   });
 });
 

@@ -79,6 +79,7 @@
 //     nothing about pixels.
 
 import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import postcss from "postcss";
 import tailwindcss from "@tailwindcss/postcss";
@@ -104,21 +105,59 @@ export {
 let compiled: Promise<string> | null = null;
 
 /**
+ * The directory every compile is attributed to. Identical to `globals.css`'s own directory, so
+ * `@import` resolution and the stylesheet's `source("../")` content root behave exactly as they do
+ * in the real build — see `compileAttributedTo` for why the FILENAME has to vary.
+ */
+const GLOBALS_DIR = dirname(GLOBALS_CSS_PATH);
+
+/**
+ * Compile `text` through Tailwind, attributing it to a DISTINCT filename inside `globals.css`'s own
+ * directory.
+ *
+ * WHY THE FILENAME MUST VARY — a measured bug, not a precaution. `@tailwindcss/postcss` caches its
+ * compiled design system KEYED ON THE INPUT FILE PATH. Every compile in this file previously passed
+ * `from: GLOBALS_CSS_PATH`, so the FIRST compile in a test file won, and every later one silently
+ * returned the first one's candidate set — the appended `@source inline(…)` was accepted and then
+ * ignored. Reproduced directly: with a shared `from`, a compile safelisting `shadow-md` emitted no
+ * `.shadow-md` rule at all; with distinct filenames it emits one.
+ *
+ * That defect was INVISIBLE until plan 10-12 narrowed the content root to `src/`. Before the
+ * narrowing, `.shadow-md` was emitted anyway — from the phase's own planning prose (deferred item
+ * D-1) — so `elevation-z.test.ts`'s "the default shadows are still literal" control had been passing
+ * for entirely the wrong reason: not because its safelist worked, but because a markdown file
+ * mentioned the class. Fixing the content root is what made the stale cache observable, which is a
+ * fair summary of why D-1 mattered beyond bytes.
+ *
+ * The directory is unchanged, so `@import "tailwindcss"`, `@import "tw-animate-css"`,
+ * `@import "shadcn/tailwind.css"` and `source("../")` all resolve identically. Nothing is written to
+ * disk — the path is an attribution label for the compiler, and these names are never created.
+ */
+function compileAttributedTo(text: string, filename: string): Promise<string> {
+  return postcss([tailwindcss()])
+    .process(text, { from: join(GLOBALS_DIR, filename) })
+    .then((result) => result.css);
+}
+
+/**
  * Compile the real `src/app/globals.css` through Tailwind v4 and return the emitted CSS.
  *
- * `from` is passed so `@import "tailwindcss"`, `@import "tw-animate-css"` and
- * `@import "shadcn/tailwind.css"` resolve against the stylesheet's own directory — without it the
- * imports are left unresolved and the output is a near-empty file that every assertion then reads
- * as "the utility is missing".
+ * The compile is attributed to a path inside the stylesheet's own directory so `@import` resolution
+ * and the content root behave as they do in the real build — without that the imports are left
+ * unresolved and the output is a near-empty file that every assertion then reads as "the utility is
+ * missing".
+ *
+ * NOTE what this function does and does not prove. The emitted set is a function of what the app
+ * ACTUALLY USES, since Tailwind only generates a utility its content scan finds — so an assertion
+ * that a rule is PRESENT here is an assertion that `src/**` still references it, and an assertion
+ * that a rule is ABSENT is an assertion that nothing does. The second form only became sound once
+ * the content root was narrowed to `src/`; before that, planning prose could satisfy either.
  */
 export function compileGlobalsCss(): Promise<string> {
   if (compiled === null) {
     compiled = (async () => {
       const source = await readFile(GLOBALS_CSS_PATH, "utf8");
-      const result = await postcss([tailwindcss()]).process(source, {
-        from: GLOBALS_CSS_PATH,
-      });
-      return result.css;
+      return compileAttributedTo(source, "__gate-plain.css");
     })();
   }
   return compiled;
@@ -169,11 +208,15 @@ export function compileGlobalsCssWith(
   if (pending === undefined) {
     pending = (async () => {
       const source = await readFile(GLOBALS_CSS_PATH, "utf8");
-      const result = await postcss([tailwindcss()]).process(
+      // The attribution filename is derived from the safelist so each distinct list gets its own
+      // entry in Tailwind's path-keyed design-system cache. Sharing one filename here made every
+      // safelist after the first a silent no-op — see `compileAttributedTo`. The key is sanitised
+      // rather than trusted, matching the character check performed on each utility above.
+      const slug = key.replace(/[^a-z0-9]+/g, "-").slice(0, 80);
+      return compileAttributedTo(
         `${source}\n@source inline("${key}");\n`,
-        { from: GLOBALS_CSS_PATH },
+        `__gate-safelist-${slug}.css`,
       );
-      return result.css;
     })();
     compiledWith.set(key, pending);
   }

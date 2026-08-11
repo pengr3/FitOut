@@ -23,9 +23,29 @@
 //     (`--a: var(--b); --b: var(--a)`) is invisible to it; only direct self-reference is caught.
 //   • Nothing here says anything about the TYPE SCALE (sizes, weights, tracking). That is plan 10-05.
 
+// REWRITTEN IN PART BY PLAN 10-12, and the reason generalises. Three assertions here read artifacts
+// that existed only because Tailwind's content scan rooted at the REPOSITORY: `.font-sans` and
+// `.font-mono` are used as class names NOWHERE in `src/`, so the only thing emitting them — and the
+// `:root` variables that came with them — was PLANNING PROSE (deferred item D-1). Narrowing the
+// content root to `src/` removed the prose, the rules vanished, and three green assertions went red
+// against a stylesheet that had not changed and an app whose fonts still work perfectly.
+//
+// They were not testing nothing; they were testing the wrong artifact. `font-sans` reaches the app
+// through `@apply font-sans` inside `@layer base`, which INLINES the declaration and never needs the
+// `.font-sans` utility rule to be generated at all. So the assertions now read the two things that
+// are actually load-bearing — the `html` rule an unstyled element really gets, and `.font-heading`,
+// which has two real call sites — and state the "IF it were used" claim explicitly through the
+// safelist where that is what is meant. Verified in the SHIPPED bundle at the time of the rewrite:
+// `html{font-family:var(--font-geist-sans)}` and `.font-heading{font-family:var(--font-geist-sans)}`
+// are both present; `.font-sans` and `.font-mono` are absent and nothing in `src/` wants them.
+
 import { describe, it, expect } from "vitest";
 
-import { compileGlobalsCss, customPropertyValue } from "./helpers/compile-css";
+import {
+  compileGlobalsCss,
+  compileGlobalsCssWith,
+  customPropertyValue,
+} from "./helpers/compile-css";
 
 /**
  * Every `--name: var(--other …)` declaration in the emitted CSS, as `[name, other]` pairs. The
@@ -52,11 +72,25 @@ describe("DS-01 — the --font-sans cycle is gone from the compiled stylesheet",
     ).toEqual([]);
   }, 60_000);
 
-  it("resolves --font-sans to the variable layout.tsx actually defines", async () => {
-    const css = await compileGlobalsCss();
-    expect(customPropertyValue(css, "--font-sans")).toBe(
-      "var(--font-geist-sans)",
+  it("resolves font-sans to the variable layout.tsx actually defines", async () => {
+    // Stated as the conditional it really is: IF a surface uses `font-sans`, it resolves to Geist.
+    // Asserted through the safelist because nothing in `src/` uses the class — the base layer
+    // `@apply`s it, which inlines the declaration without generating the utility. Before the content
+    // root was narrowed this passed on a rule emitted by planning prose.
+    const css = await compileGlobalsCssWith(["font-sans", "font-figure"]);
+    const rule = /\.font-sans\s*\{([^}]*)\}/.exec(css);
+    expect(rule, "no .font-sans rule even with the utility safelisted").not.toBeNull();
+    expect(rule![1].replace(/\s+/g, " ").trim()).toBe(
+      "font-family: var(--font-geist-sans);",
     );
+  }, 60_000);
+
+  it("safelisting cannot fabricate a font family that was never declared", async () => {
+    // The control for the assertion above. `font-figure` is safelisted beside `font-sans` and is
+    // declared in no `@theme` block, so if it were emitted anyway the test above would be proving
+    // something about the safelist rather than about the token.
+    const css = await compileGlobalsCssWith(["font-sans", "font-figure"]);
+    expect(/\.font-figure\s*\{/.exec(css)).toBeNull();
   }, 60_000);
 
   it("carries the fix through to --default-font-family", async () => {
@@ -67,23 +101,29 @@ describe("DS-01 — the --font-sans cycle is gone from the compiled stylesheet",
     );
   }, 60_000);
 
-  it("emits a .font-sans utility that sets font-family to Geist", async () => {
-    // `@layer base { html { @apply font-sans } }` is the single line that carries DS-01 to every
-    // screen, so the utility it applies is asserted directly rather than inferred from the token.
+  it("puts Geist on `html` itself, which is what actually carries DS-01", async () => {
+    // THE STRONGEST FORM OF THIS CLAIM, and the one the app depends on. `@layer base { html { @apply
+    // font-sans } }` is the single line that reaches every screen; it inlines the declaration, so
+    // this rule — not the `.font-sans` utility — is the artifact that decides whether the app renders
+    // in Geist. Unforced and unsafelisted: it is emitted because the stylesheet really says so.
     const css = await compileGlobalsCss();
-    const rule = /\.font-sans\s*\{([^}]*)\}/.exec(css);
-    expect(rule, "no .font-sans rule in the compiled output").not.toBeNull();
-    expect(rule![1].replace(/\s+/g, " ").trim()).toBe(
-      "font-family: var(--font-geist-sans);",
-    );
+    const rule = /(?:^|\})\s*html\s*\{([^}]*font-family[^}]*)\}/m.exec(css);
+    expect(rule, "no `html { font-family }` rule in the compiled output").not.toBeNull();
+    expect(rule![1]).toContain("var(--font-geist-sans)");
   }, 60_000);
 
-  it("keeps --font-heading as a Geist alias (D-20 — the seam survives)", async () => {
+  it("keeps font-heading as a Geist alias (D-20 — the seam survives)", async () => {
     // D-20 deliberately KEEPS this token rather than deleting it: real branding later needs a place
     // to slot a display face in without touching a call site. It must not be the cycle again.
+    //
+    // Unlike `font-sans` this needs NO safelist — `card.tsx` and `dialog.tsx` both carry the class,
+    // so the rule is emitted by real usage. That difference is the point: the alias is proven
+    // end-to-end, from two shipped call sites through `@theme inline` to the layout variable.
     const css = await compileGlobalsCss();
-    expect(customPropertyValue(css, "--font-heading")).toBe(
-      "var(--font-geist-sans)",
+    const rule = /\.font-heading\s*\{([^}]*)\}/.exec(css);
+    expect(rule, "no .font-heading rule — has the last call site been removed?").not.toBeNull();
+    expect(rule![1].replace(/\s+/g, " ").trim()).toBe(
+      "font-family: var(--font-geist-sans);",
     );
   }, 60_000);
 

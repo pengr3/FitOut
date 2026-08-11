@@ -1,4 +1,31 @@
-@import "tailwindcss";
+/* THE CONTENT-SCAN ROOT (deferred item D-1). `source("../")` is relative to THIS file, so it points
+   Tailwind's automatic source detection at `src/` — and that narrowing is load-bearing, not tidiness.
+
+   By default v4 detects sources from the PROJECT ROOT, respecting `.gitignore`, and markdown is not
+   excluded — so every document under `.planning` was content, and a sentence of planning PROSE
+   emitted a real utility into the shipped stylesheet. Measured, not theorised: before this line, a
+   clean `rm -rf .next` rebuild shipped the accent recipe this phase exists to delete (770 bytes,
+   0.58%) for a class present in no component, and the provenance was a PLAN DOCUMENT instructing the
+   executor to remove it. This plan added five more of its own the moment it migrated the shadows.
+
+   (This paragraph deliberately does not write the markdown glob for `.planning`. The obvious phrasing
+   embeds a star-slash, which TERMINATES this comment — CSS has no nesting — and the file then fails
+   to parse with `Unknown word`. Observed, on the first attempt at writing it.)
+
+   Two consequences, and the second is the one that matters. (1) Dead CSS ships to users, growing with
+   every document written. (2) Any assertion of the form "utility X is / is not in the compiled
+   output" could be satisfied or broken by a markdown file — which is the vacuous-pass shape this
+   phase's guard-the-guard blocks exist to prevent, arriving through a side door.
+
+   `src/` is the whole app: `public/` holds five SVGs and no markup, and nothing under `tests/`,
+   `e2e/`, `scripts/`, `drizzle/` or `config/` renders to a browser. A class that a user can actually
+   see is authored in `src/` by construction. If that ever stops being true — a component library
+   consumed from `node_modules` with its own class strings, say — add an explicit `@source` for it
+   rather than widening the root back to the repository.
+
+   Asserted by tests/design/elevation-z.test.ts, which is only allowed to make its strongest claim
+   (the banned default shadow ladder is absent from the COMPILED output) because of this line. */
+@import "tailwindcss" source("../");
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
