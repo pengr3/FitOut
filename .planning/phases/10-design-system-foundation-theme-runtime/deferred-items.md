@@ -218,3 +218,46 @@ refund dispatch 404s. It did not fire in the final full run, which is why it is 
 
 **Suggested owner:** not a design-system plan. These are booking-flow regressions or fixture rot and
 belong to whoever next owns e2e health; Phase 11's visual pass will be running these surfaces anyway.
+
+---
+
+## D-1 UPDATE (2026-08-12, from 10-09) — now measured in bytes, and the accent case is the sharpest yet
+
+10-04 found the mechanism, 10-07 demonstrated it in the shipped bundle for the focus ring. 10-09 is
+the first plan to remove the LAST source usage of an accent recipe, which makes the leftover
+measurable rather than theoretical.
+
+**After a `rm -rf .next && npm run build` clean rebuild** — verified clean, not cached: the rebuilt
+CSS is byte-identical (133,801 bytes) to the incremental one — the stylesheet still contains **8
+rules across 4 selectors** for a class that exists nowhere in `src/`:
+
+```
+.bg-brand\/90                                                                    (× 2)
+.hover\:bg-brand\/90:hover                                                       (× 2)
+.data-\[selected-single\=true\]\:hover\:bg-brand\/90[data-selected-single=true]:hover   (× 2)
+.data-\[state\=on\]\:hover\:bg-brand\/90[data-state=on]:hover                    (× 2)
+```
+
+**770 bytes, 0.58% of the shipped stylesheet**, for the exact recipe this phase exists to delete.
+(Each selector appears twice because Tailwind emits a fallback plus an `@supports (color:color-mix…)`
+block.)
+
+**The provenance is provable, not inferred.** The variant-prefixed form
+`data-[selected-single=true]:hover:bg-brand/90` appears in exactly ONE tracked non-`src/` file —
+`.planning/phases/10-.../10-09-PLAN.md:140`, where the plan instructs the executor to remove it. The
+plan document that orders the deletion is what keeps the deleted rule in the bundle. The other three
+come from `tests/design/brand-recipe.test.ts` and `button-variants.test.ts`, which must name the
+literal in order to ban it.
+
+**Why this matters beyond bytes.** It puts a measured cost on this phase's standing resolution
+(*"a file whose job is to ban a string is allowed to name it, because `tests/` is outside the scanned
+tree"*). That is true of the **design gate's** walker, which roots at `src/`. It is NOT true of
+**Tailwind's** content scan, which roots at the repo. Two scanners, two different roots, and only one
+of them was ever reasoned about. Nothing is broken — no element carries these classes, and Tailwind
+would emit the utility on demand anyway — but any future assertion of the shape *"the banned recipe
+is absent from the compiled output"* is unsatisfiable by construction while this holds.
+
+**Still not fixed here, same reason as before:** the fix is an `@source` narrowing in
+`src/app/globals.css`, which changes what the production bundle contains and is owned by 10-12.
+`src/app/globals.css` is not in 10-09's file scope, and 10-09's gate is deliberately a SOURCE scan
+for precisely this reason.

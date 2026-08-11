@@ -230,10 +230,15 @@ export function AvailabilityCalendar({
           disabled={[{ before: todayStart }, { after: horizonEnd }]}
           components={{
             // Selected day = coral (UI-SPEC accent #1); today stays the neutral --muted ring.
+            // This is a react-day-picker DayButton className, NOT a <Button> with a variant prop —
+            // it stays a token class (10-UI-SPEC § the 29 / 20 / 9 split) and converting it breaks
+            // day selection. The hover is the darkening color-mix rather than a 90%-alpha tint:
+            // the tint measures 4.04:1 in court / 3.87:1 in grove because alpha over a light
+            // surface LIGHTENS, and that failure is a property of the alpha, not of the element.
             DayButton: (dayButtonProps) => (
               <CalendarDayButton
                 {...dayButtonProps}
-                className="data-[selected-single=true]:bg-brand data-[selected-single=true]:text-brand-foreground data-[selected-single=true]:hover:bg-brand/90"
+                className="data-[selected-single=true]:bg-brand data-[selected-single=true]:text-brand-foreground data-[selected-single=true]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]"
               />
             ),
           }}

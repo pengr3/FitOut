@@ -207,7 +207,10 @@ export function SlotPicker({
                     CHIP_BASE,
                     "border border-border bg-card text-foreground hover:bg-muted",
                     // In-run (data-state=on) = coral fill (the ONLY accent besides the book CTA).
-                    "data-[state=on]:border-transparent data-[state=on]:bg-brand data-[state=on]:text-brand-foreground data-[state=on]:hover:bg-brand/90",
+                    // A Radix ToggleGroupItem, not a <Button> with a variant prop — it stays a
+                    // token class and converting it breaks hour selection. The hover darkens with
+                    // a color-mix rather than tinting at 90% alpha (4.04:1 court / 3.87:1 grove).
+                    "data-[state=on]:border-transparent data-[state=on]:bg-brand data-[state=on]:text-brand-foreground data-[state=on]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]",
                     // Pending anchor = coral RING (not filled), so start vs committed reads at a glance.
                     isAnchor && "border-brand ring-2 ring-brand/50",
                   )}
@@ -261,7 +264,11 @@ export function SlotPicker({
             className={cn(
               "min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors",
               "hover:bg-muted disabled:pointer-events-none disabled:opacity-50",
-              sel.fullDay && "border-transparent bg-brand text-brand-foreground hover:bg-brand/90",
+              // A bare <button>, not a <Button> with a variant prop — token class by design.
+              // Hover darkens with a color-mix; the 90%-alpha tint it replaces measures 4.04:1
+              // in court and 3.87:1 in grove against a 4.5 bar.
+              sel.fullDay &&
+                "border-transparent bg-brand text-brand-foreground hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]",
             )}
           >
             Book full day

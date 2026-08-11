@@ -259,7 +259,10 @@ export function DatePassPicker({
                   {...dayButtonProps}
                   className={cn(
                     // Selected day = coral (UI-SPEC accent #1); today stays the neutral --muted ring.
-                    "data-[selected-single=true]:bg-brand data-[selected-single=true]:text-brand-foreground data-[selected-single=true]:hover:bg-brand/90",
+                    // A day chip, not a <Button> with a variant prop — it stays a token class and
+                    // must not be converted. The hover darkens with a color-mix instead of tinting
+                    // at 90% alpha, which measures 4.04:1 in court / 3.87:1 in grove.
+                    "data-[selected-single=true]:bg-brand data-[selected-single=true]:text-brand-foreground data-[selected-single=true]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]",
                     isFull && "text-muted-foreground line-through",
                   )}
                   // Spread last and only when full, so an available date keeps react-day-picker's own

@@ -64,13 +64,18 @@ export const NON_TEXT_BAR = 3.0;
  * a `CONTRAST_PAIRS` row uses for them.
  *
  * The brand hover recipe is `color-mix(in oklch, var(--brand), var(--foreground) 10%)`. It exists
- * because the obvious `hover:bg-brand/90` measures 4.04 (court) / 3.87 (grove) against
- * `--brand-foreground`: an alpha tint over a LIGHT surface always lightens, so correcting the brand
- * to 4.57 at rest and then hovering into 4.04 would ship the very defect DS-06 removes. Mixing
- * toward `--foreground` darkens instead — 5.41 / 5.36 — and it is theme-portable precisely because
- * `--foreground` is per-theme. This is not new vocabulary: it is the idiom already shipped for the
- * `secondary` variant. It is also NOT a second brand token — the mix lives once, inside the CVA
- * variant, and no call site ever chooses between two corals.
+ * because the obvious hover — a 90%-ALPHA tint of the accent — measures 4.04 (court) / 3.87 (grove)
+ * against `--brand-foreground`: an alpha tint over a LIGHT surface always lightens, so correcting
+ * the brand to 4.57 at rest and then hovering into 4.04 would ship the very defect DS-06 removes.
+ * Mixing toward `--foreground` darkens instead — 5.41 / 5.36 — and it is theme-portable precisely
+ * because `--foreground` is per-theme. This is not new vocabulary: it is the idiom already shipped
+ * for the `secondary` variant. It is also NOT a second brand token — the mix lives once, inside the
+ * CVA variant, and no call site ever chooses between two corals.
+ *
+ * The rejected alpha class is described rather than quoted, here and in the `note` below. That is
+ * deliberate: `tests/design/brand-recipe.test.ts` asserts the utility appears ZERO times anywhere
+ * under `src/`, and a comment naming it is textually indistinguishable from a call site using it.
+ * Do not "restore" the literal as a documentation improvement — it turns a committed gate red.
  */
 export const DERIVED_SURFACES = {
   "brand-hover": { base: "brand", mixWith: "foreground", pct: 0.1 },
@@ -286,7 +291,7 @@ export const CONTRAST_PAIRS = [
     fg: "brand-foreground",
     bg: "brand-hover",
     bar: TEXT_BAR,
-    note: "The brand button under the cursor. The obvious hover:bg-brand/90 measures 4.04 (court) / 3.87 (grove) — a tint over a light surface LIGHTENS. The color-mix recipe darkens instead: 5.41 / 5.36.",
+    note: "The brand button under the cursor. The obvious hover — a 90%-alpha tint of the accent — measures 4.04 (court) / 3.87 (grove) — a tint over a light surface LIGHTENS. The color-mix recipe darkens instead: 5.41 / 5.36.",
   },
   {
     fg: "destructive-foreground",
