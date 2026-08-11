@@ -445,3 +445,53 @@ confirmation that looks identical to ordinary secondary text reads as confirmati
 the change is a `CheckCircle2` in the positive tone's icon slot at each site plus a split of
 `POSITIVE_CALL_SITES` into a chip list (surface + text + icon) and an inline list (text + icon, with
 the absent surface asserted rather than merely unmentioned).
+
+---
+
+## D-6 UPDATE (2026-08-12, from 10-16) — a FIFTH identical reproduction; the design gate and full DB suite are unmoved
+
+`npm run test:e2e` at the end of 10-16: **17 passed / 1 failed / 5 did not run** — the same test
+(`e2e/open-capacity.spec.ts:376`), the same locator (`getByRole('heading', { name: 'Saturday, Aug 15' })`),
+the same `element(s) not found`. Byte-identical to the signals D-6 recorded from 10-08 and the UPDATEs
+from 10-13, 10-14 and 10-15.
+
+**Causality was NOT re-derived**, per 10-13's standing request. This plan adds one route that nothing
+in `e2e/` navigates to, plus two test files. It DOES change one repo-wide utility — `cn()` — so the
+relevant check is not the failing spec but the 17 that pass: every one of them renders shipped
+product surfaces through `cn()` in a real browser, and the full DB suite is **1197 passed / 4
+skipped**, unchanged from the recorded baseline. The merge registration is additive (four names move
+from the text-colour group to the font-size group) and no shipped call site composes those names.
+
+---
+
+## D-9 (2026-08-12, from 10-16) — `/dev/theme`'s utilities ship to production, where the route 404s
+
+**Found during:** 10-16 verification, on a clean rebuild of both sides.
+
+**What is there.** The production guard makes the route unreachable — `npm run build && npm start`
+then `GET /dev/theme` returns **404** with Next's built-in not-found page, verified. But Tailwind's
+content scan reaches `src/app/dev/theme/**` like any other source, so the utilities only that page
+uses are still compiled into the stylesheet every user downloads: the third elevation step, the three
+non-Display type roles, the upper radius steps, the border swatch fill and a handful of layout
+classes.
+
+**Measured, not estimated.** Clean `rm -rf .next && npm run build` with the route directory moved out
+of `src/` and then back:
+
+| | bytes |
+|---|---|
+| without `src/app/dev/**` | 118,732 |
+| with it | **119,835** |
+| delta | **+1,103 (+0.93%)** |
+
+**Why it was accepted rather than fixed.** The only mechanism that would remove it is excluding the
+directory from the content root (`@source not`), and that makes `/dev/theme` render UNSTYLED in
+development — which destroys the one surface the phase ships. The alternative, an explicit
+`@source inline(…)` safelist listing every class the preview needs, is a second list that drifts
+silently from the page the moment a section is edited, and this phase's whole argument (D-16, the
+leak patterns; D-18, the generated tokens) is against second lists.
+
+**Suggested owner:** plan 10-17, which owns the build gate and is the plan most likely to look at the
+bundle; or Phase 17's audit. If either takes it, the honest fix is probably not a safelist but a
+build-time decision about whether the route is emitted at all. Recording the number here so it is a
+known 0.93% rather than a surprise.
