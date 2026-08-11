@@ -347,6 +347,30 @@ export const paymongoEvent = pgTable("paymongo_event", {
 // notification_unread_idx (line ~534), including its stated property: it indexes only the OPEN rows, so it
 // stays tiny forever while resolved history grows without bound.
 //
+// D-FH6-01 / D-FH6-02 — `resolved_by`: WHO CLAIMS to have discharged the row. Added 2026-08-11 by quick
+// task 260811-fh6, closing the limit D5 left standing: `resolved_at` records THAT a row was discharged and
+// nothing recorded BY WHOM, which is the question a dispute actually asks about a money-path write.
+//
+// NO FOREIGN KEY, and this is D4 one step harder rather than a copy of it. D4's `actor_id` has no FK
+// because 8 of 57 call sites pass a literal non-user string; this column is a name TYPED AT A CLI by
+// someone who may correspond to no `user` row at all — a contractor, a finance person, a shared ops handle.
+// It is PROVENANCE, not a join key. Do not "tighten" it later.
+//
+// THE CAVEAT IS INSEPARABLE FROM THE COLUMN, and it is a deliverable rather than a footnote: this records
+// an ASSERTED identity, not an AUTHENTICATED one. `scripts/ops-alerts.ts` connects with `DATABASE_URL` and
+// has no session, no login and no identity of any kind, so anyone who can run it can type any name. The
+// honest reading is "who CLAIMS to have discharged this" — meaningful only in combination with shell and
+// database access control, and NOT proof of identity on its own. A `resolved_by` that LOOKS authoritative
+// but is self-asserted is actively dangerous in the dispute it exists for, because it manufactures
+// confidence the data cannot support. State it that way everywhere: the value is
+// **asserted, not authenticated**. No document may describe this column as proof of who discharged an alert.
+//
+// NULL MEANS NOT CAPTURED, AND IS NEVER BACK-FILLED. The 27 rows discharged on 2026-08-10 (runbook §4a)
+// predate the column and keep `resolved_by IS NULL` permanently — inventing a discharger for a past act
+// would be fabricating an audit record. That holds under RE-RESOLVE too, not merely as a promise not to run
+// an UPDATE: `resolveAlert`'s existing `AND resolved_at IS NULL` guard excludes those rows, so a later
+// `--by` cannot retro-attribute them (pinned by alerts.test.ts case 17, measured by mutation M1).
+//
 // RETENTION: DEFERRED, ON THE RECORD — an omission would be worse than a decision. Because the index is
 // partial, the operator query stays O(unresolved) no matter how large the table gets, so growth is a
 // disk-cost question, not a correctness or latency one. An audit trail on money paths that silently
@@ -362,6 +386,9 @@ export const audit = pgTable(
     outcome: text("outcome").notNull(), // AuditOutcome union, compile-time enforced (D3)
     meta: jsonb("meta").$type<Record<string, unknown>>(), // nullable; NO secrets/PII (D-72)
     resolvedAt: timestamp("resolved_at", { withTimezone: true }), // NULL = unresolved (D5)
+    // NO .references() — see D-FH6-01 above. NULL = discharger not captured, never back-filled.
+    // ASSERTED, NOT AUTHENTICATED (D-FH6-02): the CLI has no session.
+    resolvedBy: text("resolved_by"),
   },
   (t) => [
     // The operator queue, in one index: every unresolved money seam, newest first.

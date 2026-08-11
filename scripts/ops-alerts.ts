@@ -27,6 +27,16 @@
 //     question is "what was discharged, AND ON WHAT BASIS?", and identifiers live under separately-named
 //     keys (`bookingId`, `transferId`, `paymentId`, `last4`) that a single-key projection cannot reach.
 //   - The EMAIL digest is byte-untouched by that widening and still carries no key out of `meta` at all.
+//
+// THE HISTORY VERB PRINTS A `BY` COLUMN (2026-08-11, quick task 260811-fh6), and it changes none of the
+// above. `resolved_by` is a plain COLUMN on the audit row — NOT a second key out of `meta` — so the
+// single-derived-key boundary stated above is exactly where it was. It carries an operator-chosen handle,
+// never a booker or host identity. The EMAIL digest remains byte-untouched and cannot acquire the value
+// even in principle: `UnresolvedAlert` has no such field, `listUnresolvedAlerts` is unchanged, and an
+// unresolved row has `resolved_by IS NULL` by definition. What the column is worth is stated at every
+// surface that shows it, including this one: it is an identity that is ASSERTED, NOT AUTHENTICATED — this
+// CLI has no session, so the value records who CLAIMS to have discharged a row and is not proof of who did.
+//
 // To read the full row including its jsonb context, use a LOCAL database session:
 // `docker compose exec db psql -U fitout -d fitout -c "SELECT * FROM audit WHERE id = '<id>'"` or
 // `npm run db:studio`. See sections 3 and 6a of the runbook — that boundary is deliberate.
@@ -40,6 +50,7 @@ import {
   DEFAULT_HISTORY_DAYS,
   DEFAULT_HISTORY_LIMIT,
 } from "@/lib/ops/alerts";
+import { parseResolveArgs, BY_FLAG_HELP } from "@/lib/ops/resolve-args";
 import type { DbConn } from "@/lib/availability/read-model";
 
 // The tsx process doesn't load .env; fall back to the deterministic dev URL (as scripts/seed.ts).
@@ -51,9 +62,12 @@ const db = drizzle(sql) as unknown as DbConn;
 
 const USAGE = `Usage:
   npm run ops:alerts                        list every UNRESOLVED needs_attention alert, newest first
-  npm run ops:alerts:resolve -- <audit-id>  discharge one alert (sets resolved_at)
+  npm run ops:alerts:resolve -- <audit-id> --by "<your name>"
+                                            discharge one alert (sets resolved_at and resolved_by)
   npm run ops:alerts:history [-- <days>]    review DISCHARGED alerts, newest discharge first
                                             (days: 1-36500, default ${DEFAULT_HISTORY_DAYS}; read-only)
+
+${BY_FLAG_HELP}
 
 Discharge a row only AFTER the money question is actually settled — this records that someone acted,
 it does not verify that they did. See .planning/ops/NEEDS-ATTENTION-RUNBOOK.md.`;
@@ -93,17 +107,33 @@ async function list(): Promise<void> {
   );
 }
 
-async function resolve(id: string): Promise<void> {
-  const result = await resolveAlert(db, id);
+async function resolve(id: string, by: string): Promise<void> {
+  const result = await resolveAlert(db, id, by);
   if (result.outcome === "resolved") {
-    console.log(`Resolved ${result.id} at ${result.resolvedAt.toISOString()}.`);
+    // The parenthetical is not decoration. This line is the moment a name enters an audit trail, and it is
+    // the last chance to say what that name is worth before somebody reads it back in a dispute.
+    console.log(
+      `Resolved ${result.id} at ${result.resolvedAt.toISOString()}, by "${result.resolvedBy}" ` +
+        `(asserted, not authenticated — this CLI has no session).`,
+    );
     return;
   }
   if (result.outcome === "already_resolved") {
-    // Never implies THIS run discharged it — the timestamp printed is the ORIGINAL one (D-J3Z-07).
+    // Never implies THIS run discharged it — the timestamp AND the discharger printed are the ORIGINAL
+    // ones (D-J3Z-07, D-FH6-04). `unrecorded` means NOT CAPTURED, never "nobody".
+    const who = result.resolvedBy == null ? "an unrecorded discharger" : `"${result.resolvedBy}"`;
     console.log(
-      `${result.id} was ALREADY discharged at ${result.resolvedAt.toISOString()} — nothing changed.`,
+      `${result.id} was ALREADY discharged at ${result.resolvedAt.toISOString()} by ${who} — nothing changed.`,
     );
+    if (result.resolvedBy == null) {
+      // Said out loud rather than left to be inferred from "nothing changed": an operator who supplied a
+      // name has every reason to assume it landed somewhere.
+      console.log(
+        `The --by you supplied ("${by}") was NOT recorded. This row was discharged before the resolved_by ` +
+          `column existed, and a past discharge is never retro-attributed — neither the original discharge ` +
+          `nor its missing discharger is overwritten or back-filled.`,
+      );
+    }
     return;
   }
   console.error(`No audit row with id ${result.id}. Nothing was discharged.`);
@@ -136,6 +166,28 @@ function errorCell(error: string | null): string {
   if (error == null) return "—";
   const flat = error.replace(/\s+/g, " ").trim();
   return flat.length > 48 ? `${flat.slice(0, 47)}…` : flat;
+}
+
+/**
+ * Render the discharger. NULL prints `unrecorded` (D-FH6-07).
+ *
+ * NOT `—`, and the reason is one column to the right: `errorCell` above already uses `—` to mean "this row
+ * has no error", so reusing it here would make two entirely different absences look identical in the same
+ * table row. NOT blank either — a blank cell reads as "the field is empty because nothing happened", when
+ * what actually happened is a real discharge whose discharger was never captured. `unrecorded` reads as NOT
+ * CAPTURED, which is exactly what it is; it does NOT mean nobody.
+ *
+ * Truncation at 19 characters is COSMETIC — table width in a plain terminal, nothing more. Two things it is
+ * emphatically not: it is not a privacy control (the value is an operator-chosen handle, and truncating a
+ * value you did not want printed would not un-print it), and it is not a validity check. The value is an
+ * identity that is ASSERTED, NOT AUTHENTICATED: the CLI has no session, so a name in this column is a claim
+ * by whoever held `DATABASE_URL`, not proof of who discharged the row. Read it alongside your shell and
+ * database access control, and alongside the out-of-band record (runbook §7).
+ */
+function byCell(resolvedBy: string | null): string {
+  if (resolvedBy == null) return "unrecorded";
+  const flat = resolvedBy.replace(/\s+/g, " ").trim();
+  return flat.length > 19 ? `${flat.slice(0, 18)}…` : flat;
 }
 
 /**
@@ -183,10 +235,25 @@ async function history(daysArg: string | undefined): Promise<void> {
     );
   }
 
-  // NO ACTOR COLUMN, and this is not a width hack (D-DJ4-05). `actor_id` is the actor of the ORIGINAL
-  // event — `system` for every money action (runbook §4) — and there is NO `resolved_by` column (§7). In a
-  // list ordered by DISCHARGE time an ACTOR column is read as "who discharged this", and that misreading is
-  // actively dangerous in a dispute. The module still RETURNS actorId; only this render drops it.
+  // THERE IS A `BY` COLUMN AND THERE IS STILL NO `ACTOR` COLUMN. That NARROWS D-DJ4-05; it does not
+  // reverse it (D-FH6-06). The old reasoning here ended "…and there is NO `resolved_by` column", which
+  // became FALSE on 2026-08-11 — a comment that argues from a fact that has since changed is worse than no
+  // comment, so here is the argument that actually holds now, in the order it runs:
+  //
+  //   1. TWO PERSON-SHAPED COLUMNS IN ONE DISCHARGE-ORDERED ROW IS WORSE THAN ONE. With `ACTOR = system`
+  //      beside `BY = Jane`, a reader scanning for "who" has two candidates and must know which is which.
+  //      The exact hazard D-DJ4-05 identified is AMPLIFIED by adding a correctly-named neighbour, not
+  //      removed by it.
+  //   2. `actor_id` CARRIES NO INFORMATION IN THIS VIEW. It is `system` for every money action (runbook
+  //      §4), so on the rows a reviewer actually reads it is a constant column — pure width, pure risk.
+  //   3. THE FACT IS NOT LOST. `listResolvedAlerts` still RETURNS `actorId`, unchanged, and the full row
+  //      including `actor_id` is one psql away (runbook §3). Only this terminal render drops it.
+  //
+  // Rejected alternative, on the record because it is defensible and was considered: show BOTH, clearly
+  // labelled (`EVENT ACTOR` / `DISCHARGED BY`). It fails on (2) — the extra width buys a constant — and on
+  // (1), because "clearly labelled" is a bet that a stressed operator reads headers.
+  //
+  // What `BY` means: the discharger, as CLAIMED. See `byCell` — asserted, not authenticated.
   const header =
     pad("AUDIT ID", 38) +
     pad("OUTCOME", 17) +
@@ -194,6 +261,7 @@ async function history(daysArg: string | undefined): Promise<void> {
     pad("CREATED (UTC)", 22) +
     pad("RESOLVED (UTC)", 22) +
     pad("HELD", 7) +
+    pad("BY", 20) +
     "ERROR";
   console.log(header);
   console.log("-".repeat(header.length + 4));
@@ -205,6 +273,7 @@ async function history(daysArg: string | undefined): Promise<void> {
         pad(shortUtc(r.createdAt), 22) +
         pad(shortUtc(r.resolvedAt), 22) +
         pad(`${heldHours(r.createdAt, r.resolvedAt)}h`, 7) +
+        pad(byCell(r.resolvedBy), 20) +
         errorCell(r.error),
     );
   }
@@ -215,19 +284,25 @@ async function history(daysArg: string | undefined): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const [cmd, arg] = process.argv.slice(2);
+  const argv = process.argv.slice(2);
+  const [cmd, arg] = argv;
   if (cmd === "list") {
     await list();
     return;
   }
   if (cmd === "resolve") {
-    if (!arg) {
-      console.error("resolve needs an audit id.\n");
+    // The WHOLE tail, not the single destructured argument — `resolve` now takes a flag, and its parsing
+    // lives in a pure module so the `--by` requirement is testable and mutable (D-FH6-08). The `list` and
+    // `history` branches keep their existing single-argument handling untouched; `parseDays` is
+    // deliberately not moved.
+    const parsed = parseResolveArgs(argv.slice(1));
+    if (!parsed.ok) {
+      console.error(`${parsed.error}\n`);
       console.error(USAGE);
       process.exitCode = 1;
       return;
     }
-    await resolve(arg);
+    await resolve(parsed.id, parsed.by);
     return;
   }
   if (cmd === "history") {

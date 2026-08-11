@@ -35,8 +35,11 @@
 //
 // SCOPE OF THE PARAGRAPH ABOVE — read it as being about `listUnresolvedAlerts`, not about this file. As of
 // 2026-08-11 it is no longer true of the file as a whole: `listResolvedAlerts` (added by quick task
-// 260811-dj4 to close D2) selects SIX explicit columns plus ONE derived single-key projection,
-// `meta->>'error'`. The `meta` COLUMN is still never selected anywhere in this module and `ResolvedAlert`
+// 260811-dj4 to close D2) selects SEVEN explicit columns plus ONE derived single-key projection,
+// `meta->>'error'`. (SIX until later the same day, when 260811-fh6 added `resolved_by` — a plain column,
+// which is why the DERIVED-key count is still one. Re-count this line if the select changes again; a
+// header that quietly goes stale is how the D-J3Z-02 claim above became inaccurate in the first place.)
+// The `meta` COLUMN is still never selected anywhere in this module and `ResolvedAlert`
 // still has no `meta` field, so the structural enforcement is intact on both queries — but the blanket
 // claim "this file never reads anything out of meta" would now be a lie, and a file that lies about itself
 // is worse than one that never made the claim. The full argument for that one widening, and the reason it
@@ -119,22 +122,51 @@ export async function listUnresolvedAlerts(
  * either would let an operator's typo look like success.
  */
 export type ResolveResult =
-  | { outcome: "resolved"; id: string; resolvedAt: Date }
-  | { outcome: "already_resolved"; id: string; resolvedAt: Date }
+  // `resolvedBy` is NON-NULLABLE on this arm by CONSTRUCTION — this run just wrote it from a required
+  // parameter — exactly as `ResolvedAlert.resolvedAt` is narrowed against a `resolved_at IS NOT NULL`
+  // predicate below.
+  | { outcome: "resolved"; id: string; resolvedAt: Date; resolvedBy: string }
+  // NULLABLE here, and that is not defensive typing: the 27 rows discharged on 2026-08-10 predate the
+  // column, so an `already_resolved` answer about one of them genuinely has no discharger to report.
+  // Widening this to `string` would force a lie at the render.
+  | { outcome: "already_resolved"; id: string; resolvedAt: Date; resolvedBy: string | null }
   | { outcome: "not_found"; id: string };
 
 /**
- * Discharge one alert: `resolved_at = now()`, once, and never again (D-J3Z-07).
+ * Discharge one alert: `resolved_at = now()` and `resolved_by = <the name supplied>`, once, and never
+ * again (D-J3Z-07, D-FH6-03).
  *
- * THE `AND resolved_at IS NULL` GUARD IS THE AUTHORITY. It is what makes a second run a ZERO-ROW update
- * rather than a rewrite of the original discharge time — and that timestamp is a historical fact about
- * when real money stopped being outstanding. This is the same discipline payout-reconcile.ts:15-18 states
- * for the payout lifecycle: "The guard, not an app-level 'already paid?' read, is the authority — exactly
- * as the ON CONFLICT is for the sweep and the EXCLUDE for booking." An app-level read-then-write here
- * would be both racy and, worse, capable of moving a settled timestamp forward.
+ * THE `AND resolved_at IS NULL` GUARD IS THE AUTHORITY, AND IT NOW PROTECTS TWO HISTORICAL FACTS. It is
+ * what makes a second run a ZERO-ROW update rather than a rewrite of the original discharge time — and
+ * that timestamp is a historical fact about when real money stopped being outstanding. Since 2026-08-11 the
+ * same one guard also protects WHO discharged it: `resolved_by` is set in the SAME `SET` list, so it
+ * inherits the protection rather than needing its own. A re-resolve under a DIFFERENT name updates no row,
+ * so the original discharger survives (case 16). This is the same discipline payout-reconcile.ts:15-18
+ * states for the payout lifecycle: "The guard, not an app-level 'already paid?' read, is the authority —
+ * exactly as the ON CONFLICT is for the sweep and the EXCLUDE for booking." An app-level read-then-write
+ * here would be both racy and, worse, capable of moving a settled timestamp forward.
+ *
+ * DO NOT ADD `AND resolved_by IS NULL`. It is tempting and it is wrong: a redundant second predicate would
+ * make the real one untestable, because mutation M1 could delete `AND resolved_at IS NULL` and the suite
+ * would stay green on the strength of the spare. One guard, measured (M1 must redden cases 16 AND 17).
+ *
+ * NO BACKFILL HOLDS UNDER RE-RESOLVE, not merely as a promise never to run an UPDATE (D-FH6-05). The 27
+ * rows discharged on 2026-08-10 have `resolved_at` set, so the guard excludes them: running this with a
+ * `--by` reports `already_resolved` and leaves `resolved_by` NULL. Retro-attributing a discharge somebody
+ * else performed is impossible through this function, by construction (case 17).
+ *
+ * `resolvedBy` IS A REQUIRED PARAMETER — not optional, not defaulted. That is what makes every call site a
+ * compile error until it supplies one, so the requirement cannot be quietly skipped at a new caller. It is
+ * also why `undefined` can never reach the bind parameter: postgres.js REJECTS an undefined bind rather
+ * than coercing it to NULL, so a missed site would throw on a money-path write (T-FH6-08).
+ *
+ * WHAT THE VALUE IS WORTH: it is an ASSERTED identity, not an authenticated one. The only caller is a CLI
+ * with no session, so this records who CLAIMS to have discharged the row. Do not describe it, here or
+ * anywhere, as proof of who did (D-FH6-02).
  *
  * Zero rows updated is AMBIGUOUS (already discharged, or no such row), so it is disambiguated by a follow-up
- * read — which reports the ORIGINAL timestamp, never this run's clock.
+ * read — which reports the ORIGINAL timestamp and the ORIGINAL discharger, never this run's clock or this
+ * run's name.
  *
  * NOT SCOPED TO `outcome = 'needs_attention'`, deliberately: an operator handed an id discharges THAT id.
  * Filtering the writer by outcome would be a second, unstated policy living in the wrong place.
@@ -142,20 +174,31 @@ export type ResolveResult =
  * `now()` is the POSTGRES clock, per the project's zero-JS-clock rule (src/lib/units.ts) — exactly as
  * `recordAudit` leaves `created_at` to the DB default (src/lib/audit.ts:100-102).
  */
-export async function resolveAlert(dbConn: DbConn, id: string): Promise<ResolveResult> {
+export async function resolveAlert(
+  dbConn: DbConn,
+  id: string,
+  resolvedBy: string,
+): Promise<ResolveResult> {
   const updated = (await dbConn.execute(sql`
-    UPDATE audit SET resolved_at = now()
+    UPDATE audit SET resolved_at = now(), resolved_by = ${resolvedBy}
     WHERE id = ${id} AND resolved_at IS NULL
-    RETURNING id, resolved_at AS "resolvedAt"
-  `)) as unknown as { id: string; resolvedAt: Date | string }[];
+    RETURNING id, resolved_at AS "resolvedAt", resolved_by AS "resolvedBy"
+  `)) as unknown as { id: string; resolvedAt: Date | string; resolvedBy: string }[];
 
   if (updated.length > 0) {
-    return { outcome: "resolved", id: updated[0].id, resolvedAt: new Date(updated[0].resolvedAt) };
+    return {
+      outcome: "resolved",
+      id: updated[0].id,
+      resolvedAt: new Date(updated[0].resolvedAt),
+      // Read back out of RETURNING rather than echoed from the argument — the returned value is then a
+      // statement about the ROW, which is what case 15's independent SELECT cross-checks.
+      resolvedBy: updated[0].resolvedBy,
+    };
   }
 
   const existing = (await dbConn.execute(sql`
-    SELECT id, resolved_at AS "resolvedAt" FROM audit WHERE id = ${id}
-  `)) as unknown as { id: string; resolvedAt: Date | string }[];
+    SELECT id, resolved_at AS "resolvedAt", resolved_by AS "resolvedBy" FROM audit WHERE id = ${id}
+  `)) as unknown as { id: string; resolvedAt: Date | string; resolvedBy: string | null }[];
 
   if (existing.length > 0 && existing[0].resolvedAt != null) {
     return {
@@ -163,6 +206,9 @@ export async function resolveAlert(dbConn: DbConn, id: string): Promise<ResolveR
       id: existing[0].id,
       // The ORIGINAL discharge time, read back — this run did not set it and must never imply it did.
       resolvedAt: new Date(existing[0].resolvedAt),
+      // The ORIGINAL discharger, likewise — NULL for the 27 pre-column rows, which the CLI renders as
+      // "an unrecorded discharger" rather than substituting the name this run supplied.
+      resolvedBy: existing[0].resolvedBy,
     };
   }
 
@@ -180,6 +226,10 @@ export async function resolveAlert(dbConn: DbConn, id: string): Promise<ResolveR
  *
  * `resolvedAt` is non-nullable HERE even though the column is nullable, because the query's predicate is
  * exactly `resolved_at IS NOT NULL` — a row that reached this type has a discharge time by definition.
+ *
+ * `resolvedBy` is NULLABLE and no predicate narrows it, deliberately: the 27 rows discharged on 2026-08-10
+ * predate the column and have no recorded discharger, permanently. The CLI renders that NULL as
+ * `unrecorded` — which means NOT CAPTURED, never "nobody" (D-FH6-07).
  */
 export type ResolvedAlert = {
   id: string;
@@ -188,6 +238,7 @@ export type ResolvedAlert = {
   actorId: string;
   createdAt: Date;
   resolvedAt: Date;
+  resolvedBy: string | null;
   error: string | null;
 };
 
@@ -251,6 +302,10 @@ export const DEFAULT_HISTORY_LIMIT = 200;
  *      IDENTIFIERS LIVE UNDER SEPARATELY-NAMED KEYS: `bookingId`, `transferId`, `paymentId`, `last4`. A
  *      projection of one named key cannot reach a differently-named one. Pinned by case 12, which plants
  *      all four and asserts only `error` surfaces.
+ *      (2026-08-11, 260811-fh6: `resolvedBy` joins this select as a plain COLUMN on the audit row, NOT a
+ *      second reach into `meta`. The count in (1)'s sense is unchanged — there is still exactly ONE derived
+ *      key here, and adding a column is not a precedent for adding a key. Case 12's key-set tripwire was
+ *      reconciled by NAMING the new field rather than by loosening the assertion.)
  *   2. THE STRUCTURAL ENFORCEMENT SURVIVES INTACT. `ResolvedAlert` is a NEW, SEPARATE type carrying
  *      `error: string | null` and NO `meta` field. `UnresolvedAlert` and `OpsDigestRow` are byte-unchanged.
  *      So re-exporting the column is still a COMPILE ERROR at every consumer, and the email path cannot
@@ -293,6 +348,8 @@ export async function listResolvedAlerts(
       actorId: audit.actorId,
       createdAt: audit.createdAt,
       resolvedAt: audit.resolvedAt,
+      // A plain COLUMN, not a key out of `meta` — NULL for every discharge made before 2026-08-11.
+      resolvedBy: audit.resolvedBy,
       // The single-key projection, column-qualified so it renders as `"audit"."meta"->>'error'`. This is
       // the ONLY thing in this module that reads out of the jsonb column, and D-DJ4-04 above is why.
       error: sql<string | null>`${audit.meta}->>'error'`,
