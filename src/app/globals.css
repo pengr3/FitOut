@@ -413,13 +413,55 @@
 }
 
 @layer base {
+  /* DS-05, the stylesheet's half. This rule used to carry a 50% alpha modifier on the outline
+     colour. That looks harmless — it sets outline-color ONLY, with no width and no style, so it
+     renders nothing on its own — but it is the COLOUR SOURCE for the 3 `focus-visible:outline-1`
+     sites, and at half alpha it composites to 1.54:1 against white.
+
+     ARITHMETIC, NOT PREFERENCE: the half-alpha form compiles to
+     `color-mix(in oklab, var(--ring) 50%, transparent)`, and the lightest neutral that reaches 3:1
+     through it still fails against --muted. NO value of --ring can fix the half-alpha form, which
+     is why the alpha is removed rather than the token re-solved again. The remaining 13
+     `focus-visible:ring-ring/50` component call sites (11 of them vendored) are plans 10-06 and
+     10-07.
+
+     A base-layer `*:focus-visible` outline fallback was CONSIDERED AND REJECTED, not overlooked:
+     shadcn's own base recipe sets `outline-none` in the utilities layer, which outranks anything
+     declared here, so the fallback would be dead code that reads like a safety net. */
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+  }
+  /* THE GLOBAL REDUCED-MOTION RESET (DS-04). ONE rule, app-wide. Never a per-component media
+     query — that is how a reset ends up covering the three surfaces somebody remembered, and it
+     turns an accessibility contract into a convention.
+
+     THE CAP THIS IS THE OTHER HALF OF, stated so the budget test is writable: no transition or
+     enter/exit animation exceeds 320ms; continuous loading indicators (`animate-spin`,
+     `animate-pulse`) are EXEMPT BY DESIGN, because a progress indicator's cycle is meant to
+     repeat, and they are covered by this reset instead. Without that exemption written down, the
+     budget test cannot be written without failing on the spinner.
+
+     THE `!important` IS LOAD-BEARING and must not be tidied away. It is the only form that also
+     neutralises the `tw-animate-css` keyframes (`animate-in` x8, `zoom-in-95` x7 and
+     `slide-in-from-*` x20) and the Radix `data-state` animations, all of which are utility-layer
+     declarations that outrank an unweighted base-layer rule. And do NOT "improve" this by
+     redefining the motion tokens inside the query instead: that reaches only utilities which read
+     those variables and misses every keyframe animation, so transitions stop while dialogs still
+     zoom and slide — a reset that passes a naive test and fails a real user. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
