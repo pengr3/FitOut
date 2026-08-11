@@ -82,6 +82,33 @@
   --text-label--line-height: var(--lh-label);
   --text-label--font-weight: var(--fw-label);
   --text-label--letter-spacing: var(--ls-label);
+  /* -------------------------------------------------------------------------------------------
+     THE THREE ELEVATION STEPS (DS-03 / D-02) — raised, overlay, sticky.
+
+     These are MANDATORY, not a naming nicety. Tailwind's default `shadow-sm` / `shadow-md` /
+     `shadow-lg` compile to LITERAL values, not var() references, so redeclaring those names in a
+     theme block does exactly nothing and a surface left on `shadow-md` is frozen against every
+     theme. Named steps behind var() are the only mechanism by which grove's pronounced elevation
+     can exist at all. Five distinct shipped values collapse into these three, so some surfaces
+     visibly gain or lose depth — that is the point of a three-step scale, not a regression.
+     `shadow-none` stays `shadow-none`. */
+  --shadow-raised: var(--elevation-raised);
+  --shadow-overlay: var(--elevation-overlay);
+  --shadow-sticky: var(--elevation-sticky);
+  /* -------------------------------------------------------------------------------------------
+     MOTION (DS-04). The two `--default-transition-*` entries are the zero-edit lever: every bare
+     `transition-*` utility in the app reads them as its fallback, so retuning the app's motion is
+     these two lines and no component edits. The named easing is exposed as `ease-standard`.
+
+     CONSUMPTION FORM — get this wrong and it fails SILENTLY. Tailwind v4 has NO duration namespace
+     and NO z-index namespace. `duration-base` and `z-dialog` compile to NOTHING; they are not
+     errors, they simply do not appear in the output. A named duration is written
+     `duration-(--motion-base)` (the CSS-variable arbitrary-value syntax), which emits
+     `--tw-duration: var(--motion-base)` and therefore stays theme- and media-aware; likewise the
+     z scale is consumed as `z-(--z-dialog)`. `tw-animate-css` honours the same variables. */
+  --ease-standard: var(--motion-ease-standard);
+  --default-transition-duration: var(--motion-fast);
+  --default-transition-timing-function: var(--motion-ease-standard);
 }
 
 /* ===========================================================================================
@@ -212,6 +239,12 @@
   --leading-tight: 1.2;
   --leading-snug: 1.375;
   --leading-relaxed: 1.625;
+  /* ---- Elevation: the three named steps (DS-03) ----------------------------------------------
+     Court is shallow and close to the page: a hairline lift, a tight overlay, and an upward cast
+     for bottom-anchored bars. Pure neutral shadow, because court's neutrals carry no hue. */
+  --elevation-raised: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --elevation-overlay: 0 8px 24px -6px oklch(0 0 0 / 0.12);
+  --elevation-sticky: 0 -1px 12px -2px oklch(0 0 0 / 0.08);
 }
 
 /* Grove — the second theme, shipped in the SAME commit as court (THEME-03). It is not a feature;
@@ -305,6 +338,49 @@
   --leading-tight: 1.25;
   --leading-snug: 1.45;
   --leading-relaxed: 1.7;
+  /* ---- Elevation: the three named steps (DS-03 / D-02) ---------------------------------------
+     Grove is DEEP: roughly double the blur and spread at every step, and the shadow is tinted to
+     the theme's own ink hue rather than pure black, so depth reads as part of the theme instead of
+     a grey wash laid over it. This is the half of D-02 that Tailwind's literal default shadows
+     make unreachable — see the note in the @theme block. */
+  --elevation-raised: 0 2px 6px -1px oklch(0.17 0.02 190 / 0.1);
+  --elevation-overlay: 0 16px 40px -8px oklch(0.17 0.02 190 / 0.2);
+  --elevation-sticky: 0 -2px 20px -4px oklch(0.17 0.02 190 / 0.14);
+}
+
+/* ===========================================================================================
+   THE GLOBAL TOKENS (D-05) — z-index and motion. These are GLOBAL BY DESIGN.
+
+   Colour, type, radius and elevation travel per theme. The spacing grid, the z-index scale and
+   the motion tokens do not, and that asymmetry is the contract, not an omission. A constant grid
+   and a constant depth-ordering are what keep a two-theme visual diff interpretable; and MOTION IS
+   A BUDGET RATHER THAN A BRAND EXPRESSION, so no theme is able to blow the 320ms cap — a theme
+   that could would be a theme that could make the app feel broken.
+
+   This block is deliberately a PLAIN `:root` selector, sitting outside both theme blocks. That is
+   what keeps these names invisible to THEME-02's key-set equality test, which compares only the
+   per-theme contract: a global name declared inside one theme block and not the other reads as a
+   diverged key set, and declaring it in both would be claiming it travels when it must not.
+   config/design-tokens-source.mjs reads exactly this rule and nothing else as the global block.
+   =========================================================================================== */
+:root {
+  /* Four layers, and the app scale is the arbiter. RULE THIS SCALE CARRIES FOR PHASE 18: a
+     third-party widget that ships its own internal z-index — Leaflet's control corners sit at
+     1000, its panes at 400-700 — is wrapped in a CSS stacking context (`isolate`) by the phase
+     that introduces it. The scale does NOT inflate to out-run a vendor; that is a race with no
+     end and it destroys the only useful property a four-step scale has. */
+  --z-sticky: 10;
+  --z-sheet: 20;
+  --z-dialog: 30;
+  --z-toast: 40;
+  /* The budget. Nothing in the app may exceed the slowest step. Cap wording, stated once so the
+     test is writable: no transition or enter/exit animation exceeds 320ms; continuous loading
+     indicators (`animate-spin`, `animate-pulse`) are exempt by design and are covered by the
+     reduced-motion reset in @layer base instead. */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
 .dark {
