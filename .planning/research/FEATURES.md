@@ -1,275 +1,439 @@
-# Feature Research
+# Feature Research — v1.1 Front-End Polish & Placeholder Design System
 
-**Domain:** Two-sided booking marketplace for fitness & recreational spaces (Airbnb-style, hourly/daily, real payments)
-**Researched:** 2026-06-03
-**Confidence:** HIGH (table stakes & host tooling verified against Peerspace/Splacer/Airbnb live product docs; group-booking mechanics MEDIUM, synthesized from pickleball-org apps + RSVP tools; payment-flow specifics HIGH from Stripe docs)
+**Domain:** Two-sided booking marketplace UI (fitness/recreational spaces) — visual layer over a shipped, working v1.0
+**Researched:** 2026-08-11
+**Confidence:** HIGH on the codebase baseline (read directly), HIGH on marketplace conventions (multiple corroborating sources + the three archived UI-SPECs), MEDIUM on the focus-ring contrast measurement (computed, not instrumented)
 
-## Orientation
+> **Scope discipline.** Every transaction capability in this document already works. Nothing here adds a
+> new capability. Where a genuinely *new* capability is unavoidable to hit a convention (search map,
+> "copy Monday to all"), it is called out as **net-new feature work, not polish**, so the roadmapper
+> can scope or reject it deliberately rather than absorb it into a "polish" phase.
+>
+> Constraints honoured throughout: **D-127** (placeholder direction, zero brand assets),
+> **D-128** (one token contract, multi-theme preview as its proof), **D-129** (light-only),
+> **D-130** (layout may be reshaped; no logic moves client-side, no correctness invariant weakens),
+> **D-131** (320px · keyboard+AA · four states · visual-regression baseline on every phase).
 
-The feature set is bounded by three hard product decisions in PROJECT.md:
-1. **Demand-side first** — search → availability → reserve → pay is the spine. Host tooling exists only to make that spine possible.
-2. **Two booking models per listing** — host chooses instant-book or request-to-book. This forks the booking lifecycle and the payment-capture timing.
-3. **Group bookings = organizer-pays + RSVP/headcount** in v1; cost-splitting deferred. This means group booking is a *layer on top of a normal booking*, not a separate transaction type — the organizer is just a normal booker who also has an attendee list.
+---
 
-Competitors analyzed: **Peerspace** (closest analog — hourly venue rental, instant/request, add-ons, attendee tiers, operating hours, cancellation tiers), **Splacer** (hourly fitness/studio rental), **GymSpots / SOLO60** (private gym by the hour, access codes), **HopperFit** (gym-owner approval of trainer bookings), **Facilitron** (gym/court facility rental with approval), **CourtReserve / Playbypoint** (court scheduling), **Airbnb** (instant vs request, calendar, min/max stay), **PlayMore / Picklebeast / Pickleheads** (player invite + RSVP + waitlist mechanics).
+## Verified baseline — what v1.0 actually has, and what it doesn't
+
+This is the factual floor the roadmap should be built on. Every row was read from the repo, not assumed.
+
+| Area | Actual state | Evidence |
+|---|---|---|
+| **Font** | **The app does not render in Geist.** `@theme inline` declares `--font-sans: var(--font-sans)` — a self-reference that never resolves — while `layout.tsx` publishes the real variable as `--font-geist-sans`. `html { @apply font-sans }` therefore emits an invalid `font-family` and the entire app falls back to the browser default. Geist is downloaded and unused. | `globals.css:10,143`; `layout.tsx:6` |
+| **Token coverage** | `@theme inline` covers **color + radius + font-family only**. No `--text-*`, no `--shadow-*`, no `--ease-*`/`--duration-*`, no spacing tokens. | `globals.css:7-52` |
+| **Radius** | ✅ Already a real scale (`--radius` + 7 derived steps). No work needed. | `globals.css:44-51` |
+| **Type scale** | Documented in the UI-SPECs ("exactly 4 sizes, exactly 2 weights") but **never codified**. Display is the arbitrary value `text-[28px]`, repeated **12 times**. `button.tsx` and `badge.tsx` both ship `font-medium` (500) — a weight the contract forbids. | grep; `button.tsx:8`; `badge.tsx:8` |
+| **Elevation** | No scale, no semantics. 14 ad-hoc `shadow-xs/sm/md/lg` usages inherited from shadcn defaults. | grep |
+| **Motion** | No tokens. `transition-all` ×7, `transition-colors` ×10, `duration-100` ×6, plus `tw-animate-css` `animate-in/out`. No `prefers-reduced-motion` handling. | grep |
+| **Focus ring** | `--ring: oklch(0.708 0 0)` (mid neutral grey) rendered at `ring-ring/50`. Estimated contrast vs `--background` white ≈ **2.3:1** — below WCAG 2.2 SC 1.4.11's 3:1 for focus indicators, and worse at 50% alpha. **MEDIUM confidence — computed, needs a contrast-checker confirmation.** | `globals.css:82`; `button.tsx:8` |
+| **Coral CTA** | There is **no `brand` variant** in `buttonVariants`. Coral is applied as the repeated literal recipe `bg-brand text-brand-foreground hover:bg-brand/90` across **19 files**. | `button.tsx:11-27`; grep |
+| **Density / touch targets** | The `radix-nova` preset is dense: default button **`h-8` (32px)**, `lg` = `h-9` (36px), badge `h-5` + `text-xs`. Every UI-SPEC's "≥44×44px" rule is currently met by per-call-site padding, not by a variant. | `button.tsx:28-40`; `badge.tsx:8` |
+| **Route state files** | **2** `loading.tsx` (`/bookings`, `/host/listings`). **0** `error.tsx`. **0** `not-found.tsx`. **0** `global-error.tsx`. Across ~27 routes. `Suspense` appears in 3 files. | find/grep |
+| **Site chrome** | **No header on the public routes** — `/`, `/listings/[id]`, `/listings/[id]/book`, `/invite/[token]` render no nav at all. Headers exist only inside the `(app)` and `(host)` layouts. **No footer anywhere.** | grep; `(app)/layout.tsx:69`; `(host)/host/layout.tsx:84` |
+| **Metadata** | **2** `metadata` exports app-wide. Root title is still `"Create Next App"` / `"Generated by create next app"`. `public/` still holds `next.svg`, `vercel.svg`, `file.svg`, `globe.svg`, `window.svg`. `favicon.ico` is the Next default. No OG/Twitter cards, no `metadataBase`. | `layout.tsx:15-18`; `ls public/` |
+| **Sticky booking** | `lg:sticky lg:top-8` only. **There is no mobile sticky CTA** on either the listing page or the reserve page. | `listings/[id]/page.tsx:346`; `reserve-view.tsx:61` |
+| **Search map** | **There is no map on search.** `react-leaflet` is used only by the single-listing map panel on `/listings/[id]`. 04-UI-SPEC explicitly deferred a results map to "v2 / DISC-01". | grep; `04-UI-SPEC.md` §out-of-scope |
+| **Theme mechanism** | `next-themes` is installed but consumed **only** by `sonner.tsx`'s `useTheme`. **No `ThemeProvider` is mounted** — D-128's multi-theme switch has no host today. | grep |
+| **Dark mode residue** | 66 `dark:` class occurrences; `.dark` token block fully defined but unreachable. D-129 removal target. | grep |
+| **Email** | `src/lib/email.ts` = **657 lines** of hand-concatenated HTML strings behind one `escapeHtml` helper. No shared layout, no preheader, no responsive table wrapper, no text part, no header/footer. | `src/lib/email.ts` |
+| **Installed shadcn blocks** | 30 blocks. **`sheet` is NOT installed** — and it is the one block every mobile pattern below needs. `accordion`, `carousel`, `drawer` also absent. | `ls src/components/ui/` |
+
+**The one-sentence synthesis for the roadmapper:** *the UI-SPECs describe a design system that was never
+codified — the app runs on shadcn `radix-nova` defaults with coral bolted on by string repetition, in the
+wrong font, with no elevation, motion, or focus vocabulary, and with 25 of 27 routes having no designed
+loading, error, or not-found state.*
+
+---
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Missing any of these makes the product feel broken or untrustworthy. Grouped by requirement category.
+Absence of any of these is what makes the app read as unfinished today.
 
-#### Auth & Accounts
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Email/password signup + login | Can't book/pay or list without an identity | LOW | One account, both capabilities (booker + host) per PROJECT.md. Don't split into two account types. |
-| Session/auth persistence | Users return to manage bookings | LOW | Standard. |
-| Basic profile (name, contact, photo optional) | Hosts need to know who's booking; bookers need a contact | LOW | Minimal in v1. Avoid full identity verification (anti-feature for v1). |
-| Password reset | Universal expectation | LOW | Email-based. |
+#### A. Design-system foundation — the token contract (D-128)
 
-#### Listings (Host Supply)
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Create/edit listing (title, description, space type, address, capacity, amenities) | No listing = no supply | MEDIUM | Space-type taxonomy matters for search (gym / court[pickleball,tennis,basketball] / studio[yoga,dance] / home gym). Capacity field feeds group-booking validation. |
-| Photo upload (multiple, ordered) | Visual marketplaces live on photos — universal across Peerspace/Splacer/Airbnb | MEDIUM | Image storage + ordering + a hero image. Quality of photos is the single biggest conversion lever per Sharetribe/Peerspace. |
-| Listing detail page | The page that sells the booking | MEDIUM | Photos, description, amenities, location/map, price, availability calendar, book CTA. Demand-side critical path. |
-| Listing status (draft / published / unlisted) | Hosts edit before going live; pull listings temporarily | LOW | Don't show unpublished/unlisted in search. |
+| Feature | Why Expected | Complexity | Depends on (v1.0 surface) |
+|---|---|---|---|
+| **A1. Fix the dead `--font-sans` reference; delete scaffold residue** (`Create Next App` metadata, the five `public/*.svg`, the default favicon) | The single highest-leverage edit in the milestone: it changes the typeface of every screen at once. Scaffold residue is the loudest "unfinished" tell a reviewer sees. | **LOW** | `globals.css`, `layout.tsx`, `public/` — no component touched |
+| **A2. Type scale as tokens** — `--text-display/heading/body/label` with paired line-heights, plus the two weights (400/600) as named utilities. Replace the 12 `text-[28px]`. Reconcile `button`/`badge`'s `font-medium` (500) with the contract. | A type scale is the second thing after color that makes screens read as one product. The contract already exists in prose; it is simply unenforced, so surfaces drift. | **LOW–MED** | Every surface, but mechanically (find/replace + the two `ui/` primitives) |
+| **A3. Elevation scale — exactly 3 steps + a z-index scale** — `--shadow-raised` (result card hover, rail card), `--shadow-overlay` (popover/dropdown/dialog/sheet), `--shadow-sticky` (mobile CTA bar, sticky header). Plus a 4-step z-index scale (sticky bar < sheet < dialog < toast). | Airbnb-calm means shadows are *rare* — border + surface separation carry hierarchy and shadow marks "this floats". Today 14 shadows carry no meaning. The z-index scale is non-optional the moment a sticky CTA bar, a bottom sheet, and sonner coexist. | **MED** | `card`, `popover`, `dropdown-menu`, `dialog`, `sonner`, plus the new sticky bar (F2) |
+| **A4. Motion tokens + a global reduced-motion reset** — `--duration-fast: 120ms` (hover/focus/color), `--duration-base: 200ms` (popover, disclosure, tab), `--duration-slow: 320ms` (bottom sheet, drawer); one `--ease-standard`. Cap everything at 320ms. | Inconsistent transition timing reads as "different people built these screens". The reduced-motion reset is a **D-131 keyboard/a11y gate**, not a nicety — and it costs three lines. | **LOW** | `tw-animate-css` animations, `hold-countdown`, `slot-picker`, `sheet` (new) |
+| **A5. One focus-ring recipe, retuned for contrast** — a single `:focus-visible` treatment (2px ring + 2px offset) applied via the base layer; `--ring` re-picked to clear ≥3:1 against **both** `--background` and `--card`; never a 50%-alpha ring as the only indicator. | **D-131 hard gate.** The current mid-grey-at-50% ring is the most likely single AA failure in the app, and it is invisible on `--muted` surfaces (tables, chips, the notification panel). | **MED** | `globals.css` base layer; `button`, `badge`, `input`, `select`, `calendar`, `toggle-group` |
+| **A6. Button hierarchy as CVA variants** — add `variant="brand"` (the one coral primary) and reclassify: `brand` (one per screen) → `default` neutral solid (secondary emphasis) → `outline` (calm confirm, incl. both cancel flows) → `ghost` (back/dismiss) → `link`; `destructive` is edge-only. Delete all 19 literal `bg-brand …` recipes. | **This is the change that makes D-128's claim true.** As long as coral is a repeated string in 19 files, swapping the accent is a 19-file sweep and the "second theme renders correctly" proof cannot be trusted. | **MED** | 19 files incl. `book-cta`, `booking-row`, `wizard`, `bookings/[id]`, `host/page` |
+| **A7. Two densities, expressed as sizes — not a density token** — add `size="touch"` (`h-11` / 44px) as the standard for booker-facing primary actions and every mobile control; keep `h-8`/`h-9` for host tables and toolbars. | The preset's 32px default is below the touch floor all three UI-SPECs mandate, so today every surface re-solves it locally. A named size makes the 320px gate mechanical instead of per-call-site judgement. | **LOW–MED** | `button.tsx`, plus a call-site sweep of booker CTAs |
+| **A8. Badge/status as a closed semantic vocabulary** — generalise `deriveBookingStatusView`'s recipe into `StatusBadge` variants: `neutral` (lifecycle: pending/requested/completed/declined/cancelled), `positive` (confirmed/paid **only**), `attention` (outline; action-owed: approved-pay-now, needs-attention), `soft-accent` (the coral low-stock tint). Every one is icon + text, never colour-only. | Three UI-SPECs independently forbid "cancelled red / spots-left green / scarcity amber". A closed variant set is how that survives a visual pass instead of being re-litigated per surface. | **MED** | `booking-status-badge`, `payout-state-badge`, `spots-left-chip`, `drop-in-badge` |
+| **A9. Three named card patterns** — `ResultCard` (media-led, whole-card link, hover-lift, fixed aspect so grids don't ragged), `RowCard` (mobile stacked ↔ desktop `<tr>` — the shipped bookings/earnings idiom, currently re-derived per page), `PanelCard` (rail / summary / breakdown). | Card padding, radius and hover are currently re-decided on every surface. Naming three shapes is what stops a "polish" pass from producing five slightly different cards. | **MED** | `listing-card`, `search-result-card`, `booking-row`, `host-booking-row`, `payout-row`, `request-row` |
+| **A10. Mount the theme mechanism** — `ThemeProvider` with `attribute="data-theme"` (**not** `class`, which would collide with the dormant `.dark` block D-129 keeps) and `themes: [placeholder-coral, …]`; the token blocks move to `[data-theme="…"]` selectors. | D-128 requires it, and nothing hosts it today. Doing it before any surface work means every surface is built against the switch instead of retrofitted. | **MED** | `layout.tsx`, `globals.css`, `sonner.tsx` (already reads `useTheme`) |
+| **A11. Export the theme as values, not only CSS vars** — `src/lib/theme/tokens.ts` as the source of truth (with **hex fallbacks alongside the oklch**), consumed by both `globals.css` and the email renderer. | **Load-bearing and easy to miss:** email clients support neither CSS custom properties nor (reliably) `oklch()`. If tokens live only in `globals.css`, the transactional emails drift the instant a theme is swapped — which defeats D-128 for a third of the branded surface. | **MED** | `globals.css`, `src/lib/email.ts` |
+| **A12. A leak test** — a Vitest/ESLint check that no file under `src/components/**` or `src/app/**` contains a raw `#hex`, `rgb(`, `oklch(`, or a `text-[NNpx]` arbitrary value. | D-128 says the second theme *is* the proof; a lint gate makes re-running that proof free, and catches leaks the eye misses on unvisited states. | **LOW–MED** | Test infra only |
 
-#### Search & Discovery (Demand)
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Search by location | Core of "find a space near me" | MEDIUM | Single launch city, but still need radius/area search. Geocoding + distance. Map view is standard but can be list-first in v1. |
-| Filter by activity/space type | Pickleball player doesn't want a yoga studio | LOW | Drives the whole value prop. Map onto listing taxonomy. |
-| Filter by date + time availability | "Show me what's free Saturday 2-4pm" is the actual job-to-be-done | HIGH | This is the hard one — search must query against the availability model, not just static attributes. Stale results here = the unacceptable failure mode from PROJECT.md. |
-| Filter by price | Universal marketplace expectation | LOW | Range filter on hourly/day rate. |
-| Results list with cards (photo, name, price, location/distance) | Standard scannable results | LOW | Grid/list of cards. |
-| Map view of results | Location-based products expect it (Sharetribe, Airbnb, Peerspace) | MEDIUM | Pins + cards. **Defer to v1.x if needed** — list view satisfies core value; map is enhancement. |
+**Not table stakes for a placeholder system (deliberately):** semantic colour aliases beyond the four
+that exist; an icon-size scale (lucide's default + the three `[&_svg]:size-*` rules already cover it);
+a spacing *token* layer (Tailwind's 4px base is already the scale — codify the repeated **page-container**
+literals as a `PageShell` component instead); opacity/blur scales; a Figma/Style-Dictionary pipeline (see Anti-Features).
 
-#### Availability View
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Real, up-to-date availability calendar on listing | PROJECT.md core value: "see real availability ... with confidence the booking is real" | HIGH | Must reflect existing bookings + host operating hours + blocks, in real time. The correctness keystone. |
-| Hourly slot + full-day selection | Product books "by the hour or by the day" | HIGH | Slot granularity (e.g. 30/60-min) + day-rate path. Affects pricing calc and double-booking logic. |
-| Visual "this time is taken" feedback | Bookers must not be able to pick an occupied slot | MEDIUM | Greyed/blocked slots. Derived from confirmed + held bookings. |
+#### B. The four state families — LOADING · EMPTY · ERROR · SUCCESS (D-131 gate)
 
-#### Booking (Demand)
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Select time window + see price before committing | No surprise pricing | MEDIUM | Price = rate × duration (+ fees). Show breakdown. |
-| Slot hold during checkout | Prevents two people racing for the same slot mid-payment | HIGH | Temporary lock (AVAILABLE → HELD → CONFIRMED) with expiry. Industry-standard pattern (Redis/DB lock). Directly addresses the double-booking failure mode. |
-| Instant-book confirmation | If host enabled it, booking confirms immediately on payment | MEDIUM | Capture payment + confirm slot atomically. |
-| Request-to-book flow | If host requires approval, request is submitted and held pending | HIGH | Payment authorized/held, not captured, until host approves; auto-expire if no response (Airbnb uses ~24h; Peerspace allows withdraw-while-pending). Capture on approve, release on decline/expire. |
-| Booking confirmation (on-screen + email) | Proof the booking is real | LOW | Confirmation with date/time/space/price/access info. |
-| Cancellation by booker | Universal expectation; people's plans change | MEDIUM | Tied to a cancellation policy + refund logic. Peerspace pattern: free withdraw while pending; tiered refund once confirmed. |
+**The pattern-selection rule (opinionated, apply per surface — do not mix):**
 
-#### Payments
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Online card payment at booking | "Pay for a booking online" is an Active requirement | HIGH | Stripe (Connect). PCI handled by provider — never touch raw card data. |
-| Platform commission deducted | Business model; an Active requirement | MEDIUM | `application_fee` on the charge. Peerspace ~15% reference point. |
-| Host payout | Hosts must get paid or supply leaves | HIGH | Stripe Connect transfer to connected account. **Recommend Separate Charges & Transfers** (platform holds funds, transfers after service/decline window — enables delayed payout & refunds). Destination charges are simpler but less control. |
-| Host payout onboarding (KYC) | Legally required to pay hosts; can't be skipped | HIGH | Stripe Connect Express hosted onboarding (~10-15 min, Stripe-managed compliance). Gates a host's ability to receive bookings. |
-| Refund handling | Cancellations require money back | MEDIUM | Refund via Stripe; interacts with payout timing — another reason to hold funds before transfer. |
-| Authorize-vs-capture for request-to-book | Don't charge for a booking the host might decline | HIGH | Auth at request, capture at approval. Auth expiry (~7 days) constrains how long requests can stay pending. |
+| Situation | Pattern | Why |
+|---|---|---|
+| The whole route is data | **route `loading.tsx` + a layout-matched skeleton** | The skeleton communicates the shape of what's coming; NN/g finds this beats a spinner for full-screen loads |
+| The shell is instant, one panel is slow | **`<Suspense>` around that sub-tree** | Search results inside a static search bar; the availability calendar inside the listing page; the notification panel body |
+| A user-initiated mutation | **in-control pending via `useActionState`** (spinner *inside* the button, label swaps) | Verified current Next.js guidance; keeps the page stable and preserves the "disables on click" idempotency contract (D-42) |
+| The server cannot say no | **`useOptimistic`** — mark-notification-read, tab highlight, pax display | Safe because there is no rejection path |
+| **The server CAN say no** | **never optimistic** — hold, confirm, approve/decline, cancel, RSVP, pax step-up | **D-130.** An optimistic booking is a lie about a DB-arbitrated fact |
 
-#### Host Tools (Supply)
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Availability / operating-hours management | Hosts define when the space is bookable | HIGH | Operating hours (recurring weekly) + one-off blocks/overrides. Peerspace model: guests can't request outside operating hours. |
-| Calendar block / unblock specific dates/times | Hosts take the space offline (maintenance, personal use) | MEDIUM | Manual blocks layered on operating hours. |
-| Pricing (hourly rate; day rate) | Hosts set what they charge | LOW | Per-listing rate(s). Keep flat in v1. |
-| Instant-book vs request-to-book toggle per listing | Explicit Active requirement & key differentiator of host control | MEDIUM | Per-listing setting that forks the booking lifecycle. |
-| Approve / decline booking requests | Required for request-to-book listings | MEDIUM | Host action with deadline; triggers capture or release. HopperFit/Facilitron confirm this is expected behavior for space owners. |
-| View bookings (upcoming/past) + status | Hosts run their operation off this | LOW | Host-side booking list. |
-| Payout visibility (what's owed / paid) | Hosts need to trust they're getting paid | MEDIUM | Can lean on Stripe Express dashboard in v1 to reduce build. |
+> **Skeleton discipline (this is where skeletons go wrong):** a skeleton whose box metrics don't match the
+> real content causes a layout shift on arrival and destroys exactly the trust it was meant to build. Rule:
+> every skeleton is built from the *same* measurement constants as its real component, and **the skeleton
+> gets its own visual-regression baseline** under D-131. If a component's height can't be predicted, use an
+> in-place spinner instead of a skeleton.
 
-#### Account / Bookings Management (Both Sides)
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Booker "My Bookings" (upcoming/past + status) | Explicit Active requirement | LOW | Status states: pending, confirmed, declined, cancelled, completed. |
-| Booking status lifecycle visibility | Users need to know where a request/booking stands | MEDIUM | Shared status model across both sides. |
-| Transactional emails (confirm, request received, approved/declined, cancelled, reminder) | Bookings without notifications feel unreal/unreliable | MEDIUM | Email is the v1 notification channel (no chat). Reminders reduce no-shows. |
+| Feature | Why Expected | Complexity | Depends on (v1.0 surface) |
+|---|---|---|---|
+| **B1. Route-level `loading.tsx` for every data route** — `/`, `/listings/[id]`, `/bookings/[id]`, `/host/bookings`, `/host/requests`, `/host/earnings`, `/host/listings/[id]/*`, `/invite/[token]` (2 of ~27 exist today) | A route that renders nothing until data lands reads as broken on a phone connection. This is the most visible single gap in the app. | **MED** | All listed routes; reuse the existing `bookings/loading.tsx` idiom |
+| **B2. `error.tsx` per route group + one `global-error.tsx` + `not-found.tsx`** — booker, host, auth each get a group-scoped error boundary offering `reset()` **and** a route out ("Back to search" / "Back to your bookings"). `not-found.tsx` for `/listings/[id]` (unlisted/deleted) and root. **Zero exist today.** | An unhandled render error currently produces the Next.js default error page in production — the single loudest "this is a prototype" signal a real user can hit. | **MED** | New files; no logic change |
+| **B3. The search zero-result state, finished** — the D-31 escape hatches (`Broaden radius` / `Clear filters` / `Show nearby spaces`) exist in spec; v1.1 makes them look designed **and adds relaxation transparency**: name which constraint was dropped ("We ignored your 9–11 AM filter"), and always render the "You might also like" alternatives below rather than a bare dead end. | **The single most consequential empty state in the product.** ~68% of e-commerce zero-result pages are dead ends; a marketplace at launch liquidity will hit this constantly, and it is the moment the user decides whether FitOut has supply. | **MED** | `search-results.tsx` (both empty branches already exist), `lib/search/query.ts` (fallback set already computed) |
+| **B4. The other six empty states, designed** — `/bookings` upcoming+past · `/host/bookings` · `/host/requests` (**inbox-zero is a positive state**: "Nothing needs your attention") · `/host/listings` (first-run — the strongest CTA in the host app) · `/host/earnings` (no payouts yet) · group booking with zero RSVPs (**the share affordance must *be* the empty state**) | Copy exists for several of these in 07-UI-SPEC; none has a designed treatment. Empty is where a two-sided marketplace spends its first weeks. | **MED** | `bookings/page`, `host/bookings`, `host/requests`, `host/listings`, `host/earnings`, `bookings/[id]/group` |
+| **B5. Payment/hold failure that never alarms — three distinct states, never conflated** | See the box below. This is the core-value surface: "confidence the booking is real". | **MED** | `pending-payment-state`, `payment-reversed-state`, `book-cta`, `reserve-view` |
+| **B6. The "slot just taken" collision, upgraded** | See the box below. The DB rejects **after** the user has committed — the recovery is the product's most important error design. | **MED** | `mapBookingError` (`units.ts`), `book-cta.tsx:76-80`, `hold-expired-state`, `getAvailability` read model |
+| **B7. Success discipline** — terminal success (confirmation) is a full-page **moment**; non-terminal success (hours saved, listing published, request approved, photo uploaded) is a `sonner` toast + server refresh. **Never a toast for something the user must read** (a refund amount, a reduced pax count) — those are in-page alerts. | 09-UI-SPEC already sets this precedent for the partial-grant alert; generalising it prevents a polish pass from toasting money. | **LOW–MED** | `sonner`, `partial-grant-notice`, `bookings/[id]` |
+
+> **B5 — payment failure, concretely.** Split what the current UI conflates:
+> - **(a) Payment not completed** (abandoned checkout, declined card, cancelled GCash/Maya auth) → **neutral**, not red.
+>   Copy states the money position first: *"You haven't been charged."* Then a **one-tap retry** and the alternative
+>   rails inline (GCash · Maya · QRPh · card) — decline-recovery research is unanimous that offering an alternative
+>   method inside the error, rather than a generic "declined", is what recovers the abandonment. Never surface a raw
+>   provider decline code.
+> - **(b) Payment pending settlement** (webhook not yet in) → **no error affordance at all.** The existing bounded
+>   `router.refresh()` poller plus *"We're confirming your payment — this usually takes a few seconds."*
+>   **Rule: never render an error while the webhook is still the outstanding authority** (D-130 — the webhook is
+>   the sole confirm authority; the browser return is not).
+> - **(c) Payment reversed** — the one genuine failure edge. `--destructive`, an explicit money statement
+>   (*"₱1,050 was charged and has been returned"*), and a support path carrying the `FIT-` reference.
+>
+> **Every payment state must state where the money is, in words, above the fold.** A payment error that doesn't is
+> the trust failure, regardless of how calm it looks.
+>
+> **B6 — the collision, concretely.** The user has committed; the DB said no. Contract:
+> 1. It is a **result, not an error** — neutral `role="status"`, `Info` icon, existing calm copy (`That time was just taken.` / `Just sold out — pick another date.`). Never red, never a toast-and-leave.
+> 2. It resolves **in place** — the confirm panel is *replaced* by the recovery, on the same URL.
+> 3. **Refreshed availability lands in the same paint** — the surrounding calendar re-renders showing the slot now occupied, so the user *sees* why (already wired via `router.refresh()`).
+> 4. **It offers the nearest alternatives, not just a way back** — same listing ± 2 hours that day, then the next open day, then nearby spaces. This is the single biggest upgrade over v1.0's "Back to availability", and it reuses `getAvailability` — **no new logic, D-130-safe**.
+> 5. **Focus moves to the recovery CTA** and the notice is announced once (not per second).
+> 6. Open-capacity twin: the same shape, with the next three dates that still have spots.
+
+#### C. Booker-flow marketplace conventions (Airbnb · Peerspace · ClassPass · Resy · OpenTable)
+
+Conventions marked **[EXPECTED]** cost trust when violated. Conventions marked **[OPTIONAL]** are style.
+
+| Feature | Why Expected | Complexity | Depends on (v1.0 surface) |
+|---|---|---|---|
+| **C1. Search-result card, restructured to 3 lines** — **[EXPECTED]** photo-led (fixed 4:3, no ragged grid), whole card is one link, price legible without interaction, price in the same unit checkout will use. **Recommended restructure (D-130 permits):** (1) cover photo; (2) **title left / price right on one baseline** — every marketplace puts price on the strongest line because it is the primary scan cue; (3) one muted meta line `Gym · 2.3 km away`; (4) the availability/scarcity line as the only dynamic row. Net 3 text lines instead of 5. | Airbnb's card is photo-led with quiet chrome and one typographically loud trust element. FitOut's current five stacked muted lines give price, type and distance equal weight, so nothing leads. | **LOW–MED** | `search-result-card.tsx`, `listing-card.tsx`, `all-in-rate.ts` |
+| **C2. Listing-detail page structure** — **[EXPECTED]** gallery → title + type + area line → key-facts row (capacity, mode, hours) → description → availability → map → cancellation policy → host. Sticky rail on desktop (**exists**), **sticky bottom price+CTA bar on mobile (does not exist — see F2)**. | This exact order is the convention across Airbnb/Peerspace; users scan for it. FitOut's ordering is close; what's missing is the mobile booking affordance and a designed gallery. | **MED** | `listings/[id]/page.tsx`, `photo-gallery.tsx`, `book-cta.tsx` |
+| **C3. Photo gallery as grid + dialog** — **[EXPECTED]** hero grid (1 large + 4 small on desktop; 1 image + `Show all (N)` on mobile) opening a full-screen `dialog` with keyboard paging. **Not** a carousel (see Anti-Features). | The grid-then-lightbox pattern is the marketplace default; a carousel hides supply and is the classic accessibility/UX regression. | **MED** | `photo-gallery.tsx` (Cloudinary ordered photos already shipped) |
+| **C4. Price-breakdown disclosure** — **[EXPECTED]** line items → divider → weighted total; `tabular-nums`, right-aligned, in a `<dl>`; the fee line explains itself on demand (`<details>` or tooltip); **the number never rises between browse and pay** (D-75, already enforced). v1.1 adds: the rail estimate and the checkout total render through the **visually identical component** so the eye recognises it as the same fact. | The all-in/no-surprise contract is already decided and enforced server-side; what's missing is that the two renderings don't *look* like the same object. Post-junk-fee-rule users expect a fee to be nameable and explainable. | **LOW** | `price-breakdown.tsx`, `RailSelectionSummary`, `refund-breakdown.tsx` |
+| **C5. Calendar / slot-picker polish** — **[EXPECTED]** unavailable dates **disabled, not hidden**; a day panel as the answer to the click; selected run filled in the accent; venue timezone always named. All shipped. v1.1 = **pay the deferred ≥44px hit-area audit on calendar day cells** (09-UI-SPEC OQ8 explicitly punted it), chip rhythm, a chip-grid-shaped loading skeleton, and a month-change transition inside the motion budget. | The picker is the core-value surface; it is also the one place 09-UI-SPEC knowingly left an a11y debt, and D-131 makes this milestone the place to pay it. | **LOW–MED** | `availability-calendar`, `slot-picker`, `date-pass-picker`, `ui/calendar` |
+| **C6. Checkout chrome discipline** — **[EXPECTED]** single column; **no navigation that can silently lose a live hold**; a checkout-specific minimal header carrying the wordmark + the hold countdown; the summary **collapsed by default on mobile** into a `₱1,050 · see breakdown` disclosure. | Booking checkouts across the category strip chrome deliberately. FitOut's reserve page currently renders with *no header at all* and a full breakdown competing with the CTA at 320px. | **MED** | `listings/[id]/book/page.tsx`, `reserve-view.tsx`, `hold-countdown.tsx` |
+| **C7. Announce the payment redirect before it happens** — **[EXPECTED]** *"You'll finish payment on PayMongo's secure page and come straight back."* with the rail marks shown. | An unannounced hand-off to a third-party domain is the scariest moment in the whole flow and the cheapest trust fix in the milestone. | **LOW** | `reserve-actions.tsx` / the checkout CTA |
+| **C8. Confirmation as a distinct first paint** — **[EXPECTED]** the post-payment view is a *moment* (success mark, `Confirmed`, reference, exact amount, venue-local when + tz, address, "we emailed a copy to j•••@gmail.com", what happens next); on later visits the same URL decays into the normal booking-detail page. | Today `/bookings/[id]` is one page doing both jobs, so the highest-stakes moment in the product reads like a record. Users expect immediate on-screen confirmation — "check your email" is not confirmation. | **MED** | `bookings/[id]/page.tsx` (durable owner-gated page already shipped) |
+
+#### D. Trust & confidence signals — "the booking is real"
+
+| Feature | Why Expected | Complexity | Depends on (v1.0 surface) |
+|---|---|---|---|
+| **D1. The booking-detail completeness checklist** — every booking detail page must state: status **plus one sentence of what it means**; venue name, full address, and how to get in; venue-local when + named tz; who the host is; **exactly what was paid, itemised** (not just a total); the cancellation deadline as a **concrete date** with today's refund amount; the `FIT-` reference; a support path. | This page is the artifact the user returns to when they're nervous. Missing any line sends them to support. Most already exist; they are not assembled as a single confidence surface. | **MED** | `bookings/[id]/page.tsx`, `cancellation-policy-disclosure`, `price-breakdown` |
+| **D2. Reference number treatment** — `tabular-nums`, click-to-copy, present in the email **subject line**, and on the detail page of every status (not just confirmed). | A quotable reference is the cheapest, most durable trust object in a money product. It already exists; it is under-used. | **LOW** | `FIT-` reference generation (shipped) |
+| **D3. Cancellation-policy disclosure in a fourth place** — currently spec'd for listing / checkout / cancel-review. Add it to **the confirmation and the confirmation email**, with concrete dates. | A refund promise the booker demonstrably saw is the only kind worth having (C3 in 07-UI-SPEC). The confirmation is when they actually read. | **LOW** | `cancellation-policy-disclosure.tsx`, email shell (D5) |
+| **D4. Only real trust signals** — host since {date}; listing published {date}; **payout onboarding complete** (the D-02 server-truth gate, already the bookability condition); request-to-book approval behaviour. Rendered plainly, not as award badges. | FitOut has **no reviews, no ID verification** (both out of scope in PROJECT.md). Inventing "Verified"/"Superhost" chrome without a program behind it is the same class of failure O4 bans for scarcity — and it is a *worse* lie on the money path. | **LOW** | `listings/[id]/page.tsx` host block; `payout-status.ts` |
+| **D5. A transactional-email shell** — one `renderEmail({ preheader, heading, body, detailRows, cta, footer })`: 600px, single column, table-based, **inline styles from `tokens.ts` as hex** (A11), a text/plain part, the reference in the subject, venue-local times, a text wordmark (D-127: no logo asset), and the support/manage link in the footer. Wrap the existing ~12 sends without changing a single trigger. | The emails are the only branded surface a user keeps. Today they are raw concatenated strings with no shell. Single-column 600px + 44px tap targets + a preheader are the settled conventions. | **MED** | `src/lib/email.ts` (657 lines, ~12 sends), Inngest notify function — **triggers must not move** |
+| **D6. A receipt** — a printable booker-facing receipt view of the itemised charge + a receipt email using the same breakdown component's data. | Real money in v1 means someone will need to expense a booking. A marketplace with no receipt reads as informal. | **MED** | `price-breakdown`, `bookings/[id]`, email shell (D5) |
+| **D7. Site chrome that says a company exists** — a real header on the public routes (`/`, `/listings/[id]`, `/listings/[id]/book`, `/invite/[token]` currently have **none**) and a footer with policy/support/contact links. | A booking page with no navigation and no footer looks like a phishing page. This is a *trust* item, not a layout item. | **MED** | New shared `SiteHeader`/`SiteFooter`; must **not** merge the distinct `(app)` and `(host)` shells (D-04) |
+| **D8. Metadata + share previews** — per-route `title`/`description`, `metadataBase`, and a token-driven `opengraph-image.tsx` (generated from the theme — **no brand asset required**, D-127-safe). | A listing link pasted into a group chat is the primary organic distribution path for a group-booking product, and today it renders as "Create Next App". | **LOW–MED** | `layout.tsx`, `listings/[id]`, `invite/[token]` |
+
+#### E. Host-side polish — explicitly ranked lower (demand-side-first)
+
+PROJECT.md's "Host tooling exists to make the booking experience possible, not the other way around"
+gives a clean priority rule: **a host surface earns polish in proportion to how directly a booker waits on it.**
+
+| Feature | Why Expected | Complexity | Priority rationale | Depends on |
+|---|---|---|---|---|
+| **E1. Requests inbox (`/host/requests`)** — scannable rows, the SLA countdown as the loudest element, approve/decline as the only actions, designed inbox-zero | **P1 — a booker is literally waiting.** An unactioned request is a stalled booking on the demand side. | **MED** | Booker-blocking | `request-row`, `request-countdown`, `RequestActions` |
+| **E2. Listing create/edit wizard** — truthful `Step X of Y` across the 8/9-step occupancy fork, a **clickable** step rail for back-navigation, a visible autosave state, and the publish checklist as a **persistent panel** rather than a bottom-of-flow surprise | **P1 — a bad wizard means no supply, and no supply means no marketplace.** It is also the largest single host surface (`wizard.tsx` is the biggest component in the repo). | **HIGH** | Supply-blocking | `wizard.tsx`, `progress`, `photo-uploader`, publish checklist |
+| **E3. Host dashboard as a "today" view** — today's bookings, requests owed, payout state, the published-without-hours signal. Currently a greeting + CTA. | **P2** — orientation surface; nobody is blocked, but it is the host's home. | **MED** | Retention | `host/page.tsx`, `payout-banner`, `hours-signal` |
+| **E4. Host bookings table + availability editor** — token/typography pass; the editor gets a **week-at-a-glance preview** so a host can see what they set | **P2** — the editor is where hosts make the mistake that empties their calendar (published with no hours is already a shipped signal). | **MED** | Correctness-adjacent | `host-booking-row`, `weekly-hours-editor`, `blocks-editor` |
+| **E5. Earnings / payouts** — **token pass only, no restructure** | **P3 — deliberately.** Host-only, low traffic, and its data has *never been real* (PayMongo `/v2` is sales-gated). Restructuring a surface whose numbers are unproven is wasted work that will be redone when real payouts land. | **LOW** | Explicitly deprioritised | `payout-row`, `payout-summary`, `host/earnings` |
+| **E6. Image crop/framing UI** (promoted backlog 999.2) — avatar cropper + non-destructive cover-frame preview | Both sides; UI-SPEC already written. Structurally independent of everything else in the milestone, so it can slot anywhere. | **MED–HIGH** | Independent | `photo-uploader`, `avatar`, profile, Cloudinary transforms |
+
+#### F. Responsive & mobile structure (320px is a D-131 hard gate)
+
+**The one missing block: `sheet`.** It is not installed and every mobile pattern below needs it. Install from
+the shadcn **official** registry (no vetting gate triggered). `accordion` is optional (07-UI-SPEC OQ7 chose native `<details>`).
+
+| Surface | 320–639px | 640–1023px | 1024px+ | Complexity | Depends on |
+|---|---|---|---|---|---|
+| **Search** | 1-col cards; the search bar collapses to **one summary pill** opening a full-screen `sheet` with all fields; sort + filters in a bottom sheet | 2-col | 3-col + persistent filter bar | **MED** | `search-bar`, `search-results` |
+| **Listing detail** | stacked; gallery = 1 image + `Show all (N)`; **sticky bottom bar (F2)**; the rail's content opens in a bottom `sheet` from that bar | stacked, rail below content | `1fr 360px` + `lg:sticky` rail (**exists**) | **MED** | `listings/[id]/page.tsx` |
+| **Calendar / slot picker** | month grid full-width; slot chips 2-col wrapped in a `ScrollArea`; the CTA sticky beneath | side-by-side begins | month + slots side-by-side | **MED** | `availability-calendar`, `slot-picker` |
+| **Wizard** | one field-group per viewport; step rail collapses to `Progress` + `Step 4 of 9`; sticky footer Back/Next | — | left step rail + content | **MED** | `wizard.tsx` |
+| **Checkout** | single column; summary **collapsed** into `₱1,050 · see breakdown`; sticky `Confirm & pay ₱X` bar | — | 2-col: summary / breakdown+CTA (**exists**) | **MED** | `reserve-view`, `price-breakdown` |
+| **Lists (bookings, earnings, requests)** | stacked `RowCard` (**shipped pattern**) | — | real `<table>` (**shipped**) | **LOW** | `booking-row`, `payout-row` |
+| **Navigation** | hamburger → `sheet` drawer; **the notification bell stays outside the drawer** (it is a status indicator, not a destination) | — | inline header links | **MED** | new `SiteHeader`, `notification-bell` |
+
+| Feature | Why Expected | Complexity | Depends on |
+|---|---|---|---|
+| **F1. Install `sheet` and adopt it as the one mobile-overlay primitive** — bottom sheet for filters/breakdown/rail, side sheet for nav | Bottom sheets sit in the thumb zone and are the settled mobile alternative to modals for contextual content. Without it, every mobile pattern degrades into a full-screen `dialog`. | **LOW** (install) + **MED** (adoption) | shadcn official registry |
+| **F2. Sticky mobile booking bar** — `<72px`, holds `₱X/hr` + a 44px `Book` (or `Confirm & pay ₱X` at checkout); tapping the price opens the breakdown sheet; sits below the toast layer in the z-scale (A3) | **The single most impactful mobile change in the milestone.** Today a mobile user must scroll the entire listing page to reach the CTA. Airbnb switches its reservation card from sticky rail to sticky bottom bar on mobile; this is the category default. | **MED** | `listings/[id]/page.tsx`, `book-cta`, `reserve-view` |
+| **F3. A 320px audit pass with the sticky bar present** — `₱1,234.00` at 16px `tabular-nums` + a 44px control + safe-area inset does **not** fit alongside a long label at 320px; the bar's label must be short (`Book`), and the countdown must not wrap | 320px is a D-131 gate and a v1.0 deferred item being paid off here. The sticky bar is the place it will actually break. | **LOW–MED** | F2, `hold-countdown` |
+
+---
 
 ### Differentiators (Competitive Advantage)
 
-Aligned with PROJECT.md's stated edge. Don't try to differentiate on everything — group bookings is THE bet.
+| Feature | Value Proposition | Complexity | Depends on |
+|---|---|---|---|
+| **G1. Make true-availability search cards LOUD** — `Available 9:00–11:00 AM · Fri 8 Aug` as a first-class card row, not a muted afterthought | FitOut's search already filters on **real** availability by reusing the calendar's `getAvailability` read model — that is genuinely rare (most category search shows listings, then you discover it's booked). It is the core value made visible on the highest-traffic surface, and it costs almost nothing to promote. | **LOW–MED** | `search-result-card`, `search/query.ts` |
+| **G2. Multi-theme side-by-side preview route** (`/theme-preview`) rendering *real screens*, not swatches | D-128's swap mechanism **and** its proof in one artifact; also the only way a brand direction gets chosen from evidence. Rare enough in real products to be a genuine asset. | **MED** | A10, A11, plus any two polished surfaces |
+| **G3. Collision recovery that offers alternatives** (B6.4) — nearest open hours on the same listing, then nearby spaces | Turns the product's worst moment into a second chance. Nobody in the category does this well; most bounce you to a refreshed calendar. Reuses existing read models, so it stays D-130-clean. | **MED** | `getAvailability`, `search/query.ts`, `book-cta` |
+| **G4. Confirmation extras** — add-to-calendar `.ics`, directions link, and (for exclusive bookings) a direct `Invite people` jump into the group flow | The confirmation is peak intent. `.ics` also puts the venue name, address and reference into the user's calendar — a durable trust artifact off-platform. | **MED** | `bookings/[id]`, group flow |
+| **G5. Treat `/invite/[token]` as a designed public artifact** | It is the **only surface seen by people with no FitOut account**, and the group feature is the stated differentiator — yet it currently renders with no site header, no footer, no OG card. It is the product's cheapest organic acquisition surface and it is un-designed. | **MED** | `invite/[token]`, D7, D8 |
+| **G6. Host "today" dashboard** (E3 done well) | Turns the host app from a settings area into a daily habit; hosts who check in respond to requests faster, which directly improves booker outcomes. | **MED** | `host/page.tsx` |
+| **G7. Search map + list split** ⚠️ **NET-NEW FEATURE, NOT POLISH** — desktop half-map with hover-sync; mobile `List | Map` segmented toggle + draggable bottom sheet of cards | Half-map is the category convention for geo search and users increasingly expect it. **But FitOut has no search map at all** (`react-leaflet` is used only on the single-listing panel), 04-UI-SPEC deferred it to "v2 / DISC-01", and it requires new viewport-bounds query behaviour. **Scope it as its own decision, or reject it — do not let it leak into a "polish" phase.** | **HIGH** | `search/query.ts` (bounds), `listing-map`, `toggle-group`, `sheet` |
+| **G8. Availability editor conveniences** — "copy Monday to all weekdays", week-at-a-glance preview | Real host pain, and the published-with-no-hours signal already proves hosts get this wrong. **"Copy to all" is new functionality** — flag it as such. | **MED** | `weekly-hours-editor` |
+| **G9. Print stylesheet for the receipt + booking detail** | Trivial to add, disproportionately reassuring in a money product, and one of the few things a B2B-ish booker (a coach expensing a court) will actually need. | **LOW** | D6 |
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Group booking: organizer books + invites attendees** | The signature feature vs generic booking tools — turns a solo reservation into a social event | HIGH | Layer on a normal booking: organizer pays, then generates invites. Core differentiator per PROJECT.md. |
-| **Invite via shareable link (+ email)** | Frictionless — matches how pickleball-org apps (PlayMore: link/email/QR) actually spread | MEDIUM | A booking-scoped invite link is the lowest-friction mechanic. Attendees needn't have accounts to RSVP (or lightweight account). QR optional. |
-| **RSVP / attendance confirmation by attendees** | Gives the organizer a real headcount; the "magic" of the feature | MEDIUM | Attendee responds yes/no/maybe → confirmed count. Mirrors PlayMore "join session & manage your own RSVP." |
-| **Headcount tracking against listing capacity** | Organizer sees "6 of 8 confirmed"; prevents over-capacity | MEDIUM | Validate confirmed count ≤ listing capacity. "Who's in" view (Picklebeast-style "see who joined"). |
-| **Waitlist when a group fills** | Common in player-org apps (PlayMore auto-waitlist); handles drop-outs gracefully | MEDIUM | **v1.x candidate** — nice but not core to the differentiator's first proof. |
-| **Fitness-specific space taxonomy & filters** | Generic venue marketplaces (Peerspace) bury fitness; a purpose-built taxonomy is a discovery edge | LOW | Activity-first filtering (pickleball vs yoga) is cheap and on-brand. |
-| **Confidence in real availability (no double-booking)** | "Book with confidence it's real" is positioned as core value; doing it well is a trust differentiator | HIGH | Not a flashy feature but a felt one. Robust hold/lock logic = reputation. |
+---
 
-### Anti-Features (Commonly Requested, Often Problematic — Defer or Avoid for v1)
+### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Automated cost-splitting among attendees | "Make everyone pay their share" feels natural for groups | Requires per-attendee payment, partial-refund, chase-up, and dispute logic — large surface before core transaction is proven. PROJECT.md explicitly defers to v2. | Organizer-pays in v1; attendees just RSVP. |
-| Per-attendee paid spots / ticketing | Lets each person buy their own spot | Turns one booking into N transactions + inventory mgmt; explicitly out of scope in PROJECT.md | Organizer books the whole slot. |
-| In-app chat / messaging between host & booker | Coordination questions arise | Real-time messaging is a product unto itself (moderation, notifications, threading); PROJECT.md defers it | Transactional emails + clear listing info + access instructions. Revisit post-core. |
-| Reviews & ratings | Trust signal, drives conversion | Needs moderation, gaming defenses, and enough volume to be meaningful; not required for the core transaction (PROJECT.md) | Launch without; add once liquidity exists. Lean on photos + host responsiveness. |
-| Native iOS/Android apps | "Everyone wants an app" | Doubles surface area pre-validation; PROJECT.md = responsive web v1 | Responsive web, installable/PWA-friendly if cheap. |
-| Multi-city / region support | "Think big" | Adds geo/region complexity (timezones, region search, supply seeding) before single-market liquidity proven | One city; keep data model region-capable but don't build region UX. |
-| Dynamic / surge / seasonal pricing | Hosts may want it; revenue optimization | Pricing-engine complexity; per-attendee tiered rates (Peerspace-style) tempting but heavy | Flat hourly + day rate in v1. Tiered/dynamic later. |
-| Add-ons / extras at checkout (catering, equipment, staff) | Peerspace has it; upsell revenue | Inventory + per-add-on pricing + tax interactions; not core to fitness-slot booking | Defer. Bundle into listing description if a host needs it. |
-| Subscriptions / memberships / class packs | ClassPass-style recurring access | Different business model (recurring billing, credits, entitlements) than per-booking commission | Stay per-booking in v1. |
-| Identity verification / background checks | Trust & safety | Vendor integration + compliance + UX friction; premature at launch scale | Basic account + payment-on-file as soft trust. Add when scale demands. |
-| Smart-lock / access-code integration | GymSpots/SOLO60 do automated access | Hardware/integration dependency per host; not generalizable across courts/studios/home gyms | Host provides access instructions in confirmation. |
-| Host-side analytics dashboards | Hosts like data | Reporting surface with low early value; Stripe dashboard covers payouts | Minimal bookings list + Stripe Express dashboard. |
+|---|---|---|---|
+| **Dark mode** | Tokens and 66 `dark:` classes already exist; "it's basically done" | **Excluded by D-129.** It roughly doubles the visual-QA surface of every phase and every visual-regression baseline, while branding is still unlocked — so it would be QA'd twice. | Remove the 66 `dark:` classes; keep `.dark` dormant behind the theme system as a cheap future theme |
+| **A real brand identity** — logo, wordmark asset, custom typeface, illustration set, photography treatment | "While we're in here anyway" | **Excluded by D-127.** Paying the churn cost twice is exactly what the placeholder decision exists to avoid; commissioning assets also blocks the milestone on a non-engineering decision. | Text wordmark, lucide icons, host photography, a token-generated OG image |
+| **Bespoke primitives that shadcn official already ships** (a hand-rolled sheet, accordion, combobox, date picker) | "Ours would fit the design better" | Re-implements accessibility (focus trap, roving focus, escape, aria) that Radix already gets right, and creates surfaces the token contract can't reach. `components.json` declares `registries: {}` — **no third-party registry** either. | `npx shadcn add sheet` (the only block actually missing); extend `card`/`badge`/`button` via CVA variants |
+| **Carousels** — hero carousel on the listing gallery, "featured spaces" carousel on the home | Looks premium; shows more photos in less space | Hides supply behind interaction, is a known accessibility and discoverability regression, and auto-advance fights the reduced-motion budget. Every serious marketplace uses grid + lightbox. | Photo **grid** hero + full-screen `dialog` (C3); a plain responsive results grid on home |
+| **Animation for its own sake** — page transitions, parallax, scroll-triggered reveals, price count-ups, confetti on confirmation | "Feels alive" | Adds latency and jank on the 320px/slow-connection target; a price that animates from ₱0 to ₱1,050 is *actively distrust-inducing* on a money surface; confetti on a real financial commitment reads as unserious. | Motion budget: **state changes and disclosure only**, ≤320ms, one easing token, all behind `prefers-reduced-motion` (A4) |
+| **Skeleton screens everywhere** | "Skeletons are what good apps do" | A skeleton whose metrics don't match the arriving content causes CLS and destroys the trust it was meant to build. Skeletons on sub-1s loads add perceived latency instead of removing it. | Skeletons only where box metrics are predictable, built from shared constants, **with their own VR baseline**; in-control spinners for mutations; nothing under ~1s |
+| **Fabricated urgency / social proof** — "12 people are viewing", "booked 3 times today", `Almost gone!`, review stars with no reviews, "Verified host" / "Superhost" without a program | Every marketplace has them; they convert | **The backend cannot substantiate any of it** — it supplies `{remaining, cap}` and nothing else (O4 bans exactly this). Reviews and identity verification are explicitly out of scope in PROJECT.md. A fabricated trust badge on a money path is a materially worse lie than a fabricated one on a content site. | Show only what is server-true: exact spots-left at/below the server-derived threshold, host-since, published-on, payout-onboarding-complete (D4) |
+| **Moving math client-side "for snappiness"** — client refund preview, client low-stock threshold, optimistic booking confirm, client price recompute | Fewer round-trips; feels instant | **Directly violates D-130**, and each has a shipped precedent explaining why: the JS-clock refund preview can show 100% while the action awards 50%; `serviceFeeBps` isn't inlined into the browser bundle so a client default silently disagrees; the webhook is the sole confirm authority. | Server props + `router.refresh()`; `useOptimistic` **only** where the server cannot say no (B) |
+| **A token pipeline** — Style Dictionary, a Figma token plugin, a tokens JSON build step | "Proper design systems have one" | There is no designer in the loop, one consumer (this app), and the values are explicitly placeholders. It adds a build step and a second source of truth for something a 60-line CSS file plus one TS module expresses exactly. | `src/lib/theme/tokens.ts` + `@theme inline` + `[data-theme]` blocks (A10/A11) |
+| **A component storybook as a separate deliverable** | "We need a component catalogue" | A second surface to maintain with no consumer, and it drifts from the app immediately. D-128 already names the correct proof: a second theme rendering correctly **on real screens**. | Fold a primitive gallery into the single `/theme-preview` route (G2) |
+| **Greying-in features that don't exist** — disabled star-rating rows, an "empty" reviews section, a messaging tab stub | "Shows where we're going" | Implies capabilities PROJECT.md put out of scope; a user who taps a dead affordance loses more trust than one who never saw it. | Omit entirely |
+| **Onboarding tours, coach marks, commissioned empty-state illustrations** | Polish milestones attract them | A tour is a tax on a flow that should be self-evident; commissioned art is a brand asset (D-127). Both age out the moment branding lands. | Fix the flow; use lucide glyphs + copy for empty states |
+| **Restructuring server actions, route boundaries, or data access during a visual pass** | The code is right there | Turns a reviewable visual diff into an unreviewable behavioural one, and is exactly how a polish milestone silently breaks a correctness invariant. | Layout/markup/class changes only; if a server change is genuinely needed, name it as a deviation |
+| **A decorative map on search** | "Search should have a map" | A map that doesn't drive the query is worse than no map — it implies geo-filtering the results don't reflect. | Either build G7 properly (with bounds-driven querying) or ship no search map |
+| **Toasts for information the user must read** — refund amounts, reduced pass counts, price changes | Toasts are quick to add | Dismissible, unreadable by screen readers on a delay, and gone before the money decision. 09-UI-SPEC already ruled this for the partial-grant case. | In-page, non-dismissible `role="status"` alerts on the surface where consent happens (B7) |
+
+---
 
 ## Feature Dependencies
 
 ```
-Auth (accounts)
-  └──requires──> everything booking/listing/payment
+A1 (font fix + scaffold purge)          ← do first; zero dependencies, changes every screen
+    │
+A2 (type scale) ─┐
+A3 (elevation+z) ─┤
+A4 (motion)      ─┼──> A6 (button variants) ──> A7 (touch size) ──> F2 (sticky mobile bar)
+A5 (focus ring)  ─┤                                                      │
+                 └──> A8 (status badges) ──> A9 (card patterns)          │
+                              │                      │                   │
+A10 (ThemeProvider) ──> A11 (tokens.ts values) ──> D5 (email shell)      │
+        │                        │                                       │
+        └──> G2 (/theme-preview) └──> D8 (OG image)                      │
+                                                                         │
+A2..A9 ──> B1/B2 (loading + error/not-found scaffolding)                 │
+              │                                                          │
+              └──> B3..B7 (per-surface states) ──┬──> C1..C8 (booker flow polish)
+                                                 ├──> E1..E5 (host polish)
+                                                 └──> F1 (sheet) ────────┘
 
-Listing creation
-  └──requires──> Photo upload + Space taxonomy + Capacity
-        └──enables──> Listing detail page ──enables──> Search results & Availability view
+D7 (site header/footer) ──enables──> C6 (checkout chrome), G5 (invite page), D8
 
-Host availability / operating hours
-  └──requires──> Availability model (the shared truth)
-        └──feeds──> Availability view (demand) AND Search-by-date filter (HARD)
-        └──feeds──> Double-booking prevention
+E6 (image crop/framing) ──independent──> (only needs A1..A9; slots anywhere)
 
-Booking (select slot)
-  └──requires──> Availability model + Slot hold/lock
-        └──forks on──> Instant-book toggle ──> Payment CAPTURE now
-                   └──> Request-to-book ──> Payment AUTH now, capture on host Approve
-                              └──requires──> Host approve/decline action + expiry
+G7 (search map) ──conflicts──> "this is a polish milestone"   [net-new capability]
+G8 ("copy to all") ──conflicts──> "this is a polish milestone" [net-new capability]
 
-Payment (charge booker)
-  └──requires──> Stripe Connect setup
-        └──requires──> Host payout onboarding (KYC) BEFORE host can receive bookings
-challenge: commission = application fee; payout = transfer (Separate Charges & Transfers)
-        └──enables──> Refunds ──required by──> Cancellation
-
-Group booking
-  └──requires──> A confirmed normal booking by the organizer (organizer-pays)
-        └──requires──> Invite mechanism (link/email)
-              └──requires──> Attendee RSVP
-                    └──requires──> Headcount-vs-capacity validation (needs Listing.capacity)
-        └──enhanced-by──> Waitlist (v1.x)
-
-Bookings management (both sides)
-  └──requires──> Shared booking status lifecycle (pending/confirmed/declined/cancelled/completed)
-        └──requires──> Transactional emails
-
-Map view ──enhances──> Search (optional in v1)
-Cost-splitting ──CONFLICTS with──> v1 organizer-pays model (do not combine; v2)
+D-131 visual-regression baselines ──MUST FOLLOW──> A1..A11
 ```
 
 ### Dependency Notes
 
-- **Search-by-date depends on the availability model, not just listing attributes.** This is the single highest-risk dependency: filtering "free Saturday 2-4pm" requires querying live availability across listings. Sequence the availability model *before* rich search.
-- **Host payout onboarding (KYC) gates supply going live.** A host cannot legally receive money until Stripe Connect onboarding completes. A listing can exist before onboarding, but it must not be bookable (or payouts will fail). Order: account → listing → payout onboarding → bookable.
-- **Instant vs request-to-book forks payment timing.** Instant = capture now. Request = authorize now, capture on approve, release on decline/expire. Build the booking-status state machine to encode this fork explicitly; it touches payments, emails, and the host approve action together.
-- **Slot hold/lock is a prerequisite for safe checkout.** Without a temporary hold during payment, two bookers can pay for the same slot. This must land *with* the booking flow, not after.
-- **Group booking sits entirely on top of a normal confirmed booking.** It adds invite + RSVP + headcount; it does not change who pays or how payment works in v1. This keeps the differentiator cheap relative to the core transaction. It depends on `Listing.capacity` for validation.
-- **Cancellation depends on refunds depends on the payout/transfer model.** Holding funds before transfer (Separate Charges & Transfers) makes refunds clean; transferring immediately makes them painful. Decide the payment topology early because cancellation correctness rides on it.
+- **A1 before everything.** It is one line of CSS and it changes the typeface of every screenshot. Any
+  baseline captured before it is worthless.
+- **A6 (button variants) gates D-128's whole claim.** While coral is a repeated literal in 19 files, a
+  theme swap is a 19-file sweep and the "second theme renders correctly" proof is not evidence of anything.
+- **A11 (`tokens.ts` with hex fallbacks) gates D5 (email).** Email clients support neither CSS custom
+  properties nor reliable `oklch()`. If the token contract lives only in `globals.css`, the emails silently
+  drift on the first theme swap — a third of the branded surface escaping D-128.
+- **B1/B2 before per-surface polish.** Scaffolding the loading/error/not-found conventions *first* means
+  each surface phase ships its four states as part of the surface, rather than a retrofit pass that D-131
+  will otherwise force at the end of every phase.
+- **F1 (`sheet`) gates F2, and the mobile search, checkout, and nav patterns.** One `npx shadcn add sheet`
+  unblocks four surfaces; without it they all degrade to full-screen dialogs.
+- **A3's z-index scale is a prerequisite for F2, not a nicety.** The moment a sticky CTA bar, a bottom
+  sheet, a dialog and sonner coexist, stacking order becomes a real bug class.
+- **Visual-regression baselines must be captured per-phase, after that phase's tokens are final.** The
+  foundation phase should deliberately capture **none** — every baseline shot before A1–A11 land gets rebuilt.
+- **E6 (image crop) is genuinely independent** — it needs only the primitives, so it can absorb schedule
+  slack anywhere after the foundation.
+- **G7 (search map) and G8 ("copy to all") conflict with the milestone's own definition.** Both are new
+  capability. Either promote them to explicit scope with their own requirement IDs, or reject them; do not
+  let either ride along inside a surface-polish phase.
+
+---
 
 ## MVP Definition
 
-### Launch With (v1)
+### Launch With (v1.1 core)
 
-The minimum that proves "find a fitness space, see real availability, book it, pay — with confidence it's real," plus the group-booking bet.
+The milestone is not credible without these.
 
-- [ ] Email/password auth, single account with booker+host capabilities — gate for everything
-- [ ] Host: create/edit listing (type, capacity, amenities, address, photos) — supply
-- [ ] Host: set operating hours + block dates/times — the availability source of truth
-- [ ] Host: set hourly + day rate — pricing
-- [ ] Host: instant-book vs request-to-book toggle — explicit requirement & host-control edge
-- [ ] Host: Stripe Connect payout onboarding — required to receive money
-- [ ] Host: approve/decline requests (with expiry) — request-to-book path
-- [ ] Search by location + activity type + date/time availability + price — demand spine
-- [ ] Results list + listing detail page — discovery → decision
-- [ ] Real availability calendar (hourly slots + day) on listing — core-value keystone
-- [ ] Slot hold/lock during checkout — double-booking prevention (non-negotiable)
-- [ ] Book + online card payment with commission deducted + host payout — the transaction
-- [ ] Authorize/capture handling matching instant vs request — correctness
-- [ ] Booking confirmation + transactional emails — proof it's real
-- [ ] Cancellation + refund with a basic policy — table stakes for any booking product
-- [ ] My Bookings (both sides), upcoming/past + status — manage
-- [ ] Group booking: organizer books → invite by link/email → attendees RSVP → headcount vs capacity — the differentiator
+- [ ] **A1** — font fix + scaffold purge — *changes every screen for one line of work*
+- [ ] **A2, A3, A4, A5** — type / elevation+z / motion / focus tokens — *the missing half of the token contract*
+- [ ] **A6, A7, A8, A9** — button hierarchy, touch size, status vocabulary, card patterns — *makes the token contract reach components*
+- [ ] **A10, A11** — ThemeProvider + `tokens.ts` values — *D-128's mechanism, and the only way email stays in the contract*
+- [ ] **A12** — leak test — *makes the D-128 proof cheap to re-run*
+- [ ] **B1, B2** — `loading.tsx` everywhere + `error`/`not-found`/`global-error` — *D-131 gate; 25 of 27 routes have neither*
+- [ ] **B3, B4** — the search zero-result state and the six other empty states — *the highest-consequence empties*
+- [ ] **B5, B6, B7** — payment/hold failure, collision recovery, success discipline — *the core-value surfaces*
+- [ ] **C1, C2, C4, C5, C6, C7, C8** — search card, listing structure, breakdown, picker, checkout chrome, redirect warning, confirmation moment
+- [ ] **D1, D2, D5, D7, D8** — booking-detail completeness, reference treatment, email shell, site header/footer, metadata
+- [ ] **E1, E2** — requests inbox and the listing wizard — *the two host surfaces a booker waits on*
+- [ ] **F1, F2, F3** — `sheet`, the sticky mobile booking bar, the 320px audit
+- [ ] **D-129 cleanup** — remove the 66 `dark:` classes; park `.dark` behind the theme system
 
 ### Add After Validation (v1.x)
 
-- [ ] Map view of search results — add once list-based search converts and supply density warrants spatial browsing
-- [ ] Group waitlist + drop-out handling — add once groups regularly hit capacity
-- [ ] Reviews & ratings — add once enough booking volume to make them meaningful and to defend trust
-- [ ] In-app messaging — add if email coordination proves insufficient (host/booker back-and-forth complaints)
-- [ ] Richer host payout dashboard — add when Stripe Express dashboard becomes a friction point
-- [ ] Saved/favorite listings — add when repeat-discovery behavior appears
+- [ ] **C3** photo gallery grid+lightbox — *add once real host photography exists to justify it*
+- [ ] **D3, D4, D6, G9** — policy in the confirmation, real trust signals, receipt, print styles — *add as the first real bookings generate support questions*
+- [ ] **E3, E4** — host today-dashboard, availability week preview — *add when host count makes daily habit matter*
+- [ ] **G1, G3, G4, G5** — loud availability cards, collision alternatives, confirmation extras, designed invite page — *high value; sequence after the core reads as finished*
+- [ ] **E6** image crop/framing — *already promoted into scope; safe to land last since it's independent*
 
 ### Future Consideration (v2+)
 
-- [ ] Cost-splitting among group attendees — explicitly v2 in PROJECT.md; only after core transaction is rock-solid
-- [ ] Per-attendee paid spots / ticketing — alternative group model; validate organizer-pays first
-- [ ] Native mobile apps — after web validates demand
-- [ ] Multi-city expansion — after single-market liquidity is proven
-- [ ] Dynamic/tiered/seasonal pricing & attendee-tier rates — after flat pricing validates
-- [ ] Add-ons / extras at checkout — after core booking proves out
-- [ ] Smart-lock / automated access — per-host integration, scale-dependent
-- [ ] Memberships / class-pack billing — different business model
+- [ ] **G7 search map + list split** — net-new capability with a new query shape; deserves its own decision, not a polish phase
+- [ ] **G8 availability "copy to all"** — net-new host capability
+- [ ] **E5 earnings restructure** — defer until real payouts have moved real money (PayMongo `/v2` is sales-gated)
+- [ ] **Dark mode as a theme** — cheap once D-128's mechanism is live and branding is locked (D-129's stated exit)
+- [ ] Reviews/ratings UI, messaging UI — out of scope in PROJECT.md; do not build shells
+
+---
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Auth / accounts | HIGH | LOW | P1 |
-| Listing create + photos + taxonomy | HIGH | MEDIUM | P1 |
-| Host operating hours / availability model | HIGH | HIGH | P1 |
-| Search by location + activity + date + price | HIGH | HIGH | P1 |
-| Listing detail + availability calendar | HIGH | HIGH | P1 |
-| Slot hold/lock (double-booking prevention) | HIGH | HIGH | P1 |
-| Online payment + commission + payout | HIGH | HIGH | P1 |
-| Stripe Connect host onboarding (KYC) | HIGH | HIGH | P1 |
-| Instant vs request-to-book + approve/decline | HIGH | HIGH | P1 |
-| Cancellation + refund | HIGH | MEDIUM | P1 |
-| My Bookings + status + transactional emails | HIGH | MEDIUM | P1 |
-| Group booking: invite + RSVP + headcount | HIGH | HIGH | P1 (differentiator) |
-| Map view of results | MEDIUM | MEDIUM | P2 |
-| Group waitlist | MEDIUM | MEDIUM | P2 |
-| Reviews & ratings | MEDIUM | MEDIUM | P2 |
-| In-app messaging | MEDIUM | HIGH | P3 |
-| Cost-splitting | HIGH | HIGH | P3 (v2) |
-| Per-attendee ticketing | MEDIUM | HIGH | P3 (v2) |
-| Dynamic / tiered pricing & add-ons | LOW | MEDIUM | P3 |
-| Native apps / multi-city | MEDIUM | HIGH | P3 |
+|---|---|---|---|
+| A1 font fix + scaffold purge | HIGH | LOW | **P1** |
+| A2/A3/A4/A5 remaining token layers | HIGH | MEDIUM | **P1** |
+| A6 button hierarchy (kills 19 literal recipes) | HIGH | MEDIUM | **P1** |
+| A10/A11 ThemeProvider + tokens.ts | MEDIUM (user) / HIGH (milestone) | MEDIUM | **P1** |
+| B1/B2 loading + error/not-found scaffolding | HIGH | MEDIUM | **P1** |
+| B3 search zero-result state | HIGH | MEDIUM | **P1** |
+| B5/B6 payment failure + collision recovery | HIGH | MEDIUM | **P1** |
+| C8 confirmation moment | HIGH | MEDIUM | **P1** |
+| F2 sticky mobile booking bar | HIGH | MEDIUM | **P1** |
+| D7 site header/footer on public routes | HIGH | MEDIUM | **P1** |
+| C1 search-card restructure | HIGH | LOW | **P1** |
+| A7/A8/A9 touch size, status vocab, card patterns | MEDIUM | MEDIUM | **P1** |
+| D5 email shell | HIGH | MEDIUM | **P1** |
+| C6/C7 checkout chrome + redirect warning | HIGH | LOW–MED | **P1** |
+| E1/E2 requests inbox + wizard | MEDIUM (booker-indirect) | MED–HIGH | **P1** |
+| B4 the six other empty states | MEDIUM | MEDIUM | **P2** |
+| D1/D2 booking-detail completeness + reference | HIGH | MEDIUM | **P2** |
+| D8 metadata + OG image | MEDIUM | LOW–MED | **P2** |
+| C5 picker polish + the deferred 44px audit | MEDIUM | LOW–MED | **P2** |
+| A12 leak test | LOW (user) / HIGH (durability) | LOW–MED | **P2** |
+| G1 loud availability cards | HIGH | LOW–MED | **P2** |
+| G3 collision alternatives | HIGH | MEDIUM | **P2** |
+| G2 /theme-preview | LOW (user) / HIGH (milestone) | MEDIUM | **P2** |
+| C3 photo gallery grid+lightbox | MEDIUM | MEDIUM | **P2** |
+| E6 image crop/framing | MEDIUM | MED–HIGH | **P2** |
+| G5 designed invite page | MEDIUM | MEDIUM | **P2** |
+| D6/G9 receipt + print styles | MEDIUM | MEDIUM | **P3** |
+| E3/E4 host dashboard + availability preview | LOW–MED | MEDIUM | **P3** |
+| G4 confirmation extras (.ics, directions) | MEDIUM | MEDIUM | **P3** |
+| D4 real trust signals | LOW–MED | LOW | **P3** |
+| E5 earnings restructure | LOW | LOW | **P3 (token pass only)** |
+| G7 search map | HIGH | HIGH | **P3 — net-new; separate decision** |
+| G8 "copy to all" | MEDIUM | MEDIUM | **P3 — net-new; separate decision** |
 
-**Priority key:** P1 = must have for launch · P2 = add when possible (v1.x) · P3 = future (v2+)
+---
 
 ## Competitor Feature Analysis
 
-| Feature | Peerspace | Splacer / GymSpots / SOLO60 | Airbnb | Pickleball org apps (PlayMore/Picklebeast) | Our Approach |
-|---------|-----------|------------------------------|--------|---------------------------------------------|--------------|
-| Booking granularity | Hourly (+ day rates) | Hourly | Nightly | Session-based | Hourly + day — fitness slots |
-| Instant vs request | Both (filterable) | Mixed; HopperFit = approval | Both | N/A | Per-listing toggle (explicit requirement) |
-| Availability | Operating hours + calendar | Calendar | Calendar + min/max stay | Session schedule | Operating hours + blocks + real-time calendar |
-| Pricing | Hourly + attendee tiers + add-ons | Hourly | Nightly + fees | Free/club-set | Flat hourly + day (tiers/add-ons deferred) |
-| Payments/payout | Auto-collect, 15% take, payout per cancel policy | Marketplace payouts | Marketplace payouts | Usually none | Stripe Connect, commission, delayed payout via separate charges & transfers |
-| Cancellation | Tiered policies; free withdraw while pending | Policy-based | Tiered policies | N/A | Basic tiered policy + refund in v1 |
-| Group / multi-person | Attendee count for pricing | N/A | Guest count vs occupancy | Invite link/email/QR, RSVP, see who joined, auto-waitlist | Organizer-pays booking + invite link/email + RSVP + headcount vs capacity (our differentiator; waitlist v1.x) |
-| Reviews | Yes | Yes | Yes | Some | Deferred (v1.x) |
-| Messaging | Yes | Yes | Yes | Group chat | Deferred (email only in v1) |
-| Add-ons | Yes (food, equipment, staff) | Some | No | No | Deferred (v2) |
+| Pattern | Airbnb | Peerspace | ClassPass / Resy / OpenTable | FitOut today | Our approach (v1.1) |
+|---|---|---|---|---|---|
+| **Search card hierarchy** | Photo-led, quiet chrome, price on the strong line, one loud trust element (rating) | Photo-led + hourly rate + capacity + neighbourhood | ClassPass: time-slot-led rows; Resy/OpenTable: time chips are the card's payload | Photo + 4 muted stacked lines, nothing leads | **[EXPECTED]** Photo → title/price on one baseline → one muted meta line → the availability/scarcity row (C1). Availability made *loud* (G1) since we have real availability and they mostly don't |
+| **Map + list** | Desktop half-map with hover-sync; mobile `List \| Map` toggle + card sheet | Half-map on desktop | Not map-centric | **No search map at all** | **Defer (G7).** Net-new capability with a new query shape. Better no map than a decorative one |
+| **Listing detail + booking widget** | Sticky right rail → **sticky bottom bar on mobile**; gallery grid + lightbox | Same shape; rate + minimum-hours in the widget | Resy/OpenTable: time chips inline, no rail | `lg:sticky` rail; **no mobile equivalent**; gallery not grid+lightbox | **[EXPECTED]** Keep the rail; add F2 sticky bottom bar + rail-in-a-sheet; gallery → grid + dialog (C3) |
+| **Price breakdown** | Line items → divider → total; each fee explained on tap; total never rises | Same, plus hourly × hours | Resy/OpenTable: deposits disclosed pre-commit | Shipped and correct (D-73/74/75), but the rail estimate and checkout total don't *look* like one object | **[EXPECTED]** One visual component for both; `<details>` on the fee; `<dl>` + `tabular-nums` (C4) |
+| **Calendar / slot picker** | Month grid, unavailable **disabled not hidden**, day panel below | Date + start/end + duration | Resy/OpenTable/ClassPass: time chips, greyed when gone | Shipped and strong (range-fill, venue tz named, three-channel unavailable treatment) | **[EXPECTED]** Visual-only pass + pay 09-UI-SPEC OQ8's deferred ≥44px cell audit (C5) |
+| **Checkout → confirmation** | Stripped chrome; full-page confirmation with reference + "what's next" | Request-to-book messaging front-and-centre | OpenTable: confirmation + add-to-calendar + directions | Reserve page has **no header at all**; `/bookings/[id]` doubles as record and confirmation | **[EXPECTED]** Minimal checkout header w/ countdown (C6), announce the PayMongo redirect (C7), confirmation as a distinct first paint that decays into the detail page (C8); `.ics`/directions as G4 |
+| **Trust signals** | Reviews, Superhost, verified ID, host-since | Reviews, response time, host-since | Reviews, restaurant verification | Payout-onboarding gate (real, server-enforced), host-since, published-on. **No reviews, no ID verification** (out of scope) | **[EXPECTED]** Show only the real ones (D4). **Explicitly refuse** review/verification chrome we cannot substantiate |
+| **Empty search results** | Relaxes filters and *says which*; shows nearby alternatives | Suggests broader area | Suggests nearby times/dates | Escape hatches specified (D-31), never visually finished | **[EXPECTED]** Finish it + add relaxation transparency + always render alternatives (B3) |
+| **Transactional email** | Full branded shell, reference in the subject, itinerary block | Branded shell + booking summary | Branded shell + add-to-calendar | 657 lines of raw concatenated HTML, no shell | **[EXPECTED]** One `renderEmail` shell over the existing sends, values from `tokens.ts` as hex (D5/A11) |
+
+---
+
+## Open Questions for the Roadmapper
+
+1. **G7 (search map): in or out?** It is the one category convention FitOut plainly lacks, and it is
+   unambiguously net-new capability with a new query shape. A "polish" milestone that absorbs it will
+   overrun. Recommendation: **out of v1.1**, with a named backlog item.
+2. **How many placeholder themes does D-128 need to be proved?** Recommendation: **two** — the shipped
+   Airbnb-calm/coral direction plus one deliberately distant (different hue family, different radius, a
+   heavier type scale). One theme proves nothing; three is QA cost with no extra evidence.
+3. **Does the checkout get its own minimal header, or the site header?** Recommendation: its own — the
+   hold countdown belongs in the chrome, and nav that can lose a live hold should not be there (C6).
+4. **Does the confirmation state live on `/bookings/[id]` (first-paint variant) or a separate
+   `/bookings/[id]/confirmed`?** Recommendation: **same URL, first-visit variant** — D-43's durability
+   contract ("this page is your confirmation, it stays here if you refresh") is load-bearing and a
+   separate URL would break the promise the copy already makes.
+5. **Where do the `--font-sans` fix and the `dark:` removal land?** Both are trivially small and touch
+   everything. Recommendation: the same first phase as the token layer, so exactly one baseline reshoot occurs.
+6. **`--ring` retune:** the measurement in the baseline table is computed, not instrumented. A phase should
+   verify it with a contrast checker before choosing a replacement value.
+
+---
 
 ## Sources
 
-- Peerspace — pricing/booking model, cancellation policy, operating hours, attendee tiers, add-ons, instant vs request (support.peerspace.com, peerspace.com/resources, en.wikipedia.org/wiki/Peerspace) — HIGH
-- Splacer fitness/studio listings (splacer.co) — MEDIUM
-- GymSpots, SOLO60, HopperFit, Facilitron — private-gym/court hourly booking + host approval (gymspots.com, solo60.com, hopper.fit, facilitron.com) — MEDIUM
-- Airbnb Help Center — Instant Book vs request-to-book, calendar, min/max stay, occupancy checks, ~24h request expiry (airbnb.com/help) — HIGH
-- Stripe Connect docs — account types, Express onboarding/KYC, application fees, destination vs separate charges & transfers, delayed payout/escrow-equivalent, authorize/capture (docs.stripe.com/connect, /connect/charges, /connect/marketplace) — HIGH
-- PlayMore / Picklebeast / Pickleheads / PlayTime Scheduler — invite via link/email/QR, RSVP self-management, "see who joined," auto-waitlist & drop-outs (getplaymore.com, picklebeastpickleball.com, pickleheads.com) — MEDIUM
-- Paperless Post / Mixily / RSVPify — RSVP + headcount/+1 mechanics for group invites — MEDIUM
-- Sharetribe Academy — marketplace search/filters, map view, listing cards, Stripe Connect overview (sharetribe.com/academy) — MEDIUM
-- Double-booking prevention patterns — slot states AVAILABLE→LOCKED/HELD→CONFIRMED, pessimistic/distributed locks, hold expiry (Medium/DEV/itnext system-design write-ups) — MEDIUM
+**Primary (HIGH confidence — read directly):**
+- `.planning/PROJECT.md` — Core Value, milestone definition, D-127…D-131, demand-side-first bias
+- `.planning/milestones/v1.0-ui-specs/04-UI-SPEC.md` — search + booking core design contract, D-31 escape hatches, calm-not-red rule
+- `.planning/milestones/v1.0-ui-specs/07-UI-SPEC.md` — status-badge matrix, refund disclosure, notification centre, copy locks C1–C8
+- `.planning/milestones/v1.0-ui-specs/09-UI-SPEC.md` — scarcity honesty (O4), partial-grant alert, three-channel unavailable treatment, OQ8's deferred 44px audit
+- `.planning/sketches/MANIFEST.md` — Airbnb-calm / single-coral-accent direction
+- The FitOut codebase — `globals.css`, `layout.tsx`, `ui/button.tsx`, `ui/badge.tsx`, `src/lib/email.ts`, route tree, component tree, `package.json` (every claim in the baseline table)
+
+**Framework mechanics (HIGH — Context7 `/vercel/next.js`):**
+- `loading.tsx` auto-wraps the route in a Suspense boundary; `<Suspense>` for sub-tree streaming; `useActionState` returns a `pending` flag for in-control mutation state; existence checks must precede any Suspense boundary to return a real 404 status
+
+**Marketplace & UX conventions (MEDIUM — multiple corroborating sources):**
+- [NN/g — Skeleton Screens vs. Progress Bars vs. Spinners](https://www.nngroup.com/videos/skeleton-screens-vs-progress-bars-vs-spinners/) and [Skeleton Screens 101](https://www.nngroup.com/articles/skeleton-screens/) — spinners for single modules and 2–10s waits; skeletons for full-screen loads; nothing under ~1s
+- [LogRocket — Skeleton loading screen design](https://blog.logrocket.com/ux-design/skeleton-loading-screen-design/) — mismatched skeletons destroy the trust they were meant to build
+- [NN/g — Bottom Sheets: Definition and UX Guidelines](https://www.nngroup.com/articles/bottom-sheet/) and [Mobbin — Bottom Sheet](https://mobbin.com/glossary/bottom-sheet) — the mobile contextual-overlay convention; thumb-zone placement
+- [Appcues — Airbnb's sticky widget](https://goodux.appcues.com/blog/airbnbs-sticky-widget) and [HomeRunner — vacation rental booking flow playbook](https://homerunner.io/blog/the-vacation-rental-booking-flow-playbook-9-ux-fixes-that-lift-conversion-without-rebuilding-your-site/) — reservation card → sticky bottom bar on mobile; CTA in the thumb zone
+- [Superdesign — Airbnb design system breakdown](https://superdesign.dev/blog/airbnb-design-system) and [DesignSystems.one — Airbnb DLS](https://www.designsystems.one/design-systems/airbnb-design) — photo-led cards, white-on-white separation over heavy shadow, one typographically loud trust element, 4px base grid
+- [Baymard — How to Recoup 30% of "Card Declined" Abandonments](https://baymard.com/blog/credit-card-declined) and [EcomHint — Cart & Checkout Error Messages](https://ecomhint.com/blog/cart-checkout-error-messages) — offer alternative payment methods inside the decline message; never surface raw decline codes
+- [Prefixbox — No Results Page Examples](https://www.prefixbox.com/blog/no-results-page-examples/) and [Pencil & Paper — Empty State UX](https://www.pencilandpaper.io/articles/empty-states) — ~68% of e-commerce zero-result pages are dead ends; empty states need context + a next action
+- [Carbon Design System — Motion](https://carbondesignsystem.com/elements/motion/overview/) and [Nulab — Design tokens](https://nulab.com/learn/design-and-ux/design-tokens/) — duration/easing token taxonomy; duration scales with the size of the change
+- [Mailgun — Transactional HTML email templates](https://www.mailgun.com/blog/email/transactional-html-email-templates/), [MailerSend — 16 transactional email best practices](https://www.mailersend.com/blog/transactional-email-best-practices), [Litmus — Dark mode for email](https://www.litmus.com/blog/the-ultimate-guide-to-dark-mode-for-email-marketers) — 600px single column, shared design system across templates rather than per-template hardcoding, 44px+ tap targets, dark-mode client rendering caveats
+- [WiserNotify — order confirmation page examples](https://wisernotify.com/blog/order-confirmation-page/) and [Trafft — booking page design](https://trafft.com/booking-page-design/) — confirmation must carry booking number, accurate details, and a support path
+- [Page Flows — Peerspace booking flow](https://pageflows.com/post/desktop-web/booking-a-room/peerspace/), [ClassPass booking flow case study](https://karloozaeta.com/work/classpass-booking-flow-redesign), [Baymard — time booking interfaces](https://baymard.com/ecommerce-design-examples/time-booking-interface) — slot-picker and booking-flow conventions; single-column forms complete faster than multi-column
+
+**Confidence caveats:**
+- The `--ring` contrast figure (~2.3:1) is **computed from the oklch value, not instrumented** — MEDIUM. Verify before picking a replacement.
+- Competitor behaviours are drawn from design-analysis write-ups and flow recordings rather than live product audits — MEDIUM. They are consistent across sources, but exact current implementations may have moved.
+- "No search map" and every other baseline claim is HIGH — read from the repo on 2026-08-11.
 
 ---
-*Feature research for: two-sided fitness/recreational space booking marketplace*
-*Researched: 2026-06-03*
+*Feature research for: v1.1 Front-End Polish & Placeholder Design System*
+*Researched: 2026-08-11*
