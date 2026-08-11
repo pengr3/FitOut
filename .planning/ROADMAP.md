@@ -66,7 +66,21 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
   3. Two themes render side by side in nested `[data-theme]` subtrees on one page, so a brand direction can be compared on real screens rather than on swatches.
   4. Every colour pair actually used on a surface clears WCAG AA under **both** themes — including the coral CTA label (3.60:1 today), the success badge (3.24:1) and the focus ring (2.58:1 as a pair, ~1.54:1 as rendered) — proven by a test that fails the build; the focus indicator is visible on every control; and a user who has asked for reduced motion gets none.
   5. No raw hex, `rgb(`, `oklch(` or arbitrary `text-[NNpx]` survives anywhere under `src/components/**` or `src/app/**` — the build fails on one — and the only sanctioned duplicate of a token value is a generated module checked for drift, closing the shipped `BRAND_CORAL = "#E8484E"` vs `#ef4445` mismatch at `listing-map.tsx:22`.
-**Plans**: TBD
+**Plans**: 12 plans (11 waves)
+
+Plans:
+- [ ] 10-01-PLAN.md — Design-gate infrastructure — culori, the DB-free vitest.design config, and the test:design script
+- [ ] 10-02-PLAN.md — Shared gate primitives — the one leak-pattern list, the globals.css token parser, and the compile-CSS helper
+- [ ] 10-03-PLAN.md — The colour contract — DS-01 font cycle, the court and grove theme blocks, and the 29-pair AA proof
+- [ ] 10-04-PLAN.md — Type scale, 3-step elevation, 4-step z, the motion budget and the global reduced-motion reset
+- [ ] 10-05-PLAN.md — Theme runtime — the mounted provider, FitOut identity metadata, the Sonner mapping and both override paths
+- [ ] 10-06-PLAN.md — Button contract — the brand variant, the touch size, and every 50%-alpha focus ring removed
+- [ ] 10-07-PLAN.md — Status vocabulary — one closed four-tone union, and green retreats to the icon
+- [ ] 10-08-PLAN.md — Migration — 14 arbitrary text sizes, 14 shadows and 23 z-index values onto the token scales
+- [ ] 10-09-PLAN.md — Palette-class rewrite and the dark: strip, with the vendored 56 pinned as a test
+- [ ] 10-10-PLAN.md — Generated token module, themed favicons, and the scaffold residue deleted
+- [ ] 10-11-PLAN.md — /dev/theme — two themes side by side in nested subtrees, on real components
+- [ ] 10-12-PLAN.md — Turn the gates on — the leak rule, the pair-drift check, and a build that actually goes red
 **UI hint**: yes
 
 **Ordering invariants this phase carries (non-negotiable, each a researcher finding):**
