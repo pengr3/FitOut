@@ -8,6 +8,15 @@
 // per-booking PAYOUT state (D-59): Held → Processing → Paid, plus Refunded, plus the internal Failed edge.
 // The states are CALM (D-59 / 05-UI-SPEC): Held/Processing/Refunded are neutral, Paid is the one success
 // signal, and Failed is the only destructive edge — none of the happy states is ever rendered as red.
+//
+// DS-10: the tone is `StatusTone`, the closed four-tone vocabulary in @/lib/design/status-tones, and it is
+// the SAME union the booking status view is typed against. This file used to declare a four-value tone
+// union and the booking view a three-value one; the values overlapped but the alphabets did not match, so
+// "the badge vocabulary" was a claim rather than a type. The two in-flight/closed treatments this file used
+// to spell out collapse to `neutral`, the success treatment becomes `positive`, and `attention` keeps both
+// its name and its meaning — a genuine failure needing a human, which for a host is a failed payout.
+
+import type { StatusTone } from "@/lib/design/status-tones";
 
 /** The payout-ledger state machine (mirrors host_payout_ledger.state / payout_ledger_state enum). */
 export type PayoutLedgerState = "held" | "processing" | "paid" | "refunded" | "failed";
@@ -16,7 +25,7 @@ export type PayoutLedgerState = "held" | "processing" | "paid" | "refunded" | "f
  *  + the date prefix ("Expected {date}" while pending, "Paid {date}" once paid, "Refunded {date}"). */
 export type PayoutLedgerView = {
   label: string;
-  tone: "muted" | "outline" | "success" | "attention";
+  tone: StatusTone;
   helper?: string;
   datePrefix: "Expected" | "Paid" | "Refunded";
 };
@@ -26,20 +35,23 @@ export type PayoutLedgerView = {
 export function derivePayoutLedgerView(state: PayoutLedgerState): PayoutLedgerView {
   switch (state) {
     case "held":
+      // Held is the DESIGNED resting state of every payout, not a delay. Neutral, never a warning.
       return {
         label: "Held",
-        tone: "muted",
+        tone: "neutral",
         helper: "Held until after the session",
         datePrefix: "Expected",
       };
     case "processing":
-      return { label: "Processing", tone: "outline", datePrefix: "Expected" };
+      // In-flight. DS-10 folds the old bordered treatment into `neutral`; the ArrowLeftRight icon is
+      // what distinguishes it from Held, as it always was.
+      return { label: "Processing", tone: "neutral", datePrefix: "Expected" };
     case "paid":
-      return { label: "Paid", tone: "success", datePrefix: "Paid" };
+      return { label: "Paid", tone: "positive", datePrefix: "Paid" };
     case "refunded":
       return {
         label: "Refunded",
-        tone: "muted",
+        tone: "neutral",
         helper: "This booking was refunded — no payout.",
         datePrefix: "Refunded",
       };

@@ -1,7 +1,12 @@
 // HOST-03 earnings view (D-59) — proves the three load-bearing invariants of the host earnings page:
 //   1. STATE DERIVATION (pure): derivePayoutLedgerView maps each payout state to the calm presentation view
-//      (Paid → success/"Paid"; Held → muted + the "Held until after the session" helper/"Expected";
-//      Refunded → the refunded helper; Processing → outline). No DB.
+//      (Paid → positive/"Paid"; Held → neutral + the "Held until after the session" helper/"Expected";
+//      Refunded → the refunded helper; Processing → neutral). No DB.
+//      DS-10 (plan 10-10) retyped `tone` to `StatusTone`, the closed four-tone vocabulary shared with the
+//      booking status view. The two in-flight/closed treatments this file used to name collapse to
+//      `neutral` and the success treatment is `positive`; the STATE MEANINGS are unchanged, and what these
+//      assertions protect — Paid is the one positive signal, Failed is the only attention edge, and no
+//      happy state is ever the attention edge — is unchanged with them.
 //   2. SUMMARY SUMMING (pure): summarizePayouts → Upcoming = sum(Held+Processing net), Paid out = sum(Paid
 //      net); Refunded/Failed contribute to neither. This is the exact helper the RSC calls, so the page's
 //      totals can never drift from the test.
@@ -28,31 +33,36 @@ import {
 // ---------------------------------------------------------------------------
 
 describe("derivePayoutLedgerView — calm state presentation (05-UI-SPEC)", () => {
-  it("Paid → success tone, 'Paid' label + date prefix", () => {
+  it("Paid → positive tone, 'Paid' label + date prefix", () => {
     const v = derivePayoutLedgerView("paid");
-    expect(v.tone).toBe("success");
+    expect(v.tone).toBe("positive");
     expect(v.label).toBe("Paid");
     expect(v.datePrefix).toBe("Paid");
   });
 
-  it("Held → muted tone with the 'Held until after the session' helper + 'Expected' date prefix", () => {
+  it("Held → neutral tone with the 'Held until after the session' helper + 'Expected' date prefix", () => {
     const v = derivePayoutLedgerView("held");
-    expect(v.tone).toBe("muted");
+    expect(v.tone).toBe("neutral");
     expect(v.helper).toBe("Held until after the session");
     expect(v.datePrefix).toBe("Expected");
   });
 
-  it("Refunded → muted tone with the refunded helper + 'Refunded' date prefix", () => {
+  it("Refunded → neutral tone with the refunded helper + 'Refunded' date prefix", () => {
     const v = derivePayoutLedgerView("refunded");
-    expect(v.tone).toBe("muted");
+    expect(v.tone).toBe("neutral");
     expect(v.helper).toBe("This booking was refunded — no payout.");
     expect(v.datePrefix).toBe("Refunded");
   });
 
-  it("Processing → outline (bordered, not filled) tone, distinct from Held", () => {
+  it("Processing → neutral, and distinct from Held by its LABEL and icon rather than by its tone", () => {
+    // DS-10: Processing used to carry a bordered treatment of its own. It is in-flight, which is what
+    // `neutral` means, and the ArrowLeftRight icon is what separates it from Held's Clock — the badge
+    // recipe map in payout-state-badge.tsx keys by STATE for exactly that reason.
     const v = derivePayoutLedgerView("processing");
-    expect(v.tone).toBe("outline");
+    expect(v.tone).toBe("neutral");
+    expect(v.label).toBe("Processing");
     expect(v.datePrefix).toBe("Expected");
+    expect(derivePayoutLedgerView("held").label).not.toBe(v.label);
   });
 
   it("Failed → the attention edge (never a happy state)", () => {

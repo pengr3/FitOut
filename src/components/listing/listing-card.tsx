@@ -22,7 +22,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PencilIcon, CalendarClock } from "lucide-react";
+import { PencilIcon, CalendarClock, CheckCircle2, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -72,12 +72,28 @@ export type ListingCardData = {
 
 type ActionResult = { ok: boolean; error?: string };
 
-function statusBadge(status: ListingCardData["status"], bookable: boolean) {
+/**
+ * The one badge this tile carries.
+ *
+ * DS-10 / D-14: `Live` used to be a FILLED green chip (3.24:1) whose meaning lived entirely in the fill —
+ * the other three states are neutral chips distinguished by their WORDS, so `Live` was the only one a
+ * colour-blind reader could not tell apart at a glance. It now takes the `positive` recipe from
+ * @/lib/design/status-tones — full-contrast ink on the neutral tint — and carries the CheckCircle2 glyph
+ * that holds the hue (success on muted, 3.67 court / 3.54 grove, against a 3:1 non-text bar).
+ *
+ * The other three keep no icon deliberately: they were never colour-carrying and their labels already
+ * distinguish them. `Icon` is optional for exactly that reason.
+ */
+function statusBadge(
+  status: ListingCardData["status"],
+  bookable: boolean,
+): { label: string; variant: "default" | "secondary"; className: string; Icon?: LucideIcon } {
   if (status === "published" && bookable) {
     return {
       label: "Live",
       variant: "default" as const,
-      className: "border-transparent bg-success text-success-foreground",
+      className: "border-transparent bg-muted text-foreground",
+      Icon: CheckCircle2,
     };
   }
   if (status === "published") {
@@ -248,6 +264,7 @@ export function ListingCard({
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-medium leading-snug">{listing.title || "Untitled listing"}</h3>
           <Badge variant={badge.variant} className={badge.className}>
+            {badge.Icon ? <badge.Icon className="size-3 text-success" aria-hidden="true" /> : null}
             {badge.label}
           </Badge>
         </div>

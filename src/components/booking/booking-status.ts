@@ -9,9 +9,18 @@
 // that exact mistake crashed /host in a prior UAT (see ../host/payout-status.ts). Keep this file free of
 // any directive (T-07-07).
 //
-// The states are CALM (07-UI-SPEC § Color): `cancelled`, `declined` and `completed` are neutral/muted —
+// The states are CALM (07-UI-SPEC § Color): `cancelled`, `declined` and `completed` are neutral —
 // never red, never --success. `confirmed` is the ONE success signal; `approved` is deliberately NOT success
 // because it is not paid yet.
+//
+// DS-10: the tone is no longer a union spelled out here. It is `StatusTone`, the closed four-tone
+// vocabulary in @/lib/design/status-tones — the same union the payout ledger view is typed against, so the
+// two sides of the marketplace can no longer drift into two different tone alphabets (they had, and neither
+// was the one the design system declared). The three tones this file used to spell out map onto it exactly:
+// the two in-flight/closed treatments both collapse to `neutral`, and the success treatment becomes
+// `positive`. That mapping is written out in full in the tone module's header.
+
+import type { StatusTone } from "@/lib/design/status-tones";
 
 /** The booking status as STORED in the DB (mirrors the booking_status pgEnum, schema.ts:497). */
 export type BookingDbStatus =
@@ -30,7 +39,7 @@ export type BookingDisplayStatus = BookingDbStatus;
  *  + the lucide icon name (every badge is icon + text, NEVER colour-only — 07-UI-SPEC § Accessibility). */
 export type BookingStatusView = {
   label: string;
-  tone: "muted" | "outline" | "success";
+  tone: StatusTone;
   icon:
     | "CircleDashed"
     | "Hourglass"
@@ -95,33 +104,35 @@ export function deriveBookingStatusView(
   switch (display) {
     case "pending":
       // The short-lived checkout hold. Calm — the booker is mid-payment, not late.
-      return { label: "Awaiting payment", tone: "muted", icon: "CircleDashed" };
+      return { label: "Awaiting payment", tone: "neutral", icon: "CircleDashed" };
     case "requested":
       // The booker is waiting on a human; the host is holding the action.
       return {
         label: side === "booker" ? "Awaiting host" : "Requested",
-        tone: "muted",
+        tone: "neutral",
         icon: "Hourglass",
       };
     case "approved":
       // The one status whose next action differs by side: the booker owes payment, the host waits for it.
-      // NEVER --success (06-UI-SPEC): approved is not paid yet.
+      // NEVER --success (06-UI-SPEC): approved is not paid yet. DS-10 folds the old bordered treatment
+      // into `neutral` — approved is in-flight, which is what neutral means; it was never a distinct tone,
+      // only a distinct border. The CalendarCheck icon is what distinguishes it, as it always was.
       return {
         label: side === "booker" ? "Approved — pay now" : "Awaiting payment",
-        tone: "outline",
+        tone: "neutral",
         icon: "CalendarCheck",
       };
     case "confirmed":
       // The ONE terminal success signal, both sides (same treatment as the Paid payout badge).
-      return { label: "Confirmed", tone: "success", icon: "CheckCircle2" };
+      return { label: "Confirmed", tone: "positive", icon: "CheckCircle2" };
     case "completed":
-      // DERIVED (D-102), never stored. Muted, not green — inert history, not a live success.
-      return { label: "Completed", tone: "muted", icon: "Check" };
+      // DERIVED (D-102), never stored. Neutral, not green — inert history, not a live success.
+      return { label: "Completed", tone: "neutral", icon: "Check" };
     case "declined":
-      return { label: "Declined", tone: "muted", icon: "XCircle" };
+      return { label: "Declined", tone: "neutral", icon: "XCircle" };
     case "cancelled":
       // Single status for full AND partial refunds (D-79) — the amount is a sibling line, never here.
-      return { label: "Cancelled", tone: "muted", icon: "Ban" };
+      return { label: "Cancelled", tone: "neutral", icon: "Ban" };
   }
 }
 

@@ -5,9 +5,17 @@
 // Shared by BOTH sides: /bookings, /host/bookings and /bookings/[id] all render this one component, so the
 // booker and host vocabularies can never drift. Clones ../host/payout-state-badge.tsx structurally.
 //
-// Calm-states rule (07-UI-SPEC § Color): pending/requested/completed/declined/cancelled are NEUTRAL,
-// `approved` is outline (it is NOT paid yet), and `confirmed` is the one --success signal. No lifecycle
-// state is ever rendered red — red is reserved for genuine failure edges inherited from Phase 5.
+// Calm-states rule (07-UI-SPEC § Color): pending/requested/approved/completed/declined/cancelled are
+// NEUTRAL (`approved` included — it is NOT paid yet), and `confirmed` is the one --success signal. No
+// lifecycle state is ever rendered red — red is reserved for genuine failure edges inherited from Phase 5.
+//
+// DS-10 / D-14 — GREEN RETREATS TO THE ICON. `confirmed` used to be a FILLED green badge with pale text
+// on it; that pairing measured 3.24:1 and is retired. It is now the `positive` recipe from
+// @/lib/design/status-tones: full-contrast ink on the neutral tint, with the hue confined to the
+// CheckCircle2 glyph (success on muted, 3.67 court / 3.54 grove, against a 3:1 non-text bar). The classes
+// are written literally here — the repo's convention for a call site, matching the soft-accent chip in
+// availability/spots-left-chip.tsx — and `tests/design/status-vocab.test.ts` pins them BY VALUE against
+// STATUS_TONE_RECIPES, so a drift between this file and the vocabulary goes red rather than unnoticed.
 //
 // ⚠️ D-79 — THE LOAD-BEARING RULE: this component returns ONLY the badge. Refund detail ("₱500 refunded")
 // renders as a SIBLING line beneath it, composed by the ROW or PAGE — it is NEVER interpolated into the
@@ -38,13 +46,18 @@ type BadgeVariant = "secondary" | "outline";
 // different icons (Check vs XCircle vs Ban) — the same reason payout-state-badge keys by state.
 const BADGE_RECIPES: Record<
   BookingDisplayStatus,
-  { Icon: LucideIcon; variant?: BadgeVariant; className?: string }
+  { Icon: LucideIcon; variant?: BadgeVariant; className?: string; iconClassName?: string }
 > = {
   pending: { Icon: CircleDashed, variant: "secondary" },
   requested: { Icon: Hourglass, variant: "secondary" },
   approved: { Icon: CalendarCheck, variant: "outline" },
-  // The one semantic-success surface (mirrors the Paid payout badge). Never a CTA colour.
-  confirmed: { Icon: CheckCircle2, className: "border-transparent bg-success text-success-foreground" },
+  // The one semantic-success signal (mirrors the Paid payout badge). Never a CTA colour, and never a
+  // fill: DS-10's `positive` recipe is ink on the neutral tint with the hue in the glyph alone.
+  confirmed: {
+    Icon: CheckCircle2,
+    className: "border-transparent bg-muted text-foreground",
+    iconClassName: "text-success",
+  },
   completed: { Icon: Check, variant: "secondary", className: "text-muted-foreground" },
   declined: { Icon: XCircle, variant: "secondary", className: "text-muted-foreground" },
   cancelled: { Icon: Ban, variant: "secondary", className: "text-muted-foreground" },
@@ -71,11 +84,11 @@ export function BookingStatusBadge({
 }) {
   const view = deriveBookingStatusView(status, endsAt, now, side, cancelledBy);
   const display = deriveDisplayStatus(status, endsAt, now, cancelledBy);
-  const { Icon, variant, className } = BADGE_RECIPES[display];
+  const { Icon, variant, className, iconClassName } = BADGE_RECIPES[display];
 
   return (
     <Badge variant={variant} className={cn("gap-1", className)}>
-      <Icon className="size-3" aria-hidden="true" />
+      <Icon className={cn("size-3", iconClassName)} aria-hidden="true" />
       {view.label}
     </Badge>
   );

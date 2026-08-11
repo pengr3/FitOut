@@ -10,6 +10,13 @@
 //     the next action differs (approved / requested).
 //   - `--success` is reserved for `confirmed` alone (05/06-UI-SPEC: approved is NOT paid yet).
 //   - D-79: no label ever carries a money string — refund detail is a SIBLING line, never in the badge.
+//
+// DS-10 (plan 10-10) RETYPED THE TONE. The view's `tone` is now `StatusTone`, the closed four-tone
+// vocabulary in @/lib/design/status-tones, shared with the payout ledger view. The tone assertions below
+// were rewritten against it: the two in-flight/closed treatments this file used to name collapse to
+// `neutral`, and the success treatment is `positive`. The MEANINGS are unchanged and are what these
+// assertions still protect — `approved` must never read as the paid signal, and only `confirmed` may.
+// Nothing about labels, icons or the D-102 derivation moved.
 
 import { describe, it, expect } from "vitest";
 import {
@@ -94,24 +101,29 @@ describe("deriveBookingStatusView — side-specific labels (MANAGE-02)", () => {
 });
 
 describe("deriveBookingStatusView — tone + icon contract (UI-SPEC § Status badge matrix)", () => {
-  it("confirmed (still ahead) is the ONE success tone", () => {
-    expect(deriveBookingStatusView("confirmed", FUTURE, NOW, "booker").tone).toBe("success");
-    expect(deriveBookingStatusView("confirmed", FUTURE, NOW, "host").tone).toBe("success");
+  it("confirmed (still ahead) is the ONE positive tone", () => {
+    expect(deriveBookingStatusView("confirmed", FUTURE, NOW, "booker").tone).toBe("positive");
+    expect(deriveBookingStatusView("confirmed", FUTURE, NOW, "host").tone).toBe("positive");
   });
 
-  it("`success` is NEVER returned for any other display status", () => {
+  it("the positive tone is NEVER returned for any other display status", () => {
     for (const side of ["booker", "host"] as const) {
       for (const s of ALL_STATUSES) {
         const view = deriveBookingStatusView(s, PAST, NOW, side);
-        // Every status evaluated at a PAST endsAt: confirmed has derived to completed, so nothing is success.
-        expect(view.tone).not.toBe("success");
-        expect(["muted", "outline"]).toContain(view.tone);
+        // Every status evaluated at a PAST endsAt: confirmed has derived to completed, so nothing is positive.
+        expect(view.tone).not.toBe("positive");
+        expect(view.tone).toBe("neutral");
       }
     }
   });
 
-  it("approved is `outline` — it is NOT paid yet and must never read as success", () => {
-    expect(deriveBookingStatusView("approved", FUTURE, NOW, "booker").tone).toBe("outline");
+  it("approved is neutral — it is in flight, NOT paid yet, and must never read as the paid signal", () => {
+    // DS-10 folded the old bordered treatment into `neutral`: approved was never a distinct tone, only a
+    // distinct border. What must stay true is that it is not the positive one, which is asserted here
+    // directly rather than through the name of a treatment that no longer exists.
+    const view = deriveBookingStatusView("approved", FUTURE, NOW, "booker");
+    expect(view.tone).toBe("neutral");
+    expect(view.tone).not.toBe("positive");
   });
 
   it("every status returns a non-empty label and an icon", () => {
@@ -170,12 +182,12 @@ describe("deriveDisplayStatus — cancelled_by-aware remap (T8)", () => {
 });
 
 describe("deriveBookingStatusView — a booker-cancelled request reads Cancelled, not Declined (T8)", () => {
-  it("declined + cancelledBy 'booker' reads 'Cancelled' / Ban / muted on BOTH sides", () => {
+  it("declined + cancelledBy 'booker' reads 'Cancelled' / Ban / neutral on BOTH sides", () => {
     for (const side of ["booker", "host"] as const) {
       const view = deriveBookingStatusView("declined", FUTURE, NOW, side, "booker");
       expect(view.label).toBe("Cancelled");
       expect(view.icon).toBe("Ban");
-      expect(view.tone).toBe("muted");
+      expect(view.tone).toBe("neutral");
     }
   });
 

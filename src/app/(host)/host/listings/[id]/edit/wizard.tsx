@@ -1367,6 +1367,18 @@ export function ListingWizard({
                   <ul className="space-y-1.5">
                     {checklist.map((c) => (
                       <li key={c.label} className="flex items-center gap-2 text-sm">
+                        {/*
+                          DS-10 — THE ONE SURVIVING FILLED --success SURFACE IN THE REPO, and it survives
+                          on purpose. This is a PROGRESS INDICATOR, not a status badge: the marker holds a
+                          GLYPH and nothing else (no text node is possible in this span — both branches
+                          render an icon), which makes it the single legal pairing of --success-foreground,
+                          measured as a non-text glyph on the filled surface at 3.83 court / 3.84 grove
+                          against a 3.05 bar. Every OTHER filled-green chip in the app was a status badge
+                          whose LABEL sat on the fill at 3.24:1, and all four are retired by this plan.
+                          --success-foreground remains illegal as text. Both glyphs are aria-hidden so the
+                          decorative claim is provable rather than assumed — the done/not-done meaning is
+                          carried by the checklist copy and the strike-through beside it.
+                        */}
                         <span
                           className={cn(
                             "flex size-5 items-center justify-center rounded-full",
@@ -1374,9 +1386,9 @@ export function ListingWizard({
                           )}
                         >
                           {c.done ? (
-                            <CheckIcon className="size-3" />
+                            <CheckIcon className="size-3" aria-hidden="true" />
                           ) : (
-                            <MinusIcon className="size-3 text-muted-foreground" />
+                            <MinusIcon className="size-3 text-muted-foreground" aria-hidden="true" />
                           )}
                         </span>
                         <span className={cn(c.done && "text-muted-foreground line-through")}>

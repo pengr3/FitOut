@@ -12,6 +12,7 @@
 // PayMongo-hosted onboarding URL it returns (single-use link, minted fresh on every click server-side).
 
 import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { startPayoutOnboarding } from "@/app/actions/paymongo-connect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -41,11 +42,19 @@ export function PayoutBanner({ status }: { status: PayoutStatus }) {
   }
 
   // Payouts enabled → all set; a listing that's published can now accept bookings.
+  //
+  // DS-10 / D-14: this badge was a FILLED green chip carrying its meaning in the fill alone — no icon at
+  // all, so to a colour-blind reader it was indistinguishable from any other chip. It now takes the
+  // `positive` recipe (ink on the neutral tint) AND the CheckCircle2 glyph that carries the hue, so it is
+  // icon + text like every other status in the vocabulary rather than colour-only.
   if (status === "enabled") {
     return (
       <Alert data-payout-banner="enabled">
         <AlertTitle className="flex items-center gap-2">
-          <Badge className="bg-success text-success-foreground">Payouts enabled</Badge>
+          <Badge className="border-transparent bg-muted text-foreground">
+            <CheckCircle2 className="size-3 text-success" aria-hidden="true" />
+            Payouts enabled
+          </Badge>
         </AlertTitle>
         <AlertDescription>
           You&apos;re all set to get paid — your published listings can accept bookings.
