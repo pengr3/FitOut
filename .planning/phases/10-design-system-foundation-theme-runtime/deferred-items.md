@@ -357,3 +357,37 @@ repo-rooted content scan. `src/app/(host)/host/listings/[id]/edit/wizard.tsx` st
 one, so nothing is phantom *yet* — the day that marker changes, the utility survives in the bundle
 with no element using it, exactly as D-1 describes. `10-10-PLAN.md` itself quotes the pairing three
 times, which is the same self-inflicted shape 10-09 measured. Owned by 10-12 (`@source` narrowing).
+
+---
+
+## D-6 UPDATE (2026-08-12, from 10-13) — failure 1 re-confirmed pre-existing at a five-commits-later baseline; failures 2 and 3 did not fire
+
+Plan 10-13 remapped 20 z-index call sites, which is exactly the class of change that *could* put an
+overlay above its own content — so `npm run test:e2e` was the plan's stated verification and D-6
+item 1 fired again, at the same line, on the same date: `e2e/open-capacity.spec.ts:376`, waiting for
+the `Saturday, Aug 15` panel heading, `element(s) not found`.
+
+**Proven pre-existing a second time, independently, and against a newer baseline than D-6 used.** All
+twelve source files this plan touched were checked out at `45ecf07` (the 10-12 docs commit, five
+commits after the `ffbf6b5` baseline D-6 tested) and the full suite re-run: **identical signal — 17
+passed / 1 failed / 5 did not run, same test, same assertion, same locator.** Restored to HEAD
+afterwards and re-verified: design gate 292/292, `tsc --noEmit` exit 0, working tree clean.
+
+Two observations worth adding to the original entry:
+
+- **It is not a stacking bug, which was the one hypothesis this plan was obliged to rule out.**
+  Playwright reports `element(s) not found`, meaning the heading is absent from the DOM — a z-index
+  cannot do that, and an intercepted click would have failed inside `pickDay` rather than at the
+  assertion after it. The pre-plan reproduction settles it regardless of the reasoning.
+- **It is order-sensitive, which sharpens D-6's untested hypothesis.** Running the spec file alone
+  once, case 1 PASSED and case 2 failed instead (on the scarcity chip reading `Spots available`
+  where `Only 1 left` was contracted). Running it under `--workers=1` and under the full suite, case
+  1 failed. So the describe block's serial state machine — not just the module-load date derivation
+  — is part of the picture. Leftover rows were ruled out: `booking`, `listing` and `user` all report
+  **0** `e2e_%` rows between runs, so `afterAll` teardown is working.
+
+**Failures 2 and 3 did not reproduce in any of this plan's four full runs** (`search-and-book` and
+`cancel` were among the 17 passed each time), consistent with D-6 calling item 3 intermittent.
+
+**Owner unchanged:** not a design-system plan. Recorded here so the next executor does not re-derive
+the causality check a third time.
