@@ -2,11 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-status: planning
-last_updated: "2026-08-11T12:00:00.000Z"
-last_activity: 2026-08-11
+status: Roadmap created; awaiting `/gsd-plan-phase 10`
+stopped_at: Phase 10 context gathered
+last_updated: "2026-08-11T11:52:11.427Z"
+last_activity: 2026-08-11 — v1.1 roadmap created (Phases 10–19, 75/75 requirements mapped)
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -395,8 +396,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-11 (`/gsd-new-project` → roadmapper, v1.1)
-Stopped at: **v1.1 ROADMAP CREATED.** `.planning/ROADMAP.md` now carries Phases **10–19** (numbering
+Last session: 2026-08-11T11:52:11.409Z
+Stopped at: Phase 10 context gathered
 continued from v1.0's Phase 9, not reset), with `.planning/REQUIREMENTS.md` § Traceability populated:
 **75/75 requirements mapped, 0 orphans, 0 duplicates.** The shipped v1.0 `<details>` block, the v1.0
 Progress rows, and Backlog **999.1** are preserved verbatim; **999.2 was removed from the Backlog**
@@ -455,7 +456,7 @@ Stopped at: **GAP PLANNING COMPLETE — 9 new plans `09-17` … `09-25` cover al
 
 Prior session: 2026-07-31 (/gsd-resume-work)
 Stopped at: **Session resumed from `HANDOFF.json` + the phase `.continue-here.md`. The pending human decision was ANSWERED: the gap-closure route is the FULL PLANNING ROUND-TRIP — `/gsd-plan-phase 9 --gaps`, not a direct strike at CR-01 + CR-03.** Phase 9 remains code-complete-but-open: 16/16 plans executed, every repository gate green (tsc 0 · vitest 1035 passed / 4 skipped · lint 0 errors / 7 baseline warnings · build 0 / 29 routes · Playwright 21/21), human UAT 9/9 including a real PayMongo `sk_test_` charge — and then `/gsd-code-review 9` found **6 blockers / 5 warnings / 3 info** (`09-REVIEW.md`, `d792f0a`). CR-01 (same-day drop-in pass holdable but never payable) and CR-03 (an operating-hours edit re-keys the admissions counter → up to 2× cap sellable) are ORCHESTRATOR-VERIFIED; CR-02/04/05/06 are reported-only and must each be confirmed before a fix is written. `HANDOFF.json` was deliberately NOT deleted — the gap-planning pass still needs its machine-readable per-blocker file:line detail; delete it once the gap plans exist. Working tree clean, no interrupted agents, no incomplete plans. NEXT: `/gsd-plan-phase 9 --gaps` → close CR-01 + CR-03 first → triage the rest → `gsd-verifier` → `/gsd-secure-phase 9` → phase close.
-Resume file: `.planning/phases/09-open-capacity-bookings/.continue-here.md` (still current)
+Resume file: .planning/phases/10-design-system-foundation-theme-runtime/10-CONTEXT.md
 
 Prior session: 2026-07-31 (/gsd-execute-phase 9 — 09-16)
 Stopped at: **Completed 09-16-PLAN.md (Wave 7) — the drop-in human walkthrough. ALL 16 PHASE-9 PLANS EXECUTED; the phase is NOT closed (verification + close are the orchestrator's).** Nine steps recorded individually with verbatim evidence; the phase's only manual-only verification is DISCHARGED against the real PayMongo `sk_test_` rail (3 webhooks → 3 confirmed drop-in bookings → 3 `booking_confirmed` rows within one second each), and `availability_block` = 0 rows after a host-cancel. Step 4's reported FAIL was reclassified by the operator to accepted design (the OC-11 half-capacity clamp) and pinned as an asserted e2e contract instead of a code change — `src/` untouched, `70c392a`. Two product items logged in the phase's `deferred-items.md`. NEXT: `/gsd-verify-phase 9` then phase close.
