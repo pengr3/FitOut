@@ -169,17 +169,111 @@ Deferred — acknowledged, not in this roadmap.
 
 ## Traceability
 
-Populated during roadmap creation.
+Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (which ended at Phase 9).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _(pending roadmap)_ | — | Pending |
+| DS-01 | Phase 10 | Pending |
+| DS-02 | Phase 10 | Pending |
+| DS-03 | Phase 10 | Pending |
+| DS-04 | Phase 10 | Pending |
+| DS-05 | Phase 10 | Pending |
+| DS-06 | Phase 10 | Pending |
+| DS-07 | Phase 10 | Pending |
+| DS-08 | Phase 10 | Pending |
+| DS-09 | Phase 10 | Pending |
+| DS-10 | Phase 10 | Pending |
+| DS-11 | Phase 11 | Pending |
+| DS-12 | Phase 10 | Pending |
+| DS-13 | Phase 10 | Pending |
+| DS-14 | Phase 10 | Pending |
+| THEME-01 | Phase 10 | Pending |
+| THEME-02 | Phase 10 | Pending |
+| THEME-03 | Phase 10 | Pending |
+| THEME-04 | Phase 10 | Pending |
+| THEME-05 | Phase 10 | Pending |
+| STATE-01 | Phase 11 | Pending |
+| STATE-02 | Phase 11 | Pending |
+| STATE-03 | Phase 12 | Pending |
+| STATE-04 | Phase 11 | Pending |
+| STATE-05 | Phase 13 | Pending |
+| STATE-06 | Phase 13 | Pending |
+| STATE-07 | Phase 12 | Pending |
+| STATE-08 | Phase 13 | Pending |
+| SHELL-01 | Phase 11 | Pending |
+| SHELL-02 | Phase 11 | Pending |
+| SHELL-03 | Phase 12 | Pending |
+| SHELL-04 | Phase 11 | Pending |
+| BFLOW-01 | Phase 12 | Pending |
+| BFLOW-02 | Phase 12 | Pending |
+| BFLOW-03 | Phase 12 | Pending |
+| BFLOW-04 | Phase 12 | Pending |
+| BFLOW-05 | Phase 12 | Pending |
+| BFLOW-06 | Phase 12 | Pending |
+| BFLOW-07 | Phase 12 | Pending |
+| BFLOW-08 | Phase 13 | Pending |
+| TRUST-01 | Phase 13 | Pending |
+| TRUST-02 | Phase 13 | Pending |
+| TRUST-03 | Phase 13 | Pending |
+| TRUST-04 | Phase 13 | Pending |
+| TRUST-05 | Phase 13 | Pending |
+| HFLOW-01 | Phase 14 | Pending |
+| HFLOW-02 | Phase 14 | Pending |
+| HFLOW-03 | Phase 14 | Pending |
+| HFLOW-04 | Phase 14 | Pending |
+| HFLOW-05 | Phase 14 | Pending |
+| AUTHUI-01 | Phase 15 | Pending |
+| AUTHUI-02 | Phase 15 | Pending |
+| AUTHUI-03 | Phase 15 | Pending |
+| EMAIL-01 | Phase 15 | Pending |
+| EMAIL-02 | Phase 15 | Pending |
+| EMAIL-03 | Phase 15 | Pending |
+| CROP-01 | Phase 16 | Pending |
+| CROP-02 | Phase 16 | Pending |
+| CROP-03 | Phase 16 | Pending |
+| CROP-04 | Phase 16 | Pending |
+| RESP-01 | Phase 11 | Pending |
+| RESP-02 | Phase 12 | Pending |
+| RESP-03 | Phase 17 | Pending |
+| RESP-04 | Phase 17 | Pending |
+| GATE-01 | Phase 11 | Pending |
+| GATE-02 | Phase 17 | Pending |
+| GATE-03 | Phase 12 | Pending |
+| GATE-04 | Phase 11 | Pending |
+| GATE-05 | Phase 11 | Pending |
+| GATE-06 | Phase 17 | Pending |
+| MAP-01 | Phase 18 | Pending |
+| MAP-02 | Phase 18 | Pending |
+| MAP-03 | Phase 18 | Pending |
+| MAP-04 | Phase 18 | Pending |
+| HOURS-01 | Phase 19 | Pending |
+| HOURS-02 | Phase 19 | Pending |
+
+**Per-phase counts:**
+
+| Phase | Name | Requirements | Count |
+|-------|------|--------------|-------|
+| 10 | Design-System Foundation & Theme Runtime | DS-01..10, DS-12..14, THEME-01..05 | 18 |
+| 11 | Quality Gates, Pattern Layer & App Shell | DS-11, STATE-01/02/04, SHELL-01/02/04, RESP-01, GATE-01/04/05 | 11 |
+| 12 | Booker Path — Search → Listing → Checkout | BFLOW-01..07, STATE-03/07, SHELL-03, RESP-02, GATE-03 | 12 |
+| 13 | Confirmation, Bookings & Trust | BFLOW-08, TRUST-01..05, STATE-05/06/08 | 9 |
+| 14 | Host Tooling | HFLOW-01..05 | 5 |
+| 15 | Auth, Profile & Transactional Email | AUTHUI-01..03, EMAIL-01..03 | 6 |
+| 16 | Image Crop & Framing | CROP-01..04 | 4 |
+| 17 | Cross-Cutting Audit | RESP-03/04, GATE-02, GATE-06 | 4 |
+| 18 | Search-Results Map | MAP-01..04 | 4 |
+| 19 | Availability Copy-to-All | HOURS-01..02 | 2 |
 
 **Coverage:**
 - v1.1 requirements: 75 total (DS 14 · THEME 5 · STATE 8 · SHELL 4 · BFLOW 8 · TRUST 5 · HFLOW 5 · AUTHUI 3 · EMAIL 3 · CROP 4 · RESP 4 · GATE 6 · MAP 4 · HOURS 2)
-- Mapped to phases: 0
-- Unmapped: 75 ⚠️ (roadmap not yet created)
+- Mapped to phases: **75 / 75 ✓**
+- Unmapped: **0**
+- Duplicated across phases: **0** (every requirement maps to exactly one phase)
+
+**Notes on two intentional near-overlaps** (both requirements stand; neither is double-mapped):
+- **AUTHUI-02** (Phase 15) carries "avatar removal is possible" and **CROP-03** (Phase 16) is "A user can remove their avatar." Phase 15 owns the profile page's design-system pass; the removal affordance itself is delivered by CROP-03 in Phase 16.
+- **STATE-04** (Phase 11) covers every list surface's empty state including host inbox-zero; **HFLOW-01** (Phase 14) covers the requests inbox's scannability, SLA countdown and actions. The empty state is authored once in Phase 11 with the shared `EmptyState` pattern and adopted, not re-decided, in Phase 14.
 
 ---
 *Requirements defined: 2026-08-11*
-*Last updated: 2026-08-11 after initial definition for milestone v1.1*
+*Last updated: 2026-08-11 — traceability populated by the v1.1 roadmap (Phases 10–19); 75/75 mapped, 0 orphans.*

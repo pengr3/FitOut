@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: planning
-last_updated: "2026-08-11T07:07:08.823Z"
+last_updated: "2026-08-11T12:00:00.000Z"
 last_activity: 2026-08-11
 progress:
-  total_phases: 0
+  total_phases: 10
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,7 +20,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **MILESTONE v1.1 — Front-End Polish & Placeholder Design System (started 2026-08-11).** Defining requirements → roadmap. v1.1 adds **no new transaction capability**: every v1.0 flow works and is proven, but none of them look finished, so this milestone puts a coherent visual layer over all nine shipped phases and moves branding behind a swappable token contract. In scope: all four surface groups (booker flow, host tooling, auth & profile, transactional emails), a design-system foundation with multiple named placeholder themes, and backlog **999.2** (image crop/framing UI) promoted in. Direction is an explicit **placeholder** — Airbnb-calm + coral, no brand assets commissioned (D-127). **Light-only** (D-129): the half-built, unreachable dark mode is removed as debt. Layout and information hierarchy on search/listing/checkout may be reshaped, but **no logic moves client-side and no v1.0 correctness invariant weakens** (D-130). Four hard per-phase gates (D-131): 320px-up responsive, keyboard + WCAG AA, designed loading/empty/error states, Playwright visual-regression baselines. **Out of scope:** backlog 999.1 (auth-flow feedback), and the two PayMongo sales-gated threads (real `/v2` payouts, hosted KYC) — blocked on a commercial conversation, not on code. The v1.0 record lives in `.planning/milestones/` (`v1.0-ROADMAP.md` verbatim, `v1.0-REQUIREMENTS.md` 49/49, `v1.0-MILESTONE-AUDIT.md`) and `.planning/MILESTONES.md`; `.planning/RETROSPECTIVE.md` carries the lessons. Six v1.0 deferred items remain acknowledged (see below) — one of them, the 320px/desktop visual check, is paid off by D-131 rather than carried again. Worktrees are OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+**Current focus:** **MILESTONE v1.1 — Front-End Polish & Placeholder Design System. ROADMAP CREATED 2026-08-11 — 10 phases (10–19), 75/75 requirements mapped, 0 orphans.** Phase numbering **CONTINUES** from v1.0 (which ended at Phase 9): v1.1 runs 10 → 11 → {12, 13, 14, 15} → 16 → 17 → 18 → 19, where 12–15 are order-independent and 12 is sequenced first among them. **Next: `/gsd-plan-phase 10`.** Four ordering invariants are non-negotiable and each is a researcher finding, not a preference: (a) **DS-01** — the `--font-sans` self-referential cycle — lands before ANY visual-regression baseline is captured, because fixing it changes the rendered typeface of every screen; (b) **THEME-02/03** — the second theme — ships in the SAME phase as the first (D-133; 4-of-4 convergence), because it is D-128's enforcement test and deferring it turns the Phase-17 audit into a rewrite; (c) **GATE-01** (the VR fail-open fix) and **GATE-04/05** (GATE-NOREG prerequisites) exist BEFORE the first surface-polish phase, because every later phase inherits whatever config exists when it starts; (d) **DS-05/DS-06** (the AA-failing token corrections) land in the foundation phase. **GATE-06 is a roadmap-level invariant: v1.1 ships ZERO schema migrations** — `drizzle/` stays at `0025`, and a migration proposed inside any phase plan is a scope alarm to be raised explicitly, never absorbed. Backlog **999.2 was promoted** into the milestone as Phase 16 / CROP-01..04 (its UI-SPEC is already on disk); **999.1 stays in the Backlog**. Three research decision items are already settled and must not be reopened at planning — the focus ring is a darkened neutral (D-132, not `--ring = --brand`), the `dark:` strip is the 10 app-code occurrences only with the 56 vendored ones left inert (D-129 as amended), and the theme count is two (D-133). One item is genuinely open: the exact corrected `--brand` value (STACK `#da2d34` vs PITFALLS `#d33a3c`) needs a live-tool re-verification during Phase 10 rather than an average. Original milestone framing follows. v1.1 adds **no new transaction capability**: every v1.0 flow works and is proven, but none of them look finished, so this milestone puts a coherent visual layer over all nine shipped phases and moves branding behind a swappable token contract. In scope: all four surface groups (booker flow, host tooling, auth & profile, transactional emails), a design-system foundation with multiple named placeholder themes, and backlog **999.2** (image crop/framing UI) promoted in. Direction is an explicit **placeholder** — Airbnb-calm + coral, no brand assets commissioned (D-127). **Light-only** (D-129): the half-built, unreachable dark mode is removed as debt. Layout and information hierarchy on search/listing/checkout may be reshaped, but **no logic moves client-side and no v1.0 correctness invariant weakens** (D-130). Four hard per-phase gates (D-131): 320px-up responsive, keyboard + WCAG AA, designed loading/empty/error states, Playwright visual-regression baselines. **Out of scope:** backlog 999.1 (auth-flow feedback), and the two PayMongo sales-gated threads (real `/v2` payouts, hosted KYC) — blocked on a commercial conversation, not on code. The v1.0 record lives in `.planning/milestones/` (`v1.0-ROADMAP.md` verbatim, `v1.0-REQUIREMENTS.md` 49/49, `v1.0-MILESTONE-AUDIT.md`) and `.planning/MILESTONES.md`; `.planning/RETROSPECTIVE.md` carries the lessons. Six v1.0 deferred items remain acknowledged (see below) — one of them, the 320px/desktop visual check, is paid off by D-131 rather than carried again. Worktrees are OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -42,10 +42,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 10 — Design-System Foundation & Theme Runtime (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-08-11 — Milestone v1.1 started
+Status: Roadmap created; awaiting `/gsd-plan-phase 10`
+Last activity: 2026-08-11 — v1.1 roadmap created (Phases 10–19, 75/75 requirements mapped)
 
 ## Performance Metrics
 
@@ -140,6 +140,8 @@ Last activity: 2026-08-11 — Milestone v1.1 started
 ## Accumulated Context
 
 ### Roadmap Evolution
+
+- **v1.1 roadmap created (2026-08-11) — Phases 10–19, numbering continued from v1.0's Phase 9.** Derived from the research's reconciled build order (SUMMARY § Implications for Roadmap / ARCHITECTURE § Build Order), which two researchers reached independently. Two deliberate departures from that shape, both stated with reasons: (1) the research's **group/open-capacity** phase was folded into **Phase 13** because REQUIREMENTS.md defines no separate REQ-IDs for it — a standalone phase would carry zero requirements; the open-capacity pass picker sits in Phase 12 as a pre-hold listing surface and `/invite/[token]` in Phase 13 as a post-booking artifact. (2) The research's standalone **email** phase was merged into **Phase 15** because PITFALLS' own phase taxonomy already places the email shell inside `P-AUTH` (its risk table maps rows 14 and 15 to P-AUTH), and three requirements do not justify a phase at `standard` granularity — EMAIL-02's only dependency (DS-12) still lands in Phase 10, so nothing is delayed. Also split the research's single **booker core** phase into 12 (search → listing → checkout) and 13 (confirmation → bookings → trust) because the combined phase carried 21 requirements. **MAP (18) and HOURS (19) are their own phases per D-136** and are never to be folded into a surface-polish phase.
 
 - Phase 9 added (2026-07-27): **Open-Capacity Bookings** — the second host-set occupancy mode (drop-in / common-use, capacity-counter availability), split out of the Phase-8 group-booking discussion as its own phase because it stresses AVAILABILITY (a concurrent seat-claim), not payment. Each visitor books single-payer on the existing rail; the new work is a capacity-counter that replaces the GiST exclusion constraint for these listings, race-proven. Adds OPEN-01..04; depends on Phase 8's `occupancy_mode` seam (default `exclusive`). Organizer-driven open play / cost-split (GPAY-01) remains deferred.
 
@@ -385,11 +387,32 @@ remains is below.
 | 5 | quick task (`260811-elm`) | Drop-in search-card explainer is `human_needed` on one item: load the search grid at 320px and at desktop width, in **both** themes, with a drop-in and an exclusive listing in the same result set. 11/11 must-haves already verified in code. | open — needs a human | 2026-08-11 |
 | 6 | environment | `GOOGLE_CLIENT_*` and server-side `CLOUDINARY_*` are absent from `.env.local`, so Google OAuth and real avatar/photo upload are proven only against mocks. External services require the account owner to add credentials. | blocked — credentials | 2026-08-11 |
 
-Not deferred items, but carried forward in `ROADMAP.md`: backlog phases **999.1** (auth flow tells the
-user nothing — thin emails + silent post-reset landing) and **999.2** (image crop/framing UI). Promote
-with `/gsd-review-backlog`.
+Not deferred items, but carried forward in `ROADMAP.md`: backlog phase **999.1** (auth flow tells the
+user nothing — thin emails + silent post-reset landing). Promote with `/gsd-review-backlog`.
+**999.2 (image crop/framing UI) was PROMOTED into v1.1 on 2026-08-11** and is no longer in the Backlog —
+it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
+`.planning/phases/999.2-profile-picture-and-listing-photo-crop-ui/999.2-UI-SPEC.md`.
 
 ## Session Continuity
+
+Last session: 2026-08-11 (`/gsd-new-project` → roadmapper, v1.1)
+Stopped at: **v1.1 ROADMAP CREATED.** `.planning/ROADMAP.md` now carries Phases **10–19** (numbering
+continued from v1.0's Phase 9, not reset), with `.planning/REQUIREMENTS.md` § Traceability populated:
+**75/75 requirements mapped, 0 orphans, 0 duplicates.** The shipped v1.0 `<details>` block, the v1.0
+Progress rows, and Backlog **999.1** are preserved verbatim; **999.2 was removed from the Backlog**
+with a pointer to its new home (Phase 16 / CROP-01..04).
+
+Phase shape: 10 foundation (tokens + theme runtime + **second theme** + scaffold residue + the measured
+defect fixes) → 11 gate machinery (patterns layer + app-shell states + VR config + GATE-NOREG
+prerequisites) → 12/13/14/15 surfaces (order-independent; 12 first) → 16 crop → 17 cross-cutting audit
+→ 18 map → 19 hours.
+
+**NEXT: `/gsd-plan-phase 10`.** Phase 10 planning must NOT reopen D-132 (neutral focus ring), D-129 as
+amended (`dark:` strip scope) or D-133 (two themes) — all three are settled decisions. It MUST re-verify
+the exact corrected `--brand` value with a live colour tool, and it MUST land DS-01 before any baseline
+is captured.
+
+<details><summary>Previous session (2026-08-11, /gsd-complete-milestone v1.0)</summary>
 
 Last session: 2026-08-11 (`/gsd-complete-milestone v1.0`)
 Stopped at: **v1.0 MVP SHIPPED, ARCHIVED, AND TAGGED.** 9 phases / 107 plans / 227 tasks over 69 days
@@ -412,6 +435,8 @@ double-charge (quick `260801-kv2`, CAS checkout lease) and CR-02's live re-price
 (`08-19` case 3, `54ffc6f`).
 
 **NEXT: `/gsd-new-milestone`.**
+
+</details>
 
 <details><summary>Previous session (2026-07-31, /gsd-plan-phase 9 --gaps)</summary>
 
