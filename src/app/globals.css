@@ -51,32 +51,132 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
+/* ===========================================================================================
+   THE TWO-THEME COLOUR CONTRACT (D-04 / THEME-02 / THEME-03)
+
+   Both blocks are UNLAYERED and EQUAL SPECIFICITY (0,1,0), so SOURCE ORDER decides — grove must
+   stay second. Never prefix a theme selector with `:root` or with an element name: that raises
+   specificity but stops it matching a NESTED themed subtree, which silently kills THEME-04's
+   nested-subtree theming while the app-wide switcher keeps working. The bare attribute selector,
+   on its own, IS the mechanism.
+
+   THEME-02's rule: both blocks declare the IDENTICAL KEY SET. A key present in one and missing in
+   the other is a silent fallthrough to the other block's value, not an error — which is why
+   tests/design/theme-tokens.test.ts asserts set equality rather than trusting review.
+
+   D-03: both themes are LIGHT-BACKGROUND. `.dark` below stays dormant and is not one of them.
+   D-12: every corrected value below was DERIVED by the culori solver at AA_EPSILON = 0.05, not
+   picked by eye, and tests/design/contrast.test.ts is the authority if the two ever disagree.
+   =========================================================================================== */
+
+:root,
+[data-theme="court"] {
+  /* Surfaces and ink — the 60% and 30% of the 60/30/10 split. */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
+  /* Neutral controls. An un-varianted <Button> renders THIS, never the accent (D-21) — that is
+     what protects the 10% accent budget. */
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* Darkened from oklch(0.556 0 0), which measured 4.35:1 on --muted and failed the 4.5 text bar
+     on the repo's single most common secondary-text surface. Now 4.82:1 (D-12). */
+  --muted-foreground: oklch(0.53 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  /* FitOut Coral — the single brand accent (10% slot). See 02-UI-SPEC.md § New Tokens to Add. */
-  --brand: oklch(0.637 0.208 25);
+  /* FitOut Coral — the single brand accent, the 10% slot.
+     D-11: THE BRAND ITSELF is darkened rather than a second token being added. The accent visibly
+     deepens everywhere it appears and that is accepted. A second, darker "strong" brand token was
+     considered as an escape hatch and REJECTED, so no call site ever judges which coral it wants.
+     D-12: this value is DERIVED, not picked — it is the LIGHTEST coral at hue 25 that clears
+     4.5 + AA_EPSILON against --brand-foreground, at 4.57:1. The shipped oklch(0.637 0.208 25)
+     measured 3.60:1, i.e. the brand button's own label failed AA. */
+  --brand: oklch(0.58 0.208 25);
   --brand-foreground: oklch(0.985 0 0);
-  /* Semantic success (status only, never a CTA) — payouts-enabled / published badges. */
-  --success: oklch(0.62 0.17 150);
+  /* Semantic success — status only, never a CTA.
+     D-14 keeps the hue IN THE ICON: status text is always --foreground ink on a neutral tint, so
+     this token only has to clear the 3:1 non-text bar. Re-derived (D-12) because the shipped
+     oklch(0.62 0.17 150) measures 3.01:1 on grove's --muted — it fails the bar the moment a second
+     theme exists, so keeping it was never viable. Global: identical in both themes. */
+  --success: oklch(0.58 0.15 150);
   --success-foreground: oklch(0.985 0 0);
+  /* The shipped oklch(0.577 0.245 27.325) was OUTSIDE the sRGB gamut (DS-07): chroma 0.245 against
+     a ceiling of ~0.235 at that lightness and hue, so every engine silently clipped it and none had
+     to agree on what it painted. This replacement sits at the gamut ceiling AND clears its own /10
+     tint — the destructive button's rest state — in both themes (4.81 court / 4.67 grove).
+     Global: identical in both themes, because nothing in the derivation asks it to move. */
+  --destructive: oklch(0.535 0.215 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  /* D-132: the focus ring is a DARKENED NEUTRAL and explicitly NOT --brand. An accent-coloured ring
+     spends the 10% budget on every focusable element and makes focus indistinguishable from brand
+     emphasis. WARNING — arithmetic, not preference: this token value ALONE is insufficient.
+     `ring-ring/50` composites to 2.32:1 over white and NO value of --ring fixes that. Dropping the
+     /50 from all 13 call sites is plans 10-04 and 10-06. */
+  --ring: oklch(0.45 0 0);
+  /* DECORATIVE DIVIDERS ONLY — 1.26:1 (court) / 1.28:1 (grove) against --background. They are
+     deliberately excluded from the 3:1 bar with that reason recorded, and the exclusion is carried
+     as DATA in src/lib/design/contrast-pairs.ts rather than as a silently absent row. They may
+     never be a control's sole visible boundary or its sole focus indicator. */
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
   --radius: 0.625rem;
+}
+
+/* Grove — the second theme, shipped in the SAME commit as court (THEME-03). It is not a feature;
+   it is D-128's enforcement test. Court alone can pass every gate while the system is still
+   single-theme by accident, so grove exists to make a hard-coded value fail loudly.
+   The theme travels in HUE (neutrals re-tinted to hue 190, coherent with its own teal accent) and
+   in GEOMETRY (--radius doubles). Spacing and motion deliberately do NOT travel (D-05). */
+[data-theme="grove"] {
+  /* Surfaces and ink. --background is tinted while --card stays pure white, so cards lift off the
+     page without a shadow — that difference is deliberate and is why the focus ring's offset band
+     shows one shade off a card here (DS-05 accepts this: one recipe app-wide). */
+  --background: oklch(0.988 0.006 190);
+  --foreground: oklch(0.17 0.02 190);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0.02 190);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0.02 190);
+  /* Neutral controls, re-tinted to hue 190. Still neutral in ROLE (D-21) — a tinted near-black is
+     not an accent. */
+  --primary: oklch(0.24 0.03 190);
+  --primary-foreground: oklch(0.985 0.004 190);
+  --secondary: oklch(0.958 0.01 190);
+  --secondary-foreground: oklch(0.24 0.03 190);
+  --muted: oklch(0.958 0.01 190);
+  /* Derived against grove's own --muted, not copied from court: 5.28:1 there (D-12). */
+  --muted-foreground: oklch(0.5 0.015 190);
+  --accent: oklch(0.958 0.01 190);
+  --accent-foreground: oklch(0.24 0.03 190);
+  /* Grove's brand moves TEAL-WARD to hue 190 (UI-SPEC Resolved Question 1). That choice puts 40°
+     between the brand and --success rather than the 10° a hue-160 grove brand would have left, and
+     it means --success needs no per-theme value at all. Chroma 0.09 is the CONSTRAINT BOUNDARY, not
+     a soft choice: solving for the lightest brand at chroma 0.11/0.12/0.13 (hues 190/185/180)
+     returns no in-gamut solution at the bar. Clears --brand-foreground at 4.57:1, same as court. */
+  --brand: oklch(0.5445 0.09 190);
+  --brand-foreground: oklch(0.985 0.004 190);
+  /* Identical to court, by derivation — see the note there. */
+  --success: oklch(0.58 0.15 150);
+  --success-foreground: oklch(0.985 0.004 190);
+  /* Identical to court. Declared here anyway, and that is the point: THEME-02 asserts key-set
+     EQUALITY, so a global value still needs a row in both blocks or the set diverges. */
+  --destructive: oklch(0.535 0.215 27.325);
+  --destructive-foreground: oklch(0.985 0.004 190);
+  /* A darkened neutral, tinted — still not --brand (D-132). 7.11 / 7.36 / 6.52 on background /
+     card / muted. The /50 removal in 10-04 and 10-06 applies identically here. */
+  --ring: oklch(0.45 0.02 190);
+  /* Decorative dividers only, exactly as in court — 1.28:1. Same prohibition. */
+  --border: oklch(0.905 0.012 190);
+  --input: oklch(0.905 0.012 190);
+  /* Geometry travels (D-02): 20px against court's 10px. The seven calc()-derived --radius-* steps
+     in `@theme inline` scale off this one number, so the whole ladder doubles with no other edit. */
+  --radius: 1.25rem;
 }
 
 .dark {
