@@ -135,8 +135,9 @@ is on the record either way.
 
 ### **CLOSED (2026-08-11, quick task `260811-dj4`)**
 
-**Commits:** `eb1ddb1` (the query + seven mutations) and the `history` verb + docs commit that follows it,
-on top of the RED anchors in `763c31d`.
+**Commits:** `763c31d` (the six RED anchors, written against unchanged `src/`), `eb1ddb1`
+(`listResolvedAlerts` + the seven mutations) and `e358c41` (the `history` verb, the runbook review path,
+and these record updates).
 
 **What was built.** `listResolvedAlerts` in the same module (`src/lib/ops/alerts.ts`), a `history` verb on
 the same CLI, and `npm run ops:alerts:history [-- <days>]`. It lists discharged rows **newest-discharge
