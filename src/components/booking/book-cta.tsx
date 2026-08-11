@@ -216,10 +216,11 @@ export function BookCta({
   return (
     <div className="space-y-2">
       <Button
+        variant="brand"
         size="lg"
         disabled={pending || !active}
         onClick={() => active && submit(active)}
-        className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
+        className="w-full"
       >
         {pending ? "Starting…" : "Book this space"}
       </Button>

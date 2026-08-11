@@ -142,7 +142,7 @@ export default async function BookingsPage({
                 booking reference.
               </p>
               <div className="mt-6">
-                <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+                <Button asChild variant="brand">
                   <Link href="/">Find a space</Link>
                 </Button>
               </div>
@@ -205,11 +205,7 @@ export default async function BookingsPage({
                       <TableCell className="text-right tabular-nums">{row.amountLabel}</TableCell>
                       <TableCell>
                         {row.showPayNow ? (
-                          <Button
-                            asChild
-                            size="sm"
-                            className="bg-brand text-brand-foreground hover:bg-brand/90"
-                          >
+                          <Button asChild variant="brand" size="sm">
                             <Link href={`/listings/${row.listingId}/book?hold=${row.bookingId}`}>
                               Pay now
                             </Link>

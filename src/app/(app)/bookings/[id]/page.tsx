@@ -371,7 +371,7 @@ export default async function BookingConfirmationPage({
             <Separator />
 
             {/* The ONE coral CTA introduced this phase — pay-on-approval → the SAME Phase-5 reserve/checkout page. */}
-            <Button asChild className="w-full bg-brand text-brand-foreground hover:bg-brand/90">
+            <Button asChild variant="brand" className="w-full">
               <Link href={`/listings/${bk.listingId}/book?hold=${bk.id}`}>Pay now</Link>
             </Button>
 
@@ -418,7 +418,7 @@ export default async function BookingConfirmationPage({
               <p className="text-xs text-muted-foreground">{tzNote}</p>
             </div>
             {/* Coral recovery forward-action (reuses the confirmation forward-action slot). */}
-            <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+            <Button asChild variant="brand">
               <Link href="/">Find another space</Link>
             </Button>
           </CardContent>
@@ -514,7 +514,7 @@ export default async function BookingConfirmationPage({
               )}
               <p className="text-xs text-muted-foreground">{tzNote}</p>
             </div>
-            <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+            <Button asChild variant="brand">
               <Link href="/">Find another space</Link>
             </Button>
           </CardContent>
