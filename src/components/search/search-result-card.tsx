@@ -173,7 +173,7 @@ export function SearchResultCard({
       // a token. Naming the colour is the whole fix; the ring itself was already solid.
       className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card className="h-full gap-0 overflow-hidden pt-0 transition-shadow group-hover:bg-muted/40 group-hover:shadow-md">
+      <Card className="h-full gap-0 overflow-hidden pt-0 transition-shadow group-hover:bg-muted/40 group-hover:shadow-overlay">
         <AspectRatio ratio={4 / 3} className="bg-muted">
           {listing.coverPhotoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
