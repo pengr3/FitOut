@@ -183,3 +183,38 @@ DS-05 assertion phrased against the COMPILED stylesheet — "the half-alpha rule
 output" — would fail today against a perfectly clean source tree.** That is why 10-07's gate is a
 source scan and not a compile assertion, and it is the strongest argument yet for 10-12 narrowing
 Tailwind's `@source`.
+
+---
+
+## D-6 (2026-08-12, from 10-08) — three PRE-EXISTING e2e failures on the drop-in, confirmation and cancel surfaces
+
+Found while running plan 10-08's verification block. **None is caused by this plan**, and each was
+proven so rather than assumed: the eleven source files 10-08 modified were checked out at the
+pre-plan commit `ffbf6b5`, the same specs were re-run, and the failures reproduced with an identical
+signal (`2 failed / 6 did not run / 1 passed` on `open-capacity` + `search-and-book`, byte-for-byte
+the same as HEAD). Logged rather than fixed, per the executor's scope boundary.
+
+**1. `e2e/open-capacity.spec.ts:376` — the drop-in day panel does not follow the picked day.**
+The spec clicks the day three days out (Sat Aug 15) and waits for the panel heading. The Playwright
+snapshot shows the click landed on an enabled, in-month, non-outside cell, and the panel still reads
+**"Wednesday, Aug 12" — today**, which the picker auto-selects on mount. This is the *core-value*
+drop-in surface, so it is the most important of the three. Two mitigating facts before anyone panics:
+`tests/availability/date-pass-picker.test.tsx` is green in the 1197-test suite, and the describe block
+is SERIAL — this one failure is what skips its four siblings, so the blast radius reads far wider than
+the single root cause it is. Most likely a date/fixture interaction (`spotsDate = dayAt(3)` is derived
+from `new Date()` at module load against a Makati-tz venue), not a broken picker; that hypothesis is
+untested and should be the first thing checked.
+
+**2. `e2e/search-and-book.spec.ts:296` — the FIT reference resolves to two elements after a reload.**
+`getByText(reference, { exact: true })` raises a strict-mode violation with two matching nodes on the
+durable-confirmation page. Either the booking reference genuinely renders twice on `/bookings/[id]`
+(a real duplicate the assertion is right to catch) or the locator needs scoping. Worth answering
+rather than silencing — this is the D-43 durable-confirmation guarantee.
+
+**3. `e2e/cancel.spec.ts:224` — intermittent, and environmental.** The server log carries
+`[CANCEL_ALERT] refund_dispatch_failed … PayMongo POST /v1/refunds failed (404): No such payment with
+id pay_e2e_…`. The fixture seeds a synthetic payment id that PayMongo test mode does not know, so the
+refund dispatch 404s. It did not fire in the final full run, which is why it is called intermittent.
+
+**Suggested owner:** not a design-system plan. These are booking-flow regressions or fixture rot and
+belong to whoever next owns e2e health; Phase 11's visual pass will be running these surfaces anyway.

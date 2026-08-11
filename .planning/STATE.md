@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-07-PLAN.md (DS-05 closed — every focus ring in the app is solid, offset by a token, and pinned by a source scan) — next 10-08
-last_updated: "2026-08-11T16:23:38.441Z"
-last_activity: 2026-08-11 -- Phase 10 plan 07 complete (DS-05 closed: every focus ring is solid with a token-coloured offset band, across 15 sites not the 12 the plan counted, pinned by a source scan watched go red)
+stopped_at: Completed 10-08-PLAN.md (15 booker/group/search CTAs converted onto variant="brand"; the 4.04:1 hover is gone from every core-value surface) — next 10-09
+last_updated: "2026-08-12T01:05:00.000Z"
+last_activity: 2026-08-12 -- Phase 10 plan 08 complete (15 of DS-08's 20 conversions landed; zero bg-brand under the booking, group and search trees; gated by an exact per-file map watched go red)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 7
-  percent: 41
+  completed_plans: 8
+  percent: 47
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 8 of 17
-Status: Executing Phase 10 — plans 01-07 complete. **DS-05 is CLOSED — the first requirement this phase has marked complete.** Every focus indicator in the app is a solid `--ring` with a `--background`-coloured offset band, and a committed source scan (`tests/design/focus-recipe.test.ts`, 9 assertions) keeps it that way. THE COUNT WAS NOT 12. The plan estimated 12 remaining half-alpha rings; the truth was 14 sites across 15 files, and three separate widenings each found what the narrower spelling was structurally incapable of seeing: (1) focus-visible-PREFIXED → focus-SCOPED found `calendar.tsx` (react-day-picker's `data-focused` attribute) and `input-group.tsx` (a `has-` selector on the wrapper) — a grep for the plan's literal returns clean while both still ship at 2.32:1; (2) the literal → ANY alpha on a focus ring colour (D-2, absorbed) found `badge.tsx` carrying the identical override D-2 had only named in `button.tsx`; (3) ring COLOUR → ring OFFSET COLOUR found `search-result-card.tsx` setting an offset width with no offset colour, painting Tailwind's hardcoded white band on grove's tinted background. 208/208 design tests green, DB-free, 5.5s. The gate was watched go RED (3 failed / 6 passed on a reinstated alpha) before being trusted. Next: 10-08. NOTE — D-2 is CLOSED; new deferred items D-3 (3 controls now paint a 1px outline INSIDE the 2px ring — the UI-SPEC sanctions them, so Phase 11's visual pass owns the call), D-4 (invalid-state rings are still low-alpha, 18 occurrences, deliberately out of DS-05's "only focus indicator" wording), D-5 (`slot-picker.tsx`'s `ring-brand/50` anchor ring — a selection affordance, not focus). D-1 sharpened with build evidence: the banned rule is in the SHIPPED bundle right now with ZERO source references, emitted purely from prose — which is why this gate is a source scan and not a compile assertion.
-Last activity: 2026-08-11 -- Phase 10 plan 07 complete (DS-05 closed: every focus ring is solid with a token-coloured offset band, across 15 sites not the 12 the plan counted, pinned by a source scan watched go red)
+Plan: 9 of 17
+Status: Executing Phase 10 — plans 01-08 complete. **The coral accent now reaches every core-value surface through ONE variant.** 15 `<Button>` call sites across `bookings/**`, `booking/**`, `group/**` and `search/**` dropped the literal `bg-brand text-brand-foreground hover:bg-brand/90` and took `variant="brand"` instead — so the 4.04:1 (court) / 3.87:1 (grove) hover is gone from search, book, pay and invite, and the darkening `color-mix` (5.41 / 5.36) lives once inside `ui/button.tsx`. THE PLAN'S COUNT WAS RIGHT THIS TIME, and it was verified against the tree before being trusted: 29 accent-background source lines = 20 `<Button>` (15 here, 5 in 10-09) + 9 non-Button recipes that must NEVER become the variant (calendar day, date-pass day, slot-picker chip / full-day chip / notice, spots-left chip, notification dot, 2 wizard step markers). DS-09's first two adopters landed: the RSVP and search CTAs express 44px as `size="touch"` rather than a hand-rolled height. 216/216 design tests green, DB-free, ~5s; 1197/1197 DB suite green; the `partial-grant-notice` regression watch still holds 13/13. The gate (`tests/design/brand-recipe.test.ts`, 8 assertions) asserts an exact PER-FILE map rather than a bare total and was watched go RED (exit 1, 3 failed / 5 passed) before being trusted. Next: 10-09 (the host tree's remaining 5). NOTE — DS-08 and DS-09 both stay Pending (75% and ~10% adopted). Three acceptance criteria could not be met as literally written and are documented in the SUMMARY rather than reinterpreted; two of them contradict each other inside the same task. New deferred item **D-6**: six e2e failures on the drop-in, durable-confirmation and cancel surfaces, ALL PROVEN PRE-EXISTING by checking the 11 modified files out at `ffbf6b5` and re-running to an identical signal — not fixed, per the scope boundary. The grep-versus-comment collision recurred for a SEVENTH time, and this time it was self-inflicted (a comment explaining a preserved `z-10` broke the criterion counting it); resolved as always by naming the literal descriptively.
+Last activity: 2026-08-12 -- Phase 10 plan 08 complete (15 of DS-08's 20 conversions landed; zero bg-brand under the booking, group and search trees; gated by an exact per-file map watched go red)
 
 ## Performance Metrics
 
@@ -144,6 +144,7 @@ Last activity: 2026-08-11 -- Phase 10 plan 07 complete (DS-05 closed: every focu
 | Phase 10 P05 | 13min | 3 tasks | 7 files |
 | Phase 10 P06 | 12min | 1 task | 3 files |
 | Phase 10 P07 | 18min | 2 tasks tasks | 19 files files |
+| Phase 10 P08 | 39min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
