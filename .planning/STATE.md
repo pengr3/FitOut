@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-08-11T14:17:06.478Z"
-last_activity: 2026-08-11 -- Phase 10 planning complete
+stopped_at: Completed 10-01-PLAN.md (design gate) — next 10-02
+last_updated: "2026-08-11T14:35:00.000Z"
+last_activity: 2026-08-11 -- Phase 10 plan 01 complete (DB-free design gate)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 6
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **MILESTONE v1.1 — Front-End Polish & Placeholder Design System. ROADMAP CREATED 2026-08-11 — 10 phases (10–19), 75/75 requirements mapped, 0 orphans.** Phase numbering **CONTINUES** from v1.0 (which ended at Phase 9): v1.1 runs 10 → 11 → {12, 13, 14, 15} → 16 → 17 → 18 → 19, where 12–15 are order-independent and 12 is sequenced first among them. **Next: `/gsd-plan-phase 10`.** Four ordering invariants are non-negotiable and each is a researcher finding, not a preference: (a) **DS-01** — the `--font-sans` self-referential cycle — lands before ANY visual-regression baseline is captured, because fixing it changes the rendered typeface of every screen; (b) **THEME-02/03** — the second theme — ships in the SAME phase as the first (D-133; 4-of-4 convergence), because it is D-128's enforcement test and deferring it turns the Phase-17 audit into a rewrite; (c) **GATE-01** (the VR fail-open fix) and **GATE-04/05** (GATE-NOREG prerequisites) exist BEFORE the first surface-polish phase, because every later phase inherits whatever config exists when it starts; (d) **DS-05/DS-06** (the AA-failing token corrections) land in the foundation phase. **GATE-06 is a roadmap-level invariant: v1.1 ships ZERO schema migrations** — `drizzle/` stays at `0025`, and a migration proposed inside any phase plan is a scope alarm to be raised explicitly, never absorbed. Backlog **999.2 was promoted** into the milestone as Phase 16 / CROP-01..04 (its UI-SPEC is already on disk); **999.1 stays in the Backlog**. Three research decision items are already settled and must not be reopened at planning — the focus ring is a darkened neutral (D-132, not `--ring = --brand`), the `dark:` strip is the 10 app-code occurrences only with the 56 vendored ones left inert (D-129 as amended), and the theme count is two (D-133). One item is genuinely open: the exact corrected `--brand` value (STACK `#da2d34` vs PITFALLS `#d33a3c`) needs a live-tool re-verification during Phase 10 rather than an average. Original milestone framing follows. v1.1 adds **no new transaction capability**: every v1.0 flow works and is proven, but none of them look finished, so this milestone puts a coherent visual layer over all nine shipped phases and moves branding behind a swappable token contract. In scope: all four surface groups (booker flow, host tooling, auth & profile, transactional emails), a design-system foundation with multiple named placeholder themes, and backlog **999.2** (image crop/framing UI) promoted in. Direction is an explicit **placeholder** — Airbnb-calm + coral, no brand assets commissioned (D-127). **Light-only** (D-129): the half-built, unreachable dark mode is removed as debt. Layout and information hierarchy on search/listing/checkout may be reshaped, but **no logic moves client-side and no v1.0 correctness invariant weakens** (D-130). Four hard per-phase gates (D-131): 320px-up responsive, keyboard + WCAG AA, designed loading/empty/error states, Playwright visual-regression baselines. **Out of scope:** backlog 999.1 (auth-flow feedback), and the two PayMongo sales-gated threads (real `/v2` payouts, hosted KYC) — blocked on a commercial conversation, not on code. The v1.0 record lives in `.planning/milestones/` (`v1.0-ROADMAP.md` verbatim, `v1.0-REQUIREMENTS.md` 49/49, `v1.0-MILESTONE-AUDIT.md`) and `.planning/MILESTONES.md`; `.planning/RETROSPECTIVE.md` carries the lessons. Six v1.0 deferred items remain acknowledged (see below) — one of them, the 320px/desktop visual check, is paid off by D-131 rather than carried again. Worktrees are OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+**Current focus:** Phase 10 — design-system-foundation-theme-runtime
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -43,10 +43,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 10 — Design-System Foundation & Theme Runtime (not started)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-08-11 -- Phase 10 planning complete
+Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
+Plan: 2 of 17
+Status: Executing Phase 10 — plan 01 complete, `npm run test:design` is live and DB-free
+Last activity: 2026-08-11 -- Phase 10 plan 01 complete (DB-free design gate)
 
 ## Performance Metrics
 
@@ -137,6 +137,7 @@ Last activity: 2026-08-11 -- Phase 10 planning complete
 | Phase 08 P14 | 46min | 3 tasks | 7 files |
 | Phase 08 P15 | 35m | 3 tasks | 19 files |
 | Phase 09 P15 | 34min | 2 tasks | 2 files |
+| Phase 10 P01 | 13min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,12 @@ Last activity: 2026-08-11 -- Phase 10 planning complete
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [10-01]: Package legitimacy gate resolved by the developer — `culori@4.0.2` **Approved** (slopcheck `[OK]`, MIT, `github.com/Evercoder/culori`, no install-time script for registry consumers; named by D-12) and `@types/culori@4.0.1` **Approved** after its `[ASSUMED]` gap was closed by confirming `npm view culori types` returns empty. Nothing was installed before the gate resolved.
+- [10-01]: `vitest.design.config.ts` declares NO `globalSetup` and NO `setupFiles` — those two keys are exactly what makes `vitest.config.ts` require Docker. Adding either to the design config silently reintroduces the database dependency, which is why the header comment says so in the file itself.
+- [10-01]: The `.tsx` collection trap is closed on BOTH halves — the design config includes `.test.ts` + `.test.tsx`, AND `vitest.config.ts` excludes `tests/design/**`. Verified by measurement (`vitest list --filesOnly`), not by intent: the main config collects 0 files under `tests/design`.
+- [10-01]: "Runs with no database" was PROVEN, not asserted — `docker stop fitout-db-1`, gate green in 841ms, main config exit 1 with `cannot reach the test database` as the control, container restarted. A DB-free claim verified while the DB is up is not a verification.
+- [10-01]: Task 2's literal `grep -c "globalSetup\|setupFiles" == 0` criterion conflicts with the same task's mandated header comment. Honoured the comment (it is what stops a future contributor re-adding the keys) and verified the intent instead: zero occurrences on any non-comment line.
+- [10-01]: `requirements.mark-complete DS-06 DS-13` deliberately NOT run — both IDs are also claimed by plans 10-02/03/14/17, and this plan ships the harness, not the contrast or leak tests. Ticking them now would put a false `Complete` in the traceability table for the rest of the phase.
 - [09-15]: An e2e fork test seeds a CONTROL of the other mode. "X is absent" is not a finding; "X is absent HERE and present THERE, same host, same day" is. Without it, case 1's three absences would also pass on a build that rendered no availability picker at all.
 - [09-15]: Prove a copy/layout absence by scanning the rendered document's own `innerText` for the forbidden SHAPE and whitelisting the allowed framing by count — not by `not.toBeVisible()` on a guessed locator. On this page both "hours" and a clock range are legitimately present (the cancellation disclosure and the venue's opening line), so a literal-absence gate is either always red or quietly vacuous.
 - [09-15]: A plan step that is physically unreachable gets SPLIT into the states that exist, not forced. A fully booked date is programmatically `disabled`, so its day panel cannot be clicked open — the sold-out copy is reached through the OC-13 advisory-picker path and the disabled cell is asserted after a reload.
