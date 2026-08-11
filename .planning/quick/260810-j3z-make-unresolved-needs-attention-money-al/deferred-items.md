@@ -93,7 +93,11 @@ failure. See `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md` §4a.
 
 ## D2 — The ops CLI can list UNRESOLVED alerts but cannot review RESOLVED history
 
-> **STATUS: OPEN GAP, not a deferred nicety.** Found during the `260810-km4` human-verification
+> **STATUS: CLOSED (2026-08-11, quick task `260811-dj4`).** See the closure note at the end of this
+> section for what was built, what was deliberately NOT built, and what remains uncovered. The original
+> finding is left intact below, unedited — it is the record of how this was found.
+>
+> **STATUS AS FILED: OPEN GAP, not a deferred nicety.** Found during the `260810-km4` human-verification
 > checkpoint, so it is recorded as an audit finding: `260810-j3z-VERIFICATION.md` and
 > `.planning/v1.0-MILESTONE-AUDIT.md` item 5 both carry a dated amendment narrowing their claim from
 > "the alert reaches a human and can be discharged" to "an alert can be discovered and discharged; a
@@ -126,3 +130,54 @@ digest does — that is a real design question, not an oversight to paper over.
 **Deliberately not fixed in `260810-km4`:** that task's scope was database isolation; the operator explicitly
 chose to flag it rather than have it added mid-checkpoint. Recorded here rather than actioned so the decision
 is on the record either way.
+
+---
+
+### **CLOSED (2026-08-11, quick task `260811-dj4`)**
+
+**Commits:** `eb1ddb1` (the query + seven mutations) and the `history` verb + docs commit that follows it,
+on top of the RED anchors in `763c31d`.
+
+**What was built.** `listResolvedAlerts` in the same module (`src/lib/ops/alerts.ts`), a `history` verb on
+the same CLI, and `npm run ops:alerts:history [-- <days>]`. It lists discharged rows **newest-discharge
+first**, with `outcome`, both timestamps, a `HELD` column (whole hours the money sat outstanding before
+somebody discharged it), and the error string — inside a 30-day default window, capped at 200 rows with an
+honest `200+ … showing the 200 most recently discharged` line. Runbook **§6a** is the operator-facing
+procedure. Run live against the dev database on closure: it printed all 27 rows of the §4a batch with
+`outcome=needs_attention` and `error=resend 503` — **the exact question the operator had to hand-write psql
+for at the `260810-km4` checkpoint, now one command.**
+
+**The design decisions taken, since the filing said "shape of the fix (not prescriptive)".**
+
+- **D-DJ4-01 — history is UNSCOPED by outcome**, mirroring the writer rather than choosing a policy.
+  `resolved_at` has exactly one code writer (`resolveAlert`), and that writer is deliberately not scoped to
+  `needs_attention` (case 6b). Had the read side been scoped while the write side was not, a discharge on
+  an `error`/`ok` row would exist that no surface could review — which is this very gap, one level down.
+  `outcome` is rendered so such a discharge is visible at a glance. Pinned by case 13.
+- **D-DJ4-04 — the filing said "four explicit columns, **no `meta`**"; that was tightened AND, in exactly
+  one place, deliberately widened.** The column is still never selected and `ResolvedAlert` still has no
+  `meta` field, so re-export remains a compile error. But ONE derived key, `meta->>'error'`, IS printed —
+  because the filing's own question was "what was discharged, **and on what basis?**", and the basis is the
+  error string the operator's own psql keyed on. The scope limit is content-based and structural, not a
+  promise: identifiers live under separately-named keys (`bookingId`, `transferId`, `paymentId`, `last4`)
+  that a single-key projection cannot reach. Case 12 plants all four and proves only `error` surfaces;
+  mutation H4 proves case 12 has its own teeth (widening the history row reddens case 12 while the entire
+  email-digest file stays green). The email digest is byte-untouched.
+- **D-DJ4-05 — no ACTOR column**, because `actor_id` is the actor of the ORIGINAL event and there is no
+  `resolved_by`; in a discharge-ordered list it would be read as "who discharged this".
+
+**What was NOT done, deliberately.**
+
+- **No index and no migration.** `drizzle/` still ends at `0024_audit_table.sql`. The partial
+  `audit_needs_attention_idx` cannot serve resolved rows, so this query is a Seq Scan + Sort — accepted at
+  27 rows, and the window plus the 200-row cap bound the *result*, not the scan. The index that would fix
+  it would grow **without bound**, so it belongs with the deferred retention decision.
+- **No `resolved_by`.** Still no answer to "who discharged this" — that needs a schema migration plus an
+  authenticated ops surface. Runbook §7.
+- **No ops UI.** This is a third CLI verb, not a screen. Review still requires shell + database access.
+- **No un-discharge and no reversal record.** `resolved_at` is written once, never rewritten.
+
+**The honest scope of the closure:** an alert can now be discovered, discharged, **and the discharge
+reviewed — what it was, when it was discharged, how long the money was outstanding, and the error string it
+was discharged on.** Still NOT reviewable: **by whom** (no `resolved_by`), and **not without shell +
+database access** (no ops UI). Full `meta` remains psql-only.

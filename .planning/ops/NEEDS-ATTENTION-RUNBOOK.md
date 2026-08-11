@@ -68,8 +68,10 @@ npm run ops:alerts
 Prints every unresolved `needs_attention` row, newest first: audit id, action, actor, created, age.
 
 **The full row, including `meta`** — `meta` is the jsonb column holding the case detail you actually need
-to act (booking id, transfer id, masked last-4, amounts). It is **deliberately absent from the email and
-from the CLI**. To read it, use a LOCAL database session:
+to act (booking id, transfer id, masked last-4, amounts). The **`meta` column itself** is deliberately
+absent from the email and from **both** CLI verbs. One single key out of it, `meta->>'error'`, is surfaced
+by `npm run ops:alerts:history` and by nothing else — see **§6a**, and the reasoning below. To read the
+full column, use a LOCAL database session:
 
 ```bash
 docker compose exec db psql -U fitout -d fitout -c "SELECT * FROM audit WHERE id = '<audit-id>'"
@@ -86,6 +88,17 @@ against the database, inside the trust boundary. This is enforced structurally, 
 query selects four explicit columns and the row type has no `meta` field, so re-exporting it is a compile
 error, and a sentinel test (`tests/ops/alert-digest.test.ts` case 3) plants a value in `meta` and proves it
 reaches no email body.
+
+**The one exception, and why it does not erode the rule (2026-08-11, `260811-dj4`).** `ops:alerts:history`
+prints `meta->>'error'` — a single named key, never the column. It exists because the review question is
+"what was discharged, **and on what basis?**", and the basis is the error string: the 27-row classification
+in §4a turned on the literal `'resend 503'`. The scope limit is *content-based and structural*, not a
+promise: `error` holds an exception/API message, while identifiers live under **separately-named** keys
+(`bookingId`, `transferId`, `paymentId`, `last4`) that a single-key projection cannot reach, and the review
+row type has no `meta` field, so widening it stays a compile error. A sentinel test plants all four keys and
+proves only `error` surfaces. **The email digest carries no key out of `meta` at all and is unchanged.**
+Residual risk, accepted on the record: an error string could embed something you would rather not paste into
+a ticket — read the terminal output before forwarding it.
 
 ---
 
@@ -217,6 +230,52 @@ actually refunded is worse than one left open — it is now invisible, and nothi
 
 ---
 
+## 6a. How to review what was discharged
+
+Section 6 discharges a row and it leaves every other surface permanently. This is how you look at what a
+predecessor — or you, last month — actually discharged.
+
+```bash
+npm run ops:alerts:history            # the last 30 days
+npm run ops:alerts:history -- 90      # widen the window to 90 days
+```
+
+**It is READ-ONLY.** It performs no write of any kind: there is no un-discharge, and running it cannot
+change a `resolved_at`. Safe to run against any database, any number of times.
+
+**Arguments.** One optional positional argument, a whole number of days from **1 to 36500** (default
+**30**). Anything else — `0`, `abc`, `-5`, `7abc` — prints the usage block and exits **1** without querying.
+An empty result is **not** an error: it prints `No alerts discharged in the last N day(s).` and exits **0**.
+Output is capped at the **200** most recently discharged rows; when there are more it says so first
+(`200+ discharged in the last N day(s) — showing the 200 most recently discharged.`).
+
+**The columns.**
+
+| Column | Meaning |
+|---|---|
+| `AUDIT ID` | The row's id — feed it to psql (§3) for the full `meta`. |
+| `OUTCOME` | The audit outcome of the ORIGINAL event. Usually `needs_attention` — but see the first design note below. |
+| `ACTION` | Which seam produced the alert. Triage table: §4. |
+| `CREATED (UTC)` | When the money event happened. |
+| `RESOLVED (UTC)` | When a human discharged it. **The list is sorted newest-discharge-first on this column**, so a batch handled in one sitting appears contiguous. |
+| `HELD` | Whole hours between the two — **how long the money sat outstanding before somebody discharged it**. Advisory display; it moves no money. |
+| `ERROR` | `meta->>'error'`, the single key surfaced here (§3). `—` when the row has none. Truncated at 48 characters **for table width only** — that truncation is not a privacy control. |
+
+**Two design facts you need in order to read this correctly.**
+
+1. **History is UNSCOPED by outcome — deliberately.** `ops:alerts` only ever shows `needs_attention`, but
+   `ops:alerts:resolve` will discharge **any** audit id it is handed, by design. So a discharge performed on
+   an `ok` / `denied` / `error` row is real, and **this is the only surface in the product that will ever
+   show it to you.** Scoping this list to `needs_attention` would hide exactly the discharges most likely to
+   have been a mistake. Check the `OUTCOME` column.
+2. **There is NO ACTOR column, and its absence is intentional — see §7.** `actor_id` exists on the row, but
+   it is the actor of the **original event** (`system` for every money action, §4), *not* whoever discharged
+   it. In a list ordered by discharge time an ACTOR column reads as "who discharged this", and that
+   misreading is actively dangerous in a dispute. **This tool cannot tell you who discharged a row. Nothing
+   can — there is no `resolved_by` column.**
+
+---
+
 ## 7. Known limitation, on the record: no `resolved_by`
 
 `resolved_at` records **that** a row was discharged. It does not record **by whom** — there is no
@@ -230,6 +289,12 @@ to the refund reference from section 5 step 6.
 **Compensating control, and it is a manual one:** the operator's own out-of-band record is the only link
 between "this row was discharged" and "this refund was actually paid". Keep it. If discharges ever become
 contested, the fix is a `resolved_by` column plus an authenticated ops surface — not a convention.
+
+**Updated 2026-08-11 — what §6a did and did not change here.** `npm run ops:alerts:history` now shows
+**WHAT** was discharged, **WHEN** it was discharged, **how long it was HELD**, and the **error string** it
+was discharged on. It still cannot show **BY WHOM**, and no amount of tooling over the current schema can:
+the column does not exist. Everything above this paragraph stands unchanged — a discharge remains
+non-repudiable by absence, and the out-of-band record remains the only link to the refund reference.
 
 ---
 
@@ -248,6 +313,24 @@ fix find out in time.
 **There is also still no ops UI.** The surfaces are an email and a command line. That is a real gap, not a
 rhetorical one — it means redress requires shell access to a machine with a database connection.
 
+**What §6a's review path does NOT close (2026-08-11).** Adding a review surface closed the asymmetry
+between making a discharge and auditing one. It did not close any of these, and each is stated so nobody
+reads §6a as more than it is:
+
+- **No `resolved_by`, so still no answer to "who discharged this".** §7. That needs a schema migration plus
+  an authenticated ops surface.
+- **No un-discharge, and no record of a reversal.** `resolved_at` is written once and never rewritten
+  (§6). If a row was discharged in error there is no supported way to reopen it and nothing that would
+  record that it had been.
+- **Full `meta` is still psql-only.** History surfaces exactly one key, `meta->>'error'` (§3). Booking ids,
+  transfer ids, amounts and masked last-4s still require a local database session.
+- **Still no ops UI** — this is a *third* command line verb, not a screen. Review still requires shell
+  access to a machine with a database connection, exactly as redress does.
+- **The query is an accepted sequential scan.** `audit_needs_attention_idx` is partial over *unresolved*
+  rows and cannot serve this one. At 27 rows that is irrelevant; the window and the 200-row cap bound the
+  *result*, not the scan. The index that would fix it would grow without bound, so it belongs with the
+  deferred retention decision, not bolted on. Revisit if `audit` reaches six figures.
+
 ---
 
 ## Related
@@ -260,4 +343,7 @@ rhetorical one — it means redress requires shell access to a machine with a da
 - `.planning/phases/05-payments-payouts/05-HUMAN-UAT.md` item 3 — the UAT item that asked for this
 - `tests/helpers/test-db-url.ts` / `tests/global-setup.ts` — the §4a containment: why the suite can no
   longer write `notify` / `guest-email` rows into dev, and the per-run report that says where they went
-- `.planning/quick/260810-j3z-make-unresolved-needs-attention-money-al/deferred-items.md` — D1, closed
+- `.planning/quick/260810-j3z-make-unresolved-needs-attention-money-al/deferred-items.md` — D1 and D2, both closed
+- `.planning/quick/260811-dj4-add-resolved-history-review-to-the-ops-a/260811-dj4-SUMMARY.md` — the review
+  path in §6a: why history is unscoped by outcome, why there is no ACTOR column, and the single-key
+  `meta->>'error'` widening argued in full

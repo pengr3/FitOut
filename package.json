@@ -16,6 +16,7 @@
     "db:studio": "drizzle-kit studio",
     "ops:alerts": "tsx scripts/ops-alerts.ts list",
     "ops:alerts:resolve": "tsx scripts/ops-alerts.ts resolve",
+    "ops:alerts:history": "tsx scripts/ops-alerts.ts history",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "postinstall": "node scripts/patch-kysely-adapter.mjs"

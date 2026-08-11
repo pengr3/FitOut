@@ -175,3 +175,31 @@ reviewed.** `.planning/v1.0-MILESTONE-AUDIT.md` item 5 carries the same amendmen
 **Tracked as:** D2 in `deferred-items.md` (this directory), OPEN. Not fixed in `260810-km4` — that task's
 scope was database isolation, and the operator chose deliberately to flag it rather than have it added
 mid-checkpoint.
+
+---
+
+### Closure of the above (2026-08-11, quick task `260811-dj4`)
+
+**D2 is CLOSED.** `npm run ops:alerts:history [-- <days>]` reviews discharged rows newest-discharge-first
+over the same module — `outcome`, `created_at`, `resolved_at`, a `HELD` column (whole hours the money sat
+outstanding), and `meta->>'error'` — inside a 30-day default window capped at 200 rows. Run live against the
+dev database on closure, it printed all 27 rows of the batch this amendment was written about, with
+`error=resend 503`: the check that required hand-written psql above is now one command. Runbook §6a is the
+operator procedure. Six new pinned cases (8-13) and seven mutations; no schema change, no migration, no
+index.
+
+**The corrected claim, widened to exactly what is now true and no further.** Replacing "an alert can be
+discovered and discharged; a discharge cannot be reviewed":
+
+> **An alert can be discovered, discharged, and the discharge reviewed — what it was, when it was
+> discharged, how long the money was outstanding, and the error string it was discharged on. Still NOT
+> reviewable: BY WHOM (there is no `resolved_by` column), and not without shell + database access (there is
+> still no ops UI).**
+
+Full `meta` also remains psql-only — history surfaces exactly one key out of it, deliberately. And nothing
+here touches the underlying rail: this amendment was always about the operator workflow, not about T-08-74.
+
+**This report's `status: passed` (11/11) is unaffected in either direction.** It was correct against the
+must_haves it was given then, and those must_haves did not require a review surface. The amendment above
+stands as the record of a real gap in the delivered workflow; this note records that the gap is now closed.
+`.planning/v1.0-MILESTONE-AUDIT.md` item 5 carries the same closure.
