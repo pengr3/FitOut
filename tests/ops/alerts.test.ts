@@ -52,6 +52,73 @@
 // failed individually — four on `listResolvedAlerts is not a function`, and cases 10/11 EARLIER than that,
 // on their `DEFAULT_HISTORY_DAYS`/`DEFAULT_HISTORY_LIMIT` constant assertions, which is why those two show
 // an AssertionError instead. Recorded as observed; not synthesised, and not "improved" by stubbing.
+//
+// ---------------------------------------------------------------------------------------------------
+// MUTATION VERIFICATION for cases 8-13 (anti-vacuity house standard). Each mutation was applied to `src/`,
+// `npx vitest run tests/ops` was re-run bare with no DATABASE_URL exported, the result was recorded
+// VERBATIM below, and the mutation was reverted — `git diff --exit-code src/` clean afterwards.
+//
+// H1 — delete the `resolved_at >= now() - make_interval(...)` window bound, keep `IS NOT NULL`. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 10 — a 30-day default window, widenable by `days`
+//       AssertionError: expected [ 'audit_27', 'audit_26' ] to not include 'audit_26'
+//             Tests  1 failed | 22 passed (23)
+//      i.e. without the window the 40-day-old discharge comes back at the default. The window is what
+//      keeps an unbounded audit table from becoming an unreadable dump.
+//
+// H2 — delete the ENTIRE `.where()`. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 8 — returns ONLY resolved rows; an open alert never appears in history
+//       AssertionError: expected [ 'audit_20', 'audit_18', 'audit_19' ] to not include 'audit_20'
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 10 — a 30-day default window, widenable by `days`
+//       AssertionError: expected [ 'audit_27', 'audit_26' ] to not include 'audit_26'
+//             Tests  2 failed | 21 passed (23)
+//      THIS is where case 8's teeth are: with no predicate at all an UNRESOLVED row enters the history
+//      review, which would make a discharge log that reports undischarged obligations as discharged.
+//
+// H2b — delete ONLY `resolved_at IS NOT NULL`, KEEP the window. **PREDICTED GREEN, AND OBSERVED GREEN.**
+//       VERBATIM:
+//         Test Files  2 passed (2)
+//              Tests  23 passed (23)
+//      CONCLUSION, recorded rather than suppressed: `NULL >= x` evaluates to NULL, never true, so the
+//      window ALREADY excludes every unresolved row and the explicit clause is logically redundant TODAY.
+//      The clause is INTENT — the declared definition of the set, and the half that survives if the window
+//      is ever made optional; the window is the ENFORCEMENT. Precedent for reporting a green mutation as
+//      observed rather than dropping it: 09-23 M2a. A mutation you predict green must still be RUN — the
+//      prediction is the hypothesis, not the result — and case 8's teeth are demonstrated by H2 above,
+//      which is the mutation that actually removes the enforcement.
+//
+// H3 — flip `resolved_at DESC` to `ASC`. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 9 — newest DISCHARGE first, tie-broken by created_at DESC
+//       AssertionError: expected [ 'audit_21', 'audit_22', 'audit_23' ] to deeply equal [ 'audit_23', 'audit_22', 'audit_21' ]
+//             Tests  1 failed | 22 passed (23)
+//
+// H3b — drop the `, created_at DESC` tie-break, keep `resolved_at DESC`. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 9 — newest DISCHARGE first, tie-broken by created_at DESC
+//       AssertionError: expected 'audit_24' to be 'audit_25' // Object.is equality
+//             Tests  1 failed | 22 passed (23)
+//      RED, which is the answer that matters here: it proves the single-statement UPDATE in case 9 produces
+//      a GENUINE tie. Had this come back green the fixture would have been manufacturing two distinct
+//      timestamps and the ORDER BY's second term would have been untestable — ship-nothing-you-cannot-measure
+//      would then have required deleting the term and the assertion together.
+//
+// H4 — add `meta: audit.meta` to the select AND `meta` to `ResolvedAlert`. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 12 — surfaces ONLY meta->>'error'; the rest of `meta` cannot reach the row
+//       AssertionError: expected true to be false // Object.is equality
+//        Test Files  1 failed | 1 passed (2)
+//             Tests  1 failed | 22 passed (23)
+//      NOTE WHAT STAYED GREEN, because it is the whole point: `alerts.test.ts` case 7 (the UnresolvedAlert
+//      guard) and the ENTIRE `alert-digest.test.ts` file including case 3's email sentinel. Widening the
+//      HISTORY row does not trip the digest's guards — so case 12 is not riding on them, it has its own
+//      teeth, and the new surface is measured where it would actually leak.
+//      (Process note, for honesty: the first H4 run was performed with H3b still applied and reddened both
+//      case 9 and case 12. That run was discarded and H4 was re-applied to a clean `src/`; the isolated
+//      re-run above is what is recorded.)
+//
+// H5 — replace the `error` projection with `sql`NULL``. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 12 — surfaces ONLY meta->>'error'; the rest of `meta` cannot reach the row
+//       AssertionError: expected null to be 'resend 503' // Object.is equality
+//             Tests  1 failed | 22 passed (23)
+//      The ONE deliberate exposure is PINNED, not incidental — it cannot silently regress to null, which is
+//      the failure mode that would quietly re-open half of D2 ("on what basis was this discharged?").
 // ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";

@@ -22,16 +22,25 @@
 // partial index over only the OPEN rows is what keeps this query O(unresolved) as resolved history grows
 // without bound (the retention note at schema.ts:350-354).
 //
-// THE PII CONTRACT IS ENFORCED STRUCTURALLY, NOT BY A COMMENT (D-J3Z-02). This query selects FOUR EXPLICIT
-// COLUMNS — id, action, actor_id, created_at — and `UnresolvedAlert` has no field for the jsonb column that
-// is deliberately absent. That column carries booking ids, transfer ids and masked last-4s under an explicit
-// column-level rule (D-72), restated verbatim at cancel-booking.ts:755-756: "No account number, no account
-// name, no BIC — not in this audit meta, not in any log line, NOT IN ANY COLUMN." These rows are rendered
-// into an EMAIL, and email is an external service that forwards, archives and indexes — so widening this
-// select would silently widen a column-level contract across a trust boundary. Because the row type has no
-// such field, re-exporting it is a TYPE ERROR at every consumer rather than something a reviewer has to
-// catch. Where that column IS readable: a local psql / Drizzle Studio session, documented in
-// .planning/ops/NEEDS-ATTENTION-RUNBOOK.md. That boundary is the point.
+// THE PII CONTRACT IS ENFORCED STRUCTURALLY, NOT BY A COMMENT (D-J3Z-02). `listUnresolvedAlerts` selects
+// FOUR EXPLICIT COLUMNS — id, action, actor_id, created_at — and `UnresolvedAlert` has no field for the
+// jsonb column that is deliberately absent. That column carries booking ids, transfer ids and masked
+// last-4s under an explicit column-level rule (D-72), restated verbatim at cancel-booking.ts:755-756: "No
+// account number, no account name, no BIC — not in this audit meta, not in any log line, NOT IN ANY
+// COLUMN." Those rows are rendered into an EMAIL, and email is an external service that forwards, archives
+// and indexes — so widening THAT select would silently widen a column-level contract across a trust
+// boundary. Because the row type has no such field, re-exporting it is a TYPE ERROR at every consumer
+// rather than something a reviewer has to catch. Where that column IS readable: a local psql / Drizzle
+// Studio session, documented in .planning/ops/NEEDS-ATTENTION-RUNBOOK.md. That boundary is the point.
+//
+// SCOPE OF THE PARAGRAPH ABOVE — read it as being about `listUnresolvedAlerts`, not about this file. As of
+// 2026-08-11 it is no longer true of the file as a whole: `listResolvedAlerts` (added by quick task
+// 260811-dj4 to close D2) selects SIX explicit columns plus ONE derived single-key projection,
+// `meta->>'error'`. The `meta` COLUMN is still never selected anywhere in this module and `ResolvedAlert`
+// still has no `meta` field, so the structural enforcement is intact on both queries — but the blanket
+// claim "this file never reads anything out of meta" would now be a lie, and a file that lies about itself
+// is worse than one that never made the claim. The full argument for that one widening, and the reason it
+// does NOT generalise to any other key, is at `listResolvedAlerts` below (D-DJ4-04).
 
 import { sql } from "drizzle-orm";
 import type { DbConn } from "@/lib/availability/read-model";
@@ -158,4 +167,158 @@ export async function resolveAlert(dbConn: DbConn, id: string): Promise<ResolveR
   }
 
   return { outcome: "not_found", id };
+}
+
+/**
+ * One DISCHARGED alert, as a reviewer sees it — the read side of `resolveAlert` (D2, quick task
+ * 260811-dj4).
+ *
+ * NO `meta` FIELD, and that omission is still the enforcement mechanism, not a comment (D-DJ4-04). `error`
+ * is a DERIVED single-key projection of `meta->>'error'`, not the column: adding `meta` here is a change
+ * every consumer has to be edited to accept, which is what keeps it out of the email path by construction
+ * rather than by review.
+ *
+ * `resolvedAt` is non-nullable HERE even though the column is nullable, because the query's predicate is
+ * exactly `resolved_at IS NOT NULL` — a row that reached this type has a discharge time by definition.
+ */
+export type ResolvedAlert = {
+  id: string;
+  action: string;
+  outcome: string;
+  actorId: string;
+  createdAt: Date;
+  resolvedAt: Date;
+  error: string | null;
+};
+
+/**
+ * How far back a history review looks by default (D-DJ4-03).
+ *
+ * This bounds the QUESTION ("what was discharged recently?"), which is a different job from the row limit
+ * below bounding the OUTPUT — hence two bounds rather than one.
+ */
+export const DEFAULT_HISTORY_DAYS = 30;
+
+/**
+ * Hard bound on how many discharged rows one history read may return (D-DJ4-03).
+ *
+ * DECLARED SEPARATELY FROM `DEFAULT_ALERT_LIMIT` even though the numbers coincide, deliberately: that one
+ * bounds an operator's INBOX (an email nobody can scroll), this one bounds a TERMINAL. Collapsing them into
+ * one constant would let a future change to either silently move the other.
+ */
+export const DEFAULT_HISTORY_LIMIT = 200;
+
+/**
+ * Every DISCHARGED audit row inside the window, newest DISCHARGE first.
+ *
+ * This closes D2 — recorded as an OPEN GAP after an operator, asked at a human-verification checkpoint to
+ * confirm that 27 discharged dev rows had genuinely been test noise, reached for the CLI and found that
+ * resolutions could be MADE through it but only REVIEWED through hand-written psql. `resolveAlert` is a
+ * money-path write asserting a human discharged an obligation; on the QRPh rail that obligation is real
+ * money PayMongo cannot refund via API. The review side is the half that matters in a dispute.
+ *
+ * D-DJ4-01 — UNSCOPED BY OUTCOME, and this mirrors the writer rather than choosing a policy.
+ * `resolved_at` has exactly ONE code writer in this repository (`resolveAlert`, above), so
+ * `resolved_at IS NOT NULL` is *precisely* the set of human discharge acts — a fact derivable from the
+ * code, not a preference. And `resolveAlert` is deliberately not scoped to `outcome = 'needs_attention'`
+ * (see its docblock; pinned by alerts.test.ts case 6b). If the READ side were scoped and the WRITE side
+ * were not, a discharge performed on an `error`/`ok` row would exist that no surface could review — which
+ * is D2 reproduced one level down. `outcome` is therefore RETURNED and rendered, so such a discharge is
+ * visible at a glance. Pinned by case 13.
+ *
+ * D-DJ4-02 — ORDER BY `resolved_at DESC, created_at DESC`, NOT `created_at DESC`.
+ * "When did the money event happen?" is the unresolved queue's question and it already answers it. A review
+ * is over discharge ACTS: a batch handled in one sitting must appear contiguous. Both timestamps are
+ * returned so the money-event question stays answerable per row, and the `created_at DESC` tie-break makes
+ * a same-instant batch deterministic (newest money event first) — pinned by case 9's single-statement
+ * UPDATE, which is the only way to produce a byte-identical `resolved_at` for two rows.
+ * NO `NULLS LAST`, deliberately and not by oversight: the `NULLS LAST` in `listUnresolvedAlerts` exists to
+ * match `audit_needs_attention_idx`'s declared ordering. There is no index here (D-DJ4-06) and the
+ * predicate makes NULLs impossible, so copying it in would be cargo cult.
+ *
+ * D-DJ4-03 — the two bounds. See the constants above.
+ *
+ * D-DJ4-04 — ONE derived key, `meta->>'error'`. NEVER the `meta` column. This is a deliberate widening of
+ * the D-J3Z-02 boundary, it is argued rather than assumed, and it is the ONLY one.
+ * The D2 question is "what was discharged, AND ON WHAT BASIS?" — and the operator's own psql keyed on
+ * `meta->>'error'`, because the 27-row classification turned on the literal string 'resend 503'. A history
+ * verb that cannot show it answers half the question.
+ *
+ * Why exposing THIS key specifically is safe, in the order the reasoning actually runs:
+ *   1. IT IS A SINGLE NAMED KEY, CHOSEN ON CONTENT GROUNDS. By convention across this codebase's
+ *      `recordAudit` sites, `error` holds an exception/API message — it is written at exactly two call
+ *      sites (notify.ts:262 and guest-email.ts:60), both `args.error?.message ?? "unknown error"`.
+ *      IDENTIFIERS LIVE UNDER SEPARATELY-NAMED KEYS: `bookingId`, `transferId`, `paymentId`, `last4`. A
+ *      projection of one named key cannot reach a differently-named one. Pinned by case 12, which plants
+ *      all four and asserts only `error` surfaces.
+ *   2. THE STRUCTURAL ENFORCEMENT SURVIVES INTACT. `ResolvedAlert` is a NEW, SEPARATE type carrying
+ *      `error: string | null` and NO `meta` field. `UnresolvedAlert` and `OpsDigestRow` are byte-unchanged.
+ *      So re-exporting the column is still a COMPILE ERROR at every consumer, and the email path cannot
+ *      acquire `meta` by accident on this surface. Measured, not asserted: mutation H4 adds `meta` to both
+ *      the select and the type and reddens case 12, while `alert-digest.test.ts` case 3 stays green —
+ *      proving case 12 has its own teeth rather than riding on the existing email guard.
+ *   3. RESIDUAL RISK, ON THE RECORD AND ACCEPTED (T-DJ4-01): an error string could in principle embed
+ *      something an operator would rather not paste into a ticket, and terminal output escapes into tickets
+ *      more readily than a psql session does. Disposition ACCEPT, narrowed by (1), recorded in runbook §6a.
+ *
+ * CONTEXT, EXPLICITLY NOT THE REASON THIS IS SAFE — only why the residual risk in (3) is tolerable: the
+ * CLI is not a privilege boundary. It connects with `DATABASE_URL`; anyone who can run
+ * `npm run ops:alerts:history` can already run `SELECT * FROM audit`, and runbook §3 tells them to. DO NOT
+ * CITE THIS AS PRECEDENT FOR ADDING ANOTHER KEY. It proves too much: taken alone it would equally justify
+ * exposing `bookingId`, or the entire `meta` column, since the runner has psql either way. What limits the
+ * scope is (1) and (2), and any future widening must be argued on those grounds, not this one. Email
+ * remains a different reader set — it forwards, archives and indexes — which is why the digest is bound
+ * tighter and is untouched here.
+ *
+ * D-DJ4-06 — NO INDEX, NO MIGRATION; the Seq Scan is ACCEPTED, with the threshold recorded.
+ * `audit_needs_attention_idx` is PARTIAL (`WHERE outcome = 'needs_attention' AND resolved_at IS NULL`) and
+ * so cannot serve resolved rows AT ALL. This query plans as Seq Scan + Sort. Accepted: `audit` holds 27
+ * rows today, and the window + limit bound the RESULT rather than the scan. The index that would fix it —
+ * `CREATE INDEX ... ON audit (resolved_at DESC) WHERE resolved_at IS NOT NULL` — needs a migration, and it
+ * is not a free win either: unlike the partial unresolved index it would grow WITHOUT BOUND, which is the
+ * exact property schema.ts:346-354 singles out. It belongs with the deferred RETENTION decision, not
+ * bolted on here.
+ */
+export async function listResolvedAlerts(
+  dbConn: DbConn,
+  opts?: { days?: number; limit?: number },
+): Promise<ResolvedAlert[]> {
+  const days = opts?.days ?? DEFAULT_HISTORY_DAYS;
+  const limit = opts?.limit ?? DEFAULT_HISTORY_LIMIT;
+  const rows = await dbConn
+    .select({
+      id: audit.id,
+      action: audit.action,
+      outcome: audit.outcome,
+      actorId: audit.actorId,
+      createdAt: audit.createdAt,
+      resolvedAt: audit.resolvedAt,
+      // The single-key projection, column-qualified so it renders as `"audit"."meta"->>'error'`. This is
+      // the ONLY thing in this module that reads out of the jsonb column, and D-DJ4-04 above is why.
+      error: sql<string | null>`${audit.meta}->>'error'`,
+    })
+    .from(audit)
+    // `days` IS A BIND PARAMETER, and that is the deliberate DIFFERENCE from `listUnresolvedAlerts` above
+    // (D-DJ4-07). That query emits its predicate as a SQL LITERAL because the planner cannot prove
+    // predicate-implication through a bind parameter and a partial index is at stake. NEITHER condition
+    // holds here: there is no index for this predicate to defeat (D-DJ4-06), and `days` is a CALLER value
+    // that arrives from `process.argv`. Literalising a caller-controlled value would be an injection
+    // surface. Do not "make this consistent" with the query above — the inconsistency is the point.
+    //
+    // `resolved_at IS NOT NULL` is kept even though the `>=` subsumes it (`NULL >= x` is NULL, so the
+    // window already excludes unresolved rows). It is the DECLARED definition of the set and the clause
+    // that survives if the window is ever made optional. Mutation H2b measures that redundancy honestly
+    // rather than asserting it — see the record in tests/ops/alerts.test.ts.
+    //
+    // `now()` is the POSTGRES clock, per the project's zero-JS-clock rule (src/lib/units.ts). A
+    // JS-computed cutoff would make host/Docker clock skew look like a query bug.
+    .where(
+      sql`resolved_at IS NOT NULL AND resolved_at >= now() - make_interval(days => ${days}::int)`,
+    )
+    .orderBy(sql`resolved_at DESC, created_at DESC`)
+    .limit(limit);
+
+  // The column is nullable; the predicate is not. Narrowed here rather than leaking `Date | null` into
+  // every reviewer-facing consumer for a case the WHERE clause has already excluded.
+  return rows.map((r) => ({ ...r, resolvedAt: r.resolvedAt as Date }));
 }
