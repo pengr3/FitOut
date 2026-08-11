@@ -194,6 +194,51 @@ export function SearchResultCard({
           ) : (
             typeLabel && <p className="text-sm text-muted-foreground">{typeLabel}</p>
           )}
+
+          {/* THE EXPLAINER (D-ELM-01 — v1.0 audit item #6, copy clause). The badge NAMES the mode; it does
+              not define it. A booker meeting the word here learns nothing about what they are buying, and
+              `/person` hints without stating. This one muted line carries both facts the audit named — the
+              unit is a DAY, and the space is SHARED — sitting directly beneath the word that raised the
+              question and above the price, which also keeps the price and its `Service fee included`
+              qualifier contiguous as the single unit they are.
+
+              NOT NEW COPY (D-ELM-02). It is a COMPRESSION of the listing page's own framing line
+              (`date-pass-picker.tsx:230`), whose tail it reuses verbatim, and the sibling of
+              `composeWhenLabel`'s drop-in line (`when-label.ts:112`). A results tile must be the short form
+              of the surface it links to, never a second vocabulary for the same product. Checked against
+              § Copywriting (09-UI-SPEC:444, restated in `drop-in-badge.tsx:11-12`): no "occupancy mode", no
+              "capacity", no "slot". Written as a braced string literal — like line 230 — because of the
+              apostrophe and `react/no-unescaped-entities`.
+
+              "SHARED SPACE", NEVER "SHARED PASS" — load-bearing, not a stylistic preference. FitOut ships
+              GROUP BOOKINGS, where an organizer reserves and invites friends, so "a shared pass" reads as a
+              pass shared WITH someone. It is the SPACE that is shared; attaching the adjective to the pass
+              would advertise the adjacent feature instead of this one. (This is also the first time the
+              sharing fact appears in booker-facing copy at all — until now it existed only in the host
+              wizard.)
+
+              MUTED, NEVER ACCENT (D-ELM-04). § Color lists the five accent uses this phase permits and this
+              is not among them — the same reason the badge itself is `secondary`. The token is the one four
+              other lines on this card already use, so both themes are covered by construction. No truncate
+              and no line-clamp: at 320px (the grid is single-column until `sm:`) this wraps to two lines,
+              which is correct, and is why the copy was held to 46 characters.
+
+              NOT A TOOLTIP (D-ELM-01). Roughly half this traffic is touch, where a hover tooltip is a
+              hidden explanation rather than an explanation — and the WHOLE card is one Link (above), so a
+              Radix trigger would nest a button inside an anchor and the tap would either navigate or be
+              swallowed. `tooltip.tsx` and `popover.tsx` both exist; availability was never the constraint.
+
+              The guard below is a SEPARATE expression rather than a third branch of the type-line ternary,
+              deliberately: it leaves that shipped ternary byte-unchanged and makes the drop-in condition a
+              single removable token, which is what lets a mutation measure that the exclusive card is
+              genuinely protected — its whole `textContent` is pinned by exact equality in
+              tests/search/search-card-open.test.tsx case (9) (D-ELM-05). */}
+          {isDropIn && (
+            <p className="text-sm text-muted-foreground">
+              {"Day pass · shared space, any time they're open"}
+            </p>
+          )}
+
           <p className="text-sm tabular-nums">
             {priceParts.length ? priceParts.join(" · ") : "Price on request"}
           </p>

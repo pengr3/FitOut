@@ -63,6 +63,77 @@
 // REGRESSION PIN of today's exclusive card, not a restatement of the new assertions — if it had gone red
 // alongside (7)/(8) it would be measuring the explainer rather than pinning the card it is meant to
 // protect. See the block above the cases themselves for what each one carries.
+//
+// ── Mutations (each reverted; `git diff --exit-code src/` clean after all of them) ────────────────
+//
+// M1 — the `isDropIn` guard DELETED, so the explainer renders unconditionally.
+//   PREDICTED: (9) red, (6) green.  OBSERVED: exactly that. VERBATIM:
+//
+//    ✓ … > (6) REGRESSION: an exclusive card with the same searched window is unchanged 15ms
+//    × … > (9) REGRESSION: the exclusive card's whole rendered text is byte-identical to today 25ms
+//
+//    FAIL  … > (9) REGRESSION: the exclusive card's whole rendered text is byte-identical to today
+//   AssertionError: expected 'No photos yetSunset CourtPickleball c…' to be 'No photos yetSunset CourtPickleball c…' // Object.is equality
+//
+//   Expected: "No photos yetSunset CourtPickleball court₱322.88/hrService fee includedAvailable 9:00 AM–11:00 AM on Fri, Aug 8 · Makati time"
+//   Received: "No photos yetSunset CourtPickleball courtDay pass · shared space, any time they're open₱322.88/hrService fee includedAvailable 9:00 AM–11:00 AM on Fri, Aug 8 · Makati time"
+//
+//    Test Files  1 failed (1)
+//         Tests  1 failed | 8 passed (9)
+//
+//   THE CONTRAST IS THE WHOLE POINT: (6) — which checks NAMED strings on the exclusive card — stayed
+//   GREEN through a mutation that put a whole extra paragraph on it. (9) is the assertion actually
+//   carrying the byte-identity claim; (6) would have missed this entirely.
+//
+// M2 — `Day pass` → `Open capacity` in the literal.
+//   PREDICTED: (7) and (8) red ON `FORBIDDEN`.
+//   OBSERVED AS OBSERVED, and the prediction was WRONG about WHICH assertion bit. VERBATIM:
+//
+//    × … > (7) drop-in with NO date: the explainer renders, between the badge and the price 30ms
+//      → Unable to find an element with the text: Day pass · shared space, any time they're open. …
+//    × … > (8) drop-in with a date AND searched hours: the explainer coexists with O2 19ms
+//      → Unable to find an element with the text: Day pass · shared space, any time they're open. …
+//    ✓ … > (9) REGRESSION: the exclusive card's whole rendered text is byte-identical to today 12ms
+//         Tests  2 failed | 7 passed (9)
+//
+//   Both cases open with `getByText(BLURB)`, which THROWS — so execution never reaches
+//   `not.toMatch(FORBIDDEN)` and M2 does NOT, on its own, discharge D-ELM-06. The literal pin is not
+//   adjusted to fit the prediction (that would trade a stronger assertion for a tidier story); instead
+//   the vacuity question is answered by a second mutation that isolates it:
+//
+// M2b — the shipped literal left EXACTLY as-is, and a separate drop-in-guarded node added after the
+//   date line: `{isDropIn && <p className="text-sm">Sold in occupancy mode</p>}`. `getByText(BLURB)` and
+//   the order/contiguity assertions all still pass, so `FORBIDDEN` is the only thing left to fail.
+//   OBSERVED — and this is what makes the vocabulary assertion non-vacuous (D-ELM-06). VERBATIM:
+//
+//    × … > (7) drop-in with NO date: the explainer renders, between the badge and the price 25ms
+//      → expected 'No photos yetIron RepublicGym / fitne…' not to match /open capacity|occupancy mode/i
+//    × … > (8) drop-in with a date AND searched hours: the explainer coexists with O2 16ms
+//      → expected 'No photos yetIron RepublicGym / fitne…' not to match /open capacity|occupancy mode/i
+//    ✓ … > (9) REGRESSION: the exclusive card's whole rendered text is byte-identical to today 6ms
+//         Tests  2 failed | 7 passed (9)
+//
+// M3 — `any time they're open` → `any time 6:00 AM – 10:00 PM` in the literal.
+//   PREDICTED: (8) red on `CLOCK_TIME`.
+//   OBSERVED: FOUR cases red, and the two that matter are ones the prediction did not name. VERBATIM:
+//
+//    × … > (2) with a date in play: renders the date + venue tz and the server's chip, and NO clock time 46ms
+//      → expected 'No photos yetIron RepublicGym / fitne…' not to match /\d:/
+//    × … > (3) with a date AND a searched start/end: STILL no clock time (O2 — the default lie) 15ms
+//      → expected 'No photos yetIron RepublicGym / fitne…' not to match /\d:/
+//    × … > (7) drop-in with NO date: the explainer renders, between the badge and the price 31ms
+//      → Unable to find an element with the text: Day pass · shared space, any time they're open. …
+//    × … > (8) drop-in with a date AND searched hours: the explainer coexists with O2 19ms
+//      → Unable to find an element with the text: Day pass · shared space, any time they're open. …
+//    ✓ … > (6) REGRESSION: an exclusive card with the same searched window is unchanged 15ms
+//    ✓ … > (9) REGRESSION: the exclusive card's whole rendered text is byte-identical to today 12ms
+//         Tests  4 failed | 5 passed (9)
+//
+//   (7) and (8) died on the literal pin again, as in M2. But cases (2) and (3) — SHIPPED since 09-14,
+//   carrying no literal pin — reddened on exactly `/\d:/`. That is a STRONGER result than the plan
+//   predicted and it is the claim M3 exists to establish: the new copy sits INSIDE O2's guard rather
+//   than beside it, and the proof comes from assertions written before this line existed. A drop-in card
+//   still cannot advertise hours the pass does not reserve, whichever line tries to.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, afterEach, vi } from "vitest";
