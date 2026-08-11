@@ -17,7 +17,7 @@
    output" could be satisfied or broken by a markdown file — which is the vacuous-pass shape this
    phase's guard-the-guard blocks exist to prevent, arriving through a side door.
 
-   `src/` is the whole app: `public/` holds five SVGs and no markup, and nothing under `tests/`,
+   `src/` is the whole app: `public/` holds the two generated icons and no markup, and nothing under `tests/`,
    `e2e/`, `scripts/`, `drizzle/` or `config/` renders to a browser. A class that a user can actually
    see is authored in `src/` by construction. If that ever stops being true — a component library
    consumed from `node_modules` with its own class strings, say — add an explicit `@source` for it

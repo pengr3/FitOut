@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { FaviconSwap } from "@/components/theme/favicon-swap";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeQueryParam } from "@/components/theme/theme-query-param";
 
@@ -31,11 +32,20 @@ const geistMono = Geist_Mono({
  * `title` is an object rather than a bare string so child routes get the "%s · FitOut" suffix for
  * free — the invite page (src/app/invite/[token]/page.tsx:60) already hand-wrote that suffix, and
  * the template is what stops the next twenty routes each hand-writing it slightly differently.
+ *
+ * DS-14 (part 2) / D-19 — the icon entry below points at the COURT mark, generated from the token
+ * contract by scripts/generate-design-tokens.mjs. It is here rather than left to a file convention
+ * for two reasons. First, the scaffold's `src/app/favicon.ico` has been DELETED: with both an .ico
+ * and an SVG present a browser is free to choose either, so the two identities would race. Second,
+ * this entry is what puts an icon in the SERVER HTML — FaviconSwap only ever retargets it once the
+ * theme resolves, so without this line the tab would show the browser's default document glyph for
+ * a frame on every cold load.
  */
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   title: { default: "FitOut", template: "%s · FitOut" },
   description: "Book gyms, courts and studios by the hour.",
+  icons: { icon: [{ url: "/icon-court.svg", type: "image/svg+xml" }] },
 };
 
 export default function RootLayout({
@@ -63,6 +73,10 @@ export default function RootLayout({
             this root layout, so one provider here covers all of them and no Toaster mount moves. */}
         <ThemeProvider>
           <ThemeQueryParam />
+          {/* D-19 — retargets the icon link above when the theme resolves, so the tab is one more
+              surface the grove swap proves. Mounted INSIDE the provider because it reads the
+              resolved theme, exactly like its sibling. */}
+          <FaviconSwap />
           {children}
         </ThemeProvider>
       </body>
