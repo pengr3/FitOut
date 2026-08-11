@@ -175,6 +175,15 @@ for at the `260810-km4` checkpoint, now one command.**
   it would grow **without bound**, so it belongs with the deferred retention decision.
 - **No `resolved_by`.** Still no answer to "who discharged this" — that needs a schema migration plus an
   authenticated ops surface. Runbook §7.
+  - *Amended 2026-08-11 (quick task `260811-fh6`) — NARROWED, not reversed. The original text above stands
+    as written on 2026-08-11 by `260811-dj4`; this is what changed later the same day.* The schema
+    migration half was done (`drizzle/0025_audit_resolved_by.sql`). Discharges made from 2026-08-11 onward
+    record an **asserted discharger** (`resolved_by`, written from the CLI's required `--by`); the **27
+    historical discharges remain unattributed forever** and render as `unrecorded`; and the identity is
+    **asserted, not authenticated** — the CLI has no session, so the column records who *claims* to have
+    discharged the row, meaningful only in combination with shell / database access control, and **not
+    proof of identity on its own**. The authenticated ops surface half was NOT done and is what would turn
+    a claim into proof.
 - **No ops UI.** This is a third CLI verb, not a screen. Review still requires shell + database access.
 - **No un-discharge and no reversal record.** `resolved_at` is written once, never rewritten.
 
@@ -182,3 +191,12 @@ for at the `260810-km4` checkpoint, now one command.**
 reviewed — what it was, when it was discharged, how long the money was outstanding, and the error string it
 was discharged on.** Still NOT reviewable: **by whom** (no `resolved_by`), and **not without shell +
 database access** (no ops UI). Full `meta` remains psql-only.
+
+> **Amended 2026-08-11 (quick task `260811-fh6`).** The "**by whom**" clause immediately above is narrowed,
+> not deleted — the original text is the honest record of what shipped with `260811-dj4`. As of migration
+> `0025`: discharges made from 2026-08-11 onward record an **asserted discharger** (`resolved_by`, written
+> from the CLI's required `--by`); the **27 historical discharges remain unattributed forever** and render
+> as `unrecorded`; and the identity is **asserted, not authenticated** — the CLI has no session, so the
+> column records who *claims* to have discharged the row, meaningful only in combination with shell /
+> database access control, and **not proof of identity on its own**. Everything else in that sentence is
+> untouched: still no ops UI, still shell + database access, full `meta` still psql-only.

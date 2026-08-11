@@ -182,6 +182,67 @@
 //
 // `tsc` is deliberately NOT a gate at this point: the sweep produces "Expected 2 arguments, but got 3" at
 // six sites and `@/lib/ops/resolve-args` does not resolve. Both clear in the implementation commit.
+//
+// ---------------------------------------------------------------------------------------------------
+// MUTATION VERIFICATION for cases 14-18 (anti-vacuity house standard, quick task 260811-fh6). Each
+// mutation was applied to `src/` or `drizzle/`, `npx vitest run tests/ops` was re-run bare with no
+// DATABASE_URL exported, the result was recorded VERBATIM below, and the mutation was reverted —
+// `git diff --exit-code src/ scripts/ drizzle/` printed clean after every one.
+// M2a and M2b live in tests/ops/resolve-args.test.ts's header, beside the case they redden.
+//
+// M1 — delete `AND resolved_at IS NULL` from `resolveAlert`'s UPDATE. THE LOAD-BEARING ONE. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > resolveAlert > case 5 — idempotent: a second resolve reports already_resolved and CANNOT rewrite the original time
+//       AssertionError: expected 'resolved' to be 'already_resolved' // Object.is equality
+//        FAIL  tests/ops/alerts.test.ts > resolveAlert > case 16 — THE CLOBBER, extended: a second resolve under a DIFFERENT name rewrites neither the time nor the discharger
+//       AssertionError: expected 'resolved' to be 'already_resolved' // Object.is equality
+//        FAIL  tests/ops/alerts.test.ts > resolveAlert > case 17 — NO BACKFILL: a historical discharge with no recorded discharger stays NULL under re-resolve
+//       AssertionError: expected 'resolved' to be 'already_resolved' // Object.is equality
+//         Test Files  1 failed | 2 passed (3)
+//              Tests  3 failed | 30 passed (33)
+//      Cases 16 AND 17 both red, which is the whole claim of D-FH6-04: the protection over the new column
+//      comes from the EXISTING predicate and from nothing added for it. Case 5 going red alongside them is
+//      not collateral — it is the same one guard, and its presence in this list is the evidence that
+//      `resolved_by` inherited the protection rather than acquiring a second, separate one. (There is
+//      deliberately no `AND resolved_by IS NULL`; a spare predicate would have kept this mutation green
+//      and made the real guard untestable.)
+//
+// M3 — remove `resolvedBy` from `listResolvedAlerts`'s select AND from `ResolvedAlert`. VERBATIM:
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 12 — surfaces ONLY meta->>'error'; the rest of `meta` cannot reach the row
+//       AssertionError: expected [ 'action', 'actorId', …(5) ] to deeply equal [ 'action', 'actorId', …(6) ]
+//        FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 18 — returns `resolvedBy` per row: the CLI-discharged row carries its name, the historical row carries null
+//       AssertionError: expected undefined to be 'ops-jane' // Object.is equality
+//         Test Files  1 failed | 2 passed (3)
+//              Tests  2 failed | 31 passed (33)
+//      NOTE WHAT STAYED GREEN, because it is the H4 property restated for this task: the ENTIRE
+//      `alert-digest.test.ts` file (the `2 passed` includes it). The review row's read surface is not
+//      riding on the email guards — narrowing it reddens the cases that measure it and nothing else.
+//      Case 12 going red here is the key-set tripwire working in the direction nobody usually tests: it
+//      fails when a named field DISAPPEARS, not only when an unargued one appears.
+//
+// M4 — THE T-08-40 DEMONSTRATION. Comment out ONLY the `ALTER TABLE` line in
+//      `drizzle/0025_audit_resolved_by.sql`, leaving `schema.ts` still declaring the column and
+//      `_journal.json` untouched — i.e. exactly the state of a migration that was written and never
+//      applied. Both tools run, side by side:
+//
+//        $ npx tsc --noEmit; echo "M4 tsc exit=$?"
+//        M4 tsc exit=0
+//
+//        $ npx vitest run tests/ops
+//         FAIL  tests/ops/alert-digest.test.ts > buildAndSendDigest > case 2 — a day whose only alert was discharged still sends NOTHING
+//        Caused by: PostgresError: column "resolved_by" does not exist
+//         FAIL  tests/ops/alerts.test.ts > resolveAlert > case 4 — discharges the row: outcome resolved, a real timestamp, and gone from the queue
+//        Caused by: PostgresError: column "resolved_by" does not exist
+//         FAIL  tests/ops/alerts.test.ts > audit.resolved_by — the column > case 14 — exists as nullable `text` in the REPLAYED schema, and `audit` still carries no foreign key
+//        AssertionError: expected [] to have a length of 1 but got +0
+//        …(cases 5, 6, 6b, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18 likewise)…
+//          Test Files  2 failed | 1 passed (3)
+//               Tests  16 failed | 17 passed (33)
+//
+//      TYPE CHECKER: PERFECTLY GREEN. DATABASE: SIXTEEN CASES DEAD. That gap is the entire reason a
+//      `[BLOCKING]` migration is verified against `information_schema` plus a fresh-schema replay and NEVER
+//      against `tsc` — the row type comes from schema.ts, so `tsc` and `next build` cannot see the
+//      difference between a column that exists and one that was only ever declared. Case 14 is the case
+//      that closes that gap, and this is the measurement rather than the quotation of it.
 // ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";

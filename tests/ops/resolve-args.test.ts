@@ -67,6 +67,46 @@
 // never collected. That is the difference from 260811-dj4's RED and it is the reason the prediction was
 // written down first — a missing FILE and a missing named EXPORT from a file that loads are different
 // failures, and the dj4 record would have mis-set expectations here if it had been applied by analogy.
+//
+// ---------------------------------------------------------------------------------------------------
+// MUTATION VERIFICATION for case 20 (anti-vacuity house standard). Applied to `src/`, `npx vitest run
+// tests/ops` re-run bare with no DATABASE_URL exported, recorded VERBATIM, then reverted —
+// `git diff --exit-code src/ scripts/ drizzle/` clean afterwards. M1/M3/M4 are recorded in
+// tests/ops/alerts.test.ts's header, beside the cases they redden.
+//
+// >>> READ THIS FIRST: THE FIRST M2b RUN FOUND A HOLE IN CASE 20 ITSELF, and the hole was in the ASSERTION
+// ORDER rather than in the source. As originally written the case asserted `expect(parsed.ok).toBe(false)`
+// BEFORE the `ghost-default` check, so an OS-username fallback failed on ok-ness and the env assertion
+// never executed. M2a and M2b therefore produced BYTE-IDENTICAL output:
+//
+//     AssertionError: expected true to be false // Object.is equality
+//
+// which means the case could NOT distinguish "a flag is required" (M2a) from "the machine fills the name
+// in" (M2b) — precisely the distinction D-FH6-03 is about, and the one reason the env half exists at all.
+// A case that cannot tell two mutations apart is not measuring the thing that separates them. The
+// `ghost-default` assertion was moved ABOVE the `ok` narrowing and both mutations were RE-RUN against the
+// corrected case; the records below are those re-runs. Recorded rather than quietly fixed, because the
+// process fact is the useful one: this was found by RUNNING a mutation predicted to be redundant, not by
+// reading the test.
+//
+// M2a — drop the missing-`--by` refusal so an absent flag yields a successful parse with an empty name.
+//       VERBATIM:
+//         FAIL  tests/ops/resolve-args.test.ts > parseResolveArgs > case 20 — a MISSING `--by` is refused, and the machine NEVER fills it in
+//        AssertionError: expected true to be false // Object.is equality
+//          Test Files  1 failed | 2 passed (3)
+//               Tests  1 failed | 32 passed (33)
+//       Proves the flag is REQUIRED. That is all it proves, which is why M2b exists.
+//
+// M2b — default the name to the OS username: `process.env.USERNAME ?? process.env.USER ?? "operator"`.
+//       VERBATIM:
+//         FAIL  tests/ops/resolve-args.test.ts > parseResolveArgs > case 20 — a MISSING `--by` is refused, and the machine NEVER fills it in
+//        AssertionError: expected '{"ok":true,"id":"audit_abc123","by":"…' not to contain 'ghost-default'
+//          Test Files  1 failed | 2 passed (3)
+//               Tests  1 failed | 32 passed (33)
+//       THE ONE THAT MEASURES D-FH6-03. The RED now NAMES `ghost-default` — the planted env value visibly
+//       reaching the parsed result — so this mutation and M2a fail differently and the case has teeth
+//       against both. A silent default is the dangerous failure, not a missing flag: it would make every
+//       discharge look attributed while attributing nothing.
 // ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect } from "vitest";
@@ -93,13 +133,17 @@ describe("parseResolveArgs", () => {
 
       const parsed = parseResolveArgs(["audit_abc123"]);
 
+      // THIS ASSERTION COMES FIRST, AND THE ORDER IS LOAD-BEARING — it was moved here after mutation M2b
+      // was run and came back with output BYTE-IDENTICAL to M2a's. With `expect(parsed.ok).toBe(false)`
+      // first, an OS-username fallback failed on ok-ness and this line never executed, so the two
+      // mutations were indistinguishable and the env half of this case measured NOTHING. Asserting the
+      // absence of the env value BEFORE narrowing on `ok` is what makes M2b (a silent default) produce a
+      // different, correctly-named RED from M2a (no requirement at all).
+      expect(JSON.stringify(parsed)).not.toContain("ghost-default");
+
       expect(parsed.ok).toBe(false);
       if (parsed.ok) throw new Error("unreachable");
       expect(parsed.error).toContain("--by");
-
-      // The measurement that distinguishes "a flag is required" from "there is no default": the env value
-      // reaches the result NOWHERE — not as a name, not in the error string.
-      expect(JSON.stringify(parsed)).not.toContain("ghost-default");
     } finally {
       // Restored even on failure — a leaked env var would silently change every case that runs after this
       // one in the same worker.

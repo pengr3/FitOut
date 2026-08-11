@@ -158,11 +158,23 @@ blocked: 0
   dischargeable via `npm run ops:alerts:resolve -- <audit-id>`, and the end-to-end operator procedure is
   written down at `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md`. **What genuinely remains:** (a) **no ops
   UI** — the surfaces are an email and a CLI, so redress still needs shell + DB access; (b) the delivery
-  is a daily digest, not paging, so an overnight alert waits until morning; (c) `resolved_at` records
-  *that* a row was discharged but not *by whom* (no `resolved_by` column — accepted, `T-J3Z-06`); and
-  (d) **the underlying QRPh rail is unchanged and permanent** — a captured QRPh payment is not refundable
-  through the PayMongo API, so redress is still a manual out-of-band refund. **T-08-74 stays OPEN and
-  AR-08-01 stands.**
+  is a daily digest, not paging, so an overnight alert waits until morning; (c) a discharge records
+  **who CLAIMS to have made it**, and that claim is not verified *(Updated 2026-08-11, quick task
+  `260811-fh6` — supersedes "`resolved_at` records *that* a row was discharged but not *by whom* (no
+  `resolved_by` column — accepted, `T-J3Z-06`)", which is no longer true; `T-J3Z-06` is closed as
+  narrowed, not as eliminated)*: migration `0025` added `audit.resolved_by` and
+  `npm run ops:alerts:resolve` now REQUIRES an explicit `--by "<your name>"` with no default of any kind,
+  so **discharges made from 2026-08-11 onward record an asserted discharger**; the **27 historical
+  discharges remain unattributed forever** and render as `unrecorded` (never back-filled — inventing a
+  discharger for a past act would be fabricating an audit record); and
+  the identity is **asserted, not authenticated** — the CLI has no session, so the column records who
+  *claims* to have discharged the row, meaningful only in combination with shell / database access
+  control, and **not proof of identity on its own**. Treating a `BY` value as proof of who discharged an
+  alert is exactly the misreading to avoid;
+  and (d) **the underlying QRPh rail is unchanged and permanent** — a captured QRPh payment is not
+  refundable through the PayMongo API, so redress is still a manual out-of-band refund. **T-08-74 stays
+  OPEN and AR-08-01 stands** — a discharger name is not a refund, and clause (c) narrowing changes nothing
+  about items 1 and 2.
 
 Phase status stays `partial`, and the phase's verification status stays `human_needed`, on items 2 and 3
 plus the unwalked half of item 1.

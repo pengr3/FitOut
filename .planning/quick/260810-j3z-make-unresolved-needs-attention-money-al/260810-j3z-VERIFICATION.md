@@ -203,3 +203,38 @@ here touches the underlying rail: this amendment was always about the operator w
 must_haves it was given then, and those must_haves did not require a review surface. The amendment above
 stands as the record of a real gap in the delivered workflow; this note records that the gap is now closed.
 `.planning/v1.0-MILESTONE-AUDIT.md` item 5 carries the same closure.
+
+---
+
+## Further closure of the above (2026-08-11, quick task `260811-fh6`) — the BY WHOM half
+
+The corrected claim's blockquote above says *"Still NOT reviewable: BY WHOM (there is no `resolved_by`
+column)"*. **That parenthetical is now false.** The clause is narrowed here rather than edited above, so the
+sequence of what was true when stays legible.
+
+Migration `0025_audit_resolved_by.sql` added `audit.resolved_by` — nullable `text`, no foreign key, no
+index — and `resolveAlert` writes it in the same guarded UPDATE that writes `resolved_at`. The narrowed
+claim, in full:
+
+> Discharges made from 2026-08-11 onward record an **asserted discharger** (`resolved_by`, written from the
+> CLI's required `--by`); the **27 historical discharges remain unattributed forever** and render as
+> `unrecorded`; and the identity is **asserted, not authenticated** — the CLI has no session, so the column
+> records who *claims* to have discharged the row, meaningful only in combination with shell / database
+> access control, and **not proof of identity on its own**.
+
+Three things it does NOT change, stated so this is not read as more than it is:
+
+- **The other half of the original clause stands unchanged.** Review still requires shell + database access
+  — there is still no ops UI, and this added a required flag to a command line, not a screen.
+- **The 27 rows of the §4a batch are unattributed permanently.** No backfill, ever: inventing a discharger
+  for a past act would be fabricating an audit record. Verified live on the dev database before and after
+  a real CLI run — 27 total rows, 27 with `resolved_at IS NOT NULL AND resolved_by IS NULL`, 0 with a
+  non-null `resolved_by`, identical on both readings. Re-running the resolve verb against one of them with
+  a name reports `already_resolved` and stores nothing, because the `AND resolved_at IS NULL` guard
+  excludes it.
+- **Nothing here touches the rail.** A discharger name is not a refund. `T-08-74` stands and `AR-08-01`
+  stands, exactly as the paragraph above says.
+
+**This report's `status: passed` (11/11) is again unaffected in either direction**, and for the same reason:
+its must_haves did not require a discharger column any more than they required a review surface. This
+section is a record of a claim being narrowed, not of a verdict changing.

@@ -211,18 +211,32 @@ Do not go looking for the function that does it; there isn't one, and adding one
 ## 6. How to discharge the row
 
 ```bash
-npm run ops:alerts:resolve -- <audit-id>
+npm run ops:alerts:resolve -- <audit-id> --by "<your name>"
 ```
 
-This sets `resolved_at` and the row leaves both the CLI listing and the daily digest permanently.
+This sets `resolved_at` **and `resolved_by`**, and the row leaves both the CLI listing and the daily digest
+permanently.
 
-Three possible outcomes:
+**`--by` is REQUIRED and has no default (2026-08-11, quick task `260811-fh6`).** Not your OS username, not
+`USER`, not `USERNAME`, not any environment variable. Omit it and the command refuses and writes nothing.
+That is deliberate: a name you type is the record, and a name the machine fills in would make every
+discharge *look* attributed while attributing nothing.
+
+**What the name is worth — read this before you rely on it.** `resolved_by` records **who claims to have
+discharged the row**. It is an identity that is **asserted, not authenticated**: this CLI has no session,
+so anyone who can reach `DATABASE_URL` can run it and type any name. It is meaningful in combination with
+your shell / database access control, and it is **not proof of identity on its own**. Type the handle you
+are willing to have sitting in an audit table.
+
+Four possible outcomes:
 
 | Output | Meaning |
 |---|---|
-| `Resolved <id> at <timestamp>.` | Done. This run discharged it. |
-| `<id> was ALREADY discharged at <timestamp> — nothing changed.` | Someone got there first. The timestamp shown is the **ORIGINAL** discharge time — a re-run **cannot** rewrite it, by design. Safe to run twice. |
-| `No audit row with id <id>. Nothing was discharged.` (exit code **1**) | Typo, or wrong id. Nothing was touched. |
+| `Resolved <id> at <timestamp>, by "<name>" (asserted, not authenticated — this CLI has no session).` | Done. This run discharged it and recorded the name you typed. |
+| `<id> was ALREADY discharged at <timestamp> by "<name>" — nothing changed.` | Someone got there first. The timestamp **and the discharger** shown are the **ORIGINAL** ones — a re-run **cannot** rewrite either, by design. Safe to run twice. |
+| `<id> was ALREADY discharged at <timestamp> by an unrecorded discharger — nothing changed.` plus `The --by you supplied ("<name>") was NOT recorded.` | One of the 27 rows discharged on 2026-08-10, before the column existed. A past discharge is **never** retro-attributed; your name was not stored anywhere. |
+| `resolve needs --by "<your name>". …` + the usage block (exit code **1**) | You omitted `--by`, or gave it a blank value. **Nothing was written.** |
+| `No audit row with id <id>. Nothing was discharged.` (exit code **1**) | Typo, or wrong id. Nothing was touched — and the name you supplied landed nowhere. |
 
 **The rule: discharge a row only after the money question is actually settled.** The CLI records that
 someone *acted*; it does not and cannot verify that they did. A row discharged before the booker is
@@ -259,6 +273,7 @@ Output is capped at the **200** most recently discharged rows; when there are mo
 | `CREATED (UTC)` | When the money event happened. |
 | `RESOLVED (UTC)` | When a human discharged it. **The list is sorted newest-discharge-first on this column**, so a batch handled in one sitting appears contiguous. |
 | `HELD` | Whole hours between the two — **how long the money sat outstanding before somebody discharged it**. Advisory display; it moves no money. |
+| `BY` | **Who CLAIMS to have discharged the row** — `resolved_by`, written from the required `--by` (§6). `unrecorded` means the discharger was **NOT CAPTURED**: the row was discharged before the column existed (the 27 of §4a), or outside the CLI. It does **NOT** mean *nobody*. Note it is deliberately not `—`: the `ERROR` column already uses `—` for "this row has no error", and two different absences must not look identical. The value is **asserted, not authenticated** — see §7. Truncated at 19 characters for table width only. |
 | `ERROR` | `meta->>'error'`, the single key surfaced here (§3). `—` when the row has none. Truncated at 48 characters **for table width only** — that truncation is not a privacy control. |
 
 **Two design facts you need in order to read this correctly.**
@@ -268,15 +283,48 @@ Output is capped at the **200** most recently discharged rows; when there are mo
    an `ok` / `denied` / `error` row is real, and **this is the only surface in the product that will ever
    show it to you.** Scoping this list to `needs_attention` would hide exactly the discharges most likely to
    have been a mistake. Check the `OUTCOME` column.
-2. **There is NO ACTOR column, and its absence is intentional — see §7.** `actor_id` exists on the row, but
-   it is the actor of the **original event** (`system` for every money action, §4), *not* whoever discharged
-   it. In a list ordered by discharge time an ACTOR column reads as "who discharged this", and that
-   misreading is actively dangerous in a dispute. **This tool cannot tell you who discharged a row. Nothing
-   can — there is no `resolved_by` column.**
+2. **There is a `BY` column and there is STILL no `ACTOR` column — and that is a narrowing, not a
+   reversal (updated 2026-08-11, `260811-fh6`).** The old wording here ended *"This tool cannot tell you who
+   discharged a row. Nothing can — there is no `resolved_by` column."* **That sentence is now false** and is
+   replaced rather than left standing. There IS a discharger fact to show, and `BY` shows it. `ACTOR` stays
+   omitted anyway, for three reasons in this order:
+
+   1. **Two person-shaped columns in one discharge-ordered row is worse than one.** With `ACTOR = system`
+      beside `BY = Jane`, a reader scanning for "who" has two candidates and has to know which is which.
+      Adding a correctly-named neighbour *amplifies* the original hazard rather than removing it.
+   2. **`actor_id` carries no information in this view.** It is `system` for every money action (§4), so on
+      the rows you actually read it is a constant column — pure width, pure confusion risk.
+   3. **The fact is not lost.** The query still returns `actor_id`, and the full row is one psql away (§3).
+      Only this terminal render drops it.
+
+   *Rejected alternative, on the record: show both, clearly labelled (`EVENT ACTOR` / `DISCHARGED BY`). It
+   is defensible and it was considered; it fails on (2), because the extra width buys a constant, and on
+   (1), because "clearly labelled" is a bet that a stressed operator reads headers.*
+
+   **And read `BY` for exactly what it is:** the discharger as **claimed**. See §7 — it is asserted, not
+   authenticated.
 
 ---
 
-## 7. Known limitation, on the record: no `resolved_by`
+## 7. Known limitation, on the record: the discharger is ASSERTED, not AUTHENTICATED
+
+> **NARROWED 2026-08-11 (quick task `260811-fh6`) — read this first; the historical paragraphs below are
+> kept deliberately, not left by accident.**
+>
+> Discharges made from 2026-08-11 onward record an **asserted discharger** (`resolved_by`, written from the
+> CLI's required `--by`); the **27 historical discharges remain unattributed forever** and render as
+> `unrecorded`; and the identity is **asserted, not authenticated** — the CLI has no session, so the column
+> records who *claims* to have discharged the row, meaningful only in combination with shell / database
+> access control, and **not proof of identity on its own**.
+>
+> So the limitation did not disappear; it moved. It used to be *"nothing records who"*. It is now
+> *"what is recorded is a claim, not an identity"*. Do not treat a `BY` value as proof of who discharged an
+> alert — nothing in this product can establish that, and a column that merely looks authoritative is more
+> dangerous in a dispute than an empty one, because it manufactures confidence the data cannot support.
+>
+> **The compensating control below is therefore MORE relevant, not less.** Keep the out-of-band record.
+
+**The original limitation, as written on 2026-08-10, retained for the record:**
 
 `resolved_at` records **that** a row was discharged. It does not record **by whom** — there is no
 `resolved_by` column, and adding one would be a schema migration, deliberately out of scope for the task
@@ -290,11 +338,28 @@ to the refund reference from section 5 step 6.
 between "this row was discharged" and "this refund was actually paid". Keep it. If discharges ever become
 contested, the fix is a `resolved_by` column plus an authenticated ops surface — not a convention.
 
-**Updated 2026-08-11 — what §6a did and did not change here.** `npm run ops:alerts:history` now shows
-**WHAT** was discharged, **WHEN** it was discharged, **how long it was HELD**, and the **error string** it
-was discharged on. It still cannot show **BY WHOM**, and no amount of tooling over the current schema can:
-the column does not exist. Everything above this paragraph stands unchanged — a discharge remains
-non-repudiable by absence, and the out-of-band record remains the only link to the refund reference.
+**Updated 2026-08-11 (`260811-dj4`) — what §6a did and did not change here.** `npm run ops:alerts:history`
+now shows **WHAT** was discharged, **WHEN** it was discharged, **how long it was HELD**, and the **error
+string** it was discharged on. It still cannot show **BY WHOM**, and no amount of tooling over the current
+schema can: the column does not exist. Everything above this paragraph stands unchanged — a discharge
+remains non-repudiable by absence, and the out-of-band record remains the only link to the refund reference.
+
+**Amended 2026-08-11, later the same day (`260811-fh6`) — the paragraph immediately above is now partly
+superseded, and is kept rather than deleted so the sequence stays legible.** The `resolved_by` column now
+exists (migration `0025`) and `ops:alerts:history` prints a `BY` column, so the flat claim "it cannot show
+BY WHOM" no longer holds for discharges made from 2026-08-11 onward. What survives, restated precisely:
+
+- **The 27 rows discharged on 2026-08-10 are still non-repudiable by absence, permanently.** They predate
+  the column and are **never** back-filled — inventing a discharger for a past act would be fabricating an
+  audit record. They render as `unrecorded`, and re-running `resolve --by "<name>"` against one of them
+  reports `already_resolved` and stores nothing (the `AND resolved_at IS NULL` guard excludes them).
+- **For every discharge after that, non-repudiation is WEAKER THAN IT LOOKS rather than absent.** The name
+  is **asserted, not authenticated**: the CLI has no session, so a determined person can type somebody
+  else's name, and two people sharing `DATABASE_URL` still cannot be told apart by the audit trail alone.
+- **The compensating control is unchanged and still load-bearing.** The out-of-band record remains the only
+  link between "this row was discharged" and "this refund was actually paid", and it is now also the only
+  independent check on *who*. The real fix is still an authenticated ops surface, not a convention and not
+  this column.
 
 ---
 
@@ -317,8 +382,13 @@ rhetorical one — it means redress requires shell access to a machine with a da
 between making a discharge and auditing one. It did not close any of these, and each is stated so nobody
 reads §6a as more than it is:
 
-- **No `resolved_by`, so still no answer to "who discharged this".** §7. That needs a schema migration plus
-  an authenticated ops surface.
+- **~~No `resolved_by`, so still no answer to "who discharged this".~~ NARROWED 2026-08-11
+  (`260811-fh6`).** Discharges made from 2026-08-11 onward record an **asserted discharger**
+  (`resolved_by`, written from the CLI's required `--by`); the **27 historical discharges remain
+  unattributed forever** and render as `unrecorded`; and the identity is **asserted, not authenticated** —
+  the CLI has no session, so the column records who *claims* to have discharged the row, meaningful only in
+  combination with shell / database access control, and **not proof of identity on its own**. §7. The
+  authenticated ops surface that would make it proof still does not exist and is still not in scope.
 - **No un-discharge, and no record of a reversal.** `resolved_at` is written once and never rewritten
   (§6). If a row was discharged in error there is no supported way to reopen it and nothing that would
   record that it had been.
@@ -347,3 +417,8 @@ reads §6a as more than it is:
 - `.planning/quick/260811-dj4-add-resolved-history-review-to-the-ops-a/260811-dj4-SUMMARY.md` — the review
   path in §6a: why history is unscoped by outcome, why there is no ACTOR column, and the single-key
   `meta->>'error'` widening argued in full
+- `.planning/quick/260811-fh6-add-resolved-by-to-the-audit-table-so-a-/260811-fh6-SUMMARY.md` — the
+  `resolved_by` column (migration `0025`), the required `--by` with no default, the `BY` column and its
+  honest `unrecorded`, and why the identity is asserted rather than authenticated
+- `src/lib/ops/resolve-args.ts` — the one implementation of the `--by` requirement, and the reason there is
+  deliberately no fallback to the OS username or any environment variable
