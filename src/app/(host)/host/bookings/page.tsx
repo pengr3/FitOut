@@ -170,7 +170,7 @@ export default async function HostBookingsPage({
               id="listing-filter"
               name="listing"
               defaultValue={listingFilter ?? ""}
-              className="h-11 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              className="h-11 rounded-md border border-input bg-transparent px-3 text-sm shadow-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
             >
               <option value="">All spaces</option>
               {hostListings.map((l) => (

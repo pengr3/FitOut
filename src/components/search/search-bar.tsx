@@ -191,7 +191,7 @@ export function SearchBar({
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4"
+      className="rounded-2xl border bg-card p-3 shadow-raised sm:p-4"
       aria-label="Search for a space"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">

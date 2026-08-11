@@ -40,7 +40,7 @@ const LIST_CLASS =
   "inline-flex w-fit items-center justify-center rounded-lg bg-muted p-[3px] text-muted-foreground";
 const TRIGGER_CLASS =
   "inline-flex min-h-11 min-w-24 items-center justify-center rounded-md border border-transparent px-4 text-sm font-medium whitespace-nowrap transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-1 focus-visible:outline-ring";
-const TRIGGER_ACTIVE = "bg-background text-foreground shadow-sm dark:bg-input/30";
+const TRIGGER_ACTIVE = "bg-background text-foreground shadow-raised dark:bg-input/30";
 const TRIGGER_IDLE = "text-foreground/60 hover:text-foreground dark:text-muted-foreground";
 
 /**
