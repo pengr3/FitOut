@@ -391,3 +391,57 @@ Two observations worth adding to the original entry:
 
 **Owner unchanged:** not a design-system plan. Recorded here so the next executor does not re-derive
 the causality check a third time.
+
+---
+
+## D-6 UPDATE (2026-08-11, from 10-14) — a THIRD identical reproduction; the two auth specs pass
+
+`npm run test:e2e` at the end of 10-14: **17 passed / 1 failed / 5 did not run** — the same test
+(`e2e/open-capacity.spec.ts:376`), the same locator (`getByRole('heading', { name: 'Saturday, Aug 15' })`),
+the same `element(s) not found`. Byte-identical to the signal D-6 recorded from 10-08 and the D-6
+UPDATE recorded from 10-13.
+
+**Causality was NOT re-derived, deliberately** — 10-13's summary asked the next executor not to, and
+this plan has no mechanism to reach that surface: it changes 18 class strings, 4 comments and one new
+test file, with no DOM structure, no stacking, no date arithmetic and no query touched. What WAS
+verified, because 10-14 edits `(auth)/login` and `(auth)/signup` (threat T-10-29): both auth specs
+were re-run on their own and **both pass** — `login-persistence.spec.ts:23` (AUTH-02/D-12) and
+`password-reset.spec.ts:51` (AUTH-03), plus `stale-session-selfheal.spec.ts:90` inside the full run.
+
+---
+
+## D-8 (2026-08-11, from 10-14) — two transient positive confirmations now carry no positive affordance
+
+**Found during:** 10-14 Task 1, while retiring the last two numbered greens.
+
+**What is there.** `src/app/(auth)/login/page.tsx`'s `ResetNotice` ("Password updated — please sign
+in.") and `src/app/(app)/profile/profile-form.tsx`'s save confirmation ("Profile saved.") were both
+GREEN TEXT and are now neutral: the notice is the neutral tint with full-contrast ink, the save line
+is secondary ink. Neither carries a hue any more, and neither carries an icon.
+
+**Why the green could not simply be re-pointed at the semantic token.** D-14 is structural: status
+hue lives in an ICON and never in TEXT, and `contrast-pairs.ts` has no text-bar row for `--success`
+because 0.58-lightness green cannot clear 4.5 on a light surface. `text-success` on a sentence would
+have been a DS-06 violation that the contrast suite could not catch, because the pairing exists — at
+the 3:1 non-text bar. So the only two honest outcomes were "neutral" or "neutral + a success glyph",
+and this plan took the first.
+
+**Why the glyph was NOT added here, and it is a gate rather than laziness.** `tests/design/status-vocab.test.ts:369`
+asserts `positiveIconSites` **equals** a four-file set BY NAME, and `:372` requires each of those four
+to carry all three slots of the `positive` recipe — surface, text and icon. Adding a glyph to either
+site grows that set, and `profile-form.tsx`'s line is a bare inline `<p>` beside a bare inline error
+`<p>`: it has no chip surface to tint, so it would need a SECOND category in a pinned gate that plan
+10-10 shaped deliberately around status *chips*. That is the same shape as D-7 — a rewire whose gate
+lives in another plan's file — and `status-vocab.test.ts` is not in 10-14's scope.
+
+**What is and is not lost.** Nothing accessibility-relevant: both elements keep `role="status"`, both
+render ONLY on success, and each one's own sentence is the entire signal, so colour was never
+carrying meaning (which is exactly DS-10's rule — the four chips 10-10 re-treated were different,
+because there a persistent state was being distinguished from its siblings). What is lost is a
+pleasant affordance and consistency with the four re-treated chips.
+
+**Suggested owner:** Phase 11's visual pass (GATE-01), which sees real pixels and can decide whether a
+confirmation that looks identical to ordinary secondary text reads as confirmation. If it takes it,
+the change is a `CheckCircle2` in the positive tone's icon slot at each site plus a split of
+`POSITIVE_CALL_SITES` into a chip list (surface + text + icon) and an inline list (text + icon, with
+the absent surface asserted rather than merely unmentioned).

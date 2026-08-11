@@ -34,7 +34,7 @@
 - [ ] **THEME-02**: **Two** placeholder themes exist — the coral direction plus one deliberately distant — and switching between them re-skins the entire app with zero component edits
 - [x] **THEME-03**: The second theme ships in the same phase as the first and is used as the enforcement proof that nothing hardcoded leaked, not as a later feature
 - [ ] **THEME-04**: A nested `[data-theme]` subtree renders in its own theme, so two themes can be previewed side by side on one page — which requires `@theme inline` to be preserved
-- [ ] **THEME-05**: The 10 app-code `dark:` occurrences are rewritten into tokens; the 56 vendored occurrences are left untouched and the `.dark` block stays dormant (D-129 as amended)
+- [x] **THEME-05**: The 10 app-code `dark:` occurrences are rewritten into tokens; the **54** vendored occurrences are left untouched and the `.dark` block stays dormant (D-129 as amended). *Count corrected from 56 to 54 by plan 10-14: plan 10-07 removed two alpha-diluted focus rings and, honestly, their two dark-mode twins when it closed deferred item D-2. 54 is the OCCURRENCE metric (the same tree is 24 by lines and 14 by files); 10-12, 10-13 and 10-14 each measured it independently, and `tests/design/dark-scope.test.ts` now pins it.*
 
 ### The four state families (STATE)
 
@@ -191,7 +191,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | THEME-02 | Phase 10 | Pending |
 | THEME-03 | Phase 10 | Complete |
 | THEME-04 | Phase 10 | Pending |
-| THEME-05 | Phase 10 | Pending |
+| THEME-05 | Phase 10 | Complete |
 | STATE-01 | Phase 11 | Pending |
 | STATE-02 | Phase 11 | Pending |
 | STATE-03 | Phase 12 | Pending |
