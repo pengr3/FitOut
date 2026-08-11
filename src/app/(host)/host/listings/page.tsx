@@ -78,7 +78,7 @@ export default async function HostListingsPage() {
       <div className="mb-8 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">Your listings</h1>
         {rows.length > 0 && (
-          <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+          <Button asChild variant="brand">
             <Link href="/host/listings/new">Create listing</Link>
           </Button>
         )}
@@ -90,7 +90,7 @@ export default async function HostListingsPage() {
           <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
             List your space and start earning. We&apos;ll walk you through it step by step.
           </p>
-          <Button asChild className="mt-4 bg-brand text-brand-foreground hover:bg-brand/90">
+          <Button asChild variant="brand" className="mt-4">
             <Link href="/host/listings/new">Create your first listing</Link>
           </Button>
         </div>

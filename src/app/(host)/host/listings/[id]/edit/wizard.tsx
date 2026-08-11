@@ -599,8 +599,30 @@ export function ListingWizard({
                 <span
                   className={cn(
                     "flex size-6 items-center justify-center rounded-full text-xs font-medium",
+                    // These two markers are a <span> inside an <ol>, NOT a Button — they stay
+                    // token classes and must never be converted to the accent VARIANT prop
+                    // (10-UI-SPEC § the 29 / 20 / 9 split). The prop is named descriptively here
+                    // rather than quoted because a committed gate counts its occurrences and a
+                    // comment is textually indistinguishable from a call site — this phase's
+                    // recurring collision, which STATE.md records the resolution for.
+                    // Both markers now paint the SOLID accent token, deliberately:
+                    //
+                    // 1. `done` used to carry a 90%-ALPHA tint of the accent. Under
+                    //    `text-brand-foreground` that measures 4.04:1 in court and 3.87:1 in
+                    //    grove against a 4.5 bar, because an alpha tint over a light surface
+                    //    LIGHTENS — it drags the fill toward its own text colour. That failure
+                    //    is a property of the alpha, not of the <Button> element, so the ban
+                    //    applies here too (T-10-25). Nothing is lost: done-vs-current is already
+                    //    carried by the CheckIcon-vs-number below and by `aria-current="step"`
+                    //    on the <li>, not by a 10% tint nobody can perceive.
+                    // 2. The fix is the solid token rather than the darkening `color-mix` used
+                    //    by the Button variant, because `tests/design/brand-recipe.test.ts` pins
+                    //    the surviving non-Button accent-background lines at exactly 9 across 6
+                    //    named files (T-10-41). A `color-mix` here silently drops that to 8 and
+                    //    the gate fails for the wrong reason. THE COUNT IS LOAD-BEARING — and so
+                    //    is the fact that this is two lines rather than one merged condition.
                     state === "current" && "bg-brand text-brand-foreground",
-                    state === "done" && "bg-brand/90 text-brand-foreground",
+                    state === "done" && "bg-brand text-brand-foreground",
                     state === "future" && "bg-muted text-muted-foreground",
                   )}
                 >
@@ -1413,7 +1435,7 @@ export function ListingWizard({
             ) : publishEligible ? (
               <Button
                 type="button"
-                className="bg-brand text-brand-foreground hover:bg-brand/90"
+                variant="brand"
                 onClick={handlePublish}
                 disabled={saving}
               >

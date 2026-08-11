@@ -120,7 +120,7 @@ export default async function HostDashboardPage() {
 
       {hasListings ? (
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
+          <Button asChild variant="brand">
             <Link href="/host/listings/new">Create listing</Link>
           </Button>
           <Button asChild variant="outline">
@@ -152,7 +152,7 @@ export default async function HostDashboardPage() {
             List your space and start earning. We&apos;ll walk you through it
             step by step.
           </p>
-          <Button asChild className="mt-4 bg-brand text-brand-foreground hover:bg-brand/90">
+          <Button asChild variant="brand" className="mt-4">
             <Link href="/host/listings/new">Create your first listing</Link>
           </Button>
         </div>
