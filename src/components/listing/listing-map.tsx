@@ -19,19 +19,38 @@ import { MapContainer, TileLayer, Circle, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-const BRAND_CORAL = "#E8484E"; // --brand (FitOut Coral), matches the UI-SPEC accent.
+import { THEME_TOKENS } from "@/lib/design/tokens.generated";
+
+// DS-12 — THE DRIFT THIS CLOSES WAS REAL AND SHIPPED. These two lines used to be raw hex: a coral
+// literal annotated "matches the UI-SPEC accent", and an opaque white for the pin's inner disc. The
+// coral had not matched `--brand` since 10-03 re-derived that token for contrast — the stylesheet
+// painted one colour, the map painted another, and nothing in the repository could tell. Both values
+// now come from the generated token contract, which is regenerated from `globals.css` and byte-
+// compared by tests/design/token-drift.test.ts, so this pin can only ever drift by turning a test
+// red. (The generated module's path is written once, in the import above, because a criterion counts
+// that string and a second mention in prose would trip it.)
+//
+// LEAFLET BUILDS ITS MARKER FROM AN HTML STRING, not from a styled element, so a CSS custom property
+// is not reachable here — a literal is genuinely required, which is exactly the case D-18 carves out.
+//
+// COURT IS PINNED DELIBERATELY. D-06: there is no runtime theme switcher and the app always renders
+// court for a user; grove exists to be compared by a reviewer. A pin that read the live theme would
+// need this module to become theme-aware for a surface no user can re-skin. If a switcher is ever
+// added, this is one of the places that has to follow.
+const BRAND = THEME_TOKENS.court["--brand"].hex;
+const BRAND_INK = THEME_TOKENS.court["--brand-foreground"].hex;
 
 // Approximate-mode circle radius (metres). ~600m communicates a neighbourhood without pinpointing.
 const FUZZ_RADIUS_M = 600;
 
-/** A coral teardrop pin as an inline-SVG divIcon — avoids Leaflet's bundler-broken default marker
- *  images (no network fetch, no missing-icon squares) and matches the brand accent. */
+/** A brand teardrop pin as an inline-SVG divIcon — avoids Leaflet's bundler-broken default marker
+ *  images (no network fetch, no missing-icon squares) and paints from the brand token. */
 function coralPin(): L.DivIcon {
   return L.divIcon({
     className: "listing-map-pin", // unstyled wrapper; the SVG carries all visuals
     html: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40" aria-hidden="true">
-      <path d="M14 0C6.3 0 0 6.1 0 13.6 0 23.8 14 40 14 40s14-16.2 14-26.4C28 6.1 21.7 0 14 0z" fill="${BRAND_CORAL}"/>
-      <circle cx="14" cy="13.5" r="5" fill="#fff"/>
+      <path d="M14 0C6.3 0 0 6.1 0 13.6 0 23.8 14 40 14 40s14-16.2 14-26.4C28 6.1 21.7 0 14 0z" fill="${BRAND}"/>
+      <circle cx="14" cy="13.5" r="5" fill="${BRAND_INK}"/>
     </svg>`,
     iconSize: [28, 40],
     iconAnchor: [14, 40], // tip of the teardrop sits on the coordinate
@@ -70,9 +89,9 @@ export default function ListingMap({ lat, lng, showExactAddress, title }: Listin
           center={center}
           radius={FUZZ_RADIUS_M}
           pathOptions={{
-            color: BRAND_CORAL,
+            color: BRAND,
             weight: 1.5,
-            fillColor: BRAND_CORAL,
+            fillColor: BRAND,
             fillOpacity: 0.15,
           }}
         />
