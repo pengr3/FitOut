@@ -202,3 +202,7 @@ None. Every assertion in `tests/design/infra.test.ts` runs real patterns against
 ---
 *Phase: 10-design-system-foundation-theme-runtime*
 *Completed: 2026-08-11*
+
+## Self-Check: PASSED
+
+All 5 claimed artifacts verified on disk (`config/design-leak-patterns.mjs`, `config/design-tokens-source.mjs`, `tests/design/helpers/compile-css.ts`, `tests/design/infra.test.ts`, this SUMMARY) and all 3 commits verified in `git log` (`ea9ab5a`, `42c84a4`, `617ee6e`).
