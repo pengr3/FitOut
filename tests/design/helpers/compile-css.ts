@@ -124,6 +124,62 @@ export function compileGlobalsCss(): Promise<string> {
   return compiled;
 }
 
+/** Per-safelist compile cache, keyed by the normalised utility list. See `compileGlobalsCssWith`. */
+const compiledWith = new Map<string, Promise<string>>();
+
+/**
+ * Compile the real `src/app/globals.css` with a set of utilities FORCED into the output, and
+ * return the emitted CSS.
+ *
+ * WHY THIS EXISTS. Tailwind v4 generates a utility only when its content scan finds the class name
+ * somewhere in the working tree — the blind spot already recorded in this file's header ("an
+ * assertion that a utility EXISTS is really an assertion that something in `src/**` still
+ * references it"). For a NEWLY DECLARED `@theme inline` step that is the difference between a real
+ * assertion and no assertion at all: nothing in the app says `text-display` or `shadow-overlay`
+ * yet — the call-site migrations are later plans — so `compileGlobalsCss()` emits neither rule and
+ * a test that looked for them would read "missing" for a contract that is in fact correct.
+ *
+ * The claim under test is "IF a component uses this step, it compiles to a `var()` reference and
+ * therefore re-skins per theme". Appending Tailwind's own `@source inline(…)` safelist states that
+ * `if` explicitly, in the test, rather than shipping a safelist in the stylesheet — `globals.css`
+ * stays the token contract with no build directive in it, and the forcing is visible at the
+ * assertion that depends on it.
+ *
+ * The appended text is the ONLY thing that differs from `compileGlobalsCss()`; the source file is
+ * read from the same hard-coded path and compiled `from` the same location, so `@import` resolution
+ * and the theme blocks are identical.
+ *
+ * @param utilities Bare utility class names (no leading `.`), e.g. `["text-display"]`.
+ */
+export function compileGlobalsCssWith(
+  utilities: readonly string[],
+): Promise<string> {
+  // The list is interpolated into CSS text. Test-only or not, nothing here derives its input from
+  // argv or the environment and nothing may smuggle a `"` or a `;` into the stylesheet, so the
+  // shape is checked rather than trusted (same posture as GLOBALS_CSS_PATH's).
+  for (const utility of utilities) {
+    if (!/^[a-z0-9][a-z0-9:/-]*$/.test(utility)) {
+      throw new Error(
+        `[compile-css] refusing to safelist a utility with unexpected characters: ${JSON.stringify(utility)}`,
+      );
+    }
+  }
+  const key = [...utilities].sort().join(" ");
+  let pending = compiledWith.get(key);
+  if (pending === undefined) {
+    pending = (async () => {
+      const source = await readFile(GLOBALS_CSS_PATH, "utf8");
+      const result = await postcss([tailwindcss()]).process(
+        `${source}\n@source inline("${key}");\n`,
+        { from: GLOBALS_CSS_PATH },
+      );
+      return result.css;
+    })();
+    compiledWith.set(key, pending);
+  }
+  return pending;
+}
+
 /**
  * The raw declaration body of the FIRST rule whose selector matches `selector` exactly
  * (whitespace-normalised). Returns `null` when no such rule exists — callers must treat `null` as a

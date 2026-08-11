@@ -49,6 +49,39 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* -------------------------------------------------------------------------------------------
+     THE FOUR NAMED TYPE ROLES (DS-02 / D-01) — display, heading, body, label.
+
+     Each role is FOUR lines, not one. A step declared as a bare size loses its leading, its
+     tracking and its weight, and a role that only controls size is not a role. Verified compiled
+     shape: `.text-display` emits the size directly, plus `line-height: var(--tw-leading, <the
+     role's leading>)` and the same fallback pair for tracking and for weight.
+
+     The var() indirection below is LOAD-BEARING and must never be flattened to a literal. The word
+     `inline` on this block substitutes the value INTO the generated utility instead of emitting it
+     as a variable of its own, so the role resolves AT THE ELEMENT — which is the only reason a
+     nested themed subtree re-skins its TYPE as well as its colour. Flatten it and grove's type
+     quietly dies while the app-wide switcher keeps working: the same failure class as dropping the
+     word `inline` itself.
+
+     NEVER use the slash-modifier form on a named step. `text-display/tight` compiles to font-size
+     and line-height ONLY — letter-spacing and font-weight vanish with no warning at all. */
+  --text-display: var(--fs-display);
+  --text-display--line-height: var(--lh-display);
+  --text-display--font-weight: var(--fw-display);
+  --text-display--letter-spacing: var(--ls-display);
+  --text-heading: var(--fs-heading);
+  --text-heading--line-height: var(--lh-heading);
+  --text-heading--font-weight: var(--fw-heading);
+  --text-heading--letter-spacing: var(--ls-heading);
+  --text-body: var(--fs-body);
+  --text-body--line-height: var(--lh-body);
+  --text-body--font-weight: var(--fw-body);
+  --text-body--letter-spacing: var(--ls-body);
+  --text-label: var(--fs-label);
+  --text-label--line-height: var(--lh-label);
+  --text-label--font-weight: var(--fw-label);
+  --text-label--letter-spacing: var(--ls-label);
 }
 
 /* ===========================================================================================
@@ -126,6 +159,59 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --radius: 0.625rem;
+  /* ---- Type: the four semantic roles (DS-02 / D-01) -----------------------------------------
+     Type travels per theme alongside colour and shape — that is what makes a second theme a real
+     enforcement test rather than a palette swap. Court is the tighter, smaller of the two: a 28px
+     display pulled in to -0.02em, and 600 as its single emphasis weight. */
+  --fs-display: 1.75rem;
+  --lh-display: 1.15;
+  --fw-display: 600;
+  --ls-display: -0.02em;
+  --fs-heading: 1.25rem;
+  --lh-heading: 1.3;
+  --fw-heading: 600;
+  --ls-heading: -0.01em;
+  --fs-body: 1rem;
+  --lh-body: 1.5;
+  --fw-body: 400;
+  --ls-body: 0;
+  --fs-label: 0.875rem;
+  --lh-label: 1.43;
+  --fw-label: 400;
+  --ls-label: 0;
+  /* ---- Type: Tailwind's built-in ladder, re-declared per theme ------------------------------
+     These six are var-referencing inside their generated utilities, so re-declaring them here
+     re-skins all 399 existing `text-*` call sites with ZERO component edits. This is why DS-02 is
+     not a 400-site migration. The smallest step is the sub-label size for numerals and counters —
+     it is not a fifth semantic role, and the two arbitrary 10px/11px sites migrate to it. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  /* ---- Type: the weight, tracking and leading a CO-LOCATED utility would otherwise freeze ----
+     The trap this closes: a co-located utility BEATS a named step's fallback. `font-semibold` sets
+     --tw-font-weight, `tracking-tight` sets --tw-tracking and `leading-tight` sets --tw-leading,
+     and the repo ships 98, 34 and 24 of them respectively. A second theme that sets a display
+     weight but leaves these at Tailwind's defaults renders headings IDENTICAL to court's — the
+     exact D-01 failure this phase exists to prevent. So they travel too, and no call site changes.
+
+     The medium step is DELIBERATELY aliased onto the emphasis weight rather than kept as a third
+     step. Two weights per theme is the contract; the 70 shipped `font-medium` call sites then need
+     zero edits and simply render at their theme's emphasis weight. The resulting 500-to-600 shift
+     in court is a real, visible change, and it is accepted on the same footing as the accent
+     deepening. This is intentional — do not "fix" it back to 500. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 600;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-widest: 0.1em;
+  --leading-none: 1;
+  --leading-tight: 1.2;
+  --leading-snug: 1.375;
+  --leading-relaxed: 1.625;
 }
 
 /* Grove — the second theme, shipped in the SAME commit as court (THEME-03). It is not a feature;
@@ -177,6 +263,48 @@
   /* Geometry travels (D-02): 20px against court's 10px. The seven calc()-derived --radius-* steps
      in `@theme inline` scale off this one number, so the whole ladder doubles with no other edit. */
   --radius: 1.25rem;
+  /* ---- Type: the four semantic roles (DS-02 / D-01) -----------------------------------------
+     Grove is DEEP AND GENEROUS (D-02) and moves UP from court's geometry, never down — a value
+     hardcoded near today's numbers cannot hide behind a theme that shrank. 34px display against
+     court's 28px, looser leading throughout, tracking relaxed almost to zero because the larger
+     face no longer needs pulling in, and 700 as its single emphasis weight. */
+  --fs-display: 2.125rem;
+  --lh-display: 1.2;
+  --fw-display: 700;
+  --ls-display: -0.005em;
+  --fs-heading: 1.5rem;
+  --lh-heading: 1.3;
+  --fw-heading: 700;
+  --ls-heading: 0;
+  --fs-body: 1.0625rem;
+  --lh-body: 1.6;
+  --fw-body: 400;
+  --ls-body: 0;
+  --fs-label: 0.9375rem;
+  --lh-label: 1.5;
+  --fw-label: 400;
+  --ls-label: 0;
+  /* Tailwind's built-in ladder — same six names, grove's sizes. See the note in the court block. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.6875rem;
+  /* The co-located-utility tokens. These are the ones that make grove's headings actually render
+     heavier and looser than court's rather than merely being declared so — see the long note in
+     the court block for why omitting them produces two themes with identical headings. The medium
+     step is aliased onto the emphasis weight here too: two weights per theme, both 700. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 700;
+  --font-weight-semibold: 700;
+  --tracking-tight: -0.005em;
+  --tracking-normal: 0em;
+  --tracking-widest: 0.1em;
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.45;
+  --leading-relaxed: 1.7;
 }
 
 .dark {
