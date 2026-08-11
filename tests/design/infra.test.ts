@@ -37,6 +37,11 @@ import {
   parseGlobalTokens,
   GLOBALS_CSS_PATH,
 } from "../../config/design-tokens-source.mjs";
+import {
+  compileGlobalsCss,
+  customPropertyValue,
+  declarationsFor,
+} from "./helpers/compile-css";
 
 // ---------------------------------------------------------------------------
 // The leak-pattern list (DS-13 / D-15 / D-16 / D-17)
@@ -239,4 +244,27 @@ describe("config/design-tokens-source.mjs", () => {
     // Documented contract: an empty map is never a pass — consumers must assert non-emptiness.
     expect(parseThemeTokens(":root { --brand: red; }").grove).toEqual({});
   });
+});
+
+// ---------------------------------------------------------------------------
+// The compile-CSS helper — see helpers/compile-css.ts for the THEME-04 spike verdict
+// ---------------------------------------------------------------------------
+
+describe("tests/design/helpers/compile-css.ts", () => {
+  it("compiles the real globals.css through Tailwind, with no database", async () => {
+    const css = await compileGlobalsCss();
+    // A near-empty result is what an unresolved `@import "tailwindcss"` produces; both assertions
+    // exist so a broken compile fails here rather than silently emptying every later gate.
+    expect(css.length).toBeGreaterThan(10000);
+    expect(css).toContain(".bg-background");
+  }, 60_000);
+
+  it("reads a declaration body and a custom property out of compiled CSS", async () => {
+    const css = await compileGlobalsCss();
+    expect(customPropertyValue(css, "--brand")).toMatch(/^oklch\(/);
+    expect(customPropertyValue(css, "brand")).toMatch(/^oklch\(/);
+    expect(customPropertyValue(css, "--not-a-real-token")).toBeNull();
+    expect(declarationsFor(css, ".bg-background")).toContain("background-color");
+    expect(declarationsFor(css, ".no-such-rule-anywhere")).toBeNull();
+  }, 60_000);
 });
