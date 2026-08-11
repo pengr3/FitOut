@@ -273,9 +273,10 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
       <Card>
         <CardContent className="space-y-6 py-8">
           <div className="space-y-2">
-            {/* Display scale (28px/600) — the question, not the money. The money's focal treatment lives
-                on `Refund to you` inside the breakdown. */}
-            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
+            {/* The Display step — the question, not the money. The money's focal treatment lives on
+                `Refund to you` inside the breakdown. The step is named rather than measured, so a
+                theme that resizes Display reaches this title; a literal here could not be reached. */}
+            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
               Cancel this booking?
             </h1>
             {/* 09-UI-SPEC § 5b's drop-in context line arrives through the SHARED formatter, not through a

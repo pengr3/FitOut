@@ -254,7 +254,7 @@ export default async function PublicListingPage({
         {/* Main content column */}
         <div className="space-y-8">
           <header className="space-y-2">
-            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
+            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
               {title}
             </h1>
             <p className="text-sm text-muted-foreground">

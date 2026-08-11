@@ -119,7 +119,7 @@ export default async function Home({
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-12">
       <div className="space-y-8">
         <header className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">Find a space to play</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-display">Find a space to play</h1>
           <p className="text-muted-foreground">
             Search fitness and recreational spaces you can book by the hour or the day.
           </p>

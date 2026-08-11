@@ -264,7 +264,7 @@ export default async function BookingConfirmationPage({
                 <HourglassIcon className="size-4" aria-hidden="true" />
                 Awaiting host
               </Badge>
-              <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
+              <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
                 Request sent
               </h1>
               <p className="mx-auto max-w-prose text-sm text-muted-foreground">
@@ -325,7 +325,7 @@ export default async function BookingConfirmationPage({
                 <CalendarCheckIcon className="size-4" aria-hidden="true" />
                 Approved
               </Badge>
-              <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
+              <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
                 Your request was approved
               </h1>
               <p className="mx-auto max-w-prose text-sm text-muted-foreground">
@@ -576,12 +576,12 @@ export default async function BookingConfirmationPage({
               green: it is inert history, not a live success. */}
           <div className="flex flex-col items-center gap-3 text-center">
             <BookingStatusBadge status="confirmed" endsAt={bk.endsAt} now={now} side="booker" />
-            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
+            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
               {isCompleted ? "This session is done" : "Booking confirmed"}
             </h1>
             <div className="space-y-0.5">
               <p className="text-sm text-muted-foreground">Booking reference</p>
-              <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-[28px]">
+              <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-display">
                 {reference}
               </p>
             </div>
