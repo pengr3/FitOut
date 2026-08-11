@@ -1,2 +1,14 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# GENERATED ARTIFACTS ARE PINNED TO LF, and this is load-bearing rather than tidiness (DS-12/D-18).
+# scripts/generate-design-tokens.mjs writes these three files with LF newlines, and
+# tests/design/token-drift.test.ts asserts BYTE equality between the committed file and a fresh
+# render — no normalisation, on purpose, because normalising is how a drift check learns to forgive.
+# Under the `text=auto` rule above, a checkout on a machine with core.autocrlf=true rewrites them to
+# CRLF in the working tree, and the drift test then goes red on a fresh clone for a reason that has
+# nothing to do with drift. `eol=lf` makes the working-tree bytes match the committed bytes on every
+# platform. If another generated-and-byte-compared artifact is added, it belongs here too.
+src/lib/design/tokens.generated.ts text eol=lf
+public/icon-court.svg text eol=lf
+public/icon-grove.svg text eol=lf
