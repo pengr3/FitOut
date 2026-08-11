@@ -57,8 +57,15 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+        // D-2, absorbed by 10-07: this variant used to override the base focus recipe with its own
+        // low-alpha ring colour and a low-alpha focus border. That is the SAME defect class as the
+        // half-alpha base ring DS-05 exists to remove — arithmetically worse, and invisible to any
+        // scan written against the base string, because the colour name differs. Both overrides are
+        // gone, so a focused destructive button now paints the one app-wide recipe like every other
+        // control. The dark-mode twin went with it, which is why the vendored dark-mode-prefixed
+        // total is restated in 10-07-SUMMARY.md rather than left at its previous pin.
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground dark:bg-destructive/20 dark:hover:bg-destructive/30",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

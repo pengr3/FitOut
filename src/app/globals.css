@@ -175,9 +175,12 @@
   --destructive-foreground: oklch(0.985 0 0);
   /* D-132: the focus ring is a DARKENED NEUTRAL and explicitly NOT --brand. An accent-coloured ring
      spends the 10% budget on every focusable element and makes focus indistinguishable from brand
-     emphasis. WARNING — arithmetic, not preference: this token value ALONE is insufficient.
-     `ring-ring/50` composites to 2.32:1 over white and NO value of --ring fixes that. Dropping the
-     /50 from all 13 call sites is plans 10-04 and 10-06. */
+     emphasis. WARNING — arithmetic, not preference: this token value ALONE is insufficient. A
+     HALF-ALPHA modifier on the ring colour composites to 2.32:1 over white and NO value of --ring
+     fixes that. Removing the alpha is what fixes it, and that happened in three places: this
+     stylesheet's own outline colour (10-04), the one canonical component recipe (10-06), and the
+     remaining 14 component call sites (10-07). Written descriptively because a committed source
+     scan now asserts the literal appears nowhere under src/ — including in this comment. */
   --ring: oklch(0.45 0 0);
   /* DECORATIVE DIVIDERS ONLY — 1.26:1 (court) / 1.28:1 (grove) against --background. They are
      deliberately excluded from the 3:1 bar with that reason recorded, and the exclusion is carried
@@ -421,9 +424,12 @@
      ARITHMETIC, NOT PREFERENCE: the half-alpha form compiles to
      `color-mix(in oklab, var(--ring) 50%, transparent)`, and the lightest neutral that reaches 3:1
      through it still fails against --muted. NO value of --ring can fix the half-alpha form, which
-     is why the alpha is removed rather than the token re-solved again. The remaining 13
-     `focus-visible:ring-ring/50` component call sites (11 of them vendored) are plans 10-06 and
-     10-07.
+     is why the alpha is removed rather than the token re-solved again. The component half is 15
+     call sites carrying a half-alpha RING colour (13 of them vendored): 1 in plan 10-06, the other
+     14 in plan 10-07. Two of those 14 were found only by widening the search beyond the bare
+     focus-visible prefix — a calendar day keyed off a data attribute, and an input group whose
+     wrapper draws the ring through a `has-` selector. Named descriptively rather than quoted,
+     because `tests/design/focus-recipe.test.ts` asserts the literal survives nowhere under src/.
 
      A base-layer `*:focus-visible` outline fallback was CONSIDERED AND REJECTED, not overlooked:
      shadcn's own base recipe sets `outline-none` in the utilities layer, which outranks anything
