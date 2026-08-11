@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-04-PLAN.md (type scale + elevation/z/motion tokens + the global reduced-motion reset) — next 10-05
-last_updated: "2026-08-11T15:27:29.053Z"
-last_activity: 2026-08-11 -- Phase 10 plan 04 complete (per-theme type scale, 3 elevation steps, the global z + motion block, and the app-wide prefers-reduced-motion reset)
+stopped_at: Completed 10-05-PLAN.md (theme runtime mounted + FitOut identity metadata + the Sonner map + both override paths) — next 10-06
+last_updated: "2026-08-11T15:45:14.000Z"
+last_activity: 2026-08-11 -- Phase 10 plan 05 complete (next-themes provider finally mounted on data-theme with a fixed court default; tab says FitOut; toasts stop following the OS; the Playwright theme seam exists)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 4
-  percent: 24
+  completed_plans: 5
+  percent: 29
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 5 of 17
-Status: Executing Phase 10 — plans 01-04 complete. Type, elevation, z-index and motion are now tokens rather than literals: four named `--text-*` roles plus Tailwind's built-in ladder and the weight/tracking/leading families all travel per theme, three named elevation steps exist (the default `shadow-*` are literal and can never be themed), and a new plain `:root` block holds the four z steps and the ≤320ms motion budget that D-05 keeps global. A single `@layer base` `prefers-reduced-motion` reset is in force app-wide. Grove now differs from court on all four of colour, shape, type and depth. Next: 10-05. NOTE — DS-05 is still open: `globals.css`'s `outline-ring/50` is gone, but the 13 `focus-visible:ring-ring/50` component sites (11 vendored) are 10-06/10-07.
-Last activity: 2026-08-11 -- Phase 10 plan 04 complete (per-theme type scale, 3 elevation steps, the global z + motion block, and the app-wide prefers-reduced-motion reset)
+Plan: 6 of 17
+Status: Executing Phase 10 — plans 01-05 complete. **The theme runtime is now MOUNTED**: `next-themes` had been a dependency for the whole life of the project with no provider ever mounted, and 10-05 mounted it on `data-theme` with a fixed `court` default and `enableSystem={false}` (D-06 — there is no user-facing switcher). Verified in a real browser: `<html data-theme="court">` pre-paint, tab title `FitOut` (was "Create Next App"), zero hydration warnings, `?theme=grove` flips the attribute and `--background`, and a crafted `?theme=evil"><script>` is rejected by the allowlist. Toasts no longer follow the OS colour scheme — one edit in `sonner.tsx` reached all four `<Toaster />` mount sites. The Playwright seam Phase 11 and Phase 17 depend on (`e2e/helpers/theme.ts` → `seedTheme`) exists and imports the provider's real storage key. Next: 10-06. NOTE — DS-05 is still open: `globals.css`'s `outline-ring/50` is gone, but the 13 `focus-visible:ring-ring/50` component sites (11 vendored) are 10-06/10-07. DS-14 is half-done: the metadata is real, but the starter SVGs and favicon deletions are 10-15, which must EXTEND `tests/design/scaffold-residue.test.ts` rather than add a file.
+Last activity: 2026-08-11 -- Phase 10 plan 05 complete (next-themes provider finally mounted on data-theme with a fixed court default; tab says FitOut; toasts stop following the OS; the Playwright theme seam exists)
 
 ## Performance Metrics
 
@@ -141,6 +141,7 @@ Last activity: 2026-08-11 -- Phase 10 plan 04 complete (per-theme type scale, 3 
 | Phase 10 P02 | 15min | 2 tasks | 4 files |
 | Phase 10 P03 | 16min | 3 tasks tasks | 5 files files |
 | Phase 10 P04 | 20min | 3 tasks | 6 files |
+| Phase 10 P05 | 13min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,10 @@ Last activity: 2026-08-11 -- Phase 10 plan 04 complete (per-theme type scale, 3 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [10-05]: The grep-versus-comment collision is now a FOUR-TIME pattern in this phase (10-01, 10-03, 10-04, and six separate times in 10-05). Stated as a phase lesson: any acceptance criterion of the form "identifier X must not appear in file Y" is in direct tension with the same plan's requirement to explain WHY X is absent — a comment describing a construct is textually indistinguishable from the construct. 10-05's resolution is the one to reuse in 10-06/10-07: honour the grep, keep every word of the reasoning by naming the identifier descriptively, and add one line recording that the literal is omitted BECAUSE its absence is grep-asserted (without that line the next reader "fixes" the circumlocution and silently breaks the criterion). The `toHaveScreenshot` case had real teeth — the UI-SPEC calls any Phase-10 occurrence a scope alarm, so an explanatory comment inside `e2e/helpers/theme.ts` would have tripped a phase-wide grep from inside the very helper that exists to tell Phase 11 how to shoot the baseline.
+- [10-05]: `THEME_STORAGE_KEY` is IMPORTED by `e2e/helpers/theme.ts` from the provider, never duplicated as the literal `"theme"`. A Playwright helper that seeds a key the provider does not read is a silent no-op with NO symptom: Phase 11's swap smoke would go green while screenshotting the same theme twice, and Phase 17's axe pass would audit court twice and report full two-theme coverage. The seam is therefore created in the phase that owns the key, not the phase that first needs it.
+- [10-05]: THEME-01 marked `Complete` (both clauses — provider mounted on `data-theme` never `class`, and the toast mapping named themes instead of passing them through — are delivered and asserted). DS-14 deliberately left `Pending`: its "starter SVGs and default favicon removed" clause is 10-15's, and 10-15 must EXTEND `tests/design/scaffold-residue.test.ts` rather than create a second file (its header says so).
+- [10-05]: The theme runtime was probed in a REAL browser rather than trusted from the test suite, because every assertion in that suite mocks `next-themes` and so proves the contract the app STATES, not that the library honours it. The probe closed T-10-02 with evidence (`?theme=evil"><script>` left the attribute at `court`) and confirmed zero hydration warnings across four navigations. The build output was checked for the corollary: the four static routes stayed `○ (Static)`, so reading `window.location.search` in an effect forced nothing dynamic.
 - [10-04]: Tailwind v4 emits a utility only when its content scan finds the class name, and NOTHING in `src/` says `text-display` or `shadow-overlay` yet — the call-site migrations are later plans. So a compiled-CSS assertion on a newly declared `@theme inline` step is unreachable through the plain `compileGlobalsCss()`. Added `compileGlobalsCssWith(utilities)`, which appends Tailwind's own `@source inline(…)` safelist at TEST time rather than shipping a safelist in `globals.css`: the stylesheet stays the token contract with no build directive in it, and the forcing is visible at the assertion that needs it. Each such block carries a positive control (`text-figure`, `shadow-floating`) proving the safelist cannot fabricate a step whose `@theme` key was never declared.
 - [10-04]: Tailwind's automatic source detection scans `.planning/**/*.md`, so PROSE emits utilities — the compiled bundle carries `.bg-zinc-50` (a leak-gate fixture example in 10-RESEARCH.md) and `.outline-ring\/50` (the anti-pattern this plan deletes), neither of which appears anywhere in `src/`. Pre-existing and out of this plan's scope, so logged to the phase's `deferred-items.md` and flagged to 10-12: any assertion of the form "utility X exists in the compiled output" can be satisfied by a sentence in a markdown file.
 - [10-04]: `--font-weight-medium` is deliberately aliased onto each theme's emphasis weight rather than kept as a third step, and the resulting 500→600 shift in court is an ACCEPTED visible change on the same footing as the accent deepening. Two weights per theme is the contract; the alias is what lets the 70 shipped `font-medium` call sites need zero edits. Asserted in `type-scale.test.ts` so a future reader cannot "fix" it back to 500 silently.

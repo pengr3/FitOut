@@ -30,7 +30,7 @@
 
 ### Theming (THEME)
 
-- [ ] **THEME-01**: A theme provider is mounted using a `data-theme` attribute (never `class`, which would collide with the dormant `.dark` block), and the toast component maps named themes correctly instead of passing them straight through to a prop that accepts only `light|dark|system`
+- [x] **THEME-01**: A theme provider is mounted using a `data-theme` attribute (never `class`, which would collide with the dormant `.dark` block), and the toast component maps named themes correctly instead of passing them straight through to a prop that accepts only `light|dark|system`
 - [ ] **THEME-02**: **Two** placeholder themes exist — the coral direction plus one deliberately distant — and switching between them re-skins the entire app with zero component edits
 - [x] **THEME-03**: The second theme ships in the same phase as the first and is used as the enforcement proof that nothing hardcoded leaked, not as a later feature
 - [ ] **THEME-04**: A nested `[data-theme]` subtree renders in its own theme, so two themes can be previewed side by side on one page — which requires `@theme inline` to be preserved
@@ -187,7 +187,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | DS-12 | Phase 10 | Pending |
 | DS-13 | Phase 10 | Pending |
 | DS-14 | Phase 10 | Pending |
-| THEME-01 | Phase 10 | Pending |
+| THEME-01 | Phase 10 | Complete |
 | THEME-02 | Phase 10 | Pending |
 | THEME-03 | Phase 10 | Complete |
 | THEME-04 | Phase 10 | Pending |
