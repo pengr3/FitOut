@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: shipped
-stopped_at: "MILESTONE v1.0 MVP SHIPPED AND ARCHIVED 2026-08-11. 9 phases / 107 plans / 227 tasks, 2026-06-03 → 2026-08-11 (69 days, 755 commits). Gate at close: 49/49 requirements satisfied, 9/9 phases carry a VERIFICATION.md, 1087 tests passing / 4 skipped / 0 failures, tsc --noEmit exit 0. Archived to .planning/milestones/ (v1.0-ROADMAP.md verbatim + v1.0-REQUIREMENTS.md + v1.0-MILESTONE-AUDIT.md); ROADMAP.md collapsed 544 → 197 lines with the 999.x Backlog preserved verbatim; REQUIREMENTS.md removed via git rm (fresh one comes with the next milestone); tagged v1.0. NOTE — gsd-sdk v1.42.3 mis-wrote this file during milestone.complete (restored a stale Phase-9 gap-planning stopped_at, total_phases 11, completed_plans 108, percent 82) and every field was repaired by hand; the two OPEN blockers it left standing were both already closed (the confirmBooking double-charge by quick 260801-kv2's CAS checkout lease, and CR-02's live re-price assertion by 08-19 / 54ffc6f). SIX DEFERRED ITEMS acknowledged at close — see the Deferred Items section; five are third-party-gated or a permanent rail limitation, and exactly ONE is closable today with no new code (hand-pay a test-mode GCash and a test-mode Maya checkout to finish Phase 5 human-UAT item 1). NEXT: /gsd-new-milestone."
-last_updated: "2026-08-11T13:10:00.000Z"
-last_activity: 2026-08-11 — Milestone v1.0 shipped, archived, and tagged
+milestone: v1.1
+milestone_name: Front-End Polish & Placeholder Design System
+status: planning
+last_updated: "2026-08-11T07:07:08.823Z"
+last_activity: 2026-08-11
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 107
-  completed_plans: 107
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,7 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
+**Current focus:** **MILESTONE v1.1 — Front-End Polish & Placeholder Design System (started 2026-08-11).** Defining requirements → roadmap. v1.1 adds **no new transaction capability**: every v1.0 flow works and is proven, but none of them look finished, so this milestone puts a coherent visual layer over all nine shipped phases and moves branding behind a swappable token contract. In scope: all four surface groups (booker flow, host tooling, auth & profile, transactional emails), a design-system foundation with multiple named placeholder themes, and backlog **999.2** (image crop/framing UI) promoted in. Direction is an explicit **placeholder** — Airbnb-calm + coral, no brand assets commissioned (D-127). **Light-only** (D-129): the half-built, unreachable dark mode is removed as debt. Layout and information hierarchy on search/listing/checkout may be reshaped, but **no logic moves client-side and no v1.0 correctness invariant weakens** (D-130). Four hard per-phase gates (D-131): 320px-up responsive, keyboard + WCAG AA, designed loading/empty/error states, Playwright visual-regression baselines. **Out of scope:** backlog 999.1 (auth-flow feedback), and the two PayMongo sales-gated threads (real `/v2` payouts, hosted KYC) — blocked on a commercial conversation, not on code. The v1.0 record lives in `.planning/milestones/` (`v1.0-ROADMAP.md` verbatim, `v1.0-REQUIREMENTS.md` 49/49, `v1.0-MILESTONE-AUDIT.md`) and `.planning/MILESTONES.md`; `.planning/RETROSPECTIVE.md` carries the lessons. Six v1.0 deferred items remain acknowledged (see below) — one of them, the 320px/desktop visual check, is paid off by D-131 rather than carried again. Worktrees are OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+
+<details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
+
 **Current focus:** **v1.0 MVP IS SHIPPED (2026-08-11) — no milestone is active.** Next step is `/gsd-new-milestone` (questioning → research → requirements → roadmap); `.planning/REQUIREMENTS.md` is intentionally absent until then. The v1.0 record lives in `.planning/milestones/` (`v1.0-ROADMAP.md` verbatim, `v1.0-REQUIREMENTS.md` 49/49, `v1.0-MILESTONE-AUDIT.md`) and `.planning/MILESTONES.md`; `.planning/RETROSPECTIVE.md` carries the lessons. Six deferred items were acknowledged at close (see below) — five are third-party-gated or a permanent PayMongo rail limitation, one is a 320px/desktop visual check. Worktrees are OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+
+</details>
 
 <details><summary>Previous focus (v1.0 pre-close, superseded 2026-08-11)</summary>
 
@@ -37,10 +42,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-11 — Milestone v1.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-08-11 — Milestone v1.1 started
 
 ## Performance Metrics
 
