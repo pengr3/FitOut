@@ -57,39 +57,84 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 ## Phase Details
 
 ### Phase 10: Design-System Foundation & Theme Runtime
+
 **Goal**: Branding lives in exactly one place, the app finally renders in its own typeface, and every token pair a surface uses clears the bar this milestone declares — all before a single visual baseline exists.
 **Depends on**: Nothing (first phase of v1.1; v1.0 is shipped)
 **Requirements**: DS-01, DS-02, DS-03, DS-04, DS-05, DS-06, DS-07, DS-08, DS-09, DS-10, DS-12, DS-13, DS-14, THEME-01, THEME-02, THEME-03, THEME-04, THEME-05
 **Success Criteria** (what must be TRUE):
+
   1. The app renders as FitOut rather than as a scaffold — every surface is in Geist because the `--font-sans` self-referential cycle at `globals.css:10` is fixed, and the browser tab, metadata and favicon are FitOut's rather than `Create Next App`'s.
   2. A user can switch between **two** visually distinct named themes and every screen re-skins — colour, type scale, spacing, radius, elevation, motion, button hierarchy and status vocabulary — with **zero component edits**.
   3. Two themes render side by side in nested `[data-theme]` subtrees on one page, so a brand direction can be compared on real screens rather than on swatches.
   4. Every colour pair actually used on a surface clears WCAG AA under **both** themes — including the coral CTA label (3.60:1 today), the success badge (3.24:1) and the focus ring (2.58:1 as a pair, ~1.54:1 as rendered) — proven by a test that fails the build; the focus indicator is visible on every control; and a user who has asked for reduced motion gets none.
   5. No raw hex, `rgb(`, `oklch(` or arbitrary `text-[NNpx]` survives anywhere under `src/components/**` or `src/app/**` — the build fails on one — and the only sanctioned duplicate of a token value is a generated module checked for drift, closing the shipped `BRAND_CORAL = "#E8484E"` vs `#ef4445` mismatch at `listing-map.tsx:22`.
+
 **Plans**: 17 plans (14 waves)
 
 Plans:
+**Wave 1**
+
 - [ ] 10-01-PLAN.md — Design-gate infrastructure — culori, the DB-free vitest.design config, and the test:design script
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 10-02-PLAN.md — Shared gate primitives — the one leak-pattern list, the globals.css token parser, and the compile-CSS helper
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 10-03-PLAN.md — The colour contract — DS-01 font cycle, the court and grove theme blocks, and the 29-pair AA proof
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 10-04-PLAN.md — Type scale, 3-step elevation, 4-step z, the motion budget and the global reduced-motion reset
 - [ ] 10-05-PLAN.md — Theme runtime — the mounted provider, FitOut identity metadata, the Sonner mapping and both override paths
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 10-06-PLAN.md — The Button CVA contract — the brand variant, the touch size, and the one solid focus recipe
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 10-07-PLAN.md — The 12 remaining 50%-alpha focus rings removed, pinned by the DS-05 source-scan gate
 - [ ] 10-08-PLAN.md — 15 booker, group and search Button call sites converted onto variant="brand"
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 10-09-PLAN.md — The 5 host conversions, the availability color-mix hovers, and the closed 20 / 9 DS-08 gate
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 10-10-PLAN.md — Status vocabulary — one closed four-tone union, and green retreats to the icon
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 10-11-PLAN.md — The 14 arbitrary text-[NNpx] sizes onto the named type steps
 - [ ] 10-12-PLAN.md — The 14 shadow call sites collapsed onto three named elevation steps
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
 - [ ] 10-13-PLAN.md — The 23 raw z-index values mapped onto the four-step scale
+
+**Wave 11** *(blocked on Wave 10 completion)*
+
 - [ ] 10-14-PLAN.md — Palette-class rewrite and the dark: strip, with the vendored 56 pinned as a test
+
+**Wave 12** *(blocked on Wave 11 completion)*
+
 - [ ] 10-15-PLAN.md — Generated token module, themed favicons, and the scaffold residue deleted
+
+**Wave 13** *(blocked on Wave 12 completion)*
+
 - [ ] 10-16-PLAN.md — /dev/theme — two themes side by side in nested subtrees, on real components
+
+**Wave 14** *(blocked on Wave 13 completion)*
+
 - [ ] 10-17-PLAN.md — Turn the gates on — the leak rule, the pair-drift check, and a build that actually goes red
 
 **UI hint**: yes
 
 **Ordering invariants this phase carries (non-negotiable, each a researcher finding):**
+
 - **DS-01 lands before ANY visual-regression baseline is captured.** Fixing the font cycle changes the rendered typeface of every screen; every baseline shot before it is invalid. Three of four researchers stated this independently.
 - **THEME-02/03 ship HERE, not in the audit.** The second theme is D-128's enforcement test, not a feature (D-133; 4-of-4 researcher convergence). Every surface built before a second theme exists is unverified, and deferring it turns Phase 17 into a rewrite phase.
 - **DS-05/DS-06 land HERE**, before fifty surfaces are built on values that fail the gate.
@@ -97,73 +142,88 @@ Plans:
 - Still genuinely open and flagged by research: the **exact** corrected `--brand` value (STACK's `#da2d34` vs PITFALLS' `#d33a3c`) needs a live-tool re-verification during this phase rather than an average of the two. The `culori`-based contrast test, once it exists, is the authority — not either document's hand-picked table.
 
 ### Phase 11: Quality Gates, Pattern Layer & App Shell
+
 **Goal**: Every later phase inherits gates that can actually fail, patterns it uses rather than grows, and an app shell that already has a header, a footer and all four state families — instead of inventing its own.
 **Depends on**: Phase 10 (baselines shot before the tokens are final are all invalid)
 **Requirements**: DS-11, STATE-01, STATE-02, STATE-04, SHELL-01, SHELL-02, SHELL-04, RESP-01, GATE-01, GATE-04, GATE-05
 **Success Criteria** (what must be TRUE):
+
   1. A CI run that finds no matching visual baseline **fails loudly** instead of writing one and reporting green; baselines exist only for the pinned Linux image, a Windows-generated one can never be committed, and a deliberate few-pixel shift goes red. (Today this gate is fail-open by construction — D-135.)
   2. A restyle cannot silently break the e2e specs that prove the double-booking guarantee: the structural-selector inventory exists and is checked, and a mutation that lets the (N+1)th booking succeed still turns the constraint spec **red**.
   3. The build fails if a money or availability computation crosses into a client component, and an end-to-end check asserts the price rendered in the DOM equals the price the database holds.
   4. Every data-backed route shows a designed loading state whose skeleton does not shift on arrival, every route group has an error boundary offering both a retry and a route out, a global error page and not-found pages exist, and every list surface has a designed empty state (2 of ~27 routes have a loading state today; zero have an error boundary).
   5. Every page carries a real FitOut header and footer — including `/`, `/listings/[id]`, `/listings/[id]/book` and `/invite/[token]`, which render no navigation at all today — a pasted listing or invite link renders a correct title, description and token-driven share image, and three named card patterns plus one mobile-overlay (sheet) primitive exist prop-complete so no later phase re-decides padding, radius, hover or how a mobile overlay behaves.
+
 **Plans**: TBD
 **UI hint**: yes
 
 **Ordering invariant:** **GATE-01, GATE-04 and GATE-05 must exist before the first surface-polish phase (Phase 12) starts.** Every later phase inherits whatever config exists when it begins, and a gate that has silently never failed is worse than no gate — it trains reviewers to trust a rubber stamp.
 
 ### Phase 12: Booker Path — Search → Listing → Checkout
+
 **Goal**: The route from an empty search box to the payment redirect reads as one designed product, and never leaves a booker at a dead end.
 **Depends on**: Phase 11
 **Requirements**: BFLOW-01, BFLOW-02, BFLOW-03, BFLOW-04, BFLOW-05, BFLOW-06, BFLOW-07, STATE-03, STATE-07, SHELL-03, RESP-02, GATE-03
 **Success Criteria** (what must be TRUE):
+
   1. A booker scanning search results reads each space's photo, title and price on one baseline without interacting, in the same unit checkout will charge.
   2. The listing page presents in the conventional marketplace order (gallery → title → key facts → description → availability → map → cancellation policy → host) with the desktop sticky rail preserved; photos are a hero grid opening a full-screen keyboard-pageable dialog rather than a carousel; the availability calendar's day cells are a real ≥44px target with a correctly-shaped loading skeleton and month changes inside the motion budget; and on a phone the price and a 44px booking CTA are reachable without scrolling.
   3. The price breakdown a booker sees in the listing rail is visually the same component at checkout, so they recognise it as the same fact, and the fee line explains itself on demand.
   4. Checkout is a single column on mobile with the summary behind a disclosure and a sticky confirm bar carrying the amount; its own minimal header holds the wordmark and the live hold countdown with no navigation that can silently lose an active hold; the countdown and every live status region announce to a screen reader **once** rather than per tick; and the booker is told the redirect is coming, and where they are going, before leaving for PayMongo.
   5. A booker who gets no search results, or whose slot is taken while they were choosing it, is offered real alternatives **in place** — the page names which constraint was relaxed, and a collision lands refreshed availability in the same paint as a calm result rather than an error.
+
 **Plans**: TBD
 **UI hint**: yes
 
 **Scope note:** this phase holds all three D-130 restructure permissions (search results, listing detail, checkout) and the open-capacity date/pass picker, which is a pre-hold surface on the listing page. It is sequenced **first** among the order-independent set (12–15): it is the highest-risk surface (every money and availability seam runs through it) and it is where the Phase-11 pattern inventory gets its real stress test — a wrong pattern is cheaper to learn here than after three phases adopt it.
 
 ### Phase 13: Confirmation, Bookings & Trust
+
 **Goal**: After paying, a booker can see — on screen and in the email — exactly what they bought, where their money is, and what happens next.
 **Depends on**: Phase 11
 **Requirements**: BFLOW-08, TRUST-01, TRUST-02, TRUST-03, TRUST-04, TRUST-05, STATE-05, STATE-06, STATE-08
 **Success Criteria** (what must be TRUE):
+
   1. The first paint after payment is a distinct confirmation moment — success mark, status, reference, exact amount, venue-local time with named timezone, address, where the copy was emailed, and what happens next — which decays into the ordinary booking-detail page on later visits.
   2. Every booking detail page states its status **and what that status means**, the venue name and full address, venue-local time with a named timezone, who the host is, exactly what was paid itemised, the cancellation deadline as a concrete date with today's refund amount, and a support path — and shows only trust signals a real program stands behind (host since, listing published, payout onboarding complete, request-to-book behaviour), with no invented verification or superhost chrome.
   3. A booker can copy the booking reference — tabular figures, present on every status, carried in the email subject line — and can view and print an itemised receipt for a paid booking.
   4. A payment that did not complete, one still settling, and one reversed are three visibly different things: *not completed* states "you haven't been charged" and offers retry plus the alternative rails inline; *pending settlement* offers no error affordance at all while the webhook is still the outstanding authority; *reversed* makes an explicit money statement with a support path carrying the reference. Each states where the money is, in words, above the fold.
   5. Terminal success is a full-page moment and non-terminal success is a toast — and anything the user must actually read (a refund amount, a reduced headcount, a voided invite) is an in-page alert, never a toast.
+
 **Plans**: TBD
 **UI hint**: yes
 
 **Scope note:** this phase owns `/bookings/**` on the booker side plus the group surfaces (`/invite/[token]`, `/bookings/[id]/group`). Research treated group/open-capacity as a fourth parallel track; REQUIREMENTS.md defines **no separate REQ-IDs** for it, so a standalone phase would carry zero requirements. Folded here instead — `/invite/[token]` is a post-booking artifact and the open-capacity picker is a pre-hold listing surface (Phase 12). Stated as a deliberate departure from the research's phase shape, with the reason.
 
 ### Phase 14: Host Tooling
+
 **Goal**: A host opening FitOut sees what they owe today and can act on it, in the same product the booker side became.
 **Depends on**: Phase 11
 **Requirements**: HFLOW-01, HFLOW-02, HFLOW-03, HFLOW-04, HFLOW-05
 **Success Criteria** (what must be TRUE):
+
   1. A host lands on a "today" view — today's bookings, requests owed, payout state, and any published-without-hours signal — rather than a greeting and a CTA.
   2. A host can triage the requests inbox at a glance with the SLA countdown as the loudest element and approve/decline as the only actions; an empty inbox reads as *done*, not as broken.
   3. A host in the listing wizard sees a truthful step count across the occupancy fork, can navigate back from a clickable step rail, can see whether their work is saved, and sees the publish checklist as a persistent panel rather than as an end-of-flow surprise.
   4. The host bookings table and the availability editor read as the same product as the booker side, and the editor shows a week-at-a-glance preview of the hours just set.
   5. Earnings and payouts carry the new tokens with their structure untouched — HFLOW-05 is deliberately a token pass only, because those numbers have never been real (PayMongo `/v2` is sales-gated).
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 15: Auth, Profile & Transactional Email
+
 **Goal**: The first screens a new user ever sees, and every email FitOut sends, carry the same identity as the app — with no send trigger moved.
 **Depends on**: Phase 11 (auth surfaces); EMAIL-02 depends on Phase 10's generated token module only
 **Requirements**: AUTHUI-01, AUTHUI-02, AUTHUI-03, EMAIL-01, EMAIL-02, EMAIL-03
 **Success Criteria** (what must be TRUE):
+
   1. Login, signup, forgot-password and reset read as the same product as the app and hold all five gates — 320px, keyboard, AA, designed loading/empty/error states, and a baseline.
   2. The profile page carries the design system, and a user can manage their avatar from it (the removal affordance itself is delivered by CROP-03 in Phase 16).
   3. Every existing send renders through **one** shared branded shell — 600px, single column, table-based, inline hex from the generated token module, a preheader, a text wordmark, a plain-text part — and not a single send trigger has moved.
   4. Swapping the app's theme changes the emails' colours too, because both read the same generated token contract; an email cannot be left behind by a theme swap.
   5. At least one of each send has been opened in **real** Gmail (web and Android), real Outlook desktop and Apple Mail — at least one in dark mode — and renders correctly.
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -171,54 +231,66 @@ Plans:
 **Constraint carried from backlog 999.1:** the verification and reset emails are **still out of scope** (AUTHFB-01/02 stay in the backlog). Do not introduce React Email or any new email stack (D-66); keep `escapeHtml()` on every interpolated URL; do not weaken `tests/auth/email-escaping.test.ts`.
 
 ### Phase 16: Image Crop & Framing
+
 **Goal**: A user controls how their image is framed before it is committed, and the server stops re-framing what they just chose.
 **Depends on**: Phase 14 and Phase 15 (touches `photo-uploader.tsx` on the host side and `profile-form.tsx` on the profile side — it collides with both rather than running parallel to them); Phase 11's responsive-dialog pattern
 **Requirements**: CROP-01, CROP-02, CROP-03, CROP-04
 **Success Criteria** (what must be TRUE):
+
   1. A user can pan and zoom their avatar to the framing they want **before** anything uploads, and what they framed is what is stored — the server's blind `gravity: "face"` re-crop no longer re-frames their choice.
   2. A user can remove their avatar (there is no way to unset one today).
   3. A host uploading listing photos sees, per photo, a non-destructive preview of what the 16:9 hero and the 4:3 cards each cut off — with nothing baked into the stored asset and no delivery-code change.
   4. Cropping works on a real touch device — drag, pinch and the slider, verified on hardware rather than in desktop touch emulation — and cancelling then re-picking **the same file** re-opens the cropper rather than dying silently.
+
 **Plans**: TBD
 **UI hint**: yes
 
 **Inputs already on disk:** `.planning/phases/999.2-profile-picture-and-listing-photo-crop-ui/999.2-UI-SPEC.md` (written 2026-08-10; the contract — frame size, mask shape, zoom bounds, non-square/small-source behaviour, cancel semantics — is already settled). Promoted from backlog 999.2 into v1.1 as CROP-01..04.
 
 ### Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines
+
 **Goal**: The five gates stop being per-phase promises and become the milestone's closing, machine-checked proof across every surface at once.
 **Depends on**: Phases 12, 13, 14, 15, 16 (definitionally an audit of everything before it)
 **Requirements**: RESP-03, RESP-04, GATE-02, GATE-06
 **Success Criteria** (what must be TRUE):
+
   1. Every surface holds from 320px up, with the sticky bar present, and no price, countdown or label wraps or overflows.
   2. Search, listing detail, calendar, wizard, checkout and every list surface hold their defined structure at mobile, tablet and desktop from **one** component tree — no forked mobile/desktop variants.
   3. Every surface is operable end to end by keyboard alone with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets — with an automated axe pass green in **both** themes, the full baseline set regenerated in the pinned image, and the leak tests flipped from advisory to blocking.
   4. v1.1 closes having shipped **zero schema migrations** — `drizzle/` is unchanged from its v1.0 state at `0025`.
+
 **Plans**: TBD
 **UI hint**: yes
 
 **Size note:** this phase's size is a direct function of how well Phases 10 and 11 were done. If the second theme really did ship with the first and the gates really could fail from Phase 11 onward, this is an audit. If either slipped, this becomes a rewrite phase — which is the entire argument for the ordering invariants above.
 
 ### Phase 18: Search-Results Map
+
 **Goal**: A booker can see *where* the results are, not only what they are.
 **Depends on**: Phase 17 (net-new capability, sequenced after the polish work — D-136)
 **Requirements**: MAP-01, MAP-02, MAP-03, MAP-04
 **Success Criteria** (what must be TRUE):
+
   1. A booker sees search results on a map alongside the result list, and the two stay in sync — hovering or selecting a result highlights its marker, and selecting a marker highlights its card.
   2. A booker can move or zoom the map and re-search the visible area, with the result list following.
   3. Every map-only interaction has a keyboard-operable equivalent, and the map view holds all five gates including its own designed loading, empty and error states.
+
 **Plans**: TBD
 **UI hint**: yes
 
 **Scope discipline (D-136):** this is net-new capability, not polish — there is **no search map today** (`react-leaflet` is used only on the single-listing panel). It needs a bounding-box parameter the two-stage PostGIS search does not take, clustering, marker↔card sync and its own a11y story, which is exactly why it may never be folded into a surface-polish phase. Known latent trap to plan for: Leaflet's `z-index: 1000` against shadcn's `z-50` overlay — the DS-03 z-index scale from Phase 10 is the arbiter. D-130 still binds: the bbox goes into the **server** query; no availability or price is computed on the client.
 
 ### Phase 19: Availability Copy-to-All
+
 **Goal**: A host stops re-entering the same operating hours seven times.
 **Depends on**: Phase 17 (net-new capability, sequenced after the polish work — D-136); Phase 14's availability-editor pass
 **Requirements**: HOURS-01, HOURS-02
 **Success Criteria** (what must be TRUE):
+
   1. A host can copy one day's operating hours onto other days instead of re-entering them.
   2. Before it applies, the host sees exactly which days will change and what they will change to, and can undo it before saving.
   3. A day that already has hours is shown as a change rather than overwritten invisibly.
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -350,11 +422,14 @@ reported "got in" when no login had occurred. That is the sharper half of the tw
 
 - Keep `escapeHtml()` on the URL before interpolation — that is the WR-01 fix; never interpolate a
   raw url into HTML.
+
 - Do NOT introduce React Email or any new email stack. D-66 deliberately keeps thin plain-HTML sends
   over the same `send()`/`escapeHtml()` helpers.
+
 - Keep `revokeSessionsOnPasswordReset: true`.
 - Do NOT auto-create a session on reset. Silently signing someone in from an emailed link is worse
   than the current confusion — **the fix is a confirmation plus a route to `/login`, not an auto-login.**
+
 - `tests/auth/email-escaping.test.ts` and `tests/auth/email-dev-fallback.test.ts` assert on these
   paths. Extend them; do not weaken them.
 
@@ -366,4 +441,5 @@ reported "got in" when no login had occurred. That is the sharper half of the tw
 > passing, promoting it is a small roadmap amendment rather than a new milestone.
 
 Plans:
+
 - [ ] TBD (promote with /gsd:review-backlog when ready)
