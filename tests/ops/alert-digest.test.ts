@@ -165,7 +165,7 @@ describe("buildAndSendDigest", () => {
 
   it("case 2 — a day whose only alert was discharged still sends NOTHING", async () => {
     const id = await makeAlert();
-    const discharge = await resolveAlert(testDb.db, id);
+    const discharge = await resolveAlert(testDb.db, id, "ops-test");
     expect(discharge.outcome).toBe("resolved");
 
     const result = await buildAndSendDigest(testDb.db);

@@ -23,6 +23,15 @@
 //     absence was D2 — found by an operator at a human-verification checkpoint, not by a test, which is
 //     itself the argument for these six. Case 8 is case 1's mirror; case 13 is case 6b's.
 //
+//   - AND IT RECORDS WHO CLAIMS TO HAVE DONE IT (cases 14-18, `resolved_by`, quick task 260811-fh6). The
+//     column is verified against the REPLAYED schema rather than against the type checker (case 14), because
+//     types come from schema.ts and a declared-but-unmigrated column leaves `tsc` green while every
+//     integration test runs against a table without it (T-08-40; mutation M4 measures exactly that). Case 16
+//     is case 5 extended to the second historical fact — a re-resolve under a DIFFERENT name must rewrite
+//     neither the time nor the discharger — and case 17 is the one that makes NO BACKFILL structural rather
+//     than a promise: the 27 rows discharged on 2026-08-10 cannot be retro-attributed even by someone
+//     deliberately trying, because the `AND resolved_at IS NULL` guard excludes them.
+//
 // EVERY fixture timestamp is computed by POSTGRES (`now() - make_interval(...)`), never by the JS clock —
 // the 07-05 discipline. Host/Docker clock skew can otherwise make correct arithmetic look wrong.
 //
@@ -119,6 +128,60 @@
 //             Tests  1 failed | 22 passed (23)
 //      The ONE deliberate exposure is PINNED, not incidental — it cannot silently regress to null, which is
 //      the failure mode that would quietly re-open half of D2 ("on what basis was this discharged?").
+//
+// ---------------------------------------------------------------------------------------------------
+// CONFIRM-THEN-FIX — the RED for cases 14-18 and the two edited cases, recorded VERBATIM
+// (quick task 260811-fh6, 2026-08-11). Written FIRST against UNCHANGED `src/`, `scripts/` AND `drizzle/`;
+// `git diff --exit-code src/ scripts/ drizzle/` was clean at this point and printed
+// `CONFIRMED CLEAN: src/ scripts/ drizzle/ before RED run`.
+// `npx vitest run tests/ops/alerts.test.ts`, bare, no DATABASE_URL exported:
+//
+//     ❯ tests/ops/alerts.test.ts (20 tests | 7 failed) 970ms
+//      FAIL  tests/ops/alerts.test.ts > resolveAlert > case 6 — an unknown id reports not_found, creates no row, and never looks like a discharge
+//     Error: Failed query: SELECT count(*)::int AS "c" FROM audit WHERE resolved_by IS NOT NULL
+//     Caused by: PostgresError: column "resolved_by" does not exist
+//      FAIL  tests/ops/alerts.test.ts > resolveAlert > case 15 — records the discharger: the RETURNED row carries it AND the STORED column equals it
+//     AssertionError: expected undefined to be 'ops-jane' // Object.is equality
+//      FAIL  tests/ops/alerts.test.ts > resolveAlert > case 16 — THE CLOBBER, extended: a second resolve under a DIFFERENT name rewrites neither the time nor the discharger
+//     AssertionError: expected undefined to be 'ops-jane' // Object.is equality
+//      FAIL  tests/ops/alerts.test.ts > resolveAlert > case 17 — NO BACKFILL: a historical discharge with no recorded discharger stays NULL under re-resolve
+//     Error: Failed query:
+//     Caused by: PostgresError: column "resolved_by" of relation "audit" does not exist
+//      ❯ makeAudit tests/ops/alerts.test.ts:184:3
+//      FAIL  tests/ops/alerts.test.ts > audit.resolved_by — the column > case 14 — exists as nullable `text` in the REPLAYED schema, and `audit` still carries no foreign key
+//     AssertionError: expected [] to have a length of 1 but got +0
+//      FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 12 — surfaces ONLY meta->>'error'; the rest of `meta` cannot reach the row
+//     AssertionError: expected [ 'action', 'actorId', …(5) ] to deeply equal [ 'action', 'actorId', …(6) ]
+//      FAIL  tests/ops/alerts.test.ts > listResolvedAlerts > case 18 — returns `resolvedBy` per row: the CLI-discharged row carries its name, the historical row carries null
+//     Error: Failed query:
+//     Caused by: PostgresError: column "resolved_by" of relation "audit" does not exist
+//      ❯ makeAudit tests/ops/alerts.test.ts:184:3
+//
+// and across the whole directory, with the new pure-module file included:
+//      Test Files  2 failed | 1 passed (3)
+//           Tests  7 failed | 21 passed (28)
+//
+// THE FOUR THAT HAD TO STAY GREEN, AND DID — verified explicitly with `--reporter=verbose` rather than
+// inferred from the absence of a FAIL line. The call-site sweep adds a THIRD argument at six sites while
+// the signature still takes two; JS ignores an extra argument at runtime, so a red here would have been a
+// real regression rather than expected noise:
+//      ✓ case 4 — discharges the row: outcome resolved, a real timestamp, and gone from the queue 12ms
+//      ✓ case 5 — idempotent: a second resolve reports already_resolved and CANNOT rewrite the original time 69ms
+//      ✓ case 6b — does NOT filter on outcome: an operator handed an id discharges THAT id 12ms
+//      ✓ case 13 — a discharge on a NON-needs_attention row is visible here, and ONLY here 15ms
+//    …and the entire `alert-digest.test.ts` file (the `1 passed` above), whose ONLY change in this task is
+//    the third argument at its own call site.
+//
+// THREE DISTINCT RED SHAPES, which is itself the record worth keeping:
+//   - cases 15/16 fail on an ASSERTION (`undefined`), because the extra argument is silently dropped by a
+//     two-parameter function and the returned object simply has no such key;
+//   - cases 6/17/18 fail on POSTGRES, because they touch the column in SQL and it does not exist yet;
+//   - case 14 fails on an EMPTY information_schema result — the migration-gate case, and the only one of
+//     the three shapes that would still be red if the column were declared in schema.ts but never migrated.
+//     That is T-08-40 in miniature and mutation M4 measures it directly.
+//
+// `tsc` is deliberately NOT a gate at this point: the sweep produces "Expected 2 arguments, but got 3" at
+// six sites and `@/lib/ops/resolve-args` does not resolve. Both clear in the implementation commit.
 // ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
@@ -148,6 +211,17 @@ type AuditOpts = {
   /** Hours BEFORE now() the row was resolved; omitted/null writes NULL (unresolved). */
   resolvedAgoHours?: number | null;
   meta?: Record<string, unknown> | null;
+  /**
+   * The recorded discharger (260811-fh6). OMITTING the key leaves `resolved_by` out of the INSERT
+   * COLUMN LIST ENTIRELY — deliberately, and not as a micro-optimisation: it is what lets this helper run
+   * against a schema that predates the column, so the RED pass for cases 14-18 reddens the five cases that
+   * are actually measuring the new column instead of reddening all fifteen existing ones on
+   * `column "resolved_by" of relation "audit" does not exist`. A RED nobody can read measures nothing.
+   *
+   * Pass `null` EXPLICITLY to plant a HISTORICAL discharge — `resolved_at` set, no recorded discharger —
+   * i.e. a fixture of the 27 rows discharged on 2026-08-10 before the column existed (cases 17 and 18).
+   */
+  resolvedBy?: string | null;
 };
 
 /**
@@ -158,8 +232,13 @@ type AuditOpts = {
 async function makeAudit(opts: AuditOpts): Promise<string> {
   const id = uid("audit");
   const ago = opts.agoHours ?? 1;
+  // Presence of the KEY, not truthiness of the value — `resolvedBy: null` is a meaningful fixture
+  // (a historical discharge with no recorded discharger) and must still write the column.
+  const withResolvedBy = "resolvedBy" in opts;
   await testDb.db.execute(sql`
-    INSERT INTO audit (id, created_at, actor_id, action, outcome, meta, resolved_at)
+    INSERT INTO audit (id, created_at, actor_id, action, outcome, meta, resolved_at${
+      withResolvedBy ? sql`, resolved_by` : sql``
+    })
     VALUES (
       ${id},
       now() - make_interval(hours => ${ago}::int),
@@ -171,6 +250,12 @@ async function makeAudit(opts: AuditOpts): Promise<string> {
         opts.resolvedAgoHours == null
           ? sql`NULL`
           : sql`now() - make_interval(hours => ${opts.resolvedAgoHours}::int)`
+      }${
+        withResolvedBy
+          ? opts.resolvedBy == null
+            ? sql`, NULL`
+            : sql`, ${opts.resolvedBy}`
+          : sql``
       }
     )
   `);
@@ -273,7 +358,7 @@ describe("resolveAlert", () => {
   it("case 4 — discharges the row: outcome resolved, a real timestamp, and gone from the queue", async () => {
     const id = await makeAudit({ outcome: "needs_attention", agoHours: 6 });
 
-    const result = await resolveAlert(testDb.db, id);
+    const result = await resolveAlert(testDb.db, id, "ops-test");
 
     expect(result.outcome).toBe("resolved");
     if (result.outcome !== "resolved") throw new Error("unreachable");
@@ -289,7 +374,9 @@ describe("resolveAlert", () => {
   it("case 5 — idempotent: a second resolve reports already_resolved and CANNOT rewrite the original time", async () => {
     const id = await makeAudit({ outcome: "needs_attention", agoHours: 6 });
 
-    const first = await resolveAlert(testDb.db, id);
+    // Both calls use the SAME name deliberately: this case's subject is the TIMESTAMP. The
+    // differing-name assertion lives in case 16, which is where the discharger clobber is measured.
+    const first = await resolveAlert(testDb.db, id, "ops-test");
     expect(first.outcome).toBe("resolved");
     if (first.outcome !== "resolved") throw new Error("unreachable");
 
@@ -297,7 +384,7 @@ describe("resolveAlert", () => {
     // and the equality assertion below is what catches it. This is the clobber, and it is the failure mode.
     await testDb.db.execute(sql`SELECT pg_sleep(0.05)`);
 
-    const second = await resolveAlert(testDb.db, id);
+    const second = await resolveAlert(testDb.db, id, "ops-test");
     expect(second.outcome).toBe("already_resolved");
     if (second.outcome !== "already_resolved") throw new Error("unreachable");
     expect(second.resolvedAt.getTime()).toBe(first.resolvedAt.getTime());
@@ -313,22 +400,134 @@ describe("resolveAlert", () => {
     await makeAudit({ outcome: "needs_attention" });
     const before = await countAudit();
 
-    const result = await resolveAlert(testDb.db, "audit_does_not_exist");
+    const result = await resolveAlert(testDb.db, "audit_does_not_exist", "ops-test");
 
     expect(result.outcome).toBe("not_found");
     expect(result.id).toBe("audit_does_not_exist");
     expect(await countAudit()).toBe(before);
     // The real row is untouched — a typo must not discharge somebody else's alert.
     expect(await listUnresolvedAlerts(testDb.db)).toHaveLength(1);
+
+    // And the name supplied to the typo landed on NOTHING (260811-fh6). A `--by` is a claim about a
+    // specific row; a mistyped id must not deposit that claim anywhere, or a discharge nobody performed
+    // would acquire a discharger.
+    const [{ c }] = (await testDb.db.execute(
+      sql`SELECT count(*)::int AS "c" FROM audit WHERE resolved_by IS NOT NULL`,
+    )) as unknown as { c: number }[];
+    expect(c).toBe(0);
   });
 
   it("case 6b — does NOT filter on outcome: an operator handed an id discharges THAT id", async () => {
     // Scoping the writer to outcome='needs_attention' would be a second, unstated policy (D-J3Z-07).
     const id = await makeAudit({ outcome: "error", action: "some_non_money_action" });
 
-    const result = await resolveAlert(testDb.db, id);
+    const result = await resolveAlert(testDb.db, id, "ops-test");
 
     expect(result.outcome).toBe("resolved");
+  });
+
+  it("case 15 — records the discharger: the RETURNED row carries it AND the STORED column equals it", async () => {
+    const id = await makeAudit({ outcome: "needs_attention", agoHours: 6 });
+
+    const result = await resolveAlert(testDb.db, id, "ops-jane");
+
+    expect(result.outcome).toBe("resolved");
+    if (result.outcome !== "resolved") throw new Error("unreachable");
+    expect(result.resolvedBy).toBe("ops-jane");
+
+    // The RETURNED value alone would not prove a WRITE — it could be the argument echoed straight back.
+    // The independent SELECT is what makes this a claim about the COLUMN.
+    const [stored] = (await testDb.db.execute(
+      sql`SELECT resolved_by AS "resolvedBy" FROM audit WHERE id = ${id}`,
+    )) as unknown as { resolvedBy: string | null }[];
+    expect(stored.resolvedBy).toBe("ops-jane");
+  });
+
+  it("case 16 — THE CLOBBER, extended: a second resolve under a DIFFERENT name rewrites neither the time nor the discharger", async () => {
+    const id = await makeAudit({ outcome: "needs_attention", agoHours: 6 });
+
+    const first = await resolveAlert(testDb.db, id, "ops-jane");
+    expect(first.outcome).toBe("resolved");
+    if (first.outcome !== "resolved") throw new Error("unreachable");
+
+    // The same visible gap case 5 uses: an UNGUARDED UPDATE moves the timestamp forward here AND
+    // overwrites the discharger. Mutation M1 deletes the guard and must redden this case and case 17.
+    await testDb.db.execute(sql`SELECT pg_sleep(0.05)`);
+
+    const second = await resolveAlert(testDb.db, id, "ops-mallory");
+    expect(second.outcome).toBe("already_resolved");
+    if (second.outcome !== "already_resolved") throw new Error("unreachable");
+    expect(second.resolvedAt.getTime()).toBe(first.resolvedAt.getTime());
+    // The ORIGINAL discharger is reported back, never the name this run supplied.
+    expect(second.resolvedBy).toBe("ops-jane");
+
+    const [stored] = (await testDb.db.execute(
+      sql`SELECT resolved_at AS "resolvedAt", resolved_by AS "resolvedBy" FROM audit WHERE id = ${id}`,
+    )) as unknown as { resolvedAt: Date | string; resolvedBy: string | null }[];
+    expect(new Date(stored.resolvedAt).getTime()).toBe(first.resolvedAt.getTime());
+    expect(stored.resolvedBy).toBe("ops-jane");
+
+    // …and the second name reached NO column of the row — not `resolved_by`, not `meta`, nowhere.
+    const [full] = (await testDb.db.execute(
+      sql`SELECT to_jsonb(a) AS "row" FROM audit a WHERE id = ${id}`,
+    )) as unknown as { row: Record<string, unknown> }[];
+    expect(JSON.stringify(full.row)).not.toContain("ops-mallory");
+  });
+
+  it("case 17 — NO BACKFILL: a historical discharge with no recorded discharger stays NULL under re-resolve", async () => {
+    // A fixture of the 27 rows discharged on 2026-08-10, before the column existed (runbook §4a).
+    const id = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 30,
+      resolvedAgoHours: 24,
+      resolvedBy: null,
+    });
+
+    // Somebody deliberately trying to retro-attribute a discharge they did not perform.
+    const result = await resolveAlert(testDb.db, id, "Retro Attributor");
+
+    expect(result.outcome).toBe("already_resolved");
+    if (result.outcome !== "already_resolved") throw new Error("unreachable");
+    expect(result.resolvedBy).toBeNull();
+
+    // Impossible BY CONSTRUCTION, not by policy: `AND resolved_at IS NULL` excludes the row, so the
+    // UPDATE matches nothing. Inventing a discharger for a past act would be fabricating an audit record.
+    const [stored] = (await testDb.db.execute(
+      sql`SELECT resolved_by AS "resolvedBy" FROM audit WHERE id = ${id}`,
+    )) as unknown as { resolvedBy: string | null }[];
+    expect(stored.resolvedBy).toBeNull();
+  });
+});
+
+describe("audit.resolved_by — the column", () => {
+  it("case 14 — exists as nullable `text` in the REPLAYED schema, and `audit` still carries no foreign key", async () => {
+    // MEASURED AGAINST THE DATABASE, NEVER AGAINST `tsc` (T-08-40). The row type comes from schema.ts, so a
+    // column declared there but never migrated leaves the type checker and `next build` perfectly green
+    // while every integration test in the suite runs against a table that does not have it. Mutation M4
+    // demonstrates that failure mode rather than quoting it. `table_schema` is scoped to the isolated
+    // schema tests/helpers/db.ts replayed from `drizzle/*.sql` at beforeAll — so this asserts the MIGRATION
+    // landed, not merely that the dev database happens to have the column.
+    const cols = (await testDb.db.execute(sql`
+      SELECT data_type AS "dataType", is_nullable AS "isNullable"
+      FROM information_schema.columns
+      WHERE table_schema = ${testDb.schema}
+        AND table_name = 'audit'
+        AND column_name = 'resolved_by'
+    `)) as unknown as { dataType: string; isNullable: string }[];
+
+    expect(cols).toHaveLength(1);
+    expect(cols[0].dataType).toBe("text");
+    expect(cols[0].isNullable).toBe("YES");
+
+    // D4 / D-FH6-01, asserted STRUCTURALLY rather than by reading the schema file: `audit` carries ZERO
+    // foreign keys. `resolved_by` is a name typed at a CLI by someone who may correspond to no `user` row
+    // at all — provenance, not a join key — and an FK would 23503 exactly the rows this table exists for.
+    const [fks] = (await testDb.db.execute(sql`
+      SELECT count(*)::int AS "c"
+      FROM pg_constraint
+      WHERE contype = 'f' AND conrelid = ${`"${testDb.schema}".audit`}::regclass
+    `)) as unknown as { c: number }[];
+    expect(fks.c).toBe(0);
   });
 });
 
@@ -452,6 +651,9 @@ describe("listResolvedAlerts", () => {
 
     // D-DJ4-04, structural: `ResolvedAlert` has NO `meta` field and the query never selects the column.
     expect("meta" in row).toBe(false);
+    // Reconciled for `resolvedBy` (260811-fh6) by NAMING the new field, never by loosening this to a
+    // `toMatchObject` — the 09-23 precedent is explicit that loosening a key-set tripwire removes its teeth,
+    // and this one's whole job is to fail when the row grows a field nobody argued for.
     expect(Object.keys(row).sort()).toEqual([
       "action",
       "actorId",
@@ -460,6 +662,7 @@ describe("listResolvedAlerts", () => {
       "id",
       "outcome",
       "resolvedAt",
+      "resolvedBy",
     ]);
 
     // The ONE deliberate widening, pinned so it cannot silently regress to null (mutation H5).
@@ -478,7 +681,7 @@ describe("listResolvedAlerts", () => {
     // must be too (D-DJ4-01) — otherwise a discharge exists that no surface can review, which is D2 one
     // level down.
     const id = await makeAudit({ outcome: "error", action: "some_non_money_action", agoHours: 3 });
-    expect((await resolveAlert(testDb.db, id)).outcome).toBe("resolved");
+    expect((await resolveAlert(testDb.db, id, "ops-test")).outcome).toBe("resolved");
 
     const rows = await listResolvedAlerts(testDb.db);
 
@@ -486,5 +689,26 @@ describe("listResolvedAlerts", () => {
     expect(rows[0].outcome).toBe("error");
     // And it is visible NOWHERE else: the unresolved queue is scoped to needs_attention AND open.
     expect(await listUnresolvedAlerts(testDb.db)).toHaveLength(0);
+  });
+
+  it("case 18 — returns `resolvedBy` per row: the CLI-discharged row carries its name, the historical row carries null", async () => {
+    // Both facts in ONE case on purpose. A review surface that showed only the attributed rows would be
+    // worse than none: the 27 unattributed historical discharges are exactly the rows a reviewer must not
+    // silently lose, and `null` here is what the CLI renders as `unrecorded` (D-FH6-07).
+    const historical = await makeAudit({
+      outcome: "needs_attention",
+      agoHours: 30,
+      resolvedAgoHours: 24,
+      resolvedBy: null,
+    });
+    const fresh = await makeAudit({ outcome: "needs_attention", agoHours: 5 });
+    expect((await resolveAlert(testDb.db, fresh, "ops-jane")).outcome).toBe("resolved");
+
+    const rows = await listResolvedAlerts(testDb.db);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+
+    expect(rows).toHaveLength(2);
+    expect(byId.get(fresh)?.resolvedBy).toBe("ops-jane");
+    expect(byId.get(historical)?.resolvedBy).toBeNull();
   });
 });
