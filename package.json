@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:inngest": "npx inngest-cli@latest dev",
-    "build": "next build",
+    "build": "npm run lint && npm run test:design && next build",
     "start": "next start",
     "lint": "eslint",
     "db:up": "docker compose up -d db",

@@ -17,11 +17,77 @@
 // edit that would turn this gate off without touching a test.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// OBSERVED RED — PLACEHOLDER. Plan 10-17 Task 2 replaces this block with the verbatim failing output
-// of `npm run build` and `npm run test:design -- leak` against a deliberately injected raw hex in
-// `src/components/ui/badge.tsx`, dated, in the format of `tests/use-server-exports.test.ts:26-62`.
-// A gate that has never been watched failing is a rubber stamp; until this block holds a real run,
-// treat the green below as unproven.
+// OBSERVED RED. 12 August 2026, plan 10-17 Task 2, on the clean tree at commit 4e4b69a immediately
+// after `package.json`'s `build` script became
+// `npm run lint && npm run test:design && next build`.
+//
+// WHAT WAS INJECTED: one line, `const LEAK_PROBE = "#ff0000";`, inserted at
+// `src/components/ui/badge.tsx:18` — inside the vendored tree, which D-17 refuses to exempt. Nothing
+// else in the working tree changed; the probe was reverted afterwards and
+// `git status --porcelain src/components/ui/badge.tsx` printed nothing.
+//
+// (1) `npm run build`, exit code 1. Observed output, VERBATIM, with the 9 pre-existing warnings
+//     (react-hooks/incompatible-library ×2, @typescript-eslint/no-unused-vars ×7 — the phase
+//     baseline, unrelated to this gate) elided at the marked line:
+//
+//        > fitout@0.1.0 build
+//        > npm run lint && npm run test:design && next build
+//
+//        > fitout@0.1.0 lint
+//        > eslint
+//
+//        […9 pre-existing warnings in 4 other files…]
+//
+//        C:\Users\Admin\Roaming\FitOut\src\components\ui\badge.tsx
+//          18:7   warning  'LEAK_PROBE' is assigned a value but never used                 @typescript-eslint/no-unused-vars
+//          18:20  error    Raw design value "#ff0000" — use a design token (DS-13 / D-15)  fitout/no-raw-design-value
+//
+//        ✖ 11 problems (1 error, 10 warnings)
+//
+//     The rule id and the injected file are both named, and `&&` short-circuited: neither
+//     `test:design` nor `next build` ran. That is the whole of DS-13's "fails the build" — on Next
+//     16 the npm script layer is the only place it can happen (L1), and this repository has no CI
+//     to fall back on (L2).
+//
+// (2) `npm run test:design -- leak`, exit code 1 — the Vitest half catching the same probe
+//     INDEPENDENTLY of ESLint, which is why the plan runs it separately rather than trusting the
+//     short-circuited build. Observed output, VERBATIM (its `408|` line pointer is as-run, i.e.
+//     before this block replaced the placeholder that stood here, so the assertion now sits lower):
+//
+//        ❯ tests/design/leak.test.ts (18 tests | 1 failed) 16ms
+//            × finds no raw design value under src/app/** or src/components/** 7ms
+//
+//       ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+//
+//        FAIL  tests/design/leak.test.ts > the DS-13 raw-design-value gate > finds no raw design
+//        value under src/app/** or src/components/**
+//       AssertionError: expected [ Array(1) ] to deeply equal []
+//
+//       - Expected
+//       + Received
+//
+//       - []
+//       + [
+//       +   "src/components/ui/badge.tsx:18 raw hex colour `#ff0000` — use a design token (DS-13 / D-15)",
+//       + ]
+//
+//        ❯ tests/design/leak.test.ts:408:24
+//           406|
+//           407|   it("finds no raw design value under src/app/** or src/components/**"…
+//           408|     expect(violations).toEqual([]);
+//              |                        ^
+//
+//       Test Files  1 failed (1)
+//            Tests  1 failed | 17 passed (18)
+//
+//     One failure of eighteen, naming the file, the line, the pattern CLASS and the matched text —
+//     and the seventeen guard-the-guard and fixture assertions stayed green, which is what makes the
+//     failure point at the tree rather than at the scanner.
+//
+// (3) Probe reverted; `npm run build` exit code 0 in 72s (lint ~17s / 0 errors / 9 warnings, design
+//     gate ~12s / 20 files / 374 assertions, then `next build`). RESEARCH § Pattern 7 measured lint
+//     at 85s before 10-12 narrowed Tailwind's content root; on this box today it is 17s, so the
+//     accepted price of T-10-35 is roughly 29 seconds of extra build, not 85.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 //
 // HOW THE DETECTION WORKS, AND WHAT IT DOES NOT COVER. Read this before trusting a green run.
