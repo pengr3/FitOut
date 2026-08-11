@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 10-03-PLAN.md (two-theme colour contract + DS-01 font fix) — next 10-04
-last_updated: "2026-08-11T15:07:13.106Z"
-last_activity: 2026-08-11 -- Phase 10 plan 03 complete (DS-01 font fix + the court/grove two-theme colour contract + the 29-pair AA proof)
+stopped_at: Completed 10-04-PLAN.md (type scale + elevation/z/motion tokens + the global reduced-motion reset) — next 10-05
+last_updated: "2026-08-11T15:27:29.053Z"
+last_activity: 2026-08-11 -- Phase 10 plan 04 complete (per-theme type scale, 3 elevation steps, the global z + motion block, and the app-wide prefers-reduced-motion reset)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
-  completed_plans: 3
-  percent: 18
+  completed_plans: 4
+  percent: 24
 ---
 
 # Project State
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 10 (design-system-foundation-theme-runtime) — EXECUTING
-Plan: 4 of 17
-Status: Executing Phase 10 — plans 01-03 complete. The app renders in Geist for the first time (DS-01), `court` and `grove` both ship as light-background `[data-theme]` blocks with identical 24-key sets, and all 29 declared pairings are proven to clear WCAG AA + 0.05 in both themes. Next: 10-04 (theme runtime) — which also owns the `/50` removal that DS-05 needs, because `--ring` at 7.46:1 still composites to 2.32:1 through `ring-ring/50`.
-Last activity: 2026-08-11 -- Phase 10 plan 03 complete (DS-01 font fix + the court/grove two-theme colour contract + the 29-pair AA proof)
+Plan: 5 of 17
+Status: Executing Phase 10 — plans 01-04 complete. Type, elevation, z-index and motion are now tokens rather than literals: four named `--text-*` roles plus Tailwind's built-in ladder and the weight/tracking/leading families all travel per theme, three named elevation steps exist (the default `shadow-*` are literal and can never be themed), and a new plain `:root` block holds the four z steps and the ≤320ms motion budget that D-05 keeps global. A single `@layer base` `prefers-reduced-motion` reset is in force app-wide. Grove now differs from court on all four of colour, shape, type and depth. Next: 10-05. NOTE — DS-05 is still open: `globals.css`'s `outline-ring/50` is gone, but the 13 `focus-visible:ring-ring/50` component sites (11 vendored) are 10-06/10-07.
+Last activity: 2026-08-11 -- Phase 10 plan 04 complete (per-theme type scale, 3 elevation steps, the global z + motion block, and the app-wide prefers-reduced-motion reset)
 
 ## Performance Metrics
 
@@ -140,6 +140,7 @@ Last activity: 2026-08-11 -- Phase 10 plan 03 complete (DS-01 font fix + the cou
 | Phase 10 P01 | 13min | 2 tasks | 5 files |
 | Phase 10 P02 | 15min | 2 tasks | 4 files |
 | Phase 10 P03 | 16min | 3 tasks tasks | 5 files files |
+| Phase 10 P04 | 20min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,11 @@ Last activity: 2026-08-11 -- Phase 10 plan 03 complete (DS-01 font fix + the cou
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [10-04]: Tailwind v4 emits a utility only when its content scan finds the class name, and NOTHING in `src/` says `text-display` or `shadow-overlay` yet — the call-site migrations are later plans. So a compiled-CSS assertion on a newly declared `@theme inline` step is unreachable through the plain `compileGlobalsCss()`. Added `compileGlobalsCssWith(utilities)`, which appends Tailwind's own `@source inline(…)` safelist at TEST time rather than shipping a safelist in `globals.css`: the stylesheet stays the token contract with no build directive in it, and the forcing is visible at the assertion that needs it. Each such block carries a positive control (`text-figure`, `shadow-floating`) proving the safelist cannot fabricate a step whose `@theme` key was never declared.
+- [10-04]: Tailwind's automatic source detection scans `.planning/**/*.md`, so PROSE emits utilities — the compiled bundle carries `.bg-zinc-50` (a leak-gate fixture example in 10-RESEARCH.md) and `.outline-ring\/50` (the anti-pattern this plan deletes), neither of which appears anywhere in `src/`. Pre-existing and out of this plan's scope, so logged to the phase's `deferred-items.md` and flagged to 10-12: any assertion of the form "utility X exists in the compiled output" can be satisfied by a sentence in a markdown file.
+- [10-04]: `--font-weight-medium` is deliberately aliased onto each theme's emphasis weight rather than kept as a third step, and the resulting 500→600 shift in court is an ACCEPTED visible change on the same footing as the accent deepening. Two weights per theme is the contract; the alias is what lets the 70 shipped `font-medium` call sites need zero edits. Asserted in `type-scale.test.ts` so a future reader cannot "fix" it back to 500 silently.
+- [10-04]: The global z-index and motion tokens went into a NEW plain `:root { … }` rule placed after both theme blocks, closing 10-03's deferred `readGlobalTokens()` throw. Declaring them in a theme block would either break THEME-02's key-set equality (one theme only) or claim they travel (both themes) — and a per-theme z-index lets one theme reorder the app's layers. `elevation-z.test.ts` asserts the four z names appear in NEITHER theme block, so the D-05 split stays honest as later plans add tokens.
+- [10-04]: `requirements.mark-complete` run for DS-04 only, of the plan's five claimed IDs. DS-02, DS-03 and DS-05 each have a second half this plan does not own (the arbitrary `text-[NNpx]` migration, the 14 shadow call sites, and the 13 `focus-visible:ring-ring/50` sites), and THEME-02 needs the next-themes runtime. Same resolution as 10-01/10-02/10-03: a premature `Complete` is invisible for the rest of the phase.
 - [10-01]: Package legitimacy gate resolved by the developer — `culori@4.0.2` **Approved** (slopcheck `[OK]`, MIT, `github.com/Evercoder/culori`, no install-time script for registry consumers; named by D-12) and `@types/culori@4.0.1` **Approved** after its `[ASSUMED]` gap was closed by confirming `npm view culori types` returns empty. Nothing was installed before the gate resolved.
 - [10-01]: `vitest.design.config.ts` declares NO `globalSetup` and NO `setupFiles` — those two keys are exactly what makes `vitest.config.ts` require Docker. Adding either to the design config silently reintroduces the database dependency, which is why the header comment says so in the file itself.
 - [10-01]: The `.tsx` collection trap is closed on BOTH halves — the design config includes `.test.ts` + `.test.tsx`, AND `vitest.config.ts` excludes `tests/design/**`. Verified by measurement (`vitest list --filesOnly`), not by intent: the main config collects 0 files under `tests/design`.
