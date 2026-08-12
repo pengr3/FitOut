@@ -46,11 +46,21 @@ export const DESIGN_LEAK_PATTERNS = [
     id: "raw-hex",
     label: "raw hex colour",
     // Colour-context anchored: the hex must be the whole (trimmed) literal, or be immediately
-    // preceded by `=`, a quote, `(`, `:` or `,`. Landmine L14: an unanchored `#[0-9a-f]{3,8}`
-    // flags GitHub issue references like `see #3388 for details` (a real shape at
+    // preceded by `=`, a quote, `(`, `[`, `_`, `:` or `,`. Landmine L14: an unanchored
+    // `#[0-9a-f]{3,8}` flags GitHub issue references like `see #3388 for details` (a real shape at
     // src/lib/db/schema.ts:730). The anchor keeps prose safe without needing an escape hatch.
+    //
+    // `[` AND `_` ARE LOAD-BEARING (CR-02, phase 10 review). Without them the anchor missed the
+    // TAILWIND ARBITRARY-VALUE form — `bg-[#E8484E]`, `text-[#fff]`, `border-[#000]`,
+    // `shadow-[0_1px_2px_#00000010]` — which is the idiomatic way a hex enters a Tailwind codebase
+    // and a form this phase itself uses for non-hex values (`bg-[color-mix(…)]` at button.tsx:50).
+    // Both halves of D-16 import this list, so the hole was shared: `npm run lint` and
+    // `npm run test:design` were BOTH green on `hover:bg-[#c0392b]`. `[` opens the arbitrary value;
+    // `_` is Tailwind's space escape inside one, so it is the character preceding a hex in any
+    // multi-part arbitrary value (a box-shadow, a gradient). `see #3388 for details` still does not
+    // match: a space is deliberately absent from the class.
     pattern:
-      /(?:^\s*|[="'(:,]\s*)#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/,
+      /(?:^\s*|[=_"'([:,]\s*)#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/,
     why: "A hex literal is frozen at authoring time: it cannot respond to a theme switch or to dark mode. Real hits at baseline: src/components/listing/listing-map.tsx:22 (BRAND_CORAL) and :34 (fill=\"#fff\"). Deliberately NOT matched: a bare `#3388` in prose or a comment (issue references), because the pattern requires a colour context.",
   },
   {

@@ -345,6 +345,22 @@ describe("the DS-13 raw-design-value gate", () => {
     expect(found).toContain("raw hex colour");
   });
 
+  it("flags a raw hex inside a Tailwind arbitrary value (CR-02)", () => {
+    // THE FORM THE ANCHOR ORIGINALLY MISSED, and the one that matters most: `bg-[#…]` is how a hex
+    // actually enters a Tailwind codebase. Both halves of D-16 read the same list, so this hole was
+    // shared — lint AND this gate were green on it. A gate never observed failing on a form is not
+    // a gate for that form, which is why each shape below is asserted rather than assumed.
+    for (const shape of [
+      'export const S = <div className="bg-[#E8484E]" />;\n',
+      'export const S = <p className="text-[#fff]" />;\n',
+      'export const S = <div className="border-[#000]" />;\n',
+      'export const S = <div className="shadow-[0_1px_2px_#00000010]" />;\n',
+    ]) {
+      const found = scanText("fixture.tsx", shape).join("\n");
+      expect(found, shape).toContain("raw hex colour");
+    }
+  });
+
   it("flags a numbered Tailwind palette class", () => {
     const found = scanText(
       "fixture.tsx",
@@ -456,6 +472,9 @@ describe("the DS-13 raw-design-value gate", () => {
 
   it("agrees with findDesignLeaks, the shared classifier both gates call", () => {
     expect(findDesignLeaks('const C = "#E8484E"')).toEqual(["raw-hex"]);
+    // Both hex shapes go through the SHARED classifier, so neither half of D-16 can disagree.
+    expect(findDesignLeaks("bg-[#E8484E]")).toEqual(["raw-hex"]);
+    expect(findDesignLeaks("shadow-[0_1px_2px_#00000010]")).toEqual(["raw-hex"]);
     expect(findDesignLeaks("bg-zinc-50")).toEqual(["palette-class"]);
     expect(findDesignLeaks("bg-black")).toEqual(["white-black-class"]);
     expect(findDesignLeaks("text-[28px]")).toEqual(["arbitrary-text-px"]);
