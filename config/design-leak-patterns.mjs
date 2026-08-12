@@ -119,8 +119,19 @@ export const DESIGN_LEAK_PATTERNS = [
     // length with a unit, a percentage, a `)`, a `,`, or one of the border/shadow keywords. Prose
     // ends in an ordinary word, so `see #3388 for details`, `Closes #123` and `the PR #4021 landed`
     // still do not match — landmine L14 stays closed. Verified against both sets before adoption.
+    // CASE-INSENSITIVE, for the same reason the unit in `arbitrary-text-px` is (IN-08). The
+    // preceding-token anchor is built from CSS units and CSS keywords, and CSS is ASCII
+    // case-insensitive for both — so `1PX SOLID #CCC` is valid CSS that renders identically to
+    // `1px solid #ccc`, which was verified through a real CSS parser's computed style rather than
+    // argued from the spec: both compute to `1px solid rgb(204, 204, 204)`. Before the flag, the
+    // lowercase spelling was reported and the uppercase one was not.
+    //
+    // The `i` cannot weaken the prose exclusion, because that exclusion is STRUCTURAL — it rests on
+    // requiring a colour context before the `#`, not on any letter's case. The `see #3388` /
+    // `Closes #123` / `PR #4021` negatives are asserted as fixtures and stay clean.
     pattern: new RegExp(
       `(?:^\\s*|[=_"'([:,]\\s*|(?:[0-9](?:px|rem|em|ch|ex|vh|vw|vmin|vmax|pt|pc|in|cm|mm|q|deg|%)|[0-9)%,]|\\b(?:inset|solid|dashed|dotted|double|groove|ridge|outset|none|transparent|currentcolor)\\b)\\s+)#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\\b`,
+      "i",
     ),
     why: "A hex literal is frozen at authoring time: it cannot respond to a theme switch or to dark mode. Real hits at baseline: src/components/listing/listing-map.tsx:22 (BRAND_CORAL) and :34 (fill=\"#fff\"). Deliberately NOT matched: a bare `#3388` in prose or a comment (issue references), because the pattern requires a colour context.",
   },
@@ -144,7 +155,27 @@ export const DESIGN_LEAK_PATTERNS = [
     // The optional `length:` prefix is Tailwind's own data-type hint (WR-07). `text-[length:14px]`
     // is the form authors reach for precisely when the bare one is ambiguous with a colour, so the
     // shape most likely to be typed deliberately was the one shape not matched.
-    pattern: /text-\[(?:length:)?[0-9.]+px\]/,
+    //
+    // THE UNIT IS CASE-INSENSITIVE; THE CLASS AND THE HINT ARE NOT (IN-08). CSS units are ASCII
+    // case-insensitive, Tailwind class names and data-type hints are not, and the split matters —
+    // it is what makes this precise instead of a blanket `i` flag. Compiled against the installed
+    // Tailwind with `source(none)` so only the safelisted class could emit:
+    //
+    //   text-[14px]          ->  font-size: 14px      the ordinary form
+    //   text-[length:14px]   ->  font-size: 14px      the hinted form
+    //   text-[length:14PX]   ->  font-size: 14PX      A REAL ESCAPE — was unmatched
+    //   text-[14PX]          ->  color: 14PX          NOT a type size: Tailwind's inference is
+    //                                                 case-sensitive, so the bare uppercase unit
+    //                                                 falls back to the colour data type
+    //   text-[LENGTH:14px]   ->  color: LENGTH:14px   the hint keyword is case-sensitive too
+    //
+    // So the shape the review's IN-08 named (`text-[14PX]`) does not in fact bypass the type scale,
+    // and the neighbouring hinted spelling — the one this comment already calls the form authors
+    // reach for deliberately — does. Both are matched now: the second because it is the real
+    // escape, the first because an invalid colour declaration is not something to wave through
+    // either. `text-[length:1.5REM]` compiles to `font-size: 1.5REM` and is still deliberately
+    // unmatched, because this pattern is px-only by resolved decision (UI-SPEC Q2).
+    pattern: /text-\[(?:length:)?[0-9.]+[pP][xX]\]/,
     why: "An arbitrary type size bypasses the declared type scale (DS-02), so the ladder stops being a ladder. px-only by resolved decision (UI-SPEC Q2): it matches DS-13's literal wording and the measured baseline of 14 app / 0 vendored sites. KNOWN, TOLERATED DEBT, deliberately not matched: the 4 vendored rem sites — ui/button.tsx:27, ui/calendar.tsx:93, ui/calendar.tsx:102, ui/toggle.tsx:20 — all `text-[0.8rem]`. They are recorded rather than silently missed, and plan 10-11 asserts them as a positive control.",
   },
   {

@@ -587,6 +587,42 @@ describe("the DS-13 raw-design-value gate", () => {
     ).toEqual([]);
   });
 
+  it("flags an UPPERCASE css unit in an arbitrary size and in a hex context (IN-08)", () => {
+    // WR-07 made `color-function` case-insensitive and left the other value-matching patterns
+    // case-sensitive. CSS units and CSS keywords are ASCII case-insensitive, so both of these were
+    // valid, rendering, unmatched shapes.
+    //
+    // COMPILED, not assumed. Against the installed Tailwind with `source(none)`:
+    //   text-[length:14PX] -> font-size: 14PX   <- a real arbitrary type size, was unmatched
+    //   text-[14PX]        -> color: 14PX       <- NOT a type size; Tailwind's data-type inference
+    //                                              is case-sensitive, so the review's own example
+    //                                              was never the escape. The hinted twin is.
+    expect(findDesignLeaks("text-[length:14PX]")).toEqual(["arbitrary-text-px"]);
+    expect(findDesignLeaks("text-[14PX]")).toEqual(["arbitrary-text-px"]);
+    expect(findDesignLeaks("text-[14Px]")).toEqual(["arbitrary-text-px"]);
+
+    // `border: 1PX SOLID #CCC` was checked through a real CSS parser's computed style, not read off
+    // the spec: it computes to `1px solid rgb(204, 204, 204)`, byte-identical to the lowercase form.
+    expect(findDesignLeaks("1PX SOLID #CCC")).toEqual(["raw-hex"]);
+    expect(findDesignLeaks("0 2px 8px #0000001A")).toEqual(["raw-hex"]);
+
+    // THE CLASS-NAME HALF MUST STAY CASE-SENSITIVE. A blanket `i` flag would have reported these,
+    // and none of them is a Tailwind class at all — the gate would be inventing violations.
+    expect(findDesignLeaks("TEXT-[14px]")).toEqual([]);
+    expect(findDesignLeaks("bg-ZINC-50")).toEqual([]);
+    expect(findDesignLeaks("bg-WHITE")).toEqual([]);
+    expect(findDesignLeaks("text-[LENGTH:14px]")).toEqual([]);
+
+    // The prose exclusion is structural, not case-based, so widening cannot have opened it.
+    expect(findDesignLeaks("see #3388 for details")).toEqual([]);
+    expect(findDesignLeaks("Closes #123")).toEqual([]);
+
+    // Still px-only by resolved decision (UI-SPEC Q2): the tolerated rem debt stays tolerated in
+    // either case, even though `text-[length:1.5REM]` does compile to `font-size: 1.5REM`.
+    expect(findDesignLeaks("text-[0.8rem]")).toEqual([]);
+    expect(findDesignLeaks("text-[length:1.5REM]")).toEqual([]);
+  });
+
   it("agrees with findDesignLeaks, the shared classifier both gates call", () => {
     expect(findDesignLeaks('const C = "#E8484E"')).toEqual(["raw-hex"]);
     // Both hex shapes go through the SHARED classifier, so neither half of D-16 can disagree.
