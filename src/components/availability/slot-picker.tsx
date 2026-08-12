@@ -231,7 +231,12 @@ export function SlotPicker({
                         // 4.5 text bar. That is the SAME arithmetic this phase invokes fifteen
                         // times to condemn a 90%-alpha accent fill — an alpha tint over a light
                         // surface LIGHTENS, dragging a filled control toward its own text colour —
-                        // applied to the foreground instead of the fill. Solid measures 4.57 / 4.53.
+                        // applied to the foreground instead of the fill. Solid measures 4.566 (court)
+                        // / 4.572 (grove) — both clear the 4.55 bar (TEXT_BAR 4.5 + AA_EPSILON 0.05),
+                        // which is why the `brand-foreground on brand` row in `contrast-pairs.ts` is
+                        // green. (An earlier draft of this note said "4.57 / 4.53"; the 4.53 was
+                        // carried over from a review table and is wrong — it reads as if the fix
+                        // landed BELOW the phase's own bar on grove, which it does not.)
                         // The de-emphasis the modifier carried is already expressed structurally by
                         // `text-xs font-normal` against the parent's `text-sm font-medium`, so the
                         // hierarchy survives; only the contrast failure goes.
