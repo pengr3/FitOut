@@ -111,8 +111,15 @@ describe("deriveBookingStatusView — tone + icon contract (UI-SPEC § Status ba
       for (const s of ALL_STATUSES) {
         const view = deriveBookingStatusView(s, PAST, NOW, side);
         // Every status evaluated at a PAST endsAt: confirmed has derived to completed, so nothing is positive.
-        expect(view.tone).not.toBe("positive");
-        expect(view.tone).toBe("neutral");
+        //
+        // ONE ASSERTION, NOT TWO (IN-15). This used to also assert `not.toBe("positive")`, which
+        // `toBe("neutral")` already implies — there is no tone that satisfies one and fails the
+        // other, so the pair could never fail independently and read as twice the coverage it was.
+        // Demonstrated rather than argued: mutating a status's tone to `attention` fails the exact
+        // assertion and leaves the negative one green. The intent it carried lives in the message.
+        expect(view.tone, `${s} (${side}) at a past endsAt must not read as the paid signal`).toBe(
+          "neutral",
+        );
       }
     }
   });
@@ -121,9 +128,13 @@ describe("deriveBookingStatusView — tone + icon contract (UI-SPEC § Status ba
     // DS-10 folded the old bordered treatment into `neutral`: approved was never a distinct tone, only a
     // distinct border. What must stay true is that it is not the positive one, which is asserted here
     // directly rather than through the name of a treatment that no longer exists.
+    //
+    // The exact-tone assertion is the whole check (IN-15) — `not.toBe("positive")` sat beside it and
+    // was subsumed by it. See the note in the loop above for the mutation that showed this.
     const view = deriveBookingStatusView("approved", FUTURE, NOW, "booker");
-    expect(view.tone).toBe("neutral");
-    expect(view.tone).not.toBe("positive");
+    expect(view.tone, "approved is in flight and must never read as the paid signal").toBe(
+      "neutral",
+    );
   });
 
   it("every status returns a non-empty label and an icon", () => {
