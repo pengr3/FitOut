@@ -265,6 +265,26 @@ function splitVariants(token: string): { chain: string[]; utility: string } {
   return { chain, utility: text.slice(start) };
 }
 
+/**
+ * `edge` IS CLASSIFIED BUT DELIBERATELY NOT PAIRED (IN-10), and that is recorded here because dead
+ * classification reads as live capability.
+ *
+ * `pairingsIn` cross-multiplies foregrounds against backgrounds only, so no `edge` use has ever
+ * produced a pairing. It is not an oversight and it is not free to switch on: a border or ring
+ * colour against the fill behind it is a real NON-TEXT contrast pairing (`border-destructive/40` on
+ * `--card` at 2.13:1 is a live one — it needed an `EXCLUDED_PAIRS` row rather than a fix), so
+ * consuming the role would mint a large set of new pairings, every one of which needs measuring and
+ * then declaring or exempting. That is a design pass, not a gate fix, and doing it carelessly would
+ * mean writing exemptions nobody measured — the failure this whole review exists to correct.
+ *
+ * MEASURED, not guessed at: wiring `edge` into the foreground side of `pairingsIn` and running the
+ * tree produces TEN undeclared pairings immediately. That is the size of the design pass, and it is
+ * why this is recorded as a deliberate gap rather than switched on in a fix commit.
+ *
+ * The classification is kept rather than deleted because it is what the assertion below pins, and
+ * because the role is the natural seam for that future pass. The test named for this note fails if
+ * an edge ever starts pairing, so the claim cannot go stale the way the header's alpha bullet did.
+ */
 const ROLE_PREFIXES: readonly (readonly [Role, string])[] = [
   ["fg", "text-"],
   ["bg", "bg-"],
@@ -541,6 +561,29 @@ describe("the declared pair inventory matches what components render", () => {
     expect(tint).not.toBe(solid);
     expect(DECLARED.has(tint)).toBe(true);
     expect(DECLARED.has(solid)).toBe(false);
+  });
+
+  it("classifies edges but never pairs them, and says so out loud (IN-10)", () => {
+    // The `edge` role is stored on every ClassUse and consumed by nothing in the production path.
+    // Pinned rather than deleted — see the note on ROLE_PREFIXES for why switching it on is a
+    // design pass rather than a gate fix.
+
+    // It really is classified: this is the capability the note claims exists.
+    expect(colourUsesIn("border-border ring-ring").map((u) => u.role)).toEqual(["edge", "edge"]);
+
+    // …and it really does produce no pairing, on its own or beside a fill or an ink.
+    expect(pairingsIn("border-destructive bg-card")).toEqual([]);
+    expect(pairingsIn("ring-brand bg-muted")).toEqual([]);
+    expect(pairingsIn("border-border ring-ring")).toEqual([]);
+
+    // The fg×bg pairing on the SAME string is unaffected by an edge sitting next to it — the
+    // narrowing is "edges are not paired", not "a string containing an edge is skipped".
+    expect(pairingsIn("border-border bg-muted text-foreground").map((p) => p.key)).toEqual([
+      pairKey("foreground", "muted"),
+    ]);
+
+    // IF A FUTURE PASS WIRES EDGES UP, this test fails. Delete it and the ROLE_PREFIXES note
+    // together — do not relax it to keep the suite green.
   });
 
   it("declares no opacity a Tailwind modifier cannot spell (IN-12)", () => {
