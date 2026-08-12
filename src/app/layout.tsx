@@ -69,10 +69,35 @@ const DEFAULT_APP_URL = "http://localhost:3000";
  * So: trim, treat empty as absent, and require the survivor to actually parse before trusting it.
  * A misconfigured origin degrades to localhost — wrong Open Graph URLs, which is a cosmetic defect
  * on one meta tag — instead of a total outage.
+ *
+ * PARSING IS NOT ENOUGH; THE SCHEME HAS TO BE ONE THE BASE CAN BE RESOLVED AGAINST (WR-05).
+ * `URL.canParse` returns `true` for anything with a scheme, and to the WHATWG parser a scheme-less
+ * `host:port` IS a scheme. Probed against this Node:
+ *
+ *   "example.com"         -> canParse false -> falls back            (the case the note above names)
+ *   "localhost:3000"      -> canParse TRUE, protocol "localhost:", origin null
+ *   "fitout.ph:443"       -> canParse TRUE, protocol "fitout.ph:",  origin null
+ *   "javascript:alert(1)" -> canParse TRUE, protocol "javascript:", origin null
+ *
+ *   new URL("/og.png", new URL("localhost:3000"))  ->  THREW: TypeError Invalid URL
+ *
+ * The `host:port` shape is not exotic: it is what someone types when they forget the protocol, and
+ * it is the literal spelling of `DEFAULT_APP_URL` minus its `http://`. Accepting it reinstates the
+ * very `TypeError` this function exists to prevent, moved from module evaluation to the first route
+ * that resolves a relative metadata URL — so the promise above ("degrades to localhost") was false
+ * for exactly the inputs most likely to be typed.
+ *
+ * Requiring an HTTP(S) scheme is the check that matches what the value is FOR: `metadataBase` is
+ * only ever used as the base of a relative URL, and only `http:`/`https:` are hierarchical enough
+ * for that to work. Latent today — no route in `src/` declares `openGraph`, `twitter` or
+ * `alternates` metadata — which is why this is a guard rather than a bug fix.
  */
 function resolveMetadataBase(): URL {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (configured && URL.canParse(configured)) return new URL(configured);
+  if (configured && URL.canParse(configured)) {
+    const url = new URL(configured);
+    if (url.protocol === "http:" || url.protocol === "https:") return url;
+  }
   return new URL(DEFAULT_APP_URL);
 }
 
