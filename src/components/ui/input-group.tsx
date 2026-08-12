@@ -127,8 +127,13 @@ function InputGroupInput({
   return (
     <Input
       data-slot="input-group-control"
+      // The focus-visible zeroing IS load-bearing: Input's base declares a real 2px focus ring, and
+      // the group draws the focus treatment on the WRAPPER instead, so the inner control must not
+      // draw a second one. The invalid-state zeroing next to it was NOT: nothing in the tree has
+      // declared an invalid-state ring since that ring was removed from every primitive, and the
+      // unconditional zero on the same string already covers the resting case.
       className={cn(
-        "flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
+        "flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent dark:bg-transparent dark:disabled:bg-transparent",
         className
       )}
       {...props}
@@ -144,7 +149,9 @@ function InputGroupTextarea({
     <Textarea
       data-slot="input-group-control"
       className={cn(
-        "flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
+        // Same split as InputGroupInput above: the focus-visible zero is load-bearing, the
+        // invalid-state zero had nothing left to zero.
+        "flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent dark:bg-transparent dark:disabled:bg-transparent",
         className
       )}
       {...props}
