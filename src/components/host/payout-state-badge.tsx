@@ -49,7 +49,18 @@ export function PayoutStateBadge({ state }: { state: PayoutLedgerState }) {
   const view = derivePayoutLedgerView(state);
 
   // Failed / needs-attention → the destructive Alert pattern (icon + text), NOT a badge (05-UI-SPEC).
-  if (view.tone === "attention") {
+  //
+  // BRANCHES ON `state`, NOT ON `view.tone` (WR-13). The condition used to read
+  // `view.tone === "attention"` and the lookup below then force-fitted `state` with an `as` cast
+  // that asserted `failed` could not reach it. Those are two different claims: the guard tested a
+  // property of `derivePayoutLedgerView`'s OUTPUT while the cast made a promise about its INPUT,
+  // and nothing tied them together. Give `failed` any other tone in that module — or give a second
+  // state the `attention` tone — and `BADGE_RECIPES["failed"]` is `undefined`, the destructure
+  // throws, and /host/earnings 500s for every host who has one. TypeScript reports nothing, because
+  // the cast already told it the branch was unreachable. Narrowing on the discriminant itself makes
+  // the exhaustiveness real: `BADGE_RECIPES` is keyed on `Exclude<PayoutLedgerState, "failed">`, so
+  // adding a state to the union now fails to compile here instead of at runtime.
+  if (state === "failed") {
     return (
       <Alert variant="destructive" className="w-fit border-destructive/40 px-2 py-1">
         <AlertTriangle className="size-4" aria-hidden="true" />
@@ -58,8 +69,8 @@ export function PayoutStateBadge({ state }: { state: PayoutLedgerState }) {
     );
   }
 
-  const { Icon, variant, className, iconClassName } =
-    BADGE_RECIPES[state as Exclude<PayoutLedgerState, "failed">];
+  // No cast: `state` is narrowed to `Exclude<PayoutLedgerState, "failed">` by the early return.
+  const { Icon, variant, className, iconClassName } = BADGE_RECIPES[state];
   return (
     <Badge variant={variant} className={cn("gap-1", className)}>
       <Icon className={cn("size-3", iconClassName)} aria-hidden="true" />
