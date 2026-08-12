@@ -18,7 +18,30 @@ import {
 // ESLint while the Vitest gate still honours it — the two halves of D-16 disagreeing about
 // EXEMPTIONS, which is the one outcome D-16 exists to prevent. Splitting the single constant is what
 // makes the plugin key and the rule name un-typo-able.
-const [LEAK_PLUGIN_NAME, LEAK_RULE_NAME] = LEAK_DISABLE_RULE_ID.split("/");
+//
+// THE ARITY IS ASSERTED, BECAUSE THE DERIVATION IS THE WHOLE POINT (IN-07). `split("/")` on an id
+// with any number of segments other than two produces a plugin key and a rule key that do not
+// reassemble into the id the `rules` entry names, and ESLint then reports something that points
+// nowhere near the cause. Both shapes were run against the installed ESLint 9.39.4:
+//
+//   "@fitout/design/no-raw-design-value"  ->  'could not find plugin "@fitout/design"'
+//                                             (registered "@fitout"; the middle segment vanished)
+//   "no-raw-design-value"                 ->  TypeError: Could not find "no-raw-design-value"
+//                                             in plugin "@"  — a plugin named nowhere in this file
+//
+// Neither message mentions the split. A scoped plugin name is legal ESLint, so if one is ever
+// genuinely wanted, register it deliberately rather than relaxing this check.
+const LEAK_ID_SEGMENTS = LEAK_DISABLE_RULE_ID.split("/");
+if (LEAK_ID_SEGMENTS.length !== 2) {
+  throw new Error(
+    `LEAK_DISABLE_RULE_ID must be exactly "<plugin>/<rule>", but is ` +
+      `"${LEAK_DISABLE_RULE_ID}" (${LEAK_ID_SEGMENTS.length} segment(s)). ` +
+      `eslint.config.mjs derives the plugin key and the rule name by splitting it, and any other ` +
+      `arity silently desynchronises them from the rules entry — which surfaces as an unrelated ` +
+      `"could not find plugin/rule" error. Fix the constant in config/design-leak-patterns.mjs.`,
+  );
+}
+const [LEAK_PLUGIN_NAME, LEAK_RULE_NAME] = LEAK_ID_SEGMENTS;
 
 // The DS-13 leak rule, defined inline as a flat-config plugin.
 //
