@@ -54,6 +54,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
+import ts from "typescript";
 
 import {
   STATUS_TONES,
@@ -95,12 +96,23 @@ const ALL_PAYOUT_STATES: PayoutLedgerState[] = [
 ];
 
 /**
- * THE RETIRED PAIRING, named exactly.
+ * THE RETIRED PAIRING, as the two classes it is made of rather than as one adjacency (WR-03).
  *
  * The filled green chip: a `--success` fill carrying its LABEL in `--success-foreground`, which
  * measured 3.24:1 against a 4.5 text bar. Four of these shipped and all four are gone.
+ *
+ * WHY NOT THE ADJACENT STRING. This was `"bg-success text-success-foreground"` matched with
+ * `includes()`, which is an assertion about two tokens being adjacent, in that order, separated by
+ * exactly one space. The pairing renders identically — and the gate passes — if the classes are
+ * REORDERED, double-spaced, wrapped across lines by a formatter, split across two `cn()` arguments,
+ * or merely separated by any third class such as `rounded-full`. The last of those is not a
+ * contrived evasion; it is what happens the first time somebody adds a border radius. Detecting the
+ * two classes INDEPENDENTLY within one class string and intersecting them removes every one of
+ * those escapes at once, and costs nothing in precision: two classes on the same element are the
+ * pairing, whatever order they were typed in.
  */
-const RETIRED_FILLED_PAIRING = "bg-success text-success-foreground";
+const RETIRED_FILL = "bg-success";
+const RETIRED_INK = "text-success-foreground";
 
 /**
  * The ONE file allowed to keep it, and why.
@@ -173,7 +185,73 @@ function label(file: string): string {
  * a call site that reinstated the retired ink.
  */
 function usesClass(text: string, cls: string): boolean {
-  return new RegExp(`${cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(text);
+  return new RegExp(`${cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-/])`).test(text);
+}
+
+/**
+ * Every string literal in a `.ts`/`.tsx` file — one chunk per class string.
+ *
+ * Copied from `tests/design/focus-recipe.test.ts`, which added it for WR-02 and chose this unit for
+ * the same reason it is needed here: a class string is the smallest thing that reliably belongs to
+ * ONE element, and both checks below are claims about a single element.
+ */
+function classChunks(path: string, text: string): string[] {
+  const sf = ts.createSourceFile(
+    path,
+    text,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const out: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      out.push(node.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+/**
+ * The set of UTILITIES in one class string, each with its variant chain removed and its opacity
+ * modifier KEPT.
+ *
+ * Both halves of that sentence are load-bearing.
+ *
+ * REMOVING THE VARIANT CHAIN is what lets `data-[state=on]:bg-muted` be recognised as the same
+ * utility as `bg-muted`, without a regex that has to guess where the chain ends. The scan walks
+ * bracket depth, so a colon inside `data-[state=on]` does not split the token.
+ *
+ * KEEPING THE OPACITY MODIFIER is WR-09. The previous check used a regex whose right boundary was
+ * `(?![\w-])`, which does not exclude `/` — so `bg-muted/40` satisfied a `bg-muted` surface match.
+ * Those are two different rendered colours with two different contrast ratios, and the tree already
+ * ships the tinted one (`search-result-card.tsx`'s `group-hover:bg-muted/40`). Comparing whole
+ * utility strings makes the distinction structural rather than a lookahead that has to remember to
+ * list every character that could follow.
+ */
+function utilitiesIn(chunk: string): Set<string> {
+  const out = new Set<string>();
+  for (const raw of chunk.split(/\s+/).filter(Boolean)) {
+    const token = raw.replace(/^!+/, "");
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < token.length; i++) {
+      const ch = token[i];
+      if (ch === "[" || ch === "(") depth++;
+      else if (ch === "]" || ch === ")") depth--;
+      else if (ch === ":" && depth === 0) start = i + 1;
+    }
+    out.add(token.slice(start));
+  }
+  return out;
 }
 
 interface Scan {
@@ -185,6 +263,8 @@ interface Scan {
   positiveIconSites: string[];
   /** Raw text of every scanned file, keyed by normalised path. */
   text: Map<string, string>;
+  /** Per call-site file: one utility SET per class string, so checks can be per-element. */
+  utilities: Map<string, Set<string>[]>;
 }
 
 /** Scanned ONCE at module level; every `it()` below only asserts against this result. */
@@ -194,6 +274,7 @@ function scanSrc(): Scan {
     retiredPairingSites: [],
     positiveIconSites: [],
     text: new Map(),
+    utilities: new Map(),
   };
 
   for (const file of collectSourceFiles(SRC_DIR)) {
@@ -204,7 +285,14 @@ function scanSrc(): Scan {
 
     if (!CALL_SITE_TREES.some((tree) => name.startsWith(tree))) continue;
 
-    if (text.includes(RETIRED_FILLED_PAIRING)) scan.retiredPairingSites.push(name);
+    // PER CLASS STRING (WR-03 / WR-09): both the retired pairing and the recipe's surface+ink are
+    // claims about ONE element, and a file-level `includes()` answers a weaker question.
+    const chunks = classChunks(name, text).map(utilitiesIn);
+    scan.utilities.set(name, chunks);
+
+    if (chunks.some((u) => u.has(RETIRED_FILL) && u.has(RETIRED_INK))) {
+      scan.retiredPairingSites.push(name);
+    }
     if (usesClass(text, STATUS_TONE_RECIPES.positive.icon)) scan.positiveIconSites.push(name);
   }
 
@@ -369,14 +457,60 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     expect([...scan.positiveIconSites].sort()).toEqual([...POSITIVE_CALL_SITES].sort());
   });
 
-  it("each of the four carries the positive recipe BY VALUE, so the vocabulary cannot drift from them", () => {
+  it("each of the four carries the positive recipe BY VALUE, on ONE element (WR-09)", () => {
+    // The surface and the ink are the badge's OWN recipe, so they are required on the same class
+    // string rather than merely somewhere in the file. File-level was too weak in two separate
+    // ways: three slots scattered across three unrelated elements satisfied it, and — because the
+    // old boundary did not exclude `/` — an opacity-modified surface satisfied it too, which is a
+    // different rendered colour with a different contrast ratio.
     const { surface, text, icon } = STATUS_TONE_RECIPES.positive;
     for (const site of POSITIVE_CALL_SITES) {
       const body = scan.text.get(site) ?? "";
       expect(body.length, `${site} was not read`).toBeGreaterThan(0);
-      expect(usesClass(body, surface), `${site} missing ${surface}`).toBe(true);
-      expect(usesClass(body, text), `${site} missing ${text}`).toBe(true);
+
+      const chunks = scan.utilities.get(site) ?? [];
+      expect(chunks.length, `${site} produced no class strings`).toBeGreaterThan(0);
+      expect(
+        chunks.some((u) => u.has(surface) && u.has(text)),
+        `${site} does not carry ${surface} and ${text} on the same element`,
+      ).toBe(true);
+
+      // The icon is a CHILD element by construction — the recipe puts the hue on the glyph and the
+      // ink on the label — so it cannot be on the same string, and requiring that would be wrong.
+      // It is asserted per file, which is this check's one remaining cross-element blind spot and
+      // is stated here rather than left for the next reader to discover.
       expect(usesClass(body, icon), `${site} missing ${icon}`).toBe(true);
     }
+  });
+
+  it("cannot be evaded by reordering, extra spacing, or an intervening class (WR-03)", () => {
+    // POSITIVE CONTROL for the detection change. Every shape below renders the retired 3.24:1
+    // pairing, and every one of them passed the old adjacency check.
+    for (const evasion of [
+      "text-success-foreground bg-success",
+      "bg-success  text-success-foreground",
+      "bg-success rounded-full text-success-foreground",
+      "inline-flex bg-success px-2 text-success-foreground",
+    ]) {
+      const u = utilitiesIn(evasion);
+      expect(u.has(RETIRED_FILL) && u.has(RETIRED_INK), evasion).toBe(true);
+      // …and the old check genuinely did not see them, which is why this test exists.
+      expect(evasion.includes(`${RETIRED_FILL} ${RETIRED_INK}`), evasion).toBe(false);
+    }
+
+    // The legal glyph-only survivor must still be recognised, or the count above means nothing.
+    expect(utilitiesIn("bg-success text-success-foreground").has(RETIRED_FILL)).toBe(true);
+  });
+
+  it("does not accept an opacity-modified surface as the solid one (WR-09)", () => {
+    // `bg-muted/40` is not `bg-muted`: different composite, different ratio. The tree already ships
+    // the tinted form on `search-result-card.tsx`, so this is a live distinction, not a hypothetical.
+    expect(utilitiesIn("group-hover:bg-muted/40").has("bg-muted")).toBe(false);
+    expect(utilitiesIn("bg-muted").has("bg-muted")).toBe(true);
+    expect(usesClass("group-hover:bg-muted/40", "bg-muted")).toBe(false);
+    expect(usesClass("border-transparent bg-muted text-foreground", "bg-muted")).toBe(true);
+
+    // The variant chain, by contrast, must NOT change the utility's identity.
+    expect(utilitiesIn("data-[state=on]:bg-muted").has("bg-muted")).toBe(true);
   });
 });
