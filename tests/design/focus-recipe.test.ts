@@ -53,6 +53,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
+import ts from "typescript";
 
 const SRC_DIR = resolve(process.cwd(), "src");
 
@@ -146,6 +147,51 @@ const ALPHA_RING_COLOUR = /(?:([^\s"'`]*:))?ring-[a-z][a-z0-9-]*\/\d+/g;
 const DECORATIVE_HAIRLINE = new Set(["ring-foreground/10"]);
 
 /**
+ * Every string literal in a `.ts`/`.tsx` file, with its line number.
+ *
+ * WHY THIS EXISTS — the pairing checks below are about ONE ELEMENT (WR-02). Both of them used to
+ * ask `text.includes(…)` over the whole FILE, which answers a different and much weaker question:
+ * whether the file contains a correct recipe ANYWHERE. Every one of the eleven vendored primitives
+ * already does, so any of them could gain a second focusable element carrying an offset WIDTH with
+ * no offset COLOUR — shipping Tailwind's hardcoded white band, visibly wrong on grove's tinted
+ * background — and this file would stay green while one element vouched for the other. That is
+ * exactly the leak `search-result-card.tsx` was fixed for, and the fix would not have been detected
+ * by the gate that motivated it.
+ *
+ * A class string is the smallest unit that reliably belongs to a single element, so the checks now
+ * run per literal. The walker is `pair-drift.test.ts:351`'s, which chose the same unit for the same
+ * reason; template SPANS are visited individually, so an interpolation splits the literal rather
+ * than joining two elements' classes into one chunk.
+ */
+function classChunks(path: string, text: string): { chunk: string; line: number }[] {
+  const sf = ts.createSourceFile(
+    path,
+    text,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const out: { chunk: string; line: number }[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      out.push({
+        chunk: node.text,
+        line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+/**
  * A variant-prefixed ring-offset WIDTH, capturing its prefix.
  *
  * Tailwind's `--tw-ring-offset-color` defaults to a literal white. Setting a width without a colour
@@ -201,18 +247,27 @@ function scanSrc(): Scan {
       scan.alphaRingColour.push(`${name}: ${m[0]}`);
     }
 
-    for (const m of text.matchAll(PREFIXED_OFFSET_WIDTH)) {
-      const prefix = m[1];
-      if (!text.includes(`${prefix}ring-offset-background`)) {
-        scan.uncolouredOffset.push(`${name}: ${m[0]} without ${prefix}ring-offset-background`);
-      }
-    }
+    // PER CLASS STRING, never per file (WR-02). `.css` has no string literals to walk, and the
+    // stylesheet composes no focus recipe of its own — it declares the tokens the recipe names —
+    // so the pairing checks simply do not apply to it.
+    if (!name.endsWith(".css")) {
+      for (const { chunk, line } of classChunks(name, text)) {
+        for (const m of chunk.matchAll(PREFIXED_OFFSET_WIDTH)) {
+          const prefix = m[1];
+          if (!chunk.includes(`${prefix}ring-offset-background`)) {
+            scan.uncolouredOffset.push(
+              `${name}:${line}: ${m[0]} without ${prefix}ring-offset-background`,
+            );
+          }
+        }
 
-    if (
-      text.includes("focus-visible:ring-ring") &&
-      !text.includes("focus-visible:ring-offset-background")
-    ) {
-      scan.unpairedRecipe.push(name);
+        if (
+          chunk.includes("focus-visible:ring-ring") &&
+          !chunk.includes("focus-visible:ring-offset-background")
+        ) {
+          scan.unpairedRecipe.push(`${name}:${line}`);
+        }
+      }
     }
   }
 
@@ -306,6 +361,52 @@ describe("DS-05 — the offset band is a token, never a framework default", () =
 
   it("no variant sets an offset width without naming the offset colour", () => {
     expect(scan.uncolouredOffset).toEqual([]);
+  });
+
+  it("checks ONE ELEMENT, so a correct sibling cannot vouch for a broken one (WR-02)", () => {
+    // POSITIVE CONTROL for the scope change itself. This fixture is the precise shape both checks
+    // used to miss: a file whose FIRST element carries the canonical recipe in full, and whose
+    // SECOND gains an offset width with no offset colour. `text.includes()` over the whole file
+    // finds the offset colour in element one and clears element two on its strength.
+    const fixture = [
+      "export const A = () => (",
+      '  <div className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" />',
+      ");",
+      "export const B = () => (",
+      '  <div className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />',
+      ");",
+    ].join("\n");
+
+    // The file-level question the old checks asked — and the answer that let this ship.
+    expect(fixture.includes("focus-visible:ring-offset-background")).toBe(true);
+
+    const chunks = classChunks("fixture.tsx", fixture);
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+
+    const offenders = chunks.filter(({ chunk }) =>
+      [...chunk.matchAll(PREFIXED_OFFSET_WIDTH)].some(
+        (m) => !chunk.includes(`${m[1]}ring-offset-background`),
+      ),
+    );
+    expect(offenders).toHaveLength(1);
+    expect(offenders[0].chunk).not.toContain("ring-offset-background");
+
+    const unpaired = chunks.filter(
+      ({ chunk }) =>
+        chunk.includes("focus-visible:ring-ring") &&
+        !chunk.includes("focus-visible:ring-offset-background"),
+    );
+    expect(unpaired).toHaveLength(1);
+  });
+
+  it("splits class strings rather than concatenating a file into one chunk", () => {
+    // GUARD-THE-GUARD on the walker: if it returned the whole file as a single chunk, the per-chunk
+    // checks would silently collapse back into the file-level ones they replaced, and every
+    // assertion above would still pass. A real vendored primitive is used, not a fixture.
+    const button = readFileSync(join(SRC_DIR, "components/ui/button.tsx"), "utf8");
+    const chunks = classChunks("src/components/ui/button.tsx", button);
+    expect(chunks.length).toBeGreaterThan(10);
+    expect(chunks.every(({ chunk }) => chunk.length < button.length)).toBe(true);
   });
 
   it("the canonical recipe is still written verbatim in the file that defines it", () => {
