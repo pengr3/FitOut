@@ -57,7 +57,7 @@ This map is keyed by requirement and is the contract each task's `<automated>` v
 | DS-01 | Compiled CSS contains no self-referential custom property; `.font-sans` resolves to `var(--font-geist-sans)` | static (compile-and-assert) | `npm run test:design -- font-cycle` | 10-03 | ❌ W0 |
 | DS-02 | Every `--text-*` step exists in both themes with paired line-height/weight/tracking; **zero** `text-[NNpx]` under the gate tree | unit + static gate | `npm run test:design -- type-scale` | 10-04 (tokens) · 10-11 (source gate) | ❌ W0 |
 | DS-03 | Exactly 3 elevation steps and 4 z steps per theme; zero `shadow-{xs,sm,md,lg}` and zero raw `z-N` under the gate tree | static gate | `npm run test:design -- elevation-z` | 10-04 (tokens) · 10-12 (shadows) · 10-13 (z) | ❌ W0 |
-| DS-04 | Every motion token ≤ 320ms in both themes; `@media (prefers-reduced-motion: reduce)` present in `globals.css` | unit + **manual** | `npm run test:design -- motion-budget` | 10-04 | ❌ W0 |
+| DS-04 | Every motion token ≤ 320ms in both themes; `@media (prefers-reduced-motion: reduce)` present in `globals.css`; **and the reset measurably suppresses motion in a real browser, asserted in both directions** | unit + **e2e** | `npm run test:design -- motion-budget` **and** `npx playwright test e2e/reduced-motion.spec.ts` | 10-04 (tokens + source) · 10-17 (e2e) | ❌ W0 |
 | DS-05 | `--ring` ≥3:1 against `--background`, `--card` **and** `--muted` in both themes; **zero** `ring-ring/50` and `outline-ring/50` anywhere in `src/` | unit + static gate | `npm run test:design -- contrast focus-recipe` | 10-04 (`outline-ring/50` + token) · 10-06 (base recipe) · 10-07 (12 sites + gate) | ❌ W0 |
 | DS-06 | Every pair in `CONTRAST_PAIRS` clears its bar in both themes, **alpha pairings composited first** | unit | `npm run test:design -- contrast` | 10-03 · 10-17 (pair-drift) | ❌ W0 |
 | DS-07 | Every token in both themes is `inGamut("rgb")` | unit | `npm run test:design -- contrast` | 10-03 | ❌ W0 |
@@ -98,10 +98,36 @@ Every design test is blocked on these. Wave 0 is not optional — the first item
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| OS reduced-motion actually suppresses a Radix dialog animation | DS-04 | The CSS rule's *presence* is testable; that the OS setting suppresses a real animation is a browser-level observation. Playwright's `emulateMedia({ reducedMotion: "reduce" })` can automate this in Phase 11. | Enable reduced motion at the OS level, open a dialog, confirm no transition plays |
 | A deliberately injected leak turns the build red | DS-13 | Proving the gate *blocks* requires running it against a known-bad tree once. | Add a raw hex to a component, run `npm run build`, confirm non-zero exit, revert |
 | "Accent visibly deepens" | D-11 | Aesthetic acceptance, not a testable property | One human look at `/dev/theme` |
 | `/dev/theme` side-by-side reads as two plausible brand directions | SC#3 | Aesthetic acceptance | One human look at `/dev/theme` |
+
+### DS-04 was promoted OUT of this table (2026-08-12, plan 10-17)
+
+The fourth row read *"OS reduced-motion actually suppresses a Radix dialog animation — the CSS
+rule's presence is testable; that the OS setting suppresses a real animation is a browser-level
+observation."* **It is now automated by `e2e/reduced-motion.spec.ts`** (2 tests), which asserts three
+of the reset's four declarations in **both** directions: `transition-duration` on a real shipped
+`<Button>` (0.12s → <0.001s), and `animation-duration` (2s → <0.001s) plus
+`animation-iteration-count` (`infinite` → `1`) on a utility-layer keyframe. The premise was half
+right — the observation *is* browser-level — but it does not require an **OS** setting:
+`page.emulateMedia({ reducedMotion })` drives the same media query the reset is written against, and
+`getComputedStyle` reads the outcome. The row also deferred the automation to Phase 11; it landed here.
+
+**Recording why the prescribed manual check could not have worked, because this is the more useful
+half.** Plan 10-17's checkpoint pointed the developer at the Select control on `/dev/theme`, and the
+developer reported being unable to find a deterministic way to test it by hand. They were right, and
+the reason is structural rather than a matter of technique: `select-content` carries
+`data-[align-trigger=true]:animate-none`, and the open element really does have
+`data-align-trigger="true"`, so its `animation-name` computes to `none` **by design** whenever the
+panel aligns to its trigger. The Select therefore plays no animation with reduced motion OFF either —
+a human watching it cannot distinguish "the reset is working" from "there was nothing here to
+suppress." **A manual check whose two outcomes look identical is not a weak test, it is a
+non-test**, and it would have been signed off as a pass.
+
+Two further traps, both of which produced a *green* automated result against a page where nothing
+was under test, are recorded in the spec's own header along with the stale-dev-server trap that
+produced a false red. Anyone re-opening DS-04 should read that header before the test body.
 
 ---
 

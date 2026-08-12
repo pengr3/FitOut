@@ -18,14 +18,14 @@
 - [x] **DS-03**: An elevation scale of exactly three steps (raised / overlay / sticky) plus a four-step z-index scale (sticky bar < sheet < dialog < toast) exists, and every shadow in the app maps to one of the three
 - [x] **DS-04**: Motion tokens (fast / base / slow, one standard easing, nothing above 320ms) exist and a global `prefers-reduced-motion` reset is in force
 - [x] **DS-05**: One focus-visible recipe applies app-wide, using a **darkened neutral** ring (D-132) that clears ≥3:1 against both `--background` and `--card`, and no control relies on a 50%-alpha ring as its only focus indicator
-- [ ] **DS-06**: Every colour token pair actually used on a surface meets WCAG AA (4.5:1 text, 3:1 non-text), verified by an automated contrast test rather than by inspection — this corrects the shipped coral CTA (3.60:1), success badge (3.24:1) and focus ring (2.58:1, and ~1.54:1 as rendered)
+- [x] **DS-06**: Every colour token pair actually used on a surface meets WCAG AA (4.5:1 text, 3:1 non-text), verified by an automated contrast test rather than by inspection — this corrects the shipped coral CTA (3.60:1), success badge (3.24:1) and focus ring (2.58:1, and ~1.54:1 as rendered)
 - [x] **DS-07**: `--destructive` is brought inside the sRGB gamut so it renders identically across P3 and sRGB displays and does not produce false visual-regression diffs
 - [x] **DS-08**: The coral accent is a button variant, not a repeated string — the 19 literal `bg-brand …` recipes are replaced by a CVA `brand` variant, and the button hierarchy (brand → default → outline → ghost → link, destructive edge-only) is expressed as variants
 - [ ] **DS-09**: A `touch` control size (44px) exists as a named size and is the standard for booker-facing primary actions and all mobile controls
 - [x] **DS-10**: Status is a closed semantic vocabulary (neutral / positive / attention / soft-accent), every status is icon + text and never colour-only, and no lifecycle state is rendered in red or green as decoration
 - [ ] **DS-11**: Three named card patterns exist (ResultCard, RowCard, PanelCard) and every card surface in the app uses one of them rather than re-deciding padding, radius and hover locally
 - [x] **DS-12**: Theme values are exported as a TypeScript module with hex fallbacks alongside the oklch, generated from the token contract, so non-CSS consumers (email, the Leaflet marker, `global-error`) cannot drift — this closes the shipped `BRAND_CORAL = "#E8484E"` vs `#ef4445` drift at `listing-map.tsx:22`
-- [ ] **DS-13**: An automated leak test fails the build when any file under `src/components/**` or `src/app/**` contains a raw hex, `rgb(`, `oklch(`, or an arbitrary `text-[NNpx]` value
+- [x] **DS-13**: An automated leak test fails the build when any file under `src/components/**` or `src/app/**` contains a raw hex, `rgb(`, `oklch(`, or an arbitrary `text-[NNpx]` value
 - [x] **DS-14**: The scaffold residue is gone — real `title`/`description`/`metadataBase`, the starter SVGs and default favicon removed, and `suppressHydrationWarning` present on `<html>`
 
 ### Theming (THEME)
@@ -178,14 +178,14 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | DS-03 | Phase 10 | Complete |
 | DS-04 | Phase 10 | Complete |
 | DS-05 | Phase 10 | Complete |
-| DS-06 | Phase 10 | Pending |
+| DS-06 | Phase 10 | Complete |
 | DS-07 | Phase 10 | Complete |
 | DS-08 | Phase 10 | Complete |
 | DS-09 | Phase 10 | Pending |
 | DS-10 | Phase 10 | Complete |
 | DS-11 | Phase 11 | Pending |
 | DS-12 | Phase 10 | Complete |
-| DS-13 | Phase 10 | Pending |
+| DS-13 | Phase 10 | Complete |
 | DS-14 | Phase 10 | Complete |
 | THEME-01 | Phase 10 | Complete |
 | THEME-02 | Phase 10 | Pending |

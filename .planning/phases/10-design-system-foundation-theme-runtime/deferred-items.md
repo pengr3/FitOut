@@ -528,3 +528,38 @@ across the phase the app ships **134,132 → 119,835**, a **−14,297 byte (−1
 **Still open, and re-nominated to Phase 17's audit** — not because anything is wrong, but so the
 number is re-checked once rather than carried forever. If `/dev/theme` grows, the delta grows with
 it; that is the thing to watch, not today's 1,103.
+
+---
+
+## D-10 (2026-08-12, from 10-17) — DS-09 closes the phase PENDING, and it is the only requirement that does
+
+**Recorded at the phase's last plan so the verifier reads a stated gap rather than inferring one from
+a checkbox.** Every other Phase 10 requirement is now `Complete` in `REQUIREMENTS.md`. DS-09 is not,
+deliberately, and this is the entry that says why in one place instead of across three summaries.
+
+**What EXISTS.** `buttonVariants({ size: "touch" })` yields `h-11` (44px), delivered by 10-06 and
+asserted by `tests/design/button-variants.test.ts`. The contract half of DS-09 is done and guarded.
+
+**What does NOT.** DS-09's wording is *"…and **is the standard** for booker-facing primary actions and
+all mobile controls."* That is an adoption clause, and adoption stands at **two call sites** —
+`src/components/group/rsvp-form.tsx:328` and `src/components/search/search-bar.tsx:411`, both landed
+by 10-08. Two adopters is not a standard.
+
+**Why it was not closed here, and why it was not closed by a sweep.** Nothing enforces adoption
+automatically, and that limitation is not an oversight — it is a recorded design decision, written
+into `src/components/ui/button.tsx:80-83` at the moment the choice was made: *"NOTHING ENFORCES
+ADOPTION AUTOMATICALLY, so Phase 17's a11y audit is the mechanism that catches the booker-facing call
+sites which never opted in. If it finds many, the documented alternative is the responsive default
+this rejects."* A static gate cannot answer DS-09 because "booker-facing primary action" is a
+judgement about a surface's role, not a property of its class string — the same reason the pair-drift
+check cannot see a cross-element pairing. Sweeping every `<Button>` to `size="touch"` on the last day
+of the phase would satisfy the checkbox by changing the height of controls nobody assessed.
+
+**Owner: Phase 17's a11y audit**, per the decision already written at the CVA. The audit's two-theme
+pass over the rendered DOM is the layer that can measure real hit-target sizes on real surfaces, and
+its finding decides between per-site adoption and the responsive default 10-06 rejected on the
+evidence available then.
+
+**Not a regression, and not new debt.** DS-09 has been `Pending` since 10-06 opened it and both 10-06
+and 10-08 declined to close it in writing. This entry changes nothing about the state; it makes the
+state legible at the boundary where somebody is about to ask why 13 of 14 requirements are ticked.
