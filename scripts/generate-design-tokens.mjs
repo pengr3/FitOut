@@ -41,7 +41,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-import { converter, formatHex, parse } from "culori";
+import { converter, formatHex, inGamut, parse } from "culori";
 
 import {
   readThemeTokens,
@@ -76,6 +76,9 @@ const SINGLE_OKLCH = /^oklch\([^()]*\)$/;
  * @typedef {Record<string, TokenMap>} ThemeTokens
  */
 
+/** sRGB gamut predicate, hoisted so the check below is not rebuilt per token. */
+const srgbInGamut = inGamut("rgb");
+
 /**
  * Convert one authored CSS colour to its 8-bit sRGB hex.
  *
@@ -87,7 +90,7 @@ const SINGLE_OKLCH = /^oklch\([^()]*\)$/;
  * @param {string} cssValue
  * @returns {string}
  */
-function hexOf(name, cssValue) {
+export function hexOf(name, cssValue) {
   const rgb = toRgb(parse(cssValue));
   if (rgb === undefined) {
     throw new Error(
@@ -100,6 +103,24 @@ function hexOf(name, cssValue) {
     // today; if one ever does, this must grow an 8-digit form rather than lose the channel.
     throw new Error(
       `[generate-design-tokens] ${name}: ${JSON.stringify(cssValue)} carries alpha, which a 6-digit hex cannot represent`,
+    );
+  }
+  if (!srgbInGamut(cssValue)) {
+    // OUT OF GAMUT IS THE SAME CLASS OF LIE AS DROPPED ALPHA, and it was the one case this function
+    // let through (WR-11). `formatHex` CLAMPS each channel independently; browsers gamut-map in
+    // OKLCH, preserving hue and trading chroma. Those two procedures do not agree, so an
+    // out-of-gamut `oklch()` yields a perfectly plausible hex that is a DIFFERENT COLOUR from the
+    // one that renders — and because the generated artifacts are byte-compared by a drift test,
+    // that wrong colour would then be pinned and preserved indefinitely.
+    //
+    // This is not hypothetical here: `globals.css` records that the previously shipped
+    // `--destructive` sat outside the gamut at chroma 0.245 against a ~0.235 ceiling for its
+    // lightness and hue. All six current tokens are inside it, which is exactly why this throw
+    // costs nothing today and is worth adding before it does.
+    throw new Error(
+      `[generate-design-tokens] ${name}: ${JSON.stringify(cssValue)} is outside the sRGB gamut. ` +
+        `formatHex would clamp it per channel while the browser gamut-maps in OKLCH, so the ` +
+        `generated hex would not be the colour that renders. Lower the chroma until it fits.`,
     );
   }
   return formatHex(rgb);

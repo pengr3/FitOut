@@ -55,6 +55,7 @@ import { describe, it, expect } from "vitest";
 
 import { readThemeTokens } from "./helpers/compile-css";
 import {
+  hexOf,
   renderTokensModule,
   renderIconSvg,
 } from "../../scripts/generate-design-tokens.mjs";
@@ -154,5 +155,30 @@ describe("guard-the-guard: an empty render cannot match an empty file", () => {
     expect(hexesOf(court)).toHaveLength(2);
     expect(hexesOf(grove)).toHaveLength(2);
     expect(hexesOf(court)).not.toEqual(hexesOf(grove));
+  });
+
+  it("refuses to render a colour that is outside the sRGB gamut (WR-11)", () => {
+    // The generator threw on alpha but CLAMPED an out-of-gamut colour, which is the same class of
+    // lie with none of the noise. `formatHex` clamps each channel independently; browsers gamut-map
+    // in OKLCH, preserving hue and trading chroma. The two disagree, so the generated hex would be
+    // a plausible-looking DIFFERENT colour from the one that renders — and the byte comparisons
+    // above would then pin that wrong colour permanently.
+    //
+    // The control is the real value `globals.css` records as having shipped: chroma 0.245 against a
+    // ~0.235 ceiling for its lightness and hue.
+    const OUT_OF_GAMUT = "oklch(0.577 0.245 27.325)";
+    expect(() => hexOf("--destructive", OUT_OF_GAMUT)).toThrow(/outside the sRGB gamut/);
+
+    // Observed failing AND observed passing: an in-gamut colour must still convert, or this check
+    // would be satisfied by a function that threw on everything.
+    expect(hexOf("--brand", "oklch(0.55 0.20 25)")).toMatch(/^#[0-9a-f]{6}$/);
+
+    // Every token the themes actually declare must clear it, which is what makes the throw free.
+    for (const [theme, map] of Object.entries(tokens)) {
+      for (const [name, value] of Object.entries(map as Record<string, string>)) {
+        if (!value.startsWith("oklch(")) continue;
+        expect(() => hexOf(name, value), `${theme} ${name}`).not.toThrow();
+      }
+    }
   });
 });
