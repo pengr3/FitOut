@@ -325,7 +325,7 @@ larger type — the worst case):
 | Composition | Inline cluster | Fits 226px? | Behaviour |
 |---|---|---|---|
 | public / anonymous | `Log in` 52 + `Sign up` 74 + gap 12 = **138px** | yes | **Never collapses.** Hiding the acquisition CTA behind a hamburger is not a responsive strategy. |
-| public / signed-in, booker | mode switch 96 + bell 32 + `Profile` 48 + 2 gaps 24 = **200px** | yes, barely | **Never collapses.** `Profile` renders as an icon button below `sm:` and gains its text label at `sm:` — **one instance, CSS-revealed label** (`<UserIcon/><span className="hidden sm:inline">Profile</span>`), never a conditional render. Drops the cluster to ~176px. |
+| public / signed-in, booker | mode switch 96 + bell 32 + `Profile` 48 + 2 gaps 24 = **200px** | yes, barely | **Never collapses.** `Profile` renders as an icon button below `sm:` and gains its text label at `sm:` — **one instance, CSS-revealed label**, never a conditional render. Drops the cluster to ~176px. **The wrapper MUST carry `aria-label="Profile"` and the icon `aria-hidden="true"`:** `<Link aria-label="Profile"><UserIcon aria-hidden="true"/><span className="hidden sm:inline">Profile</span></Link>`. *(Corrected after UI-check.* `hidden` *removes content from the accessibility tree — which is the right mechanism for the nav-duplication case elsewhere in this doc, but applied here it would leave the control with NO accessible name below 640px, failing WCAG 4.1.2. `NotificationBell` in the same cluster already carries an* `aria-label`*; this one did not. Two mechanisms for two different reasons:* `hidden` *to avoid duplicating nav text,* `aria-label` *for an icon-only control.)* |
 | host | booker's 200 + `Earnings` 62 + `Requests` 66 + 2 gaps 24 = **352px** | **no** | **Collapses below `md:`.** `Earnings` and `Requests` move into a drawer behind a `size-8` `aria-label="Menu"` trigger. `ModeSwitch`, `NotificationBell` and `Profile` **stay inline** — a status indicator and a context switch are not destinations. |
 
 **The drawer is one source of truth for the links, two placements for the DOM.** Link data is authored once
@@ -1126,7 +1126,14 @@ comparison.
     container shape is a review failure.
 26. `src/components/ui/sheet.tsx` **does not exist**; `patterns/responsive-dialog.tsx` does.
 27. `Z_SHEET_INVENTORY` is asserted empty, and `--z-sheet` is still declared.
-28. The sheet uses `max-h-[85dvh]`; the string `vh]` appears nowhere in that file.
+28. The sheet uses `max-h-[85dvh]`, and no BARE viewport-height unit survives anywhere in that file:
+    `/\[\d+vh\]/.test(source)` is `false` while `source.includes("[85dvh]")` is `true`.
+    *(Corrected after UI-check. The original wording banned the substring `vh]`, which `dvh]`
+    contains — `d`,`v`,`h`,`]` ends in exactly `v`,`h`,`]` — so a literal `not.toContain("vh]")`
+    would have gone RED against the mandated, correct class. Verified by probe. A criterion that
+    fails on the correct implementation is the precise failure mode this phase's roadmap entry
+    warns about, arriving from the opposite direction: not a gate that cannot fail, but one that
+    cannot pass.)*
 29. `document.documentElement.scrollWidth <= clientWidth` at 320px on all 12 named routes, both themes.
 
 **GATE-01 / 04 / 05**
