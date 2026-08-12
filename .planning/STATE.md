@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-status: ready_to_plan
-stopped_at: Phase 10 complete (17/17) — ready to discuss Phase 999.1
-last_updated: 2026-08-12T03:07:22.067Z
-last_activity: 2026-08-12 -- Phase 10 plan 17 COMPLETE (checkpoint discharged; DS-04 mechanised rather than eyeballed) — all 17 plans done, phase awaiting /gsd:verify-work
+status: planning
+stopped_at: Phase 11 UI-SPEC approved
+last_updated: "2026-08-12T17:46:50.950Z"
+last_activity: "2026-08-13 - Completed quick task 260813-0h2: fix G-01 ScrollArea wrapper overflow. Phase 10 now has zero open items across review (49 findings, 3 passes), UAT (7/7 + G-01 closed), and security (50/50 threats, THREAT-SECURE, verdict independently re-audited)"
 progress:
   total_phases: 11
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 17
   completed_plans: 17
-  percent: 0
+  percent: 9
 ---
 
 # Project State
@@ -521,9 +521,9 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-12T02:55:00Z (continuation of 10-17's blocking human checkpoint)
-Stopped at: **Completed 10-17-PLAN.md — Phase 10 is fully executed (17/17) and awaits `/gsd:verify-work`.** Task 3's checkpoint returned `approved`, with three separately-recorded verdicts: SC#3 ACCEPTED by a human, D-11 ACCEPTED by a human (the deepened `--brand` stands; no `--brand-strong` escape hatch), and DS-04 **mechanised rather than eyeballed** — the prescribed manual check could not have worked, because `select.tsx:72`'s `data-[align-trigger=true]:animate-none` makes the panel compute `animation-name: none` in BOTH states, so its pass and fail look identical. `e2e/reduced-motion.spec.ts` (`afd7c2a`) proves three of the reset's four declarations in both directions and was watched red on a neutered `globals.css`. DS-13 + DS-06 marked **Complete** (unblocked by the D-11 acceptance, since a rejection could have re-derived `--brand`); **DS-09 deliberately left Pending as deferred item D-10** — 2 adopters is not "the standard", no static gate can judge it, Phase 17 owns it. DS-04 promoted out of `10-VALIDATION.md` § Manual-Only. Verification: build exit 0 (94s), design gate 375/375, reduced-motion 2 passed, tsc 0, `src/` untouched. `npm run test:e2e` **19 passed / 1 failed / 5 did not run of 25** — the failure is D-6 item 1 and the 5 are its cancelled serial block, correcting a number every prior plan had been cropping. ROADMAP's phase checkbox and progress row were reverted to `In Progress` after the SDK's documented last-plan over-reach. Next: `/gsd:verify-work` for Phase 10
-Resume file: None
+Last session: 2026-08-12T17:46:50.932Z
+Stopped at: Phase 11 UI-SPEC approved
+Resume file: .planning/phases/11-quality-gates-pattern-layer-app-shell/11-UI-SPEC.md
 
 Prior session: 2026-08-11T19:32:32.584Z
 Stopped at: Completed 10-12-PLAN.md (all 14 shadow call sites on three named elevation steps, 31-assertion gate watched red at 5/26; **deferred item D-1 CLOSED** — Tailwind's content root narrowed to `src/`, 15,053 bytes / 11.2% of the shipped CSS removed with zero real utilities lost, which exposed two tests that had been passing on planning prose) — next 10-13
@@ -705,6 +705,7 @@ Resume file: None
 - **Run `/gsd:verify-work` for Phase 10.** All 17 plans are executed; the phase-level ROADMAP
   checkbox and progress row are deliberately still `In Progress` because closing a phase is
   verification's call, not a plan's.
+
 - Two things the verifier should be handed rather than left to discover: **DS-09 is the one Phase 10
   requirement still `Pending`, on purpose** (deferred item D-10 states why and names Phase 17 as
   owner), and **`npm run test:e2e` reports 19 passed / 1 failed / 5 did not run of 25** — the failure
