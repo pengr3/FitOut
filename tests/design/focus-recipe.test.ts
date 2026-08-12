@@ -99,21 +99,51 @@ const HALF_ALPHA_RING = "ring-ring/50";
 const HALF_ALPHA_OUTLINE = "outline-ring/50";
 
 /**
- * Any focus-scoped ring COLOUR carrying an alpha modifier — the D-2 widening.
+ * ANY ring COLOUR carrying an alpha modifier — the D-2 widening, re-widened by CR-01.
  *
  * The literal scans above catch the shadcn default by name. They do not catch a variant that
  * overrides the base recipe with a DIFFERENT colour at a DIFFERENT alpha, which is exactly what
  * `button.tsx` and `badge.tsx` were doing (deferred item D-2, absorbed by plan 10-07): same defect
  * class, worse alpha, invisible to a scan written against the base string.
  *
- * The token run is bounded by whitespace and quote characters so a match can never span two class
- * names. `focus` rather than `focus-visible` is the anchor because a real focus recipe in this tree
- * also arrives as `group-data-[focused=true]/day:` (calendar) and
- * `has-[[data-slot=input-group-control]:focus-visible]:` (input-group).
+ * THE `focus` ANCHOR IS GONE, AND ITS ABSENCE IS THE POINT (CR-01). This pattern used to read
+ * `[^\s"'`]*focus[^\s"'`]*:ring-…`, scoping itself to variants whose name contains "focus". The
+ * file's ARGUMENT, however, is arithmetic — no value of `--ring` can rescue a diluted ring — and
+ * that argument does not care which variant carries the dilution. The gap was live, not
+ * theoretical: `aria-invalid:ring-destructive/20` shipped on ten primitives and won over
+ * `focus-visible:ring-ring` on source order alone (both flatten to specificity (0,2,0), and the
+ * state rule is emitted later), so a focused invalid control painted its focus indicator at 1.44:1
+ * against a 3:1 bar — with `outline-none` removing the fallback. A scan anchored on the word
+ * `focus` could not see it, one line above the comment documenting the identical miss-mode.
  *
- * `ring-0` and `ring-2` cannot match: the colour segment must start with a letter.
+ * So the anchor is now the RING ITSELF, and the variant chain is optional. That reaches three
+ * shapes the old pattern could not: a state variant (`aria-invalid:`, `data-*`, `group-*`), a
+ * bare unprefixed ring (`ring-brand/50`, which shipped on the slot picker's pending-start anchor
+ * at 2.23:1), and a hover ring.
+ *
+ * The token run is bounded by whitespace and quote characters so a match can never span two class
+ * names. `ring-0`, `ring-2` and `ring-3` cannot match: the colour segment must start with a letter.
  */
-const ALPHA_FOCUS_RING = /[^\s"'`]*focus[^\s"'`]*:ring-[a-z][a-z0-9-]*\/\d+/g;
+const ALPHA_RING_COLOUR = /(?:([^\s"'`]*:))?ring-[a-z][a-z0-9-]*\/\d+/g;
+
+/**
+ * The one diluted ring that is NOT an indicator — the decorative hairline, exempted as DATA.
+ *
+ * `ring-1 ring-foreground/10` is this codebase's card/overlay EDGE: the 1px hairline on `card`,
+ * `dialog`, `popover`, `dropdown-menu`, `select` content and the map panel. It is a border drawn
+ * with a ring so it can sit outside the padding box, and it is the exact same category as
+ * `--border` / `--input`, which `contrast-pairs.ts` already carries in `EXCLUDED_PAIRS` with the
+ * reason "decorative divider — never a control's sole visible boundary or its sole focus
+ * indicator". Banning it would not make anything more accessible; it would delete the surface
+ * treatment and teach the next author that this gate cries wolf.
+ *
+ * THE EXEMPTION IS DELIBERATELY NARROWER THAN THE IDIOM: only the BARE form is exempt. A variant
+ * chain means the ring appears in response to a STATE — focus, hover, invalid, selection — and a
+ * state ring is an indicator by definition, whatever colour it borrows. So `ring-foreground/10`
+ * passes and `focus-visible:ring-foreground/10` is still a violation, which is what keeps this
+ * from becoming the hole CR-01 just closed.
+ */
+const DECORATIVE_HAIRLINE = new Set(["ring-foreground/10"]);
 
 /**
  * A variant-prefixed ring-offset WIDTH, capturing its prefix.
@@ -133,8 +163,8 @@ interface Scan {
   halfAlphaRing: Violation[];
   /** Files carrying the stylesheet's half-alpha outline colour. */
   halfAlphaOutline: Violation[];
-  /** Files carrying ANY alpha modifier on a focus-scoped ring colour (the D-2 widening). */
-  alphaFocusRing: Violation[];
+  /** Files carrying ANY alpha modifier on ANY ring colour (the D-2 widening, re-widened by CR-01). */
+  alphaRingColour: Violation[];
   /** Offset widths whose matching offset colour is missing at the same variant prefix. */
   uncolouredOffset: Violation[];
   /** Files declaring the canonical focus ring colour without the canonical offset colour. */
@@ -149,7 +179,7 @@ function scanSrc(): Scan {
     scanned: [],
     halfAlphaRing: [],
     halfAlphaOutline: [],
-    alphaFocusRing: [],
+    alphaRingColour: [],
     uncolouredOffset: [],
     unpairedRecipe: [],
     text: new Map(),
@@ -164,8 +194,11 @@ function scanSrc(): Scan {
     if (text.includes(HALF_ALPHA_RING)) scan.halfAlphaRing.push(name);
     if (text.includes(HALF_ALPHA_OUTLINE)) scan.halfAlphaOutline.push(name);
 
-    for (const m of text.matchAll(ALPHA_FOCUS_RING)) {
-      scan.alphaFocusRing.push(`${name}: ${m[0]}`);
+    for (const m of text.matchAll(ALPHA_RING_COLOUR)) {
+      // `m[1]` is the variant chain, `undefined` when the utility is bare. Only a bare hairline
+      // is exempt — see DECORATIVE_HAIRLINE.
+      if (m[1] === undefined && DECORATIVE_HAIRLINE.has(m[0])) continue;
+      scan.alphaRingColour.push(`${name}: ${m[0]}`);
     }
 
     for (const m of text.matchAll(PREFIXED_OFFSET_WIDTH)) {
@@ -219,10 +252,50 @@ describe("DS-05 — no focus indicator relies on a diluted colour", () => {
     expect(scan.halfAlphaOutline).toEqual([]);
   });
 
-  it("no alpha modifier survives on any focus-scoped ring colour (D-2 widening)", () => {
+  it("no alpha modifier survives on ANY ring colour, focus-scoped or not (D-2 + CR-01)", () => {
     // Wider than the literal on purpose: `ring-destructive/20` is the same defect at a worse alpha,
-    // and a scan written against the base string closes green while it still ships.
-    expect(scan.alphaFocusRing).toEqual([]);
+    // and a scan written against the base string closes green while it still ships. Wider than
+    // "focus" on purpose too — see ALPHA_RING_COLOUR. A ring that is diluted while the element is
+    // in a STATE is diluted while it is focused IN that state, which is the moment it is load-bearing.
+    expect(scan.alphaRingColour).toEqual([]);
+  });
+
+  it("the widened scan actually fires on the two shapes the `focus` anchor could not see", () => {
+    // POSITIVE CONTROL. Every assertion above is an empty-violations assertion, and the widening
+    // this test defends is a DELETION from a regex — the single easiest edit to make silently
+    // ineffective. These two strings are the exact shapes CR-01 found shipping: a state-scoped ring
+    // (ten primitives) and a bare unprefixed one (the slot picker). Neither matches the old pattern.
+    const stateScoped = 'className="aria-invalid:ring-3 aria-invalid:ring-destructive/20"';
+    const bare = 'className="border-brand ring-2 ring-brand/50"';
+    for (const shape of [stateScoped, bare]) {
+      expect([...shape.matchAll(ALPHA_RING_COLOUR)], shape).not.toEqual([]);
+    }
+    // …and the widening must not swallow the legal shapes: a width, or a solid token colour.
+    for (const legal of ["ring-2", "ring-3", "ring-0", "ring-brand", "focus-visible:ring-ring"]) {
+      expect([...legal.matchAll(ALPHA_RING_COLOUR)], legal).toEqual([]);
+    }
+  });
+
+  it("exempts the BARE decorative hairline and nothing wearing a variant", () => {
+    // The exemption is the one place this gate can be widened into uselessness, so it is asserted
+    // in BOTH directions rather than trusted. A state-scoped ring borrowing the hairline's colour
+    // is still an indicator, and must still be caught.
+    const bare = [...'className="rounded-xl ring-1 ring-foreground/10"'.matchAll(ALPHA_RING_COLOUR)];
+    expect(bare).toHaveLength(1);
+    expect(bare[0][1]).toBeUndefined();
+    expect(DECORATIVE_HAIRLINE.has(bare[0][0])).toBe(true);
+
+    const scoped = [...'className="focus-visible:ring-foreground/10"'.matchAll(ALPHA_RING_COLOUR)];
+    expect(scoped).toHaveLength(1);
+    expect(scoped[0][1]).toBe("focus-visible:");
+    expect(DECORATIVE_HAIRLINE.has(scoped[0][0])).toBe(false);
+  });
+
+  it("the hairline exemption still describes something the tree actually renders", () => {
+    // An exemption for a shape nobody uses is dead weight that only widens the gate. If the card
+    // edge is ever redrawn with a border, DELETE the entry rather than leaving it standing open.
+    const card = scan.text.get("src/components/ui/card.tsx") ?? "";
+    expect(card).toContain("ring-1 ring-foreground/10");
   });
 });
 

@@ -212,7 +212,12 @@ export function SlotPicker({
                     // a color-mix rather than tinting at 90% alpha (4.04:1 court / 3.87:1 grove).
                     "data-[state=on]:border-transparent data-[state=on]:bg-brand data-[state=on]:text-brand-foreground data-[state=on]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]",
                     // Pending anchor = coral RING (not filled), so start vs committed reads at a glance.
-                    isAnchor && "border-brand ring-2 ring-brand/50",
+                    // The ring is SOLID (CR-01 of the phase-10 review). At 50% alpha it composited to
+                    // #ed969a on card and measured 2.23:1 (court) / 2.03:1 (grove) against the 3:1
+                    // non-text bar — an indicator that has to be seen, painted below the bar for
+                    // seeing it. Solid `brand` on `card` is already a DECLARED, measured row in
+                    // `contrast-pairs.ts`, so this shape needs no new exemption.
+                    isAnchor && "border-brand ring-2 ring-brand",
                   )}
                 >
                   <span className="tabular-nums">{timeLabel}</span>

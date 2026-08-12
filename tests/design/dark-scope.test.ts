@@ -232,8 +232,10 @@ describe("THEME-05 — the scan reaches both sides of the boundary it partitions
     expect(app.files.length).toBeGreaterThan(100);
   });
 
-  it("finds the 14 vendored primitives that actually carry the variant", () => {
-    expect(vendored.filesWithHits.length).toBe(14);
+  it("finds the 13 vendored primitives that actually carry the variant", () => {
+    // 13 rather than 14 since CR-01: `toggle.tsx`'s ONLY dark-prefixed utility was the alpha ring
+    // twin, so removing it took the file out of this bucket entirely.
+    expect(vendored.filesWithHits.length).toBe(13);
   });
 
   it("puts a named file on EACH side, so neither collapse of the partition can pass quietly", () => {
@@ -291,13 +293,14 @@ describe("THEME-05 — no app-code surface carries a second-colour-scheme varian
 
 describe("THEME-05 / D-129 as amended — the vendored survivors are a recorded decision", () => {
   it(
-    "pins the vendored total at 54 OCCURRENCES (the number, not a copy of it) — the record of a " +
-      "deliberate exemption taken so 14 shadcn primitives are not permanently forked and every future " +
+    "pins the vendored total at 44 OCCURRENCES (the number, not a copy of it) — the record of a " +
+      "deliberate exemption taken so the shadcn primitives are not permanently forked and every future " +
       "`npx shadcn add` does not re-violate the rule; a change to this number is a decision to make " +
-      "consciously, NOT a test to edit. It is 54 rather than THEME-05's original 56 because plan 10-07 " +
-      "removed two alpha-diluted focus rings and their twins (deferred item D-2)",
+      "consciously, NOT a test to edit. It was THEME-05's original 56, then 54 when plan 10-07 removed " +
+      "two alpha-diluted focus rings and their twins (deferred item D-2), and is now 44 because CR-01 " +
+      "removed the invalid-state alpha ring from ten primitives and each took its dark twin with it",
     () => {
-      expect(vendored.occurrences).toBe(54);
+      expect(vendored.occurrences).toBe(44);
     },
   );
 

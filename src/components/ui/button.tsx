@@ -37,12 +37,27 @@ import { cn } from "@/lib/utils"
 //    TOWARD the text colour, which is the wrong direction, and is why the 20%-alpha hover it
 //    replaces measured 4.01:1.
 //
+// 5. THE `aria-invalid` RING COLOUR IS GONE (CR-01 of the phase-10 review), and this is the same
+//    defect as note 4 one state further along. The base recipe set `focus-visible:ring-ring` AND a
+//    20%-alpha destructive ring colour scoped to the invalid state — described, not quoted, because
+//    `focus-recipe.test.ts` now bans that utility anywhere under `src/` and a comment naming it is
+//    textually indistinguishable from a call site using it. Both set `--tw-ring-color`, both
+//    flatten to specificity (0,2,0), so SOURCE ORDER decided — and the state rule is emitted later.
+//    A focused invalid control therefore painted its focus ring at 1.44:1 against a 3:1 bar, on
+//    precisely the field the user was just sent back to fix, with `outline-none` removing the only
+//    fallback. The WIDTH went with the colour: Tailwind v4 leaves `--tw-ring-color` with no initial
+//    value and falls back to `currentcolor`, so keeping a bare `aria-invalid:ring-3` would paint a
+//    3px near-black halo on every invalid field instead. `aria-invalid:border-destructive` already
+//    carries the error meaning — it is what the 1.44:1 wash was failing to add — so the state keeps
+//    its cue and focus keeps its ring. Do not reintroduce a ring colour on a STATE variant here:
+//    `focus-recipe.test.ts`'s alpha scan is now anchored on the ring, not on the word `focus`.
+//
 // NOT CHANGED HERE, ON PURPOSE: `text-sm font-medium` (it now renders at the theme's emphasis
 // weight because `--font-weight-medium` is aliased onto it — an accepted visible change needing
 // zero edits), the `text-[0.8rem]` in `size: sm` (recorded, tolerated vendored debt; the leak
 // pattern is px-only), and every dark-mode-prefixed utility below.
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
