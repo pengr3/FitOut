@@ -66,6 +66,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import ts from "typescript";
 
+import { stripComments } from "./helpers/strip-comments";
+
 const SRC_DIR = resolve(process.cwd(), "src");
 
 /** A single violation, rendered as one readable `file:snippet` line for the failure diff. */
@@ -608,6 +610,67 @@ describe("DS-05 — the offset band is a token, never a framework default", () =
     const units = cssDeclarations(css);
     expect(units.length).toBeGreaterThan(100);
     expect(units.every(({ chunk }) => chunk.length < css.length)).toBe(true);
+  });
+
+  it("no state variant cancels the invalid affordance with a non-destructive colour (WR-01)", () => {
+    // WHY THIS LIVES IN THE FOCUS FILE. It is the same defect class as CR-01 one step along, and
+    // this file already owns it: a STATE-scoped rule quietly outranking the base recipe and
+    // removing the indicator, invisible to a scan written against the base string. There the state
+    // rule diluted the focus ring; here it replaced the error border with the primary token.
+    //
+    // WHAT WENT WRONG. Deleting the invalid RING was correct — Tailwind v4 gives `--tw-ring-color`
+    // no initial value, so a bare width paints a near-black halo — and the note recording it said
+    // the destructive BORDER already carried the error meaning. True for Input, Textarea, Select,
+    // Switch, Toggle, Badge and Button. False for Checkbox and RadioGroupItem, which each carried a
+    // second invalid border scoped to the checked state and pointed at the primary token. Confirmed
+    // against the compiled stylesheet rather than assumed: the plain rule emits
+    // `&[aria-invalid="true"]` at (0,2,0), the checked-and-invalid one nests `&[aria-checked="true"]`
+    // inside it at (0,3,0) and wins on specificity regardless of order, and Radix sets
+    // `aria-checked` on both roots. A checked, invalid control therefore had NO error cue at all.
+    //
+    // THE RULE. Any colour utility whose variant chain mentions the invalid state must name the
+    // destructive token. That is what "the border carries the error meaning" means as an assertion
+    // rather than as a sentence. Read from STRIPPED code, so the notes in `button.tsx` that explain
+    // this decision cannot satisfy or trip it.
+    const INVALID_SCOPED_COLOUR =
+      /(?:[^\s"'`]*:)?aria-invalid(?::[^\s"'`]+)*:(?:border(?:-[trblxyse])?|text|ring|bg|outline|divide)-([a-z][a-z0-9-]*)(?:\/\d+)?/g;
+
+    const offenders: Violation[] = [];
+    for (const [name, text] of scan.text) {
+      for (const m of stripComments(text).matchAll(INVALID_SCOPED_COLOUR)) {
+        if (m[1] === "destructive") continue;
+        offenders.push(`${name}: ${m[0]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+
+    // POSITIVE CONTROL. Every assertion above is an empty-violations assertion, and this one is a
+    // regex — the single easiest thing to make silently ineffective. The first shape is verbatim
+    // what shipped on both primitives; the rest must still be allowed through.
+    const caught = "aria-invalid:aria-checked:border-primary";
+    expect([...caught.matchAll(INVALID_SCOPED_COLOUR)], caught).not.toEqual([]);
+    for (const legal of [
+      "aria-invalid:border-destructive",
+      "aria-invalid:aria-checked:border-destructive",
+      "dark:aria-invalid:border-destructive/50",
+      // A ring WIDTH is not a colour, and `input-group.tsx` legitimately zeroes one.
+      "aria-invalid:ring-0",
+      "data-checked:border-primary",
+    ]) {
+      const hits = [...legal.matchAll(INVALID_SCOPED_COLOUR)].filter((m) => m[1] !== "destructive");
+      expect(hits, legal).toEqual([]);
+    }
+  });
+
+  it("both controls the WR-01 gate exists for are actually in the scan", () => {
+    // The gate above is an empty-list assertion over `scan.text`, which a walker that missed these
+    // two files satisfies perfectly. Named explicitly because they are the only two primitives the
+    // defect ever applied to.
+    expect(scan.scanned).toContain("src/components/ui/checkbox.tsx");
+    expect(scan.scanned).toContain("src/components/ui/radio-group.tsx");
+    for (const file of ["src/components/ui/checkbox.tsx", "src/components/ui/radio-group.tsx"]) {
+      expect(scan.text.get(file), `${file} was not read`).toContain("aria-invalid:border-destructive");
+    }
   });
 
   it("the canonical recipe is still written verbatim in the file that defines it", () => {

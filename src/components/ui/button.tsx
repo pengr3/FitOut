@@ -52,6 +52,20 @@ import { cn } from "@/lib/utils"
 //    its cue and focus keeps its ring. Do not reintroduce a ring colour on a STATE variant here:
 //    `focus-recipe.test.ts`'s alpha scan is now anchored on the ring, not on the word `focus`.
 //
+//    THE SENTENCE ABOVE WAS TRUE OF SEVEN PRIMITIVES AND FALSE OF TWO (WR-01). Input, Textarea,
+//    Select, Switch, Toggle, Badge and Button do get the destructive border when invalid. Checkbox
+//    and RadioGroupItem did NOT: both carried a second, MORE SPECIFIC invalid border scoped to the
+//    checked state and pointed at the primary token — described rather than quoted, per this
+//    phase's standing resolution and because `focus-recipe.test.ts` now scans for that shape. It
+//    compiles to a nested `&[aria-checked="true"]` at (0,3,0) and beats the plain invalid border's
+//    (0,2,0); Radix sets `aria-checked` on both roots, so a CHECKED and invalid control rendered a
+//    primary border on a primary fill — no destructive cue at all. Deleting the ring was still
+//    right; recording that a border took over its job, WITHOUT checking that those two controls
+//    receive that border, was not. Both now point the state-scoped rule at the destructive token,
+//    so the claim holds for all nine, and the gate below keeps it that way. If a future change
+//    wants the primary border back on the checked state, that state needs its own solid cue —
+//    this note is the carve-out, and the gate names both files.
+//
 // NOT CHANGED HERE, ON PURPOSE: `text-sm font-medium` (it now renders at the theme's emphasis
 // weight because `--font-weight-medium` is aliased onto it — an accepted visible change needing
 // zero edits), the `text-[0.8rem]` in `size: sm` (recorded, tolerated vendored debt; the leak
