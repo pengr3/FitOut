@@ -463,11 +463,29 @@ describe("the DS-13 raw-design-value gate", () => {
   // D-16: one list, two consumers.
   // ---------------------------------------------------------------------------------------------
 
-  it("shares one pattern list and one scope with the ESLint rule (D-16)", () => {
+  it("shares one pattern list, one scope AND one rule id with the ESLint rule (D-16)", () => {
     expect(ESLINT_CONFIG).toContain("config/design-leak-patterns.mjs");
     expect(ESLINT_CONFIG).toContain("DESIGN_LEAK_PATTERNS");
     expect(ESLINT_CONFIG).toContain("LEAK_SCAN_GLOBS");
-    expect(ESLINT_CONFIG).toContain(`"${LEAK_DISABLE_RULE_ID}": "error"`);
+
+    // THE ID IS ASSERTED AS AN IMPORT, NOT AS A SPELLING (WR-14). This used to require the literal
+    // `"fitout/no-raw-design-value": "error"` to appear in the config — which passed just as well
+    // when the id was RE-TYPED there as when it was shared, and so tested the very duplication it
+    // was meant to rule out. What matters is that the config derives the id from the constant, so
+    // renaming the rule cannot leave the two halves disagreeing about which
+    // `eslint-disable-next-line` comments are honoured.
+    expect(ESLINT_CONFIG).toContain("LEAK_DISABLE_RULE_ID");
+    expect(ESLINT_CONFIG).toContain("[LEAK_DISABLE_RULE_ID]: \"error\"");
+    expect(ESLINT_CONFIG).not.toContain(`"${LEAK_DISABLE_RULE_ID}": "error"`);
+
+    // The plugin key and the rule name must be SPLIT from the shared id rather than respelled, or
+    // the plugin could be registered under a name the reported id does not match.
+    const [pluginName, ruleName] = LEAK_DISABLE_RULE_ID.split("/");
+    expect(pluginName).toBe("fitout");
+    expect(ruleName).toBe("no-raw-design-value");
+    expect(ESLINT_CONFIG).toContain("LEAK_DISABLE_RULE_ID.split(\"/\")");
+    expect(ESLINT_CONFIG).toContain("[LEAK_PLUGIN_NAME]:");
+    expect(ESLINT_CONFIG).toContain("[LEAK_RULE_NAME]:");
   });
 
   it("agrees with findDesignLeaks, the shared classifier both gates call", () => {

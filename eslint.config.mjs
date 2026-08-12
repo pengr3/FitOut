@@ -4,8 +4,21 @@ import nextTs from "eslint-config-next/typescript";
 
 import {
   DESIGN_LEAK_PATTERNS,
+  LEAK_DISABLE_RULE_ID,
   LEAK_SCAN_GLOBS,
 } from "./config/design-leak-patterns.mjs";
+
+// The rule id, DERIVED from the shared constant rather than respelled here (WR-14).
+//
+// `LEAK_DISABLE_RULE_ID` is documented as "the id both consumers report under, so a violation reads
+// the same from either gate" — but only the Vitest half imported it. This file re-typed the plugin
+// name and the rule name as two separate string literals in three places, so the constant described
+// an agreement it did not enforce. Rename the plugin key and every
+// `// eslint-disable-next-line fitout/no-raw-design-value` in the tree silently becomes a no-op in
+// ESLint while the Vitest gate still honours it — the two halves of D-16 disagreeing about
+// EXEMPTIONS, which is the one outcome D-16 exists to prevent. Splitting the single constant is what
+// makes the plugin key and the rule name un-typo-able.
+const [LEAK_PLUGIN_NAME, LEAK_RULE_NAME] = LEAK_DISABLE_RULE_ID.split("/");
 
 // The DS-13 leak rule, defined inline as a flat-config plugin.
 //
@@ -95,8 +108,8 @@ const eslintConfig = defineConfig([
   // exemption.
   {
     files: [...LEAK_SCAN_GLOBS],
-    plugins: { fitout: { rules: { "no-raw-design-value": noRawDesignValue } } },
-    rules: { "fitout/no-raw-design-value": "error" },
+    plugins: { [LEAK_PLUGIN_NAME]: { rules: { [LEAK_RULE_NAME]: noRawDesignValue } } },
+    rules: { [LEAK_DISABLE_RULE_ID]: "error" },
   },
 ]);
 
