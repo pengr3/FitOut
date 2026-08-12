@@ -173,8 +173,22 @@ const DECORATIVE_HAIRLINE = new Set(["ring-foreground/10"]);
  *
  * A class string is the smallest unit that reliably belongs to a single element, so the checks now
  * run per literal. The walker is `pair-drift.test.ts:351`'s, which chose the same unit for the same
- * reason; template SPANS are visited individually, so an interpolation splits the literal rather
- * than joining two elements' classes into one chunk.
+ * reason.
+ *
+ * ONE TEMPLATE LITERAL IS ONE UNIT (IN-13). Head, middle and tail used to be visited as SEPARATE
+ * chunks, so an interpolation split a recipe that renders on one element. A complete and correct
+ * recipe written as
+ *
+ *   className={`… focus-visible:ring-ring ${x} focus-visible:ring-offset-background`}
+ *
+ * was reported as an uncoloured offset — verified on `booking-row.tsx` before this change, one
+ * failure naming the file and line. That is the FALSE-POSITIVE direction, so nothing shipped
+ * wrong; but a gate that cries wolf on a legal shape is how a gate gets disabled.
+ *
+ * Joining the static parts is safe in a way that unioning two SEPARATE literals would not be: the
+ * parts of one template always render together and unconditionally, so this cannot mint a false
+ * exemption the way merging `cn()`'s conditional arguments could. The parts are joined with a
+ * SPACE, never bare, so that `` `bg-${x}-500` `` cannot fuse into a token nobody wrote.
  */
 function classChunks(path: string, text: string): { chunk: string; line: number }[] {
   const sf = ts.createSourceFile(
@@ -186,13 +200,17 @@ function classChunks(path: string, text: string): { chunk: string; line: number 
   );
   const out: { chunk: string; line: number }[] = [];
   const visit = (node: ts.Node): void => {
-    if (
-      ts.isStringLiteral(node) ||
-      ts.isNoSubstitutionTemplateLiteral(node) ||
-      ts.isTemplateHead(node) ||
-      ts.isTemplateMiddle(node) ||
-      ts.isTemplateTail(node)
-    ) {
+    if (ts.isTemplateExpression(node)) {
+      out.push({
+        chunk: [node.head.text, ...node.templateSpans.map((s) => s.literal.text)].join(" "),
+        line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+      });
+      // Descend into the INTERPOLATIONS only. The head/middle/tail were just consumed above, and
+      // re-visiting them would restore the very splitting this fixes.
+      for (const span of node.templateSpans) visit(span.expression);
+      return;
+    }
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       out.push({
         chunk: node.text,
         line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
@@ -610,6 +628,53 @@ describe("DS-05 — the offset band is a token, never a framework default", () =
         !chunk.includes("focus-visible:ring-offset-background"),
     );
     expect(unpaired).toHaveLength(1);
+  });
+
+  it("treats one template literal as one element, interpolations and all (IN-13)", () => {
+    // Head/middle/tail used to be three chunks, so an interpolation split a recipe that renders on
+    // ONE element and the gate reported a correct component. Verified on `booking-row.tsx` before
+    // the change: one failure naming the file and line, for a class string that is entirely
+    // correct. False-positive direction, so nothing shipped broken — but a gate that cries wolf on
+    // a legal shape is how a gate ends up disabled.
+    const split = [
+      "export const A = () => (",
+      "  <div className={`focus-visible:ring-2 focus-visible:ring-ring ${x} focus-visible:ring-offset-2 focus-visible:ring-offset-background`} />",
+      ");",
+    ].join("\n");
+
+    const splitChunks = classChunks("fixture.tsx", split);
+    const splitUnpaired = splitChunks.filter(
+      ({ chunk }) =>
+        chunk.includes("focus-visible:ring-ring") &&
+        !chunk.includes("focus-visible:ring-offset-background"),
+    );
+    expect(splitUnpaired, "a complete recipe split by an interpolation is not a violation").toEqual(
+      [],
+    );
+
+    // …AND THE GATE MUST NOT HAVE GONE BLIND. The same shape with the offset colour genuinely
+    // absent is still reported — verified on the real tree too, naming file and line.
+    const broken = split.replace(" focus-visible:ring-offset-background", "");
+    const brokenOffenders = classChunks("fixture.tsx", broken).filter(({ chunk }) =>
+      [...chunk.matchAll(PREFIXED_OFFSET_WIDTH)].some(
+        (m) => !chunk.includes(`${m[1]}ring-offset-background`),
+      ),
+    );
+    expect(brokenOffenders).toHaveLength(1);
+
+    // JOINING IS PER-TEMPLATE, NOT PER-ELEMENT. Two separate literals stay two chunks, so the
+    // sibling-vouching property the test above pins is untouched by this widening.
+    const twoLiterals = 'const a = "focus-visible:ring-ring"; const b = "ring-offset-background";';
+    expect(classChunks("fixture.ts", twoLiterals)).toHaveLength(2);
+
+    // The static parts are joined with a SPACE, so a token cannot be fabricated across the seam.
+    const fused = classChunks("fixture.ts", "const c = `bg-${x}-500`;");
+    expect(fused[0]?.chunk).not.toContain("bg--500");
+    expect(fused[0]?.chunk).toBe("bg- -500");
+
+    // Literals inside the interpolation are still visited — descending must not have been lost.
+    const inner = classChunks("fixture.ts", 'const d = `a-${cond ? "ring-ring" : ""}-b`;');
+    expect(inner.some(({ chunk }) => chunk === "ring-ring")).toBe(true);
   });
 
   it("reports an `@apply` in the STYLESHEET, on both checks (CR-02)", () => {
