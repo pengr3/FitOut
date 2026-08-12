@@ -250,9 +250,31 @@ describe("DS-14 (part 2) — the scaffold's assets are deleted, not left alongsi
     // The check is deliberately structural rather than a bare string search: the layout's comment
     // EXPLAINS the absent entry at length, so it necessarily contains the word, and a criterion that
     // counted the word would be satisfied by the prose that argues against it.
+    // THE ANCHORS ARE ASSERTED BEFORE THEY ARE USED (WR-06). Both `indexOf` calls below return -1
+    // when they miss, and -1 is a legal argument to `slice` that silently produces the wrong text
+    // rather than throwing: `slice(-1)` yields the last CHARACTER of the file, the second lookup
+    // then also returns -1, `slice(0, -1)` yields the empty string, and
+    // `expect("").not.toMatch(…)` passes. So any refactor of the declaration form — `export const
+    // metadata: Metadata =`, a `satisfies` clause, a rename, a switch to `generateMetadata` —
+    // would disarm this check completely while leaving it green and looking rigorous. That failure
+    // is silent, permanent, and precisely the shape this suite exists to prevent elsewhere.
     const source = readFileSync(LAYOUT_PATH, "utf8");
-    const metadata = source.slice(source.indexOf("export const metadata"));
-    const body = metadata.slice(0, metadata.indexOf("\n};"));
+    const start = source.indexOf("export const metadata");
+    expect(
+      start,
+      "layout.tsx no longer declares `export const metadata` — this check's anchor moved, so it is " +
+        "reading the wrong text. Re-point it rather than deleting it.",
+    ).toBeGreaterThanOrEqual(0);
+
+    const metadata = source.slice(start);
+    const end = metadata.indexOf("\n};");
+    expect(
+      end,
+      "could not find the end of the metadata object literal from its declaration",
+    ).toBeGreaterThan(0);
+
+    const body = metadata.slice(0, end);
+    expect(body.length, "the metadata body read as empty").toBeGreaterThan(0);
     expect(
       body,
       "layout.tsx declares metadata icons again — see src/components/theme/favicon-swap.tsx for the measurement",
