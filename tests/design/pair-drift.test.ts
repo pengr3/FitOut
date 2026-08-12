@@ -525,6 +525,53 @@ describe("the declared pair inventory matches what components render", () => {
     expect(DECLARED.has(solid)).toBe(false);
   });
 
+  it("is SURFACE-blind, and that gap is pinned rather than merely described (IN-11)", () => {
+    // THE HEADER'S LAST "NOT COVERED" BULLET, MADE RUNNABLE. `pairKey` carries both opacities but
+    // drops `alpha.over`, so two inventory rows measured over DIFFERENT surfaces collapse to one
+    // key and either one legalises the tint over any surface.
+    //
+    // This is asserted, not just written down, because this phase has twice shipped a header
+    // sentence that outlived the code it described — the "alpha-blind" bullet WR-04 had to correct
+    // was exactly that. A described gap nobody runs is indistinguishable from a closed one.
+    // Typed as `ContrastPair[]` for the reason `DECLARED` is: the inventory is `as const`, so each
+    // row infers its own literal type and the optional `alpha` field is not on the resulting union.
+    const rows = CONTRAST_PAIRS as readonly ContrastPair[];
+    const overBackground = rows.filter(
+      (p) => p.fg === "destructive" && p.bg === "destructive" && p.alpha?.over === "background",
+    );
+    const overCard = rows.filter(
+      (p) => p.fg === "destructive" && p.bg === "destructive" && p.alpha?.over === "card",
+    );
+    // Both rows really exist and really differ only in the surface they were measured over.
+    expect(overBackground).toHaveLength(1);
+    expect(overCard).toHaveLength(1);
+    expect(overBackground[0]?.alpha?.value).toBe(overCard[0]?.alpha?.value);
+
+    // …and they mint the SAME key, which is the blindness.
+    expect(pairKey("destructive", "destructive", { bg: 10 })).toBe(
+      pairKey("destructive", "destructive", { bg: 10 }),
+    );
+    expect(
+      DECLARED.has(pairKey("destructive", "destructive", { bg: 10 })),
+      "the two `destructive/10` rows collapse to one key",
+    ).toBe(true);
+
+    // WHY THIS IS NOT FIXED HERE, AND WHY CLOSING IT WOULD MAKE THE GATE WORSE: the scan reads a
+    // class STRING. `bg-destructive/10` says nothing about what is painted behind the element, so
+    // there is no `over` to key on from the call-site side. Putting `over` into the key would leave
+    // every declared alpha row unmatchable by any real class string and turn this gate into a
+    // false-positive generator. The coverage genuinely lives in `contrast.test.ts`, which measures
+    // each `over` separately — asserted here so that claim is checked rather than promised.
+    const measuredSurfaces = new Set(
+      rows.filter((p) => p.alpha !== undefined).map((p) => p.alpha?.over),
+    );
+    expect(measuredSurfaces.size).toBeGreaterThan(1);
+
+    // IF A FUTURE CHANGE EVER MAKES THE KEY SURFACE-AWARE, this test fails and should be DELETED
+    // along with the header's last "NOT COVERED" bullet — not adjusted to keep passing.
+    expect(pairKey("destructive", "destructive", { bg: 10 })).not.toContain("over");
+  });
+
   it("pairs a foreground with a background inside one string", () => {
     expect(pairingsIn("rounded-md bg-muted text-foreground px-2").map((p) => p.key)).toEqual([
       pairKey("foreground", "muted"),
