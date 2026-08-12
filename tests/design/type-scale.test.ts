@@ -55,17 +55,58 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 
-import { cn } from "@/lib/utils";
+import { cn, TYPE_ROLES } from "@/lib/utils";
 
 import {
   readThemeTokens,
   compileGlobalsCssWith,
   declarationsFor,
+  GLOBALS_CSS_PATH,
   THEME_NAMES,
 } from "./helpers/compile-css";
 
-/** The four declared semantic roles. There is no fifth. */
-const ROLES = ["display", "heading", "body", "label"] as const;
+/**
+ * The declared semantic roles, READ OUT OF THE STYLESHEET rather than typed here (WR-10).
+ *
+ * `globals.css`'s `@theme inline` block is the only place a role becomes real — registering
+ * `--text-<role>` there is what makes `text-<role>` a Tailwind utility at all. Everything else is a
+ * copy, and there were three of them: this constant, the `extendTailwindMerge` call in
+ * `src/lib/utils.ts`, and the stylesheet itself, with nothing deriving from anything.
+ *
+ * That is the defect, and it is worse than ordinary duplication because the failure is SILENT and
+ * points the wrong way. Add `--text-caption` to the stylesheet and write
+ * `cn("text-caption", "text-muted-foreground")`: tailwind-merge, never told `caption` is a font-size
+ * role, treats it as a text COLOUR, and deletes it. The call site looks migrated, `tsc` is happy,
+ * the leak gate is happy, and the heading silently renders at the inherited size — precisely the
+ * defect plan 10-16 fixed for the original four. Every test stayed green because every test's idea
+ * of "the roles" was a copy that had never heard of the fifth.
+ *
+ * Deriving from the source of truth makes the next role's arrival LOUD instead: it appears here
+ * automatically, and the assertion below immediately reports that `utils.ts` has not learned it.
+ *
+ * WHAT COUNTS AS A ROLE, precisely: a `--text-<name>` whose value is `var(--fs-<name>)`. That is
+ * not a heuristic, it is the definition — a semantic role is a text step wired to the per-theme
+ * font-size family, which is exactly what makes it travel between court and grove. The same
+ * `@theme inline` block also re-declares Tailwind's DEFAULT t-shirt steps (`--text-sm`,
+ * `--text-base`, `--text-lg`, …), which point at fixed values, are not per-theme, and are not
+ * roles; requiring the `--fs-` wiring separates the two without naming either.
+ *
+ * The facet declarations (`--text-display--line-height` and friends) fall out for free: their
+ * values are `var(--lh-…)`, not `var(--fs-…)`.
+ */
+const ROLES: readonly string[] = (() => {
+  const css = readFileSync(GLOBALS_CSS_PATH, "utf8");
+  const start = css.indexOf("@theme inline");
+  if (start < 0) throw new Error("type-scale: no `@theme inline` block in globals.css");
+  const themeInline = css.slice(start);
+  const names = new Set<string>();
+  for (const m of themeInline.matchAll(
+    /^\s*--text-([a-z][a-z0-9-]*)\s*:\s*var\(\s*--fs-([a-z][a-z0-9-]*)\s*\)/gm,
+  )) {
+    if (m[1] === m[2]) names.add(m[1]);
+  }
+  return [...names].sort();
+})();
 
 /** The four facets every role must declare. A role that only controls size is not a role. */
 const FACETS = ["--fs-", "--lh-", "--fw-", "--ls-"] as const;
@@ -288,6 +329,29 @@ describe("the named steps survive the repo's own class merge", () => {
     // THE CONTROL ON THE FIX. A registration that swallowed the whole `text-*` space would make this
     // return both classes, and every colour merge in the app would silently stop working.
     expect(cn("text-foreground", "text-muted-foreground")).toBe("text-muted-foreground");
+  });
+
+  it("registers EVERY role the stylesheet declares, so a fifth cannot be forgotten (WR-10)", () => {
+    // THE INVARIANT, and the one assertion above that is not about behaviour. Everything else in
+    // this block tests the four roles that exist; none of it would notice a fifth. `ROLES` is now
+    // read out of `@theme inline`, so this compares the SOURCE OF TRUTH against the list `cn()`
+    // actually runs on — and a role added to the stylesheet without touching `utils.ts` fails here,
+    // naming the constant to edit, instead of silently reintroducing the deletion bug.
+    expect([...TYPE_ROLES].sort()).toEqual([...ROLES]);
+  });
+
+  it("read the roles out of the stylesheet rather than defaulting to a hard-coded four", () => {
+    // GUARD-THE-GUARD on the derivation itself. If the `@theme inline` slice or the regex ever
+    // stopped matching, `ROLES` would silently become `[]` — and an empty list makes the
+    // `it.each(ROLES)` cases above vanish and the equality assertion pass only if `TYPE_ROLES` were
+    // also empty. Anchoring on the four known-present names is what stops the derivation failing
+    // open. It is a floor, not a pin: a fifth role must NOT require editing this line.
+    expect(ROLES.length).toBeGreaterThanOrEqual(4);
+    for (const known of ["body", "display", "heading", "label"]) {
+      expect(ROLES, `the stylesheet no longer declares --text-${known}`).toContain(known);
+    }
+    // The facet declarations must not be counted as roles of their own.
+    expect(ROLES).not.toContain("display--line-height");
   });
 });
 

@@ -25,11 +25,22 @@ import { extendTailwindMerge } from "tailwind-merge"
  * versus `text-brand` still resolves as a colour conflict. Nothing else moves — all 12 shipped
  * `sm:text-display` sites are plain className strings that never reach a merge.
  *
- * Keep this list in lockstep with the `--text-*` role entries in `src/app/globals.css`'s
- * `@theme inline` block. A fifth role added there and not here is invisible to `cn()` again.
+ * THIS LIST IS DERIVED FROM `globals.css`, BUT NOT AUTOMATICALLY (WR-10). It cannot be: `cn()` runs
+ * in the browser bundle and cannot read a stylesheet at runtime. So the names are still written out
+ * here — and `tests/design/type-scale.test.ts` PARSES the `@theme inline` block and asserts this
+ * exact array equals what it finds. That is what closes the loop the fix to `cn()` left open.
+ *
+ * The open loop was not theoretical. Before that assertion existed, the four names lived in three
+ * hand-maintained copies with nothing tying them together, so adding a fifth role to `globals.css`
+ * and writing `cn("text-caption", "text-muted-foreground")` silently deleted it again — the exact
+ * defect this `extendTailwindMerge` call exists to fix — with the whole suite green, because
+ * nothing had told the suite the role existed. Add a role to the stylesheet now and the type-scale
+ * gate goes red naming this constant.
  */
+export const TYPE_ROLES = ["display", "heading", "body", "label"] as const;
+
 const twMerge = extendTailwindMerge({
-  extend: { theme: { text: ["display", "heading", "body", "label"] } },
+  extend: { theme: { text: [...TYPE_ROLES] } },
 })
 
 export function cn(...inputs: ClassValue[]) {
