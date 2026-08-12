@@ -163,10 +163,28 @@ const canonical = (token: string): string => ALIAS_OF.get(token) ?? token;
  * Render an opacity as the key suffix, or the empty string for a solid surface.
  *
  * `10` (a Tailwind modifier) and `0.1` (an inventory `alpha.value`) have to arrive at the SAME
- * spelling or the two sides of the lookup never meet. Percent, rounded, is that spelling.
+ * spelling or the two sides of the lookup never meet. Percent is that spelling.
+ *
+ * NOT `Math.round` (IN-12). Rounding to an integer made two DIFFERENT opacities share one key, and
+ * the damage runs in the dangerous direction. Both halves were run with a probe row declaring
+ * `alpha.value: 0.125` (12.5%):
+ *
+ *   bg-muted/12  ->  keys @12%, row keys @13%  ->  reported "not in CONTRAST_PAIRS" even though
+ *                                                  the row exists — a declaration that can never
+ *                                                  be matched, and says so about the wrong thing
+ *   bg-muted/13  ->  keys @13%, row keys @13%  ->  PASSES. A 13% tint waved through on the
+ *                                                  strength of a measurement taken at 12.5%.
+ *
+ * The second is the same class of defect as WR-05's: a row vouching for a colour it did not
+ * measure. So the percentage is normalised rather than rounded — `toFixed` absorbs the float error
+ * that makes `0.1 * 100` come out as `10.000000000000002`, without collapsing 12.5 onto 13.
+ *
+ * A fractional declaration is now unmatchable by ANY call site rather than matchable by the wrong
+ * one, which is the safe direction — and the assertion further down makes it loud at declaration
+ * time, because `classifyUtility` only ever reads `/^\d+$/` and so can never produce a fraction.
  */
 const alphaSuffix = (percent: number | null): string =>
-  percent === null ? "" : ` @${Math.round(percent)}%`;
+  percent === null ? "" : ` @${Number(percent.toFixed(4))}%`;
 
 /**
  * The lookup key for one pairing — foreground, background, AND the background's opacity.
@@ -523,6 +541,51 @@ describe("the declared pair inventory matches what components render", () => {
     expect(tint).not.toBe(solid);
     expect(DECLARED.has(tint)).toBe(true);
     expect(DECLARED.has(solid)).toBe(false);
+  });
+
+  it("declares no opacity a Tailwind modifier cannot spell (IN-12)", () => {
+    // THE OTHER HALF OF THE `alphaSuffix` FIX. Not rounding stops a fractional row from vouching
+    // for a neighbouring integer tint, but it leaves that row matchable by nothing at all — and a
+    // declaration that can never match is exactly the silent state this file exists to abolish.
+    //
+    // `classifyUtility` reads the modifier with `/^\d+$/`, so the call-site side can only ever
+    // produce a WHOLE percent: `bg-muted/12` yields 12, and `bg-muted/12.5` yields NaN by design.
+    // Therefore any inventory row whose opacity is not a whole percent is unreachable by
+    // construction, and the right moment to say so is when the row is written.
+    const rows = CONTRAST_PAIRS as readonly ContrastPair[];
+    const unmatchable: string[] = [];
+    for (const pair of rows) {
+      const fields: readonly (readonly [string, number | undefined])[] = [
+        ["alpha.value", pair.alpha?.value],
+        ["fgAlpha", pair.fgAlpha],
+      ];
+      for (const [field, value] of fields) {
+        if (value === undefined) continue;
+        const percent = Number((value * 100).toFixed(4));
+        if (!Number.isInteger(percent)) {
+          unmatchable.push(`${pair.fg} on ${pair.bg}: ${field} ${value} → ${percent}%`);
+        }
+      }
+    }
+    expect(
+      unmatchable,
+      "these rows declare a fractional percent, which no Tailwind opacity modifier this scan can " +
+        "read will ever produce, so the row is measured but unreachable. Either express the tint " +
+        "as a whole percent, or teach classifyUtility the fractional modifier — do not leave it.",
+    ).toEqual([]);
+
+    // GUARD THE GUARD: the loop must actually have inspected opacities, or an empty inventory
+    // would pass this trivially.
+    expect(rows.filter((p) => p.alpha !== undefined || p.fgAlpha !== undefined).length).
+      toBeGreaterThan(5);
+
+    // And the normalisation must survive the float error it exists to absorb: 0.1 * 100 is
+    // 10.000000000000002 in IEEE-754, and must still key as a plain 10.
+    expect(alphaSuffix(0.1 * 100)).toBe(" @10%");
+    expect(alphaSuffix(0.8 * 100)).toBe(" @80%");
+    // …while genuinely different opacities stay genuinely different.
+    expect(alphaSuffix(12.5)).not.toBe(alphaSuffix(13));
+    expect(alphaSuffix(12.5)).not.toBe(alphaSuffix(12));
   });
 
   it("is SURFACE-blind, and that gap is pinned rather than merely described (IN-11)", () => {
