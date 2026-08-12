@@ -57,6 +57,7 @@ import { resolve, join, relative } from "node:path";
 
 import { cn, TYPE_ROLES } from "@/lib/utils";
 
+import { stripComments } from "./helpers/strip-comments";
 import {
   readThemeTokens,
   compileGlobalsCssWith,
@@ -482,62 +483,6 @@ function label(file: string): string {
   return relative(process.cwd(), file).split("\\").join("/");
 }
 
-/**
- * Remove comments that OPEN their own line, and nothing else.
- *
- * WHY THIS IS NEEDED. Two comments in this tree name banned strings on purpose, and both are good
- * comments: `button.tsx` records why its vendored rem site is exempt, and `globals.css` warns the
- * next author never to use the slash-modifier form. A raw text scan reads both as violations and
- * would push authors to stop writing the very warnings that prevent the defect.
- *
- * WHY IT IS LINE-ORIENTED AND NOT A `/\*…*\/` REGEX. Because that regex is actively wrong here, and
- * measurably so: `src/app/(app)/profile/profile-form.tsx` carries `accept="image/*"` inside a JSX
- * string at line 109, and the next block-comment terminator in that file is 86 lines later, at line
- * 195 (this docstring cannot quote that terminator without ending itself, which is its own small
- * illustration of the problem). A naive block strip therefore
- * deletes 86 lines of real markup — and a violation scan whose stripper eats a third of a file
- * reports a clean tree it never read. So a comment must OPEN its line (optionally wrapped in JSX
- * braces) to be recognised, and a trailing `//` never truncates a line of code.
- */
-function stripLeadingComments(text: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-
-  for (const raw of text.split("\n")) {
-    let line = raw;
-
-    if (inBlock) {
-      const close = line.indexOf("*/");
-      if (close === -1) {
-        out.push("");
-        continue;
-      }
-      line = line.slice(close + 2);
-      inBlock = false;
-    }
-
-    const opener = /^\s*\{?\s*\/\*/.exec(line);
-    if (opener) {
-      const close = line.indexOf("*/", opener[0].length);
-      if (close === -1) {
-        inBlock = true;
-        out.push("");
-        continue;
-      }
-      line = line.slice(close + 2);
-    }
-
-    if (/^\s*\/\//.test(line)) {
-      out.push("");
-      continue;
-    }
-
-    out.push(line);
-  }
-
-  return out.join("\n");
-}
-
 interface TypeScan {
   /** Normalised forward-slash paths of every file the walker visited. */
   scanned: string[];
@@ -566,7 +511,7 @@ function scanSrc(): TypeScan {
 
   for (const file of collectSourceFiles(SRC_DIR)) {
     const name = label(file);
-    const code = stripLeadingComments(readFileSync(file, "utf8"));
+    const code = stripComments(readFileSync(file, "utf8"));
 
     scan.scanned.push(name);
     if (GATE_TREE.some((prefix) => name.startsWith(prefix))) scan.gateFiles.push(name);
@@ -608,23 +553,40 @@ describe("DS-02 source scan — the scan itself reaches what it claims to police
 });
 
 describe("DS-02 source scan — the comment stripper removes prose without eating code", () => {
+  // THE STRIPPER IS NOW SHARED (WR-02). This file used to declare its own `stripLeadingComments`,
+  // one of FOUR near-identical copies in this suite, and all four were line-anchored — a comment
+  // that OPENED a line was blanked, a TRAILING one survived. `tests/design/helpers/strip-comments.ts`
+  // is the single implementation now and `tests/design/strip-comments.test.ts` owns its full
+  // fixture set, including the trailing-comment escapes and the two hazards below.
+  //
+  // These three assertions are KEPT rather than deleted: they are this file's own statement of what
+  // it needs from the stripper it depends on, phrased in the literals THIS gate counts. If the
+  // shared module is ever changed for another consumer's benefit, this is where DS-02 notices.
   it("drops a comment that opens its line, in all three syntaxes this tree uses", () => {
     // Asserted as a property (the banned text is gone, the code survives) rather than as exact
-    // output: the JSX form leaves its closing brace behind, which is correct — the stripper keeps
-    // everything after a block terminator, and a brace carries no class names.
+    // output: the JSX form leaves its braces behind, which is correct — a brace carries no class
+    // names.
     for (const prose of [
       "// text-[9px]\nkeep",
       "  {/* text-[9px] */}\nkeep",
       "/* a\n text-[9px]\n */\nkeep",
     ]) {
-      const stripped = stripLeadingComments(prose);
+      const stripped = stripComments(prose);
       expect(stripped, `left a banned literal behind in: ${prose}`).not.toContain("text-[9px]");
       expect(stripped, `ate real code in: ${prose}`).toContain("keep");
     }
   });
 
+  it("also drops a comment that TRAILS real code (WR-02)", () => {
+    // The escape the line-anchored stripper could not see. Written in this gate's own banned
+    // literal so DS-02's arbitrary-pixel scan cannot be satisfied by prose either.
+    const trailing = '<p className="text-body" /> // was text-[9px] before the migration';
+    expect(stripComments(trailing)).not.toContain("text-[9px]");
+    expect(stripComments(trailing)).toContain("text-body");
+  });
+
   it("keeps whatever follows a block comment that closes mid-line", () => {
-    expect(stripLeadingComments('/* note */ <p className="text-[9px]" />')).toContain(
+    expect(stripComments('/* note */ <p className="text-[9px]" />')).toContain(
       "text-[9px]",
     );
   });
@@ -632,9 +594,9 @@ describe("DS-02 source scan — the comment stripper removes prose without eatin
   it("never treats an in-string `/*` as a comment opener (the profile-form hazard)", () => {
     // `accept="image/*"` is real, present markup. A block-comment regex swallows everything from
     // there to the next `*/` — 86 lines in that file — and the scan then vouches for source it
-    // never read. This assertion is what keeps the stripper line-oriented.
+    // never read. This is why the shared stripper tracks quote state rather than scanning for `/*`.
     const markup = '<input accept="image/*" />\n<p className="text-[9px]" />\n/* later */';
-    expect(stripLeadingComments(markup)).toContain("text-[9px]");
+    expect(stripComments(markup)).toContain("text-[9px]");
   });
 });
 

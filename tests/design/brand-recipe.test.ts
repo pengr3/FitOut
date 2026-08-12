@@ -107,6 +107,8 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 
+import { stripComments } from "./helpers/strip-comments";
+
 const SRC_DIR = resolve(process.cwd(), "src");
 
 /** The four trees plan 10-08 converts. The repo-wide blocks below cover everything else. */
@@ -279,65 +281,6 @@ const DECORATIVE_ACCENT_EDGE = new Set(["border-brand/30"]);
 /** A hand-rolled 44px height class, as a whole token — `min-h-11` and `h-110` must not match. */
 const BARE_TOUCH_HEIGHT = /(^|[\s"'`:])h-11(?![\d.])/;
 
-/**
- * Blank out comment lines before counting anything (WR-04).
- *
- * Copied verbatim from `tests/design/type-scale.test.ts:438`, which took it from
- * `elevation-z.test.ts:407`. This file was the ONLY source-scan gate in the phase still counting
- * raw `readFileSync` output, and it is also the one pinning the most exact numbers — six of them,
- * including accent totals of 15 and 20 and a `bg-brand` count of exactly 9 across six named files.
- *
- * Its previous mitigation was an authoring convention: comments must DESCRIBE a class, never quote
- * it. That convention cannot be enforced, and its failure is silent and inverted — delete a real
- * conversion, add prose that happens to quote the class, and the total is unchanged while the
- * product lost the thing being counted. The convention also fights the codebase's own habit of
- * explaining exactly which class was removed and why, which is how the phase documents every one of
- * these decisions. Stripping comments lets the prose say what it means and lets the count mean what
- * it says.
- *
- * WHY IT IS LINE-ORIENTED AND NOT A `/\*…*\/` REGEX: the sibling that owns this function records
- * the measured reason — `accept="image/*"` inside JSX opens a block a naive regex closes 86 lines
- * later, and a stripper that eats a third of a file reports a clean tree it never read.
- */
-function stripCommentLines(text: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-
-  for (const raw of text.split("\n")) {
-    let line = raw;
-
-    if (inBlock) {
-      const close = line.indexOf("*/");
-      if (close === -1) {
-        out.push("");
-        continue;
-      }
-      line = line.slice(close + 2);
-      inBlock = false;
-    }
-
-    const opener = /^\s*\{?\s*\/\*/.exec(line);
-    if (opener) {
-      const close = line.indexOf("*/", opener[0].length);
-      if (close === -1) {
-        inBlock = true;
-        out.push("");
-        continue;
-      }
-      line = line.slice(close + 2);
-    }
-
-    if (/^\s*\/\//.test(line)) {
-      out.push("");
-      continue;
-    }
-
-    out.push(line);
-  }
-
-  return out.join("\n");
-}
-
 type Violation = string;
 
 /**
@@ -477,12 +420,19 @@ function scanSrc(): Scan {
       scan.unmeasuredAlphas.push(`${name}: ${m[0]}`);
     }
 
-    // EVERY COUNT BELOW READS `code`, NOT `text` (WR-04) — comment lines are blanked first, so
-    // prose describing a conversion cannot be mistaken for the conversion. The ZERO assertions
-    // above deliberately keep reading raw `text`: for a class that must appear nowhere at all, a
-    // comment quoting it is indistinguishable from a call site using it, and the phase relies on
-    // that strictness (see the note in `contrast-pairs.ts` about describing rather than quoting).
-    const code = stripCommentLines(text);
+    // EVERY COUNT BELOW READS `code`, NOT `text` (WR-04) — comments are removed first, so prose
+    // describing a conversion cannot be mistaken for the conversion. The ZERO assertions above
+    // deliberately keep reading raw `text`: for a class that must appear nowhere at all, a comment
+    // quoting it is indistinguishable from a call site using it, and the phase relies on that
+    // strictness (see the note in `contrast-pairs.ts` about describing rather than quoting).
+    //
+    // THE STRIPPER IS SHARED AND IT STRIPS TRAILING COMMENTS (WR-02). This file used to carry its
+    // own copy, one of four in the suite, and every copy was line-anchored — so a comment that
+    // OPENED a line was blanked and a TRAILING one survived. That was not academic: the primary
+    // booker CTA was changed to `variant="secondary"` with a trailing comment naming the old
+    // variant, and all six counts below stayed green while "Book this space" stopped being coral.
+    // `tests/design/strip-comments.test.ts` holds that escape as a fixture.
+    const code = stripComments(text);
 
     if (name.startsWith(AVAILABILITY_TREE)) {
       const hovers = code.split(SANCTIONED_HOVER).length - 1;
@@ -616,7 +566,7 @@ describe("DS-09 / D-22 — the two 44px CTAs say so by name", () => {
     // old comment made about Buttons, which is true only of these.
     const handRolled: Violation[] = [];
     for (const [name, text] of scan.text) {
-      const code = stripCommentLines(text);
+      const code = stripComments(text);
       for (let i = code.indexOf("<Button"); i !== -1; i = code.indexOf("<Button", i + 1)) {
         const tag = enclosingButtonTag(code, i);
         if (BARE_TOUCH_HEIGHT.test(tag)) {

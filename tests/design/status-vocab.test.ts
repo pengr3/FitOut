@@ -56,6 +56,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import ts from "typescript";
 
+import { stripComments } from "./helpers/strip-comments";
 import {
   STATUS_TONES,
   STATUS_TONE_RECIPES,
@@ -237,49 +238,6 @@ function classChunks(path: string, text: string): string[] {
  * utility strings makes the distinction structural rather than a lookahead that has to remember to
  * list every character that could follow.
  */
-/**
- * Blank out comment lines. Copied from `tests/design/type-scale.test.ts:438`, this phase's reference
- * stripper — line-oriented rather than a `/\*…*\/` regex for the measured reason recorded there.
- */
-function stripCommentLines(text: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-
-  for (const raw of text.split("\n")) {
-    let line = raw;
-
-    if (inBlock) {
-      const close = line.indexOf("*/");
-      if (close === -1) {
-        out.push("");
-        continue;
-      }
-      line = line.slice(close + 2);
-      inBlock = false;
-    }
-
-    const opener = /^\s*\{?\s*\/\*/.exec(line);
-    if (opener) {
-      const close = line.indexOf("*/", opener[0].length);
-      if (close === -1) {
-        inBlock = true;
-        out.push("");
-        continue;
-      }
-      line = line.slice(close + 2);
-    }
-
-    if (/^\s*\/\//.test(line)) {
-      out.push("");
-      continue;
-    }
-
-    out.push(line);
-  }
-
-  return out.join("\n");
-}
-
 function utilitiesIn(chunk: string): Set<string> {
   const out = new Set<string>();
   for (const raw of chunk.split(/\s+/).filter(Boolean)) {
@@ -488,7 +446,7 @@ describe("DS-10 — every status badge recipe declares an icon", () => {
     // corrected to branch on the discriminant, the check went on passing because the COMMENT
     // explaining the correction still quoted the old condition. A gate satisfied by a comment about
     // the code rather than by the code is the collision this phase has now hit repeatedly.
-    const badge = stripCommentLines(
+    const badge = stripComments(
       scan.text.get("src/components/host/payout-state-badge.tsx") ?? "",
     );
     expect(badge.length, "payout-state-badge.tsx was not read").toBeGreaterThan(0);
@@ -584,7 +542,7 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     // Alert on --card. Closing that gap means deciding whether approved/processing keep their
     // border treatment and whether the closed lifecycle statuses keep their de-emphasised ink —
     // design decisions, deferred, not silently pending.
-    const badge = stripCommentLines(
+    const badge = stripComments(
       scan.text.get("src/components/booking/booking-status-badge.tsx") ?? "",
     );
     expect(badge.length).toBeGreaterThan(0);

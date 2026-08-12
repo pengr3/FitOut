@@ -65,16 +65,20 @@
 //     exactly like a class-list entry is. There are zero in `src/` today and the STRICT-versus-LOOSE
 //     control below is what keeps that true: the strict form requires a utility-shaped token after
 //     the colon, so the day an object key appears the two counts diverge and this file goes red.
-//   • The comment stripper is LINE-ORIENTED (10-11's idiom, and for 10-11's reason: a `/*…*/` regex
-//     treats `accept="image/*"` as a comment opener and swallows the rest of the file). A trailing
-//     comment on a line that also carries code is NOT stripped. The raw-versus-stripped control
-//     below is what makes that visible rather than silent.
+//   • The comment stripper is the SHARED one (`helpers/strip-comments.ts`), and since WR-02 it does
+//     strip trailing comments as well as leading ones — the blind spot recorded here previously
+//     ("a trailing comment on a line that also carries code is NOT stripped") is closed. It remains
+//     a SCANNER, not a parser: an unbalanced quote character puts the rest of ITS OWN LINE into
+//     string state, so a comment on that line survives. That direction over-counts, and the
+//     raw-versus-stripped control below is what makes an over-count visible rather than silent.
 //   • This file proves the variant is absent from app SOURCE. It does not prove the app renders
 //     correctly in a second colour scheme, because there is no second colour scheme to render in.
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
+
+import { stripComments } from "./helpers/strip-comments";
 
 const SRC_DIR = resolve(process.cwd(), "src");
 const GLOBALS_CSS = resolve(process.cwd(), "src/app/globals.css");
@@ -143,20 +147,6 @@ function label(file: string): string {
   return relative(process.cwd(), file).split("\\").join("/");
 }
 
-/**
- * Remove comment-only lines. Line-oriented on purpose (10-11) — see the blind-spot note in the
- * header for why a `/*…*&#47;` regex is not an option in this repo.
- */
-function stripCommentLines(text: string): string {
-  return text
-    .split(/\r?\n/)
-    .filter((line) => {
-      const t = line.trim();
-      return !(t.startsWith("//") || t.startsWith("*") || t.startsWith("/*"));
-    })
-    .join("\n");
-}
-
 interface Partitioned {
   /** Normalised paths of the files in this partition. */
   files: string[];
@@ -207,7 +197,7 @@ function scanSrc() {
 
     bucket.occurrences += n;
     bucket.strictOccurrences += count(text, STRICT);
-    bucket.strippedOccurrences += count(stripCommentLines(text), LOOSE);
+    bucket.strippedOccurrences += count(stripComments(text), LOOSE);
     bucket.filesWithHits.push(name);
     text.split(/\r?\n/).forEach((line, i) => {
       const perLine = count(line, LOOSE);
