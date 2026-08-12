@@ -138,7 +138,9 @@ const ADOPTION_TREES = ["src/app/", "src/components/"] as const;
  * declaration these 9 deliberately do NOT route through.
  */
 const EXPECTED_SURVIVING_ACCENT_LINES: Record<string, number> = {
-  "src/app/(host)/host/listings/[id]/edit/wizard.tsx": 2,
+  // 1 rather than 2 since WR-15: the wizard's `current` and `done` markers were two branches with
+  // byte-identical output, kept apart only because this map counted LINES. They are one branch now.
+  "src/app/(host)/host/listings/[id]/edit/wizard.tsx": 1,
   "src/components/availability/availability-calendar.tsx": 1,
   "src/components/availability/date-pass-picker.tsx": 1,
   "src/components/availability/slot-picker.tsx": 3,
@@ -277,6 +279,65 @@ const DECORATIVE_ACCENT_EDGE = new Set(["border-brand/30"]);
 /** A hand-rolled 44px height class, as a whole token — `min-h-11` and `h-110` must not match. */
 const BARE_TOUCH_HEIGHT = /(^|[\s"'`:])h-11(?![\d.])/;
 
+/**
+ * Blank out comment lines before counting anything (WR-04).
+ *
+ * Copied verbatim from `tests/design/type-scale.test.ts:438`, which took it from
+ * `elevation-z.test.ts:407`. This file was the ONLY source-scan gate in the phase still counting
+ * raw `readFileSync` output, and it is also the one pinning the most exact numbers — six of them,
+ * including accent totals of 15 and 20 and a `bg-brand` count of exactly 9 across six named files.
+ *
+ * Its previous mitigation was an authoring convention: comments must DESCRIBE a class, never quote
+ * it. That convention cannot be enforced, and its failure is silent and inverted — delete a real
+ * conversion, add prose that happens to quote the class, and the total is unchanged while the
+ * product lost the thing being counted. The convention also fights the codebase's own habit of
+ * explaining exactly which class was removed and why, which is how the phase documents every one of
+ * these decisions. Stripping comments lets the prose say what it means and lets the count mean what
+ * it says.
+ *
+ * WHY IT IS LINE-ORIENTED AND NOT A `/\*…*\/` REGEX: the sibling that owns this function records
+ * the measured reason — `accept="image/*"` inside JSX opens a block a naive regex closes 86 lines
+ * later, and a stripper that eats a third of a file reports a clean tree it never read.
+ */
+function stripCommentLines(text: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+
+  for (const raw of text.split("\n")) {
+    let line = raw;
+
+    if (inBlock) {
+      const close = line.indexOf("*/");
+      if (close === -1) {
+        out.push("");
+        continue;
+      }
+      line = line.slice(close + 2);
+      inBlock = false;
+    }
+
+    const opener = /^\s*\{?\s*\/\*/.exec(line);
+    if (opener) {
+      const close = line.indexOf("*/", opener[0].length);
+      if (close === -1) {
+        inBlock = true;
+        out.push("");
+        continue;
+      }
+      line = line.slice(close + 2);
+    }
+
+    if (/^\s*\/\//.test(line)) {
+      out.push("");
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join("\n");
+}
+
 type Violation = string;
 
 /**
@@ -406,21 +467,31 @@ function scanSrc(): Scan {
       scan.unmeasuredAlphas.push(`${name}: ${m[0]}`);
     }
 
+    // EVERY COUNT BELOW READS `code`, NOT `text` (WR-04) — comment lines are blanked first, so
+    // prose describing a conversion cannot be mistaken for the conversion. The ZERO assertions
+    // above deliberately keep reading raw `text`: for a class that must appear nowhere at all, a
+    // comment quoting it is indistinguishable from a call site using it, and the phase relies on
+    // that strictness (see the note in `contrast-pairs.ts` about describing rather than quoting).
+    const code = stripCommentLines(text);
+
     if (name.startsWith(AVAILABILITY_TREE)) {
-      const hovers = text.split(SANCTIONED_HOVER).length - 1;
+      const hovers = code.split(SANCTIONED_HOVER).length - 1;
       if (hovers > 0) scan.availabilityHovers[name] = hovers;
     }
 
     if (ADOPTION_TREES.some((tree) => name.startsWith(tree))) {
-      const adopted = text.split(BRAND_VARIANT).length - 1;
+      const adopted = code.split(BRAND_VARIANT).length - 1;
       if (adopted > 0) scan.adoption[name] = adopted;
 
-      // LINES, not matches: a single className legitimately carries the token once, and the
-      // 29 / 20 / 9 split is stated in the UI-SPEC in source lines. Counting matches instead
-      // would make the pinned 9 drift the first time a recipe gained a second scoped prefix.
+      // OCCURRENCES, not lines (WR-15). Counting lines let a test's convenience dictate the shape
+      // of production code: `wizard.tsx` kept two branches with byte-identical output purely so the
+      // token would land on two lines, and its comment said so outright — the obvious refactor
+      // would have turned a committed gate red for a reason with nothing to do with the design
+      // contract. A count of occurrences is invariant to how the source is wrapped, so the code is
+      // free to take whatever shape is clearest.
       if (!name.startsWith(CVA_TREE)) {
-        const lines = text.split("\n").filter((l) => ACCENT_BACKGROUND_LINE.test(l)).length;
-        if (lines > 0) scan.survivingAccentLines[name] = lines;
+        const hits = [...code.matchAll(ACCENT_BACKGROUND)].length;
+        if (hits > 0) scan.survivingAccentLines[name] = hits;
       }
     }
 
@@ -428,7 +499,7 @@ function scanSrc(): Scan {
     if (!SCOPED_TREES.some((tree) => name.startsWith(tree))) continue;
     scan.inScope.push(name);
 
-    const count = text.split(BRAND_VARIANT).length - 1;
+    const count = code.split(BRAND_VARIANT).length - 1;
     if (count > 0) scan.conversions[name] = count;
 
     for (const m of text.matchAll(ACCENT_BACKGROUND)) {
@@ -556,8 +627,8 @@ describe("DS-08 / D-21 — coral appears on exactly the 20 buttons someone asked
   });
 });
 
-describe("DS-08 / T-10-26 — the 9 non-Button recipes are a RECORDED deliberate non-conversion, not an oversight, and an over-eager future sweep must go red here", () => {
-  it("keeps exactly the 9 accent lines, in exactly the 6 files that are allowed to have them", () => {
+describe("DS-08 / T-10-26 — the non-Button recipes are a RECORDED deliberate non-conversion, not an oversight, and an over-eager future sweep must go red here", () => {
+  it("keeps exactly the 8 accent occurrences, in exactly the 6 files that are allowed to have them", () => {
     // Read this as a contract, not as a count. Each of these lines is a react-day-picker DayButton,
     // a Radix ToggleGroupItem, a bare <button>, a <Badge>, an unread dot or an <ol> step marker —
     // none of them a <Button> with a variant prop. Converting any of them breaks the availability
@@ -569,9 +640,14 @@ describe("DS-08 / T-10-26 — the 9 non-Button recipes are a RECORDED deliberate
     expect(scan.survivingAccentLines).toEqual(EXPECTED_SURVIVING_ACCENT_LINES);
   });
 
-  it("counts 9 in total, matching the 29 / 20 / 9 split the UI-SPEC states", () => {
+  it("counts 8 in total — the UI-SPEC's 29 / 20 / 9 split, less the branch WR-15 merged", () => {
+    // WAS 9, COUNTED AS LINES. It is 8 counted as OCCURRENCES, and the difference is not a
+    // conversion: the wizard's `current` and `done` step markers were two branches emitting
+    // byte-identical output, kept apart only because this assertion counted lines containing the
+    // token. Nothing was converted and no surface changed — one duplicated branch collapsed into
+    // the condition it should always have been. The UI-SPEC's 9 refers to the pre-merge line count.
     const total = Object.values(scan.survivingAccentLines).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(9);
+    expect(total).toBe(8);
     expect(Object.keys(scan.survivingAccentLines)).toHaveLength(6);
   });
 });

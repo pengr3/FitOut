@@ -617,12 +617,18 @@ export function ListingWizard({
                     //    on the <li>, not by a 10% tint nobody can perceive.
                     // 2. The fix is the solid token rather than the darkening `color-mix` used
                     //    by the Button variant, because `tests/design/brand-recipe.test.ts` pins
-                    //    the surviving non-Button accent-background lines at exactly 9 across 6
-                    //    named files (T-10-41). A `color-mix` here silently drops that to 8 and
-                    //    the gate fails for the wrong reason. THE COUNT IS LOAD-BEARING — and so
-                    //    is the fact that this is two lines rather than one merged condition.
-                    state === "current" && "bg-brand text-brand-foreground",
-                    state === "done" && "bg-brand text-brand-foreground",
+                    //    the surviving non-Button accent backgrounds across 6 named files
+                    //    (T-10-41). A `color-mix` here would silently drop that count and the
+                    //    gate would fail for the wrong reason.
+                    //
+                    // The two states are now ONE branch (WR-15). They were kept apart with
+                    // byte-identical output solely because that gate counted LINES containing the
+                    // token, so merging them turned a committed gate red for a reason with nothing
+                    // to do with the design contract — a test's convenience dictating the shape of
+                    // production code. The gate counts occurrences now, so the obvious form is
+                    // also the passing one.
+                    (state === "current" || state === "done") &&
+                      "bg-brand text-brand-foreground",
                     state === "future" && "bg-muted text-muted-foreground",
                   )}
                 >
