@@ -1,14 +1,15 @@
 ---
 phase: 10
 slug: design-system-foundation-theme-runtime
-status: blocked
+status: verified
 threats_open: 0
 threats_total: 50
 threats_closed: 50
 asvs_level: 2
 block_on: high
 created: 2026-08-12
-verified_at: e40ad40
+verified_at: 22a153e
+first_audit_at: e40ad40
 register_authored_at_plan_time: true
 ---
 
@@ -16,18 +17,46 @@ register_authored_at_plan_time: true
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
 
-**Verdict: BLOCKED.** 49 of 50 registered threats verified CLOSED at `e40ad40`. One is open
-(T-10-29), and a live post-authentication open redirect (CWE-601) was confirmed on the login
-page — **pre-existing phase-4 code, modified during this phase's fix passes, and not covered
-by any plan-time threat.**
+**Verdict: THREAT-SECURE** (re-issued 2026-08-12 at `22a153e`). All 50 registered threats CLOSED,
+and the unregistered live finding SEC-01 discharged and independently re-verified.
 
-Gate evidence at audit time: `npm run test:design` 21 files / 449 passed · `npx tsc --noEmit`
-exit 0 · `npm run lint` 0 errors / 9 pre-existing warnings.
+**History, kept because the sequence is the point.** The first audit at `e40ad40` returned
+**BLOCKED**: 49 of 50 closed, T-10-29 open, plus a live post-authentication open redirect
+(CWE-601) on the login page — pre-existing phase-4 code, modified during this phase's fix passes,
+and covered by no plan-time threat. Quick task `260812-usm` discharged both on 2026-08-12
+(commits `e6180a0`, `459f0b2`). This re-run verified the discharge rather than accepting it.
 
-> **This BLOCKED wording is left standing on purpose.** Both blocking items were discharged on
-> 2026-08-12 by quick task `260812-usm` (see **Fixed** under the headline finding, and T-10-29 in
-> the Closed table) — but re-issuing the verdict is `/gsd-secure-phase 10`'s job, not the fix
-> ticket's, so `status:` stays `blocked` until that re-run says otherwise.
+**Why this re-run did not short-circuit.** The workflow permits skipping straight to the artifact
+when `threats_open: 0` and the register was authored at plan time — both true here. It was not
+taken, because the `threats_open: 0` had been written by the *fix ticket*, not by an audit, and
+this phase has already produced exactly one false closure claim (WR-12 shipped a 10-case attack
+list under a commit message claiming closure, against a guard that still had the hole). A closure
+asserted by the party that did the fixing is the thing this gate exists to check.
+
+**What was re-verified, not taken on report:**
+
+- **The security property itself**, by probing the shipped `safeCallbackPath` directly rather than
+  running the suite that ships with it — 7 bypass vectors (`/..//evil.com`, `/.//evil.com`,
+  `/a/../..//evil.com`, `/..//evil.com?a=1#b`, `/..///evil.com`, `/./..//evil.com/steal#token`,
+  `/..//`) against **two** origins including `http://localhost:3000`, all returning `/`; and 5
+  legitimate callbacks (`/bookings`, `/`, `/host/earnings?tab=payouts`, `/listings/abc#reviews`,
+  `/a/b/c`) passing through unchanged with query and fragment intact. No regression, no new
+  acceptance.
+- **T-10-29's new citations resolve to real code**, checked line by line — `safe-callback-url.ts:107`
+  is the authority-prefix rejection, `:115` is the re-resolution inside the try/catch,
+  `tests/security/safe-callback-url.test.ts:94` is the attack list, and `:19-66` holds the RED
+  output verbatim (with a green control run recorded above it, so the red is attributable to the
+  new assertions and not a misconfigured runner). This mattered: W-3 below is a case in this same
+  phase where a recorded claim did **not** resolve to real code.
+- **Gates unmoved**: `npm run test:design` 21 files / 449 passed · `npx tsc --noEmit` exit 0 ·
+  `npm run lint` 0 errors / 9 pre-existing warnings.
+
+The other 49 threats were verified at `e40ad40` and are not re-litigated — only three files changed
+since (`safe-callback-url.ts`, its test, and this document), and the full gate suite is green.
+
+**Standing limitation, unchanged by either pass:** the exploit chain was traced through installed
+source, never driven through a live browser. The fix is a pure function with an exhaustive attack
+list, which is the layer at which it is testable here.
 
 ---
 
@@ -251,7 +280,8 @@ such section at all. Treating that list as complete would have missed:
 
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
-| 2026-08-12 | 50 | 49 | 1 | gsd-security-auditor (opus), verified at `e40ad40` |
+| 2026-08-12 | 50 | 49 | 1 | gsd-security-auditor (opus), verified at `e40ad40` — **BLOCKED**: T-10-29 open + SEC-01 live |
+| 2026-08-12 | 50 | 50 | 0 | orchestrator re-run, verified at `22a153e` — **THREAT-SECURE**: SEC-01 discharged (`e6180a0`) and re-probed independently; T-10-29 re-underwritten to `mitigate` with citations confirmed line by line |
 | 2026-08-12 | 50 | 50 | 0 | quick task `260812-usm` — SEC-01 fixed and T-10-29 re-underwritten at `e6180a0`. **Not a re-audit and not a verdict**: this row records two discharges, and `status:` stays `blocked` until `/gsd-secure-phase 10` re-runs. |
 
 Five registered counts moved across the three fix passes (T-10-26 9→8, T-10-27 14→13,
@@ -266,12 +296,12 @@ per-file map rather than the bare total the register described — **strictly st
 - [x] All threats have a disposition (mitigate / accept / transfer)
 - [x] Accepted risks documented in Accepted Risks Log
 - [x] `threats_open: 0` confirmed — T-10-29 moved to `mitigate` with evidence, 2026-08-12
-- [ ] `status: verified` set in frontmatter — **still `blocked`; not this ticket's call**
+- [x] `status: verified` set in frontmatter — set 2026-08-12 at `22a153e`
 
-**Approval:** pending. The two items it was blocked on are discharged (`e6180a0`), but the verdict
-is `/gsd-secure-phase 10`'s to re-issue against HEAD, not the fix ticket's to claim.
+**Approval:** **verified 2026-08-12** at `22a153e`. All three blocking items discharged and
+independently re-verified rather than accepted on report — see "What was re-verified" at the top.
 
-### To clear this gate
+### Gate history — cleared
 
 1. ~~**Open a separate security ticket for SEC-01.**~~ **DONE 2026-08-12** — quick task
    `260812-usm`, commit `e6180a0`. Not folded into phase 10. The candidate is now rejected on two
@@ -280,5 +310,27 @@ is `/gsd-secure-phase 10`'s to re-issue against HEAD, not the fix ticket's to cl
 2. ~~**Re-underwrite T-10-29.**~~ **DONE 2026-08-12** — moved to `mitigate` and pinned to
    `safe-callback-url.ts:107`/`:115` and the attack list. Re-wording the acceptance was not
    available: its basis was the exact claim SEC-01 disproved.
-3. **Re-run `/gsd-secure-phase 10`.** ← the only item left, and the only thing that can lift
-   `blocked`.
+3. ~~**Re-run `/gsd-secure-phase 10`.**~~ **DONE 2026-08-12** — re-run declined the permitted
+   short-circuit, re-probed the guard directly across 7 vectors × 2 origins plus 5 legitimate
+   callbacks, and confirmed T-10-29's citations resolve to real code line by line. Verdict
+   re-issued: **THREAT-SECURE**.
+
+### Carried forward — not blockers, but do not lose them
+
+- **W-1** — `culori` + `@types/culori` entered `devDependencies` this phase and `npm run build`
+  now executes them via `test:design`. Build-machine surface only (never imported from `src/`).
+  No threat maps to it; map one when the dependency policy is next revisited.
+- **W-2** — `src/lib/safe-callback-url.ts` and its test were created by a fix pass *after* the
+  SUMMARYs were written, on an auth path, so neither the plan-time register nor the "Threat Flags"
+  convention could see them. **This is the structural gap that let SEC-01 exist.** A fix pass that
+  creates a file on a security-critical path should raise a threat flag; nothing currently forces
+  that.
+- **W-3** — `10-05-SUMMARY.md:202` claims T-10-05's CSP/`nonce` carry-forward is "recorded in the
+  provider header". It is not (`grep -c "nonce\|CSP" src/components/theme/theme-provider.tsx` = 0),
+  and `deferred-items.md` has no entry either. **Belongs in Phase 11's inputs** — an engineer adding
+  a CSP gets no warning, and the theme silently stops applying pre-paint.
+- **T-10-32** — the `/dev/theme` no-data property is a one-time grep, pinned by no test. A future
+  data-backed fixture would land silently. Worth a gate in Phase 11.
+- **T-10-48** — the browser half (`npm run test:e2e`) was last run at 10-13; three fix passes have
+  since touched `scroll-area.tsx` and `input-group.tsx`. The durable gate is green; that specific
+  browser claim is stale.
