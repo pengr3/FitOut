@@ -43,7 +43,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 
 ### 🚧 v1.1 — Front-End Polish & Placeholder Design System (Phases 10–19)
 
-- [ ] **Phase 10: Design-System Foundation & Theme Runtime** - One token contract, two themes, and the shipped defects fixed before a single baseline is shot
+- [x] **Phase 10: Design-System Foundation & Theme Runtime** - One token contract, two themes, and the shipped defects fixed before a single baseline is shot (completed 2026-08-12)
 - [ ] **Phase 11: Quality Gates, Pattern Layer & App Shell** - Make the gates capable of failing, seed the shared patterns, and give the app a real header, footer and state families
 - [ ] **Phase 12: Booker Path — Search → Listing → Checkout** - The route from an empty search box to the payment redirect reads as one designed product
 - [ ] **Phase 13: Confirmation, Bookings & Trust** - After paying, a booker sees exactly what they bought, where their money is, and what happens next
@@ -347,7 +347,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 7. Bookings Management, Cancellation & Notifications | v1.0 | 20/20 | Complete (verified 4/4 · human UAT passed) | 2026-07-24 |
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
-| 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | In Progress|  |
+| 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 0/? | Not started | - |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |

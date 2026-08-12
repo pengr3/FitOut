@@ -21,7 +21,7 @@
 - [x] **DS-06**: Every colour token pair actually used on a surface meets WCAG AA (4.5:1 text, 3:1 non-text), verified by an automated contrast test rather than by inspection — this corrects the shipped coral CTA (3.60:1), success badge (3.24:1) and focus ring (2.58:1, and ~1.54:1 as rendered)
 - [x] **DS-07**: `--destructive` is brought inside the sRGB gamut so it renders identically across P3 and sRGB displays and does not produce false visual-regression diffs
 - [x] **DS-08**: The coral accent is a button variant, not a repeated string — the 19 literal `bg-brand …` recipes are replaced by a CVA `brand` variant, and the button hierarchy (brand → default → outline → ghost → link, destructive edge-only) is expressed as variants
-- [ ] **DS-09**: A `touch` control size (44px) exists as a named size and is the standard for booker-facing primary actions and all mobile controls
+- [ ] **DS-09**: A `touch` control size (44px) exists as a named size and is the standard for booker-facing primary actions and all mobile controls. *Contract half COMPLETE in Phase 10 (`buttonVariants({size:"touch"})` → `h-11`, tested); ADOPTION half deferred — 2 adopters, nothing enforces breadth. Owner: Phase 17's axe pass (WCAG 2.5.5/2.5.8 target-size). See `deferred-items.md` D-10 and `src/components/ui/button.tsx:80-83`.*
 - [x] **DS-10**: Status is a closed semantic vocabulary (neutral / positive / attention / soft-accent), every status is icon + text and never colour-only, and no lifecycle state is rendered in red or green as decoration
 - [ ] **DS-11**: Three named card patterns exist (ResultCard, RowCard, PanelCard) and every card surface in the app uses one of them rather than re-deciding padding, radius and hover locally
 - [x] **DS-12**: Theme values are exported as a TypeScript module with hex fallbacks alongside the oklch, generated from the token contract, so non-CSS consumers (email, the Leaflet marker, `global-error`) cannot drift — this closes the shipped `BRAND_CORAL = "#E8484E"` vs `#ef4445` drift at `listing-map.tsx:22`
@@ -31,7 +31,7 @@
 ### Theming (THEME)
 
 - [x] **THEME-01**: A theme provider is mounted using a `data-theme` attribute (never `class`, which would collide with the dormant `.dark` block), and the toast component maps named themes correctly instead of passing them straight through to a prop that accepts only `light|dark|system`
-- [ ] **THEME-02**: **Two** placeholder themes exist — the coral direction plus one deliberately distant — and switching between them re-skins the entire app with zero component edits
+- [x] **THEME-02**: **Two** placeholder themes exist — the coral direction plus one deliberately distant — and switching between them re-skins the entire app with zero component edits
 - [x] **THEME-03**: The second theme ships in the same phase as the first and is used as the enforcement proof that nothing hardcoded leaked, not as a later feature
 - [x] **THEME-04**: A nested `[data-theme]` subtree renders in its own theme, so two themes can be previewed side by side on one page — which requires `@theme inline` to be preserved
 - [x] **THEME-05**: The 10 app-code `dark:` occurrences are rewritten into tokens; the **54** vendored occurrences are left untouched and the `.dark` block stays dormant (D-129 as amended). *Count corrected from 56 to 54 by plan 10-14: plan 10-07 removed two alpha-diluted focus rings and, honestly, their two dark-mode twins when it closed deferred item D-2. 54 is the OCCURRENCE metric (the same tree is 24 by lines and 14 by files); 10-12, 10-13 and 10-14 each measured it independently, and `tests/design/dark-scope.test.ts` now pins it.*
@@ -181,14 +181,14 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | DS-06 | Phase 10 | Complete |
 | DS-07 | Phase 10 | Complete |
 | DS-08 | Phase 10 | Complete |
-| DS-09 | Phase 10 | Pending |
+| DS-09 | Phase 10 | Pending (contract done; adoption → Phase 17) |
 | DS-10 | Phase 10 | Complete |
 | DS-11 | Phase 11 | Pending |
 | DS-12 | Phase 10 | Complete |
 | DS-13 | Phase 10 | Complete |
 | DS-14 | Phase 10 | Complete |
 | THEME-01 | Phase 10 | Complete |
-| THEME-02 | Phase 10 | Pending |
+| THEME-02 | Phase 10 | Complete |
 | THEME-03 | Phase 10 | Complete |
 | THEME-04 | Phase 10 | Complete |
 | THEME-05 | Phase 10 | Complete |

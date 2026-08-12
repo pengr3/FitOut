@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-status: executing
-stopped_at: "**ALL 17 PLANS OF PHASE 10 ARE COMPLETE — the phase is ready for `/gsd:verify-work`, which has NOT run.** 10-17's blocking human checkpoint is discharged: the developer replied `approved`, accepting SC#3 (two plausible brand directions) and D-11 (the deepened accent stands; no `--brand-strong` escape hatch was introduced). The third item, DS-04, was NOT a human verdict — the prescribed manual check could not have worked, so it was mechanised as `e2e/reduced-motion.spec.ts` and proven. DS-13 and DS-06 are now Complete. **DS-09 is the ONE Phase 10 requirement still Pending, deliberately** — its adoption clause stands at 2 call sites and is owned by Phase 17's a11y audit; see deferred item D-10. ROADMAP's phase-level checkbox and progress row were left `In Progress` on purpose: phase completion is verification's call, not a plan's"
-last_updated: "2026-08-12T02:55:00.000Z"
+status: ready_to_plan
+stopped_at: Phase 10 complete (17/17) — ready to discuss Phase 999.1
+last_updated: 2026-08-12T03:07:22.067Z
 last_activity: 2026-08-12 -- Phase 10 plan 17 COMPLETE (checkpoint discharged; DS-04 mechanised rather than eyeballed) — all 17 plans done, phase awaiting /gsd:verify-work
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 17
   completed_plans: 17
-  percent: 100
+  percent: 0
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 10 — design-system-foundation-theme-runtime
+**Current focus:** Phase 999.1 — auth flow tells the user nothing thin emails and silent post
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -43,9 +43,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 10 (design-system-foundation-theme-runtime) — **ALL 17 PLANS COMPLETE; AWAITING `/gsd:verify-work`**
-Plan: 17 of 17 — **COMPLETE, checkpoint discharged**
-Status: **PHASE 10 IS EXECUTED. All 17 plans are done and the phase's single human checkpoint is closed.** The developer replied `approved` and the three items resolved in three different ways, which is why the SUMMARY records them separately rather than as one word. **SC#3 (two plausible brand directions) — ACCEPTED by a human** on `/dev/theme`; there is no property here to automate and the row stays manual-only, correctly. **D-11 (the accent visibly deepens) — ACCEPTED by a human**; the deepened `--brand` stands and **no `--brand-strong` escape hatch was introduced**, which is exactly the guardrail the plan wrote for a rejection. That verdict is what unblocked **DS-06**: Tasks 1-2 deliberately held DS-06 and DS-13 `Pending` because a rejection could have re-derived `--brand` and moved every contrast measurement DS-06 rests on. It was accepted, `--brand` did not move, and **both are now Complete — closed because the input arrived, not because the plan ran out of tasks.** **DS-04 was NOT a human verdict at all, and that is the finding.** The developer reported they could not find a deterministic way to test reduced motion by hand. They were right, and the reason is structural: `select.tsx:72` puts `data-[align-trigger=true]:animate-none` on the `select-content` node and `:71` sets `data-align-trigger` from Radix's default `position="item-aligned"`, so the panel computes `animation-name: none` **by design** — it plays no animation with reduced motion OFF either. The two outcomes of the prescribed check are visually identical. **A manual check whose pass and fail look the same is not a weak test, it is a non-test**, and it would have been signed off as a pass whether or not the reset existed. So it was mechanised: **`e2e/reduced-motion.spec.ts`** drives the same media query via `page.emulateMedia({ reducedMotion })` — no OS setting — and asserts **three of the reset's four declarations in BOTH directions**: `transition-duration` on a real shipped `<Button>` (0.12s → <0.001s), `animation-duration` (2s → <0.001s) and `animation-iteration-count` (**`infinite` → `1`**) on a utility keyframe. The third is the one a human is least likely to catch — infinite spinners and pulsing skeletons stopping after one cycle. Watched red by neutering both `!important`s in `globals.css`: the reduce test failed `Expected "1", Received "infinite"` while the no-preference test stayed **green**, which is the correct asymmetry. **Four traps are recorded in the spec's header, three of which produced a result against a page where nothing was under test** — `test.use()` at describe level never reaching the page (so the emulation is now itself asserted), `[role="listbox"]` not being the animated node (`0 < 0.001` passing vacuously), and the `animate-none` finding above. **The fourth trap cost real time in this session and is new: a REUSED DEV SERVER SERVED A STALE STYLESHEET.** The spec went red on a clean `git status` with all four declarations present at `globals.css:490-499`; fetching `/_next/static/chunks/…css` from the running server returned a reduced-motion block missing two of them. `playwright.config.ts` sets `reuseExistingServer`, so Playwright had attached to a server left running across the `git checkout` that reverted the neutering. Killing it gave `2 passed`. That failure direction is the safe one — stale CSS produces a false RED — and the false-green twin is closed at the other layer, since `motion-budget.test.ts:117-133` asserts each declaration in the SOURCE and runs inside `npm run build`. **DS-04 is therefore promoted out of `10-VALIDATION.md` § Manual-Only (4 rows → 3)**, with the reason the manual route was unworkable recorded in its place, and the Per-Task map now carries both commands and names 10-17 as a second owning plan. **13 of Phase 10's 14 requirements are Complete. The fourteenth is DS-09 and it is Pending ON PURPOSE** — the `touch` contract exists and is guarded (`h-11`, asserted by `button-variants.test.ts`), but its wording is *"is the standard for booker-facing primary actions"* and adoption stands at **two** call sites (`group/rsvp-form.tsx:328`, `search/search-bar.tsx:411`). No static gate can answer it, because "booker-facing primary action" is a judgement about a surface's role; sweeping every `<Button>` on the phase's last day would tick a box by resizing controls nobody assessed. Opened as **D-10** in `deferred-items.md` and owned by Phase 17's a11y audit, per the decision already written at `ui/button.tsx:80-83` when the size was declared. Verification at close: **`npm run build` exit 0 in 94s** (lint + design gate + `next build`), **`npm run test:design` 20 files / 375 passed**, **`npx playwright test e2e/reduced-motion.spec.ts` 2 passed**, `npx tsc --noEmit` 0, `git status --porcelain src/` empty across the whole of Task 3. **`npm run test:e2e` corrects the phase's own record: 19 passed / 1 failed / 5 did not run of 25.** The failure is D-6 item 1 (a sixth byte-identical reproduction) and **the 5 "did not run" are the rest of `open-capacity.spec.ts`'s serial block, cancelled after its first test fails** — every prior plan reporting "17 passed / 1 failed" was reporting an 18-of-23 run and cropping the third number. The delta from this plan is exactly **+2 passes**. One flake named rather than buried: the first full run also failed `search-and-book.spec.ts:296` (D-6 item 2, which 10-13 recorded as not firing) and it passed on the immediate re-run, so item 2 is intermittent rather than dormant. **ROADMAP's phase-level checkbox and progress row were deliberately left `In Progress`** — the SDK ticked them as documented over-reach on a phase's last plan, and both were reverted, because phase completion is verification's call. **NEXT: `/gsd:verify-work` for Phase 10.**
+Phase: 999.1
+Plan: Not started
+Status: Ready to plan
 
 <details><summary>Previous status (plan 10-17 Tasks 1-2, superseded 2026-08-12)</summary>
 
@@ -95,13 +95,13 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-12 -- **Phase 10 plan 17 COMPLETE — all 17 plans executed, checkpoint discharged.** SC#3 and D-11 accepted by the developer; DS-04 mechanised as `e2e/reduced-motion.spec.ts` because the prescribed manual check could not have worked. DS-13 and DS-06 marked Complete; DS-09 deliberately left Pending as D-10. Phase awaiting `/gsd:verify-work`
+Last activity: 2026-08-12
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 30
+- Total plans completed: 47
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -113,6 +113,7 @@ Last activity: 2026-08-12 -- **Phase 10 plan 17 COMPLETE — all 17 plans execut
 | 04 | 8 | - | - |
 | 06 | 10 | - | - |
 | 08 | 9 | - | - |
+| 10 | 17 | - | - |
 
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 
