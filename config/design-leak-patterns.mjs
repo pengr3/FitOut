@@ -95,12 +95,33 @@ export const DESIGN_LEAK_PATTERNS = [
     // `shadow-[0_1px_2px_#00000010]` — which is the idiomatic way a hex enters a Tailwind codebase
     // and a form this phase itself uses for non-hex values (`bg-[color-mix(…)]` at button.tsx:50).
     // Both halves of D-16 import this list, so the hole was shared: `npm run lint` and
-    // `npm run test:design` were BOTH green on `hover:bg-[#c0392b]`. `[` opens the arbitrary value;
+    // `npm run test:design` were BOTH green on `hover:bg-[#c0392b]`.  `[` opens the arbitrary value;
     // `_` is Tailwind's space escape inside one, so it is the character preceding a hex in any
-    // multi-part arbitrary value (a box-shadow, a gradient). `see #3388 for details` still does not
-    // match: a space is deliberately absent from the class.
-    pattern:
-      /(?:^\s*|[=_"'([:,]\s*)#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/,
+    // multi-part arbitrary value (a box-shadow, a gradient).
+    //
+    // A PLAIN SPACE IS ADMITTED TOO, BUT ONLY AFTER A CSS VALUE TOKEN (WR-11). `_` covers the
+    // Tailwind arbitrary form; it does NOT cover the same colour written in an inline `style`
+    // object, an SVG attribute, or a CSS shorthand, where the separator is a real space. All four
+    // shapes below were probed against the shipped `findDesignLeaks` and returned `[]`:
+    //
+    //   "0 1px 2px #00000010"     a box-shadow in a style object
+    //   "1px solid #ccc"          a border shorthand
+    //   "inset 0 0 4px #000000"   an inset shadow
+    //   "0 2px 8px #0000001a"     `style={{ boxShadow: … }}` — a frozen colour surviving a theme
+    //                             switch, the single failure DS-13 exists to prevent, invisible to
+    //                             `npm run lint` AND `npm run test:design`
+    //
+    // WHY THE ANCHOR IS THE PRECEDING TOKEN AND NOT THE PRECEDING CHARACTER. The obvious anchor —
+    // "a digit, `)`, `%` or `,` before the space" — does not work, and was measured not working:
+    // the character before the space in `2px #00000010`, `solid #ccc` and `4px #000000` is `x`,
+    // `d` and `x`, all word characters, exactly like the `see ` in `see #3388 for details`. A
+    // single character cannot separate CSS from prose here. What can is the preceding TOKEN: a
+    // length with a unit, a percentage, a `)`, a `,`, or one of the border/shadow keywords. Prose
+    // ends in an ordinary word, so `see #3388 for details`, `Closes #123` and `the PR #4021 landed`
+    // still do not match — landmine L14 stays closed. Verified against both sets before adoption.
+    pattern: new RegExp(
+      `(?:^\\s*|[=_"'([:,]\\s*|(?:[0-9](?:px|rem|em|ch|ex|vh|vw|vmin|vmax|pt|pc|in|cm|mm|q|deg|%)|[0-9)%,]|\\b(?:inset|solid|dashed|dotted|double|groove|ridge|outset|none|transparent|currentcolor)\\b)\\s+)#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\\b`,
+    ),
     why: "A hex literal is frozen at authoring time: it cannot respond to a theme switch or to dark mode. Real hits at baseline: src/components/listing/listing-map.tsx:22 (BRAND_CORAL) and :34 (fill=\"#fff\"). Deliberately NOT matched: a bare `#3388` in prose or a comment (issue references), because the pattern requires a colour context.",
   },
   {

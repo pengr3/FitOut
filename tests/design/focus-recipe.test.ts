@@ -216,6 +216,31 @@ function classChunks(path: string, text: string): { chunk: string; line: number 
 const PREFIXED_OFFSET_WIDTH = /([^\s"'`]*:)ring-offset-\d+/g;
 
 /**
+ * A ring WIDTH with no ring COLOUR at the same variant prefix — the mirror of the check above
+ * (WR-10), and the half of CR-01's deviation that had no gate at all.
+ *
+ * CR-01 deleted `aria-invalid:ring-3` — both its colour AND its width — and the argument for
+ * deleting the width is recorded in `button.tsx`: Tailwind v4 declares `--tw-ring-color` with
+ * `syntax: "*"` and NO initial value, so `.ring-3` emits `var(--tw-ring-color, currentcolor)` and an
+ * uncoloured ring falls back to the element's text colour. On a near-black `--foreground` that is a
+ * 3px near-black halo on every invalid field.
+ *
+ * The note closes with "Do not reintroduce a ring colour on a STATE variant here", and the alpha
+ * scan enforces that half. Nothing enforced the other half: `aria-invalid:ring-3` could be re-added
+ * tomorrow with no colour beside it, and every one of the four scans above would stay green because
+ * a bare width is neither an alpha nor an offset. This is the same argument `PREFIXED_OFFSET_WIDTH`
+ * already makes about the OFFSET band — a framework default reaching the screen instead of a token —
+ * applied to the ring itself, which is the part a user is actually meant to see.
+ *
+ * `ring-0` is deliberately excluded: zero width paints nothing, and `input-group.tsx` legitimately
+ * zeroes an inherited ring. The width must start `[1-9]`.
+ *
+ * Probed over every string literal in `src/` when this was added: **0 offenders**. It is a guard
+ * against a regression, not a fix for a live defect.
+ */
+const PREFIXED_RING_WIDTH = /(?:^|[\s"'`])((?:[^\s"'`]*:)?)ring-[1-9]\d*(?![\w./-])/g;
+
+/**
  * The `.css` equivalent of one class string — a single CSS declaration, with its line number.
  *
  * WHY THIS EXISTS (CR-02). The pairing checks below originally ran over the RAW TEXT of every
@@ -278,6 +303,8 @@ interface Scan {
   alphaRingColour: Violation[];
   /** Offset widths whose matching offset colour is missing at the same variant prefix. */
   uncolouredOffset: Violation[];
+  /** Ring widths whose matching ring COLOUR is missing at the same variant prefix (WR-10). */
+  uncolouredRing: Violation[];
   /** Files declaring the canonical focus ring colour without the canonical offset colour. */
   unpairedRecipe: Violation[];
   /** Raw text of every scanned file, keyed by normalised path — for the anchor assertions. */
@@ -310,6 +337,7 @@ function scanSrc(): Scan {
     halfAlphaOutline: [],
     alphaRingColour: [],
     uncolouredOffset: [],
+    uncolouredRing: [],
     unpairedRecipe: [],
     text: new Map(),
     chunksInspected: 0,
@@ -357,6 +385,19 @@ function scanSrc(): Scan {
           scan.uncolouredOffset.push(
             `${name}:${line}: ${m[0]} without ${prefix}ring-offset-background`,
           );
+        }
+      }
+
+      // WR-10 — the same question about the RING itself. A colour at the same prefix is either a
+      // token (`focus-visible:ring-ring`, `ring-brand`) or an arbitrary value (`ring-[…]`); a
+      // width, an offset or `ring-inset` is not a colour and must not count as one.
+      for (const m of chunk.matchAll(PREFIXED_RING_WIDTH)) {
+        const prefix = m[1];
+        const coloured = new RegExp(
+          `(?:^|[\\s"'\`])${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}ring-(?:\\[|(?!offset-|inset(?![\\w-]))[a-z])`,
+        ).test(chunk);
+        if (!coloured) {
+          scan.uncolouredRing.push(`${name}:${line}: ${m[0].trim()} without ${prefix}ring-<colour>`);
         }
       }
 
@@ -483,6 +524,56 @@ describe("DS-05 — the offset band is a token, never a framework default", () =
 
   it("no variant sets an offset width without naming the offset colour", () => {
     expect(scan.uncolouredOffset).toEqual([]);
+  });
+
+  it("no variant sets a RING width without naming the ring colour either (WR-10)", () => {
+    // The other half of CR-01's deviation, which until now had no gate. An uncoloured ring falls
+    // back to `currentcolor` — a near-black halo — which is exactly the "framework default reaches
+    // the screen instead of a token" failure the offset check above exists to prevent.
+    expect(scan.uncolouredRing).toEqual([]);
+  });
+
+  it("the ring-width check fires on a bare width and spares every legal shape (WR-10)", () => {
+    // POSITIVE CONTROL. There are zero offenders in the tree, so without this the assertion above
+    // is indistinguishable from a regex that matches nothing at all.
+    const uncoloured = (chunk: string): string[] => {
+      const out: string[] = [];
+      for (const m of chunk.matchAll(PREFIXED_RING_WIDTH)) {
+        const prefix = m[1];
+        const coloured = new RegExp(
+          `(?:^|[\\s"'\`])${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}ring-(?:\\[|(?!offset-|inset(?![\\w-]))[a-z])`,
+        ).test(chunk);
+        if (!coloured) out.push(m[0].trim());
+      }
+      return out;
+    };
+
+    // The exact shape CR-01 deleted, re-added without its colour — plus a bare and a hover form.
+    expect(uncoloured("aria-invalid:ring-3")).toEqual(["aria-invalid:ring-3"]);
+    expect(uncoloured("rounded-md ring-2")).toEqual(["ring-2"]);
+    expect(uncoloured("hover:ring-1 focus-visible:ring-ring")).toEqual(["hover:ring-1"]);
+
+    // …and PER PREFIX, so one variant's colour cannot vouch for another's — the same property the
+    // offset check has, and the reason both capture the prefix rather than matching per file.
+    expect(uncoloured("focus-visible:ring-2 focus-visible:ring-ring aria-invalid:ring-3")).toEqual([
+      "aria-invalid:ring-3",
+    ]);
+
+    for (const legal of [
+      // The canonical recipe: width and colour at the same prefix.
+      CANONICAL_RECIPE,
+      // The decorative hairline.
+      "rounded-xl ring-1 ring-foreground/10",
+      // An arbitrary ring colour is still a colour.
+      "ring-2 ring-[color-mix(in_oklch,var(--brand),transparent)]",
+      // Zero width paints nothing, and `input-group.tsx` legitimately zeroes an inherited ring.
+      "aria-invalid:ring-0 focus-visible:ring-0",
+      // An OFFSET width is not a ring width, and `ring-inset` is not a colour but needs no colour.
+      "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "ring-2 ring-inset ring-ring",
+    ]) {
+      expect(uncoloured(legal), legal).toEqual([]);
+    }
   });
 
   it("checks ONE ELEMENT, so a correct sibling cannot vouch for a broken one (WR-02)", () => {

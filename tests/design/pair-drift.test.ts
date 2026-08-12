@@ -76,10 +76,22 @@
 //     one subtree. Nothing in `src/` writes one today — the only two bare `dark` string literals are
 //     `ui/sonner.tsx:29`'s value for Sonner's own `theme` prop, which is not a CSS class — but that
 //     is a measurement, not an assertion, and a future one would silently make skipped utilities live.
-//   • The lookup is ALPHA-BLIND: it asks whether the (fg, bg) pair is declared somewhere in the
-//     inventory, not whether the specific opacity a call site uses is the declared one. A component
-//     writing `bg-destructive text-destructive` solid passes on the strength of the `/10` rows.
-//     Measuring the alpha is `contrast.test.ts`'s job and it does it per row.
+//   • The lookup is SURFACE-BLIND, which is what is left of the alpha-blindness this bullet used to
+//     describe. `pairKey` now carries BOTH opacities, so the shape this list named for two plans —
+//     "a component writing `bg-destructive text-destructive` solid passes on the strength of the
+//     `/10` rows" — is CAUGHT. It was verified caught rather than assumed: putting that exact class
+//     pair on `booking/booking-row.tsx` turns the assertion below red with
+//     `destructive on destructive — not in CONTRAST_PAIRS`, naming the file and line. WR-05 removed
+//     the property and this bullet outlived it, which made the file's own header argue against the
+//     assertion 400 lines below it. Do not restore the old wording; run the class pair instead.
+//
+//     What IS still blind is the SURFACE the tint sits on: `pairKey` drops `alpha.over`, so the
+//     inventory's two `destructive/10` rows — one measured over `background`, one over `card` —
+//     collapse to a single `destructive on destructive @10%` key, and a row measured over one
+//     surface legalises the same tint over any other. That is inherent to same-string analysis: the
+//     class string says `bg-destructive/10` and carries no information about what is behind it, so
+//     there is nothing to key on. `contrast.test.ts` measures each `over` separately, which is where
+//     that coverage actually lives.
 //   • Only classes written as literal text are seen. A pairing assembled at runtime — a token name
 //     interpolated into a template, a class picked out of a `Record` by a variable — is invisible.
 //   • This proves a pairing is DECLARED, never that it is USED WELL. Contrast is a floor, not
@@ -160,9 +172,11 @@ const alphaSuffix = (percent: number | null): string =>
  * The lookup key for one pairing — foreground, background, AND the background's opacity.
  *
  * THE OPACITY IS IN THE KEY, AND THAT IS THE WHOLE POINT (WR-05). This key used to be
- * `fg on bg` with the alpha dropped, and the header below still lists "alpha-blind" as a known
- * limitation — but it understated the consequence. Dropping the alpha does not merely fail to
- * check the opacity; it lets a PASSING row silently vouch for a FAILING one. The inventory
+ * `fg on bg` with the alpha dropped, and the header's known-limitations list described that as
+ * "alpha-blind" — but it understated the consequence, and then outlived it: the bullet went on
+ * naming a shape this key catches until WR-04 ran the shape and found it red. The header is
+ * corrected; this note is the other half of that correction. Dropping the alpha does not merely
+ * fail to check the opacity; it lets a PASSING row silently vouch for a FAILING one. The inventory
  * declares `foreground` on `brand` at 10% over background, which measures 17.04 / 16.24 and is a
  * genuinely legal soft-accent chip. With the alpha dropped that row minted the key
  * `foreground on brand`, which then blanket-permitted `text-foreground` on a SOLID `bg-brand` —

@@ -361,6 +361,53 @@ describe("the DS-13 raw-design-value gate", () => {
     }
   });
 
+  it("flags a raw hex separated by a real SPACE, not just Tailwind's `_` (WR-11)", () => {
+    // CR-02 added `[` and `_` for the Tailwind arbitrary form. A plain space was deliberately left
+    // out so `see #3388 for details` would not match — but a space is what separates the parts of
+    // an inline `style` value, an SVG attribute and every CSS shorthand. All four shapes below were
+    // probed against the shipped `findDesignLeaks` and came back `[]`, from BOTH halves of D-16.
+    //
+    // The last one is the one that matters: `style={{ boxShadow: "0 2px 8px #0000001a" }}` is a
+    // colour frozen at authoring time that survives a theme switch — the single failure DS-13
+    // exists to prevent — and it was invisible to `npm run lint` AND `npm run test:design`.
+    for (const shape of [
+      'export const S = <div style={{ boxShadow: "0 1px 2px #00000010" }} />;\n',
+      'export const S = <div style={{ border: "1px solid #ccc" }} />;\n',
+      'export const S = <div style={{ boxShadow: "inset 0 0 4px #000000" }} />;\n',
+      'export const S = <div style={{ boxShadow: "0 2px 8px #0000001a" }} />;\n',
+    ]) {
+      const found = scanText("fixture.tsx", shape).join("\n");
+      expect(found, shape).toContain("raw hex colour");
+    }
+  });
+
+  it("still does NOT flag an issue reference in prose (landmine L14, after WR-11)", () => {
+    // THE NEGATIVE THE SPACE ADMISSION HAD TO PRESERVE, and the reason the anchor is the preceding
+    // TOKEN rather than the preceding character. `src/lib/db/schema.ts:730` carries a real
+    // `see #3388 for details`, and the obvious anchor — "a digit, `)`, `%` or `,` before the
+    // space" — cannot tell that from `solid #ccc`, because both are preceded by an ordinary word
+    // character. A length with a unit, a percentage, a bracket, a comma or a border/shadow keyword
+    // can. These four must stay clean or the gate starts crying wolf at prose.
+    for (const prose of [
+      'export const S = "see #3388 for details";\n',
+      'export const S = "Closes #123";\n',
+      'export const S = "the PR #4021 landed";\n',
+      'export const S = "tracked in #1a2b3c today";\n',
+    ]) {
+      const found = scanText("fixture.tsx", prose).join("\n");
+      expect(found, prose).not.toContain("raw hex colour");
+    }
+
+    // …and the phase's own arbitrary-value idiom must still pass, which is what CR-02's anchor
+    // was originally shaped around.
+    expect(
+      scanText(
+        "fixture.tsx",
+        'export const S = <div className="bg-[color-mix(in_oklch,var(--brand),transparent)]" />;\n',
+      ).join("\n"),
+    ).not.toContain("raw hex colour");
+  });
+
   it("flags a numbered Tailwind palette class", () => {
     const found = scanText(
       "fixture.tsx",
