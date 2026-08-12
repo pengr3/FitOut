@@ -94,20 +94,61 @@ import {
  *
  * The facet declarations (`--text-display--line-height` and friends) fall out for free: their
  * values are `var(--lh-…)`, not `var(--fs-…)`.
+ *
+ * A `--text-<name>` wired to a DIFFERENTLY-named family (`--text-caption: var(--fs-caption-sm)`) is
+ * neither a role by that rule nor a Tailwind default. It used to be dropped in silence, which is the
+ * one direction this derivation must never fail in — see `ROLE_FAMILY_MISMATCHES` below.
  */
-const ROLES: readonly string[] = (() => {
-  const css = readFileSync(GLOBALS_CSS_PATH, "utf8");
-  const start = css.indexOf("@theme inline");
-  if (start < 0) throw new Error("type-scale: no `@theme inline` block in globals.css");
-  const themeInline = css.slice(start);
-  const names = new Set<string>();
-  for (const m of themeInline.matchAll(
+function themeInlineBody(css: string): string {
+  const at = css.indexOf("@theme inline");
+  if (at < 0) throw new Error("type-scale: no `@theme inline` block in globals.css");
+  const open = css.indexOf("{", at);
+  if (open < 0) throw new Error("type-scale: `@theme inline` has no opening brace");
+
+  // Depth-counted to the MATCHING brace, skipping comments — the block is comment-dense and a brace
+  // inside a comment must not be allowed to close it.
+  let depth = 0;
+  for (let i = open; i < css.length; i += 1) {
+    if (css.startsWith("/*", i)) {
+      const close = css.indexOf("*/", i + 2);
+      i = close === -1 ? css.length : close + 1;
+      continue;
+    }
+    if (css[i] === "{") depth += 1;
+    else if (css[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return css.slice(open + 1, i);
+    }
+  }
+  throw new Error("type-scale: `@theme inline` block is unterminated");
+}
+
+/**
+ * IN-05: this used to be `css.slice(css.indexOf("@theme inline"))` — i.e. to END OF FILE, while the
+ * comment above described it as reading "the `@theme inline` block". Everything below the block was
+ * therefore read as if it were inside it. The per-theme blocks do declare `--text-xs`, `--text-sm`
+ * and friends; those escape being counted only because they point at fixed rem values rather than at
+ * `var(--fs-…)`, which is luck rather than a property. Verified before the fix by planting
+ * `--text-ghost: var(--fs-ghost)` sixty lines BELOW the block's closing brace: six assertions failed
+ * on a declaration that is not in the block at all.
+ */
+const ROLE_SCAN = (() => {
+  const body = themeInlineBody(readFileSync(GLOBALS_CSS_PATH, "utf8"));
+  const roles = new Set<string>();
+  const mismatched: string[] = [];
+  for (const m of body.matchAll(
     /^\s*--text-([a-z][a-z0-9-]*)\s*:\s*var\(\s*--fs-([a-z][a-z0-9-]*)\s*\)/gm,
   )) {
-    if (m[1] === m[2]) names.add(m[1]);
+    if (m[1] === m[2]) roles.add(m[1]);
+    else mismatched.push(`--text-${m[1]}: var(--fs-${m[2]})`);
   }
-  return [...names].sort();
+  return { roles: [...roles].sort(), mismatched };
 })();
+
+const ROLES: readonly string[] = ROLE_SCAN.roles;
+
+/** Role-shaped declarations the name-equality rule could not classify. Must stay empty — see IN-05. */
+const ROLE_FAMILY_MISMATCHES: readonly string[] = ROLE_SCAN.mismatched;
 
 /** The four facets every role must declare. A role that only controls size is not a role. */
 const FACETS = ["--fs-", "--lh-", "--fw-", "--ls-"] as const;
@@ -353,6 +394,26 @@ describe("the named steps survive the repo's own class merge", () => {
     }
     // The facet declarations must not be counted as roles of their own.
     expect(ROLES).not.toContain("display--line-height");
+  });
+
+  it("reports a role wired to a differently-named font-size family instead of dropping it (IN-05)", () => {
+    // The rule above classifies a role by `--text-<name>: var(--fs-<name>)`. A declaration like
+    // `--text-caption: var(--fs-caption-sm)` satisfies neither that rule nor the "Tailwind default"
+    // shape — and it used to be discarded WITHOUT A WORD.
+    //
+    // That silence is the whole danger. `text-caption` is a real emitted utility the moment it is
+    // declared, but a role missing from `ROLES` never reaches the equality assertion above, so
+    // `utils.ts` is never told it is a font-size role, so tailwind-merge treats it as a text COLOUR
+    // and DELETES it from any `cn()` that also sets one. That is verbatim the defect the header
+    // says this derivation exists to make loud, reintroduced by the classifier's own fall-through.
+    //
+    // Verified: with `--text-caption: var(--fs-caption-sm)` planted inside the block, the whole file
+    // was 38/38 green before this assertion existed.
+    expect(
+      ROLE_FAMILY_MISMATCHES,
+      "a `--text-<role>` pointing at a differently-named `--fs-` family cannot be classified here. " +
+        "Rename the family to match the role, or widen the rule — but do not let it vanish.",
+    ).toEqual([]);
   });
 });
 
