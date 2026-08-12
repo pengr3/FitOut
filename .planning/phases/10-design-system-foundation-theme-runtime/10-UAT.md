@@ -92,11 +92,23 @@ evidence: |
   Verified end-to-end by the developer in a real browser against the running
   app, both directions: the relative callbackURL routes to /bookings, and the
   backslash form `/\evil.com` does not leave localhost.
-  This closes the one item both code reviews explicitly recorded as UNVERIFIED.
-  WR-12 (a pre-existing phase-4 open redirect, patched during the second fix
-  pass) had only unit coverage — 9 tests around the extracted guard — because
-  neither reviewer had a browser or auth server available. The guard is now
-  confirmed working in the real navigation path.
+  CORRECTION (added 2026-08-12 after /gsd-secure-phase 10, which superseded the
+  original wording here). This test verified ONE spelling of the attack. That
+  spelling is genuinely closed. The guard as a whole is NOT sound.
+  `10-SECURITY.md` SEC-01 records a residual post-authentication open redirect
+  (CWE-601) confirmed live at HEAD, reproduced independently twice against the
+  shipped `src/lib/safe-callback-url.ts`:
+      /..//evil.com       -> guard returns "//evil.com" -> navigates to evil.com
+      /.//evil.com        -> same
+      /a/../..//evil.com  -> same
+  The guard returns the parsed `.pathname`, and dot-segment removal re-exposes a
+  leading `//` that the caller's second parse reads as an authority — so the
+  origin check at :67 passes on a string that later resolves cross-origin.
+  This test's original evidence claimed the guard was "confirmed working in the
+  real navigation path". That was an overclaim from a single-vector check and is
+  retracted. The test result stays `pass` because what it asserts — the relative
+  callbackURL routes, and `/\evil.com` does not leave localhost — is true and
+  was observed. The defect is tracked as SEC-01, not as a UAT failure.
 
 ## Summary
 
