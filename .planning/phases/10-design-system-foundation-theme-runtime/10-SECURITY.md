@@ -399,12 +399,18 @@ independently re-verified rather than accepted on report — see "What was re-ve
 - **T-10-48** — the browser half (`npm run test:e2e`) was last run at 10-13; three fix passes have
   since touched `scroll-area.tsx` and `input-group.tsx`. The durable gate is green; that specific
   browser claim is stale.
-- **`safe-callback-url.ts:113` carries a false justification** (see Scoped re-audit correction 2).
-  The comment claims the try/catch is needed because a slashes-only candidate throws; that candidate
-  is caught one line earlier and never reaches it. Deliberately not edited during the audit. Fix the
-  comment — and consider whether `:115`/`:118` earn their place as unreachable defence-in-depth or
-  should carry a comment saying so — the next time this module is touched. In a phase whose entire
-  thesis is that recorded claims must be true, a wrong justification inside the security guard
-  itself is the worst place to leave one.
-- **Widen the durable test to both origins.** It pins 6 of 7 SEC-01 vectors on one origin only.
-  All 7 × 2 were confirmed by manual probe twice, but the committed gate does not encode that.
+- ~~**`safe-callback-url.ts:113` carries a false justification.**~~ **DONE 2026-08-13, commit
+  `884a401`.** The comment now states plainly that the check above rejects 100% of known vectors,
+  that this block fired zero times in ~300k probed inputs, and why it is structurally unreachable —
+  while recording why it is kept (it stays correct if someone widens what `candidate` is built
+  from, which is exactly how SEC-01 got in). The stale claim in the test's vector list was
+  corrected in the same commit.
+- ~~**Widen the durable test to both origins.**~~ **DONE 2026-08-13, commit `884a401`.** All 7
+  SEC-01 vectors now run against `https://fitout.example` and `http://localhost:3000` via a nested
+  loop, with the origin in each assertion message. **The new coverage was proven, not assumed:** a
+  negative control isolating the localhost iteration produced
+  `AssertionError: "/..//evil.com" @ http://localhost:3000` — so that iteration demonstrably
+  executes and the guard demonstrably returns `/` for it. (A first attempt at this control was
+  inconclusive, because vitest aborts an `it()` on its first failed assertion and never reached the
+  second origin; isolating localhost was what made it decisive.) Gates after: security file 10/10,
+  `test:design` 21 files / 449, `tsc` exit 0, `lint` 0 errors / 9 known warnings.
