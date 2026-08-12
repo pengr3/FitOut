@@ -379,9 +379,19 @@ function label(file: string): string {
  * sits inside the props. Brace depth and quote state are tracked so the tag ends at the real `>`.
  *
  * This is what lets the touch assertions be made PER ELEMENT instead of per file. That distinction
- * is the whole point here: both of these files legitimately keep other 44px height classes on
- * `<Input>` and `<SelectTrigger>` primitives, which have no `touch` size to opt into, so a
+ * is the whole point here: these files legitimately keep other 44px height classes on `<Input>`,
+ * `<SelectTrigger>` and `<InputGroup>` primitives, which have no `touch` size to opt into, so a
  * file-level "contains no h-11" assertion would be asserting something untrue and unrelated.
+ *
+ * CORRECTED (WR-01): that sentence used to be written as if it covered EVERY remaining `h-11` in
+ * these two files. It does not — both also carried `<Button variant="outline">` elements
+ * hand-rolling the height, and a `<Button>` is exactly the element that DOES expose the size. The
+ * per-element scope is still right; the reason is that this assertion speaks only for the brand
+ * element, not that no other control in the file could opt in.
+ *
+ * The `depth`/`quote` walk is what makes it usable for counting: a naive `<Button[^>]*>` truncates
+ * at the `>` inside an arrow function like `onClick={(v) => …}`, which silently reads a fragment of
+ * the tag and misses the `className` that follows it.
  */
 function enclosingButtonTag(text: string, index: number): string {
   const start = text.lastIndexOf("<Button", index);
@@ -555,19 +565,33 @@ describe("DS-08 — the accent reaches the booker through the variant, never thr
 
 describe("DS-09 / D-22 — the two 44px CTAs say so by name", () => {
   it("names the touch size on both sites that hand-rolled the height", () => {
+    // AT LEAST ONCE, not exactly once (WR-01). The original pin was an equality, which quietly made
+    // "a second control in this file adopted the named size" a test failure — the opposite of what
+    // DS-09 wants. `rsvp-form.tsx` now carries two: the brand CTA and the outline button beside it,
+    // which previously hand-rolled the same 44px and rendered with different padding for it.
     for (const site of TOUCH_SITES) {
       const text = scan.text.get(site);
       expect(text, `${site} was not scanned`).toBeDefined();
-      expect(text!.split(TOUCH_SIZE).length - 1, `${site} should opt into the touch size once`).toBe(
-        1
-      );
+      expect(
+        text!.split(TOUCH_SIZE).length - 1,
+        `${site} should opt into the touch size`,
+      ).toBeGreaterThanOrEqual(1);
     }
   });
 
   it("puts the touch size on the brand element itself, with no hand-rolled height beside it", () => {
-    // PER ELEMENT, not per file, and the distinction is load-bearing. Both files keep other 44px
-    // height classes on `<Input>` and `<SelectTrigger>` primitives, which expose no size variant to
-    // opt into; a file-level assertion would be policing controls this contract does not reach.
+    // PER ELEMENT, not per file, and the distinction is load-bearing — but NOT for the reason this
+    // comment used to give (WR-01). It claimed both files keep their other 44px heights on `<Input>`
+    // and `<SelectTrigger>` primitives, "which have no `touch` size to opt into". That was false for
+    // both files: `search-bar.tsx` and `rsvp-form.tsx` each carried `<Button variant="outline">`
+    // elements hand-rolling `h-11`, and a `<Button>` is precisely the element that DOES expose the
+    // size. The justification described a limitation of the primitives rather than the real scope of
+    // the contract, and would have sent the next reader looking for a constraint that is not there.
+    //
+    // The true reason is narrower and holds: THIS assertion is about the BRAND element — the one
+    // control D-22 named the size for — so it reads the enclosing tag of `variant="brand"` and says
+    // nothing about any other control in the file. Repo-wide adoption is a separate claim, measured
+    // by the test below rather than asserted by a comment.
     const offenders: Violation[] = [];
 
     for (const site of TOUCH_SITES) {
@@ -579,6 +603,47 @@ describe("DS-09 / D-22 — the two 44px CTAs say so by name", () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  it("MEASURES how many <Button> elements still hand-roll the height (DS-09 is Pending)", () => {
+    // NOT A REQUIREMENT — A MEASUREMENT, and the distinction is the whole point. DS-09 is recorded
+    // as Pending with Phase 17 as its owner, so this must not fail the build for sites that phase
+    // has not reached yet. What it must do is stop the adoption gap being invisible, which is how
+    // it came to be described by a comment that was simply wrong (WR-01).
+    //
+    // Counts `<Button …>` tags carrying a bare `h-11`. `<Input>`, `<SelectTrigger>`, `<InputGroup>`
+    // and `<Skeleton>` are excluded because they genuinely expose no `touch` size — the claim the
+    // old comment made about Buttons, which is true only of these.
+    const handRolled: Violation[] = [];
+    for (const [name, text] of scan.text) {
+      const code = stripCommentLines(text);
+      for (let i = code.indexOf("<Button"); i !== -1; i = code.indexOf("<Button", i + 1)) {
+        const tag = enclosingButtonTag(code, i);
+        if (BARE_TOUCH_HEIGHT.test(tag)) {
+          handRolled.push(`${name}: ${tag.replace(/\s+/g, " ").slice(0, 70)}…`);
+        }
+      }
+    }
+
+    // The ceiling is the record. If this drops, Phase 17 converted something — lower the number and
+    // say which site moved. If it RISES, a new site hand-rolled the height that should have opted
+    // into the size, and that is the regression this measurement exists to surface.
+    //
+    // SIX, and the arithmetic getting here makes the case for measuring over describing. The review
+    // that raised WR-01 enumerated the sites by hand and found seven. Running this count found
+    // EIGHT — `rsvp-form.tsx`'s "Change my answer" button was missed by the hand pass. Both of that
+    // file's are converted in this commit, because one of them sat directly beside an
+    // already-converted sibling and the pair rendered the same 44px with different padding. Six
+    // remain. A comment describing the gap was wrong twice over; a count cannot be.
+    //
+    // The six left are Phase 17's to convert under DS-09, which is why this is a ceiling and not a
+    // zero. It is deliberately NOT scoped to exclude the D-22 files: `search-bar.tsx` is a named
+    // D-22 site that still has two, and hiding that behind a per-site exemption would recreate
+    // exactly the comfortable, wrong story WR-01 is about.
+    expect(
+      handRolled.length,
+      `hand-rolled 44px <Button> heights:\n${handRolled.join("\n")}`,
+    ).toBeLessThanOrEqual(6);
   });
 });
 

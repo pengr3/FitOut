@@ -191,7 +191,7 @@ export function RsvpForm({
             <Button
               type="button"
               variant="outline"
-              className="h-11"
+              size="touch"
               onClick={() => {
                 setFormError(null);
                 setChanging(true);
@@ -333,13 +333,18 @@ export function RsvpForm({
           >
             {pendingAnswer === "yes" ? "Saving…" : "Yes, I'm coming"}
           </Button>
+          {/* The SAME named size as its sibling (WR-01). This button hand-rolled the height while
+              the one above opted into the size, so two adjacent controls in one row expressed the
+              same 44px two different ways — and got different horizontal padding for it (px-4 from
+              the size, px-2.5 from the default). Identical height, visibly different insets. */}
           <Button
             type="button"
             variant="outline"
+            size="touch"
             onClick={form.handleSubmit((v) => onSubmit(v, "no"))}
             disabled={pending}
             aria-disabled={pending}
-            className="h-11 flex-1"
+            className="flex-1"
           >
             {pendingAnswer === "no" ? "Saving…" : "Can't make it"}
           </Button>
