@@ -48,8 +48,36 @@ const geistMono = Geist_Mono({
  * browser's generic glyph. The full measurement, and the two rejected shapes, are recorded in that
  * component's header — read it before adding this entry back.
  */
+/** The dev-server origin, and the value every non-usable `NEXT_PUBLIC_APP_URL` falls back to. */
+const DEFAULT_APP_URL = "http://localhost:3000";
+
+/**
+ * Resolve `metadataBase` without letting a malformed env var take down the whole app (WR-12).
+ *
+ * `??` catches only `null` and `undefined`, which is not the failure that actually happens. A `.env`
+ * carrying the KEY with a BLANK VALUE — `NEXT_PUBLIC_APP_URL=`, a very common deploy shape, and the
+ * normal result of a CI variable that was declared but never populated — yields the empty string.
+ * The empty string is neither null nor undefined, so it sails past the fallback into `new URL("")`,
+ * which throws `TypeError: Invalid URL`.
+ *
+ * That throw happens at MODULE EVALUATION OF THE ROOT LAYOUT, so it is not a bad-looking page: it
+ * is every route in the application failing to render, from a typo in an environment file, with a
+ * stack trace that points at a metadata field rather than at the variable. The same applies to any
+ * value that is not a parseable absolute URL — a bare `example.com`, a stray quote, a trailing
+ * newline from a secrets manager.
+ *
+ * So: trim, treat empty as absent, and require the survivor to actually parse before trusting it.
+ * A misconfigured origin degrades to localhost — wrong Open Graph URLs, which is a cosmetic defect
+ * on one meta tag — instead of a total outage.
+ */
+function resolveMetadataBase(): URL {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured && URL.canParse(configured)) return new URL(configured);
+  return new URL(DEFAULT_APP_URL);
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: resolveMetadataBase(),
   title: { default: "FitOut", template: "%s · FitOut" },
   description: "Book gyms, courts and studios by the hour.",
 };
