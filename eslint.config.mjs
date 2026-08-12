@@ -74,17 +74,29 @@ const noRawDesignValue = {
     },
   },
   create(context) {
-    /** Test one chunk of string content against every pattern and report each class that matches. */
+    /**
+     * Test one chunk of string content against every pattern and report EVERY match (IN-09).
+     *
+     * This was `pattern.exec(text)` — one match per pattern per literal — so
+     * `className="bg-white text-black"` squiggled `bg-white` and said nothing about `text-black`
+     * until the first was fixed. Verified on the real tree: one error, then a second run needed to
+     * discover the second leak. The Vitest half had the identical bug and is fixed with it.
+     *
+     * The `g` flag goes on a LOCAL CLONE, never on the shared pattern: the list's header records
+     * that its entries are `g`-less on purpose, because a `g`-flagged RegExp carries `lastIndex`
+     * between calls and would make every second `.test()` return a different answer.
+     */
     function check(node, text) {
       if (typeof text !== "string" || text === "") return;
       for (const entry of DESIGN_LEAK_PATTERNS) {
-        const match = entry.pattern.exec(text);
-        if (match === null) continue;
-        context.report({
-          node,
-          messageId: "rawDesignValue",
-          data: { match: match[0].trim() },
-        });
+        const scan = new RegExp(entry.pattern.source, `${entry.pattern.flags}g`);
+        for (const match of text.matchAll(scan)) {
+          context.report({
+            node,
+            messageId: "rawDesignValue",
+            data: { match: match[0].trim() },
+          });
+        }
       }
     }
 

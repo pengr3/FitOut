@@ -171,12 +171,25 @@ function inScope(label: string): boolean {
 
 type Hit = { readonly id: string; readonly label: string; readonly match: string };
 
-/** Every pattern that matches this chunk of text, with the matched substring for the message. */
+/**
+ * Every pattern that matches this chunk of text, with the matched substring for the message.
+ *
+ * EVERY match, not just the first (IN-09). This was `pattern.exec(text)`, which returns one match,
+ * so a literal carrying two leaks reported one and hid the other until the first was fixed —
+ * a fix-and-rediscover loop rather than a list. Observed on the real tree before the change:
+ * `className="bg-white text-black"` reported only `bg-white`, from BOTH halves of D-16.
+ *
+ * The `g` flag is added to a LOCAL CLONE and never to the shared pattern. That is deliberate: the
+ * pattern list's header records that its entries are declared without `g` because a `g`-flagged
+ * RegExp carries `lastIndex` between calls and would make every second `.test()` answer differently.
+ * Cloning per call keeps that property intact — `findDesignLeaks` still calls `.test()` on the
+ * original, stateless object.
+ */
 function leaksIn(text: string): Hit[] {
   const hits: Hit[] = [];
   for (const entry of DESIGN_LEAK_PATTERNS) {
-    const match = entry.pattern.exec(text);
-    if (match !== null) {
+    const scan = new RegExp(entry.pattern.source, `${entry.pattern.flags}g`);
+    for (const match of text.matchAll(scan)) {
       hits.push({ id: entry.id, label: entry.label, match: match[0].trim() });
     }
   }
@@ -447,6 +460,27 @@ describe("the DS-13 raw-design-value gate", () => {
     ).join("\n");
     expect(found).toContain("numbered Tailwind palette class");
     expect(found).toContain("arbitrary text size");
+  });
+
+  it("reports EVERY match in one literal, not just the first (IN-09)", () => {
+    // `pattern.exec` returns one match, so two leaks of the SAME class in one string surfaced one
+    // at a time: fix `bg-white`, re-run, discover `text-black`. Observed on the real tree before
+    // the change — `className="bg-white text-black"` produced a single error from both halves of
+    // D-16. A gate that reports a third of a problem trains the reader to trust a clean run it has
+    // not earned.
+    const found = scanText(
+      "fixture.tsx",
+      'export const c = <div className="bg-white text-black bg-[#E8484E]" />;\n',
+    ).join("\n");
+    expect(found).toContain("`bg-white`");
+    expect(found).toContain("`text-black`");
+    expect(found).toContain("#E8484E");
+
+    // Two DIFFERENT patterns in one literal already worked; two hits of the SAME pattern did not.
+    const sameClassTwice = scanText("fixture.ts", 'const a = "bg-zinc-50 text-slate-900";\n');
+    expect(sameClassTwice.filter((m) => m.includes("numbered Tailwind palette class"))).toHaveLength(
+      2,
+    );
   });
 
   // ---------------------------------------------------------------------------------------------
