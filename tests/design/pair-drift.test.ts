@@ -92,7 +92,7 @@ import ts from "typescript";
 
 import { LEAK_SCAN_PREFIXES } from "../../config/design-leak-patterns.mjs";
 import { readThemeTokens, THEME_NAMES } from "./helpers/compile-css";
-import { CONTRAST_PAIRS } from "../../src/lib/design/contrast-pairs";
+import { CONTRAST_PAIRS, type ContrastPair } from "../../src/lib/design/contrast-pairs";
 
 /**
  * Read as TEXT rather than imported: the provider is a `"use client"` module that pulls React and
@@ -187,8 +187,13 @@ const pairKey = (
   `${canonical(fg)}${alphaSuffix(alphas.fg ?? null)} on ${canonical(bg)}${alphaSuffix(alphas.bg ?? null)}`;
 
 /** Every pairing the design system declares legal, canonicalised. */
+// Explicitly typed as `ContrastPair[]`, for the same reason `contrast.test.ts` writes
+// `it.each<ContrastPair>`: the inventory is `as const`, so each row infers its own literal type and
+// the optional `alpha` / `fgAlpha` fields — which only some rows carry — are not on the resulting
+// union. Reading them off the raw union is a type error that `vitest run` does not catch, because
+// it transpiles without typechecking.
 const DECLARED = new Set(
-  CONTRAST_PAIRS.map((pair) =>
+  (CONTRAST_PAIRS as readonly ContrastPair[]).map((pair) =>
     pairKey(pair.fg, pair.bg, {
       fg: pair.fgAlpha === undefined ? null : pair.fgAlpha * 100,
       bg: pair.alpha === undefined ? null : pair.alpha.value * 100,
