@@ -261,9 +261,20 @@ const BANNED_ALPHA_HOVER = /[^\s"'`]*bg-brand\/90/g;
  * the old alternation: a directional accent edge at an unmeasured dilution was invisible here while
  * `border-b-gray-200` was banned by the leak gate. Now the two lists cannot disagree, because there
  * is one list.
+ *
+ * THE MODIFIER IS EITHER NUMERIC OR ARBITRARY, AND BOTH ARE POLICED (IN-06). This read `\/\d+`, so
+ * it saw the percentage spelling and not the bracketed one — while Tailwind compiles
+ * `bg-brand/[0.34]`, `ring-brand/[.5]` and `ring-destructive/[20%]` to exactly the same thing as
+ * their numeric twins. `pair-drift.test.ts` has always known the shape exists (it keys the arbitrary
+ * form as `NaN` so it can never match a declared row, fail-closed); this scan and the one below did
+ * not, so one of three gates understood the spelling and two were blind to it.
+ *
+ * The `/10` carve-out is deliberately NOT extended to `[0.1]`. It is the same value, but the
+ * declared row is keyed on the canonical numeric spelling, so an arbitrary one is unmeasured by
+ * definition here — matching it forces the author onto the form the inventory can actually see.
  */
 const UNMEASURED_ACCENT_ALPHA = new RegExp(
-  `[^\\s"'\`]*${COLOUR_ROLE}-(?:brand-foreground|brand)\\/(?!10(?![\\d.]))\\d+`,
+  `[^\\s"'\`]*${COLOUR_ROLE}-(?:brand-foreground|brand)\\/(?:(?!10(?![\\d.]))\\d+|\\[[^\\]\\s]+\\])`,
   "g",
 );
 
@@ -288,8 +299,18 @@ const UNMEASURED_ACCENT_ALPHA = new RegExp(
  * which is the property `contrast-pairs.ts:34-36` actually asks for.
  *
  * The brand family stays at ZERO through the scan above; this is the wider net around it.
+ *
+ * IT MATCHES THE ARBITRARY MODIFIER TOO (IN-06). Verified before the widening, on the real tree:
+ * `bg-accent/35` on `booking-row.tsx` went red naming the file, and `bg-accent/[0.35]` — the SAME
+ * dilution, which Tailwind compiles identically — left the whole suite at 442/442 green. The
+ * bracketed value is kept verbatim in the key (`accent/[0.35]`, not `accent/35`), because a shape
+ * the inventory has not seen should arrive as a new key and go red, rather than quietly folding
+ * into an existing entry whose recorded measurement was taken of the other spelling.
  */
-const DILUTED_TOKEN = new RegExp(`(?<![\\w-])${COLOUR_ROLE}-([a-z][a-z0-9-]*)\\/(\\d+)`, "g");
+const DILUTED_TOKEN = new RegExp(
+  `(?<![\\w-])${COLOUR_ROLE}-([a-z][a-z0-9-]*)\\/(\\d+|\\[[^\\]\\s]+\\])`,
+  "g",
+);
 
 /**
  * Every diluted composite that ships, and what is known about each.
@@ -808,6 +829,44 @@ describe("DS-08 / T-10-25 — the 90%-alpha accent is gone from src/ in EVERY fo
 
     // …and the measured tint must still pass on those roles, or the widening deletes a shipped one.
     for (const legal of ['className="border-b-brand/10"', 'className="from-brand/10"']) {
+      expect([...legal.matchAll(UNMEASURED_ACCENT_ALPHA)], legal).toEqual([]);
+    }
+  });
+
+  it("catches the ARBITRARY opacity spelling as well as the numeric one (IN-06)", () => {
+    // Both scans read `\/\d+` only, so the bracketed modifier walked through both. Tailwind
+    // compiles the two spellings identically, so this was a pure notation escape: the same
+    // dilution was caught written one way and invisible written the other.
+    //
+    // Measured on the real tree before the widening — `bg-accent/35` on `booking-row.tsx` failed
+    // naming the file, `bg-accent/[0.35]` left all 442 tests green.
+    for (const shape of [
+      'className="bg-brand/[0.34]"',
+      'className="ring-brand/[.5]"',
+      'className="bg-brand/[34%]"',
+      'className="text-brand-foreground/[0.8]"',
+      // The declared `/10` tint has no arbitrary twin: the inventory is keyed on the numeric
+      // spelling, so this one must be reported rather than quietly treated as the measured row.
+      'className="bg-brand/[0.1]"',
+    ]) {
+      expect([...shape.matchAll(UNMEASURED_ACCENT_ALPHA)], shape).not.toEqual([]);
+    }
+
+    // The wider net must see the same shapes on a NON-brand token, which is the half
+    // `UNMEASURED_ACCENT_ALPHA` is token-scoped away from.
+    for (const [shape, key] of [
+      ['className="ring-destructive/[20%]"', "destructive/[20%]"],
+      ['className="bg-accent/[0.35]"', "accent/[0.35]"],
+    ] as const) {
+      const found = [...shape.matchAll(DILUTED_TOKEN)].map((m) => `${m[1]}/${m[2]}`);
+      expect(found, shape).toContain(key);
+    }
+
+    // An arbitrary value is NOT an opacity modifier when it is the utility's own value, and
+    // widening must not start reporting those — `bg-[#fff]` is the leak gate's business, not this
+    // one's, and `w-[34%]` is not a colour at all.
+    for (const legal of ['className="bg-[#ffffff]"', 'className="w-[34%]"', 'className="grid-cols-[1fr_2fr]"']) {
+      expect([...legal.matchAll(DILUTED_TOKEN)], legal).toEqual([]);
       expect([...legal.matchAll(UNMEASURED_ACCENT_ALPHA)], legal).toEqual([]);
     }
   });
