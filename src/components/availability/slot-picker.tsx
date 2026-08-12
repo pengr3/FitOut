@@ -225,7 +225,17 @@ export function SlotPicker({
                     <span
                       className={cn(
                         "text-xs font-normal",
-                        isSelected ? "text-brand-foreground/80" : "text-muted-foreground",
+                        // NO ALPHA ON THE INK OVER THE CORAL FILL (CR-03). This sub-label sits on
+                        // the coral fill set ten lines above. At 80% opacity it composited to
+                        // #f4d1d2 / #c9e2e2 and measured 3.38:1 (court) / 3.51:1 (grove) against a
+                        // 4.5 text bar. That is the SAME arithmetic this phase invokes fifteen
+                        // times to condemn a 90%-alpha accent fill — an alpha tint over a light
+                        // surface LIGHTENS, dragging a filled control toward its own text colour —
+                        // applied to the foreground instead of the fill. Solid measures 4.57 / 4.53.
+                        // The de-emphasis the modifier carried is already expressed structurally by
+                        // `text-xs font-normal` against the parent's `text-sm font-medium`, so the
+                        // hierarchy survives; only the contrast failure goes.
+                        isSelected ? "text-brand-foreground" : "text-muted-foreground",
                       )}
                     >
                       {slot.freeUnits} of {unitCount} free

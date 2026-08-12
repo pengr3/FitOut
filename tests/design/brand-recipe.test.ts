@@ -226,15 +226,53 @@ const ACCENT_BACKGROUND_LINE = /[^\s"'`]*bg-brand(\/\d+)?/;
 const BANNED_ALPHA_HOVER = /[^\s"'`]*bg-brand\/90/g;
 
 /**
- * Any alpha on the accent BACKGROUND other than the one that was measured.
+ * Any alpha on the accent — in ANY role — other than the one that was measured.
  *
  * `/10` is a declared pairing that passes (`contrast-pairs.ts` measures foreground-on-brand@10%
  * over both background and card) and ships on the spots-left chip and the slot picker's notice.
  * Every other alpha is unmeasured, and `/85` / `/95` are one keystroke from `/90` and equally
  * broken — the same widening `button-variants.test.ts` applies inside the CVA, applied to call
  * sites. Deliberately narrower than a blanket alpha ban, which would delete a shipped soft accent.
+ *
+ * THE ROLE PREFIX IS NOW A SET, NOT JUST `bg-` (CR-01/CR-03). This pattern read `bg-brand/…`, so it
+ * policed the FILL and nothing else — and the phase's own argument is about compositing, which is
+ * indifferent to which property carries the alpha. Three shapes walked straight through the old
+ * form and all three shipped:
+ *
+ *   • `text-brand-foreground/80` — the slot picker's "N of M free" sub-label, painted on the coral
+ *     fill set ten lines above it, measuring 3.38:1 (court) / 3.51:1 (grove) against a 4.5 bar.
+ *     An alpha tint over a light surface lightens, so diluting the INK drags it toward the fill
+ *     exactly as diluting the fill drags it toward the ink. Same arithmetic, opposite operand.
+ *   • `ring-brand/50` — the pending-start anchor, 2.23:1 / 2.03:1 against a 3:1 bar.
+ *   • `border-brand/30` — recorded as a shipping composite by IN-05 and equally unmeasured.
+ *
+ * `brand-foreground` is matched as well as `brand` because the token name is a prefix of it; the
+ * alternation is ordered longest-first so the longer name wins the match.
  */
-const UNMEASURED_ACCENT_ALPHA = /[^\s"'`]*bg-brand\/(?!10(?![\d.]))\d+/g;
+const UNMEASURED_ACCENT_ALPHA =
+  /[^\s"'`]*(?:bg|text|ring|border|from|via|to|fill|stroke|shadow|outline|decoration|divide|accent|caret|placeholder)-(?:brand-foreground|brand)\/(?!10(?![\d.]))\d+/g;
+
+/**
+ * The one diluted accent that is NOT ink and NOT an indicator — the chip's ornamental edge.
+ *
+ * Measured, because an exemption without a number is just an opinion: the 30% coral composites to
+ * `#f4c0c2` (court) / `#b3d7d6` (grove) and measures 1.60:1 / 1.49:1 against the page. It is legal
+ * anyway, for the same reason `contrast-pairs.ts` carries `--border` and `--input` in
+ * `EXCLUDED_PAIRS`: it is never the sole boundary and never an indicator. Both call sites — the
+ * spots-left chip and the slot picker's gap notice — draw it around a FILLED surface whose tint is
+ * what actually bounds the shape, carry their words as `text-foreground` on that tint (a declared,
+ * measured row), and put the meaning in a SOLID `text-brand` icon beside them. Deleting the edge
+ * would change how the chip looks and improve nothing anyone can read.
+ *
+ * NOTE WHY THIS LIVES HERE AND NOT IN `EXCLUDED_PAIRS`. That inventory is keyed on `fg`+`bg` with
+ * no alpha in the key, and `brand on background` is already a measured row — so the exemption
+ * cannot be stated there without colliding with the row it is not talking about. That is the same
+ * alpha-blind-key defect WR-05 records in `pair-drift.ts`, met from the other side.
+ *
+ * BARE FORM ONLY, exactly as with the ring hairline in `focus-recipe.test.ts`: a variant chain
+ * means the edge appears in response to a state, and a state edge is an indicator.
+ */
+const DECORATIVE_ACCENT_EDGE = new Set(["border-brand/30"]);
 
 /** A hand-rolled 44px height class, as a whole token — `min-h-11` and `h-110` must not match. */
 const BARE_TOUCH_HEIGHT = /(^|[\s"'`:])h-11(?![\d.])/;
@@ -363,6 +401,8 @@ function scanSrc(): Scan {
       scan.bannedAlphaHovers.push(`${name}: ${m[0]}`);
     }
     for (const m of text.matchAll(UNMEASURED_ACCENT_ALPHA)) {
+      // `m[0]` carries any variant chain, so a state-scoped edge can never equal the bare key.
+      if (DECORATIVE_ACCENT_EDGE.has(m[0])) continue;
       scan.unmeasuredAlphas.push(`${name}: ${m[0]}`);
     }
 
@@ -549,6 +589,45 @@ describe("DS-08 / T-10-25 — the 90%-alpha accent is gone from src/ in EVERY fo
     // and equally broken. Narrowed to exempt `/10`, which contrast-pairs.ts measures over both
     // background and card and which ships on the spots-left chip and the slot picker's notice.
     expect(scan.unmeasuredAlphas).toEqual([]);
+  });
+
+  it("catches a diluted accent in ANY role, not just the fill (CR-03)", () => {
+    // POSITIVE CONTROL, and the reason this assertion is not the one it used to be. The pattern
+    // read `bg-brand/…` and so policed the FILL alone, while the phase's whole argument is about
+    // COMPOSITING — which does not care which property carries the alpha. All three shapes below
+    // were shipping and all three were invisible: the first is CR-03's sub-label on the coral fill
+    // at 3.38:1, the second the slot picker's anchor ring at 2.23:1, the third IN-05's border.
+    for (const shape of [
+      'isSelected ? "text-brand-foreground/80" : "text-muted-foreground"',
+      'className="border-brand ring-2 ring-brand/50"',
+      'className="hover:border-brand/30"',
+      'className="hover:bg-brand/90"',
+    ]) {
+      expect([...shape.matchAll(UNMEASURED_ACCENT_ALPHA)], shape).not.toEqual([]);
+    }
+
+    // …and must still let the measured tint and every solid form through, or it deletes a shipped
+    // affordance instead of a failing one.
+    for (const legal of [
+      'className="bg-brand/10 text-foreground"',
+      'className="text-brand-foreground"',
+      'className="ring-2 ring-brand"',
+      'className="bg-brand text-brand-foreground"',
+    ]) {
+      expect([...legal.matchAll(UNMEASURED_ACCENT_ALPHA)], legal).toEqual([]);
+    }
+  });
+
+  it("exempts the BARE decorative chip edge and nothing wearing a variant", () => {
+    // Asserted in both directions, for the same reason as the ring hairline: an exemption is the
+    // one place a widened gate can be quietly re-narrowed into uselessness.
+    expect(DECORATIVE_ACCENT_EDGE.has("border-brand/30")).toBe(true);
+    expect(DECORATIVE_ACCENT_EDGE.has("hover:border-brand/30")).toBe(false);
+
+    // …and it must still describe something the tree actually renders. If the chip edge is ever
+    // redrawn, DELETE the entry rather than leaving it standing open.
+    const chip = scan.text.get("src/components/availability/spots-left-chip.tsx") ?? "";
+    expect(chip).toContain("border-brand/30");
   });
 
   it("replaced the four availability hovers rather than deleting them", () => {
