@@ -264,6 +264,17 @@ interface Scan {
   positiveIconSites: string[];
   /** Raw text of every scanned file, keyed by normalised path. */
   text: Map<string, string>;
+  /**
+   * The same files with every comment removed (CR-03).
+   *
+   * WHY BOTH MAPS EXIST. The two are NOT interchangeable and each assertion below picks
+   * deliberately. A check that a class is ABSENT from the whole tree is correctly stricter on raw
+   * text: for a string that may appear nowhere at all, a comment quoting it is indistinguishable
+   * from a call site using it, and this phase relies on that (see `contrast-pairs.ts`'s note about
+   * describing rather than quoting). A check that a class is PRESENT must read stripped code, or
+   * prose about the class satisfies the requirement the class exists to meet.
+   */
+  code: Map<string, string>;
   /** Per call-site file: one utility SET per class string, so checks can be per-element. */
   utilities: Map<string, Set<string>[]>;
 }
@@ -275,6 +286,7 @@ function scanSrc(): Scan {
     retiredPairingSites: [],
     positiveIconSites: [],
     text: new Map(),
+    code: new Map(),
     utilities: new Map(),
   };
 
@@ -283,6 +295,7 @@ function scanSrc(): Scan {
     const text = readFileSync(file, "utf8");
     scan.scanned.push(name);
     scan.text.set(name, text);
+    scan.code.set(name, stripComments(text));
 
     if (!CALL_SITE_TREES.some((tree) => name.startsWith(tree))) continue;
 
@@ -294,7 +307,21 @@ function scanSrc(): Scan {
     if (chunks.some((u) => u.has(RETIRED_FILL) && u.has(RETIRED_INK))) {
       scan.retiredPairingSites.push(name);
     }
-    if (usesClass(text, STATUS_TONE_RECIPES.positive.icon)) scan.positiveIconSites.push(name);
+
+    // FROM STRIPPED CODE, NOT RAW TEXT (CR-03). This is DS-10's only mechanical check that the
+    // `positive` recipe's hue actually reaches a call site — D-14's thesis is "green retreats to
+    // the icon", so the glyph is the entire non-colour-only signal in a status chip. Read raw, it
+    // was satisfiable by a comment: the hue was deleted from `payout-banner.tsx`'s CheckCircle2 and
+    // replaced with `{/* the hue used to be text-success here */}`, and this file reported 18/18
+    // passed while the "Payouts enabled" badge shipped as an unhued glyph. That is the exact
+    // colour-only-to-no-colour regression DS-10 was written to prevent.
+    //
+    // Live risk in that same file, which is why this is not hypothetical: the prose at
+    // `payout-banner.tsx:48` already explains "the CheckCircle2 glyph that carries the hue". One
+    // edit that QUOTES the class instead of describing it and the assertion is permanently
+    // satisfied by documentation.
+    const code = scan.code.get(name)!;
+    if (usesClass(code, STATUS_TONE_RECIPES.positive.icon)) scan.positiveIconSites.push(name);
   }
 
   return scan;
@@ -414,10 +441,17 @@ describe("DS-10 — every derived status lands inside the union and declares an 
 });
 
 describe("DS-10 — every status badge recipe declares an icon", () => {
-  /** Does `file`'s recipe map give `key` an `Icon`? Matches both the one-line and braced forms. */
+  /**
+   * Does `file`'s recipe map give `key` an `Icon`? Matches both the one-line and braced forms.
+   *
+   * READS STRIPPED CODE (CR-03). This is a PRESENCE check, and every presence check in this file
+   * was reading raw text — which is how the sibling icon check came to be satisfiable by a comment.
+   * A commented-out recipe entry is not a recipe entry, and the negative control at the bottom of
+   * this file is what proves the distinction is real rather than intended.
+   */
   function declaresIcon(file: string, key: string): boolean {
-    const text = scan.text.get(file) ?? "";
-    return new RegExp(`\\n\\s*${key.replace("-", "\\-")}:\\s*\\{[^}]*Icon:`).test(text);
+    const code = scan.code.get(file) ?? "";
+    return new RegExp(`\\n\\s*${key.replace("-", "\\-")}:\\s*\\{[^}]*Icon:`).test(code);
   }
 
   it("the booking badge map gives all seven display statuses an Icon", () => {
@@ -446,9 +480,7 @@ describe("DS-10 — every status badge recipe declares an icon", () => {
     // corrected to branch on the discriminant, the check went on passing because the COMMENT
     // explaining the correction still quoted the old condition. A gate satisfied by a comment about
     // the code rather than by the code is the collision this phase has now hit repeatedly.
-    const badge = stripComments(
-      scan.text.get("src/components/host/payout-state-badge.tsx") ?? "",
-    );
+    const badge = scan.code.get("src/components/host/payout-state-badge.tsx") ?? "";
     expect(badge.length, "payout-state-badge.tsx was not read").toBeGreaterThan(0);
     expect(badge).toContain('state === "failed"');
     expect(badge).toContain('variant="destructive"');
@@ -478,7 +510,7 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     // different rendered colour with a different contrast ratio.
     const { surface, text, icon } = STATUS_TONE_RECIPES.positive;
     for (const site of POSITIVE_CALL_SITES) {
-      const body = scan.text.get(site) ?? "";
+      const body = scan.code.get(site) ?? "";
       expect(body.length, `${site} was not read`).toBeGreaterThan(0);
 
       const chunks = scan.utilities.get(site) ?? [];
@@ -492,6 +524,9 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
       // ink on the label — so it cannot be on the same string, and requiring that would be wrong.
       // It is asserted per file, which is this check's one remaining cross-element blind spot and
       // is stated here rather than left for the next reader to discover.
+      //
+      // FROM STRIPPED CODE (CR-03) — see the note in `scanSrc`. Read raw, a comment naming the hue
+      // satisfied this for a glyph that had lost it.
       expect(usesClass(body, icon), `${site} missing ${icon}`).toBe(true);
     }
   });
@@ -531,7 +566,8 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
       chunks.some((u) => u.has(surface) && u.has(text)),
       `${site} does not carry ${surface} and ${text} on the same element`,
     ).toBe(true);
-    expect(usesClass(scan.text.get(site) ?? "", icon)).toBe(true);
+    // Stripped code, for the same reason as `positive`'s twin above (CR-03).
+    expect(usesClass(scan.code.get(site) ?? "", icon)).toBe(true);
   });
 
   it("records which tones are rendered from the recipe and which only agree with it (WR-08)", () => {
@@ -542,9 +578,7 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     // Alert on --card. Closing that gap means deciding whether approved/processing keep their
     // border treatment and whether the closed lifecycle statuses keep their de-emphasised ink —
     // design decisions, deferred, not silently pending.
-    const badge = stripComments(
-      scan.text.get("src/components/booking/booking-status-badge.tsx") ?? "",
-    );
+    const badge = scan.code.get("src/components/booking/booking-status-badge.tsx") ?? "";
     expect(badge.length).toBeGreaterThan(0);
     // The outline variant is still selected per status, which is what the vocabulary note now says.
     expect(badge).toContain('variant: "outline"');
@@ -569,6 +603,66 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
 
     // The legal glyph-only survivor must still be recognised, or the count above means nothing.
     expect(utilitiesIn("bg-success text-success-foreground").has(RETIRED_FILL)).toBe(true);
+  });
+
+  it("does not accept a COMMENT naming the icon hue as the icon hue (CR-03)", () => {
+    // NEGATIVE CONTROL for the stripped-source change, and the reason it exists is that the gate
+    // was observed passing without it. `payout-banner.tsx`'s glyph was changed from
+    //
+    //     <CheckCircle2 className="size-3 text-success" aria-hidden="true" />
+    // to
+    //     {/* the hue used to be text-success here */}
+    //     <CheckCircle2 className="size-3" aria-hidden="true" />
+    //
+    // and this file reported **18/18 passed** — both the four-call-site set equality and the
+    // per-site `usesClass` were satisfied by the comment. The "Payouts enabled" badge became an
+    // unhued glyph, which is precisely the colour-only-to-no-colour regression DS-10 exists to
+    // prevent, and nothing in the suite noticed.
+    //
+    // The risk is not theoretical in that file: the prose above the glyph already explains "the
+    // CheckCircle2 glyph that carries the hue". One edit that quotes the class instead of
+    // describing it and the assertion would be permanently satisfied by documentation.
+    const { icon } = STATUS_TONE_RECIPES.positive;
+
+    const commentOnly = [
+      `        {/* the hue used to be ${icon} here */}`,
+      '        <CheckCircle2 className="size-3" aria-hidden="true" />',
+    ].join("\n");
+    const trailing = `        <CheckCircle2 className="size-3" /> // was ${icon}`;
+    const lineComment = [
+      `        // the glyph carries ${icon}`,
+      '        <CheckCircle2 className="size-3" aria-hidden="true" />',
+    ].join("\n");
+
+    for (const evasion of [commentOnly, trailing, lineComment]) {
+      // The raw text DOES contain the class — which is exactly why reading raw text was wrong.
+      expect(usesClass(evasion, icon), `fixture must contain ${icon} raw`).toBe(true);
+      expect(
+        usesClass(stripComments(evasion), icon),
+        `a comment naming ${icon} must not satisfy the icon check`,
+      ).toBe(false);
+    }
+
+    // …and the REAL form must still be recognised, or this hardening would have deleted the check
+    // rather than fixed it.
+    const real = `        <CheckCircle2 className="size-3 ${icon}" aria-hidden="true" />`;
+    expect(usesClass(stripComments(real), icon)).toBe(true);
+  });
+
+  it("reads the four pinned call sites from stripped code, and they still carry the hue (CR-03)", () => {
+    // GUARD-THE-GUARD on the change itself. The negative control above proves a comment no longer
+    // counts; this proves the stripper did not silently take the REAL hue with it, which would turn
+    // the set equality into a different kind of lie. A scan whose `code` map came back empty would
+    // satisfy neither.
+    const { icon } = STATUS_TONE_RECIPES.positive;
+    for (const site of POSITIVE_CALL_SITES) {
+      const code = scan.code.get(site) ?? "";
+      expect(code.length, `${site} produced no stripped code`).toBeGreaterThan(0);
+      expect(
+        usesClass(code, icon),
+        `${site} does not carry ${icon} in stripped code — either the call site lost the hue, or the stripper ate it (compare against the raw file to tell which)`,
+      ).toBe(true);
+    }
   });
 
   it("does not accept an opacity-modified surface as the solid one (WR-09)", () => {
