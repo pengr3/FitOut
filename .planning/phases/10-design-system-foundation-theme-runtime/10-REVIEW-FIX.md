@@ -2,437 +2,425 @@
 phase: 10-design-system-foundation-theme-runtime
 fixed_at: 2026-08-12
 review_path: .planning/phases/10-design-system-foundation-theme-runtime/10-REVIEW.md
-iteration: 2
-supersedes: "the first fix pass's report (git show 2ae81de:.planning/phases/10-design-system-foundation-theme-runtime/10-REVIEW-FIX.md)"
-fix_range: 40d7cbe..ce155fe
-findings_in_scope: 15
-fixed: 15
+iteration: 3
+supersedes: "the second fix pass's report (git show ec2af05:.planning/phases/10-design-system-foundation-theme-runtime/10-REVIEW-FIX.md)"
+fix_range: ff896a9..20df90c
+findings_in_scope: 16
+fixed: 14
+no_change_needed: 2
 skipped: 0
-status: all_fixed
+status: all_addressed
 ---
 
-# Phase 10 — Code Review Fix Report (iteration 2)
+# Phase 10 — Code Review Fix Report (iteration 3)
 
 **Fixed at:** 2026-08-12
-**Source review:** `.planning/phases/10-design-system-foundation-theme-runtime/10-REVIEW.md` (the re-review of `0231949..2ae81de`)
-**Iteration:** 2
-**Commits:** `40d7cbe..ce155fe`, nine of them, one per finding group
+**Source review:** `.planning/phases/10-design-system-foundation-theme-runtime/10-REVIEW.md`
+**Iteration:** 3
+**Commits:** `ff896a9..20df90c`, fourteen of them, one per finding
 
-**This file replaces the FIRST fix pass's report.** That report is not lost: it is preserved in git at
-`2ae81de` and readable with
-`git show 2ae81de:.planning/phases/10-design-system-foundation-theme-runtime/10-REVIEW-FIX.md`.
-This one covers the 3 Critical and 12 Warning findings the re-review raised against that pass's work.
+**This file replaces the SECOND fix pass's report.** That report is preserved in git at `ec2af05` and
+readable with
+`git show ec2af05:.planning/phases/10-design-system-foundation-theme-runtime/10-REVIEW-FIX.md`.
+It covered CR-01..CR-03 and WR-01..WR-12, which were resolved in `40d7cbe..ce155fe` and are **not**
+revisited here. This pass covers the 16 Info findings, IN-01..IN-16, which both prior passes left
+untouched.
 
 **Summary**
 
-- Findings in scope: **15** (CR-01..CR-03, WR-01..WR-12)
-- Fixed: **15**
+- Findings in scope: **16** (IN-01..IN-16)
+- Fixed: **14**
+- Already resolved / moot, no change needed: **2** (IN-04, IN-16)
 - Skipped: **0**
-- Out of scope by instruction, untouched: IN-01..IN-16
-
----
-
-## The one thing this pass did differently
-
-The re-review's headline was that the previous pass **repeatedly wrote a comment claiming a gate now
-closed an escape, without ever running the escape against the hardened gate**. All three Criticals
-were that failure.
-
-So every gate hardened here was verified the same way, in this order:
-
-1. Construct the evasion the finding describes, in the real tree.
-2. Run the gate. **Observe it pass** — confirming the finding.
-3. Apply the fix.
-4. Run the same evasion again. **Observe it fail**, and check the failure message names the file.
-5. Revert the evasion. Re-run everything.
-
-Every "verified" claim below is step 4, not step 3. The observed numbers are quoted.
-
-Two findings had nothing to evade (WR-04 is a false comment, WR-06 a missing env var). For those,
-the *claim* was run instead: WR-04's "NOT COVERED" shape was applied to the tree and observed going
-**red**, which is what proved the comment inverted.
 
 ---
 
 ## Verification
 
-Run in the main repo (dependencies present), after every fix and again at the end.
+Run in the main repo, where dependencies are present.
 
-| Command | Baseline (`40d7cbe`) | Final (`ce155fe`) |
+| Command | Baseline (`ec2af05`) | Final (`20df90c`) |
 |---|---|---|
-| `npm run test:design` | 20 files / 405 tests passed | **21 files / 441 tests passed** |
+| `npm run test:design` | 21 files / 441 tests passed | **21 files / 449 tests passed** |
 | `npx tsc --noEmit` | clean (exit 0) | **clean (exit 0)** |
-| `npm run lint` | 0 errors, 9 warnings | **0 errors, 9 warnings** (same 9, pre-existing) |
+| `npm run lint` | 0 errors, 9 warnings | **0 errors, 9 warnings** (the same 9, itemised and compared) |
 | `git status --porcelain` | `?? scope.tmp.txt` | **`?? scope.tmp.txt`** |
 
-The test count rose by 36 across one new file and five existing ones. **No pre-existing assertion was
-weakened, disabled or re-pinned to a looser number.** Every previously-pinned count — the 15 and 20
-brand conversions, the per-file `EXPECTED_CONVERSIONS` map, the 8 surviving accents, the 54 dark
-variants, the single legal filled-green site, the 6-site hand-rolled-height ceiling — is unchanged
-and still green.
+The suite grew by 8 tests. **No pre-existing assertion was weakened, deleted or re-pinned to a looser
+number.** The only assertions removed anywhere are IN-15's two subsumed ones, and their removal was
+justified by showing they can never fail independently and then showing the surviving assertion still
+catches the regression they existed for.
 
-**`npm test` (the main unit suite) was NOT run.** It requires a provisioned Postgres that this
-environment does not have. Non-design suites therefore remain unexercised by this pass, exactly as
-they were by the previous one and by the review. The one new file added outside the design suite
-(`tests/security/safe-callback-url.test.ts`, 9 tests) *was* executed here, via a throwaway
-DB-free Vitest config, and both its green and its red state were observed — see WR-12.
+**`npm test` (the main unit suite) was NOT run — it requires a provisioned Postgres this environment
+does not have.** Non-design suites therefore remain unexercised by this pass, as by both previous
+passes and by the review. The one non-design file this pass edited
+(`tests/booking/booking-status.test.ts`, a pure no-IO unit file) **was** executed, through a
+throwaway DB-free Vitest config: 26/26 before and after, and its red state was observed too.
 
-Three changes deliberately alter gate behaviour and are intended, not weakening: WR-02 changes the
-comment stripper, CR-02 restores `.css` coverage that a previous fix deleted, WR-04 rewrites a stale
-header comment.
+**Every probe was reverted.** All scratch files lived in an untracked `.probe/` directory which has
+been deleted; it was never committed (`git log --all -- .probe` is empty).
+
+### Deviation from the agent's default isolation
+
+This pass ran in the **main working tree**, not a dedicated git worktree, on the orchestrator's
+explicit instruction ("dependencies are installed; verify in the main repo"). A fresh worktree has no
+`node_modules`, and this pass depended on running Vitest, ESLint, `tsc`, Tailwind's compiler and a
+real Chromium — none of which would work there. Recorded because it is a deliberate departure.
+
+---
+
+## The method this pass was held to
+
+The review's through-line is that a previous pass **wrote comments claiming a gate closed an escape
+without ever running the escape**. So for every finding that is a claim about behaviour:
+
+1. Locate the finding by its described CONTENT — every line number in the Info set is stale, nine
+   commits having rewritten those files.
+2. Construct the case in the real tree.
+3. Run it. **Observe the wrong behaviour.**
+4. Fix.
+5. Run the same case again. **Observe the right behaviour**, and check the message names the file.
+6. Revert the probe.
+
+For the prose findings (IN-01, IN-03) the bar was that the corrected sentence is *true*, checked
+against the code or recomputed arithmetic — not merely plausible.
+
+**Five of the sixteen findings turned out to be partly or wholly wrong, and that only surfaced
+because each was run rather than applied.** Those are called out below; they are the most important
+part of this report.
+
+---
+
+## Where the review was wrong
+
+Recorded first, because a fix report that silently "fixes" a misdiagnosis is the same defect class
+the review exists to correct.
+
+- **IN-08's literal example is not an escape.** The finding says `findDesignLeaks("text-[14PX]")`
+  returns `[]` and asks for one `i` flag. Compiled against the installed Tailwind with
+  `source(none)`, `text-[14PX]` emits `color: 14PX` — Tailwind's data-type inference is
+  case-sensitive, so the bare uppercase unit is read as a colour and never bypasses the type scale.
+  The **hinted** twin `text-[length:14PX]` *does* emit `font-size: 14PX`, and that is the real
+  escape. A blanket `i` flag would also have made the gate report `TEXT-[14px]`, `bg-ZINC-50` and
+  `bg-WHITE`, none of which is a Tailwind class — inventing violations. Fixed precisely instead.
+
+- **IN-16 is moot; both its claims are false.** `lucide-react` adds `aria-hidden="true"` itself
+  (`dist/cjs/lucide-react.js:92`: `...!children && !hasA11yProp(rest) && { "aria-hidden": "true" }`).
+  Rendered, `<XIcon />` produces `<svg class="lucide lucide-x" aria-hidden="true">` — byte-identical
+  to the explicit form. The supporting claim that it is "unlike every other lucide glyph in the tree"
+  is also wrong: `calendar.tsx`, `checkbox.tsx`, `command.tsx`, `dropdown-menu.tsx`, `select.tsx` and
+  `sonner.tsx` all omit it, as do several app components.
+
+- **IN-14's suggested fix would have caused a regression, and it under-reported the blast radius.**
+  The review proposes the shadcn definite-height idiom. Measured in Chromium, `h-96` with 2 rows
+  forces a 384px box padded with empty space, where the shipped `max-h` intent keeps it at 80px. Also
+  the finding names only `notification-bell.tsx`; **both** ScrollArea call sites in the repo use the
+  max-height idiom, so `slot-picker.tsx`'s time-slot grid had the identical bug.
+
+- **IN-11's stated complaint was already resolved.** It says the surface-blindness is "no longer
+  stated anywhere now that the alpha-blind bullet is wrong (WR-04)". WR-04's fix in the previous pass
+  rewrote that bullet and states it precisely. The blindness itself is real, and is now pinned.
+
+- **IN-13 names two files; only one was affected.** `status-vocab.test.ts`'s half was already closed
+  by CR-01's `classSetsForElements`, which unions template parts. Verified by running a
+  template-split retired pairing through it — still caught.
+
+And one place the review **under**-reported:
+
+- **IN-03's sentence carries a second false claim the review did not catch.** Beyond the stale "error
+  ring", the same sentence calls §6 "the only place on the page where the destructive token appears
+  at rest". It is one of three.
 
 ---
 
 ## Fixed Issues
 
-### CR-01 — the retired-pairing gate was evadable by a `cn()` split
+### IN-01 — the recomputed solid brand contrast
 
-**Files:** `tests/design/status-vocab.test.ts` · **Commit:** `806436a`
+**File:** `src/components/availability/slot-picker.tsx` · **Commit:** `ff896a9`
 
-The gate's unit was one string literal, and the doc comment claimed detecting the two classes
-independently "removes every one of those escapes at once". It did not remove the `cn()`-split one.
+Recomputed from the shipped tokens with `contrast.test.ts`'s own arithmetic (8-bit hex, WCAG 2.x
+luminance) rather than copying the review's figure, since the review notes the error propagated from
+an earlier document: **court 4.5664, grove 4.5721**. Both are 4.57; the recorded "4.53" is wrong.
 
-**Verified.** `booking-row.tsx:59` changed to
-`<Card className={cn("relative bg-success", "text-success-foreground")}>` →
-`status-vocab.test.ts` **18/18 passed**, `pair-drift.test.ts` green too (34/34 across both). After
-the fix, the same evasion → **1 failed / 22 passed**, the failure listing
-`src/components/booking/booking-row.tsx` as a second filled `--success` surface.
+It matters because the phase's bar is `TEXT_BAR + AA_EPSILON` = **4.55**, so as written the note
+claimed the CR-03 fix landed *below* the phase's own threshold on grove while the `CONTRAST_PAIRS`
+row for the same pairing is green — a comment contradicting the gate beside it. The note's other
+numbers (3.38 / 3.51) reproduce exactly and were left alone.
 
-The unit is now the **element**: `classSetsForElements` unions every literal beneath one `className`
-JSX attribute, and separately beneath any `cn()`/`clsx()`/`twMerge()` call, keeping the per-literal
-sets as well. A new positive control asserts five split shapes are invisible to the old unit and
-caught by the new one, and a counter-test asserts a fill on a parent with an ink on a child is *not*
-reported — the widening must not cry wolf.
+### IN-02 — the dead invalid-ring zeroing in the input group
 
-**One escape is left open and is recorded as open, not claimed closed.** A pairing split across a
-`cva` BASE and one of its VARIANTS is still invisible, because unioning a `cva()` call would merge
-mutually-exclusive variants and report combinations no props can produce. There is an assertion
-pinning that gap so it cannot silently become untrue, with a note saying to delete the test if a
-future change closes it. The superlative sentence in the header is gone.
+**File:** `src/components/ui/input-group.tsx` · **Commit:** `f275816`
 
-### CR-02 — the `.css` leg had been deleted from both focus pairing checks
+`aria-invalid:ring-0` on `InputGroupInput`/`InputGroupTextarea` cancelled a ring that CR-01 deleted
+from every primitive. Verified dead on two axes: a repo-wide grep for `aria-invalid:ring-` returns
+only these two lines plus a comment; and run through the real `cn()`/twMerge path against `Input`'s
+base string, removing it changes the merged output by exactly that one class.
 
-**Files:** `tests/design/focus-recipe.test.ts` · **Commit:** `613a66e`
+The same probe confirmed the **`focus-visible:ring-0` neighbour is load-bearing and stays** — it
+displaces the base's `focus-visible:ring-2`, absent from the merged result in both directions,
+because the group paints focus on the wrapper.
 
-WR-02 of the first pass narrowed both checks from whole-file text to one class string, implemented
-with the TypeScript AST walker — which returns nothing for a stylesheet. The `.css` leg was not
-narrowed, it was dropped, and the justification written in its place contradicted the file's own
-header.
+### IN-03 — the `/dev/theme` form-row note, both halves false
 
-**Verified.** `@apply focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;`
-added to `globals.css`'s `@layer base` body rule → **14/14 passed** while the stylesheet shipped
-Tailwind's hardcoded `#fff` offset band on every focusable element. After the fix, the same line →
-**2 failed / 17 passed**, both naming `src/app/globals.css:469` and quoting the missing
-`focus-visible:ring-offset-background`.
+**File:** `src/app/dev/theme/fixtures.ts` · **Commit:** `977fdea`
 
-A `cssDeclarations` walker now supplies the `.css` unit (a declaration, split on `;{}` and newline,
-with line numbers), and both checks run over both legs. The `.css` leg is exercised by two fixtures
-rather than argued for — one asserting the offending `@apply` is reported at the right line, one
-asserting a correct sibling declaration cannot vouch for a broken one.
+The note promised "the destructive border treatment **and the error ring** on a REAL control". CR-01
+removed that ring.
 
-### CR-03 — DS-10's only call-site icon check read raw text
+Checked what the fixture actually renders rather than trusting the review's assumption: the invalid
+control is the rate `<Input>`, and the Checkbox beside it is `defaultChecked` but **not**
+`aria-invalid` — so WR-01's checked+invalid border does not apply here and nothing on the page
+exercises it. Said so, since it is the natural next question.
 
-**Files:** `tests/design/status-vocab.test.ts` · **Commit:** `97ba8b5`
+The same sentence also claimed §6 was the only resting destructive on the page. It is one of three:
+`BUTTON_HIERARCHY` renders a solid `destructive` Button, and `PAYOUT_STATE_FIXTURES` renders `failed`
+as the destructive Alert. Every other component the page imports was checked — the only other
+destructive utilities in reach are gated behind `aria-invalid` on Checkbox and Select, neither of
+which is invalid here.
 
-D-14's thesis is "green retreats to the icon", making the glyph the entire non-colour-only signal in
-a status chip — and the only mechanical check that the hue reaches a call site read the raw file,
-comments included.
+### IN-05 — the `@theme inline` slice, and a silently-dropped role
 
-**Verified.** `payout-banner.tsx:55` changed to `{/* the hue used to be text-success here */}` above
-an unhued `<CheckCircle2 className="size-3" />` → **18/18 passed**. After the fix, the same edit →
-**3 failed / 17 passed**, with `src/components/host/payout-banner.tsx missing text-success`.
+**File:** `tests/design/type-scale.test.ts` · **Commit:** `837e6d9`
 
-Both reads now go through the shared stripper, as does `declaresIcon` — which was the same defect in
-the same file and had also not been swept. A negative control asserts three comment shapes that name
-the class do **not** satisfy the check while the real form still does, and a guard-the-guard asserts
-the stripper did not eat the real hue from the four pinned sites.
+Two holes, both reproduced first.
 
-**Landed after WR-02, as the review required** — the evasion uses a whole-line comment, and until
-WR-02 the stripper was trailing-comment blind, so CR-03 applied first would have looked done.
+**The slice ran to end of file** while its comment described it as reading "the `@theme inline`
+block". Planting `--text-ghost: var(--fs-ghost)` sixty lines *below* the block's closing brace
+produced six failures on a declaration outside the block. The per-theme blocks below do declare
+`--text-xs`/`--text-sm`/…; they escape only because they point at fixed rem values, which is luck.
+Now depth-counted to the matching brace, skipping comments — and the skip is load-bearing, not
+decoration: probed against a synthetic block with a `}` inside prose, the un-skipped matcher
+truncates and silently drops a role. Extraction now covers exactly lines 34–139.
 
-### WR-01 — a checked + invalid Checkbox / RadioGroupItem had no error affordance
+**`--text-caption: var(--fs-caption-sm)` was dropped in silence** — 38/38 green. That is the one
+direction this derivation must never fail in: the utility is emitted, but the role never reaches the
+equality assertion, so `utils.ts` is never told it is a font-size role, so tailwind-merge treats it
+as a colour and deletes it — verbatim the defect the header says the derivation exists to make loud.
+Mismatches are now collected and asserted empty; re-run with the same probe, 1 failed quoting the
+declaration.
 
-**Files:** `src/components/ui/checkbox.tsx`, `src/components/ui/radio-group.tsx`,
-`src/components/ui/button.tsx`, `tests/design/focus-recipe.test.ts` · **Commit:** `563f91f`
+### IN-06 — the arbitrary opacity spelling
 
-**This was the first of the two judgement calls. Decision: APPLIED, with a gate.**
+**File:** `tests/design/brand-recipe.test.ts` · **Commit:** `331f437`
 
-The reasoning: the state had **no error cue of any kind**, and the proposed fix restores one using a
-token that is already a declared, measured row. Refining *how* a checked+invalid control should look
-(e.g. whether the fill should also change) is a designer's call, but it is an additive one — shipping
-a declared cue instead of none is not a design decision, it is a defect fix. So the review's proposal
-was taken as written.
+Re-derived against the post-WR-07/08/09 tree as instructed: **the gap survives the rewrite.** Both
+scans still read `\/\d+`.
 
-**The specificity claim was verified by compiling, not assumed.** Against the installed Tailwind:
+Isolated on the real tree, same dilution, two spellings: `bg-accent/35` → 1 failed naming the file;
+`bg-accent/[0.35]` → **442/442 green**. (The first attempt used `bg-brand`, which a separate
+"no `bg-brand` in any form" gate catches for unrelated reasons, so the isolating case had to be a
+non-brand token.) `pair-drift.test.ts` has always known the spelling exists — it keys the arbitrary
+form `NaN` — so one of three gates understood it and two were blind.
 
-```css
-.aria-invalid\:border-destructive           { &[aria-invalid="true"] { … } }            /* (0,2,0) */
-.aria-invalid\:aria-checked\:border-primary { &[aria-invalid="true"] {
-                                              &[aria-checked="true"] { … } } }          /* (0,3,0) */
-.data-checked\:border-primary               { &:where([data-state="checked"]) { … } }   /* (0,1,0) */
-```
+Both scans now accept a bracketed modifier, keeping the bracket verbatim in the inventory key so a
+new spelling arrives as a NEW key rather than folding into an entry measured for the other form.
+Re-ran both escapes after the fix: red, naming file and shape.
 
-The nested rule wins on specificity regardless of source order, and `data-checked:` sits inside
-`:where()` so it never competed. Radix sets `aria-checked` on both roots. Confirmed.
+### IN-07 — the leak rule id's arity
 
-Both primitives now point the state-scoped rule at `border-destructive`. `button.tsx:50-51`'s note —
-which said the destructive border "already carries the error meaning", true of seven primitives and
-false of these two — is corrected and now carries the carve-out the review asked for.
+**File:** `eslint.config.mjs` · **Commit:** `6a710e0`
 
-**Gated, so it cannot regress.** A new scan asserts every colour utility whose variant chain mentions
-the invalid state names the destructive token, read from stripped code so the notes explaining the
-decision neither satisfy nor trip it. **Verified**: re-introducing `aria-invalid:aria-checked:border-primary`
-on `checkbox.tsx` → **1 failed / 20 passed**, naming the file and the class.
+Both malformed shapes run against the installed ESLint 9.39.4:
+`"@fitout/design/no-raw-design-value"` → *could not find plugin "@fitout/design"*;
+`"no-raw-design-value"` → `TypeError: Could not find "no-raw-design-value" in plugin "@"` plus a
+stack trace. Neither message mentions the split, so both send the reader to the plugin registration
+rather than the constant. After the guard, both fail naming the arity, the value and the file to
+edit.
 
-### WR-02 — `stripCommentLines` blanked only WHOLE-LINE comments
+### IN-08 — uppercase CSS units in two leak patterns
 
-**Files:** `tests/design/helpers/strip-comments.ts` (new), `tests/design/strip-comments.test.ts`
-(new), `brand-recipe.test.ts`, `status-vocab.test.ts`, `type-scale.test.ts`, `dark-scope.test.ts`
-· **Commit:** `d39a1d6`
+**Files:** `config/design-leak-patterns.mjs`, `tests/design/leak.test.ts` · **Commit:** `14fa3d1`
 
-**Verified.** `book-cta.tsx:219` changed to
-`variant="secondary" /* was variant="brand" before the regression */` → `brand-recipe.test.ts`
-**21/21 passed** with the primary booker CTA no longer coral and all six pinned counts green. After
-the fix, the same edit → **3 failed / 18 passed**: the 15 total (`expected 14 to be 15`), the
-per-file map, and the repo-wide 20 (`expected 19 to be 20`).
+See "Where the review was wrong" for why this is not the one `i` flag the finding asks for. Only the
+**unit** is loosened, because CSS units are ASCII case-insensitive while Tailwind class names and
+data-type hints are not.
 
-There were **four** copies of the stripper, not three — `dark-scope.test.ts` had a fourth. All four
-are gone, replaced by one shared quote-aware scanner.
+Swept the same defect in `raw-hex` rather than leaving its twin open — its anchor is built from CSS
+units and keywords, so `1PX SOLID #CCC` was unmatched. Checked through a real CSS parser's computed
+style rather than read off the spec: it computes to `1px solid rgb(204, 204, 204)`, identical to the
+lowercase form. Verified end-to-end through **both** halves of D-16: planted in `booking-row.tsx`,
+`npx eslint` reports `text-[length:14PX]` and `SOLID #CCC`.
 
-**It is a character scanner, not an `indexOf`, and that is load-bearing.** The two hazards the old
-strippers were line-anchored *for* are real shapes in this tree: `accept="image/*"` (a naive block
-open eats 86 lines) and `"https://…"` (a `//` inside a string). Both are handled by tracking quote
-state and recognising a comment opener only outside a string, and both are fixtures.
+### IN-09 — first-match-only in both consumers
 
-**Measured before adoption rather than argued.** The new stripper was run over every `.ts`/`.tsx`/`.css`
-file under `src/` alongside the old one: every token the phase pins a count on came back with an
-**identical count in every file**, and the comment-dense modules that shrink most under stripping
-(`src/lib/utils.ts` 45→9 non-blank lines, `globals.css` 472→239) produced **byte-identical output**
-under both. The change adds coverage and removes nothing.
+**Files:** `eslint.config.mjs`, `tests/design/leak.test.ts` · **Commit:** `158bec9`
 
-Quote state resets at each newline; block state does not. The asymmetry is the safety property: a
-stray apostrophe in JSX prose costs at most one un-stripped comment on its own line, which
-over-counts, and over-counting fails a pinned assertion **loudly**. It can never under-count, which
-is the silent direction that shipped a grey CTA.
+`bg-white text-black` on `booking-row.tsx` before: **1 error** from ESLint, **1 finding** from Vitest.
+After, with a third leak added: **3 and 3**. Two *different* patterns in one literal already worked —
+the loop is over patterns — it was two hits of the *same* pattern that vanished.
 
-### WR-03 — `focus-recipe`'s per-chunk checks had no positive control
+The `g` flag goes on a local clone, never on the shared pattern: the list's header records that its
+entries are `g`-less because a `g`-flagged RegExp carries `lastIndex` between calls, and
+`findDesignLeaks` still calls `.test()` on the original stateless object.
 
-**Files:** `tests/design/focus-recipe.test.ts` · **Commit:** `613a66e` (with CR-02, as the review advised)
+### IN-10 — the dead `edge` role
 
-**Verified.** Replacing the unit-source condition with `if (false)` → **14/14 passed** with both
-checks inspecting zero files. After the fix, zeroing the unit source → **2 failed / 17 passed**
-(`expected 0 to be greater than 500` and `expected 0 to be greater than 100`).
+**File:** `tests/design/pair-drift.test.ts` · **Commit:** `23fff60`
 
-The scan now counts what it inspected and records a **non-empty** expectation — the recipe must be
-seen in `button.tsx` — modelled on `status-vocab.test.ts`'s sibling. The `.css` units are counted
-separately, because `.css` is one file among 200+ and a silently-zeroed `.css` leg would move the
-overall count by a rounding error.
+Neither deleted nor switched on. A border or ring colour against the fill behind it is a real
+non-text pairing — `border-destructive/40` on `--card` at 2.13:1 is one, and WR-07 had to give it an
+`EXCLUDED_PAIRS` row — so consuming the role mints pairings that each need measuring and then
+declaring or exempting. The size of that was **measured, not guessed**: wiring `edge` into the
+foreground side produces **ten** undeclared pairings immediately. Writing ten exemptions nobody
+measured is precisely the failure this review exists to correct.
 
-### WR-04 — `pair-drift`'s "NOT COVERED" list was factually inverted
+So it is recorded as a deliberate gap and pinned: the test asserts edges *are* classified, that they
+produce no pairing, and that an edge beside a real fg/bg pair does not suppress it. Verified a real
+pin — wiring edges up turns it red.
 
-**Files:** `tests/design/pair-drift.test.ts` · **Commit:** `df05826`
+### IN-11 — pair-drift's surface-blindness
 
-**Verified — the claim was run.** `booking-row.tsx:59` → `<Card className="relative bg-destructive
-text-destructive">`, the exact shape the header called a hole, → **1 failed / 13 passed**:
-`destructive on destructive — not in CONTRAST_PAIRS; 1 site(s), e.g. src/components/booking/booking-row.tsx:59`.
+**File:** `tests/design/pair-drift.test.ts` · **Commit:** `e13dbaa`
 
-The bullet is replaced with what is now true (WR-05 put both opacities in the key, and the named
-shape is caught — with the reproduction recorded so the next reader runs it rather than trusting the
-sentence) and what is **still** a hole: `pairKey` drops `alpha.over`, so the two `destructive/10`
-rows collapse to one key and a row measured over `card` legalises the tint over any surface (IN-11).
-That one is inherent to same-string analysis — the class string carries no information about what is
-behind it — and is stated as such. The `pairKey` docstring, which acknowledged the header was stale
-without fixing it, is corrected to match.
+Confirmed still open, and confirmed already documented — see "Where the review was wrong".
 
-### WR-05 — `resolveMetadataBase` accepted any scheme
+The blindness is real: the two `destructive/destructive` rows differ only in `alpha.over`, carry the
+same `0.1`, and mint an identical key. It is also genuinely unfixable here, and closing it would make
+the gate worse — the scan reads a class *string*, and `bg-destructive/10` carries no information
+about what is behind it, so putting `over` in the key would leave every declared alpha row
+unmatchable and turn this gate into a false-positive generator.
 
-**Files:** `src/app/layout.tsx` · **Commit:** `151f5e2`
+What was missing was not prose but a **pin**. The new test asserts the collapse, asserts the inventory
+really measures more than one surface, and instructs the reader to delete it and the header bullet
+together if the key ever becomes surface-aware. Verified: making `pairKey` surface-aware turns it red.
 
-**Verified.** Probed against this Node, reproducing the review exactly:
+`tsc` — not Vitest — caught that the rows needed the `ContrastPair[]` cast, which is the hazard the
+file's own comment records: Vitest transpiles without typechecking.
+
+### IN-12 — the rounded opacity key
+
+**File:** `tests/design/pair-drift.test.ts` · **Commit:** `d80b306`
+
+Run with a probe row declaring `alpha.value: 0.125`:
 
 ```
-"example.com"         -> canParse false -> falls back           (the case the comment names)
-"localhost:3000"      -> canParse TRUE, protocol "localhost:",  origin null
-"fitout.ph:443"       -> canParse TRUE, protocol "fitout.ph:",  origin null
-"javascript:alert(1)" -> canParse TRUE, protocol "javascript:", origin null
-new URL("/og.png", new URL("localhost:3000"))  ->  THREW: TypeError Invalid URL
+bg-muted/12  -> keys @12%, row keys @13%  -> reported "not in CONTRAST_PAIRS" although the row exists
+bg-muted/13  -> keys @13%, row keys @13%  -> PASSES. A 13% tint waved through on a 12.5% measurement.
 ```
 
-The guard now requires `http:` or `https:`. Re-probed after the fix: all four fall back to localhost,
-`https://fitout.ph` and `http://fitout.ph:8080` still resolve, `HTTPS://FitOut.ph` normalises and
-passes, `file:///etc/passwd` falls back, and every case resolves `/og.png` without throwing.
+The second is WR-05's defect class exactly. `contrast.test.ts` stayed green throughout — it measured
+the row it was given, and the row was fine; the fault is entirely in the lookup.
 
-Latent — no route in `src/` declares `openGraph`, `twitter` or `alternates` metadata today — so this
-is a guard rather than a live bug fix, and it is recorded that way in the code.
+Two changes, because not rounding alone is not enough: the percent is normalised with `toFixed` (still
+absorbing the float error that makes `0.1 * 100` come out `10.000000000000002`), **and** a fractional
+row is now loud at declaration time, since `classifyUtility` reads `/^\d+$/` and so can never produce
+a fraction — such a row is unreachable by construction. Re-ran with the probe: the guard names the row
+and `/13` is correctly reported as undeclared.
 
-### WR-06 — `NEXT_PUBLIC_APP_URL` was a new, undocumented second origin variable
+### IN-13 — template chunks in the focus walker
 
-**Files:** `.env.example` · **Commit:** `151f5e2`
+**File:** `tests/design/focus-recipe.test.ts` · **Commit:** `17011b2`
 
-Added beside `BETTER_AUTH_URL`, stating that the two must match, why one carries the `NEXT_PUBLIC_`
-prefix (it is inlined into the browser bundle **at build time**, so it must be set when you build),
-what silently goes wrong if it is missing (metadataBase pins to localhost in production and Next does
-not warn — setting `metadataBase` is precisely what suppresses that warning), and that a scheme-less
-`host:port` parses but is rejected by the WR-05 guard.
+A complete, correct recipe split by an interpolation was reported as an uncoloured offset — verified
+on `booking-row.tsx`, one failure naming file and line. False-positive direction, so nothing shipped
+wrong, but a gate that cries wolf on a legal shape is how a gate ends up disabled.
 
-### WR-07 / WR-08 / WR-09 — one root cause: the accent scan was token-scoped and there were two role lists
+Joining is **per-template, not per-element**, and that distinction is the safety property: the static
+parts of one template always render together and unconditionally, so this cannot mint a false
+exemption the way merging `cn()`'s conditional arguments could. Two separate literals remain two
+chunks, so WR-02's sibling-vouching property is untouched. Parts join with a space so `` `bg-${x}-500` ``
+cannot fuse into a token nobody wrote. Confirmed the gate did not go blind: the same template with the
+offset colour genuinely absent is still reported.
 
-**Files:** `config/design-leak-patterns.mjs`, `tests/design/brand-recipe.test.ts`,
-`src/lib/design/contrast-pairs.ts` · **Commit:** `09c5df7` (one change, as the review advised)
+### IN-14 — ScrollArea's max-height cap
 
-**Both measurements were reproduced with the suite's own arithmetic before anything was declared:**
+**File:** `src/components/ui/scroll-area.tsx` · **Commit:** `b357f53`
 
-| composite | court | grove | review said |
+**Reproduced in a real browser, which the review could not do** — Playwright with a chromium cache is
+installed here, so this stopped being theoretical.
+
+The viewport's `size-full` is `height: 100%`, and a percentage height resolves against the containing
+block's *height*; a `max-height` does not make that definite, so it falls back to `auto` and the
+viewport grows to full content height. The viewport carries `overflow: scroll`, so when it is exactly
+as tall as its content there is nothing to scroll — the cap clamps the Root while content spills past
+it (Radix's Root is only `position: relative`; it does not even clip).
+
+Measured in Chromium, `max-h-96` with 20 rows:
+
+| | root | viewport | scrollable |
 |---|---|---|---|
-| `foreground/60` on `muted` | **5.111** (ink `#686868`) | **4.812** (ink `#616c6b`) | 5.11 / 4.81 ✓ |
-| `destructive/40` over `card` | **2.126** | **2.126** | 2.126 ✓ |
+| shipped | 384px | **800px** | **false** — overflows by 416px |
+| fixed | 384px | 384px | **true** |
 
-**WR-08** — `COLOUR_ROLE` is now **exported** from `config/design-leak-patterns.mjs` and the accent
-scan is built from it, so the two lists cannot disagree because there is one list. **Verified**:
-`border-b-brand/40` added to `spots-left-chip.tsx` — a directional edge the old hand-written
-alternation missed — → **red**, naming the file.
+Fixed in the **primitive**, because both call sites use the max-height idiom and both were broken.
+`max-h-[inherit]` rather than the review's `h-96`, for the regression reason in the section above;
+`rounded-[inherit]` was already on the same element, so the idiom is this file's own. Also verified a
+Root with no cap inherits `none` and is unchanged, and a definite height still works.
 
-**WR-07** — a new repo-wide scan inventories **every** diluted colour utility, whatever token it
-names. **Verified**: `bg-accent/35` added to `booking-row.tsx` → **red**, listing `accent/35` as a
-composite nothing has measured.
+**Not covered by any gate** — layout is the class of thing the design suite explicitly cannot see.
 
-This is deliberately a **pinned inventory, not a zero-violations assertion**, and the reasoning is
-recorded in the file. Twenty distinct diluted shapes ship today; asserting zero would have meant
-writing twenty exemptions I had not measured, which is the same "a comment asserts what nobody
-checked" failure this whole review exists to correct. Each shipped shape is named with its status —
-`declared` / `exempt` / `inert` (second-colour-scheme only) / `recorded` — and a shape appearing that
-the map does not name goes red at the file that introduced it. The brand family stays at **zero**
-through the narrower scan. *(The gate immediately proved itself by catching `brand/30`, which I had
-omitted from my own first draft of the map.)*
+### IN-15 — the subsumed tone assertions
 
-**WR-09** — `foreground` on `muted` at `fgAlpha: 0.6` is now a declared `CONTRAST_PAIRS` row.
-**Verified it is genuinely measured, not merely present**: dropping the alpha to `0.3` → **2 failed**,
-one per theme, with the composited hexes in the message.
+**File:** `tests/booking/booking-status.test.ts` · **Commit:** `20df90c`
 
-**WR-07's exemption** — `destructive-40 on card` is now an `EXCLUDED_PAIRS` row with
-`measured: "2.13 (court) / 2.13 (grove)"` and the container-edge reason, alongside `--border` and
-`--input`. The `fg` names the composite rather than the raw token, because the solid
-`destructive on card` at 5.76 is a separate, passing row and the two must not collide.
+Demonstrated rather than argued: mutating `approved`'s tone to `"attention"` fails
+`toBe("neutral")` and leaves `not.toBe("positive")` green, so the negative assertion is never the one
+that catches anything.
 
-### WR-10 — nothing gated a bare ring WIDTH with no ring COLOUR
-
-**Files:** `tests/design/focus-recipe.test.ts` · **Commit:** `df05826`
-
-CR-01's deviation deleted `aria-invalid:ring-3`'s width as well as its colour, because Tailwind v4
-gives `--tw-ring-color` no initial value and an uncoloured ring falls back to `currentcolor`. The
-alpha scan enforces "no colour on a state variant"; nothing enforced the other half.
-
-Mirrored from `PREFIXED_OFFSET_WIDTH`, per variant prefix. **0 offenders today**, so this is a
-regression guard. **Verified it fires**: `aria-invalid:ring-3` re-added to `input.tsx` → **1 failed /
-22 passed**, `src/components/ui/input.tsx:11: aria-invalid:ring-3 without aria-invalid:ring-<colour>`.
-A positive control pins both directions, including that `ring-0`, `ring-offset-*`, `ring-inset` and
-an arbitrary `ring-[…]` colour are all correctly spared, and that one prefix's colour cannot vouch
-for another's.
-
-### WR-11 — the hex leak pattern missed a hex preceded by a space
-
-**Files:** `config/design-leak-patterns.mjs`, `tests/design/leak.test.ts` · **Commit:** `df05826`
-
-**Verified against the shipped `findDesignLeaks`** — all four shapes returned `[]`:
-`"0 1px 2px #00000010"`, `"1px solid #ccc"`, `"inset 0 0 4px #000000"`, `"0 2px 8px #0000001a"`.
-
-**The review's suggested anchor does not work, and I did not use it.** It proposed admitting a space
-preceded by "a digit, `)`, `%` or `,`". Measured: the character before the space in `2px #00000010`,
-`solid #ccc` and `4px #000000` is `x`, `d` and `x` — all word characters, exactly like the `see ` in
-`see #3388 for details`. That anchor catches **2 of the 4** shapes the finding itself names. A single
-preceding character cannot separate CSS from prose here.
-
-What can is the preceding **token**: a length with a unit, a percentage, a `)`, a `,`, or a
-border/shadow keyword. Measured against both sets: **11/11 CSS shapes matched, 7/7 prose negatives
-still clean**, including landmine L14's real `see #3388 for details` at `schema.ts:730`, `Closes #123`,
-`the PR #4021 landed`, and the phase's own `bg-[color-mix(…)]` idiom.
-
-**Verified end-to-end through the other half of D-16**, since both consumers share the list:
-`style={{ boxShadow: "0 2px 8px #0000001a" }}` in a scratch component → `npx eslint` reports
-`Raw design value "8px #0000001a" — use a design token (DS-13 / D-15)  fitout/no-raw-design-value`.
-All four shapes and four prose negatives are now fixtures in `leak.test.ts`.
-
-### WR-12 — the open-redirect guard was defeated by a backslash
-
-**Files:** `src/lib/safe-callback-url.ts` (new), `src/app/(auth)/login/page.tsx`,
-`tests/security/safe-callback-url.test.ts` (new) · **Commit:** `ce155fe`
-
-**This was the second judgement call. Decision: APPLIED, with unit-test coverage of the bypass
-vectors — and the security ticket is still worth filing.**
-
-The reasoning: the reviewer's case for deferring rested partly on being unable to verify end-to-end
-exploitability without a browser and an auth server. That limit is real and is **unchanged** — but it
-does not bear on whether the guard is defective. The guard demonstrably admits a string that resolves
-to another origin while its own comment says it cannot, on an input an attacker fully controls, and
-the correction is four lines and strictly tightening. Deferring a strict tightening of a security
-guard because the *worst case* is unproven is the wrong default.
-
-**What is fixed and verified:**
-
-```
-"//evil.com"  -> old guard "/"           -> resolves https://fitout.example/
-"/\evil.com"  -> old guard "/\evil.com"  -> resolves https://evil.com/          <-- bypass
-```
-
-The guard is extracted to a pure `safeCallbackPath(raw, origin)` — it was untestable while it read
-`window.location` directly, which is why it had no test. It now parses and compares origins rather
-than prefix-matching, because closing the backslash spelling alone leaves `/\/`, a stripped tab or
-newline, and percent-encodings.
-
-**9 tests, and they were run.** The main suite needs Postgres and did not run, so this file was
-executed here through a throwaway DB-free Vitest config: **9/9 passed**. It was then run against the
-**old** guard restored in place → **4 failed / 5 passed**, on the backslash bypass, the other
-spellings, the localhost-origin case and the unusable-origin case. The tests fail for the right
-reason, which is the only thing that makes them worth having.
-
-**Legitimate callbacks are not regressed**, and that is asserted rather than assumed: the real shapes
-`book-cta.tsx:144`, `invite/[token]/page.tsx:190` and `rsvp-form.tsx` thread — paths with query
-strings, fragments and percent-encoded values — all round-trip unchanged. One test asserts the fix
-does not newly **accept** anything the old guard rejected (`"bookings"` without a leading slash
-resolves same-origin and would be safe, but the old guard refused it, so this one does too): widening
-a guard while fixing an open redirect would be a different bug.
-
-**Still recommended as a separate security ticket**, for the part this environment genuinely could
-not do: whether Next's App Router navigates cross-origin on a `pushState`-shaped href, and whether
-Better Auth's `trustedOrigins` independently rejects the social `callbackURL`. Both need a running
-browser and auth server. The code fix does not depend on either answer. Recorded in the module header
-so the open question travels with the code.
-
-**Pre-existing, not phase 10's** — `git log -L` puts the original guard at `487bda7` (phase 4).
+Coverage is unchanged and that was checked too — with the pair reduced to one assertion, mutating
+`approved` to `"positive"` (the actual regression these lines exist to prevent) still fails both
+sites, now with a message carrying the intent the deleted line held.
 
 ---
 
-## Skipped Issues
+## Findings that needed no change
 
-None. All 15 in-scope findings were fixed.
+### IN-04 — the badge link-hover claim — **MOOT**
+
+The claim lives only in the **superseded first-pass report**, a historical git object at `2ae81de`.
+The current report (at `ec2af05`, which this file replaces) does not mention `badge.tsx` at all
+(`grep` for "badge" returns nothing), and the claim was not echoed into any source comment —
+`badge.tsx`'s prose describes the fix and its arithmetic without asserting it changed a rendered
+surface.
+
+The underlying fact is correct and was verified: there are **zero** `<Badge variant="destructive">`
+call sites and **zero** `<Badge asChild>`, and no dynamic `variant` can resolve to `destructive` —
+`booking-status-badge` and `payout-state-badge` produce only `secondary`/`outline` (`failed` routes
+to an Alert, not a Badge), and `listing-card`'s is typed `"default" | "secondary"`. The destructive
+link-hover is unreachable today.
+
+Nothing to change: rewriting history is not an option, and the document carrying the false claim has
+already been replaced.
+
+### IN-16 — the dialog `XIcon`'s `aria-hidden` — **MOOT**
+
+`lucide-react` supplies it. See "Where the review was wrong" for the source line and the rendered
+output. Impact is nil — as the finding itself allows — and the inconsistency it reports does not
+exist.
+
+One genuine observation while checking: the element is formatted as a dangling
+`<XIcon` / `/>` pair, which looks like edit residue. It is **not** this phase's: `git show` puts it
+in the original shadcn scaffold at `f84dd12` (phase 1), and phase 10's only change to `dialog.tsx`
+was the overlay token. Left alone and recorded rather than tidied.
 
 ---
 
 ## Known gaps this pass did NOT close
 
-Listed so this report is not read as claiming more than it did — the specific failure mode the
-re-review exists to correct.
+Listed so this report is not read as claiming more than it did.
 
-- **`pair-drift.test.ts` still cannot see a `cn()`-split pairing.** CR-01's fix changed the unit in
-  `status-vocab.test.ts` only, which is what the finding's Fix section specified. `pair-drift`
-  cross-multiplies foregrounds and backgrounds *within* a chunk, so unioning per element there would
-  produce many new cross-products and needs its own analysis. The review noted the sibling gap as
-  context rather than as part of the fix; it is carried forward here rather than quietly closed.
-- **The `cva` base/variant split** remains open in `status-vocab.test.ts`, deliberately, with an
-  assertion pinning it — see CR-01.
-- **`pairKey` is still surface-blind** (`alpha.over` is dropped). Inherent to same-string analysis;
-  now stated correctly in the header instead of the inverted claim — see WR-04 and IN-11.
-- **Twenty diluted composites are `recorded`, not `declared` or `exempt`.** WR-07's new inventory
-  makes them visible and pins them; measuring and classifying each is a design pass, not a fix.
-- **IN-01..IN-16 were out of scope by instruction** and are untouched. Several are one-liners
-  (IN-08's missing `i` flag, IN-02's dead `aria-invalid:ring-0`, IN-16's missing `aria-hidden`) and
-  IN-01/IN-03 are stale comments of exactly the class this review is about.
-- **Non-design suites remain unexercised.** `npm test` needs a provisioned Postgres. The one new
-  non-design test file was run here out-of-band; every other suite outside `tests/design/**` has not
-  been run by this pass, the previous pass, or the review.
+- **`pair-drift`'s surface-blindness remains** and is inherent — now pinned rather than only
+  described (IN-11).
+- **`pair-drift`'s `edge` role remains unconsumed**, deliberately, with the ten-pairing cost measured
+  and the gap pinned (IN-10).
+- **`pair-drift` still cannot see a `cn()`-split pairing**, and the `cva` base/variant split remains
+  open in `status-vocab.test.ts` — both carried forward from the previous pass, untouched here.
+- **Twenty-one diluted composites are still `recorded` rather than `declared`/`exempt`.** Measuring
+  and classifying each is a design pass. IN-06 widened what the inventory can *see*; it did not
+  classify anything.
+- **`text-[length:1.5REM]` compiles to a real `font-size` and is still unmatched**, because the
+  pattern is px-only by resolved decision (UI-SPEC Q2). Recorded in the pattern's comment rather than
+  silently missed.
+- **Non-design suites remain unexercised.** `npm test` needs a provisioned Postgres. Only
+  `tests/booking/booking-status.test.ts` was run out-of-band; every other suite outside
+  `tests/design/**` has not been run by this pass, either previous pass, or the review.
+- **Layout is still ungated.** IN-14 was a real rendered defect that 449 design tests could not see,
+  and nothing added here changes that — it was caught with an ad-hoc Playwright probe, not a gate.
+  A rendered-DOM pass (the phase's own Phase 17 note) is where that coverage belongs.
 
 ---
 
 _Fixed: 2026-08-12_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 2 · supersedes the report at `2ae81de`_
+_Iteration: 3 · supersedes the report at `ec2af05`_
