@@ -302,10 +302,22 @@ export const RESULT_CARD_WINDOW: ComponentProps<typeof SearchResultCard>["search
 /**
  * One realistic listing-wizard row: a text field, a select, an invalid field and a checkbox.
  *
- * The invalid field is the point of the section. It is what puts the destructive border treatment
- * and the error ring on a REAL control rather than on a swatch, and it is the only place on the page
- * where the destructive token appears at rest — which is exactly the budget DS-10 intends: red means
- * a genuine failure needing a human, and nothing else.
+ * The invalid field is the point of the section. It is what puts the destructive border treatment on
+ * a REAL control rather than on a swatch, together with the error message beneath it.
+ *
+ * THERE IS NO ERROR RING, and the border plus the message are the entire cue. The phase-10 review's
+ * CR-01 removed the invalid-state ring from every primitive: Tailwind v4 gives the ring COLOUR no
+ * initial value, so a bare ring width falls back to `currentcolor` and paints a near-black halo.
+ * Reviewing this section for a red ring is looking for something deliberately not there.
+ *
+ * The checkbox in this row is CHECKED but VALID, so it does not exercise the checked-and-invalid
+ * border treatment those two primitives grew afterwards — nothing on this page does.
+ *
+ * Red is at rest on this page in exactly three places: here, the `destructive` Button in the variant
+ * hierarchy, and the `failed` payout Alert in the status section. Each is a real failure or a
+ * genuinely destructive action, which is the budget DS-10 intends: red means something needing a
+ * human, and nothing else. (An earlier draft of this note called this section the ONLY resting
+ * destructive on the page. It never was — the other two render from fixtures in this same file.)
  */
 export const FORM_ROW = {
   nameLabel: "Space name",
