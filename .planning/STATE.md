@@ -95,7 +95,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-12
+Last activity: 2026-08-12 - Completed quick task 260812-usm: fix SEC-01 residual open redirect (CWE-601) in safeCallbackPath; phase 10 security gate awaiting /gsd-secure-phase 10 re-run
 
 ## Performance Metrics
 
@@ -493,6 +493,7 @@ means the task predates that flag being used here, not that it failed.
 | 260811-dj4 | Add resolved-history review to the ops alerts CLI so a discharge can be audited (closes D2) | 2026-08-11 | e358c41 | Verified | [260811-dj4-add-resolved-history-review-to-the-ops-a](./quick/260811-dj4-add-resolved-history-review-to-the-ops-a/) |
 | 260811-elm | Explain Drop-in on the search card so a booker knows what they are buying (closes audit finding #6 copy clause) | 2026-08-11 | bbf9fb0 | Human needed (11/11 verified in code; one 320px/desktop × both-themes visual check open — Deferred Item 5) | [260811-elm-explain-drop-in-on-the-search-card-so-a-](./quick/260811-elm-explain-drop-in-on-the-search-card-so-a-/) |
 | 260811-fh6 | Add `resolved_by` to the audit table so a discharge records which human performed it (migration 0025) | 2026-08-11 | e4722eb | Verified | [260811-fh6-add-resolved-by-to-the-audit-table-so-a-](./quick/260811-fh6-add-resolved-by-to-the-audit-table-so-a-/) |
+| 260812-usm | Fix SEC-01: reject a callback path that is an authority to the next parser, closing the residual post-auth open redirect (CWE-601) surfaced by /gsd-secure-phase 10 | 2026-08-12 | e6180a0 | | [260812-usm-fix-sec-01-open-redirect](./quick/260812-usm-fix-sec-01-open-redirect/) |
 
 ## Deferred Items
 
