@@ -237,6 +237,49 @@ function classChunks(path: string, text: string): string[] {
  * utility strings makes the distinction structural rather than a lookahead that has to remember to
  * list every character that could follow.
  */
+/**
+ * Blank out comment lines. Copied from `tests/design/type-scale.test.ts:438`, this phase's reference
+ * stripper — line-oriented rather than a `/\*…*\/` regex for the measured reason recorded there.
+ */
+function stripCommentLines(text: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+
+  for (const raw of text.split("\n")) {
+    let line = raw;
+
+    if (inBlock) {
+      const close = line.indexOf("*/");
+      if (close === -1) {
+        out.push("");
+        continue;
+      }
+      line = line.slice(close + 2);
+      inBlock = false;
+    }
+
+    const opener = /^\s*\{?\s*\/\*/.exec(line);
+    if (opener) {
+      const close = line.indexOf("*/", opener[0].length);
+      if (close === -1) {
+        inBlock = true;
+        out.push("");
+        continue;
+      }
+      line = line.slice(close + 2);
+    }
+
+    if (/^\s*\/\//.test(line)) {
+      out.push("");
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join("\n");
+}
+
 function utilitiesIn(chunk: string): Set<string> {
   const out = new Set<string>();
   for (const raw of chunk.split(/\s+/).filter(Boolean)) {
@@ -439,9 +482,21 @@ describe("DS-10 — every status badge recipe declares an icon", () => {
     // `failed` is deliberately absent from that map: a genuine failure needing a human is a MESSAGE,
     // not a chip, and it keeps the destructive Alert pattern (`text-destructive` on `--card`, a
     // declared pairing at 5.76:1). Asserting the branch exists is what makes the absence a decision.
-    const badge = scan.text.get("src/components/host/payout-state-badge.tsx") ?? "";
-    expect(badge).toContain('view.tone === "attention"');
+    //
+    // READ FROM STRIPPED SOURCE, and matched on the STATE (WR-13). This assertion previously named
+    // the old `view.tone === "attention"` condition and read raw text — so once the component was
+    // corrected to branch on the discriminant, the check went on passing because the COMMENT
+    // explaining the correction still quoted the old condition. A gate satisfied by a comment about
+    // the code rather than by the code is the collision this phase has now hit repeatedly.
+    const badge = stripCommentLines(
+      scan.text.get("src/components/host/payout-state-badge.tsx") ?? "",
+    );
+    expect(badge.length, "payout-state-badge.tsx was not read").toBeGreaterThan(0);
+    expect(badge).toContain('state === "failed"');
     expect(badge).toContain('variant="destructive"');
+    // The guard must NOT be re-expressed against the derived view: that is what let a cast claim a
+    // branch was unreachable while nothing checked the value the lookup actually indexes on.
+    expect(badge).not.toContain('view.tone === "attention"');
   });
 });
 
