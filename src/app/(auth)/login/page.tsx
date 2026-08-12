@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { authClient } from "@/lib/auth-client";
+import { safeCallbackPath } from "@/lib/safe-callback-url";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 import {
   Card,
@@ -60,12 +61,18 @@ function ResetNotice() {
 }
 
 // Same-origin return path from ?callbackURL (D-41 resume-checkout). Read from window at call time so no
-// extra useSearchParams()/Suspense boundary is needed. Open-redirect guard: only a relative "/..." path is
-// honored — an absolute or protocol-relative ("//evil.com") URL falls back to "/".
+// extra useSearchParams()/Suspense boundary is needed.
+//
+// The guard itself lives in `@/lib/safe-callback-url` and is tested there (WR-12). It used to be
+// inline here as a prefix match — `startsWith("/") && !startsWith("//")` — which a BACKSLASH
+// defeats: the URL parser reads `\` as `/` for special schemes, so `/\evil.com` passed both
+// conditions and resolved to `https://evil.com/`. The value reaches `router.push()` below and
+// `authClient.signIn.social({ callbackURL })`, the latter surviving a full OAuth round-trip, from a
+// query parameter in a link an attacker controls. Read that module's header before changing this.
 function safeCallbackUrl(): string {
   if (typeof window === "undefined") return "/";
   const raw = new URLSearchParams(window.location.search).get("callbackURL");
-  return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  return safeCallbackPath(raw, window.location.origin);
 }
 
 export default function LoginPage() {
