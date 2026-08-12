@@ -42,6 +42,10 @@ asserted by the party that did the fixing is the thing this gate exists to check
   legitimate callbacks (`/bookings`, `/`, `/host/earnings?tab=payouts`, `/listings/abc#reviews`,
   `/a/b/c`) passing through unchanged with query and fragment intact. No regression, no new
   acceptance.
+  *Scope of that sentence, corrected 2026-08-12 by the re-audit: "7 vectors × 2 origins" describes
+  this manual probe, NOT the shipped test. The durable test pins 6 of the 7 on one origin and only
+  `/..//evil.com` against localhost (`tests/security/safe-callback-url.test.ts:210`). All 7 × 2 do
+  hold — re-confirmed independently — but the gate is narrower than this prose implied.*
 - **T-10-29's new citations resolve to real code**, checked line by line — `safe-callback-url.ts:107`
   is the authority-prefix rejection, `:115` is the re-resolution inside the try/catch,
   `tests/security/safe-callback-url.test.ts:94` is the attack list, and `:19-66` holds the RED
@@ -51,8 +55,67 @@ asserted by the party that did the fixing is the thing this gate exists to check
 - **Gates unmoved**: `npm run test:design` 21 files / 449 passed · `npx tsc --noEmit` exit 0 ·
   `npm run lint` 0 errors / 9 pre-existing warnings.
 
-The other 49 threats were verified at `e40ad40` and are not re-litigated — only three files changed
-since (`safe-callback-url.ts`, its test, and this document), and the full gate suite is green.
+The other 49 threats were verified at `e40ad40` and are not re-litigated — only **two code files**
+changed since (`src/lib/safe-callback-url.ts` and its test; the other five changed paths are
+planning documents: this file, `STATE.md`, `10-UAT.md`, and the quick task's PLAN/SUMMARY), and the
+full gate suite is green.
+
+---
+
+## Scoped re-audit — 2026-08-12 at `8f4bad1`
+
+An independent `gsd-security-auditor` pass was run **after** the verdict above was issued, because
+that verdict rested partly on the orchestrator's own inline probing. Its brief was adversarial: try
+to break the guard, not confirm it.
+
+**Result: no bypass found.** ~4.9M inputs against the shipped module via `npx tsx`, both origins,
+**0 bypasses and 0 throws** — percent-encoded and double/overlong-encoded dot segments, backslash
+variants, tab/newline/CR/NUL/VT/FF mid-string, whitespace, Unicode/IDN/homograph lookalikes,
+userinfo and port tricks, schemes behind a slash, authority in query/fragment, an 800k fuzz over a
+55-symbol URL-hostile alphabet, and a 2.98M exhaustive ASCII×ASCII + `%00`–`%ff` sweep producing
+2,539,491 accepted outputs of which **0** were authority-shaped.
+
+**Structural reason no vector #8 exists:** after the origin check the target is always a
+special-scheme URL, so `pathname` always begins with `/` and can never contain a raw backslash
+(0 counterexamples in 300k). Therefore `candidate[1]` is never `/` (caught at `:107`) and never
+`\`. No input reaching `:115` could be constructed.
+
+**No legitimate callback regressed — proven differentially, not asserted.** Against the pre-fix
+guard at `8b9db10` over 800k inputs: **0 newly accepted**, and **4,699 newly rejected, every one of
+which had a pre-fix output that re-resolved off-origin**. Zero over-rejections. That 4,699 also
+shows SEC-01 was a whole class, not the three spellings originally recorded. All 16 real product
+callback shapes round-trip intact.
+
+**Entry-point coverage confirmed:** `login/page.tsx:74` is the only consumer of an untrusted
+redirect parameter repo-wide; every other `redirectTo` is a server-side literal.
+
+### Corrections this re-audit made to THIS document
+
+Recorded rather than quietly edited, because the correction pattern is itself the finding — a
+security document that overstates what was verified is the failure mode this phase keeps producing,
+and the first version of this section committed it.
+
+1. **`:115` is defence-in-depth, not "the load-bearing one".** Gate attribution shows `:107`
+   rejects **100%** of SEC-01 vectors including `/..//`; `:115` fired **0 times in 300k inputs**
+   and is unreachable in practice. The earlier wording here (and the fix ticket's) called it
+   load-bearing. It is not. Independently confirmed: `/..//` yields candidate `//`, which
+   `:107` catches before the try/catch is reached.
+2. **`safe-callback-url.ts:113`'s comment is factually wrong** — it justifies the catch with *"a
+   candidate that is only slashes has an empty host and throws"*. `new URL("//", origin)` does
+   throw, but `/..//` never reaches that line. **Left uncorrected in code deliberately** (a security
+   audit should not edit the guard it is auditing); logged below as a follow-up.
+3. **"only three files changed since"** was wrong — seven paths changed, two of them code. Fixed above.
+4. **Stale line citations** `:69`/`:67` in the headline finding refer to the **pre-fix** module;
+   `:69` is now a docstring. They are historical and are now labelled as such.
+5. **"7 vectors × 2 origins"** described a manual probe, not the shipped test. Annotated above.
+
+### Undocumented precondition (not exploitable, worth recording)
+
+With an opaque origin (e.g. `file://`), `target.origin !== self.origin` compares `"null" === "null"`
+and is vacuous. The output for `/..//evil.com` is then `/c://evil.com`, which re-resolves to
+`file:///c://evil.com` — no authority, no escape. Unreachable in this app: the sole call site passes
+`window.location.origin` from an http(s) page. Recorded because the guard's safety rests on a
+precondition no test states.
 
 **Standing limitation, unchanged by either pass:** the exploit chain was traced through installed
 source, never driven through a live browser. The fix is a pure function with an exhaustive attack
@@ -62,9 +125,10 @@ list, which is the layer at which it is testable here.
 
 ## Headline finding — residual open redirect (SEC-01)
 
-**`src/lib/safe-callback-url.ts:69`** returns the parsed **pathname**, and a pathname may begin
-with `//`. Dot-segment removal happens during parse, so the origin check at `:67` passes while
-the returned string re-exposes an authority to whoever parses it next.
+**`src/lib/safe-callback-url.ts:69` (line numbers in this section are PRE-FIX, at `8b9db10`; `:69`
+is now a docstring)** returned the parsed **pathname**, and a pathname may begin with `//`.
+Dot-segment removal happens during parse, so the origin check at `:67` passed while the returned
+string re-exposed an authority to whoever parsed it next.
 
 Reproduced twice, independently — once by the auditor against the shipped module, once by the
 orchestrator against both Node's WHATWG `URL` and the real module via `npx tsx`:
@@ -186,7 +250,7 @@ Every row was decided by locating the assertion or the code, **not** by reading 
 ### Open
 
 None. T-10-29 was the last one; it moved to the Closed table as `mitigate` on 2026-08-12 (see
-below). `status:` nonetheless remains `blocked` pending `/gsd-secure-phase 10`.
+below), and the scoped re-audit at `8f4bad1` confirmed the discharge independently.
 
 ### Closed (50)
 
@@ -282,6 +346,7 @@ such section at all. Treating that list as complete would have missed:
 |------------|---------------|--------|------|--------|
 | 2026-08-12 | 50 | 49 | 1 | gsd-security-auditor (opus), verified at `e40ad40` — **BLOCKED**: T-10-29 open + SEC-01 live |
 | 2026-08-12 | 50 | 50 | 0 | orchestrator re-run, verified at `22a153e` — **THREAT-SECURE**: SEC-01 discharged (`e6180a0`) and re-probed independently; T-10-29 re-underwritten to `mitigate` with citations confirmed line by line |
+| 2026-08-12 | 2 (scoped) | 2 | 0 | gsd-security-auditor (opus), adversarial re-audit at `8f4bad1` — **SECURED**: ~4.9M inputs, 0 bypasses; 0 newly-accepted / 4,699 newly-rejected vs the pre-fix guard, all previously off-origin. Corrected 5 overstatements in this document (see Scoped re-audit) |
 | 2026-08-12 | 50 | 50 | 0 | quick task `260812-usm` — SEC-01 fixed and T-10-29 re-underwritten at `e6180a0`. **Not a re-audit and not a verdict**: this row records two discharges, and `status:` stays `blocked` until `/gsd-secure-phase 10` re-runs. |
 
 Five registered counts moved across the three fix passes (T-10-26 9→8, T-10-27 14→13,
@@ -334,3 +399,12 @@ independently re-verified rather than accepted on report — see "What was re-ve
 - **T-10-48** — the browser half (`npm run test:e2e`) was last run at 10-13; three fix passes have
   since touched `scroll-area.tsx` and `input-group.tsx`. The durable gate is green; that specific
   browser claim is stale.
+- **`safe-callback-url.ts:113` carries a false justification** (see Scoped re-audit correction 2).
+  The comment claims the try/catch is needed because a slashes-only candidate throws; that candidate
+  is caught one line earlier and never reaches it. Deliberately not edited during the audit. Fix the
+  comment — and consider whether `:115`/`:118` earn their place as unreachable defence-in-depth or
+  should carry a comment saying so — the next time this module is touched. In a phase whose entire
+  thesis is that recorded claims must be true, a wrong justification inside the security guard
+  itself is the worst place to leave one.
+- **Widen the durable test to both origins.** It pins 6 of 7 SEC-01 vectors on one origin only.
+  All 7 × 2 were confirmed by manual probe twice, but the committed gate does not encode that.
