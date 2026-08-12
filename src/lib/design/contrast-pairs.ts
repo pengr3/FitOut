@@ -364,7 +364,14 @@ export const CONTRAST_PAIRS = [
     bg: "card",
     bar: TEXT_BAR,
     fgAlpha: 0.9,
-    note: "THE ONE DECLARED DILUTED INK. The destructive Alert's DESCRIPTION is set a notch softer than its title (`ui/alert.tsx:13`), which is a deliberate typographic hierarchy rather than an oversight — so it is measured rather than removed: 5.24 in both themes against the 4.5 bar, versus 5.76 solid. This row is also the reason `fgAlpha` exists; see the field's own note.",
+    note: "The destructive Alert's DESCRIPTION is set a notch softer than its title (`ui/alert.tsx:13`), which is a deliberate typographic hierarchy rather than an oversight — so it is measured rather than removed: 5.24 in both themes against the 4.5 bar, versus 5.76 solid. This row is also the reason `fgAlpha` exists; see the field's own note.",
+  },
+  {
+    fg: "foreground",
+    bg: "muted",
+    bar: TEXT_BAR,
+    fgAlpha: 0.6,
+    note: "The INACTIVE tab label on the segmented control's muted track (`booking/bookings-tabs.tsx:52` and `ui/tabs.tsx:66`, both `TRIGGER_IDLE`). A shipped, diluted INK on a filled surface — the same shape as the row above and the one the first review's CR-03 was about — and it was in neither the inventory nor the exclusions when WR-09 found it. Measured: court composites the ink to #686868 for 5.11, grove to #616c6b for 4.81. Both clear 4.5 + epsilon, so it is DECLARED rather than removed. Grove has 0.26 of headroom against a token that is free to move, which is exactly why it belongs in a file that re-measures on every run instead of in a comment.",
   },
 ] as const satisfies readonly ContrastPair[];
 
@@ -404,5 +411,12 @@ export const EXCLUDED_PAIRS = [
     measured: "1.26 (court) / 1.28 (grove)",
     reason:
       "decorative divider — never a control's sole visible boundary or its sole focus indicator",
+  },
+  {
+    fg: "destructive-40",
+    bg: "card",
+    measured: "2.13 (court) / 2.13 (grove)",
+    reason:
+      "container edge at 40% opacity on the failed-payout Alert (`host/payout-state-badge.tsx`) — never the sole boundary and never an indicator, exactly like --border and --input above. The Alert carries its meaning in solid destructive ink at 5.76 and a solid destructive glyph beside it; the diluted edge only tints the container. Recorded here rather than left as the third state contrast-pairs is written to forbid: WR-09 of the re-review found it shipping on every host with a failed payout, measured by nothing. The `fg` names the composite rather than a raw token because the exclusion is about the 40% form specifically — the solid `destructive on card` at 5.76 is a separate, passing row.",
   },
 ] as const satisfies readonly ExcludedPair[];

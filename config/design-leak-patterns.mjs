@@ -61,8 +61,19 @@
  *
  * Ordered longest-alternative-first where one name prefixes another (`ring-offset` before `ring`),
  * since JS alternation is first-match rather than longest-match.
+ *
+ * EXPORTED, AND THAT IS THE POINT (WR-08). This fragment was introduced to stop the palette and
+ * white/black patterns disagreeing about which roles they police — and two hours earlier in the same
+ * fix pass, `tests/design/brand-recipe.test.ts` grew its OWN hand-written role list for the
+ * diluted-accent scan, without the two families this one exists for. The result was that
+ * `border-b-gray-200` was banned by the leak gate while `border-b-brand/40` — a diluted accent edge,
+ * the exact shape `border-brand/30` had to be measured and exempted for — was invisible to the
+ * design gate. Verified unmatched by that scan before this export existed: `border-b-brand/30`,
+ * `border-t-brand/40`, `divide-x-brand/50`.
+ *
+ * A third hand-written copy is how this defect returns. Import it; do not retype it.
  */
-const COLOUR_ROLE =
+export const COLOUR_ROLE =
   "(?:bg|text|border(?:-[trblxyse])?|ring-offset|ring|from|via|to|fill|stroke|outline|decoration|divide(?:-[xy])?|placeholder|accent|caret|shadow)";
 
 /** The 22 numbered Tailwind hues. Split out only so the pattern below stays readable. */

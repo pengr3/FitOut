@@ -108,6 +108,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 
 import { stripComments } from "./helpers/strip-comments";
+import { COLOUR_ROLE } from "../../config/design-leak-patterns.mjs";
 
 const SRC_DIR = resolve(process.cwd(), "src");
 
@@ -252,9 +253,77 @@ const BANNED_ALPHA_HOVER = /[^\s"'`]*bg-brand\/90/g;
  *
  * `brand-foreground` is matched as well as `brand` because the token name is a prefix of it; the
  * alternation is ordered longest-first so the longer name wins the match.
+ *
+ * THE ROLE LIST IS IMPORTED, NOT RETYPED (WR-08). It used to be a second hand-written alternation,
+ * written into this file two hours before `config/design-leak-patterns.mjs` introduced `COLOUR_ROLE`
+ * to stop exactly that kind of drift — and it was missing the two families that fragment exists for.
+ * `border-b-brand/30`, `border-t-brand/40` and `divide-x-brand/50` were all verified UNMATCHED by
+ * the old alternation: a directional accent edge at an unmeasured dilution was invisible here while
+ * `border-b-gray-200` was banned by the leak gate. Now the two lists cannot disagree, because there
+ * is one list.
  */
-const UNMEASURED_ACCENT_ALPHA =
-  /[^\s"'`]*(?:bg|text|ring|border|from|via|to|fill|stroke|shadow|outline|decoration|divide|accent|caret|placeholder)-(?:brand-foreground|brand)\/(?!10(?![\d.]))\d+/g;
+const UNMEASURED_ACCENT_ALPHA = new RegExp(
+  `[^\\s"'\`]*${COLOUR_ROLE}-(?:brand-foreground|brand)\\/(?!10(?![\\d.]))\\d+`,
+  "g",
+);
+
+/**
+ * EVERY diluted colour utility in the tree, whatever token it names (WR-07).
+ *
+ * WHY THIS EXISTS AND WHY IT IS A PIN RATHER THAN A ZERO. The scan above is token-scoped to the
+ * brand family, and the fix report for the pass that widened it recorded the widening as covering
+ * "every colour role" — true of the ROLE side, and only ever true of two TOKEN names. So
+ * `border-destructive/40` — a live, shipping composite on every host with a failed payout, measured
+ * with this suite's own arithmetic at **2.126:1 over `--card` in both themes** against a 3.0
+ * non-text bar — was not a `CONTRAST_PAIRS` row, not an `EXCLUDED_PAIRS` row, and not matched by any
+ * scan. That is precisely the third state `contrast-pairs.ts` says must not exist, and the widening
+ * that was supposed to catch it existed and did not.
+ *
+ * WHY IT IS NOT A ZERO-VIOLATIONS ASSERTION. Twenty-one distinct diluted shapes ship today, and
+ * classifying all of them — measuring each composite, deciding legal-vs-decorative-vs-failing —
+ * is a design pass, not a fix. Asserting zero would mean writing twenty exemptions I have not
+ * measured, which is the same "a comment asserts what nobody checked" failure this whole review is
+ * about. So the inventory is PINNED instead: every shape that ships is named here with its status,
+ * and a NEW one goes red at the file that introduced it. That converts "invisible" into "recorded",
+ * which is the property `contrast-pairs.ts:34-36` actually asks for.
+ *
+ * The brand family stays at ZERO through the scan above; this is the wider net around it.
+ */
+const DILUTED_TOKEN = new RegExp(`(?<![\\w-])${COLOUR_ROLE}-([a-z][a-z0-9-]*)\\/(\\d+)`, "g");
+
+/**
+ * Every diluted composite that ships, and what is known about each.
+ *
+ * `declared` — a `CONTRAST_PAIRS` row measures it (`alpha` or `fgAlpha`).
+ * `exempt`   — an `EXCLUDED_PAIRS` row or a local decorative exemption carries it, with a number.
+ * `inert`    — only ever reached under a second colour scheme this app never activates (THEME-05
+ *              pins the count of those variants; `dark-scope.test.ts` is what keeps them inert).
+ * `recorded` — measured, clears its bar, but nothing in the inventory names it yet.
+ *
+ * A shape moving between statuses is a decision; a shape appearing that is not here at all is the
+ * regression this map exists to surface.
+ */
+const EXPECTED_DILUTED_TOKENS: Readonly<Record<string, string>> = {
+  "background/80": "recorded — overlay scrim over the page, never carries text",
+  "brand/10": "declared — foreground-on-brand@10% over background and card",
+  "brand/30": "exempt — DECORATIVE_ACCENT_EDGE, 1.60 court / 1.49 grove, never the sole boundary",
+  "destructive/10": "declared — destructive-on-destructive@10% over background and card",
+  "destructive/20": "recorded — destructive tint behind a solid destructive glyph",
+  "destructive/30": "recorded — destructive tint behind a solid destructive glyph",
+  "destructive/40": "exempt — container edge, 2.126 court / 2.126 grove over card (WR-07)",
+  "destructive/50": "inert — second-colour-scheme variant only",
+  "destructive/90": "recorded — alert description ink, 5.24 court / 5.11 grove over background",
+  "foreground/10": "exempt — the decorative card/overlay hairline (focus-recipe.test.ts)",
+  "foreground/60": "declared — inactive tab label on the muted track, 5.11 / 4.81 (WR-09)",
+  "foreground/80": "recorded — overlay scrim, never carries text",
+  "input/30": "inert — second-colour-scheme variant only",
+  "input/50": "inert — second-colour-scheme variant only",
+  "input/80": "inert — second-colour-scheme variant only",
+  "muted/40": "recorded — hover tint; muted-foreground on it measures 5.03–5.68",
+  "muted/50": "recorded — hover tint; muted-foreground on it measures 5.03–5.68",
+  "primary/80": "recorded — pressed-state tint on a solid fill",
+  "secondary/80": "recorded — pressed-state tint on a solid fill",
+};
 
 /**
  * The one diluted accent that is NOT ink and NOT an indicator — the chip's ornamental edge.
@@ -382,6 +451,8 @@ interface Scan {
   bannedAlphaHovers: Violation[];
   /** Every unmeasured alpha on the accent background under `src/`. Must be empty. */
   unmeasuredAlphas: Violation[];
+  /** Every diluted colour utility in the tree, as `token/alpha` → the files carrying it (WR-07). */
+  dilutedTokens: Map<string, Set<string>>;
   /** Occurrences of the sanctioned darkening hover per file under the availability tree. */
   availabilityHovers: Record<string, number>;
 }
@@ -398,6 +469,7 @@ function scanSrc(): Scan {
     survivingAccentLines: {},
     bannedAlphaHovers: [],
     unmeasuredAlphas: [],
+    dilutedTokens: new Map(),
     availabilityHovers: {},
   };
 
@@ -418,6 +490,15 @@ function scanSrc(): Scan {
       // `m[0]` carries any variant chain, so a state-scoped edge can never equal the bare key.
       if (DECORATIVE_ACCENT_EDGE.has(m[0])) continue;
       scan.unmeasuredAlphas.push(`${name}: ${m[0]}`);
+    }
+
+    // WR-07 — the wider net: EVERY diluted colour utility, whatever token it names. Read from
+    // stripped code so a comment describing a composite is not counted as one shipping.
+    for (const m of stripComments(text).matchAll(DILUTED_TOKEN)) {
+      const key = `${m[1]}/${m[2]}`;
+      const files = scan.dilutedTokens.get(key) ?? new Set<string>();
+      files.add(name);
+      scan.dilutedTokens.set(key, files);
     }
 
     // EVERY COUNT BELOW READS `code`, NOT `text` (WR-04) — comments are removed first, so prose
@@ -707,6 +788,71 @@ describe("DS-08 / T-10-25 — the 90%-alpha accent is gone from src/ in EVERY fo
     ]) {
       expect([...legal.matchAll(UNMEASURED_ACCENT_ALPHA)], legal).toEqual([]);
     }
+  });
+
+  it("catches a diluted accent on a DIRECTIONAL edge and a PREFIXED role too (WR-08)", () => {
+    // POSITIVE CONTROL for the shared role fragment. These three were verified UNMATCHED by the
+    // hand-written alternation this scan used to carry — the two families `COLOUR_ROLE` was
+    // introduced for, missing from the copy written two hours earlier in the same fix pass. A
+    // single-side border is the ordinary way to draw a list separator, so this is authoring, not
+    // exotica.
+    for (const shape of [
+      'className="border-b-brand/30"',
+      'className="border-t-brand/40"',
+      'className="divide-x-brand/50"',
+      'className="ring-offset-brand/20"',
+      'className="from-brand/40"',
+    ]) {
+      expect([...shape.matchAll(UNMEASURED_ACCENT_ALPHA)], shape).not.toEqual([]);
+    }
+
+    // …and the measured tint must still pass on those roles, or the widening deletes a shipped one.
+    for (const legal of ['className="border-b-brand/10"', 'className="from-brand/10"']) {
+      expect([...legal.matchAll(UNMEASURED_ACCENT_ALPHA)], legal).toEqual([]);
+    }
+  });
+
+  it("pins EVERY diluted composite in the tree, not just the accent's (WR-07)", () => {
+    // THE THIRD STATE, MADE VISIBLE. `contrast-pairs.ts` says a pairing is either measured or
+    // exempted and that there is no third state. `border-destructive/40` was in it — shipping on
+    // every host with a failed payout, measured here at 2.126:1 over `--card` in both themes
+    // against a 3.0 bar — because the scan that was recorded as covering "every colour role" only
+    // ever covered two TOKEN names.
+    //
+    // Read this as an inventory, not as a count. A shape appearing here that the map does not name
+    // has never been measured by anyone; the fix is to measure it and add it with its status, not
+    // to add the key.
+    const seen = [...scan.dilutedTokens.keys()].sort();
+    const expected = Object.keys(EXPECTED_DILUTED_TOKENS).sort();
+
+    const undeclared = seen.filter((k) => !(k in EXPECTED_DILUTED_TOKENS));
+    expect(
+      undeclared,
+      `diluted composites nothing has measured:\n${undeclared
+        .map((k) => `  ${k} — ${[...(scan.dilutedTokens.get(k) ?? [])].join(", ")}`)
+        .join("\n")}`,
+    ).toEqual([]);
+
+    // …and the other direction: a map entry for a shape that no longer ships is dead weight that
+    // only makes the inventory look more complete than it is. DELETE it rather than leave it.
+    expect(expected.filter((k) => !seen.includes(k)), "declared but no longer in the tree").toEqual(
+      [],
+    );
+  });
+
+  it("the diluted-token scan actually reaches the tree it claims to inventory (WR-07)", () => {
+    // GUARD-THE-GUARD. The assertion above is an empty-list plus a set comparison, and a scan that
+    // matched nothing would fail the second half loudly — but only because the map is non-empty
+    // today. This pins the positive directly, and names the two shapes the finding is about.
+    expect(scan.dilutedTokens.size).toBeGreaterThan(10);
+    expect(
+      [...(scan.dilutedTokens.get("destructive/40") ?? [])],
+      "the WR-07 composite must still be found by the scan",
+    ).toContain("src/components/host/payout-state-badge.tsx");
+    expect([...(scan.dilutedTokens.get("foreground/60") ?? [])].sort()).toEqual([
+      "src/components/booking/bookings-tabs.tsx",
+      "src/components/ui/tabs.tsx",
+    ]);
   });
 
   it("exempts the BARE decorative chip edge and nothing wearing a variant", () => {
