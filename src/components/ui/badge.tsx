@@ -23,8 +23,16 @@ const badgeVariants = cva(
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
         secondary:
           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+        // The link-hover flips to a SOLID fill with inverted ink rather than deepening its own
+        // tint — the same correction plan 10-07 made to the destructive <Button>, arriving here
+        // late because no gate could see it. Deepening a tint moves the surface TOWARD the text
+        // colour, which is the wrong direction: the 20% hover measured 4.01 (court) / 3.87 (grove)
+        // against a 4.5 bar, the exact pair of numbers `contrast-pairs.ts` already cites as the
+        // reason the button stopped doing this. It survived on the badge because
+        // `pair-drift.test.ts` dropped the opacity from its lookup key, so this hover matched the
+        // SOLID destructive-on-destructive row and was waved through (WR-05).
         destructive:
-          "bg-destructive/10 text-destructive dark:bg-destructive/20 [a]:hover:bg-destructive/20",
+          "bg-destructive/10 text-destructive dark:bg-destructive/20 [a]:hover:bg-destructive [a]:hover:text-destructive-foreground",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:

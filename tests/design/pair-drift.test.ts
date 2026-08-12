@@ -146,11 +146,55 @@ const ALIAS_OF = new Map<string, string>();
 }
 
 const canonical = (token: string): string => ALIAS_OF.get(token) ?? token;
-const pairKey = (fg: string, bg: string): string =>
-  `${canonical(fg)} on ${canonical(bg)}`;
+
+/**
+ * Render an opacity as the key suffix, or the empty string for a solid surface.
+ *
+ * `10` (a Tailwind modifier) and `0.1` (an inventory `alpha.value`) have to arrive at the SAME
+ * spelling or the two sides of the lookup never meet. Percent, rounded, is that spelling.
+ */
+const alphaSuffix = (percent: number | null): string =>
+  percent === null ? "" : ` @${Math.round(percent)}%`;
+
+/**
+ * The lookup key for one pairing — foreground, background, AND the background's opacity.
+ *
+ * THE OPACITY IS IN THE KEY, AND THAT IS THE WHOLE POINT (WR-05). This key used to be
+ * `fg on bg` with the alpha dropped, and the header below still lists "alpha-blind" as a known
+ * limitation — but it understated the consequence. Dropping the alpha does not merely fail to
+ * check the opacity; it lets a PASSING row silently vouch for a FAILING one. The inventory
+ * declares `foreground` on `brand` at 10% over background, which measures 17.04 / 16.24 and is a
+ * genuinely legal soft-accent chip. With the alpha dropped that row minted the key
+ * `foreground on brand`, which then blanket-permitted `text-foreground` on a SOLID `bg-brand` —
+ * 4.16:1 (court) / 4.00:1 (grove), both under the 4.5 text bar — at any call site that cared to
+ * write it. The exemption and the violation were the same string.
+ *
+ * With the opacity in the key the tint row mints `foreground on brand @10%` and the solid form
+ * mints `foreground on brand`, which is not declared and so is reported. Two different rendered
+ * colours are now two different keys, which is what they always were on screen.
+ *
+ * THE FOREGROUND'S OPACITY IS IN THE KEY TOO, and that is CR-03's lesson rather than WR-05's. The
+ * inventory has no field for a diluted INK — every `alpha` row describes the background — so any
+ * fg opacity is undeclared by construction and gets reported. That is the correct default: a
+ * diluted ink over a filled surface is exactly the shape that shipped at 3.38:1 on the slot
+ * picker's sub-label, and the reason no gate saw it was that every gate was looking at fills.
+ */
+const pairKey = (
+  fg: string,
+  bg: string,
+  alphas: { fg?: number | null; bg?: number | null } = {},
+): string =>
+  `${canonical(fg)}${alphaSuffix(alphas.fg ?? null)} on ${canonical(bg)}${alphaSuffix(alphas.bg ?? null)}`;
 
 /** Every pairing the design system declares legal, canonicalised. */
-const DECLARED = new Set(CONTRAST_PAIRS.map((pair) => pairKey(pair.fg, pair.bg)));
+const DECLARED = new Set(
+  CONTRAST_PAIRS.map((pair) =>
+    pairKey(pair.fg, pair.bg, {
+      fg: pair.fgAlpha === undefined ? null : pair.fgAlpha * 100,
+      bg: pair.alpha === undefined ? null : pair.alpha.value * 100,
+    }),
+  ),
+);
 
 // ---------------------------------------------------------------------------------------------
 // Class-string analysis
@@ -160,6 +204,8 @@ type Role = "fg" | "bg" | "edge";
 type ClassUse = {
   readonly role: Role;
   readonly token: string;
+  /** The opacity modifier as a percentage, `null` when solid, `NaN` when unreadable (WR-05). */
+  readonly alphaPercent: number | null;
   readonly chain: string;
   readonly raw: string;
 };
@@ -189,15 +235,30 @@ const ROLE_PREFIXES: readonly (readonly [Role, string])[] = [
   ["edge", "ring-"],
 ];
 
-/** A utility is a colour use only when the name after its prefix is a declared colour token. */
-function classifyUtility(utility: string): { role: Role; token: string } | null {
+/**
+ * A utility is a colour use only when the name after its prefix is a declared colour token.
+ *
+ * The opacity modifier is SPLIT OFF AND KEPT (WR-05), not discarded. It is not part of the token
+ * name, but it is part of the rendered colour, and `pairKey` needs it to tell a tint from a solid.
+ * A non-numeric modifier (`bg-brand/[.34]`, an arbitrary value) yields `NaN`, which is deliberately
+ * NOT treated as solid — see the `null` guard: an unreadable opacity must not silently key as an
+ * opaque surface, because that is the direction that mints a false exemption.
+ */
+function classifyUtility(
+  utility: string,
+): { role: Role; token: string; alphaPercent: number | null } | null {
   let text = utility.replace(/^-/, "");
   const slash = text.indexOf("/");
-  if (slash !== -1) text = text.slice(0, slash); // an opacity modifier, not part of the name
+  let alphaPercent: number | null = null;
+  if (slash !== -1) {
+    const modifier = text.slice(slash + 1);
+    alphaPercent = /^\d+$/.test(modifier) ? Number(modifier) : Number.NaN;
+    text = text.slice(0, slash);
+  }
   for (const [role, prefix] of ROLE_PREFIXES) {
     if (!text.startsWith(prefix)) continue;
     const token = text.slice(prefix.length);
-    if (COLOUR_TOKENS.includes(token)) return { role, token };
+    if (COLOUR_TOKENS.includes(token)) return { role, token, alphaPercent };
   }
   return null;
 }
@@ -220,6 +281,33 @@ function chainsCanCoApply(a: string, b: string): boolean {
   return a === b || a === "" || b === "";
 }
 
+/**
+ * Narrowing A′: a state that redefines the OTHER half does not pair with the resting half.
+ *
+ * Narrowing A alone says an unconditional utility co-applies with a variant-scoped one, which is
+ * true as far as it goes. What it misses is that a state usually redefines BOTH halves at once, and
+ * when it does, the resting half is no longer on screen. `ui/button.tsx`'s destructive variant is
+ * the clearest case: it rests as a soft tint with matching ink and flips on hover to a solid fill
+ * with inverted ink. Narrowing A cross-multiplies those four utilities and produces two pairings
+ * that never render — resting ink on the hover fill, and hover ink on the resting fill.
+ *
+ * Those two artifacts used to be absorbed silently, because with an alpha-blind key they collapsed
+ * onto declared solid rows. Putting the opacity in the key (WR-05) stopped the collapse and made
+ * them visible, which is the correct outcome for the real pairings it also exposed but pure noise
+ * here. So the rule is stated properly: if the background's chain also declares a foreground, that
+ * state is not rendering this foreground — and symmetrically.
+ *
+ * This narrows COVERAGE, so it is deliberately conservative: it fires only when the very same
+ * chain string declares the opposing role. A state that changes only the fill still pairs against
+ * the resting ink, which is the badge hover case and a genuine pairing.
+ */
+function stateOverridesOpposite(fg: ClassUse, bg: ClassUse, uses: readonly ClassUse[]): boolean {
+  if (fg.chain === bg.chain) return false;
+  if (bg.chain !== "" && uses.some((u) => u.role === "fg" && u.chain === bg.chain)) return true;
+  if (fg.chain !== "" && uses.some((u) => u.role === "bg" && u.chain === fg.chain)) return true;
+  return false;
+}
+
 type Pairing = { readonly key: string; readonly detail: string };
 
 /** The fg/bg pairings a single class string produces. */
@@ -229,8 +317,12 @@ function pairingsIn(text: string): Pairing[] {
   for (const fg of uses.filter((use) => use.role === "fg")) {
     for (const bg of uses.filter((use) => use.role === "bg")) {
       if (!chainsCanCoApply(fg.chain, bg.chain)) continue;
+      if (stateOverridesOpposite(fg, bg, uses)) continue;
       out.push({
-        key: pairKey(fg.token, bg.token),
+        key: pairKey(fg.token, bg.token, {
+          fg: fg.alphaPercent,
+          bg: bg.alphaPercent,
+        }),
         detail: `${fg.raw} × ${bg.raw}`,
       });
     }
@@ -384,8 +476,34 @@ describe("the declared pair inventory matches what components render", () => {
       "ring-destructive",
     );
     expect(splitVariants("sm:lg:bg-muted").chain).toEqual(["sm", "lg"]);
-    // The opacity modifier is not part of the token name.
-    expect(classifyUtility("bg-brand/10")).toEqual({ role: "bg", token: "brand" });
+    // The opacity modifier is not part of the token NAME — but it is kept alongside it, because
+    // it is part of the rendered colour and `pairKey` needs it to tell a tint from a solid (WR-05).
+    expect(classifyUtility("bg-brand/10")).toEqual({
+      role: "bg",
+      token: "brand",
+      alphaPercent: 10,
+    });
+    expect(classifyUtility("bg-brand")).toEqual({
+      role: "bg",
+      token: "brand",
+      alphaPercent: null,
+    });
+    // An unreadable modifier must NOT read as solid: keying it as opaque is the direction that
+    // mints a false exemption, so it becomes NaN and can never match a declared row.
+    expect(classifyUtility("bg-brand/[.34]")?.alphaPercent).toBeNaN();
+  });
+
+  it("does not let a tint row vouch for the solid pairing it is not (WR-05)", () => {
+    // THE REGRESSION TEST for the defect itself, stated as the two keys rather than as an outcome.
+    // The inventory declares `foreground` on `brand` AT 10% OVER BACKGROUND — 17.04 / 16.24, a
+    // legal soft-accent chip. Solid, the same two tokens measure 4.16 / 4.00 against a 4.5 bar.
+    // While the key dropped the opacity those were one string, so the passing row silently
+    // legalised the failing one at every call site.
+    const tint = pairKey("foreground", "brand", { bg: 10 });
+    const solid = pairKey("foreground", "brand");
+    expect(tint).not.toBe(solid);
+    expect(DECLARED.has(tint)).toBe(true);
+    expect(DECLARED.has(solid)).toBe(false);
   });
 
   it("pairs a foreground with a background inside one string", () => {

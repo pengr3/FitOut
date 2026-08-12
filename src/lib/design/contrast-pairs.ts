@@ -101,6 +101,17 @@ export type ContrastPair = {
   readonly bg: string;
   readonly bar: number;
   readonly alpha?: { readonly value: number; readonly over: string };
+  /**
+   * The INK's own opacity, composited over the rendered background before measuring.
+   *
+   * Added when `pair-drift.test.ts` gained an alpha-aware key (WR-05) and immediately surfaced a
+   * diluted ink the inventory had no way to describe. Until then `alpha` above — which describes
+   * the BACKGROUND — was the only opacity the inventory could express, so a diluted foreground was
+   * not merely unmeasured but inexpressible. That is the gap CR-03 fell through: a foreground at
+   * 80% on a filled surface is a real rendered colour, and an inventory that cannot state it will
+   * never measure it.
+   */
+  readonly fgAlpha?: number;
   readonly note: string;
 };
 
@@ -312,6 +323,48 @@ export const CONTRAST_PAIRS = [
     bg: "destructive",
     bar: TEXT_BAR,
     note: "The destructive button under the cursor. It flips to a SOLID fill rather than deepening the tint, because hover:bg-destructive/20 moves the surface toward the text colour — the wrong direction — and measures 4.01.",
+  },
+
+  // =========================================================================
+  // EXPOSED BY THE ALPHA-AWARE DRIFT KEY (WR-05). Every row below was already
+  // rendering; none was declared, because `pair-drift.test.ts` dropped the
+  // opacity from its lookup key and so matched each of them against a solid
+  // row that happens to pass. They are measured here, not assumed.
+  // =========================================================================
+  {
+    fg: "primary-foreground",
+    bg: "primary",
+    bar: TEXT_BAR,
+    alpha: { value: 0.8, over: "card" },
+    note: "The default <Badge> under the cursor when it is a link (`ui/badge.tsx`'s `[a]:hover`). 9.19 (court) / 8.20 (grove) — the neutral primary is far enough from its own foreground that diluting the fill costs nothing. `over: card` is the tighter of the two surfaces a badge sits on.",
+  },
+  {
+    fg: "secondary-foreground",
+    bg: "secondary",
+    bar: TEXT_BAR,
+    alpha: { value: 0.8, over: "card" },
+    note: "The secondary <Badge> under the cursor. 16.73 / 14.69 — the widest margin in the inventory.",
+  },
+  {
+    fg: "destructive",
+    bg: "background",
+    bar: TEXT_BAR,
+    alpha: { value: 0.8, over: "card" },
+    note: "The photo uploader's remove button (`listing/photo-uploader.tsx:324`): a translucent scrim over a listing photograph carrying destructive ink. `over: card` is the worst case rather than the true one — the real surface is an image, and the scrim is 80% of a near-white background either way. 5.76 / 5.62.",
+  },
+  {
+    fg: "muted-foreground",
+    bg: "background",
+    bar: TEXT_BAR,
+    alpha: { value: 0.8, over: "card" },
+    note: "The photo uploader's drag handle (`listing/photo-uploader.tsx:287`), on the same scrim. 5.25 / 5.82.",
+  },
+  {
+    fg: "destructive",
+    bg: "card",
+    bar: TEXT_BAR,
+    fgAlpha: 0.9,
+    note: "THE ONE DECLARED DILUTED INK. The destructive Alert's DESCRIPTION is set a notch softer than its title (`ui/alert.tsx:13`), which is a deliberate typographic hierarchy rather than an oversight — so it is measured rather than removed: 5.24 in both themes against the 4.5 bar, versus 5.76 solid. This row is also the reason `fgAlpha` exists; see the field's own note.",
   },
 ] as const satisfies readonly ContrastPair[];
 

@@ -164,22 +164,26 @@ describe.each(THEME_NAMES)("%s", (theme: string) => {
   // literal type and `alpha` — which only some rows carry — is not on the union.
   it.each<ContrastPair>([...CONTRAST_PAIRS])(
     "$fg on $bg clears $bar + epsilon",
-    ({ fg, bg, bar, alpha, note }) => {
-      const fgHex = resolve(theme, fg);
+    ({ fg, bg, bar, alpha, fgAlpha, note }) => {
+      const rawFgHex = resolve(theme, fg);
       const rawBgHex = resolve(theme, bg);
       // Composite FIRST, measure SECOND. This branch is the whole reason T-10-10 exists.
       const bgHex =
         alpha === undefined
           ? rawBgHex
           : composite(rawBgHex, alpha.value, resolve(theme, alpha.over));
+      // A diluted INK composites over the surface it is painted on — which is the COMPOSITED
+      // background, not the raw token, so this must run after the branch above and never before it.
+      const fgHex = fgAlpha === undefined ? rawFgHex : composite(rawFgHex, fgAlpha, bgHex);
       const measured = contrast(fgHex, bgHex);
       const surface =
         alpha === undefined
           ? `${bg} ${bgHex}`
           : `${bg}/${alpha.value * 100}% over ${alpha.over} → ${bgHex}`;
+      const ink = fgAlpha === undefined ? `${fg} (${fgHex})` : `${fg}/${fgAlpha * 100}% (${fgHex})`;
       expect(
         measured,
-        `[${theme}] ${fg} (${fgHex}) on ${surface} measured ${measured.toFixed(2)}, needs ${(
+        `[${theme}] ${ink} on ${surface} measured ${measured.toFixed(2)}, needs ${(
           bar + AA_EPSILON
         ).toFixed(2)} — ${note}`,
       ).toBeGreaterThanOrEqual(bar + AA_EPSILON);
