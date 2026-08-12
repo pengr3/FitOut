@@ -538,6 +538,62 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     }
   });
 
+  it("pins ALL FOUR tone recipes by value, not just the one with a call site (WR-08)", () => {
+    // THE VOCABULARY HAD ONE LOAD-BEARING ENTRY. Only `positive` was destructured anywhere in this
+    // file, so `neutral`, `attention` and `soft-accent` could be edited to anything at all and
+    // nothing in the suite would notice — a closed TYPE over three unenforced values. Changing
+    // `neutral.surface` changed nothing and failed nothing.
+    //
+    // Every class named here is a declared pairing in `contrast-pairs.ts`, which is what makes the
+    // table an assertion rather than a copy: foreground-on-muted 18.16 / 16.89, success-on-muted
+    // 3.67 / 3.54, destructive-on-muted 5.28 / 5.10, muted-foreground-on-muted 4.82 / 5.28,
+    // foreground-on-brand@10% 17.04 / 16.24, brand-on-brand@10% 4.10 / 4.06. Editing a slot here
+    // means re-deriving that pairing, which is exactly the friction DS-10 wants.
+    expect(STATUS_TONE_RECIPES).toEqual({
+      neutral: { surface: "bg-muted", text: "text-foreground", icon: "text-muted-foreground" },
+      positive: { surface: "bg-muted", text: "text-foreground", icon: "text-success" },
+      attention: { surface: "bg-muted", text: "text-foreground", icon: "text-destructive" },
+      "soft-accent": { surface: "bg-brand/10", text: "text-foreground", icon: "text-brand" },
+    });
+
+    // Every tone in the closed union has a recipe, and no recipe exists for a tone the union
+    // dropped — `outline` in particular, which was removed as a TONE while its badge variant stayed.
+    expect(Object.keys(STATUS_TONE_RECIPES).sort()).toEqual([...STATUS_TONES].sort());
+    expect(Object.keys(STATUS_TONE_RECIPES)).not.toContain("outline");
+  });
+
+  it("renders soft-accent BY VALUE at its one adopter, on a single element", () => {
+    // The second tone that is genuinely load-bearing, asserted the same way `positive` is. Without
+    // this, `soft-accent` was pinned only against itself by the table above.
+    const { surface, text, icon } = STATUS_TONE_RECIPES["soft-accent"];
+    const site = "src/components/availability/spots-left-chip.tsx";
+    const chunks = scan.utilities.get(site) ?? [];
+    expect(chunks.length, `${site} produced no class strings`).toBeGreaterThan(0);
+    expect(
+      chunks.some((u) => u.has(surface) && u.has(text)),
+      `${site} does not carry ${surface} and ${text} on the same element`,
+    ).toBe(true);
+    expect(usesClass(scan.text.get(site) ?? "", icon)).toBe(true);
+  });
+
+  it("records which tones are rendered from the recipe and which only agree with it (WR-08)", () => {
+    // THE HONEST STATEMENT of what the reconciliation actually achieved, asserted so it cannot rot
+    // into a claim nobody re-checks. `neutral` and `attention` do NOT consume the recipe object at
+    // a call site: neutral's chips reach the same colours through `variant="secondary"` (--secondary
+    // and --muted hold the same value in both themes), and attention's only adopter is a destructive
+    // Alert on --card. Closing that gap means deciding whether approved/processing keep their
+    // border treatment and whether the closed lifecycle statuses keep their de-emphasised ink —
+    // design decisions, deferred, not silently pending.
+    const badge = stripCommentLines(
+      scan.text.get("src/components/booking/booking-status-badge.tsx") ?? "",
+    );
+    expect(badge.length).toBeGreaterThan(0);
+    // The outline variant is still selected per status, which is what the vocabulary note now says.
+    expect(badge).toContain('variant: "outline"');
+    // …and the neutral tint is still reached via the secondary variant rather than the recipe.
+    expect(badge).toContain('variant: "secondary"');
+  });
+
   it("cannot be evaded by reordering, extra spacing, or an intervening class (WR-03)", () => {
     // POSITIVE CONTROL for the detection change. Every shape below renders the retired 3.24:1
     // pairing, and every one of them passed the old adjacency check.
