@@ -30,6 +30,17 @@
 // outline colour (removed in plan 10-04), and a walker that collected only TypeScript would report
 // a clean tree while the stylesheet still shipped it.
 //
+// THAT CLAIM IS NOW ASSERTED IN ALL FOUR CHECKS, NOT JUST TWO (CR-02). The two literal scans always
+// read every collected file. The two PAIRING checks did too — until WR-02 narrowed them from
+// whole-file text to one class string per element and implemented the narrowing with the TypeScript
+// AST walker, which returns nothing for a stylesheet. The `.css` leg was not narrowed there, it was
+// dropped, and a comment was written asserting it did not matter. It did: an
+// `@apply focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` in the base
+// layer's body rule left this file at 14/14 while shipping Tailwind's hardcoded `#fff` offset band
+// on every focusable element. Both legs now run both checks, over the unit appropriate to the
+// language — a class string in TypeScript, a declaration in CSS — and the `.css` leg is exercised
+// by a fixture rather than argued for in prose.
+//
 // THE VENDORED TREE IS INSIDE THE GATE, WITH NO EXEMPTION (D-17). 13 of the 15 sites this phase
 // fixed live in `src/components/ui/**`. Exempting that directory — the obvious "it's upstream's
 // code" move — would have excused 13 of 15 and left the requirement closed on paper.
@@ -202,6 +213,58 @@ function classChunks(path: string, text: string): { chunk: string; line: number 
  */
 const PREFIXED_OFFSET_WIDTH = /([^\s"'`]*:)ring-offset-\d+/g;
 
+/**
+ * The `.css` equivalent of one class string — a single CSS declaration, with its line number.
+ *
+ * WHY THIS EXISTS (CR-02). The pairing checks below originally ran over the RAW TEXT of every
+ * collected file, `.css` included. When they were narrowed to one class string per element (WR-02),
+ * the narrowing was implemented with `classChunks`, which walks the TypeScript AST — and a `.css`
+ * file has no string literals, so it produced nothing. The `.css` leg was therefore not narrowed,
+ * it was DELETED, and the justification written in its place ("the stylesheet composes no focus
+ * recipe of its own — it declares the tokens the recipe names") contradicted this file's own header
+ * and was asserted nowhere.
+ *
+ * IT WAS NOT AN ACADEMIC LOSS. `globals.css` uses `@apply` in three places, so the shape is one line
+ * away. Adding
+ *
+ *     @apply focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+ *
+ * to the `@layer base` body rule was observed to leave this file at **14/14 passed** and the whole
+ * design suite green, while the stylesheet shipped a hardcoded `#fff` band on every focusable
+ * element in the app — Tailwind's `--tw-ring-offset-color` default, which is the exact "raw colour
+ * reaching the screen from a framework default" `PREFIXED_OFFSET_WIDTH` exists to prevent, and
+ * visibly wrong on grove's tinted background. The gate was strictly STRONGER before the narrowing.
+ *
+ * WHY A DECLARATION IS THE RIGHT UNIT. The per-element scope the pairing checks need is, in a
+ * stylesheet, "one declaration": an `@apply` runs against the rule it sits in, and two declarations
+ * in the same rule are no more one element than two class strings in one file are. Splitting on
+ * `;`, `{`, `}` and newline is what a declaration boundary is in practice, and it keeps the same
+ * property the `.tsx` leg has — a correct sibling cannot vouch for a broken one.
+ */
+function cssDeclarations(text: string): { chunk: string; line: number }[] {
+  const out: { chunk: string; line: number }[] = [];
+  let buf = "";
+  let bufLine = 1;
+  let line = 1;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "\n") line += 1;
+
+    if (ch === ";" || ch === "{" || ch === "}" || ch === "\n") {
+      if (buf.trim().length > 0) out.push({ chunk: buf, line: bufLine });
+      buf = "";
+      continue;
+    }
+
+    if (buf.length === 0) bufLine = line;
+    buf += ch;
+  }
+
+  if (buf.trim().length > 0) out.push({ chunk: buf, line: bufLine });
+  return out;
+}
+
 interface Scan {
   /** Normalised forward-slash paths of every file the walker visited. */
   scanned: string[];
@@ -217,6 +280,24 @@ interface Scan {
   unpairedRecipe: Violation[];
   /** Raw text of every scanned file, keyed by normalised path — for the anchor assertions. */
   text: Map<string, string>;
+
+  // ---- WR-03: what the two per-chunk checks ACTUALLY inspected ------------------------------
+  /**
+   * How many units the pairing checks ran over, `.ts`/`.tsx` and `.css` together.
+   *
+   * WHY A COUNT AND NOT A FLAG. Both pairing assertions are `expect(list).toEqual([])`, which a
+   * scan that inspected NOTHING satisfies perfectly. The existing guard-the-guard counts
+   * `scan.scanned`, but files are pushed to `scanned` BEFORE the per-chunk block, so it says
+   * nothing about how many the checks reached. That gap was observed: replacing the file-type
+   * condition with `if (false)` left this file at **14/14 passed** with both checks inspecting zero
+   * units — the same "the assertion's anchor moved so the check silently disarmed" shape the first
+   * review raised, reintroduced by the fix that narrowed the scope.
+   */
+  chunksInspected: number;
+  /** …of which came from a `.css` file, so the leg CR-02 restored cannot be silently dropped again. */
+  cssChunksInspected: number;
+  /** `file:line` of every unit that carries the recipe's ring colour — a NON-empty expectation. */
+  recipeSites: Violation[];
 }
 
 /** Scanned ONCE at module level; every `it()` below only asserts against this result. */
@@ -229,6 +310,9 @@ function scanSrc(): Scan {
     uncolouredOffset: [],
     unpairedRecipe: [],
     text: new Map(),
+    chunksInspected: 0,
+    cssChunksInspected: 0,
+    recipeSites: [],
   };
 
   for (const file of collectSourceFiles(SRC_DIR)) {
@@ -247,26 +331,38 @@ function scanSrc(): Scan {
       scan.alphaRingColour.push(`${name}: ${m[0]}`);
     }
 
-    // PER CLASS STRING, never per file (WR-02). `.css` has no string literals to walk, and the
-    // stylesheet composes no focus recipe of its own — it declares the tokens the recipe names —
-    // so the pairing checks simply do not apply to it.
-    if (!name.endsWith(".css")) {
-      for (const { chunk, line } of classChunks(name, text)) {
-        for (const m of chunk.matchAll(PREFIXED_OFFSET_WIDTH)) {
-          const prefix = m[1];
-          if (!chunk.includes(`${prefix}ring-offset-background`)) {
-            scan.uncolouredOffset.push(
-              `${name}:${line}: ${m[0]} without ${prefix}ring-offset-background`,
-            );
-          }
-        }
+    // PER UNIT, never per file (WR-02) — AND THE STYLESHEET IS A UNIT SOURCE TOO (CR-02).
+    //
+    // The unit is "the smallest thing that reliably belongs to one element": a class string in
+    // TypeScript, a declaration in CSS. Both legs run the SAME two checks. The `.css` leg is not
+    // decorative — `globals.css` was the site of the stylesheet's own half-alpha outline colour,
+    // it uses `@apply` in three places today, and an `@apply focus-visible:ring-offset-2` there
+    // paints Tailwind's hardcoded white band on every focusable element in the app.
+    const units = name.endsWith(".css")
+      ? cssDeclarations(text)
+      : classChunks(name, text);
 
-        if (
-          chunk.includes("focus-visible:ring-ring") &&
-          !chunk.includes("focus-visible:ring-offset-background")
-        ) {
-          scan.unpairedRecipe.push(`${name}:${line}`);
+    for (const { chunk, line } of units) {
+      // WR-03 — count what was inspected, and record a NON-empty expectation alongside the two
+      // empty ones. Without this, narrowing the unit source to nothing passes silently.
+      scan.chunksInspected += 1;
+      if (name.endsWith(".css")) scan.cssChunksInspected += 1;
+      if (chunk.includes("focus-visible:ring-ring")) scan.recipeSites.push(`${name}:${line}`);
+
+      for (const m of chunk.matchAll(PREFIXED_OFFSET_WIDTH)) {
+        const prefix = m[1];
+        if (!chunk.includes(`${prefix}ring-offset-background`)) {
+          scan.uncolouredOffset.push(
+            `${name}:${line}: ${m[0]} without ${prefix}ring-offset-background`,
+          );
         }
+      }
+
+      if (
+        chunk.includes("focus-visible:ring-ring") &&
+        !chunk.includes("focus-visible:ring-offset-background")
+      ) {
+        scan.unpairedRecipe.push(`${name}:${line}`);
       }
     }
   }
@@ -355,6 +451,30 @@ describe("DS-05 — no focus indicator relies on a diluted colour", () => {
 });
 
 describe("DS-05 — the offset band is a token, never a framework default", () => {
+  it("actually inspected units, so the two empty lists below mean something (WR-03)", () => {
+    // GUARD-THE-GUARD for the pairing checks specifically. `scan.scanned` is pushed BEFORE the
+    // per-unit block, so the existing file-count guard says nothing about what these two checks
+    // reached. Replacing the unit-source condition with `if (false)` was observed to leave this
+    // file at 14/14 with both checks inspecting ZERO units; this assertion is what makes that loud.
+    expect(scan.chunksInspected).toBeGreaterThan(500);
+
+    // The NON-EMPTY expectation, which is the part a zeroed scan cannot satisfy however it was
+    // zeroed. Modelled on `status-vocab.test.ts`'s sibling, whose equivalent assertion is
+    // `toEqual([LEGAL_FILLED_PAIRING_SITE])` rather than `toEqual([])` for exactly this reason.
+    expect(
+      scan.recipeSites.some((s) => s.startsWith("src/components/ui/button.tsx:")),
+      `the recipe was not seen in button.tsx; sites seen: ${scan.recipeSites.slice(0, 5).join(", ")}`,
+    ).toBe(true);
+  });
+
+  it("inspected the STYLESHEET too, which is the leg CR-02 restored", () => {
+    // Counted separately from the total on purpose: `.css` is one file out of 200+, so a `.css`
+    // leg that silently produced zero units would move `chunksInspected` by a rounding error and
+    // the assertion above would stay green. This is the one that goes red instead.
+    expect(scan.cssChunksInspected).toBeGreaterThan(100);
+    expect(scan.scanned).toContain("src/app/globals.css");
+  });
+
   it("every focus ring declaration is paired with its offset colour", () => {
     expect(scan.unpairedRecipe).toEqual([]);
   });
@@ -399,6 +519,77 @@ describe("DS-05 — the offset band is a token, never a framework default", () =
     expect(unpaired).toHaveLength(1);
   });
 
+  it("reports an `@apply` in the STYLESHEET, on both checks (CR-02)", () => {
+    // POSITIVE CONTROL for the `.css` leg. It exists because the leg was DELETED with a comment
+    // asserting it did not matter, and the deletion was invisible: the exact stylesheet below was
+    // added to `globals.css`'s `@layer base` body rule and this file reported 14/14 passed while
+    // every focusable element in the app gained Tailwind's hardcoded `#fff` offset band.
+    //
+    // The `.css` leg is now OBSERVED working rather than argued for, which is the standard the rest
+    // of this phase's gates are held to.
+    const stylesheet = [
+      "@layer base {",
+      "  body {",
+      "    @apply bg-background text-foreground;",
+      "    @apply focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;",
+      "  }",
+      "}",
+    ].join("\n");
+
+    const units = cssDeclarations(stylesheet);
+    expect(units.length).toBeGreaterThanOrEqual(2);
+
+    const uncoloured = units.filter(({ chunk }) =>
+      [...chunk.matchAll(PREFIXED_OFFSET_WIDTH)].some(
+        (m) => !chunk.includes(`${m[1]}ring-offset-background`),
+      ),
+    );
+    expect(uncoloured, "an offset width with no offset colour must be reported in .css").toHaveLength(1);
+
+    const unpaired = units.filter(
+      ({ chunk }) =>
+        chunk.includes("focus-visible:ring-ring") &&
+        !chunk.includes("focus-visible:ring-offset-background"),
+    );
+    expect(unpaired, "a ring colour with no offset colour must be reported in .css").toHaveLength(1);
+
+    // …and the line number must point at the offending declaration, not at the top of the file.
+    expect(unpaired[0].line).toBe(4);
+
+    // The CORRECT stylesheet form must still pass, or the leg would be reporting every `@apply`.
+    const legal = "  body { @apply focus-visible:ring-ring focus-visible:ring-offset-background; }";
+    expect(
+      cssDeclarations(legal).filter(
+        ({ chunk }) =>
+          chunk.includes("focus-visible:ring-ring") &&
+          !chunk.includes("focus-visible:ring-offset-background"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("treats one CSS declaration as one element, so a correct sibling cannot vouch (CR-02)", () => {
+    // The `.css` twin of the WR-02 fixture above. Two declarations in the SAME rule: the first
+    // carries the full recipe, the second an offset width alone. Whole-file text finds the offset
+    // colour in the first and clears the second on its strength — which is what the pre-WR-02 code
+    // did for `.css`, and is the one property the restoration must not bring back with it.
+    const stylesheet = [
+      "  .a {",
+      "    @apply focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;",
+      "    @apply focus-visible:ring-offset-2;",
+      "  }",
+    ].join("\n");
+
+    expect(stylesheet.includes("focus-visible:ring-offset-background")).toBe(true);
+
+    const offenders = cssDeclarations(stylesheet).filter(({ chunk }) =>
+      [...chunk.matchAll(PREFIXED_OFFSET_WIDTH)].some(
+        (m) => !chunk.includes(`${m[1]}ring-offset-background`),
+      ),
+    );
+    expect(offenders).toHaveLength(1);
+    expect(offenders[0].chunk).not.toContain("ring-offset-background");
+  });
+
   it("splits class strings rather than concatenating a file into one chunk", () => {
     // GUARD-THE-GUARD on the walker: if it returned the whole file as a single chunk, the per-chunk
     // checks would silently collapse back into the file-level ones they replaced, and every
@@ -407,6 +598,16 @@ describe("DS-05 — the offset band is a token, never a framework default", () =
     const chunks = classChunks("src/components/ui/button.tsx", button);
     expect(chunks.length).toBeGreaterThan(10);
     expect(chunks.every(({ chunk }) => chunk.length < button.length)).toBe(true);
+  });
+
+  it("splits the STYLESHEET rather than returning it as one chunk (CR-02)", () => {
+    // The `.css` twin of the walker guard above, and the reason the count assertion has a floor of
+    // 100: if `cssDeclarations` ever returned the file whole, both `.css` checks would collapse
+    // back into the file-level ones and every assertion here would still pass.
+    const css = readFileSync(join(SRC_DIR, "app/globals.css"), "utf8");
+    const units = cssDeclarations(css);
+    expect(units.length).toBeGreaterThan(100);
+    expect(units.every(({ chunk }) => chunk.length < css.length)).toBe(true);
   });
 
   it("the canonical recipe is still written verbatim in the file that defines it", () => {
