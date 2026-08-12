@@ -110,17 +110,31 @@ describe("WR-12 — the guard rejects everything that leaves the origin", () => 
       raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
     expect(oldPrefixGuard("/..//evil.com")).toBe("/..//evil.com");
 
-    for (const attack of [
+    // Asserted against BOTH origins. SEC-01 is origin-independent, and the doc previously claimed
+    // "7 vectors x 2 origins" while this gate pinned six of them on one origin only — the audit
+    // caught that gap between the prose and the committed test. localhost:3000 matters on its own
+    // merits: it is the origin every developer session is pinned to.
+    const SEC01_ORIGINS = [ORIGIN, "http://localhost:3000"];
+    const SEC01_VECTORS = [
       "/..//evil.com",
       "/.//evil.com",
       "/a/../..//evil.com",
       "/..//evil.com?a=1#b",
       "/..///evil.com",
       "/./..//evil.com/steal#token",
-      // Re-parsing this one THROWS (empty host), so the guard must fall back rather than escape.
+      // Normalises to the bare `//`. NOTE: an earlier comment here claimed the guard needed its
+      // try/catch because re-parsing this one throws. `new URL("//", origin)` does throw, but this
+      // candidate never gets that far — the `startsWith("//")` rejection takes it first. Kept in
+      // the list because it is a real vector; the claim about WHERE it is caught was wrong.
       "/..//",
-    ]) {
-      expect(safeCallbackPath(attack, ORIGIN), JSON.stringify(attack)).toBe("/");
+    ];
+    for (const attackOrigin of SEC01_ORIGINS) {
+      for (const attack of SEC01_VECTORS) {
+        expect(
+          safeCallbackPath(attack, attackOrigin),
+          `${JSON.stringify(attack)} @ ${attackOrigin}`,
+        ).toBe("/");
+      }
     }
   });
 
@@ -206,7 +220,8 @@ describe("WR-12 — the guard preserves every legitimate relative callback", () 
     );
     expect(safeCallbackPath("//evil.com", "http://localhost:3000")).toBe("/");
     expect(safeCallbackPath("/\\evil.com", "http://localhost:3000")).toBe("/");
-    // SEC-01 is origin-independent, and this is the origin every developer session is pinned to.
+    // The full SEC-01 vector list is now run against this origin too, in the SEC-01 test above.
+    // This line stays as a readable spot-check at the place a reader looks for localhost behaviour.
     expect(safeCallbackPath("/..//evil.com", "http://localhost:3000")).toBe("/");
     // A different PORT is a different origin, and must not be treated as ours.
     expect(safeCallbackPath("http://localhost:4000/x", "http://localhost:3000")).toBe("/");

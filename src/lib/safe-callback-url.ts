@@ -106,11 +106,22 @@ export function safeCallbackPath(raw: string | null | undefined, origin: string)
   // this string NEXT that is an authority, not a path. Naming the shape directly is the cheap half.
   if (candidate.startsWith("//")) return "/";
 
-  // SEC-01, second rejection, and the load-bearing one. One prefix is one spelling — the same
-  // mistake the header describes above, made again — so instead of guessing at spellings this
-  // performs THE CALLER'S OWN OPERATION: resolving the returned value against the origin is exactly
-  // what `router.push()` causes on the login page. If that lands anywhere but here, do not return
-  // it. The catch is not decorative: a candidate that is only slashes has an empty host and throws.
+  // SEC-01, second rejection — DEFENCE IN DEPTH, and currently unreachable. It performs THE
+  // CALLER'S OWN OPERATION: resolving the returned value against the origin is exactly what
+  // `router.push()` causes on the login page, so this answers the real question rather than
+  // guessing at spellings the way a prefix check must.
+  //
+  // Honest accounting, because an earlier version of this comment overstated it and the security
+  // audit caught it: the check above rejects 100% of known SEC-01 vectors, including `/..//`.
+  // This block fired ZERO times across ~300k probed inputs, and no reaching input could be
+  // constructed. The reason is structural — past the origin check `target` is always a
+  // special-scheme URL, so `pathname` always begins with `/` and never holds a raw backslash;
+  // `candidate[1]` is therefore never `/` (caught above) and never `\`.
+  //
+  // Kept anyway: it is the check that stays correct if someone later widens what `candidate` is
+  // built from, which is precisely how SEC-01 got in. The `catch` is a genuine guard on
+  // `new URL()` throwing (`new URL("//", origin)` does throw) — it is simply not reachable today
+  // via that candidate, since the prefix check takes it first.
   try {
     if (new URL(candidate, origin).origin !== self.origin) return "/";
   } catch {
