@@ -2,9 +2,9 @@
 phase: 10
 slug: design-system-foundation-theme-runtime
 status: blocked
-threats_open: 1
+threats_open: 0
 threats_total: 50
-threats_closed: 49
+threats_closed: 50
 asvs_level: 2
 block_on: high
 created: 2026-08-12
@@ -23,6 +23,11 @@ by any plan-time threat.**
 
 Gate evidence at audit time: `npm run test:design` 21 files / 449 passed · `npx tsc --noEmit`
 exit 0 · `npm run lint` 0 errors / 9 pre-existing warnings.
+
+> **This BLOCKED wording is left standing on purpose.** Both blocking items were discharged on
+> 2026-08-12 by quick task `260812-usm` (see **Fixed** under the headline finding, and T-10-29 in
+> the Closed table) — but re-issuing the verdict is `/gsd-secure-phase 10`'s job, not the fix
+> ticket's, so `status:` stays `blocked` until that re-run says otherwise.
 
 ---
 
@@ -75,10 +80,55 @@ acceptance — it did not):
   403 `INVALID_CALLBACK_URL`. The module header recorded this as unverified; it is now verified
   and it holds. **`router.push()` has no such backstop — that leg is the exploitable one.**
 
-**Remediation (separate ticket — do NOT fold into phase 10):** after the origin check, reject when
-`target.pathname.startsWith("//")`, or return a value the caller cannot re-resolve cross-origin.
-Add `/..//evil.com`, `/.//evil.com`, `/a/../..//evil.com` to the test's attack list — the current
-list passes a guard with this hole.
+**Remediation — DISCHARGED 2026-08-12** (kept as written, since it is the record of what was asked
+for): after the origin check, reject when `target.pathname.startsWith("//")`, or return a value the
+caller cannot re-resolve cross-origin. Add `/..//evil.com`, `/.//evil.com`, `/a/../..//evil.com` to
+the test's attack list — the current list passes a guard with this hole. Both halves were done, in
+a separate quick ticket rather than folded into phase 10, as instructed. See **Fixed** below.
+
+### Fixed — 2026-08-12, commit `e6180a0` (quick task `260812-usm`)
+
+**What changed**, in `src/lib/safe-callback-url.ts` only — the login route was deliberately NOT
+re-edited, since the guard has exactly one importer and the defect was wholly inside the module:
+
+- `:103` the return value is computed into a local before it leaves, so it can be checked in its
+  own right. The origin check at `:101` is untouched — it was never the defect.
+- `:107` **first rejection** — a candidate beginning with two slashes is refused, naming the
+  finding directly.
+- `:115` **second rejection, the load-bearing one** — the candidate is re-resolved against the
+  origin inside a try/catch that also refuses on a throw. This performs *the caller's own
+  operation*: `new URL(value, origin)` is exactly what `router.push()` causes at
+  `login/page.tsx:99`. One prefix is one spelling; this answers the real question instead of the
+  nearest proxy, which is the same argument the module header already made about the INPUT.
+- `:35-66` the module header gains a SEC-01 section recording the hole, the chain, and that the
+  social leg's vendor backstop (`better-auth` trusted-origins → 403) had no `router.push`
+  equivalent.
+
+**Both changes are rejections. Nothing is newly accepted** — the `!raw.startsWith("/")` early
+return is retained verbatim and the "does not newly ACCEPT anything the old guard rejected" test
+was left unmodified and stays green. Strictly a tightening: the pre-WR-12 prefix guard returned
+`/..//evil.com` *verbatim*, and the test asserts that rather than claiming it.
+
+**Now pinned** in `tests/security/safe-callback-url.test.ts:94` — the three confirmed vectors plus
+four relatives (`?a=1#b`, a triple slash, a `./..//…/steal#token` form, and the bare `/..//` whose
+re-parse throws), each returning `"/"`; plus `:210`, the same bypass against
+`http://localhost:3000`, because it is origin-independent and that is where every developer session
+lives. All 10 pre-existing attack strings still reject; every legitimate relative callback still
+returns unchanged, query and fragment intact.
+
+**The new cases were WATCHED FAILING against the unmodified guard first**, and the output is
+recorded verbatim at `tests/security/safe-callback-url.test.ts:19-66` rather than summarised in a
+SUMMARY: **2 failed / 8 passed of 10, EXIT=1**, `AssertionError: "/..//evil.com": expected
+'//evil.com' to be '/'`. Post-fix, the same command: **10 passed, EXIT=0**. This mattered here
+specifically — WR-12 shipped a 10-case attack list under a commit message claiming closure, and
+that list had never been observed catching anything.
+
+Gates unmoved from the audit baseline: `npm run test:design` 21 files / 449 passed ·
+`npx tsc --noEmit` exit 0 · `npm run lint` 0 errors / 9 pre-existing warnings.
+
+**Still not verified end-to-end in a browser** — the exploit chain was traced through installed
+source, not driven through a live Chromium, and this ticket did not change that. The fix is a pure
+function with an exhaustive attack list, which is the layer where it is testable.
 
 ---
 
@@ -98,18 +148,18 @@ list passes a guard with this hole.
 ## Threat Register
 
 50 threats, T-10-01..T-10-50, authored at plan time across all 17 PLAN files.
-Dispositions: mitigate 29, accept 21. Categories: Tampering 16, Repudiation 14,
-Information disclosure 9, Denial of service 7, Elevation of privilege 3, Spoofing 1.
+Dispositions: mitigate 30, accept 20 (T-10-29 moved `accept` → `mitigate` on 2026-08-12).
+Categories: Tampering 16, Repudiation 14, Information disclosure 9, Denial of service 7,
+Elevation of privilege 3, Spoofing 1.
 
 Every row was decided by locating the assertion or the code, **not** by reading a SUMMARY claim.
 
 ### Open
 
-| Threat ID | Category | Component | Disposition | Status | Evidence |
-|---|---|---|---|---|---|
-| T-10-29 | Information disclosure | auth-route edits | accept | **open** | The acceptance basis is invalidated at HEAD. The register accepts auth-route edits because "the edits are class strings only — no form field, no action target, no validation and no session handling is touched, so no auth path changes." True for plan 10-14; false at `e40ad40`. `git diff e38e3b3..HEAD -- "src/app/(auth)/login/page.tsx"` shows WR-12 replaced the post-sign-in redirect guard — control flow, not a class string. Post-authentication navigation target *is* auth-path behaviour, and SEC-01 is exactly the risk this acceptance asserted could not exist. `(auth)/signup/page.tsx` still qualifies (two class strings + a comment). |
+None. T-10-29 was the last one; it moved to the Closed table as `mitigate` on 2026-08-12 (see
+below). `status:` nonetheless remains `blocked` pending `/gsd-secure-phase 10`.
 
-### Closed (49)
+### Closed (50)
 
 | ID | Cat | Disp | Evidence |
 |---|---|---|---|
@@ -141,6 +191,7 @@ Every row was decided by locating the assertion or the code, **not** by reading 
 | T-10-26 | DoS | mitigate | `:757` per-file map (6 files). Drift 9→8 (WR-15 merged two byte-identical branches); rationale at `:766-771` + `wizard.tsx:620-629`. Strengthened — occurrences, not lines. |
 | T-10-27 | Repud | mitigate | Windows normalisation present; `:222` >100 files, `:234-237` named file **and** negative each side, `:241` exhaustive partition. Drift 14→13 (CR-01 emptied `toggle.tsx`). |
 | T-10-28 | Tamper | mitigate | `:293` `toBe(44)` with the 56→54→44 history **inside the `it()` name** — the conscious-decision property the register asked for. |
+| T-10-29 | Info | **mitigate** (was `accept`) | **Re-underwritten 2026-08-12 — the acceptance could not be repaired by re-wording.** Its basis was "the edits are class strings only — no form field, no action target, no validation and no session handling is touched, so no auth path changes"; WR-12 genuinely replaced post-sign-in redirect **control flow**, so keeping `accept` would have required asserting the very thing SEC-01 disproved. Now mitigated for real, and citable: the post-authentication navigation target is produced by ONE pure function, guarded on the way out at `src/lib/safe-callback-url.ts:107` (authority-shaped candidate refused) and `:115` (candidate re-resolved against the origin — the caller's own operation), with an exhaustive attack list at `tests/security/safe-callback-url.test.ts:94` whose SEC-01 dot-segment cases were **watched red before the fix** (2 failed / 8 passed of 10, EXIT=1; verbatim at `:19-66`) and are green after (10 passed). Commit `e6180a0`. The surviving true half of the original note stands: `(auth)/signup/page.tsx` really is two class strings + a comment. |
 | T-10-30 | Repud | mitigate | **WR-11 confirmed.** Byte equality, no normalisation; guard rejects empty render; out-of-gamut throw asserted red on the recorded value **and** green in-gamut, applied to every shipped token. |
 | T-10-31 | Info | accept | `public/` holds only the two theme icons; starter SVGs and `favicon.ico` gone. |
 | T-10-32 | Info | mitigate | `grep -rn "@/lib/db\|fetch(" src/app/dev/` = 0 at HEAD. **Caveat: not pinned by any test** — a future data-backed fixture would land silently. Gate it in Phase 11. |
@@ -192,7 +243,7 @@ such section at all. Treating that list as complete would have missed:
 | Risk ID | Threat Ref | Rationale | Accepted By | Date |
 |---------|------------|-----------|-------------|------|
 | — | T-10-05, 07, 09, 12, 15, 16, 17, 19, 22, 31, 35, 36, 37, 38, 40, 41, 44, 46, 47, 50 | 20 plan-time acceptances, each re-verified as still holding at `e40ad40` (evidence in the Closed table). Recorded as closed-by-acceptance, not re-litigated. | plan-time register, re-underwritten by audit 2026-08-12 | 2026-08-12 |
-| — | T-10-29 | **NOT accepted.** Its stated basis is false at HEAD — see Open table. | — | — |
+| — | T-10-29 | **NOT accepted, and no longer needs to be.** Its stated basis was false at HEAD; rather than re-word an acceptance SEC-01 had disproved, it was moved to `mitigate` with real evidence on 2026-08-12 — see the Closed table. | — | — |
 
 ---
 
@@ -201,6 +252,7 @@ such section at all. Treating that list as complete would have missed:
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-08-12 | 50 | 49 | 1 | gsd-security-auditor (opus), verified at `e40ad40` |
+| 2026-08-12 | 50 | 50 | 0 | quick task `260812-usm` — SEC-01 fixed and T-10-29 re-underwritten at `e6180a0`. **Not a re-audit and not a verdict**: this row records two discharges, and `status:` stays `blocked` until `/gsd-secure-phase 10` re-runs. |
 
 Five registered counts moved across the three fix passes (T-10-26 9→8, T-10-27 14→13,
 T-10-28 56→54→44, T-10-45 9→12, T-10-49 21→20). Each was checked individually: every move is
@@ -213,14 +265,20 @@ per-file map rather than the bare total the register described — **strictly st
 
 - [x] All threats have a disposition (mitigate / accept / transfer)
 - [x] Accepted risks documented in Accepted Risks Log
-- [ ] `threats_open: 0` confirmed — **1 open (T-10-29)**
-- [ ] `status: verified` set in frontmatter — **blocked**
+- [x] `threats_open: 0` confirmed — T-10-29 moved to `mitigate` with evidence, 2026-08-12
+- [ ] `status: verified` set in frontmatter — **still `blocked`; not this ticket's call**
 
-**Approval:** pending — blocked on T-10-29 and SEC-01.
+**Approval:** pending. The two items it was blocked on are discharged (`e6180a0`), but the verdict
+is `/gsd-secure-phase 10`'s to re-issue against HEAD, not the fix ticket's to claim.
 
 ### To clear this gate
 
-1. **Open a separate security ticket for SEC-01.** Phase-4 code; do not fold the fix into phase 10.
-   Reject `pathname.startsWith("//")` after the origin check, and extend the attack list.
-2. **Re-underwrite T-10-29** to name the guard change — or move it to `mitigate` and pin it.
-3. Re-run `/gsd-secure-phase 10`.
+1. ~~**Open a separate security ticket for SEC-01.**~~ **DONE 2026-08-12** — quick task
+   `260812-usm`, commit `e6180a0`. Not folded into phase 10. The candidate is now rejected on two
+   grounds after the origin check, and the attack list carries the three vectors plus four
+   relatives, watched red first. See **Fixed** above.
+2. ~~**Re-underwrite T-10-29.**~~ **DONE 2026-08-12** — moved to `mitigate` and pinned to
+   `safe-callback-url.ts:107`/`:115` and the attack list. Re-wording the acceptance was not
+   available: its basis was the exact claim SEC-01 disproved.
+3. **Re-run `/gsd-secure-phase 10`.** ← the only item left, and the only thing that can lift
+   `blocked`.
