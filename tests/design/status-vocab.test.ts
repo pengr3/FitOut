@@ -108,9 +108,18 @@ const ALL_PAYOUT_STATES: PayoutLedgerState[] = [
  * REORDERED, double-spaced, wrapped across lines by a formatter, split across two `cn()` arguments,
  * or merely separated by any third class such as `rounded-full`. The last of those is not a
  * contrived evasion; it is what happens the first time somebody adds a border radius. Detecting the
- * two classes INDEPENDENTLY within one class string and intersecting them removes every one of
- * those escapes at once, and costs nothing in precision: two classes on the same element are the
- * pairing, whatever order they were typed in.
+ * two classes INDEPENDENTLY and intersecting them costs nothing in precision: two classes on the
+ * same element are the pairing, whatever order they were typed in.
+ *
+ * WHAT "THE SAME ELEMENT" MEANS, AND THE CLAIM THIS COMMENT USED TO MAKE (CR-01). It previously
+ * said that detecting the two classes within one CLASS STRING "removes every one of those escapes
+ * at once". That was false for the `cn()`-split one, and the sentence outlived its own
+ * counter-example: two `cn()` arguments are two literals, so neither held both classes and the
+ * pairing shipped on `booking-row.tsx` with 405/405 green. The unit is now the ELEMENT — see
+ * `classSetsForElements`, which unions every literal beneath one `className` attribute or one
+ * `cn()` call — and the escapes it does and does not close are enumerated there rather than
+ * asserted in a superlative. The split-across-`cva`-slots shape remains open and is recorded as
+ * such.
  */
 const RETIRED_FILL = "bg-success";
 const RETIRED_INK = "text-success-foreground";
@@ -195,6 +204,11 @@ function usesClass(text: string, cls: string): boolean {
  * Copied from `tests/design/focus-recipe.test.ts`, which added it for WR-02 and chose this unit for
  * the same reason it is needed here: a class string is the smallest thing that reliably belongs to
  * ONE element, and both checks below are claims about a single element.
+ *
+ * NOTE — THIS IS NO LONGER THE UNIT THE CHECKS USE (CR-01). One literal is the smallest thing that
+ * belongs to one element; it is NOT the largest, and the gap between the two was an open escape.
+ * See `classSetsForElements` below. This function survives because a single literal must still
+ * stand on its own, and because the ELEMENT sets are built on top of it.
  */
 function classChunks(path: string, text: string): string[] {
   const sf = ts.createSourceFile(
@@ -255,6 +269,113 @@ function utilitiesIn(chunk: string): Set<string> {
   return out;
 }
 
+/**
+ * The call expressions that COMBINE several class strings into one (CR-01).
+ *
+ * `cn` is this repo's own merge helper (`src/lib/utils.ts`), `clsx` and `twMerge` are what it wraps.
+ * Every argument to one of these lands on the SAME element, so for the purpose of "is this pairing
+ * on one element" they are one class string however many literals they were typed as.
+ *
+ * `cva` is deliberately ABSENT. Unioning a `cva()` call would merge its base with EVERY variant,
+ * including variants that are mutually exclusive by construction — a gate that reports a pairing
+ * two variants can never render together is crying wolf, and this phase has already recorded what
+ * that costs. The residual gap that leaves is stated as a blind spot in the header rather than
+ * quietly closed over.
+ */
+const CLASS_COMBINERS = new Set(["cn", "clsx", "twMerge", "classNames", "classnames"]);
+
+/**
+ * The utility set of every ELEMENT in a file — not of every string literal (CR-01).
+ *
+ * WHY THE UNIT HAD TO CHANGE. The previous scheme detected the two halves of the retired pairing
+ * INDEPENDENTLY and intersected them within one literal, and the doc comment above `RETIRED_FILL`
+ * claimed that "removes every one of those escapes at once". It did not remove the `cn()`-split one:
+ * `classChunks` returns ONE CHUNK PER STRING LITERAL, and two `cn()` arguments are two literals, so
+ * neither chunk holds both classes.
+ *
+ * THAT WAS OBSERVED SHIPPING, NOT REASONED ABOUT. `src/components/booking/booking-row.tsx` was
+ * changed from `<Card className="relative">` to
+ *
+ *     <Card className={cn("relative bg-success", "text-success-foreground")}>
+ *
+ * and this file reported **18/18 passed**, the whole design suite **405/405**. The retired 3.24:1
+ * filled-green pairing — the one DS-10 exists to retire, the one `contrast-pairs.ts` calls "ILLEGAL
+ * as text" — shipped on the booker's booking card with every gate green. `pair-drift.test.ts` could
+ * not see it either, for the same reason.
+ *
+ * Nor was it contrived. `booking-status-badge.tsx` and `payout-state-badge.tsx` are one literal
+ * today purely by convention, and the phase's own `cn("gap-1", className)` idiom sits at both call
+ * sites — one refactor away from the shape above.
+ *
+ * WHAT AN "ELEMENT" IS HERE, and why each anchor is in the list:
+ *
+ *   • A JSX `className` attribute. Everything under it lands on one element, whatever expression
+ *     produced it — `cn()` arguments, a conditional, a template literal's head/middle/tail spans.
+ *     This is the anchor that closes the reproduced escape.
+ *   • A `cn()` / `clsx()` / `twMerge()` call ANYWHERE, including outside JSX. A recipe map's value
+ *     is not under a `className` attribute, but if it is built by one of these calls its arguments
+ *     still land together.
+ *   • Every individual literal, kept from `classChunks`. A single string must still stand on its
+ *     own, and it is the only unit available inside a `cva` variant.
+ *
+ * The sets are deliberately allowed to overlap: a pairing is a violation if it appears on ANY of
+ * them, so a wider unit can only add detections, never remove one.
+ *
+ * KNOWN RESIDUAL GAP, STATED RATHER THAN CLAIMED CLOSED. A pairing split across a `cva` BASE and one
+ * of its VARIANTS is still invisible — the base's `bg-success` and a variant's
+ * `text-success-foreground` do render together, but so would every other variant's classes if the
+ * call were unioned, and most of those combinations are unreachable. Closing it properly means
+ * modelling which variant keys can co-occur, which is a type-level question this text scan cannot
+ * answer. It is recorded here, and the `positive`-recipe surface-and-ink check at the bottom of this
+ * file carries the same gap for the same reason.
+ */
+function classSetsForElements(path: string, text: string): Set<string>[] {
+  const sf = ts.createSourceFile(
+    path,
+    text,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+
+  /** Every utility in every literal beneath `node`, unioned into one set. */
+  const utilitiesUnder = (node: ts.Node): Set<string> => {
+    const bag = new Set<string>();
+    const collect = (n: ts.Node): void => {
+      if (
+        ts.isStringLiteral(n) ||
+        ts.isNoSubstitutionTemplateLiteral(n) ||
+        ts.isTemplateHead(n) ||
+        ts.isTemplateMiddle(n) ||
+        ts.isTemplateTail(n)
+      ) {
+        for (const u of utilitiesIn(n.text)) bag.add(u);
+      }
+      ts.forEachChild(n, collect);
+    };
+    collect(node);
+    return bag;
+  };
+
+  const out: Set<string>[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxAttribute(node) && node.name.getText(sf) === "className") {
+      out.push(utilitiesUnder(node));
+    } else if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      CLASS_COMBINERS.has(node.expression.text)
+    ) {
+      out.push(utilitiesUnder(node));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+
+  // …plus every individual literal, so a single class string still stands on its own.
+  return [...out, ...classChunks(path, text).map(utilitiesIn)];
+}
+
 interface Scan {
   /** Normalised forward-slash paths of every file the walker visited. */
   scanned: string[];
@@ -299,9 +420,11 @@ function scanSrc(): Scan {
 
     if (!CALL_SITE_TREES.some((tree) => name.startsWith(tree))) continue;
 
-    // PER CLASS STRING (WR-03 / WR-09): both the retired pairing and the recipe's surface+ink are
-    // claims about ONE element, and a file-level `includes()` answers a weaker question.
-    const chunks = classChunks(name, text).map(utilitiesIn);
+    // PER ELEMENT (WR-03 / WR-09 / CR-01): both the retired pairing and the recipe's surface+ink
+    // are claims about ONE element, and a file-level `includes()` answers a weaker question. The
+    // unit was "one string literal" until CR-01 observed the `cn()`-split escape shipping the
+    // retired pairing with every gate green — see `classSetsForElements`.
+    const chunks = classSetsForElements(name, text);
     scan.utilities.set(name, chunks);
 
     if (chunks.some((u) => u.has(RETIRED_FILL) && u.has(RETIRED_INK))) {
@@ -603,6 +726,100 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
 
     // The legal glyph-only survivor must still be recognised, or the count above means nothing.
     expect(utilitiesIn("bg-success text-success-foreground").has(RETIRED_FILL)).toBe(true);
+  });
+
+  it("cannot be evaded by SPLITTING the pairing across two class strings (CR-01)", () => {
+    // POSITIVE CONTROL for the unit change, and the assertion the previous scheme could not make.
+    // Every fixture below renders the retired 3.24:1 pairing on ONE element while putting its two
+    // halves in TWO string literals — so the per-literal check saw two innocent chunks. The first
+    // is the exact shape reproduced on `booking-row.tsx`, where it shipped with 405/405 green.
+    //
+    // By this phase's own standard, a gate never observed failing on a form is not a gate for that
+    // form. These are that observation, in test form.
+    const splits: Record<string, string> = {
+      "cn() arguments": [
+        "export const A = () => (",
+        `  <Card className={cn("relative ${RETIRED_FILL}", "${RETIRED_INK}")}>x</Card>`,
+        ");",
+      ].join("\n"),
+      "a conditional inside cn()": [
+        "export const B = () => (",
+        `  <span className={cn("${RETIRED_FILL}", done && "${RETIRED_INK}")}>x</span>`,
+        ");",
+      ].join("\n"),
+      "a template literal with an interpolation": [
+        "export const C = () => (",
+        `  <span className={\`${RETIRED_FILL} \${pad} ${RETIRED_INK}\`}>x</span>`,
+        ");",
+      ].join("\n"),
+      "two literals in the same className, no helper": [
+        "export const D = () => (",
+        `  <span className={[\"${RETIRED_FILL}\", \"${RETIRED_INK}\"].join(\" \")}>x</span>`,
+        ");",
+      ].join("\n"),
+      "a cn() call outside JSX": [
+        `const recipe = cn("${RETIRED_FILL}", "${RETIRED_INK}");`,
+      ].join("\n"),
+    };
+
+    for (const [shape, source] of Object.entries(splits)) {
+      // The OLD unit — one set per string literal — genuinely does not see these. That is what
+      // makes this a control rather than a restatement.
+      const perLiteral = classChunks("fixture.tsx", source).map(utilitiesIn);
+      expect(
+        perLiteral.some((u) => u.has(RETIRED_FILL) && u.has(RETIRED_INK)),
+        `${shape} should have been invisible to the per-literal unit`,
+      ).toBe(false);
+
+      // …and the ELEMENT unit catches every one of them.
+      const perElement = classSetsForElements("fixture.tsx", source);
+      expect(
+        perElement.some((u) => u.has(RETIRED_FILL) && u.has(RETIRED_INK)),
+        `${shape} evaded the per-element unit`,
+      ).toBe(true);
+    }
+  });
+
+  it("does not report two class strings that land on DIFFERENT elements (CR-01)", () => {
+    // The other direction, which is what stops the widening becoming a wolf-crier. A fill on the
+    // parent and an ink on the child are two elements and are not the retired pairing — the wizard's
+    // legal survivor is exactly that shape inverted, and over-reporting here would make the pinned
+    // count of 1 unmaintainable.
+    const twoElements = [
+      "export const E = () => (",
+      `  <div className="${RETIRED_FILL}">`,
+      `    <span className="${RETIRED_INK}">x</span>`,
+      "  </div>",
+      ");",
+    ].join("\n");
+
+    const sets = classSetsForElements("fixture.tsx", twoElements);
+    expect(sets.some((u) => u.has(RETIRED_FILL) && u.has(RETIRED_INK))).toBe(false);
+  });
+
+  it("records the split-across-cva-slots shape as an OPEN gap, not a closed one (CR-01)", () => {
+    // STATED BLIND SPOT, asserted so it cannot quietly become untrue in either direction.
+    //
+    // A `cva` base and one of its variants DO render together, so this shape is a real evasion. It
+    // is not closed because closing it means unioning the base with EVERY variant — including
+    // variants that are mutually exclusive by construction — and a gate that reports a pairing no
+    // combination of props can produce teaches the next author that it cries wolf.
+    //
+    // This assertion exists so that the gap is a recorded decision rather than a comment nobody
+    // re-checks. If a future change DOES close it, this test goes red and should be deleted along
+    // with the blind-spot note in `classSetsForElements`.
+    const cvaSplit = [
+      "const badge = cva(",
+      `  "inline-flex ${RETIRED_FILL}",`,
+      `  { variants: { tone: { paid: "${RETIRED_INK}" } } },`,
+      ");",
+    ].join("\n");
+
+    const sets = classSetsForElements("fixture.tsx", cvaSplit);
+    expect(
+      sets.some((u) => u.has(RETIRED_FILL) && u.has(RETIRED_INK)),
+      "the cva base/variant split is now caught — delete this test and the blind-spot note",
+    ).toBe(false);
   });
 
   it("does not accept a COMMENT naming the icon hue as the icon hue (CR-03)", () => {
