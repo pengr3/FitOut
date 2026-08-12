@@ -488,6 +488,58 @@ describe("the DS-13 raw-design-value gate", () => {
     expect(ESLINT_CONFIG).toContain("[LEAK_RULE_NAME]:");
   });
 
+  it("flags directional and prefixed colour roles (WR-07)", () => {
+    // EVERY SHAPE HERE WAS VERIFIED UNMATCHED before the roles were unified into one fragment.
+    // None was present in the tree, so this is latent debt rather than a shipped defect — but
+    // `border-b-border` becoming `border-b-gray-200` is one character class away, and a
+    // single-side border is the normal way to draw a table rule.
+    for (const shape of [
+      "border-b-gray-200",
+      "border-t-slate-300",
+      "border-e-rose-500",
+      "divide-x-zinc-200",
+      "divide-y-neutral-200",
+      "border-l-white",
+      // The one that matters most to this phase: a hardcoded white offset band is exactly the
+      // defect focus-recipe.test.ts exists to prevent, and the leak gate could not see it.
+      "ring-offset-white",
+      "from-white",
+      "to-black",
+      "decoration-white",
+      "shadow-black",
+      "caret-white",
+      "placeholder-white",
+    ]) {
+      expect(findDesignLeaks(shape), shape).not.toEqual([]);
+    }
+
+    // The widening must not swallow the token forms these sit next to in real code.
+    for (const legal of [
+      "border-b-border",
+      "ring-offset-background",
+      "divide-border",
+      "shadow-overlay",
+      "from-transparent",
+      "border-transparent",
+    ]) {
+      expect(findDesignLeaks(legal), legal).toEqual([]);
+    }
+  });
+
+  it("flags a colour function in any case, and a length-hinted arbitrary size (WR-07)", () => {
+    // CSS colour functions are case-insensitive, so these render identically to the lowercase
+    // forms and were unmatched. `text-[length:…]` is the shape authors reach for when the bare
+    // one is ambiguous with a colour — the most deliberate form was the one not caught.
+    expect(findDesignLeaks("RGB(255,0,0)")).toEqual(["color-function"]);
+    expect(findDesignLeaks("Oklch(0.5 0 0)")).toEqual(["color-function"]);
+    expect(findDesignLeaks("text-[length:14px]")).toEqual(["arbitrary-text-px"]);
+
+    // The mandatory trailing `(` still does its work: the color-mix hover idiom is not a leak.
+    expect(
+      findDesignLeaks("bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]"),
+    ).toEqual([]);
+  });
+
   it("agrees with findDesignLeaks, the shared classifier both gates call", () => {
     expect(findDesignLeaks('const C = "#E8484E"')).toEqual(["raw-hex"]);
     // Both hex shapes go through the SHARED classifier, so neither half of D-16 can disagree.

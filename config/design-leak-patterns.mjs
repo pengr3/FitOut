@@ -40,6 +40,35 @@
  * @property {string} why      The recorded reason this class is banned, including known tolerated debt.
  */
 
+/**
+ * Every Tailwind utility prefix that takes a COLOUR, as one shared regex fragment (WR-07).
+ *
+ * The palette and white/black patterns each used to carry their own hand-written, and DIFFERENT,
+ * list of roles — so a shape banned as a palette class was legal as a white one, and neither list
+ * was complete. Verified unmatched before this fragment existed: `border-b-gray-200`,
+ * `border-t-slate-300`, `divide-x-zinc-200`, `border-l-white`, `ring-offset-white`, `from-white`,
+ * `to-black`, `decoration-white`, `shadow-black`, `caret-white`, `placeholder-white`.
+ *
+ * Two families account for most of the gap and both are ordinary authoring, not exotica:
+ *
+ *   • DIRECTIONAL EDGES. `border-b-…`, `border-x-…`, `divide-y-…`. A single-side border is the
+ *     normal way to draw a table rule or a list separator, and `border-b-border` becoming
+ *     `border-b-gray-200` is one character class away from the form that WAS banned.
+ *   • PREFIXED ROLES. `ring-offset-…`, `from-/via-/to-` gradient stops, `decoration-`, `shadow-`,
+ *     `caret-`, `placeholder-`. `ring-offset-white` is the one this phase should care about most:
+ *     the hardcoded white offset band is the exact defect `focus-recipe.test.ts` exists to prevent,
+ *     and the leak gate could not see it written literally.
+ *
+ * Ordered longest-alternative-first where one name prefixes another (`ring-offset` before `ring`),
+ * since JS alternation is first-match rather than longest-match.
+ */
+const COLOUR_ROLE =
+  "(?:bg|text|border(?:-[trblxyse])?|ring-offset|ring|from|via|to|fill|stroke|outline|decoration|divide(?:-[xy])?|placeholder|accent|caret|shadow)";
+
+/** The 22 numbered Tailwind hues. Split out only so the pattern below stays readable. */
+const PALETTE_HUES =
+  "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
+
 /** @type {readonly DesignLeakPattern[]} */
 export const DESIGN_LEAK_PATTERNS = [
   {
@@ -68,28 +97,35 @@ export const DESIGN_LEAK_PATTERNS = [
     label: "raw colour function",
     // The trailing `(` is MANDATORY (landmine L14): a bare `oklch` matches `in_oklch,` inside
     // src/components/ui/button.tsx:16's `color-mix(in_oklch,var(--secondary),var(--foreground)_5%)`.
-    pattern: /\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(/,
+    // CASE-INSENSITIVE (WR-07): CSS colour functions are case-insensitive, so `RGB(255,0,0)` and
+    // `Oklch(…)` are valid, render identically, and were unmatched. The trailing `(` keeps doing
+    // the work that matters — it is what stops `in_oklch,` inside the color-mix idiom matching —
+    // and the `i` flag does not weaken it.
+    pattern: /\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(/i,
     why: "A literal colour function in a component is a token that was never declared. `color-mix(` is deliberately ABSENT from this list: a color-mix over two declared tokens is not a leak, it is this phase's prescribed hover idiom (button.tsx:16) and it tracks the theme correctly.",
   },
   {
     id: "arbitrary-text-px",
     label: "arbitrary text size",
     // px-only, per UI-SPEC § Resolved Open Questions 2.
-    pattern: /text-\[[0-9.]+px\]/,
+    //
+    // The optional `length:` prefix is Tailwind's own data-type hint (WR-07). `text-[length:14px]`
+    // is the form authors reach for precisely when the bare one is ambiguous with a colour, so the
+    // shape most likely to be typed deliberately was the one shape not matched.
+    pattern: /text-\[(?:length:)?[0-9.]+px\]/,
     why: "An arbitrary type size bypasses the declared type scale (DS-02), so the ladder stops being a ladder. px-only by resolved decision (UI-SPEC Q2): it matches DS-13's literal wording and the measured baseline of 14 app / 0 vendored sites. KNOWN, TOLERATED DEBT, deliberately not matched: the 4 vendored rem sites — ui/button.tsx:27, ui/calendar.tsx:93, ui/calendar.tsx:102, ui/toggle.tsx:20 — all `text-[0.8rem]`. They are recorded rather than silently missed, and plan 10-11 asserts them as a positive control.",
   },
   {
     id: "palette-class",
     label: "numbered Tailwind palette class",
-    pattern:
-      /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|divide|placeholder|accent|caret|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|[1-9]00|950)\b/,
+    pattern: new RegExp(`\\b${COLOUR_ROLE}-(?:${PALETTE_HUES})-(?:50|[1-9]00|950)\\b`),
     why: "D-15's recorded widening of DS-13. A numbered palette class resolves to a fixed colour that survives a theme switch unchanged, making it exactly as theme-breaking as a hex literal. 19 app sites, 0 vendored, at baseline. Use a semantic token class instead (bg-muted, text-muted-foreground, border-border).",
   },
   {
     id: "white-black-class",
     label: "white/black utility class",
-    pattern: /\b(?:bg|text|border|ring|fill|stroke|divide|outline)-(?:white|black)\b/,
-    why: "D-15's recorded widening of DS-13. `bg-white` is `--background` in court and wrong in every other theme and in dark mode; `text-black` is the same bug inverted. 8 app sites + 1 vendored (ui/dialog.tsx:42) at baseline — the vendored one is IN SCOPE by D-17.",
+    pattern: new RegExp(`\\b${COLOUR_ROLE}-(?:white|black)\\b`),
+    why: "D-15's recorded widening of DS-13. `bg-white` is `--background` in court and wrong in every other theme and in dark mode; `text-black` is the same bug inverted. 8 app sites + 1 vendored (ui/dialog.tsx:42) at baseline — the vendored one is IN SCOPE by D-17. Shares COLOUR_ROLE with the palette pattern, so the two cannot drift apart on which roles they police.",
   },
 ];
 
