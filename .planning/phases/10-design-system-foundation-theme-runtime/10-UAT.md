@@ -126,7 +126,20 @@ developer_verified: 2
 
 - id: G-01
   truth: "Each notification row is legible within the panel — its text wraps or truncates inside the panel width rather than being clipped."
-  status: failed
+  status: fixed
+  fixed_at: 2026-08-13
+  fixed_by: "quick task 260813-0h2 (commits af71b62, c262161)"
+  fix_note: |
+    Fixed in the primitive `src/components/ui/scroll-area.tsx` — the Radix Viewport wrapper is
+    forced to a block box, so it can no longer shrink-wrap to max-content. Both shipped call sites
+    benefit (notification-bell max-h-96, slot-picker max-h-72); neither call site was edited.
+    Two gates, both watched failing first: `tests/design/scroll-area.test.ts` asserts the COMPILED
+    stylesheet (runs inside `npm run build`), and `e2e/scroll-area-overflow.spec.ts` measures real
+    widths in real Chromium at `/dev/theme` (no auth, no DB). jsdom performs no layout, so the
+    width claim is unassertable in the design suite — hence both layers.
+    The row itself needed no change: `notification-item.tsx` already had `min-w-0 flex-1` +
+    `truncate`, and `truncate` implies `white-space: nowrap`, which is consistent with causing the
+    max-content width rather than curing it.
   reason: "User reported: each notification entry spills on the left edge of the notification area, therefore readability drops."
   severity: minor
   test: 6

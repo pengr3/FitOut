@@ -95,7 +95,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-12 - Completed quick task 260812-usm: fix SEC-01 residual open redirect (CWE-601) in safeCallbackPath; phase 10 security gate awaiting /gsd-secure-phase 10 re-run
+Last activity: 2026-08-13 - Completed quick task 260813-0h2: fix G-01 ScrollArea wrapper overflow. Phase 10 now has zero open items across review (49 findings, 3 passes), UAT (7/7 + G-01 closed), and security (50/50 threats, THREAT-SECURE, verdict independently re-audited)
 
 ## Performance Metrics
 
@@ -494,6 +494,7 @@ means the task predates that flag being used here, not that it failed.
 | 260811-elm | Explain Drop-in on the search card so a booker knows what they are buying (closes audit finding #6 copy clause) | 2026-08-11 | bbf9fb0 | Human needed (11/11 verified in code; one 320px/desktop × both-themes visual check open — Deferred Item 5) | [260811-elm-explain-drop-in-on-the-search-card-so-a-](./quick/260811-elm-explain-drop-in-on-the-search-card-so-a-/) |
 | 260811-fh6 | Add `resolved_by` to the audit table so a discharge records which human performed it (migration 0025) | 2026-08-11 | e4722eb | Verified | [260811-fh6-add-resolved-by-to-the-audit-table-so-a-](./quick/260811-fh6-add-resolved-by-to-the-audit-table-so-a-/) |
 | 260812-usm | Fix SEC-01: reject a callback path that is an authority to the next parser, closing the residual post-auth open redirect (CWE-601) surfaced by /gsd-secure-phase 10 | 2026-08-12 | e6180a0 | | [260812-usm-fix-sec-01-open-redirect](./quick/260812-usm-fix-sec-01-open-redirect/) |
+| 260813-0h2 | Fix G-01: constrain the Radix ScrollArea wrapper so panel children cannot lay out wider than the panel (closes the phase 10 UAT gap) | 2026-08-13 | af71b62 | | [260813-0h2-fix-g01-scrollarea-row-overflow](./quick/260813-0h2-fix-g01-scrollarea-row-overflow/) |
 
 ## Deferred Items
 
