@@ -32,6 +32,36 @@
 // strictly tightening, so it is applied here rather than deferred; the end-to-end verification is
 // still worth doing and is the reason the review asked for a separate security ticket.
 //
+// THAT TICKET RAN, AND IT FOUND THE LESSON ABOVE HAD ONLY BEEN APPLIED HALFWAY (SEC-01, the phase-10
+// security audit; fixed 2026-08-12).
+//
+// THE HOLE. The origin comparison below is correct and was never the defect — the defect was in what
+// this function RETURNS. Dot-segment removal happens DURING the parse, so an input whose leading
+// segment resolves away can satisfy the origin check and still leave a pathname that begins with two
+// slashes. A pathname is permitted to begin that way; an authority also begins that way; and this
+// function's contract is to hand its result to a caller who parses it AGAIN. So the check was
+// applied to the INPUT and the escape rode out on the OUTPUT. The exact vectors live in the test
+// beside this file, described rather than pasted here on purpose.
+//
+// NOT INTRODUCED BY WR-12 — strictly a tightening, and the test asserts this rather than claiming
+// it. The pre-WR-12 prefix guard returned such an input VERBATIM (it starts with one slash and not
+// with two), so the parse-and-compare fix narrowed the hole without closing this spelling of it.
+// What phase 10 owns is that the change shipped under a commit message claiming closure.
+//
+// THE CHAIN, each link checked against installed source by the audit: the login page reads
+// `?callbackURL` at `login/page.tsx:74`, this function hands back the authority-shaped string,
+// `router.push()` at `login/page.tsx:99` reaches Next's app-router instance, which resolves the href
+// with `new URL(href, location.href)`, sees `isExternalURL` go true, and hard-navigates. The victim
+// really did just sign in on the real site, which is what makes it a phishing amplifier rather than
+// a cosmetic redirect.
+//
+// WHY THE `router.push` LEG WAS THE EXPLOITABLE ONE. The social leg has an independent vendor
+// backstop — Better Auth's trusted-origins check rejects a callback of this shape with a 403
+// `INVALID_CALLBACK_URL` (the paragraph above listed that as unverified; the audit verified it, and
+// it holds). `router.push()` has NO such backstop. Defence in depth is not a reason to leave the
+// unbacked leg unguarded, and the fix below guards the value at its source so both legs are covered
+// by something this repository owns and tests.
+//
 // PRE-EXISTING, NOT PHASE 10's. `git log -L` puts the original guard at `487bda7` (phase 4). Phase
 // 10 only restyled the file it lived in.
 
@@ -45,6 +75,10 @@
  * already normalised away the control characters, backslashes and percent-encodings that make
  * prefix matching unreliable, so returning its output means the caller navigates to the string that
  * was actually checked rather than to the one that was typed.
+ *
+ * The returned value is then checked IN ITS OWN RIGHT before it leaves (SEC-01), because the caller
+ * re-parses it. Everything here is a rejection: no input the previous guard refused is newly
+ * accepted, and every legitimate relative callback comes back untouched, query and fragment intact.
  */
 export function safeCallbackPath(raw: string | null | undefined, origin: string): string {
   // Keep the original relative-only requirement. It is not what stops the bypass — the origin
@@ -66,5 +100,22 @@ export function safeCallbackPath(raw: string | null | undefined, origin: string)
   // schemes such as `javascript:` and `data:`, which therefore never match a real http(s) origin.
   if (target.origin !== self.origin) return "/";
 
-  return `${target.pathname}${target.search}${target.hash}`;
+  const candidate = `${target.pathname}${target.search}${target.hash}`;
+
+  // SEC-01, first rejection. A pathname is allowed to begin with two slashes, and to whoever parses
+  // this string NEXT that is an authority, not a path. Naming the shape directly is the cheap half.
+  if (candidate.startsWith("//")) return "/";
+
+  // SEC-01, second rejection, and the load-bearing one. One prefix is one spelling — the same
+  // mistake the header describes above, made again — so instead of guessing at spellings this
+  // performs THE CALLER'S OWN OPERATION: resolving the returned value against the origin is exactly
+  // what `router.push()` causes on the login page. If that lands anywhere but here, do not return
+  // it. The catch is not decorative: a candidate that is only slashes has an empty host and throws.
+  try {
+    if (new URL(candidate, origin).origin !== self.origin) return "/";
+  } catch {
+    return "/";
+  }
+
+  return candidate;
 }

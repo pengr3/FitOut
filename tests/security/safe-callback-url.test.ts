@@ -11,6 +11,67 @@
 // relative callback the product actually threads is preserved unchanged. The second half matters as
 // much as the first: `book-cta.tsx` and `rsvp-form.tsx` both build resume-checkout callbacks with
 // query strings, and a guard that broke those would send every returning booker to the home page.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// SEC-01 — THE DOT-SEGMENT CASES BELOW WERE WATCHED FAILING BEFORE THE GUARD WAS TOUCHED.
+//
+// WR-12 shipped the ten attack strings above under a commit message claiming closure, and that
+// list passed a guard that still had this hole — a test never observed red is not a regression
+// test. So the SEC-01 cases were added FIRST, run against the UNMODIFIED module, and the output is
+// pasted here verbatim rather than summarised. The runner was a throwaway root config
+// (`vitest.sec.tmp.config.ts`: no globalSetup, no setupFiles, `include` pinned to this one file)
+// because the main config's Postgres preflight hard-fails a single-file run; it was deleted after
+// the fix. Same config had just run this file GREEN at 9 passed, so the red below is the new cases
+// and not the runner.
+//
+// 2026-08-12 · guard at 8b9db10, UNMODIFIED · npx vitest run --config vitest.sec.tmp.config.ts
+//
+//      ❯ tests/security/safe-callback-url.test.ts (10 tests | 2 failed) 20ms
+//          × SEC-01 — rejects the DOT-SEGMENT bypass that made the RETURNED pathname an authority 10ms
+//          × works on a localhost origin with a port, which is every developer's session 1ms
+//
+//      FAIL  tests/security/safe-callback-url.test.ts > WR-12 — the guard rejects everything that
+//      leaves the origin > SEC-01 — rejects the DOT-SEGMENT bypass that made the RETURNED pathname
+//      an authority
+//      AssertionError: "/..//evil.com": expected '//evil.com' to be '/' // Object.is equality
+//
+//      Expected: "/"
+//      Received: "//evil.com"
+//
+//       ❯ tests/security/safe-callback-url.test.ts:62:72
+//
+//      FAIL  tests/security/safe-callback-url.test.ts > WR-12 — the guard preserves every
+//      legitimate relative callback > works on a localhost origin with a port, which is every
+//      developer's session
+//      AssertionError: expected '//evil.com' to be '/' // Object.is equality
+//
+//      Expected: "/"
+//      Received: "//evil.com"
+//
+//       ❯ tests/security/safe-callback-url.test.ts:149:72
+//
+//       Test Files  1 failed (1)
+//            Tests  2 failed | 8 passed (10)
+//         Duration  347ms
+//
+//      EXIT=1
+//
+// (The `:62` / `:149` line numbers are this file as it stood during that run — i.e. before this
+// header block was prepended. They are left exactly as printed rather than re-based, because the
+// point of the record is that it is the observation and not a reconstruction of one.)
+//
+// Note WHERE the red is: inside the SEC-01 block, the three URL-parser assertions ABOVE the loop
+// passed — the origin check was satisfied, and the escape rode out on the RETURN. That is the whole
+// diagnosis, and it is why the fix guards the output rather than adding another input prefix.
+//
+// Same command, same file, after the guard was fixed:
+//
+//       Test Files  1 passed (1)
+//            Tests  10 passed (10)
+//         Duration  367ms
+//
+//      EXIT=0
+// ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from "vitest";
 
@@ -28,6 +89,39 @@ describe("WR-12 — the guard rejects everything that leaves the origin", () => 
     expect(new URL("/\\evil.com", ORIGIN).origin).toBe("https://evil.com");
 
     expect(safeCallbackPath("/\\evil.com", ORIGIN)).toBe("/");
+  });
+
+  it("SEC-01 — rejects the DOT-SEGMENT bypass that made the RETURNED pathname an authority", () => {
+    // THE FINDING, as an assertion, in the same shape as the backslash test above: state the
+    // mechanism first, so the defect is localised to the RETURN rather than to the origin check.
+    //
+    // Dot-segment removal happens DURING the parse, so `/..//evil.com` resolves same-origin — the
+    // origin check at the top of the guard is genuinely satisfied and is not what was missing.
+    expect(new URL("/..//evil.com", ORIGIN).origin).toBe(ORIGIN);
+    // ...but what survives the parse is a pathname that BEGINS WITH TWO SLASHES.
+    expect(new URL("/..//evil.com", ORIGIN).pathname).toBe("//evil.com");
+    // ...and a pathname beginning with two slashes is an AUTHORITY to whoever parses it next, which
+    // the caller does: `router.push()` hands it to `new URL(href, location.href)`.
+    expect(new URL("//evil.com", ORIGIN).origin).toBe("https://evil.com");
+
+    // STRICTLY A TIGHTENING, not a regression introduced by WR-12. The pre-WR-12 prefix guard
+    // returned this string VERBATIM, so the fix removes an acceptance rather than adding one.
+    const oldPrefixGuard = (raw: string) =>
+      raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+    expect(oldPrefixGuard("/..//evil.com")).toBe("/..//evil.com");
+
+    for (const attack of [
+      "/..//evil.com",
+      "/.//evil.com",
+      "/a/../..//evil.com",
+      "/..//evil.com?a=1#b",
+      "/..///evil.com",
+      "/./..//evil.com/steal#token",
+      // Re-parsing this one THROWS (empty host), so the guard must fall back rather than escape.
+      "/..//",
+    ]) {
+      expect(safeCallbackPath(attack, ORIGIN), JSON.stringify(attack)).toBe("/");
+    }
   });
 
   it("rejects every other spelling of the same trick", () => {
@@ -112,6 +206,8 @@ describe("WR-12 — the guard preserves every legitimate relative callback", () 
     );
     expect(safeCallbackPath("//evil.com", "http://localhost:3000")).toBe("/");
     expect(safeCallbackPath("/\\evil.com", "http://localhost:3000")).toBe("/");
+    // SEC-01 is origin-independent, and this is the origin every developer session is pinned to.
+    expect(safeCallbackPath("/..//evil.com", "http://localhost:3000")).toBe("/");
     // A different PORT is a different origin, and must not be treated as ours.
     expect(safeCallbackPath("http://localhost:4000/x", "http://localhost:3000")).toBe("/");
   });
