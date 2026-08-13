@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
+current_plan: 2
 status: executing
-stopped_at: Phase 11 planned (22 plans, 12 waves)
-last_updated: "2026-08-13T06:44:15.293Z"
-last_activity: 2026-08-13 -- Phase 11 planning complete
+stopped_at: Completed 11-01-PLAN.md — GATE-05's build-side half is live
+last_updated: "2026-08-13T08:50:24.959Z"
+last_activity: 2026-08-13 -- Plan 11-01 complete (GATE-05 server-only boundary)
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 17
+  completed_plans: 18
   percent: 9
 ---
 
@@ -21,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 11 — Quality Gates, Pattern Layer & App Shell (planned, ready to execute)
+**Current focus:** Phase 11 — quality-gates-pattern-layer-app-shell
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -43,11 +44,13 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 11 — Quality Gates, Pattern Layer & App Shell
-Plan: Not started
-Current Plan: 0
+Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
+Plan: 2 of 22
+Current Plan: 2
 Total Plans in Phase: 22
-Status: Ready to execute
+Status: Executing Phase 11 — plan 01 complete
+
+**11-01 (GATE-05) is closed, and the plan's own `must_haves` contained a claim the tree cannot produce.** `import "server-only"` now guards eight money/availability computation modules, and `npm run build` hard-fails on any client graph that reaches them (D-34) — with **zero packages installed**, because Next aliases the specifier itself. Two splits made that possible without false positives: the three money rates left `payments/config.ts` for a new guarded `payments/fees.ts` (leaving the 14 timing constants `slot-picker.tsx:43` and `request-row.tsx:34` legitimately import), and `BOOKING_HORIZON_DAYS` left `availability/slots.ts` for a new unguarded `availability/horizon.ts`. Both live D-130 violations are fixed and **`SERVICE_FEE_BPS` is provably absent from every emitted client chunk — 5 chunks at HEAD, 0 now**. **THE HEADLINE FINDING IS THAT THE BUILD IS A LOWER BOUND, NOT A LIST.** The plan expected ONE failing build naming `listing-card.tsx` AND `availability-calendar.tsx`; that build does not exist. Turbopack prints **one import trace per (module, environment)**, so RED #1 (6 errors) named `listing-card.tsx` in every client trace and never mentioned `availability-calendar.tsx` — whose guard was already in place and whose `computeServiceFee` import was untouched. Only after the first was repaired did RED #2 (4 errors) name the second. Adopting `server-only` on a multi-offender tree is a **fix-and-rebuild loop**, and a plan reading run #1 as complete ships the rest; what closes it is the emitted-chunk grep, a count over the whole output rather than a first-match trace. Both REDs are committed verbatim in the gate's header, with the sentence naming what did NOT fail — `slot-picker.tsx` and `request-row.tsx` are absent from every diagnostic, and no diagnostic mentions `slots.ts`/`read-model.ts`/`units.ts` at all, which is what makes the two splits correct rather than lucky. **The props-contract decision (RESEARCH Open Question 3) went to a TABLE, not a unit rate, on a measured ground:** `computeServiceFee` rounds ONCE over the whole space price, so `n × allIn(unit) ≠ allIn(n × unit)` — at the seeded ₱307.50 rate the multiply runs **ahead** of the frozen quote, bounded by n−1 centavos, which is D-75's forbidden direction. Both rail call sites' own comments call their figure *exact*; a multiply would have made those sentences false while every gate stayed green. That argument is now **executable** (`tests/booking/all-in-table.test.ts` case 2) rather than prose. `ListingCardData` **lost its five rate columns entirely** rather than keeping them unused — the inputs are structurally absent from the client, so the arithmetic cannot return without a deliberate props change. Gate: `tests/design/server-only-guards.test.ts`, 7 assertions, DB-free, inside `npm run build`, **watched red THREE ways** (guard deleted → 1/5 naming that file; guard ADDED to `config.ts` → 1/5 on a *different* assertion; transitivity broken by inlining the formula → 1/6 — and that third is the one **Turbopack itself goes quiet on**, because nothing guarded is reached any more). **Grep is banned in that file for a measured reason:** `grep -rn "server-only" src/` returned 6 hits across 5 files at HEAD and **every one was a comment**. The same collision recurred at verification time — grep still finds `computeServiceFee` 4× and `allInRateParts` 2× in the two fixed components, while **parsed, both contain ZERO identifier nodes** for any of the six forbidden names. Design gate **465/465** (was 458), 23 files (+1 exactly); full DB suite **1216 passed / 4 skipped** (pre-plan 1207; +3 card, +6 table); `tsc` 0, build 0, lint 0 errors / 9 warnings — byte-identical to baseline. `git diff --stat package.json` empty; drizzle still at `0025_audit_resolved_by.sql` (GATE-06 intact). Five deviations, all Rules 1-3, all documented: the plan's importer list missed `listings/[id]/page.tsx:29`; `slots.ts` had to RE-EXPORT the horizon for three shipped files; and three Rule-2 extractions (`card-price.ts`, `all-in-table.ts`, the transitivity assertion) exist because composing inline would have left the 09-14 mode fork and T-11-PRICEDRIFT's own mitigation untestable. **NOT DONE: `npm run test:e2e` was not run** — the plan does not ask for it and the 80 DB-suite files covering those surfaces pass, but the listing page's rail props changed materially, so a `public-listing.spec.ts` pass before the phase closes is cheap insurance.
 
 <details><summary>Previous status (plan 10-17 Tasks 1-2, superseded 2026-08-12)</summary>
 
@@ -97,7 +100,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-13 -- Phase 11 planning complete
+Last activity: 2026-08-13 -- Plan 11-01 complete (GATE-05 server-only boundary)
 
 ## Performance Metrics
 
@@ -206,6 +209,7 @@ Last activity: 2026-08-13 -- Phase 11 planning complete
 | Phase 10 P15 | 48min | 3 tasks + 1 deviation commit | 18 files (6 created, 6 modified, 6 deleted) |
 | Phase 10 P16 | 45min | 3 tasks + 1 deviation commit | 9 files (5 created, 4 modified) |
 | Phase 10 P17 | 34min | 3 tasks + 1 deviation commit — checkpoint DISCHARGED | 9 files (3 created, 6 modified) |
+| Phase 11 P01 | 55 | 3 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -421,6 +425,8 @@ Recent decisions affecting current work:
 - [Phase 10]: [10-16]: The production guard is the build-time `NODE_ENV` constant inside the page component, never an operator-settable variable (T-10-01). Verified against a real production build: `GET /dev/theme` → 404 while `/login` → 200 in the same run.
 - [Phase 10]: [10-16]: 10-12's asserted ZERO for `shadow-sticky` moved to a one-entry inventory naming `/dev/theme`, in this plan's own commit, exactly as 10-12 said it would. The half of the zero that mattered — no PRODUCT surface uses the step — is still what the map says.
 - [Phase 10]: [10-16]: D-9 opened — the preview's utilities ship to production where the route 404s, measured at 118,732 → 119,835 bytes (**+1,103, +0.93%**) on clean rebuilds of both sides. Both removal mechanisms (excluding the directory from the content root; a hand-maintained safelist) are worse, and are priced in the entry.
+- [Phase ?]: GATE-05: the booking rail receives a server-computed all-in TABLE, not a unit rate — computeServiceFee rounds once over the whole space price, so a client-side multiply drifts from the frozen quote by up to n-1 centavos in D-75's forbidden direction
+- [Phase ?]: GATE-05: Turbopack prints ONE import trace per module, so the first failing build is a LOWER BOUND on violations, never the list — adopting server-only on a multi-offender tree is a fix-and-rebuild loop, closed by the emitted-chunk grep
 
 ### Pending Todos
 
@@ -523,9 +529,9 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T05:01:53.657Z
+Last session: 2026-08-13T08:49:41.510Z
 Stopped at: Phase 11 planned — 22 plans in 12 waves, plan-checker 0 blockers
-Resume file: .planning/phases/11-quality-gates-pattern-layer-app-shell/11-01-PLAN.md
+Resume file: None
 
 Prior session: 2026-08-11T19:32:32.584Z
 Stopped at: Completed 10-12-PLAN.md (all 14 shadow call sites on three named elevation steps, 31-assertion gate watched red at 5/26; **deferred item D-1 CLOSED** — Tailwind's content root narrowed to `src/`, 15,053 bytes / 11.2% of the shipped CSS removed with zero real utilities lost, which exposed two tests that had been passing on planning prose) — next 10-13

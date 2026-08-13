@@ -113,7 +113,7 @@
 - [ ] **GATE-02**: Every surface is operable by keyboard alone, with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets
 - [ ] **GATE-03**: The countdown timer and every live status region announce correctly to a screen reader, once rather than per tick
 - [ ] **GATE-04**: **GATE-NOREG** — a structural-selector inventory exists and is checked, so a restyle cannot silently break the e2e specs that prove the double-booking guarantee (`src/` contains zero test ids today)
-- [ ] **GATE-05**: **GATE-NOREG** — an automated check fails the build if a money or availability computation crosses into a client component, and an end-to-end check asserts the price rendered in the DOM equals the price the database holds
+- [x] **GATE-05**: **GATE-NOREG** — an automated check fails the build if a money or availability computation crosses into a client component, and an end-to-end check asserts the price rendered in the DOM equals the price the database holds
 - [ ] **GATE-06**: The milestone ships zero schema migrations; a migration proposed in any phase plan is raised explicitly rather than absorbed
 
 ### Search map (MAP) — net-new capability, own phase (D-136)
@@ -240,7 +240,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | GATE-02 | Phase 17 | Pending |
 | GATE-03 | Phase 12 | Pending |
 | GATE-04 | Phase 11 | Pending |
-| GATE-05 | Phase 11 | Pending |
+| GATE-05 | Phase 11 | Complete |
 | GATE-06 | Phase 17 | Pending |
 | MAP-01 | Phase 18 | Pending |
 | MAP-02 | Phase 18 | Pending |

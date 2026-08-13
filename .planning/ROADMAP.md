@@ -159,7 +159,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — GATE-05: `server-only` guards, the OBSERVED RED, and the two live D-130 violations fixed
+- [x] 11-01-PLAN.md — GATE-05: `server-only` guards, the OBSERVED RED, and the two live D-130 violations fixed
 - [ ] 11-02-PLAN.md — GATE-04: the typed selector contract and the accessible-query floor
 - [ ] 11-03-PLAN.md — GATE-01: Playwright can never write a baseline; the platform rules are guarded
 
@@ -408,7 +408,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
-| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 0/22 | Planned (22 plans, 12 waves) | - |
+| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 1/22 | In Progress|  |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
