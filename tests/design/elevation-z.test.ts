@@ -810,8 +810,11 @@ const BANNED_Z = /(?<![\w-])-?z-(?:10|50)(?![\w-])/g;
  * step, for the identical reason (a positioned pseudo-element paints over a later sibling that is
  * merely in flow, so every click on an action lands on the overlay instead).
  *
- * Adopted by nobody yet, so the pattern and both shipped rows legitimately carry the step at once;
- * the two rows above disappear when the adoption plans swap them, and the total returns to 11.
+ * ADOPTED BY PLAN 11-11, which is why `booking-row.tsx` and `host-booking-row.tsx` are no longer in
+ * this map: both now compose `patterns/row-card.tsx`, so the lift exists once, in the file that owns
+ * it, and the duplicates 11-08 declared temporary are gone. `request-row.tsx` and `payout-row.tsx`
+ * adopted the same pattern in the same commit and add NOTHING here — they reach the step through the
+ * pattern, which is the entire point of a pattern layer being counted per file rather than per render.
  *
  * ALSO MOVED BY PLAN 11-10, in that plan's own commit, and this addition is PERMANENT where
  * `row-card.tsx`'s is temporary — the difference is worth stating so a later reader does not delete
@@ -822,12 +825,11 @@ const BANNED_Z = /(?<![\w-])-?z-(?:10|50)(?![\w-])/g;
  * headers carries a z utility today (both are `border-b` and non-sticky), so that conversion REMOVES
  * nothing from this map and adds nothing to it — the shell's single row is the whole of it.
  *
- * The expected end state of this map is therefore 11 sites, not 10: the two shipped rows and
- * `row-card.tsx` collapse to one when the adoption plans swap them, and `site-chrome.tsx` stays.
+ * The end state of this map is therefore 9 positive sites — 11 counting the two negative dividers
+ * below: the two shipped rows and `row-card.tsx` collapsed to one at adoption, and `site-chrome.tsx`
+ * stays. 11-08 predicted 11 for the positive map alone; it was counting the negatives with them.
  */
 const STICKY_INVENTORY: Readonly<Record<string, number>> = {
-  "src/components/booking/booking-row.tsx": 1,
-  "src/components/host/host-booking-row.tsx": 1,
   "src/components/patterns/row-card.tsx": 1,
   "src/components/patterns/site-chrome.tsx": 1,
   "src/components/ui/avatar.tsx": 1,
@@ -941,23 +943,25 @@ describe("DS-03 z clause — the two magic numbers are gone from the source", ()
 });
 
 describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T-10-49)", () => {
-  it("carries exactly 22 mapped call sites — 13 sticky and 9 dialog", () => {
+  it("carries exactly 20 mapped call sites — 11 sticky and 9 dialog", () => {
     // The count is what makes a migration that DELETED the z-index instead of mapping it go red: a
     // tree with no z-index at all satisfies every zero-violations assertion above perfectly.
     //
     // 11 -> 12 by plan 11-08's `patterns/row-card.tsx`, whose `actions` slot must clear the title
     // link's overlay pseudo-element. 12 -> 13 by plan 11-10's `patterns/site-chrome.tsx`, the app
     // shell's `sticky top-0` header — the first surface in the app to occupy this layer for the
-    // literal reason the layer exists. See STICKY_INVENTORY for which of the two is permanent.
+    // literal reason the layer exists. 13 -> 11 by plan 11-11, which adopted the pattern on the two
+    // shipped booking rows: their hand-written lifts are the pattern's now, and the duplicates 11-08
+    // declared temporary are gone. See STICKY_INVENTORY for which additions were which.
     const sticky =
       totalOf(zScan.byName["z-(--z-sticky)"]) + totalOf(zScan.byName["-z-(--z-sticky)"]);
     const dialog = totalOf(zScan.byName["z-(--z-dialog)"]);
-    expect(sticky, "the sticky layer lost or gained a surface").toBe(13);
+    expect(sticky, "the sticky layer lost or gained a surface").toBe(11);
     expect(dialog, "the dialog layer lost or gained a surface").toBe(9);
-    expect(sticky + dialog).toBe(22);
+    expect(sticky + dialog).toBe(20);
   });
 
-  it("pins the 11 positive sticky sites to the files that own them", () => {
+  it("pins the 9 positive sticky sites to the files that own them", () => {
     expect(zScan.byName["z-(--z-sticky)"]).toEqual(STICKY_INVENTORY);
   });
 

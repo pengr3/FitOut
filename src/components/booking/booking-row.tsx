@@ -1,7 +1,13 @@
 // BookingRow — the BOOKER's stacked mobile card on /bookings (MANAGE-01 · D-105). The desktop shadcn table
-// row is rendered by the page; this is the same content collapsed into a card, cloning PayoutRow's shell:
-// Card → title/meta + badge header → <dl> label/value pairs, so the label↔value association survives
-// linearisation on a narrow screen.
+// row is rendered by the page; this is the same content collapsed into a card: title/meta + badge header →
+// <dl> label/value pairs, so the label↔value association survives linearisation on a narrow screen.
+//
+// DS-11 (plan 11-11): the CONTAINER is `patterns/row-card.tsx` now. The shell this file used to re-declare —
+// the `Card`, the `CardContent`, the 48px media box, the overlay-pseudo-element link and its declared DS-05
+// ring-offset exception, the action lift — all live there, once, for four surfaces. This file decides what a
+// booking row SAYS. It is also the surface the pattern's geometry was measured against: adopting it drops
+// the row from 112px to the 80px `ROW_CARD_HEIGHT` the loading skeleton already shimmers, because
+// `ui/card.tsx` puts `py-4` on `Card` itself and the pattern composes `py-0` (11-08's finding).
 //
 // PROPS ARE PRE-FORMATTED, SERVER-COMPUTED STRINGS (PayoutRow's contract, kept verbatim): this component
 // performs ZERO money arithmetic and ZERO date formatting. `whenLabel` arrives venue-tz-safe from the shared
@@ -21,7 +27,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { RowCard } from "@/components/patterns/row-card";
 import { BookingStatusBadge } from "./booking-status-badge";
 import type { BookingDbStatus } from "./booking-status";
 
@@ -56,66 +62,61 @@ export type BookingRowData = {
 
 export function BookingRow({ row }: { row: BookingRowData }) {
   return (
-    <Card className="relative">
-      <CardContent className="space-y-3 p-4">
-        <div className="flex items-start gap-3">
-          {/* 48×48 cover thumbnail, falling back to the neutral tile SearchResultCard uses. */}
-          <div className="size-12 shrink-0 overflow-hidden rounded-md bg-muted">
-            {row.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={row.photoUrl} alt="" className="size-full object-cover" />
-            ) : (
-              <span className="flex size-full items-center justify-center text-xs leading-tight text-muted-foreground">
-                No photos yet
-              </span>
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            {/* The whole card is the link to the detail page — an overlay pseudo-element rather than a
-                wrapping anchor, so the inline CTA below stays a sibling and never nests inside it. */}
-            <Link
-              href={`/bookings/${row.bookingId}`}
-              className="truncate text-sm font-semibold outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
-            >
-              {row.spaceTitle}
-            </Link>
-            <p className="text-sm text-muted-foreground">{row.whenLabel}</p>
-          </div>
-
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <BookingStatusBadge
-              status={row.status}
-              endsAt={row.endsAt}
-              now={row.now}
-              side="booker"
-              cancelledBy={row.cancelledBy}
-            />
-            {row.refundLabel ? (
-              <p className="text-right text-sm tabular-nums text-muted-foreground">
-                {row.refundLabel}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <dl className="space-y-1.5 text-sm">
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Amount paid</dt>
-            <dd className="tabular-nums">{row.amountLabel}</dd>
-          </div>
-        </dl>
-
-        {/* The stacking class on the CTA below lifts it above the card's stretched-link overlay, so
-            the button is clickable rather than swallowed by it. It now reads the sticky step of the
-            global four-layer scale instead of a bare 10, so the ordering is reviewable in one place.
-            Named descriptively rather than quoted, because the DS-03 gate counts that string. */}
-        {row.showPayNow ? (
-          <Button asChild variant="brand" className="relative z-(--z-sticky) w-full">
+    <RowCard
+      href={`/bookings/${row.bookingId}`}
+      /* 48×48 cover thumbnail, falling back to the neutral tile SearchResultCard uses. The fallback
+         is passed AS `media` rather than through a second prop — `RowCard` has one media slot and no
+         branch, because at 48px a fallback is a tile and not a sentence. */
+      media={
+        row.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={row.photoUrl} alt="" className="size-full object-cover" />
+        ) : (
+          <span className="flex size-full items-center justify-center text-xs leading-tight text-muted-foreground">
+            No photos yet
+          </span>
+        )
+      }
+      title={row.spaceTitle}
+      meta={row.whenLabel}
+      status={
+        <BookingStatusBadge
+          status={row.status}
+          endsAt={row.endsAt}
+          now={row.now}
+          side="booker"
+          cancelledBy={row.cancelledBy}
+        />
+      }
+      /* D-79 — the refund figure is a MUTED SIBLING LINE beneath the badge, never interpolated into
+         it (see booking-status-badge.tsx for why the badge grammar is fixed-vocabulary). The caller
+         composes the copy. `tabular-nums` is restated here even though `RowCard` applies it to every
+         `trailing`: this is a money figure, and AC#33's property should be visible at the site that
+         knows it is money rather than inherited silently. */
+      trailing={
+        row.refundLabel ? (
+          <span className="text-sm tabular-nums text-muted-foreground">{row.refundLabel}</span>
+        ) : undefined
+      }
+      /* The CTA is a SIBLING of the card's stretched-link overlay, and `RowCard` both places it there
+         and lifts it above the overlay, so the button is clickable rather than swallowed. The lift
+         reads the sticky step of the global four-layer scale instead of a bare 10; it used to be
+         written on this button and now lives once, in the pattern. Named descriptively rather than
+         quoted, because the DS-03 gate counts that string. */
+      actions={
+        row.showPayNow ? (
+          <Button asChild variant="brand" className="w-full">
             <Link href={`/listings/${row.listingId}/book?hold=${row.bookingId}`}>Pay now</Link>
           </Button>
-        ) : null}
-      </CardContent>
-    </Card>
+        ) : undefined
+      }
+    >
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="text-muted-foreground">Amount paid</dt>
+          <dd className="tabular-nums">{row.amountLabel}</dd>
+        </div>
+      </dl>
+    </RowCard>
   );
 }

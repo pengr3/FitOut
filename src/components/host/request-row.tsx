@@ -12,13 +12,23 @@
 // on the inbox (mirrors /host/earnings' calm neutral surface). Money is the SERVER-FROZEN quote (formatMoney
 // display only — zero arithmetic). Freshness is via revalidatePath inside the actions (no polling); a lapsed
 // / already-actioned request resolves to a calm "no longer pending" toast, never a red 500.
+//
+// DS-11 (plan 11-11): the CONTAINER is `patterns/row-card.tsx`, and NOTHING ELSE about this file moved.
+// Phase 14 owns the request-inbox redesign; this plan swapped the box. The SLA countdown is the same
+// `RequestCountdown` element with the same "Expires in" label in the same `space-y-0.5` block, the
+// Approve/Decline handlers are untouched, and `APPROVAL_PAYMENT_WINDOW_HOURS` is still imported from
+// `@/lib/payments/config` — a LEAD-TIME constant, which `server-only-guards.test.ts` records as a
+// legitimate client import (unlike a money rate, which would be a D-130 violation).
+//
+// This file is `"use client"` and `RowCard` is authored as a Server Component. Importing it here compiles
+// it into the client bundle, which is correct and not a boundary leak: the pattern renders markup, imports
+// no domain module, and reaches only `ui/card`, `next/link` and two design constants.
 
 import * as React from "react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { RowCard } from "@/components/patterns/row-card";
 import {
   Dialog,
   DialogClose,
@@ -166,35 +176,37 @@ export function RequestRow({
   countdownReason?: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardContent className={cn("space-y-3 p-4")}>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{row.spaceTitle}</p>
-          <p className="text-sm text-muted-foreground">{row.whenLabel}</p>
-        </div>
-
-        <dl className="space-y-1.5 text-sm">
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Guest</dt>
-            <dd>{row.bookerLabel}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Guest pays</dt>
-            <dd className="tabular-nums">{row.totalLabel}</dd>
-          </div>
-        </dl>
-
-        <div className="space-y-0.5">
-          <RequestCountdown expiresAt={row.expiresAt} label="Expires in" />
-          {countdownReason}
-        </div>
-
+    <RowCard
+      /* NO `href`, like PayoutRow. The inbox row is terminal today; Phase 14 owns whether it becomes
+         navigable, and this plan changes the box and nothing else. */
+      title={row.spaceTitle}
+      meta={row.whenLabel}
+      actions={
         <RequestActions
           requestId={row.requestId}
           bookerLabel={row.bookerLabel}
           whenLabel={row.whenLabel}
         />
-      </CardContent>
-    </Card>
+      }
+    >
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="text-muted-foreground">Guest</dt>
+          <dd>{row.bookerLabel}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="text-muted-foreground">Guest pays</dt>
+          <dd className="tabular-nums">{row.totalLabel}</dd>
+        </div>
+      </dl>
+
+      {/* THE SLA COUNTDOWN IS THE SAME ELEMENT IT HAS ALWAYS BEEN (11-11 · Phase 14 owns the redesign):
+          `RequestCountdown` with the shipped "Expires in" label, and the D-99 reason line beneath it on
+          the same `space-y-0.5`. Nothing about the countdown moved into the container. */}
+      <div className="space-y-0.5">
+        <RequestCountdown expiresAt={row.expiresAt} label="Expires in" />
+        {countdownReason}
+      </div>
+    </RowCard>
   );
 }

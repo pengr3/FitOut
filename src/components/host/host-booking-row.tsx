@@ -1,6 +1,11 @@
 // HostBookingRow — the HOST's stacked mobile card on /host/bookings (HOST-02 · D-105). Same shell as
-// PayoutRow / BookingRow (Card → title/meta + badge header → <dl>), different content: guest, space,
+// PayoutRow / BookingRow (title/meta + badge header → <dl>), different content: guest, space,
 // venue-local window, the booking lifecycle badge, and the payout state.
+//
+// DS-11 (plan 11-11): "same shell as PayoutRow / BookingRow" is now MECHANICAL rather than a convention
+// three files kept by hand — all three compose `patterns/row-card.tsx`, which owns the Card, the
+// CardContent, the overlay-pseudo-element link with its declared DS-05 ring-offset exception, and the
+// action lift. This file decides what a host booking row SAYS.
 //
 // PAYOUT PARITY IS THE POINT: the payout cell renders PayoutStateBadge, imported UNCHANGED from the HOST-03
 // earnings surface, so a host reads the same word for the same money state on both pages. When a booking has
@@ -20,9 +25,7 @@
 //
 // Not a client component — a pure presentational component the /host/bookings RSC renders directly.
 
-import Link from "next/link";
-
-import { Card, CardContent } from "@/components/ui/card";
+import { RowCard } from "@/components/patterns/row-card";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import type { BookingDbStatus } from "@/components/booking/booking-status";
 import { PayoutStateBadge } from "./payout-state-badge";
@@ -68,69 +71,62 @@ export function HostPayoutCell({ state }: { state: PayoutLedgerState | null }) {
 
 export function HostBookingRow({ row }: { row: HostBookingRowData }) {
   return (
-    // `relative` anchors the overlay anchor below so the whole card navigates to the detail page (T6).
-    <Card className="relative">
-      <CardContent className="space-y-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            {/* T6 — the whole card is the link to /host/bookings/[id] (the host cancel flow, SC#3), via an
-                overlay pseudo-element rather than a wrapping anchor, so the inline RequestActions below stays
-                a sibling and can sit ABOVE it. Mirrors the booker row (booking-row.tsx). */}
-            <Link
-              href={`/host/bookings/${row.bookingId}`}
-              className="truncate text-sm font-semibold outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
-            >
-              {row.spaceTitle}
-            </Link>
-            <p className="text-sm text-muted-foreground">{row.whenLabel}</p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <BookingStatusBadge
-              status={row.status}
-              endsAt={row.endsAt}
-              now={row.now}
-              side="host"
-              cancelledBy={row.cancelledBy}
-            />
-            {row.refundLabel ? (
-              <p className="text-right text-sm tabular-nums text-muted-foreground">
-                {row.refundLabel}
-              </p>
-            ) : null}
-          </div>
+    <RowCard
+      /* T6 — the whole card is the link to /host/bookings/[id] (the host cancel flow, SC#3), via an
+         overlay pseudo-element rather than a wrapping anchor, so the inline RequestActions below stays
+         a sibling and can sit ABOVE it. The pattern owns both halves now. */
+      href={`/host/bookings/${row.bookingId}`}
+      /* No `media`: this row has never had a thumbnail, and `RowCard` omits the box entirely rather
+         than drawing an empty 48px square (the 11-11 change to the pattern). */
+      title={row.spaceTitle}
+      meta={row.whenLabel}
+      status={
+        <BookingStatusBadge
+          status={row.status}
+          endsAt={row.endsAt}
+          now={row.now}
+          side="host"
+          cancelledBy={row.cancelledBy}
+        />
+      }
+      /* D-79 sibling line beneath the badge, never interpolated into it. `tabular-nums` is restated
+         here even though the pattern applies it to every `trailing`, because this is money. */
+      trailing={
+        row.refundLabel ? (
+          <span className="text-sm tabular-nums text-muted-foreground">{row.refundLabel}</span>
+        ) : undefined
+      }
+      /* Approve/Decline sits ABOVE the card-overlay link so it stays clickable (T6). The lift reads
+         the sticky step of the global four-layer scale rather than a bare 10; it used to be written
+         on this file's own wrapper div and now lives once, in the pattern. Named descriptively rather
+         than quoted, because the DS-03 gate counts that string and a comment that repeats it is
+         indistinguishable from a real call site. */
+      actions={
+        row.status === "requested" ? (
+          <RequestActions
+            requestId={row.bookingId}
+            bookerLabel={row.bookerLabel}
+            whenLabel={row.whenLabel}
+          />
+        ) : undefined
+      }
+    >
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="text-muted-foreground">Guest</dt>
+          <dd>{row.bookerLabel}</dd>
         </div>
-
-        <dl className="space-y-1.5 text-sm">
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Guest</dt>
-            <dd>{row.bookerLabel}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Guest pays</dt>
-            <dd className="tabular-nums">{row.amountLabel}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Payout</dt>
-            <dd>
-              <HostPayoutCell state={row.payoutState} />
-            </dd>
-          </div>
-        </dl>
-
-        {row.status === "requested" ? (
-          // The stacking class below lifts Approve/Decline ABOVE the card-overlay link so they stay
-          // clickable (T6). It reads the sticky step of the global four-layer scale rather than a
-          // bare 10; named descriptively rather than quoted, because the DS-03 gate counts that
-          // string and a comment that repeats it is indistinguishable from a real call site.
-          <div className="relative z-(--z-sticky)">
-            <RequestActions
-              requestId={row.bookingId}
-              bookerLabel={row.bookerLabel}
-              whenLabel={row.whenLabel}
-            />
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="text-muted-foreground">Guest pays</dt>
+          <dd className="tabular-nums">{row.amountLabel}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="text-muted-foreground">Payout</dt>
+          <dd>
+            <HostPayoutCell state={row.payoutState} />
+          </dd>
+        </div>
+      </dl>
+    </RowCard>
   );
 }

@@ -50,10 +50,13 @@
 //     ring: `cn()`/tailwind-merge precedence at a call site, an `outline-none` in a later layer, or
 //     an ancestor `overflow-hidden` clipping the offset band are all invisible here. Phase 11's
 //     GATE-01 pass and Phase 17's a11y audit see real pixels.
-//   • `focus-visible:after:ring-*` recipes (2 sites: `booking-row.tsx`, `host-booking-row.tsx`)
-//     draw a solid ring on a pseudo-element and set NO offset width. They are deliberately not
-//     required to carry an offset colour — with no offset width there is no band to colour, so
-//     there is nothing to leak. Their ring is solid and sits on `--card` (7.46 / 7.36).
+//   • `focus-visible:after:ring-*` recipes draw a solid ring on a pseudo-element and set NO offset
+//     width. They are deliberately not required to carry an offset colour — with no offset width
+//     there is no band to colour, so there is nothing to leak. Their ring is solid and sits on
+//     `--card` (7.46 / 7.36). This was 2 shipped sites (`booking-row.tsx`, `host-booking-row.tsx`);
+//     since plan 11-11's DS-11 adoption it is ONE, `patterns/row-card.tsx`, which both of those rows
+//     and the two host list rows now compose. The exemption did not widen — it narrowed to the file
+//     that owns the form, and `row-card.tsx`'s header carries the same 7.46 / 7.36 justification.
 //   • An UNPREFIXED `ring-offset-<width>` class. The leak scan only matches variant-prefixed
 //     tokens, because an unprefixed `ring-offset-2` also appears in PROSE (a note in
 //     `src/lib/design/contrast-pairs.ts`) and a scan that flagged it would be crying wolf at the
