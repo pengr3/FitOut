@@ -219,7 +219,10 @@ describe("the derived values this phase committed to", () => {
 
   it("carries every failing pairing as data with a stated reason (D-13)", () => {
     // An inventory that omits a failing pair is indistinguishable from one that forgot it.
-    expect(EXCLUDED_PAIRS.length).toBeGreaterThan(0);
+    // 3 at phase 10 (`--border`, `--input`, `destructive-40`); 6 since plan 11-07 added the two
+    // skeleton fills and `ui/card.tsx:15`'s hairline. A FLOOR, not an equality (D-32) — a future
+    // exclusion is a legitimate addition, but LOSING one is the silent direction this pins.
+    expect(EXCLUDED_PAIRS.length).toBeGreaterThanOrEqual(6);
     for (const entry of EXCLUDED_PAIRS) {
       expect(entry.reason.length, `${entry.fg} on ${entry.bg}`).toBeGreaterThan(20);
       expect(entry.measured.length).toBeGreaterThan(0);
@@ -242,8 +245,13 @@ describe("the derived values this phase committed to", () => {
 // ---------------------------------------------------------------------------
 
 describe("guard-the-guard", () => {
-  it("measures at least 29 declared pairings", () => {
-    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(29);
+  it("measures at least 39 declared pairings", () => {
+    // 29 when phase 10 wrote this; 37 by the end of it (WR-05's alpha-aware key exposed six rows
+    // that were already rendering), and 39 since plan 11-07 declared the search card's two
+    // `group-hover:bg-muted/40` pairings. Raised WITH the inventory rather than left at 29: a floor
+    // eight rows below the truth would still pass with the whole hover section deleted, which is
+    // exactly the vacuity this block exists to prevent.
+    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(39);
   });
 
   it("read at least 24 tokens from each theme", () => {

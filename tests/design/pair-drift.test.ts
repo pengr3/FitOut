@@ -618,9 +618,11 @@ describe("the declared pair inventory matches what components render", () => {
     ).toEqual([]);
 
     // GUARD THE GUARD: the loop must actually have inspected opacities, or an empty inventory
-    // would pass this trivially.
+    // would pass this trivially. 11 at the end of phase 10, 13 since plan 11-07 declared the
+    // search card's two `bg-muted/40` hover rows — raised with the inventory, because a floor far
+    // below the true count is a guard that has stopped guarding.
     expect(rows.filter((p) => p.alpha !== undefined || p.fgAlpha !== undefined).length).
-      toBeGreaterThan(5);
+      toBeGreaterThanOrEqual(13);
 
     // And the normalisation must survive the float error it exists to absorb: 0.1 * 100 is
     // 10.000000000000002 in IEEE-754, and must still key as a plain 10.
@@ -734,7 +736,11 @@ describe("the declared pair inventory matches what components render", () => {
         COLOUR_TOKENS.includes(pair.fg) || pair.fg.endsWith("-hover");
       expect(known, `unknown fg token in the inventory: ${pair.fg}`).toBe(true);
     }
-    expect(DECLARED.size).toBeGreaterThanOrEqual(20);
+    // 35 keys from 37 rows at the end of phase 10 (the two `destructive/10` rows collapse onto one
+    // key, and so do two of the alias groups); 37 from 39 since plan 11-07. Raised with the
+    // inventory for the reason the sibling floor in `contrast.test.ts` was: this number's job is to
+    // notice that `DECLARED` went empty, and 20 stopped being able to do that a long time ago.
+    expect(DECLARED.size).toBeGreaterThanOrEqual(37);
   });
 
   // ---------------------------------------------------------------------------------------------

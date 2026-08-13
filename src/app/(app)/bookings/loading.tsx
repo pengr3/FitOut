@@ -1,6 +1,11 @@
-// Skeleton for /bookings. Row heights match the real rows (a card is p-4 around a 48px thumbnail, so ~80px)
-// so the list does not jump when the data lands — the shell, the title and the tab strip all stay put and
-// only the rows swap in (07-UI-SPEC § 1, Loading).
+// Skeleton for /bookings. Row heights match the real rows so the list does not jump when the data lands —
+// the shell, the title and the tab strip all stay put and only the rows swap in (07-UI-SPEC § 1, Loading).
+//
+// THE 80px DERIVATION NOW LIVES IN ONE PLACE: `ROW_CARD_HEIGHT` in `src/lib/design/measurements.ts` (plan
+// 11-07). It was written out here, beside a hardcoded `h-20`, which is the shape STATE-01 exists to remove:
+// two files agreeing on a number is not the same as one file owning it. The literal below survives only
+// until this route migrates onto `patterns/row-list-skeleton.tsx`, which reads the constant — do not
+// re-derive the number here in the meantime.
 
 import { Skeleton } from "@/components/ui/skeleton";
 

@@ -34,6 +34,12 @@
 //   • `--border` / `--input` are NOT in the inventory. They are in `EXCLUDED_PAIRS` with a reason,
 //     which is deliberate: an inventory that silently omits a failing pair is the exact shape of the
 //     defect DS-06 exists to remove.
+//   • TWO EXCLUSIONS ARE CONDITIONAL, AND THIS FILE CANNOT CHECK THEIR CONDITION. The two skeleton
+//     fills (`muted` on `background` / on `card`, 1.09:1) are legal ONLY while the loading state's
+//     meaning is carried by a `role="status"` + `aria-busy="true"` + `sr-only` label wrapper instead
+//     of by the fill. Nothing here can see whether a skeleton renders that wrapper — the condition is
+//     enforced by `tests/design/skeleton-a11y.test.tsx`, and if that gate is ever deleted these two
+//     rows stop being exclusions and become WCAG 1.4.11 failures. Delete the gate, delete the rows.
 
 // ---------------------------------------------------------------------------
 // Bars and the epsilon
@@ -373,6 +379,29 @@ export const CONTRAST_PAIRS = [
     fgAlpha: 0.6,
     note: "The INACTIVE tab label on the segmented control's muted track (`booking/bookings-tabs.tsx:52` and `ui/tabs.tsx:66`, both `TRIGGER_IDLE`). A shipped, diluted INK on a filled surface — the same shape as the row above and the one the first review's CR-03 was about — and it was in neither the inventory nor the exclusions when WR-09 found it. Measured: court composites the ink to #686868 for 5.11, grove to #616c6b for 4.81. Both clear 4.5 + epsilon, so it is DECLARED rather than removed. Grove has 0.26 of headroom against a token that is free to move, which is exactly why it belongs in a file that re-measures on every run instead of in a comment.",
   },
+
+  // =========================================================================
+  // THE SEARCH-RESULT CARD'S HOVER FILL (plan 11-07). `search-result-card.tsx:176`
+  // ships `group-hover:bg-muted/40` on a Card whose ink is `text-card-foreground`
+  // and whose sub-lines are `text-muted-foreground`. Both pairings render on every
+  // hovered search result and neither was declared: they are CROSS-ELEMENT (the
+  // fill is on the Card, the ink is on a `<p>` inside it), which is the exact class
+  // `pair-drift.test.ts` states it cannot see, so nothing would ever have found them.
+  // =========================================================================
+  {
+    fg: "foreground",
+    bg: "muted",
+    bar: TEXT_BAR,
+    alpha: { value: 0.4, over: "background" },
+    note: "The search-result card's TITLE and price under the cursor. `over: background` and NOT `over: card` is the whole correctness of this row: `group-hover:bg-muted/40` is applied to the Card itself, so it REPLACES the Card's own `bg-card` rather than layering over it — the 40% tint composites against whatever is behind the card, which is the page. Writing `over: card` would measure a stack that never renders, the same class of error that let the focus ring ship at 2.58 as a token pair and 1.54 as actually rendered. Measured 19.13 (court) / 17.76 (grove) against the 4.5 bar; the UI-SPEC session's table said 19.42 / 17.80 and this gate is the authority (D-12), so the corrected numbers are the ones recorded here.",
+  },
+  {
+    fg: "muted-foreground",
+    bg: "muted",
+    bar: TEXT_BAR,
+    alpha: { value: 0.4, over: "background" },
+    note: "The same hovered search-result card's SECONDARY lines — space type, distance, the searched window, `Service fee included`. The tightest of the two by a wide margin, which is why the pair is declared as two rows rather than waved through on the title's 19:1. `over: background` for the identical reason as the row above: the hover fill replaces the card surface, it does not layer over it. Measured 5.07 (court) / 5.55 (grove) against the 4.5 bar; the UI-SPEC session's table said 5.08 / 5.56 and the gate wins (D-12). Court keeps 0.52 of headroom over bar + epsilon here, so a future darkening of the muted tint is a real risk this row is what would catch.",
+  },
 ] as const satisfies readonly ContrastPair[];
 
 /** Every token or derived-surface name the inventory references. */
@@ -418,5 +447,26 @@ export const EXCLUDED_PAIRS = [
     measured: "2.13 (court) / 2.13 (grove)",
     reason:
       "container edge at 40% opacity on the failed-payout Alert (`host/payout-state-badge.tsx`) — never the sole boundary and never an indicator, exactly like --border and --input above. The Alert carries its meaning in solid destructive ink at 5.76 and a solid destructive glyph beside it; the diluted edge only tints the container. Recorded here rather than left as the third state contrast-pairs is written to forbid: WR-09 of the re-review found it shipping on every host with a failed payout, measured by nothing. The `fg` names the composite rather than a raw token because the exclusion is about the 40% form specifically — the solid `destructive on card` at 5.76 is a separate, passing row.",
+  },
+  {
+    fg: "muted",
+    bg: "background",
+    measured: "1.09 (court) / 1.09 (grove)",
+    reason:
+      "SKELETON FILL on the page — `ui/skeleton.tsx:7`'s `animate-pulse rounded-md bg-muted`, which is every loading placeholder in the app. A skeleton bar is a NON-INFORMATIONAL placeholder: it stands for content that does not exist yet, so there is nothing for its contrast to make legible and WCAG 1.4.11 does not apply to it. THE EXCLUSION IS CONDITIONAL AND THE CONDITION IS MECHANICAL, not a promise: the loading state's MEANING must be carried by a `role=\"status\" aria-busy=\"true\"` region with a non-empty `sr-only` label, with every pulse bar `aria-hidden=\"true\"`, so the fill carries no information at all. Without that wrapper the fill IS the only carrier of \"loading\" and this stops being a declared exclusion and becomes a real 1.4.11 failure. `tests/design/skeleton-a11y.test.tsx` is what makes the condition binding — it asserts exactly one status region per skeleton with an accessible name, and it has been watched failing at counts of 0 and 2 (T-11-A11YFILL).",
+  },
+  {
+    fg: "muted",
+    bg: "card",
+    measured: "1.09 (court) / 1.13 (grove)",
+    reason:
+      "The SAME skeleton fill inside a card or a panel, which is where most of them sit — a card-grid cell's media block, a panel's body. A genuinely separate measurement rather than a duplicate of the row above: grove's card is pure white while its page background is tinted, so the fill sits on two different surfaces in that theme (1.09 vs 1.13). Legal for the same reason and under the SAME compensating requirement — a non-informational placeholder whose meaning is carried by the mandatory `role=\"status\"` + `aria-busy=\"true\"` + `sr-only` label wrapper, never by the fill. Remove the wrapper and both rows become 1.4.11 failures together.",
+  },
+  {
+    fg: "foreground-10",
+    bg: "card",
+    measured: "1.24 (court) / 1.24 (grove)",
+    reason:
+      "The HAIRLINE ON EVERY CARD IN THE APP — `ui/card.tsx:15`'s `ring-1 ring-foreground/10`, shipped since v1.0 and measured by nothing until this row. It is the identical class of thing as the already-declared `--border` and `--input` exclusions above: a decorative container edge, never a control's sole visible boundary and never a focus indicator (the focus ring is `--ring`, declared and measured on all three surfaces at the 3.0 bar). The `fg` names the COMPOSITE rather than a raw token because the exclusion is about the 10% form specifically — solid `foreground on card` is a separate, passing 4.5-bar row at the top of the inventory, and naming this one `foreground` would collide with it. Recorded here rather than omitted for the reason this whole list exists: a failing pairing that is simply absent is indistinguishable from one nobody thought about, and this one is on every surface in the product.",
   },
 ] as const satisfies readonly ExcludedPair[];
