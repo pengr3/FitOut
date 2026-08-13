@@ -3,14 +3,24 @@
 // This is the first surface in the app reachable WITHOUT a session and WITHOUT owning anything. The invite
 // token in the URL is the entire credential; the person opening it may never have heard of FitOut.
 //
-// ── WHY IT LIVES AT THE ROOT, OUTSIDE (app)/(host) (RESEARCH Pitfall 5 / T-08-24) ──────────────────────────
+// ── WHY IT LIVES OUTSIDE (app)/(host) (RESEARCH Pitfall 5 / T-08-24) ───────────────────────────────────────
 // `(app)/layout.tsx` calls `auth.api.getSession` and REDIRECTS to /login when there is none. A public route
 // placed inside that group would therefore bounce every signed-out invitee to a login form — silently
 // reversing GROUP-03 ("RSVP without a full account") while every test still passed, because the redirect is
-// a layout concern that no page-level test would see. So this file sits beside `listings/[id]/page.tsx`, the
-// app's other root, header-less, session-optional public route, and it INVERTS the gate: the session is
-// READ (to skip the name field and offer the change-answer toggle) and never REQUIRED. Do not move this
-// route under a route group, and do not add a `redirect` on a null session.
+// a layout concern that no page-level test would see. So this route INVERTS the gate: the session is READ
+// (to skip the name field and offer the change-answer toggle) and never REQUIRED. Do not add a `redirect`
+// on a null session, and do not move this file under `(app)` or `(host)`.
+//
+// AMENDED BY PLAN 11-10, AND THE AMENDMENT IS THE POINT. This block used to end *"Do not move this route
+// under a route group"* and to describe the file as sitting *"beside `listings/[id]/page.tsx`, the app's
+// other root, header-less … public route"*. Both sentences were written when the only route groups in the
+// tree were the two that gate on a session, and both are now false: this file lives at
+// `(public)/invite/[token]/page.tsx` and `(public)/layout.tsx` supplies the SHELL-01 header, so neither
+// route is header-less any more. What the original instruction was actually protecting is unchanged and
+// still binding — **no ancestor layout of this route may read a session and redirect on its absence.**
+// `(public)/layout.tsx` reads the session only to render the header's auth slot, and has no `redirect` on
+// any path. A group whose layout gates is still forbidden here; a group whose layout merely composes chrome
+// is not what that sentence was ever about.
 //
 // ── THE TOKEN IS A BEARER CREDENTIAL SITTING IN A URL (D-118 / T-08-23) ───────────────────────────────────
 // Everything that follows from that is handled here rather than left to convention:

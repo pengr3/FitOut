@@ -469,13 +469,25 @@ const GATE_TREE = ["src/app/", "src/components/"] as const;
  *
  * Pinned per file rather than as a bare total so a failure says WHICH surface moved. A future plan
  * that legitimately adds a Display site updates this map — deliberately, in the same commit.
+ *
+ * TWO KEYS RENAMED BY PLAN 11-10, in that plan's own commit and with no change to the TOTAL (12) or
+ * to any file's count. `src/app/page.tsx` → `src/app/(public)/page.tsx` and
+ * `src/app/listings/[id]/page.tsx` → `src/app/listings/[id]/(detail)/page.tsx`, because SHELL-01
+ * moved both routes into route groups so `/listings/[id]/book` could become a SIBLING of the listing
+ * detail page rather than a child of its layout. A parenthesised segment is erased from the URL, so
+ * both routes serve the same paths they always did; only the file key here moved.
+ *
+ * This map is keyed by PATH, so a pure file move breaks it while nothing about the type scale
+ * changed — which is the correct behaviour and the reason a per-file map is worth its maintenance.
+ * The failure named both files and both directions (a `-` row and a `+` row) rather than a bare
+ * `expected 12 to be 12`, which is what made the fix a rename rather than an investigation.
  */
 const DISPLAY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/(app)/bookings/[id]/cancel/page.tsx": 1,
   "src/app/(app)/bookings/[id]/page.tsx": 4,
+  "src/app/(public)/page.tsx": 1,
+  "src/app/listings/[id]/(detail)/page.tsx": 1,
   "src/app/listings/[id]/book/page.tsx": 1,
-  "src/app/listings/[id]/page.tsx": 1,
-  "src/app/page.tsx": 1,
   "src/components/booking/refund-breakdown.tsx": 1,
   "src/components/group/headcount-meter.tsx": 1,
   "src/components/host/payout-summary.tsx": 2,

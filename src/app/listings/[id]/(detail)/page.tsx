@@ -5,6 +5,13 @@
 // view a PUBLISHED listing. It inverts the gate of (app)/profile/page.tsx: no redirect, render for the
 // anonymous public.
 //
+// IT NOW LIVES IN A ROUTE GROUP OF ITS OWN, AND THAT DOES NOT WEAKEN THE SENTENCE ABOVE (plan 11-10).
+// The file moved from `listings/[id]/page.tsx` to `listings/[id]/(detail)/page.tsx`. The URL is
+// unchanged — a parenthesised segment is erased from the path — and no ancestor of this route reads a
+// session and redirects. The move exists so that `/listings/[id]/book`, which is a SIBLING of
+// `(detail)` rather than a child of this page's layout, can present the minimal SHELL-03 header while
+// this page gets the full public one. See `(detail)/layout.tsx` for the whole argument.
+//
 // Security boundaries enforced here:
 //   - T-05-NONPUB: only status === "published" (and non-deleted) listings render; draft/unlisted and
 //     missing ids notFound() (404) so non-public listings are never viewable by link.
