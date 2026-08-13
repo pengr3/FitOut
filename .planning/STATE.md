@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 5
+current_plan: 6
 status: executing
 stopped_at: Completed 11-07-PLAN.md — measurements.ts owns every skeleton box class; the three patterns/ skeletons ship with a named status region; the two skeleton gates are watched-red five ways
-last_updated: "2026-08-13T12:25:10.141Z"
+last_updated: "2026-08-13T12:59:22.081Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 21
+  completed_plans: 22
   percent: 9
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 5 of 22
-Current Plan: 5
+Plan: 6 of 22
+Current Plan: 6
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -225,6 +225,7 @@ Last activity: 2026-08-13
 | Phase 11 P02 | 27 | 2 tasks | 2 files |
 | Phase 11 P03 | 25 | 2 tasks | 6 files |
 | Phase 11 P07 | 27min | 3 tasks | 10 files |
+| Phase 11 P08 | 26min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -452,6 +453,9 @@ Recent decisions affecting current work:
 - [Phase 11]: 11-07 (4): the banned box-prefix list is WIDER than the plan's five — min-w, max-w, max-h and every aspect-* form added, on the design-leak-patterns COLOUR_ROLE precedent (WR-07/WR-08). AUTH_SLOT_BOX is min-w-44, so a list policing min-h and not min-w would ban the header's height and wave through the auth slot's width.
 - [Phase 11]: 11-07 (5): STATE-01 and DS-11 both stay Pending. This plan ships the three skeleton SHAPES, not the ~27 routes that must adopt them, and none of the three named card patterns (11-08 owns those). Same precedent as 11-02 leaving GATE-04 Pending with two clauses outstanding.
 - [Phase 11]: 11-07 (6): the culori gate is the authority over the UI-SPEC's measured table (D-12). Two of the five stated ratios were wrong: foreground on muted/40 over background is 19.13/17.76 not 19.42/17.80, and muted-foreground on muted/40 is 5.07/5.55 not 5.08/5.56. The notes carry the corrected numbers. Also: the two skeleton-fill exclusions are the inventory's first CONDITIONAL exclusions — legal only while skeleton-a11y.test.tsx enforces the status wrapper; delete the gate, delete the rows.
+- [Phase ?]: 11-08: ROW_CARD_HEIGHT was false of every shipped row — measured 112px vs the declared 80px in Chromium, because ui/card.tsx carries py-4 on Card itself; RowCard and PanelCard compose py-0 so the constants describe what renders
+- [Phase ?]: 11-08: ResultCard parses its AspectRatio ratio out of RESULT_CARD_MEDIA rather than restating 4/3, closing by construction the two-spellings drift measurements.ts names in its own NOT COVERED footer
+- [Phase ?]: 11-08: DS-11 stays Pending — its second clause is 'every card surface uses one of them' and this plan ships zero adopters
 
 ### Pending Todos
 
@@ -554,7 +558,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T12:25:10.108Z
+Last session: 2026-08-13T12:58:57.578Z
 Stopped at: Completed 11-07-PLAN.md — measurements.ts owns every skeleton box class; the three patterns/ skeletons ship with a named status region; the two skeleton gates are watched-red five ways
 Resume file: None
 
