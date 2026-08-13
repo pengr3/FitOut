@@ -12,6 +12,22 @@
 // Modelled on `tests/availability/exclusion-race.test.ts`: raw postgres.js INSERTs (never Drizzle) so the
 // driver error, with its SQLSTATE on `.code`, reaches the test. The arbiter for open rows is NOT here —
 // it is the advisory-lock admissions counter, proven in `open-capacity-race.test.ts`.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// Phase 11 / GATE-04 (D-33) — THIS FILE CARRIES THE STANDING GUARD FOR `booking_no_overlap`.
+//
+// The last case below ("the live constraint definition …") is D-33's STANDING guard: a READ-ONLY
+// `pg_constraint` catalog assertion that the constraint EXISTS in the isolated test schema and has the
+// shape the double-booking guarantee depends on. It issues no DDL and mutates nothing.
+//
+// The matching DESTRUCTIVE proof — that a mutation letting the (N+1)th booking succeed really does turn
+// the constraint spec RED — is recorded ONCE, BY HAND, in the OBSERVED RED header block of
+// `tests/availability/exclusion-race.test.ts`. It is deliberately NOT automated, and nothing destructive
+// may be added to this suite. The reason is specific: DDL in a test suite against the application's most
+// important invariant risks a failed rollback leaving the test database with NO constraint — at which
+// point every later test goes silently green and the suite is worse than useless. A recorded observation
+// costs one afternoon; a silently-unconstrained test DB costs a real double-booking.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
@@ -141,14 +157,47 @@ describe("booking_no_overlap after the 0022 narrow (OPEN-03 — drop-in rows are
     // same-named constraint, so the namespace scope is load-bearing, not decoration). Behavior above is
     // the real proof; this pins the TEXT so a future migration that re-ADDs the constraint without the
     // narrow — or without the unchanged free-status complement — cannot land silently.
-    const [{ def }] = (await testDb.client`
+    //
+    // D-33 (Phase 11 / GATE-04): this is the STANDING guard. Read-only, schema-scoped, no DDL.
+    const rows = (await testDb.client`
       SELECT pg_get_constraintdef(c.oid) AS def
       FROM pg_constraint c
       JOIN pg_namespace n ON n.oid = c.connamespace
       WHERE c.conname = 'booking_no_overlap' AND n.nspname = ${testDb.schema}`) as unknown as {
       def: string;
     }[];
+
+    // (1) EXISTENCE. Asserted BEFORE destructuring. Previously this line read `const [{ def }] = …`,
+    // which — for the single most important invariant in the product — reported a missing constraint as
+    // `TypeError: Cannot destructure property 'def' of 'undefined'`. That names neither the constraint
+    // nor the schema, so the one failure a reader most needs to understand was the one that explained
+    // itself worst. `booking_no_overlap` absent from this schema is a catastrophic finding, not a typo.
+    expect(
+      rows.length,
+      `booking_no_overlap is MISSING from schema "${testDb.schema}" (got ${rows.length} catalog rows, ` +
+        `expected exactly 1). The double-booking guarantee (SC#4) is NOT in force in this test schema — ` +
+        `every overlap assertion in tests/availability/** is meaningless until this is restored.`,
+    ).toBe(1);
+    const { def } = rows[0];
+
+    // (2) KIND. A UNIQUE constraint, a CHECK, or a plain index carrying the same NAME would satisfy
+    // every `toContain` below and would not prevent a single overlap. Assert what it IS, not just what
+    // text it happens to include.
+    expect(def.startsWith("EXCLUDE USING gist"), `expected an EXCLUDE USING gist, got: ${def}`).toBe(
+      true,
+    );
+
+    // (3) THE THREE NARROWS THE BEHAVIOUR ABOVE RELIES ON.
     expect(def).toContain("open_capacity = false");
     expect(def).toContain("'cancelled'"); // the occupying complement set is unchanged
+
+    // The HALF-OPEN '[)' form. Load-bearing and not cosmetic: '[]' would make 10:00–11:00 and
+    // 11:00–12:00 share the 11:00 instant and collide, so every legitimate back-to-back hourly pair
+    // would be rejected as a double-book (the case at "allows back-to-back hours" in
+    // exclusion-race.test.ts). Matched as a regex against the whole range expression rather than a bare
+    // `toContain("'[)'")`, so a stray '[)' elsewhere in the predicate could not stand in for it. The
+    // `::text` cast is how PG18 renders the literal; it is optional here so the assertion pins the
+    // BOUND FORM rather than one server version's deparse.
+    expect(def).toMatch(/tstzrange\(starts_at, ends_at, '\[\)'(::text)?\) WITH &&/);
   });
 });
