@@ -1159,16 +1159,18 @@ posture rather than adding attack surface — but three of its changes touch sec
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does the repository have Actions workflow-write permission enabled?**
+> All three were resolved during planning (2026-08-13). Each carries its resolving plan/task below.
+
+1. **[RESOLVED — `11-04` Task 1]** **Does the repository have Actions workflow-write permission enabled?**
    - What we know: `origin` → `pengr3/FitOut` exists; no workflow has ever run.
    - What's unclear: the repo's *Settings → Actions → General → Workflow permissions* value, which is not
      visible from the working tree and cannot be set by a commit.
    - Recommendation: make it a `checkpoint:human-verify` in the plan that introduces the D-27 dispatch job.
      If it is read-only, the commit-back push fails with a 403 that is easy to misread as a git error.
 
-2. **Which branch do the baselines get committed to, given `dev` is 145 commits ahead of `origin/dev`?**
+2. **[RESOLVED — `11-04` Task 3]** **Which branch do the baselines get committed to, given `dev` is 145 commits ahead of `origin/dev`?**
    - What we know: CI only ever sees what is pushed (D-25); `main` is still at "Initial commit".
    - What's unclear: whether the first push is a 145-commit push to `origin/dev` (which will run CI against
      the whole accumulated tree — a large first red surface) or something staged.
@@ -1176,7 +1178,7 @@ posture rather than adding attack surface — but three of its changes touch sec
      "get job 1 green on the existing tree" as its own early task. This is a schedule risk, not a technical
      one, but it is the kind that derails a phase's first day.
 
-3. **Does `availability-calendar.tsx` need a props change, or can `computeServiceFee` move behind an
+3. **[RESOLVED — `11-01` Task 2: it is per-selection; a server-computed all-in cents table is passed, not a unit rate]** **Does `availability-calendar.tsx` need a props change, or can `computeServiceFee` move behind an
    existing server boundary?**
    - What we know: it already receives `serviceFeeBps` as a prop from the server, and calls
      `computeServiceFee(spaceCents, serviceFeeBps)` at lines 346 and 411 to derive an all-in figure.
