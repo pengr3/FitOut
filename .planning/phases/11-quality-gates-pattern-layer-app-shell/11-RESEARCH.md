@@ -1023,8 +1023,8 @@ CI-observable and build-observable state, so the categories are answered explici
 | `@playwright/test` | GATE-01 | ✓ | 1.60.0 | — |
 | Chromium (Playwright) | GATE-01, job 3 | ✓ | `chromium-1223` + headless shell | — |
 | `typescript` | AST gates | ✓ | 5.x | — |
-| **Docker daemon** | local Postgres, local container runs | **✗ — not running** | — | **Not needed.** D-27 puts baseline generation in Actions specifically to avoid local Docker; job 1's DB-free property was measured with Docker down. |
-| **PostgreSQL (local)** | full vitest suite, e2e | **✗ — port 5432 closed** | — | CI job 2/3 use the `postgis/postgis:18-3.6` service. Locally, `npm run db:up` when needed. |
+| **Docker daemon** | local Postgres, local container runs | **✓ — running** (was ✗ at research time; corrected during 11-04) | 29.6.1 | Job 1's DB-free property was measured with Docker down, and that measurement still stands — it is an *absence* proof. But **do not read this row as "local containers are unavailable."** A throwaway `postgis/postgis:18-3.6` on a spare port reproduces CI's `gate-db` service exactly; see the row below. |
+| **PostgreSQL (local)** | full vitest suite, e2e | **✓ — `fitout-db-1` up on 5432** (was ✗ at research time; corrected during 11-04) | PostgreSQL 18.4, PostGIS 18-3.6 | Same image, user, password and db name as CI's `gate-db` service — so `db:migrate` → `db:test:setup` → `npm test` is locally rehearsable against a **fresh** container. Rehearsed 2026-08-13 on a throwaway at port 55432: 22 tables migrated, `fitout_test` provisioned, **1216 passed / 4 skipped**. Do not spend a CI round-trip on anything reproducible this way. |
 | `mcr.microsoft.com/playwright:v1.60.0-noble` | job 1, job 3 | ✓ (registry) | — | — |
 | `postgis/postgis:18-3.6` | job 2, job 3 | ✓ (registry) | — | — |
 | GitHub Actions runner | all CI | ✓ (repo has `origin`) | — | — |
