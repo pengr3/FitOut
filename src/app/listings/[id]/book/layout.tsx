@@ -23,6 +23,22 @@
 // open for exactly that purpose. An empty slot with a named owner is a hand-off; an empty slot with
 // no note is an oversight.
 //
+// ── THERE IS NO FOOTER HERE, AND THE OMISSION IS THE REQUIREMENT (SHELL-02 / SHELL-03, plan 11-14) ─
+// The shared footer pattern renders on all SIX other shell-composition sites in `src/app/**` and
+// deliberately not on this one. A footer is a grid of links — Find a space, Host your space, Terms,
+// Privacy — and SHELL-03's rule is about links, not about headers: any one of them abandons the hold
+// this route is holding, silently, with no warning and no way back. Adding one here to make the six a
+// seven would undo the entire reason this layout exists, and it would look like a consistency fix
+// while doing it. `11-UI-SPEC.md` AC#5 and AC#7 both name this route as the carve-out;
+// `global-error.tsx` is the other, for the unrelated reason that it receives no stylesheet at all.
+//
+// THE COMPONENT IS NAMED DESCRIPTIVELY ABOVE RATHER THAN BY ITS BINDING, and the reason is the
+// eleventh instance of one recurring collision in this phase. 11-14's acceptance criteria are (1)
+// this file carries a deliberate-omission comment and (2) a zero-count grep for the binding over this
+// file — and a comment that spells the binding satisfies the first while failing the second, on a
+// tree that is exactly correct. `booking-row.tsx:112` set the precedent and `site-chrome.tsx:45-50`
+// followed it: name the thing you are refusing, do not spell it.
+//
 // The page itself (`book/page.tsx`) is untouched by this plan and stays where it is — only the
 // wrapper is new.
 //

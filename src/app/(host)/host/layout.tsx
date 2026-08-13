@@ -30,6 +30,7 @@ import { auth } from "@/lib/auth";
 import { AmbientHostNav, AmbientNotifications } from "@/components/patterns/ambient-notifications";
 import { BellSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
 import { ProfileLink, SiteChrome, SiteNav } from "@/components/patterns/site-chrome";
+import { SiteFooter } from "@/components/patterns/site-footer";
 import { ModeSwitch } from "@/components/mode-switch";
 import { HOST_NAV_LINKS } from "@/lib/nav";
 
@@ -118,6 +119,11 @@ export default async function HostLayout({
         }
       />
       <main className="flex flex-1 flex-col">{children}</main>
+      {/* SHELL-02 — the SAME footer the booker and public compositions render, and one of the very
+          few things D-04 does NOT make distinct between the two shells. Its links are policy and
+          product-level (Terms, Privacy, Find a space, Host your space), none of which is a host-side
+          destination, so there is nothing here for the host surface to fork. */}
+      <SiteFooter />
     </div>
   );
 }

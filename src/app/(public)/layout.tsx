@@ -26,6 +26,7 @@
 // public side, the drift `site-chrome.tsx` exists to end.
 
 import { PublicHeader } from "@/components/site/public-header";
+import { SiteFooter } from "@/components/patterns/site-footer";
 
 export default function PublicLayout({
   children,
@@ -34,6 +35,8 @@ export default function PublicLayout({
     <div className="flex min-h-dvh flex-col">
       <PublicHeader />
       {children}
+      {/* SHELL-02. `mt-auto` inside this wrapper is what the wrapper was for — see above. */}
+      <SiteFooter />
     </div>
   );
 }

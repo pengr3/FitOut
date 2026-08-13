@@ -25,6 +25,7 @@
 // the redundancy. Phase 15 may decide otherwise with the whole surface in front of it.
 
 import { PublicHeader } from "@/components/site/public-header";
+import { SiteFooter } from "@/components/patterns/site-footer";
 
 export default function AuthLayout({
   children,
@@ -35,6 +36,10 @@ export default function AuthLayout({
       <div className="flex flex-1 flex-col items-center justify-center bg-muted px-4 py-12">
         <div className="w-full max-w-sm">{children}</div>
       </div>
+      {/* SHELL-02. The auth surface shares the PUBLIC composition unmodified (see above), and that
+          includes the footer: `/terms` and `/privacy` are reachable from the page where someone is
+          being asked to create an account, which is the page where they most want to read them. */}
+      <SiteFooter />
     </div>
   );
 }

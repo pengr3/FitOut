@@ -154,3 +154,16 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
   Same shape in `next dev`, and it is **not** caused by the new file — there was no not-found boundary in the tree at all before this plan, so the same shell was already what that URL served. The likely mechanism: the page raises the signal during a render whose layout has already begun streaming the `<Suspense>` shell for the header's auth slot (plan 11-10), leaving no un-sent HTML to replace.
 
   **Consequence:** a visitor with scripting disabled gets a blank page with a correct status on `/listings/<gone>`. **Not fixed here, deliberately** — the only in-app remedy is to return the panel from the page instead of calling `notFound()`, which serves a 2xx for a listing that is gone and tells crawlers to keep the URL (D-13 says the opposite). Whoever picks this up: check whether it survives a layout without a streamed auth slot, and whether Next 16.3+ server-renders these boundaries.
+
+- **[11-14] `e2e/search-and-book.spec.ts:318` is a PRE-EXISTING flake, and the near-misattribution is the finding.** The `directly-seeded confirmed booking → the durable confirmation` test fails intermittently with a strict-mode violation: `getByText(<reference>, { exact: true })` resolves to **2** `<p class="text-2xl … tabular-nums …">` elements after `page.reload()`. It failed on the first run of this plan's prescribed e2e command, immediately after `<SiteFooter />` was wired into `src/app/(app)/layout.tsx`, and one control run with the footer removed passed — which looked exactly like a regression this plan had just introduced.
+
+  **It is not.** The spec was instrumented with a temporary DOM dump between the reload and the failing assertion (added, measured, reverted — the spec is byte-identical to its committed form) and the tree was run in both configurations:
+
+  | configuration | runs | duplicate observed | shape at failure |
+  |---|---|---|---|
+  | `<SiteFooter />` in `(app)/layout.tsx` | 3 | 1 of 3 | `refP:2 main:3 footer:1 hidden:3` |
+  | footer removed | 4 | **2 of 4** | `refP:2 main:3 footer:0 hidden:3` |
+
+  The duplicate is **`<div hidden="" id="S:1">`** holding a second copy of the page's `<main>` — React's streaming buffer for the segment's Suspense boundary, captured before the inline swap script removed it. It is not a hydration mismatch (`data-testid="site-footer"` and `site-header"` are 1 each in the captured DOM), it is never visible to a user, and `hidden` is irrelevant to Playwright's `getByText`, which is what makes the assertion strict-mode-fragile rather than the page wrong.
+
+  **Not fixed here, deliberately** (SCOPE BOUNDARY): the defect is in a spec's locator on a page this plan does not touch, it predates the footer by the measurement above, and `e2e/**` is outside this plan's `files_modified`. **Whoever picks it up:** the fix is a locator that tolerates the streaming buffer (`.locator("main:not([hidden] *)")` scoping, or `.first()` with an explicit count assertion), not a change to `bookings/[id]/page.tsx`. This is the same duplicate-node class as `[11-03]` and `[11-13]`'s entries above, now with a captured DOM and a named mechanism — and it is the third phase-11 instance of *a single e2e result being read as proof*.

@@ -47,13 +47,25 @@
 // `next build`. Falsified in the other direction too: the build with `DATABASE_URL` pointed at
 // `127.0.0.1:59999` exits 0 with this file in the tree, and `/_not-found` stays `○`.
 //
-// ── THE FOOTER IS NOT HERE YET, AND ITS ABSENCE IS TRACKED ────────────────────────────────────────
-// Plan 11-19's spec says this file composes `SiteChrome` AND `SiteFooter`. There is no `SiteFooter`
-// in the tree: `src/components/patterns/site-footer.tsx` is plan 11-14's artifact and 11-14 has not
-// run (it is wave 7, `autonomous: false`, and this plan is wave 9). Inventing one here would fork the
-// component 11-14 owns, and its SUPPORT_EMAIL / D-26 inverted gate with it. So this page carries the
-// header only, and `deferred-items.md` carries the item: 11-14 wires five layouts, and this file is
-// the SIXTH site, because the root not-found is above all five of them.
+// ── THE FOOTER IS HERE NOW, AND THIS FILE IS THE SITE EVERY INVENTORY MISSES ──────────────────────
+// RESOLVED BY PLAN 11-14. This paragraph used to record an absence: 11-19's spec said this file
+// composes `SiteChrome` AND `SiteFooter`, and `src/components/patterns/site-footer.tsx` did not exist
+// yet — 11-14 is wave 7 and `autonomous: false`, this plan was wave 9, and inventing a second footer
+// here would have forked the component 11-14 owns along with its SUPPORT_EMAIL / D-26 inverted gate.
+// The handoff was carried in `deferred-items.md` instead, and 11-14 has now taken it.
+//
+// It is worth saying WHY this file needed the handoff at all, because the same trap is still open for
+// the next person: 11-14's own `files_modified` lists FIVE layouts, and this file is the SIXTH site.
+// The root not-found is ABOVE all five groups — nothing wraps it but `src/app/layout.tsx`, which
+// 11-10 deliberately left chrome-free — so a plan that enumerates group layouts cannot see it. The
+// inventory that found it was an AST scan for `SiteChrome` / `PublicHeader` call sites under
+// `src/app/**`, which returns seven: the six that get a footer, and `listings/[id]/book/layout.tsx`,
+// which must not have one.
+//
+// `SiteFooter` is safe on this prerendered path for the same reason `SiteChrome` is: it imports
+// `next/link` and two constants from `src/lib/site.ts` and reaches nothing else. Measured, not
+// assumed — the route table before and after this edit is byte-identical and this route is still
+// prerendered, with the build run against an unreachable database both times.
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -61,6 +73,7 @@ import { SearchXIcon } from "lucide-react";
 
 import { EmptyState } from "@/components/patterns/empty-state";
 import { SiteChrome } from "@/components/patterns/site-chrome";
+import { SiteFooter } from "@/components/patterns/site-footer";
 import { AnonymousAuthActions } from "@/components/site/anonymous-auth-actions";
 import { Button } from "@/components/ui/button";
 
@@ -99,6 +112,11 @@ export default function NotFound() {
           }
         />
       </main>
+
+      {/* SHELL-02. `mt-auto` is what puts it at the bottom of the viewport rather than directly
+          under a short empty state — this wrapper is the `min-h-dvh flex flex-col` the footer needs,
+          and it is already here for the header's sake. */}
+      <SiteFooter />
     </div>
   );
 }

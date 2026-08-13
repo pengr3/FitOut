@@ -28,6 +28,7 @@ import { auth } from "@/lib/auth";
 import { AmbientNotifications } from "@/components/patterns/ambient-notifications";
 import { BellSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
 import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
+import { SiteFooter } from "@/components/patterns/site-footer";
 import { ModeSwitch } from "@/components/mode-switch";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -93,6 +94,10 @@ export default async function AppLayout({
         }
       />
       <main className="flex flex-1 flex-col">{children}</main>
+      {/* SHELL-02 — the same footer every other composition renders. It sits AFTER `<main>` and
+          OUTSIDE the Suspense boundaries above: it reads two constants and reaches nothing, so it
+          has nothing to wait for and must not be inside a fallback's subtree. */}
+      <SiteFooter />
       {/* WR-04: mount the Toaster exactly once at the shared ancestor, the same idiom the host
           availability page uses. Until now it was mounted ONLY on three host pages, so every
           `toast()` on the booker side resolved into silence — Phase 7's cancel/refund surfaces and

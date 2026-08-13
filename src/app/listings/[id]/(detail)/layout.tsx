@@ -19,6 +19,7 @@
 // `11-14`'s footer hangs off it with `mt-auto`.
 
 import { PublicHeader } from "@/components/site/public-header";
+import { SiteFooter } from "@/components/patterns/site-footer";
 
 export default function ListingDetailLayout({
   children,
@@ -27,6 +28,9 @@ export default function ListingDetailLayout({
     <div className="flex min-h-dvh flex-col">
       <PublicHeader />
       {children}
+      {/* SHELL-02. The `(detail)` / `book/` split above is what lets this land here and NOT one
+          directory over — the sibling layout gets no footer, and the reason is written in it. */}
+      <SiteFooter />
     </div>
   );
 }
