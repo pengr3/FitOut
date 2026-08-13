@@ -35,6 +35,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { ListingCard, type ListingCardData } from "@/components/listing/listing-card";
+import { listingCardPriceParts, type CardPriceSource } from "@/lib/listing/card-price";
 import {
   HOURS_MISSING_STATE,
   HOURS_MISSING_REASON,
@@ -48,13 +49,24 @@ function makeListing(overrides: Partial<ListingCardData> = {}): ListingCardData 
     id: "abc",
     title: "Sunset Court",
     primarySpaceType: "pickleball_court",
-    hourlyRateCents: 30750,
-    dayRateCents: null,
-    currency: "php",
     status: "published",
     coverUrl: null,
-    occupancyMode: "exclusive",
+    ...overrides,
+  };
+}
+
+// D-130 / GATE-05 split the price line in two, so the tests split the same way. The RATE COLUMNS are no
+// longer on `ListingCardData` — they never cross into the client component — so the mode fork is exercised
+// against the server-side helper (cases 3 and 4) and the card is exercised against the strings it is
+// HANDED (cases 3b and 4b). Asserting only the helper would leave the render untested; asserting only the
+// render would let the fork rot. Both halves, one fixture builder each.
+function makePrice(overrides: Partial<CardPriceSource> = {}): CardPriceSource {
+  return {
+    hourlyRateCents: 30750,
+    dayRateCents: null,
     perHeadPriceCents: null,
+    occupancyMode: "exclusive",
+    currency: "php",
     ...overrides,
   };
 }
@@ -70,6 +82,7 @@ describe("ListingCard availability link (T4-hours)", () => {
     const { container } = render(
       <ListingCard
         listing={makeListing()}
+        priceParts={["₱307.50/hr"]}
         availabilityHref="/host/listings/abc/availability"
         editHref="/host/listings/abc/edit"
       />,
@@ -81,7 +94,7 @@ describe("ListingCard availability link (T4-hours)", () => {
   });
 
   it("(2) renders NO availability link on a search card (prop omitted)", () => {
-    const { container } = render(<ListingCard listing={makeListing()} bookable />);
+    const { container } = render(<ListingCard listing={makeListing()} priceParts={["₱307.50/hr"]} bookable />);
 
     // Positive control: the search card renders (its title is present) but carries no availability link.
     expect(screen.getByText("Sunset Court")).toBeTruthy();
@@ -96,21 +109,28 @@ describe("ListingCard availability link (T4-hours)", () => {
 // per-head price but never clears them, and OC-17 permits the mode switch), so case (3) can only pass by
 // keying on the persisted MODE — a fork written against `hourlyRateCents == null` fails it.
 describe("ListingCard price line by occupancy mode (09-14)", () => {
-  it("(3) a drop-in listing reads per person, with no badge and no scarcity", () => {
+  it("(3) a drop-in listing reads per person, keyed on the MODE and not on a null rate column", () => {
+    const parts = listingCardPriceParts(
+      makePrice({
+        occupancyMode: "open_capacity",
+        perHeadPriceCents: 35000,
+        hourlyRateCents: 30750,
+        dayRateCents: 180000,
+      }),
+    );
+
+    // ₱350 + the D-74 service fee — the same string search shows. Both exclusive rates are deliberately
+    // populated, so this can only pass by forking on the persisted mode (09-07's lesson).
+    expect(parts).toEqual(["₱367.50/person"]);
+  });
+
+  it("(3b) the card renders the drop-in string it is handed, with no badge and no scarcity", () => {
     const { container } = render(
-      <ListingCard
-        listing={makeListing({
-          occupancyMode: "open_capacity",
-          perHeadPriceCents: 35000,
-          hourlyRateCents: 30750,
-          dayRateCents: 180000,
-        })}
-        bookable
-      />,
+      <ListingCard listing={makeListing()} priceParts={["₱367.50/person"]} bookable />,
     );
 
     const text = container.textContent ?? "";
-    expect(text).toContain("₱367.50/person"); // ₱350 + the D-74 service fee, the same string search shows
+    expect(text).toContain("₱367.50/person");
     expect(text).not.toContain("/hr");
     expect(text).not.toContain("/day");
     // A management surface: the mode badge and every scarcity string belong to booker-facing cards only.
@@ -120,14 +140,39 @@ describe("ListingCard price line by occupancy mode (09-14)", () => {
     expect(text).not.toContain("Fully booked");
   });
 
-  it("(4) an exclusive listing's shipped /hr · /day line is unchanged", () => {
-    const { container } = render(
-      <ListingCard listing={makeListing({ dayRateCents: 180000 })} bookable />,
-    );
-
+  it("(4) an exclusive listing's shipped /hr · /day parts are unchanged", () => {
     // The host's own set rates, not the all-in booker price — exactly as this card has always printed them.
+    expect(listingCardPriceParts(makePrice({ dayRateCents: 180000 }))).toEqual([
+      "₱307.50/hr",
+      "₱1,800.00/day",
+    ]);
+  });
+
+  it("(4b) the card joins the parts it is handed and falls back when there are none", () => {
+    const { container } = render(
+      <ListingCard
+        listing={makeListing()}
+        priceParts={["₱307.50/hr", "₱1,800.00/day"]}
+        bookable
+      />,
+    );
     expect(container.textContent ?? "").toContain("₱307.50/hr · ₱1,800.00/day");
     expect(container.textContent ?? "").not.toContain("/person");
+
+    cleanup();
+    const empty = render(<ListingCard listing={makeListing()} priceParts={[]} bookable />);
+    expect(empty.container.textContent ?? "").toContain("No pricing yet");
+  });
+
+  it("(4c) every money figure the card renders carries tabular-nums (D-130)", () => {
+    const { container } = render(
+      <ListingCard listing={makeListing()} priceParts={["₱307.50/hr"]} bookable />,
+    );
+    const priceEl = Array.from(container.querySelectorAll("p")).find((p) =>
+      (p.textContent ?? "").includes("₱307.50/hr"),
+    );
+    expect(priceEl).toBeTruthy();
+    expect(priceEl?.className).toContain("tabular-nums");
   });
 });
 
@@ -158,6 +203,7 @@ describe("ListingCard no-hours notice (v1.0 audit finding #4)", () => {
     const { container } = render(
       <ListingCard
         listing={makeListing()}
+        priceParts={["₱307.50/hr"]}
         bookable={false}
         hoursMissing
         availabilityHref="/host/listings/abc/availability"
@@ -183,6 +229,7 @@ describe("ListingCard no-hours notice (v1.0 audit finding #4)", () => {
     const { container } = render(
       <ListingCard
         listing={makeListing()}
+        priceParts={["₱307.50/hr"]}
         bookable
         hoursMissing={false}
         availabilityHref="/host/listings/abc/availability"
@@ -197,7 +244,9 @@ describe("ListingCard no-hours notice (v1.0 audit finding #4)", () => {
   });
 
   it("(9) never leaks the host-only notice onto a search card (availabilityHref omitted)", () => {
-    const { container } = render(<ListingCard listing={makeListing()} bookable hoursMissing />);
+    const { container } = render(
+      <ListingCard listing={makeListing()} priceParts={["₱307.50/hr"]} bookable hoursMissing />,
+    );
 
     // Positive control: the search card renders, it simply carries no host-management signal.
     expect(screen.getByText("Sunset Court")).toBeTruthy();

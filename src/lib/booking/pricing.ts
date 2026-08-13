@@ -2,9 +2,10 @@ import "server-only";
 
 // Server-authoritative frozen price quote (BOOK-01, D-45/D-46, RESEARCH Pattern 4). Like slots.ts and
 // bookability.ts, this is a small, PURE, no-I/O module owning ONE correctness concern: the price the
-// server FREEZES into booking.quotedTotalCents at hold time. The client RailSelectionSummary
-// (availability-calendar.tsx:246-251) computes the SAME figure for display, but that value is
-// display-only and never trusted (CLAUDE.md "never trust the client for price/time"). Phase 5 charges
+// server FREEZES into booking.quotedTotalCents at hold time. RailSelectionSummary shows the SAME figure
+// for display, and as of D-130 / GATE-05 it no longer computes it — the RSC hands it a server-computed
+// all-in table and the client only looks up a key. That value was always display-only and never trusted
+// (CLAUDE.md "never trust the client for price/time"); it is now not even derivable there. Phase 5 charges
 // against the frozen quotedTotalCents, so this value must not move if listing rates change between hold
 // and charge.
 //

@@ -31,13 +31,35 @@ import { getDayAvailability } from "@/app/actions/availability";
 import { BOOKING_HORIZON_DAYS } from "@/lib/availability/horizon";
 import type { DayAvailability } from "@/lib/availability/read-model";
 import { formatMoney } from "@/lib/money";
-import { computeServiceFee } from "@/lib/payments/service-fee";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
 import { DatePassPicker } from "@/components/availability/date-pass-picker";
 
 export type DayLocal = { year: number; month: number; day: number };
+
+/**
+ * D-130 / GATE-05 — the rail's prices, COMPUTED SERVER-SIDE, as a lookup table of integer centavos.
+ *
+ * WHY A TABLE AND NOT A RATE (the props-contract decision, RESEARCH Open Question 3). The obvious
+ * alternative — ship one server-computed all-in UNIT rate and multiply it here — also keeps
+ * `SERVICE_FEE_BPS` out of the bundle, and it is WRONG on a measured ground. `computeServiceFee` rounds
+ * ONCE, over the whole space price: `allIn(n × unit)` is not `n × allIn(unit)`, and the two diverge by up
+ * to `n − 1` centavos. Both call sites below state, in their own comments, that their figure is EXACT
+ * rather than approximate because it is the same arithmetic checkout freezes (D-75) — a client-side
+ * multiply would quietly make that sentence false. A table preserves byte-identity and removes the rate
+ * from the browser entirely, which is the stronger property.
+ *
+ * Every value is ALL-IN integer centavos (space price + service fee). Keys are the selection the booker
+ * made: hours for an exclusive run (1…ALL_IN_TABLE_MAX_HOURS), pass count for a drop-in one
+ * (1…listing.maxOccupancy). A MISSING KEY renders no estimate line — the shipped behaviour when a rate is
+ * null — and is never a cue to compute one here.
+ */
+export type AllInTable = {
+  hourly: Record<number, number>;
+  fullDay: number | null;
+  perPass: Record<number, number>;
+};
 
 /**
  * Phase-9 (OPEN-02 · OC-02 / OC-06) — the DROP-IN selection. A calendar DATE and a number of passes, with
@@ -303,25 +325,26 @@ export function AvailabilityCalendar({
 type RailSelectionSummaryProps = {
   timezone: string;
   currency: string;
-  hourlyRateCents: number | null;
-  dayRateCents: number | null;
   /**
-   * D-74/D-75 — the applied service-fee rate, passed in FROM THE SERVER. This component is inside a
-   * `"use client"` module, so it must not fall back to the SERVICE_FEE_BPS default: a non-public env
-   * override (`SERVICE_FEE_BPS=700`) is not inlined into the browser bundle, so the rail would keep
-   * quoting 5% while checkout charged 7% — the number going UP between browsing and paying, which is
-   * exactly what D-75 forbids. Threading it from the RSC keeps the two provably on the same rate.
+   * D-74/D-75/D-130 — the FINISHED all-in figures, computed on the server.
+   *
+   * THIS PROP REPLACED `serviceFeeBps: number`, and the reason the old one existed is the reason this one
+   * had to go further. The rate was threaded from the RSC so the rail could not fall back to the
+   * SERVICE_FEE_BPS default — a non-public env override (`SERVICE_FEE_BPS=700`) is not inlined into the
+   * browser bundle, so the rail would have kept quoting 5% while checkout charged 7%: the number going UP
+   * between browsing and paying, which is exactly what D-75 forbids. That fixed the VALUE but left the
+   * COMPUTATION on the client, which is what GATE-05 fails the build over: reaching `computeServiceFee`
+   * from a `"use client"` module drags the guarded money graph into the browser bundle. Now nothing about
+   * the fee — not the rate, not the formula — is shipped at all.
    */
-  serviceFeeBps: number;
+  allIn: AllInTable;
 };
 
 /** In the booking rail, ABOVE the CTA: the chosen date · time range · est. price (display-only). */
 export function RailSelectionSummary({
   timezone,
   currency,
-  hourlyRateCents,
-  dayRateCents,
-  serviceFeeBps,
+  allIn,
 }: RailSelectionSummaryProps) {
   const { selection } = useBookingSelection();
   if (!selection) return null;
@@ -335,17 +358,15 @@ export function RailSelectionSummary({
     ? "Full day"
     : `${format(start, "h:mm a", { in: inTz })} – ${format(end, "h:mm a", { in: inTz })}`;
 
-  // The SPACE price for the selection — the same figure quoteWindow freezes at hold time (pricing.ts
-  // documents this formula as byte-identical to the one here, so display and freeze agree).
-  const spaceCents =
-    selection.fullDay ? dayRateCents : hourlyRateCents != null ? hourlyRateCents * hours : null;
   // D-75: the rail is the LAST number a booker sees before checkout, so it must be ALL-IN. Showing the
   // space price here and charging space + fee on the next screen is the "number goes up between browsing
   // and paying" failure D-75 exists to prevent — and at 5% of the booking it is not a rounding edge.
   // Unlike a search card this IS a total for a chosen window, and it is EXACT rather than approximate:
-  // computeServiceFee is applied to the same space price checkout freezes, with the same rate, so the two
-  // agree to the centavo. The shared pure module is used — the fee formula is never re-implemented here.
-  const cents = spaceCents == null ? null : computeServiceFee(spaceCents, serviceFeeBps).allInCents;
+  // the RSC built this table by applying computeServiceFee to the same space price checkout freezes, at
+  // the same rate, so the two agree to the centavo. A LOOKUP, never arithmetic (D-130) — and a lookup is
+  // what keeps "exact" true, since multiplying a per-hour all-in figure here would round n times instead
+  // of once. A missing key means no estimate line, exactly as a null rate always has.
+  const cents = selection.fullDay ? allIn.fullDay : (allIn.hourly[hours] ?? null);
 
   return (
     <div className="space-y-1 rounded-lg border p-3 text-sm">
@@ -371,26 +392,20 @@ export function RailSelectionSummary({
 type RailPassSummaryProps = {
   timezone: string;
   currency: string;
-  /** listing.per_head_price_cents (D-125) — the SPACE price for ONE pass, before the service fee. */
-  perHeadPriceCents: number | null;
   /**
-   * D-74/D-75 — the applied service-fee rate, passed in FROM THE SERVER, for exactly the reason spelled out
-   * on RailSelectionSummary's own prop above. Restating the consequence because this is a money surface and
-   * the trap is silent: this module is `"use client"`, so it must NEVER fall back to the default exported by
-   * `@/lib/payments/config`. A non-public env override is not inlined into the browser bundle, so the rail
-   * would keep quoting 5% while checkout charged 7% — the number going UP between browsing and paying,
-   * which is exactly what D-75 forbids. Threading it from the RSC keeps the two provably on the same rate.
+   * D-74/D-75/D-130 — the FINISHED all-in figures, computed on the server, for exactly the reason spelled
+   * out on RailSelectionSummary's own prop above. Restating the consequence because this is a money surface
+   * and the trap is silent: this module is `"use client"`, so neither the per-head SPACE price nor the fee
+   * rate reaches it any more. It reads `allIn.perPass[passes]` and nothing else. The old pair of props
+   * (`perHeadPriceCents` + `serviceFeeBps`) were together the INPUTS to a price, which is precisely what
+   * D-130 forbids crossing this boundary — a client component may receive money as a finished figure,
+   * never as the ingredients to compute one.
    */
-  serviceFeeBps: number;
+  allIn: AllInTable;
 };
 
 /** In the booking rail, ABOVE the CTA: the chosen date · pass count · est. all-in price (display-only). */
-export function RailPassSummary({
-  timezone,
-  currency,
-  perHeadPriceCents,
-  serviceFeeBps,
-}: RailPassSummaryProps) {
+export function RailPassSummary({ timezone, currency, allIn }: RailPassSummaryProps) {
   const { openSelection } = useBookingSelection();
   if (!openSelection) return null;
 
@@ -400,17 +415,16 @@ export function RailPassSummary({
   });
 
   // D-75, and here the figure is EXACT rather than approximate. Open pricing is purely linear — no duration
-  // term, no surcharge band, no rounding on a rate the booker never sees — so `computeServiceFee(perHead ×
-  // N)` is precisely the total `quoteOpenCapacity` freezes on the row inside the claim's transaction. The
-  // shared pure module is used; the fee formula is never re-implemented here.
+  // term, no surcharge band, no rounding on a rate the booker never sees — so the RSC's
+  // `computeServiceFee(perHead × N)` for this N is precisely the total `quoteOpenCapacity` freezes on the
+  // row inside the claim's transaction. A LOOKUP, never arithmetic (D-130): note that "linear" describes
+  // the SPACE price, not the all-in one, so multiplying an all-in per-pass figure here would still round N
+  // times where checkout rounds once. That is why the table is keyed by pass count.
   //
   // The one case it can differ is a lost race: if the claim grants FEWER heads than were asked for, the
   // frozen total is lower, and the reserve page (09-13) states both figures before anything is charged.
   // The number can go DOWN with an explicit confirmation; it can never go up.
-  const cents =
-    perHeadPriceCents == null
-      ? null
-      : computeServiceFee(perHeadPriceCents * passes, serviceFeeBps).allInCents;
+  const cents = allIn.perPass[passes] ?? null;
 
   return (
     <div className="space-y-1 rounded-lg border p-3 text-sm">

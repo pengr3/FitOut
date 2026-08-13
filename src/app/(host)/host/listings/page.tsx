@@ -18,6 +18,10 @@ import { db } from "@/lib/db";
 import { listing, listingPhoto, hostPayout } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
 import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
+// D-130 / GATE-05: the tile's price line is composed HERE, in the RSC, and handed to the client card as
+// finished strings. See src/lib/listing/card-price.ts for why, and src/lib/search/query.ts for the same
+// seam on the search grid.
+import { listingCardPriceParts } from "@/lib/listing/card-price";
 import { unlistListing, softDeleteListing } from "@/app/actions/listing";
 import {
   ListingCard,
@@ -101,16 +105,19 @@ export default async function HostListingsPage() {
               id: r.id,
               title: r.title,
               primarySpaceType: r.primarySpaceType,
-              hourlyRateCents: r.hourlyRateCents,
-              dayRateCents: r.dayRateCents,
-              currency: r.currency,
               status: r.status,
               coverUrl: coverByListing.get(r.id) ?? null,
-              // Phase 9 (OC-01/D-125): the persisted mode + per-head price, so the card prices a drop-in
-              // listing per person. Read straight off the row — never inferred from which rate is null.
-              occupancyMode: r.occupancyMode,
-              perHeadPriceCents: r.perHeadPriceCents,
             };
+            // D-130 / GATE-05 — the rate columns stop HERE. Phase 9 (OC-01/D-125): the persisted mode and
+            // the per-head price are read straight off the row, never inferred from which rate is null, and
+            // the fork lives in the shared helper so this grid and the search grid cannot drift.
+            const priceParts = listingCardPriceParts({
+              hourlyRateCents: r.hourlyRateCents,
+              dayRateCents: r.dayRateCents,
+              perHeadPriceCents: r.perHeadPriceCents,
+              occupancyMode: r.occupancyMode,
+              currency: r.currency,
+            });
             // The FOURTH deriveBookable term (v1.0 audit finding #4), taken from the ONE grouped query
             // above rather than asked per card — free, and never an N+1 inside a render loop.
             //
@@ -129,6 +136,7 @@ export default async function HostListingsPage() {
               <ListingCard
                 key={r.id}
                 listing={data}
+                priceParts={priceParts}
                 bookable={bookable}
                 hoursMissing={missingHours.has(r.id)}
                 editHref={`/host/listings/${r.id}/edit`}

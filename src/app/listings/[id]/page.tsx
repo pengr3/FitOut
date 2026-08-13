@@ -26,7 +26,8 @@ import { db } from "@/lib/db";
 import { getAvailability, getOpenMonthAvailability } from "@/lib/availability/read-model";
 import { DISPLAY_CURRENCY } from "@/lib/money";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
-import { SERVICE_FEE_BPS } from "@/lib/payments/fees";
+import { computeServiceFee } from "@/lib/payments/service-fee";
+import { ALL_IN_TABLE_MAX_HOURS } from "@/lib/availability/horizon";
 import {
   listing,
   user,
@@ -64,6 +65,7 @@ import {
   BookingSelectionProvider,
   RailPassSummary,
   RailSelectionSummary,
+  type AllInTable,
 } from "@/components/availability/availability-calendar";
 import { BookCta } from "@/components/booking/book-cta";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
@@ -207,6 +209,43 @@ export default async function PublicListingPage({
     },
     DISPLAY_CURRENCY,
   );
+
+  // D-130 / GATE-05 — the rail's every possible price, computed HERE and handed down as finished centavos.
+  //
+  // The rail summaries used to receive `SERVICE_FEE_BPS` and call `computeServiceFee` themselves, from a
+  // `"use client"` module. Threading the rate already fixed the value; this fixes the BOUNDARY, which is
+  // what `import "server-only"` now fails the build over. Note `computeServiceFee`'s rate argument is
+  // omitted deliberately: its default IS SERVICE_FEE_BPS, so this table is computed by the same call
+  // checkout makes, and there is no second place for a rate to be passed differently.
+  //
+  // A TABLE rather than a unit rate, because the fee is rounded ONCE over the whole space price: shipping
+  // `allIn(hourly)` for the client to multiply would round N times and drift from the frozen quote by up to
+  // N−1 centavos, breaking the byte-identity both rail comments claim (D-75). Keys the booker can actually
+  // select, and nothing else — an unlisted key renders no estimate line.
+  const perHead = row.listing.perHeadPriceCents;
+  const hourly = pub.hourlyRateCents;
+  const passCap = Math.max(0, row.listing.maxOccupancy ?? 0);
+  const allIn: AllInTable = {
+    hourly:
+      hourly == null
+        ? {}
+        : Object.fromEntries(
+            Array.from({ length: ALL_IN_TABLE_MAX_HOURS }, (_, i) => [
+              i + 1,
+              computeServiceFee(hourly * (i + 1)).allInCents,
+            ]),
+          ),
+    fullDay: pub.dayRateCents == null ? null : computeServiceFee(pub.dayRateCents).allInCents,
+    perPass:
+      perHead == null
+        ? {}
+        : Object.fromEntries(
+            Array.from({ length: passCap }, (_, i) => [
+              i + 1,
+              computeServiceFee(perHead * (i + 1)).allInCents,
+            ]),
+          ),
+  };
 
   // OC-04 — a drop-in listing's cap is a DAILY admissions count, not a room size, so the line has to say
   // which it is. Written out per branch rather than assembled from a suffix: this is booker-facing copy,
@@ -386,25 +425,20 @@ export default async function PublicListingPage({
               )}
 
               {/* Selection summary — appears once the booker picks a run/full day, or a date and a number
-                  of passes (display-only either way). Both branches compose their money with the SAME
-                  server-threaded fee rate; a client-side default could silently disagree with a configured
-                  override and quote less than checkout charges (D-75). */}
+                  of passes (display-only either way). Neither branch composes money: both LOOK UP a figure
+                  this RSC already computed with the same `computeServiceFee` checkout freezes, so the rail
+                  and the charge agree to the centavo (D-75) and no fee input reaches the browser (D-130). */}
               {isOpenCapacity ? (
                 <RailPassSummary
                   timezone={timezone}
                   currency={DISPLAY_CURRENCY}
-                  perHeadPriceCents={row.listing.perHeadPriceCents}
-                  serviceFeeBps={SERVICE_FEE_BPS}
+                  allIn={allIn}
                 />
               ) : (
                 <RailSelectionSummary
                   timezone={timezone}
                   currency={DISPLAY_CURRENCY}
-                  hourlyRateCents={pub.hourlyRateCents}
-                  dayRateCents={pub.dayRateCents}
-                  // D-75: threaded from the server so the rail's estimate uses the SAME rate checkout
-                  // charges — a client-side default could silently disagree with a configured override.
-                  serviceFeeBps={SERVICE_FEE_BPS}
+                  allIn={allIn}
                 />
               )}
 

@@ -32,7 +32,8 @@
 // own transaction, so a crafted request can only ever be granted DOWN.
 //
 // ZERO ARITHMETIC ON MONEY (O9). This file computes no price of any kind — not a per-head total, not an
-// estimate. The rail composes that with the server-threaded fee rate (RailPassSummary).
+// estimate. The rail does not compose one either any more (D-130 / GATE-05): RailPassSummary LOOKS UP a
+// figure the RSC already computed, so no fee rate and no per-head price reaches either file.
 
 import * as React from "react";
 import { format } from "date-fns";
