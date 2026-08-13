@@ -292,10 +292,19 @@ const CARD_SURFACES: readonly CardSurface[] = [
     why: "The two earnings summary figures. Container swap ONLY — HFLOW-05 is deliberately a token pass, because those numbers have never been real (PayMongo /v2 is sales-gated).",
   },
   {
-    file: "src/app/(public)/invite/[token]/page.tsx",
+    file: "src/components/group/invite-card.tsx",
     pattern: "panel-card",
     status: "adopted",
-    why: "The invite page's `InviteCard` shell, which every one of that route's states renders inside. Copy, RSVP behaviour and the noindex/no-referrer metadata are untouched by the swap.",
+    why:
+      "The invite route's `InviteCard` shell, which every one of that route's states renders inside. " +
+      "Copy, RSVP behaviour and the noindex/no-referrer metadata were untouched by 11-13's swap. THE " +
+      "ROW MOVED IN PLAN 11-19, WITH THE COMPONENT, and it moved for the reason the forward half's " +
+      "failure message names: `InviteCard` was module-private inside " +
+      "`src/app/(public)/invite/[token]/page.tsx` until that plan added a not-found boundary beside " +
+      "the page which must render a byte-identical inactive surface (T-11-ORACLE). Two files that " +
+      "have to keep looking alike is a security property maintained by policy; one component with two " +
+      "call sites is one maintained by construction. The page still renders the shell — it imports it " +
+      "now instead of declaring it.",
   },
   {
     file: "src/app/(host)/host/page.tsx",

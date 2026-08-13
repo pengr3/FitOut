@@ -50,8 +50,7 @@
 
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Link from "next/link";
-import { CalendarIcon, Link2OffIcon, MapPinIcon } from "lucide-react";
+import { CalendarIcon, MapPinIcon } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -65,8 +64,8 @@ import {
   getMyRsvpStatus,
 } from "@/lib/group/rsvp";
 import { inviteTokenSchema } from "@/lib/validation/group";
-import { PanelCard } from "@/components/patterns/panel-card";
 import { Separator } from "@/components/ui/separator";
+import { InviteCard, InviteInactive } from "@/components/group/invite-card";
 import { RsvpForm } from "@/components/group/rsvp-form";
 
 /**
@@ -94,41 +93,15 @@ export const metadata: Metadata = {
  */
 
 /**
- * The card shell every state renders inside — header-less, with a FitOut wordmark lockup at the top so an
- * invited stranger can tell what they have opened (08-UI-SPEC §3, brand trust).
+ * `InviteCard` USED TO BE DECLARED HERE, and it now lives in `@/components/group/invite-card` beside
+ * `InviteInactive`, which is the component this file's inactive branch renders (plan 11-19). Read that
+ * file's header for why: the not-found boundary added next to this page has to render the SAME inactive
+ * surface, and a security property that depends on two files continuing to look alike is a property that
+ * breaks silently the first time somebody restyles one of them.
  *
- * The wordmark is NOT coral. 08-UI-SPEC §Color enumerates this phase's accent exhaustively and assigns the
- * one coral on this page to `Yes, I'm coming`; a coral wordmark would put two of them on a surface whose
- * whole job is a single decision. It matches the shipped booker/host headers instead.
- *
- * THE BOX IS `PanelCard` NOW (DS-11, plan 11-13), AND ONLY THE BOX CHANGED. 11-UI-SPEC names
- * *"`invite/[token]`'s `InviteCard`"* among the five surfaces the pattern replaces. Nothing else in this
- * file moved: the copy, the RSVP behaviour, `INACTIVE_TITLE`/`INACTIVE_BODY` (plan 11-19 owns hoisting
- * those) and the static `metadata` export with its `noindex` + `no-referrer` (plan 11-20 converts it to
- * `generateMetadata` and must carry both across) are byte-unchanged.
- *
- * The inner `space-y-6` is kept as an explicit wrapper rather than dropped onto the pattern: `PanelCard`'s
- * content rhythm is `space-y-4`, and this shell's three blocks — wordmark, rule, state — are the widest
- * spacing on the page. A pattern that took a spacing prop would be a pattern that had stopped deciding
- * anything, so the surface owns its own inner rhythm and the pattern owns the box.
+ * Nothing about the box changed in the move — it is still the `PanelCard` plan 11-13 adopted (DS-11), and
+ * `tests/design/card-pattern-coverage.test.ts`'s inventory row moved with the component, in this commit.
  */
-function InviteCard({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="mx-auto w-full max-w-lg px-4 py-8 sm:py-12">
-      <PanelCard>
-        <div className="space-y-6">
-          <div className="text-center">
-            <Link href="/" className="text-lg font-semibold tracking-tight">
-              FitOut
-            </Link>
-          </div>
-          <Separator />
-          {children}
-        </div>
-      </PanelCard>
-    </main>
-  );
-}
 
 export default async function InvitePage({
   params,
@@ -152,24 +125,13 @@ export default async function InvitePage({
 
   // THE ONE INACTIVE BRANCH. Unknown, malformed, regenerated, voided and cancelled-booking all arrive here,
   // on the same two sentences, with the same 200. Do not "improve" this by telling them apart (T-08-23).
+  //
+  // The two sentences are PASSED IN rather than baked into the component, so this file — the surface —
+  // still owns its copy and still reaches the one declaration in `@/lib/group/rsvp` by import. The
+  // not-found boundary beside this page renders the same component with the same two imports; that both
+  // entrances reach one declaration is machine-checked by tests/design/invite-notfound-parity.test.ts.
   if (!group.active) {
-    return (
-      <InviteCard>
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex flex-col items-center gap-4 py-4 text-center"
-        >
-          {/* Muted, never an alarm colour: a dead link is usually an organizer who rotated it, not a fault
-              of the person holding it (08-UI-SPEC §Color — this phase adds no alarm colour anywhere). */}
-          <Link2OffIcon className="size-8 text-muted-foreground" aria-hidden="true" />
-          <div className="space-y-1">
-            <h1 className="text-xl leading-tight font-semibold">{INACTIVE_TITLE}</h1>
-            <p className="mx-auto max-w-prose text-sm text-muted-foreground">{INACTIVE_BODY}</p>
-          </div>
-        </div>
-      </InviteCard>
-    );
+    return <InviteInactive title={INACTIVE_TITLE} body={INACTIVE_BODY} />;
   }
 
   // ── The event summary (D-122) ─────────────────────────────────────────────────────────────────────────

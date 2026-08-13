@@ -39,24 +39,20 @@
 // are not prerendered, so the DB-free-build assertion is unaffected. The dynamic bailout fires BEFORE
 // any database call, which is why the unreachable-`DATABASE_URL` build still exits 0.
 //
-// ═════════════════════════════════════════════════════════════════════════════════════════════════
-// `Sign up` IS `variant="default"`, NOT `variant="brand"` — AND THAT IS A DEFERRAL, NOT A JUDGEMENT
-// ═════════════════════════════════════════════════════════════════════════════════════════════════
-//
-// Making the acquisition CTA coral is a perfectly defensible product call. It is just not this
-// phase's to make: D-21 reserves the accent for the places someone explicitly asked for it, the
-// reserved-for list is closed at 8 entries, and Phase 15 owns the auth surfaces this button leads to.
-// A neutral primary button is the shipped default for every un-variantted `<Button>` in the app.
+// ── WHERE THE SIGNED-OUT PAIR WENT (plan 11-19) ──────────────────────────────────────────────────
+// `Log in` + `Sign up` — and the paragraph explaining why `Sign up` is `variant="default"` and not
+// `variant="brand"` — now live in `@/components/site/anonymous-auth-actions`, because
+// `src/app/not-found.tsx` renders the same cluster and cannot import this file: the session read
+// below reaches `@/lib/db`, and that route is prerendered. Nothing about the rendered pair changed.
 
 import { Suspense } from "react";
-import Link from "next/link";
 import { headers } from "next/headers";
 
 import { AmbientNotifications } from "@/components/patterns/ambient-notifications";
 import { AuthSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
 import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
+import { AnonymousAuthActions } from "@/components/site/anonymous-auth-actions";
 import { ModeSwitch } from "@/components/mode-switch";
-import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 
 /**
@@ -91,23 +87,12 @@ export function PublicHeader() {
 async function PublicAuthSlot() {
   const session = await auth.api.getSession({ headers: await headers() });
 
-  if (!session?.user) {
-    return (
-      <>
-        <Button variant="ghost" asChild>
-          <Link href="/login">Log in</Link>
-        </Button>
-        {/* `variant="default"` is written out even though it IS the default, which is against the
-            repo's usual idiom (D-21: an un-variantted `<Button>` stays neutral, and the codebase
-            leans on that). This is the one button in the app most likely to attract a future edit to
-            `variant="brand"`, so the neutral is stated as a CHOICE sitting next to the paragraph
-            above explaining why it was chosen — an absence cannot be read as a decision. */}
-        <Button variant="default" asChild>
-          <Link href="/signup">Sign up</Link>
-        </Button>
-      </>
-    );
-  }
+  // THE SIGNED-OUT PAIR MOVED TO `@/components/site/anonymous-auth-actions` (plan 11-19), and the
+  // paragraph above about `Sign up` staying neutral moved with it. `src/app/not-found.tsx` renders the
+  // same cluster and cannot import THIS file — the session read three lines up reaches `@/lib/db`, and
+  // the root not-found is the one prerendered route left in the build. One component, two call sites,
+  // rather than a second signed-out cluster on the app's most-hit anonymous surface.
+  if (!session?.user) return <AnonymousAuthActions />;
 
   const u = session.user as typeof session.user & {
     canBook?: boolean;
