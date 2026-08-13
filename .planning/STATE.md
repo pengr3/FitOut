@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 11-02-PLAN.md — GATE-04's floor and undeclared-id ban are live
-last_updated: "2026-08-13T09:15:00.000Z"
-last_activity: 2026-08-13 -- Plan 11-02 complete (GATE-04 selector contract)
+stopped_at: Completed 11-03-PLAN.md — GATE-01's fail-open closed in configuration; the platform-baseline rule has a standing gate
+last_updated: "2026-08-13T09:38:09.157Z"
+last_activity: 2026-08-13
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 19
+  completed_plans: 20
   percent: 9
 ---
 
@@ -45,12 +45,18 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 3 of 22
-Current Plan: 3
+Plan: 4 of 22
+Current Plan: 4
 Total Plans in Phase: 22
-Status: Executing Phase 11 — plans 01-02 complete
+Status: Executing Phase 11 — plans 01-03 complete
+
+**11-03 (GATE-01's static half) is closed, and the plan prescribed a watched red that cannot fail.** `playwright.config.ts` now carries `updateSnapshots: "none"` **unconditionally** — no environment condition, so the guarantee holds on the author's laptop, which is exactly where an illegal baseline gets minted — plus a second project named exactly `visual` whose entry is **not constructed at all** off Linux (`--project=visual` errors with `Project(s) "visual" not found. Available projects: "chromium"`, after printing the named reason to stderr) and two disjoint `testMatch` globs, verified by dropping a probe spec into `e2e/visual/` and watching **neither** project collect it (total unchanged at 27 tests / 11 files). `@playwright/test` is pinned **exact at 1.60.0** so the container tag `v1.60.0-noble` cannot drift; `git diff` is exactly one line in `package.json` and one in `package-lock.json`. `.gitignore` gained its first `*.png` rules. The comment cites **RESEARCH Finding 3's measured behaviour, not D-135's wording**, because D-135 is wrong for 1.60.0: the default mode does not report green on the run that finds no baseline — it fails that run **non-retriably AND WRITES THE PNG**, so the next bare re-run is green off a baseline the failed run just minted. **THE HEADLINE FINDING IS THAT A PROBE LEAVING THE SUITE GREEN IS A FINDING, NOT A FORMALITY.** The plan told me to strip `#` comments before matching and to watch the comment-only fixture go red; the stripper was neutered and **the whole gate stayed GREEN, 4 passed**, because `hasRule` compares WHOLE LINES and a line beginning `#` can never *equal* a bare rule. Half 1 was already immune without any stripping. Skipping that probe — or rationalising its green — would have shipped a WATCHED RED section describing a mutation that never failed, which is 11-02's finding in a new disguise. Two fixes rather than one: a direct assertion on `ruleLines()` (Rule 2) makes the stripper's **real** job load-bearing — this `.gitignore` holds **50 non-blank lines, 17 prose, 33 rules**, so an unstripped floor of 20 would pass against a file gutted down to its own commentary — and a **fourth** probe (`hasRule` reduced to a substring check) covers the failure mode the fixture was actually written for. All four results are verbatim in the gate's header, **including the green one**. `tests/design/gitignore-baselines.test.ts` is 4 assertions, DB-free, inside `npm run build`, and is **the repo's first test to shell out to `git`**: half 2 asks `git ls-files` rather than walking the filesystem, because an untracked `*-win32.png` is harmless and expected (it is what a local `--update-snapshots` produces) and only a **committed** one is the defect — and because `.gitignore` is *advisory*, so `git add -f` bypasses every rule half 1 asserts. A failed `git` invocation is a **named assertion failure**, never a vacuous pass, and two control pathspecs prove the query shape still matches — one of them crossing a directory boundary, since a real baseline sits four levels deep. Probe (b) staged exactly such a file and **also corrected the gate's own remedy sentence**: `git rm --cached` does NOT delete the working-tree copy (measured — the PNG stayed on disk and `git status --ignored` then reported `!! e2e/visual/`, the harmless end state). Four deviations, all Rules 1-3: `e2e/helpers/theme.ts`'s amended paragraph claimed *"its absence from both is asserted by a grep"* — **no such grep has ever existed** (zero tests reference `playwright.config.ts`; every `screenshot` hit in `tests/` is prose), recorded in place rather than dropped; and the plan's NOT COVERED text names `11-21` for the two dynamic OBSERVED REDs when `11-22`'s own `must_haves` claim both. **GATE-01 stays Pending on purpose** — the static clause is closed, the dynamic pair belongs to `11-22`. Design gate **474/474** (was 470), **25 files (+1 exactly)**; `tsc` 0, build 0, lint 0 errors / 9 warnings — byte-identical to baseline; drizzle still `0025_audit_resolved_by.sql`. **Zero product source files were modified.** `npm run test:e2e` is **19 passed / 2 failed / 6 did not run**, NOT the 17/1 the plan expects: failure 1 is D-6 item 1 verbatim, failure 2 is **new** (`search-and-book.spec.ts:318`, a strict-mode violation on two identical booking-reference paragraphs). Proven not mine by **reverting `playwright.config.ts` to HEAD and reproducing an identical signal**; the render site last changed at 10-11 and no Phase 11 plan has touched it. Logged to `deferred-items.md` with a leading hypothesis (Next dev-mode streaming leaving both copies in the DOM across the `page.reload()`) and an instruction to rule that in or out first. One obligation carried forward: **`11-22`'s visual specs must copy the `reuseExistingServer` stale-stylesheet warning** from `reduced-motion.spec.ts:45-51` — Task 1 asked for it, but `e2e/visual/**` does not exist yet, and a stale server there yields a baseline captured from stale CSS. Next: 11-04.
+
+<details><summary>Previous status (plan 11-02, superseded 2026-08-13)</summary>
 
 **11-02 (GATE-04's regression-blocking half) is closed, and the plan's own probe design had a hole its author could not have seen without running it.** `src/lib/design/selector-contract.ts` declares all **17** structural hooks this milestone may render as a const tuple → derived union → **total `Record`** (D-31, superseding D-134's `SELECTOR-CONTRACT.md` name), every row carrying a mandatory `why` and an `owner` naming the plan that ships it. The compile gate was **watched**: deleting the `panel-card` row gave `tsc` exit 2 and `TS2741: Property '"panel-card"' is missing…`, recorded verbatim — and the *second* useful half of that output is that the required type prints the union **member by member** rather than as the alias, so the missing id is legible on both sides of the error. `tests/design/selector-contract.test.ts` is 5 assertions, DB-free, inside `npm run build`: the **D-32 floor** (`getByRole >= 92`, `getByLabel >= 30`, floors and never equalities, because an equality at 92/30 goes red on every legitimate new assertion Phases 12-19 write and the fix for that red is to bump the number — the rubber-stamp reflex arriving through the gate meant to prevent it), the **undeclared-id ban** (AST scan of all 128 `src/**/*.tsx`, every `data-testid` string literal must be in `SELECTOR_IDS`), and guard-the-guard over **both** trees. **THE HEADLINE FINDING IS THAT A GUARD-THE-GUARD PROBE CAN ITSELF BE VACUOUS, AND THE PLAN'S THREE PROBES WERE.** The plan prescribed breaking `E2E_DIR`; that gives **2 failed / 3 passed** because `0 >= 92` is also false, and a reader concludes the floor covers the vacuity case — exactly backwards. A **fourth** probe was added (Rule 2) breaking `SRC_DIR` instead: **1 failed / 4 passed**, and **the undeclared-id ban PASSED**, reporting a perfectly clean `[]` against a tree it never opened, indistinguishable from a real clean run and green forever. **An absence assertion cannot notice it was handed nothing** — only a positive control over its own scan can, which is why `tsxFiles.length >= 50` now sits beside `specFiles.length >= 10` and why `collectFiles()` returns `[]` rather than throwing (a throw is caught by whoever moved the directory; the realistic failure is a scan narrowed by a wrong glob, which never throws at all). All four REDs are verbatim in the gate's header, including the floor's, where **`.locator(` moved 23 → 24 in the same failure message that showed `getByRole` moving 92 → 91** — which is why the three ungated counts are printed inside the gated assertion rather than buried in a comment. **The measured counts are 92 / 30 / 63 / 23 and they are identical raw and comment-stripped today** — no spec quotes a query token in prose yet, so the shared `stripComments` changes nothing at HEAD and is there for the day a well-meant comment explaining a `getByRole` choice inflates the floor. Only `getByRole` and `getByLabel` are gated: a `getByText` floor would freeze copy this phase is about to rewrite, and a `.locator(` floor would be perverse — those 23 structural calls ARE the fragile selectors the phase exists to reduce. **`11-UI-SPEC.md` § GATE-04 says 22; the tree holds 23 and the measurement wins.** Two further plan-vs-tree corrections: the prescribed floor probe names a `getByRole("link", …)` in `public-listing.spec.ts` that does not exist (the file holds exactly two, at `:107` and `:112`; `:112` was used), and the phase's standing `ls drizzle/ | tail -1` check returns **`meta`**, not `0025_audit_resolved_by.sql`, because `ls` sorts the directory last — later plans should use `ls drizzle/*.sql | tail -1`. **GATE-04 stays Pending on purpose**: three plans claim it, and `11-05` (the (N+1)th-booking mutation proof) and `11-22` (the forward direction — "every declared id actually appears in `src/`") own the other two clauses. That hand-off is written into the gate's NOT COVERED block **and** made auditable by the `owner` column, because at wave 1 the forward assertion is vacuous against an empty set and from wave 4 it is red for every id whose owning plan has not run. Design gate **470/470** (was 465), **24 files (+1 exactly)**; `tsc` 0, lint 0 errors / 9 warnings — byte-identical to baseline; `git diff --stat package.json` empty (T-11-SC); drizzle still `0025_audit_resolved_by.sql`. **Zero source files were modified** — both artifacts are net-new, and `src/` still contains zero `data-testid`, which is what makes the ban's green a real 128-file result rather than an empty one. Next: 11-03.
+
+</details>
 
 <details><summary>Previous status (plan 11-01, superseded 2026-08-13)</summary>
 
@@ -106,7 +112,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-13 -- Plan 11-02 complete (GATE-04 selector contract)
+Last activity: 2026-08-13 -- Plan 11-03 complete (GATE-01 config half + the standing platform-baseline gate)
 
 ## Performance Metrics
 
@@ -217,6 +223,7 @@ Last activity: 2026-08-13 -- Plan 11-02 complete (GATE-04 selector contract)
 | Phase 10 P17 | 34min | 3 tasks + 1 deviation commit — checkpoint DISCHARGED | 9 files (3 created, 6 modified) |
 | Phase 11 P01 | 55 | 3 tasks | 24 files |
 | Phase 11 P02 | 27 | 2 tasks | 2 files |
+| Phase 11 P03 | 25 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -437,6 +444,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 11-02: GATE-04 left Pending — three plans claim it (11-02 floor+ban, 11-05 mutation proof, 11-22 forward direction); marking it complete here would claim two clauses that do not exist
 - [Phase ?]: 11-02: an absence assertion needs a positive control over its own scan — with SRC_DIR broken the undeclared-id ban reported a clean [] over zero files and would have stayed green forever (measured, probe d)
 - [Phase ?]: 11-02: the measured e2e .locator( count is 23, not 11-UI-SPEC GATE-04's 22; the measurement wins, and neither getByText (63) nor .locator( is gated
+- [Phase ?]: 11-03: GATE-01 stays Pending — the config half is closed (updateSnapshots 'none' unconditional, visual project hard-skipped off Linux, @playwright/test pinned exact 1.60.0); the two dynamic OBSERVED REDs belong to 11-22
 
 ### Pending Todos
 
@@ -539,8 +547,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T09:05:58.139Z
-Stopped at: Phase 11 planned — 22 plans in 12 waves, plan-checker 0 blockers
+Last session: 2026-08-13T09:38:09.129Z
+Stopped at: Completed 11-03-PLAN.md — GATE-01's fail-open closed in configuration; the platform-baseline rule has a standing gate
 Resume file: None
 
 Prior session: 2026-08-11T19:32:32.584Z
