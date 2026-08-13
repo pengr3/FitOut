@@ -57,7 +57,13 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { composeWhenLabel } from "@/lib/booking/when-label";
 import { cityLabelFor, venueTzNote } from "@/lib/venue-time";
-import { GROUP_INACTIVE, getGroupByToken, getMyRsvpStatus } from "@/lib/group/rsvp";
+import {
+  GROUP_INACTIVE,
+  INACTIVE_BODY,
+  INACTIVE_TITLE,
+  getGroupByToken,
+  getMyRsvpStatus,
+} from "@/lib/group/rsvp";
 import { inviteTokenSchema } from "@/lib/validation/group";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { Separator } from "@/components/ui/separator";
@@ -74,12 +80,18 @@ export const metadata: Metadata = {
 };
 
 /**
- * The single calm inactive state (Open Q7). ONE pair of constants rendered from ONE branch, mirroring how
- * 08-06 froze `GROUP_INACTIVE` into a single object: two literals in two branches are two things that can
- * drift apart, and the moment they do, the difference between them is the oracle.
+ * `INACTIVE_TITLE` / `INACTIVE_BODY` USED TO BE DECLARED HERE (they were the two lines this comment
+ * replaces, and anything citing this file at :71-72 is looking for them). They now live beside
+ * `GROUP_INACTIVE` in `src/lib/group/rsvp.ts` and are imported above.
+ *
+ * The reasoning they carried is unchanged and is now stated at the declaration: ONE pair of constants
+ * rendered from ONE branch, mirroring how 08-06 froze `GROUP_INACTIVE` into a single object — two literals
+ * in two branches are two things that can drift apart, and the moment they do, the difference between them
+ * is the oracle. What CHANGED is the number of surfaces: plan 11-19 added `not-found.tsx` beside this file,
+ * rendering the same state, so "two branches" became "two files" and a module-private const could no longer
+ * be the single source. `src/app/actions/group.ts` composes the same two into its one-sentence
+ * `INVITE_INACTIVE`, so all three inactive paths now read one declaration.
  */
-const INACTIVE_TITLE = "This invite is no longer active";
-const INACTIVE_BODY = "Ask the organizer for the latest link.";
 
 /**
  * The card shell every state renders inside — header-less, with a FitOut wordmark lockup at the top so an

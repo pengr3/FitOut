@@ -16,6 +16,16 @@
 //      state would let someone walking the token space learn which tokens name a real group. It is one
 //      frozen object so the two paths cannot drift apart by a later edit to one of them.
 //
+//      THE WORDS THAT VALUE IS RENDERED AS LIVE HERE TOO, AS OF PLAN 11-19 (T-11-ORACLE). `GROUP_INACTIVE`
+//      froze the VALUE; `INACTIVE_TITLE` / `INACTIVE_BODY` below freeze the SENTENCES, for exactly the same
+//      reason and one level up. They were module-private consts inside the invite page until 11-19 needed a
+//      SECOND surface — `invite/[token]/not-found.tsx` — to render the identical state, and two literals in
+//      two files are two things that drift; the moment they drift, the difference between them is the
+//      oracle this property exists to close. They are hoisted to this module rather than exported from a
+//      `page.tsx` because the analog they mirror (`GROUP_INACTIVE`) is already here, because the invite
+//      page's own comment pointed here, and because a route module's named exports are a shape Next's
+//      segment-export validation has opinions about.
+//
 //   3. `db.execute` HANDS BACK `timestamptz` AS POSTGRES TEXT, NOT AS A Date (the repo-wide 07-06 contract
 //      documented on bookings-query.ts:RawBookingRow). Every timestamp below is therefore selected through
 //      the shared `isoUtc` mask and hydrated ONCE, here, at the boundary. A `as unknown as` cast over a
@@ -101,6 +111,29 @@ export type GroupByToken =
  * return THIS object — one frozen constant rather than three object literals that could drift apart.
  */
 export const GROUP_INACTIVE: GroupByToken = Object.freeze({ active: false as const });
+
+/**
+ * THE two sentences that value is rendered as — the ONLY declaration of either one in `src/`
+ * (T-11-ORACLE, plan 11-19). Values are byte-unchanged from the invite page they were hoisted out of.
+ *
+ * THREE consumers, zero copies:
+ *   • `src/app/(public)/invite/[token]/page.tsx`      — the one inactive branch (08-06's single state)
+ *   • `src/app/(public)/invite/[token]/not-found.tsx` — the same state, reached the other way
+ *   • `src/app/actions/group.ts`                      — `INVITE_INACTIVE`, composed as `${TITLE}. ${BODY}`,
+ *                                                       the sentence `submitRsvp` returns for BOTH a
+ *                                                       malformed and an unknown token
+ *
+ * A FOURTH COPY IS THE VULNERABILITY, not a style breach: the invite token is a bearer credential in a
+ * URL, and the whole control is that every way of failing to resolve one produces the same words. A
+ * reword applied to two of three sites tells an attacker walking the token space which shapes exist.
+ * `tests/design/invite-notfound-parity.test.ts` asserts each sentence appears as a string literal exactly
+ * ONCE in `src/`, and that every other site reaches it by import.
+ *
+ * Deliberately NOT `Object.freeze`d or joined into one object: they are primitives, so they are already
+ * immutable, and the two render in separate elements (`<h1>` / `<p>`) on both surfaces.
+ */
+export const INACTIVE_TITLE = "This invite is no longer active";
+export const INACTIVE_BODY = "Ask the organizer for the latest link.";
 
 type RawTokenRow = {
   groupId: string;

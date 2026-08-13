@@ -66,6 +66,8 @@ import { composeWhenLabel } from "@/lib/booking/when-label";
 import { claimSeat } from "@/lib/group/seat-claim";
 import { makeInviteToken } from "@/lib/group/token";
 import {
+  INACTIVE_BODY,
+  INACTIVE_TITLE,
   getGroupByToken,
   getOwnedGroupById,
   normalizeEmail,
@@ -107,8 +109,18 @@ const NEEDS_SESSION = "Sign in to manage your bookings." as const;
 const TOO_FAST = "You're going a little fast. Please try again in a moment." as const;
 /** D-119 — a booking that is not paid-and-confirmed cannot host a group. Same words as DENIED, on purpose. */
 const NOT_CONFIRMED = DENIED;
-/** Unknown = revoked = voided = cancelled, all one sentence (T-08-17, no oracle). */
-const INVITE_INACTIVE = "This invite is no longer active. Ask the organizer for the latest link." as const;
+/**
+ * Unknown = revoked = voided = cancelled, all one sentence (T-08-17, no oracle).
+ *
+ * COMPOSED FROM THE HOISTED CONSTANTS RATHER THAN RETYPED (plan 11-19, T-11-ORACLE). This literal was the
+ * THIRD copy of the invite-inactive copy in `src/` — the page had two more — and the invite page's own
+ * comment already said why that is dangerous rather than merely untidy: the token is a bearer credential
+ * in a URL, so every way of failing to resolve one has to produce the same words, and a reword applied to
+ * two of three sites is an enumeration oracle. The rendered string is byte-identical to the literal this
+ * replaces; `${TITLE}. ${BODY}` is the join, because the two constants are a heading and a body on the
+ * page and one sentence in an action result.
+ */
+const INVITE_INACTIVE = `${INACTIVE_TITLE}. ${INACTIVE_BODY}` as const;
 const RSVP_CLOSED = "RSVPs have closed — this session has already started." as const;
 const RSVP_FAILED = "We couldn't save your RSVP. Try again." as const;
 const GROUP_NOT_ACTIVE = "This group is no longer active." as const;

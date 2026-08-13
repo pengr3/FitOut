@@ -34,13 +34,23 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { user, listing, booking, bookingGroup } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
+import { INACTIVE_BODY, INACTIVE_TITLE } from "@/lib/group/rsvp";
 
 const HOUR = 60 * 60 * 1000;
 const PASSWORD = "averylongpassword";
 const HOST_EMAIL = "rrl_host@example.com";
 const ORG_EMAIL = "rrl_organizer@example.com";
 
-/** The shipped copy, pinned here so a re-word cannot silently turn one branch into an oracle. */
+/**
+ * The shipped copy, pinned here so a re-word cannot silently turn one branch into an oracle.
+ *
+ * STILL A LITERAL AFTER PLAN 11-19'S HOIST, ON PURPOSE — and the copy-pin test below is the other half.
+ * 11-19 made `src/lib/group/rsvp.ts` the ONE declaration of these sentences in `src/`, which is what closes
+ * the drift between the three surfaces that render them. It does not pin the WORDS: a gate written over
+ * imports is green for any value, correctly, because there is only one. If this file also read the
+ * constants, nothing anywhere would notice the shipped sentence changing — so the pin stays a literal and
+ * the test below asserts the literal still names what `submitRsvp` actually composes.
+ */
 const INVITE_INACTIVE = "This invite is no longer active. Ask the organizer for the latest link.";
 const TOO_FAST = "You're going a little fast. Please try again in a moment.";
 /** The shipped per-link budget (src/app/actions/group.ts RSVP_RATE_LIMIT). */
@@ -201,6 +211,16 @@ beforeEach(() => {
   sessionHeaders.cookie = "";
   limiter.__resetRateLimit();
   dbExecuteCalls = 0;
+});
+
+describe("T-11-ORACLE — the pinned copy still names the shipped constants", () => {
+  it("INVITE_INACTIVE is exactly `${INACTIVE_TITLE}. ${INACTIVE_BODY}`", () => {
+    // The literal above is this suite's independent record of what a person actually reads. The hoist made
+    // one declaration serve three surfaces; this line is what makes a re-word of that declaration a RED
+    // test somebody has to look at, rather than a silent change to the words a bearer-credential failure
+    // speaks in. Failing here is not a bug — it is the copy change asking to be acknowledged.
+    expect(`${INACTIVE_TITLE}. ${INACTIVE_BODY}`).toBe(INVITE_INACTIVE);
+  });
 });
 
 describe("D-118/CR-04 — an unresolvable token mints no rate-limit bucket", () => {
