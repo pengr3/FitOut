@@ -143,6 +143,57 @@ jobs:
           # property it exists to protect is gone silently.
           DATABASE_URL: postgres://unreachable:unreachable@127.0.0.1:59999/nope
 
+          # ── BUILD-ONLY PLACEHOLDERS. NOT SECRETS. NEVER MAKE THEM SECRETS. ──────────────
+          # The very first CI run (run 31697376606) went red here, and it found a REAL defect
+          # that had been latent for 167 commits and that NO local run could ever surface:
+          #
+          #   Error: BETTER_AUTH_SECRET is not set. Refusing to boot in production with a
+          #   weak/default auth secret.
+          #     at Object.<anonymous> (.next/server/app/api/cloudinary/sign/route.js:15:3)
+          #   > Build error occurred
+          #   Error: Failed to collect page data for /api/cloudinary/sign
+          #
+          # This was NOT a database error — `127.0.0.1:59999` never came into it, so job 1's
+          # DB-free property held and the assertion above stands untouched. The actual finding
+          # is narrower and worse: `next build` sets NODE_ENV=production, which arms every
+          # fail-closed production boot guard in the tree, and `npm run build` therefore was
+          # never environment-independent. It passes on a developer laptop only because dotenv
+          # injects 16 keys from `.env.local`. A runner has no `.env.local`, and neither does a
+          # fresh clone.
+          #
+          # An AST scan of all 230 files in `src/` finds FIVE module-scope boot guards that
+          # throw on env. TWO of them already solve this correctly, with an explicit build
+          # exemption (`NEXT_PHASE !== "phase-production-build"`):
+          #
+          #   src/app/api/inngest/route.ts:30   INNGEST_SIGNING_KEY        exempt — OK
+          #   src/lib/paymongo.ts:39            PLATFORM_WALLET_*          exempt — OK
+          #   src/lib/auth.ts:43                BETTER_AUTH_SECRET         NOT exempt — fires
+          #   src/lib/paymongo.ts:27            PAYMONGO_SECRET_KEY        NOT exempt — fires
+          #   src/app/api/paymongo/webhook/route.ts:36
+          #                                     PAYMONGO_WEBHOOK_SECRET    NOT exempt — fires
+          #
+          # The three below are supplied here rather than by touching those guards, because
+          # every one of them is a fail-closed SECURITY control (WR-03) and making a red check
+          # green by softening a security control is the worst trade available. The guards keep
+          # their exact production severity. See the SUMMARY for the recommendation that the
+          # three non-exempt guards adopt the two exempt ones' `NEXT_PHASE` clause — that is a
+          # decision about a security control's production branch, so it is raised, not taken.
+          #
+          # RULES FOR THESE VALUES, which is why they look the way they do:
+          #   * They are deliberately, visibly fake and self-describing. None uses a real
+          #     credential prefix — in particular NOT PayMongo's `sk_test_`/`sk_live_` shape —
+          #     so none can be mistaken for a credential, and none could function as one if it
+          #     ever leaked into a request. A live API rejects them immediately and loudly.
+          #   * They exist ONLY to get module evaluation past a boot guard during page-data
+          #     collection. Nothing here signs, encrypts, verifies or authenticates anything:
+          #     `next build` makes no PayMongo call and mints no session.
+          #   * They are literals in a public file ON PURPOSE (T-11-CISECRET). Do NOT promote
+          #     them to `secrets.*`. A GitHub secret here would imply a real credential is
+          #     needed to BUILD, which is exactly the property this job exists to disprove.
+          BETTER_AUTH_SECRET: ci-build-only-placeholder-not-a-real-secret
+          PAYMONGO_SECRET_KEY: ci-build-only-placeholder-not-a-real-key
+          PAYMONGO_WEBHOOK_SECRET: ci-build-only-placeholder-not-a-real-webhook-secret
+
   # ------------------------------------------------------------------------------------------
   # JOB 2 — the full vitest suite against a real database.
   #
