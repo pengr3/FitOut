@@ -102,3 +102,21 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
   ```
 
   Every request to `/listings/[id]` returned **HTTP 500** — reproducible by `curl`, and it made `public-listing.spec.ts` fail on a DIFFERENT test on each run (`:116`, then `:97`), which reads exactly like flakiness. `taskkill /PID <pid> /F` followed by a fresh Playwright-started server turned 2 failed / 3 did not run into **6 passed**. Whoever debugs a red e2e run: **check for a pre-existing dev server before attributing anything to the tree** — `.next/dev/logs/next-development.log` holds the worker-crash line, and a 500 on a route whose page source cannot throw is the tell. Some share of the "e2e is flaky on this box" history is likely this.
+
+- **[11-12] `e2e/open-capacity.spec.ts:376` (D-6 item 1 / `[11-03]` failure 1) is STILL red on 14 Aug 2026, its date has rolled to `Monday, Aug 17`, and it is NOT the stale-dev-server class `[11-11](b)` describes.** Three new pieces of evidence, all measured while verifying plan 11-12:
+
+  **(a) The failure is date-relative, and the assertion moved with the clock.** `[11-03]` recorded it as *"the `Saturday, Aug 15` panel heading"* on 13 Aug; today the identical assertion reads:
+
+  ```
+  Locator: getByRole('heading', { name: 'Monday, Aug 17' })
+  Expected: visible          Error: element(s) not found
+  at e2e/open-capacity.spec.ts:404:80
+  ```
+
+  `spotsDate = dayAt(offset)` with `offset = 3`, so the target is always "three days from now" and the weekday changes daily. Worth noting alongside 11-10's report that `open-capacity` passed **8 passed** in isolation on 13 Aug: if that run is trustworthy, the spec passes on some weekdays and fails on others, which is a much sharper lead than "flaky".
+
+  **(b) `pickDay()` silently does not select.** Playwright's `error-context.md` snapshot shows the calendar still on the DEFAULT selection after the click — `gridcell "Today, Friday, August 14th, 2026, selected" [selected]` — while `button "Monday, August 17th, 2026"` is present, in-month and ENABLED in the same grid. So the locator resolved and the click did not throw; the selection just never moved. That is a click-lands-before-hydration / re-render-resets-state shape, not a missing element, and it is the thing to instrument next (`pickDay` at `e2e/open-capacity.spec.ts:364`).
+
+  **(c) NOT the stale-server class, and NOT plan 11-12.** Two controls, both run today:
+  - **Fresh server:** the long-running `next dev` on :3000 was killed (`taskkill /PID 18380 /F`, port confirmed dead) and Playwright started its own. Identical result — `1 failed / 5 did not run`, same test, same assertion. `[11-11](b)`'s dev-server hypothesis is excluded for this one.
+  - **Pre-plan tree:** all five files plan 11-12 touches were reverted with `git checkout 7c8ef6b -- …` and the spec re-run. **Identical result.** Restored and re-verified afterwards. Three consecutive runs on the current tree produced the same failure, so this is reproducible rather than flaky — which makes it the most tractable of Phase 11's red e2e specs and the one worth taking first.
