@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 12
+current_plan: 13
 status: executing
-stopped_at: Completed 11-11-PLAN.md
-last_updated: "2026-08-13T16:40:19.755Z"
+stopped_at: Completed 11-12-PLAN.md
+last_updated: "2026-08-13T17:31:37.727Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 28
+  completed_plans: 29
   percent: 9
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 12 of 22
-Current Plan: 12
+Plan: 13 of 22
+Current Plan: 13
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -244,6 +244,7 @@ Last activity: 2026-08-13
 | Phase 11 P06 | 2h | 3 tasks | 3 files |
 | Phase 11 P10 | 62min | 3 tasks | 17 files |
 | Phase 11 P11 | 96min | 2 tasks | 11 files |
+| Phase 11 P12 | 58min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -489,6 +490,9 @@ Recent decisions affecting current work:
 - [Phase 11]: 11-11 (RowCard extensions): a pattern's prop table is a HYPOTHESIS until a surface adopts it. 11-08 shipped RowCard prop-complete against the UI-SPEC table; adoption measured that the table did not describe the surfaces the same spec names as adopters. Three props added, each forced by a named adopter and each preserving shipped DOM: children (all four render a dl, which is invalid in meta's p and click-stealing in actions), optional href (request/payout rows are terminal), media optional AS A WHOLE BOX (three rows have no thumbnail; an empty 48px square is a defect a refactor introduced). Correct the pattern in the adoption commit — that is the right place.
 - [Phase 11]: 11-11 (search tile reorder): the price now renders LAST because ResultCard owns money's optical column, so distance and the availability line moved above it. Decided deliberately, not discovered in a screenshot diff (11-08 flagged it). The exact-equality regression pin in search-card-open.test.tsx case (9) was reordered in the same commit with its RED quoted verbatim — two segments moved, zero text changed. 'Service fee included' is passed INSIDE the price node, which makes D-ELM-01 contiguity structural rather than positional and kept case (7) green through a whole-container rewrite.
 - [Phase 11]: 11-11 (e2e diagnosis): two distinct failure classes on this box were being read as one flake. (a) A STALE next dev process whose render workers died 500s every route, and playwright.config.ts:113 reuseExistingServer makes Playwright serve the whole suite from it — killing it turned 2 failed/3 did not run into 6 passed. Check for a pre-existing dev server BEFORE attributing red to the tree. (b) [11-03]'s duplicate-node defect reproduces on a SECOND page (cancel.spec.ts:241, two identical p elements from a source site that renders one); established by running the same spec three times on one tree — pass, fail, pass. A single green run proves as little as a single red one.
+- [Phase 11]: 11-12: the plan's one-child-two-slots shape is impossible — SiteChrome's nav and actions are two DOM positions; shipped as two async exports in one file with one prohibition header
+- [Phase 11]: 11-12: a security gate is asserted by LEXICAL CONTAINMENT (inside the default export, no JSX ancestor), never source order — source order is red on the correct tree and green on the extract-into-a-sibling break, both measured
+- [Phase 11]: 11-12: AUTH_SLOT_ICON claimed the bell is size-8; the shipped bell is size-11 (44px measured). NOTIFICATION_BELL_BOX added and the docblock corrected — the prescribed Suspense fallback would have shipped a 132px reflow on every authenticated page
 
 ### Pending Todos
 
@@ -591,8 +595,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T16:39:33.890Z
-Stopped at: Completed 11-11-PLAN.md (five of seven named card surfaces adopted ResultCard/RowCard; the two that did not — `listing-card.tsx` and `notification-item.tsx` — are MEASURED refusals raised as UI-SPEC *Replaces*-list corrections, and a stale `next dev` process was found 500-ing every route through Playwright's `reuseExistingServer`) — next 11-12
+Last session: 2026-08-13T17:31:37.707Z
+Stopped at: Completed 11-12-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-11T19:32:32.584Z
