@@ -163,6 +163,10 @@ None. This plan adds no network endpoint, no auth path, no file access and no sc
 - **One caution for wave 4 onwards.** The ban is syntactic: it sees string literals in `.tsx` JSX attributes. If a pattern component ever forwards a `data-testid` it received as a prop rather than writing the literal, the literal still has to appear at some call site for the ban to see it — a component that constructs the id internally is invisible to this gate and to `11-22`'s forward assertion alike.
 - **GATE-04 remains Pending.** Two clauses outstanding: `11-05` (the mutation proof) and `11-22` (the forward direction).
 
+## Self-Check: PASSED
+
+Both created files exist on disk; all three commits (`1f82ccc`, `9d6032c`, `7aed77e`) resolve in `git log`.
+
 ---
 *Phase: 11-quality-gates-pattern-layer-app-shell*
 *Completed: 2026-08-13*

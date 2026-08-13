@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 11-01-PLAN.md — GATE-05's build-side half is live
-last_updated: "2026-08-13T08:50:24.959Z"
-last_activity: 2026-08-13 -- Plan 11-01 complete (GATE-05 server-only boundary)
+stopped_at: Completed 11-02-PLAN.md — GATE-04's floor and undeclared-id ban are live
+last_updated: "2026-08-13T09:15:00.000Z"
+last_activity: 2026-08-13 -- Plan 11-02 complete (GATE-04 selector contract)
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 18
+  completed_plans: 19
   percent: 9
 ---
 
@@ -45,12 +45,18 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 2 of 22
-Current Plan: 2
+Plan: 3 of 22
+Current Plan: 3
 Total Plans in Phase: 22
-Status: Executing Phase 11 — plan 01 complete
+Status: Executing Phase 11 — plans 01-02 complete
+
+**11-02 (GATE-04's regression-blocking half) is closed, and the plan's own probe design had a hole its author could not have seen without running it.** `src/lib/design/selector-contract.ts` declares all **17** structural hooks this milestone may render as a const tuple → derived union → **total `Record`** (D-31, superseding D-134's `SELECTOR-CONTRACT.md` name), every row carrying a mandatory `why` and an `owner` naming the plan that ships it. The compile gate was **watched**: deleting the `panel-card` row gave `tsc` exit 2 and `TS2741: Property '"panel-card"' is missing…`, recorded verbatim — and the *second* useful half of that output is that the required type prints the union **member by member** rather than as the alias, so the missing id is legible on both sides of the error. `tests/design/selector-contract.test.ts` is 5 assertions, DB-free, inside `npm run build`: the **D-32 floor** (`getByRole >= 92`, `getByLabel >= 30`, floors and never equalities, because an equality at 92/30 goes red on every legitimate new assertion Phases 12-19 write and the fix for that red is to bump the number — the rubber-stamp reflex arriving through the gate meant to prevent it), the **undeclared-id ban** (AST scan of all 128 `src/**/*.tsx`, every `data-testid` string literal must be in `SELECTOR_IDS`), and guard-the-guard over **both** trees. **THE HEADLINE FINDING IS THAT A GUARD-THE-GUARD PROBE CAN ITSELF BE VACUOUS, AND THE PLAN'S THREE PROBES WERE.** The plan prescribed breaking `E2E_DIR`; that gives **2 failed / 3 passed** because `0 >= 92` is also false, and a reader concludes the floor covers the vacuity case — exactly backwards. A **fourth** probe was added (Rule 2) breaking `SRC_DIR` instead: **1 failed / 4 passed**, and **the undeclared-id ban PASSED**, reporting a perfectly clean `[]` against a tree it never opened, indistinguishable from a real clean run and green forever. **An absence assertion cannot notice it was handed nothing** — only a positive control over its own scan can, which is why `tsxFiles.length >= 50` now sits beside `specFiles.length >= 10` and why `collectFiles()` returns `[]` rather than throwing (a throw is caught by whoever moved the directory; the realistic failure is a scan narrowed by a wrong glob, which never throws at all). All four REDs are verbatim in the gate's header, including the floor's, where **`.locator(` moved 23 → 24 in the same failure message that showed `getByRole` moving 92 → 91** — which is why the three ungated counts are printed inside the gated assertion rather than buried in a comment. **The measured counts are 92 / 30 / 63 / 23 and they are identical raw and comment-stripped today** — no spec quotes a query token in prose yet, so the shared `stripComments` changes nothing at HEAD and is there for the day a well-meant comment explaining a `getByRole` choice inflates the floor. Only `getByRole` and `getByLabel` are gated: a `getByText` floor would freeze copy this phase is about to rewrite, and a `.locator(` floor would be perverse — those 23 structural calls ARE the fragile selectors the phase exists to reduce. **`11-UI-SPEC.md` § GATE-04 says 22; the tree holds 23 and the measurement wins.** Two further plan-vs-tree corrections: the prescribed floor probe names a `getByRole("link", …)` in `public-listing.spec.ts` that does not exist (the file holds exactly two, at `:107` and `:112`; `:112` was used), and the phase's standing `ls drizzle/ | tail -1` check returns **`meta`**, not `0025_audit_resolved_by.sql`, because `ls` sorts the directory last — later plans should use `ls drizzle/*.sql | tail -1`. **GATE-04 stays Pending on purpose**: three plans claim it, and `11-05` (the (N+1)th-booking mutation proof) and `11-22` (the forward direction — "every declared id actually appears in `src/`") own the other two clauses. That hand-off is written into the gate's NOT COVERED block **and** made auditable by the `owner` column, because at wave 1 the forward assertion is vacuous against an empty set and from wave 4 it is red for every id whose owning plan has not run. Design gate **470/470** (was 465), **24 files (+1 exactly)**; `tsc` 0, lint 0 errors / 9 warnings — byte-identical to baseline; `git diff --stat package.json` empty (T-11-SC); drizzle still `0025_audit_resolved_by.sql`. **Zero source files were modified** — both artifacts are net-new, and `src/` still contains zero `data-testid`, which is what makes the ban's green a real 128-file result rather than an empty one. Next: 11-03.
+
+<details><summary>Previous status (plan 11-01, superseded 2026-08-13)</summary>
 
 **11-01 (GATE-05) is closed, and the plan's own `must_haves` contained a claim the tree cannot produce.** `import "server-only"` now guards eight money/availability computation modules, and `npm run build` hard-fails on any client graph that reaches them (D-34) — with **zero packages installed**, because Next aliases the specifier itself. Two splits made that possible without false positives: the three money rates left `payments/config.ts` for a new guarded `payments/fees.ts` (leaving the 14 timing constants `slot-picker.tsx:43` and `request-row.tsx:34` legitimately import), and `BOOKING_HORIZON_DAYS` left `availability/slots.ts` for a new unguarded `availability/horizon.ts`. Both live D-130 violations are fixed and **`SERVICE_FEE_BPS` is provably absent from every emitted client chunk — 5 chunks at HEAD, 0 now**. **THE HEADLINE FINDING IS THAT THE BUILD IS A LOWER BOUND, NOT A LIST.** The plan expected ONE failing build naming `listing-card.tsx` AND `availability-calendar.tsx`; that build does not exist. Turbopack prints **one import trace per (module, environment)**, so RED #1 (6 errors) named `listing-card.tsx` in every client trace and never mentioned `availability-calendar.tsx` — whose guard was already in place and whose `computeServiceFee` import was untouched. Only after the first was repaired did RED #2 (4 errors) name the second. Adopting `server-only` on a multi-offender tree is a **fix-and-rebuild loop**, and a plan reading run #1 as complete ships the rest; what closes it is the emitted-chunk grep, a count over the whole output rather than a first-match trace. Both REDs are committed verbatim in the gate's header, with the sentence naming what did NOT fail — `slot-picker.tsx` and `request-row.tsx` are absent from every diagnostic, and no diagnostic mentions `slots.ts`/`read-model.ts`/`units.ts` at all, which is what makes the two splits correct rather than lucky. **The props-contract decision (RESEARCH Open Question 3) went to a TABLE, not a unit rate, on a measured ground:** `computeServiceFee` rounds ONCE over the whole space price, so `n × allIn(unit) ≠ allIn(n × unit)` — at the seeded ₱307.50 rate the multiply runs **ahead** of the frozen quote, bounded by n−1 centavos, which is D-75's forbidden direction. Both rail call sites' own comments call their figure *exact*; a multiply would have made those sentences false while every gate stayed green. That argument is now **executable** (`tests/booking/all-in-table.test.ts` case 2) rather than prose. `ListingCardData` **lost its five rate columns entirely** rather than keeping them unused — the inputs are structurally absent from the client, so the arithmetic cannot return without a deliberate props change. Gate: `tests/design/server-only-guards.test.ts`, 7 assertions, DB-free, inside `npm run build`, **watched red THREE ways** (guard deleted → 1/5 naming that file; guard ADDED to `config.ts` → 1/5 on a *different* assertion; transitivity broken by inlining the formula → 1/6 — and that third is the one **Turbopack itself goes quiet on**, because nothing guarded is reached any more). **Grep is banned in that file for a measured reason:** `grep -rn "server-only" src/` returned 6 hits across 5 files at HEAD and **every one was a comment**. The same collision recurred at verification time — grep still finds `computeServiceFee` 4× and `allInRateParts` 2× in the two fixed components, while **parsed, both contain ZERO identifier nodes** for any of the six forbidden names. Design gate **465/465** (was 458), 23 files (+1 exactly); full DB suite **1216 passed / 4 skipped** (pre-plan 1207; +3 card, +6 table); `tsc` 0, build 0, lint 0 errors / 9 warnings — byte-identical to baseline. `git diff --stat package.json` empty; drizzle still at `0025_audit_resolved_by.sql` (GATE-06 intact). Five deviations, all Rules 1-3, all documented: the plan's importer list missed `listings/[id]/page.tsx:29`; `slots.ts` had to RE-EXPORT the horizon for three shipped files; and three Rule-2 extractions (`card-price.ts`, `all-in-table.ts`, the transitivity assertion) exist because composing inline would have left the 09-14 mode fork and T-11-PRICEDRIFT's own mitigation untestable. **NOT DONE: `npm run test:e2e` was not run** — the plan does not ask for it and the 80 DB-suite files covering those surfaces pass, but the listing page's rail props changed materially, so a `public-listing.spec.ts` pass before the phase closes is cheap insurance.
+
+</details>
 
 <details><summary>Previous status (plan 10-17 Tasks 1-2, superseded 2026-08-12)</summary>
 
@@ -100,7 +106,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-13 -- Plan 11-01 complete (GATE-05 server-only boundary)
+Last activity: 2026-08-13 -- Plan 11-02 complete (GATE-04 selector contract)
 
 ## Performance Metrics
 
@@ -210,6 +216,7 @@ Last activity: 2026-08-13 -- Plan 11-01 complete (GATE-05 server-only boundary)
 | Phase 10 P16 | 45min | 3 tasks + 1 deviation commit | 9 files (5 created, 4 modified) |
 | Phase 10 P17 | 34min | 3 tasks + 1 deviation commit — checkpoint DISCHARGED | 9 files (3 created, 6 modified) |
 | Phase 11 P01 | 55 | 3 tasks | 24 files |
+| Phase 11 P02 | 27 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -427,6 +434,9 @@ Recent decisions affecting current work:
 - [Phase 10]: [10-16]: D-9 opened — the preview's utilities ship to production where the route 404s, measured at 118,732 → 119,835 bytes (**+1,103, +0.93%**) on clean rebuilds of both sides. Both removal mechanisms (excluding the directory from the content root; a hand-maintained safelist) are worse, and are priced in the entry.
 - [Phase ?]: GATE-05: the booking rail receives a server-computed all-in TABLE, not a unit rate — computeServiceFee rounds once over the whole space price, so a client-side multiply drifts from the frozen quote by up to n-1 centavos in D-75's forbidden direction
 - [Phase ?]: GATE-05: Turbopack prints ONE import trace per module, so the first failing build is a LOWER BOUND on violations, never the list — adopting server-only on a multi-offender tree is a fix-and-rebuild loop, closed by the emitted-chunk grep
+- [Phase ?]: 11-02: GATE-04 left Pending — three plans claim it (11-02 floor+ban, 11-05 mutation proof, 11-22 forward direction); marking it complete here would claim two clauses that do not exist
+- [Phase ?]: 11-02: an absence assertion needs a positive control over its own scan — with SRC_DIR broken the undeclared-id ban reported a clean [] over zero files and would have stayed green forever (measured, probe d)
+- [Phase ?]: 11-02: the measured e2e .locator( count is 23, not 11-UI-SPEC GATE-04's 22; the measurement wins, and neither getByText (63) nor .locator( is gated
 
 ### Pending Todos
 
@@ -529,7 +539,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T08:49:41.510Z
+Last session: 2026-08-13T09:05:58.139Z
 Stopped at: Phase 11 planned — 22 plans in 12 waves, plan-checker 0 blockers
 Resume file: None
 
