@@ -122,7 +122,9 @@ export function PriceBreakdown({
         {/* The run line — rate × qty on the left, the frozen SPACE price on the right (not the all-in
             total: the fee gets its own disclosed line below, and the two must sum to the Total). */}
         <div className="flex items-baseline justify-between gap-4 text-sm">
-          <span className="text-muted-foreground">{runLabel}</span>
+          {/* `tabular-nums` on the LABEL too (AC#33): `runLabel` embeds a formatted RATE, and GATE-05's
+              rule is about every money figure this file renders, not only the ones in the value column. */}
+          <span className="text-muted-foreground tabular-nums">{runLabel}</span>
           <span className="tabular-nums">
             {formatMoney(runPriceCents ?? spacePriceCents, currency)}
           </span>
@@ -141,7 +143,8 @@ export function PriceBreakdown({
         */}
         {extraSurchargeCents > 0 && (
           <div className="flex items-baseline justify-between gap-4 text-sm">
-            <span className="text-muted-foreground">
+            {/* Same AC#33 reason as the run line: the per-head fee is a money figure inside a label. */}
+            <span className="text-muted-foreground tabular-nums">
               Extra guests ({extraHeads} × {formatMoney(extraHeadCents, currency)})
             </span>
             <span className="tabular-nums">{formatMoney(extraSurchargeCents, currency)}</span>
@@ -172,8 +175,28 @@ export function PriceBreakdown({
 
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-sm font-semibold">Total</span>
-        {/* Total value = Heading weight (600), tabular-nums so digits align (never a client recompute). */}
-        <span className="text-xl font-semibold tabular-nums">{formatMoney(quotedTotalCents, currency)}</span>
+        {/* Total value = Heading weight (600), tabular-nums so digits align (never a client recompute).
+
+            The `price-total` hook below is GATE-05's e2e half (D-35), declared in
+            `src/lib/design/selector-contract.ts` with its reason: `e2e/price-parity.spec.ts` reads THIS
+            element's textContent, normalises it back to integer centavos and asserts equality with
+            `booking.quoted_total_cents`. It sits on the element whose text is the money string and
+            NOTHING else, so the spec never has to peel a label off the number.
+
+            Do not rename it, and do not move it onto the row wrapper: the wrapper's text is
+            "Total₱1,234.00", which would make the parity assertion parse a label. A rename fails the build
+            twice over — plan 11-02's undeclared-id ban, and the parity spec's own reachability guard.
+
+            ⚠️ The attribute+value pair is deliberately NEVER written contiguously in prose here. The
+            plan's acceptance criterion counts that exact pair and expects ONE; a first draft of this very
+            comment spelled it out and made the count read 2 — the file header's GREP TRIPWIRE rule,
+            tripped by the note explaining the thing it guards. Measured, not hypothesised. */}
+        <span
+          data-testid="price-total"
+          className="text-xl font-semibold tabular-nums"
+        >
+          {formatMoney(quotedTotalCents, currency)}
+        </span>
       </div>
 
       {/* C7: once D-74 ships, no booker surface may reassure that nothing was added or that this figure is
