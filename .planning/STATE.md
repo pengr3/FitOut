@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 11-05-PLAN.md
-last_updated: "2026-08-13T14:07:38.223Z"
+stopped_at: "Completed 11-06-PLAN.md (GATE-05's e2e half — `price-total` on the checkout total, `e2e/price-parity.spec.ts` asserting rendered centavos === `booking.quoted_total_cents`, and CI job 3 `gate-price-parity` in the pinned Playwright container with one secret-free database. **The plan's prescribed substring verification of `ci.yml` was measured GREEN for all SIX real breakages** — and the first draft of the note recording that fact was itself an instance of it) — **CI not yet observed: the coordinator owns the push**"
+last_updated: "2026-08-13T14:41:01.075Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 25
+  completed_plans: 26
   percent: 9
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 8 of 22
-Current Plan: 8
+Plan: 9 of 22
+Current Plan: 9
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -235,6 +235,7 @@ Last activity: 2026-08-13
 | Phase 11 P09 | 33 | 3 tasks | 6 files |
 | Phase 11 P04 | 210 | 3 tasks | 1 files |
 | Phase 11 P05 | 38min | 2 tasks | 2 files |
+| Phase 11 P06 | 2h | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -473,6 +474,8 @@ Recent decisions affecting current work:
 - [Phase 11]: 11-09: AC#28 as written was RED against the class it mandates — the substring ban 'vh]' is contained in 'dvh]'. Corrected to a bounded regex, and the correction is committed as a RUNNABLE assertion rather than a paragraph
 - [Phase 11]: 11-09: STATE-02, STATE-04 and RESP-01 all stay Pending — three patterns, zero adopters, and all three requirements are worded 'every route group' / 'every list surface' / 'adopted for filters, breakdowns, the booking rail and navigation'
 - [Phase ?]: 11-05: the plan-prescribed DROP CONSTRAINT against fitout_test.public is VACUOUS for the exclusion specs — setupTestDb replays migrations into a fresh per-file schema, so only a mutation inside that replay path can turn them red (measured: constraint absent, spec 4/4 green)
+- [Phase ?]: 11-06: the DB-vs-DOM price gate compares INTEGER CENTAVOS (strip non-digits after asserting the 2-decimal shape), never a formatted string — a locale or symbol change must not be a false red on a money gate
+- [Phase ?]: 11-06: whole-file substring verification of .github/workflows/ci.yml is measured VACUOUS 6 ways out of 6 (11-04 measured 2 of 5) and decays as the file's documentation improves — every later plan MUST verify it by PARSING
 
 ### Pending Todos
 
@@ -575,8 +578,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T14:07:38.191Z
-Stopped at: Completed 11-05-PLAN.md
+Last session: 2026-08-13T14:37:58.875Z
+Stopped at: Completed 11-06-PLAN.md (GATE-05's e2e half — `price-total` on the checkout total, `e2e/price-parity.spec.ts` asserting rendered centavos === `booking.quoted_total_cents`, and CI job 3 `gate-price-parity` in the pinned Playwright container with one secret-free database. **The plan's prescribed substring verification of `ci.yml` was measured GREEN for all SIX real breakages** — and the first draft of the note recording that fact was itself an instance of it) — **CI not yet observed: the coordinator owns the push**
 Resume file: None
 
 Prior session: 2026-08-11T19:32:32.584Z

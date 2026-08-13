@@ -170,7 +170,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2)*
 
 - [x] 11-05-PLAN.md — GATE-04: the constraint catalog assertion and the recorded (N+1)th-booking mutation
-- [ ] 11-06-PLAN.md — GATE-05: the DB-vs-DOM price-parity spec and CI job 3
+- [x] 11-06-PLAN.md — GATE-05: the DB-vs-DOM price-parity spec and CI job 3
 - [x] 11-07-PLAN.md — The measurement inventory, the five contrast rows, and the three skeleton patterns
 
 **Wave 4** *(blocked on Wave 3)*
@@ -408,7 +408,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
-| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 8/22 | In Progress|  |
+| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 9/22 | In Progress|  |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
