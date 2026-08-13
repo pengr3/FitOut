@@ -156,6 +156,13 @@ None - no external service configuration required.
 - **A warning for any plan that touches `tests/helpers/db.ts` or `drizzle/`:** the per-file schema replay in `setupTestDb()` is what makes every integration spec's DB assertions meaningful. This plan's headline finding is that mutations outside that replay path are invisible to the suite. Any future attempt to verify a database invariant by mutating a persistent schema will measure nothing.
 - No blockers. CI job 2 runs the full suite, so the standing guard now executes off this machine.
 
+## Self-Check: PASSED
+
+- `tests/availability/open-capacity-exclude.test.ts` — FOUND (contains `pg_get_constraintdef`, `nspname`)
+- `tests/availability/exclusion-race.test.ts` — FOUND (contains `OBSERVED RED`)
+- `.planning/phases/11-quality-gates-pattern-layer-app-shell/11-05-SUMMARY.md` — FOUND
+- Commits `0c51a36`, `2ec88a5`, `ac19395` — all FOUND in `git log`
+
 ---
 *Phase: 11-quality-gates-pattern-layer-app-shell*
 *Completed: 2026-08-13*

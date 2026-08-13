@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 11-09-PLAN.md — the empty/error/overlay patterns ship with their contracts in the TYPE (routeOut required, tone owns its glyph, no error prop), and sheet-absent.test.ts makes the --z-sheet zero and the uninstalled sheet block a contract watched red four ways
-last_updated: "2026-08-13T13:44:29.140Z"
+stopped_at: Completed 11-05-PLAN.md
+last_updated: "2026-08-13T14:07:38.223Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 24
+  completed_plans: 25
   percent: 9
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 7 of 22
-Current Plan: 7
+Plan: 8 of 22
+Current Plan: 8
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -234,6 +234,7 @@ Last activity: 2026-08-13
 | Phase 11 P08 | 26min | 3 tasks | 6 files |
 | Phase 11 P09 | 33 | 3 tasks | 6 files |
 | Phase 11 P04 | 210 | 3 tasks | 1 files |
+| Phase 11 P05 | 38min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -471,6 +472,7 @@ Recent decisions affecting current work:
 - [Phase 11]: 11-09: --z-sheet's zero SURVIVED the arrival of the thing it was reserved for — the tree now has a mobile overlay and it renders at --z-dialog in both presentations, so the step still has zero call sites in both signs. The reason is recorded in globals.css beside the declaration, and two now-FALSE comments in elevation-z.test.ts were rewritten (no pinned count moved)
 - [Phase 11]: 11-09: AC#28 as written was RED against the class it mandates — the substring ban 'vh]' is contained in 'dvh]'. Corrected to a bounded regex, and the correction is committed as a RUNNABLE assertion rather than a paragraph
 - [Phase 11]: 11-09: STATE-02, STATE-04 and RESP-01 all stay Pending — three patterns, zero adopters, and all three requirements are worded 'every route group' / 'every list surface' / 'adopted for filters, breakdowns, the booking rail and navigation'
+- [Phase ?]: 11-05: the plan-prescribed DROP CONSTRAINT against fitout_test.public is VACUOUS for the exclusion specs — setupTestDb replays migrations into a fresh per-file schema, so only a mutation inside that replay path can turn them red (measured: constraint absent, spec 4/4 green)
 
 ### Pending Todos
 
@@ -573,8 +575,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T13:37:35.587Z
-Stopped at: Completed 11-09-PLAN.md — the empty/error/overlay patterns ship with their contracts in the TYPE (routeOut required, tone owns its glyph, no error prop), and sheet-absent.test.ts makes the --z-sheet zero and the uninstalled sheet block a contract watched red four ways
+Last session: 2026-08-13T14:07:38.191Z
+Stopped at: Completed 11-05-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-11T19:32:32.584Z
