@@ -49,7 +49,7 @@
 
 ### App shell & chrome (SHELL)
 
-- [ ] **SHELL-01**: The public routes have a real site header — `/`, `/listings/[id]`, `/listings/[id]/book` and `/invite/[token]` currently render no navigation at all
+- [x] **SHELL-01**: The public routes have a real site header — `/`, `/listings/[id]`, `/listings/[id]/book` and `/invite/[token]` currently render no navigation at all
 - [ ] **SHELL-02**: A footer with policy, support and contact links exists across the app
 - [ ] **SHELL-03**: Checkout carries its own minimal header holding the wordmark and the live hold countdown, with no navigation that can silently lose an active hold
 - [ ] **SHELL-04**: A listing or invite link pasted into a chat renders a correct title, description and a token-driven share image — today it renders as "Create Next App"
@@ -200,7 +200,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | STATE-06 | Phase 13 | Pending |
 | STATE-07 | Phase 12 | Pending |
 | STATE-08 | Phase 13 | Pending |
-| SHELL-01 | Phase 11 | Pending |
+| SHELL-01 | Phase 11 | Complete |
 | SHELL-02 | Phase 11 | Pending |
 | SHELL-03 | Phase 12 | Pending |
 | SHELL-04 | Phase 11 | Pending |
