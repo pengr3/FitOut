@@ -165,7 +165,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 11-04-PLAN.md — CI from zero: jobs 1 and 2, and the first green run on 145 commits
+- [x] 11-04-PLAN.md — CI from zero: jobs 1 and 2, and the first green run on 145 commits
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -408,7 +408,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
-| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 6/22 | In Progress|  |
+| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 7/22 | In Progress|  |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
