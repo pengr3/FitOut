@@ -104,7 +104,12 @@ async function PublicAuthSlot() {
         <Button variant="ghost" asChild>
           <Link href="/login">Log in</Link>
         </Button>
-        <Button asChild>
+        {/* `variant="default"` is written out even though it IS the default, which is against the
+            repo's usual idiom (D-21: an un-variantted `<Button>` stays neutral, and the codebase
+            leans on that). This is the one button in the app most likely to attract a future edit to
+            `variant="brand"`, so the neutral is stated as a CHOICE sitting next to the paragraph
+            above explaining why it was chosen — an absence cannot be read as a decision. */}
+        <Button variant="default" asChild>
           <Link href="/signup">Sign up</Link>
         </Button>
       </>
