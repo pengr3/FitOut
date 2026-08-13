@@ -58,7 +58,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "1.60.0",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/react": "^16.3.2",
     "@types/culori": "^4.0.1",

@@ -50,3 +50,12 @@ yarn-error.log*
 next-env.d.ts
 
 # drizzle — keep migrations (incl. /drizzle/meta) tracked; do NOT ignore them
+
+# playwright visual baselines — ONLY the Linux-generated ones are legal (D-29/D-30)
+# Baselines are shot in mcr.microsoft.com/playwright:v1.60.0-noble and carry a `-linux` platform
+# segment. The same screenshot taken on Windows or macOS rasterises text differently, so committing
+# one makes every CI comparison red against a reference nobody else can reproduce. The two rules
+# below keep such a file out of the index; tests/design/gitignore-baselines.test.ts asserts that both
+# rules are still here AND that git tracks zero files matching them.
+*-win32.png
+*-darwin.png

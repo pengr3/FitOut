@@ -14,12 +14,24 @@
 // paint, so there is no flash of the default theme and no post-hydration switch to wait out. It
 // works on EVERY route with no app surface to gate and nothing to expose in production.
 //
-// NO VISUAL-REGRESSION BASELINE MAY BE CAPTURED IN THIS PHASE. GATE-01 is Phase 11's, and DS-01
-// (the Geist fix) plus 10-04's type-scale, elevation and transition-timing changes invalidate any
-// screenshot taken before them. A screenshot-comparison assertion appearing alongside this helper
-// would be a scope alarm, not a convenience — this helper exists so that Phase 11 can shoot the
-// baseline correctly, once. (Playwright's screenshot-assertion API is not named literally anywhere
-// in this file or in playwright.config.ts, because its absence from both is asserted by a grep.)
+// THE BASELINE PROHIBITION THAT STOOD HERE IS SATISFIED — READ THE NEXT PARAGRAPH AS HISTORY, NOT AS
+// A STANDING RULE. Amended by plan 11-03; a prohibition left sitting beside the thing it prohibits is
+// exactly the drift Phase 11 exists to end, so it is rewritten rather than deleted.
+//
+// While Phase 10 was in flight this paragraph read "NO VISUAL-REGRESSION BASELINE MAY BE CAPTURED IN
+// THIS PHASE", because DS-01 (the Geist fix) plus 10-04's type-scale, elevation and transition-timing
+// changes invalidated any screenshot taken before them. All of those have landed. GATE-01 is Phase
+// 11's, and the baselines are captured by plan **11-22** — in the pinned Linux image only. Two things
+// now enforce that structurally instead of by this sentence: `playwright.config.ts` sets
+// `updateSnapshots: "none"` unconditionally, so no run on any machine can mint a baseline (D-28), and
+// its `visual` project is not created at all off Linux (D-29). This helper is what makes that capture
+// mean something — it seeds the theme pre-paint, so a two-theme shot is genuinely two themes.
+//
+// (The previous version of this paragraph also claimed that Playwright's screenshot-assertion API was
+// absent from this file and from `playwright.config.ts` "because its absence from both is asserted by
+// a grep". No such grep has ever existed — measured at 11-03, across `tests/**` and `scripts/**`.
+// Recorded rather than quietly dropped, because a header comment that invents a guard is worse than
+// no comment: it retires the reader's suspicion without retiring the risk.)
 
 import type { BrowserContext } from "@playwright/test";
 
