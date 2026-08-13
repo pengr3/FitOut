@@ -59,7 +59,7 @@ import { composeWhenLabel } from "@/lib/booking/when-label";
 import { cityLabelFor, venueTzNote } from "@/lib/venue-time";
 import { GROUP_INACTIVE, getGroupByToken, getMyRsvpStatus } from "@/lib/group/rsvp";
 import { inviteTokenSchema } from "@/lib/validation/group";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelCard } from "@/components/patterns/panel-card";
 import { Separator } from "@/components/ui/separator";
 import { RsvpForm } from "@/components/group/rsvp-form";
 
@@ -88,12 +88,23 @@ const INACTIVE_BODY = "Ask the organizer for the latest link.";
  * The wordmark is NOT coral. 08-UI-SPEC §Color enumerates this phase's accent exhaustively and assigns the
  * one coral on this page to `Yes, I'm coming`; a coral wordmark would put two of them on a surface whose
  * whole job is a single decision. It matches the shipped booker/host headers instead.
+ *
+ * THE BOX IS `PanelCard` NOW (DS-11, plan 11-13), AND ONLY THE BOX CHANGED. 11-UI-SPEC names
+ * *"`invite/[token]`'s `InviteCard`"* among the five surfaces the pattern replaces. Nothing else in this
+ * file moved: the copy, the RSVP behaviour, `INACTIVE_TITLE`/`INACTIVE_BODY` (plan 11-19 owns hoisting
+ * those) and the static `metadata` export with its `noindex` + `no-referrer` (plan 11-20 converts it to
+ * `generateMetadata` and must carry both across) are byte-unchanged.
+ *
+ * The inner `space-y-6` is kept as an explicit wrapper rather than dropped onto the pattern: `PanelCard`'s
+ * content rhythm is `space-y-4`, and this shell's three blocks — wordmark, rule, state — are the widest
+ * spacing on the page. A pattern that took a spacing prop would be a pattern that had stopped deciding
+ * anything, so the surface owns its own inner rhythm and the pattern owns the box.
  */
 function InviteCard({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-8 sm:py-12">
-      <Card>
-        <CardContent className="space-y-6 py-6">
+      <PanelCard>
+        <div className="space-y-6">
           <div className="text-center">
             <Link href="/" className="text-lg font-semibold tracking-tight">
               FitOut
@@ -101,8 +112,8 @@ function InviteCard({ children }: { children: React.ReactNode }) {
           </div>
           <Separator />
           {children}
-        </CardContent>
-      </Card>
+        </div>
+      </PanelCard>
     </main>
   );
 }

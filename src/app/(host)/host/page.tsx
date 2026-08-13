@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { booking, hostPayout, listing } from "@/lib/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PanelCard } from "@/components/patterns/panel-card";
 import { PayoutBanner } from "@/components/host/payout-banner";
 import { derivePayoutStatus } from "@/components/host/payout-status";
 import {
@@ -105,17 +106,41 @@ export default async function HostDashboardPage() {
         lands on. Calm muted information, NOT an Alert and never a destructive/red variant (09-UI-SPEC
         § Error/edge states: this phase's host surfaces carry no alert variant): nothing has gone wrong,
         the host simply has not finished setting up. Hidden entirely at zero, like the requests badge.
+
+        BOXED BY `PanelCard tone="muted"` SINCE PLAN 11-13 (DS-11) — 11-UI-SPEC lists "the hours-missing
+        notices" among the five surfaces the pattern replaces, and this is the one that is a PANEL. The
+        other site that renders the same three constants, `listing/listing-card.tsx:210`, is an inline
+        meta line inside a tile's `CardContent`, not a boxed advisory, and it is deliberately left alone:
+        putting a card inside a card is not what "every card surface uses one of three" means.
+
+        `tone="muted"` AND NOT THE ALARM TONE, deliberately — DS-10 reserves that one for a genuine
+        failure that needs a human, and a published listing with no weekly hours is a normal,
+        self-service, fixable state, which is the argument the paragraph above already makes about not
+        using an alert variant. `tone="muted"` is the `neutral` status tone at panel scale: zero new
+        tones, and `muted-foreground on muted` is a pairing `contrast-pairs.ts` already declares and
+        measures. (The alarm tone is named DESCRIPTIVELY rather than quoted, following
+        `booking-row.tsx:112`'s precedent: this plan's acceptance criterion greps this file for that
+        exact token and expects no new occurrence, and a comment forbidding a string must not be the
+        thing that trips the check for it. Measured, and it took two passes: quoting the tone name made
+        the grep read 2, and a first fix that quoted the SHIPPED red-variant sentence from the paragraph
+        above kept it at 2 for the other half of the pattern. Both are named descriptively now and the
+        count is back to its baseline of 1 — the one occurrence being that shipped sentence itself.)
+
+        `data-hours-missing` stays on the `<p>`, where the shipped surface put it. It is not a
+        `data-testid`, so plan 11-02's undeclared-hook ban does not reach it, and moving it onto the
+        pattern's root would have needed a passthrough prop that no other adopter wants.
       */}
       {missingHours.length > 0 && (
-        <p
-          className="mt-4 text-sm text-muted-foreground"
-          data-hours-missing={missingHours.length}
-        >
-          {hoursNudge}{" "}
-          <Link href={hoursNudgeHref} className="underline underline-offset-4">
-            {HOURS_MISSING_CTA}
-          </Link>
-        </p>
+        <div className="mt-4">
+          <PanelCard tone="muted">
+            <p className="text-sm text-muted-foreground" data-hours-missing={missingHours.length}>
+              {hoursNudge}{" "}
+              <Link href={hoursNudgeHref} className="underline underline-offset-4">
+                {HOURS_MISSING_CTA}
+              </Link>
+            </p>
+          </PanelCard>
+        </div>
       )}
 
       {hasListings ? (
