@@ -26,8 +26,7 @@ import { db } from "@/lib/db";
 import { getAvailability, getOpenMonthAvailability } from "@/lib/availability/read-model";
 import { DISPLAY_CURRENCY } from "@/lib/money";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
-import { computeServiceFee } from "@/lib/payments/service-fee";
-import { ALL_IN_TABLE_MAX_HOURS } from "@/lib/availability/horizon";
+import { buildAllInTable } from "@/lib/booking/all-in-table";
 import {
   listing,
   user,
@@ -65,7 +64,6 @@ import {
   BookingSelectionProvider,
   RailPassSummary,
   RailSelectionSummary,
-  type AllInTable,
 } from "@/components/availability/availability-calendar";
 import { BookCta } from "@/components/booking/book-cta";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
@@ -222,30 +220,12 @@ export default async function PublicListingPage({
   // `allIn(hourly)` for the client to multiply would round N times and drift from the frozen quote by up to
   // N−1 centavos, breaking the byte-identity both rail comments claim (D-75). Keys the booker can actually
   // select, and nothing else — an unlisted key renders no estimate line.
-  const perHead = row.listing.perHeadPriceCents;
-  const hourly = pub.hourlyRateCents;
-  const passCap = Math.max(0, row.listing.maxOccupancy ?? 0);
-  const allIn: AllInTable = {
-    hourly:
-      hourly == null
-        ? {}
-        : Object.fromEntries(
-            Array.from({ length: ALL_IN_TABLE_MAX_HOURS }, (_, i) => [
-              i + 1,
-              computeServiceFee(hourly * (i + 1)).allInCents,
-            ]),
-          ),
-    fullDay: pub.dayRateCents == null ? null : computeServiceFee(pub.dayRateCents).allInCents,
-    perPass:
-      perHead == null
-        ? {}
-        : Object.fromEntries(
-            Array.from({ length: passCap }, (_, i) => [
-              i + 1,
-              computeServiceFee(perHead * (i + 1)).allInCents,
-            ]),
-          ),
-  };
+  const allIn = buildAllInTable({
+    hourlyRateCents: pub.hourlyRateCents,
+    dayRateCents: pub.dayRateCents,
+    perHeadPriceCents: row.listing.perHeadPriceCents,
+    passCap: row.listing.maxOccupancy,
+  });
 
   // OC-04 — a drop-in listing's cap is a DAILY admissions count, not a room size, so the line has to say
   // which it is. Written out per branch rather than assembled from a suffix: this is booker-facing copy,

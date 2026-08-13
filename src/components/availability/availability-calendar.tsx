@@ -38,28 +38,17 @@ import { DatePassPicker } from "@/components/availability/date-pass-picker";
 
 export type DayLocal = { year: number; month: number; day: number };
 
-/**
- * D-130 / GATE-05 — the rail's prices, COMPUTED SERVER-SIDE, as a lookup table of integer centavos.
- *
- * WHY A TABLE AND NOT A RATE (the props-contract decision, RESEARCH Open Question 3). The obvious
- * alternative — ship one server-computed all-in UNIT rate and multiply it here — also keeps
- * `SERVICE_FEE_BPS` out of the bundle, and it is WRONG on a measured ground. `computeServiceFee` rounds
- * ONCE, over the whole space price: `allIn(n × unit)` is not `n × allIn(unit)`, and the two diverge by up
- * to `n − 1` centavos. Both call sites below state, in their own comments, that their figure is EXACT
- * rather than approximate because it is the same arithmetic checkout freezes (D-75) — a client-side
- * multiply would quietly make that sentence false. A table preserves byte-identity and removes the rate
- * from the browser entirely, which is the stronger property.
- *
- * Every value is ALL-IN integer centavos (space price + service fee). Keys are the selection the booker
- * made: hours for an exclusive run (1…ALL_IN_TABLE_MAX_HOURS), pass count for a drop-in one
- * (1…listing.maxOccupancy). A MISSING KEY renders no estimate line — the shipped behaviour when a rate is
- * null — and is never a cue to compute one here.
- */
-export type AllInTable = {
-  hourly: Record<number, number>;
-  fullDay: number | null;
-  perPass: Record<number, number>;
-};
+// D-130 / GATE-05 — the rail's prices arrive as a server-built lookup table of integer centavos.
+//
+// TYPE-ONLY, and that is load-bearing: `import type` is ERASED, so this line does not pull
+// `all-in-table.ts` — and through it the guarded `service-fee.ts` — into the client graph. A value import
+// of the same module would fail the build, which is exactly the enforcement working as intended.
+//
+// The shape, the reason it is a table rather than a unit rate, and the measured rounding divergence that
+// rules the alternative out all live in `src/lib/booking/all-in-table.ts`, beside the code that builds it
+// and the test that pins it. Not restated here — one place to keep true.
+export type { AllInTable } from "@/lib/booking/all-in-table";
+import type { AllInTable } from "@/lib/booking/all-in-table";
 
 /**
  * Phase-9 (OPEN-02 · OC-02 / OC-06) — the DROP-IN selection. A calendar DATE and a number of passes, with
