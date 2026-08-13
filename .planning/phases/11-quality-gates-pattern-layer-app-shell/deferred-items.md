@@ -81,3 +81,24 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
   4. **The link takes an `onClick`.** `onSelect` fires the mark-read write in parallel with navigation; `RowCard`'s internal `Link` accepts no handler.
 
   Forcing it would require optional `href`, `onClick` passthrough, root `className` passthrough and a way to suppress the Card chrome — at which point `RowCard` is no longer a card and the app has a fourth container wearing the third one's name. **Raised as the scope alarm plan 11-11 asks for**, rather than absorbed. The honest fix is a UI-SPEC correction: a notification row is a list item in an overlay panel, not a list CARD.
+
+- **[11-11] The `[11-03]` duplicate-node defect reproduces on a SECOND page, and a stale dev server is a distinct e2e failure class that has been mistaken for flakiness.** Two corrections to how Phase 11 has been reading red e2e runs, both measured while verifying this plan.
+
+  **(a) The duplicate node is not confined to the confirmation page.** `e2e/cancel.spec.ts:241` fails with the identical shape `[11-03]` recorded at `search-and-book.spec.ts:318`:
+
+  ```
+  strict mode violation: getByText(/refund on its way/i) resolved to 2 elements:
+      1) <p class="text-sm tabular-nums text-muted-foreground">₱500.00 refund on its way</p>
+      2) <p class="text-sm tabular-nums text-muted-foreground">₱500.00 refund on its way</p>
+  ```
+
+  `src/app/(app)/bookings/[id]/page.tsx:487` renders that line ONCE, from one expression, with no branch that could emit it twice. **Non-determinism confirmed by repetition rather than assumed:** the same spec was run three times on the identical tree and went **pass · fail · pass**; the pre-plan tree passed one run, which is why a single green run is not evidence of anything. This strengthens `[11-03]`'s streaming hypothesis — the same fingerprint on two unrelated pages is a framework behaviour, not two coincidental product bugs. Whoever tests it: a production build (`npm run build && npm start`) is still the cheap discriminator, and it now has two reproductions to try instead of one.
+
+  **(b) A STALE `next dev` process 500s every route, and Playwright silently reuses it.** `playwright.config.ts:113` sets `reuseExistingServer: !process.env.CI`, so a dev server left running from an earlier session serves the whole suite. One had been up long enough for its render workers to die:
+
+  ```
+  ⨯ Failed to generate static paths for /listings/[id]:
+  Error: Jest worker encountered 2 child process exceptions, exceeding retry limit
+  ```
+
+  Every request to `/listings/[id]` returned **HTTP 500** — reproducible by `curl`, and it made `public-listing.spec.ts` fail on a DIFFERENT test on each run (`:116`, then `:97`), which reads exactly like flakiness. `taskkill /PID <pid> /F` followed by a fresh Playwright-started server turned 2 failed / 3 did not run into **6 passed**. Whoever debugs a red e2e run: **check for a pre-existing dev server before attributing anything to the tree** — `.next/dev/logs/next-development.log` holds the worker-crash line, and a 500 on a route whose page source cannot throw is the tell. Some share of the "e2e is flaky on this box" history is likely this.
