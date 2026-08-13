@@ -5,6 +5,7 @@ import "./globals.css";
 import { FaviconSwap } from "@/components/theme/favicon-swap";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeQueryParam } from "@/components/theme/theme-query-param";
+import { SITE_TAGLINE } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -104,7 +105,12 @@ function resolveMetadataBase(): URL {
 export const metadata: Metadata = {
   metadataBase: resolveMetadataBase(),
   title: { default: "FitOut", template: "%s · FitOut" },
-  description: "Book gyms, courts and studios by the hour.",
+  // ONE SENTENCE, ONE OWNER (11-UI-SPEC § The Footer). This description and the footer's first
+  // column are the same claim about what the app is, and they used to be one literal here with the
+  // footer yet to be written. `src/lib/site.ts` now owns it and both read it, so the tab, the search
+  // result, the link preview and the footer can never disagree. `scaffold-residue.test.ts` still
+  // pins the resolved VALUE, so the move is checked in both directions.
+  description: SITE_TAGLINE,
 };
 
 export default function RootLayout({
