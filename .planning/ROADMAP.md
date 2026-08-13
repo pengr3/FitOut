@@ -154,7 +154,67 @@ Plans:
   4. Every data-backed route shows a designed loading state whose skeleton does not shift on arrival, every route group has an error boundary offering both a retry and a route out, a global error page and not-found pages exist, and every list surface has a designed empty state (2 of ~27 routes have a loading state today; zero have an error boundary).
   5. Every page carries a real FitOut header and footer — including `/`, `/listings/[id]`, `/listings/[id]/book` and `/invite/[token]`, which render no navigation at all today — a pasted listing or invite link renders a correct title, description and token-driven share image, and three named card patterns plus one mobile-overlay (sheet) primitive exist prop-complete so no later phase re-decides padding, radius, hover or how a mobile overlay behaves.
 
-**Plans**: TBD
+**Plans**: 22 plans (12 waves)
+
+Plans:
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — GATE-05: `server-only` guards, the OBSERVED RED, and the two live D-130 violations fixed
+- [ ] 11-02-PLAN.md — GATE-04: the typed selector contract and the accessible-query floor
+- [ ] 11-03-PLAN.md — GATE-01: Playwright can never write a baseline; the platform rules are guarded
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 11-04-PLAN.md — CI from zero: jobs 1 and 2, and the first green run on 145 commits
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 11-05-PLAN.md — GATE-04: the constraint catalog assertion and the recorded (N+1)th-booking mutation
+- [ ] 11-06-PLAN.md — GATE-05: the DB-vs-DOM price-parity spec and CI job 3
+- [ ] 11-07-PLAN.md — The measurement inventory, the five contrast rows, and the three skeleton patterns
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 11-08-PLAN.md — The three card patterns and the page header
+- [ ] 11-09-PLAN.md — EmptyState, ErrorState, the mobile-overlay primitive and the asserted `--z-sheet` zero
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 11-10-PLAN.md — The app shell: route groups, site-chrome, the public compositions, the sticky offset
+- [ ] 11-11-PLAN.md — ResultCard and RowCard adoption across seven shipped card surfaces
+
+**Wave 6** *(blocked on Wave 5)*
+
+- [ ] 11-12-PLAN.md — The `(app)`/`(host)` Suspense restructure, with both security gates still blocking
+- [ ] 11-13-PLAN.md — PanelCard adoption across five surfaces, and the card-coverage gate
+
+**Wave 7** *(blocked on Wave 6)*
+
+- [ ] 11-14-PLAN.md — The footer, `src/lib/site.ts`, and the inverted support gate
+
+**Wave 8** *(blocked on Wave 7)*
+
+- [ ] 11-15-PLAN.md — `/terms`, `/privacy` and the legalese source gate
+- [ ] 11-16-PLAN.md — EmptyState adoption: eight surfaces, positive inbox-zero, the border-dashed scope
+
+**Wave 9** *(blocked on Wave 8)*
+
+- [ ] 11-17-PLAN.md — Twenty loading routes and the async-default coverage gate
+- [ ] 11-18-PLAN.md — Five error boundaries, global-error, and the SENTINEL leak probe
+- [ ] 11-19-PLAN.md — Three not-found routes and the invite-oracle parity gate
+
+**Wave 10** *(blocked on Wave 9)*
+
+- [ ] 11-20-PLAN.md — Share and meta: three OG routes and two `generateMetadata` conversions
+
+**Wave 11** *(blocked on Wave 10)*
+
+- [ ] 11-21-PLAN.md — `/dev/theme` sections 10–14, the shell measurement spec, and the 320px sweep
+
+**Wave 12** *(blocked on Wave 11)*
+
+- [ ] 11-22-PLAN.md — GATE-01: the visual project, the dispatch job, the baselines, and the two OBSERVED REDs
+
 **UI hint**: yes
 
 **Ordering invariant:** **GATE-01, GATE-04 and GATE-05 must exist before the first surface-polish phase (Phase 12) starts.** Every later phase inherits whatever config exists when it begins, and a gate that has silently never failed is worse than no gate — it trains reviewers to trust a rubber stamp.
@@ -348,7 +408,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
-| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 0/? | Not started | - |
+| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 0/22 | Planned (22 plans, 12 waves) | - |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
