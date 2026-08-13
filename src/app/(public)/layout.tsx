@@ -20,9 +20,20 @@
 //
 // The wrapper below is `flex min-h-dvh flex-col` so plan `11-14`'s footer can hang off it with
 // `mt-auto` and sit at the bottom of a short page without this file being touched again.
+//
+// The composition itself lives in `@/components/site/public-header` — the same one this route tree,
+// `listings/[id]/(detail)` and `(auth)` all render. Three copies of it here would recreate, on the
+// public side, the drift `site-chrome.tsx` exists to end.
+
+import { PublicHeader } from "@/components/site/public-header";
 
 export default function PublicLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="flex min-h-dvh flex-col">{children}</div>;
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <PublicHeader />
+      {children}
+    </div>
+  );
 }

@@ -18,8 +18,15 @@
 // The wrapper is `flex min-h-dvh flex-col` for the same reason `(public)/layout.tsx` gives: plan
 // `11-14`'s footer hangs off it with `mt-auto`.
 
+import { PublicHeader } from "@/components/site/public-header";
+
 export default function ListingDetailLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="flex min-h-dvh flex-col">{children}</div>;
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <PublicHeader />
+      {children}
+    </div>
+  );
 }

@@ -56,9 +56,21 @@ export function ReserveView({
       {/* Summary column — what am I booking (server-rendered, coral selection carried from Phase 3). */}
       <div className="space-y-6">{summary}</div>
 
-      {/* Action column — the frozen breakdown + quiet urgency cue + the one coral terminal action. */}
+      {/* Action column — the frozen breakdown + quiet urgency cue + the one coral terminal action.
+
+          THE OFFSET IS 80px AND IT IS DERIVED, NOT CHOSEN (SHELL-01, plan 11-10). The checkout route
+          gets the MINIMAL header composition — a wordmark and nothing else — but "minimal" is about
+          what the header CONTAINS, not about how tall it is: it is the same 64px sticky box as every
+          other route's. So this rail tucks under it at any offset below 64px exactly as the listing
+          page's does. 64 + a 16px gap = 80px = the 20th spacing step; the previous value was the 8th,
+          32px. The general rule lives in `patterns/panel-card.tsx` and is asserted by
+          `tests/design/sticky-offset.test.ts`.
+
+          This is the SECOND of the two shipped `lg:sticky` sites. Plan 11-10 was written expecting
+          one; `panel-card.tsx` had already recorded both by path, and both moved together, because a
+          rule with one exception is not a rule. */}
       <aside>
-        <Card className="lg:sticky lg:top-8">
+        <Card className="lg:sticky lg:top-20">
           <CardContent className="space-y-5 py-6">
             {breakdown}
             <HoldCountdown expiresAt={expiresAt} onExpire={() => setExpired(true)} />

@@ -25,9 +25,23 @@
 //
 // The page itself (`book/page.tsx`) is untouched by this plan and stays where it is — only the
 // wrapper is new.
+//
+// This is the ONE layout that composes `SiteChrome` directly rather than through
+// `@/components/site/public-header`, and the reason is the point of the whole file: the public header
+// is defined by what it CONTAINS, and this composition is defined by what it does not. Reaching for
+// the public header and then subtracting from it would put the checkout's safety property inside a
+// component whose job is to add things to headers.
+
+import { SiteChrome } from "@/components/patterns/site-chrome";
 
 export default function CheckoutLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="flex min-h-dvh flex-col">{children}</div>;
+  return (
+    <div className="flex min-h-dvh flex-col">
+      {/* brandHref={null} renders the wordmark as a <span>. No `nav`, no `actions`, no footer. */}
+      <SiteChrome brand="FitOut" brandHref={null} />
+      {children}
+    </div>
+  );
 }

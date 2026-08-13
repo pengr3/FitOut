@@ -367,9 +367,20 @@ export default async function PublicListingPage({
           </section>
         </div>
 
-        {/* Booking rail — price + state-reflecting CTA */}
+        {/* Booking rail — price + state-reflecting CTA.
+
+            THE OFFSET IS 80px AND IT IS DERIVED, NOT CHOSEN (SHELL-01, plan 11-10). The app shell's
+            header is 64px from `sm:` up and is pinned to the top of the viewport, so a rail offset
+            by less than 64px scrolls UNDER it on every scroll. 64 + a 16px gap = 80px = the 20th
+            spacing step. The previous value here was the 8th step, 32px — correct when nothing was
+            pinned above this page, and wrong the moment the header landed.
+
+            The general rule is stated once, in `patterns/panel-card.tsx`, and asserted by
+            `tests/design/sticky-offset.test.ts`. Plan 11-13 converts this container onto
+            `PanelCard sticky`, which already encodes this number; this is a class-only correction so
+            the rail is right in the meantime rather than right one plan later. */}
         <aside>
-          <Card className="lg:sticky lg:top-8">
+          <Card className="lg:sticky lg:top-20">
             <CardContent className="space-y-4 py-6">
               <div>
                 <p className="text-2xl font-semibold tracking-tight">

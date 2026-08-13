@@ -89,16 +89,21 @@ export function PanelCard({
         // 64px to the viewport top scrolls UNDER it. 64 + a 16px gap = 80px = the 20th spacing step.
         //
         // THE GENERAL RULE, STATED ONCE, HERE: *every `lg:sticky` offset in the app is at least the
-        // header height plus 16px.* There are exactly two sites today — `listings/[id]/page.tsx:365`
-        // and `booking/reserve-view.tsx:61` — and both offset by 32px, the 8th spacing step, which
-        // was correct when nothing was pinned above them and tucks the rail under the header now.
-        // Both move onto this prop when they adopt the pattern.
+        // header height plus 16px.* It is no longer only a rule: `tests/design/sticky-offset.test.ts`
+        // (plan 11-10) asserts it over the source of `src/app/**` and `src/components/**`.
+        //
+        // CORRECTED BY PLAN 11-10, in that plan's own commit. This note used to say the two shipped
+        // sites — `listings/[id]/(detail)/page.tsx` and `booking/reserve-view.tsx` — were "both
+        // offset by 32px, the 8th spacing step", which was true when this file was written and became
+        // false when the header landed. Both moved to the 20th step in the same commit that shipped
+        // the header, so all three sites in the app now agree. Both still move onto this prop when
+        // they adopt the pattern (plan 11-13); what changed is that they are no longer wrong while
+        // they wait.
         //
         // The wrong offset is named DESCRIPTIVELY above rather than quoted as a class, following
         // `booking-row.tsx:112`'s precedent ("Named descriptively rather than quoted, because the
-        // DS-03 gate counts that string"): the UI-SPEC calls this rule "falsifiable as a source
-        // scan", and a scan for the wrong offset must not be tripped by the comment explaining why
-        // it is wrong.
+        // DS-03 gate counts that string"): the rule is now falsifiable as a source scan, and a scan
+        // for the wrong offset must not be tripped by the comment explaining why it is wrong.
         sticky && "lg:sticky lg:top-20",
         tone === "muted" && "bg-muted",
       )}
