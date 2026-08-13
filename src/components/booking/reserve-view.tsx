@@ -71,8 +71,10 @@ export function ReserveView({
           THE OFFSET IS NO LONGER WRITTEN HERE (SHELL-01, plan 11-13). It arrives through
           `PanelCard`'s `sticky` boolean, so the 80px (the 64px shell header + a 16px gap = the 20th
           spacing step) lives in `patterns/panel-card.tsx` alone. This was the SECOND of the two
-          shipped `lg:sticky` sites; `tests/design/sticky-offset.test.ts` pinned three and now pins
-          one, which is the shape of a correct conversion.
+          shipped pinned-rail sites; `tests/design/sticky-offset.test.ts` pinned three and now pins
+          one, which is the shape of a correct conversion. (Named descriptively rather than quoted —
+          same reason `panel-card.tsx:103-106` gives: the rule is a source scan, and a scan must not
+          be tripped by the comment saying the class is gone.)
 
           The checkout route still gets the MINIMAL header composition — a wordmark and nothing else
           — but "minimal" is about what the header CONTAINS, not how tall it is: it is the same 64px

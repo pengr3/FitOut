@@ -370,12 +370,17 @@ export default async function PublicListingPage({
         {/* Booking rail — price + state-reflecting CTA.
 
             THE OFFSET IS NOT WRITTEN HERE ANY MORE, AND THAT IS THE POINT (SHELL-01, plan 11-13).
-            It used to be a raw `lg:sticky lg:top-20` class string on this line, which meant the
+            It used to be a raw pin-plus-offset class pair written out on this line, which meant the
             number could be edited back down by anyone who never read why it was 80px. It now
             arrives through `PanelCard`'s `sticky` BOOLEAN, so the arithmetic (the 64px shell header
             + a 16px gap = the 20th spacing step) lives in exactly one file —
             `patterns/panel-card.tsx` — and `tests/design/sticky-offset.test.ts` asserts that there
             is only one.
+
+            The classes are named DESCRIPTIVELY rather than quoted, following the precedent
+            `panel-card.tsx:103-106` and `booking-row.tsx:112` already set in this repo: the rule is
+            checked by a source scan, and a scan for a class must not be tripped by the comment
+            explaining that the class is gone.
 
             The container swap is container-only: every child below is byte-identical to what this
             rail shipped, and `PanelCard` renders the same `ui/card.tsx` primitive this line used to
