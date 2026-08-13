@@ -751,10 +751,19 @@ describe("DS-03 source scan — the control on the control", () => {
 //     control corners sit at 1000 and its panes at 400–700, which already out-ranked the old 50 as
 //     well as the new 30 — lowering the portal layer changes nothing about that relationship. The
 //     Phase 18 rule stands: wrap the vendor in a CSS stacking context, never inflate the app scale.
-//   • `--z-sheet` and `--z-toast` have ZERO call sites and are asserted to have zero. `--z-sheet` is
-//     reserved for a genuine mobile overlay/sheet, which the tree does not yet have; the Sonner
-//     toaster sets its own z-index internally and is not edited here. Neither zero is a bug, and
-//     neither may be "fixed" by sprinkling the token somewhere to give it a home.
+//   • `--z-sheet` and `--z-toast` have ZERO call sites and are asserted to have zero. Neither zero
+//     is a bug, and neither may be "fixed" by sprinkling the token somewhere to give it a home.
+//     UPDATED BY PLAN 11-09 — the REASON for the sheet zero changed, the zero did not. 10-13 wrote
+//     "reserved for a genuine mobile overlay/sheet, which the tree does not yet have". The tree now
+//     HAS one (`src/components/patterns/responsive-dialog.tsx`, RESP-01), and it still does not use
+//     this step: it is the vendored dialog in another PRESENTATION rather than a second mechanism,
+//     so it renders at `--z-dialog` (30) at every viewport width. The step is kept for a layer
+//     strictly below the dialog that Phase 12's mobile filters and booking rail may yet need. The
+//     bullet is rewritten rather than left standing because a NOT COVERED note that has quietly
+//     become false is worse than no note — it is a stated reason a reader will trust.
+//     `tests/design/sheet-absent.test.ts` owns the full argument, the empty `Z_SHEET_INVENTORY` and
+//     the both-signs scan; the assertion below stays here because this file owns the z scale.
+//     The Sonner toaster sets its own z-index internally and is not edited here.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The whole allowed z vocabulary in source. A fifth name is a scale that has stopped being one. */
@@ -959,9 +968,23 @@ describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T
   });
 
   it("leaves `--z-sheet` and `--z-toast` declared-but-unused, deliberately", () => {
-    // NOT oversights. `--z-sheet` is reserved for a genuine mobile overlay/sheet, which the tree
-    // does not have; the Sonner toaster sets its own z-index internally. Asserted so nobody gives
-    // either token a home just to make a number look complete — and the tokens must still exist.
+    // NOT oversights. Asserted so nobody gives either token a home just to make a number look
+    // complete — and the tokens must still exist.
+    //
+    // REASON UPDATED BY PLAN 11-09, in that plan's own commit; the NUMBERS did not move, which is
+    // why this is a comment edit and not an inventory edit. 10-13's wording was "`--z-sheet` is
+    // reserved for a genuine mobile overlay/sheet, which the tree does not have". The tree now has
+    // one — `src/components/patterns/responsive-dialog.tsx` — and it renders at `--z-dialog` in
+    // BOTH presentations, because it is the vendored dialog with a different set of `max-sm:`
+    // classes rather than a second overlay mechanism. So the step's zero survived the arrival of
+    // the thing it was reserved for, and that is exactly the fact worth writing down.
+    //
+    // The full argument, the empty `Z_SHEET_INVENTORY` with its reason, the separate positive/
+    // negative scans and the guard-the-guard file floor all live in
+    // `tests/design/sheet-absent.test.ts`. This assertion stays here because this file owns the z
+    // scale and a reader checking the scale should not have to know that other file exists.
+    //
+    // The Sonner toaster sets its own z-index internally, so `--z-toast`'s zero is unchanged.
     expect(totalOf(zScan.byName["z-(--z-sheet)"])).toBe(0);
     expect(totalOf(zScan.byName["z-(--z-toast)"])).toBe(0);
     expect(globals["--z-sheet"], "…but the step must still be declared").toBe("20");

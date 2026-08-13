@@ -400,6 +400,12 @@
      that introduces it. The scale does NOT inflate to out-run a vendor; that is a race with no
      end and it destroys the only useful property a four-step scale has. */
   --z-sticky: 10;
+  /* STEP 20 HAS ZERO CALL SITES, AND THAT ZERO IS DELIBERATE (plan 11-09). RESP-01's mobile-overlay
+     primitive is `patterns/responsive-dialog.tsx` — the vendored dialog in another PRESENTATION, not
+     a second mechanism — so it renders at the dialog step at every width. The token is KEPT rather
+     than deleted because Phase 12's mobile filters and booking rail may yet need a layer strictly
+     below the dialog and above the sticky header, which is exactly the gap this step fills. The zero
+     is ASSERTED, with this reason, in `tests/design/sheet-absent.test.ts`. */
   --z-sheet: 20;
   --z-dialog: 30;
   --z-toast: 40;
