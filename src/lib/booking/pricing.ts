@@ -104,7 +104,10 @@ export function paxSurcharge(input: {
  * 60-min slots is exactly their epoch delta in hours. This is NOT the DST-unsafe pattern slots.ts warns
  * about — that is wall-clock arithmetic (adding fixed ms to a local time); here we only measure the gap
  * between two instants slots.ts already resolved. `Math.round` absorbs any sub-ms drift and the result is
- * clamped to ≥ 1, byte-identical to the client RailSelectionSummary formula so display and freeze agree.
+ * clamped to ≥ 1. RailSelectionSummary derives the SAME hour count client-side to pick its row out of the
+ * server-computed all-in table, so display and freeze still agree — but as of D-130 the client derives only
+ * the COUNT, never the price, and a divergence here would cost a missing estimate line rather than a wrong
+ * number.
  */
 export function windowHours(startUtc: Date | string, endUtc: Date | string): number {
   const startMs = new Date(startUtc).getTime();
