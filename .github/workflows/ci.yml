@@ -1,0 +1,222 @@
+# ============================================================================================
+# ci — THE FIRST AUTOMATED GATE THIS REPOSITORY HAS EVER HAD.
+#
+# WHY THIS FILE EXISTS AT ALL (D-23). GATE-01's requirement text says "CI fails on a missing
+# baseline", and until this commit there was no CI here: no `.github/workflows`, no husky, no
+# git hooks. That is not a cosmetic gap. `playwright.config.ts` gates baseline creation, and
+# the whole notion of a gate assumes a machine that is not the author's laptop — something has
+# to set `CI=true` and be allowed to say no. Actions does that for free. Everything below is a
+# consequence of that one sentence.
+#
+# THE JOB SPLIT (D-24). Two jobs, and the split is by DATABASE NEED, not by speed:
+#
+#   gate-db-free  lint + design gate + `next build`, with NO service container, and an
+#                 assertion that it needs none (see the job's own comment).
+#   gate-db       the full vitest suite against a real PostGIS 18 service, so the
+#                 exclusion-constraint specs GATE-04 protects run somewhere other than the
+#                 author's laptop.
+#
+# WHAT IS DELIBERATELY ABSENT, SO A LATER READER FINDS THE REASON RATHER THAN THE GAP:
+#
+#   * The 12 shipped e2e specs (`e2e/**`) are NOT run here, by decision, not by oversight
+#     (D-24). Each boots a dev server and seeds real data — the largest flake surface and the
+#     largest secret surface this repository has. A flaky gate does not get fixed; it gets
+#     retried until green, and then it is not a gate. Job 2's 1200-odd vitest specs cover the
+#     same money and availability logic without a browser or a single production credential.
+#   * ONE narrow exception is coming: the DB-vs-DOM price check (D-35) — the single assertion
+#     standing between a restyle and a wrong number charged to a real card. It is added as a
+#     THIRD job by plan `11-06`, not here.
+#   * The Playwright `visual` project step on job 1 is added by plan `11-22`, together with the
+#     `workflow_dispatch` baseline-regeneration job (D-27). That job — and ONLY that job —
+#     needs `contents: write`; it will grant it per-job. The repository setting was confirmed
+#     by a human on 2026-08-13 as "Read and write permissions", so 11-22 needs no settings
+#     change, only a per-job `permissions:` block.
+#
+# THE TWO BINDING RULES THIS FILE MAKES ENFORCEABLE (D-25):
+#   1. A phase cannot be marked complete with CI red.
+#   2. Any plan that adds or changes a baselined surface pushes and waits for green BEFORE the
+#      next plan starts. CI only ever sees what is pushed.
+#
+# EXPECTED NOISE — DO NOT CHASE IT. Every `next build` in every log prints:
+#     ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+#   This is pre-existing at HEAD and out of scope for this phase (D-136: net-new capability
+#   stays out). It is a warning, not an error; the build exits 0 with it present. A future
+#   phase that migrates `middleware.ts` → `proxy.ts` owns it.
+#
+# SUPPLY CHAIN. Only `actions/checkout` and `actions/setup-node` — both first-party GitHub
+# actions (T-11-SC). Introducing any third-party action here is a supply-chain decision to
+# raise explicitly, not to absorb inside an unrelated plan.
+#
+# ── IF YOU ARE ABOUT TO EDIT THIS FILE (plans 11-06, 11-22, or later): READ THIS ─────────────
+# DO NOT verify your change with a whole-file substring match. `11-04` prescribed exactly that
+# and it was MEASURED VACUOUS for two of its five tokens on 2026-08-13:
+#
+#   mutation applied to this file                      substring check   structural check
+#   -------------------------------------------------  ---------------   ----------------
+#   drop `github.event_name` from the concurrency group      GREEN             RED
+#   delete the `npm run db:test:setup` STEP                  GREEN             RED
+#
+# Both stay green because the token still appears in the PROSE above and in a step `name:`.
+# A file that documents its own invariants cannot be checked by grepping for them. Parse it:
+#
+#   node -e "const d=require('yaml').parse(require('fs').readFileSync('.github/workflows/ci.yml','utf8'));
+#            console.log(d.concurrency.group, d.permissions, Object.keys(d.jobs),
+#              d.jobs['gate-db'].steps.filter(s=>s.run).map(s=>s.run))"
+#
+# (`yaml` is present transitively in node_modules. It is NOT a declared devDependency, which is
+# why this is an ad-hoc verification command and not a standing test in `tests/design/` —
+# promoting it would need a dependency decision, which is a checkpoint, not a side effect.)
+#
+# The invariants worth re-checking after ANY edit here, because they are security properties
+# and not style: top-level `permissions` stays `contents: read` and write is granted PER-JOB
+# only (T-11-CIWRITE); every `uses:` stays first-party `actions/*` (T-11-SC); no PayMongo /
+# Resend / Cloudinary / Better-Auth / Google credential is ever referenced (T-11-CISECRET);
+# `github.event_name` stays in the concurrency group (T-11-CANCEL); and job 1 keeps both its
+# missing `services:` block and its unreachable `DATABASE_URL` (T-11-DBFREE).
+# ============================================================================================
+
+name: ci
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+
+# T-11-CIWRITE. Read-only by default, for every job. `contents: write` is granted per-job, and
+# only by plan 11-22's baseline-dispatch job, which is the one thing here that pushes a commit.
+permissions:
+  contents: read
+
+# The `github.event_name` term is NOT decoration. A group of workflow+ref alone is
+# event-agnostic, so a push to `dev` would cancel a `workflow_dispatch` baseline run already
+# in flight on the same ref — killing it mid-commit and leaving a partial set of baseline PNGs
+# on the branch, which is worse than no baselines at all. Keying on the event as well means a
+# push can only ever cancel a previous push.
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}"
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------------------------------------
+  # JOB 1 — the DB-free gate, which PROVES it is DB-free on every single run.
+  #
+  # `npm run build` is `lint && test:design && next build`, so this one step is three gates at
+  # once: the ESLint gate (including the design-leak rule), the ~460-assertion design gate, and
+  # GATE-05's `server-only` client/server boundary check, which fails `next build` outright if
+  # any client graph reaches a money or availability module.
+  # ------------------------------------------------------------------------------------------
+  gate-db-free:
+    name: gate-db-free (lint + design + build)
+    runs-on: ubuntu-latest
+    # No `services:` block. That absence is the point of this job, and the DATABASE_URL below
+    # is what stops it from being a claim.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24 — the major this repository is developed and measured on (RESEARCH
+          # § Environment Availability: v24.13.0). There is no `.nvmrc` and no `engines` field;
+          # if one is ever added, this pin must follow it. `@types/node@^20` is a TYPE floor,
+          # not a runtime pin, and is deliberately not the number used here.
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+
+      - name: Build (lint + design gate + next build)
+        run: npm run build
+        env:
+          # THE ASSERTION. This URL points at a closed port on the loopback interface: nothing
+          # listens on 59999 and nothing ever will. Measured at HEAD on 2026-08-13, this exact
+          # command exits 0, because every DB-touching route classifies as dynamic and
+          # postgres.js connects lazily — module evaluation during page-data collection neither
+          # throws nor dials out.
+          #
+          # Setting it converts "job 1 is DB-free" from a one-time measurement into a standing
+          # per-run assertion: the day a phase adds a build-time database read — most plausibly
+          # a root `not-found.tsx` or `global-error.tsx` that reaches `@/lib/db` on a path Next
+          # CAN prerender — this job goes red immediately and the trace names the file.
+          #
+          # DO NOT "fix" a red here by deleting this variable. An UNSET DATABASE_URL is strictly
+          # worse than a wrong one: `postgres(undefined!)` falls back to libpq defaults and may
+          # find a real database on some future runner, at which point the job is green and the
+          # property it exists to protect is gone silently.
+          DATABASE_URL: postgres://unreachable:unreachable@127.0.0.1:59999/nope
+
+  # ------------------------------------------------------------------------------------------
+  # JOB 2 — the full vitest suite against a real database.
+  #
+  # This is the job that takes the exclusion-constraint and money specs off the author's
+  # laptop. It runs ON THE RUNNER (not inside a container), which is what fixes the service
+  # hostname below.
+  # ------------------------------------------------------------------------------------------
+  gate-db:
+    name: gate-db (vitest against PostGIS 18)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # PostGIS, NOT plain `postgres`: `drizzle/0005_booking_exclusion.sql` needs `btree_gist`
+        # for the `space_id WITH =` term of the double-booking EXCLUDE constraint, and
+        # `scripts/db-test-setup.ts` creates both `postgis` and `btree_gist` before replaying
+        # migrations. A plain postgres image makes the whole exclusion suite fail to provision.
+        #
+        # The tag is pinned to the SAME value `docker-compose.yml` uses, so CI and local dev
+        # cannot drift. Do not shorten it: the bare major-only tag was probed against
+        # registry-1.docker.io on 2026-08-13 and returns 404 — it does not exist on Docker Hub.
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: fitout
+          POSTGRES_PASSWORD: fitout
+          POSTGRES_DB: fitout
+        # Required because this job runs on the runner rather than in a container: the runner
+        # is not on the services' user-defined bridge network, so the port must be published.
+        ports: ["5432:5432"]
+        # Without a health check the first step races the server's own initdb and fails with a
+        # connection error that reads like a flaky service.
+        options: >-
+          --health-cmd "pg_isready -U fitout -d fitout"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # `localhost`, NOT the `postgres` service label. The addressing rule is: a job running IN
+      # a container reaches a service by its LABEL with no port mapping; a job running ON the
+      # runner reaches it at `localhost` and needs `ports:`. This job is the second case.
+      # Getting it backwards produces a connection-refused that reads like a flaky service and
+      # sends the reader to the wrong layer entirely.
+      #
+      # Note this names the DEV database `fitout`, not the test database. That is correct and
+      # deliberate: the vitest suite does not use this URL directly. `tests/helpers/test-db-url.ts`
+      # DERIVES its own target by rewriting the database name to `fitout_test`, and THROWS on any
+      # resolved name not ending in `_test` — because `tests/global-setup.ts` TRUNCATEs every base
+      # table in the target's public schema on every run, so pointing it at `fitout` would destroy
+      # the dev database. The `_test` invariant is machine-enforced, not remembered, and this job
+      # inherits that enforcement rather than restating it.
+      DATABASE_URL: postgres://fitout:fitout@localhost:5432/fitout
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+
+      # Migrate the DEV database (`fitout`) first. `db:test:setup` bootstraps `fitout_test` from
+      # a connection to this one — you cannot CREATE DATABASE from a connection to its own
+      # target — so `fitout` must exist and be reachable before the next step.
+      - name: Migrate dev database
+        run: npm run db:migrate
+
+      # Provision `fitout_test`: CREATE DATABASE, create `postgis` + `btree_gist` explicitly
+      # WITH SCHEMA public (migration 0001 omits the SCHEMA clause, which on a fresh database
+      # would otherwise install PostGIS into a per-file test schema that teardown then drops),
+      # then replay every migration into its public schema. Idempotent; exits 0 on a re-run.
+      - name: Provision the test database (fitout_test)
+        run: npm run db:test:setup
+
+      - name: Vitest (full suite)
+        run: npm test
