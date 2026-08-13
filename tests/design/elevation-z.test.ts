@@ -807,11 +807,24 @@ const BANNED_Z = /(?<![\w-])-?z-(?:10|50)(?![\w-])/g;
  *
  * Adopted by nobody yet, so the pattern and both shipped rows legitimately carry the step at once;
  * the two rows above disappear when the adoption plans swap them, and the total returns to 11.
+ *
+ * ALSO MOVED BY PLAN 11-10, in that plan's own commit, and this addition is PERMANENT where
+ * `row-card.tsx`'s is temporary — the difference is worth stating so a later reader does not delete
+ * the wrong row. `patterns/site-chrome.tsx` is SHELL-01's app header: `sticky top-0` with the sticky
+ * step, which is the layer this four-step scale exists for and the first surface in the app to
+ * occupy it for its literal purpose. It does NOT disappear at adoption. Plans 11-12 and 11-14 convert
+ * `(app)/layout.tsx` and `(host)/host/layout.tsx` onto this same component, and neither of those two
+ * headers carries a z utility today (both are `border-b` and non-sticky), so that conversion REMOVES
+ * nothing from this map and adds nothing to it — the shell's single row is the whole of it.
+ *
+ * The expected end state of this map is therefore 11 sites, not 10: the two shipped rows and
+ * `row-card.tsx` collapse to one when the adoption plans swap them, and `site-chrome.tsx` stays.
  */
 const STICKY_INVENTORY: Readonly<Record<string, number>> = {
   "src/components/booking/booking-row.tsx": 1,
   "src/components/host/host-booking-row.tsx": 1,
   "src/components/patterns/row-card.tsx": 1,
+  "src/components/patterns/site-chrome.tsx": 1,
   "src/components/ui/avatar.tsx": 1,
   "src/components/ui/calendar.tsx": 2,
   "src/components/ui/select.tsx": 2,
@@ -923,21 +936,23 @@ describe("DS-03 z clause — the two magic numbers are gone from the source", ()
 });
 
 describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T-10-49)", () => {
-  it("carries exactly 21 mapped call sites — 12 sticky and 9 dialog", () => {
+  it("carries exactly 22 mapped call sites — 13 sticky and 9 dialog", () => {
     // The count is what makes a migration that DELETED the z-index instead of mapping it go red: a
     // tree with no z-index at all satisfies every zero-violations assertion above perfectly.
     //
     // 11 -> 12 by plan 11-08's `patterns/row-card.tsx`, whose `actions` slot must clear the title
-    // link's overlay pseudo-element. See STICKY_INVENTORY.
+    // link's overlay pseudo-element. 12 -> 13 by plan 11-10's `patterns/site-chrome.tsx`, the app
+    // shell's `sticky top-0` header — the first surface in the app to occupy this layer for the
+    // literal reason the layer exists. See STICKY_INVENTORY for which of the two is permanent.
     const sticky =
       totalOf(zScan.byName["z-(--z-sticky)"]) + totalOf(zScan.byName["-z-(--z-sticky)"]);
     const dialog = totalOf(zScan.byName["z-(--z-dialog)"]);
-    expect(sticky, "the sticky layer lost or gained a surface").toBe(12);
+    expect(sticky, "the sticky layer lost or gained a surface").toBe(13);
     expect(dialog, "the dialog layer lost or gained a surface").toBe(9);
-    expect(sticky + dialog).toBe(21);
+    expect(sticky + dialog).toBe(22);
   });
 
-  it("pins the 10 positive sticky sites to the files that own them", () => {
+  it("pins the 11 positive sticky sites to the files that own them", () => {
     expect(zScan.byName["z-(--z-sticky)"]).toEqual(STICKY_INVENTORY);
   });
 

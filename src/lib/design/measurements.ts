@@ -82,6 +82,40 @@ export const HEADER_HEIGHT = "h-14 sm:h-16";
 export const AUTH_SLOT_BOX = "h-8 min-w-44";
 
 /**
+ * The auth slot's WIDE control placeholder: 32 × 96px.
+ *
+ * THE EIGHTH AND NINTH CONSTANTS ARE THIS ONE AND THE NEXT, AND NEITHER IS IN THE UI-SPEC'S LIST —
+ * recorded here rather than quietly added, exactly as `TEXT_BAR_HEIGHT` below was. The UI-SPEC pins
+ * the auth slot's fallback shape as *"one `Skeleton h-8 w-24` + one `Skeleton size-8`"* and, in the
+ * same breath, AC#16 requires a `patterns/*skeleton*.tsx` file to write ZERO literal box utilities of
+ * its own. `auth-slot-skeleton.tsx` matches that glob, so those two spellings cannot both be literals
+ * at the call site — the choice was a pair of constants or a pair of exemptions in the source gate,
+ * and the constants win for the reason `TEXT_BAR_HEIGHT` gives: an exemption for `w-24` would legalise
+ * a literal WIDTH at a call site, which is the shape T-11-GEODRIFT is about.
+ *
+ * These two are MEASUREMENTS of real controls rather than proportions of a placeholder, which is what
+ * makes them belong here at all. 11-UI-SPEC § Responsive behaviour measures the resolved booker
+ * cluster as *"mode switch 96 + bell 32 + `Profile` 48 + 2 gaps 24 = 200px"*: `w-24` is 96px, the
+ * mode switch, and `size-8` is 32px, the bell. The fallback is therefore the same two boxes the
+ * resolved cluster puts in the same two places, which is why the slot does not reflow when the
+ * session lands — and if either control's real width changes, the number that has to move is here.
+ *
+ * `h-8` is `AUTH_SLOT_BOX`'s height restated on the child, not a second decision: the slot is `h-8`
+ * and its tallest content is `h-8`, which is what makes the height claim true of the box AND its
+ * contents.
+ */
+export const AUTH_SLOT_CONTROL = "h-8 w-24";
+
+/**
+ * The auth slot's ICON control placeholder: 32 × 32px.
+ *
+ * The bell, and every square control that sits beside it (`Button size="icon"`, the avatar, the
+ * `aria-label="Menu"` drawer trigger) — all of which are `size-8`. See `AUTH_SLOT_CONTROL` above for
+ * why this is a constant rather than a literal, and for the measurement it comes from.
+ */
+export const AUTH_SLOT_ICON = "size-8";
+
+/**
  * The minimum height of a boxed panel — the price breakdown, the calendar day panel, an empty state.
  *
  * A floor rather than a fixed height: panel CONTENT varies (a breakdown has three lines or five),
