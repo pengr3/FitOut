@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 11-03-PLAN.md — GATE-01's fail-open closed in configuration; the platform-baseline rule has a standing gate
-last_updated: "2026-08-13T09:38:09.157Z"
+stopped_at: Completed 11-07-PLAN.md — measurements.ts owns every skeleton box class; the three patterns/ skeletons ship with a named status region; the two skeleton gates are watched-red five ways
+last_updated: "2026-08-13T12:25:10.141Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 20
+  completed_plans: 21
   percent: 9
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 4 of 22
-Current Plan: 4
+Plan: 5 of 22
+Current Plan: 5
 Total Plans in Phase: 22
-Status: Executing Phase 11 — plans 01-03 complete
+Status: Ready to execute
 
 **11-03 (GATE-01's static half) is closed, and the plan prescribed a watched red that cannot fail.** `playwright.config.ts` now carries `updateSnapshots: "none"` **unconditionally** — no environment condition, so the guarantee holds on the author's laptop, which is exactly where an illegal baseline gets minted — plus a second project named exactly `visual` whose entry is **not constructed at all** off Linux (`--project=visual` errors with `Project(s) "visual" not found. Available projects: "chromium"`, after printing the named reason to stderr) and two disjoint `testMatch` globs, verified by dropping a probe spec into `e2e/visual/` and watching **neither** project collect it (total unchanged at 27 tests / 11 files). `@playwright/test` is pinned **exact at 1.60.0** so the container tag `v1.60.0-noble` cannot drift; `git diff` is exactly one line in `package.json` and one in `package-lock.json`. `.gitignore` gained its first `*.png` rules. The comment cites **RESEARCH Finding 3's measured behaviour, not D-135's wording**, because D-135 is wrong for 1.60.0: the default mode does not report green on the run that finds no baseline — it fails that run **non-retriably AND WRITES THE PNG**, so the next bare re-run is green off a baseline the failed run just minted. **THE HEADLINE FINDING IS THAT A PROBE LEAVING THE SUITE GREEN IS A FINDING, NOT A FORMALITY.** The plan told me to strip `#` comments before matching and to watch the comment-only fixture go red; the stripper was neutered and **the whole gate stayed GREEN, 4 passed**, because `hasRule` compares WHOLE LINES and a line beginning `#` can never *equal* a bare rule. Half 1 was already immune without any stripping. Skipping that probe — or rationalising its green — would have shipped a WATCHED RED section describing a mutation that never failed, which is 11-02's finding in a new disguise. Two fixes rather than one: a direct assertion on `ruleLines()` (Rule 2) makes the stripper's **real** job load-bearing — this `.gitignore` holds **50 non-blank lines, 17 prose, 33 rules**, so an unstripped floor of 20 would pass against a file gutted down to its own commentary — and a **fourth** probe (`hasRule` reduced to a substring check) covers the failure mode the fixture was actually written for. All four results are verbatim in the gate's header, **including the green one**. `tests/design/gitignore-baselines.test.ts` is 4 assertions, DB-free, inside `npm run build`, and is **the repo's first test to shell out to `git`**: half 2 asks `git ls-files` rather than walking the filesystem, because an untracked `*-win32.png` is harmless and expected (it is what a local `--update-snapshots` produces) and only a **committed** one is the defect — and because `.gitignore` is *advisory*, so `git add -f` bypasses every rule half 1 asserts. A failed `git` invocation is a **named assertion failure**, never a vacuous pass, and two control pathspecs prove the query shape still matches — one of them crossing a directory boundary, since a real baseline sits four levels deep. Probe (b) staged exactly such a file and **also corrected the gate's own remedy sentence**: `git rm --cached` does NOT delete the working-tree copy (measured — the PNG stayed on disk and `git status --ignored` then reported `!! e2e/visual/`, the harmless end state). Four deviations, all Rules 1-3: `e2e/helpers/theme.ts`'s amended paragraph claimed *"its absence from both is asserted by a grep"* — **no such grep has ever existed** (zero tests reference `playwright.config.ts`; every `screenshot` hit in `tests/` is prose), recorded in place rather than dropped; and the plan's NOT COVERED text names `11-21` for the two dynamic OBSERVED REDs when `11-22`'s own `must_haves` claim both. **GATE-01 stays Pending on purpose** — the static clause is closed, the dynamic pair belongs to `11-22`. Design gate **474/474** (was 470), **25 files (+1 exactly)**; `tsc` 0, build 0, lint 0 errors / 9 warnings — byte-identical to baseline; drizzle still `0025_audit_resolved_by.sql`. **Zero product source files were modified.** `npm run test:e2e` is **19 passed / 2 failed / 6 did not run**, NOT the 17/1 the plan expects: failure 1 is D-6 item 1 verbatim, failure 2 is **new** (`search-and-book.spec.ts:318`, a strict-mode violation on two identical booking-reference paragraphs). Proven not mine by **reverting `playwright.config.ts` to HEAD and reproducing an identical signal**; the render site last changed at 10-11 and no Phase 11 plan has touched it. Logged to `deferred-items.md` with a leading hypothesis (Next dev-mode streaming leaving both copies in the DOM across the `page.reload()`) and an instruction to rule that in or out first. One obligation carried forward: **`11-22`'s visual specs must copy the `reuseExistingServer` stale-stylesheet warning** from `reduced-motion.spec.ts:45-51` — Task 1 asked for it, but `e2e/visual/**` does not exist yet, and a stale server there yields a baseline captured from stale CSS. Next: 11-04.
 
@@ -112,7 +112,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-13 -- Plan 11-03 complete (GATE-01 config half + the standing platform-baseline gate)
+Last activity: 2026-08-13
 
 ## Performance Metrics
 
@@ -224,6 +224,7 @@ Last activity: 2026-08-13 -- Plan 11-03 complete (GATE-01 config half + the stan
 | Phase 11 P01 | 55 | 3 tasks | 24 files |
 | Phase 11 P02 | 27 | 2 tasks | 2 files |
 | Phase 11 P03 | 25 | 2 tasks | 6 files |
+| Phase 11 P07 | 27min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -445,6 +446,12 @@ Recent decisions affecting current work:
 - [Phase ?]: 11-02: an absence assertion needs a positive control over its own scan — with SRC_DIR broken the undeclared-id ban reported a clean [] over zero files and would have stayed green forever (measured, probe d)
 - [Phase ?]: 11-02: the measured e2e .locator( count is 23, not 11-UI-SPEC GATE-04's 22; the measurement wins, and neither getByText (63) nor .locator( is gated
 - [Phase ?]: 11-03: GATE-01 stays Pending — the config half is closed (updateSnapshots 'none' unconditional, visual project hard-skipped off Linux, @playwright/test pinned exact 1.60.0); the two dynamic OBSERVED REDs belong to 11-22
+- [Phase 11]: 11-07 (1): aria-label is MANDATORY on every skeleton status shell — role="status" is nameFrom:author, so the UI-SPEC's prescribed sr-only child alone computes an accessible name of "" (measured with dom-accessibility-api, then watched failing). The sr-only span stays as the live region's CONTENT.
+- [Phase 11]: 11-07 (2): a SEVENTH measurement constant (TEXT_BAR_HEIGHT) rather than a second source-gate exemption — an exemption for a literal h-4 would legalise a literal HEIGHT at a call site, which is exactly T-11-GEODRIFT. The UI-SPEC's six constants cannot express a placeholder text bar, and all three prescribed skeleton shapes need one.
+- [Phase 11]: 11-07 (3): the skeleton source gate is an AST string-literal walk, not the grep the plan prescribed — that grep reports NINE false positives against the three CLEAN files it polices (two prose mentions of the literal each constant replaced, plus seven proportional widths that its own 'grep -v w-3/4' cannot filter because 'grep -o' prints 'w-3'). A gate with a 100% false-positive rate on a clean tree is a gate people delete.
+- [Phase 11]: 11-07 (4): the banned box-prefix list is WIDER than the plan's five — min-w, max-w, max-h and every aspect-* form added, on the design-leak-patterns COLOUR_ROLE precedent (WR-07/WR-08). AUTH_SLOT_BOX is min-w-44, so a list policing min-h and not min-w would ban the header's height and wave through the auth slot's width.
+- [Phase 11]: 11-07 (5): STATE-01 and DS-11 both stay Pending. This plan ships the three skeleton SHAPES, not the ~27 routes that must adopt them, and none of the three named card patterns (11-08 owns those). Same precedent as 11-02 leaving GATE-04 Pending with two clauses outstanding.
+- [Phase 11]: 11-07 (6): the culori gate is the authority over the UI-SPEC's measured table (D-12). Two of the five stated ratios were wrong: foreground on muted/40 over background is 19.13/17.76 not 19.42/17.80, and muted-foreground on muted/40 is 5.07/5.55 not 5.08/5.56. The notes carry the corrected numbers. Also: the two skeleton-fill exclusions are the inventory's first CONDITIONAL exclusions — legal only while skeleton-a11y.test.tsx enforces the status wrapper; delete the gate, delete the rows.
 
 ### Pending Todos
 
@@ -547,8 +554,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T09:38:09.129Z
-Stopped at: Completed 11-03-PLAN.md — GATE-01's fail-open closed in configuration; the platform-baseline rule has a standing gate
+Last session: 2026-08-13T12:25:10.108Z
+Stopped at: Completed 11-07-PLAN.md — measurements.ts owns every skeleton box class; the three patterns/ skeletons ship with a named status region; the two skeleton gates are watched-red five ways
 Resume file: None
 
 Prior session: 2026-08-11T19:32:32.584Z
