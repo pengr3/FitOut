@@ -49,7 +49,8 @@ import {
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { formatMoney } from "@/lib/money";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
-import { HOST_CANCEL_FEE_CENTS, PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/fees";
 import { summarizePayouts } from "@/components/host/payout-ledger-status";
 import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";

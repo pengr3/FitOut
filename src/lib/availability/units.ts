@@ -1,3 +1,5 @@
+import "server-only";
+
 // Unit auto-assignment under concurrency (RESEARCH Pattern 2) — the code path Phase 4 will call to
 // actually insert a booking. KEY PRINCIPLE: correctness rests on the booking_no_overlap EXCLUDE
 // constraint (Plan 01), NOT on the find-free SELECT. The SELECT is only an optimization to pick a
@@ -38,6 +40,11 @@
 // count-then-insert race CLAUDE.md forbids, and nothing in the schema would object. This is the Phase-8
 // Layer-2 scar (tests/group/seat-claim-race.test.ts): tests/availability/open-capacity-race.test.ts drives
 // the REAL createOpenCapacityHold over two connections and goes RED when the lock line is removed.
+//
+// SERVER-ONLY (D-34 / GATE-05). This module writes holds, freezes quotes and takes advisory locks; there
+// is no reading of it that belongs in a browser bundle. Line 1's `import "server-only"` makes Turbopack
+// hard-FAIL `next build` if any client component's import graph reaches here — the same structural
+// enforcement the two arbiters above rest on, applied to the module boundary instead of the row.
 
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";

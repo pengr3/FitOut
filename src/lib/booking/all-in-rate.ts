@@ -1,3 +1,5 @@
+import "server-only";
+
 // D-75 all-in browse pricing — the SINGLE place a listing's advertised rate has the D-74 service fee
 // composed into it, so the search grid and the listing detail page can never drift apart.
 //
@@ -15,8 +17,12 @@
 // failure mode is a browse price that disagrees with checkout, which is precisely what D-75 forbids. The
 // components themselves do ZERO arithmetic; they receive these finished strings as props.
 //
-// Pure/isomorphic: no client and no server directive, so an RSC and the search query mapping can both
-// import it. It formats only — every amount it is handed is already an integer number of centavos.
+// SERVER-ONLY (D-34 / GATE-05). Pure and no-I/O, but NOT isomorphic any more: `import "server-only"` on
+// line 1 makes Turbopack hard-FAIL `next build` if any client component's import graph reaches this
+// module. An RSC and the search query mapping still import it freely; a CLIENT component receives the
+// finished strings as props, which is what the last sentence of the paragraph above already required and
+// what `search-result-card.tsx:131-139` has always done. It formats only — every amount it is handed is
+// already an integer number of centavos.
 
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";

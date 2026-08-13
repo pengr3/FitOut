@@ -54,7 +54,7 @@ import { createOpenCapacityHold } from "@/lib/availability/units";
 import { lowStockThreshold } from "@/lib/availability/open-capacity";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { LADDER, quoteRefund } from "@/lib/payments/cancellation";
-import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/config";
+import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/fees";
 import type { RateLimitResult } from "@/lib/rate-limit";
 
 /** The sentinel `availability_block.reason` cancelBookingAsHost writes — asserted as a literal so a

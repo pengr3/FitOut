@@ -15,7 +15,7 @@
 import { describe, it, expect } from "vitest";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { isApiRefundable, REFUNDABLE_RAILS } from "@/lib/payments/refund-rail";
-import { SERVICE_FEE_BPS } from "@/lib/payments/config";
+import { SERVICE_FEE_BPS } from "@/lib/payments/fees";
 
 describe("computeServiceFee — integer-cents booker-facing fee (D-74/D-76)", () => {
   it("5% of ₱1,000.00 → fee 5000, all-in 105000", () => {

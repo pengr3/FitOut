@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { computeCommission } from "@/lib/payments/commission";
-import { COMMISSION_RATE_BPS } from "@/lib/payments/config";
+import { COMMISSION_RATE_BPS } from "@/lib/payments/fees";
 
 describe("computeCommission — integer-cents host-side deduction (D-50/51/52)", () => {
   it("10% of ₱1,500.00 → commission 15000, net 135000", () => {

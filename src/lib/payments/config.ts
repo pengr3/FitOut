@@ -6,11 +6,17 @@
 // hardcode 10% / 24h / 60m at any call site; import these names instead. A value may read process.env
 // with a documented default, but the exported constant is the single source of truth.
 //
-// Pure/isomorphic: no "use client"/"use server" directive, so Server Components, server actions, the
-// commission calculator, and the payout sweep can all import it.
-
-/** Platform commission rate in basis points (D-51). 1000 bps = 10%. Config-tunable, host-side (D-50). */
-export const COMMISSION_RATE_BPS = Number(process.env.COMMISSION_RATE_BPS ?? 1000);
+// Pure/isomorphic: no "use client"/"use server" directive AND NO `server-only` GUARD, so Server
+// Components, server actions, the commission calculator, the payout sweep — and two shipped CLIENT
+// components — can all import it. That last clause is the whole reason this file is unguarded and must
+// stay so: `slot-picker.tsx:43` reads MIN_LEAD_INSTANT_MINUTES / MIN_LEAD_REQUEST_HOURS and
+// `request-row.tsx:34` reads APPROVAL_PAYMENT_WINDOW_HOURS, both legitimately (a lead time is not a
+// price). Adding `import "server-only"` here fails the build naming those two files, which are NOT
+// violations — see src/lib/payments/fees.ts and tests/design/server-only-guards.test.ts.
+//
+// WHAT LEFT THIS FILE (D-34 / GATE-05): SERVICE_FEE_BPS, COMMISSION_RATE_BPS and HOST_CANCEL_FEE_CENTS
+// now live in src/lib/payments/fees.ts, which IS guarded. What stays below is timing, windows and payout
+// cadence — nothing here decides what anybody is charged or paid.
 
 /** Payout eligibility delay after the session ENDS (D-55). T+24h anchored to booking.endsAt. */
 export const PAYOUT_DELAY_HOURS = Number(process.env.PAYOUT_DELAY_HOURS ?? 24);
@@ -47,24 +53,12 @@ export const APPROVAL_SLA_HOURS = Number(process.env.APPROVAL_SLA_HOURS ?? 24);
 export const APPROVAL_PAYMENT_WINDOW_HOURS = Number(process.env.APPROVAL_PAYMENT_WINDOW_HOURS ?? 12);
 
 // ---------------------------------------------------------------------------
-// Phase 7 (D-71/D-74/D-76/D-93/D-95/D-96) — cancellation economics, the booker-facing service fee,
-// the expiry-cap guards, and the four reminder offsets. Same contract as above: the exported NAME is
-// imported everywhere; never hardcode 5% / ₱300 / 2h / 30min / 4h at a call site.
+// Phase 7 (D-93/D-95/D-96) — the expiry-cap guards and the four reminder offsets. Same contract as
+// above: the exported NAME is imported everywhere; never hardcode 2h / 30min / 4h at a call site.
+//
+// The cancellation economics that used to sit here (D-71/D-74/D-76 — the booker-facing service fee and
+// the host-cancellation fee) moved to the guarded src/lib/payments/fees.ts. See the header.
 // ---------------------------------------------------------------------------
-
-/** D-74/D-76 booker-facing service fee, in basis points. 500 bps = 5%, computed on the SPACE price with
- *  the integer-cents computeCommission idiom. Funds the ~2.5% gateway fee PayMongo does NOT return on a
- *  refund (the fact that drove D-63). A PERCENTAGE, not a flat amount, so it tracks that cost at every
- *  price point. Supersedes the BOOKER-facing half of D-50 only; the host-side 10% commission is unchanged. */
-export const SERVICE_FEE_BPS = Number(process.env.SERVICE_FEE_BPS ?? 500);
-
-/** D-71 host-cancellation fee, flat integer centavos (30000 = PHP 300). Charged when a HOST cancels an
- *  already-confirmed booking (D-70) and CAPPED AT THE BOOKING VALUE at write time so it can never exceed
- *  what the host would have earned. Collected as a SIGNED DEBIT row on host_payout_ledger
- *  (kind = 'host_cancel_fee') and netted against the host's next payout; written off if they never host
- *  again. Flat is a deliberate, accepted tradeoff (~50% of a PHP 600 court booking, ~10% of a PHP 3,000
- *  gym day) — config-tunable specifically so real cancellation data can move it. */
-export const HOST_CANCEL_FEE_CENTS = Number(process.env.HOST_CANCEL_FEE_CENTS ?? 30000);
 
 /** D-93/D-96 minimum lead time to CREATE a request-to-book, in hours. Request-to-book needs TWO humans in
  *  sequence (host approves, then booker pays), so it needs real runway. Applies to request mode ONLY. */

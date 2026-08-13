@@ -36,6 +36,15 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+      // D-34 / GATE-05. Same entry, same reason, as vitest.config.ts: `server-only` is aliased by Next
+      // rather than installed, so it is unresolvable from plain Node and any design test that imports a
+      // guarded module would fail at resolution.
+      //
+      // THIS DOES NOT WEAKEN THE DB-FREE GUARANTEE ABOVE. `resolve.alias` is neither `globalSetup` nor
+      // `setupFiles` — those two keys, and only those two, are what make vitest.config.ts require Docker.
+      // The stub itself (tests/helpers/server-only.stub.ts) is an empty module: no import, no side effect,
+      // nothing that could reach a database.
+      "server-only": resolve(__dirname, "./tests/helpers/server-only.stub.ts"),
     },
   },
   test: {

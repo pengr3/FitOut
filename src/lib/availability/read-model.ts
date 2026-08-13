@@ -1,3 +1,5 @@
+import "server-only";
+
 // The single server-authoritative availability read model (AVAIL-03, RESEARCH Pattern 3). Like
 // src/lib/bookability.ts and src/lib/listing-public.ts, this is the ONE place a day's bookable state
 // is derived — the client never supplies what's available (threat T-03-TAMPER-SLOT). It computes, on
@@ -8,6 +10,12 @@
 // filter uses the IDENTICAL tstzrange('[)') half-open bound as the booking_no_overlap EXCLUDE
 // constraint (Pitfall 5 / threat T-03-RANGE-MISMATCH) so the calendar can never show a slot the DB
 // would reject, nor hide a bookable back-to-back hour.
+//
+// SERVER-ONLY (D-34 / GATE-05). "The client never supplies what's available" is the whole point of this
+// module, and line 1's `import "server-only"` is what makes that structural rather than conventional:
+// Turbopack hard-FAILS `next build` if any client component's import graph reaches here. The client
+// reaches this module's OUTPUT through the `getDayAvailability` server action, and its TYPES through
+// `import type` (erased) — never its code. Both existing client importers already do exactly that.
 
 import { and, eq, sql } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";

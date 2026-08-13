@@ -59,7 +59,7 @@ import { emitGuestEmail } from "@/lib/group/guest-notify";
 import { listReachableYesAttendees } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
-import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/config";
+import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/fees";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
 import {
   createRefund,

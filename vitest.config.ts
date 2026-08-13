@@ -30,6 +30,14 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+      // D-34 / GATE-05. `server-only` is NOT an installed package — Next aliases the specifier in its own
+      // bundler and declares the module at node_modules/next/types/global.d.ts:57, so from plain Node
+      // `require.resolve("server-only")` is MODULE_NOT_FOUND. ~35 test files import guarded modules, so
+      // without this entry the whole suite fails at resolution rather than on an assertion.
+      //
+      // `resolve.alias` is neither `globalSetup` nor `setupFiles` — the two keys that make this config
+      // require Docker (see the note below) — so adding it here changes nothing about database setup.
+      "server-only": resolve(__dirname, "./tests/helpers/server-only.stub.ts"),
     },
   },
   test: {

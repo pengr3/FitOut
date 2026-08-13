@@ -1,3 +1,5 @@
+import "server-only";
+
 // The timezone / DST boundary for availability (RESEARCH Pattern 4). Like src/lib/bookability.ts,
 // this is a small, PURE, no-I/O module that owns one correctness concern so it can never be bypassed:
 // turning a venue-local wall clock into UTC instants. Every slot instant in the system flows through
@@ -10,11 +12,18 @@
 //
 // All times are stored/compared as UTC ISO strings here; conversion to venue-local display happens at
 // the edges (the calendar) via `format(..., { in: tz(listing.timezone) })`.
+//
+// SERVER-ONLY (D-34 / GATE-05). This is an availability COMPUTATION module: it derives which instants
+// exist and which are still bookable, and the client must never be able to re-derive that for itself
+// (threat T-03-TAMPER-SLOT — the server is the sole authority on what is available). `import "server-only"`
+// on line 1 makes Turbopack hard-FAIL `next build` if any client component's import graph reaches here.
+// BOOKING_HORIZON_DAYS moved to ./horizon precisely so the two client components that need it are not
+// caught by that guard; it is re-exported below so nothing else had to move.
 
 import { TZDate } from "@date-fns/tz";
+import { BOOKING_HORIZON_DAYS } from "./horizon";
 
-/** Platform-wide booking horizon (D-26): a slot beyond this many days from now is not yet bookable. */
-export const BOOKING_HORIZON_DAYS = 90;
+export { BOOKING_HORIZON_DAYS };
 
 export type Slot = { startUtc: string; endUtc: string };
 

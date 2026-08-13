@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-authoritative frozen price quote (BOOK-01, D-45/D-46, RESEARCH Pattern 4). Like slots.ts and
 // bookability.ts, this is a small, PURE, no-I/O module owning ONE correctness concern: the price the
 // server FREEZES into booking.quotedTotalCents at hold time. The client RailSelectionSummary
@@ -10,8 +12,11 @@
 // hourlyRateCents × N; a "Book full day" selection → dayRateCents (verbatim, never capped to the cheaper
 // option, never auto-switched). Currency is PHP (D-46, the shared DISPLAY_CURRENCY).
 //
-// Pure/isomorphic: no "use client"/"use server" directive so Server Components and the transactional
-// createPendingHold path can both import it.
+// SERVER-ONLY (D-34 / GATE-05). Pure and no-I/O, but NOT isomorphic any more: `import "server-only"` on
+// line 1 makes Turbopack hard-FAIL `next build` if any client component's import graph reaches this
+// module. The module's own header already says the client's copy of this figure "is display-only and
+// never trusted"; the guard turns that sentence into something the build enforces. Server Components and
+// the transactional createPendingHold path import it freely.
 
 import { DISPLAY_CURRENCY } from "@/lib/money";
 

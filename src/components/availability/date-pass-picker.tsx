@@ -39,7 +39,9 @@ import { format } from "date-fns";
 import { tz, TZDate } from "@date-fns/tz";
 
 import { getDayAvailability, getOpenMonthAvailability } from "@/app/actions/availability";
-import { BOOKING_HORIZON_DAYS } from "@/lib/availability/slots";
+// D-34 / GATE-05: from `horizon` and NOT from `slots`. `slots.ts` is a guarded server-only computation
+// module; this constant was split out of it precisely so this line can exist in a `"use client"` file.
+import { BOOKING_HORIZON_DAYS } from "@/lib/availability/horizon";
 import type { DayAvailability } from "@/lib/availability/read-model";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";

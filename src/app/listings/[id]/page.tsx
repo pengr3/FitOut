@@ -26,7 +26,7 @@ import { db } from "@/lib/db";
 import { getAvailability, getOpenMonthAvailability } from "@/lib/availability/read-model";
 import { DISPLAY_CURRENCY } from "@/lib/money";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
-import { SERVICE_FEE_BPS } from "@/lib/payments/config";
+import { SERVICE_FEE_BPS } from "@/lib/payments/fees";
 import {
   listing,
   user,

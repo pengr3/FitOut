@@ -35,7 +35,8 @@ import { createPendingHold } from "@/lib/availability/units";
 import { quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { computeCommission } from "@/lib/payments/commission";
-import { SERVICE_FEE_BPS, PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { SERVICE_FEE_BPS } from "@/lib/payments/fees";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");

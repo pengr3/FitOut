@@ -1,3 +1,5 @@
+import "server-only";
+
 // PAY-06 booker-facing service fee (D-74/D-76) — the pure, integer-cents fee added ON TOP of the space
 // price at checkout. Mirrors src/lib/payments/commission.ts exactly: a small, PURE, no-I/O module owning
 // ONE correctness concern, throwing rather than silently freezing a wrong number.
@@ -13,8 +15,13 @@
 // and fees"; it is platform revenue, not a government levy, and re-bundling it is the exact junk-fee pattern
 // PH DTI price-display rules and the US/EU regimes target.
 //
-// Pure/isomorphic: no "use client"/"use server" directive, so Server Components, server actions, and the
-// payout sweep can all import it.
+// SERVER-ONLY (D-34 / GATE-05). Pure and no-I/O, but NOT isomorphic any more: `import "server-only"` on
+// line 1 makes Turbopack hard-FAIL `next build` if any client component's import graph reaches this
+// module. It is guarded because it is the money computation — a client that could call it would need
+// SERVICE_FEE_BPS in the browser bundle, where a non-`NEXT_PUBLIC_` override silently resolves to the 500
+// fallback and the browsed price stops agreeing with the charged one (T-11-FEELEAK). A client component
+// receives the RESULT as a pre-formatted string or an integer-cents figure computed server-side; never
+// the inputs to compute one. Server Components, server actions and the payout sweep import it freely.
 //
 // COMPOSITION RULE (load-bearing): quoteWindow (src/lib/booking/pricing.ts) KEEPS returning the SPACE price.
 // It is a pure function over the listing's rates and must NOT know about platform fees. The fee is composed
@@ -22,7 +29,7 @@
 // existing tests valid. D-75 then displays allInCents wherever a price is browsed, so the number never goes
 // up between browsing and paying, and the D-78 breakdown splits it back into its two lines at checkout.
 
-import { SERVICE_FEE_BPS } from "@/lib/payments/config";
+import { SERVICE_FEE_BPS } from "@/lib/payments/fees";
 
 export type ServiceFee = {
   /** The applied rate in basis points — FREEZE this alongside the amount, same discipline as D-51. */
