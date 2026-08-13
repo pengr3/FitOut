@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: planning
-stopped_at: Phase 11 UI-SPEC approved
-last_updated: "2026-08-12T17:46:50.950Z"
+stopped_at: Phase 11 context gathered
+last_updated: "2026-08-13T05:01:53.678Z"
 last_activity: "2026-08-13 - Completed quick task 260813-0h2: fix G-01 ScrollArea wrapper overflow. Phase 10 now has zero open items across review (49 findings, 3 passes), UAT (7/7 + G-01 closed), and security (50/50 threats, THREAT-SECURE, verdict independently re-audited)"
 progress:
   total_phases: 11
@@ -521,9 +521,9 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-12T17:46:50.932Z
-Stopped at: Phase 11 UI-SPEC approved
-Resume file: .planning/phases/11-quality-gates-pattern-layer-app-shell/11-UI-SPEC.md
+Last session: 2026-08-13T05:01:53.657Z
+Stopped at: Phase 11 context gathered
+Resume file: .planning/phases/11-quality-gates-pattern-layer-app-shell/11-CONTEXT.md
 
 Prior session: 2026-08-11T19:32:32.584Z
 Stopped at: Completed 10-12-PLAN.md (all 14 shadow call sites on three named elevation steps, 31-assertion gate watched red at 5/26; **deferred item D-1 CLOSED** — Tailwind's content root narrowed to `src/`, 15,053 bytes / 11.2% of the shipped CSS removed with zero real utilities lost, which exposed two tests that had been passing on planning prose) — next 10-13
