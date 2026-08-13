@@ -29,6 +29,19 @@
 // the very comment forbidding the string — so NONE of those phrases is spelled contiguously anywhere in
 // this file. If you are tempted to write one out "just in a comment", don't: it disarms the check for good.
 //
+// ── THIS COMPONENT HAS NO CONTAINER OF ITS OWN, AND THAT IS DELIBERATE (DS-11, plan 11-13) ────────────
+// `11-UI-SPEC § PanelCard` lists *"`booking/price-breakdown.tsx`'s container"* among the five surfaces
+// `PanelCard` replaces. The container it means is NOT in this file: the root below is a bare
+// `<div className="space-y-3">` and always has been. The box that supplies this breakdown's background,
+// radius, ring and padding is the checkout rail in `booking/reserve-view.tsx`, and `<PriceBreakdown>` has
+// exactly ONE call site (`listings/[id]/book/page.tsx`), which renders it into that rail. Plan 11-13
+// converted the rail to `<PanelCard sticky>`; this file was left as a bare div ON PURPOSE.
+//
+// So: do NOT wrap the root below in a `Card`/`PanelCard` to "finish the adoption". It would nest a second
+// `bg-card ring-1 rounded-xl` inside the one that already wraps it and pay the block padding twice — the
+// same double-padding trap `.planning/…/deferred-items.md` measured at 112px vs 80px on the row cards.
+// A breakdown is CONTENT; the panel is the surface it is rendered onto.
+//
 // Pure display, no hooks → a Server Component (no "use client").
 
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";

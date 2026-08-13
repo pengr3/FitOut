@@ -120,3 +120,21 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
   **(c) NOT the stale-server class, and NOT plan 11-12.** Two controls, both run today:
   - **Fresh server:** the long-running `next dev` on :3000 was killed (`taskkill /PID 18380 /F`, port confirmed dead) and Playwright started its own. Identical result — `1 failed / 5 did not run`, same test, same assertion. `[11-11](b)`'s dev-server hypothesis is excluded for this one.
   - **Pre-plan tree:** all five files plan 11-12 touches were reverted with `git checkout 7c8ef6b -- …` and the spec re-run. **Identical result.** Restored and re-verified afterwards. Three consecutive runs on the current tree produced the same failure, so this is reproducible rather than flaky — which makes it the most tractable of Phase 11's red e2e specs and the one worth taking first.
+
+- **[11-13] `/listings/[id]` throws a REAL, NAMED React hydration error on every dev-mode load, and it is the first direct evidence for `[11-03]`/`[11-11](a)`'s duplicate-node hypothesis.** Found in the Playwright `[WebServer]` log while verifying this plan's rail conversion; **pre-existing**, and proven so with a control (see below).
+
+  ```
+  Uncaught Error: Hydration failed because the server rendered HTML didn't match the client.
+  As a result this tree will be regenerated on the client.
+        <Primitive.button.SlotClone aria-describedby={undefined} data-state="closed" ...>
+  +       <span tabIndex={0} className="inline-block w-full" …>      ← what the CLIENT rendered
+  -       <p className="text-center text-xs text-muted-foreground">  ← what the SERVER sent
+      at PublicListingPage (src/app/listings/[id]/(detail)/page.tsx:464:21)
+      at TooltipTrigger (src/components/ui/tooltip.tsx:30:10)
+  ```
+
+  The two trees disagree about **how many children the booking rail has before the tooltip trigger** — the client puts the `Not bookable yet` trigger where the server put the rail's closing reassurance line, i.e. the child list is offset by one. React's stated remedy is the interesting part: *"this tree will be regenerated on the client"*, which is exactly the mechanism that would leave a streamed node and a reconciled node in the same document. `[11-03]` and `[11-11](a)` both recorded `strict mode violation: … resolved to 2 elements` with two byte-identical `<p>`s from a source site that renders once, and both hypothesised Next's dev-mode streaming without being able to name a mismatch. Here the mismatch is named, on a third page.
+
+  **NOT caused by plan 11-13, and that was measured rather than assumed.** `src/app/listings/[id]/(detail)/page.tsx` alone was reverted with `git checkout -- …` and `e2e/public-listing.spec.ts` re-run against the otherwise-unchanged tree: **`grep -c "Hydration failed"` = 1, identical to the run with the `PanelCard` conversion in place.** The plan's version was restored and re-verified afterwards. The spec passes in both directions (4 passed), because a regenerated tree still ends up correct — which is precisely why this has survived unnoticed.
+
+  **Not fixed here, deliberately** (SCOPE BOUNDARY): the rail's contents are untouched by this plan, the defect predates it, and diagnosing a server/client child-count divergence across `RailSelectionSummary` / `RailPassSummary` / `CancellationPolicyDisclosure` / the `TooltipProvider` branch is a debugging plan, not a container swap. **Whoever picks it up:** this is the cheapest reproduction Phase 11 has of the duplicate-node class — one `npx playwright test e2e/public-listing.spec.ts --project=chromium` and one grep, no date arithmetic and no flake — so rule the streaming hypothesis in or out HERE rather than on the confirmation page. `npm run build && npm start` remains the discriminator: if the mismatch disappears in a production build, `[11-03]`'s two duplicate-node e2e failures are dev-mode artefacts and the fix is in the specs' locators, not in the pages.

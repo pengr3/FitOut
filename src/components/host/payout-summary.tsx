@@ -7,8 +7,20 @@
 //
 // Not "use client" — a pure presentational component the earnings RSC renders directly.
 
+// CONTAINER SWAPPED TO `PanelCard` (DS-11, plan 11-13) AND NOTHING ELSE MOVED. HFLOW-05 is a token
+// pass on this surface precisely because these two numbers have never been real — PayMongo's `/v2`
+// payout rails are sales-gated — so restructuring the earnings page here would be redesigning a
+// surface nobody has yet seen carry a live figure.
+//
+// In particular the two labels stay `<p className="text-sm font-semibold text-muted-foreground">`
+// rather than moving onto `PanelCard`'s `title` prop. `title` renders an `<h2 className="text-heading">`,
+// which would make each figure a document heading and change its type ramp — a semantic and visual
+// change, not a container swap. The pair keeps its own `space-y-1` for the same reason: the pattern's
+// content rhythm is `space-y-4`, and a 16px gap between a label and the number it labels reads as two
+// facts instead of one.
+
 import { formatMoney } from "@/lib/money";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelCard } from "@/components/patterns/panel-card";
 
 export function PayoutSummary({
   upcomingCents,
@@ -21,22 +33,22 @@ export function PayoutSummary({
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Card>
-        <CardContent className="space-y-1 p-6">
+      <PanelCard>
+        <div className="space-y-1">
           <p className="text-sm font-semibold text-muted-foreground">Upcoming payouts</p>
           <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-display">
             {formatMoney(upcomingCents, currency)}
           </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="space-y-1 p-6">
+        </div>
+      </PanelCard>
+      <PanelCard>
+        <div className="space-y-1">
           <p className="text-sm font-semibold text-muted-foreground">Paid out</p>
           <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-display">
             {formatMoney(paidCents, currency)}
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </PanelCard>
     </div>
   );
 }

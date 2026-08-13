@@ -12,7 +12,7 @@
 
 import * as React from "react";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelCard } from "@/components/patterns/panel-card";
 import { HoldCountdown } from "@/components/booking/hold-countdown";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
 import { ReserveActions } from "@/components/booking/reserve-actions";
@@ -58,25 +58,36 @@ export function ReserveView({
 
       {/* Action column — the frozen breakdown + quiet urgency cue + the one coral terminal action.
 
-          THE OFFSET IS 80px AND IT IS DERIVED, NOT CHOSEN (SHELL-01, plan 11-10). The checkout route
-          gets the MINIMAL header composition — a wordmark and nothing else — but "minimal" is about
-          what the header CONTAINS, not about how tall it is: it is the same 64px sticky box as every
-          other route's. So this rail tucks under it at any offset below 64px exactly as the listing
-          page's does. 64 + a 16px gap = 80px = the 20th spacing step; the previous value was the 8th,
-          32px. The general rule lives in `patterns/panel-card.tsx` and is asserted by
-          `tests/design/sticky-offset.test.ts`.
+          THIS IS `PriceBreakdown`'s CONTAINER, AND THAT SENTENCE IS WHY THIS FILE IS IN PLAN 11-13
+          AT ALL. `11-UI-SPEC § PanelCard` lists *"`booking/price-breakdown.tsx`'s container"* among
+          the five surfaces `PanelCard` replaces, and the container it means is HERE, not there:
+          `price-breakdown.tsx`'s own root is a bare `<div className="space-y-3">` and always has
+          been. The box that gives that breakdown its background, radius, ring and padding is this
+          one, and `<PriceBreakdown>` has exactly one call site — `listings/[id]/book/page.tsx`,
+          which renders it into this rail. Boxing the breakdown inside its own file would therefore
+          have put a second `bg-card ring-1 rounded-xl` INSIDE this one and paid the padding twice.
+          Do not "finish the job" by adding a Card there.
 
-          This is the SECOND of the two shipped `lg:sticky` sites. Plan 11-10 was written expecting
-          one; `panel-card.tsx` had already recorded both by path, and both moved together, because a
-          rule with one exception is not a rule. */}
+          THE OFFSET IS NO LONGER WRITTEN HERE (SHELL-01, plan 11-13). It arrives through
+          `PanelCard`'s `sticky` boolean, so the 80px (the 64px shell header + a 16px gap = the 20th
+          spacing step) lives in `patterns/panel-card.tsx` alone. This was the SECOND of the two
+          shipped `lg:sticky` sites; `tests/design/sticky-offset.test.ts` pinned three and now pins
+          one, which is the shape of a correct conversion.
+
+          The checkout route still gets the MINIMAL header composition — a wordmark and nothing else
+          — but "minimal" is about what the header CONTAINS, not how tall it is: it is the same 64px
+          sticky box as every other route's, which is why this rail needs the same clearance the
+          listing page's does.
+
+          Container swap only — Phase 12 owns the checkout redesign. The three children are
+          byte-identical; the rhythm moves from this file's `space-y-5` to the pattern's `space-y-4`
+          because a panel that re-declares its own spacing is a fork wearing a composition's name. */}
       <aside>
-        <Card className="lg:sticky lg:top-20">
-          <CardContent className="space-y-5 py-6">
-            {breakdown}
-            <HoldCountdown expiresAt={expiresAt} onExpire={() => setExpired(true)} />
-            <ReserveActions holdId={holdId} totalLabel={totalLabel} onResult={handleResult} />
-          </CardContent>
-        </Card>
+        <PanelCard sticky>
+          {breakdown}
+          <HoldCountdown expiresAt={expiresAt} onExpire={() => setExpired(true)} />
+          <ReserveActions holdId={holdId} totalLabel={totalLabel} onResult={handleResult} />
+        </PanelCard>
       </aside>
     </div>
   );

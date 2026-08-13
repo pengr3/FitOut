@@ -103,6 +103,34 @@
 //       Reverted → 11 passed.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// AMENDED 14 AUGUST 2026 (PLAN 11-13) — THE COUNT MOVED 3 → 1, AS THIS FILE PREDICTED
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The three probes above ran against the 11-10 tree, where three sites existed; probe (b)'s quoted
+// failure therefore enumerates four paths that no longer all hold a class string. They are kept
+// VERBATIM as the record of what was watched, not rewritten to match today's tree — a watched red
+// that gets edited afterwards is no longer evidence of anything.
+//
+// Plan 11-13 converted both shipped rails onto `PanelCard sticky`. The red was watched BEFORE the
+// pin moved, and it is the predicted one arriving:
+//
+//   AssertionError: the number of `lg:sticky` sites in the app changed. … Sites found:
+//   src/components/patterns/panel-card.tsx:107: expected 1 to be 3
+//   AssertionError: expected [ 80 ] to deeply equal [ 80, 80, 80 ]
+//   Tests  2 failed | 9 passed (11)
+//
+// …then the count was set to 1 and the file went 11 passed. And the OTHER direction was watched too,
+// because a count of 1 is satisfied by a tree where the pattern is the only sticky thing left AND by
+// a tree where somebody re-hard-coded a rail and deleted the pattern's prop:
+//
+//   (d) REGRESSION. `<PanelCard sticky>` in `booking/reserve-view.tsx` replaced by a raw
+//       `<Card className="lg:sticky lg:top-8">` — i.e. exactly the edit this conversion exists to
+//       make impossible to do quietly. 3 failed / 8 passed: the count (`expected 2 to be 1`, naming
+//       `src/components/booking/reserve-view.tsx:86`), the RULE (`… resolves to 32px, below the 80px
+//       floor`), and the positive half (`expected [ 32, 80 ] to deeply equal [ 80 ]`). Reverted →
+//       11 passed.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //   • THIS GATE READS CLASSES, NOT COMPUTED GEOMETRY. It proves the source says 80px; it cannot prove
@@ -157,28 +185,34 @@ const FLOOR_PX = HEADER_PX + GAP_PX;
  * sticky rail is a layout decision worth one deliberate line, and a count folded into the offset
  * assertion makes "somebody added a rail" and "somebody added a BROKEN rail" the same failure.
  *
- * THREE TODAY, not one. `11-UI-SPEC.md § The geometry contract` says *"there is exactly one such site
- * today"* and plan 11-10 repeats it; the tree holds three, and the discrepancy was found by writing
- * this scan rather than by reading either document:
+ * ONE TODAY — AND THE 3 → 1 THIS FILE PREDICTED IS THE MEASUREMENT THAT ARRIVED (plan 11-13).
  *
- *   1. `src/app/listings/[id]/(detail)/page.tsx` — the listing page's booking rail.
- *   2. `src/components/booking/reserve-view.tsx`  — the checkout rail. Missed by the spec, and by the
- *      plan's `<action>`, which names only the first. `patterns/panel-card.tsx` had already recorded
- *      BOTH by path in plan 11-08, so the correction was available to be read.
- *   3. `src/components/patterns/panel-card.tsx`   — the `sticky` prop's own encoded offset. Not a
- *      shipped rail, but a genuine class string that renders whenever an adopter passes the prop, so
- *      the rule applies to it exactly as it does to the other two. It is the ONLY one of the three
- *      that was already correct before this plan.
+ * Plan 11-10 pinned this at THREE and wrote down the direction it expected next: *"Plan 11-13
+ * converts the two shipped rails onto `PanelCard sticky`, at which point sites 1 and 2 disappear and
+ * only the pattern's own offset remains. That is the shape of a correct conversion, and a count that
+ * stayed at 3 afterwards would mean the rails kept their own offsets alongside the prop."* Both rails
+ * adopted in plan 11-13 and the count went to exactly 1, so the prediction is recorded here as
+ * satisfied rather than deleted — a pinned number whose history is erased is a number nobody can
+ * argue with.
  *
- * The measurement wins over the spec, the same way `selector-contract.test.ts` records `.locator(` as
- * 23 where `11-UI-SPEC.md § GATE-04` says 22.
+ * The three that were, and where each went:
  *
- * EXPECTED FUTURE DIRECTION: 3 → 1. Plan 11-13 converts the two shipped rails onto `PanelCard
- * sticky`, at which point sites 1 and 2 disappear and only the pattern's own offset remains. That is
- * the shape of a correct conversion, and a count that stayed at 3 afterwards would mean the rails
- * kept their own offsets alongside the prop.
+ *   1. `src/app/listings/[id]/(detail)/page.tsx` — the listing page's booking rail. GONE: now
+ *      `<PanelCard sticky>`, so the offset is a boolean at the call site.
+ *   2. `src/components/booking/reserve-view.tsx`  — the checkout rail, and the container
+ *      `11-UI-SPEC` means by *"price-breakdown.tsx's container"*. Missed by the spec and by plan
+ *      11-10's `<action>`, found by this scan. GONE: also `<PanelCard sticky>`.
+ *   3. `src/components/patterns/panel-card.tsx`   — the `sticky` prop's own encoded offset. THE ONE
+ *      THAT REMAINS, and the only one that was ever correct without being corrected. It is not a
+ *      shipped rail; it is the single place the arithmetic is written, which is the whole point of
+ *      moving the other two onto the prop.
+ *
+ * WHAT A CHANGE TO THIS NUMBER MEANS NOW. Going UP by one means somebody wrote a raw `lg:sticky` at
+ * a call site instead of composing `PanelCard sticky` — read the new site and decide deliberately,
+ * because the offset it hard-codes is a number that can now drift from the pattern's. Going DOWN to
+ * 0 means the `sticky` prop itself was deleted, and every adopter silently stopped being sticky.
  */
-const EXPECTED_STICKY_SITES = 3;
+const EXPECTED_STICKY_SITES = 1;
 
 /** Repo-relative, forward-slashed. See `leak.test.ts:157-165` for why the normalisation matters. */
 function label(file: string): string {
@@ -329,8 +363,14 @@ describe("SHELL-01 — every lg:sticky offset clears the app shell's header", ()
     expect(walked.length).toBeGreaterThan(scanned.length);
   });
 
-  it("reached the three files that actually own a sticky site, by name", () => {
-    // Named explicitly so a count of 3 cannot come from a scanner that read three other files.
+  it("reached the one file that owns a sticky site AND the two rails that gave theirs up, by name", () => {
+    // Named explicitly so a count of 1 cannot come from a scanner that read one other file.
+    //
+    // THE TWO RAILS STAY NAMED HERE EVEN THOUGH NEITHER CARRIES A `lg:sticky` ANY MORE (plan 11-13),
+    // and that is the assertion doing its job rather than a stale line. The count above is now 1; a
+    // scanner that quietly stopped reaching `(detail)/page.tsx` and `reserve-view.tsx` would report
+    // that same 1 while a raw `lg:sticky lg:top-8` sat in either file. These two are precisely the
+    // paths a regression would land in, because they are the two that used to hold one.
     expect(scanned, "the scanner never reached the listing detail page").toContain(
       "src/app/listings/[id]/(detail)/page.tsx",
     );

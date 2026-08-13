@@ -58,7 +58,7 @@ import { ListingMapPanel } from "@/components/listing/listing-map-panel";
 import { DropInBadge } from "@/components/listing/drop-in-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelCard } from "@/components/patterns/panel-card";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -369,117 +369,118 @@ export default async function PublicListingPage({
 
         {/* Booking rail — price + state-reflecting CTA.
 
-            THE OFFSET IS 80px AND IT IS DERIVED, NOT CHOSEN (SHELL-01, plan 11-10). The app shell's
-            header is 64px from `sm:` up and is pinned to the top of the viewport, so a rail offset
-            by less than 64px scrolls UNDER it on every scroll. 64 + a 16px gap = 80px = the 20th
-            spacing step. The previous value here was the 8th step, 32px — correct when nothing was
-            pinned above this page, and wrong the moment the header landed.
+            THE OFFSET IS NOT WRITTEN HERE ANY MORE, AND THAT IS THE POINT (SHELL-01, plan 11-13).
+            It used to be a raw `lg:sticky lg:top-20` class string on this line, which meant the
+            number could be edited back down by anyone who never read why it was 80px. It now
+            arrives through `PanelCard`'s `sticky` BOOLEAN, so the arithmetic (the 64px shell header
+            + a 16px gap = the 20th spacing step) lives in exactly one file —
+            `patterns/panel-card.tsx` — and `tests/design/sticky-offset.test.ts` asserts that there
+            is only one.
 
-            The general rule is stated once, in `patterns/panel-card.tsx`, and asserted by
-            `tests/design/sticky-offset.test.ts`. Plan 11-13 converts this container onto
-            `PanelCard sticky`, which already encodes this number; this is a class-only correction so
-            the rail is right in the meantime rather than right one plan later. */}
+            The container swap is container-only: every child below is byte-identical to what this
+            rail shipped, and `PanelCard` renders the same `ui/card.tsx` primitive this line used to
+            render by hand. What changed is the padding, which is now the pattern's `p-4 sm:p-6`
+            rather than this file's `py-6` on top of `Card`'s own `py-4` (the double-block-padding
+            trap `deferred-items.md` measured at 112px vs 80px on the row cards). */}
         <aside>
-          <Card className="lg:sticky lg:top-20">
-            <CardContent className="space-y-4 py-6">
-              <div>
-                <p className="text-2xl font-semibold tracking-tight">
-                  {priceParts[0] ?? "Price on request"}
-                </p>
-                {priceParts[1] && (
-                  <p className="text-sm text-muted-foreground">{priceParts[1]}</p>
-                )}
-                {priceParts.length > 0 && (
-                  <p className="text-sm text-muted-foreground">Service fee included</p>
-                )}
-              </div>
-
-              {/* D-81 — the refund promise, next to the price it qualifies. GENERIC mode: there is no
-                  booking yet, so rungs are stated relative to the listing's own deadline anchor; checkout
-                  re-states the same ladder as concrete dates once a window is picked. A NULL tier renders
-                  nothing.
-
-                  09-UI-SPEC § 5b: the anchor is the LISTING's persisted occupancy mode — a drop-in listing
-                  sells passes for a DATE, so its deadline is when the space opens, not when a session
-                  starts. The ladder itself is byte-identical in both modes (OC-15). */}
-              {/* WR-05 — ALWAYS false here, and that is a decision rather than a default. This page has no
-                  booking and no picked date at render time, so there is no specific pass whose day could
-                  have opened: the disclosure describes the LISTING's policy in general, and the concrete
-                  "already open, so nothing comes back" statement belongs on the surface where a particular
-                  pass is being paid for (the reserve page, which does have both). Making the prop required
-                  is what forced this question to be answered out loud instead of inherited. A date-aware
-                  version of this page is not in scope. */}
-              <CancellationPolicyDisclosure
-                tier={row.listing.cancellationPolicy}
-                openCapacity={row.listing.occupancyMode === "open_capacity"}
-                windowAlreadyOpen={false}
-              />
-
-              {pub.maxOccupancy != null && (
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <UsersIcon className="size-4" aria-hidden="true" />
-                  {capacityLine}
-                </p>
-              )}
-
-              {/* Selection summary — appears once the booker picks a run/full day, or a date and a number
-                  of passes (display-only either way). Neither branch composes money: both LOOK UP a figure
-                  this RSC already computed with the same `computeServiceFee` checkout freezes, so the rail
-                  and the charge agree to the centavo (D-75) and no fee input reaches the browser (D-130). */}
-              {isOpenCapacity ? (
-                <RailPassSummary
-                  timezone={timezone}
-                  currency={DISPLAY_CURRENCY}
-                  allIn={allIn}
-                />
-              ) : (
-                <RailSelectionSummary
-                  timezone={timezone}
-                  currency={DISPLAY_CURRENCY}
-                  allIn={allIn}
-                />
-              )}
-
-              {bookable ? (
-                // Bookable → the hold action mints the pending hold on ENTERING checkout (D-39) then
-                // redirects to the reserve page; when sign-in is required the selection is threaded through
-                // the callbackURL so checkout resumes on return (D-41). The lifted picker selection drives
-                // it via context. BOTH mutations are threaded so the wiring stays visible at this seam;
-                // which one fires is decided by the persisted mode, inside the control.
-                <BookCta
-                  listingId={id}
-                  placeHold={placeHold}
-                  placeOpenHold={placeOpenHold}
-                  occupancyMode={row.listing.occupancyMode}
-                  resumeWindow={resumeWindowForMode}
-                  resumeOpen={resumeOpen}
-                />
-              ) : (
-                // Published but not payable → disabled neutral affordance + explanatory tooltip (D-13).
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span tabIndex={0} className="inline-block w-full">
-                        <Button size="lg" variant="secondary" disabled className="w-full">
-                          Not bookable yet
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      This space isn&apos;t accepting bookings yet — the host is finishing their
-                      payout setup.
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              <p className="text-center text-xs text-muted-foreground">
-                {bookable
-                  ? "You won't be charged yet."
-                  : "You can browse now — booking opens once this space is ready."}
+          <PanelCard sticky>
+            <div>
+              <p className="text-2xl font-semibold tracking-tight">
+                {priceParts[0] ?? "Price on request"}
               </p>
-            </CardContent>
-          </Card>
+              {priceParts[1] && (
+                <p className="text-sm text-muted-foreground">{priceParts[1]}</p>
+              )}
+              {priceParts.length > 0 && (
+                <p className="text-sm text-muted-foreground">Service fee included</p>
+              )}
+            </div>
+
+            {/* D-81 — the refund promise, next to the price it qualifies. GENERIC mode: there is no
+                booking yet, so rungs are stated relative to the listing's own deadline anchor; checkout
+                re-states the same ladder as concrete dates once a window is picked. A NULL tier renders
+                nothing.
+
+                09-UI-SPEC § 5b: the anchor is the LISTING's persisted occupancy mode — a drop-in listing
+                sells passes for a DATE, so its deadline is when the space opens, not when a session
+                starts. The ladder itself is byte-identical in both modes (OC-15). */}
+            {/* WR-05 — ALWAYS false here, and that is a decision rather than a default. This page has no
+                booking and no picked date at render time, so there is no specific pass whose day could
+                have opened: the disclosure describes the LISTING's policy in general, and the concrete
+                "already open, so nothing comes back" statement belongs on the surface where a particular
+                pass is being paid for (the reserve page, which does have both). Making the prop required
+                is what forced this question to be answered out loud instead of inherited. A date-aware
+                version of this page is not in scope. */}
+            <CancellationPolicyDisclosure
+              tier={row.listing.cancellationPolicy}
+              openCapacity={row.listing.occupancyMode === "open_capacity"}
+              windowAlreadyOpen={false}
+            />
+
+            {pub.maxOccupancy != null && (
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <UsersIcon className="size-4" aria-hidden="true" />
+                {capacityLine}
+              </p>
+            )}
+
+            {/* Selection summary — appears once the booker picks a run/full day, or a date and a number
+                of passes (display-only either way). Neither branch composes money: both LOOK UP a figure
+                this RSC already computed with the same `computeServiceFee` checkout freezes, so the rail
+                and the charge agree to the centavo (D-75) and no fee input reaches the browser (D-130). */}
+            {isOpenCapacity ? (
+              <RailPassSummary
+                timezone={timezone}
+                currency={DISPLAY_CURRENCY}
+                allIn={allIn}
+              />
+            ) : (
+              <RailSelectionSummary
+                timezone={timezone}
+                currency={DISPLAY_CURRENCY}
+                allIn={allIn}
+              />
+            )}
+
+            {bookable ? (
+              // Bookable → the hold action mints the pending hold on ENTERING checkout (D-39) then
+              // redirects to the reserve page; when sign-in is required the selection is threaded through
+              // the callbackURL so checkout resumes on return (D-41). The lifted picker selection drives
+              // it via context. BOTH mutations are threaded so the wiring stays visible at this seam;
+              // which one fires is decided by the persisted mode, inside the control.
+              <BookCta
+                listingId={id}
+                placeHold={placeHold}
+                placeOpenHold={placeOpenHold}
+                occupancyMode={row.listing.occupancyMode}
+                resumeWindow={resumeWindowForMode}
+                resumeOpen={resumeOpen}
+              />
+            ) : (
+              // Published but not payable → disabled neutral affordance + explanatory tooltip (D-13).
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0} className="inline-block w-full">
+                      <Button size="lg" variant="secondary" disabled className="w-full">
+                        Not bookable yet
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    This space isn&apos;t accepting bookings yet — the host is finishing their
+                    payout setup.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
+            <p className="text-center text-xs text-muted-foreground">
+              {bookable
+                ? "You won't be charged yet."
+                : "You can browse now — booking opens once this space is ready."}
+            </p>
+          </PanelCard>
         </aside>
       </div>
       </BookingSelectionProvider>
