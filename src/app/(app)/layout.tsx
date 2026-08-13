@@ -2,23 +2,34 @@
 //
 // This is the REAL per-page session gate (the optimistic middleware only hints): every page under
 // (app) requires a session; if there is none we redirect to /login (threat T-04-06). The header
-// hosts the Airbnb-style mode switch (wired in Task 2) so a user can flip between booking and
-// hosting context, plus a link to their profile.
+// hosts the Airbnb-style mode switch so a user can flip between booking and hosting context, plus a
+// link to their profile.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE GATE IS BLOCKING AND IT STAYS BLOCKING. NOTHING BELOW IT MAY MOVE ABOVE IT.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The session read and the redirect below run to completion BEFORE this function returns any JSX.
+// That ordering is the whole of T-04-06, and it is the reason plan 11-12 was the riskiest edit in its
+// phase: moving either line behind the `<Suspense>` boundary further down would stream this gated
+// shell to an anonymous browser and only then decide to redirect it — and bytes already on the wire
+// cannot be un-sent. What moved instead is the AMBIENT read: see `patterns/ambient-notifications.tsx`,
+// whose header states what that file may not do, and `tests/design/blocking-session-gate.test.ts`,
+// which asserts over the AST that neither gate sits inside a `Suspense` subtree here.
+//
+// Why it had to move at all: Next's documented behaviour is that a layout awaiting runtime data
+// blocks navigation, so while this file awaited three database reads a `loading.tsx` anywhere under
+// (app) bought nothing — STATE-01 was unverifiable on most of the group.
 
-import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { readDbNow } from "@/lib/booking/bookings-query";
-import { countUnread, listRecent, NOTIFICATIONS_MAX_LIMIT } from "@/lib/notifications";
+import { AmbientNotifications } from "@/components/patterns/ambient-notifications";
+import { BellSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
+import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
 import { ModeSwitch } from "@/components/mode-switch";
-import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
-import {
-  toNotificationItems,
-  type NotificationItemData,
-} from "@/components/notifications/notification-item";
 
 export default async function AppLayout({
   children,
@@ -35,65 +46,52 @@ export default async function AppLayout({
     canHost?: boolean;
   };
 
-  // D-92 wants "a bell in the shared header". There IS no shared header component: the booker header
-  // ((app)/layout.tsx) and the host header ((host)/host/layout.tsx) are duplicated inline, and D-04
-  // deliberately made the host shell distinct (a different wordmark, and a header on the neutral tint
-  // rather than on the page surface). Merging them is out of scope and contradicts D-04. The BELL is
-  // the shared thing D-92 requires, not the header — so one component is mounted in both. Do NOT
-  // refactor the two headers into one here. The host header's surface is named descriptively rather
-  // than quoted, because the DS-13 leak gate counts that string and a comment that repeats it is
-  // indistinguishable from a real call site.
+  // D-92 wants "a bell in the shared header", and as of plan 11-12 there IS a shared header — but
+  // only its BOX is shared. `patterns/site-chrome.tsx` owns the height, the padding, the container
+  // width, the bottom boundary, the stickiness and three named slots, so every composition in the app
+  // measures the same. It owns nothing about CONTENT, which is what keeps D-04 intact: the host shell
+  // stays deliberately distinct (its own wordmark, its own neutral-tint surface, its own link set)
+  // and this one keeps its own. What ended is three independently-drifting BOXES, not the distinction
+  // between the surfaces.
   //
-  // Both reads are OWNER-SCOPED IN THE QUERY on session.user.id (T-07-82) — never post-filtered, and
-  // never from anything the request supplied. The relative "2h ago" labels are composed here against the
-  // DATABASE clock (readDbNow), not the viewer's, because a skewed client clock would otherwise render
-  // "in 3 hours" on a notification that just arrived.
+  // THIS PARAGRAPH USED TO SAY *"There IS no shared header component… Do NOT refactor the two headers
+  // into one here."* That instruction was correct when it was written and is now partially superseded,
+  // by the plan that also wrote `site-chrome.tsx`'s own account of the merged/not-merged split. It is
+  // amended rather than deleted because the half that still binds is the important half: do not merge
+  // the two COMPOSITIONS. A shared box is not a shared header. The host header's surface is named
+  // descriptively rather than quoted, because the DS-13 leak gate counts that string and a comment
+  // that repeats it is indistinguishable from a real call site.
   //
-  // Wrapped: a notification read is an AMBIENT convenience, and it must never take down the shell that
-  // carries the session gate and every page under (app). A failure degrades to a calm in-panel message.
-  let unreadCount = 0;
-  let notificationItems: NotificationItemData[] = [];
-  let notificationsFailed = false;
-  try {
-    const [unread, rows, now] = await Promise.all([
-      countUnread(db, session.user.id),
-      listRecent(db, session.user.id, NOTIFICATIONS_MAX_LIMIT),
-      readDbNow(db),
-    ]);
-    unreadCount = unread;
-    notificationItems = toNotificationItems(rows, now);
-  } catch (err) {
-    console.error("[notifications] bell_read_failed", { surface: "app", err });
-    notificationsFailed = true;
-  }
-
+  // The three ambient reads that used to sit here — the unread count, the recent list and the
+  // database clock — now live in `patterns/ambient-notifications.tsx`, behind the boundary below,
+  // together with the owner-scoping, the clock and the degradation arguments that travelled with
+  // them. They are named descriptively for the same reason the surface above is: this plan's
+  // acceptance criterion is a zero-count grep for those three identifiers in this file.
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b px-4 py-3">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          FitOut
-        </Link>
-        <div className="flex items-center gap-3">
-          {/* Airbnb-style booker/host context switch (D-04) — currently in the booking context. */}
-          <ModeSwitch
-            current="book"
-            canBook={u.canBook ?? false}
-            canHost={u.canHost ?? false}
-          />
-          {/* D-92 in-app notification centre — the same component the host header mounts. */}
-          <NotificationBell
-            unreadCount={unreadCount}
-            items={notificationItems}
-            error={notificationsFailed}
-          />
-          <Link
-            href="/profile"
-            className="text-sm font-medium underline-offset-4 hover:underline"
-          >
-            Profile
-          </Link>
-        </div>
-      </header>
+      <SiteChrome
+        brand="FitOut"
+        brandHref="/"
+        actions={
+          <>
+            {/* Airbnb-style booker/host context switch (D-04) — currently in the booking context.
+                Rendered OUTSIDE the boundary: it is derived from the session this function has
+                already awaited, so it has nothing to wait for. */}
+            <ModeSwitch
+              current="book"
+              canBook={u.canBook ?? false}
+              canHost={u.canHost ?? false}
+            />
+            {/* D-92 in-app notification centre — the same component the host and public headers
+                mount, and the ONLY part of this cluster that touches the database. The fallback is
+                the bell's own 44px box, so the cluster does not reflow when the read lands. */}
+            <Suspense fallback={<BellSlotSkeleton />}>
+              <AmbientNotifications userId={session.user.id} surface="app" />
+            </Suspense>
+            <ProfileLink />
+          </>
+        }
+      />
       <main className="flex flex-1 flex-col">{children}</main>
       {/* WR-04: mount the Toaster exactly once at the shared ancestor, the same idiom the host
           availability page uses. Until now it was mounted ONLY on three host pages, so every
@@ -102,7 +100,8 @@ export default async function AppLayout({
           confirmation the organizer gets that the copy worked, and RemoveAttendeeButton's calm
           error sentences are its only failure channel; both were unreachable. Mounting it here
           covers every page under (app) at once. Do NOT also mount it per-page underneath this —
-          two Toasters render a toast twice. */}
+          two Toasters render a toast twice. It stays OUTSIDE the `<Suspense>` boundary above and
+          outside `SiteChrome`: it is a portal host for the whole group, not header content. */}
       <Toaster />
     </div>
   );

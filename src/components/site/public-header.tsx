@@ -52,19 +52,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
 
+import { AmbientNotifications } from "@/components/patterns/ambient-notifications";
 import { AuthSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
 import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
 import { ModeSwitch } from "@/components/mode-switch";
-import { NotificationBell } from "@/components/notifications/notification-bell";
-import {
-  toNotificationItems,
-  type NotificationItemData,
-} from "@/components/notifications/notification-item";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { readDbNow } from "@/lib/booking/bookings-query";
-import { countUnread, listRecent, NOTIFICATIONS_MAX_LIMIT } from "@/lib/notifications";
 
 /**
  * The public header. Wordmark home, no primary nav, a session-aware actions cluster.
@@ -121,42 +114,24 @@ async function PublicAuthSlot() {
     canHost?: boolean;
   };
 
-  // Both reads are OWNER-SCOPED IN THE QUERY on session.user.id (T-07-82) — never post-filtered, and
-  // never from anything the request supplied. Relative labels are composed against the DATABASE clock
-  // (readDbNow), not the viewer's, because a skewed client clock would render "in 3 hours" on a
-  // notification that just arrived. Both properties are copied from `(app)/layout.tsx:54-68`, which
-  // is the shape plan 11-12 will consolidate when it converts that layout onto this same shell.
+  // THE THIRD COPY OF THE AMBIENT READ IS GONE (plan 11-12). This block used to hold the same eight
+  // lines as `(app)/layout.tsx` and `(host)/host/layout.tsx` — the unread count, the recent list and
+  // the database clock, owner-scoped in the query and wrapped so a failure degrades. Plan 11-10's
+  // summary flagged it as the extraction 11-12 owed; `patterns/ambient-notifications.tsx` is where it
+  // lives now, with the owner-scoping, the clock and the degradation arguments moved across intact.
   //
-  // WRAPPED, AND ON THIS SURFACE THAT MATTERS MORE THAN IT DOES IN `(app)`. A notification read is an
-  // AMBIENT convenience; here it sits in the header of `/` and `/invite/[token]` — the app's front
-  // door and a page opened by strangers holding a link. A throw would take down the whole public
-  // surface for a signed-in visitor. It degrades to a calm in-panel message instead.
-  let unreadCount = 0;
-  let notificationItems: NotificationItemData[] = [];
-  let notificationsFailed = false;
-  try {
-    const [unread, rows, now] = await Promise.all([
-      countUnread(db, session.user.id),
-      listRecent(db, session.user.id, NOTIFICATIONS_MAX_LIMIT),
-      readDbNow(db),
-    ]);
-    unreadCount = unread;
-    notificationItems = toNotificationItems(rows, now);
-  } catch (err) {
-    console.error("[notifications] bell_read_failed", { surface: "public", err });
-    notificationsFailed = true;
-  }
-
+  // IT IS NOT GIVEN ITS OWN NESTED `<Suspense>` HERE, and the group layouts are the reason it is in
+  // one there. Those two resolve the session BEFORE rendering, so the bell is the only thing in their
+  // cluster still in flight and it gets its own boundary. On THIS surface the session read is itself
+  // the pending thing — this whole component is already the boundary's child, behind
+  // `AuthSlotSkeleton` — so a second boundary inside it would reserve a box inside a box that is
+  // itself not yet drawn. The slot resolves as one unit, exactly as it did before the extraction.
   return (
     <>
       {/* Airbnb-style booker/host context switch (D-04) — the public surface is a booking context. */}
       <ModeSwitch current="book" canBook={u.canBook ?? false} canHost={u.canHost ?? false} />
-      {/* D-92 in-app notification centre — the SAME component both group headers mount. */}
-      <NotificationBell
-        unreadCount={unreadCount}
-        items={notificationItems}
-        error={notificationsFailed}
-      />
+      {/* D-92 in-app notification centre — the SAME async child both group headers mount. */}
+      <AmbientNotifications userId={session.user.id} surface="public" />
       <ProfileLink />
     </>
   );

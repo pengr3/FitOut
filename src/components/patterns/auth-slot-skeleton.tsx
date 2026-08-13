@@ -40,11 +40,28 @@
 // of every page in the application is noise on every single navigation. The slot resolves in
 // milliseconds and its resolved contents announce themselves.
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE SECOND FALLBACK: A SLOT THAT IS ALREADY RESOLVED EXCEPT FOR ONE CONTROL (PLAN 11-12)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `AuthSlotSkeleton` above stands in for the WHOLE cluster, on the three PUBLIC compositions, where
+// the session itself is what has not resolved yet and nobody knows which cluster will win.
+//
+// The two GROUP layouts are the opposite case and need the opposite fallback. `(app)` and `(host)`
+// resolve the session BEFORE they render anything (that is the security gate, and plan 11-12 keeps it
+// blocking), so the mode switch and the profile link are known immediately and are rendered outside
+// the boundary. The only thing still in flight is the notification read — one control. Mounting the
+// whole-cluster fallback there would put a 176px `min-w-44` box INSIDE an already-populated 234px
+// cluster and then collapse it: measured on the source, 366px pending against 234px resolved, a 132px
+// reflow on every authenticated page. `BellSlotSkeleton` is the bell's own box and nothing else, so
+// the pending and resolved widths are equal.
+
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AUTH_SLOT_BOX,
   AUTH_SLOT_CONTROL,
   AUTH_SLOT_ICON,
+  NOTIFICATION_BELL_BOX,
 } from "@/lib/design/measurements";
 import { cn } from "@/lib/utils";
 
@@ -58,4 +75,19 @@ export function AuthSlotSkeleton() {
       <Skeleton className={cn(AUTH_SLOT_ICON, "rounded-full")} />
     </div>
   );
+}
+
+/**
+ * The notification bell's `<Suspense>` fallback: one 44px placeholder, `aria-hidden`.
+ *
+ * `aria-hidden` for the same reason `AuthSlotSkeleton` is, and here the argument is stronger rather
+ * than weaker: this stands in for a single header affordance that resolves in milliseconds, on every
+ * navigation in the signed-in app. Announcing "loading" for the top-right corner of every page would
+ * be noise, and the bell's resolved state announces itself (`aria-label="Notifications, N unread"`).
+ *
+ * `rounded-lg` matches `ui/button.tsx`'s base radius — the bell is a ghost icon BUTTON, a rounded
+ * square, not the circle `AuthSlotSkeleton`'s icon placeholder draws for an avatar.
+ */
+export function BellSlotSkeleton() {
+  return <Skeleton aria-hidden="true" className={cn(NOTIFICATION_BELL_BOX, "rounded-lg")} />;
 }

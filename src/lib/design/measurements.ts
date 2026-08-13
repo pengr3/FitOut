@@ -109,11 +109,42 @@ export const AUTH_SLOT_CONTROL = "h-8 w-24";
 /**
  * The auth slot's ICON control placeholder: 32 × 32px.
  *
- * The bell, and every square control that sits beside it (`Button size="icon"`, the avatar, the
- * `aria-label="Menu"` drawer trigger) — all of which are `size-8`. See `AUTH_SLOT_CONTROL` above for
- * why this is a constant rather than a literal, and for the measurement it comes from.
+ * The square controls in the header that ARE 32px: the `aria-label="Menu"` drawer trigger
+ * (`site-chrome.tsx`'s `NavDrawer`, which reads this constant), and the auth slot's own second
+ * placeholder. See `AUTH_SLOT_CONTROL` above for why this is a constant rather than a literal, and
+ * for the measurement it comes from.
+ *
+ * CORRECTED IN PLAN 11-12. This docblock previously read *"the bell, and every square control that
+ * sits beside it … all of which are `size-8`"*, and the bell half was FALSE:
+ * `notifications/notification-bell.tsx:106` is `size-11`, a 44px touch target, and has been since
+ * D-92 shipped. The number came from `11-UI-SPEC § Responsive behaviour`'s cluster arithmetic
+ * (*"mode switch 96 + bell 32 + Profile 48 + 2 gaps 24 = 200px"*), which is the spec's estimate
+ * rather than a measurement of the shipped control — the same direction as the spec's `lg:sticky`
+ * count, which `sticky-offset.test.ts` records as 3 against the spec's 1.
+ *
+ * It is corrected rather than retargeted because BOTH numbers are real: the drawer trigger is
+ * genuinely 32px and the bell is genuinely 44px. `NOTIFICATION_BELL_BOX` below is the second one. A
+ * stated reason that has quietly become false is worse than no reason (11-09's finding 4), and this
+ * one was load-bearing: it is what a reader reaches for when they need a `<Suspense>` fallback for
+ * the bell, and reaching for it would have shipped a 12px layout shift on every authenticated page.
  */
 export const AUTH_SLOT_ICON = "size-8";
+
+/**
+ * The notification bell's box: 44 × 44px.
+ *
+ * Measured off the shipped control (`notifications/notification-bell.tsx:106` — `relative size-11`),
+ * not derived from the UI-SPEC's cluster estimate; see the correction on `AUTH_SLOT_ICON` above. 44px
+ * is the WCAG 2.5.8 target-size minimum, which is why the bell is the one control in the cluster that
+ * does not sit on the 32px icon step.
+ *
+ * WHY IT NEEDED ITS OWN CONSTANT, in one sentence: plan 11-12 puts the bell — and ONLY the bell —
+ * behind a `<Suspense>` boundary in both group headers, so the boundary's fallback has to be the
+ * bell's own box or the cluster reflows the moment the notification read lands. `AUTH_SLOT_BOX` is
+ * the whole slot (176px) and `AUTH_SLOT_ICON` is 32px; neither is 44, and using either would cause
+ * the layout shift the auth slot exists to prevent.
+ */
+export const NOTIFICATION_BELL_BOX = "size-11";
 
 /**
  * The minimum height of a boxed panel — the price breakdown, the calendar day panel, an empty state.

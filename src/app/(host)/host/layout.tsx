@@ -6,23 +6,32 @@
 // canHost is sent to / (the booking surface) — they must explicitly "Start hosting" (which flips
 // canHost server-side) before this surface unlocks. The host UI is its own shell, not blended into
 // the booker (app) pages (D-04).
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// BOTH GATES ARE BLOCKING AND THEY STAY BLOCKING. NOTHING BELOW THEM MAY MOVE ABOVE THEM.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The session read, the /login redirect and the canHost redirect all run to completion BEFORE this
+// function returns any JSX. This layout has TWO gates rather than one, so it is the file where the
+// mistake is most expensive: moving either redirect behind the `<Suspense>` boundaries further down
+// would stream the host dashboard's shell to a booker-only account and only then decide to send them
+// away. What moved instead is the AMBIENT data: see `patterns/ambient-notifications.tsx`, whose
+// header states what that file may not do, and `tests/design/blocking-session-gate.test.ts`, which
+// asserts over the AST that neither gate sits inside a `Suspense` subtree here.
+//
+// Why it had to move at all: Next's documented behaviour is that a layout awaiting runtime data
+// blocks navigation, so while this file awaited FOUR database reads a `loading.tsx` anywhere under
+// (host) bought nothing — STATE-01 was unverifiable on most of the group.
 
-import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { and, count, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { booking, listing } from "@/lib/db/schema";
-import { readDbNow } from "@/lib/booking/bookings-query";
-import { countUnread, listRecent, NOTIFICATIONS_MAX_LIMIT } from "@/lib/notifications";
-import { Badge } from "@/components/ui/badge";
+import { AmbientHostNav, AmbientNotifications } from "@/components/patterns/ambient-notifications";
+import { BellSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
+import { ProfileLink, SiteChrome, SiteNav } from "@/components/patterns/site-chrome";
 import { ModeSwitch } from "@/components/mode-switch";
-import { NotificationBell } from "@/components/notifications/notification-bell";
-import {
-  toNotificationItems,
-  type NotificationItemData,
-} from "@/components/notifications/notification-item";
+import { HOST_NAV_LINKS } from "@/lib/nav";
 
 export default async function HostLayout({
   children,
@@ -44,92 +53,70 @@ export default async function HostLayout({
     redirect("/");
   }
 
-  // Pending-request count (D-65) for the header nudge — owner-scoped booking JOIN listing, status='requested'
-  // (the same owner-scope predicate as the /host/requests inbox). Drives the count badge, hidden at 0.
-  const [{ p } = { p: 0 }] = await db
-    .select({ p: count() })
-    .from(booking)
-    .innerJoin(listing, eq(booking.listingId, listing.id))
-    .where(and(eq(listing.hostId, session.user.id), eq(booking.status, "requested")));
-  const pendingRequests = p ?? 0;
-
-  // D-92 wants "a bell in the shared header". There IS no shared header component: the booker header
-  // ((app)/layout.tsx) and the host header ((host)/host/layout.tsx) are duplicated inline, and D-04
-  // deliberately made the host shell distinct (a different wordmark, and a header on the neutral tint
-  // rather than on the page surface — the element below). Merging them is out of scope and contradicts
-  // D-04. The BELL is the shared thing D-92 requires, not the header — so one component is mounted in
-  // both. Do NOT refactor the two headers into one here. The surface is named descriptively rather
-  // than quoted, because the DS-13 leak gate counts that string and a comment that repeats it is
-  // indistinguishable from a real call site.
+  // D-92 wants "a bell in the shared header", and as of plan 11-12 there IS a shared header — but
+  // only its BOX is shared. `patterns/site-chrome.tsx` owns the height, the padding, the container
+  // width, the bottom boundary, the stickiness and three named slots, so every composition in the app
+  // measures the same. It owns nothing about CONTENT, which is what keeps D-04 intact: this shell
+  // keeps its own wordmark, its own neutral-tint surface (the element below) and its own link set,
+  // and the booker keeps its own. What ended is three independently-drifting BOXES, not the
+  // distinction between the surfaces.
   //
-  // Same shape as the pending-request count above: OWNER-SCOPED IN THE QUERY on session.user.id
-  // (T-07-82), never post-filtered. Relative labels are composed against the DATABASE clock (readDbNow),
-  // not the viewer's. Wrapped so an ambient notification read can never take down the host shell — which
-  // is also the (host) capability gate, so a throw here would be a real availability problem.
-  let unreadCount = 0;
-  let notificationItems: NotificationItemData[] = [];
-  let notificationsFailed = false;
-  try {
-    const [unread, rows, now] = await Promise.all([
-      countUnread(db, session.user.id),
-      listRecent(db, session.user.id, NOTIFICATIONS_MAX_LIMIT),
-      readDbNow(db),
-    ]);
-    unreadCount = unread;
-    notificationItems = toNotificationItems(rows, now);
-  } catch (err) {
-    console.error("[notifications] bell_read_failed", { surface: "host", err });
-    notificationsFailed = true;
-  }
-
+  // THIS PARAGRAPH USED TO SAY *"There IS no shared header component… Do NOT refactor the two headers
+  // into one here."* That instruction was correct when it was written and is now partially superseded,
+  // by the plan that also wrote `site-chrome.tsx`'s own account of the merged/not-merged split. It is
+  // amended rather than deleted because the half that still binds is the important half: do not merge
+  // the two COMPOSITIONS. A shared box is not a shared header. The surface is named descriptively
+  // rather than quoted, because the DS-13 leak gate counts that string and a comment that repeats it
+  // is indistinguishable from a real call site.
+  //
+  // FOUR database reads used to sit here, all four now streamed: the D-65 pending-request count that
+  // feeds the Requests badge, and the three ambient notification reads (the unread count, the recent
+  // list and the database clock). All four live in `patterns/ambient-notifications.tsx` now, together
+  // with the owner-scoping, the clock and the degradation arguments that travelled with them. They
+  // are named descriptively for the same reason the surface above is: this plan's acceptance
+  // criterion is a zero-count grep for those three identifiers in this file.
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b bg-muted px-4 py-3">
-        <Link href="/host" className="text-lg font-semibold tracking-tight">
-          FitOut <span className="text-muted-foreground">· Hosting</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          {/* Airbnb-style context switch — currently in the hosting context (D-04). */}
-          <ModeSwitch
-            current="host"
-            canBook={u.canBook ?? false}
-            canHost={u.canHost ?? false}
-          />
-          {/* Neutral earnings/payouts nav (HOST-03) — status view, not coral. */}
-          <Link
-            href="/host/earnings"
-            className="text-sm font-medium underline-offset-4 hover:underline"
-          >
-            Earnings
-          </Link>
-          {/* Neutral request-inbox nav (D-65) — a secondary count badge, hidden at 0. Never coral. */}
-          <Link
-            href="/host/requests"
-            className="inline-flex items-center gap-1.5 text-sm font-medium underline-offset-4 hover:underline"
-          >
-            Requests
-            {pendingRequests > 0 && (
-              <Badge variant="secondary" aria-label={`${pendingRequests} requests to review`}>
-                {pendingRequests}
-              </Badge>
-            )}
-          </Link>
-          {/* D-92 in-app notification centre — the SAME component the booker header mounts, sitting
-              ALONGSIDE the D-65 Requests badge above. Two badges, two meanings: `Requests` is an action
-              you owe someone; the bell is things that happened. Do not merge them. */}
-          <NotificationBell
-            unreadCount={unreadCount}
-            items={notificationItems}
-            error={notificationsFailed}
-          />
-          <Link
-            href="/profile"
-            className="text-sm font-medium underline-offset-4 hover:underline"
-          >
-            Profile
-          </Link>
-        </div>
-      </header>
+      <SiteChrome
+        brand={
+          <>
+            FitOut <span className="text-muted-foreground">· Hosting</span>
+          </>
+        }
+        brandHref="/host"
+        surface="muted"
+        nav={
+          // The nav's LINKS are static (`src/lib/nav.ts`) and only the D-65 count is not, so the
+          // fallback is the identical `SiteNav` with no badges — which is byte-identical to the
+          // resolved zero-count markup, because D-65 hides the badge at zero. The `<nav>` landmark
+          // itself is rendered by `SiteChrome` around this boundary, so it is present from the first
+          // byte and the landmark count is 1 at every viewport whether the count has landed or not.
+          <Suspense fallback={<SiteNav links={HOST_NAV_LINKS} />}>
+            <AmbientHostNav userId={session.user.id} />
+          </Suspense>
+        }
+        actions={
+          <>
+            {/* Airbnb-style context switch — currently in the hosting context (D-04). Rendered
+                OUTSIDE the boundary: it is derived from the session this function has already
+                awaited, so it has nothing to wait for. */}
+            <ModeSwitch
+              current="host"
+              canBook={u.canBook ?? false}
+              canHost={u.canHost ?? false}
+            />
+            {/* D-92 in-app notification centre — the SAME component the booker and public headers
+                mount, sitting ALONGSIDE the D-65 Requests badge in the nav slot above. Two badges,
+                two meanings: `Requests` is an action you owe someone; the bell is things that
+                happened. Do not merge them. The fallback is the bell's own 44px box, so the cluster
+                does not reflow when the read lands. */}
+            <Suspense fallback={<BellSlotSkeleton />}>
+              <AmbientNotifications userId={session.user.id} surface="host" />
+            </Suspense>
+            <ProfileLink />
+          </>
+        }
+      />
       <main className="flex flex-1 flex-col">{children}</main>
     </div>
   );
