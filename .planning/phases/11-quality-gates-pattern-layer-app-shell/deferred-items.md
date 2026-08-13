@@ -54,3 +54,30 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
   **CONTAINED, NOT FIXED.** Plan 11-04 supplied three obviously-fake build-only placeholders on the `gate-db-free` job (`ci-build-only-placeholder-not-a-real-*`, none using a real credential prefix, none a GitHub secret). CI is green; **a fresh clone still cannot build**. The guards were deliberately NOT touched: each is a fail-closed security control (WR-03), and softening one to turn a red check green is the worst trade available — so this was raised as a Rule 4 decision rather than absorbed into a plan whose declared surface was `.github/workflows/ci.yml` alone.
 
   **Whoever picks this up:** the fix is to add `process.env.NEXT_PHASE !== "phase-production-build"` to the three FIRES rows, matching `src/lib/paymongo.ts:39` verbatim. It is a security control's production branch, so it wants a deliberate decision and a watched red, not a drive-by edit. Verify by reproducing the runner condition — move `.env.local` aside, run `npm run build` with **only** `DATABASE_URL` set, and watch it exit 0 **without** the CI placeholders. Beware the trap that cost a round-trip here: the build aborts at the FIRST guard across 7 parallel workers, and the order differs per machine (CI named `BETTER_AUTH_SECRET`, the same tree locally named `PAYMONGO_SECRET_KEY`, and neither named `PAYMONGO_WEBHOOK_SECRET`) — **the error message is a lower bound, not a list.** Enumerate with the AST scan, not by re-reading the log.
+
+- **[11-11] `src/components/listing/listing-card.tsx` CANNOT render through `ResultCard`, and the reason is structural rather than stylistic — measured with the real HTML parser, not argued.** The UI-SPEC lists it under ResultCard's *Replaces* ("presentational core"), and plan 11-11's Task 1 required the swap. It was not done, on purpose.
+
+  `ResultCard` is `<Link href>` **wrapping** the `Card` — the whole tile is one anchor — and `ResultCardProps` declares `href · media · mediaFallback · title · meta · price · badges` and nothing else: **no `children`, no `footer`, no `actions` slot.** `ListingCard` is a MANAGEMENT tile: it carries a `CardFooter` with an Edit link, an Availability link and two `ConfirmDialog` triggers (`<button>`), plus an inline `<Link>` inside the hours-missing notice. Every one of those would have to travel through a prop that renders *inside* the anchor.
+
+  **What the parser does with that shape** (`jsdom`, the same parser a browser uses, fed the exact markup React would emit):
+
+  ```
+  anchors parsed: 6            ← ONE <a> was written
+  button inside an <a>?  false
+  outer anchor child count: A 0   ← the whole-card link ends up EMPTY
+  ```
+
+  The adoption-agency algorithm **shatters the single outer anchor into six**, hoists the nested anchor and the button out of it, and leaves the whole-card link with **zero children** — i.e. the tile stops being a link at all and the footer controls escape their container. The positive control (identical markup with the footer *outside* the anchor) parses to 2 anchors with the button intact, so this is the nesting, not the fixture. This is precisely threat **T-11-NESTEDACTION**, which plan 11-11's own register disposes as *mitigate*.
+
+  **There is no in-plan repair.** Giving `ResultCard` a `footer` prop does not help: the footer must sit inside the `Card` and outside the `Link`, which requires `Card` to be the OUTER element — and moving `Card` outside kills `group-hover:bg-muted/40 group-hover:shadow-overlay`, because `group-hover:` needs the `group` (the Link) to be an ANCESTOR of the Card. Converting the tile to `RowCard`'s overlay-pseudo-element form instead would change the shipped DS-05 focus recipe that 11-11 is required to preserve byte-for-byte (it is one of the two new `CONTRAST_PAIRS` measurements).
+
+  **Whoever picks this up — it is a UI-SPEC correction, not a coding task.** Either (a) drop `listing-card.tsx` from ResultCard's *Replaces* list and record that a tile with in-card controls is a different shape from a tile that is one link, or (b) decide at product level that the host tile becomes navigable (whole card → `/host/listings/[id]/edit`) and its controls move OFF the card — which is a Phase 14 host-surface decision, not a container swap. Do **not** resolve it by adding a fourth container: DS-11 says three.
+
+- **[11-11] `notifications/notification-item.tsx` CANNOT render through `RowCard` either, for four independent reasons.** Also listed in the UI-SPEC's *Replaces* line, also not done.
+
+  1. **`href` is nullable BY SECURITY DESIGN.** `safeHref()` refuses `javascript:`, `data:` and protocol-relative URLs, and a refused payload deliberately degrades to non-navigable static content (`notification-item.tsx:283-287`). `RowCard` requires an `href`. Satisfying the type would mean fabricating a destination the writer never wrote — the exact failure the render-side guard exists to prevent.
+  2. **It is not a card.** It renders inside `<ul className="divide-y">` in a `PopoverContent` with `p-0` (`notification-bell.tsx:163-169`). `RowCard` renders a `Card` — `bg-card`, `ring-1 ring-foreground/10`, `rounded-xl` — so adoption would stack up to 20 ringed, rounded cards inside a dropdown, separated by divider lines.
+  3. **The row root carries state.** Unread is a `bg-muted` tint ON THE ROW plus a 6px brand dot; `RowCard` exposes no root `className` and its `media` slot is a 48px `bg-muted rounded-md` box, which is not what a 2px dot rail and a 16px icon are.
+  4. **The link takes an `onClick`.** `onSelect` fires the mark-read write in parallel with navigation; `RowCard`'s internal `Link` accepts no handler.
+
+  Forcing it would require optional `href`, `onClick` passthrough, root `className` passthrough and a way to suppress the Card chrome — at which point `RowCard` is no longer a card and the app has a fourth container wearing the third one's name. **Raised as the scope alarm plan 11-11 asks for**, rather than absorbed. The honest fix is a UI-SPEC correction: a notification row is a list item in an overlay panel, not a list CARD.

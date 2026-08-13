@@ -1,6 +1,22 @@
-// Search result card (SEARCH-05 · D-16/D-30) — extends the `listing-card.tsx` presentational core
-// (Card + AspectRatio 4:3 cover + title + primary type + "hourly · day" price) for the public search
-// grid. Differences from the host card (UI-SPEC § Discretionary card layout):
+// Search result card (SEARCH-05 · D-16/D-30) — the public search grid's tile.
+//
+// DS-11 (plan 11-11): the CONTAINER is `patterns/result-card.tsx` now. This file decides what a search
+// result SAYS; `ResultCard` decides what a marketplace tile LOOKS LIKE. Everything geometric that used
+// to live here — the whole-card `<Link>` and its DS-05 focus recipe, the `Card` class string, the
+// `AspectRatio` wrapper, the hover pair — moved there byte-for-byte and must not be restated here.
+//
+// TWO THINGS MOVED ON THE CARD, and they are visible rather than internal, so they are stated here as
+// well as in 11-11-SUMMARY.md:
+//   1. THE PRICE IS LAST. The pattern owns where money sits so a grid of tiles has its prices on one
+//      optical column; distance and the availability line therefore now sit ABOVE the price instead of
+//      below it. `tests/search/search-card-open.test.tsx` case (9) pins the new order exactly.
+//   2. `Service fee included` is rendered INSIDE the `price` node rather than as the line after it.
+//      D-ELM-01 already required those two to be contiguous ("the single unit they are"); passing them
+//      as one node makes that structural instead of positional, and keeps case (7)'s contiguity
+//      assertion passing unchanged.
+//
+// It kept the `listing-card.tsx` presentational core it was extended from. Differences from the host
+// card (UI-SPEC § Discretionary card layout):
 //   - NO host-action props (edit / unlist / delete) and NO status badge — every search result is
 //     bookable (deriveBookable is enforced in the Stage-1 search SQL, never re-derived here).
 //   - Adds a distance line ("2.3 km away", muted) rendered ONLY when the search had an origin, and an
@@ -19,11 +35,10 @@
 // requires a per-head price but never CLEARS hourly/day, and OC-17 lets a host switch modes, so a drop-in
 // listing can genuinely still carry every exclusive rate column (09-07's lesson).
 
-import Link from "next/link";
+import type { ReactNode } from "react";
 import { format } from "date-fns";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { ResultCard } from "@/components/patterns/result-card";
 import { DropInBadge } from "@/components/listing/drop-in-badge";
 import { SpotsLeftChip } from "@/components/availability/spots-left-chip";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
@@ -163,115 +178,107 @@ export function SearchResultCard({
   const qs = params.toString();
   const href = qs ? `/listings/${listing.id}?${qs}` : `/listings/${listing.id}`;
 
+  // THE MUTED LINES, IN ORDER. `ResultCard` renders `meta[0]` as the TYPE LINE (the row `badges` join)
+  // and every remaining entry as its own muted paragraph, above the price.
+  const meta: ReactNode[] = [];
+
+  // The type line. Pushed even when `typeLabel` is null on a DROP-IN row, so the badge still gets a line
+  // of its own — the mode must never be the silent thing on the card. On an EXCLUSIVE row with no space
+  // type nothing is pushed at all, which is exactly what the shipped `typeLabel && <p>` branch did.
+  if (typeLabel || isDropIn) meta.push(typeLabel);
+
+  /* THE EXPLAINER (D-ELM-01 — v1.0 audit item #6, copy clause). The badge NAMES the mode; it does
+     not define it. A booker meeting the word here learns nothing about what they are buying, and
+     `/person` hints without stating. This one muted line carries both facts the audit named — the
+     unit is a DAY, and the space is SHARED — sitting directly beneath the word that raised the
+     question and above the price.
+
+     NOT NEW COPY (D-ELM-02). It is a COMPRESSION of the listing page's own framing line
+     (`date-pass-picker.tsx:230`), whose tail it reuses verbatim, and the sibling of
+     `composeWhenLabel`'s drop-in line (`when-label.ts:112`). A results tile must be the short form
+     of the surface it links to, never a second vocabulary for the same product. Checked against
+     § Copywriting (09-UI-SPEC:444, restated in `drop-in-badge.tsx:11-12`): no "occupancy mode", no
+     "capacity", no "slot".
+
+     "SHARED SPACE", NEVER "SHARED PASS" — load-bearing, not a stylistic preference. FitOut ships
+     GROUP BOOKINGS, where an organizer reserves and invites friends, so "a shared pass" reads as a
+     pass shared WITH someone. It is the SPACE that is shared; attaching the adjective to the pass
+     would advertise the adjacent feature instead of this one.
+
+     MUTED, NEVER ACCENT (D-ELM-04). § Color lists the five accent uses this phase permits and this
+     is not among them — the same reason the badge itself is `secondary`. The muted token is the
+     pattern's own treatment for every `meta` line, so both themes are covered by construction. No
+     truncate and no line-clamp: at 320px (the grid is single-column until `sm:`) this wraps to two
+     lines, which is correct, and is why the copy was held to 46 characters.
+
+     NOT A TOOLTIP (D-ELM-01). Roughly half this traffic is touch, where a hover tooltip is a hidden
+     explanation rather than an explanation — and the WHOLE card is one Link (the pattern's), so a
+     Radix trigger would nest a button inside an anchor and the tap would either navigate or be
+     swallowed. `tooltip.tsx` and `popover.tsx` both exist; availability was never the constraint.
+
+     The guard stays a SEPARATE expression rather than a branch of the type-line condition above,
+     deliberately: it keeps the drop-in condition a single removable token, which is what lets a
+     mutation measure that the exclusive card is genuinely protected — its whole `textContent` is
+     pinned by exact equality in tests/search/search-card-open.test.tsx case (9) (D-ELM-05). */
+  if (isDropIn) meta.push("Day pass · shared space, any time they're open");
+
+  // `tabular-nums` restated at the call site: the pattern guarantees it on the PRICE, and a distance
+  // is not money, so this line owns its own figure alignment.
+  if (distanceKm) meta.push(<span className="tabular-nums">{distanceKm} km away</span>);
+
+  if (availabilityLine) meta.push(availabilityLine);
+
+  // UI-SPEC O2: an open listing matches on DATE ONLY, so the searched start/end are ignored here and a
+  // time range is NEVER rendered — "Available 9:00 AM–11:00 AM" would describe a reservation the booker
+  // is not buying. The window line's two-hour branch is unreachable for this mode by construction.
+  if (dropInDateLine) meta.push(dropInDateLine);
+
+  // Scarcity appears ONLY with a date in play (OC-12): with no date the row carries no spots and this
+  // pushes nothing at all — no chip, no number, no hint. The state is passed STRAIGHT THROUGH from the
+  // read model, which derived it from a non-public server threshold (T-09-13); this card compares
+  // nothing and imports no ceiling.
+  // There is deliberately no sold-out treatment here: Stage-2 keeps an open candidate only when the
+  // picked date still has a spot (OC-12 · 09-05), so `full` can never reach a search card and a branch
+  // for it would be dead UI that nothing can reach and no test can pin.
+  if (isDropIn && listing.spots) {
+    meta.push(<SpotsLeftChip state={listing.spots.state} remaining={listing.spots.remaining} />);
+  }
+
   return (
-    <Link
+    <ResultCard
       href={href}
-      // DS-05: this recipe set an offset WIDTH without an offset COLOUR, so the 2px band around a
-      // focused search result painted Tailwind's default offset — a hardcoded white — instead of
-      // --background. On grove's tinted background that is a visible white halo, and it is a leak
-      // in all but name: a raw colour reaching the screen from a framework default rather than from
-      // a token. Naming the colour is the whole fix; the ring itself was already solid.
-      className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      <Card className="h-full gap-0 overflow-hidden pt-0 transition-shadow group-hover:bg-muted/40 group-hover:shadow-overlay">
-        <AspectRatio ratio={4 / 3} className="bg-muted">
-          {listing.coverPhotoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={listing.coverPhotoUrl} alt={title} className="size-full object-cover" />
-          ) : (
-            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-              No photos yet
-            </div>
-          )}
-        </AspectRatio>
-
-        <CardContent className="space-y-1 py-4">
-          <h3 className="font-semibold leading-snug">{title}</h3>
-          {isDropIn ? (
-            /* `Gym · [Drop-in]` — the badge sits INLINE on the space-type line, deliberately NOT as an
-               overlay on the cover photo: contrast over arbitrary host photography is unreliable in both
-               themes, and this card is a text-forward layout (09-UI-SPEC § 4). It renders even when the
-               listing has no space type, because the mode must never be the silent thing on the card. */
-            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              {typeLabel}
-              <DropInBadge />
-            </p>
-          ) : (
-            typeLabel && <p className="text-sm text-muted-foreground">{typeLabel}</p>
-          )}
-
-          {/* THE EXPLAINER (D-ELM-01 — v1.0 audit item #6, copy clause). The badge NAMES the mode; it does
-              not define it. A booker meeting the word here learns nothing about what they are buying, and
-              `/person` hints without stating. This one muted line carries both facts the audit named — the
-              unit is a DAY, and the space is SHARED — sitting directly beneath the word that raised the
-              question and above the price, which also keeps the price and its `Service fee included`
-              qualifier contiguous as the single unit they are.
-
-              NOT NEW COPY (D-ELM-02). It is a COMPRESSION of the listing page's own framing line
-              (`date-pass-picker.tsx:230`), whose tail it reuses verbatim, and the sibling of
-              `composeWhenLabel`'s drop-in line (`when-label.ts:112`). A results tile must be the short form
-              of the surface it links to, never a second vocabulary for the same product. Checked against
-              § Copywriting (09-UI-SPEC:444, restated in `drop-in-badge.tsx:11-12`): no "occupancy mode", no
-              "capacity", no "slot". Written as a braced string literal — like line 230 — because of the
-              apostrophe and `react/no-unescaped-entities`.
-
-              "SHARED SPACE", NEVER "SHARED PASS" — load-bearing, not a stylistic preference. FitOut ships
-              GROUP BOOKINGS, where an organizer reserves and invites friends, so "a shared pass" reads as a
-              pass shared WITH someone. It is the SPACE that is shared; attaching the adjective to the pass
-              would advertise the adjacent feature instead of this one. (This is also the first time the
-              sharing fact appears in booker-facing copy at all — until now it existed only in the host
-              wizard.)
-
-              MUTED, NEVER ACCENT (D-ELM-04). § Color lists the five accent uses this phase permits and this
-              is not among them — the same reason the badge itself is `secondary`. The token is the one four
-              other lines on this card already use, so both themes are covered by construction. No truncate
-              and no line-clamp: at 320px (the grid is single-column until `sm:`) this wraps to two lines,
-              which is correct, and is why the copy was held to 46 characters.
-
-              NOT A TOOLTIP (D-ELM-01). Roughly half this traffic is touch, where a hover tooltip is a
-              hidden explanation rather than an explanation — and the WHOLE card is one Link (above), so a
-              Radix trigger would nest a button inside an anchor and the tap would either navigate or be
-              swallowed. `tooltip.tsx` and `popover.tsx` both exist; availability was never the constraint.
-
-              The guard below is a SEPARATE expression rather than a third branch of the type-line ternary,
-              deliberately: it leaves that shipped ternary byte-unchanged and makes the drop-in condition a
-              single removable token, which is what lets a mutation measure that the exclusive card is
-              genuinely protected — its whole `textContent` is pinned by exact equality in
-              tests/search/search-card-open.test.tsx case (9) (D-ELM-05). */}
-          {isDropIn && (
-            <p className="text-sm text-muted-foreground">
-              {"Day pass · shared space, any time they're open"}
-            </p>
-          )}
-
-          <p className="text-sm tabular-nums">
-            {priceParts.length ? priceParts.join(" · ") : "Price on request"}
-          </p>
+      media={
+        listing.coverPhotoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={listing.coverPhotoUrl} alt={title} className="size-full object-cover" />
+        ) : undefined
+      }
+      mediaFallback={
+        <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+          No photos yet
+        </div>
+      }
+      title={title}
+      meta={meta}
+      /* `Gym · [Drop-in]` — the badge sits INLINE on the space-type line, deliberately NOT as an overlay
+         on the cover photo: contrast over arbitrary host photography is unreliable in both themes, and
+         this card is a text-forward layout (09-UI-SPEC § 4). The pattern enforces the placement; this
+         call site only decides whether there is a badge at all. */
+      badges={isDropIn ? <DropInBadge /> : undefined}
+      /* THE PRICE AND ITS QUALIFIER ARE ONE NODE. D-ELM-01 requires them contiguous ("the single unit
+         they are"), and `ResultCard` renders `price` last with `tabular-nums`. Passing the qualifier as
+         a block span INSIDE that node makes the contiguity structural rather than positional — nothing
+         can ever be inserted between them, because there is no gap to insert into. `mt-1` reproduces
+         the `space-y-1` rhythm the two lines had as siblings; the inherited `tabular-nums` is inert on
+         text with no digits. */
+      price={
+        <>
+          {priceParts.length ? priceParts.join(" · ") : "Price on request"}
           {priceParts.length > 0 && (
-            <p className="text-sm text-muted-foreground">Service fee included</p>
+            <span className="mt-1 block text-muted-foreground">Service fee included</span>
           )}
-          {distanceKm && (
-            <p className="text-sm text-muted-foreground tabular-nums">{distanceKm} km away</p>
-          )}
-          {availabilityLine && <p className="text-sm text-muted-foreground">{availabilityLine}</p>}
-
-          {/* UI-SPEC O2: an open listing matches on DATE ONLY, so the searched start/end are ignored here and a
-              time range is NEVER rendered — "Available 9:00 AM–11:00 AM" would describe a reservation the booker
-              is not buying. The window line's two-hour branch is unreachable for this mode by construction. */}
-          {dropInDateLine && <p className="text-sm text-muted-foreground">{dropInDateLine}</p>}
-
-          {/* Scarcity appears ONLY with a date in play (OC-12): with no date the row carries no spots and
-              this renders nothing at all — no chip, no number, no hint. The state is passed STRAIGHT
-              THROUGH from the read model, which derived it from a non-public server threshold (T-09-13);
-              this card compares nothing and imports no ceiling.
-              There is deliberately no sold-out treatment here: Stage-2 keeps an open candidate only when
-              the picked date still has a spot (OC-12 · 09-05), so `full` can never reach a search card and
-              a branch for it would be dead UI that nothing can reach and no test can pin. */}
-          {isDropIn && listing.spots && (
-            <SpotsLeftChip state={listing.spots.state} remaining={listing.spots.remaining} />
-          )}
-        </CardContent>
-      </Card>
-    </Link>
+        </>
+      }
+    />
   );
 }

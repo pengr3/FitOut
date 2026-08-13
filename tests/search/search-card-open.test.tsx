@@ -386,13 +386,35 @@ describe("SearchResultCard — drop-in listings (OC-12 / O2)", () => {
     // is `row.allInRateParts` — the SAME `allInRateParts` output the card renders from — and never a
     // hardcoded peso figure, so a SERVICE_FEE_BPS change moves both sides together instead of producing a
     // false failure here. Loosening this to `toContain` would remove the only teeth the case has.
+    //
+    // ── REORDERED BY PLAN 11-11, in that plan's own commit, and it is the ONLY line of this file the
+    //    DS-11 container swap moved. `SearchResultCard` now renders through `patterns/result-card.tsx`,
+    //    which owns where the price sits: money is the tile's LAST line, so a grid of tiles has its
+    //    prices on one optical column instead of wherever each surface happened to put them (11-UI-SPEC
+    //    § ResultCard, prop order). The availability line therefore precedes the price now rather than
+    //    following it.
+    //
+    //    THE RED WAS WATCHED BEFORE THIS EDIT, and it is worth recording because it is what proves this
+    //    assertion still has teeth after a whole-container rewrite. `npx vitest run tests/search`, with
+    //    the swap in place and this array untouched, VERBATIM:
+    //
+    //      Expected: "…Pickleball court₱322.88/hrService fee includedAvailable 9:00 AM–11:00 AM on …"
+    //      Received: "…Pickleball courtAvailable 9:00 AM–11:00 AM on Fri, Aug 8 · Makati time₱322.88/hr
+    //                  Service fee included"
+    //      Test Files  1 failed | 5 passed (6) · Tests  1 failed | 38 passed (39)
+    //
+    //    Cases (1)-(8) stayed GREEN through that rewrite — including (7)'s contiguity assertion, which
+    //    is the D-ELM-01 property (the price and its qualifier are one unit). The container swap
+    //    preserved it by construction: the card now passes both as a SINGLE `price` node, so there is
+    //    no longer a gap between them for anything to land in. The diff above is the whole visible
+    //    consequence of the adoption on an exclusive card — two segments moved, zero text changed.
     const expected = [
       "No photos yet",
       row.title ?? "Untitled space",
       SPACE_TYPE_LABELS.pickleball_court,
+      "Available 9:00 AM–11:00 AM on Fri, Aug 8 · Makati time",
       row.allInRateParts.join(" · "),
       "Service fee included",
-      "Available 9:00 AM–11:00 AM on Fri, Aug 8 · Makati time",
     ].join("");
     expect(container.textContent).toBe(expected);
 

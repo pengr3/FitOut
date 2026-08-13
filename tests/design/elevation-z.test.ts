@@ -315,18 +315,21 @@ const RAISED_INVENTORY: Readonly<Record<string, number>> = {
  *
  * MOVED BY PLAN 11-08, deliberately and in that plan's own commit — the 10-16 precedent, applied to
  * the other named step. `patterns/result-card.tsx` is DS-11's marketplace tile, and it carries the
- * hover elevation `search-result-card.tsx` already ships (`group-hover:shadow-overlay`, which the
- * UI-SPEC records as "shipped, preserved"). The pattern is adopted by nobody yet, so BOTH files
- * legitimately carry the step for now; the row above disappears when Phase 12 swaps the search grid
- * onto the pattern, and the total returns to 12.
+ * hover elevation `search-result-card.tsx` already shipped (`group-hover:shadow-overlay`, which the
+ * UI-SPEC records as "shipped, preserved"). 11-08 adopted the pattern nowhere, so both files carried
+ * the step at once and 11-08's own docblock said the duplicate was temporary.
  *
- * The map is what keeps that legible. A bare total would have read the addition and the future
- * removal as the same number and said nothing about either.
+ * MOVED AGAIN BY PLAN 11-11, in that plan's own commit, and this is the predicted removal arriving:
+ * `search-result-card.tsx` now renders THROUGH the pattern, so the hover class exists once, in the
+ * file that owns it, and the total returned to 12. (11-08 guessed Phase 12 would do this; the DS-11
+ * adoption plan got there first. The direction was right, the plan number was not.)
+ *
+ * The map is what kept that legible. A bare total would have read the addition and this removal as
+ * the same number and said nothing about either.
  */
 const OVERLAY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/dev/theme/page.tsx": 1,
   "src/components/patterns/result-card.tsx": 1,
-  "src/components/search/search-result-card.tsx": 1,
   "src/components/ui/dropdown-menu.tsx": 2,
   "src/components/ui/popover.tsx": 1,
   "src/components/ui/select.tsx": 1,
@@ -571,23 +574,25 @@ describe("DS-03 second clause — every shadow maps to one of exactly three name
 });
 
 describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME (T-10-45)", () => {
-  it("carries exactly 13 named-step call sites", () => {
+  it("carries exactly 12 named-step call sites", () => {
     // 9 from plan 10-12's migration (4 raised + 5 overlay, all product surfaces) + 3 from plan
-    // 10-16's `/dev/theme` ladder, which renders one card per step, + 1 from plan 11-08's
-    // `patterns/result-card.tsx`, which preserves the shipped tile hover. The three maps below are
-    // what stop this total being satisfied by 13 sites in the wrong thirteen places.
+    // 10-16's `/dev/theme` ladder, which renders one card per step. Plan 11-08 briefly made this 13
+    // by adding `patterns/result-card.tsx` beside the shipped tile it was extracted from; plan 11-11
+    // adopted the pattern on `search-result-card.tsx` and the duplicate went away exactly as 11-08's
+    // docblock predicted. The three maps below are what stop this total being satisfied by 12 sites
+    // in the wrong twelve places.
     const named =
       totalOf(scan.byName["shadow-raised"]) +
       totalOf(scan.byName["shadow-overlay"]) +
       totalOf(scan.byName["shadow-sticky"]);
-    expect(named, "the named elevation sites are the whole point of the migration").toBe(13);
+    expect(named, "the named elevation sites are the whole point of the migration").toBe(12);
   });
 
   it("pins the 5 raised sites to the files that own them", () => {
     expect(scan.byName["shadow-raised"]).toEqual(RAISED_INVENTORY);
   });
 
-  it("pins the 6 overlay sites to the files that own them", () => {
+  it("pins the 5 overlay sites to the files that own them", () => {
     expect(scan.byName["shadow-overlay"]).toEqual(OVERLAY_INVENTORY);
   });
 

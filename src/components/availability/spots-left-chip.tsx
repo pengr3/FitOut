@@ -79,9 +79,15 @@ export function SpotsLeftChip({
       </Badge>
     );
 
+  // A `span`, NOT a `div`, and that is a correctness requirement rather than a preference (11-11).
+  // The search tile now renders through `patterns/result-card.tsx`, which wraps every `meta` line in a
+  // `<p>`. `<p>` accepts PHRASING content only: an HTML parser closes the paragraph the moment it meets
+  // a `<div>`, so React's tree and the browser's tree disagree and the row hydrates mismatched. A span
+  // with `inline-flex` paints identically to the div it replaces — same box, same layout — and
+  // `role="status"` + `aria-live` are element-agnostic, so nothing changes for assistive tech either.
   return (
-    <div role="status" aria-live="polite" className={cn("inline-flex", className)}>
+    <span role="status" aria-live="polite" className={cn("inline-flex", className)}>
       {chip}
-    </div>
+    </span>
   );
 }
