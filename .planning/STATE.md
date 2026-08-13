@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 10
+current_plan: 12
 status: executing
-stopped_at: Completed 11-10-PLAN.md
-last_updated: "2026-08-13T15:45:24.135Z"
+stopped_at: Completed 11-11-PLAN.md
+last_updated: "2026-08-13T16:40:19.755Z"
 last_activity: 2026-08-13
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 27
+  completed_plans: 28
   percent: 9
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 10 of 22
-Current Plan: 10
+Plan: 12 of 22
+Current Plan: 12
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -243,6 +243,7 @@ Last activity: 2026-08-13
 | Phase 11 P05 | 38min | 2 tasks | 2 files |
 | Phase 11 P06 | 2h | 3 tasks | 3 files |
 | Phase 11 P10 | 62min | 3 tasks | 17 files |
+| Phase 11 P11 | 96min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -484,6 +485,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 11-06: the DB-vs-DOM price gate compares INTEGER CENTAVOS (strip non-digits after asserting the 2-decimal shape), never a formatted string — a locale or symbol change must not be a false red on a money gate
 - [Phase ?]: 11-06: whole-file substring verification of .github/workflows/ci.yml is measured VACUOUS 6 ways out of 6 (11-04 measured 2 of 5) and decays as the file's documentation improves — every later plan MUST verify it by PARSING
 - [Phase ?]: [11-10] SHELL-01 app shell: one geometry (site-chrome.tsx), three compositions. Route tree regrouped so listings/[id]/book is a SIBLING of (detail) — the checkout's zero-navigation property is a fact about the file tree, not a conditional (measured: 0 <a href>, brand is a <span>). Header 56/64px IDENTICAL in court and grove at 320/375/640/768/1280. Session read server-side inside <Suspense> (T-11-SESSION). The app has THREE lg:sticky sites, not the one the UI-SPEC names: both shipped rails moved lg:top-8 -> lg:top-20; tests/design/sticky-offset.test.ts asserts the RULE (>= 80px) over an AST paired scan and pins the count separately (3 today, expected 1 after 11-13). Unreachable-DATABASE_URL build exits 0 with the session-aware header in tree — 11-RESEARCH's Assumption A5 closed.
+- [Phase 11]: 11-11: listing-card.tsx and notification-item.tsx CANNOT adopt ResultCard/RowCard — measured, not argued. Feeding the real HTML parser a whole-card Link containing listing-card's footer shatters that anchor into SIX and leaves it with ZERO children (control: footer outside the anchor parses intact); a notification href is nullable BY SECURITY DESIGN and the row is a divide-y list item in a popover, not a card. Both raised as UI-SPEC Replaces-list corrections in deferred-items.md. No fourth container was invented, and DS-11 stays Pending.
+- [Phase 11]: 11-11 (RowCard extensions): a pattern's prop table is a HYPOTHESIS until a surface adopts it. 11-08 shipped RowCard prop-complete against the UI-SPEC table; adoption measured that the table did not describe the surfaces the same spec names as adopters. Three props added, each forced by a named adopter and each preserving shipped DOM: children (all four render a dl, which is invalid in meta's p and click-stealing in actions), optional href (request/payout rows are terminal), media optional AS A WHOLE BOX (three rows have no thumbnail; an empty 48px square is a defect a refactor introduced). Correct the pattern in the adoption commit — that is the right place.
+- [Phase 11]: 11-11 (search tile reorder): the price now renders LAST because ResultCard owns money's optical column, so distance and the availability line moved above it. Decided deliberately, not discovered in a screenshot diff (11-08 flagged it). The exact-equality regression pin in search-card-open.test.tsx case (9) was reordered in the same commit with its RED quoted verbatim — two segments moved, zero text changed. 'Service fee included' is passed INSIDE the price node, which makes D-ELM-01 contiguity structural rather than positional and kept case (7) green through a whole-container rewrite.
+- [Phase 11]: 11-11 (e2e diagnosis): two distinct failure classes on this box were being read as one flake. (a) A STALE next dev process whose render workers died 500s every route, and playwright.config.ts:113 reuseExistingServer makes Playwright serve the whole suite from it — killing it turned 2 failed/3 did not run into 6 passed. Check for a pre-existing dev server BEFORE attributing red to the tree. (b) [11-03]'s duplicate-node defect reproduces on a SECOND page (cancel.spec.ts:241, two identical p elements from a source site that renders one); established by running the same spec three times on one tree — pass, fail, pass. A single green run proves as little as a single red one.
 
 ### Pending Todos
 
@@ -586,8 +591,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-13T15:45:24.095Z
-Stopped at: Completed 11-10-PLAN.md
+Last session: 2026-08-13T16:39:33.890Z
+Stopped at: Completed 11-11-PLAN.md (five of seven named card surfaces adopted ResultCard/RowCard; the two that did not — `listing-card.tsx` and `notification-item.tsx` — are MEASURED refusals raised as UI-SPEC *Replaces*-list corrections, and a stale `next dev` process was found 500-ing every route through Playwright's `reuseExistingServer`) — next 11-12
 Resume file: None
 
 Prior session: 2026-08-11T19:32:32.584Z
