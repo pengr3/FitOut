@@ -89,3 +89,24 @@ export const AUTH_SLOT_BOX = "h-8 min-w-44";
  * what stops a short panel and its skeleton disagreeing about how much of the page they occupy.
  */
 export const PANEL_MIN_HEIGHT = "min-h-40";
+
+/**
+ * A placeholder text bar: 16px.
+ *
+ * THE SEVENTH CONSTANT, AND IT IS NOT IN THE UI-SPEC'S LIST — recorded here rather than quietly
+ * added. `11-UI-SPEC § Loading` declares six constants and then requires (AC#16) that a skeleton
+ * contain ZERO literal box utilities of its own; all three prescribed skeleton shapes are "a box plus
+ * two or three text bars", and none of the six can express a bar's height. Those two requirements
+ * cannot both hold with six constants, so the choice was between a seventh constant and a second
+ * declared exemption in the source gate. The constant wins: an exemption for `h-4` would legalise a
+ * literal HEIGHT at a call site, which is the one shape T-11-GEODRIFT is about, whereas a constant
+ * keeps the gate's ban absolute and leaves the fraction widths as its only exemption.
+ *
+ * The value matches the bars in the two shipped analogs byte-for-byte —
+ * `(host)/host/listings/loading.tsx:14-15` and the tab-strip bar in `(app)/bookings/loading.tsx` —
+ * so the routes that migrate onto these patterns shimmer at exactly the geometry they shimmer at
+ * today. It is a PROPORTION of the placeholder rather than a measurement of any real line box (a
+ * `text-sm` line is 20px, not 16), which is why the WIDTHS beside it stay literal fractions; it lives
+ * here anyway because AC#16 asks for zero literal heights, not for zero unmeasured ones.
+ */
+export const TEXT_BAR_HEIGHT = "h-4";
