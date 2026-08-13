@@ -122,6 +122,18 @@
 //       "finishing the job" on the module the split deliberately left alone — and note the two probes
 //       fail DIFFERENT assertions, so a single over-broad expectation is not standing in for both.
 //
+//   (c) TRANSITIVITY row (added with the 7th case). Replaced `all-in-table.ts`'s
+//       `import { computeServiceFee } from "@/lib/payments/service-fee"` with a local inline copy of the
+//       formula — the shape a "remove a dependency" refactor actually takes, and one that leaves the
+//       module computing money while silently making it client-importable → 1 failed / 6 passed:
+//
+//         + "src/lib/booking/all-in-table.ts — no longer imports @/lib/payments/service-fee, so it is
+//         +  NOT server-only any more (…). Either restore the import or give this module its own
+//         +  `import \"server-only\"` and a row in GUARDED_MODULES."
+//
+//       Restored → 7 passed. Note the build would ALSO have gone quiet on that edit: nothing guarded is
+//       reached any more, so Turbopack has no complaint to make. This row is the only thing that speaks.
+//
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // WHY AST AND NOT GREP — NOT A STYLE PREFERENCE
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -226,6 +238,44 @@ const MUST_NOT_BE_GUARDED = [
 ] as const satisfies readonly ModuleRow[];
 
 /**
+ * Modules that carry NO guard of their own and are server-only BY TRANSITIVITY — they import a deny-list
+ * module, so Turbopack fails the build if a client graph reaches them. Both were created by plan 11-01 as
+ * the server-side homes for arithmetic lifted out of client components, and both state that position in
+ * their headers ("the guard belongs on the computation; re-declaring it here would be a second place to
+ * keep in sync", D-34).
+ *
+ * THE HAZARD THAT MAKES THIS A ROW RATHER THAN A COMMENT: transitivity is a property of the CURRENT
+ * imports. Inline the fee formatting into `card-price.ts`, or drop the `computeServiceFee` call from
+ * `all-in-table.ts`, and the guard evaporates with nothing said — the module keeps its money job and
+ * quietly becomes client-importable. So the import itself is asserted.
+ */
+const GUARDED_BY_TRANSITIVITY = [
+  {
+    path: "src/lib/listing/card-price.ts",
+    reason: "composes the host tile's price line; reaches the fee through allInRateParts",
+    mustImport: "@/lib/booking/all-in-rate",
+  },
+  {
+    path: "src/lib/booking/all-in-table.ts",
+    reason: "builds the booking rail's all-in table; reaches the fee through computeServiceFee",
+    mustImport: "@/lib/payments/service-fee",
+  },
+] as const;
+
+/** Every module specifier this file imports, by AST — never by grep over the text. */
+function importSpecifiers(path: string, text: string): string[] {
+  const sf = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const out: string[] = [];
+  for (const stmt of sf.statements) {
+    if (!ts.isImportDeclaration(stmt)) continue;
+    // Type-only imports are ERASED and therefore carry no guard — they must not count as transitivity.
+    if (stmt.importClause?.isTypeOnly) continue;
+    if (ts.isStringLiteral(stmt.moduleSpecifier)) out.push(stmt.moduleSpecifier.text);
+  }
+  return out;
+}
+
+/**
  * TRUE only for a bare side-effect import of the exact specifier `server-only`.
  *
  * Takes (path, text) rather than (path) on purpose — the synthetic self-tests below feed it fixtures that
@@ -259,7 +309,11 @@ function readModule(rel: string): string | null {
 
 describe("GATE-05 — the server-only guards are still in place", () => {
   const texts = new Map<string, string | null>();
-  for (const { path } of [...GUARDED_MODULES, ...MUST_NOT_BE_GUARDED]) {
+  for (const { path } of [
+    ...GUARDED_MODULES,
+    ...MUST_NOT_BE_GUARDED,
+    ...GUARDED_BY_TRANSITIVITY,
+  ]) {
     texts.set(path, readModule(path));
   }
 
@@ -342,6 +396,28 @@ describe("GATE-05 — the server-only guards are still in place", () => {
     expect(wrongly).toEqual([]);
   });
 
+  it("the transitively-guarded modules still actually import a guarded module", () => {
+    const denyList = new Set<string>(GUARDED_MODULES.map(({ path }) => path));
+    const broken: string[] = [];
+    for (const { path, reason, mustImport } of GUARDED_BY_TRANSITIVITY) {
+      const specs = importSpecifiers(path, texts.get(path)!);
+      if (!specs.includes(mustImport)) {
+        broken.push(
+          `${path} — no longer imports ${mustImport}, so it is NOT server-only any more (${reason}). ` +
+            `Either restore the import or give this module its own \`import "server-only"\` and a row in ` +
+            `GUARDED_MODULES.`,
+        );
+        continue;
+      }
+      // Anti-vacuity: the specifier it must import has to BE on the deny-list, or this row proves nothing.
+      const target = mustImport.replace(/^@\//, "src/") + ".ts";
+      if (!denyList.has(target)) {
+        broken.push(`${path} — ${mustImport} resolved to ${target}, which is not in GUARDED_MODULES.`);
+      }
+    }
+    expect(broken).toEqual([]);
+  });
+
   it("the unguarded splits still export what the client components import", () => {
     // A "fix" that satisfied the row above by EMPTYING config.ts or horizon.ts would be no fix at all.
     const config = texts.get("src/lib/payments/config.ts")!;
@@ -371,7 +447,11 @@ describe("GATE-05 — the server-only guards are still in place", () => {
 //     updates a path in GUARDED_MODULES must check they are not updating away from the guard.
 //   • IT DOES NOT KNOW WHAT A MODULE COMPUTES. The deny-list is a curated list of eight paths. A NINTH
 //     money or availability module added tomorrow is unguarded and unnoticed here; only a reader adding
-//     the row closes that. The list is a floor, not a derivation.
+//     the row closes that. The list is a floor, not a derivation. Two such modules already exist —
+//     `src/lib/listing/card-price.ts` and `src/lib/booking/all-in-table.ts`, both created by plan 11-01 —
+//     and they are covered by GUARDED_BY_TRANSITIVITY rather than by their own guards. That row asserts
+//     ONE import each; it does not verify the whole chain, and a THIRD module importing one of those two
+//     is again unnoticed.
 //   • IT ASSERTS PRESENCE, NOT POSITION. A guard below other imports still counts (see the self-test),
 //     which matches Next's own behaviour but means this file will not enforce the first-statement
 //     convention the eight modules currently follow.
