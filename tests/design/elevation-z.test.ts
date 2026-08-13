@@ -310,9 +310,22 @@ const RAISED_INVENTORY: Readonly<Record<string, number>> = {
   "src/components/ui/tabs.tsx": 1,
 };
 
-/** Every `shadow-overlay` call site, per file. `dropdown-menu` carries two (content + sub-content). */
+/**
+ * Every `shadow-overlay` call site, per file. `dropdown-menu` carries two (content + sub-content).
+ *
+ * MOVED BY PLAN 11-08, deliberately and in that plan's own commit — the 10-16 precedent, applied to
+ * the other named step. `patterns/result-card.tsx` is DS-11's marketplace tile, and it carries the
+ * hover elevation `search-result-card.tsx` already ships (`group-hover:shadow-overlay`, which the
+ * UI-SPEC records as "shipped, preserved"). The pattern is adopted by nobody yet, so BOTH files
+ * legitimately carry the step for now; the row above disappears when Phase 12 swaps the search grid
+ * onto the pattern, and the total returns to 12.
+ *
+ * The map is what keeps that legible. A bare total would have read the addition and the future
+ * removal as the same number and said nothing about either.
+ */
 const OVERLAY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/dev/theme/page.tsx": 1,
+  "src/components/patterns/result-card.tsx": 1,
   "src/components/search/search-result-card.tsx": 1,
   "src/components/ui/dropdown-menu.tsx": 2,
   "src/components/ui/popover.tsx": 1,
@@ -558,22 +571,23 @@ describe("DS-03 second clause — every shadow maps to one of exactly three name
 });
 
 describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME (T-10-45)", () => {
-  it("carries exactly 12 named-step call sites", () => {
+  it("carries exactly 13 named-step call sites", () => {
     // 9 from plan 10-12's migration (4 raised + 5 overlay, all product surfaces) + 3 from plan
-    // 10-16's `/dev/theme` ladder, which renders one card per step. The three maps below are what
-    // stop this total being satisfied by 12 sites in the wrong twelve places.
+    // 10-16's `/dev/theme` ladder, which renders one card per step, + 1 from plan 11-08's
+    // `patterns/result-card.tsx`, which preserves the shipped tile hover. The three maps below are
+    // what stop this total being satisfied by 13 sites in the wrong thirteen places.
     const named =
       totalOf(scan.byName["shadow-raised"]) +
       totalOf(scan.byName["shadow-overlay"]) +
       totalOf(scan.byName["shadow-sticky"]);
-    expect(named, "the named elevation sites are the whole point of the migration").toBe(12);
+    expect(named, "the named elevation sites are the whole point of the migration").toBe(13);
   });
 
   it("pins the 5 raised sites to the files that own them", () => {
     expect(scan.byName["shadow-raised"]).toEqual(RAISED_INVENTORY);
   });
 
-  it("pins the 5 overlay sites to the files that own them", () => {
+  it("pins the 6 overlay sites to the files that own them", () => {
     expect(scan.byName["shadow-overlay"]).toEqual(OVERLAY_INVENTORY);
   });
 
