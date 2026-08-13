@@ -17,3 +17,16 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
   **Not caused by Phase 11 source changes either, as far as the tree can say.** The rendering site is `src/app/(app)/bookings/[id]/page.tsx:584` — the ONLY place in `src/` with that class string besides `components/host/payout-summary.tsx` — and its last commit is `69b3a70` (plan 10-11). No Phase 11 plan has touched it.
 
   **Leading hypothesis, untested:** two identical paragraphs in one document is the shape of Next's dev-mode streaming leaving both the streamed and the reconciled copy in the DOM across the `page.reload()` at `:317`, which would make this timing-dependent rather than a product defect. Testing that needs a production build (`npm run build && npm start`) and a re-run — cheap, but outside a config-only plan. Whoever picks this up: rule the streaming hypothesis in or out FIRST, because if it holds, the fix is in the spec's locator, not on the confirmation page.
+
+- **[11-08] Every shipped row card renders 112px while its skeleton shimmers 80px — a 32px-per-row layout shift on three live routes.** `ROW_CARD_HEIGHT` (`h-20`) derives 80px as "a `Card` is `p-4` (16 top + 16 bottom) around a 48px thumbnail". The derivation is right about the box and wrong about which element owns the padding in THIS tree: the vendored `ui/card.tsx:15` carries `py-4` on **`Card` itself** and only `px-4` on `CardContent`, so a row that also asks `CardContent` for `p-4` — which `booking-row.tsx:60` and `host-booking-row.tsx` both do — pays the block padding **twice**.
+
+  **Measured, not reasoned** (Chromium 1223, the compiled stylesheet, 640px wide, class strings produced by the repo's own `cn()` so the fixture cannot disagree with the component about which utility survives a merge):
+
+  ```
+  <Card className="relative">        + CardContent p-4  ->  112px   ← booking-row.tsx, host-booking-row.tsx
+  <Card className="relative py-0">   + CardContent p-4  ->   80px   ← patterns/row-card.tsx (11-08)
+  ```
+
+  So `(app)/bookings/loading.tsx` and `RowListSkeleton` (both 80px rows) under-draw every shipped row by 32px, which is exactly the shift STATE-01 exists to remove — caused, ironically, by the skeleton.
+
+  **Not fixed here, deliberately.** Plan 11-08 ships the pattern layer and adopts nothing; editing `booking-row.tsx` / `host-booking-row.tsx` / `request-row.tsx` / `payout-row.tsx` / `notification-item.tsx` is the adoption plans' scope, and changing a shipped row's height is a visible change that belongs in the commit that swaps the route. `patterns/row-card.tsx` carries `py-0` so the PATTERN measures the constant it claims, and the discrepancy dies as each route adopts it. Whoever picks up the adoption: the height is a **pure win at adoption** (rows shrink to the number the skeleton already draws), so no skeleton change is needed — but re-measure, because `RowCard`'s `actions` slot adds a `space-y-3` row when present and the 80px figure is the resting height only.

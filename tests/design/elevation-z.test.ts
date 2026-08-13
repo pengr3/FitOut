@@ -787,10 +787,22 @@ const RAW_Z = /(?<![\w-])-?z-(?:\d+|auto|\[[^\]]*\])(?![\w-])/g;
 /** The two numbers that used to arbitrate every stacking decision in this app. */
 const BANNED_Z = /(?<![\w-])-?z-(?:10|50)(?![\w-])/g;
 
-/** Every positive `z-(--z-sticky)` call site, per file. */
+/**
+ * Every positive `z-(--z-sticky)` call site, per file.
+ *
+ * MOVED BY PLAN 11-08, deliberately and in that plan's own commit. `patterns/row-card.tsx` is
+ * DS-11's list row, and its `actions` slot has to sit ABOVE the title link's `after:inset-0`
+ * overlay — the identical stacking problem `booking-row.tsx:109-117` already solves with this exact
+ * step, for the identical reason (a positioned pseudo-element paints over a later sibling that is
+ * merely in flow, so every click on an action lands on the overlay instead).
+ *
+ * Adopted by nobody yet, so the pattern and both shipped rows legitimately carry the step at once;
+ * the two rows above disappear when the adoption plans swap them, and the total returns to 11.
+ */
 const STICKY_INVENTORY: Readonly<Record<string, number>> = {
   "src/components/booking/booking-row.tsx": 1,
   "src/components/host/host-booking-row.tsx": 1,
+  "src/components/patterns/row-card.tsx": 1,
   "src/components/ui/avatar.tsx": 1,
   "src/components/ui/calendar.tsx": 2,
   "src/components/ui/select.tsx": 2,
@@ -902,18 +914,21 @@ describe("DS-03 z clause — the two magic numbers are gone from the source", ()
 });
 
 describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T-10-49)", () => {
-  it("carries exactly 20 mapped call sites — 11 sticky and 9 dialog", () => {
+  it("carries exactly 21 mapped call sites — 12 sticky and 9 dialog", () => {
     // The count is what makes a migration that DELETED the z-index instead of mapping it go red: a
     // tree with no z-index at all satisfies every zero-violations assertion above perfectly.
+    //
+    // 11 -> 12 by plan 11-08's `patterns/row-card.tsx`, whose `actions` slot must clear the title
+    // link's overlay pseudo-element. See STICKY_INVENTORY.
     const sticky =
       totalOf(zScan.byName["z-(--z-sticky)"]) + totalOf(zScan.byName["-z-(--z-sticky)"]);
     const dialog = totalOf(zScan.byName["z-(--z-dialog)"]);
-    expect(sticky, "the sticky layer lost or gained a surface").toBe(11);
+    expect(sticky, "the sticky layer lost or gained a surface").toBe(12);
     expect(dialog, "the dialog layer lost or gained a surface").toBe(9);
-    expect(sticky + dialog).toBe(20);
+    expect(sticky + dialog).toBe(21);
   });
 
-  it("pins the 9 positive sticky sites to the files that own them", () => {
+  it("pins the 10 positive sticky sites to the files that own them", () => {
     expect(zScan.byName["z-(--z-sticky)"]).toEqual(STICKY_INVENTORY);
   });
 
