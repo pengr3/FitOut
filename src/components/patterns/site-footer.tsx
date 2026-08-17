@@ -129,7 +129,7 @@ export function SiteFooter() {
       // `mt-auto` is the whole reason every layout wraps its children in `min-h-dvh flex flex-col`
       // (plan 11-10) — it pushes this block to the bottom of a SHORT page instead of leaving it
       // floating under two paragraphs of content.
-      className="mt-auto border-t-[3px] bg-muted"
+      className="mt-auto border-t bg-muted"
     >
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-3 sm:px-6 sm:py-12">
         {/* ── Column 1: the wordmark and the app's one sentence ─────────────────────────────────
