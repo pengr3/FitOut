@@ -45,15 +45,33 @@
 // visual-regression baseline is captured anywhere in this phase either — GATE-01 is Phase 11 and
 // DS-01 invalidates anything shot before it.
 
+import type { ComponentProps } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CalendarSearchIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { THEME_NAMES, THEME_TOKENS } from "@/lib/design/tokens.generated";
+import {
+  AUTH_SLOT_BOX,
+  AUTH_SLOT_CONTROL,
+  AUTH_SLOT_ICON,
+} from "@/lib/design/measurements";
 import { SpotsLeftChip } from "@/components/availability/spots-left-chip";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { PayoutStateBadge } from "@/components/host/payout-state-badge";
 import { SearchResultCard } from "@/components/search/search-result-card";
+import { AuthSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
+import { CardGridSkeleton } from "@/components/patterns/card-grid-skeleton";
+import { EmptyState } from "@/components/patterns/empty-state";
+import { PanelCard } from "@/components/patterns/panel-card";
+import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
+import { ResponsiveDialog } from "@/components/patterns/responsive-dialog";
+import { ResultCard } from "@/components/patterns/result-card";
+import { RowCard } from "@/components/patterns/row-card";
+import { RowListSkeleton } from "@/components/patterns/row-list-skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -66,6 +84,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { ErrorStatePreview } from "./error-state-preview";
 import { SlotPickerPreview } from "./slot-picker-preview";
 import {
   BOOKING_STATUS_FIXTURES,
@@ -135,6 +154,159 @@ const SURFACE_SWATCHES = [
   { fill: "bg-muted", role: "muted — status tints and hover fills" },
   { fill: "bg-border", role: "border — decorative divider, never a sole boundary" },
 ] as const;
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// SECTIONS 10–14 — PHASE 11'S PATTERN LAYER, AND ITS FIXTURES (plan 11-21)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// EVERYTHING BELOW IS A FIXTURE, NOT PRODUCT COPY. None of these strings is rendered by the product;
+// they are borrowed from shipped surfaces or are the shortest honest paraphrase of one, following
+// `./fixtures.ts`'s rule, so the two themes are judged on real string LENGTHS. A reader who mistakes
+// one of these for a product sentence will go looking for the surface that renders it and find none.
+//
+// WHY THEY LIVE HERE RATHER THAN IN `./fixtures.ts`. That module is `import type` only by design — it
+// is pure data that cannot pull a client bundle in through a fixture. Sections 10–14 need NODES
+// (a media fallback, an actions cluster, a `routeOut` button), which are JSX and therefore cannot go
+// in a type-only module without changing its rule. They are typed against the components they feed
+// with `ComponentProps<typeof X>` all the same, which is the property that module's header is
+// actually protecting: a prop renamed upstream breaks this file at compile time.
+//
+// NO DATABASE, NO NETWORK, NO SEED. Same as every other section — three e2e specs drive this page
+// precisely because it has none of those, and plan 11-21 adds three more.
+
+/** The marketplace tile. `mediaFallback` is the no-broken-image path, copied from the shipped tile. */
+const PATTERN_RESULT_CARDS: readonly ComponentProps<typeof ResultCard>[] = [
+  {
+    href: "/",
+    mediaFallback: (
+      <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+        No photos yet
+      </div>
+    ),
+    title: "Kingsley Court — Indoor Pickleball",
+    meta: ["Court · Makati", "Mon–Fri, 6:00 AM – 10:00 PM"],
+    price: "₱1,400 total for 2 hours",
+    badges: <Badge variant="secondary">Open capacity</Badge>,
+  },
+  {
+    href: "/",
+    mediaFallback: (
+      <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+        No photos yet
+      </div>
+    ),
+    title: "Studio Nine — Yoga & Movement",
+    meta: ["Studio · Poblacion", "Daily, 7:00 AM – 9:00 PM"],
+    price: "₱900 total for 1 hour",
+  },
+  {
+    href: "/",
+    mediaFallback: (
+      <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+        No photos yet
+      </div>
+    ),
+    title: "The Barn — Private Home Gym",
+    meta: ["Gym · Mandaluyong", "By request"],
+    price: "₱650 total for 1 hour",
+  },
+];
+
+/**
+ * A status badge from the ALREADY-FROZEN fixture set, by id.
+ *
+ * The badge takes `endsAt` and `now`, and this page must render identically on every machine on every
+ * day — plan 11-22 shoots visual-regression baselines against it, and a badge that derives its label
+ * from the clock is a baseline that rots overnight. `BOOKING_STATUS_FIXTURES` already pins both dates
+ * as frozen literals for exactly that reason, so section 10 reads them rather than passing a second
+ * pair of its own.
+ *
+ * THE THROW IS THE POINT, not defensive padding — `result-card.tsx:50-62`'s precedent. If an id is
+ * renamed upstream the honest outcomes are "rename it here too" or "pick another state"; silently
+ * rendering nothing would leave a row with an empty status slot and no signal that anything moved.
+ */
+function statusFixture(id: string): ComponentProps<typeof BookingStatusBadge> {
+  const found = BOOKING_STATUS_FIXTURES.find((fixture) => fixture.id === id);
+  if (!found) {
+    throw new Error(
+      `/dev/theme section 10: BOOKING_STATUS_FIXTURES has no entry with id \`${id}\`. The row-card ` +
+        "fixtures read the frozen booking-status set rather than passing their own `now`/`endsAt`, " +
+        "so this page renders identically on every machine. Rename the lookup or pick another state.",
+    );
+  }
+  return found.props;
+}
+
+/** The 48px thumbnail's contents on a row with no photo — copied from the shipped `booking-row`. */
+const ROW_MEDIA_FALLBACK = (
+  <span className="flex size-full items-center justify-center text-xs leading-tight text-muted-foreground">
+    No photos yet
+  </span>
+);
+
+/**
+ * The list row, in the 48px-media configuration — the ONE configuration `ROW_CARD_HEIGHT`'s 80px is
+ * scoped to (`row-card.tsx`'s header says so). No `children` body and no `actions`, because both make
+ * the row legitimately taller and would turn section 14's height comparison into a measurement of
+ * this fixture rather than of the constant.
+ */
+const PATTERN_ROW_CARDS: readonly ComponentProps<typeof RowCard>[] = [
+  {
+    href: "/",
+    media: ROW_MEDIA_FALLBACK,
+    title: "Kingsley Court — Indoor Pickleball",
+    meta: "Sat 14 Mar, 9:00 – 11:00 AM",
+    status: <BookingStatusBadge {...statusFixture("confirmed")} />,
+    trailing: "₱1,400",
+  },
+  {
+    href: "/",
+    media: ROW_MEDIA_FALLBACK,
+    title: "Studio Nine — Yoga & Movement",
+    meta: "Sun 15 Mar, 7:00 – 8:00 AM",
+    status: <BookingStatusBadge {...statusFixture("pending")} />,
+    trailing: "₱900",
+  },
+  {
+    href: "/",
+    media: ROW_MEDIA_FALLBACK,
+    title: "The Barn — Private Home Gym",
+    meta: "Tue 17 Mar, 6:00 – 7:00 PM",
+    status: <BookingStatusBadge {...statusFixture("cancelled")} />,
+    trailing: "₱650",
+  },
+];
+
+/** The boxed panel. `sticky` is deliberately NOT exercised — a pinned rail inside a preview column. */
+const PATTERN_PANEL: Omit<ComponentProps<typeof PanelCard>, "children" | "footer"> = {
+  title: "Price breakdown",
+  description: "What the booker pays, frozen at quote time.",
+};
+
+// THE TWO EMPTY TONES ARE AUTHORED INLINE IN THE JSX BELOW, NOT AS SPREAD CONSTANTS, AND THAT IS A
+// MEASURED CHOICE RATHER THAN A STYLISTIC ONE. `tests/design/empty-state-adoption.test.ts` reads
+// `tone`, `title` and `titleAs` off JSX ATTRIBUTES; a spread attribute is not a `JsxAttribute`, so
+// every prop delivered through one reads as `null` there. Authored as spreads, this page's
+// `tone="positive"` panel would have been INVISIBLE to that gate's "exactly one positive empty state
+// in the whole tree" assertion — the gate would have stayed green by not seeing the thing it counts,
+// which is the rubber-stamp shape this phase exists to remove. Inline, the gate sees both panels, and
+// its inventory names this file. (The extractor's spread-blindness in general is a live hole in that
+// gate and is recorded in the phase's `deferred-items.md`; it is not created here and is not this
+// plan's to close.)
+
+/** The error panel, twice: once with a `digest` and once without. */
+const PATTERN_ERROR_BASE = {
+  title: "We couldn't load this",
+  body: "Nothing was charged. Try again, or head back and pick another time.",
+  routeOut: (
+    <Button variant="outline" asChild>
+      <Link href="/">Back to search</Link>
+    </Button>
+  ),
+} as const;
+
+/** A frozen literal, never generated — a preview whose reference changes per load is not a preview. */
+const PATTERN_ERROR_DIGEST = "3f9a1c72";
 
 /** One section inside a pane. The heading renders in the PANE's theme, so headings compare too. */
 function Section({
@@ -373,6 +545,198 @@ function ThemePane({ name }: { name: string }) {
               <p className={cn("text-label", "text-muted-foreground")}>{swatch.role}</p>
             </div>
           ))}
+        </div>
+      </Section>
+
+      {/* ── SECTIONS 10–14, PLAN 11-21 ────────────────────────────────────────────────────────────
+          Phase 11's pattern layer, exercised on the one page in this app that needs no database, no
+          network and no seed. Everything below is inside `ThemePane`, so both panes render the
+          identical sequence from the identical fixtures and a difference between the columns can
+          only have come from the theme — see this function's docblock. */}
+
+      <Section
+        index={10}
+        title="Card patterns"
+        note="Three named containers and no fourth (DS-11). The tile's media box is the geometry a grid's skeleton has to match; the row is shown in the 48px-media configuration its 80px height is scoped to."
+      >
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <p className={cn("text-label", "text-muted-foreground")}>
+              ResultCard — with mediaFallback, so the no-broken-image path is visible
+            </p>
+            <div className="max-w-xs">
+              <ResultCard {...PATTERN_RESULT_CARDS[0]} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className={cn("text-label", "text-muted-foreground")}>
+              RowCard — thumbnail, title, when-line, status and a trailing amount
+            </p>
+            <RowCard {...PATTERN_ROW_CARDS[0]} />
+          </div>
+
+          <div className="space-y-2">
+            <p className={cn("text-label", "text-muted-foreground")}>
+              PanelCard — flat by contract; the footer is the vendored treatment, not a restatement
+            </p>
+            <PanelCard
+              {...PATTERN_PANEL}
+              footer={<p className="text-sm tabular-nums">₱1,400 total</p>}
+            >
+              <dl className="space-y-1 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">2 hours × ₱600</dt>
+                  <dd className="tabular-nums">₱1,200</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Service fee</dt>
+                  <dd className="tabular-nums">₱200</dd>
+                </div>
+              </dl>
+            </PanelCard>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        index={11}
+        title="Empty states — both tones"
+        note="Side by side so D-14 is comparable across themes: green retreats to the GLYPH. The title and body are the same ink in both tones, and there is no green fill and no green text anywhere in either panel."
+      >
+        {/* FIXTURE COPY, not product copy — see the fixtures block above. `titleAs="h3"` on both:
+            each sits under the `Section` helper's own `<h2>`, and a skipped level here would be the
+            a11y defect this pattern's `titleAs` prop exists to make impossible. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <EmptyState
+            tone="neutral"
+            icon={CalendarSearchIcon}
+            titleAs="h3"
+            title="No spaces match those filters"
+            body="Try a wider time window, a larger radius, or clear one filter."
+            actions={<Button variant="outline">Clear filters</Button>}
+          />
+          <EmptyState
+            tone="positive"
+            titleAs="h3"
+            title="You're all caught up"
+            body="Every request has an answer. New ones land here."
+            actions={null}
+          />
+        </div>
+      </Section>
+
+      <Section
+        index={12}
+        title="Error state — reference present and absent"
+        note="The panel takes a digest STRING and nothing else off the error (T-11-ERRLEAK). Both instances are rendered through a client wrapper, because the pattern needs an onRetry function and this page is a Server Component; the two buttons are inert here — nothing threw, so there is nothing to reset."
+      >
+        <div className="space-y-4">
+          <ErrorStatePreview {...PATTERN_ERROR_BASE} digest={PATTERN_ERROR_DIGEST} />
+          <ErrorStatePreview {...PATTERN_ERROR_BASE} />
+        </div>
+      </Section>
+
+      <Section
+        index={13}
+        title="Responsive dialog — one primitive, two presentations"
+        note="LIMITATION, STATED RATHER THAN FAKED: one dialog cannot be open at both breakpoints in one screenshot, and no statically-open instance is rendered here. Radix portals a modal to the document body, marks the rest of the document hidden from assistive technology and traps focus — which on THIS page would break the two-theme audit pass it exists for, and would put an overlay over every other section's geometry. The trigger below opens the real thing; narrow the window under 640px to see the sheet presentation and widen it to see the centred one."
+      >
+        <ResponsiveDialog
+          title="Filter spaces"
+          description="Below 640px this opens anchored to the bottom edge, capped at 85% of the dynamic viewport. From 640px up it is the vendored centred dialog, byte-unchanged."
+          trigger={<Button variant="outline">Open the overlay</Button>}
+          footer={<Button variant="secondary">Apply</Button>}
+        >
+          <p className="text-sm text-muted-foreground">
+            One overlay mechanism, one focus trap and one escape behaviour — the same portal and the
+            same content node at every width.
+          </p>
+        </ResponsiveDialog>
+      </Section>
+
+      <Section
+        index={14}
+        title="Loading shapes beside their resolved twins"
+        note="The reserved auth slot and the three canonical skeletons, each above the real content it stands in for AT THE SAME WIDTH. Stacked rather than literally side by side: a two-column pair inside this column would put a three-column grid into ~280px and make the media box a measurement of that accident instead of of the constant. This is the pair `e2e/skeleton-geometry.spec.ts` measures."
+      >
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <p className={cn("text-label", "text-muted-foreground")}>
+              Auth slot — the fallback, then a resolved cluster in the same reserved box
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="rounded-lg border border-border p-2">
+                <AuthSlotSkeleton />
+              </div>
+              <div className="rounded-lg border border-border p-2">
+                {/* The SAME box the shell reserves, read from the same constant `site-chrome.tsx`
+                    reads — the reservation is only worth anything if the resolved cluster occupies
+                    it, and the two children are the two controls the fallback stands in for. */}
+                <div className={cn(AUTH_SLOT_BOX, "flex items-center justify-end gap-3")}>
+                  <Button variant="ghost" size="sm" className={AUTH_SLOT_CONTROL}>
+                    Book
+                  </Button>
+                  <span
+                    aria-hidden="true"
+                    className={cn(AUTH_SLOT_ICON, "rounded-full border border-border bg-muted")}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className={cn("text-label", "text-muted-foreground")}>
+              Card grid — skeleton, then the resolved grid in the identical grid classes
+            </p>
+            <CardGridSkeleton label="Loading spaces" count={3} />
+            {/* The grid's own classes are duplicated from `card-grid-skeleton.tsx` on purpose and
+                only here: the two containers must lay out at the SAME column width or the ±2px media
+                comparison is measuring the wrapper rather than the constant. How many columns fit is
+                a window question, which is why this line is viewport breakpoints and the card's own
+                internals are container queries. */}
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {PATTERN_RESULT_CARDS.map((card) => (
+                <ResultCard key={card.title} {...card} />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className={cn("text-label", "text-muted-foreground")}>
+              Row list — skeleton, then three rows in the 48px-media configuration
+            </p>
+            <RowListSkeleton label="Loading bookings" rows={3} />
+            <div className="space-y-3">
+              {PATTERN_ROW_CARDS.map((row) => (
+                <RowCard key={row.title} {...row} />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className={cn("text-label", "text-muted-foreground")}>
+              Panel — skeleton, then the resolved panel. The constant is a FLOOR, not a height.
+            </p>
+            <PanelSkeleton label="Loading the price breakdown" />
+            <PanelCard {...PATTERN_PANEL}>
+              <dl className="space-y-1 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">2 hours × ₱600</dt>
+                  <dd className="tabular-nums">₱1,200</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Service fee</dt>
+                  <dd className="tabular-nums">₱200</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Total</dt>
+                  <dd className="tabular-nums">₱1,400</dd>
+                </div>
+              </dl>
+            </PanelCard>
+          </div>
         </div>
       </Section>
     </>

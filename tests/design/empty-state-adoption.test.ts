@@ -352,16 +352,16 @@ type Adopter = {
 };
 
 /**
- * EVERY SURFACE COMPOSING THE ONE SHELL — ELEVEN FILES, THIRTEEN BLOCKS.
+ * EVERY SURFACE COMPOSING THE ONE SHELL — TWELVE FILES, FIFTEEN BLOCKS.
  *
  * The forward half. A gate that only asserted "no raw dashed panel survives" is satisfied perfectly
  * by a tree where somebody deleted the empty state entirely — an absent panel has no border.
  *
- * NINE of the eleven are plan 11-16's conversions. THE OTHER TWO ARE PLAN 11-19'S NOT-FOUND ROUTES,
- * and they are the reason this inventory is enumerated by an AST scan rather than by reading the
- * plan: 11-19 landed after 11-16 was written, adopted the shell for two 404 panels, and would have
- * been invisible to any list copied out of the plan. Every plan in Phase 11 that trusted its own
- * surface inventory found it wrong; this is the sixteenth instance.
+ * NINE are plan 11-16's conversions. TWO ARE PLAN 11-19'S NOT-FOUND ROUTES and the twelfth is plan
+ * 11-21'S `/dev/theme` PREVIEW, and all three are the reason this inventory is enumerated by an AST
+ * scan rather than by reading a plan: each landed after 11-16 was written and would have been
+ * invisible to any list copied out of it. Every plan in Phase 11 that trusted its own surface
+ * inventory found it wrong; this is the sixteenth instance.
  */
 const ADOPTERS: readonly Adopter[] = [
   {
@@ -421,11 +421,18 @@ const ADOPTERS: readonly Adopter[] = [
     sites: 1,
     why: "The listing-gone boundary, same plan and same argument: an unlisted space is a normal outcome, not a failure. Its sibling `(public)/invite/[token]/not-found.tsx` deliberately does NOT use the shell — it must render a BYTE-IDENTICAL inactive surface to the invite page (T-11-ORACLE), so it composes `InviteCard` instead. That asymmetry is the reason this is an inventory and not a directory rule.",
   },
+
+  // ─── NOT A PRODUCT SURFACE. The design-review preview, landed by plan 11-21. ──────────────────────
+  {
+    file: "src/app/dev/theme/page.tsx",
+    sites: 2,
+    why: "THE ONLY NON-PRODUCT ROW IN THIS INVENTORY, and it is here because the scan found it rather than because a plan promised it. `/dev/theme` section 11 renders BOTH tones side by side inside each theme pane, which is what makes D-14's green-retreats-to-the-glyph rule comparable across themes instead of merely asserted; the route 404s in production and reads nothing from a database. Its two call sites are authored with inline JSX attributes rather than spread from a fixture constant ON PURPOSE — the parser above only reads `JsxAttribute` nodes, so a spread-authored panel is invisible to every `tone`/`title`/`titleAs` assertion in this file, and a preview that stayed green by not being seen would be the exact rubber stamp Phase 11 exists to remove.",
+  },
 ];
 
 /** Pinned separately, for the same reason `EXPECTED_DECLARED_SITES` is. */
-const EXPECTED_ADOPTER_FILES = 11;
-const EXPECTED_EMPTY_STATE_SITES = 13;
+const EXPECTED_ADOPTER_FILES = 12;
+const EXPECTED_EMPTY_STATE_SITES = 15;
 
 /**
  * THE ONE LEGAL `bg-success` IN THE TREE, pinned by name.
@@ -731,7 +738,7 @@ describe("AC#23 — one dashed empty shell, and every other dashed panel is decl
   });
 });
 
-describe("AC#23 forward — the eleven surfaces composing the shell still compose it", () => {
+describe("AC#23 forward — the twelve surfaces composing the shell still compose it", () => {
   it("has every adopter importing EmptyState from the pattern module", () => {
     const unadopted = ADOPTERS.filter(
       (a) => !TREE.parsedByFile.get(a.file)?.importsPattern,
@@ -795,19 +802,71 @@ describe("AC#24 — host inbox-zero is a POSITIVE state, and green stays on the 
     expect(sites[0]?.title).toBe("You're all caught up");
   });
 
-  it("pins tone=\"positive\" to exactly ONE empty state in the whole tree", () => {
+  /**
+   * EVERY FILE ALLOWED A `tone="positive"` EMPTY STATE, with the reason. ONE product surface and ONE
+   * preview — a SET rather than a count, so a failure names the offending file instead of a number.
+   *
+   * `/dev/theme` was added by plan 11-21 and is not a weakening of AC#24. It renders BOTH tones side
+   * by side so the green-retreats-to-the-glyph rule is comparable across the two themes, which is a
+   * DESIGN-REVIEW surface rather than a product state: the route 404s in production, discloses
+   * nothing, and its panel is one of a pair whose whole point is the contrast. The product claim is
+   * unchanged and is asserted separately below — exactly one PRODUCT surface, and it is the host
+   * request inbox.
+   */
+  const POSITIVE_SITES: Readonly<Record<string, string>> = {
+    [REQUESTS]:
+      "STATE-04's inbox-zero clause. An emptied work queue is an ACHIEVEMENT, not an absence — the " +
+      "one product surface in the app where 'there is nothing here' is good news.",
+    "src/app/dev/theme/page.tsx":
+      "Plan 11-21's section 11: the two tones rendered side by side in both themes, so D-14 (green " +
+      "retreats to the icon) is COMPARABLE rather than asserted. Authored with inline JSX attributes " +
+      "rather than a spread constant precisely so this gate can see it — a spread attribute is not a " +
+      "`JsxAttribute`, so the extractor above reads `null` for every prop delivered through one, and " +
+      "a preview authored that way would have kept this assertion green by being invisible to it.",
+  };
+
+  it("pins tone=\"positive\" to the declared set, and to nothing else", () => {
     // Scope, asserted rather than assumed. `notification-bell.tsx` ships the SAME sentence at zero
     // and is deliberately `neutral`: a bell at zero is ambient — nobody achieved it — and a green
     // check in a 320px popover is a second accent decision belonging to whoever redesigns that
-    // panel. If a later phase wants a second positive empty state, it moves this number and says why.
+    // panel. If a later phase wants a third positive empty state, it adds a row here and says why.
     const positives = [...TREE.parsedByFile.entries()].flatMap(([file, p]) =>
       p.emptyStateSites.filter((s) => s.tone === "positive").map((s) => `${file}:${s.line}`),
     );
     expect(
-      positives.length,
-      `the tree holds a number of tone="positive" empty states other than the one AC#24 pins: ${positives.join(", ")}`,
+      [...new Set(positives.map((s) => s.slice(0, s.lastIndexOf(":"))))].sort(),
+      `the tree's tone="positive" empty states are not the declared set: ${positives.join(", ")}`,
+    ).toEqual(Object.keys(POSITIVE_SITES).sort());
+    // One per declared file, so a SECOND positive panel inside an already-declared file is still red.
+    expect(positives.length, `sites: ${positives.join(", ")}`).toBe(
+      Object.keys(POSITIVE_SITES).length,
+    );
+  });
+
+  it("keeps the PRODUCT claim at exactly one surface, the host request inbox", () => {
+    // The half AC#24 is actually about. `/dev/theme` is excluded BY PATH rather than by trust: it is
+    // the route both other dev-surface gates already treat as non-product (it 404s in production),
+    // and naming the exclusion here means a positive empty state appearing on any real surface is red
+    // even though the declared set above has grown.
+    const productPositives = [...TREE.parsedByFile.entries()]
+      .filter(([file]) => !file.startsWith("src/app/dev/"))
+      .flatMap(([file, p]) =>
+        p.emptyStateSites.filter((s) => s.tone === "positive").map((s) => `${file}:${s.line}`),
+      );
+    expect(
+      productPositives.length,
+      `a PRODUCT surface other than the host request inbox renders a positive empty state: ${productPositives.join(", ")}`,
     ).toBe(1);
-    expect(positives[0]?.startsWith(REQUESTS)).toBe(true);
+    expect(productPositives[0]?.startsWith(REQUESTS)).toBe(true);
+  });
+
+  it("gives every declared positive site a non-empty reason, and names no file the walk missed", () => {
+    for (const [file, why] of Object.entries(POSITIVE_SITES)) {
+      expect(why.trim().length, `${file} has an empty reason`).toBeGreaterThan(40);
+      expect(TREE.parsedByFile.has(file), `${file} is declared here but the walk never found it`).toBe(
+        true,
+      );
+    }
   });
 
   it("puts the green on the ICON and nowhere else — rendered, not grepped", () => {
