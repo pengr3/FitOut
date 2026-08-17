@@ -203,3 +203,35 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
   **(2) The officially documented font load for an OG route does not work on the Node runtime.** Next's own docs (and this plan's own instructions) say `fetch(new URL("./X.ttf", import.meta.url)).then(r => r.arrayBuffer())`. `new URL(...)` resolves to a `file://` URL, Node's `fetch` (undici) does not implement the `file:` scheme, and the call rejects with `fetch failed` — which is not an error anybody would connect to a font. Every card then renders in `next/og`'s bundled fallback face, at weight 400 only, silently. The fix is to keep the `new URL` (it is what makes Turbopack emit and hash the asset) and read it with `fs.readFile(fileURLToPath(url))`. Verified in dev AND against `next start`.
 
 - **[11-20] The three OG routes are excluded from plan `11-22`'s theme-swap smoke, and the reason is that there is no swap to observe.** A server-rendered image has no user, no `data-theme` and no `prefers-color-scheme` — the scraper fetching it is not a browser session — so all three cards paint `court` unconditionally, exactly as `global-error` does. This is a documented impossibility rather than a missed surface, and it is stated in `src/app/opengraph-image.tsx`'s header so 11-22 finds the reason at the file rather than the absence in a checklist. **11-22 should also know** the invite card's URL carries a route-group hash: `/invite/<token>/opengraph-image-ikagei`, not `/opengraph-image`. Next's `getMetadataRouteSuffix` (`node_modules/next/dist/lib/metadata/get-metadata-route.js`) appends a 6-character djb2 hash of the parent path whenever ANY parent segment is a route group or a parallel route — so plan 11-10's `(public)` group is what puts the suffix there, `listings/[id]` has none, and any test or script that hardcodes the unsuffixed path gets a 404.
+
+- **[11-15] `/terms` and `/privacy` render the ANONYMOUS header, so a signed-in reader sees `Log in` / `Sign up` on two routes reachable from every page's footer.** Not a bug and not an oversight — a measured either/or with no third option, recorded here so a later phase can flip it deliberately rather than discover it.
+
+  `src/components/site/public-header.tsx` resolves its actions cluster from the request, which is a prerender bailout. **Measured both ways on this tree** (`npm run build`, unreachable `DATABASE_URL`, route table diffed mechanically):
+
+  | `(legal)/layout.tsx` renders | `/terms` | `/privacy` | static routes in the build |
+  |---|---|---|---|
+  | `SiteChrome` + `AnonymousAuthActions` (shipped) | `○` | `○` | **5** (3 pre-existing, unchanged) |
+  | `PublicHeader` | `ƒ` | `ƒ` | **3** — both lost |
+
+  The blast radius of the dynamic form is confined to these two routes, UNLIKE the root not-found where 11-19 measured a single dynamic composition taking the whole build's prerendering with it. So the cost is genuinely local, and it is the identity drift `public-header.tsx:82-85` calls *"the problem this phase exists to end"*, on two routes. It was traded for the UI-SPEC's explicit "fully static" requirement and T-11-STATICLEAK's mitigation, on the grounds that the reader these pages exist for is anonymous — the footer link that matters most is the one on `/signup`. **There is no third option:** a client-side session fetch is banned outright by T-11-SESSION, and a request-time read IS the bailout.
+
+  **Whoever revisits it:** the flip is a two-line edit in `src/app/(legal)/layout.tsx` plus re-measuring the route table. The honest alternative is not "make it dynamic" but *decide which of the two costs this product prefers*, with the numbers above in front of you.
+
+- **[11-15] `SiteChrome brand="FitOut" brandHref="/" actions={<AnonymousAuthActions />}` is now written TWICE, and the second copy is this plan's.** `src/app/not-found.tsx:106` and `src/app/(legal)/layout.tsx:80` render the byte-identical three props for the byte-identical reason (both must stay prerendered, so neither can reach the request). That is a fourth independently-drifting header composition waiting to happen — the exact failure `anonymous-auth-actions.tsx:1-13` was extracted to prevent one layer down.
+
+  **Not extracted here, deliberately** (SCOPE BOUNDARY): `src/app/not-found.tsx` is outside this plan's `files_modified`, and a new `patterns/` module is not something a two-page plan should add on its way past. **Whoever picks it up:** the extraction is ~15 lines — a `StaticPublicHeader` beside `anonymous-auth-actions.tsx`, with both call sites swapped in one commit — and the one thing it must preserve is that the module reaches nothing async and nothing that touches the data store, which is the whole reason both sites hand-compose today. `tests/design/empty-state-adoption.test.ts:411` pins `not-found.tsx` by path, so a move of that FILE would need a row update; an edit inside it would not.
+
+- **[11-15] `human_needed` — the real Terms of Service and Privacy Policy, and the six business facts neither can be written without.** The two pages this plan ships are placeholders that say so, in the loudest form the design system has, and the two assertions in `tests/design/legal-copy.test.ts` are tied to that admission by AC#4. **What is missing is not code.**
+
+  Undecided, and unfabricatable — every one of these is a factual claim about a real business that this repository cannot answer, and inventing any of them is D-26's fabrication arriving through the legal layer:
+
+  1. **The legal entity.** Which company stands behind FitOut, and its registration.
+  2. **The registered address.**
+  3. **Governing law and forum.** Which country's law applies and where a dispute is heard. (The project is PH-first — PayMongo is a BSP-regulated EMI and the launch market is a single PH city — but "probably the Philippines" is an inference, not a decision, and a governing-law clause is exactly the wrong place to infer.)
+  4. **A monitored contact address.** The same slot as 11-14's `human_needed` #1 (`src/lib/site.ts`'s `SUPPORT_EMAIL`, still `null`), needed a second time here for data-subject requests.
+  5. **A retention schedule.** How long each category of record is kept, including what a payment history is held to by law.
+  6. **A named data contact / supervisory authority.** Who answers privacy questions, and which regulator a complaint goes to.
+
+  **Also required, and it is not a fact-gathering exercise: review by a qualified person.** Nobody who wrote these pages is qualified to give legal advice, and both files say so in their own headers. The published documents need a lawyer — this plan's contribution is that the placeholders cannot be mistaken for them, not that they are nearly right.
+
+  **When the real documents arrive:** replace both page bodies AND delete `tests/design/legal-copy.test.ts` **in the same commit** (AC#4). The gate names both files and states the rule from its own side; the pages state it from theirs. Do not delete either half alone.
