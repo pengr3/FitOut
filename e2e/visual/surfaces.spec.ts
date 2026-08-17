@@ -96,9 +96,28 @@ import {
 //     failure on every run, and a gate that cries wolf is retried until green — the exact outcome
 //     this phase exists to remove. So the blind spot is recorded rather than closed. The practical
 //     consequence, stated plainly: **a regression that only moves a divider will not be caught
-//     here.** Divider geometry is asserted by `tests/design/**` on the emitted stylesheet instead.
-//     If a future surface makes a border load-bearing, give THAT baseline its own tightened
-//     `threshold` at the call site — never the whole suite.
+//     here — AND NOTHING ELSE CATCHES IT EITHER. There is no compensating control.**
+//
+//     An earlier draft of this footer said there was one: that the design gate covered the gap by
+//     asserting divider geometry on the emitted stylesheet. IT NEVER DID, and the claim is deleted
+//     rather than left standing, because a stated reason that has quietly become false is worse
+//     than no reason — and a compensating control that does not exist is exactly how a blind spot
+//     gets read as covered. Re-searched 2026-08-17, and what is actually there:
+//       • `config/design-leak-patterns.mjs` has five categories (`raw-hex`, `color-function`,
+//         `arbitrary-text-px`, `palette-class`, `white-black-class`). Every one of them bans a raw
+//         design VALUE. None of them looks at an edge's THICKNESS, so an arbitrary edge-width
+//         utility passes the leak gate untouched.
+//       • The `tests/design/*.test.ts` files that do read the compiled stylesheet assert colour
+//         pairs, the z scale, the motion budget, the font cycle, theme nesting and the type scale.
+//         Not one asserts how many pixels wide an edge is.
+//       • `site-contacts.test.ts` is the only gate that reads `site-footer.tsx` at all, and it
+//         reads the support entry, not the class that draws the top edge D-30's second RED nudged.
+//     So the blind spot is exactly as wide as the paragraph above says, with nothing behind it.
+//
+//     `.planning/phases/11-quality-gates-pattern-layer-app-shell/deferred-items.md` `[11-22]` holds
+//     the measurement and the decision to leave it open; this footer is where a reader of the gate
+//     actually meets it. If a future surface makes a border load-bearing, give THAT baseline its
+//     own tightened `threshold` at the call site — never the whole suite.
 
 /** Every image row is this size — `OG_SIZE` in `src/app/og-render.ts`. */
 const OG_NATURAL = { width: 1200, height: 630 } as const;
