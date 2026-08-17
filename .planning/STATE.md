@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 22
 status: verifying
-stopped_at: Completed 11-18-PLAN.md
-last_updated: "2026-08-17T11:20:54.096Z"
+stopped_at: Phase 12 context gathered
+last_updated: "2026-08-17T17:32:58.051Z"
 last_activity: 2026-08-17
 progress:
   total_phases: 11
@@ -657,9 +657,9 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-17T11:20:41.783Z
-Stopped at: Completed 11-18-PLAN.md
-Resume file: None
+Last session: 2026-08-17T17:32:58.028Z
+Stopped at: Phase 12 context gathered
+Resume file: .planning/phases/12-booker-path-search-listing-checkout/12-CONTEXT.md
 
 Prior session: 2026-08-17T13:24:00.000Z
 Stopped at: Completed 11-16-PLAN.md — RESUMED from an interrupted run (nine empty blocks onto one EmptyState shell across nine surfaces, not the plan's eight; search-results.tsx:170 deliberately NOT converted — it is an error, and its routeOut decision belongs to 11-18). Design gate 33 → 34 files / 584 → 615 tests. Commits 0820524, 5c2fead, f39b60d. npm test + e2e were UNRUN that session (Docker down); both are green as of 11-20.
