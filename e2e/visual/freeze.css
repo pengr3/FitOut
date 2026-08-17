@@ -1,0 +1,114 @@
+/* GATE-01 — THE DETERMINISM SHEET. Injected with `page.addStyleTag` after every navigation in
+ * `surfaces.spec.ts` and `theme-swap.spec.ts`, and nowhere else. It ships no design decision; every
+ * rule below removes a source of frame-to-frame variation that would otherwise turn a real gate into
+ * a flaky one, and a flaky gate is retried until green, which is a rubber stamp with extra steps.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * ⚠ THE ONE THING THIS FILE CANNOT DO, STATED FIRST SO NOBODY READS A GUARANTEE THAT ISN'T HERE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 11-UI-SPEC § Determinism asks for `e2e/visual/freeze.css` "forcing `prefers-reduced-motion`". A
+ * stylesheet CANNOT force a media feature — `prefers-reduced-motion` is an input to the cascade, not
+ * an output of it, and no CSS declaration anywhere sets it. A comment here claiming otherwise would
+ * be exactly the false-header defect this repository has now recorded three times (11-03 on
+ * `e2e/helpers/theme.ts`, 11-06 on `ci.yml`, and `contrast-pairs.ts`'s conditional exclusions).
+ *
+ * So the requirement is met in TWO halves and both are load-bearing:
+ *
+ *   • the MEDIA FEATURE is emulated by the spec, with `page.emulateMedia({ reducedMotion: "reduce" })`
+ *     — see `visualFreeze()` in `e2e/visual/surfaces.spec.ts`, which is the single place both specs
+ *     call so the pair cannot drift apart;
+ *   • the DECLARATIONS a reduced-motion preference would only *ask* politely for are forced here,
+ *     unconditionally, because the app is not obliged to honour that preference on every element and
+ *     a screenshot cannot be "mostly" still.
+ *
+ * Emulation alone is insufficient (any element whose animation is not wrapped in a
+ * `prefers-reduced-motion` query keeps moving); this sheet alone is insufficient (a component that
+ * branches on the MEDIA QUERY in JS, as `e2e/reduced-motion.spec.ts` drives, never sees it). Neither
+ * half covers the other, which is why both exist.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * NO TIME FREEZE, AND THE FIRST SURFACE THAT NEEDS ONE MUST ADD IT — PHASE 12 (11-UI-SPEC)
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * NONE of the 27 baselined surfaces renders a clock, a relative timestamp, a countdown or anything
+ * else derived from `Date.now()`. Measured, not assumed — `/dev/theme` renders static literals from
+ * `./fixtures` (11-21 re-measured it: no clock, no random ids), `/terms` and `/privacy` are prose,
+ * the root not-found and the `(auth)` shell are chrome, and the three OG cards are server-rendered
+ * from tokens plus (for the listing card) four string facts. So there is no clock to freeze and
+ * installing a fake one would be inert scaffolding.
+ *
+ * THE FIRST SURFACE THAT DOES — Phase 12's countdown is the named one — MUST add a time freeze here
+ * (`page.clock.install()` / `page.clock.setFixedTime()`) IN THE SAME CHANGE that baselines it.
+ * Without this paragraph the resulting flake gets blamed on the renderer, the font, the container or
+ * "screenshots being flaky", and somebody widens a threshold. A widened threshold is a gate quietly
+ * reduced; a missing clock freeze is a five-line fix. They look identical from the failure output,
+ * which is the whole reason this note is here rather than in a plan document nobody re-reads.
+ */
+
+/* ── 1. MOTION ──────────────────────────────────────────────────────────────────────────────────
+ * Zero DURATION and zero DELAY, on every element and both generated boxes. Duration alone is not
+ * enough: a transition with a 150ms delay and a 0s duration still changes state 150ms after paint,
+ * which is precisely the window a screenshot lands in. `animation-iteration-count: 1` stops an
+ * infinite animation (`animate-pulse`, which every skeleton on `/dev/theme` renders) from being
+ * merely fast rather than finished.
+ *
+ * `!important` throughout, because these must outrank the app's own declarations — including the
+ * ones a component sets inline, which is how Radix animates its overlays.
+ */
+*,
+*::before,
+*::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+/* ── 2. THE CARET ───────────────────────────────────────────────────────────────────────────────
+ * A focused text input blinks. `/dev/theme` renders an `<Input>` and a `<Checkbox>`; nothing focuses
+ * them deliberately, but a blinking caret is a one-bit difference that appears in roughly half of
+ * all frames, so it is removed rather than reasoned about.
+ *
+ * Playwright's `toHaveScreenshot({ caret: "hide" })` does the same job and IS also passed by both
+ * specs. This rule is the belt: `caret: "hide"` is applied by the screenshot API, so it does not
+ * apply to the raw `page.screenshot()` buffers the theme-swap smoke compares byte-for-byte — and a
+ * caret is exactly the kind of one-bit difference that would make that smoke pass for the wrong
+ * reason.
+ */
+* {
+  caret-color: transparent !important;
+}
+
+/* ── 3. SMOOTH SCROLLING ────────────────────────────────────────────────────────────────────────
+ * A full-page capture scrolls the document. With `scroll-behavior: smooth` anywhere in the tree the
+ * scroll is animated, so the capture can begin before the viewport has arrived. Nothing in this app
+ * sets it today (checked); it is forced because the cost is one declaration and the failure it
+ * prevents reads as "the screenshot is randomly offset by a few hundred pixels".
+ */
+html,
+body {
+  scroll-behavior: auto !important;
+}
+
+/* ── 4. THE FRAMEWORK'S OWN DEVELOPMENT CHROME — THE RULE THIS FILE WOULD BE USELESS WITHOUT ─────
+ * `playwright.config.ts`'s `webServer` runs `npm run dev`, so every baselined surface is served by
+ * the DEVELOPMENT server. `next dev` mounts its build-activity indicator and error overlay inside a
+ * `<nextjs-portal>` custom element in the main document — a floating badge, in the corner of the
+ * viewport, whose appearance depends on whether that route happened to be compiling when the frame
+ * was taken. It is not part of the product, it never ships, and it would land in every one of the 27
+ * baselines at a position and opacity nobody can predict.
+ *
+ * `e2e/error-leak.spec.ts:176` removes the same element for the same underlying reason (it is not
+ * this application's DOM). Here it is hidden rather than removed, because a style tag is reversible
+ * and a DOM mutation is not.
+ *
+ * A production build would not carry it — but building for production is not what the `visual`
+ * project does, and switching it to one would cost the run several minutes and take `/dev/theme` and
+ * `/dev/throw` off the map entirely (both 404 in production by construction, T-10-01 /
+ * T-11-THROWROUTE). Hiding one custom element is the cheaper and more honest trade.
+ */
+nextjs-portal {
+  display: none !important;
+}
