@@ -2,7 +2,7 @@
 sketch: 002
 name: search-and-dead-end
 question: "Does a rate-only result card scan on a grid, and does the named relaxation read as an offer rather than a silent swap?"
-winner: null
+winner: "A"
 tags: [search, empty-state, phase-12, BFLOW-01, STATE-03]
 ---
 

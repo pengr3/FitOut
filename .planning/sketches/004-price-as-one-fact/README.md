@@ -2,7 +2,7 @@
 sketch: 004
 name: price-as-one-fact
 question: "Once rail and checkout both say Total, do they read as the same fact — and where does the fee explain itself?"
-winner: null
+winner: "A"
 tags: [pricing, checkout, listing, phase-12, BFLOW-04]
 ---
 

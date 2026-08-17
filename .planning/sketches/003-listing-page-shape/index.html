@@ -94,8 +94,8 @@
 
 <nav id="variant-nav">
   <span class="nav-title">003 · listing</span>
-  <button class="variant-tab active" data-v="a">A: Key facts as icon row</button>
-  <button class="variant-tab" data-v="b">B: As bordered strip</button>
+  <button class="variant-tab" data-v="a">A: Key facts as icon row</button>
+  <button class="variant-tab active" data-v="b">B: As bordered strip ★</button>
   <button class="variant-tab" data-v="c">C: As chips under title</button>
   <span style="flex:1"></span>
   <button class="variant-tab" onclick="document.getElementById('fallbacks').scrollIntoView({behavior:'smooth'})">↓ mosaic fallbacks</button>
@@ -132,7 +132,7 @@
 
         <!-- ---------- KEY FACTS — three treatments ---------- -->
         <div class="sec">
-          <div class="variant active" id="variant-a">
+          <div class="variant" id="variant-a">
             <div class="kf-icons">
               <div><span class="glyph">👥</span><div><p class="t-body semi">Up to 12 people</p><p class="t-label muted">per booking</p></div></div>
               <div><span class="glyph">🎾</span><div><p class="t-body semi">Padel court</p><p class="t-label muted">indoor, covered</p></div></div>
@@ -140,7 +140,7 @@
               <div><span class="glyph">🔢</span><div><p class="t-body semi">4 courts</p><p class="t-label muted">book one exclusively</p></div></div>
             </div>
           </div>
-          <div class="variant" id="variant-b">
+          <div class="variant active" id="variant-b">
             <div class="kf-strip">
               <div><p class="t-label muted">Capacity</p><p class="t-body semi">Up to 12</p></div>
               <div><p class="t-label muted">Space</p><p class="t-body semi">Padel court</p></div>

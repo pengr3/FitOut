@@ -2,7 +2,7 @@
 sketch: 006
 name: collision-in-place
 question: "Does a slot taken mid-selection read as a calm result rather than an error?"
-winner: null
+winner: "A"
 tags: [availability, states, phase-12, STATE-07]
 ---
 

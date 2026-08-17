@@ -46,8 +46,8 @@ checkout's collapsed price disclosure.
 | # | Name | Design Question | Winner | Tags |
 |---|------|----------------|--------|------|
 | 001 | timeslot-selector | Which interaction model for picking a multi-hour booking window — with unavailable-hour gaps — feels right? | **A · Range fill** | availability, booking, interaction, phase-03 |
-| 002 | search-and-dead-end | Does a rate-only result card scan on a grid, and does the named relaxation read as an offer rather than a silent swap? | TBD | search, empty-state, phase-12, BFLOW-01, STATE-03 |
-| 003 | listing-page-shape | Does the reordered listing page read as one product, and what do five key facts look like without becoming a spec sheet? | TBD | listing, gallery, layout, phase-12, BFLOW-02, BFLOW-03 |
-| 004 | price-as-one-fact | Once rail and checkout both say Total, do they read as the same fact — and where does the fee explain itself? | TBD | pricing, checkout, phase-12, BFLOW-04 |
-| 005 | mobile-path | At 375px, does sticky bar → sheet → checkout → PayMongo hold together as one flow? | TBD | mobile, responsive, checkout, phase-12, RESP-02, BFLOW-06/07, SHELL-03 |
-| 006 | collision-in-place | Does a slot taken mid-selection read as a calm result rather than an error? | TBD | availability, states, phase-12, STATE-07 |
+| 002 | search-and-dead-end | Does a rate-only result card scan on a grid, and does the named relaxation read as an offer rather than a silent swap? | **A · Banner + Undo** | search, empty-state, phase-12, BFLOW-01, STATE-03 |
+| 003 | listing-page-shape | Does the reordered listing page read as one product, and what do five key facts look like without becoming a spec sheet? | **B · Bordered strip** | listing, gallery, layout, phase-12, BFLOW-02, BFLOW-03 |
+| 004 | price-as-one-fact | Once rail and checkout both say Total, do they read as the same fact — and where does the fee explain itself? | **A · Same component** | pricing, checkout, phase-12, BFLOW-04 |
+| 005 | mobile-path | At 375px, does sticky bar → sheet → checkout → PayMongo hold together as one flow? | **A · One sheet** | mobile, responsive, checkout, phase-12, RESP-02, BFLOW-06/07, SHELL-03 |
+| 006 | collision-in-place | Does a slot taken mid-selection read as a calm result rather than an error? | **A · In-place notice** | availability, states, phase-12, STATE-07 |

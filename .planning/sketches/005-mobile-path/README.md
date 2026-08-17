@@ -2,7 +2,7 @@
 sketch: 005
 name: mobile-path
 question: "At 375px, does sticky bar → sheet → checkout → PayMongo hold together as one flow?"
-winner: null
+winner: "A"
 tags: [mobile, responsive, checkout, sheet, phase-12, RESP-02, BFLOW-06, BFLOW-07, SHELL-03]
 ---
 

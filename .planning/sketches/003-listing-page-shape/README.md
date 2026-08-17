@@ -2,7 +2,7 @@
 sketch: 003
 name: listing-page-shape
 question: "Does the reordered listing page read as one product, and what do five key facts look like without becoming a spec sheet?"
-winner: null
+winner: "B"
 tags: [listing, gallery, layout, phase-12, BFLOW-02, BFLOW-03]
 ---
 
