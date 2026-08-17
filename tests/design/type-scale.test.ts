@@ -481,12 +481,29 @@ const GATE_TREE = ["src/app/", "src/components/"] as const;
  * changed — which is the correct behaviour and the reason a per-file map is worth its maintenance.
  * The failure named both files and both directions (a `-` row and a `+` row) rather than a bare
  * `expected 12 to be 12`, which is what made the fix a rename rather than an investigation.
+ *
+ * ─── TWO ROWS ADDED BY PLAN 11-17 (12 → 14), AND WHY THEY ARE NOT A RUBBER STAMP ─────────────────
+ * `(public)/loading.tsx` and `listings/[id]/book/loading.tsx` are the loading fallbacks for
+ * `(public)/page.tsx` and `listings/[id]/book/page.tsx` — two rows already in this map, each with
+ * exactly one Display heading. STATE-01's requirement is that nothing MOVES when the data lands, so
+ * a fallback that renders its page's static heading has to render it at its page's type scale: drop
+ * the `sm:text-display` and the largest text on `/` visibly resizes at the `sm` breakpoint the
+ * instant the results arrive, which is the layout shift the loading state exists to prevent. The
+ * new sites are therefore the SAME heading as the row directly above them, not new surfaces
+ * reaching for Display — the count is 1:1 with the page each fronts, and it can only ever grow that
+ * way. Composing `PageHeader` instead would have avoided the row and shrunk the title, which is the
+ * same defect with a tidier diff.
+ *
+ * The other seventeen `loading.tsx` files add nothing here: fifteen render no heading or a
+ * non-Display one, and two render no heading at all because their route always redirects.
  */
 const DISPLAY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/(app)/bookings/[id]/cancel/page.tsx": 1,
   "src/app/(app)/bookings/[id]/page.tsx": 4,
+  "src/app/(public)/loading.tsx": 1,
   "src/app/(public)/page.tsx": 1,
   "src/app/listings/[id]/(detail)/page.tsx": 1,
+  "src/app/listings/[id]/book/loading.tsx": 1,
   "src/app/listings/[id]/book/page.tsx": 1,
   "src/components/booking/refund-breakdown.tsx": 1,
   "src/components/group/headcount-meter.tsx": 1,
@@ -684,9 +701,9 @@ describe("DS-02 second clause — no surface pins a font size to a pixel literal
     expect(scan.slashModifier).toEqual([]);
   });
 
-  it("carries exactly 12 Display call sites, in the 8 files that own them", () => {
+  it("carries exactly 14 Display call sites, in the 10 files that own them", () => {
     expect(scan.display).toEqual(DISPLAY_INVENTORY);
-    expect(totalOf(scan.display)).toBe(12);
+    expect(totalOf(scan.display)).toBe(14);
   });
 
   it("routes the two sub-label numerals onto the built-in `text-xs` step", () => {
