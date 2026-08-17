@@ -1,7 +1,8 @@
 ---
 phase: 12
 slug: booker-path-search-listing-checkout
-status: draft
+status: approved
+reviewed_at: 2026-08-18
 shadcn_initialized: true
 preset: "radix-nova (components.json; baseColor neutral, cssVariables true, registries {})"
 created: 2026-08-18
@@ -90,7 +91,7 @@ domain type, a server action or product copy, it is not a pattern. `PriceBreakdo
 Phase 11's four declared exceptions (56px header, 176px auth slot, 80px sticky offset, 85dvh sheet bound)
 carry forward unchanged.
 
-### Phase 12 declares five exceptions, each on the 4px grid and each with the reason it exists
+### Phase 12 declares six exceptions, each with the reason it exists
 
 | Value | Class | Where | Why it is not a ladder step |
 |-------|-------|-------|------------------------------|
@@ -99,6 +100,7 @@ carry forward unchanged.
 | **20px** | `gap-5` — **REMOVED** | `CardGridSkeleton` | See below: `gap-5` is retired, not declared. |
 | **96px** | `min-w-24` | The checkout header's countdown box | Reuses `AUTH_SLOT_CONTROL`'s 96px rather than inventing a second reservation width. It is a *reservation*, not a design value: `14:52` and `0:09` are different character counts, and a right-anchored box with a floor is what stops the header reflowing once per session. |
 | **~41px** | fluid | A calendar day cell's **width** below a 344px content box | **A measured consequence, declared rather than hidden.** Seven 44px cells is 308px; at the 320px floor with `px-4` the content box is 288px, so a fixed 44px grid overflows. The cell's **height stays 44px at every width**; its width is `1fr` and falls to ~41px between 320px and ~376px viewport. 41 > the WCAG 2.5.8 AA 24px bar with room to spare, and the alternative — a horizontally scrolling month grid — fails both the responsive and the keyboard gate. |
+| **2px** | `mt-0.5` | The key-facts `<dd>` value, and the collision notice's `ClockIcon` | **An optical nudge, not layout.** A `size-4` glyph or a `font-semibold` value set beside `text-label` text sits ~2px high on the cap-height; `mt-0.5` drops it onto the same optical baseline. It is off the 4px ladder because the ladder governs *layout rhythm* and this governs *glyph alignment* — the smallest ladder step (4px) is visibly too much and reads as a misaligned row. Precedented, not invented: `slot-picker.tsx:268` already ships exactly this idiom. **Bounded:** legal only for icon-or-value optical alignment inside a single text row, never for spacing between blocks — a `mt-0.5` that separates two elements is the anti-pattern, not this. |
 
 ### The ±4px grid gutter (`[11-17]` / 12-CONTEXT D-57) is resolved here, mechanically
 
@@ -263,6 +265,30 @@ carries no text of its own.
   step. **It does not.** `Z_SHEET_INVENTORY` stays asserted empty, and `globals.css:403-408`'s note is updated
   to say Phase 12 checked and declined rather than left unexamined. *A zero that is asserted is a contract;
   a zero that is merely true is an invitation for someone to invent a home for it.*
+
+---
+
+## Visual Hierarchy — the one focal point of each surface
+
+The rest of this document specifies *ordering*, which implies priority. This section states it outright, so
+a plan cannot satisfy the order while flattening the emphasis. **Each surface has exactly one focal point.**
+Two things competing for first read is the failure mode, and on this path it has a cost: the whole phase goal
+is that the route "reads as one designed product," which is a claim about what the eye lands on first at each
+step — a photo, then a photo, then a number.
+
+| Surface | Focal point | Carried by | What must therefore NOT compete |
+|---|---|---|---|
+| **Search results** | The **photo** of each card | `AspectRatio 4/3` at the top of every tile, uniform across the grid, so the grid reads as a field of images before it reads as text | No card gets an accent border, badge or elevated hover treatment that pulls it out of the field. The price is *second* read — `text-body font-semibold`, not display size. |
+| **Search, zero results** | The **relaxation band**, above the grid | The one soft-accent surface on the page (accent item 9) — it is the only accented thing above the fold, so it wins by being alone, not by being loud | The `Undo` control is a text button inside the band, never a filled accent button. A filled accent there would out-shout the band's own sentence, which is the thing that has to be read. |
+| **Listing detail** | The **gallery mosaic** | `MOSAIC_ASPECT` 16/9 at full content width, first element in the order, before the `<h1>` | The sticky rail is deliberately *second* — `bg-card` + border, no accent fill on the container. Its `Book` button is the page's one accent fill, and it earns that by being the only one. The key-facts strip is a bordered strip (sketch 003-B), not a set of cards; cards there would read as a third focal layer. |
+| **Listing detail, ≤`sm`** | The **sticky bottom bar** once the rail's inline copy scrolls away | Bottom-anchored, `STICKY_BAR_HEIGHT`, `shadow-sticky`, carrying the Total and the one accent action | Nothing else on the mobile listing page may be `fixed` or accent-filled. The bar is the page's persistent answer to "what do I do here." |
+| **Booking sheet** | The **calendar month grid** | The largest block in the sheet, immediately under the title | The pinned action bar is the *anchor*, not the focus — it is always visible precisely so it does not have to compete for attention. |
+| **Checkout** | The **Total** | The largest, heaviest numeral on the page in both themes (§ Typography rule on the rail/checkout Total), and the same figure repeated in the sticky confirm bar | The countdown is chrome, held to `HOLD_COUNTDOWN_BOX` in the header at label size. It only takes visual priority in its final 60 seconds, and by colour alone — never by growing. |
+| **Collision** | The **notice**, in place above the refreshed picker | Soft-accent surface (accent item 9), rendered in the same paint as the corrected availability | It is a **result, not an error** (D-55): no `destructive` colour, no icon that reads as a warning triangle, no scrim, no toast. A toast here would move the focal point off the page. |
+
+**Falsifiable at review:** on each surface above, exactly one element carries an accent fill or the
+soft-accent surface treatment. Two accent fills in one viewport at any of the three baseline widths is the
+defect this section exists to name.
 
 ---
 
@@ -608,7 +634,9 @@ same `AllInTable` lookup. A bar that computes its own figure is a GATE-05 violat
 primitive. Below `sm:` it is the bottom sheet (`max-h-[85dvh]`, `overflow-y-auto`, `rounded-t-xl`); at `sm:`
 and up it is the vendored centred dialog, byte-unchanged. **No grab handle** (drag-to-dismiss is out of
 scope and a handle implying it is an affordance that lies). Dismissal is the visible close button, the
-overlay click, and `Escape`.
+overlay click, and `Escape`. **The close button's accessible name is `Close booking`**, not the vendored
+default `Close` — see the lightbox close row in § Copywriting for why the path's two close buttons must not
+share a name.
 
 **Contents, top to bottom:** title · month nav · the calendar · the day's slot chips · the run/fee/Total
 breakdown · a **pinned** action bar carrying `Book · {₱total}` and the hold promise.
@@ -882,6 +910,7 @@ space"**, never "shared pass" · `price-breakdown.tsx`'s two greps must stay unt
 | Lightbox title (`sr-only`) | **`Photos of {title}`** |
 | Lightbox counter | **`{3} / {8}`** |
 | Lightbox nav labels | **`Previous photo`** · **`Next photo`** |
+| Lightbox close label | **`Close photos`** — an explicit accessible name on the close control, `sr-only` beside the glyph. `DialogClose`'s vendored default is the bare **`Close`**, and the booker path renders **two** visible close buttons (this one and the booking sheet's). Two controls both named `Close` are indistinguishable in a screen reader's element list, so each declares its own: **`Close photos`** here, **`Close booking`** on the sheet (§ The sheet). The fee popover needs no third name — it has no close button, dismissing only by click-outside and `Escape`. |
 | Timezone note | **shipped, unchanged** — `Times shown in {Makati} time ({GMT+8})` |
 | Day panel states | **shipped, unchanged** — `No availability yet` · `Nothing open on {day}` · `Couldn't load this day` |
 | Slot skeleton (`sr-only`) | **`Loading times for {Friday, Aug 21}`** |
@@ -1184,11 +1213,24 @@ is **not** 25,844, and its `alt` export contains the seeded listing's title.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+Verified by `gsd-ui-checker` on **2026-08-18** (`ui_safety_gate: true` confirmed active, Dimension 6 evaluated).
 
-**Approval:** pending
+- [x] Dimension 1 Copywriting: **PASS**
+- [x] Dimension 2 Visuals: **PASS** *(FLAG at review — both recommendations applied below)*
+- [x] Dimension 3 Color: **PASS**
+- [x] Dimension 4 Typography: **PASS**
+- [x] Dimension 5 Spacing: **PASS** *(FLAG at review — recommendation applied below)*
+- [x] Dimension 6 Registry Safety: **PASS**
+
+**Approval:** APPROVED
+
+### Post-review amendments (applied after sign-off, non-blocking)
+
+| Dim | Finding | Resolution |
+|---|---|---|
+| 2 | No screen carried an explicit primary-focal-point statement — priority was implied by ordering only | Added § **Visual Hierarchy — the one focal point of each surface**: seven surfaces, each with its focal point, its carrier, and what may not compete, plus a falsifiable "one accent fill per viewport" check |
+| 2 | The lightbox close control's accessible name was never declared, unlike its nav buttons | Declared **`Close photos`** (lightbox) and **`Close booking`** (sheet) — the path's two visible close buttons no longer share the vendored default `Close` |
+| 5 | `mt-0.5` (2px) used twice but absent from the exceptions table | Added as the **sixth** declared exception, with its rationale (optical glyph alignment, not layout rhythm), its precedent (`slot-picker.tsx:268`) and its bound (never between blocks) |
+
+The checker recorded no action on the ~41px fluid calendar-cell width: already declared, falsifiable and
+bounded — kept visible to the planner as an intentional non-token value.
