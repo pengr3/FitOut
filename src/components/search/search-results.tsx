@@ -17,9 +17,9 @@ import { SearchXIcon, SparklesIcon } from "lucide-react";
 
 import { SearchResultCard, type SearchedWindow } from "@/components/search/search-result-card";
 import type { SearchResultRow } from "@/lib/search/query";
+import { CardGridSkeleton } from "@/components/patterns/card-grid-skeleton";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -64,24 +64,6 @@ function ResultsGrid({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
       {rows.map((row) => (
         <SearchResultCard key={row.id} listing={row} searchedWindow={searchedWindow} />
-      ))}
-    </div>
-  );
-}
-
-function ResultsSkeleton() {
-  return (
-    <div
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <Skeleton className="aspect-[4/3] w-full rounded-xl" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
       ))}
     </div>
   );
@@ -195,7 +177,28 @@ export function SearchResults({
           </Button>
         </div>
       ) : isPending && !hasResults ? (
-        <ResultsSkeleton />
+        // STATE-01 (plan 11-17) — THE SAME COMPONENT `src/app/(public)/loading.tsx` renders, and the
+        // reason it has to be. `/` genuinely has two loading states: `pushWith` wraps `router.push` in
+        // `startTransition`, so React keeps this UI mounted and flags `isPending` instead of falling
+        // back to `loading.tsx`, which therefore only ever covers first load and hard navigation. Both
+        // are correct; if they were two different components the same page would shimmer two different
+        // ways depending on how the visitor arrived at it.
+        //
+        // What this replaces: a locally-declared grid of six cells, each an `aspect-[4/3]` box over two
+        // `h-4` bars — the same four literals `(host)/host/listings/loading.tsx` carried, i.e. a THIRD
+        // copy of a geometry that `measurements.ts` now owns. It also announced through
+        // `aria-live="polite" aria-busy="true"` on a div with no role and no name, which announces the
+        // busy state to nobody: `role="status"` is `nameFrom:author`, so the pattern's `aria-label` is
+        // what makes it a named live region (measured in plan 11-07 with `dom-accessibility-api`).
+        //
+        // MEASURED RESIDUAL, recorded rather than hidden: `ResultsGrid` above is `gap-4 lg:gap-6` and
+        // the shared pattern is `gap-5`, because the other adopter (`/host/listings`) is a `gap-5`
+        // grid. That is ±4px per gutter, in opposite directions either side of `lg`. It is left as-is
+        // rather than pushed into the pattern as a spacing prop — a pattern that takes its geometry
+        // from the call site has stopped deciding anything, which is `invite-card.tsx`'s argument for
+        // owning its own rhythm — and it is handed to plan 11-21, whose ±2px `boundingBox()`
+        // comparison is the only thing that can actually see it (jsdom cannot, D-131).
+        <CardGridSkeleton label="Loading spaces" />
       ) : hasResults ? (
         <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
           <ResultsGrid rows={results} searchedWindow={searchedWindow} />
