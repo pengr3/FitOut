@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 14
+current_plan: 15
 status: executing
-stopped_at: Completed 11-19-PLAN.md
-last_updated: "2026-08-14T03:20:00.000Z"
-last_activity: 2026-08-14
+stopped_at: "Completed 11-19-PLAN.md — three not-found routes where zero existed (root, `listings/[id]/(detail)`, `(public)/invite/[token]`), the invite-inactive copy down from THREE declarations in `src/` to one in `src/lib/group/rsvp.ts` (`submitRsvp`'s `INVITE_INACTIVE` was the third the plan did not know about), and `tests/design/invite-notfound-parity.test.ts` (32 design files / 561 tests, +1 file / +8 tests exactly). The oracle is closed by CONSTRUCTION: both entrances render one `InviteInactive` component and the gate asserts the 404 branch is unreachable, because identical markup is not an identical response — a boundary is 404 and the page's inactive branch is 200, which a script distinguishes instantly. Measured against `next start`: malformed and two well-formed unknown tokens return byte-identical 200s with the token substituted out. Root not-found composes `SiteChrome` + a new DB-free `AnonymousAuthActions`, never `PublicHeader` — measured, `PublicHeader` there takes EVERY route off prerender. Suite 1217 passed / 4 skipped (+1); `npm run build` exits 0 with an unreachable `DATABASE_URL` and `/_not-found` stays `○`. Commits `3848c8e`, `4cb0c8e`, `dd2bb40`. ⚠️ Deferred: the root not-found is a SIXTH footer site 11-14 does not know about, and a `notFound()` boundary is client-rendered in this app."
+last_updated: "2026-08-17T04:15:26.394Z"
+last_activity: 2026-08-17
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 31
+  completed_plans: 32
   percent: 9
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 14 of 22
-Current Plan: 14
+Plan: 15 of 22
+Current Plan: 15
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -134,7 +134,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-13
+Last activity: 2026-08-17
 
 ## Performance Metrics
 
@@ -257,6 +257,7 @@ Last activity: 2026-08-13
 | Phase 11 P12 | 58min | 3 tasks | 8 files |
 | Phase 11 P13 | 47min | 3 tasks | 9 files |
 | Phase 11 P19 | 68min | 3 tasks | 13 files |
+| Phase 11 P14 | 60 | 4 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -513,6 +514,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 11-13: the price breakdown's container is reserve-view.tsx's checkout rail, not price-breakdown.tsx — that file has no container of its own and its one call site already boxes it; wrapping it there would nest two cards and pay the padding twice
 - [Phase ?]: 11-13: the two measured refusals (listing-card, notification-item) are encoded in the AC#25 coverage gate as refused ROWS asserted NOT to import their pattern, so a future adoption reds the gate and forces the measurement to be read before it is deleted
 - [Phase ?]: 11-13: ALLOWED_RAW_CARD is 15 files / 22 sites, each attributed to the phase whose roadmap scope note claims the surface — a fourth container shape outside patterns/ is now a named test failure rather than a review opinion
+- [Phase 11]: 11-14: D-26 upheld at the checkpoint — carry-both: SUPPORT_EMAIL stays null, the footer renders no support entry at all, and TWO named human_needed items are carried (a real monitored support address; NEXT_PUBLIC_APP_URL). D-26 amends 11-UI-SPEC AC#8 — the phase CAN complete with the slot unfilled, because the gate inverts rather than softens.
+- [Phase 11]: 11-14: the footer-site inventory is SEVEN shell-composition sites, not the five 11-14 named — six render a footer (including src/app/not-found.tsx, above all five route groups) and listings/[id]/book/layout.tsx renders none. Enumerate by AST-scanning for shell composition, never by listing layouts.
+- [Phase 11]: 11-14: site-contacts.test.ts verifies GUARD MEMBERSHIP over the AST rather than banning substrings — site-footer.tsx legitimately contains 'mailto:' and 'Support' inside the branch that never renders, so a substring ban would be red against the correct implementation.
 
 ### Pending Todos
 
@@ -615,7 +619,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-14T03:20:00.000Z
+Last session: 2026-08-17T04:15:00.098Z
 Stopped at: Completed 11-19-PLAN.md — three not-found routes where zero existed (root, `listings/[id]/(detail)`, `(public)/invite/[token]`), the invite-inactive copy down from THREE declarations in `src/` to one in `src/lib/group/rsvp.ts` (`submitRsvp`'s `INVITE_INACTIVE` was the third the plan did not know about), and `tests/design/invite-notfound-parity.test.ts` (32 design files / 561 tests, +1 file / +8 tests exactly). The oracle is closed by CONSTRUCTION: both entrances render one `InviteInactive` component and the gate asserts the 404 branch is unreachable, because identical markup is not an identical response — a boundary is 404 and the page's inactive branch is 200, which a script distinguishes instantly. Measured against `next start`: malformed and two well-formed unknown tokens return byte-identical 200s with the token substituted out. Root not-found composes `SiteChrome` + a new DB-free `AnonymousAuthActions`, never `PublicHeader` — measured, `PublicHeader` there takes EVERY route off prerender. Suite 1217 passed / 4 skipped (+1); `npm run build` exits 0 with an unreachable `DATABASE_URL` and `/_not-found` stays `○`. Commits `3848c8e`, `4cb0c8e`, `dd2bb40`. ⚠️ Deferred: the root not-found is a SIXTH footer site 11-14 does not know about, and a `notFound()` boundary is client-rendered in this app.
 Resume file: None
 
