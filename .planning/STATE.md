@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 17
+current_plan: 18
 status: executing
-stopped_at: "**Completed 11-15-PLAN.md — SHELL-02's last mile: the footer's two Legal links now land on real, prerendered pages that nothing can mistake for the published documents.** `/terms` and `/privacy` ship as `○ Static` inside a new `(legal)` group whose only contribution is a 65ch measure (`.max-w-prose{max-width:65ch}` verified in the emitted bundle; `@tailwindcss/typography` NOT installed, zero packages). **The plan's one real conflict was settled with a build, not an argument:** the group renders `SiteChrome` + `AnonymousAuthActions` rather than `PublicHeader`, because the counterfactual was BUILT — with `PublicHeader` both routes come back `ƒ Dynamic` and the build drops from five static routes to three. The cost (a signed-in reader sees `Log in` / `Sign up` on two footer-reachable routes) is stated in the layout's own header and in `deferred-items.md` rather than hidden; there is no third option, since a client session fetch is banned by T-11-SESSION and a request-time read IS the bailout. **The bodies assert NOTHING about the business** — every one of the eighteen bullets is what the published document will COVER, because `/privacy`'s own notice says nothing on it describes real data handling, and naming PayMongo/Postgres/Resend (all true of this tree) would falsify that notice one paragraph below it. The three rows needing undecided facts say so out loud. **Nothing was fabricated:** `SUPPORT_EMAIL` still `null`, `NEXT_PUBLIC_APP_URL` still unset. `tests/design/legal-copy.test.ts` is the 36th design file — a comment-stripped AST walk over JSX text, string literals AND flattened `+` chains, with closure stated FORWARDS (walk the group, every page found must be declared). **Six watched reds, all run.** Probe (c) reproduced the phase's vacuity result for the FOURTH time — the headline `finds none across every page` assertion PASSED over a scan of nothing. Probe (e): with the inventory emptied the file ran **13 tests, not 21** — both `it.each` groups vanish. Probe (f): the notice hand-rolled as a bare `<div>` left BOTH AC#9 assertions green. Notice measured ENTIRELY above the fold at 320×568 in both themes (worst case grove `/terms`, 543 of 568); all four type roles measured per theme at the element; `og:image` + `summary_large_image` MEASURED surviving on both routes (11-20's finding). Design gate 35 → 36 files / 627 → 648; `npm test` 1217/4 skipped (baseline-equal); build 0; route table gained exactly two `○` rows and nothing flipped; drizzle still `0025_audit_resolved_by.sql`. Commits `82b675a`, `6c76dd4`, `414ba26`, `96cb57e`, `3b9e985`. ⚠ **NOT PUSHED** (executor brief). ⚠ **`human_needed`: the real Terms and Privacy Policy** — six undecided business facts (legal entity, registered address, governing law/forum, monitored contact, retention schedule, data contact/regulator) plus review by a qualified person. Next: 11-17."
-last_updated: "2026-08-17T15:00:00.000Z"
+stopped_at: "Completed 11-15-PLAN.md — /terms and /privacy ship as static prerendered placeholder pages whose notice is asserted by string equality and coupled to its gate (AC#4); the static-vs-correct-header trade was measured both ways; six watched reds including the fourth vacuity result. NOT PUSHED. human_needed: the real legal documents (six undecided facts + legal review). Next: 11-17."
+last_updated: "2026-08-17T07:37:50.393Z"
 last_activity: 2026-08-17
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 35
+  completed_plans: 36
   percent: 9
 ---
 
@@ -46,7 +46,7 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
 Plan: 18 of 22
-Current Plan: 17
+Current Plan: 18
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -265,6 +265,7 @@ Last activity: 2026-08-17
 | Phase 11 P19 | 68min | 3 tasks | 13 files |
 | Phase 11 P14 | 60 | 4 tasks | 12 files |
 | Phase 11 P15 | ~75 min | 3 tasks | 4 files |
+| Phase 11 P17 | 55min | 3 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -531,6 +532,9 @@ Recent decisions affecting current work:
 - [Phase 11]: 11-15: (legal) renders SiteChrome + AnonymousAuthActions, not PublicHeader — both configurations were BUILT; with PublicHeader both routes come back Dynamic and the build loses two of its five static routes. The cost (a signed-in reader sees the anonymous cluster on two footer-reachable routes) is stated in-file and in deferred-items.md rather than hidden.
 - [Phase 11]: 11-15: the legal page bodies assert NOTHING about the business — every bullet describes what the published document will COVER. A concrete claim (PayMongo, Postgres, Resend, all true of this tree) would falsify the placeholder notice one paragraph above it.
 - [Phase 11]: 11-15: the PanelCard-composition assertion lives in legal-copy.test.ts, not in card-pattern-coverage.test.ts, whose EXPECTED_SURFACES is derived from the UI-SPEC's three Replaces lists and names neither legal page.
+- [Phase 11]: 11-17: loading-state coverage is discriminated by isAsyncDefaultExport, not by an await grep and not by the build manifest's dynamic marker. loading.tsx is a Suspense boundary around the PAGE and only an async default export can suspend it; measured, all four (auth) routes build dynamic because their layout renders PublicHeader, so the plan's claimed 1:1 with the manifest is false in one direction.
+- [Phase 11]: 11-17: a loading.tsx renders its page's static heading VERBATIM rather than through PageHeader wherever the page's h1 is not at the pattern's text-xl scale, and renders NO heading where the h1 is data-derived — an invented title gets either the words or the width wrong.
+- [Phase 11]: 11-17: a route with no resolved geometry (every exit is a redirect) gets a named live region and a sentence, not a skeleton — /host/listings/new and /host/payouts/refresh.
 
 ### Pending Todos
 
@@ -633,7 +637,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-17T15:00:00.000Z
+Last session: 2026-08-17T07:37:33.437Z
 Stopped at: Completed 11-15-PLAN.md — /terms and /privacy ship as static prerendered placeholder pages whose notice is asserted by string equality and coupled to its gate (AC#4); the static-vs-correct-header trade was measured both ways; six watched reds including the fourth vacuity result. NOT PUSHED. human_needed: the real legal documents (six undecided facts + legal review). Next: 11-17.
 Resume file: None
 
