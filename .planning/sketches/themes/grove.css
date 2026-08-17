@@ -1,0 +1,94 @@
+/* ============================================================================================
+   GROVE — transcribed VERBATIM from src/app/globals.css `[data-theme="grove"]`.
+
+   The deliberately-distant second theme (D-133). It is NOT a palette swap: geometry travels
+   (20px radius against court's 10px), type travels (34px display against 28px, 700 against 600,
+   looser leading), and elevation travels (roughly double the blur, tinted to the theme's own ink
+   hue rather than pure black).
+
+   THIS FILE IS THE LEAK TEST. Switch a sketch to grove: if a layout only reads correctly in court,
+   it is carrying a value that should have been a token. Learning that here costs an HTML edit;
+   learning it in Phase 17's audit costs a rewrite.
+   ============================================================================================ */
+:root {
+  /* ---- Surfaces and ink. --background is TINTED while --card stays pure white, so cards lift
+          off the page without a shadow. That difference is deliberate. ---- */
+  --background: oklch(0.988 0.006 190);
+  --foreground: oklch(0.17 0.02 190);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0.02 190);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0.02 190);
+
+  /* ---- Neutral controls, re-tinted to hue 190. A tinted near-black is not an accent. ---- */
+  --primary: oklch(0.24 0.03 190);
+  --primary-foreground: oklch(0.985 0.004 190);
+  --secondary: oklch(0.958 0.01 190);
+  --secondary-foreground: oklch(0.24 0.03 190);
+  --muted: oklch(0.958 0.01 190);
+  --muted-foreground: oklch(0.5 0.015 190);
+  --accent: oklch(0.958 0.01 190);
+  --accent-foreground: oklch(0.24 0.03 190);
+
+  /* ---- Grove's brand moves TEAL-WARD to hue 190, putting 40° between it and --success.
+          Chroma 0.09 is the constraint boundary, not a preference: no in-gamut solution
+          exists at 0.11+ at the AA bar. Clears its foreground at 4.57:1, same as court. ---- */
+  --brand: oklch(0.5445 0.09 190);
+  --brand-foreground: oklch(0.985 0.004 190);
+
+  /* ---- Identical to court by derivation. Declared anyway: THEME-02 asserts key-set EQUALITY,
+          so a global value still needs a row in both blocks or the sets diverge. ---- */
+  --success: oklch(0.58 0.15 150);
+  --success-foreground: oklch(0.985 0.004 190);
+  --destructive: oklch(0.535 0.215 27.325);
+  --destructive-foreground: oklch(0.985 0.004 190);
+
+  --ring: oklch(0.45 0.02 190);
+  --border: oklch(0.905 0.012 190);
+  --input: oklch(0.905 0.012 190);
+
+  /* ---- Geometry travels (D-02): 20px against court's 10px. ---- */
+  --radius: 1.25rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-full: 9999px;
+
+  /* ---- Type: deep and generous. Moves UP from court, never down — a value hardcoded near
+          today's numbers cannot hide behind a theme that shrank. ---- */
+  --fs-display: 2.125rem;  --lh-display: 1.2; --fw-display: 700; --ls-display: -0.005em;
+  --fs-heading: 1.5rem;    --lh-heading: 1.3; --fw-heading: 700; --ls-heading: 0;
+  --fs-body:    1.0625rem; --lh-body:    1.6; --fw-body:    400; --ls-body:    0;
+  --fs-label:   0.9375rem; --lh-label:   1.5; --fw-label:   400; --ls-label:   0;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.6875rem;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 700;
+  --font-weight-semibold: 700;
+  --tracking-tight: -0.005em;
+
+  /* ---- Elevation: DEEP, and tinted to the ink hue so depth reads as part of the theme
+          rather than a grey wash laid over it. ---- */
+  --elevation-raised:  0 2px 6px -1px oklch(0.17 0.02 190 / 0.1);
+  --elevation-overlay: 0 16px 40px -8px oklch(0.17 0.02 190 / 0.2);
+  --elevation-sticky:  0 -2px 20px -4px oklch(0.17 0.02 190 / 0.14);
+
+  --z-sticky: 10;
+  --z-sheet: 20;
+  --z-dialog: 30;
+  --z-toast: 40;
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --font-sans: 'Geist', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

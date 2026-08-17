@@ -1,0 +1,94 @@
+/* ============================================================================================
+   COURT — transcribed VERBATIM from src/app/globals.css `:root, [data-theme="court"]`.
+
+   These are the SHIPPED values, not sketch approximations. That is the point: a mockup built on
+   invented tokens can look good and still be unbuildable, and this milestone's whole premise
+   (D-128) is that branding lives in one token contract. Every colour below is contrast-proven —
+   --brand is the LIGHTEST coral at hue 25 that clears 4.5:1 against --brand-foreground (D-12),
+   and --ring is a darkened NEUTRAL rather than the accent (D-132).
+
+   Pair with grove.css. If a sketch layout looks right in court and breaks in grove, the layout has
+   a hardcoded value in it — which is exactly what we want to learn before the plans are written.
+   ============================================================================================ */
+:root {
+  /* ---- Surfaces and ink (the 60% and 30% of the 60/30/10 split) ---- */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+
+  /* ---- Neutral controls. An un-varianted button renders THIS, never the accent (D-21). ---- */
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.53 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+
+  /* ---- The 10% accent slot ---- */
+  --brand: oklch(0.58 0.208 25);
+  --brand-foreground: oklch(0.985 0 0);
+
+  /* ---- Status. Hue lives in the ICON; status text is --foreground on a neutral tint (D-14). ---- */
+  --success: oklch(0.58 0.15 150);
+  --success-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.535 0.215 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  /* ---- Focus + hairlines. --border is DECORATIVE ONLY (1.26:1) and may never be a control's
+          sole visible boundary or sole focus indicator. ---- */
+  --ring: oklch(0.45 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+
+  /* ---- Geometry. The seven derived steps scale off this one number. ---- */
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-full: 9999px;
+
+  /* ---- Type: the four semantic roles. Court is the tighter, smaller theme. ---- */
+  --fs-display: 1.75rem;  --lh-display: 1.15; --fw-display: 600; --ls-display: -0.02em;
+  --fs-heading: 1.25rem;  --lh-heading: 1.3;  --fw-heading: 600; --ls-heading: -0.01em;
+  --fs-body:    1rem;     --lh-body:    1.5;  --fw-body:    400; --ls-body:    0;
+  --fs-label:   0.875rem; --lh-label:   1.43; --fw-label:   400; --ls-label:   0;
+
+  /* ---- Type: the built-in ladder, re-declared per theme ---- */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+
+  /* ---- Two weights per theme. `medium` is ALIASED onto the emphasis weight, deliberately. ---- */
+  --font-weight-normal: 400;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 600;
+  --tracking-tight: -0.02em;
+
+  /* ---- Elevation: exactly three steps. Court is shallow, pure-neutral shadow. ---- */
+  --elevation-raised:  0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --elevation-overlay: 0 8px 24px -6px oklch(0 0 0 / 0.12);
+  --elevation-sticky:  0 -1px 12px -2px oklch(0 0 0 / 0.08);
+
+  /* ---- Z ladder + motion budget (nothing above 320ms, DS-04) ---- */
+  --z-sticky: 10;
+  --z-sheet: 20;
+  --z-dialog: 30;
+  --z-toast: 40;
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- Font stack. The app ships Geist; system-ui is the sketch stand-in. ---- */
+  --font-sans: 'Geist', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

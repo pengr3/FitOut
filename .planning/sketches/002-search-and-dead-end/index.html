@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en" data-sketch-theme="court">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 002 — Search results &amp; the named dead end</title>
+<link id="theme-link" rel="stylesheet" href="../themes/court.css">
+<link rel="stylesheet" href="../themes/kit.css">
+<style>
+  .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .results-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .results-grid { grid-template-columns: 1fr; } }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chip-filter {
+    display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-full);
+    background: var(--card); font-size: var(--text-sm); font-family: inherit; cursor: pointer;
+  }
+  .chip-filter[data-relaxed="true"] {
+    border-color: color-mix(in oklch, var(--brand) 45%, var(--border));
+    background: color-mix(in oklch, var(--brand) 8%, var(--card));
+  }
+  .empty {
+    border: 1px dashed var(--border); border-radius: var(--radius-xl);
+    padding: 32px; text-align: center;
+  }
+  .empty-icon { color: var(--muted-foreground); margin-bottom: 8px; }
+  .relax-band {
+    display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
+    padding: 14px 16px; border-radius: var(--radius-lg);
+    background: var(--muted); border: 1px solid var(--border);
+  }
+  .divider-label { display: flex; align-items: center; gap: 12px; }
+  .divider-label .sep { flex: 1; }
+  .ladder-step {
+    display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center;
+    padding: 8px 0; font-size: var(--text-sm);
+  }
+  .ladder-dot {
+    width: 18px; height: 18px; border-radius: var(--radius-full);
+    border: 1px solid var(--border); display: grid; place-items: center; font-size: 10px;
+    color: var(--muted-foreground);
+  }
+  .ladder-step[data-state="hit"] .ladder-dot { background: var(--brand); border-color: var(--brand); color: var(--brand-foreground); }
+  .ladder-step[data-state="tried"] { color: var(--muted-foreground); }
+  .ladder-step[data-state="untried"] { opacity: 0.45; }
+</style>
+</head>
+<body>
+
+<nav id="variant-nav">
+  <span class="nav-title">002 · dead end</span>
+  <button class="variant-tab active" data-v="a">A: Banner above alternatives</button>
+  <button class="variant-tab" data-v="b">B: Opt-in from the empty state</button>
+  <button class="variant-tab" data-v="c">C: Labelled divider</button>
+  <span style="flex:1"></span>
+  <span class="nav-title" style="margin:0 4px 0 0">state</span>
+  <button class="variant-tab state-tab" data-s="zero">Zero result</button>
+  <button class="variant-tab state-tab active" data-s="results">Results</button>
+  <button class="variant-tab state-tab" data-s="loading">Loading</button>
+  <button class="variant-tab state-tab" data-s="cold">Cold start</button>
+</nav>
+
+<div class="stage" data-vp="full">
+<div class="wrap" style="padding-top:24px;padding-bottom:64px">
+
+  <p class="note">
+    <b>What to look for.</b> (1) The card carries a <b>rate</b>, never a total — "₱420/hr · ₱3,150/day"
+    with <i>Service fee included</i> welded underneath it. Does price read without interaction?
+    (2) In the zero-result state, does the page <b>name the one constraint it relaxed</b> and read as an
+    <i>offer</i> — or does it read as though your search was quietly swapped for a different one?
+    Switch themes bottom-right: grove is the leak test.
+  </p>
+
+  <!-- ================= search bar (shared across variants) ================= -->
+  <div class="stack" style="--gap:16px;margin-bottom:24px">
+    <div class="row-between" style="flex-wrap:wrap">
+      <div>
+        <h1 class="t-display">Spaces in Makati</h1>
+        <p class="t-label muted" id="result-count" style="margin-top:4px">14 spaces · Fri, Aug 21 · 9:00 AM – 11:00 AM</p>
+      </div>
+      <button class="btn btn-brand btn-touch">Search</button>
+    </div>
+    <div class="filters" id="filter-row">
+      <button class="chip-filter" data-f="where">📍 Makati · <b>10 km</b></button>
+      <button class="chip-filter" data-f="when">📅 Fri, Aug 21 · 9–11 AM</button>
+      <button class="chip-filter" data-f="what">🏸 Badminton court</button>
+      <button class="chip-filter" data-f="price">₱ Up to ₱600/hr</button>
+    </div>
+  </div>
+
+  <!-- ================= RESULTS (shared) ================= -->
+  <section id="state-results">
+    <div class="results-grid" id="grid-main"></div>
+  </section>
+
+  <!-- ================= LOADING ================= -->
+  <section id="state-loading" hidden>
+    <div class="results-grid" role="status" aria-label="Loading spaces">
+      <div class="card"><div class="skeleton" style="aspect-ratio:4/3;border-radius:var(--radius-xl) var(--radius-xl) 0 0"></div><div class="card-pad stack" style="--gap:8px"><div class="skeleton" style="height:18px;width:70%"></div><div class="skeleton" style="height:14px;width:45%"></div><div class="skeleton" style="height:18px;width:55%"></div></div></div>
+      <div class="card"><div class="skeleton" style="aspect-ratio:4/3;border-radius:var(--radius-xl) var(--radius-xl) 0 0"></div><div class="card-pad stack" style="--gap:8px"><div class="skeleton" style="height:18px;width:60%"></div><div class="skeleton" style="height:14px;width:50%"></div><div class="skeleton" style="height:18px;width:52%"></div></div></div>
+      <div class="card"><div class="skeleton" style="aspect-ratio:4/3;border-radius:var(--radius-xl) var(--radius-xl) 0 0"></div><div class="card-pad stack" style="--gap:8px"><div class="skeleton" style="height:18px;width:75%"></div><div class="skeleton" style="height:14px;width:40%"></div><div class="skeleton" style="height:18px;width:58%"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ================= COLD START ================= -->
+  <section id="state-cold" hidden>
+    <div class="empty">
+      <div class="empty-icon">✦</div>
+      <h2 class="t-heading">No spaces are bookable here yet</h2>
+      <p class="t-label muted" style="max-width:46ch;margin:6px auto 0">
+        We're just getting started in Makati. Check back soon — new spaces are being added.
+      </p>
+    </div>
+    <p class="note" style="margin-top:16px">
+      <b>No escape hatches here, and that is the point.</b> Every hatch is a filter control, and
+      offering "Broaden radius" to someone in a city with no supply is a button that cannot work.
+      Cold start names what happens next in words instead. Unchanged from what ships today.
+    </p>
+  </section>
+
+  <!-- ================= ZERO RESULT — three variants ================= -->
+  <section id="state-zero" hidden>
+
+    <!-- ---------- A: relaxation banner ABOVE a real results grid ---------- -->
+    <div class="variant active" id="variant-a">
+      <div class="stack" style="--gap:20px">
+        <div class="relax-band" role="status">
+          <div>
+            <p class="t-body semi">Nothing at 9–11 AM on Fri, Aug 21 within 10 km.</p>
+            <p class="t-label muted" style="margin-top:4px">
+              Showing <b>6 badminton courts within 25 km</b> instead, same day and time.
+              Your other filters are untouched.
+            </p>
+          </div>
+          <div class="row" style="flex-shrink:0">
+            <button class="btn btn-outline" onclick="undoRelax()">Undo</button>
+          </div>
+        </div>
+        <div class="results-grid" id="grid-alt-a"></div>
+      </div>
+      <p class="note" style="margin-top:24px">
+        <b>The trade this variant makes.</b> Results appear immediately — nobody has to click to
+        escape an empty page. But the filter chip above now says <b>25 km</b> while the user typed
+        10, so the page has changed their search on their behalf and is telling them after the fact.
+        The Undo is what keeps that honest. Watch whether the chip highlighting is enough to notice.
+      </p>
+    </div>
+
+    <!-- ---------- B: opt-in from the empty state ---------- -->
+    <div class="variant" id="variant-b">
+      <div class="stack" style="--gap:20px">
+        <div class="empty">
+          <div class="empty-icon">🔍</div>
+          <h2 class="t-heading">No badminton courts free at 9–11 AM within 10 km</h2>
+          <p class="t-label muted" style="max-width:52ch;margin:8px auto 0">
+            The nearest match needs one thing to give. We checked, in this order:
+          </p>
+
+          <div style="max-width:420px;margin:16px auto 0;text-align:left">
+            <div class="ladder-step" data-state="hit">
+              <span class="ladder-dot">✓</span>
+              <span><b>Distance</b> — widen to 25 km</span>
+              <span class="semi tabular">6 found</span>
+            </div>
+            <div class="ladder-step" data-state="untried">
+              <span class="ladder-dot">2</span>
+              <span><b>Price</b> — above ₱600/hr</span>
+              <span class="muted t-xs">not needed</span>
+            </div>
+            <div class="ladder-step" data-state="untried">
+              <span class="ladder-dot">3</span>
+              <span><b>Time</b> — other hours that day</span>
+              <span class="muted t-xs">not needed</span>
+            </div>
+            <div class="ladder-step" data-state="untried">
+              <span class="ladder-dot">4</span>
+              <span><b>Date</b> — nearby days</span>
+              <span class="muted t-xs">not needed</span>
+            </div>
+            <p class="t-xs muted" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+              We never change the activity — a badminton court is not a yoga studio.
+            </p>
+          </div>
+
+          <div class="row" style="justify-content:center;margin-top:20px;flex-wrap:wrap">
+            <button class="btn btn-brand btn-touch" onclick="applyRelax()">Show 6 within 25&nbsp;km</button>
+            <button class="btn btn-secondary btn-touch">Clear filters</button>
+          </div>
+        </div>
+        <div id="applied-b" hidden>
+          <div class="divider-label" style="margin-bottom:16px">
+            <hr class="sep"><span class="t-label semi muted">Within 25 km · same day and time</span><hr class="sep">
+          </div>
+          <div class="results-grid" id="grid-alt-b"></div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:24px">
+        <b>The trade this variant makes.</b> Nothing changes without a click, so the filter chips
+        never disagree with the results. It also makes the ladder <i>legible</i> — the user sees which
+        constraint gave and which held. Cost: a real empty page for one beat, which is the thing
+        STATE-03 exists to prevent. Click the coral button to see it resolve.
+      </p>
+    </div>
+
+    <!-- ---------- C: labelled divider (evolution of what ships) ---------- -->
+    <div class="variant" id="variant-c">
+      <div class="stack" style="--gap:24px">
+        <div class="empty">
+          <div class="empty-icon">🔍</div>
+          <h2 class="t-heading">No spaces match those filters</h2>
+          <p class="t-label muted" style="max-width:46ch;margin:6px auto 0">Try widening your search.</p>
+          <div class="row" style="justify-content:center;margin-top:16px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-touch">Broaden radius</button>
+            <button class="btn btn-secondary btn-touch">Clear filters</button>
+            <button class="btn btn-secondary btn-touch">Show nearby spaces</button>
+          </div>
+        </div>
+        <div>
+          <div class="divider-label" style="margin-bottom:16px">
+            <hr class="sep">
+            <span class="t-label semi" style="text-align:center">
+              Ignoring your <b>distance</b> filter · 25 km, same day and time
+            </span>
+            <hr class="sep">
+          </div>
+          <div class="results-grid" id="grid-alt-c"></div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:24px">
+        <b>The trade this variant makes.</b> The smallest possible change from what ships today —
+        the shipped "You might also like" divider simply gains the name of what was dropped. Nothing
+        is auto-applied and nothing needs a click. Cost: the empty state above it still says
+        "No spaces match those filters", so the page says <i>nothing here</i> and <i>six things here</i>
+        at the same time, six centimetres apart.
+      </p>
+    </div>
+
+  </section>
+</div>
+</div>
+
+<!-- ===================== sketch chrome ===================== -->
+<div id="sketch-tools">
+  <select id="theme-select" title="Theme">
+    <option value="court">court</option>
+    <option value="grove">grove</option>
+  </select>
+  <button data-vp="320">320</button>
+  <button data-vp="375">375</button>
+  <button data-vp="768">768</button>
+  <button data-vp="full" class="on">full</button>
+</div>
+
+<script>
+/* ---------------- real-ish data (shapes match src/lib/search/query.ts SearchResultRow) --------- */
+const MAIN = [
+  { title: "Ateneo Blue Eagle Gym — Court 3", type: "Court", km: "1.2", rate: "₱420/hr · ₱3,150/day",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Makati time", tint: 18 },
+  { title: "Poblacion Movement Studio", type: "Studio", km: "2.4", rate: "₱560/hr",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Makati time", tint: 42 },
+  { title: "The Grid Strength Lab", type: "Gym", km: "3.1", rate: "₱367.50/person", dropIn: true,
+    dropInLine: "Day pass · shared space, any time they're open",
+    when: "Fri, Aug 21 · Makati time", spots: "4 spots left", tint: 66 },
+  { title: "Rockwell Padel & Pickle", type: "Court", km: "3.8", rate: "₱680/hr · ₱4,900/day",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Makati time", tint: 90 },
+  { title: "Legazpi Village Yoga Loft", type: "Studio", km: "0.9", rate: "₱480/hr",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Makati time", tint: 130 },
+  { title: "Chino Roces Boxing Club", type: "Gym", km: "4.6", rate: "₱395/hr · ₱2,800/day",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Makati time", tint: 170 },
+];
+const ALT = [
+  { title: "BGC Turf Sports Hub — Court 1", type: "Court", km: "14.2", rate: "₱520/hr · ₱3,900/day",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Taguig time", tint: 200 },
+  { title: "Kapitolyo Badminton Center", type: "Court", km: "17.8", rate: "₱380/hr · ₱2,600/day",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Pasig time", tint: 230 },
+  { title: "Ortigas Racquet Club — Court B", type: "Court", km: "19.5", rate: "₱610/hr",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Pasig time", tint: 260 },
+  { title: "Alabang Shuttle House", type: "Court", km: "21.0", rate: "₱450/hr · ₱3,200/day",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Muntinlupa time", tint: 300 },
+  { title: "Mandaluyong Sports Dome", type: "Court", km: "22.4", rate: "₱340/hr · ₱2,400/day",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Mandaluyong time", tint: 330 },
+  { title: "Sucat Community Courts", type: "Court", km: "24.1", rate: "₱295/hr",
+    when: "Available 9:00 AM–11:00 AM on Fri, Aug 21 · Parañaque time", tint: 355 },
+];
+
+/* THE CARD. Order is pinned by tests/search/search-card-open.test.tsx case (9):
+   media → title → type line (+badge) → drop-in explainer → distance → availability → spots → PRICE LAST.
+   The price and "Service fee included" are ONE node so nothing can ever be inserted between them. */
+function card(d) {
+  const meta = [];
+  meta.push(`<p class="t-label muted" style="display:flex;align-items:center;gap:8px">${d.type}
+    ${d.dropIn ? '<span class="badge badge-soft">Drop-in</span>' : ''}</p>`);
+  if (d.dropInLine) meta.push(`<p class="t-label muted">${d.dropInLine}</p>`);
+  meta.push(`<p class="t-label muted tabular">${d.km} km away</p>`);
+  meta.push(`<p class="t-label muted">${d.when}</p>`);
+  if (d.spots) meta.push(`<p><span class="badge badge-attention">◐ ${d.spots}</span></p>`);
+  return `
+  <a class="result-card card" href="#" onclick="event.preventDefault()">
+    <div class="result-media" style="background:oklch(0.86 0.05 ${d.tint})"></div>
+    <div class="card-pad stack" style="--gap:6px">
+      <p class="t-body semi">${d.title}</p>
+      ${meta.join("")}
+      <p class="t-body semi tabular" style="margin-top:6px">${d.rate}
+        <span class="t-label muted" style="display:block;font-weight:var(--font-weight-normal);margin-top:2px">Service fee included</span>
+      </p>
+    </div>
+  </a>`;
+}
+const fill = (id, rows) => { const el = document.getElementById(id); if (el) el.innerHTML = rows.map(card).join(""); };
+fill("grid-main", MAIN); fill("grid-alt-a", ALT); fill("grid-alt-b", ALT); fill("grid-alt-c", ALT);
+
+/* ---------------- variant + state switching ---------------- */
+document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(t => t.onclick = () => {
+  document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  document.querySelectorAll("#state-zero .variant").forEach(v => v.classList.remove("active"));
+  document.getElementById("variant-" + t.dataset.v).classList.add("active");
+  setState("zero");
+  document.querySelectorAll(".state-tab").forEach(x => x.classList.toggle("active", x.dataset.s === "zero"));
+});
+document.querySelectorAll(".state-tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".state-tab").forEach(x => x.classList.remove("active"));
+  t.classList.add("active"); setState(t.dataset.s);
+});
+function setState(s) {
+  ["results","loading","cold","zero"].forEach(k =>
+    document.getElementById("state-" + k).hidden = (k !== s));
+  const count = document.getElementById("result-count");
+  count.textContent = s === "results" ? "14 spaces · Fri, Aug 21 · 9:00 AM – 11:00 AM"
+    : s === "cold" ? "Makati"
+    : s === "loading" ? "Searching…"
+    : "0 spaces · Fri, Aug 21 · 9:00 AM – 11:00 AM";
+  if (s !== "zero") undoRelax();
+}
+
+/* Variant A opens with the relaxation already applied; the chip shows the changed value. */
+function applyRelax() {
+  document.querySelector('[data-f="where"]').innerHTML = '📍 Makati · <b>25 km</b>';
+  document.querySelector('[data-f="where"]').dataset.relaxed = "true";
+  const b = document.getElementById("applied-b"); if (b) b.hidden = false;
+}
+function undoRelax() {
+  const c = document.querySelector('[data-f="where"]');
+  c.innerHTML = '📍 Makati · <b>10 km</b>'; delete c.dataset.relaxed;
+  const b = document.getElementById("applied-b"); if (b) b.hidden = true;
+}
+/* A is auto-applied by definition — reflect that whenever A is the visible variant. */
+const zeroObserver = new MutationObserver(() => {
+  if (!document.getElementById("state-zero").hidden &&
+      document.getElementById("variant-a").classList.contains("active")) applyRelax();
+});
+zeroObserver.observe(document.getElementById("state-zero"), { attributes: true, attributeFilter: ["hidden"] });
+document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(t =>
+  t.addEventListener("click", () => { if (t.dataset.v === "a") applyRelax(); else undoRelax(); }));
+
+/* ---------------- chrome ---------------- */
+document.getElementById("theme-select").onchange = e => {
+  document.getElementById("theme-link").href = "../themes/" + e.target.value + ".css";
+  document.documentElement.dataset.sketchTheme = e.target.value;
+};
+document.querySelectorAll("#sketch-tools button[data-vp]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#sketch-tools button[data-vp]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  document.querySelector(".stage").dataset.vp = b.dataset.vp;
+});
+</script>
+</body>
+</html>

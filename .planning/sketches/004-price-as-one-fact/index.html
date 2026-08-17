@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en" data-sketch-theme="court">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 004 — Price as one fact</title>
+<link id="theme-link" rel="stylesheet" href="../themes/court.css">
+<link rel="stylesheet" href="../themes/kit.css">
+<style>
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  @media (max-width: 860px) { .compare { grid-template-columns: 1fr; } }
+  .surface-label {
+    display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted-foreground); font-weight: var(--font-weight-medium);
+  }
+  .surface-label::before { content: ""; width: 18px; height: 2px; background: var(--brand); border-radius: 2px; }
+  .frame { border: 1px dashed var(--border); border-radius: var(--radius-xl); padding: 20px; background: var(--background); }
+  .diffbar {
+    display: flex; gap: 10px; align-items: center; padding: 12px 14px; margin-top: 20px;
+    border-radius: var(--radius-lg); background: var(--muted); border: 1px solid var(--border);
+    font-size: var(--text-sm);
+  }
+  .swatchline { display: flex; gap: 6px; align-items: center; }
+  .ok { color: var(--success); }
+</style>
+</head>
+<body>
+
+<nav id="variant-nav">
+  <span class="nav-title">004 · price</span>
+  <button class="variant-tab active" data-v="a">A: Same component, itemised ★</button>
+  <button class="variant-tab" data-v="b">B: Rail compact / checkout full</button>
+  <button class="variant-tab" data-v="c">C: What ships today (the "before")</button>
+</nav>
+
+<div class="stage" data-vp="full">
+<div class="wrap" style="padding-top:24px;padding-bottom:80px;max-width:1100px">
+
+  <p class="note">
+    <b>The claim under test (BFLOW-04):</b> "The price breakdown a booker sees in the listing rail is
+    <i>visually the same component</i> at checkout, so they recognise it as the same fact." That is a
+    recognisability claim — the only way to judge it is to put the two surfaces side by side and look.
+    <br><br>
+    <b>What makes it buildable:</b> the rail is already fed a server-computed <code>AllInTable</code>
+    keyed by hour count, exact to the centavo, with zero client arithmetic. Itemising it is a matter of
+    widening that table to carry <code>{space, fee, total}</code> per key — <b>not</b> of moving a
+    computation into the browser, which GATE-05 fails the build over.
+    <br><br>
+    <b>Also under test:</b> "Est." is gone. Both surfaces say <b>Total</b>. Click the ⓘ next to the
+    service fee — that popover is the "explains itself on demand" half.
+  </p>
+
+  <!-- ============ A: the locked decision ============ -->
+  <div class="variant active" id="variant-a">
+    <div class="compare">
+      <div>
+        <p class="surface-label">Listing rail · before a hold exists</p>
+        <div class="frame">
+          <div class="panel stack" style="--gap:14px">
+            <div>
+              <p class="t-heading">₱714<span class="t-label muted" style="font-weight:var(--font-weight-normal)">/hr</span></p>
+              <p class="t-xs muted">Service fee included</p>
+            </div>
+            <hr class="sep">
+            <div class="stack" style="--gap:2px">
+              <p class="t-label semi">Fri, Aug 21</p>
+              <p class="t-label muted tabular">9:00 AM – 11:00 AM · 2 hours</p>
+            </div>
+            <div>
+              <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+              <div class="price-row">
+                <span class="muted" style="display:inline-flex;align-items:center;gap:6px">Service fee
+                  <span class="pop-wrap"><button class="pop-trigger" onclick="togglePop(this)" aria-label="What is the service fee?">ⓘ</button>
+                    <span class="pop" role="note">
+                      <b>Service fee</b><br>
+                      A 5% platform fee, already included in the rate you saw. It covers payment
+                      processing and support. It is <b>not refunded</b> if you cancel.
+                    </span>
+                  </span>
+                </span>
+                <span class="tabular">₱68.00</span>
+              </div>
+            </div>
+            <hr class="sep">
+            <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+            <button class="btn btn-brand btn-touch btn-block">Book this time</button>
+            <p class="t-xs muted" style="text-align:center">Held for 15 minutes once you book</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="surface-label">Checkout · the frozen quote</p>
+        <div class="frame">
+          <div class="panel stack" style="--gap:14px">
+            <div class="stack" style="--gap:2px">
+              <p class="t-label semi">Fri, Aug 21</p>
+              <p class="t-label muted tabular">9:00 AM – 11:00 AM · 2 hours</p>
+            </div>
+            <div>
+              <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+              <div class="price-row">
+                <span class="muted" style="display:inline-flex;align-items:center;gap:6px">Service fee
+                  <span class="pop-wrap"><button class="pop-trigger" onclick="togglePop(this)" aria-label="What is the service fee?">ⓘ</button>
+                    <span class="pop" role="note">
+                      <b>Service fee</b><br>
+                      A 5% platform fee, already included in the rate you saw. It covers payment
+                      processing and support. It is <b>not refunded</b> if you cancel.
+                    </span>
+                  </span>
+                </span>
+                <span class="tabular">₱68.00</span>
+              </div>
+            </div>
+            <hr class="sep">
+            <div class="price-total"><span class="t-label semi">Total</span><span class="amt" data-testid="price-total">₱1,428.00</span></div>
+            <div class="stack" style="--gap:2px">
+              <p class="t-label" style="display:flex;align-items:center;gap:6px">🕐 Held for <span class="tabular semi" id="cd">12:04</span></p>
+              <p class="t-xs muted">We're holding this slot while you review.</p>
+            </div>
+            <button class="btn btn-brand btn-touch btn-block">Confirm &amp; pay ₱1,428.00</button>
+            <p class="t-xs muted" style="text-align:center">You'll finish payment on PayMongo — card, GCash, Maya or QR&nbsp;Ph.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="diffbar">
+      <span class="ok">✓</span>
+      <span>
+        <b>What differs, deliberately:</b> the rail adds the rate headline above and a "held for 15 minutes"
+        promise below; checkout adds the live countdown and the pay action. <b>The breakdown block between
+        them is byte-identical</b> — same rows, same order, same weights, same <code>tabular-nums</code>,
+        same word <b>Total</b>. That is the component BFLOW-04 is asking for.
+      </span>
+    </div>
+
+    <p class="note" style="margin-top:20px;background:#fff1f0;border-color:#e8c3be;color:#5c2b26">
+      <b>⚠ FOUND WHILE BUILDING THIS — two different numbers wear "/hr" on the same panel.</b>
+      Look at the rail: the headline says <b>₱714/hr</b> and the run line four rows below says
+      <b>₱680/hr × 2 hours</b>. Both are correct and they are not the same rate.
+      <br><br>
+      D-75 makes every <i>browsing</i> surface quote the <b>all-in</b> rate so the number never goes up
+      between browsing and paying — that is ₱714. But <code>price-breakdown.tsx</code>'s run line is built
+      from <code>hourlyRateCents</code>, the host's raw <b>space</b> rate — that is ₱680, and it has to be,
+      because the fee is disclosed on its own line directly underneath and quoting ₱714 there would charge
+      the fee twice on screen.
+      <br><br>
+      <b>This is new, and it is caused by the decision we just made.</b> Today the two never meet: the
+      headline lives on the listing page and the itemised run line lives at checkout. Moving the breakdown
+      into the rail puts them 60px apart for the first time.
+      <br><br>
+      <b>Three ways out, none free:</b> (1) drop the rail's rate headline entirely once the breakdown is
+      there — the Total is the number that matters and the rate is on the card that got them here;
+      (2) label the run line <i>"Space rate ₱680/hr × 2 hours"</i> so the two are visibly different
+      quantities; (3) keep both and accept it. Worth deciding here rather than discovering in review.
+    </p>
+
+    <div class="stack" style="--gap:12px;margin-top:32px">
+      <h2 class="t-heading">The same component, on the two other pricing shapes</h2>
+      <p class="t-label muted">If it is one component it has to survive these without a fork.</p>
+      <div class="compare" style="gap:24px">
+        <div class="panel stack" style="--gap:10px">
+          <p class="t-label semi">Open-capacity day pass</p>
+          <div>
+            <div class="price-row"><span class="muted tabular">₱350/person × 3 passes</span><span class="tabular">₱1,050.00</span></div>
+            <div class="price-row"><span class="muted">Service fee</span><span class="tabular">₱52.50</span></div>
+          </div>
+          <hr class="sep">
+          <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,102.50</span></div>
+        </div>
+        <div class="panel stack" style="--gap:10px">
+          <p class="t-label semi">Full day + extra guests (D-108)</p>
+          <div>
+            <div class="price-row"><span class="muted tabular">₱4,900/day × 1 day</span><span class="tabular">₱4,900.00</span></div>
+            <div class="price-row"><span class="muted tabular">Extra guests (2 × ₱150.00)</span><span class="tabular">₱300.00</span></div>
+            <div class="price-row"><span class="muted">Service fee</span><span class="tabular">₱260.00</span></div>
+          </div>
+          <hr class="sep">
+          <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱5,460.00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ B: the runner-up ============ -->
+  <div class="variant" id="variant-b">
+    <div class="compare">
+      <div>
+        <p class="surface-label">Listing rail · compact form</p>
+        <div class="frame">
+          <div class="panel stack" style="--gap:14px">
+            <div>
+              <p class="t-heading">₱714<span class="t-label muted" style="font-weight:var(--font-weight-normal)">/hr</span></p>
+              <p class="t-xs muted">Service fee included</p>
+            </div>
+            <hr class="sep">
+            <div class="stack" style="--gap:2px">
+              <p class="t-label semi">Fri, Aug 21</p>
+              <p class="t-label muted tabular">9:00 AM – 11:00 AM · 2 hours</p>
+            </div>
+            <div class="price-row">
+              <span class="muted" style="display:inline-flex;align-items:center;gap:6px">Includes service fee
+                <span class="pop-wrap"><button class="pop-trigger" onclick="togglePop(this)" aria-label="What is the service fee?">ⓘ</button>
+                  <span class="pop" role="note"><b>Service fee</b><br>A 5% platform fee, already included. Covers payment processing and support. Not refunded if you cancel.</span>
+                </span>
+              </span>
+              <span class="tabular muted">₱68.00</span>
+            </div>
+            <hr class="sep">
+            <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+            <button class="btn btn-brand btn-touch btn-block">Book this time</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="surface-label">Checkout · full form</p>
+        <div class="frame">
+          <div class="panel stack" style="--gap:14px">
+            <div class="stack" style="--gap:2px">
+              <p class="t-label semi">Fri, Aug 21</p>
+              <p class="t-label muted tabular">9:00 AM – 11:00 AM · 2 hours</p>
+            </div>
+            <div>
+              <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+              <div class="price-row"><span class="muted">Service fee</span><span class="tabular">₱68.00</span></div>
+            </div>
+            <hr class="sep">
+            <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+            <button class="btn btn-brand btn-touch btn-block">Confirm &amp; pay ₱1,428.00</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="diffbar">
+      <span>⚖</span>
+      <span>
+        <b>The trade.</b> The rail stays short — worth something on a page that also carries a calendar
+        and a slot grid. But the run line (<code>₱680/hr × 2 hours</code>) appears for the first time at
+        checkout, so the booker meets a new row on the surface where they are about to pay. Look at
+        whether the two still read as the same fact, or merely as two related facts.
+      </span>
+    </div>
+  </div>
+
+  <!-- ============ C: the before ============ -->
+  <div class="variant" id="variant-c">
+    <div class="compare">
+      <div>
+        <p class="surface-label">Listing rail · as it ships today</p>
+        <div class="frame">
+          <div class="panel stack" style="--gap:14px">
+            <div>
+              <p class="t-heading">₱714<span class="t-label muted" style="font-weight:var(--font-weight-normal)">/hr</span></p>
+              <p class="t-xs muted">Service fee included</p>
+            </div>
+            <hr class="sep">
+            <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px">
+              <p class="t-label semi">Fri, Aug 21</p>
+              <p class="t-label muted tabular">9:00 AM – 11:00 AM · 2 hours</p>
+              <p style="padding-top:2px"><span class="t-label muted">Est. </span><span class="semi tabular">₱1,428.00</span></p>
+            </div>
+            <button class="btn btn-brand btn-touch btn-block">Book this time</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="surface-label">Checkout · as it ships today</p>
+        <div class="frame">
+          <div class="panel stack" style="--gap:14px">
+            <div>
+              <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+              <div class="price-row"><span class="muted">Service fee</span><span class="tabular">₱68.00</span></div>
+            </div>
+            <hr class="sep">
+            <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+            <p class="t-xs muted">Includes our service fee. You'll pay this now.</p>
+            <button class="btn btn-brand btn-touch btn-block">Confirm &amp; pay</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="diffbar">
+      <span>△</span>
+      <span>
+        <b>The gap this phase is closing.</b> Same number, ₱1,428.00, in two visually unrelated
+        containers — a bordered inset labelled <b>Est.</b> on the left, an itemised panel labelled
+        <b>Total</b> on the right. Nothing about the left tells the booker the right will agree with it.
+        <b>And "Est." is doing real harm:</b> the figure is exact by construction, so the word
+        undersells a guarantee the system actually makes.
+      </span>
+    </div>
+    <p class="note" style="margin-top:20px">
+      <b>One copy line does not survive the move</b>, and it is worth catching before the plans are
+      written. <code>price-breakdown.tsx</code> ends with <i>"Includes our service fee. You'll pay this
+      now."</i> On the rail, <b>"you'll pay this now" is false</b> — no hold exists yet, and the next
+      click creates one rather than charging. The line has to become surface-conditional. Note the file
+      carries a <b>grep tripwire</b>: two whole-source greps guard its copy, and the C7-forbidden
+      reassurances must not be written out anywhere in it, comments included.
+    </p>
+  </div>
+
+</div>
+</div>
+
+<div id="sketch-tools">
+  <select id="theme-select" title="Theme"><option value="court">court</option><option value="grove">grove</option></select>
+  <button data-vp="320">320</button><button data-vp="375">375</button>
+  <button data-vp="768">768</button><button data-vp="full" class="on">full</button>
+</div>
+
+<script>
+/* Popover: click to open, click-away and Esc to close, one open at a time.
+   Works on tap AND keyboard — which is the whole reason it is not a tooltip. */
+function togglePop(btn) {
+  const pop = btn.nextElementSibling, wasOpen = pop.classList.contains("open");
+  document.querySelectorAll(".pop.open").forEach(p => p.classList.remove("open"));
+  if (!wasOpen) pop.classList.add("open");
+  event.stopPropagation();
+}
+addEventListener("click", () => document.querySelectorAll(".pop.open").forEach(p => p.classList.remove("open")));
+addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".pop.open").forEach(p => p.classList.remove("open")); });
+
+/* The countdown ticks so the digits can be judged in motion — tabular-nums is why it does not jitter.
+   role=timer + aria-live=off: a screen reader is NOT told every second (GATE-03). */
+let left = 12 * 60 + 4;
+const cd = document.getElementById("cd");
+setInterval(() => {
+  left = Math.max(0, left - 1);
+  if (cd) cd.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+}, 1000);
+
+document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(t => t.onclick = () => {
+  document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  document.querySelectorAll(".variant").forEach(v => v.classList.remove("active"));
+  document.getElementById("variant-" + t.dataset.v).classList.add("active");
+});
+document.getElementById("theme-select").onchange = e => {
+  document.getElementById("theme-link").href = "../themes/" + e.target.value + ".css";
+  document.documentElement.dataset.sketchTheme = e.target.value;
+};
+document.querySelectorAll("#sketch-tools button[data-vp]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#sketch-tools button[data-vp]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); document.querySelector(".stage").dataset.vp = b.dataset.vp;
+});
+</script>
+</body>
+</html>

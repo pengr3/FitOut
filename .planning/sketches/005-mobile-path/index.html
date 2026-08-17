@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en" data-sketch-theme="court">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 005 — The mobile booking path</title>
+<link id="theme-link" rel="stylesheet" href="../themes/court.css">
+<link rel="stylesheet" href="../themes/kit.css">
+<style>
+  .phones { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .phone-wrap { width: 375px; }
+  .phone {
+    position: relative; width: 375px; height: 720px; overflow: hidden;
+    border-radius: 28px; background: var(--background);
+    box-shadow: var(--elevation-overlay), 0 0 0 8px oklch(0.145 0 0 / 0.9);
+    isolation: isolate;
+  }
+  /* Inside a phone frame, fixed chrome must be absolute or it escapes to the page. */
+  .phone .sticky-bar, .phone .scrim, .phone .sheet { position: absolute; }
+  .phone-scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding-bottom: 84px; }
+  .phone-cap { text-align: center; margin-top: 12px; }
+
+  .mini-mosaic { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; gap: 4px; aspect-ratio: 16/10; }
+  .mini-mosaic > span:first-child { grid-row: span 2; }
+  .mini-mosaic > span { display: block; }
+
+  .kf-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sec-m { padding: 16px; border-top: 1px solid var(--border); }
+
+  .cal-m { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-m button {
+    height: 44px; border: 0; background: transparent; border-radius: var(--radius-md);
+    font-family: inherit; font-size: var(--text-sm); cursor: pointer; color: var(--foreground);
+  }
+  .cal-m button:disabled { color: var(--muted-foreground); }
+  .cal-m button[aria-pressed="true"] { background: var(--brand); color: var(--brand-foreground); }
+
+  .disclosure-btn {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    min-height: 44px; padding: 0 4px; background: none; border: 0; cursor: pointer;
+    font-family: inherit; font-size: var(--text-sm); color: var(--foreground);
+  }
+  .disclosure-body { display: none; padding-top: 10px; }
+  .disclosure-body.open { display: block; }
+  .caret { transition: transform var(--motion-fast) var(--motion-ease-standard); }
+  .disclosure-btn[aria-expanded="true"] .caret { transform: rotate(180deg); }
+
+  .step-dots { display: flex; gap: 6px; justify-content: center; padding: 8px 0 0; }
+  .step-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+  .step-dots i.on { background: var(--brand); }
+</style>
+</head>
+<body>
+
+<nav id="variant-nav">
+  <span class="nav-title">005 · mobile</span>
+  <button class="variant-tab active" data-v="a">A: One sheet — pick &amp; book ★</button>
+  <button class="variant-tab" data-v="b">B: Two-step sheet</button>
+  <button class="variant-tab" data-v="c">C: Scroll to availability</button>
+</nav>
+
+<div class="stage" data-vp="full">
+<div class="wrap" style="padding-top:24px;padding-bottom:80px;max-width:1000px">
+
+  <p class="note">
+    <b>Four requirements land in one flow here.</b> RESP-02 (reach the CTA without scrolling, via a
+    sticky bar with the price and a 44px action) · BFLOW-06 (checkout is one column, summary behind a
+    disclosure, sticky confirm bar carrying the amount) · SHELL-03 (checkout's own minimal header holds
+    the wordmark and the <b>live hold countdown</b>, with no navigation that can silently lose the hold)
+    · BFLOW-07 (told the redirect is coming, and where, before leaving).
+    <br><br>
+    <b>Everything is live.</b> Tap the sticky bar, pick hours, book, expand the disclosure, hit Confirm.
+    The countdown really ticks.
+  </p>
+
+  <!-- ==================== VARIANT A ==================== -->
+  <div class="variant active" id="variant-a">
+    <div class="phones">
+
+      <!-- ---------- phone 1: listing + sheet ---------- -->
+      <div class="phone-wrap">
+        <div class="phone" id="p1">
+          <div class="phone-scroll">
+            <div class="appbar" style="position:sticky;top:0">
+              <span class="brandmark">FitOut</span><span style="flex:1"></span>
+              <button class="btn btn-ghost" style="height:36px">Log in</button>
+            </div>
+            <div class="mini-mosaic">
+              <span style="background:oklch(0.86 0.04 28)"></span>
+              <span style="background:oklch(0.86 0.04 96)"></span>
+              <span style="background:oklch(0.86 0.04 186)"></span>
+            </div>
+            <div style="padding:16px" class="stack" id="ttl">
+              <h1 class="t-heading">Rockwell Padel &amp; Pickle — Court 2</h1>
+              <p class="t-label muted">Court · Poblacion, Makati</p>
+              <div class="kf-row" style="margin-top:4px">
+                <span class="badge badge-outline">👥 Up to 12</span>
+                <span class="badge badge-outline">⚡ Instant book</span>
+                <span class="badge badge-outline">🔢 4 courts</span>
+              </div>
+            </div>
+            <div class="sec-m"><h2 class="t-label semi">About this space</h2>
+              <p class="t-label muted" style="margin-top:6px">Two covered panoramic padel courts and two pickleball courts under one roof, five minutes from Rockwell. Glass-back courts with LED lighting.</p></div>
+            <div class="sec-m" id="avail-anchor"><h2 class="t-label semi">Availability</h2>
+              <p class="t-label muted" style="margin-top:6px">Times shown in Makati time (GMT+8)</p></div>
+            <div class="sec-m"><h2 class="t-label semi">Location</h2>
+              <div style="margin-top:8px;height:120px;border-radius:var(--radius-lg);background:var(--muted);display:grid;place-items:center">
+                <span style="width:18px;height:18px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 7px color-mix(in oklch,var(--brand) 22%,transparent)"></span>
+              </div></div>
+            <div class="sec-m"><h2 class="t-label semi">Cancellation policy</h2>
+              <p class="t-label muted" style="margin-top:6px">Full refund until Wed, Aug 19.</p></div>
+          </div>
+
+          <!-- STICKY BAR: price + 44px action, reachable without scrolling -->
+          <div class="sticky-bar" id="bar-a">
+            <div style="flex:1;min-width:0">
+              <p class="t-body semi tabular" style="line-height:1.2">₱714<span class="t-label muted" style="font-weight:var(--font-weight-normal)">/hr</span></p>
+              <p class="t-xs muted">Service fee included</p>
+            </div>
+            <button class="btn btn-brand btn-touch" onclick="openSheet('a')">Check availability</button>
+          </div>
+
+          <!-- SHEET: calendar + slots + breakdown + CTA, all in one overlay -->
+          <div class="scrim" id="scrim-a" onclick="closeSheet('a')"></div>
+          <div class="sheet" id="sheet-a" role="dialog" aria-modal="true" aria-label="Choose a time">
+            <div class="sheet-grip"></div>
+            <div style="padding:0 16px 16px">
+              <div class="row-between" style="padding:6px 0 12px">
+                <p class="t-label semi">Choose a time</p>
+                <button class="btn btn-ghost" style="height:36px" onclick="closeSheet('a')">✕</button>
+              </div>
+              <div class="row-between" style="margin-bottom:8px">
+                <button class="btn btn-ghost" style="height:36px;padding:0 10px">‹</button>
+                <p class="t-label semi">August 2026</p>
+                <button class="btn btn-ghost" style="height:36px;padding:0 10px">›</button>
+              </div>
+              <div class="cal-m" id="cal-a"></div>
+              <hr class="sep" style="margin:14px 0">
+              <p class="t-label semi" style="margin-bottom:8px">Friday, Aug 21</p>
+              <div class="row" style="flex-wrap:wrap;gap:8px" id="slots-a"></div>
+              <p class="t-xs muted" style="margin-top:8px">Back-to-back hours join into one booking.</p>
+              <div id="sheet-sum-a" style="margin-top:14px">
+                <hr class="sep" style="margin-bottom:12px">
+                <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+                <div class="price-row"><span class="muted">Service fee</span><span class="tabular">₱68.00</span></div>
+                <hr class="sep" style="margin:12px 0">
+                <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+              </div>
+            </div>
+            <div style="position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--border);padding:12px 16px">
+              <button class="btn btn-brand btn-touch btn-block" onclick="goCheckout()">Book · ₱1,428.00</button>
+              <p class="t-xs muted" style="text-align:center;margin-top:6px">Held for 15 minutes once you book</p>
+            </div>
+          </div>
+        </div>
+        <p class="t-label muted phone-cap">Listing → sheet. Tap <b>Check availability</b>.</p>
+      </div>
+
+      <!-- ---------- phone 2: checkout ---------- -->
+      <div class="phone-wrap">
+        <div class="phone" id="p2">
+          <div class="phone-scroll">
+            <!-- MINIMAL HEADER: wordmark (not a link) + the LIVE countdown. No nav that can lose a hold. -->
+            <div class="appbar" style="position:sticky;top:0">
+              <span class="brandmark">FitOut</span>
+              <span style="flex:1"></span>
+              <span class="row" style="gap:6px">
+                <span aria-hidden="true">🕐</span>
+                <span class="t-label semi tabular" role="timer" aria-live="off" id="cd-a">14:52</span>
+              </span>
+            </div>
+
+            <div style="padding:16px" class="stack" style="--gap:16px">
+              <div>
+                <h1 class="t-heading">Confirm and pay</h1>
+                <p class="t-label muted" style="margin-top:4px">We're holding this slot while you review.</p>
+              </div>
+
+              <div class="panel stack" style="--gap:12px;margin-top:16px">
+                <div class="row" style="gap:12px;align-items:flex-start">
+                  <span style="width:56px;height:56px;border-radius:var(--radius-md);background:oklch(0.86 0.04 28);flex-shrink:0"></span>
+                  <div>
+                    <p class="t-label semi">Rockwell Padel &amp; Pickle — Court 2</p>
+                    <p class="t-xs muted">Poblacion, Makati</p>
+                  </div>
+                </div>
+                <hr class="sep">
+                <div class="stack" style="--gap:2px">
+                  <p class="t-label semi">Fri, Aug 21</p>
+                  <p class="t-label muted tabular">9:00 AM – 11:00 AM · 2 hours · Makati time</p>
+                </div>
+              </div>
+
+              <!-- The disclosure: ITEMISED LINES collapse. The Total never does. -->
+              <div class="panel stack" style="--gap:10px;margin-top:16px">
+                <button class="disclosure-btn" aria-expanded="false" onclick="toggleDisc(this,'disc-a')">
+                  <span class="muted">Price details</span>
+                  <span class="row" style="gap:8px"><span class="muted t-xs">2 items</span><span class="caret">⌄</span></span>
+                </button>
+                <div class="disclosure-body" id="disc-a">
+                  <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+                  <div class="price-row">
+                    <span class="muted" style="display:inline-flex;align-items:center;gap:6px">Service fee
+                      <span class="pop-wrap"><button class="pop-trigger" onclick="togglePop(this)" aria-label="What is the service fee?">ⓘ</button>
+                        <span class="pop" role="note"><b>Service fee</b><br>A 5% platform fee, already included in the rate you saw. Covers payment processing and support. Not refunded if you cancel.</span></span>
+                    </span>
+                    <span class="tabular">₱68.00</span>
+                  </div>
+                </div>
+                <hr class="sep">
+                <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+              </div>
+
+              <div class="notice" style="margin-top:16px">
+                <span aria-hidden="true">↗</span>
+                <p class="t-label">You'll finish payment on <b>PayMongo</b> — card, GCash, Maya or QR&nbsp;Ph. We'll bring you straight back.</p>
+              </div>
+              <div style="height:24px"></div>
+            </div>
+          </div>
+
+          <div class="sticky-bar">
+            <div style="flex:1;min-width:0">
+              <p class="t-xs muted">Total</p>
+              <p class="t-body semi tabular" style="line-height:1.2">₱1,428.00</p>
+            </div>
+            <button class="btn btn-brand btn-touch" id="confirm-a" onclick="payNow('a')">Confirm &amp; pay</button>
+          </div>
+
+          <!-- The handoff: inline pending state, destination NAMED. No extra dialog on a 15-min clock. -->
+          <div class="scrim" id="pay-scrim-a"></div>
+          <div class="sheet" id="pay-a" style="text-align:center">
+            <div style="padding:32px 24px 40px">
+              <div class="skeleton" style="width:44px;height:44px;border-radius:50%;margin:0 auto 16px"></div>
+              <p class="t-body semi">Taking you to PayMongo…</p>
+              <p class="t-label muted" style="margin-top:6px">You'll pay ₱1,428.00 there and come straight back. Your slot stays held.</p>
+            </div>
+          </div>
+        </div>
+        <p class="t-label muted phone-cap">Checkout. Expand <b>Price details</b>; hit <b>Confirm &amp; pay</b>.</p>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:28px">
+      <b>What A buys.</b> Selection never leaves one surface — calendar, hours, the money and the action
+      are in the same overlay, so nothing is decided on a screen the booker then has to scroll away from.
+      RESP-01's own requirement text names <i>the booking rail</i> as a sheet adopter, so this is the
+      shipped primitive doing its declared job.
+      <br><b>What to stress:</b> the sheet is tall. At 375×720 with the keyboard closed it fits; on a
+      small phone in landscape it will not. Check the sheet's internal scroll and whether the pinned
+      <b>Book · ₱1,428.00</b> bar stays reachable.
+    </p>
+  </div>
+
+  <!-- ==================== VARIANT B ==================== -->
+  <div class="variant" id="variant-b">
+    <div class="phones">
+      <div class="phone-wrap">
+        <div class="phone" id="p3">
+          <div class="phone-scroll">
+            <div class="appbar" style="position:sticky;top:0"><span class="brandmark">FitOut</span></div>
+            <div class="mini-mosaic">
+              <span style="background:oklch(0.86 0.04 28)"></span>
+              <span style="background:oklch(0.86 0.04 96)"></span>
+              <span style="background:oklch(0.86 0.04 186)"></span>
+            </div>
+            <div style="padding:16px"><h1 class="t-heading">Rockwell Padel &amp; Pickle — Court 2</h1>
+              <p class="t-label muted" style="margin-top:4px">Court · Poblacion, Makati</p></div>
+            <div class="sec-m"><h2 class="t-label semi">About this space</h2>
+              <p class="t-label muted" style="margin-top:6px">Two covered panoramic padel courts under one roof.</p></div>
+            <div class="sec-m" style="height:300px"></div>
+          </div>
+          <div class="sticky-bar">
+            <div style="flex:1"><p class="t-body semi tabular" style="line-height:1.2">₱714<span class="t-label muted" style="font-weight:var(--font-weight-normal)">/hr</span></p>
+              <p class="t-xs muted">Service fee included</p></div>
+            <button class="btn btn-brand btn-touch" onclick="openSheet('b')">Check availability</button>
+          </div>
+          <div class="scrim" id="scrim-b" onclick="closeSheet('b')"></div>
+          <div class="sheet" id="sheet-b" role="dialog" aria-modal="true" aria-label="Choose a day">
+            <div class="sheet-grip"></div>
+            <div style="padding:0 16px 16px">
+              <div class="row-between" style="padding:6px 0 12px">
+                <p class="t-label semi" id="b-title">Step 1 · Pick a day</p>
+                <button class="btn btn-ghost" style="height:36px" onclick="closeSheet('b')">✕</button>
+              </div>
+              <div id="b-step1">
+                <div class="row-between" style="margin-bottom:8px">
+                  <button class="btn btn-ghost" style="height:36px;padding:0 10px">‹</button>
+                  <p class="t-label semi">August 2026</p>
+                  <button class="btn btn-ghost" style="height:36px;padding:0 10px">›</button>
+                </div>
+                <div class="cal-m" id="cal-b"></div>
+              </div>
+              <div id="b-step2" hidden>
+                <p class="t-label semi" style="margin-bottom:8px">Friday, Aug 21</p>
+                <div class="row" style="flex-wrap:wrap;gap:8px" id="slots-b"></div>
+                <hr class="sep" style="margin:14px 0">
+                <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+                <div class="price-row"><span class="muted">Service fee</span><span class="tabular">₱68.00</span></div>
+                <hr class="sep" style="margin:12px 0">
+                <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+              </div>
+              <div class="step-dots"><i class="on" id="dot1"></i><i id="dot2"></i></div>
+            </div>
+            <div style="position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--border);padding:12px 16px">
+              <button class="btn btn-brand btn-touch btn-block" id="b-cta" onclick="stepB()">Next · pick hours</button>
+            </div>
+          </div>
+        </div>
+        <p class="t-label muted phone-cap">Two-step sheet: day, then hours.</p>
+      </div>
+      <div class="phone-wrap" style="align-self:center">
+        <p class="note">
+          <b>What B buys.</b> Each step is short, so the sheet never needs internal scrolling and the
+          calendar gets the full width — which matters at 320px where a 7-column grid with 44px cells is
+          already 308px before padding.
+          <br><br><b>What it costs.</b> Two taps instead of one, and the booker cannot see hours and days
+          at the same time — so "is there anything on Saturday instead?" means going back a step. On a
+          surface where the whole point is finding a time that works, that back-and-forth is the flow.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== VARIANT C ==================== -->
+  <div class="variant" id="variant-c">
+    <div class="phones">
+      <div class="phone-wrap">
+        <div class="phone" id="p4">
+          <div class="phone-scroll" id="scroll-c">
+            <div class="appbar" style="position:sticky;top:0"><span class="brandmark">FitOut</span></div>
+            <div class="mini-mosaic">
+              <span style="background:oklch(0.86 0.04 28)"></span>
+              <span style="background:oklch(0.86 0.04 96)"></span>
+              <span style="background:oklch(0.86 0.04 186)"></span>
+            </div>
+            <div style="padding:16px"><h1 class="t-heading">Rockwell Padel &amp; Pickle — Court 2</h1>
+              <p class="t-label muted" style="margin-top:4px">Court · Poblacion, Makati</p></div>
+            <div class="sec-m"><h2 class="t-label semi">About this space</h2>
+              <p class="t-label muted" style="margin-top:6px">Two covered panoramic padel courts and two pickleball courts under one roof, five minutes from Rockwell. Glass-back courts with LED lighting, so evening play is as good as morning.</p></div>
+            <div class="sec-m"><h2 class="t-label semi">Amenities</h2>
+              <div class="row" style="flex-wrap:wrap;margin-top:8px"><span class="badge">Showers</span><span class="badge">Lockers</span><span class="badge">Parking</span><span class="badge">Café</span></div></div>
+            <div class="sec-m" id="avail-c"><h2 class="t-label semi">Availability</h2>
+              <p class="t-label muted" style="margin-top:6px">Times shown in Makati time (GMT+8)</p>
+              <div class="row-between" style="margin:10px 0 8px">
+                <button class="btn btn-ghost" style="height:36px;padding:0 10px">‹</button>
+                <p class="t-label semi">August 2026</p>
+                <button class="btn btn-ghost" style="height:36px;padding:0 10px">›</button>
+              </div>
+              <div class="cal-m" id="cal-c"></div>
+              <p class="t-label semi" style="margin:14px 0 8px">Friday, Aug 21</p>
+              <div class="row" style="flex-wrap:wrap;gap:8px" id="slots-c"></div>
+            </div>
+            <div class="sec-m" style="height:200px"></div>
+          </div>
+          <div class="sticky-bar" id="bar-c">
+            <div style="flex:1;min-width:0" id="bar-c-text">
+              <p class="t-body semi tabular" style="line-height:1.2">₱714<span class="t-label muted" style="font-weight:var(--font-weight-normal)">/hr</span></p>
+              <p class="t-xs muted">Service fee included</p>
+            </div>
+            <button class="btn btn-brand btn-touch" id="bar-c-cta" onclick="scrollToAvail()">Check availability</button>
+          </div>
+        </div>
+        <p class="t-label muted phone-cap">No overlay. The bar scrolls, then becomes the CTA.</p>
+      </div>
+      <div class="phone-wrap" style="align-self:center">
+        <p class="note">
+          <b>What C buys.</b> No overlay at all — one scroll, one page, nothing to trap focus or to close.
+          The cheapest to build and the least that can go wrong at 320px.
+          <br><br><b>What it costs.</b> Before a selection the bar's action is a <i>scroll button</i>
+          dressed as a booking CTA, which is the part to judge. Tap it, pick two hours, and watch the bar
+          change into <b>Book · ₱1,428.00</b> — decide whether that transition earns the earlier
+          ambiguity.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div id="sketch-tools">
+  <select id="theme-select" title="Theme"><option value="court">court</option><option value="grove">grove</option></select>
+  <button data-vp="320">320</button><button data-vp="375">375</button>
+  <button data-vp="768">768</button><button data-vp="full" class="on">full</button>
+</div>
+
+<script>
+/* ---------------- calendars & slots ---------------- */
+function buildCal(id) {
+  const el = document.getElementById(id); if (!el) return;
+  ["S","M","T","W","T","F","S"].forEach(d =>
+    el.insertAdjacentHTML("beforeend", `<div class="t-xs muted" style="height:22px;display:grid;place-items:center">${d}</div>`));
+  for (let i = 0; i < 6; i++) el.insertAdjacentHTML("beforeend", `<div style="height:44px"></div>`);
+  for (let d = 1; d <= 31; d++)
+    el.insertAdjacentHTML("beforeend",
+      `<button ${d < 17 ? "disabled" : ""} aria-pressed="${d === 21}" onclick="pickDay(this)">${d}</button>`);
+}
+function pickDay(b) {
+  b.closest(".cal-m").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", "false"));
+  b.setAttribute("aria-pressed", "true");
+}
+const SLOTS = [["7 AM",1],["8 AM",1],["9 AM",2],["10 AM",2],["11 AM",1],["12 PM",0],["1 PM",0],["2 PM",1],["3 PM",1]];
+function buildSlots(id, onPick) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = SLOTS.map(([t, s]) =>
+    `<button class="slot" style="min-width:72px" ${s === 0 ? "disabled" : ""} aria-pressed="${s === 2}">${t}</button>`).join("");
+  el.querySelectorAll(".slot").forEach(b => b.onclick = () => {
+    b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    if (onPick) onPick();
+  });
+}
+["cal-a","cal-b","cal-c"].forEach(buildCal);
+buildSlots("slots-a"); buildSlots("slots-b");
+buildSlots("slots-c", () => {
+  document.getElementById("bar-c-text").innerHTML =
+    `<p class="t-xs muted">Fri, Aug 21 · 9–11 AM</p><p class="t-body semi tabular" style="line-height:1.2">₱1,428.00</p>`;
+  document.getElementById("bar-c-cta").textContent = "Book · ₱1,428.00";
+  document.getElementById("bar-c-cta").onclick = () => alert("→ checkout (see variant A's second phone)");
+});
+
+/* ---------------- sheets ---------------- */
+function openSheet(v) {
+  document.getElementById("scrim-" + v).classList.add("open");
+  document.getElementById("sheet-" + v).classList.add("open");
+}
+function closeSheet(v) {
+  document.getElementById("scrim-" + v).classList.remove("open");
+  document.getElementById("sheet-" + v).classList.remove("open");
+}
+let bStep = 1;
+function stepB() {
+  if (bStep === 1) {
+    bStep = 2;
+    document.getElementById("b-step1").hidden = true;
+    document.getElementById("b-step2").hidden = false;
+    document.getElementById("b-title").textContent = "Step 2 · Pick hours";
+    document.getElementById("b-cta").textContent = "Book · ₱1,428.00";
+    document.getElementById("dot1").classList.remove("on");
+    document.getElementById("dot2").classList.add("on");
+  } else { alert("→ checkout (see variant A's second phone)"); }
+}
+function scrollToAvail() {
+  document.getElementById("avail-c").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function goCheckout() {
+  closeSheet("a");
+  document.getElementById("p2").scrollIntoView({ behavior: "smooth", block: "center" });
+  document.getElementById("p2").animate(
+    [{ boxShadow: "var(--elevation-overlay), 0 0 0 8px oklch(0.145 0 0 / 0.9)" },
+     { boxShadow: "var(--elevation-overlay), 0 0 0 8px var(--brand)" },
+     { boxShadow: "var(--elevation-overlay), 0 0 0 8px oklch(0.145 0 0 / 0.9)" }],
+    { duration: 900, easing: "cubic-bezier(0.2,0,0,1)" });
+}
+
+/* ---------------- checkout bits ---------------- */
+function toggleDisc(btn, id) {
+  const open = btn.getAttribute("aria-expanded") === "true";
+  btn.setAttribute("aria-expanded", String(!open));
+  document.getElementById(id).classList.toggle("open", !open);
+}
+function togglePop(btn) {
+  const pop = btn.nextElementSibling, was = pop.classList.contains("open");
+  document.querySelectorAll(".pop.open").forEach(p => p.classList.remove("open"));
+  if (!was) pop.classList.add("open");
+  event.stopPropagation();
+}
+addEventListener("click", () => document.querySelectorAll(".pop.open").forEach(p => p.classList.remove("open")));
+
+/* The redirect: inline pending state naming the destination. No confirm dialog on a 15-minute clock. */
+function payNow(v) {
+  const btn = document.getElementById("confirm-" + v);
+  btn.setAttribute("aria-disabled", "true");
+  btn.textContent = "Taking you to PayMongo…";
+  setTimeout(() => {
+    document.getElementById("pay-scrim-" + v).classList.add("open");
+    document.getElementById("pay-" + v).classList.add("open");
+  }, 450);
+  setTimeout(() => {
+    document.getElementById("pay-scrim-" + v).classList.remove("open");
+    document.getElementById("pay-" + v).classList.remove("open");
+    btn.removeAttribute("aria-disabled");
+    btn.textContent = "Confirm & pay";
+  }, 3600);
+}
+
+/* role="timer" + aria-live="off": the digits are NOT announced every second (GATE-03).
+   Only the 60s threshold and expiry announce, through a separate sr-only region. */
+let left = 14 * 60 + 52;
+setInterval(() => {
+  left = Math.max(0, left - 1);
+  const el = document.getElementById("cd-a");
+  if (el) el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+}, 1000);
+
+/* ---------------- chrome ---------------- */
+document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(t => t.onclick = () => {
+  document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  document.querySelectorAll(".variant").forEach(v => v.classList.remove("active"));
+  document.getElementById("variant-" + t.dataset.v).classList.add("active");
+});
+document.getElementById("theme-select").onchange = e => {
+  document.getElementById("theme-link").href = "../themes/" + e.target.value + ".css";
+  document.documentElement.dataset.sketchTheme = e.target.value;
+};
+document.querySelectorAll("#sketch-tools button[data-vp]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#sketch-tools button[data-vp]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); document.querySelector(".stage").dataset.vp = b.dataset.vp;
+});
+</script>
+</body>
+</html>
