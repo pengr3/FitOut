@@ -1,0 +1,303 @@
+# ============================================================================================
+# baselines — THE ONLY THING IN THIS REPOSITORY THAT CAN WRITE A VISUAL-REGRESSION BASELINE.
+#
+# WHY THIS FILE EXISTS (D-27). A visual baseline is a reference every future run compares
+# against, so whoever produces it decides what "correct" means for the rest of the project's
+# life. If an author's laptop can produce one, then the reference is whatever that machine's
+# fonts, DPI, GPU and browser build happened to render — and every CI run afterwards is
+# measuring the laptop, not the app. D-27's answer is that baselines are generated ONLY inside
+# `mcr.microsoft.com/playwright:v1.60.0-noble`, by the same runner image that later compares
+# against them, which makes author-vs-CI drift structurally impossible rather than discouraged.
+#
+# HOW THAT IS ENFORCED, IN TWO PLACES THAT DO NOT OVERLAP:
+#
+#   1. `playwright.config.ts` sets `updateSnapshots: "none"` UNCONDITIONALLY (D-28). No run on
+#      any machine — laptop, `ci` job 1, or this job — can mint a PNG from configuration. The
+#      measured consequence (11-RESEARCH Finding 4) is that a missing baseline writes ZERO
+#      files, loses the `, writing actual.` clause from its error, and becomes RETRIABLE, so it
+#      stays red across every attempt. Under Playwright's default `"missing"` the same
+#      situation WRITES the PNG and the next bare re-run is green with no code change — a red
+#      that self-heals when you press the button again, which is the textbook rubber stamp.
+#   2. The `--update-snapshots` CLI flag overrides that config value (Finding 5, confirmed two
+#      ways: `takeFirst(configCLIOverrides.updateSnapshots, userConfig.updateSnapshots,
+#      "missing")` in the installed source, and a behavioural probe). That flag is EXECUTED in
+#      THIS FILE AND NOWHERE ELSE IN THE REPOSITORY.
+#
+#      ⚠ THE PLAN'S ACCEPTANCE CRITERION FOR THIS SPELLS THE CHECK AS
+#      `grep -rc -- "--update-snapshots" .github/workflows/` "shows 1 for baselines.yml and 0 for
+#      ci.yml". MEASURED 2026-08-17: it shows **6** for this file and 0 for `ci.yml`. The 6 is
+#      correct and the criterion's 1 is not — `grep -c` counts LINES, and five of the six are
+#      FOUR comment lines in this header explaining the flag (this paragraph, the command below,
+#      the vacuity matrix's third row, and the invariants list at the end of the header) plus the
+#      job's own `name:`. Deliberately not cited by line number: those move on the next edit, and
+#      a header that misstates its own line references is the defect one section down. The half
+#      of the criterion that is load-bearing is the ZERO for `ci.yml`, and it holds.
+#
+#      The number that actually means "one write path" is the count of RUN COMMANDS carrying it,
+#      which no line-based grep can produce. Measured over the parsed tree:
+#
+#        baselines.yml   6 matching lines   4 comment lines   RUN COMMANDS: 1
+#        ci.yml          0 matching lines   0 comment lines   RUN COMMANDS: 0
+#
+#      Same law as the matrix further down: on a documented file, count the STRUCTURE, not the
+#      text. Do not "fix" the 6 by deleting the explanation.
+#
+#      Adding it to `ci.yml` would recreate D-135's fail-open in a new place: job 1 would mint
+#      whatever it happened to render and then agree with itself forever. (T-11-BASEMINT.)
+#
+# ── THE `GITHUB_TOKEN` FACT, AND ITS FLIP SIDE, WHICH IS THE HALF PEOPLE MISS ────────────────
+#
+#   (a) RECURSION IS IMPOSSIBLE. docs.github.com, "Triggering a workflow": *"if a workflow run
+#       pushes code using the repository's GITHUB_TOKEN, a new workflow will not run even when
+#       the repository contains a workflow configured to run when push events occur."* So the
+#       commit this job makes cannot re-trigger `ci`, cannot re-trigger this workflow, and
+#       cannot loop. That is a load-bearing safety property of the design.
+#
+#   (b) ⚠ THEREFORE THE BASELINES THIS JOB COMMITS ARE NEVER VERIFIED BY A RUN. The same
+#       sentence that closes the loop also means NOTHING has compared against the new PNGs.
+#       This job WROTE them; writing is not comparing. Its own green tells you the surfaces
+#       rendered and the files landed — it tells you nothing whatsoever about whether a
+#       subsequent run agrees with them.
+#
+#       AN EXPLICIT FOLLOW-UP RUN IS THEREFORE A REQUIRED STEP, NOT AN OPTIONAL ONE. It is
+#       owned by plan 11-22's TASK 3, which pulls the branch, confirms only `*-visual-linux.png`
+#       files were added, and then pushes an empty commit (or re-dispatches) so that a `ci` run
+#       actually compares against them and is watched going green. WITHOUT THAT STEP D-27
+#       PRODUCES BASELINES NOBODY HAS EVER SEEN PASS — which is a strictly worse position than
+#       having no baselines at all, because the gate now looks armed. (11-RESEARCH Pitfall 3;
+#       threat T-11-UNVERIFIED.)
+#
+# ── WHAT THIS JOB HOLDS: NOTHING (T-11-CISECRET) ─────────────────────────────────────────────
+# One environment input, `DATABASE_URL`, and it points at a closed port. No `secrets.*`, no
+# PayMongo / Resend / Cloudinary / Better-Auth / Google credential, and none is needed:
+# Playwright boots the app with `npm run dev`, and `next dev` does not set NODE_ENV=production,
+# so none of the five fail-closed module-scope boot guards `ci.yml` job 1 documents arms here.
+# (That is the same reason `ci.yml` job 3 needs no credential; the argument is written out
+# there.) IF A FUTURE EDIT MAKES THIS JOB NEED A SECRET, that is the signal a baselined surface
+# has left the DB-free scope — fix the inventory, do not add a credential to the one job that
+# can write to the repository.
+#
+# ── SUPPLY CHAIN (T-11-SC) ───────────────────────────────────────────────────────────────────
+# Two first-party actions (`actions/checkout`, `actions/setup-node`) and one verified image.
+# Zero third-party actions and zero extra npm packages. Introducing either here — in the job
+# that holds `contents: write` — is a supply-chain decision to raise explicitly, not to absorb.
+#
+# ── IF YOU ARE ABOUT TO EDIT THIS FILE: DO NOT VERIFY THE CHANGE BY GREPPING IT ──────────────
+# The same finding `ci.yml`'s header records, RE-MEASURED against this file on 2026-08-17 rather
+# than inherited. Plan 11-22 prescribed a whole-file substring check over seven tokens as this
+# task's only automated verification. Run against SIX real mutations of this file, alongside the
+# 17-assertion parse below of the same bytes:
+#
+#   mutation applied to this file                            substring   parsed
+#   -------------------------------------------------------  ---------   ------
+#   (control) unmutated                                        GREEN      GREEN
+#   drop `github.event_name` from the concurrency group         GREEN      RED
+#   delete the whole `--update-snapshots` STEP                  GREEN      RED
+#   drop `--ipc=host` from the container options                GREEN      RED
+#   job permissions `contents: write` -> `read`                 GREEN      RED
+#   the image tag -> an unpinned floating one                   GREEN      RED
+#   ADD a `push:` trigger beside `workflow_dispatch`            GREEN      RED
+#
+# SIX OF SIX GREEN. Worse than `ci.yml`'s two-of-five and worse than `11-06`'s six-of-six, for
+# two reasons. Every token survives in the prose above — this file argues for its own invariants
+# at length, so the better it is documented the more vacuous the check becomes. AND the last row
+# is the single most dangerous edit anyone could make here: a `push:` trigger turns the one job
+# that can write baselines into a job that rewrites them on every commit, i.e. the gate
+# regenerating itself. A check that cannot see an ADDED trigger is not checking the trigger; it
+# is checking that the file still contains the word.
+#
+# THE MIRROR-IMAGE FAILURE WAS ALSO MEASURED, and it is worth knowing because the fix looks like
+# a bug. A naive PROHIBITION written the same way — "the string `secrets.` appears nowhere in
+# this file" — reports RED against the correct file, because the paragraph above that forbids
+# credentials necessarily names the thing it forbids. Substring checks are wrong in BOTH
+# directions on a documented file: falsely green for requirements, falsely red for prohibitions.
+# The parse below asserts the prohibition over the job's `env`, `run` and `with` values only,
+# which is where a credential could actually live, and comments are gone before it looks.
+#
+# Parse it instead:
+#
+#   node -e "const d=require('yaml').parse(require('fs').readFileSync('.github/workflows/baselines.yml','utf8'));
+#            console.log(Object.keys(d.on), d.permissions, d.concurrency.group,
+#              d.jobs['generate-baselines'].permissions,
+#              d.jobs['generate-baselines'].container,
+#              d.jobs['generate-baselines'].steps.filter(s=>s.run).map(s=>s.run))"
+#
+# The invariants worth re-checking after any edit, because they are security properties and not
+# style: the ONLY trigger is `workflow_dispatch` (no `push`, no `pull_request`); `contents:
+# write` is on the JOB and the workflow-level default stays `contents: read`; `github.event_name`
+# stays in the concurrency group; the commit step stages the `*-visual-linux.png` glob and
+# nothing else; and `--update-snapshots` stays in this file alone.
+# ============================================================================================
+
+name: baselines
+
+# WORKFLOW_DISPATCH ONLY. Never `push`, never `pull_request`, never `schedule`. A job that can
+# write the references every other run is measured against must be reachable only by a
+# deliberate human action — an automatic trigger would mean "the gate regenerates itself",
+# which is the same as no gate. This is also the second half of T-11-BASEMINT: the flag is
+# confined to this file, and this file is confined to a manual trigger.
+on:
+  workflow_dispatch:
+
+# T-11-CIWRITE. The workflow-level default is read-only, exactly as in `ci.yml`. Write is
+# granted on the ONE job below and nowhere else, so the elevated permission is legible in the
+# same three lines as the job that needs it.
+permissions:
+  contents: read
+
+# ⚠ `github.event_name` IS LOAD-BEARING HERE, NOT COSMETIC (T-11-CANCEL, 11-RESEARCH Pitfall 4).
+# A concurrency group is an event-agnostic string. `ci.yml` uses the same three-term group, so
+# with only workflow+ref a push to `dev` would land in the SAME group as a baseline run already
+# in flight on `dev` and, with `cancel-in-progress: true`, kill it. Killed mid-flight, this job
+# leaves a partial set of baseline PNGs committed to the branch — which is worse than no
+# baselines, because the missing ones fail and the present ones pass and the run reads as a
+# real regression. Keying on the event as well means a push can only ever cancel a push.
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}"
+  cancel-in-progress: true
+
+jobs:
+  generate-baselines:
+    name: generate-baselines (visual, --update-snapshots, commit back)
+    runs-on: ubuntu-latest
+
+    # [ASSUMED — RESEARCH A2] `permissions: contents: write` scoped to this job is standard
+    # Actions practice, but the docs page fetched during the research session did not enumerate
+    # it, so it is flagged rather than presented as verified. A wrong guess here fails LOUDLY on
+    # the first dispatch — the push returns 403 — rather than silently, which is why it is
+    # acceptable to ship the assumption instead of blocking on it. NOTE: a 403 here is NOT a git
+    # problem. It is the repository's Settings → Actions → General → Workflow permissions being
+    # "Read repository contents", and plan 11-04 Task 1 already confirmed with a human on
+    # 2026-08-13 that this repository is set to "Read and write permissions", so no settings
+    # change should be needed.
+    permissions:
+      contents: write
+
+    # IN the pinned Playwright image, and the tag MUST equal the project's exact
+    # `@playwright/test` pin (1.60.0, pinned EXACT by plan 11-03 for this reason, T-11-VERDRIFT).
+    # Playwright's own docs: if the image version does not match the project version, "Playwright
+    # will be unable to locate browser executables." Bump the tag and the package together or not
+    # at all.
+    #
+    # THERE IS DELIBERATELY NO `npx playwright install` STEP. The image ships the browsers AND
+    # their OS dependencies; adding an install step would download a SECOND browser build and is
+    # the most common way a container job ends up comparing against a browser nobody pinned.
+    #
+    # `--ipc=host` is Playwright's documented recommendation for Chromium — "without it, Chromium
+    # can run out of memory and crash". That failure presents as a flaky test, so it gets retried
+    # rather than fixed. It is not optional, and it is the same option `ci.yml` job 3 carries.
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+      options: --ipc=host
+
+    env:
+      # The SAME unreachable URL `ci.yml` job 1 uses, and for the same reason: nothing listens on
+      # 59999 and nothing ever will. Every baselined surface is DB-free by 11-UI-SPEC § GATE-01's
+      # own scoping rule ("Phase 11 baselines ONLY DB-free surfaces"), so setting this converts
+      # that rule from a claim in a document into a standing per-run assertion. The day somebody
+      # baselines a surface that reads the database, this job fails at that surface's reachability
+      # hook and the message names the surface.
+      #
+      # DO NOT "fix" a red here by unsetting it. An UNSET DATABASE_URL is strictly worse than a
+      # wrong one — `postgres(undefined!)` falls back to libpq defaults and may find a real
+      # database on some future runner, at which point the job is green and the property is gone.
+      DATABASE_URL: postgres://unreachable:unreachable@127.0.0.1:59999/nope
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24, matching all three `ci.yml` jobs rather than whatever major the Playwright
+          # image happens to ship, so the baselines are produced by the same runtime that
+          # compares them.
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+
+      # [ASSUMED — RESEARCH A2] The container runs as root and the image carries no configured
+      # git identity, so `git commit` would fail with "Please tell me who you are". The
+      # `github-actions[bot]` identity below is the conventional spelling (the bot's stable user
+      # id is the local part of the noreply address). `safe.directory` is set for the same class
+      # of reason — a container job can trip git's dubious-ownership check on the workspace. Both
+      # are flagged as assumed because neither was verified against the docs in the research
+      # session; both fail loudly on the first dispatch if wrong.
+      - name: Configure the committer identity
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # THE ONE SANCTIONED WRITE PATH IN THE REPOSITORY.
+      #
+      # `--project=visual` is the project `playwright.config.ts` constructs ONLY on Linux (D-29),
+      # and its name is a segment of every baseline filename — `{arg}-visual-linux.png`, measured
+      # (11-RESEARCH Finding 1) — so renaming it orphans every committed baseline at once.
+      #
+      # The flag overrides `updateSnapshots: "none"` (Finding 5). Any spec that FAILS for a reason
+      # other than a missing baseline still fails the run: a reachability hook that does not
+      # resolve, a theme that did not reach `<html>`, an OG route that did not answer 200. That is
+      # the point — a baseline shot against a 404 would be a reference that is wrong forever and
+      # that every future run agrees with.
+      - name: Playwright — regenerate the visual baselines
+        run: npx playwright test --project=visual --update-snapshots
+
+      # Stage ONLY the Linux baselines, by glob, from the repository root. Git pathspec wildcards
+      # cross directory separators (verified in plan 11-03 against real `git ls-files` output),
+      # which matters because a baseline lives several levels deep under
+      # `e2e/visual/<spec>.spec.ts-snapshots/`.
+      #
+      # T-11-PLATBASE: `*-win32.png` and `*-darwin.png` are `.gitignore`d and cannot be produced
+      # on Linux anyway, but the tripwire below is cheap and catches the OTHER way a wrong file
+      # lands here — anything the previous steps happened to modify (a lockfile churned by
+      # `npm ci`, an artefact written by the run) riding along in the same commit. The staged set
+      # must contain nothing but Linux baselines, or the job fails without committing.
+      - name: Stage the regenerated baselines
+        id: stage
+        run: |
+          git add -- "*-visual-linux.png"
+          UNEXPECTED="$(git diff --cached --name-only | grep -v -- '-visual-linux\.png$' || true)"
+          if [ -n "$UNEXPECTED" ]; then
+            echo "::error::staged files that are not Linux baselines:"
+            echo "$UNEXPECTED"
+            exit 1
+          fi
+          COUNT="$(git diff --cached --name-only | wc -l | tr -d ' ')"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "staged $COUNT baseline file(s)"
+          git diff --cached --name-status
+
+      # No-op on an empty diff rather than failing. Re-dispatching after a green run is a normal
+      # thing to do — it is how you confirm the set is stable — and a job that errored on "nothing
+      # changed" would train everyone to ignore its result.
+      - name: Commit and push the baselines
+        run: |
+          if git diff --cached --quiet; then
+            echo "No baseline changes — nothing to commit. This is the expected result of a"
+            echo "re-dispatch against an already-current baseline set."
+            exit 0
+          fi
+          git commit -m "chore(11-22): regenerate visual baselines in the pinned Linux image
+
+          Generated by the \`baselines\` workflow_dispatch job (D-27), run ${{ github.run_id }},
+          from ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.
+
+          NOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared
+          against these files. See .github/workflows/baselines.yml's header — an explicit
+          follow-up run is required."
+          # Push to the ref this workflow was dispatched against. `github.ref` is
+          # `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD
+          # or on a branch the operator did not choose.
+          git push origin "HEAD:${{ github.ref }}"
+
+      # The reminder, on the run page, where the person who pressed the button will read it —
+      # rather than only in this file, which they will not open.
+      - name: Say out loud that these baselines are unverified
+        if: always()
+        run: |
+          echo "::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers"
+          echo "::warning::no workflow run, so nothing has compared against them. Pull the branch,"
+          echo "::warning::confirm only *-visual-linux.png files were added, run npm run test:design,"
+          echo "::warning::then push an empty commit or re-dispatch so a ci run compares and goes"
+          echo "::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces"
+          echo "::warning::baselines nobody has ever seen pass."
