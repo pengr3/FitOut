@@ -234,6 +234,18 @@ All rejected variants are preserved in the sketch files, marked but not deleted.
 
 ---
 
+## Stated principle (2026-08-18, before the UI spec)
+
+Not a question — the user stated it unprompted, ahead of `/gsd-ui-phase 12`:
+
+> *"i want it be known that i want a seemless ux for bookers, as much as we like we want their
+> experience hassle-free, we went them to to comeback, keep using fitout."*
+
+Recorded as **D-59**, with six checkable implications and a scope guard (retention is earned by the
+flow, not by retention features — saved searches, favourites and comparison remain out of scope).
+It surfaced one thing that may adjust an existing decision: **SHELL-03's "no navigation" needs an
+explicit safe way back from checkout**, or it reads as a trap. Handed to the UI-SPEC as an open question.
+
 ## Claude's Discretion
 
 - **BFLOW-05's mechanics** (44px day cells, skeleton shape, month-change motion) — not put to the user;

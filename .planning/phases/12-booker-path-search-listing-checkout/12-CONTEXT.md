@@ -45,6 +45,43 @@ wrong pattern is cheaper to learn here than after three phases adopt it.
 > D-30/D-31 collide the same way — and is recorded rather than silently inherited. **When citing any
 > number in D-42…D-50, say which namespace**: "12-CONTEXT D-45" or "PROJECT D-45". Never a bare number.
 
+### The booker's experience is the tie-breaker — read this before the rest
+
+- **D-59: When two options both satisfy a requirement, choose the one that costs the booker less.**
+  Stated by the user on 2026-08-18, before the UI spec was written, and it governs every call in this
+  phase that this document does not decide explicitly. The goal is a booker who finishes without
+  friction and **comes back** — FitOut earns the second booking on the first one feeling effortless.
+
+  **What that means concretely here** — each of these is checkable, not a mood:
+
+  1. **Never make them tell us something twice.** The searched window is already carried onto the
+     listing URL (`?date=&start=&end=`, `search-result-card.tsx:168-179`). It must survive the whole
+     path: the calendar pre-opens that day, **the D-48 sheet opens on that day already selected**, and
+     a collision refresh (D-55) must not reset it to today. A booker who searched Friday 9–11 AM should
+     never re-pick Friday.
+  2. **Never lose their work.** The 15-minute hold is server-side, so leaving checkout does not destroy
+     it. SHELL-03 removes *navigation that can silently lose a hold* — it does **not** mean the booker
+     is trapped. ⚠ **The checkout needs one explicit, safe way back** (a labelled "Back to the listing"
+     that states the hold is kept), or "no nav" reads as a dead end and the abandonment it causes is
+     self-inflicted. **This is an open question the UI-SPEC must answer**, and it is the one place D-59
+     may adjust a decision already made.
+  3. **Fewest taps on the money path.** Already why D-51 refused a confirm dialog and D-48 put selection
+     and action in one sheet. Any new interstitial in Phases 12–15 has to argue against this line.
+  4. **Never surprise them with a number.** D-37, D-40 and D-41 all serve this. The all-in rate exists
+     so the price never rises between browsing and paying; that is a retention decision as much as a
+     trust one.
+  5. **Never leave them with nothing to do.** STATE-03 and STATE-07 are the requirement-level version;
+     D-53 and D-55 are the implementations. A screen with no next action is the failure mode.
+  6. **Tell them what is happening.** Skeletons shaped like the real content (STATE-01, shipped), the
+     countdown, the named PayMongo destination. Silence during a wait is friction.
+
+  ⚠ **SCOPE GUARD — retention here is earned by the flow, not by retention FEATURES.** Saved searches,
+  favourites, listing comparison, a filter drawer with new filters, and any account-creation nudge are
+  **explicitly out of scope** (`REQUIREMENTS.md` § Out of Scope: *"net-new capability wearing a polish
+  costume"*), and D-136 keeps net-new capability in its own phases. D-59 raises the bar on **how well
+  the existing flow works**; it does not authorise anything new. If a proposal under D-59 changes a
+  requirement ID, it is not D-59 work.
+
 ### Price continuity: card → rail → checkout (BFLOW-01, BFLOW-04)
 
 - **D-37: The search-result card keeps the ALL-IN RATE and never a computed window total.**
@@ -380,6 +417,10 @@ intent:
 <specifics>
 ## Specific Ideas
 
+- **"Seamless, hassle-free — we want them to come back."** The user's own framing, given on 2026-08-18
+  as the lens for the UI spec (D-59). Worth keeping in the words it was said in: the measure of this
+  phase is not that the booker *can* finish, but that finishing was **effortless enough to do again**.
+  Phase 12 is the phase where that is decided, because it owns the entire path.
 - **"The same fact, not two related facts."** BFLOW-04's recognisability claim drove D-38, D-40 and D-41
   together. It is also why D-41 exists at all: the moment two surfaces become one component, a
   discrepancy that was previously invisible becomes a contradiction 60px tall.
