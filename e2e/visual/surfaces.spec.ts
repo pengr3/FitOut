@@ -82,6 +82,23 @@ import {
 //     against change, not against a dev/prod divergence.
 //   • The `hook` is a floor, not a description: it proves the subject mounted, not that the rest of
 //     the page did.
+//   • ⚠ A CHANGE CONFINED TO `--border` ON `--background` IS INVISIBLE HERE. Measured 2026-08-17
+//     while driving D-30's second OBSERVED RED, and it is the reason that proof failed 18 baselines
+//     rather than the 20 the plan predicted. `toHaveScreenshot`'s default `threshold` is 0.2, which
+//     pixelmatch turns into a per-pixel cutoff of `35215 * 0.2^2 = 1408.6` on YIQ deltaSquared. The
+//     border/background pair measures **341.6** in court (`rgb(229,229,229)` on `rgb(255,255,255)`)
+//     and **397.2** in grove — four times under the cutoff, so those pixels are not counted as
+//     different at all. It is the same pair `src/lib/design/contrast-pairs.ts` carries in
+//     `EXCLUDED_PAIRS` at 1.26:1 / 1.28:1 because it is a nearly invisible decorative divider; a
+//     gate cannot see what a person cannot see, and the two facts have the same cause.
+//
+//     The default is kept ON PURPOSE. Driving `threshold` toward 0 would make font antialiasing a
+//     failure on every run, and a gate that cries wolf is retried until green — the exact outcome
+//     this phase exists to remove. So the blind spot is recorded rather than closed. The practical
+//     consequence, stated plainly: **a regression that only moves a divider will not be caught
+//     here.** Divider geometry is asserted by `tests/design/**` on the emitted stylesheet instead.
+//     If a future surface makes a border load-bearing, give THAT baseline its own tightened
+//     `threshold` at the call site — never the whole suite.
 
 /** Every image row is this size — `OG_SIZE` in `src/app/og-render.ts`. */
 const OG_NATURAL = { width: 1200, height: 630 } as const;
