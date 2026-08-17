@@ -44,7 +44,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 ### 🚧 v1.1 — Front-End Polish & Placeholder Design System (Phases 10–19)
 
 - [x] **Phase 10: Design-System Foundation & Theme Runtime** - One token contract, two themes, and the shipped defects fixed before a single baseline is shot (completed 2026-08-12)
-- [ ] **Phase 11: Quality Gates, Pattern Layer & App Shell** - Make the gates capable of failing, seed the shared patterns, and give the app a real header, footer and state families
+- [x] **Phase 11: Quality Gates, Pattern Layer & App Shell** - Make the gates capable of failing, seed the shared patterns, and give the app a real header, footer and state families (completed 2026-08-17)
 - [ ] **Phase 12: Booker Path — Search → Listing → Checkout** - The route from an empty search box to the payment redirect reads as one designed product
 - [ ] **Phase 13: Confirmation, Bookings & Trust** - After paying, a booker sees exactly what they bought, where their money is, and what happens next
 - [ ] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees
@@ -213,7 +213,7 @@ Plans:
 
 **Wave 12** *(blocked on Wave 11)*
 
-- [ ] 11-22-PLAN.md — GATE-01: the visual project, the dispatch job, the baselines, and the two OBSERVED REDs
+- [x] 11-22-PLAN.md — GATE-01: the visual project, the dispatch job, the baselines, and the two OBSERVED REDs
 
 **UI hint**: yes
 
@@ -408,7 +408,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
-| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 21/22 | In Progress|  |
+| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |

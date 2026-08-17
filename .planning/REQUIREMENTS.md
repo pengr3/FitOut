@@ -109,7 +109,7 @@
 
 ### Quality gates (GATE)
 
-- [ ] **GATE-01**: Visual-regression baselines exist, are generated **only** inside the pinned Playwright Docker image, and CI fails on a missing baseline rather than writing one and reporting green (D-135)
+- [x] **GATE-01**: Visual-regression baselines exist, are generated **only** inside the pinned Playwright Docker image, and CI fails on a missing baseline rather than writing one and reporting green (D-135)
 - [ ] **GATE-02**: Every surface is operable by keyboard alone, with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets
 - [ ] **GATE-03**: The countdown timer and every live status region announce correctly to a screen reader, once rather than per tick
 - [x] **GATE-04**: **GATE-NOREG** — a structural-selector inventory exists and is checked, so a restyle cannot silently break the e2e specs that prove the double-booking guarantee (`src/` contains zero test ids today)
@@ -236,7 +236,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | RESP-02 | Phase 12 | Pending |
 | RESP-03 | Phase 17 | Pending |
 | RESP-04 | Phase 17 | Pending |
-| GATE-01 | Phase 11 | Pending |
+| GATE-01 | Phase 11 | Complete |
 | GATE-02 | Phase 17 | Pending |
 | GATE-03 | Phase 12 | Pending |
 | GATE-04 | Phase 11 | Complete |
