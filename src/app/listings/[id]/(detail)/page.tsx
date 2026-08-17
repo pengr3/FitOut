@@ -23,6 +23,7 @@
 //     "Not bookable yet" affordance (payoutsEnabled is false until Plan 06 wires PayMongo). Real
 //     booking is Phase 4+, so the coral CTA is a state-reflecting placeholder.
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { format } from "date-fns";
@@ -79,6 +80,65 @@ import { openHoldSchema, slotSelectionSchema } from "@/lib/validation/booking";
 // venue-tz labels + the shared DISPLAY_CURRENCY are now imported (Plan 07 promoted both out of this file
 // so the reserve + confirmation surfaces share ONE source and can never drift from the listing page).
 import { gmtLabelFor, cityLabelFor } from "@/lib/venue-time";
+import { listingCardFacts, listingShareDescription } from "@/lib/listing/og-facts";
+
+/**
+ * SHELL-04 — what this page's link says about itself when it is pasted somewhere.
+ *
+ * THIS ROUTE HAD NO `metadata` EXPORT AT ALL before this change, so every space in the catalogue
+ * shared the root layout's tab title ("FitOut") and the root description. A marketplace whose
+ * listing links are indistinguishable from each other in a browser's history, a bookmark bar, a
+ * search result and a chat preview is a marketplace whose links are not worth sharing.
+ *
+ * THE TITLE IS RETURNED BARE. `src/app/layout.tsx:107` declares `template: "%s · FitOut"`, so
+ * returning `"Poblacion Pickleball Court"` renders `<title>Poblacion Pickleball Court · FitOut</title>`
+ * — and returning the suffix here would render it twice. That template is exactly why route files
+ * must not hand-write the suffix.
+ *
+ * ⚠ THERE IS NO `openGraph` KEY HERE, AND ADDING ONE IS THE REGRESSION TO WATCH FOR. It reads like an
+ * omission — `og:title` and `og:description` are separate tags from `<title>` and
+ * `<meta name="description">`, so declaring them looks like the thorough thing to do. It is the
+ * opposite. MEASURED on Next 16.2.7, dev, `/listings/seed_listing_1`, with the `opengraph-image.tsx`
+ * file in place and nothing else changed between the two runs:
+ *
+ *   with `openGraph: { type: "website", description }`   →  og:title, og:description, og:type.
+ *                                                           NO og:image. NO og:image:width/height/
+ *                                                           type/alt. twitter:card = "summary".
+ *   with the key absent (what ships)                     →  og:title, og:description, og:image,
+ *                                                           og:image:type, :width, :height, :alt,
+ *                                                           twitter:card = "summary_large_image"
+ *                                                           and the four twitter:image tags.
+ *
+ * Declaring `openGraph` REPLACES the resolved object, and the `opengraph-image.tsx` file convention
+ * merges into it only while it is undefined. So the thorough-looking edit deletes the share card and
+ * downgrades the Twitter card to the small one, with every tag it *did* add still present — i.e. it
+ * looks more complete and is strictly worse. Absent the key, Next derives `og:title` / `og:description`
+ * from the two fields below and supplies the image, its dimensions, its type and its alt for free.
+ * `tests/design/og-routes.test.ts` does not assert this; a `curl` of the head does, and both runs are
+ * recorded in 11-20-SUMMARY.md.
+ *
+ * ONE READ, SHARED WITH THE CARD. `listingCardFacts` is `cache()`d, and the composed sentence lives
+ * beside it, so the description and the image can never name different spaces.
+ *
+ * A LISTING THAT DOES NOT RESOLVE RETURNS `{}` rather than a "not found" title: this function runs
+ * for the same ids the page below 404s on, and the not-found boundary owns what that says. Inventing
+ * a title here would put copy about a missing listing in two places.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const facts = await listingCardFacts(id);
+  if (!facts) return {};
+
+  const description = listingShareDescription(facts);
+  return {
+    title: facts.title,
+    description,
+  };
+}
 
 export default async function PublicListingPage({
   params,
