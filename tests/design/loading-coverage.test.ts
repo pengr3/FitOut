@@ -36,16 +36,27 @@
 // oracle. Do not "simplify" this gate to read the manifest.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// THE COUNTS ARE 27 / 20 / 7, NOT THE PLAN'S 25 / 20 / 5
+// THE COUNTS ARE 28 / 20 / 8, NOT THE PLAN'S 25 / 20 / 5
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// The QUALIFYING set is exactly the twenty the plan enumerated — that half was right. The totals were
-// not: `(legal)/terms/page.tsx` and `(legal)/privacy/page.tsx` landed in plan 11-15, after this plan
-// was written, and both are sync server pages. They join `/dev/theme` and the four `(auth)` pages as
-// the seven that must NOT have a `loading.tsx`. This is the ninth consecutive plan in this phase
-// whose own surface inventory was wrong about a count; the numbers below are measured, and a change
-// to any of them means a ROUTE WAS ADDED and somebody has to decide which side it is on — it does not
-// mean the number should be bumped.
+// The QUALIFYING set is exactly the twenty the plan enumerated — that half was right, and it has not
+// moved since. The totals were not: `(legal)/terms/page.tsx` and `(legal)/privacy/page.tsx` landed in
+// plan 11-15, after this plan was written, and both are sync server pages. They join `/dev/theme` and
+// the four `(auth)` pages as routes that must NOT have a `loading.tsx`. This was the ninth
+// consecutive plan in this phase whose own surface inventory was wrong about a count; the numbers
+// below are measured, and a change to any of them means a ROUTE WAS ADDED and somebody has to decide
+// which side it is on — it does not mean the number should be bumped.
+//
+// THE EIGHTH NON-QUALIFYING ROUTE, AND THE DECISION THAT PUT IT THERE (plan 11-18, 17 August 2026).
+// `src/app/dev/throw/page.tsx` is the deliberate-throw affordance that makes the SENTINEL_LEAK_PROBE
+// assertion possible — a boundary can only be proved not to leak by being handed a real error. Its
+// default export is SYNC and its body throws immediately, so the page component can never suspend and
+// a `loading.tsx` beside it could never render: it is non-qualifying, and that is the decision this
+// bump records rather than hides. (It was reached the long way. `?throw=1` on `/dev/theme` was built
+// and measured first; it made THAT page's default export async and this gate reported
+// `expected [ 'src/app/dev/theme' ] to deeply equal []` and `expected 21 to be 20` — i.e. it demanded
+// a fallback for one of the routes it itself names as needing none. Reverted; the full account is in
+// `src/app/dev/throw/page.tsx`'s header.)
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // WATCHED RED — FOUR PROBES, ALL RUN, ALL REVERTED. 17 AUGUST 2026. GREEN IS 15 PASSED.
@@ -167,9 +178,9 @@ const APP_DIR = resolve(process.cwd(), "src/app");
 // decision — is its default export async, and therefore does it need a loading state — not that the
 // number should be bumped to make the run green.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-const EXPECTED_PAGES = 27;
+const EXPECTED_PAGES = 28;
 const EXPECTED_QUALIFYING = 20;
-const EXPECTED_NON_QUALIFYING = 7;
+const EXPECTED_NON_QUALIFYING = 8;
 
 /** The three declared skeleton shapes, by module and by export name. */
 const SKELETON_PATTERNS: Readonly<Record<string, string>> = {
@@ -510,7 +521,7 @@ describe("AC#15 — every async-default page has a loading state, and nothing el
     ).toEqual([]);
   });
 
-  it("pins the counts: 27 pages, 20 qualifying, 7 not, 20 loading files", () => {
+  it("pins the counts: 28 pages, 20 qualifying, 8 not, 20 loading files", () => {
     const qualifying = PAGES.filter((p) => p.qualifies);
     const note =
       "A CHANGE HERE MEANS A ROUTE WAS ADDED OR REMOVED and somebody has to decide which side it is " +
