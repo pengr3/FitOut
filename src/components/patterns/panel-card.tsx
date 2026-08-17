@@ -1,9 +1,29 @@
 // DS-11 — THE boxed panel. Third and last of the named card patterns; a fourth is a scope alarm.
 //
-// WHAT THIS REPLACES (nobody yet — the adoption plans swap the surfaces): the listing page's sticky
-// booking rail (`listings/[id]/page.tsx:365`), `booking/price-breakdown.tsx`'s container,
-// `host/payout-summary.tsx`, `invite/[token]`'s `InviteCard`, and the hours-missing notices. Five
-// surfaces that each re-decide padding, radius and elevation today.
+// WHAT THIS REPLACES — ALL FIVE SURFACES ARE ADOPTED. None of them re-decides padding, radius or
+// elevation any more; this file decides for all five.
+//
+//   1. The listing page's booking rail — `src/app/listings/[id]/(detail)/page.tsx` (plan 11-13).
+//      This line used to cite `listings/[id]/page.tsx:365`, a path that plan 11-10's route-group
+//      restructure retired; the `(detail)` segment is the same page after the move.
+//   2. The checkout rail — `src/components/booking/reserve-view.tsx` (plan 11-13). This is the box
+//      `11-UI-SPEC § PanelCard` means by *"`booking/price-breakdown.tsx`'s container"*, and the
+//      distinction is load-bearing rather than pedantic: `price-breakdown.tsx`'s own root is a bare
+//      div and stays one, because boxing it in its own file would nest two cards and pay the block
+//      padding twice. Its header says so from the other side. A reader who goes looking for an
+//      adoption INSIDE `price-breakdown.tsx` will not find one, and that is correct.
+//   3. The earnings summary figures — `src/components/host/payout-summary.tsx` (plan 11-13).
+//   4. The invite route's `InviteCard` (plan 11-13), which MOVED to
+//      `src/components/group/invite-card.tsx` in plan 11-19 when that route gained a not-found
+//      boundary required to render a byte-identical surface (T-11-ORACLE). The page imports it now
+//      instead of declaring it.
+//   5. The hours-missing notice on `src/app/(host)/host/page.tsx` (plan 11-13), as `tone="muted"`.
+//      The spec says "notices", plural; a scan finds one other site and it is an inline meta line
+//      inside a tile, not a panel.
+//
+// This list is prose. `tests/design/card-pattern-coverage.test.ts`'s `CARD_SURFACES` carries the
+// same five rows with their reasons and is the machine-checked half — if the two ever disagree,
+// that file is the one that can fail.
 //
 // A SERVER COMPONENT with no domain imports and no product copy — see `result-card.tsx`'s header for
 // the rule and the D-130 reason it is not stylistic. `title`, `description` and everything inside
@@ -96,9 +116,14 @@ export function PanelCard({
         // sites — `listings/[id]/(detail)/page.tsx` and `booking/reserve-view.tsx` — were "both
         // offset by 32px, the 8th spacing step", which was true when this file was written and became
         // false when the header landed. Both moved to the 20th step in the same commit that shipped
-        // the header, so all three sites in the app now agree. Both still move onto this prop when
-        // they adopt the pattern (plan 11-13); what changed is that they are no longer wrong while
-        // they wait.
+        // the header, so all three sites agreed from that point on.
+        //
+        // BOTH RAILS HAVE SINCE MOVED ONTO THIS PROP (plan 11-13), so the arithmetic is written in
+        // exactly one place now — here. `sticky-offset.test.ts`'s pinned site count went 3 → 1 in
+        // that commit, which is the measurement plan 11-10 predicted and the shape of a correct
+        // conversion: a count that had stayed at 3 would have meant the two rails kept their own
+        // offsets alongside the prop. The one site that remains is this file's own encoded offset,
+        // and it is the only one of the three that was never wrong to begin with.
         //
         // The wrong offset is named DESCRIPTIVELY above rather than quoted as a class, following
         // `booking-row.tsx:112`'s precedent ("Named descriptively rather than quoted, because the
