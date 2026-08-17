@@ -332,3 +332,7 @@ grep -c ThemePane src/app/dev/theme/page.tsx   3    (definition + two calls)
 ```
 
 **Not done here, and it is the orchestrator's:** the push and the CI run (D-25). This executor was instructed not to push. All three new specs are deliberately NOT in CI (D-24), like the eleven that preceded them.
+
+## Self-Check: PASSED
+
+All eight declared files exist on disk; all four commits (`aa66c08`, `a67b29a`, `1dcc273`, `e3643a1`) resolve in `git log`; the temporary measurement probe `e2e/probe-measure.spec.ts` was removed before the first commit and is absent.
