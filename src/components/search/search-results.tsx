@@ -17,6 +17,7 @@ import { SearchXIcon, SparklesIcon } from "lucide-react";
 
 import { SearchResultCard, type SearchedWindow } from "@/components/search/search-result-card";
 import type { SearchResultRow } from "@/lib/search/query";
+import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -166,6 +167,19 @@ export function SearchResults({
       )}
 
       {/* Body: error → skeleton (searching) → results → zero-result → cold-start. */}
+
+      {/* ⚠ NOT AN EMPTY STATE, AND DELIBERATELY NOT CONVERTED BY PLAN 11-16 (which had it listed as one
+          of its eight conversion sites). This block is the shipped inline ERROR: `role="alert"`, "Something
+          went wrong loading spaces", one "Try again". `patterns/error-state.tsx:37-39` names these exact
+          lines as the shape STATE-02's `ErrorState` was extracted FROM, and rendering a failure through
+          `EmptyState` would say "there is nothing here" about a search that never ran — the precise
+          inversion of the T-11-FALSEALARM rule the same plan is enforcing on `/host/requests`.
+
+          It is not converted to `ErrorState` here either: that pattern REQUIRES a `routeOut` second action,
+          which is a product decision (where does a failed search send you?) belonging to the five boundaries
+          plan 11-18 owns. Carried as a declared, reasoned row in `NON_EMPTY_STATE_DASHED`
+          (tests/design/empty-state-adoption.test.ts) so it is an exclusion with an argument rather than a
+          hole, and written up in the phase's deferred-items.md for 11-18. */}
       {fetchError ? (
         <div className="rounded-xl border border-dashed p-8 text-center" role="alert">
           <p className="font-semibold">Something went wrong loading spaces</p>
@@ -201,30 +215,39 @@ export function SearchResults({
       ) : hasQuery ? (
         // Zero-result after filtering (D-31) — escape hatches + optional "You might also like" cards.
         <div className="space-y-8">
-          <div className="rounded-xl border border-dashed p-8 text-center">
-            <SearchXIcon className="mx-auto size-6 text-muted-foreground" aria-hidden="true" />
-            <p className="mt-3 font-semibold">No spaces match those filters</p>
-            <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-              Try widening your search.
-            </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-              <Button
-                variant="secondary"
-                className="min-h-11"
-                onClick={onBroadenRadius}
-                disabled={!hasOrigin || atMaxRadius}
-                title={!hasOrigin ? "Set a location to broaden the radius" : undefined}
-              >
-                Broaden radius
-              </Button>
-              <Button variant="secondary" className="min-h-11" onClick={onClearFilters}>
-                Clear filters
-              </Button>
-              <Button variant="secondary" className="min-h-11" onClick={onShowNearby}>
-                Show nearby spaces
-              </Button>
-            </div>
-          </div>
+          {/* STATE-04 — the shared shell (plan 11-16). This block WAS the geometry that won: shell A's
+              `rounded-xl … p-8 text-center` moved into the pattern verbatim, so nothing here changes
+              shape. What DID change is the title element: it was a `<p className="font-semibold">`, a
+              heading in appearance only, and `titleAs="h2"` makes it the real one. `h2` because the
+              populated branch's own results heading above is an `h2` under the page `<h1>` — the empty
+              state stands in the same slot in the outline.
+
+              Copy byte-identical: title, body and all three escape-hatch labels are the shipped strings. */}
+          <EmptyState
+            icon={SearchXIcon}
+            titleAs="h2"
+            title="No spaces match those filters"
+            body="Try widening your search."
+            actions={
+              <>
+                <Button
+                  variant="secondary"
+                  className="min-h-11"
+                  onClick={onBroadenRadius}
+                  disabled={!hasOrigin || atMaxRadius}
+                  title={!hasOrigin ? "Set a location to broaden the radius" : undefined}
+                >
+                  Broaden radius
+                </Button>
+                <Button variant="secondary" className="min-h-11" onClick={onClearFilters}>
+                  Clear filters
+                </Button>
+                <Button variant="secondary" className="min-h-11" onClick={onShowNearby}>
+                  Show nearby spaces
+                </Button>
+              </>
+            }
+          />
 
           {nearbyAlternatives.length > 0 && (
             <div className="space-y-4">
@@ -239,13 +262,19 @@ export function SearchResults({
         </div>
       ) : (
         // Cold start (D-30 liquidity floor) — no filter blame, no escape hatches.
-        <div className="rounded-xl border border-dashed p-8 text-center">
-          <SparklesIcon className="mx-auto size-6 text-muted-foreground" aria-hidden="true" />
-          <p className="mt-3 font-semibold">No spaces are bookable here yet</p>
-          <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-            We&apos;re just getting started in {city}. Check back soon — new spaces are being added.
-          </p>
-        </div>
+        //
+        // `actions={null}` IS THE POINT OF THIS BLOCK, not an omission. D-30 says the cold-start state
+        // must not blame a filter, and every escape hatch on the zero-result state above is a filter
+        // control — offering "Broaden radius" to someone in a city with no supply is a button that
+        // cannot work. The body names what happens next in words instead ("Check back soon"), which is
+        // the copywriting contract's requirement; the contract asks for a next step, not for a control.
+        <EmptyState
+          icon={SparklesIcon}
+          titleAs="h2"
+          title="No spaces are bookable here yet"
+          body={`We're just getting started in ${city}. Check back soon — new spaces are being added.`}
+          actions={null}
+        />
       )}
     </section>
   );

@@ -32,6 +32,7 @@ import {
 } from "@/components/host/request-row";
 import { RequestCountdown } from "@/components/booking/request-countdown";
 import { RequestCountdownReason } from "@/components/host/request-countdown-reason";
+import { EmptyState } from "@/components/patterns/empty-state";
 import {
   Table,
   TableBody,
@@ -137,13 +138,37 @@ export default async function HostRequestsPage() {
 
       <div className="mt-8">
         {displayRows.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-10 text-center">
-            <h2 className="text-lg font-medium">No requests right now</h2>
-            <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-              When a guest requests one of your request-to-book spaces, it shows up here for you to approve or
-              decline. Instant-book spaces confirm without a request.
-            </p>
-          </div>
+          // ─────────────────────────────────────────────────────────────────────────────────────────
+          // STATE-04's INBOX-ZERO CLAUSE — THE ONE DELIBERATE COPY CHANGE IN PLAN 11-16 (AC#24).
+          // ─────────────────────────────────────────────────────────────────────────────────────────
+          //
+          // "No requests right now" states an ABSENCE; "You're all caught up" states an ACHIEVEMENT, and
+          // for a work queue those are different facts about the same zero. A host who has just approved
+          // their last request is being told they finished, not that something is missing.
+          //
+          // `tone="positive"` is the whole mechanism, and it carries EXACTLY ONE pixel of green: the
+          // glyph becomes `CheckCircle2` at `text-success` (4.00 court / 3.86 grove against a 3.0
+          // non-text bar, already declared in contrast-pairs.ts). The title and body stay
+          // `text-foreground` / `text-muted-foreground`, and there is no `bg-success` anywhere on this
+          // page or in the pattern — D-14's "green retreats to the icon" holding at panel scale with
+          // zero new tones and zero new pairings. That is asserted, in both directions, by
+          // tests/design/empty-state-adoption.test.ts.
+          //
+          // THE BODY IS UNCHANGED, BYTE FOR BYTE. It explains the request mechanism and names what
+          // instant-book does differently; there was never a defect in it to fix, and rewriting shipped
+          // copy that works is how a design pass turns into a rewrite nobody asked for.
+          //
+          // `actions={null}` ON PURPOSE (the pattern requires the prop precisely so this is a decision):
+          // an empty request inbox has no next step to offer. The host cannot make a guest request a
+          // space, and the two plausible buttons — "Your listings", "Earnings" — are already one click
+          // away in the host header. A CTA here would be a control that does not act on this state.
+          <EmptyState
+            tone="positive"
+            titleAs="h2"
+            title="You're all caught up"
+            body="When a guest requests one of your request-to-book spaces, it shows up here for you to approve or decline. Instant-book spaces confirm without a request."
+            actions={null}
+          />
         ) : (
           <>
             {/* Desktop: the shadcn table with real <th scope="col"> headers. */}

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { Building2Icon } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, listingPhoto, hostPayout } from "@/lib/db/schema";
@@ -27,6 +28,7 @@ import {
   ListingCard,
   type ListingCardData,
 } from "@/components/listing/listing-card";
+import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -89,15 +91,28 @@ export default async function HostListingsPage() {
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <h2 className="text-lg font-medium">No listings yet</h2>
-          <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-            List your space and start earning. We&apos;ll walk you through it step by step.
-          </p>
-          <Button asChild variant="brand" className="mt-4">
-            <Link href="/host/listings/new">Create your first listing</Link>
-          </Button>
-        </div>
+        // STATE-04 (plan 11-16) — shell B through the one shared shell: the small radius at 40px
+        // becomes the card radius at 32px (the padding class is named by value rather than quoted —
+        // see the note in `(app)/bookings/page.tsx`), the `<h2>` survives via `titleAs`, and both
+        // strings are byte-
+        // identical to the shipped ones. `variant="brand"` on "Create your first listing" is preserved
+        // exactly — Phase 10's accent list is closed, and this is on it. Its `mt-4` is dropped because
+        // the pattern's actions row owns the offset (`mt-5`); the button itself is unchanged.
+        //
+        // THE SAME COPY SHIPS ON `(host)/host/page.tsx`, deliberately: the dashboard's zero state and
+        // this grid's zero state are one product decision rendered twice, and both now render the same
+        // shell. Change them together or not at all.
+        <EmptyState
+          icon={Building2Icon}
+          titleAs="h2"
+          title="No listings yet"
+          body="List your space and start earning. We'll walk you through it step by step."
+          actions={
+            <Button asChild variant="brand">
+              <Link href="/host/listings/new">Create your first listing</Link>
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((r) => {

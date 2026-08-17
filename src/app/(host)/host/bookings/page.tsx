@@ -24,6 +24,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { asc, eq } from "drizzle-orm";
+import { CalendarIcon, HistoryIcon } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -45,6 +46,7 @@ import {
   type HostBookingRowData,
 } from "@/components/host/host-booking-row";
 import { RequestActions } from "@/components/host/request-row";
+import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -188,16 +190,25 @@ export default async function HostBookingsPage({
 
       <div className="mt-8">
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-10 text-center">
-            <h2 className="text-lg font-medium">
-              {tab === "upcoming" ? "No upcoming bookings" : "Nothing here yet"}
-            </h2>
-            <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-              {tab === "upcoming"
+          // STATE-04 (plan 11-16) — shell B → the shared shell. Both strings were ALREADY JS string
+          // literals here rather than JSX text, so this conversion is a pure container swap: they are
+          // passed through unchanged, character for character.
+          //
+          // The ICON forks with the tab, matching the booker's `/bookings` pair, because the two tabs
+          // are different facts: one is a calendar with nothing on it yet, the other is a history with
+          // nothing in it. `actions={null}` on both — a host cannot make someone book, and the way to
+          // fill this list (publish a space) is the `/host/listings` grid's CTA, one nav item away.
+          <EmptyState
+            icon={tab === "upcoming" ? CalendarIcon : HistoryIcon}
+            titleAs="h2"
+            title={tab === "upcoming" ? "No upcoming bookings" : "Nothing here yet"}
+            body={
+              tab === "upcoming"
                 ? "When someone books one of your spaces, it'll appear here with the guest, the time, and your payout."
-                : "Completed, cancelled, and declined bookings move here."}
-            </p>
-          </div>
+                : "Completed, cancelled, and declined bookings move here."
+            }
+            actions={null}
+          />
         ) : (
           <>
             {/* Desktop: the shadcn table with real <th scope="col"> headers. */}

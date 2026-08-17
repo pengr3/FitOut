@@ -14,11 +14,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { and, count, eq, isNull } from "drizzle-orm";
+import { Building2Icon } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, hostPayout, listing } from "@/lib/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/patterns/empty-state";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { PayoutBanner } from "@/components/host/payout-banner";
 import { derivePayoutStatus } from "@/components/host/payout-status";
@@ -171,15 +173,28 @@ export default async function HostDashboardPage() {
           </Button>
         </div>
       ) : (
-        <div className="mt-8 rounded-lg border border-dashed p-8 text-center">
-          <h2 className="text-lg font-medium">No listings yet</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            List your space and start earning. We&apos;ll walk you through it
-            step by step.
-          </p>
-          <Button asChild variant="brand" className="mt-4">
-            <Link href="/host/listings/new">Create your first listing</Link>
-          </Button>
+        // ⚠ A NINTH CONVERSION SITE THE 11-UI-SPEC's EMPTY-STATE INVENTORY NEVER LISTED (plan 11-16
+        // measured it). The spec describes TWO drifted shells; this block is a THIRD variant —
+        // `rounded-lg` like shell B but `p-8` like shell A, and a body with no `mx-auto max-w-prose`,
+        // so its text ran the full panel width where the other seven wrapped at a prose measure. That
+        // is drift the spec's own two-shell table could not name, and leaving it would have left a
+        // dashed empty block inside AC#23's scope (`src/app/**`) with nothing to say about it.
+        //
+        // The copy is byte-identical to the shipped strings AND to `(host)/host/listings/page.tsx`'s —
+        // the two are one product decision rendered on two surfaces, and they now render one shell.
+        // `variant="brand"` on "Create your first listing" is preserved (Phase 10's closed accent list).
+        <div className="mt-8">
+          <EmptyState
+            icon={Building2Icon}
+            titleAs="h2"
+            title="No listings yet"
+            body="List your space and start earning. We'll walk you through it step by step."
+            actions={
+              <Button asChild variant="brand">
+                <Link href="/host/listings/new">Create your first listing</Link>
+              </Button>
+            }
+          />
         </div>
       )}
     </div>

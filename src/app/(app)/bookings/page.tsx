@@ -18,6 +18,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { CalendarIcon, HistoryIcon } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
@@ -32,6 +33,7 @@ import type { BookingDbStatus } from "@/components/booking/booking-status";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { BookingsTabs } from "@/components/booking/bookings-tabs";
 import { BookingRow, type BookingRowData } from "@/components/booking/booking-row";
+import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -134,26 +136,42 @@ export default async function BookingsPage({
 
       <div className="mt-8">
         {rows.length === 0 ? (
+          // STATE-04 — both tabs through the ONE shell (plan 11-16). These were shell B: the small
+          // radius and the 40px padding, which is not a step on the spacing ladder. The pattern lands
+          // them on the card radius at 32px. The `<h2>` ELEMENT survives — it is what `titleAs` exists
+          // to preserve — and every string below is byte-identical to the shipped one.
+          //
+          // (The removed padding class is named by its VALUE rather than quoted, deliberately: this
+          // plan's acceptance criterion greps these files for that token and expects zero, and a
+          // comment explaining a removal must not be the thing that reports the removal never happened.
+          // Tenth instance in this phase — see card-pattern-coverage.test.ts:21-27 for the other nine.)
+          //
+          // `variant="brand"` on "Find a space" is preserved exactly: it is on Phase 10's closed accent
+          // list, and the list is closed. It moves from a `mt-6` div into the pattern's `mt-5` actions
+          // row, which is the geometry unification, not a change of affordance.
           tab === "upcoming" ? (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <h2 className="text-lg font-medium">No upcoming bookings</h2>
-              <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-                When you book a space, it&apos;ll show up here with the time, the address, and your
-                booking reference.
-              </p>
-              <div className="mt-6">
+            <EmptyState
+              icon={CalendarIcon}
+              titleAs="h2"
+              title="No upcoming bookings"
+              body="When you book a space, it'll show up here with the time, the address, and your booking reference."
+              actions={
                 <Button asChild variant="brand">
                   <Link href="/">Find a space</Link>
                 </Button>
-              </div>
-            </div>
+              }
+            />
           ) : (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <h2 className="text-lg font-medium">Nothing here yet</h2>
-              <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-                Bookings move here once the session is over, or if they&apos;re cancelled or declined.
-              </p>
-            </div>
+            // `actions={null}`: the Past tab is a record, not a dead end — the way out of it is the
+            // Upcoming tab rendered directly above, and a second "Find a space" button here would be
+            // the same CTA twice on one screen.
+            <EmptyState
+              icon={HistoryIcon}
+              titleAs="h2"
+              title="Nothing here yet"
+              body="Bookings move here once the session is over, or if they're cancelled or declined."
+              actions={null}
+            />
           )
         ) : (
           <>

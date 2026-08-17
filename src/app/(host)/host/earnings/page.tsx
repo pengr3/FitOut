@@ -15,6 +15,7 @@ import { headers } from "next/headers";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
+import { BanknoteIcon } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -28,6 +29,7 @@ import { derivePayoutStatus } from "@/components/host/payout-status";
 import { PayoutSummary } from "@/components/host/payout-summary";
 import { PayoutRow, type PayoutRowData } from "@/components/host/payout-row";
 import { PayoutStateBadge } from "@/components/host/payout-state-badge";
+import { EmptyState } from "@/components/patterns/empty-state";
 import {
   derivePayoutLedgerView,
   summarizePayouts,
@@ -177,13 +179,31 @@ export default async function HostEarningsPage() {
 
       <div className="mt-12">
         {displayRows.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-10 text-center">
-            <h2 className="text-lg font-medium">No earnings yet</h2>
-            <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
-              When someone books your space, each payout shows up here — held until after the session,
-              then paid to you automatically.
-            </p>
-          </div>
+          // ⚠ PLAN 11-16 LISTED THIS SURFACE AS HAVING NO EMPTY STATE AND NEEDING ONE AUTHORED. IT HAS
+          // ONE, AND HAS SINCE PHASE 5 — a shell-B dashed block right here, at the small radius and the
+          // off-ladder 40px padding (both named by value rather than quoted — see the note in
+          // `(app)/bookings/page.tsx`), with copy that already obeys the contract. So this is a
+          // CONVERSION, not an authoring,
+          // and the copy below is byte-identical to the shipped strings rather than newly written.
+          //
+          // That matters beyond bookkeeping: the plan's instruction was to write copy that "must not
+          // imply a failure", and the sentence already on screen does the harder version of that job —
+          // it explains the hold-until-session payout model (D-72) in one line, which is exactly the
+          // thing a host with zero payouts needs to know and is not something to re-invent. HFLOW-05's
+          // note that these numbers have never been real (PayMongo `/v2` is sales-gated) is an argument
+          // for leaving the sentence alone, not for replacing it.
+          //
+          // `actions={null}`: the next step is a guest booking the space, which the host cannot do. The
+          // one thing they CAN do when payouts are not set up is already on this page as `PayoutBanner`,
+          // rendered above and shown only when it applies — a duplicate CTA down here would be a second
+          // route to a banner the host has already scrolled past.
+          <EmptyState
+            icon={BanknoteIcon}
+            titleAs="h2"
+            title="No earnings yet"
+            body="When someone books your space, each payout shows up here — held until after the session, then paid to you automatically."
+            actions={null}
+          />
         ) : (
           <>
             {/* Desktop: the shadcn table with real <th scope="col"> headers. */}
