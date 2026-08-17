@@ -230,6 +230,81 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ════════════════════════════════════════════════════════════════════════════════════
+      # THE PRICE OF PUTTING THIS JOB IN A CONTAINER, AND IT WAS PAID IN A REAL RED.
+      # ════════════════════════════════════════════════════════════════════════════════════
+      #
+      # The container's uid is not the owner of the `actions/checkout` working directory, and
+      # git 2.35.2+ REFUSES to operate on a repository it believes belongs to someone else:
+      #
+      #   fatal: detected dubious ownership in repository at '/__w/FitOut/FitOut'
+      #
+      # `tests/design/gitignore-baselines.test.ts` shells out to `git ls-files` — it is the
+      # ONLY runtime git shell-out in the repository (AST/grep sweep of tests/, scripts/,
+      # src/, e2e/ and config/, 2026-08-17; every other `git` string under tests/ is prose in
+      # a recorded-evidence comment). It runs here and only here: `vitest.config.ts` excludes
+      # `tests/design/**`, so job 2's `npm test` never reaches it. That is why this step is on
+      # job 1 alone, and why `gate-price-parity` — also containerized — deliberately does not
+      # have it: that job runs no code that shells out to git. The day it does, this step
+      # comes with it.
+      #
+      # ⚠ WHAT ACTUALLY HAPPENED IS THE PART WORTH READING (run 32020141784, this job, exit 1).
+      # The design gate went red, and the one failing assertion out of 700 was that file's
+      # GUARD-THE-GUARD — "git could not answer" reported as a failure rather than laundered
+      # into "git answered: nothing". Had that gate been written the obvious way (`try { … }
+      # catch { return [] }`), `git ls-files` would have exited 128, the catch would have
+      # returned an empty list, "zero platform baselines are tracked" would have been GREEN,
+      # and D-29's rule would have been enforced by nothing inside this container from that
+      # commit onward — silently, on every green run. Plan 11-03 built that discriminated
+      # union against a hypothetical; the container produced it 19 plans later.
+      #
+      # THE FIX IS TO THE ENVIRONMENT AND NOT TO THE GATE. Do not make that test tolerate an
+      # unavailable git to get a green here; the tolerance IS the defect.
+      #
+      # BOTH SPELLINGS ARE ADDED because a container job's `GITHUB_WORKSPACE` is a translated
+      # container path (`/__w/<repo>/<repo>`) rather than the host path, and a step's default
+      # working directory is that same location — so the two are expected to be identical and
+      # the duplicate entry is harmless. Belt and braces cost one line; guessing wrong costs a
+      # CI round trip, which is the only currency this workflow spends.
+      - name: Let git operate on the checkout (container uid mismatch)
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$PWD"
+
+          # PROVE IT HERE, not ninety seconds later inside vitest with an assertion message
+          # that sends the reader to the design gate instead of to the runner. Each command
+          # below exits 128 under dubious ownership, and the default `bash -e` fails the step
+          # on the spot. The two paths are echoed so the run log answers "did GITHUB_WORKSPACE
+          # match?" without anybody having to reason about it.
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "PWD=$PWD"
+          git rev-parse --show-toplevel
+          git ls-files "*-win32.png" "*-darwin.png"
+
+          # POSITIVE CONTROL, and it is the same lesson in miniature: the commands above can
+          # all succeed while printing NOTHING, which is indistinguishable from a git that ran
+          # and found an empty index. So one query that MUST match something is run too.
+          #
+          # ⚠ IT IS NOT BELT-AND-BRACES — IT IS THE ONLY CHECK THAT CAUGHT ONE OF THE TWO LOCAL
+          # FALSIFICATIONS OF THIS STEP. Rehearsed on 2026-08-17 by running this exact script
+          # from a directory that is NOT a repository: `git rev-parse --show-toplevel` did not
+          # fail. It walked UP, found an ancestor repository, and answered `C:/Users/Admin`
+          # with exit 0 — a confident answer about a completely different repository. So both
+          # of the "prove it" commands above passed while pointed somewhere else entirely, and
+          # the count below is what returned 0 and failed the step. A command that answers
+          # about the wrong thing is the same defect class as a command that cannot answer, and
+          # only a query with a KNOWN non-empty result can tell either of them from success.
+          #
+          # A count of zero here means the checkout is not what this job thinks it is, and the
+          # visual step below would then compare against baselines that are not there.
+          COUNT="$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')"
+          echo "tracked Linux baselines: $COUNT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::git ran but reports zero tracked *-visual-linux.png files. Either the"
+            echo "::error::baselines were deleted, or this is not the checkout this job expects."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v4
         with:
           # Node 24 — the major this repository is developed and measured on (RESEARCH

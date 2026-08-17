@@ -131,6 +131,60 @@
 //       so a marker grep would have "found" leftovers in its own account of not leaving any.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// PROBE (e) — NOT A PROBE. A REAL RED, IN CI, 19 PLANS LATER (17 August 2026, plan 11-22).
+//
+// THIS IS THE ONE THAT PAYS FOR THE WHOLE FILE, and it was not triggered on purpose.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Plan 11-22 moved `ci.yml`'s `gate-db-free` job INTO the pinned Playwright container so it could
+// compare visual baselines. The container's uid is not the owner of the `actions/checkout` working
+// directory, and git 2.35.2+ refuses to operate on a repository it thinks somebody else owns. Run
+// 32020141784, job `gate-db-free`, exit 1 — and the ONLY failing assertion in the whole 700-test
+// design suite was this file's guard-the-guard:
+//
+//   FAIL tests/design/gitignore-baselines.test.ts > GATE-01 — a non-Linux visual baseline can never
+//   be committed (D-29/D-30) > actually read a .gitignore, and git actually answered
+//   AssertionError: `git ls-files *-win32.png *-darwin.png` could not be run from /__w/FitOut/FitOut
+//   — git exited 128: fatal: detected dubious ownership in repository at '/__w/FitOut/FitOut'
+//   To add an exception for this directory, call:
+//
+//   	git config --global --add safe.directory /__w/FitOut/FitOut. This is NOT a pass. An
+//   unavailable git returns nothing, and nothing is exactly what a clean index looks like, so half 2
+//   would go vacuously green. …: expected false to be true
+//
+//   Test Files  1 failed | 38 passed (39)
+//        Tests  1 failed | 696 passed | 3 skipped (700)
+//
+// WHAT WOULD HAVE HAPPENED WITHOUT THE DISCRIMINATED UNION, which is the entire argument for it.
+// The obvious spelling of this gate is `const tracked = execFileSync(...).split("\n").filter(Boolean)`
+// wrapped in a `try { } catch { return [] }`, and every reviewer would have called that defensive
+// rather than wrong. Under it, `git ls-files` exits 128, the catch returns `[]`, half 2 asserts
+// `[] ` has length 0 — and reports **GREEN**. From that commit onward, D-29's platform-baseline rule
+// would have been enforced by nothing at all inside the container, the job would have been green
+// every single run, and the failure would have been discovered the day somebody committed a
+// `*-win32.png` and nothing objected.
+//
+// The gap between "git answered: nothing" and "git could not answer" is one `catch` block wide and
+// it is the difference between a gate and a decoration. This file's own header (line 54) predicted
+// this exact scenario in the abstract on 13 August; on 17 August the environment produced it.
+//
+// THE FIX WAS TO THE ENVIRONMENT, NOT TO THIS FILE. `ci.yml`'s containerized job now runs
+// `git config --global --add safe.directory` before the build, and PROVES it took by running this
+// file's own query as a step. Not one assertion here was softened, and softening one would have been
+// the wrong repair by construction: the message above already says so, and it said so before anybody
+// needed it to. If you are ever tempted to make this gate tolerate an unavailable git, re-read this
+// block — that tolerance is the bug, and it is the bug this record exists to make unarguable.
+//
+// A NOTE ON REACH, so this is not over-read. `vitest.config.ts` EXCLUDES `tests/design/**`, so job 2's
+// `npm test` never runs this file; only job 1's `npm run test:design` does. And an AST/grep sweep of
+// `tests/`, `scripts/`, `src/`, `e2e/` and `config/` on 17 August found `execFileSync` at line 233
+// below to be the ONLY runtime git shell-out in the repository — every other `git` string in `tests/`
+// is prose in a recorded-evidence comment. So one containerized job needed the fix and one call site
+// was at risk. That is a measurement, not an assumption, and it is the reason `gate-price-parity`
+// (also containerized) was deliberately left without the step: it runs no code that shells out to
+// git. The day it does, the step comes with it.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — real blind spots, listed so the next reader under-trusts this file
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //

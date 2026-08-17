@@ -215,13 +215,24 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # [ASSUMED — RESEARCH A2] The container runs as root and the image carries no configured
-      # git identity, so `git commit` would fail with "Please tell me who you are". The
-      # `github-actions[bot]` identity below is the conventional spelling (the bot's stable user
-      # id is the local part of the noreply address). `safe.directory` is set for the same class
-      # of reason — a container job can trip git's dubious-ownership check on the workspace. Both
-      # are flagged as assumed because neither was verified against the docs in the research
-      # session; both fail loudly on the first dispatch if wrong.
+      # RESEARCH A2, NOW VERIFIED BY A REAL DISPATCH — was `[ASSUMED]`, upgraded 2026-08-17.
+      #
+      # The container runs as root and the image carries no configured git identity, so
+      # `git commit` would fail with "Please tell me who you are". The `github-actions[bot]`
+      # identity below is the conventional spelling (the bot's stable user id is the local part
+      # of the noreply address). `safe.directory` is set for the adjacent reason — a container
+      # job trips git's dubious-ownership check on the workspace.
+      #
+      # EVIDENCE, rather than the assumption this paragraph used to carry: run 32018817812
+      # succeeded, committed 25 baselines and pushed them to `dev` on the first attempt, so all
+      # three A2 items (identity, job-level `contents: write`, `safe.directory`) are confirmed.
+      #
+      # ⚠ AND `safe.directory` WAS CONFIRMED THE HARD WAY TOO, in the other direction. Plan
+      # 11-22 wrote this line here — where containers and git were both in mind — and then moved
+      # `ci.yml`'s `gate-db-free` into a container WITHOUT it. That job went red on run
+      # 32020141784 with exactly the dubious-ownership failure this line prevents. The
+      # assumption was right; applying it in one file and not the other was the mistake. If you
+      # add a container to any job that runs code shelling out to git, this line comes with it.
       - name: Configure the committer identity
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
