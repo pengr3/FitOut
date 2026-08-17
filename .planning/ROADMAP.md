@@ -194,7 +194,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7)*
 
-- [ ] 11-15-PLAN.md — `/terms`, `/privacy` and the legalese source gate
+- [x] 11-15-PLAN.md — `/terms`, `/privacy` and the legalese source gate
 - [x] 11-16-PLAN.md — EmptyState adoption: eight surfaces, positive inbox-zero, the border-dashed scope
 
 **Wave 9** *(blocked on Wave 8)*
@@ -408,7 +408,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 8. Group Bookings | v1.0 | 22/22 | Complete (verified 5/5) | 2026-07-29 |
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
-| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 17/22 | In Progress|  |
+| 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 18/22 | In Progress|  |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 0/? | Not started | - |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
