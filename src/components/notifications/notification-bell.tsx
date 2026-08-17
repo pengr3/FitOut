@@ -22,6 +22,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { BellIcon } from "lucide-react";
 
+import { EmptyState } from "@/components/patterns/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -153,12 +154,52 @@ export function NotificationBell({
               We couldn&apos;t load your notifications. Try again.
             </p>
           ) : items.length === 0 ? (
-            <div className="space-y-1 px-3 py-8 text-center">
-              <p className="text-sm font-semibold">You&apos;re all caught up</p>
-              <p className="text-sm text-muted-foreground">
-                Booking updates, approvals, and reminders will show up here.
-              </p>
-            </div>
+            // ─────────────────────────────────────────────────────────────────────────────────────
+            // STATE-04 (plan 11-16) — the panel's zero, through the one shared shell.
+            // ─────────────────────────────────────────────────────────────────────────────────────
+            //
+            // The plan recorded this surface as having NO empty state. It has had one since D-92 —
+            // an undesigned one: no icon, and a title that was a `<p className="text-sm
+            // font-semibold">`, which is shell A's `<p>`-that-looks-like-a-heading defect in a third
+            // place the UI-SPEC's two-shell table never counted. Both strings below are byte-
+            // identical to the shipped ones; what changed is the shell, the glyph and the ELEMENT.
+            //
+            // `titleAs="h3"` — the panel's own header is `<h2>Notifications</h2>`, eleven lines up.
+            //
+            // THE CLIENT BOUNDARY, MEASURED RATHER THAN ASSUMED. This module is `"use client"`, so
+            // importing `EmptyState` here compiles the pattern into the client bundle. That is legal
+            // and it does NOT touch the pattern's own status: `empty-state.tsx` still has no
+            // directive prologue, and its whole transitive import graph is isomorphic — `react`
+            // (type-only), `lucide-react`, `lib/design/status-tones.ts` (zero imports) and
+            // `lib/utils.ts` (clsx + tailwind-merge). Nothing under it imports `server-only`, the
+            // database, or the request headers, so there is nothing here that a client bundle must
+            // not have. `search/search-results.tsx` is a `"use client"` module doing the same thing
+            // in the same commit.
+            //
+            // THE ALTERNATIVE WAS REJECTED ON A MEASUREMENT, not on convenience. Passing the shell
+            // down as a `ReactNode` from the server parent is a real option — this component has
+            // exactly ONE call site, `patterns/ambient-notifications.tsx:137` — but that file's
+            // header states as a property that it "renders no wordmark, no destinations and no
+            // product copy", and these two sentences are product copy. Buying a server render for
+            // the pattern by moving copy into the one module that promises not to hold any is a bad
+            // trade. The copy stays on the surface that owns it, which is also `empty-state.tsx`'s
+            // own sharpest rule.
+            //
+            // `tone="neutral"` DESPITE THE COPY MATCHING `/host/requests`' new positive title, and
+            // that is a scope decision rather than an oversight: AC#24 pins exactly one positive
+            // empty state this phase, an emptied WORK QUEUE the host cleared themselves. A bell at
+            // zero is ambient — nobody achieved it — and a green check in a 320px popover is a
+            // second accent decision that belongs to whoever redesigns this panel.
+            //
+            // `actions={null}`: there is deliberately no `/notifications` page (deferred at D-92,
+            // see the overflow note below), so every candidate action here is a dead link.
+            <EmptyState
+              icon={BellIcon}
+              titleAs="h3"
+              title="You're all caught up"
+              body="Booking updates, approvals, and reminders will show up here."
+              actions={null}
+            />
           ) : (
             <ul className="divide-y">
               {items.map((item) => (

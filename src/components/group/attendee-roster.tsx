@@ -54,9 +54,15 @@
 // Not "use client" — a pure presentational component the management RSC renders directly. The one
 // interactive control on a row (Remove attendee) is its own client island.
 
-import { CircleUserRoundIcon, UserRoundCogIcon, UserRoundIcon } from "lucide-react";
+import {
+  CircleUserRoundIcon,
+  UserRoundCogIcon,
+  UserRoundIcon,
+  UsersRoundIcon,
+} from "lucide-react";
 
 import type { RosterEntry } from "@/lib/group/rsvp";
+import { EmptyState } from "@/components/patterns/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { RemoveAttendeeButton } from "@/components/group/remove-attendee-button";
@@ -118,14 +124,36 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
         </ul>
 
         {/* The empty state keeps the organizer row above it and the share block above that (08-UI-SPEC §2) —
-            an organizer who has not shared the link yet is one step from the fix, not at a dead end. */}
+            an organizer who has not shared the link yet is one step from the fix, not at a dead end.
+
+            STATE-04 (plan 11-16) — THE SHARED SHELL, AND THIS FILE IS WHERE THE SURFACE ACTUALLY IS. The
+            plan named `(app)/bookings/[id]/group/page.tsx` as the file to edit; that page renders
+            `<AttendeeRoster entries={roster} />` and owns no zero-branch of its own. The roster's zero is
+            here, and this is its only call site. Same finding shape as plan 11-13's `price-breakdown.tsx`.
+
+            THE TITLE WAS A `<p className="text-sm font-semibold">` — shell A's exact defect, in a second
+            place the UI-SPEC's two-shell table never counted. `titleAs="h3"` because this block sits under
+            this card's own `<h2>Who's coming</h2>`; `h2` here would put two h2s in one panel.
+
+            Both strings are byte-identical to the shipped ones.
+
+            `actions={null}`, and it is the composition rather than a shrug: the invite affordance the
+            body names is `<ShareLinkBox>`, rendered by the same page DIRECTLY ABOVE this card. Passing it
+            here would put two copy-this-link controls for one link on one screen — the roster's job is to
+            point at the affordance, not to grow a second one.
+
+            NOTE THE NESTING, since it is a real cost: this dashed panel sits inside `CardContent`'s
+            `p-4 sm:p-6`, so the empty region carries 24 + 32 = 56px of inset at `sm`. Accepted rather
+            than special-cased — the pattern owns its geometry on purpose, and a `className` escape hatch
+            for one adopter is how one shell becomes two again. */}
         {entries.length === 0 && (
-          <div className="space-y-1">
-            <p className="text-sm font-semibold">No one&apos;s RSVP&apos;d yet</p>
-            <p className="text-sm text-muted-foreground">
-              Share your invite link and people will show up here as they respond.
-            </p>
-          </div>
+          <EmptyState
+            icon={UsersRoundIcon}
+            titleAs="h3"
+            title="No one's RSVP'd yet"
+            body="Share your invite link and people will show up here as they respond."
+            actions={null}
+          />
         )}
 
         {declined.length > 0 && (
