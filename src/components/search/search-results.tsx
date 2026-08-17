@@ -157,11 +157,18 @@ export function SearchResults({
           `EmptyState` would say "there is nothing here" about a search that never ran — the precise
           inversion of the T-11-FALSEALARM rule the same plan is enforcing on `/host/requests`.
 
-          It is not converted to `ErrorState` here either: that pattern REQUIRES a `routeOut` second action,
-          which is a product decision (where does a failed search send you?) belonging to the five boundaries
-          plan 11-18 owns. Carried as a declared, reasoned row in `NON_EMPTY_STATE_DASHED`
-          (tests/design/empty-state-adoption.test.ts) so it is an exclusion with an argument rather than a
-          hole, and written up in the phase's deferred-items.md for 11-18. */}
+          It is not converted to `ErrorState` here either. That was OPEN when 11-16 wrote it — the pattern
+          REQUIRES a `routeOut` second action, and where a failed search sends you was a product decision
+          belonging to the five boundaries plan 11-18 owns. **11-18 has now answered it, and the answer is
+          that this block keeps one action permanently.** `ErrorState`'s two-action rule exists because a
+          BOUNDARY replaces the whole screen, so without a way out the only recourse is the back button into
+          the same error. This block is not that: the header, the filters, the footer and the search form
+          above it are all still mounted, so the page IS the way out — and the only candidate destination is
+          `/`, the page the user is already on, which would render a button that visibly does nothing.
+          A dead action rendered to satisfy a required prop makes "two actions, always" mean less everywhere
+          it is enforced. Carried as a declared, reasoned — and now PERMANENT — row in
+          `NON_EMPTY_STATE_DASHED` (tests/design/empty-state-adoption.test.ts), with the full argument in
+          the phase's deferred-items.md under [11-18]. */}
       {fetchError ? (
         <div className="rounded-xl border border-dashed p-8 text-center" role="alert">
           <p className="font-semibold">Something went wrong loading spaces</p>

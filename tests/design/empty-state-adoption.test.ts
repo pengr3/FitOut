@@ -322,9 +322,13 @@ const NON_EMPTY_STATE_DASHED: readonly DashedRow[] = [
       "It is `role=\"alert\"` with \"Something went wrong loading spaces\" and one \"Try again\" — " +
       "`patterns/error-state.tsx` names these exact lines as the shape `ErrorState` was extracted " +
       "FROM. Through `EmptyState` it would announce \"there is nothing here\" about a search that " +
-      "never ran. It is not converted to `ErrorState` here either: that pattern REQUIRES a `routeOut` " +
-      "second action, and where a failed search sends you is a product decision belonging to the five " +
-      "boundaries plan 11-18 owns. Written up in the phase's deferred-items.md for 11-18.",
+      "never ran. It is not converted to `ErrorState` here either, and as of plan 11-18 that is " +
+      "PERMANENT rather than pending: `routeOut` is required because a BOUNDARY replaces the whole " +
+      "screen and needs a way out, whereas this block sits inside a working page whose header, " +
+      "filters and search form are the way out — and its only candidate destination is `/`, the page " +
+      "the user is already on. Re-opening this row needs an argument against that, not just a note " +
+      "that the adoption count could be higher. Full reasoning in the phase's deferred-items.md " +
+      "under [11-18].",
   },
 ];
 
