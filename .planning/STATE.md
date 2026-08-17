@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 18
+current_plan: 19
 status: executing
-stopped_at: "Completed 11-15-PLAN.md — /terms and /privacy ship as static prerendered placeholder pages whose notice is asserted by string equality and coupled to its gate (AC#4); the static-vs-correct-header trade was measured both ways; six watched reds including the fourth vacuity result. NOT PUSHED. human_needed: the real legal documents (six undecided facts + legal review). Next: 11-17."
-last_updated: "2026-08-17T07:37:50.393Z"
+stopped_at: Completed 11-18-PLAN.md
+last_updated: "2026-08-17T08:26:54.748Z"
 last_activity: 2026-08-17
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 39
-  completed_plans: 36
+  completed_plans: 37
   percent: 9
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 11 (quality-gates-pattern-layer-app-shell) — EXECUTING
-Plan: 18 of 22
-Current Plan: 18
+Plan: 19 of 22
+Current Plan: 19
 Total Plans in Phase: 22
 Status: Ready to execute
 
@@ -266,6 +266,7 @@ Last activity: 2026-08-17
 | Phase 11 P14 | 60 | 4 tasks | 12 files |
 | Phase 11 P15 | ~75 min | 3 tasks | 4 files |
 | Phase 11 P17 | 55min | 3 tasks | 24 files |
+| Phase 11 P18 | 95min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -535,6 +536,9 @@ Recent decisions affecting current work:
 - [Phase 11]: 11-17: loading-state coverage is discriminated by isAsyncDefaultExport, not by an await grep and not by the build manifest's dynamic marker. loading.tsx is a Suspense boundary around the PAGE and only an async default export can suspend it; measured, all four (auth) routes build dynamic because their layout renders PublicHeader, so the plan's claimed 1:1 with the manifest is false in one direction.
 - [Phase 11]: 11-17: a loading.tsx renders its page's static heading VERBATIM rather than through PageHeader wherever the page's h1 is not at the pattern's text-xl scale, and renders NO heading where the h1 is data-derived — an invented title gets either the words or the width wrong.
 - [Phase 11]: 11-17: a route with no resolved geometry (every exit is a redirect) gets a named live region and a sentence, not a skeleton — /host/listings/new and /host/payouts/refresh.
+- [Phase 11]: 11-18: The plan's SENTINEL zero-count over page.content() is FALSE under next dev (React serializes message + absolute file path into a self.__next_f flight script) and TRUE in production (bare digest). Measured on both servers; the e2e spec asserts zero in the rendered document plus closure over that one named channel.
+- [Phase 11]: 11-18: No route-group error boundary composes chrome, and the root one does not compose the shell either — so a failed / unmounts the public header and footer. Logged as a deferred (public)/error.tsx decision rather than fixed, because STATE-02's inventory is exactly five and the gate pins it by name.
+- [Phase 11]: 11-18: There is no route out of a failed search — the only candidate is the page the user is already on — so search-results.tsx's inline error keeps ONE action permanently. ErrorState's two-action rule is for a boundary that REPLACED a screen. Closes 11-16's routeOut handoff.
 
 ### Pending Todos
 
@@ -637,8 +641,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-17T07:37:33.437Z
-Stopped at: Completed 11-15-PLAN.md — /terms and /privacy ship as static prerendered placeholder pages whose notice is asserted by string equality and coupled to its gate (AC#4); the static-vs-correct-header trade was measured both ways; six watched reds including the fourth vacuity result. NOT PUSHED. human_needed: the real legal documents (six undecided facts + legal review). Next: 11-17.
+Last session: 2026-08-17T08:26:54.729Z
+Stopped at: Completed 11-18-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-17T13:24:00.000Z
