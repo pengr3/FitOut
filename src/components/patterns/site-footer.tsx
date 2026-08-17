@@ -13,10 +13,10 @@
 //   • `global-error.tsx` — it renders its own `<html>`/`<body>` and receives no stylesheet at all, so
 //     every class below would be inert. Its own contract already says "Footer / header: none".
 //
-// The SIX mount sites are the five group layouts — `(public)`, `(auth)`, `(app)`, `(host)/host`,
-// `listings/[id]/(detail)` — plus `src/app/not-found.tsx`. The root not-found is the one that is easy
-// to miss: it sits directly inside `src/app/layout.tsx`, ABOVE all five groups, so nothing wraps it
-// and it composes its own shell. `(legal)` becomes the seventh when plan 11-15 creates it.
+// The SEVEN mount sites are the six group layouts — `(public)`, `(auth)`, `(app)`, `(host)/host`,
+// `listings/[id]/(detail)`, `(legal)` — plus `src/app/not-found.tsx`. The root not-found is the one
+// that is easy to miss: it sits directly inside `src/app/layout.tsx`, ABOVE all six groups, so
+// nothing wraps it and it composes its own shell. `(legal)` is the seventh, added by plan 11-15.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // THERE IS NO `<nav>` ELEMENT HERE, AND THAT IS A CRITERION RATHER THAN A PREFERENCE
@@ -108,9 +108,13 @@ const LINK_CLASS = `${BODY_CLASS} underline-offset-4 hover:underline hover:text-
 /**
  * The two columns of destinations, authored as data so the markup below cannot drift between them.
  *
- * `/terms` and `/privacy` DO NOT EXIST YET — plan 11-15 creates them. The links are authored here
- * because the footer is the reason those routes exist, and they resolve exactly one plan later. A
- * reviewer testing the footer in between gets two 404s from these two hrefs, and that is expected.
+ * `/terms` and `/privacy` EXIST — plan 11-15 created them (`src/app/(legal)/terms/page.tsx` and
+ * `src/app/(legal)/privacy/page.tsx`). The links were authored here first, one plan ahead of the
+ * routes, because the footer is the reason those routes exist at all; both resolve to a real page
+ * today. Their COPY is still a declared placeholder — the real Terms and Privacy Policy are a
+ * `human_needed` item blocked on six business facts, and `tests/design/legal-copy.test.ts` holds
+ * the placeholder admission in place until they arrive. That is a gap in the writing, not in the
+ * routing: nothing in this footer is a dead link.
  */
 const PRODUCT_LINKS = [
   { href: "/", label: "Find a space" },

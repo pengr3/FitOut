@@ -83,7 +83,8 @@ export default function LegalLayout({
           gives this surface verbatim. The pages inside compose the four named roles by hand. */}
       <main className="mx-auto w-full max-w-prose px-4 py-12 sm:py-16">{children}</main>
 
-      {/* SHELL-02, and the SEVENTH mount site — `site-footer.tsx:19` predicted this one by name.
+      {/* SHELL-02, and the SEVENTH mount site — `site-footer.tsx:16-19` lists all seven by name,
+          this one included; it predicted this group before plan 11-15 created it and now records it.
           `mt-auto` inside the wrapper above is what keeps it at the bottom of a short page. */}
       <SiteFooter />
     </div>
