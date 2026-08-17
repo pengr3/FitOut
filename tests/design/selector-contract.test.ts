@@ -19,7 +19,24 @@
 //   getByText      63   ← RECORDED, NOT GATED.
 //   .locator(      23   ← RECORDED, NOT GATED. (`11-UI-SPEC.md` § GATE-04 says 22. 23 is what the tree
 //                          holds; the spec is off by one and the measurement wins.)
-//   getByTestId(    0   ← RECORDED. Zero today, because `src/` had zero `data-testid` when this landed.
+//   getByTestId(    0   ← RECORDED. Zero at that date, because `src/` had zero `data-testid` when this
+//                          landed. NO LONGER TRUE — see the re-measurement.
+//
+// RE-MEASURED 17 August 2026 by plan `11-22`, over **21** `.ts` files under `e2e/` (the tree grew by
+// 11-06's price-parity spec, 11-21's three measurement specs, this plan's two visual specs and two
+// helpers). Same code path, comments stripped:
+//
+//   getByRole     110   ← floor 92, clear by 18
+//   getByLabel     36   ← floor 30, clear by 6
+//   getByText      65
+//   .locator(      37
+//   getByTestId(   12   ← was 0. The phase shipped the 17 declared hooks and the specs started using
+//                          them, which is the intended direction and is why this one was never gated.
+//
+// The August-13 block above is left standing as a DATED RECORD rather than overwritten. Both floors
+// held throughout the phase without being touched, which is the evidence that a floor was the right
+// shape: an equality pinned at 92/30 would have gone red eighteen times and been bumped eighteen
+// times, and the eighteenth bump is where a real regression hides.
 //
 // ALL FIVE COUNTS ARE IDENTICAL RAW AND COMMENT-STRIPPED TODAY — measured both ways before this file
 // was written, not assumed. No spec currently quotes a query token in prose, so the stripper changes
@@ -42,7 +59,8 @@
 // exists to remove — an equality would import it through the gate meant to prevent it.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
-// WATCHED RED — FOUR WAYS, ALL REAL (13 August 2026). GREEN IS 5 PASSED.
+// WATCHED RED — SEVEN WAYS, ALL REAL. (a)-(d) 13 August 2026; (e)-(g) 17 August 2026, plan 11-22.
+// GREEN IS 7 PASSED (was 5 before the forward direction landed).
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // A gate that has never been watched failing is not a gate (`tests/design/infra.test.ts:5-9`). Command
@@ -112,20 +130,72 @@
 //       whoever moved the directory, but a scan narrowed by a WRONG GLOB (the realistic version of this
 //       failure) never throws at all, and the 50-file floor is what catches that. Reverted → 5 passed.
 //
+//   ── the forward direction, added 17 August 2026 ────────────────────────────────────────────────────
+//
+//   (e) THE FORWARD DIRECTION, and it is the probe plan 11-22's own acceptance criterion named:
+//       `data-testid="panel-card"` deleted from `src/components/patterns/panel-card.tsx:75`, nothing
+//       else changed. 2 failed / 5 passed, and BOTH new assertions fired:
+//
+//         FAIL  … > every id the contract declares is actually rendered somewhere in src/ (D-32)
+//         AssertionError: expected [ Array(1) ] to deeply equal []
+//         + [
+//         +   "panel-card — declared in src/lib/design/selector-contract.ts but rendered NOWHERE in
+//         +    src/. Its owner is plan 11-08, which is the plan that owed it. …",
+//         + ]
+//
+//         FAIL  … > the declared set and the rendered set are the same set
+//         AssertionError: … Declared-but-absent: [panel-card]. Rendered-but-undeclared: [none]. …
+//
+//       ⚠ THE FINDING, AND IT IS THE REASON THIS ASSERTION READS THE AST INSTEAD OF THE TEXT. On the
+//       EXACT SAME MUTATED TREE, a grep-based forward check reports **GREEN**:
+//
+//         grep -rl 'data-testid="panel-card"' src --include=*.tsx
+//           src/app/(legal)/privacy/page.tsx      ← prose, line 138
+//           src/app/(legal)/terms/page.tsx        ← prose, line 148
+//
+//       Two comments in the legal pages quote the attribute while EXPLAINING that `PanelCard` carries
+//       it — so the obvious spelling of this gate would have been satisfied, forever, by the sentence
+//       describing the hook it was meant to be checking. Measured, not reasoned about. That is the
+//       seventh scan-of-nothing-shaped vacuity this phase has recorded, and the first where the decoy
+//       is a comment arguing FOR the thing being checked (11-03 found the same shape in `.gitignore`).
+//       The `collectTestIds` AST walk was already here for the ban; reusing that one scan for both
+//       directions is what makes the forward half honest. Reverted → 7 passed.
+//
+//   (f) THE RENAME, which is the realistic failure rather than the surgical one:
+//       `data-testid="panel-card"` → `"panel-card-box"` in the same file. 3 failed / 4 passed — the
+//       ban, the forward direction and the complement all fire, and the third is the one worth having:
+//
+//         AssertionError: … Declared-but-absent: [panel-card]. Rendered-but-undeclared:
+//         [panel-card-box]. One of each is almost always ONE RENAME …
+//
+//       Assertions 2 and 5 each report half of that and each half reads like an unrelated defect.
+//       Reverted → 7 passed.
+//
+//   (g) GUARD-THE-GUARD, forward side. `SELECTOR_IDS` gutted from 17 ids to 3. 3 failed / 4 passed:
+//
+//         AssertionError: SELECTOR_IDS declares 3 ids. This is a FLOOR — an empty or shrunken
+//         inventory makes the forward assertion below green by having nothing to look for.:
+//         expected 3 to be greater than or equal to 17
+//
+//       Note WHICH assertion this probe is really for. With 3 declared ids the forward list is empty
+//       and assertion 5's own `missing` check is GREEN — deleting the inventory is the one edit that
+//       makes "every declared id is rendered" trivially true. The floor is what catches it, and the
+//       ban and the complement catch the 14 now-undeclared ids from the other side. Restored →
+//       7 passed.
+//
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — real blind spots, listed so the next reader under-trusts this file
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-//   • THE FORWARD DIRECTION IS NOT ASSERTED HERE, AND THAT IS DELIBERATE. "Every id declared in
-//     `SELECTOR_IDS` actually appears in `src/`" — D-32's existence half — is NOT checked by this file.
-//     At wave 1 it would be vacuously true against an empty set (17 declared ids, zero rendered), and
-//     from wave 4 onward it would be RED for every id whose owning plan has not run yet, which makes it
-//     a gate that must be disabled to get work done. **It is owned by plan `11-22`**, the plan that
-//     closes the last adoption, and that plan's Task 4 also asserts the two directions are exact
-//     complements. The `owner` column in `src/lib/design/selector-contract.ts` is what makes this
-//     hand-off auditable rather than forgotten: every declared id names the plan that owes it, so an id
-//     still missing when `11-22` runs is traceable to the plan that failed to ship it. If you are
-//     reading this after `11-22` has run, this bullet is stale and should be gone — say so.
+//   • THE FORWARD DIRECTION IS NOW COVERED — this bullet used to say it was not, and instructed
+//     whoever read it after plan `11-22` to say so. Saying so: `11-22` ran on 17 August 2026, every
+//     owning plan (11-06 → 11-15) had shipped its ids, and assertions 5 and 6 above close it. All 17
+//     declared ids are rendered; the declared set and the rendered set are equal. The deferral was
+//     correct rather than lazy — at wave 1 the assertion was vacuously true over a tree with zero test
+//     ids, and from wave 4 it would have been red for every id whose owning plan had not run yet,
+//     which is a gate that has to be switched off to get work done. The `owner` column in
+//     `src/lib/design/selector-contract.ts` is what made the hand-off auditable, and it earned its
+//     keep: probe (e)'s failure message names `11-08` without anybody looking it up.
 //   • The undeclared-id scan reads `src/**/*.tsx` only, and only JSX attributes with a STRING-LITERAL
 //     value. A `data-testid` composed at runtime (`data-testid={id}`, a spread, a template with a
 //     substitution) is invisible to it. That is the safe direction for a BAN — it can miss a violation,
@@ -148,6 +218,7 @@ import { stripComments } from "./helpers/strip-comments";
 import {
   SELECTOR_IDS,
   SELECTOR_ATTRIBUTE,
+  SELECTOR_CONTRACT,
 } from "@/lib/design/selector-contract";
 
 const E2E_DIR = resolve(process.cwd(), "e2e");
@@ -276,6 +347,17 @@ const foundIds: FoundId[] = tsxFiles.flatMap((f) =>
 
 const declared = new Set<string>(SELECTOR_IDS);
 
+/**
+ * Every id the tree actually RENDERS, from the same one scan the ban above reads.
+ *
+ * One scan, both directions, on purpose. Two scanners would be two things to point at the wrong
+ * directory, and probe (d) in the header measured exactly how silent that failure is.
+ */
+const rendered = new Set<string>(foundIds.map((f) => f.value));
+
+/** Floor, not an equality: Phases 12-19 will declare more ids, and a gutted list must not pass. */
+const DECLARED_ID_FLOOR = 17;
+
 /** The other three counts, rendered for the floor's failure message — a fall here needs its companion. */
 const companionCounts = (): string =>
   `getByLabel ${specCounts["getByLabel("]}, getByText ${specCounts["getByText("]}, ` +
@@ -347,6 +429,58 @@ describe("GATE-04 — the structural-selector contract", () => {
       );
 
     expect(violations).toEqual([]);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  // ASSERTION 5 — THE FORWARD DIRECTION. Deferred by plan 11-02, which named 11-22 as its owner; this
+  // is 11-22, every owning plan (11-06 → 11-15) has now run, and the deferral is discharged here.
+  //
+  // It is only assertable NOW. At wave 1 it was vacuously true against a tree with zero test ids, and
+  // from wave 4 onward it would have been red for every id whose owning plan had not shipped yet — a
+  // gate that must be disabled to get work done, which is worse than no gate.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  it("every id the contract declares is actually rendered somewhere in src/ (D-32)", () => {
+    // Guard-the-guard, and it is not ceremony: a `SELECTOR_IDS` gutted to `[]` makes the `missing`
+    // list below empty and this assertion green, which is the same shape of vacuity probe (d) found
+    // on the other direction.
+    expect(
+      SELECTOR_IDS.length,
+      `SELECTOR_IDS declares ${SELECTOR_IDS.length} ids. This is a FLOOR — an empty or shrunken ` +
+        `inventory makes the forward assertion below green by having nothing to look for.`,
+    ).toBeGreaterThanOrEqual(DECLARED_ID_FLOOR);
+
+    const missing = SELECTOR_IDS.filter((id) => !rendered.has(id)).map(
+      (id) =>
+        `${id} — declared in src/lib/design/selector-contract.ts but rendered NOWHERE in src/. ` +
+        `Its owner is plan ${SELECTOR_CONTRACT[id].owner}, which is the plan that owed it. A hook ` +
+        `nobody renders is a promise the contract makes on the tree's behalf and the tree does not ` +
+        `keep: every spec that selects it fails with "element not found", which reads as a broken ` +
+        `test rather than as a missing hook. Ship the id or delete the row — the row is the claim.`,
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  // ASSERTION 6 — the two directions are EXACT COMPLEMENTS.
+  //
+  // Not a restatement of 2 and 5, and worth its own failure message: assertions 2 and 5 each name one
+  // difference, and this one names BOTH sets at once. When the two ends disagree the useful output is
+  // the whole picture — "declared but absent" beside "rendered but undeclared" — because the usual
+  // cause is a single rename, which produces one of each and reads as two unrelated failures.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  it("the declared set and the rendered set are the same set", () => {
+    const sorted = (values: Iterable<string>): string[] => [...values].sort();
+
+    expect(
+      sorted(rendered),
+      `the ids declared and the ids rendered are not the same set. Declared-but-absent: ` +
+        `[${sorted(SELECTOR_IDS).filter((id) => !rendered.has(id)).join(", ") || "none"}]. ` +
+        `Rendered-but-undeclared: ` +
+        `[${sorted(rendered).filter((id) => !declared.has(id)).join(", ") || "none"}]. ` +
+        `One of each is almost always ONE RENAME, and the fix is a single edit rather than the two ` +
+        `unrelated ones the other assertions' messages suggest in isolation.`,
+    ).toEqual(sorted(SELECTOR_IDS));
   });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────────

@@ -35,11 +35,34 @@
 #     job 3, `gate-price-parity`. Its whole justification is that it is ONE self-contained,
 #     secret-free spec rather than twelve; naming the spec file explicitly in the run command
 #     is what keeps that true, so do not replace it with `npm run test:e2e`.
-#   * The Playwright `visual` project step on job 1 is added by plan `11-22`, together with the
-#     `workflow_dispatch` baseline-regeneration job (D-27). That job — and ONLY that job —
-#     needs `contents: write`; it will grant it per-job. The repository setting was confirmed
-#     by a human on 2026-08-13 as "Read and write permissions", so 11-22 needs no settings
-#     change, only a per-job `permissions:` block.
+#   * The Playwright `visual` project step on job 1 LANDED on 2026-08-17 (plan `11-22`) —
+#     this bullet used to promise it. Job 1 now runs inside the same pinned Playwright image
+#     job 3 uses, because comparing screenshots needs a browser. The baseline-REGENERATION job
+#     (D-27) is NOT here: it lives in its own file, `.github/workflows/baselines.yml`, on a
+#     `workflow_dispatch` trigger, and it is the only thing in this repository that carries
+#     `contents: write` or Playwright's snapshot-update CLI flag. That flag in THIS file would
+#     let job 1 mint whatever it happened to render and then agree with itself on every run —
+#     D-135's fail-open rebuilt one layer up (T-11-BASEMINT).
+#
+#     ⚠ THAT FLAG IS DELIBERATELY NOT SPELLED ANYWHERE IN THIS FILE, COMMENTS INCLUDED, AND
+#     THIS PARAGRAPH WOULD HAVE BEEN THE FIRST OFFENDER. The cheapest possible audit of the
+#     rule is `grep -c -- "--update-snap<no space>shots" .github/workflows/ci.yml` returning
+#     **0**, and a comment containing the token makes that command permanently non-zero — so a
+#     comment written to explain the prohibition would be the thing that stopped the
+#     prohibition being checkable in one command. MEASURED, not predicted: plan 11-22's own
+#     acceptance check for this task fails the task if this file CONTAINS that flag's spelling,
+#     and the first draft failed it on the strength of its own warning label — then failed it a
+#     second time on the sentence describing the first failure. Two rewrites, both recorded
+#     rather than quietly folded away, because the second one is the sharper lesson: prose about
+#     a forbidden token is still the token. Same
+#     device as `src/app/(public)/invite/[token]/opengraph-image.tsx`, which describes three
+#     forbidden identifiers by role and never by name for exactly this reason, and the same law
+#     as the vacuity table further down: a substring check on a documented file is wrong in
+#     BOTH directions — falsely green for requirements, falsely red for prohibitions.
+#
+#     The repository's "Read and write permissions" setting was confirmed by a human on
+#     2026-08-13 and the dispatch job's push worked on the first attempt, so no settings change
+#     was needed.
 #
 # THE TWO BINDING RULES THIS FILE MAKES ENFORCEABLE (D-25):
 #   1. A phase cannot be marked complete with CI red.
@@ -142,16 +165,68 @@ jobs:
   # ------------------------------------------------------------------------------------------
   # JOB 1 — the DB-free gate, which PROVES it is DB-free on every single run.
   #
-  # `npm run build` is `lint && test:design && next build`, so this one step is three gates at
-  # once: the ESLint gate (including the design-leak rule), the ~460-assertion design gate, and
+  # `npm run build` is `lint && test:design && next build`, so that one step is three gates at
+  # once: the ESLint gate (including the design-leak rule), the ~700-assertion design gate, and
   # GATE-05's `server-only` client/server boundary check, which fails `next build` outright if
   # any client graph reaches a money or availability module.
+  #
+  # SINCE 2026-08-17 IT IS ALSO THE VISUAL-REGRESSION GATE (GATE-01, plan 11-22), which is why
+  # this job moved into a container. The two halves stay in ONE job deliberately: they share the
+  # same DB-free assertion, and splitting them would mean a second `npm ci` and a second copy of
+  # the unreachable-database argument to keep in sync.
   # ------------------------------------------------------------------------------------------
   gate-db-free:
-    name: gate-db-free (lint + design + build)
+    name: gate-db-free (lint + design + build + visual)
     runs-on: ubuntu-latest
+
+    # IN the pinned Playwright image — the SAME image, at the SAME exact tag, that
+    # `.github/workflows/baselines.yml` generates the baselines in. That identity is the whole of
+    # D-27: a screenshot is a function of the browser, the fonts and the OS that produced it, so
+    # the only way "the baseline matches" can mean anything is for the machine that compares to
+    # be the machine that shot. If these two tags ever diverge, every baseline in the repository
+    # becomes noise on the same day, and the failure looks like 25 unrelated visual regressions.
+    #
+    # The tag must ALSO equal the project's exact `@playwright/test` pin (1.60.0, pinned exact by
+    # plan 11-03 for this reason, T-11-VERDRIFT): Playwright's own docs say a mismatch leaves it
+    # "unable to locate browser executables". THREE things move together or none of them do — the
+    # package, this tag, and `baselines.yml`'s tag.
+    #
+    # No `npx playwright install` step: the image ships the browsers and their OS dependencies.
+    # `--ipc=host` is Playwright's documented Chromium recommendation — "without it, Chromium can
+    # run out of memory and crash", which presents as a flaky test and therefore gets retried
+    # rather than fixed. Same options as job 3, for the same reasons.
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+      options: --ipc=host
+
     # No `services:` block. That absence is the point of this job, and the DATABASE_URL below
     # is what stops it from being a claim.
+    env:
+      # THE ASSERTION. This URL points at a closed port on the loopback interface: nothing
+      # listens on 59999 and nothing ever will. Measured at HEAD on 2026-08-13, `npm run build`
+      # with this value exits 0, because every DB-touching route classifies as dynamic and
+      # postgres.js connects lazily — module evaluation during page-data collection neither
+      # throws nor dials out.
+      #
+      # Setting it converts "job 1 is DB-free" from a one-time measurement into a standing
+      # per-run assertion: the day a phase adds a build-time database read — most plausibly a
+      # root `not-found.tsx` or `global-error.tsx` that reaches `@/lib/db` on a path Next CAN
+      # prerender — this job goes red immediately and the trace names the file.
+      #
+      # IT IS AT JOB LEVEL RATHER THAN ON THE BUILD STEP SINCE 2026-08-17, because the visual
+      # step needs it too and the app the dev server boots must not be able to reach a different
+      # database from the one the build was checked against. One variable, two steps, no drift.
+      # 11-UI-SPEC § GATE-01's scoping rule ("Phase 11 baselines ONLY DB-free surfaces") is what
+      # makes that safe, and this line is what makes the rule enforced rather than remembered:
+      # baseline a surface that reads the database and the visual step fails at that surface's
+      # reachability hook, naming it.
+      #
+      # DO NOT "fix" a red here by deleting this variable. An UNSET DATABASE_URL is strictly
+      # worse than a wrong one: `postgres(undefined!)` falls back to libpq defaults and may find
+      # a real database on some future runner, at which point the job is green and the property
+      # it exists to protect is gone silently.
+      DATABASE_URL: postgres://unreachable:unreachable@127.0.0.1:59999/nope
+
     steps:
       - uses: actions/checkout@v4
 
@@ -168,23 +243,10 @@ jobs:
       - name: Build (lint + design gate + next build)
         run: npm run build
         env:
-          # THE ASSERTION. This URL points at a closed port on the loopback interface: nothing
-          # listens on 59999 and nothing ever will. Measured at HEAD on 2026-08-13, this exact
-          # command exits 0, because every DB-touching route classifies as dynamic and
-          # postgres.js connects lazily — module evaluation during page-data collection neither
-          # throws nor dials out.
+          # `DATABASE_URL` is NOT repeated here. It is on the job, above, with the full argument
+          # for why it points at a closed port — moved there on 2026-08-17 so this step and the
+          # visual step below cannot drift onto different databases.
           #
-          # Setting it converts "job 1 is DB-free" from a one-time measurement into a standing
-          # per-run assertion: the day a phase adds a build-time database read — most plausibly
-          # a root `not-found.tsx` or `global-error.tsx` that reaches `@/lib/db` on a path Next
-          # CAN prerender — this job goes red immediately and the trace names the file.
-          #
-          # DO NOT "fix" a red here by deleting this variable. An UNSET DATABASE_URL is strictly
-          # worse than a wrong one: `postgres(undefined!)` falls back to libpq defaults and may
-          # find a real database on some future runner, at which point the job is green and the
-          # property it exists to protect is gone silently.
-          DATABASE_URL: postgres://unreachable:unreachable@127.0.0.1:59999/nope
-
           # ── BUILD-ONLY PLACEHOLDERS. NOT SECRETS. NEVER MAKE THEM SECRETS. ──────────────
           # The very first CI run (run 31697376606) went red here, and it found a REAL defect
           # that had been latent for 167 commits and that NO local run could ever surface:
@@ -235,6 +297,36 @@ jobs:
           BETTER_AUTH_SECRET: ci-build-only-placeholder-not-a-real-secret
           PAYMONGO_SECRET_KEY: ci-build-only-placeholder-not-a-real-key
           PAYMONGO_WEBHOOK_SECRET: ci-build-only-placeholder-not-a-real-webhook-secret
+
+      # GATE-01 — THE COMPARISON. 25 committed `*-visual-linux.png` baselines, shot by this exact
+      # image and compared by this exact image, over the DB-free surfaces 11-UI-SPEC § GATE-01
+      # declares. The inventory is `src/lib/design/visual-baselines.ts`; the specs iterate it.
+      #
+      # ⚠ NEVER ADD PLAYWRIGHT'S SNAPSHOT-UPDATE FLAG TO THIS COMMAND. It is the only thing that
+      # can write a baseline, it lives in `.github/workflows/baselines.yml` alone, and here it
+      # would make this step regenerate the reference it is supposed to be checking against —
+      # green forever, measuring nothing. Same fail-open D-135 prescribed and D-28 closed in
+      # configuration, rebuilt one layer up (T-11-BASEMINT). The flag is named by ROLE and not by
+      # spelling on purpose; the header explains why, and that explanation was itself measured
+      # breaking the audit before it was rewritten. `playwright.config.ts`'s
+      # unconditional `updateSnapshots: "none"` is what stops this step writing anything even if
+      # a surface is missing a baseline: MEASURED (11-RESEARCH Finding 4), that case writes ZERO
+      # files, loses the `, writing actual.` clause from its error, and is RETRIABLE — so it
+      # stays red across all three CI retries and across a bare re-run. Under Playwright's default
+      # `"missing"` the same case writes the PNG and the next re-run is green with no code change.
+      #
+      # NOTE THE PLACEHOLDERS ABOVE ARE NOT INHERITED. They are on the build step only, and this
+      # step does not need them: Playwright boots the app with `npm run dev`, and `next dev` does
+      # not set NODE_ENV=production, so none of the five fail-closed boot guards arms. If this
+      # step ever starts needing one, a baselined surface has left the DB-free scope — fix the
+      # inventory rather than widening the environment.
+      #
+      # `reuseExistingServer: !process.env.CI` means CI always gets a FRESH dev server. That is
+      # not a convenience: a reused server can serve a stylesheet that predates the checkout, and
+      # in the visual project a stale stylesheet is not a false red, it is a baseline comparison
+      # against CSS that is not in the tree.
+      - name: Playwright — visual regression (GATE-01, 25 baselines)
+        run: npx playwright test --project=visual
 
   # ------------------------------------------------------------------------------------------
   # JOB 2 — the full vitest suite against a real database.
