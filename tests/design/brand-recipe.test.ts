@@ -177,12 +177,19 @@ const SANCTIONED_HOVER = "color-mix(in_oklch,var(--brand)";
  * T-10-39: fifteen near-identical edits across eleven files is precisely where an over-eager
  * find-and-replace strips a layout class or converts one site twice and another not at all. A total
  * of 15 is satisfiable by 15 conversions in the wrong eleven places; this map is not.
+ *
+ * SIXTEEN AS OF PLAN 12-10, and the new row is an ADDITION rather than a conversion: RESP-02's sticky
+ * bottom bar is a net-new surface, so nothing was migrated onto the variant here — the variant is
+ * simply the only way this repo is allowed to render the accent, which is exactly what DS-08 buys. It
+ * is `variant="brand" size="touch"`, the D-22 pair, because the bar's one action is the page's focal
+ * point below `lg:` (12-UI-SPEC § Visual Hierarchy) and a 44px hit area is the requirement.
  */
 const EXPECTED_CONVERSIONS: Record<string, number> = {
   "src/app/(app)/bookings/[id]/page.tsx": 3,
   "src/app/(app)/bookings/page.tsx": 2,
   "src/components/booking/book-cta.tsx": 1,
   "src/components/booking/booking-row.tsx": 1,
+  "src/components/booking/booking-sticky-bar.tsx": 1,
   "src/components/booking/expired-approval-state.tsx": 2,
   "src/components/booking/hold-expired-state.tsx": 1,
   "src/components/booking/payment-reversed-state.tsx": 1,
@@ -611,9 +618,12 @@ describe("DS-08 — the scan itself reaches what it claims to police", () => {
 });
 
 describe("DS-08 — the accent reaches the booker through the variant, never through a string", () => {
-  it("converts exactly 15 call sites across the booking, group and search trees", () => {
+  it("converts exactly 16 call sites across the booking, group and search trees", () => {
+    // 15 -> 16 by plan 12-10's `booking/booking-sticky-bar.tsx`. See EXPECTED_CONVERSIONS for why that
+    // one is an addition rather than a conversion, and why a bar with a brand action is the shape
+    // 12-UI-SPEC asks for at this width rather than an accent someone reached for.
     const total = Object.values(scan.conversions).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(15);
+    expect(total).toBe(16);
   });
 
   it("converts exactly the right sites — the per-file map, not just the total", () => {
@@ -740,13 +750,20 @@ describe("DS-08 — the repo-wide scan reaches the trees it now claims to police
   });
 });
 
-describe("DS-08 / D-21 — coral appears on exactly the 20 buttons someone asked for it", () => {
-  it("adopts the brand variant at exactly 20 call sites across src/app and src/components", () => {
-    // 15 from plan 10-08 (bookings, booking, group, search) + 5 from plan 10-09 (the host surface).
+describe("DS-08 / D-21 — coral appears on exactly the 21 buttons someone asked for it", () => {
+  it("adopts the brand variant at exactly 21 call sites across src/app and src/components", () => {
+    // 15 from plan 10-08 (bookings, booking, group, search) + 5 from plan 10-09 (the host surface) +
+    // 1 from plan 12-10 (RESP-02's sticky bottom bar, the mobile listing page's single focal action).
     // The per-tree maps above and the surviving map below are what stop this total being satisfied
-    // by 20 conversions in the wrong twenty places.
+    // by 21 conversions in the wrong twenty-one places.
+    //
+    // ⚠ THE BAR ADDS EXACTLY ONE, AND THAT IS THE ASSERTION DOING WORK HERE. The bar renders two
+    // MUTUALLY EXCLUSIVE actions — the sheet trigger and, once a window is picked, `BookCta` in its
+    // bar layout — and only the trigger is a brand call site in this file. `BookCta` was already
+    // counted, and it stayed at 1 because its layout fork changes that button's size and width and
+    // never duplicates the element. A 2 here would mean the fork became a second button.
     const total = Object.values(scan.adoption).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(20);
+    expect(total).toBe(21);
   });
 
   it("lands the 5 host conversions on the host surface, not somewhere convenient", () => {

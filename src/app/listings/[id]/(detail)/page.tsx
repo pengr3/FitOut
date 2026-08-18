@@ -71,6 +71,9 @@ import {
 // renders the identical thing rather than a second copy of it. See that file's header for what
 // `placement` selects and, more importantly, for what it may never select.
 import { BookingPanel } from "@/components/availability/booking-panel";
+import { BookingStickyBar } from "@/components/booking/booking-sticky-bar";
+import { STICKY_BAR_CLEARANCE } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { RailRateHeadline } from "@/components/booking/rail-rate-headline";
 import { placeHold, placeOpenHold } from "@/app/actions/booking";
@@ -461,7 +464,12 @@ export default async function PublicListingPage({
     : [];
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
+    // `STICKY_BAR_CLEARANCE` is 80px = 64 (the bar) + 16 (a gap), the same arithmetic the app shell's
+    // `lg:top-20` uses from the other end of the viewport. Without it the last row of this page — the
+    // host block — sits permanently under the fixed bar, which is a line of the page a booker can never
+    // reach (T-12-10-CLEARANCE). It is unconditional rather than `lg:pb-0` because 80px of trailing
+    // space on a desktop page is invisible and a breakpoint here is one more thing to keep true.
+    <main className={cn("mx-auto w-full max-w-5xl px-4 py-8 sm:py-12", STICKY_BAR_CLEARANCE)}>
       <PhotoGallery photos={pub.photos} title={title} />
 
       {/* Phase-12 seam A: the provider owns the DAY, not just the selection, so the sheet's second
@@ -662,8 +670,21 @@ export default async function PublicListingPage({
             rail shipped, and `PanelCard` renders the same `ui/card.tsx` primitive this line used to
             render by hand. What changed is the padding, which is now the pattern's `p-4 sm:p-6`
             rather than this file's `py-6` on top of `Card`'s own `py-4` (the double-block-padding
-            trap `deferred-items.md` measured at 112px vs 80px on the row cards). */}
-        <aside>
+            trap `deferred-items.md` measured at 112px vs 80px on the row cards).
+
+            ── `max-lg:hidden` IS THE MECHANISM, AND IT IS LOAD-BEARING (RESP-02 / D-48, plan 12-10) ──
+            Below `lg:` this whole rail leaves the page, because the sticky bottom bar and the sheet are
+            what carry the price and the action at those widths. `hidden` rather than `sr-only` or
+            `opacity-0` on purpose: it removes the rail from the ACCESSIBILITY TREE, which is what makes
+            "exactly one Book button at 375px and exactly one at 1280px" true when it is counted with a
+            role query. An `sr-only` rail would satisfy the eye and leave a screen-reader user with two
+            Book buttons, one of them a ghost.
+
+            NOTHING IS LOST AT THOSE WIDTHS, and that was checked rather than assumed: the capacity line
+            is `KeyFacts`' `Capacity` cell in the main column (12-08), the cancellation policy is the
+            main column's own section (D-46 — the duplication that exists precisely because there is no
+            rail on a phone), and the all-in rate is the sticky bar's left column. */}
+        <aside className="max-lg:hidden">
           <PanelCard sticky>
             {/* D-41 — the all-in rate headline, which now RENDERS ONLY WHILE THERE IS NO SELECTION.
                 It moved out of this file into a client leaf because the condition is a fact about the
@@ -753,6 +774,54 @@ export default async function PublicListingPage({
           </PanelCard>
         </aside>
       </div>
+
+      {/* ── RESP-02: THE MOBILE PATH, INSIDE THE SAME PROVIDER ────────────────────────────────────────
+          The bar is `lg:hidden`, the rail above is `max-lg:hidden`, and they are the SECOND placement
+          of one component rather than a second component: the sheet's contents are
+          `<BookingPanel placement="sheet">`, the same panel the rail mounts, reading the same selection
+          and the same day from the one provider that wraps both. Two views, one state, one fetch —
+          asserted as exactly ONE availability request per day selection at 375px and at 1280px.
+
+          THE `lg:hidden` WRAPPER IS BELT AND BRACES rather than the load-bearing part: the only thing
+          that can open this sheet is the bar's trigger, and the bar is already `lg:hidden`. It is here
+          so that a viewport resized while the sheet is open cannot leave a mobile booking surface
+          mounted over the desktop layout, and so that the two placements' mechanisms read as a pair. */}
+      <BookingStickyBar
+        rateParts={priceParts}
+        allIn={allIn}
+        currency={DISPLAY_CURRENCY}
+        listingId={id}
+        occupancyMode={row.listing.occupancyMode}
+        placeHold={placeHold}
+        placeOpenHold={placeOpenHold}
+        sheet={
+          <div className="lg:hidden">
+            <BookingPanel
+              placement="sheet"
+              listingId={id}
+              timezone={timezone}
+              cityLabel={cityLabel}
+              gmtLabel={gmtLabel}
+              unitCount={row.listing.unitCount}
+              occupancyMode={row.listing.occupancyMode}
+              initialDate={initialDate}
+              initialDay={initialDay}
+              initialFullDates={initialFullDates}
+              todayDate={todayLocal}
+              allIn={allIn}
+              currency={DISPLAY_CURRENCY}
+              hourlyRateCents={pub.hourlyRateCents}
+              dayRateCents={pub.dayRateCents}
+              perHeadPriceCents={row.listing.perHeadPriceCents}
+              bookable={bookable}
+              placeHold={placeHold}
+              placeOpenHold={placeOpenHold}
+              // NOT the resume props — see the rail placement above. One mount auto-submits a restored
+              // selection; a second would place a second hold for one return from `/login`.
+            />
+          </div>
+        }
+      />
       </BookingSelectionProvider>
     </main>
   );

@@ -21,10 +21,17 @@
 // THREE HARD CONDITIONS make the duplication safe rather than merely tolerated, and all three are
 // measured in `e2e/mobile-booker-path.spec.ts`:
 //
-//   1. THIS COMPONENT OWNS ZERO STATE. No `useState`, no `useReducer`, no fetch. The selection and the
-//      day both live in `BookingSelectionProvider` (plan 12-02's seam A), mounted ONCE above both
-//      placements. Two views, one state, one fetch — asserted as exactly ONE availability request per
-//      day selection, at both widths, by a `page.route` counter filtered on the server-action header.
+//   1. THIS COMPONENT OWNS ZERO STATE — it declares no React state hook of any kind and performs no
+//      fetch. The selection and the day both live in `BookingSelectionProvider` (plan 12-02's seam A),
+//      mounted ONCE above both placements. Two views, one state, one fetch — asserted as exactly ONE
+//      availability request per day selection, at both widths, by a `page.route` counter filtered on
+//      the server-action header.
+//      ⚠ THE TWO HOOK NAMES ARE DESCRIBED AND NEVER SPELLED IN THIS FILE, and that is deliberate: the
+//      plan's acceptance criterion is a `grep` for them over this file expecting NO match, and a
+//      comment that names the thing it forbids disarms the check. Six instances of that exact shape are
+//      already on the record in this repository (`booking-row.tsx:112`, `responsive-dialog.tsx`'s
+//      viewport-height note, 11-07's two, 11-08's three, 12-07's finding 4). Do not helpfully re-add
+//      them.
 //   2. EXACTLY ONE OF ANYTHING A USER CAN REACH. Asserted with ROLE queries at both widths.
 //   3. EXACTLY ONE PRICE HOOK PER SURFACE. `rail-price-total` from the rail placement,
 //      `sheet-price-total` from the sheet placement, never both from one document.
@@ -124,8 +131,9 @@ export type BookingPanelProps = {
  * The booking interaction, in whichever arrangement `placement` names.
  *
  * ZERO STATE, and that is condition 1 rather than a style: every value it renders comes from
- * `useBookingSelection()` or from a prop the RSC computed. `grep -n "useState\|useReducer"` over this
- * file returns nothing, and it is meant to keep returning nothing.
+ * `useBookingSelection()` or from a prop the RSC computed. This file declares no React state hook at
+ * all, and the scan for the two hook names is expected to stay empty — see the header for why neither
+ * name is written out here.
  */
 export function BookingPanel({
   placement,

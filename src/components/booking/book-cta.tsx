@@ -60,6 +60,7 @@ export function BookCta({
   resumeWindow,
   resumeOpen,
   label,
+  layout = "block",
 }: {
   listingId: string;
   /** The placeHold server action, threaded from the RSC so the wiring is visible at the listing seam. */
@@ -86,6 +87,23 @@ export function BookCta({
    * `Total` makes — that is what makes the two strings byte-equal (GATE-05 / T-12-10-BARPRICE).
    */
   label?: string;
+  /**
+   * How this control lays itself out. `"block"` is the shipped full-width column; `"bar"` is the
+   * 44px inline action inside RESP-02's sticky bottom bar (plan 12-10).
+   *
+   * ⚠ IT IS A LAYOUT FORK AND NOT A SECOND SUBMISSION PATH, WHICH IS THE ENTIRE POINT OF DOING IT
+   * HERE. D-59 #3 has the bar submit the hold DIRECTLY when a window is already picked — the sheet is
+   * skipped — and that submit has to be the same `submit()` above: the same server action, the same
+   * sign-in redirect, the same `activate-booking` recovery, the same refusal sentence from the same
+   * server ruling. A second component wired to `placeHold` would be a second place for the guard, the
+   * resume and the notice to be almost right. So the bar renders THIS control in a different box.
+   *
+   * THERE IS EXACTLY ONE `role="status"` IN THIS FILE and both layouts share it, which is a
+   * constraint rather than tidiness: `src/lib/design/live-regions.ts` keys `book-cta-notice` to this
+   * file at ordinal 1, and a second status element in the source would read as an undeclared region
+   * to `tests/design/live-regions.test.tsx`'s SCAN 2 even though only one can ever be on screen.
+   */
+  layout?: "block" | "bar";
 }) {
   const { selection, openSelection } = useBookingSelection();
   const router = useRouter();
@@ -229,19 +247,44 @@ export function BookCta({
     router.refresh();
   }
 
-  return (
-    <div className="space-y-2">
-      <Button
-        variant="brand"
-        size="lg"
-        disabled={pending || !active}
-        onClick={() => active && submit(active)}
-        className="w-full"
-      >
-        {pending ? "Starting…" : (label ?? "Book this space")}
-      </Button>
+  const isBar = layout === "bar";
 
-      {!active && !pending && (
+  return (
+    // `contents` in the bar so the button below is a direct flex item of the 64px bar rather than a
+    // block inside a wrapper that would have to restate the bar's own alignment. The bar is `fixed`,
+    // which makes it the containing block for the absolutely-positioned notice further down.
+    <div className={isBar ? "contents" : "space-y-2"}>
+      {/* THE ACTIVATE BRANCH REPLACES THE PRIMARY ACTION IN THE BAR, rather than sitting beside it.
+          Two 44px buttons plus the rate block do not fit a 320px bar, and `Start booking` is the only
+          thing the booker can usefully do in that state anyway — a disabled-looking pair would be two
+          dead ends where one live control belongs. In the block layout both render, exactly as they
+          have shipped. */}
+      {isBar && needsActivate ? (
+        <Button
+          variant="secondary"
+          size="touch"
+          disabled={pending}
+          onClick={handleActivate}
+          className="shrink-0"
+        >
+          Start booking
+        </Button>
+      ) : (
+        <Button
+          variant="brand"
+          size={isBar ? "touch" : "lg"}
+          disabled={pending || !active}
+          onClick={() => active && submit(active)}
+          className={isBar ? "shrink-0" : "w-full"}
+        >
+          {pending ? "Starting…" : (label ?? "Book this space")}
+        </Button>
+      )}
+
+      {/* The hint is BLOCK-ONLY. The bar mounts this control only once a selection exists (its
+          no-selection state is a different action entirely — the sheet trigger), so a line telling the
+          booker to pick a time would name a state the bar never renders. */}
+      {!isBar && !active && !pending && (
         // The hint names the thing this listing actually asks for. A drop-in booker is never picking a
         // time, so telling them to would send them looking for a control that does not exist.
         <p className="text-center text-xs text-muted-foreground">
@@ -249,13 +292,24 @@ export function BookCta({
         </p>
       )}
 
+      {/* ONE `role="status"`, both layouts — see the `layout` prop for why a second element here would
+          read as an undeclared live region. In the bar it sits directly ABOVE the 64px box rather than
+          inside it: the bar's height is a measured constant that a wrapped refusal sentence would blow,
+          and a notice clipped by the control it is about is a notice nobody receives. */}
       {notice && (
-        <p role="status" className="text-center text-sm text-muted-foreground">
+        <p
+          role="status"
+          className={
+            isBar
+              ? "absolute inset-x-0 bottom-full border-t bg-card px-4 py-2 text-center text-sm text-muted-foreground"
+              : "text-center text-sm text-muted-foreground"
+          }
+        >
           {notice}
         </p>
       )}
 
-      {needsActivate && (
+      {!isBar && needsActivate && (
         <Button variant="secondary" size="lg" disabled={pending} onClick={handleActivate} className="w-full">
           Start booking
         </Button>

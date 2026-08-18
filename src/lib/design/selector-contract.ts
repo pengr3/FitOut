@@ -151,9 +151,11 @@ export const SELECTOR_IDS = [
   "listing-key-facts",
   // 12-09 — the month grid's loading plate.
   "skeleton-calendar",
-  // 12-10 — RESP-02's one booking panel in two placements, and the sheet placement's own total.
+  // 12-10 — RESP-02's one booking panel in two placements, the sheet placement's own total, and the
+  // listing page's sticky bottom bar.
   "booking-panel",
   "sheet-price-total",
+  "booking-sticky-bar",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -439,6 +441,22 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "one match per hook, which is a structural fact rather than a discipline. 12-04 recorded this " +
       "row as owed and 12-05 restated it; the literal lands in `price-breakdown.tsx` in the same " +
       "commit as this row.",
+    owner: "12-10",
+  },
+  "booking-sticky-bar": {
+    why:
+      "The assertion this hook carries is that a BOX is where it says it is: 64px tall, its bottom " +
+      "edge on the viewport's, fully inside the viewport at `scrollY === 0`, and holding a child " +
+      "whose own box is at least 44 × 44. None of that is addressable through the accessible tree. " +
+      "The bar is a `<div>` with no role and no accessible name — a `toolbar` role would be a lie " +
+      "about a container holding one control, and naming it would put a label in a screen reader's " +
+      "element list for a box whose entire content is already announced by its two children. Its " +
+      "ACTION stays on a role query (`getByRole(\"button\", { name: /^Book/ })` is the RESP-02 count, " +
+      "and this hook is deliberately not a substitute for it), and the RATE LINE has no role either: " +
+      "the wrap assertion compares a rendered `clientHeight` against a one-line reference, which " +
+      "needs the element and not its text. The bar is also the one surface on this route that is " +
+      "`position: fixed`, so a query that resolved to something else would be comparing an in-flow " +
+      "box against a viewport-anchored expectation and failing for the wrong reason.",
     owner: "12-10",
   },
 };

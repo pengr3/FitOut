@@ -353,6 +353,20 @@ const OVERLAY_INVENTORY: Readonly<Record<string, number>> = {
  */
 const SHADOW_STICKY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/dev/theme/page.tsx": 1,
+  // MOVED BY PLAN 12-10, in that plan's own commit, and this is the first PRODUCT surface ever to
+  // occupy this step — the sentence above ("declared, exercised by the preview, adopted by no product
+  // surface yet") stops being true here and is left standing as the record of what it replaced.
+  //
+  // `booking/booking-sticky-bar.tsx` is RESP-02's listing-page bottom bar: `fixed inset-x-0 bottom-0`,
+  // `z-(--z-sticky)`, 64px. The step's `-1px` y-offset casts the shadow UPWARD, onto the content the
+  // bar is covering, which is what this token was authored for and why it must never appear on a top
+  // header — a header would throw it off the top of the screen and leave the boundary a user actually
+  // sees completely flat.
+  //
+  // THE MAP IS WHAT KEEPS THAT CHECKABLE. Plan 12-11 adds the checkout bar as the second and last
+  // product site; a bare total would read this addition and that one as the same number and say
+  // nothing about where either landed.
+  "src/components/booking/booking-sticky-bar.tsx": 1,
 };
 
 /**
@@ -574,18 +588,23 @@ describe("DS-03 second clause — every shadow maps to one of exactly three name
 });
 
 describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME (T-10-45)", () => {
-  it("carries exactly 12 named-step call sites", () => {
+  it("carries exactly 13 named-step call sites", () => {
     // 9 from plan 10-12's migration (4 raised + 5 overlay, all product surfaces) + 3 from plan
     // 10-16's `/dev/theme` ladder, which renders one card per step. Plan 11-08 briefly made this 13
     // by adding `patterns/result-card.tsx` beside the shipped tile it was extracted from; plan 11-11
     // adopted the pattern on `search-result-card.tsx` and the duplicate went away exactly as 11-08's
-    // docblock predicted. The three maps below are what stop this total being satisfied by 12 sites
-    // in the wrong twelve places.
+    // docblock predicted. The three maps below are what stop this total being satisfied by 13 sites
+    // in the wrong thirteen places.
+    //
+    // 12 -> 13 by plan 12-10's `booking/booking-sticky-bar.tsx`, RESP-02's listing-page bottom bar —
+    // the FIRST product surface to occupy the sticky step, which had been exercised only by the
+    // design preview since 10-16. See `SHADOW_STICKY_INVENTORY` for which addition was which and for
+    // why this step must never reach a top header.
     const named =
       totalOf(scan.byName["shadow-raised"]) +
       totalOf(scan.byName["shadow-overlay"]) +
       totalOf(scan.byName["shadow-sticky"]);
-    expect(named, "the named elevation sites are the whole point of the migration").toBe(12);
+    expect(named, "the named elevation sites are the whole point of the migration").toBe(13);
   });
 
   it("pins the 5 raised sites to the files that own them", () => {
@@ -596,7 +615,7 @@ describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME 
     expect(scan.byName["shadow-overlay"]).toEqual(OVERLAY_INVENTORY);
   });
 
-  it("gives `shadow-sticky` exactly one home, and it is the design surface, not a product one", () => {
+  it("pins `shadow-sticky` to the design surface and the ONE bottom bar that has adopted it", () => {
     // MOVED BY PLAN 10-16 FROM `toBe(0)`, on purpose and in that plan's own commit — 10-12 wrote the
     // zero, named `/dev/theme`'s ladder as the exerciser that would move it, and flagged the change
     // in advance. Working around it (skipping the third step in the ladder, or exempting the route
@@ -604,8 +623,10 @@ describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME 
     // three steps side by side, and a design system whose own preview cannot render one of its steps
     // is not a system anybody can judge.
     //
-    // The zero it replaces still holds for the half that mattered: NO PRODUCT SURFACE uses this step.
-    // The map is what keeps saying so.
+    // The zero it replaces held for the half that mattered — NO PRODUCT SURFACE used this step — right
+    // up to plan 12-10, which is the plan that had a bottom-anchored bar to put it on. The map is what
+    // kept saying so, and it is what now says exactly WHICH product surface took it. The claim the map
+    // still enforces is the one that never moved: this step reaches no top header.
     expect(scan.byName["shadow-sticky"]).toEqual(SHADOW_STICKY_INVENTORY);
     expect(themes.court["--elevation-sticky"], "…and the token must still be declared").toBeDefined();
     expect(themes.grove["--elevation-sticky"]).toBeDefined();
@@ -830,6 +851,16 @@ const BANNED_Z = /(?<![\w-])-?z-(?:10|50)(?![\w-])/g;
  * stays. 11-08 predicted 11 for the positive map alone; it was counting the negatives with them.
  */
 const STICKY_INVENTORY: Readonly<Record<string, number>> = {
+  // MOVED BY PLAN 12-10, in that plan's own commit. `booking/booking-sticky-bar.tsx` is RESP-02's
+  // listing-page bottom bar and it is the SECOND surface in the app to occupy this layer for its
+  // literal purpose — `patterns/site-chrome.tsx` is the first, from the other edge of the viewport.
+  //
+  // ⚠ IT IS `--z-sticky` (10) AND NOT `--z-sheet` (20), WHICH IS THE STEP THAT LOOKS LIKE IT WAS MADE
+  // FOR THIS. `globals.css` records the argument at the token and plan 12-01 re-examined it: a bottom
+  // bar that floated above the booking sheet's own scrim would be claiming the page behind the sheet
+  // is still interactive while the sheet says it is not. The bar belongs UNDER the overlay it opens,
+  // so `--z-sheet` still has zero call sites and `sheet-absent.test.ts` still asserts that zero.
+  "src/components/booking/booking-sticky-bar.tsx": 1,
   "src/components/patterns/row-card.tsx": 1,
   "src/components/patterns/site-chrome.tsx": 1,
   "src/components/ui/avatar.tsx": 1,
@@ -943,7 +974,7 @@ describe("DS-03 z clause — the two magic numbers are gone from the source", ()
 });
 
 describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T-10-49)", () => {
-  it("carries exactly 20 mapped call sites — 11 sticky and 9 dialog", () => {
+  it("carries exactly 21 mapped call sites — 12 sticky and 9 dialog", () => {
     // The count is what makes a migration that DELETED the z-index instead of mapping it go red: a
     // tree with no z-index at all satisfies every zero-violations assertion above perfectly.
     //
@@ -952,16 +983,19 @@ describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T
     // shell's `sticky top-0` header — the first surface in the app to occupy this layer for the
     // literal reason the layer exists. 13 -> 11 by plan 11-11, which adopted the pattern on the two
     // shipped booking rows: their hand-written lifts are the pattern's now, and the duplicates 11-08
-    // declared temporary are gone. See STICKY_INVENTORY for which additions were which.
+    // declared temporary are gone. 11 -> 12 by plan 12-10's `booking/booking-sticky-bar.tsx`, the
+    // second surface to occupy this layer for the literal reason it exists — a fixed bar, from the
+    // opposite edge of the viewport to the shell header. See STICKY_INVENTORY for which additions were
+    // which, and for why the bar is deliberately NOT on `--z-sheet`.
     const sticky =
       totalOf(zScan.byName["z-(--z-sticky)"]) + totalOf(zScan.byName["-z-(--z-sticky)"]);
     const dialog = totalOf(zScan.byName["z-(--z-dialog)"]);
-    expect(sticky, "the sticky layer lost or gained a surface").toBe(11);
+    expect(sticky, "the sticky layer lost or gained a surface").toBe(12);
     expect(dialog, "the dialog layer lost or gained a surface").toBe(9);
-    expect(sticky + dialog).toBe(20);
+    expect(sticky + dialog).toBe(21);
   });
 
-  it("pins the 9 positive sticky sites to the files that own them", () => {
+  it("pins the 10 positive sticky sites to the files that own them", () => {
     expect(zScan.byName["z-(--z-sticky)"]).toEqual(STICKY_INVENTORY);
   });
 

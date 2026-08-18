@@ -67,6 +67,17 @@
 // corner). It is deliberately NOT re-implemented here: a second close button would be a fork by
 // duplication, and the vendored one already carries the DS-05 focus recipe and its `sr-only` "Close".
 //
+// ⚠ `closeLabel` IS THE ONE BOUNDED EXCEPTION TO THAT SENTENCE, ADDED BY PLAN 12-10 WITH ITS REASON.
+// The vendored button's accessible name is the hardcoded string "Close" and there is no prop for it.
+// On `/listings/[id]` the booker path now reaches TWO overlays — the photo lightbox and the booking
+// sheet — and a screen reader's element list is where a user picks between controls by name, so two
+// entries both reading "Close" is an ambiguity that no amount of visual context resolves. 12-07 hit
+// this first and named its own control `Close photos`; this prop is how the sheet gets `Close booking`
+// without every OTHER adopter of this pattern growing an opinion. When it is omitted, nothing changes:
+// the vendored button renders exactly as it always has. When it is supplied, the replacement is the
+// same `Button variant="ghost" size="icon-sm"` in the same corner, so the DS-05 focus recipe still
+// arrives through the primitive rather than being restated here.
+//
 // TWO EXCLUSIONS, RECORDED SO NEITHER IS RE-PROPOSED AS AN OVERSIGHT:
 //   • DRAG-TO-DISMISS is out of scope. It needs `vaul` or a gesture library — a new dependency with
 //     its own focus behaviour, in a milestone whose net-new-dependency test bars it.
@@ -75,9 +86,11 @@
 //     worse than no affordance. The visible close button is the dismiss affordance.
 
 import type { ReactNode } from "react";
+import { XIcon } from "lucide-react";
 
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -85,6 +98,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 /**
  * The bottom-sheet presentation, below `sm:` only.
@@ -161,6 +175,29 @@ export type ResponsiveDialogProps = {
    * bg-muted/50 p-4` is already the treatment this slot needs and is deliberately not restated.
    */
   footer?: ReactNode;
+  /**
+   * A DISTINCT accessible name for the close control, replacing the vendored "Close".
+   *
+   * Supply it only when this overlay shares a route with another one — see the header for the full
+   * argument and for why this is the single exception to "the close button is not re-implemented here".
+   */
+  closeLabel?: string;
+  /**
+   * Radix's close-time focus hook, forwarded verbatim to `DialogContent`.
+   *
+   * ⚠ THE REASON THIS EXISTS IS A MEASURED DEFECT, NOT A CONVENIENCE (12-07 finding 1). Radix's MODAL
+   * dialog sets `onCloseAutoFocus` to `event.preventDefault()` followed by
+   * `context.triggerRef.current?.focus()` — it SUPPRESSES the browser's own focus restore in order to
+   * focus its own trigger, and `triggerRef` is populated only by `<DialogTrigger>`. An adopter whose
+   * trigger is absent, or whose trigger UNMOUNTS while the overlay is open, therefore gets the
+   * suppression with none of the restore: `Escape` drops focus to `<body>`, from where the next Tab
+   * restarts the page. That is a real WCAG failure on a booker-facing route and nothing warns about it.
+   *
+   * Every adopter that opens through a stable `DialogTrigger` should leave this undefined — Radix's own
+   * behaviour is correct for them, and taking the decision over unconditionally would be a claim this
+   * pattern has no basis for. It is here for the adopters whose trigger can go away.
+   */
+  onCloseAutoFocus?: (event: Event) => void;
 };
 
 export function ResponsiveDialog({
@@ -172,6 +209,8 @@ export function ResponsiveDialog({
   description,
   children,
   footer,
+  closeLabel,
+  onCloseAutoFocus,
 }: ResponsiveDialogProps) {
   // Radix wires `aria-describedby` to its own generated id unconditionally and then warns at runtime
   // when no `Description` renders under that id. The DOCUMENTED opt-out is an explicit
@@ -191,12 +230,25 @@ export function ResponsiveDialog({
       <DialogContent
         data-testid="responsive-dialog"
         className={SHEET_PRESENTATION}
+        showCloseButton={closeLabel === undefined}
+        onCloseAutoFocus={onCloseAutoFocus}
         {...describedBy}
       >
         <DialogHeader className={hideTitle ? "sr-only" : undefined}>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
+        {closeLabel !== undefined ? (
+          // The vendored button's own markup, with the ONE string it does not expose. Same element,
+          // same variant, same size, same corner — so the focus recipe and the hit area are the
+          // primitive's, and the only thing this branch owns is the name. See the header.
+          <DialogClose data-slot="dialog-close" asChild>
+            <Button variant="ghost" size="icon-sm" className="absolute top-2 right-2">
+              <XIcon />
+              <span className="sr-only">{closeLabel}</span>
+            </Button>
+          </DialogClose>
+        ) : null}
         {children}
         {footer ? (
           // The footer's shipped `rounded-b-xl` matches the centred dialog's radius; the sheet's
