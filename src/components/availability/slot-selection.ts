@@ -92,6 +92,34 @@ export function resolveClick(
   return { run: { lo, hi: end }, anchor: null, fullDay: false, gapIndex };
 }
 
+/**
+ * Rebuild the gesture state from an already-lifted selection — the inverse of `selectionValue` below.
+ *
+ * Phase-12 (D-59 #1): the listing RSC can now seed the booker's SEARCHED window into the shared booking
+ * context, and a picker that mounted with an empty reducer would render that window as un-pressed chips
+ * — the rail claiming a selection the grid denies. This is what keeps the two honest.
+ *
+ * IT RE-VALIDATES RATHER THAN TRUSTS. The value is matched against the slots THIS picker was handed: an
+ * unknown boundary, an inverted run, or any unavailable hour inside the span degrades to
+ * EMPTY_SELECTION. So a stale or crafted selection can never paint a run over hours the read model
+ * says are taken — the picker stays advisory (the DB EXCLUDE constraint is the sole authority) without
+ * having to trust whatever handed it a value.
+ */
+export function seedSelection(
+  value: SlotSelectionValue | null,
+  slots: AvailabilitySlot[],
+): SelectionState {
+  if (!value) return EMPTY_SELECTION;
+  if (value.fullDay) return { run: null, anchor: null, fullDay: true, gapIndex: null };
+
+  const lo = slots.findIndex((s) => s.startUtc === value.startUtc);
+  const hi = slots.findIndex((s) => s.endUtc === value.endUtc);
+  if (lo < 0 || hi < 0 || hi < lo) return EMPTY_SELECTION;
+  for (let i = lo; i <= hi; i++) if (!isAvailable(slots, i)) return EMPTY_SELECTION;
+
+  return { run: { lo, hi }, anchor: null, fullDay: false, gapIndex: null };
+}
+
 /** Toggle "Book full day" (D-23), mutually clearing any run / pending anchor / gap hint. */
 export function resolveFullDay(state: SelectionState): SelectionState {
   return { run: null, anchor: null, fullDay: !state.fullDay, gapIndex: null };

@@ -42,9 +42,9 @@ import {
 import type { AvailabilitySlot } from "@/lib/availability/read-model";
 import { MIN_LEAD_INSTANT_MINUTES, MIN_LEAD_REQUEST_HOURS } from "@/lib/payments/config";
 import {
-  EMPTY_SELECTION,
   resolveClick,
   resolveFullDay,
+  seedSelection,
   selectionValue,
   type SelectionState,
   type SlotSelectionValue,
@@ -64,6 +64,18 @@ type SlotPickerProps = {
   mode: BookingMode;
   disabled: boolean;
   onSelectionChange: (sel: SlotSelectionValue | null) => void;
+  /**
+   * Phase-12 (D-59 #1) — the selection this picker MOUNTS with, read once. The listing RSC seeds the
+   * booker's searched window into the shared booking context when the read model says those hours are
+   * free, and the calendar hands the context's current value down here; `seedSelection` re-validates it
+   * against `slots` and degrades to nothing on any mismatch.
+   *
+   * READ ONCE, ON MOUNT ONLY, and that is what makes it correct rather than a controlled-value trap: the
+   * calendar keys this component on the day, so a day change REMOUNTS it — and `selectDay` clears the
+   * lifted selection in the same transition, so the value read at that mount is null. It can therefore
+   * never resurrect a selection the booker cleared.
+   */
+  initialSelection?: SlotSelectionValue | null;
 };
 
 /** Human-readable reason a chip can't be picked (never leaks "unit"/"tstzrange" jargon — UI-SPEC copy). */
@@ -101,11 +113,15 @@ export function SlotPicker({
   mode,
   disabled,
   onSelectionChange,
+  initialSelection,
 }: SlotPickerProps) {
   const inTz = tz(timezone);
   // The whole gesture (anchor / run / full-day / gap) lives in one reducer state; ./slot-selection owns
   // every transition so the DOM shell never re-implements the range-fill rules.
-  const [sel, setSel] = React.useState<SelectionState>(EMPTY_SELECTION);
+  // Lazy initializer: `initialSelection` is consulted exactly once, at mount. See the prop's docblock.
+  const [sel, setSel] = React.useState<SelectionState>(() =>
+    seedSelection(initialSelection ?? null, slots),
+  );
 
   const startToIndex = React.useMemo(() => {
     const m = new Map<string, number>();

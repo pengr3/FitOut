@@ -27,7 +27,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { format } from "date-fns";
-import { tz } from "@date-fns/tz";
+import { tz, TZDate } from "@date-fns/tz";
 import { UsersIcon } from "lucide-react";
 
 import { db } from "@/lib/db";
@@ -76,7 +76,17 @@ import {
 import { BookCta } from "@/components/booking/book-cta";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { placeHold, placeOpenHold } from "@/app/actions/booking";
-import { openHoldSchema, slotSelectionSchema } from "@/lib/validation/booking";
+import {
+  NO_SEARCHED_WINDOW,
+  openHoldSchema,
+  searchedWindowSchema,
+  slotSelectionSchema,
+} from "@/lib/validation/booking";
+import { BOOKING_HORIZON_DAYS } from "@/lib/availability/horizon";
+import type { DayAvailability } from "@/lib/availability/read-model";
+// Type-only, so nothing from the picker's client module enters this RSC's graph — the shape is defined
+// in the DOM-free gesture core the picker itself re-exports.
+import type { SlotSelectionValue } from "@/components/availability/slot-selection";
 // venue-tz labels + the shared DISPLAY_CURRENCY are now imported (Plan 07 promoted both out of this file
 // so the reserve + confirmation surfaces share ONE source and can never drift from the listing page).
 import { gmtLabelFor, cityLabelFor } from "@/lib/venue-time";
@@ -140,6 +150,44 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Turn a searched venue-local hour window into a slot selection — but ONLY if the read model says every
+ * hour in it is free (D-59 #1 · T-12-02-SEEDTRUST).
+ *
+ * THE SERVER DECIDES, and it decides from the SAME `DayAvailability` the grid is about to render, so the
+ * seeded run and the chips can never disagree. The returned instants are the read model's OWN slot
+ * boundaries — never recomputed from the hour integers — because deriving an instant from a wall-clock
+ * hour is where DST bugs enter a booking app (CLAUDE.md), and the read model has already done it once.
+ *
+ * Any miss returns null: an hour that is occupied, blocked, past, too-soon or simply outside the host's
+ * operating hours. That is the honest outcome — the booker lands on the day they searched with nothing
+ * pre-picked, rather than on a highlighted run that would be refused at hold time.
+ */
+function seedSelectionFromWindow(
+  dayAvail: DayAvailability | null,
+  timezone: string,
+  startHour: number | null,
+  endHour: number | null,
+): SlotSelectionValue | null {
+  if (!dayAvail || startHour === null || endHour === null || endHour <= startHour) return null;
+
+  const inTz = tz(timezone);
+  const free = dayAvail.slots.filter((s) => s.state === "available");
+  const hourOf = (iso: string) => Number(format(new Date(iso), "H", { in: inTz }));
+
+  const run = [];
+  for (let hour = startHour; hour < endHour; hour++) {
+    const slot = free.find((s) => hourOf(s.startUtc) === hour);
+    if (!slot) return null; // any hour in the searched window is not free → seed the day, not the window
+    run.push(slot);
+  }
+
+  const first = run[0];
+  const last = run[run.length - 1];
+  if (!first || !last) return null;
+  return { startUtc: first.startUtc, endUtc: last.endUtc, fullDay: false };
+}
+
 export default async function PublicListingPage({
   params,
   searchParams,
@@ -166,6 +214,28 @@ export default async function PublicListingPage({
       ? slotSelectionSchema.safeParse({ startUtc: sp.start, endUtc: sp.end, fullDay: sp.fullDay === "1" })
       : null;
   const resumeWindow = resumeParsed?.success ? resumeParsed.data : null;
+
+  // D-59 #1 — THE WINDOW THE BOOKER SEARCHED, finally read (plan 12-02).
+  //
+  // `search-result-card.tsx` has written `?date=YYYY-MM-DD&start=HH:mm&end=HH:mm` onto every listing
+  // link since Phase 3, and its header has always said the purpose is "so the listing calendar can
+  // pre-open that day". Nothing read it: the block above parsed `start`/`end` ONLY behind `resume=1`,
+  // and `initialDate` further down was unconditionally venue-local today. A booker who told us Friday
+  // 9–11 AM on the search page was asked for it a second time on arrival.
+  //
+  // PARSED UNCONDITIONALLY, AND THAT IS SAFE PRECISELY BECAUSE IT IS ITS OWN SHAPE. `start` carries two
+  // formats on this route — a venue-local `HH:mm` from the card and a UTC ISO instant on the `resume=1`
+  // path — so this reads through `searchedWindowSchema` while the block above keeps its untouched
+  // `slotSelectionSchema` parse. `resume=1` stays the discriminator, `slotSelectionSchema` stays
+  // byte-unchanged, and the two schemas are asserted to reject each other's format in
+  // `tests/validation/search-window.test.ts`. A malformed value yields no window and the default view —
+  // never a throw, never a 404 (T-12-02-PARAMTAMPER).
+  const searchedParsed = searchedWindowSchema.safeParse({
+    date: sp.date,
+    start: sp.start,
+    end: sp.end,
+  });
+  const searched = searchedParsed.success ? searchedParsed.data : NO_SEARCHED_WINDOW;
 
   // Fetch the listing + host + cached payout flag in one query (LEFT JOIN so a host with no payout row
   // still resolves — payoutsEnabled just defaults false). deletedAt IS NULL excludes soft-deleted rows.
@@ -307,18 +377,79 @@ export default async function PublicListingPage({
         : `Up to ${pub.maxOccupancy} people`;
 
   // Availability (AVAIL-03) — always render in the venue's local timezone (SC#2). Seed the FIRST day
-  // (today, venue-tz) server-side via the read model; the client calendar fetches later day-changes.
+  // server-side via the read model; the client calendar fetches later day-changes.
   const timezone = row.listing.timezone;
   const cityLabel = cityLabelFor(pub.city, timezone);
   const gmtLabel = gmtLabelFor(timezone);
   const nowInTz = tz(timezone);
   const now = new Date();
-  const initialDate = {
+  const todayLocal = {
     year: Number(format(now, "yyyy", { in: nowInTz })),
     month: Number(format(now, "M", { in: nowInTz })),
     day: Number(format(now, "d", { in: nowInTz })),
   };
+
+  // D-59 #1 — WHICH DAY THE PAGE OPENS ON. The searched day when we can honour it, venue-local today
+  // otherwise, and the fallback is SILENT: a stale link naming a past date, or a date past the horizon,
+  // must render the listing with today's calendar rather than a 404, an empty grid or an error region.
+  //
+  // The three conditions, each for its own reason:
+  //   • inside the booking horizon — the same [today, today+90] bounds the calendar's own `disabled`
+  //     matchers use, computed with the same venue-tz instants, so the page can never open on a day the
+  //     grid would then refuse to show as selected.
+  //   • the listing is bookable — a published-but-not-payable listing is a read-only preview; opening it
+  //     on a day the booker cannot act on adds nothing and costs a paint.
+  //   • the listing is EXCLUSIVE — the drop-in surface (DatePassPicker) owns its own day state and its
+  //     own month/full-date reads, and a searched drop-in link carries a date with no window at all.
+  //     Seeding it is a separate change on a surface this plan does not open; leaving it at today keeps
+  //     that branch byte-identical to what shipped.
+  const todayStartMs = new TZDate(
+    todayLocal.year,
+    todayLocal.month - 1,
+    todayLocal.day,
+    timezone,
+  ).getTime();
+  const horizonEndMs = new TZDate(
+    todayLocal.year,
+    todayLocal.month - 1,
+    todayLocal.day + BOOKING_HORIZON_DAYS,
+    timezone,
+  ).getTime();
+  const searchedDayMs = searched.date
+    ? new TZDate(
+        searched.date.year,
+        searched.date.month - 1,
+        searched.date.day,
+        timezone,
+      ).getTime()
+    : null;
+  const openOnSearchedDay =
+    searched.date !== null &&
+    searchedDayMs !== null &&
+    searchedDayMs >= todayStartMs &&
+    searchedDayMs <= horizonEndMs &&
+    bookable &&
+    !isOpenCapacity;
+
+  const initialDate = openOnSearchedDay
+    ? { year: searched.date!.year, month: searched.date!.month, day: searched.date!.day }
+    : todayLocal;
+
+  // The SAME server read as before, with a different argument. Not a new data path — the first paint
+  // simply already carries the day the booker asked about.
   const initialDay = await getAvailability(db, id, initialDate);
+
+  // D-59 #1, the second half: the WINDOW, not just the day. Seeded only when the read model says those
+  // hours are actually free — THE SERVER DECIDES (T-12-02-SEEDTRUST). A window that has been taken since
+  // the search seeds the day and nothing else, so the booker lands on the right calendar page with an
+  // honest, empty selection rather than a highlighted run they cannot book.
+  //
+  // This remains ADVISORY in every sense: `placeHold` re-derives availability and price inside its own
+  // transaction and the GiST EXCLUDE constraint is the sole booking authority (D-130). Seeding a
+  // selection is stating a request, never granting one.
+  const initialSelection = openOnSearchedDay
+    ? seedSelectionFromWindow(initialDay, timezone, searched.startHour, searched.endHour)
+    : null;
 
   // Phase-9 (OPEN-02) — a drop-in listing needs the visible month's fully-booked dates on the FIRST paint,
   // so the grid never briefly offers a date that is already gone.
@@ -342,6 +473,7 @@ export default async function PublicListingPage({
         listingId={id}
         initialDate={initialDate}
         initialDay={initialDay}
+        initialSelection={initialSelection}
       >
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px] lg:gap-12">
         {/* Main content column */}
@@ -430,6 +562,9 @@ export default async function PublicListingPage({
               initialDay={initialDay}
               occupancyMode={row.listing.occupancyMode}
               initialFullDates={initialFullDates}
+              // D-59 #1: `initialDate` may now be the SEARCHED day, so the horizon needs today told to
+              // it separately — otherwise every day before the searched one would render disabled.
+              todayDate={todayLocal}
             />
           </section>
         </div>

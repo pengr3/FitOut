@@ -10,6 +10,10 @@
 
 import { z } from "zod";
 import { spaceTypeValues, activityTagValues } from "@/lib/listing-vocab";
+// The two strict param parsers, from the isomorphic leaf rather than from `@/lib/search/query` — that
+// module transitively imports the `server-only` read model and this file is in the client graph via
+// `search-bar.tsx`. `window-params.ts`'s header carries the measured build failure.
+import { parsePickedDate, parseWindowHour, type PickedDate } from "@/lib/search/window-params";
 
 // The selected-window shape, reused by BOTH the client-selection contract (`slotSelectionSchema`) and
 // the booking-create payload (`bookingCreateSchema`) so the window fields + the end>start refine can
@@ -81,6 +85,68 @@ export const searchParamsSchema = z
   });
 
 export type SearchParams = z.infer<typeof searchParamsSchema>;
+
+/**
+ * The canonical SEARCHED WINDOW — what a booker asked for on `/`, carried onto the listing link by
+ * `search-result-card.tsx` as `?date=YYYY-MM-DD&start=HH:mm&end=HH:mm`.
+ *
+ * `date` is a canonicalised `PickedDate` (or null); `startHour`/`endHour` are on-the-hour integers 0–23
+ * in the VENUE's local time (or both null). There is no partial window: see the transform.
+ */
+export type SearchedWindow = {
+  date: PickedDate | null;
+  startHour: number | null;
+  endHour: number | null;
+};
+
+/**
+ * The searched-window URL contract (D-59 #1 — "never make the booker tell us something twice").
+ *
+ * ⚠ THE COLLISION THIS SCHEMA EXISTS TO SURVIVE (RESEARCH Pitfall 4). On `/listings/[id]`, `start` has
+ * TWO live formats: the search card writes a VENUE-LOCAL `HH:mm`, and the D-41 sign-in resume path
+ * writes a UTC ISO instant that `slotSelectionSchema` parses with `z.string().datetime()`. Same param
+ * name, same route. This schema owns the FIRST format and only the first; `slotSelectionSchema` is
+ * byte-unchanged and keeps owning the second, with `resume=1` as the discriminator. Widening either one
+ * to accept both is the thing that must never happen — the two would then agree to disagree silently on
+ * what "17:00" means. `tests/validation/search-window.test.ts` asserts the mutual rejection from BOTH
+ * directions, so the separation is a measured property rather than a convention.
+ *
+ * FAILURE MODE IS "NO WINDOW", NEVER A THROW (T-12-02-PARAMTAMPER). Every field is optional and every
+ * value is run through the same strict parser the search page uses; a garbage `date`, an off-the-hour
+ * `start`, a UTC instant in `start`, or `end <= start` all degrade to null and the listing page simply
+ * opens on venue-local today. A stale link naming a past date must render a listing, not a 404 and not
+ * an error region.
+ *
+ * A PARTIAL WINDOW IS DISCARDED WHOLE. `start` without `end` (or `end` not strictly after `start`)
+ * clears BOTH hours while leaving `date` intact — half-seeding a selection is worse than not seeding
+ * one, because a booker who sees 5 PM highlighted with no end hour has to work out what the page did to
+ * their request before they can undo it.
+ *
+ * SEEDING A SELECTION IS NOT AUTHORISING ONE (T-12-02-SEEDTRUST). This produces a REQUEST shape and
+ * nothing more; the listing RSC only seeds a selection when the read model reports those hours free, and
+ * `placeHold` re-derives availability and price inside its own transaction regardless (D-130).
+ */
+export const searchedWindowSchema = z
+  .object({
+    date: z.string().optional(),
+    start: z.string().optional(),
+    end: z.string().optional(),
+  })
+  .transform((raw): SearchedWindow => {
+    const date = parsePickedDate(raw.date);
+    const startHour = parseWindowHour(raw.start);
+    const endHour = parseWindowHour(raw.end);
+    const wholeWindow = startHour !== null && endHour !== null && endHour > startHour;
+    return {
+      date,
+      startHour: wholeWindow ? startHour : null,
+      endHour: wholeWindow ? endHour : null,
+    };
+  });
+
+/** The empty window — what a caller uses when `searchedWindowSchema.safeParse` itself fails (e.g. a
+ *  repeated param arriving as `string[]`). Same shape, so no call site needs a null branch. */
+export const NO_SEARCHED_WINDOW: SearchedWindow = { date: null, startHour: null, endHour: null };
 
 /**
  * The booking-create payload (POST — `placeHold`). Shape-validated here; the stronger invariants

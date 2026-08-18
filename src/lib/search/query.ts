@@ -19,6 +19,7 @@ import { TZDate } from "@date-fns/tz";
 import { getAvailability, type DbConn } from "@/lib/availability/read-model";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
 import type { SearchParams } from "@/lib/validation/booking";
+import { parsePickedDate, parseWindowHour } from "./window-params";
 
 /**
  * One search result card (SEARCH-05). `distanceM` is meters from the search origin (NULL for the
@@ -59,47 +60,14 @@ export type SearchResult = { results: SearchResultRow[]; hasMore: boolean };
 /** Results per page for the Load-more probe (D-32). */
 export const SEARCH_PAGE_SIZE = 20;
 
-/** A picked venue-local calendar day. `month` is 1-based (getAvailability's convention). */
-export type PickedDate = { year: number; month: number; day: number; iso: string };
-
-/**
- * Strictly parse a `YYYY-MM-DD` search-param date into calendar components, or null when absent/malformed.
- * Strict on purpose: `date` is attacker-controllable and flows into a `::date` cast — a canonical literal
- * (never the raw string) is what reaches SQL, so a crafted value can never raise `22007` mid-query. When
- * this returns null the weekday pre-filter and the Stage-2 availability filter are both skipped (the
- * default browse view, D-30).
- */
-export function parsePickedDate(date: string | undefined): PickedDate | null {
-  if (!date) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!m) return null;
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  const day = Number(m[3]);
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  // Round-trip guard: rejects impossible dates (e.g. 2026-02-31) by checking the Date recomposes exactly.
-  const probe = new Date(Date.UTC(year, month - 1, day));
-  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) {
-    return null;
-  }
-  return { year, month, day, iso: `${m[1]}-${m[2]}-${m[3]}` };
-}
-
-/**
- * Parse a venue-local wall-clock `HH:mm` (or `HH`) search-param time into an on-the-hour integer 0–23, or
- * null when absent / malformed / off-the-hour (D-22). Like `date`, the time is attacker-controllable and
- * only ever interpreted per-venue in Stage-2 (never bound into SQL) — a non-conforming value simply
- * degrades to the date-only filter, never a crash.
- */
-export function parseWindowHour(t: string | undefined): number | null {
-  if (!t) return null;
-  const m = /^(\d{1,2})(?::(\d{2}))?$/.exec(t);
-  if (!m) return null;
-  const hour = Number(m[1]);
-  const min = m[2] === undefined ? 0 : Number(m[2]);
-  if (hour < 0 || hour > 23 || min !== 0) return null; // on-the-hour only (D-22)
-  return hour;
-}
+// The two searched-window param parsers MOVED to `./window-params` and are RE-EXPORTED here, so every
+// existing `from "@/lib/search/query"` import keeps working unchanged. They had to move because
+// `src/lib/validation/booking.ts` — which is in the CLIENT graph via `search-bar.tsx` — now canonicalises
+// the listing page's searched window through them, and this module transitively imports the guarded,
+// `server-only` read model. The measured build failure and the full argument live in `./window-params`.
+// One implementation, two importers; never a second copy of "on the hour".
+export { parsePickedDate, parseWindowHour } from "./window-params";
+export type { PickedDate } from "./window-params";
 
 // Raw postgres.js row (snake_case keys, exactly as aliased in the SELECT below).
 type RawRow = {

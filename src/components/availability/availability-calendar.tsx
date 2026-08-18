@@ -114,6 +114,13 @@ type BookingSelectionProviderProps = {
   initialDate: DayLocal;
   /** That day's availability, read server-side by the RSC so the first paint already carries it. */
   initialDay: DayAvailability | null;
+  /**
+   * D-59 #1 — the booker's SEARCHED window, already verified free by the RSC against the same read
+   * model `initialDay` came from. Null on every other arrival. A REQUEST, never an authorisation:
+   * `placeHold` re-derives availability and price inside its transaction and stays the sole authority
+   * (D-130 / T-12-02-SEEDTRUST).
+   */
+  initialSelection?: SlotSelectionValue | null;
   children: React.ReactNode;
 };
 
@@ -131,9 +138,10 @@ export function BookingSelectionProvider({
   listingId,
   initialDate,
   initialDay,
+  initialSelection = null,
   children,
 }: BookingSelectionProviderProps) {
-  const [selection, setSelection] = React.useState<SlotSelectionValue | null>(null);
+  const [selection, setSelection] = React.useState<SlotSelectionValue | null>(initialSelection);
   const [openSelection, setOpenSelection] = React.useState<OpenSelectionValue | null>(null);
 
   const [day, setDay] = React.useState<DayLocal>(initialDate);
@@ -240,6 +248,16 @@ type AvailabilityCalendarProps = {
   occupancyMode: "exclusive" | "open_capacity";
   /** Phase-9 — the initial month's fully-booked venue-local dates, seeded server-side. Drop-in only. */
   initialFullDates?: string[];
+  /**
+   * Phase-12 (D-59 #1) — VENUE-LOCAL TODAY, which is no longer the same thing as `initialDate`.
+   *
+   * `initialDate` used to mean both "the day this opens on" and "the earliest selectable day", because
+   * they were always today. Now the page can open on the day the booker SEARCHED, and conflating the two
+   * would disable every day before it — a booker who searched Friday could no longer pick Wednesday.
+   * Optional and defaulting to `initialDate`, so a call site that does not seed a searched day (and every
+   * existing test) behaves exactly as it did.
+   */
+  todayDate?: DayLocal;
 };
 
 const TZ_NOTE_ID = "availability-tz-note";
@@ -255,27 +273,25 @@ export function AvailabilityCalendar({
   initialDay,
   occupancyMode,
   initialFullDates,
+  todayDate,
 }: AvailabilityCalendarProps) {
   // A PURE CONSUMER (Phase-12 seam A). The day, its availability and its two flags are owned by
   // BookingSelectionProvider above every placement; this component owns no fetch and no day state.
-  const { setSelection, setOpenSelection, day, dayAvail, dayLoading, dayError, selectDay } =
+  const { selection, setSelection, setOpenSelection, day, dayAvail, dayLoading, dayError, selectDay } =
     useBookingSelection();
+
+  // The horizon is anchored on TODAY, which `initialDate` no longer necessarily is — see the prop.
+  const today = todayDate ?? initialDate;
 
   // Venue-local "today" and the 90-day horizon end (D-26), built as venue-tz instants so the day
   // matchers compare in the venue tz — never the browser tz.
   const todayStart = React.useMemo(
-    () => new TZDate(initialDate.year, initialDate.month - 1, initialDate.day, timezone),
-    [initialDate, timezone],
+    () => new TZDate(today.year, today.month - 1, today.day, timezone),
+    [today, timezone],
   );
   const horizonEnd = React.useMemo(
-    () =>
-      new TZDate(
-        initialDate.year,
-        initialDate.month - 1,
-        initialDate.day + BOOKING_HORIZON_DAYS,
-        timezone,
-      ),
-    [initialDate, timezone],
+    () => new TZDate(today.year, today.month - 1, today.day + BOOKING_HORIZON_DAYS, timezone),
+    [today, timezone],
   );
   // The react-day-picker `selected` day, as a venue-local-midnight instant.
   const selectedDate = React.useMemo(
@@ -406,6 +422,10 @@ export function AvailabilityCalendar({
               mode={dayAvail.bookingMode}
               disabled={!bookable}
               onSelectionChange={setSelection}
+              // D-59 #1: the picker mounts showing whatever the shared context holds — the RSC-seeded
+              // searched window on the first paint, and null on every subsequent day (selectDay clears
+              // it in the same transition that remounts this via `key`). Read once; see the prop.
+              initialSelection={selection}
             />
           )}
         </div>
