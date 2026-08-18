@@ -64,12 +64,6 @@ import { Button } from "@/components/ui/button";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { Separator } from "@/components/ui/separator";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   AvailabilityCalendar,
   BookingSelectionProvider,
   RailPassSummary,
@@ -755,29 +749,43 @@ export default async function PublicListingPage({
                 resumeOpen={resumeOpen}
               />
             ) : (
-              // Published but not payable → disabled neutral affordance + explanatory tooltip (D-13).
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0} className="inline-block w-full">
-                      <Button size="lg" variant="secondary" disabled className="w-full">
-                        Not bookable yet
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    This space isn&apos;t accepting bookings yet — the host is finishing their
-                    payout setup.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              // ── PUBLISHED BUT NOT PAYABLE — a disabled affordance and a STATIC explanation (D-56) ──
+              //
+              // ⚠ THIS BLOCK WAS THE `[11-13]` HYDRATION SITE, AND IT IS FIXED BY DELETION RATHER THAN
+              // BY A PATCH. What stood here was a Radix tooltip provider wrapping this button in a
+              // focusable span, because a disabled control receives no hover and the explanation was
+              // hover-only. React reported a named hydration mismatch on every dev load of this route:
+              // the server's child list and the client's disagreed by one at exactly this position,
+              // and React's remedy — "this tree will be regenerated on the client" — is the mechanism
+              // behind the duplicate-node failures Phase 11 chased four times. The mismatch cannot
+              // recur here because the node that produced it no longer exists: no trigger, no focusable
+              // wrapper, no client boundary in this branch at all.
+              //
+              // The explanation is now readable WITHOUT ANY INTERACTION — on touch, on keyboard and to
+              // a screen reader. That is the larger half of the win and it was true before the
+              // hydration error was: roughly half this traffic is touch, where a hover-only explanation
+              // of why a button is dead is an explanation nobody receives. D-39 and D-ELM-01 had both
+              // already refused a tooltip on this path for the same reason.
+              //
+              // The trailing reassurance line below is now BOOKABLE-ONLY. It used to render a second
+              // sentence here saying the same thing this one says, so the rail told a booker twice, in
+              // two wordings, that the space is not ready yet.
+              <div className="space-y-2">
+                <Button size="lg" variant="secondary" disabled className="w-full">
+                  Not bookable yet
+                </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  This space isn&apos;t accepting bookings yet — the host is finishing their
+                  payout setup.
+                </p>
+              </div>
             )}
 
-            <p className="text-center text-xs text-muted-foreground">
-              {bookable
-                ? "You won't be charged yet."
-                : "You can browse now — booking opens once this space is ready."}
-            </p>
+            {bookable && (
+              <p className="text-center text-xs text-muted-foreground">
+                You won&apos;t be charged yet.
+              </p>
+            )}
           </PanelCard>
         </aside>
       </div>

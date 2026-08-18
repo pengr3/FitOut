@@ -138,6 +138,15 @@ test.beforeAll(async () => {
       ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status, now(), now(), now()
     )
   `;
+  // ⚠ PHASE-12 (12-08): the tier is set AFTER the insert rather than added to the column list above,
+  // so the shipped INSERT stays byte-identical and this line reads as what it is — a fact case (7)
+  // depends on. `CancellationPolicyDisclosure` renders NOTHING for a null tier and the listing page
+  // gates the whole `Cancellation policy` SECTION on the same value, so a listing with no tier has
+  // five headings, not six. Every listing publishable after D-77 has one; the seed rows predate that
+  // gate, which is why it has to be stated here instead of inherited.
+  await sql`
+    UPDATE "listing" SET cancellation_policy = ${"standard"}::cancellation_policy WHERE id = ${publishedId}
+  `;
   // Three cover-first photos + a couple of amenities so the gallery/amenities sections have content.
   await sql`
     INSERT INTO "listing_photo" (id, listing_id, public_id, url, position) VALUES
@@ -230,6 +239,128 @@ async function expectListingReachable(page: Page): Promise<void> {
 function dayButton(page: Page, iso: string) {
   return page.locator(`td[data-day="${iso}"] button`);
 }
+
+// =====================================================================================================
+// BFLOW-02 / D-56 - the conventional order, and the hydration site that is now gone (plan 12-08)
+// =====================================================================================================
+//
+// ONE THEME, DELIBERATELY. Both cases below run under `court` only and there is no both-themes loop.
+// Document order is a fact about the markup, not about the palette: the two themes swap CSS custom
+// properties and nothing else, so a second pass would re-run identical assertions at twice the cost and
+// report the same result twice. The same is true of the hydration listener - a mismatch is React
+// comparing trees, which no colour token participates in. `seedTheme` still runs before the first
+// `goto` (spine item 3) so a theme is applied pre-paint rather than swapped in after it.
+//
+// THE LISTING THESE USE IS THE NOT-PAYABLE ONE, and that is the point of case (8): `publishedId`'s host
+// has no `host_payout` row, so the rail renders the disabled `Not bookable yet` affordance - which is
+// where the `[11-13]` tooltip stood. A bookable listing would exercise `BookCta` instead and the case
+// would pass without ever visiting the node it is about.
+//
+// ⚠ THIS BLOCK IS DECLARED FIRST IN THE FILE ON PURPOSE, AND THE REASON IS MECHANICAL. This file is
+// `mode: "serial"`, so ONE failure skips every test declared after it - and the file carries a LOGGED
+// STANDING RED that nothing in this phase has fixed: `a draft listing 404s to the public` answers 200
+// (deferred-items.md, `[12-02]`). Declared below it, these two cases would be collected, skipped and
+// reported as "did not run" in every whole-file invocation, which reads in CI exactly like a spec
+// nobody wrote. Declaring them above it is the whole mitigation; it changes no shipped case's order
+// relative to any other and suppresses nothing. When the draft-404 red is fixed, this paragraph is the
+// thing to delete, not the ordering - move the block back only after re-reading why it moved.
+//
+// The red itself is NOT dev-only, and that is measured rather than assumed: plan 12-08 ran the same
+// spec against `npm run build && npm start` and it failed identically at `Expected 404 / Received 200`,
+// so it is a real rendering-strategy defect and not the streaming artefact `[11-13]` turned out to be.
+
+test.describe("the listing page's information architecture (BFLOW-02) and the deleted [11-13] site (D-56)", () => {
+  test.beforeEach(async ({ page }) => {
+    await seedTheme(page.context(), "court");
+  });
+
+  /** BFLOW-02 / 12-UI-SPEC AC#3 - the six section headings, in the order a booker expects them. */
+  const REQUIRED_HEADINGS = [
+    "About this space",
+    "Amenities",
+    "Availability",
+    "Location",
+    "Cancellation policy",
+    "Your host",
+  ];
+
+  test("(7) the six section headings appear in the required document order", async ({ page }) => {
+    test.setTimeout(90_000);
+
+    const res = await page.goto(`${BASE}/listings/${publishedId}`);
+    expect(res?.status()).toBe(200);
+    await expect(
+      page.getByRole("heading", { name: /sunlit yoga studio/i }),
+      "the listing route rendered no title heading, so this is not the surface the case asserts about",
+    ).toBeVisible({ timeout: 15_000 });
+
+    // SCOPED TO `main`, AND THAT IS MEASURED RATHER THAN TIDY. `SiteFooter` renders its own two `<h2>`s
+    // (`Product`, `Legal & support`) inside this route's layout, so an unscoped heading query returns
+    // EIGHT names and the ordered comparison would fail on markup that is entirely correct. The count
+    // guard on `main` is the vacuity check: with zero mains the array below would be empty and an
+    // equality against six names would fail loudly rather than silently pass.
+    await expect(page.locator("main")).toHaveCount(1);
+
+    // ONE EXPECTATION OVER THE WHOLE SEQUENCE, not six existence checks. A reorder is the failure this
+    // case exists for, and six independent `toBeVisible()`s are all still green after one - they can
+    // only report a MISSING heading, never a moved one. Comparing the arrays prints both sequences, so
+    // the diff names what moved and where it went.
+    const headings = await page.locator("main h2").allInnerTexts();
+    expect(
+      headings.map((h) => h.trim()),
+      "the listing page's `<h2>` sequence is not BFLOW-02's order. The requirement is the ORDER, not " +
+        "the presence: availability above the map, and cancellation as a section of its own",
+    ).toEqual(REQUIRED_HEADINGS);
+  });
+
+  test("(8) a full load of the not-payable listing raises no hydration mismatch (D-56)", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    // Listeners attached BEFORE the navigation - a hydration error is thrown during the first client
+    // render, so a listener registered after `goto` resolves can miss the only message it wants.
+    const messages: string[] = [];
+    page.on("console", (m) => messages.push(m.text()));
+    page.on("pageerror", (e) => messages.push(e.message));
+
+    const res = await page.goto(`${BASE}/listings/${publishedId}`);
+    expect(res?.status()).toBe(200);
+    await expect(
+      page.getByRole("button", { name: /not bookable yet/i }),
+      "the disabled affordance is missing, which is itself the symptom a regenerated tree produces",
+    ).toBeVisible({ timeout: 15_000 });
+
+    // THE EXPLANATION IS NOW READABLE WITHOUT ANY INTERACTION. This is the accessibility half of D-56
+    // and it is asserted before the negative below, because it is the property a reader of this case
+    // should see first: no hover, no focus, no pointer - the sentence is simply on the page.
+    await expect(
+      page.getByText(/isn.t accepting bookings yet — the host is finishing their payout setup/i),
+    ).toBeVisible();
+
+    // ...and the second sentence the tooltip duplicated is gone, so the rail says it once.
+    await expect(page.getByText(/you can browse now/i)).toHaveCount(0);
+
+    // PROVE THE PAGE HYDRATED BEFORE ASSERTING AN ABSENCE ON IT. 12-07 recorded this the third time
+    // this repo met it: an absence assertion against a hydrated page measures the pre-hydration gap
+    // unless something first shows the client JavaScript ran. Opening and closing the photo lightbox
+    // requires the island to be live in both directions, and it is the cheapest interactive surface on
+    // this route (the calendar's controls are all disabled on a not-payable listing).
+    await page.getByRole("button", { name: /photo 1 of 3/i }).first().click();
+    await expect(page.locator('[data-testid="photo-lightbox"]')).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-testid="photo-lightbox"]')).toHaveCount(0);
+
+    const hydrationErrors = messages.filter((m) => m.includes("Hydration failed"));
+    expect(
+      hydrationErrors,
+      `the page reported ${hydrationErrors.length} hydration mismatch(es). React's own remedy is ` +
+        `"this tree will be regenerated on the client", which is the duplicate-node mechanism Phase 11 ` +
+        `chased four times — and on this route it left the "Not bookable yet" affordance off the ` +
+        `hydrated tree entirely. Messages: ${JSON.stringify(hydrationErrors)}`,
+    ).toEqual([]);
+  });
+});
 
 test.describe("public listing detail page (LIST-06)", () => {
   test("a published listing is viewable by an anonymous visitor (no session)", async ({ page }) => {
@@ -449,3 +580,17 @@ test.describe("the searched window survives the click to the listing (D-59 #1)",
 //     silently. That branch is exercised by neither this spec nor the vitest file.
 //   - NOTHING PAST THE LISTING PAGE. No hold is placed; `placeHold` re-deriving the window server-side
 //     is the authority these cases deliberately do not stand in for.
+//   - CASE (8) IS A DEV-MODE MEASUREMENT, because Playwright's `webServer` runs `npm run dev`. That is
+//     the STRICTER of the two modes for this assertion and that was measured, not assumed: plan 12-08
+//     ran the `[11-13]` discriminator both ways before writing the fix, and the mismatch appeared ONLY
+//     in dev — a production build served the same route with zero. So a green here implies a green
+//     under `npm start`, and a case written against a production server would have been green before
+//     the fix as well as after it.
+//   - CASE (7) DEPENDS ON THE LISTING HAVING A DESCRIPTION AND A CANCELLATION TIER. Both sections are
+//     conditional in the page (a null tier renders no disclosure anywhere, so the heading would stand
+//     over nothing), which is why the seed sets the tier explicitly. A listing missing either one has
+//     five headings in the same relative order and this case would report the shorter array.
+//   - THE ORDER IS ASSERTED, THE RHYTHM IS NOT. Nothing here reads a `boundingBox()`, so the
+//     `Separator` spacing between sections and the key-facts strip's 2×2 collapse below 700px are
+//     measured by neither this case nor `tests/listing/key-facts.test.tsx` (jsdom compiles no
+//     Tailwind). A rendered geometry pass belongs with the viewport spec 12-11 owns.
