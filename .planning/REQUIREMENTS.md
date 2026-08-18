@@ -60,7 +60,7 @@
 - [x] **BFLOW-02**: The listing detail page follows the conventional order (gallery → title → key facts → description → availability → map → cancellation policy → host) and the desktop sticky rail is preserved
 - [x] **BFLOW-03**: Listing photos are a hero grid opening a full-screen keyboard-pageable dialog, not a carousel
 - [x] **BFLOW-04**: The price breakdown renders through a visually identical component in the rail estimate and at checkout, so a booker recognises it as the same fact; the fee line explains itself on demand
-- [ ] **BFLOW-05**: The availability calendar and slot picker pay off their deferred hit-area debt (≥44px day cells), gain a correctly-shaped loading skeleton, and keep month changes inside the motion budget
+- [x] **BFLOW-05**: The availability calendar and slot picker pay off their deferred hit-area debt (≥44px day cells), gain a correctly-shaped loading skeleton, and keep month changes inside the motion budget
 - [ ] **BFLOW-06**: Checkout is a single column on mobile with the summary collapsed behind a disclosure and a sticky confirm bar carrying the amount
 - [ ] **BFLOW-07**: A booker is told the payment redirect is coming, and where they are going, before they leave for the payment provider
 - [ ] **BFLOW-08**: The post-payment view is a distinct confirmation moment — success mark, status, reference, exact amount, venue-local time with named timezone, address, where the copy was emailed, and what happens next — which decays into the normal booking-detail page on later visits
@@ -208,7 +208,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | BFLOW-02 | Phase 12 | Complete |
 | BFLOW-03 | Phase 12 | Complete |
 | BFLOW-04 | Phase 12 | Complete |
-| BFLOW-05 | Phase 12 | Pending |
+| BFLOW-05 | Phase 12 | Complete |
 | BFLOW-06 | Phase 12 | Pending |
 | BFLOW-07 | Phase 12 | Pending |
 | BFLOW-08 | Phase 13 | Pending |
