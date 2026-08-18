@@ -294,15 +294,21 @@ export const LIVE_REGION_EXCLUSIONS = [
   },
   {
     file: "src/components/group/invite-card.tsx",
-    why: "Phase 13's group invite surface (BFLOW-08).",
+    why:
+      "Phase 13's group invite surface (BFLOW-08). An invitee arrives here from a link AFTER a booking " +
+      "exists, so it is downstream of everything this phase's booker path can reach.",
   },
   {
     file: "src/components/group/rsvp-confirmation.tsx",
-    why: "Phase 13's RSVP confirmation (BFLOW-08).",
+    why:
+      "Phase 13's RSVP confirmation (BFLOW-08). It announces an attendee COUNT changing under the " +
+      "organiser, which is a live region worth auditing — by the phase that owns the count.",
   },
   {
     file: "src/components/group/rsvp-form.tsx",
-    why: "Phase 13's RSVP form (BFLOW-08).",
+    why:
+      "Phase 13's RSVP form (BFLOW-08). Its live region reports a submit RESULT on a surface a booker " +
+      "reaches only after confirming and inviting, i.e. past the redirect this phase ends at.",
   },
   // ─── Phase 14 — the host wizard ─────────────────────────────────────────────────────────────────
   {
