@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 22
-status: verifying
-stopped_at: Phase 12 context gathered
-last_updated: "2026-08-17T17:32:58.051Z"
-last_activity: 2026-08-17
+status: executing
+stopped_at: Phase 12 UI-SPEC approved
+last_updated: "2026-08-18T02:23:02.029Z"
+last_activity: 2026-08-18 -- Phase 12 planning complete
 progress:
   total_phases: 11
   completed_phases: 2
-  total_plans: 39
+  total_plans: 53
   completed_plans: 39
   percent: 18
 ---
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 11 (quality-gates-pattern-layer-app-shell) — ALL 22 PLANS COMPLETE
 Plan: 22 of 22
 Current Plan: 22
-Total Plans in Phase: 22
-Status: Phase complete — ready for verification
+Total Plans in Phase: 14
+Status: Ready to execute
 
 **ALL TWENTY-TWO PLANS ARE EXECUTED.** 11-01 … 11-22, none outstanding. `gsd-sdk query state.advance-plan` and `roadmap.update-plan-progress 11` both worked this run (the roadmap reports **Complete**), and `requirements.mark-complete GATE-01 GATE-04` marked both with zero `not_found`. The v1.42.3 argv bug persists but is now characterised rather than merely hit: `state.record-metric` and `state.add-decision` reject POSITIONAL argv and accept NAMED flags (`--phase/--plan/--duration`, `--summary`) — so both were re-run successfully instead of hand-written, for the first time in the phase. `state.update-progress` remains a no-op on this file ("Progress field not found"); that one is still hand-maintained.
 
@@ -142,7 +142,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-17
+Last activity: 2026-08-18 -- Phase 12 planning complete
 
 ## Performance Metrics
 
@@ -657,9 +657,9 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-17T17:32:58.028Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-booker-path-search-listing-checkout/12-CONTEXT.md
+Last session: 2026-08-17T18:12:58.803Z
+Stopped at: Phase 12 UI-SPEC approved
+Resume file: .planning/phases/12-booker-path-search-listing-checkout/12-UI-SPEC.md
 
 Prior session: 2026-08-17T13:24:00.000Z
 Stopped at: Completed 11-16-PLAN.md — RESUMED from an interrupted run (nine empty blocks onto one EmptyState shell across nine surfaces, not the plan's eight; search-results.tsx:170 deliberately NOT converted — it is an error, and its routeOut decision belongs to 11-18). Design gate 33 → 34 files / 584 → 615 tests. Commits 0820524, 5c2fead, f39b60d. npm test + e2e were UNRUN that session (Docker down); both are green as of 11-20.
