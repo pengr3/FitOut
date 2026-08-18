@@ -161,8 +161,16 @@ type PriceBreakdownProps = {
    * grow to select a third without a decision to point at. The moment the two surfaces differ in a row, an
    * order, a weight or a figure, "the rail and checkout show the same fact" stops being a property of the
    * code and goes back to being a claim in a document.
+   *
+   * `"sheet"` IS A THIRD HOOK AND NOT A THIRD PRESENTATION (plan 12-10 · RESP-02 · D-48). The mobile
+   * booking sheet renders the identical breakdown the rail renders — same rows, same order, same weights,
+   * the same trailing sentence — because the sheet IS the rail in another presentation. What it cannot
+   * share is the rail's `data-testid`: `BookingPanel` is mounted TWICE on `/listings/[id]`, so one
+   * document can hold two of these, and `e2e/price-parity.spec.ts` normalises a hook's text back to
+   * integer centavos and would silently parse whichever came first in the DOM. One id per surface keeps
+   * "the rendered total" unambiguous per document, which is a structural fact rather than a discipline.
    */
-  surface?: "rail" | "checkout";
+  surface?: "rail" | "sheet" | "checkout";
 };
 
 export function PriceBreakdown({
@@ -290,10 +298,16 @@ export function PriceBreakdown({
             THE RAIL GETS ITS OWN HOOK, AND SHARING ONE WOULD HAVE BEEN THE DEFECT. Plan 12-10 renders a
             booking sheet, so a single document can hold two breakdowns; the parity spec reads the hook
             and normalises its text back to integer centavos, and with two matches it would silently
-            parse whichever came first in the DOM. Two literals, one per surface, one match each — see
-            the header for why this is written as two branches rather than one computed attribute. */}
+            parse whichever came first in the DOM. THREE literals as of 12-10, one per surface, one match
+            each — see the header for why this is written as sibling branches rather than one computed
+            attribute, and note that all three consume the SAME class constant, so the three totals are
+            computed-style identical by construction and not by three copies agreeing. */}
         {surface === "rail" ? (
           <span data-testid="rail-price-total" className={TOTAL_VALUE_CLASS}>
+            {formatMoney(quotedTotalCents, currency)}
+          </span>
+        ) : surface === "sheet" ? (
+          <span data-testid="sheet-price-total" className={TOTAL_VALUE_CLASS}>
             {formatMoney(quotedTotalCents, currency)}
           </span>
         ) : (
@@ -312,8 +326,16 @@ export function PriceBreakdown({
           and on the listing page it is simply not true yet — nothing is being charged from the rail. So it
           is dropped rather than reworded: every alternative phrasing is new booker-facing copy on a money
           surface, which is exactly where the two whole-source greps in the header live. Do not "improve"
-          either string. */}
-      {surface === "rail" ? (
+          either string.
+
+          THE SHEET TAKES THE RAIL'S LINE, BYTE-IDENTICAL, AND THAT IS WHY THE BRANCH NOW TESTS FOR
+          CHECKOUT (plan 12-10). The sheet is a listing-page surface: nothing is being charged from it
+          either, so the second sentence would be exactly as untrue there as it is in the rail. Testing
+          for the one surface that DOES charge, rather than adding a second name to the short branch,
+          keeps the default the line that promises nothing — the safe direction for a fourth surface
+          added by someone who has not read this paragraph. Neither string changed and no third string
+          was written, so both whole-source copy greps scan the bytes they scanned before. */}
+      {surface !== "checkout" ? (
         <p className="text-xs text-muted-foreground">Includes our service fee.</p>
       ) : (
         /* Kept on ONE line, exactly as it shipped. JSX would collapse the wrapped form to the same

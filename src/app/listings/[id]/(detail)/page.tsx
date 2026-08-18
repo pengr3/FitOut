@@ -60,16 +60,17 @@ import { DropInBadge } from "@/components/listing/drop-in-badge";
 import { HostBlock } from "@/components/listing/host-block";
 import { KeyFacts } from "@/components/listing/key-facts";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { Separator } from "@/components/ui/separator";
 import {
   AvailabilityCalendar,
   BookingSelectionProvider,
-  RailPassSummary,
-  RailSelectionSummary,
 } from "@/components/availability/availability-calendar";
-import { BookCta } from "@/components/booking/book-cta";
+// RESP-02 / D-48 — the booking interaction as ONE component, mounted twice. Everything the rail used to
+// spell out inline (the summary, the CTA and the not-bookable affordance) lives there now, so the sheet
+// renders the identical thing rather than a second copy of it. See that file's header for what
+// `placement` selects and, more importantly, for what it may never select.
+import { BookingPanel } from "@/components/availability/booking-panel";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { RailRateHeadline } from "@/components/booking/rail-rate-headline";
 import { placeHold, placeOpenHold } from "@/app/actions/booking";
@@ -707,85 +708,48 @@ export default async function PublicListingPage({
               </p>
             )}
 
-            {/* Selection summary — appears once the booker picks a run/full day, or a date and a number
-                of passes (display-only either way). Neither branch composes money: both LOOK UP figures
-                this RSC already computed with the same `computeServiceFee` checkout freezes, so the rail
-                and the charge agree to the centavo (D-75) and no fee input reaches the browser (D-130).
+            {/* ── THE RAIL PLACEMENT OF `BookingPanel` (RESP-02 / D-48, plan 12-10) ────────────────
+                The selection summary, the CTA and the not-bookable affordance used to be spelled out
+                here. They are ONE COMPONENT now, mounted twice — here and inside the mobile sheet —
+                which is what makes "the rail and the sheet show the same fact" a construction rather
+                than two blocks that agree today. `placement` selects the ARRANGEMENT and nothing else;
+                the measurement that decided which parts each arrangement holds is in that file's header.
 
-                D-38 / BFLOW-04: each branch now renders the REAL `PriceBreakdown`, itemised, from the
-                widened table's `{space, fee, total}` for the booker's own selection — the same component
-                checkout renders, so the two totals are computed-style identical by construction rather
-                than by assertion. The RAW rate props below feed the run line's LABEL only
-                (`₱473.33/hr × 2 hours`); every VALUE rendered is one of the three finished figures. */}
-            {isOpenCapacity ? (
-              <RailPassSummary
-                timezone={timezone}
-                currency={DISPLAY_CURRENCY}
-                allIn={allIn}
-                perHeadPriceCents={row.listing.perHeadPriceCents}
-              />
-            ) : (
-              <RailSelectionSummary
-                timezone={timezone}
-                currency={DISPLAY_CURRENCY}
-                allIn={allIn}
-                hourlyRateCents={pub.hourlyRateCents}
-                dayRateCents={pub.dayRateCents}
-              />
-            )}
+                Neither placement composes money: both LOOK UP figures this RSC already computed with the
+                same `computeServiceFee` checkout freezes, so the rail and the charge agree to the
+                centavo (D-75) and no fee input reaches the browser (D-130). The RAW rate props feed the
+                run line's LABEL only (`₱473.33/hr × 2 hours`); every VALUE rendered is one of the three
+                finished figures.
 
-            {bookable ? (
-              // Bookable → the hold action mints the pending hold on ENTERING checkout (D-39) then
-              // redirects to the reserve page; when sign-in is required the selection is threaded through
-              // the callbackURL so checkout resumes on return (D-41). The lifted picker selection drives
-              // it via context. BOTH mutations are threaded so the wiring stays visible at this seam;
-              // which one fires is decided by the persisted mode, inside the control.
-              <BookCta
-                listingId={id}
-                placeHold={placeHold}
-                placeOpenHold={placeOpenHold}
-                occupancyMode={row.listing.occupancyMode}
-                resumeWindow={resumeWindowForMode}
-                resumeOpen={resumeOpen}
-              />
-            ) : (
-              // ── PUBLISHED BUT NOT PAYABLE — a disabled affordance and a STATIC explanation (D-56) ──
-              //
-              // ⚠ THIS BLOCK WAS THE `[11-13]` HYDRATION SITE, AND IT IS FIXED BY DELETION RATHER THAN
-              // BY A PATCH. What stood here was a Radix tooltip provider wrapping this button in a
-              // focusable span, because a disabled control receives no hover and the explanation was
-              // hover-only. React reported a named hydration mismatch on every dev load of this route:
-              // the server's child list and the client's disagreed by one at exactly this position,
-              // and React's remedy — "this tree will be regenerated on the client" — is the mechanism
-              // behind the duplicate-node failures Phase 11 chased four times. The mismatch cannot
-              // recur here because the node that produced it no longer exists: no trigger, no focusable
-              // wrapper, no client boundary in this branch at all.
-              //
-              // The explanation is now readable WITHOUT ANY INTERACTION — on touch, on keyboard and to
-              // a screen reader. That is the larger half of the win and it was true before the
-              // hydration error was: roughly half this traffic is touch, where a hover-only explanation
-              // of why a button is dead is an explanation nobody receives. D-39 and D-ELM-01 had both
-              // already refused a tooltip on this path for the same reason.
-              //
-              // The trailing reassurance line below is now BOOKABLE-ONLY. It used to render a second
-              // sentence here saying the same thing this one says, so the rail told a booker twice, in
-              // two wordings, that the space is not ready yet.
-              <div className="space-y-2">
-                <Button size="lg" variant="secondary" disabled className="w-full">
-                  Not bookable yet
-                </Button>
-                <p className="text-center text-xs text-muted-foreground">
-                  This space isn&apos;t accepting bookings yet — the host is finishing their
-                  payout setup.
-                </p>
-              </div>
-            )}
-
-            {bookable && (
-              <p className="text-center text-xs text-muted-foreground">
-                You won&apos;t be charged yet.
-              </p>
-            )}
+                ⚠ THE RESUME PROPS ARE PASSED HERE AND NOWHERE ELSE. `BookCta` auto-submits a restored
+                selection once on mount (D-41), and it is now mounted up to three times on this route;
+                threading them into a second mount would place two holds for one return from `/login`.
+                This mount is the one that carries them because it exists at every width — it is
+                `display:none` below `lg:`, which still runs effects — while the sheet's is mounted only
+                while the sheet is open. */}
+            <BookingPanel
+              placement="rail"
+              listingId={id}
+              timezone={timezone}
+              cityLabel={cityLabel}
+              gmtLabel={gmtLabel}
+              unitCount={row.listing.unitCount}
+              occupancyMode={row.listing.occupancyMode}
+              initialDate={initialDate}
+              initialDay={initialDay}
+              initialFullDates={initialFullDates}
+              todayDate={todayLocal}
+              allIn={allIn}
+              currency={DISPLAY_CURRENCY}
+              hourlyRateCents={pub.hourlyRateCents}
+              dayRateCents={pub.dayRateCents}
+              perHeadPriceCents={row.listing.perHeadPriceCents}
+              bookable={bookable}
+              placeHold={placeHold}
+              placeOpenHold={placeOpenHold}
+              resumeWindow={resumeWindowForMode}
+              resumeOpen={resumeOpen}
+            />
           </PanelCard>
         </aside>
       </div>

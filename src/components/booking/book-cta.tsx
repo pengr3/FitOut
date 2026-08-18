@@ -38,10 +38,11 @@ import type { SlotSelectionValue } from "@/components/availability/slot-picker";
 import { activateBooking } from "@/app/actions/capability";
 import type { PlaceHoldResult } from "@/app/actions/booking";
 
-type PlaceHoldFn = (input: unknown) => Promise<PlaceHoldResult>;
+/** Exported since 12-10: `BookingPanel` threads the two actions through to this control. */
+export type PlaceHoldFn = (input: unknown) => Promise<PlaceHoldResult>;
 
 /** A drop-in selection restored from the sign-in callbackURL, or picked in the calendar. */
-type OpenPick = { dateIso: string; passes: number };
+export type OpenPick = { dateIso: string; passes: number };
 
 /**
  * What this control is about to submit. Discriminated rather than a merged bag of optional fields so the
@@ -58,6 +59,7 @@ export function BookCta({
   occupancyMode,
   resumeWindow,
   resumeOpen,
+  label,
 }: {
   listingId: string;
   /** The placeHold server action, threaded from the RSC so the wiring is visible at the listing seam. */
@@ -70,6 +72,20 @@ export function BookCta({
   resumeWindow?: SlotSelectionValue | null;
   /** The drop-in twin of resumeWindow: `?date=YYYY-MM-DD&passes=N&resume=1`, re-validated server-side. */
   resumeOpen?: OpenPick | null;
+  /**
+   * The IDLE label, when the surface rendering this control wants to name the amount (D-59 #3, plan
+   * 12-10 — the mobile sheet's pinned bar and the sticky bottom bar both read `Book · {total}`).
+   *
+   * OPTIONAL AND DEFAULTING TO THE SHIPPED STRING, which is load-bearing rather than polite: the rail
+   * placement passes nothing, so `Book this space` still names the desktop CTA and every existing
+   * `getByRole("button", { name: "Book this space" })` — `e2e/helpers/booker-seed.ts`'s `placeHold`
+   * included — resolves to exactly the control it always did.
+   *
+   * IT NAMES THE BUTTON; IT NEVER PRODUCES THE FIGURE. The caller composes it from
+   * `selectedTotalLabel`, which is the same lookup and the same `formatMoney` call `PriceBreakdown`'s
+   * `Total` makes — that is what makes the two strings byte-equal (GATE-05 / T-12-10-BARPRICE).
+   */
+  label?: string;
 }) {
   const { selection, openSelection } = useBookingSelection();
   const router = useRouter();
@@ -222,7 +238,7 @@ export function BookCta({
         onClick={() => active && submit(active)}
         className="w-full"
       >
-        {pending ? "Starting…" : "Book this space"}
+        {pending ? "Starting…" : (label ?? "Book this space")}
       </Button>
 
       {!active && !pending && (

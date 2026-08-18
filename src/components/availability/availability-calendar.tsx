@@ -108,7 +108,11 @@ const CALENDAR_GRID_WIDTH =
 // rules the alternative out all live in `src/lib/booking/all-in-table.ts`, beside the code that builds it
 // and the test that pins it. Not restated here — one place to keep true.
 export type { AllInTable } from "@/lib/booking/all-in-table";
-import type { AllInTable } from "@/lib/booking/all-in-table";
+import type { AllInParts, AllInTable } from "@/lib/booking/all-in-table";
+// Isomorphic by its own declaration (`money.ts:6-7` — "both Server Components and Client Components can
+// import it"). It carries no rate, no formula and no fee: it turns an integer this module was HANDED into
+// a display string, which is the one thing GATE-05 has never forbidden a client to do.
+import { formatMoney } from "@/lib/money";
 
 /**
  * Phase-9 (OPEN-02 · OC-02 / OC-06) — the DROP-IN selection. A calendar DATE and a number of passes, with
@@ -267,6 +271,83 @@ export function useBookingSelection(): SelectionContext {
     throw new Error("useBookingSelection must be used within a BookingSelectionProvider");
   }
   return ctx;
+}
+
+// ---------------------------------------------------------------------------
+// THE SELECTION → PRICE LOOKUP, IN ONE PLACE (plan 12-10 · RESP-02 · GATE-05)
+// ---------------------------------------------------------------------------
+//
+// RESP-02 puts the booker's total on THREE surfaces at once: the rail's `PriceBreakdown`, the sheet's
+// `PriceBreakdown`, and the sticky bottom bar's `Book · {total}`. 12-UI-SPEC's falsifiable claim about
+// that bar is not "the numbers are close" — it is that the bar's amount string and the sheet's `Total`
+// string are **BYTE-EQUAL**.
+//
+// Byte-equality is only structural if there is ONE lookup and ONE format. Three surfaces each writing
+// `selection.fullDay ? allIn.fullDay : allIn.hourly[hours]` would agree today and could disagree on the
+// first edit to the hour derivation — and they would disagree at the ROUNDING EDGE, which is the shape
+// nobody notices in review (`all-in-table.ts`: `n × allIn(unit) ≠ allIn(n × unit)`). So the three
+// functions below are the only place the question "what does this selection cost" is answered, and every
+// surface calls one of them.
+//
+// EVERY ONE IS A LOOKUP AND A FORMAT — never arithmetic on money. `tests/design/price-surface.test.ts`
+// walks this file's AST with `allIn` in its seed set and fails the build on any `+ - * /` touching the
+// table or anything derived from it, which is what makes the previous sentence enforced rather than
+// promised. `selectionHours` does divide, and it divides two INSTANTS: a duration is not a price.
+
+/**
+ * How many whole hours a window selection spans — the key `allIn.hourly` is indexed by.
+ *
+ * Extracted from `RailSelectionSummary`, which used to compute it inline. The sticky bar needs the same
+ * key, and a second copy of this expression is a second chance to round differently: `hourly[2]` and
+ * `hourly[3]` are two different frozen totals, so a one-line divergence here is a wrong PRICE on the
+ * booker's most prominent mobile control rather than a cosmetic drift.
+ */
+export function selectionHours(selection: SlotSelectionValue): number {
+  const start = new Date(selection.startUtc);
+  const end = new Date(selection.endUtc);
+  return Math.max(1, Math.round((end.getTime() - start.getTime()) / 3_600_000));
+}
+
+/**
+ * The three finished figures for whatever the booker currently has selected, or null.
+ *
+ * A MISSING KEY IS `null`, and that is the shipped behaviour rather than a new one: an hour count past
+ * the table's cap renders no breakdown at all and no amount on the bar. It is never a cue to compute one
+ * here — the whole reason the table is keyed by the selection is that the fee rounds once over the whole
+ * space price (D-130 / T-12-05-RAILCOMPUTE).
+ *
+ * Both selection channels are consulted because a listing is exactly one mode and the two are mutually
+ * exclusive; a caller that reads only `selection` would leave the drop-in path with no price at all,
+ * which is the D-41 defect `rail-rate-headline.tsx` records catching once already.
+ */
+export function selectedAllInParts(
+  allIn: AllInTable,
+  selection: SlotSelectionValue | null,
+  openSelection: OpenSelectionValue | null,
+): AllInParts | null {
+  if (openSelection != null) return allIn.perPass[openSelection.passes] ?? null;
+  if (selection == null) return null;
+  return selection.fullDay ? allIn.fullDay : (allIn.hourly[selectionHours(selection)] ?? null);
+}
+
+/**
+ * The selection's total as a DISPLAY STRING, or null when there is nothing selected.
+ *
+ * ⚠ THIS IS THE FUNCTION THE BYTE-EQUALITY CLAIM RESTS ON. `PriceBreakdown` renders its `Total` as
+ * `formatMoney(quotedTotalCents, currency)` where `quotedTotalCents` is `selectedAllInParts(...).total`;
+ * this returns `formatMoney` of that same integer, in the same currency, through the same function. The
+ * two strings are therefore equal for the same reason `2 + 2` equals `2 + 2` — not because two surfaces
+ * were kept in step. `e2e/mobile-booker-path.spec.ts` case (d) asserts it anyway, because "the same call"
+ * is a property of today's source and the assertion is a property of the rendered document.
+ */
+export function selectedTotalLabel(
+  allIn: AllInTable,
+  selection: SlotSelectionValue | null,
+  openSelection: OpenSelectionValue | null,
+  currency: string,
+): string | null {
+  const parts = selectedAllInParts(allIn, selection, openSelection);
+  return parts == null ? null : formatMoney(parts.total, currency);
 }
 
 // ---------------------------------------------------------------------------
@@ -708,6 +789,19 @@ type RailSelectionSummaryProps = {
    */
   hourlyRateCents: number | null;
   dayRateCents: number | null;
+  /**
+   * WHICH placement is rendering this summary (plan 12-10 · RESP-02 · D-48).
+   *
+   * Defaults to `"rail"`, so the shipped call site is byte-identical and needed no edit. It selects
+   * exactly ONE thing — which `PriceBreakdown` surface renders, and therefore which total hook the
+   * document carries — because `BookingPanel` is mounted twice on this route and each mount must emit
+   * exactly one of its own hook and none of the other's (12-UI-SPEC condition 3).
+   *
+   * It may NOT grow to select a second thing. The sheet is the rail in another presentation: same rows,
+   * same order, same weights, same figures. The moment it selects a layout as well, BFLOW-04's "one
+   * fact" stops being a property of the code.
+   */
+  surface?: "rail" | "sheet";
 };
 
 /** In the booking rail, ABOVE the CTA: the chosen date · time range · the REAL itemised breakdown. */
@@ -717,15 +811,16 @@ export function RailSelectionSummary({
   allIn,
   hourlyRateCents,
   dayRateCents,
+  surface = "rail",
 }: RailSelectionSummaryProps) {
   const { selection } = useBookingSelection();
   if (!selection) return null;
 
   const inTz = tz(timezone);
   const start = new Date(selection.startUtc);
-  const end = new Date(selection.endUtc);
   const dateLabel = format(start, "EEE, MMM d", { in: inTz });
-  const hours = Math.max(1, Math.round((end.getTime() - start.getTime()) / 3_600_000));
+  const hours = selectionHours(selection);
+  const end = new Date(selection.endUtc);
   const timeLabel = selection.fullDay
     ? "Full day"
     : `${format(start, "h:mm a", { in: inTz })} – ${format(end, "h:mm a", { in: inTz })}`;
@@ -744,7 +839,31 @@ export function RailSelectionSummary({
   // this one selection — which is what lets the block below be the real `PriceBreakdown` rather than a
   // lookalike. `.total` is the identical integer this rail has rendered since Phase 11; the widening added
   // the two figures beside it and changed neither the arithmetic nor where it happens.
-  const parts = selection.fullDay ? allIn.fullDay : (allIn.hourly[hours] ?? null);
+  //
+  // THE LOOKUP IS `selectedAllInParts` NOW, and it is the same call the sticky bar makes — see that
+  // function's docblock for why the bar's amount and this breakdown's `Total` are byte-equal by
+  // construction rather than by two surfaces being kept in step.
+  const parts = selectedAllInParts(allIn, selection, null);
+  // ONE props object, TWO sibling `<PriceBreakdown>` branches below, for the SAME reason
+  // `price-breakdown.tsx` writes its total row twice: the surface must be a STRING LITERAL at the call
+  // site. `tests/design/price-surface.test.ts` asserts this file still contains `surface="rail"` — its
+  // guard against a rail that quietly went back to its own money markup and satisfied every ban in the
+  // file by rendering no breakdown at all. A computed `surface={surface}` resolves to nothing for that
+  // scan, so the assertion would go green on a file with no rail breakdown in it. The shared object is
+  // what stops the two branches drifting into two different call sites.
+  const breakdown =
+    parts == null
+      ? null
+      : {
+          quotedTotalCents: parts.total,
+          spacePriceCents: parts.space,
+          serviceFeeCents: parts.fee,
+          currency,
+          fullDay: selection.fullDay,
+          hours,
+          hourlyRateCents,
+          dayRateCents,
+        };
 
   return (
     <div className="space-y-3 rounded-lg border p-3 text-sm">
@@ -766,19 +885,12 @@ export function RailSelectionSummary({
           expect the number to move — D-75's failure mode restated as copy. 12-UI-SPEC AC#9.
           Every figure below is a finished server-computed prop; this file performs no arithmetic on any
           of them, which `tests/design/price-surface.test.ts` asserts over this file's AST. */}
-      {parts != null && (
-        <PriceBreakdown
-          surface="rail"
-          quotedTotalCents={parts.total}
-          spacePriceCents={parts.space}
-          serviceFeeCents={parts.fee}
-          currency={currency}
-          fullDay={selection.fullDay}
-          hours={hours}
-          hourlyRateCents={hourlyRateCents}
-          dayRateCents={dayRateCents}
-        />
-      )}
+      {breakdown != null &&
+        (surface === "sheet" ? (
+          <PriceBreakdown surface="sheet" {...breakdown} />
+        ) : (
+          <PriceBreakdown surface="rail" {...breakdown} />
+        ))}
     </div>
   );
 }
@@ -813,6 +925,8 @@ type RailPassSummaryProps = {
    * scan in `tests/design/price-surface.test.ts` fails the build if this file ever multiplies the two.
    */
   perHeadPriceCents: number | null;
+  /** Which placement is rendering this summary — see `RailSelectionSummaryProps.surface`, same rule. */
+  surface?: "rail" | "sheet";
 };
 
 /** In the booking rail, ABOVE the CTA: the chosen date · pass count · the REAL itemised breakdown. */
@@ -821,6 +935,7 @@ export function RailPassSummary({
   currency,
   allIn,
   perHeadPriceCents,
+  surface = "rail",
 }: RailPassSummaryProps) {
   const { openSelection } = useBookingSelection();
   if (!openSelection) return null;
@@ -845,7 +960,27 @@ export function RailPassSummary({
   // integer this rail always showed; `.space` and `.fee` are the two finished figures beside it that make
   // an ITEMISED breakdown possible without a single client computation. A missing key (a pass count past
   // the cap) still means no breakdown at all — never a cue to derive one here.
-  const parts = allIn.perPass[passes] ?? null;
+  //
+  // Through `selectedAllInParts` now, exactly as the exclusive branch is: one function answers "what does
+  // this selection cost" for every surface, which is what makes the sticky bar's amount and this
+  // breakdown's `Total` the same string on the drop-in path too.
+  const parts = selectedAllInParts(allIn, null, openSelection);
+  // ONE props object, TWO literal-surface branches — the reason is at the exclusive summary above.
+  const breakdown =
+    parts == null
+      ? null
+      : {
+          quotedTotalCents: parts.total,
+          spacePriceCents: parts.space,
+          serviceFeeCents: parts.fee,
+          perHeadPriceCents,
+          passes,
+          currency,
+          fullDay: false,
+          hours: 0,
+          hourlyRateCents: null,
+          dayRateCents: null,
+        };
 
   return (
     <div className="space-y-3 rounded-lg border p-3 text-sm">
@@ -863,21 +998,12 @@ export function RailPassSummary({
           `.total` is precisely the figure `quoteOpenCapacity` freezes on the row inside the claim's own
           transaction. The one case it moves is a lost race granting fewer heads — it moves DOWN, and the
           reserve page states both figures before anything is charged (09-13). */}
-      {parts != null && (
-        <PriceBreakdown
-          surface="rail"
-          quotedTotalCents={parts.total}
-          spacePriceCents={parts.space}
-          serviceFeeCents={parts.fee}
-          perHeadPriceCents={perHeadPriceCents}
-          passes={passes}
-          currency={currency}
-          fullDay={false}
-          hours={0}
-          hourlyRateCents={null}
-          dayRateCents={null}
-        />
-      )}
+      {breakdown != null &&
+        (surface === "sheet" ? (
+          <PriceBreakdown surface="sheet" {...breakdown} />
+        ) : (
+          <PriceBreakdown surface="rail" {...breakdown} />
+        ))}
     </div>
   );
 }

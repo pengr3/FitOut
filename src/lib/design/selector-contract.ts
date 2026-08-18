@@ -151,6 +151,9 @@ export const SELECTOR_IDS = [
   "listing-key-facts",
   // 12-09 — the month grid's loading plate.
   "skeleton-calendar",
+  // 12-10 — RESP-02's one booking panel in two placements, and the sheet placement's own total.
+  "booking-panel",
+  "sheet-price-total",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -405,5 +408,37 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "so it computes no accessible name in the document the spec measures, which is precisely the " +
       "state a hook has to survive.",
     owner: "12-09",
+  },
+
+  // ─── 12-10 ─────────────────────────────────────────────────────────────────────────────────────────
+  "booking-panel": {
+    why:
+      "RESP-02's declared duplication needs a handle on the DUPLICATE ITSELF, and every accessible " +
+      "query available here is a query about one of its contents rather than about the mount. The " +
+      "panel is a `<div>` with no role, no heading of its own and no accessible name — its children " +
+      "carry all of those — so `getByRole` cannot address it even in principle. Nor would a name " +
+      "query be a substitute if one existed: the assertion this hook exists for is a COUNT ACROSS " +
+      "PLACEMENTS (`/listings/[id]` mounts this component twice by design, and a THIRD mount is the " +
+      "regression), and counting a role its children share with the rail's other panels, the sheet's " +
+      "own chrome and the checkout breakdown would be counting something else. ⚠ IT IS DELIBERATELY " +
+      "NOT THE HOOK THE `Book`-button ASSERTION USES: `hidden` is what removes the inactive copy from " +
+      "the accessibility tree, and a `getByTestId` query finds a hidden element — so the one-of-" +
+      "anything-reachable condition is asserted with ROLE queries and this hook answers the different " +
+      "question of how many copies are MOUNTED.",
+    owner: "12-10",
+  },
+  "sheet-price-total": {
+    why:
+      "The third surface of the same no-role-for-a-number argument `price-total` and " +
+      "`rail-price-total` both record, and the reason it may not reuse either of them is sharper " +
+      "here than it was for the rail. `BookingPanel` is mounted TWICE in ONE document on " +
+      "`/listings/[id]`, so a shared id would put two matches on the page a booker is actually " +
+      "looking at rather than across two routes — and `e2e/price-parity.spec.ts` normalises a hook's " +
+      "textContent back to integer centavos and would resolve whichever came first in the DOM, on " +
+      "the one CI-gated money spec. One id per surface is what keeps every document holding exactly " +
+      "one match per hook, which is a structural fact rather than a discipline. 12-04 recorded this " +
+      "row as owed and 12-05 restated it; the literal lands in `price-breakdown.tsx` in the same " +
+      "commit as this row.",
+    owner: "12-10",
   },
 };
