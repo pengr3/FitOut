@@ -13,12 +13,57 @@
 // client-side and are covered by 02-HUMAN-UAT.md manual checks. Everything is torn down in afterAll
 // (deleting the host cascades to its listings + photos), and ids/emails are unique per run so repeated
 // runs never collide.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 12 (plan 12-02) — D-59 #1: THE SEARCHED WINDOW SURVIVES THE CLICK
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A THIRD listing is seeded here — BOOKABLE (a second host with an activated payout wallet) with weekly
+// hours 06:00-21:00 — because the three new cases need a day that actually HAS free hours to assert
+// against. The recipe is `e2e/availability.spec.ts`'s; the two original listings are untouched.
+//
+// `search-result-card.tsx` has always written `?date=YYYY-MM-DD&start=HH:mm&end=HH:mm` onto every
+// listing link. Until plan 12-02 the listing route read none of it. These cases assert the property
+// rather than the intention:
+//
+//   (4) the searched day AND window are open on arrival, with NO interaction at all
+//   (5) an off-the-hour `start` opens the day but seeds NO selection, and raises no error region
+//   (6) one day selection issues EXACTLY ONE availability request (RESP-02 AC#21, first half)
+//
+// ⚠ THE SERVER-ACTION HEADER, OBSERVED RATHER THAN ASSUMED. Case (6) counts requests by a header
+// because a Next server action POSTs to the CURRENT ROUTE URL — there is no distinguishing path to
+// filter on, and filtering on the path would count the navigation itself. The header had no in-repo
+// precedent, so it was captured from a real request in this spec and logged once before being asserted:
+//
+//   OBSERVED (2026-08-18, Next 16.2.7, dev), printed verbatim by case (6)'s one-time log:
+//
+//     [12-02] server-action request observed:
+//       next-action=6017805515c500eae8865f8676457899da89a088cf
+//       url=http://localhost:3000/listings/e2e_pl_bookable_242324e6-aa0a-4c52-93d9-7ce734c36ad5
+//       rsc=undefined
+//
+//   So: the header is `next-action` - a LOWERCASE key in Playwright's `request.headers()` (Playwright
+//   lowercases header names) carrying the action id as its value. Two things in that line are worth
+//   more than the name itself. The `url` is the LISTING ROUTE ITSELF, which is why the counter cannot
+//   filter on a path. And `rsc` is UNDEFINED on this request - so an `rsc`-based filter, the obvious
+//   second guess, would count zero and the gate would be green for no reason. The counter matches on
+//   `next-action` ALONE.
+//
+// ⚠ THE VENUE-TZ DAY MATH BELOW IS A VERBATIM COPY of `e2e/price-parity.spec.ts:88-107`, which is
+// itself a verbatim copy of `search-and-book.spec.ts`. It is NOT re-derived: timezone/DST math
+// re-derived per spec is the top booking-app failure mode (CLAUDE.md), so the rule is "same math or
+// none". `new Date()` arithmetic appears nowhere in the new cases.
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
+import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
+
+import { seedTheme } from "./helpers/theme";
 
 const BASE = "http://localhost:3000";
+const VENUE_TZ = "Asia/Manila";
 
 // The Playwright process doesn't load .env; fall back to the deterministic dev URL (as tests/helpers/db.ts does).
 const DATABASE_URL =
@@ -30,6 +75,35 @@ const hostId = `e2e_host_${randomUUID()}`;
 const publishedId = `e2e_pub_${randomUUID()}`;
 const draftId = `e2e_draft_${randomUUID()}`;
 const unlistedId = `e2e_unlisted_${randomUUID()}`;
+
+// Phase-12: a BOOKABLE listing (its own host, with an activated payout wallet) + real operating hours.
+const bookableHostId = `e2e_pl_hostB_${randomUUID()}`;
+const bookableId = `e2e_pl_bookable_${randomUUID()}`;
+
+// ---- Target day: +3 days out (future, within the 90-day horizon), venue-local ----------------------
+// VERBATIM from price-parity.spec.ts:88-107 — see the header's copy note. Three days out, so "the
+// selected day is not TODAY" can never pass vacuously (the plan requires at least two).
+const inTz = tz(VENUE_TZ);
+const now = new Date();
+const initMonth = Number(format(now, "M", { in: inTz }));
+const initYear = Number(format(now, "yyyy", { in: inTz }));
+const base = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+const targetYear = Number(format(base, "yyyy", { in: inTz }));
+const targetMonth = Number(format(base, "M", { in: inTz })); // 1-based
+const targetDay = Number(format(base, "d", { in: inTz }));
+const targetMonthName = format(base, "MMMM", { in: inTz });
+const crossesMonth = targetMonth !== initMonth || targetYear !== initYear;
+
+/** react-day-picker default day-button aria-label is "EEEE, MMMM do, yyyy" — match by month/day/year. */
+const targetDayLabel = new RegExp(
+  `${targetMonthName}\\s+${targetDay}(st|nd|rd|th)?,?\\s+${targetYear}`,
+);
+
+/** The venue-local `YYYY-MM-DD` the search card would write, and the `EEEE, MMM d` heading it produces. */
+const targetDateParam = format(base, "yyyy-MM-dd", { in: inTz });
+const targetDayHeading = format(base, "EEEE, MMM d", { in: inTz });
+/** Venue-local TODAY, for the "and not today" half of the assertion. */
+const todayDateParam = format(now, "yyyy-MM-dd", { in: inTz });
 
 // Run this file's tests in ONE worker, sequentially. With `fullyParallel`, these fast tests otherwise
 // distribute across workers, each re-running beforeAll (seed) + afterAll (`sql.end()`); that rapid
@@ -85,13 +159,77 @@ test.beforeAll(async () => {
     INSERT INTO "listing" (id, host_id, title, status, created_at, updated_at)
     VALUES (${unlistedId}, ${hostId}, ${"Unlisted space (off market)"}, ${"unlisted"}::listing_status, now(), now())
   `;
+
+  // ── Phase-12: the BOOKABLE listing the searched-window cases need ───────────────────────────────
+  // A SECOND host, because the first deliberately has no host_payout row (that is what makes the
+  // original case's "Not bookable yet" assertion meaningful) and D-59 #1's seeding is gated on
+  // `deriveBookable`. Recipe copied from e2e/availability.spec.ts.
+  await sql`
+    INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
+    VALUES (
+      ${bookableHostId}, ${"E2E Host B"}, ${`e2e.host.${bookableHostId}@example.com`}, ${true},
+      ${"Bea"}, ${true}, ${true}, now(), now()
+    )
+  `;
+  await sql`
+    INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
+    VALUES (${bookableHostId}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
+  `;
+  await sql`
+    INSERT INTO "listing" (
+      id, host_id, title, description, primary_space_type,
+      address_line1, city, region, postal_code, country, neighborhood,
+      location, show_exact_address, max_occupancy, unit_count, timezone,
+      hourly_rate_cents, day_rate_cents, currency, booking_mode, status, published_at, created_at, updated_at
+    ) VALUES (
+      ${bookableId}, ${bookableHostId}, ${"Searched Window Studio"},
+      ${"A studio seeded so a searched window has real hours to land on."}, ${"yoga_studio"}::space_type,
+      ${"9 Real Street"}, ${"Makati"}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
+      ST_SetSRID(ST_MakePoint(${121.0345}, ${14.5679}), 4326), ${false}, ${12}, ${1}, ${VENUE_TZ},
+      ${50000}, ${300000}, ${"php"}, ${"instant"}::booking_mode, ${"published"}::listing_status,
+      now(), now(), now()
+    )
+  `;
+  await sql`
+    INSERT INTO "listing_photo" (id, listing_id, public_id, url, position) VALUES
+      (${randomUUID()}, ${bookableId}, ${"fitout/e2e/b0"}, ${"https://example.com/e2e-b0.jpg"}, ${0})
+  `;
+  // Weekly hours 06:00-21:00 every day, so the +3-day target has free hours whatever weekday it lands on
+  // (and so `listingHasOperatingHours`, the fourth deriveBookable term, is satisfied).
+  for (let dow = 0; dow < 7; dow++) {
+    await sql`
+      INSERT INTO "operating_hours" (id, listing_id, day_of_week, open_time, close_time, created_at)
+      VALUES (${randomUUID()}, ${bookableId}, ${dow}, ${"06:00"}, ${"21:00"}, now())
+    `;
+  }
 });
 
 test.afterAll(async () => {
   // Deleting the host cascades to its listings, photos, and amenities (ON DELETE CASCADE).
   await sql`DELETE FROM "user" WHERE id = ${hostId}`;
+  await sql`DELETE FROM "user" WHERE id = ${bookableHostId}`;
   await sql.end();
 });
+
+/**
+ * TRAP 1, the shared spine's reachability guard (e2e/overflow-320.spec.ts:341-353).
+ *
+ * Every assertion in the three Phase-12 cases below is "a thing is selected" or "a thing is absent",
+ * and a blank page, a 404 and a redirect to /login all satisfy the second kind. This names a selector
+ * only THIS route produces, and it runs before anything else. The 15s timeout is copied too — it is a
+ * measured allowance for the dev server's on-demand compiles, not a hedge.
+ */
+async function expectListingReachable(page: Page): Promise<void> {
+  await expect(
+    page.getByRole("heading", { name: /searched window studio/i }),
+    "the listing route rendered no title heading, so it is not the surface these cases assert about",
+  ).toBeVisible({ timeout: 15_000 });
+}
+
+/** The month-grid button for a venue-local date — react-day-picker tags the `<td>` with an ISO `data-day`. */
+function dayButton(page: Page, iso: string) {
+  return page.locator(`td[data-day="${iso}"] button`);
+}
 
 test.describe("public listing detail page (LIST-06)", () => {
   test("a published listing is viewable by an anonymous visitor (no session)", async ({ page }) => {
@@ -123,3 +261,191 @@ test.describe("public listing detail page (LIST-06)", () => {
     expect(res?.status()).toBe(404);
   });
 });
+
+// =====================================================================================================
+// D-59 #1 - the searched window survives the click (plan 12-02)
+// =====================================================================================================
+
+test.describe("the searched window survives the click to the listing (D-59 #1)", () => {
+  // These are BEHAVIOUR assertions, not measurements, so there is no both-themes loop and no
+  // `document.fonts.ready` - nothing here reads a `boundingBox()`. `seedTheme` still runs before the
+  // first `goto` (spine item 3) so a theme is applied pre-paint rather than swapped in after it.
+  test.beforeEach(async ({ page }) => {
+    await seedTheme(page.context(), "court");
+  });
+
+  test("(4) arriving with ?date&start&end opens THAT day with THAT window selected - no interaction", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    // Exactly what search-result-card.tsx writes: a venue-local day and an on-the-hour venue-local window.
+    const res = await page.goto(
+      `${BASE}/listings/${bookableId}?date=${targetDateParam}&start=17:00&end=18:00`,
+    );
+    expect(res?.status(), "the listing must render, never 404, for a link carrying a window").toBe(200);
+    await expectListingReachable(page);
+
+    // -- THE DAY --------------------------------------------------------------------------------
+    // If the target lands in next month the page must have opened ON that month, with no click from us.
+    await expect(
+      dayButton(page, targetDateParam),
+      "the searched day's cell is not even in the rendered month - the page did not open on it",
+    ).toHaveCount(1);
+    await expect(dayButton(page, targetDateParam)).toHaveAttribute("data-selected-single", "true");
+
+    // ...AND NOT TODAY. The target is +3 days out by construction, so this cannot pass vacuously - but
+    // asserting it explicitly is what makes the case fail loudly if the seeding silently no-ops back to
+    // the shipped behaviour (which was: always today).
+    expect(todayDateParam, "the target day must not BE today, or the next assertion is vacuous").not.toBe(
+      targetDateParam,
+    );
+    const todayCell = dayButton(page, todayDateParam);
+    if ((await todayCell.count()) > 0) {
+      await expect(todayCell).not.toHaveAttribute("data-selected-single", "true");
+    }
+
+    // The day heading beside the slot grid names the searched day, not today.
+    await expect(page.getByRole("heading", { name: targetDayHeading })).toBeVisible();
+
+    // -- THE WINDOW -----------------------------------------------------------------------------
+    // 5-6 PM reads as SELECTED in the picker. `aria-pressed` is the picker's own honest signal for a
+    // committed run (slot-picker.tsx), and it is asserted before the rail so a failure names the grid.
+    await expect(page.getByRole("button", { name: "5:00 PM", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // The run is 17:00-18:00 - ONE hour - so 6:00 PM must NOT be swept in.
+    await expect(page.getByRole("button", { name: "6:00 PM", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    // -- THE RAIL -------------------------------------------------------------------------------
+    // The lifted selection reached the rail summary, which names the window back to the booker.
+    await expect(page.getByText(/5:00 PM\s*[-–]\s*6:00 PM/i)).toBeVisible();
+
+    // And the CTA is live: the booker can act on what they already told us, without re-picking anything.
+    await expect(page.getByRole("button", { name: "Book this space" })).toBeEnabled();
+  });
+
+  test("(5) an off-the-hour start opens the day with NO selection and no error region", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    const res = await page.goto(
+      `${BASE}/listings/${bookableId}?date=${targetDateParam}&start=17:30&end=18:00`,
+    );
+    expect(res?.status()).toBe(200);
+    await expectListingReachable(page);
+
+    // THE DAY SURVIVES - a rejected window must not cost the booker the day they asked for.
+    await expect(dayButton(page, targetDateParam)).toHaveAttribute("data-selected-single", "true");
+    await expect(page.getByRole("heading", { name: targetDayHeading })).toBeVisible();
+
+    // THE SELECTION DOES NOT. Nothing in the picker is pressed: not a half-seeded 5 PM anchor, not a
+    // rounded-down 5-6 PM run. `Book full day` also carries aria-pressed, and it is false too, so this
+    // covers every pressed control on the surface in one count.
+    await expect(page.locator('[aria-pressed="true"]')).toHaveCount(0);
+    await expect(page.getByText(/5:00 PM\s*[-–]\s*6:00 PM/i)).toHaveCount(0);
+
+    // AND NOTHING WENT WRONG. A discarded param is a normal outcome, not a failure: no alert region,
+    // and specifically not the day-fetch error box (T-12-02-PARAMTAMPER).
+    //
+    // SCOPED TO `main`, AND THAT IS MEASURED RATHER THAN TIDY. An unscoped `getByRole("alert")` resolves
+    // to 1 on every page in `next dev`: Playwright pierces shadow DOM, so it finds the dev overlay's own
+    // alert inside `<nextjs-portal>`. An assertion that counts the framework's dev chrome is red for a
+    // reason that has nothing to do with the booker. The page's own content root is the `<main>` this
+    // route renders, and the count guard on it is the vacuity check for the empty-list assertion below.
+    await expect(page.locator("main")).toHaveCount(1);
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+    await expect(page.getByText(/could ?n.t load this day/i)).toHaveCount(0);
+  });
+
+  test("(6) one day selection issues EXACTLY ONE availability request (RESP-02 AC#21)", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    // Count by HEADER, never by path: a Next server action POSTs to the CURRENT ROUTE URL, so a path
+    // filter would either match the navigation too or match nothing. See this file's header for the
+    // observed name and how it was captured.
+    let actionRequests = 0;
+    let loggedOnce = false;
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST") {
+        const headers = request.headers();
+        if (headers["next-action"] !== undefined) {
+          actionRequests += 1;
+          if (!loggedOnce) {
+            loggedOnce = true;
+            // Printed once per run so the observed header name recorded in this file's header stays
+            // checkable by the next reader rather than having to be taken on trust.
+            console.log(
+              `[12-02] server-action request observed: next-action=${headers["next-action"]} ` +
+                `url=${request.url()} rsc=${headers["rsc"]}`,
+            );
+          }
+        }
+      }
+      await route.continue();
+    });
+
+    // Arrive with NO params, so the page opens on venue-local today and the click below is a real day
+    // CHANGE. The count starts from the first paint, which the RSC served - that read cost no action
+    // request at all, and this asserts it.
+    const res = await page.goto(`${BASE}/listings/${bookableId}`);
+    expect(res?.status()).toBe(200);
+    await expectListingReachable(page);
+    expect(actionRequests, "the first paint must be served by the RSC, with no client fetch").toBe(0);
+
+    // Navigate the venue-tz calendar to the target day and click it - ONE day selection.
+    // VERBATIM from price-parity.spec.ts (selectTargetDay) - see this file's header copy note.
+    if (crossesMonth) {
+      await page.getByRole("button", { name: /next month/i }).click();
+    }
+    const day = page
+      .getByRole("button", { name: targetDayLabel })
+      .and(page.locator("td:not([data-outside='true']) button"))
+      .and(page.locator("button:not([disabled])"));
+    await day.first().click();
+
+    // Wait for the NEW day to be on screen before counting, so a count of 1 cannot mean "the second
+    // request has not fired yet".
+    await expect(page.getByRole("heading", { name: targetDayHeading })).toBeVisible();
+    await expect(page.getByRole("button", { name: "5:00 PM", exact: true })).toBeVisible();
+
+    // Give a would-be second request room to arrive and still be counted - otherwise `=== 1` would be
+    // asserting a race rather than a property.
+    await page.waitForTimeout(1_500);
+
+    expect(
+      actionRequests,
+      `one day selection issued ${actionRequests} availability requests. EXACTLY ONE is the ` +
+        `requirement (RESP-02 AC#21): two means the day is held in more than one place again, which ` +
+        `is precisely what hoisting it into BookingSelectionProvider (plan 12-02) was for. This is ` +
+        `=== 1 and not >= 1 on purpose - >= 1 is green for the defect.`,
+    ).toBe(1);
+  });
+});
+
+// =====================================================================================================
+// NOT COVERED - real blind spots, stated so the next reader under-trusts this spec
+// =====================================================================================================
+//
+//   - ONE VIEWPORT. These run at the project's default size, so the RESP-02 SHEET - the second booking
+//     view whose existence is the whole reason the day was hoisted - is not mounted here. The "exactly
+//     one request" count is therefore proven for the desktop placement only; the 375px half belongs to
+//     the plan that builds the sheet.
+//   - ONE MODE. Exclusive/hourly only. A drop-in (open_capacity) listing deliberately still opens on
+//     venue-local today - DatePassPicker owns its own day state - and nothing here would notice if that
+//     changed.
+//   - THE DISCARD PATH IS TESTED WITH ONE SHAPE. Case (5) uses an off-the-hour `start`; the other four
+//     discard shapes (a UTC ISO instant, `end <= start`, a partial window, a garbage `date`) are
+//     asserted against the schema in `tests/validation/search-window.test.ts`, not against the page.
+//   - NO HORIZON EDGE. A `date` in the past or beyond the 90-day horizon must fall back to today
+//     silently. That branch is exercised by neither this spec nor the vitest file.
+//   - NOTHING PAST THE LISTING PAGE. No hold is placed; `placeHold` re-deriving the window server-side
+//     is the authority these cases deliberately do not stand in for.
