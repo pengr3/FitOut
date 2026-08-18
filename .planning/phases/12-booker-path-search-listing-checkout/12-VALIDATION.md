@@ -1,17 +1,18 @@
 ---
 phase: 12
 slug: booker-path-search-listing-checkout
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-08-18
+planned: 2026-08-18
 ---
 
 # Phase 12 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
-> Derived from `12-RESEARCH.md` § Validation Architecture. The Per-Task Verification Map is
-> populated by the planner as plans are written.
+> Derived from `12-RESEARCH.md` § Validation Architecture. The Per-Task Verification Map was
+> populated by the planner on 2026-08-18 against the 14 plans / 42 tasks.
 
 ---
 
@@ -22,12 +23,12 @@ created: 2026-08-18
 | **Framework (unit/integration)** | Vitest 4.1.8 — `vitest.config.ts` (env `node`, jsdom per-file via `// @vitest-environment jsdom`). `globalSetup: tests/global-setup.ts` + `setupFiles: tests/setup.ts` force `fitout_test`, per-file schema. **Requires Docker + Postgres.** |
 | **Framework (design gate)** | Vitest 4.1.8 — `vitest.design.config.ts`, owns `tests/design/**` only. **No `globalSetup`, no `setupFiles` — deliberately DB-free** (runs inside `next build`). Never add either key. |
 | **Framework (e2e/a11y/viewport/rendering)** | Playwright 1.60.0 — `playwright.config.ts`, project `chromium`, `testMatch: "e2e/*.spec.ts"`, `webServer: npm run dev` on :3000. |
-| **Framework (visual regression)** | Playwright project `visual`, `testMatch: "e2e/visual/**/*.spec.ts"`. **Linux-only** (`RUN_VISUAL_PROJECT = process.platform === "linux"`), `updateSnapshots: "none"` unconditional. **Cannot be minted on this Windows box — CI dispatch only.** |
+| **Framework (visual regression)** | Playwright project `visual`, `testMatch: "e2e/visual/**/*.spec.ts"`. **Linux-only** (`RUN_VISUAL_PROJECT = process.platform === "linux"`), `updateSnapshots: "none"` unconditional. **Cannot be minted on this Windows box — CI dispatch only (plan 12-14).** |
 | **Quick run command** | `npm run test:design` (DB-free, seconds) — the per-commit sampler |
 | **Targeted unit run** | `npx vitest run tests/<area>` (needs Docker; `npm run db:test:setup` once) |
 | **Targeted e2e run** | `npx playwright test e2e/<spec>.spec.ts --project=chromium` |
 | **Full suite command** | `npm test && npm run test:design && npx playwright test --project=chromium` |
-| **Build gate** | `npm run build` = `lint && test:design && next build`. A raw hex, an arbitrary type size, an undeclared `data-testid`, a literal box class in a skeleton, or a `server-only` boundary violation fails the build today. |
+| **Build gate** | `npm run build` = `lint && test:design && next build`. A raw hex, an arbitrary type size, an undeclared `data-testid`, a **declared-but-unrendered** `data-testid`, a literal box class in a skeleton, or a `server-only` boundary violation fails the build today. |
 | **Estimated runtime** | design gate ~seconds · full Vitest ~minutes (Docker) · Playwright chromium ~minutes (dev server + DB) |
 
 ---
@@ -43,72 +44,126 @@ created: 2026-08-18
 
 ## Per-Task Verification Map
 
-*Populated by the planner. Every task must carry either an `<automated>` verify command from the
-Requirement → Test Map below, or an explicit Wave 0 dependency on a listed missing file.*
+*Every task carries an `<automated>` verify command. The Wave-0 files are created INSIDE the plan that
+turns them green, rather than in a separate up-front wave, so no task is left without a runnable check
+and no design-gate file lands red inside `npm run build`.*
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| _pending_ | — | — | — | — | — | — | — | — | ⬜ pending |
+| 12-01/T1 | 12-01 | 1 | BFLOW-01 | T-12-01-PAIRBLIND | Every rendered pairing is inside the AA gate | design | `npx vitest run --config vitest.design.config.ts tests/design/contrast.test.ts tests/design/pair-drift.test.ts` | ✅ | ⬜ pending |
+| 12-01/T2 | 12-01 | 1 | BFLOW-01 | T-12-01-GEODRIFT | One gutter constant; card contract pinned | design + unit | `npx vitest run --config vitest.design.config.ts tests/design/skeleton-measurements.test.ts && npx vitest run tests/search/search-card-open.test.tsx` | ✅ | ⬜ pending |
+| 12-01/T3 | 12-01 | 1 | BFLOW-01 | T-12-01-MIGRATION | GATE-06 is a per-run assertion | rendering + design | `npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium && npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts tests/design/sheet-absent.test.ts` | ✅ | ⬜ pending |
+| 12-02/T1 | 12-02 | 1 | RESP-02, STATE-07 | T-12-02-RACE | One fetch; stale responses discarded | unit (jsdom) | `npx vitest run tests/availability/availability-calendar.test.tsx && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-02/T2 | 12-02 | 1 | RESP-02 | T-12-02-PARAMTAMPER, T-12-02-FORMATMIX | Searched window parsed by schema; formats stay distinct | unit | `npx vitest run tests/validation/search-window.test.ts && npx tsc --noEmit` | ❌ **created here** | ⬜ pending |
+| 12-02/T3 | 12-02 | 1 | RESP-02 | T-12-02-SEEDTRUST | Seeded selection is advisory; server re-derives | e2e | `npx playwright test e2e/public-listing.spec.ts --project=chromium` | ✅ extend | ⬜ pending |
+| 12-03/T1 | 12-03 | 2 | SHELL-03 | T-12-03-HOLDIDOR | Owner gate untouched; layout fetches no hold | unit | `npx vitest run tests/booking && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-03/T2 | 12-03 | 2 | SHELL-03, GATE-03 | T-12-03-A11YDOUBLE, T-12-03-HOOKGHOST | One announcement; declared hook rendered | unit (jsdom) + design | `npx vitest run tests/booking/hold-countdown.test.tsx && npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts` | ❌ **created here** | ⬜ pending |
+| 12-03/T3 | 12-03 | 2 | SHELL-03, GATE-03 | T-12-03-GETDUP | Way back is a GET that cannot mint a hold | e2e + `page.clock` | `npx playwright test e2e/hold-countdown.spec.ts e2e/shell.spec.ts --project=chromium` | ❌ **created here** | ⬜ pending |
+| 12-04/T1 | 12-04 | 3 | BFLOW-04 | T-12-04-ROUNDDRIFT, T-12-04-FEELEAK | Fee computed once, server-side; lookup never ingredients | unit | `npx vitest run tests/booking/all-in-table.test.ts && npx tsc --noEmit` | ✅ extend | ⬜ pending |
+| 12-04/T2 | 12-04 | 3 | BFLOW-04 | T-12-04-PRICECLIENT, T-12-04-PARITYBLIND | Rendering moves, computation does not | design + build | `npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts && npm run build` | ✅ | ⬜ pending |
+| 12-04/T3 | 12-04 | 3 | BFLOW-04 | T-12-04-COPYDRIFT | The D-42 tripwire becomes a committed test | design (source scan) | `npx vitest run --config vitest.design.config.ts tests/design/price-surface.test.ts` | ❌ **created here** | ⬜ pending |
+| 12-05/T1 | 12-05 | 4 | BFLOW-04 | T-12-05-RAILCOMPUTE, T-12-05-STALEPRICE | Rail renders finished figures only | unit (jsdom) | `npx vitest run tests/availability/availability-calendar.test.tsx && npx tsc --noEmit` | ✅ extend | ⬜ pending |
+| 12-05/T2 | 12-05 | 4 | BFLOW-04 | T-12-05-RATELEAK, T-12-05-FOCUSFORK | No percentage in client copy; one focus trap | design | `npx vitest run --config vitest.design.config.ts tests/design/price-surface.test.ts tests/design/focus-recipe.test.ts && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-05/T3 | 12-05 | 4 | BFLOW-04 | T-12-05-TOOLTIP | Popover opens on click, never hover | rendering | `npx playwright test e2e/price-one-fact.spec.ts e2e/price-parity.spec.ts --project=chromium` | ❌ **created here** | ⬜ pending |
+| 12-06/T1 | 12-06 | 5 | GATE-03 | T-12-06-SETDRIFT | The audited set is typed and count-pinned | type-level | `npx tsc --noEmit` | ❌ **created here** | ⬜ pending |
+| 12-06/T2 | 12-06 | 5 | GATE-03 | T-12-06-A11YSILENT, T-12-06-A11YINTERRUPT | No assertive; every region named | unit + design | `npx vitest run tests/availability tests/booking && npx vitest run --config vitest.design.config.ts tests/design/skeleton-a11y.test.tsx` | ✅ | ⬜ pending |
+| 12-06/T3 | 12-06 | 5 | GATE-03 | T-12-06-REGIONGHOST, T-12-06-VACUOUS | A region without a row fails the build | design (scan + render) | `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.tsx` | ❌ **created here** | ⬜ pending |
+| 12-07/T1 | 12-07 | 5 | BFLOW-03 | T-12-07-BOUNDARY | Mosaic stays server-safe | unit (jsdom) | `npx vitest run tests/listing/photo-gallery.test.tsx` | ❌ **created here** | ⬜ pending |
+| 12-07/T2 | 12-07 | 5 | BFLOW-03 | T-12-07-FOCUSTRAP, T-12-07-HOOKGHOST | One focus-trap implementation; declared hook rendered | design | `npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts tests/design/sheet-absent.test.ts tests/design/elevation-z.test.ts tests/design/focus-recipe.test.ts && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-07/T3 | 12-07 | 5 | BFLOW-03 | T-12-07-NONAME, T-12-07-KEYLEAK | Dialog is named; arrows are scoped to the dialog | e2e + a11y | `npx playwright test e2e/photo-lightbox.spec.ts --project=chromium` | ❌ **created here** | ⬜ pending |
+| 12-08/T1 | 12-08 | 6 | BFLOW-02 | T-12-08-PII, T-12-08-SLAFICTION | Allow-list fields only; no invented SLA | e2e | `npx playwright test e2e/public-listing.spec.ts --project=chromium && npx tsc --noEmit` | ✅ extend | ⬜ pending |
+| 12-08/T2 | 12-08 | 6 | BFLOW-02 | T-12-08-FALSECLAIM | `1 of N` enforced positively and negatively | unit (jsdom) + design | `npx vitest run tests/listing/key-facts.test.tsx && npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts` | ❌ **created here** | ⬜ pending |
+| 12-08/T3 | 12-08 | 6 | BFLOW-02 | T-12-08-HYDRATION, T-12-08-TOOLTIP | The mismatch's producing node is deleted | e2e | `npx playwright test e2e/public-listing.spec.ts --project=chromium` | ✅ extend | ⬜ pending |
+| 12-09/T1 | 12-09 | 7 | BFLOW-05 | T-12-09-HITAREA, T-12-09-VENDORFORK | 44px measured, not asserted; no vendored edit | rendering (`boundingBox`) | `npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium` | ❌ **created here** | ⬜ pending |
+| 12-09/T2 | 12-09 | 7 | BFLOW-05 | T-12-09-A11YFILL, T-12-09-BOXDRIFT | Skeletons named; one box constant | design + type-level | `npx vitest run --config vitest.design.config.ts tests/design/skeleton-a11y.test.tsx tests/design/selector-contract.test.ts tests/design/live-regions.test.tsx && npx tsc --noEmit` | ✅ extend | ⬜ pending |
+| 12-09/T3 | 12-09 | 7 | BFLOW-05, RESP-02 | T-12-09-OVERFLOW, T-12-09-MOTIONSHIFT | 320px holds; the grid animates nothing | rendering + viewport | `npx playwright test e2e/calendar-hit-area.spec.ts e2e/reduced-motion.spec.ts e2e/overflow-320.spec.ts --project=chromium` | ✅ extend | ⬜ pending |
+| 12-10/T1 | 12-10 | 8 | RESP-02 | T-12-10-DUPCONTROL | `hidden` removes the inactive copy from the a11y tree | design | `npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts tests/design/sheet-absent.test.ts && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-10/T2 | 12-10 | 8 | RESP-02 | T-12-10-BARPRICE, T-12-10-DOUBLEHOLD | Bar renders a lookup; one submission path | design | `npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts tests/design/price-surface.test.ts tests/design/elevation-z.test.ts && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-10/T3 | 12-10 | 8 | RESP-02, BFLOW-04 | T-12-10-DOUBLEFETCH, T-12-10-CLEARANCE | One Book button, one request, byte-equal amounts | viewport (Playwright) | `npx playwright test e2e/mobile-booker-path.spec.ts e2e/overflow-320.spec.ts e2e/price-one-fact.spec.ts --project=chromium` | ❌ **created here** | ⬜ pending |
+| 12-11/T1 | 12-11 | 9 | BFLOW-06 | T-12-11-SC | Registry block adds zero npm dependencies | design | `npx vitest run --config vitest.design.config.ts tests/design/dark-scope.test.ts tests/design/leak.test.ts tests/design/focus-recipe.test.ts tests/design/selector-contract.test.ts && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-11/T2 | 12-11 | 9 | BFLOW-06 | T-12-11-HIDDENTOTAL, T-12-11-STICKYHEADER | Total never collapses; 2 sticky call sites | design + unit | `npx vitest run --config vitest.design.config.ts tests/design/elevation-z.test.ts tests/design/selector-contract.test.ts tests/design/sticky-offset.test.ts && npx vitest run tests/booking && npx tsc --noEmit` | ✅ | ⬜ pending |
+| 12-11/T3 | 12-11 | 9 | BFLOW-07, BFLOW-06 | T-12-11-REDIRECTNAME, T-12-11-ORMBUNDLE | The destination is named; no ORM in the bundle | unit (jsdom) + viewport | `npx vitest run tests/booking/reserve-actions.test.tsx && npx playwright test e2e/mobile-booker-path.spec.ts e2e/overflow-320.spec.ts e2e/price-parity.spec.ts --project=chromium` | ✅ extend | ⬜ pending |
+| 12-12/T1 | 12-12 | 10 | STATE-03 | T-12-12-PARAMTAMPER, T-12-12-LADDERCOST, T-12-12-SQLI | Bounded flag; capped, sequential, parameter-bound | integration (DB) | `npx vitest run tests/search/relaxation-ladder.test.ts tests/search/availability-filter.test.ts` | ❌ **created here** | ⬜ pending |
+| 12-12/T2 | 12-12 | 10 | STATE-03 | T-12-12-CLIENTFILTER | The ladder runs server-side; the client renders | unit (jsdom) + design | `npx vitest run tests/search/search-results-states.test.tsx && npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts tests/design/live-regions.test.tsx tests/design/contrast.test.ts` | ❌ **created here** | ⬜ pending |
+| 12-12/T3 | 12-12 | 10 | STATE-03 | T-12-12-FALSEBAND, T-12-12-UNDOLOOP | Control and results agree; Undo terminates | e2e | `npx playwright test e2e/zero-result-relax.spec.ts --project=chromium` | ❌ **created here** | ⬜ pending |
+| 12-13/T1 | 12-13 | 11 | STATE-07 | T-12-13-PRECHECK, T-12-13-STALEPRICE, T-12-13-PAYLOADWIDEN | The UI renders the constraint's ruling; no pre-check | unit (jsdom) + design | `npx vitest run tests/availability/availability-calendar.test.tsx tests/booking && npx vitest run --config vitest.design.config.ts tests/design/selector-contract.test.ts tests/design/live-regions.test.tsx` | ✅ extend | ⬜ pending |
+| 12-13/T2 | 12-13 | 11 | STATE-07 | T-12-13-A11YDOUBLE | Alternatives are presentation, not a second read | unit + design | `npx vitest run tests/availability && npx vitest run --config vitest.design.config.ts tests/design/motion-budget.test.ts tests/design/contrast.test.ts tests/design/live-regions.test.ts` | ✅ | ⬜ pending |
+| 12-13/T3 | 12-13 | 11 | STATE-07 | T-12-13-CONSTRAINTLEAK | `23P01` never reaches the DOM | e2e (seeded conflict) | `npx playwright test e2e/collision-in-place.spec.ts e2e/error-leak.spec.ts --project=chromium` | ❌ **created here** | ⬜ pending |
+| 12-14/T1 | 12-14 | 12 | GATE-01 (VRT) | T-12-14-BASEMINT, T-12-14-CIWRITE, T-12-14-CISECRET | The write path stays one manual trigger with no secret | structural (yaml parse) | `node scripts/verify-baselines-workflow.mjs && npx tsc --noEmit` | ❌ **created here** | ⬜ pending |
+| 12-14/T2 | 12-14 | 12 | GATE-01 (VRT) | T-12-14-WRONGCARD, T-12-14-CLOCKFLAKE, T-12-14-PLATBASE | A wrong-card or unfrozen capture fails before it becomes a reference | type-level + design | `npx tsc --noEmit && npx vitest run --config vitest.design.config.ts tests/design/gitignore-baselines.test.ts` | ✅ | ⬜ pending |
+| 12-14/T3 | 12-14 | 12 | all (baseline review) | T-12-14-UNVERIFIED | Writing is not comparing — a follow-up run is required | **human checkpoint** | *(blocking `checkpoint:human-action`: dispatch, verify the commit contents, then a comparison run whose id is recorded)* | n/a | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ### Requirement → Test Map (source of truth for the column above)
 
-| Req | Test type | Command | Exists? |
-|---|---|---|---|
-| BFLOW-01 | unit (jsdom) | `npx vitest run tests/search/search-card-open.test.tsx` | ✅ extend |
-| BFLOW-01 | design | `npx vitest run --config vitest.design.config.ts tests/design/skeleton-measurements.test.ts` | ✅ extend |
-| BFLOW-01 | rendering | `npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium` | ✅ extend (needs a `/`-based case — current spec measures `/dev/theme`, which never renders `ResultsGrid`) |
-| BFLOW-02 | e2e | `npx playwright test e2e/public-listing.spec.ts --project=chromium` | ✅ extend |
-| BFLOW-02 | unit (jsdom) | `npx vitest run tests/listing/key-facts.test.tsx` | ❌ **Wave 0** |
-| BFLOW-03 | unit (jsdom) | `npx vitest run tests/listing/photo-gallery.test.tsx` | ❌ **Wave 0** |
-| BFLOW-03 | e2e + a11y | `npx playwright test e2e/photo-lightbox.spec.ts --project=chromium` | ❌ **Wave 0** |
-| BFLOW-03 | design + e2e | `npx vitest run --config vitest.design.config.ts tests/design/sheet-absent.test.ts` | ✅ |
-| BFLOW-04 | rendering | `npx playwright test e2e/price-one-fact.spec.ts --project=chromium` | ❌ **Wave 0** |
-| BFLOW-04 | design (source scan) | `npx vitest run --config vitest.design.config.ts tests/design/price-surface.test.ts` | ❌ **Wave 0** |
-| BFLOW-04 | unit | `npx vitest run tests/booking/all-in-table.test.ts` | ✅ extend |
-| BFLOW-04 | **e2e (CI-gated)** | `npx playwright test e2e/price-parity.spec.ts --project=chromium` | ✅ must stay green — its only env input is `DATABASE_URL`; **do not grow it** |
-| BFLOW-05 | **rendering (`boundingBox`)** | `npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium` | ❌ **Wave 0 — the measurement Pitfall 2 requires** |
-| BFLOW-05 | unit (jsdom + `dom-accessibility-api`) | `npx vitest run --config vitest.design.config.ts tests/design/skeleton-a11y.test.tsx` | ✅ extend |
-| BFLOW-05 | rendering | `npx playwright test e2e/reduced-motion.spec.ts --project=chromium` | ✅ extend |
-| RESP-02 | **viewport** | `npx playwright test e2e/mobile-booker-path.spec.ts --project=chromium` | ❌ **Wave 0** |
-| RESP-02 / BFLOW-06 | viewport | `npx playwright test e2e/overflow-320.spec.ts --project=chromium` | ✅ extend |
-| SHELL-03 | e2e | `npx playwright test e2e/shell.spec.ts --project=chromium` | ✅ extend |
-| SHELL-03 / GATE-03 | rendering + `page.clock` | `npx playwright test e2e/hold-countdown.spec.ts --project=chromium` | ❌ **Wave 0** |
-| BFLOW-07 | unit (jsdom) | `npx vitest run tests/booking/reserve-actions.test.tsx` | ✅ extend |
-| STATE-03 | integration | `npx vitest run tests/search/relaxation-ladder.test.ts` | ❌ **Wave 0** |
-| STATE-03 | e2e | `npx playwright test e2e/zero-result-relax.spec.ts --project=chromium` | ❌ **Wave 0** |
-| STATE-03 | unit (jsdom) | `npx vitest run tests/search/search-results-states.test.tsx` | ❌ **Wave 0** |
-| STATE-07 | e2e (seeded conflict) | `npx playwright test e2e/collision-in-place.spec.ts --project=chromium` | ❌ **Wave 0** |
-| STATE-07 | unit (jsdom) | `npx vitest run tests/availability/availability-calendar.test.tsx` | ✅ extend |
-| GATE-03 | design (source scan) + type-level | `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.ts` + `npx tsc --noEmit` | ❌ **Wave 0** |
-| GATE-05 | build | `npm run build` (server-only boundary survives widened `AllInTable` + client-flipped `PriceBreakdown`) | ✅ |
-| GATE-06 | design (tree scan) | `npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts` — `drizzle/` at `0025`, no migration added | ✅ add assertion if absent |
-| Inventories | design + type-level | `tests/design/contrast.test.ts`, `tests/design/skeleton-measurements.test.ts`, `tests/design/selector-contract.test.ts`, `tests/design/sheet-absent.test.ts`, `tests/design/elevation-z.test.ts` | ✅ |
+| Req | Test type | Command | Exists? | Owning plan |
+|---|---|---|---|---|
+| BFLOW-01 | unit (jsdom) | `npx vitest run tests/search/search-card-open.test.tsx` | ✅ extend | 12-01 |
+| BFLOW-01 | design | `npx vitest run --config vitest.design.config.ts tests/design/skeleton-measurements.test.ts` | ✅ extend | 12-01 |
+| BFLOW-01 | rendering | `npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium` | ✅ extend (a `/`-based case — the current spec measures `/dev/theme`, which never renders `ResultsGrid`) | 12-01 |
+| BFLOW-02 | e2e | `npx playwright test e2e/public-listing.spec.ts --project=chromium` | ✅ extend | 12-02, 12-08 |
+| BFLOW-02 | unit (jsdom) | `npx vitest run tests/listing/key-facts.test.tsx` | ❌ → **12-08/T2** | 12-08 |
+| BFLOW-03 | unit (jsdom) | `npx vitest run tests/listing/photo-gallery.test.tsx` | ❌ → **12-07/T1** | 12-07 |
+| BFLOW-03 | e2e + a11y | `npx playwright test e2e/photo-lightbox.spec.ts --project=chromium` | ❌ → **12-07/T3** | 12-07 |
+| BFLOW-03 | design | `npx vitest run --config vitest.design.config.ts tests/design/sheet-absent.test.ts` | ✅ | 12-07 |
+| BFLOW-04 | rendering | `npx playwright test e2e/price-one-fact.spec.ts --project=chromium` | ❌ → **12-05/T3** (sheet case added by 12-10/T3) | 12-05 |
+| BFLOW-04 | design (source scan) | `npx vitest run --config vitest.design.config.ts tests/design/price-surface.test.ts` | ❌ → **12-04/T3** | 12-04 |
+| BFLOW-04 | unit | `npx vitest run tests/booking/all-in-table.test.ts` | ✅ extend | 12-04 |
+| BFLOW-04 | **e2e (CI-gated)** | `npx playwright test e2e/price-parity.spec.ts --project=chromium` | ✅ must stay green; its only env input is `DATABASE_URL` — **do not grow it** | 12-04, 12-05, 12-11 |
+| BFLOW-05 | **rendering (`boundingBox`)** | `npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium` | ❌ → **12-09/T1** (the measurement Pitfall 2 requires) | 12-09 |
+| BFLOW-05 | unit (jsdom, `{ name }` idiom) | `npx vitest run --config vitest.design.config.ts tests/design/skeleton-a11y.test.tsx` | ✅ extend | 12-09 |
+| BFLOW-05 | rendering | `npx playwright test e2e/reduced-motion.spec.ts --project=chromium` | ✅ extend | 12-09 |
+| RESP-02 | **viewport** | `npx playwright test e2e/mobile-booker-path.spec.ts --project=chromium` | ❌ → **12-10/T3** | 12-10 |
+| RESP-02 / BFLOW-06 | viewport | `npx playwright test e2e/overflow-320.spec.ts --project=chromium` | ✅ extend (three new rows: listing closed 12-09, listing sheet-open 12-10, checkout 12-11) | 12-09, 12-10, 12-11 |
+| SHELL-03 | e2e | `npx playwright test e2e/shell.spec.ts --project=chromium` | ✅ extend | 12-03 |
+| SHELL-03 / GATE-03 | rendering + `page.clock` | `npx playwright test e2e/hold-countdown.spec.ts --project=chromium` | ❌ → **12-03/T3** | 12-03 |
+| BFLOW-07 | unit (jsdom) | `npx vitest run tests/booking/reserve-actions.test.tsx` | ✅ extend | 12-11 |
+| STATE-03 | integration | `npx vitest run tests/search/relaxation-ladder.test.ts` | ❌ → **12-12/T1** | 12-12 |
+| STATE-03 | e2e | `npx playwright test e2e/zero-result-relax.spec.ts --project=chromium` | ❌ → **12-12/T3** | 12-12 |
+| STATE-03 | unit (jsdom) | `npx vitest run tests/search/search-results-states.test.tsx` | ❌ → **12-12/T2** | 12-12 |
+| STATE-07 | e2e (seeded conflict) | `npx playwright test e2e/collision-in-place.spec.ts --project=chromium` | ❌ → **12-13/T3** | 12-13 |
+| STATE-07 | unit (jsdom) | `npx vitest run tests/availability/availability-calendar.test.tsx` | ✅ extend | 12-02, 12-05, 12-13 |
+| GATE-03 | design (scan + render) + type-level | `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.tsx` + `npx tsc --noEmit` | ❌ → **12-06/T1 + 12-06/T3** | 12-06 |
+| GATE-05 | build | `npm run build` (the `server-only` boundary survives the widened `AllInTable` + the client-flipped `PriceBreakdown`) | ✅ — re-run and CAPTURED, not inferred | 12-04, 12-05 |
+| GATE-06 | design (tree scan) | `npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts` — `drizzle/` at `0025`, no migration added | ❌ assertion added → **12-01/T3** | 12-01 |
+| Inventories | design + type-level | `tests/design/contrast.test.ts`, `skeleton-measurements.test.ts`, `selector-contract.test.ts`, `sheet-absent.test.ts`, `elevation-z.test.ts`, `dark-scope.test.ts` | ✅ | 12-01, 12-11 |
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `tests/listing/key-facts.test.tsx` — BFLOW-02 (the `1 of N` correctness rule)
-- [ ] `tests/listing/photo-gallery.test.tsx` — BFLOW-03 (six mosaic shapes + button predicate)
-- [ ] `e2e/photo-lightbox.spec.ts` — BFLOW-03 (open-on-tapped-photo, arrow paging, Escape, focus return, accessible name)
-- [ ] `e2e/calendar-hit-area.spec.ts` — BFLOW-05 (**`boundingBox` measurement required by Pitfall 2** + ±2px skeleton match)
-- [ ] `e2e/price-one-fact.spec.ts` — BFLOW-04 (computed-style identity, the three hooks, the fee popover)
-- [ ] `tests/design/price-surface.test.ts` — BFLOW-04 (`Est.` absent; zero arithmetic in `price-breakdown.tsx`)
-- [ ] `e2e/mobile-booker-path.spec.ts` — RESP-02 / BFLOW-06 (sticky bar without scrolling, byte-equal amounts, one Book button, one availability request, collapsed disclosure)
-- [ ] `e2e/hold-countdown.spec.ts` — SHELL-03 / GATE-03 (`page.clock`-driven; header box stability; announce-once)
-- [ ] `tests/search/relaxation-ladder.test.ts` — STATE-03 (rung order, stop-at-first-hit, category never relaxed, the cap)
-- [ ] `e2e/zero-result-relax.spec.ts` — STATE-03 (band + cards, control/results agreement, Undo)
-- [ ] `e2e/collision-in-place.spec.ts` — STATE-07 (seeded conflict, same-paint flip, one live region, no `23P01`)
-- [ ] `tests/design/live-regions.test.ts` + `src/lib/design/live-regions.ts` — GATE-03 (typed inventory + its three scans)
-- [ ] `tests/search/search-results-states.test.tsx` — STATE-03 (cold start renders neither band nor escape hatch)
-- [ ] **Seed fixtures** for the new visual surfaces + the D-58 OG listing (Phase 12 is the first phase that must bring its own)
-- [ ] Framework install: **none needed** — Vitest, Playwright, jsdom, `dom-accessibility-api`, `culori` all present.
+**Resolved sequencing decision:** the 13 missing files are NOT created in a separate up-front wave. Each is
+created inside the plan that turns it green, as the first task of a red→green pair. Two reasons, both
+mechanical: `tests/design/**` runs inside `npm run build`, so a design-gate file landing red would break the
+build for every subsequent plan; and `src/lib/design/selector-contract.ts`'s gate is **bidirectional**, so a
+declared id whose component has not shipped fails three assertions at once. The sampling-continuity rule is
+satisfied by construction — every one of the 42 tasks carries an `<automated>` command.
+
+- [ ] `tests/listing/key-facts.test.tsx` — BFLOW-02 (the `1 of N` correctness rule) → **12-08/T2**
+- [ ] `tests/listing/photo-gallery.test.tsx` — BFLOW-03 (six mosaic shapes + button predicate) → **12-07/T1**
+- [ ] `e2e/photo-lightbox.spec.ts` — BFLOW-03 → **12-07/T3**
+- [ ] `e2e/calendar-hit-area.spec.ts` — BFLOW-05 (**the `boundingBox` measurement Pitfall 2 requires**) → **12-09/T1 + T3**
+- [ ] `e2e/price-one-fact.spec.ts` — BFLOW-04 → **12-05/T3**, extended by **12-10/T3**
+- [ ] `tests/design/price-surface.test.ts` — BFLOW-04 (**net-new: no committed test enforces the D-42 tripwire today**) → **12-04/T3**
+- [ ] `e2e/mobile-booker-path.spec.ts` — RESP-02 / BFLOW-06 → **12-10/T3**, extended by **12-11/T3**
+- [ ] `e2e/hold-countdown.spec.ts` — SHELL-03 / GATE-03 (`page.clock`; **zero prior occurrences in `e2e/`**) → **12-03/T3**
+- [ ] `tests/search/relaxation-ladder.test.ts` — STATE-03 → **12-12/T1**
+- [ ] `e2e/zero-result-relax.spec.ts` — STATE-03 → **12-12/T3**
+- [ ] `e2e/collision-in-place.spec.ts` — STATE-07 (**mid-test seeding, mechanism specified in the plan**) → **12-13/T3**
+- [ ] `tests/design/live-regions.test.tsx` + `src/lib/design/live-regions.ts` — GATE-03 (**one `.tsx` file: scan half + render half**) → **12-06/T1 + T3**
+- [ ] `tests/search/search-results-states.test.tsx` — STATE-03 (cold start renders neither band nor hatch) → **12-12/T2**
+- [ ] **Shared e2e fixture** `e2e/helpers/booker-seed.ts` (verbatim venue-tz math, ordered teardown) → **12-03/T3**
+- [ ] **Committed seed fixtures** `scripts/seed-baseline-fixtures.ts` + the D-58 OG listing → **12-14/T1**
+- [ ] Also net-new, not in the original list: `tests/validation/search-window.test.ts` → **12-02/T2**; `tests/booking/hold-countdown.test.tsx` → **12-03/T2**; `scripts/verify-baselines-workflow.mjs` → **12-14/T1**
+- [ ] Framework install: **none needed** — Vitest, Playwright, jsdom, `@testing-library` (the `{ name }` idiom) and `culori` are all present.
 
 ---
 
 ## Manual-Only Verifications
+
+*All seven are enumerated in plan **12-14/T3**'s blocking `checkpoint:human-action`, so they are walked in
+one session with a recorded verdict each rather than scattered across the phase.*
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
@@ -124,11 +179,11 @@ Requirement → Test Map below, or an explicit Wave 0 dependency on a listed mis
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (13 files + seed fixtures)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s for the per-commit design sampler
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have an `<automated>` verify command (42 of 42; the one exception is the blocking human checkpoint 12-14/T3, which is a checkpoint by design)
+- [x] Sampling continuity: no 2 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (13 listed files + 3 discovered + 2 fixtures), each assigned to the plan that turns it green
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s for the per-commit design sampler
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved by the planner, 2026-08-18

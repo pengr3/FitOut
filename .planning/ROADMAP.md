@@ -232,7 +232,59 @@ Plans:
   4. Checkout is a single column on mobile with the summary behind a disclosure and a sticky confirm bar carrying the amount; its own minimal header holds the wordmark and the live hold countdown with no navigation that can silently lose an active hold; the countdown and every live status region announce to a screen reader **once** rather than per tick; and the booker is told the redirect is coming, and where they are going, before leaving for PayMongo.
   5. A booker who gets no search results, or whose slot is taken while they were choosing it, is offered real alternatives **in place** — the page names which constraint was relaxed, and a collision lands refreshed availability in the same paint as a calm result rather than an error.
 
-**Plans**: TBD
+**Plans**: 14 plans (12 waves)
+
+Plans:
+**Wave 1**
+
+- [ ] 12-01-PLAN.md — Inventories: measurements +7, the brand-30 exclusion, the D-57 gutter, the GATE-06 tripwire
+- [ ] 12-02-PLAN.md — Seam A: hoist the day-availability read; honour the searched window (D-59 #1)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 12-03-PLAN.md — Seam C: `HoldProvider`, the checkout header countdown, the one way back
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 12-04-PLAN.md — Seam B: the widened `AllInTable` and the client `PriceBreakdown`
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 12-05-PLAN.md — The rail renders the real breakdown; the fee explains itself
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 12-06-PLAN.md — GATE-03: the `LIVE_REGIONS` inventory and the declared booker-path audit
+- [ ] 12-07-PLAN.md — BFLOW-03: the 5-up mosaic and the full-screen lightbox
+
+**Wave 6** *(blocked on Wave 5)*
+
+- [ ] 12-08-PLAN.md — BFLOW-02: the conventional order, the key-facts strip, the host block, the `[11-13]` site
+
+**Wave 7** *(blocked on Wave 6)*
+
+- [ ] 12-09-PLAN.md — BFLOW-05: the 44px calendar cell, the month-grid skeleton, the motion absence
+
+**Wave 8** *(blocked on Wave 7)*
+
+- [ ] 12-10-PLAN.md — RESP-02 / D-48: `BookingPanel`, the sheet, the listing sticky bar
+
+**Wave 9** *(blocked on Wave 8)*
+
+- [ ] 12-11-PLAN.md — BFLOW-06 / BFLOW-07: single-column checkout, the price disclosure, the PayMongo handoff
+
+**Wave 10** *(blocked on Wave 9)*
+
+- [ ] 12-12-PLAN.md — STATE-03: the relaxation ladder, the band, the `relax=0` flag
+
+**Wave 11** *(blocked on Wave 10)*
+
+- [ ] 12-13-PLAN.md — STATE-07: the collision, in place
+
+**Wave 12** *(blocked on Wave 11)*
+
+- [ ] 12-14-PLAN.md — GATE-01: the Phase-12 visual baselines and the D-58 OG fixture *(checkpoint: human dispatch + the seven manual walks)*
+
 **UI hint**: yes
 
 **Scope note:** this phase holds all three D-130 restructure permissions (search results, listing detail, checkout) and the open-capacity date/pass picker, which is a pre-hold surface on the listing page. It is sequenced **first** among the order-independent set (12–15): it is the highest-risk surface (every money and availability seam runs through it) and it is where the Phase-11 pattern inventory gets its real stress test — a wrong pattern is cheaper to learn here than after three phases adopt it.
