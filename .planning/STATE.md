@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 12-07-PLAN.md
-last_updated: "2026-08-18T08:39:03.243Z"
+stopped_at: Completed 12-08-PLAN.md
+last_updated: "2026-08-18T09:34:32.596Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 53
-  completed_plans: 46
+  completed_plans: 47
   percent: 18
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
-Plan: 8 of 14
-Current Plan: 8
+Plan: 9 of 14
+Current Plan: 9
 Total Plans in Phase: 14
 Status: Ready to execute
 
@@ -165,6 +165,7 @@ Last activity: 2026-08-18
 
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 *11-22: ~93 min wall-clock, 5 tasks (3 auto + 2 blocking checkpoints) plus one unplanned CI fix, 9 source/config files + 25 baseline PNGs, 8 commits. Four observed CI runs driven by the coordinator; three OBSERVED REDs recorded.*
+*12-08: ~132 min wall-clock, 3 tasks (all auto), 3 files created + 4 modified, 3 commits. Roughly half the wall-clock is the `[11-13]` discriminator: four production builds and four server switches to measure dev-vs-prod on BOTH the restored and the deleted tree, which is what separated "the fix worked" from "the defect was never in production". Six watched reds, all reverted.*
 
 **Recent Trend:**
 
@@ -296,6 +297,10 @@ Last activity: 2026-08-18
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [12-08]: **`[11-13]` was a DEV-MODE ARTEFACT, measured on a 2×2 matrix rather than a before/after.** Same seeded not-payable listing, same theme seed, `npm run build && npm start` vs `npm run dev`, with the `TooltipProvider` site both RESTORED and DELETED: present → dev `Hydration failed × 1` / prod **0**; deleted → **0 / 0**. Running the discriminator on the mutated tree as well as the fixed one is what turned a claimable repair into the correct finding — the production build never had the mismatch, so `[11-03]`/`[11-11](a)`/`[11-14]` resolve together as one dev-mode class. The deletion still stands on its own merits and it did fix `e2e/availability.spec.ts:261` (a standing red since 12-06), because in dev the regenerated tree was dropping the `Not bookable yet` CTA.
+- [12-08]: **The two standing reds on `/listings/[id]` are NOT one investigation.** 12-02 and 12-06 both recorded them as *"plausibly one investigation"* of the route's streaming behaviour. Measured: the draft-404 case fails identically under a production build (`curl` → 200 in both modes; an unmatched URL correctly 404s in both), so it survives the discriminator that the hydration mismatch does not. It is a real rendering-strategy defect needing its own Rule 4 decision, and nothing that fixes a hydration boundary can close it.
+- [12-08]: **An acceptance criterion phrased as a directory grep is wider than the property it names — measure it and report both dispositions rather than deleting another plan's surface.** *"No `components/ui/tooltip` import under `src/components/{search,listing,availability,booking}`"* still matches two files after the listing page's site was deleted: `photo-uploader.tsx` (a HOST surface, not the booker path) and `slot-picker.tsx` (genuinely booker-path, whose tooltip carries the notice requirement and has nowhere else to live on a wrapping grid of 44px chips). Deferred to **12-09**, which already opens that file, with the copy/placement question stated. 12-UI-SPEC's *"D-56 deletes the last one"* is true only of the listing page.
+- [12-08]: **A whole-text negative assertion must be probed against the shape `textContent` really produces.** The obvious `\b\d+ (courts|rooms|spaces)` was green for the very defect it names, because `textContent` concatenates siblings with no separator (`…Units4 courts`) and there is no word boundary between a letter and a digit. Under the mutation, five positive cases fired and the one written for the bare claim did not. Fixed with `(?<!\d)` and a guard-the-guard line pinning the concatenated string.
 - [11-21]: **A streamed page's PENDING state is a prefix of its own response, not a timing window.** The plan prescribed "stall the session request with `page.route` and a delay"; there is no such request — `auth.api.getSession({ headers: await headers() })` runs on the SERVER inside the `<Suspense>` boundary, so the browser makes exactly one request and a delay moves both states equally. `e2e/helpers/served-document.ts` intercepts the document, fetches it, and fulfils with everything before React's first `<div hidden id="S:…">` completion segment: real server bytes, cookies replayed, zero timing. Measured on `/` — 106,723 bytes, marker at 26,866, prefix holds `AuthSlotSkeleton` and not "Log in". The cut offset is ASSERTED, because a marker that stopped matching would make pending and resolved the same document and every equality over the pair vacuously true.
 - [11-21]: **The prescribed no-shift probe was vacuous, and the fix was to assert the box the constant actually pins.** Deleting `AUTH_SLOT_BOX`'s `min-w-44` left all twelve prescribed header/brand equalities green — `ml-auto … justify-end` makes the slot the last flex child, so resolution moves only its own left edge and no mutation to the reservation can reach the brand. `site-chrome.tsx` already said so in words. `site-auth-slot`'s own box was added as a third assertion; the same mutation then reddened 2 of 6, measuring the resolved cluster at 146.88 (court) / 155.05 (grove) against a 140 fallback — and only on the PUBLIC composition, because the booker and host slots hold the bell's own box in both states.
 - [11-21]: **A rendered geometry gate asserts what the constant CLAIMS, never what would make the numbers match.** The card-grid comparison is at the MEDIA box (`RESULT_CARD_MEDIA` vs `<AspectRatio ratio={4 / 3}>` — 179.33 × 134.48, identical in both themes) and not at the cell, because `card-grid-skeleton.tsx` states its text bars are proportions of the cell rather than measurements of anything real; the cells legitimately differ by ~162px, and by 12px BETWEEN themes. The panel is width-plus-a-FLOOR because `PANEL_MIN_HEIGHT` is documented as a floor and the resolved panel is 22px taller. The plan's literal "width and height within ±2px" would have been satisfiable only by padding a placeholder until a gate went green.
@@ -686,7 +691,11 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-18T08:38:58.152Z
+Last session: 2026-08-18T09:34:32.596Z
+Stopped at: **Completed 12-08-PLAN.md (Wave 6 — BFLOW-02: the conventional order, the key-facts strip, the host block, and the `[11-13]` site).** The listing page's main column now renders `About this space · Amenities · Availability · Location · Cancellation policy · Your host` (measured in a browser, scoped to `main` — `SiteFooter` contributes two more `<h2>`s outside it). Two real moves: availability rose above the map, and cancellation became a section of its own while KEEPING the compact rail line (D-46) — `<details>` count is **2** on desktop, and both sites are gated on the same tier value so they can never disagree; the section is the only place the policy appears on mobile. Two new zero-JS Server Components: `key-facts.tsx` (`<dl data-testid="listing-key-facts">`, 3–4 cells, `Units / 1 of 4 courts` and never a bare `4 courts`, per-cell borders computed from index+total, `min-[700px]` column count as a lookup — the first arbitrary variant in `src/`, verified to compile at 1280/720/600/375) and `host-block.tsx` (props are a `Pick<PublicProfile, …>`, so **the D-09 allow-list is a compile-time fact**; `city` deliberately unused; no SLA figure, no verification/superhost chrome; a plain image element rather than the client-boundary `ui/avatar.tsx`, same call 12-07 made dropping `<AspectRatio>`). **THE DISCRIMINATOR WAS RUN FOUR WAYS, NOT TWO, AND THAT IS THE FINDING.** Same durable seeded not-payable listing, same theme seed, `npm run build && npm start` vs `npm run dev`, once with the `TooltipProvider` site RESTORED and once deleted: site present → dev `Hydration failed × 1`, prod **0**; site deleted → **0 / 0**. So **`[11-13]` was a DEV-MODE ARTEFACT the production build never had** — which resolves `[11-03]`/`[11-11](a)`/`[11-14]` as one dev-mode class and rules Phase 11's streaming hypothesis IN. The deletion is still right on its own merits (a hover-only explanation of a dead button reaches nobody on touch), and it repaired something real: **`e2e/availability.spec.ts:261`, a standing red since 12-06, is GREEN** — the regenerated tree had been dropping the `Not bookable yet` CTA in dev. Pointed at the OTHER standing red, the discriminator came back the other way: the draft-404 case fails identically under `npm start` (`curl` returns 200 in both modes, while an unmatched URL correctly 404s in both), so **the two reds are NOT one investigation** as 12-02 and 12-06 both guessed — one is dev-only and one is a real rendering-strategy defect still needing a Rule 4 decision. Three more findings worth carrying: the mismatch only reproduces with `localStorage.theme` seeded (a naive probe reports a clean page); this plan's own whole-text negative assertion was **vacuous** — `\b\d+` cannot match in `Units4 courts`, so the mutation reddened five positive cases and left the one written for it green, now fixed with the concatenated shape pinned; and Task 3's tooltip grep criterion is **NOT met** — `slot-picker.tsx` still wraps every unavailable hour chip in a tooltip carrying the notice requirement, deferred to **12-09** with the design question stated rather than deleted off another plan's surface. Deviations: 3 auto-fixed (2 Rule 1 — the vacuous regex and a lint-suppression comment that added two warnings; 1 Rule 3 — the new e2e cases declared ABOVE the file's serial-blocking red so they are collected rather than reported as "did not run"). Commits `be121b2` (T1 order/cancellation/host) + `f5da3db` (T2 strip + 17 jsdom cases + selector row) + `ab83bff` (T3 deletion + 2 e2e cases). Next: 12-09.
+Resume file: None
+
+Prior session: 2026-08-18T08:38:58.152Z
 Stopped at: Completed 12-07-PLAN.md
 Resume file: None
 
