@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-08-18T03:37:26.634Z"
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-08-18T05:05:08.974Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 53
-  completed_plans: 41
+  completed_plans: 42
   percent: 18
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
-Plan: 3 of 14
-Current Plan: 3
+Plan: 4 of 14
+Current Plan: 4
 Total Plans in Phase: 14
 Status: Ready to execute
 
@@ -277,6 +277,7 @@ Last activity: 2026-08-18
 | Phase 11 P22 | 93min | 5 tasks | 9 files |
 | Phase 12 P01 | 32min | 3 tasks | 14 files |
 | Phase 12 P02 | 33min | 3 tasks | 12 files |
+| Phase 12 P03 | 2h05m | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -564,6 +565,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 12-02: the searched window is parsed as its OWN Zod shape (searchedWindowSchema); slotSelectionSchema stays byte-unchanged and resume=1 stays the discriminator
 - [Phase ?]: 12-02: parsePickedDate/parseWindowHour extracted to the isomorphic src/lib/search/window-params.ts — importing query.ts from validation/booking.ts put the server-only read model in the client graph (measured: 10 Turbopack errors)
 - [Phase ?]: 12-02: RESP-02 and STATE-07 NOT marked complete — 12-10, 12-13 and 12-14 also claim them; this plan lands only the seam they stand on
+- [Phase ?]: D-49 seam (12-03): the checkout hold context is BIDIRECTIONAL — the page publishes expiresAt down, the countdown publishes expired up — because an App Router layout cannot receive props from its page
+- [Phase ?]: GATE-03 (12-03): on expiry the countdown's live region KEEPS its text and drops aria-live rather than unmounting — silent to a screen reader AND measurable by a text-change counter
+- [Phase ?]: page.clock (12-03): freeze with pauseAt then jump by a measured delta with fastForward; pauseAt to an absolute instant does not move a running page's digits (measured)
+- [Phase ?]: 12-03: a checkout e2e reachability guard must name a RESOLVED-ONLY artifact (price-total) — book/loading.tsx renders the same h1 as the page
 
 ### Pending Todos
 
@@ -667,8 +672,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-18T03:37:05.734Z
-Stopped at: Phase 12 UI-SPEC approved
+Last session: 2026-08-18T05:04:41.958Z
+Stopped at: **Completed 12-03-PLAN.md (Wave 2 — Seam C: the hold context, the header countdown, and the one way back).** `HoldProvider`/`useHold` (src/components/booking/hold-provider.tsx) is the BIDIRECTIONAL checkout context D-49 forces: the countdown renders in the header, which `book/layout.tsx` composes, while `expiresAt` is read owner-gated in `book/page.tsx` one tree below — so the page publishes `expiresAt` DOWN through a new client leaf `PublishExpiresAt` (hold-publisher.tsx, renders nothing) and the countdown publishes `expired` UP for `ReserveView`'s D-44 swap. The layout STAYS a Server Component (`grep -c` for the client directive over it returns **0** — and the first draft of its own new comment SPELLED that directive and failed the criterion on a correct tree; rewritten descriptively as the twelfth instance of the collision that file's header already records). The owner gate, the path-id cross-check and both `notFound()` calls are byte-unchanged; the context carries one ISO string and one boolean and has no member to widen (T-12-03-HOLDIDOR). **GATE-03's two changes:** the expiry arm of the announcement is DELETED (rule 6 — `HoldExpiredState`'s assertive region owns that announcement; two regions reporting one event is the defect) and the threshold message LATCHES (the shipped one-second window was `"" -> msg -> ""`, i.e. TWO changes). On expiry the region KEEPS its text and drops `aria-live` rather than unmounting — silent to AT, and measurable, because a node that disappears is indistinguishable to a text-change counter from one that was rewritten. Asserted as `toBe(1)` in BOTH `tests/booking/hold-countdown.test.tsx` (5 cases) and `e2e/hold-countdown.spec.ts`, and the same mutation reddens both (watched: 3 failed / 2 passed in jsdom, change count 2 in the browser). **Geometry:** `HOLD_COUNTDOWN_BOX` (12-01) gets its first call site; four states (empty slot / 14:52 / 0:09 / Hold expired) × 3 widths × 2 themes, comparing the `site-header` box AND the `hold-countdown` box — the second is load-bearing, because the `min-w-0` mutation left the header green (same vacuity `shell.spec.ts:92-112` recorded for `AUTH_SLOT_BOX`). **D-59 #2:** exactly ONE `<a href>` in `<main>`, labelled `Back to the listing`, href `/listings/{id}` with the window recomposed from the hold's OWN frozen instants, no resume discriminator (T-12-03-GETDUP), with `We'll keep your hold — the timer keeps running.` beneath. **New shared fixture `e2e/helpers/booker-seed.ts`** (per-run UUIDs, ordered teardown, BYTE-IDENTICAL venue-tz day math / `selectTargetDay` / `pickWindow`); `e2e/price-parity.spec.ts` is byte-unmodified with `DATABASE_URL` still its only env input, and the helper's header says it must never be migrated. **Four measured findings worth carrying:** (1) `react-hooks/purity` fails the build on `Date.now()` during render — the ticking half is split out and `key={expiresAt}` so its lazy initializer runs when the deadline lands; (2) `page.clock.pauseAt(<absolute instant>)` does NOT move a running page's digits (observed `"Time left to confirm30:00"` when 14:52 was expected) — freeze with `pauseAt`, then jump by a MEASURED delta with `fastForward`; (3) `book/loading.tsx` renders the SAME `<h1>` as the page, so a checkout reachability guard must name `price-total`, and the expired body has no `<h1>` at all; (4) `/` streams TWO `SearchBar`s (`id="search-category"` at bytes 11,713 and 84,158, completion segment at 26,879) and every spec addressing one by id is racing it. Deviations: 4 auto-fixed (1 Rule 1 — three shipped `Held for` e2e assertions followed the countdown into the header; 3 Rule 3 — the publisher's own module, `partial-grant-notice.test.tsx` wrapped in its real layout, and the streamed-duplicate wait). SHELL-03/GATE-03 NOT marked complete — 12-11/12-12/12-14 also claim them. Commits 91718a1 (T1 context) + 95ecec7 (T2 countdown + way back) + 84fd6b2 (T3 fixture + clock gate). Next: 12-04.
 Resume file: None
 
 Prior session: 2026-08-17T13:24:00.000Z
