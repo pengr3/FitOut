@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 10
+current_plan: 11
 status: executing
-stopped_at: "**Completed 12-08-PLAN.md (Wave 6 — BFLOW-02: the conventional order, the key-facts strip, the host block, and the `[11-13]` site).** The listing page's main column now renders `About this space · Amenities · Availability · Location · Cancellation policy · Your host` (measured in a browser, scoped to `main` — `SiteFooter` contributes two more `<h2>`s outside it). Two real moves: availability rose above the map, and cancellation became a section of its own while KEEPING the compact rail line (D-46) — `<details>` count is **2** on desktop, and both sites are gated on the same tier value so they can never disagree; the section is the only place the policy appears on mobile. Two new zero-JS Server Components: `key-facts.tsx` (`<dl data-testid="listing-key-facts">`, 3–4 cells, `Units / 1 of 4 courts` and never a bare `4 courts`, per-cell borders computed from index+total, `min-[700px]` column count as a lookup — the first arbitrary variant in `src/`, verified to compile at 1280/720/600/375) and `host-block.tsx` (props are a `Pick<PublicProfile, …>`, so **the D-09 allow-list is a compile-time fact**; `city` deliberately unused; no SLA figure, no verification/superhost chrome; a plain image element rather than the client-boundary `ui/avatar.tsx`, same call 12-07 made dropping `<AspectRatio>`). **THE DISCRIMINATOR WAS RUN FOUR WAYS, NOT TWO, AND THAT IS THE FINDING.** Same durable seeded not-payable listing, same theme seed, `npm run build && npm start` vs `npm run dev`, once with the `TooltipProvider` site RESTORED and once deleted: site present → dev `Hydration failed × 1`, prod **0**; site deleted → **0 / 0**. So **`[11-13]` was a DEV-MODE ARTEFACT the production build never had** — which resolves `[11-03]`/`[11-11](a)`/`[11-14]` as one dev-mode class and rules Phase 11's streaming hypothesis IN. The deletion is still right on its own merits (a hover-only explanation of a dead button reaches nobody on touch), and it repaired something real: **`e2e/availability.spec.ts:261`, a standing red since 12-06, is GREEN** — the regenerated tree had been dropping the `Not bookable yet` CTA in dev. Pointed at the OTHER standing red, the discriminator came back the other way: the draft-404 case fails identically under `npm start` (`curl` returns 200 in both modes, while an unmatched URL correctly 404s in both), so **the two reds are NOT one investigation** as 12-02 and 12-06 both guessed — one is dev-only and one is a real rendering-strategy defect still needing a Rule 4 decision. Three more findings worth carrying: the mismatch only reproduces with `localStorage.theme` seeded (a naive probe reports a clean page); this plan's own whole-text negative assertion was **vacuous** — `\b\d+` cannot match in `Units4 courts`, so the mutation reddened five positive cases and left the one written for it green, now fixed with the concatenated shape pinned; and Task 3's tooltip grep criterion is **NOT met** — `slot-picker.tsx` still wraps every unavailable hour chip in a tooltip carrying the notice requirement, deferred to **12-09** with the design question stated rather than deleted off another plan's surface. Deviations: 3 auto-fixed (2 Rule 1 — the vacuous regex and a lint-suppression comment that added two warnings; 1 Rule 3 — the new e2e cases declared ABOVE the file's serial-blocking red so they are collected rather than reported as "did not run"). Commits `be121b2` (T1 order/cancellation/host) + `f5da3db` (T2 strip + 17 jsdom cases + selector row) + `ab83bff` (T3 deletion + 2 e2e cases). Next: 12-09."
-last_updated: "2026-08-18T10:55:19.770Z"
+stopped_at: Completed 12-10-PLAN.md
+last_updated: "2026-08-18T12:55:53.554Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 53
-  completed_plans: 48
+  completed_plans: 49
   percent: 18
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
-Plan: 10 of 14
-Current Plan: 10
+Plan: 11 of 14
+Current Plan: 11
 Total Plans in Phase: 14
 Status: Ready to execute
 
@@ -284,6 +284,7 @@ Last activity: 2026-08-18
 | Phase 12 P06 | 48min | 3 tasks | 7 files |
 | Phase 12 P07 | 118min | 3 tasks | 8 files |
 | Phase 12 P09 | 74min | 3 tasks | 11 files |
+| Phase 12 P10 | 118min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -591,6 +592,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 12-07: Radix does NOT restore focus for a dialog opened without a DialogTrigger — it preventDefaults the native restore to focus context.triggerRef, which is null. Each trigger hands its node to openAt; onCloseAutoFocus restores it
 - [Phase ?]: 12-09: the plan's two calendar overrides ship a 25.08px hit area — a third (a responsive container width) and a fourth ([&_td]:aspect-auto) were needed, and only a rendered boundingBox could have found them
 - [Phase ?]: 12-09: the calendar cell's fluid width floors at 38.58px, not 12-UI-SPEC's 41 — that figure is 288/7 and ignores the calendar's own padding and border
+- [Phase ?]: 12-10: `placement` gates the month grid — measured, not chosen. CALENDAR_GRID_WIDTH is a definite 326px at md:+ against the rail's 312px content box, so a calendar in the rail placement overflows the panel, deletes BFLOW-02's main-column Availability section and reddens calendar-hit-area.spec.ts.
+- [Phase ?]: 12-10: the sticky bar consults only the EXCLUSIVE selection channel. date-pass-picker.tsx seeds {today, 1 pass} from a mount effect, so reading openSelection put an unearned amount on the money path and made RESP-02's sheet structurally unreachable on every drop-in listing.
+- [Phase ?]: 12-10: the bar's selection action IS BookCta in a bar layout, not a second control wired to the same action — one guard, one server ruling, and one already-declared role=status, so GATE-03's DeclaredFileCountIsNine is untouched.
 
 ### Pending Todos
 
@@ -694,8 +698,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-18T10:55:13.674Z
-Stopped at: **Completed 12-08-PLAN.md (Wave 6 — BFLOW-02: the conventional order, the key-facts strip, the host block, and the `[11-13]` site).** The listing page's main column now renders `About this space · Amenities · Availability · Location · Cancellation policy · Your host` (measured in a browser, scoped to `main` — `SiteFooter` contributes two more `<h2>`s outside it). Two real moves: availability rose above the map, and cancellation became a section of its own while KEEPING the compact rail line (D-46) — `<details>` count is **2** on desktop, and both sites are gated on the same tier value so they can never disagree; the section is the only place the policy appears on mobile. Two new zero-JS Server Components: `key-facts.tsx` (`<dl data-testid="listing-key-facts">`, 3–4 cells, `Units / 1 of 4 courts` and never a bare `4 courts`, per-cell borders computed from index+total, `min-[700px]` column count as a lookup — the first arbitrary variant in `src/`, verified to compile at 1280/720/600/375) and `host-block.tsx` (props are a `Pick<PublicProfile, …>`, so **the D-09 allow-list is a compile-time fact**; `city` deliberately unused; no SLA figure, no verification/superhost chrome; a plain image element rather than the client-boundary `ui/avatar.tsx`, same call 12-07 made dropping `<AspectRatio>`). **THE DISCRIMINATOR WAS RUN FOUR WAYS, NOT TWO, AND THAT IS THE FINDING.** Same durable seeded not-payable listing, same theme seed, `npm run build && npm start` vs `npm run dev`, once with the `TooltipProvider` site RESTORED and once deleted: site present → dev `Hydration failed × 1`, prod **0**; site deleted → **0 / 0**. So **`[11-13]` was a DEV-MODE ARTEFACT the production build never had** — which resolves `[11-03]`/`[11-11](a)`/`[11-14]` as one dev-mode class and rules Phase 11's streaming hypothesis IN. The deletion is still right on its own merits (a hover-only explanation of a dead button reaches nobody on touch), and it repaired something real: **`e2e/availability.spec.ts:261`, a standing red since 12-06, is GREEN** — the regenerated tree had been dropping the `Not bookable yet` CTA in dev. Pointed at the OTHER standing red, the discriminator came back the other way: the draft-404 case fails identically under `npm start` (`curl` returns 200 in both modes, while an unmatched URL correctly 404s in both), so **the two reds are NOT one investigation** as 12-02 and 12-06 both guessed — one is dev-only and one is a real rendering-strategy defect still needing a Rule 4 decision. Three more findings worth carrying: the mismatch only reproduces with `localStorage.theme` seeded (a naive probe reports a clean page); this plan's own whole-text negative assertion was **vacuous** — `\b\d+` cannot match in `Units4 courts`, so the mutation reddened five positive cases and left the one written for it green, now fixed with the concatenated shape pinned; and Task 3's tooltip grep criterion is **NOT met** — `slot-picker.tsx` still wraps every unavailable hour chip in a tooltip carrying the notice requirement, deferred to **12-09** with the design question stated rather than deleted off another plan's surface. Deviations: 3 auto-fixed (2 Rule 1 — the vacuous regex and a lint-suppression comment that added two warnings; 1 Rule 3 — the new e2e cases declared ABOVE the file's serial-blocking red so they are collected rather than reported as "did not run"). Commits `be121b2` (T1 order/cancellation/host) + `f5da3db` (T2 strip + 17 jsdom cases + selector row) + `ab83bff` (T3 deletion + 2 e2e cases). Next: 12-09.
+Last session: 2026-08-18T12:55:53.529Z
+Stopped at: Completed 12-10-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-18T08:38:58.152Z

@@ -103,7 +103,7 @@
 ### Responsive (RESP)
 
 - [x] **RESP-01**: A single mobile-overlay primitive (sheet) is adopted for filters, breakdowns, the booking rail and navigation, rather than every mobile pattern degrading into a full-screen dialog
-- [ ] **RESP-02**: A mobile booker reaches the booking CTA without scrolling the listing page, via a sticky bottom bar carrying the price and a 44px action
+- [x] **RESP-02**: A mobile booker reaches the booking CTA without scrolling the listing page, via a sticky bottom bar carrying the price and a 44px action
 - [ ] **RESP-03**: Every surface is verified from 320px up, with the sticky bar present, and no price, countdown or label wraps or overflows
 - [ ] **RESP-04**: Search, listing detail, calendar, wizard, checkout and list surfaces each hold their defined structure at mobile, tablet and desktop from one component tree rather than forked mobile/desktop variants
 
@@ -233,7 +233,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | CROP-03 | Phase 16 | Pending |
 | CROP-04 | Phase 16 | Pending |
 | RESP-01 | Phase 11 | Complete |
-| RESP-02 | Phase 12 | Pending |
+| RESP-02 | Phase 12 | Complete |
 | RESP-03 | Phase 17 | Pending |
 | RESP-04 | Phase 17 | Pending |
 | GATE-01 | Phase 11 | Complete |
