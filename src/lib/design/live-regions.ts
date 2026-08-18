@@ -172,13 +172,16 @@
 // PLANS 12-12 AND 12-13 EACH ADD ONE FILE, IN THE SAME COMMIT AS THE COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-//   12-12 → `src/components/search/relax-band.tsx`        (the named relaxation band, rule 1)
+//   12-12 → `src/components/search/relax-band.tsx`        (the named relaxation band, rule 1) — DONE
 //   12-13 → `src/components/booking/collision-notice.tsx` (STATE-07's in-place notice, rules 1 + 6)
 //
-// Each lands its path in `BOOKER_PATH_LIVE_REGION_FILES`, its row(s) in `LIVE_REGIONS`, and BUMPS
-// `DeclaredFileCountIsNine` to ten and then eleven — renaming the alias as it goes, so the number in the
-// name and the number in the assertion can never disagree. The count moving is the signal; a count that
-// silently tracks the tuple's length would assert nothing at all.
+// Each lands its path in `BOOKER_PATH_LIVE_REGION_FILES`, its row(s) in `LIVE_REGIONS`, and BUMPS the
+// count alias — renaming it as it goes, so the number in the name and the number in the assertion can
+// never disagree. The count moving is the signal; a count that silently tracks the tuple's length would
+// assert nothing at all. 12-12 renamed `DeclaredFileCountIsNine` → `DeclaredFileCountIsTen` and moved
+// `DECLARED_FILE_COUNT` in `tests/design/live-regions.test.tsx` with it, in one commit; 12-13 makes it
+// eleven the same way. The line numbers quoted in the two observed reds above are from the nine-file
+// tree and have not been re-measured since — the ERRORS are the record, not the offsets.
 //
 // 12-13 additionally owns rule 6's other half: `book-cta.tsx`'s notice and the collision notice must
 // never be mounted together. That is a claim about a rendered document, not about source, and it lives
@@ -226,6 +229,7 @@ export const BOOKER_PATH_LIVE_REGION_FILES = [
   "src/components/booking/hold-expired-state.tsx",
   "src/components/booking/reserve-actions.tsx",
   // ─── search ─────────────────────────────────────────────────────────────────────────────────────
+  "src/components/search/relax-band.tsx",
   "src/components/search/search-results.tsx",
 ] as const;
 
@@ -406,6 +410,8 @@ export const LIVE_REGION_IDS = [
   "hold-expired-state",
   // reserve-actions.tsx
   "reserve-actions-notice",
+  // relax-band.tsx
+  "search-relax-band",
   // search-results.tsx
   "search-results-fetch-error",
 ] as const;
@@ -627,6 +633,46 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "somewhere else, which is RULE 2's reserved role spent on a non-failure.",
   },
 
+  // ─── relax-band.tsx ─────────────────────────────────────────────────────────────────────────────
+  "search-relax-band": {
+    file: "src/components/search/relax-band.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      '"Showing 6 spaces with the distance filter widened." — ONCE, on arrival, when a zero-result ' +
+      "search is answered by relaxing one constraint. That `sr-only` sentence is the region's FIRST " +
+      "child and it is followed by the two visible lines, which are also announced: \"Nothing at " +
+      '9–11 AM on Fri, Aug 21 within 10 km." and "Showing 6 badminton courts within 25 km instead — ' +
+      'same day and time. Your other filters are unchanged." It says nothing again — not on scroll, ' +
+      "not on a Load more, and not on any re-render carrying the same rung.",
+    why:
+      "RULE 1 and RULE 6, and the sr-only lead is the part worth checking rather than skimming.\n" +
+      "\n" +
+      "RULE 1: this is the RESULT of something the booker did — they searched, and the system answered " +
+      "with a different search. `role=\"status\"`, implicit polite, never `assertive`: nothing has " +
+      "gone wrong and nothing needs interrupting.\n" +
+      "\n" +
+      "WHY THE ANNOUNCEMENT IS NOT SIMPLY LINE 1. Line 1 is a NEGATIVE statement, and a live region " +
+      "that opens with \"Nothing at 9–11 AM…\" tells a blind booker their search failed at the exact " +
+      "moment it succeeded differently. The `sr-only` first child front-loads the OUTCOME; the visible " +
+      "lines follow as the detail. That is a deliberate duplication and not a stray label — which is " +
+      "also why this region carries NO `aria-label`: `status` is nameFrom:author, and on the " +
+      "VoiceOver/Safari pairing a named live region can be announced BY ITS NAME INSTEAD OF ITS " +
+      "CONTENT, i.e. the sentence the booker needs would be replaced by a label nobody wrote for them " +
+      "(the argument this module records at `reserve-actions-notice` and the five regions beside it).\n" +
+      "\n" +
+      "RULE 6 — ONE REGION PER OUTCOME, AND THE OTHER HALF OF IT IS STRUCTURAL. `search-results.tsx` " +
+      "renders this band and the zero-result `EmptyState` in MUTUALLY EXCLUSIVE branches of one " +
+      "ternary: if a rung fired there is a band and no empty state, and if every rung was exhausted " +
+      "there is an empty state and no band. The two can never announce the same event, because they " +
+      "can never be mounted together. `e2e/zero-result-relax.spec.ts` case (c) is the browser half — " +
+      "after `Undo` the band's count is 0.\n" +
+      "\n" +
+      "ANNOUNCE-ONCE IS A PROPERTY OF THE DOM STAYING STILL, not of a flag: the rendered strings are " +
+      "held in a ref KEYED BY THE RUNG, so a re-render carrying the same outcome produces " +
+      "byte-identical children, mutates no text node, and gives the region nothing to re-announce.",
+  },
+
   // ─── search-results.tsx ─────────────────────────────────────────────────────────────────────────
   "search-results-fetch-error": {
     file: "src/components/search/search-results.tsx",
@@ -653,17 +699,20 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS NINE FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
+ * THE DECLARED SET IS TEN FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
  * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
- * The alias NAME carries the number so that widening the set forces renaming it —
- * `DeclaredFileCountIsTen` in plan 12-12, `…IsEleven` in 12-13. A `length extends number` assertion
- * would compile forever and read exactly like this one; that is the failure mode a type-level gate is
- * easiest to write.
+ * The alias NAME carries the number so that widening the set forces renaming it — it was
+ * `DeclaredFileCountIsNine` until plan 12-12 added `relax-band.tsx`, and 12-13 renames it again to
+ * `…IsEleven` when it adds `collision-notice.tsx`. A `length extends number` assertion would compile
+ * forever and read exactly like this one; that is the failure mode a type-level gate is easiest to
+ * write. The friction IS the mechanism: adding a live region to the booker path costs a rename, a row
+ * and a second literal in `tests/design/live-regions.test.tsx`, and none of those can be done by
+ * accident.
  */
-export type DeclaredFileCountIsNine = Assert<
-  (typeof BOOKER_PATH_LIVE_REGION_FILES)["length"] extends 9 ? true : false
+export type DeclaredFileCountIsTen = Assert<
+  (typeof BOOKER_PATH_LIVE_REGION_FILES)["length"] extends 10 ? true : false
 >;
 
 // ---------------------------------------------------------------------------

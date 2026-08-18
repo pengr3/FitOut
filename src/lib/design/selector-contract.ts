@@ -160,6 +160,8 @@ export const SELECTOR_IDS = [
   // bar that keeps what it IS on screen.
   "price-disclosure",
   "checkout-sticky-bar",
+  // 12-12 — STATE-03's relaxation band: the sentence that names the one constraint that gave.
+  "search-relax-band",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -500,5 +502,28 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "count is taken), and this hook is deliberately not a substitute for it: `hidden` is what makes " +
       "the duplication safe, and a testid query finds a hidden element.",
     owner: "12-11",
+  },
+
+  // ─── 12-12 ─────────────────────────────────────────────────────────────────────────────────────────
+  "search-relax-band": {
+    why:
+      "Every assertion this hook carries is about the band's PRESENCE OR ABSENCE as a whole, and the " +
+      "one accessible query that addresses it is unusable for that. The band is `role=\"status\"`, " +
+      "and `getByRole(\"status\")` on `/` is not specific to it: the search page mounts " +
+      "`CardGridSkeleton`'s own `role=\"status\" aria-busy` plate on every pending navigation, so a " +
+      "role query resolves against whichever of the two is up at the moment it runs — which on a " +
+      "transition is precisely the ambiguity the assertion is trying to resolve. The band also has NO " +
+      "accessible name to disambiguate it by, and that is deliberate rather than an omission: " +
+      "`status` is nameFrom:author, so naming it risks a screen reader announcing the LABEL instead " +
+      "of the sentence, and the sentence is the entire content (see its `live-regions.ts` row). " +
+      "THE ABSENCE HALF IS WHY A TEXT QUERY WILL NOT DO EITHER: `e2e/zero-result-relax.spec.ts` case " +
+      "(c) asserts the band's count is ZERO after `Undo`, and case (e) asserts the cold-start page " +
+      "renders neither the band nor any escape hatch — a `getByText` for copy that varies by rung " +
+      "cannot state \"none of the four\" without restating all four, and a spec that has to enumerate " +
+      "the copy would go green the day a fifth rung is added. Its two inner hooks are deliberately " +
+      "BARE `data-*` attributes and not declared ids: `data-relax-changed` and `data-relax-value` " +
+      "address text INSIDE this element, and the contract's scope rule is structural hooks, not " +
+      "substrings.",
+    owner: "12-12",
   },
 };

@@ -10,17 +10,33 @@
 //
 // Coral appears nowhere here — the sort control, Load more, and every escape-hatch button are neutral
 // (UI-SPEC § Color: the single coral focal point is the Search button in the SearchBar).
+//
+// ── STATE-03 (plan 12-12): WHAT THE RELAXATION BAND ADDED, AND WHAT IT REMOVED ────────────────────
+// This file used to receive a prop carrying the result of ONE broadened query that dropped radius,
+// category, priceMax, date, start and end together, and rendered it under an unlabelled divider
+// beneath the empty state. Six constraints vanished and the page said which one gave: none. The prop,
+// the divider and its caption string are DELETED, along with the escape-hatch handler that let a
+// booker do the same all-at-once broadening by hand. The names are described rather than quoted here
+// on purpose: plan 12-12's own acceptance grep for them must come back empty, and a comment that
+// spells a deleted identifier is indistinguishable from code to a grep.
+//
+// What replaces them is `relaxation`: the RSC runs a server-side ladder that relaxes ONE constraint at
+// a time and hands down the rung that gave plus its rows. This component renders the band above the
+// grid and NOTHING ELSE — it performs no filtering, no re-ranking and no second query
+// (T-12-12-CLIENTFILTER). `Undo` is one more `pushWith` that ADDS `relax=0` to the booker's original
+// query; the suppression flag is what stops the RSC simply relaxing again (RESEARCH Pitfall 5).
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { SearchXIcon, SparklesIcon } from "lucide-react";
 
 import { SearchResultCard, type SearchedWindow } from "@/components/search/search-result-card";
+import { RelaxBand, type RelaxBandProps } from "@/components/search/relax-band";
 import type { SearchResultRow } from "@/lib/search/query";
+import type { RelaxationRungId } from "@/lib/search/relaxation";
 import { CardGridSkeleton } from "@/components/patterns/card-grid-skeleton";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { RESULT_GRID_GAP } from "@/lib/design/measurements";
 import { cn } from "@/lib/utils";
 import {
@@ -50,8 +66,31 @@ type SearchResultsProps = {
   /** The serialized current URL params — the base the client mutates for sort / Load more / escape hatches. */
   queryString: string;
   searchedWindow?: SearchedWindow;
-  /** Broadened-fallback listings rendered under a "You might also like" divider in the zero-result state. */
-  nearbyAlternatives?: SearchResultRow[];
+  /**
+   * STATE-03. Present ONLY when a rung of the server-side ladder actually returned rows — the band
+   * names that one rung and the grid shows its rows. `null`/absent means either the ladder was not
+   * entered (cold start, `relax=0`) or every applicable rung came back empty.
+   */
+  relaxation?: {
+    readonly rung: RelaxationRungId;
+    readonly results: SearchResultRow[];
+    /** The BOOKER'S original values — the band's first line names what was asked for. */
+    readonly asked: RelaxBandProps["asked"];
+    /** The radius the ladder actually used, so the band's phrase and the control agree (AC#30). */
+    readonly effectiveRadiusKm: number;
+    /**
+     * The EFFECTIVE window, not the booker's. A card found by dropping the date must not carry an
+     * "Available 9–11 AM on Fri, Aug 21" line about a day it was not checked against.
+     */
+    readonly searchedWindow?: SearchedWindow;
+  } | null;
+  /**
+   * True when the ladder RAN and every applicable rung came back empty — which is what entitles the
+   * empty state to say "we widened the search and still came up empty". A zero-result page that never
+   * ran the ladder (`relax=0` after an Undo) keeps the shipped body, because the stronger sentence
+   * would be a claim about work nobody did.
+   */
+  relaxExhausted?: boolean;
   fetchError?: boolean;
 };
 
@@ -89,7 +128,8 @@ export function SearchResults({
   city,
   queryString,
   searchedWindow,
-  nearbyAlternatives = [],
+  relaxation = null,
+  relaxExhausted = false,
   fetchError = false,
 }: SearchResultsProps) {
   const router = useRouter();
@@ -117,11 +157,22 @@ export function SearchResults({
       p.set("radius", String(next));
     }, { resetPage: true });
   const onClearFilters = () => startTransition(() => router.push("/"));
-  const onShowNearby = () =>
+  // ⚠ THE ACTIVITY IS NO LONGER IN THIS LIST, AND THAT ONE OMISSION IS THE WHOLE EDIT (D-52).
+  // The handler this replaces cleared `category` alongside the rest, so pressing "Show nearby spaces"
+  // after searching for a badminton court answered with yoga studios — the same all-at-once broadening
+  // the RSC's fallback did, reachable by hand. The hatch keeps its shipped label and its shipped
+  // meaning ("forget my time and price, show me what's around"); what it may not forget is the thing
+  // the booker came for.
+  const onWidenToNearby = () =>
     pushWith((p) => {
       p.set("radius", String(MAX_RADIUS));
-      for (const k of ["category", "priceMax", "date", "start", "end"]) p.delete(k);
+      for (const k of ["priceMax", "date", "start", "end"]) p.delete(k);
     }, { resetPage: true });
+  // STATE-03's Undo. An ADDITION of `relax=0` to the BOOKER'S query — `queryString` is that query, not
+  // the relaxed one — never a removal. Without the flag the RSC re-runs the ladder on the restored
+  // query, the band comes straight back, and Undo is a button that visibly does nothing
+  // (T-12-12-UNDOLOOP; `e2e/zero-result-relax.spec.ts` case (c) is the watched red).
+  const onUndoRelaxation = () => pushWith((p) => p.set("relax", "0"), { resetPage: true });
 
   const hasResults = results.length > 0;
 
@@ -232,8 +283,36 @@ export function SearchResults({
             </div>
           )}
         </div>
+      ) : relaxation ? (
+        // STATE-03 — the ladder found rows by relaxing ONE constraint. The band names it, the grid
+        // shows what it found, and `Undo` puts the booker's query back.
+        //
+        // NO HEADING AND NO SORT CONTROL HERE, and that is deliberate rather than an omission: the
+        // header block above renders on `hasResults`, which is FALSE — the booker's own search returned
+        // nothing, and a `{N} spaces near you` heading over a relaxed set would be a count of results
+        // for a query that produced none. The band's first line is the heading this state has.
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <div className="space-y-6">
+            {/* Directly above the grid, below the filter controls; never inside the grid.
+                `key={rung}` IS LOAD-BEARING, not a list-diffing habit: the band latches its copy in a
+                read-once initializer so a re-render carrying the same outcome cannot re-announce, and
+                the key is what lets a genuinely DIFFERENT rung remount and be announced. Without it a
+                second relaxation would render silently under the first one's sentence. */}
+            <RelaxBand
+              key={relaxation.rung}
+              rung={relaxation.rung}
+              count={relaxation.results.length}
+              asked={relaxation.asked}
+              effectiveRadiusKm={relaxation.effectiveRadiusKm}
+              onUndo={onUndoRelaxation}
+            />
+            <ResultsGrid rows={relaxation.results} searchedWindow={relaxation.searchedWindow} />
+          </div>
+        </div>
       ) : hasQuery ? (
-        // Zero-result after filtering (D-31) — escape hatches + optional "You might also like" cards.
+        // Zero-result after filtering (D-31) — the escape hatches. The broadened row that used to sit
+        // under them, behind an unlabelled divider, is DELETED (see the header): the relaxation branch
+        // above is what shows alternatives now, and it says which single constraint bought them.
         <div className="space-y-8">
           {/* STATE-04 — the shared shell (plan 11-16). This block WAS the geometry that won: shell A's
               `rounded-xl … p-8 text-center` moved into the pattern verbatim, so nothing here changes
@@ -242,12 +321,20 @@ export function SearchResults({
               populated branch's own results heading above is an `h2` under the page `<h1>` — the empty
               state stands in the same slot in the outline.
 
-              Copy byte-identical: title, body and all three escape-hatch labels are the shipped strings. */}
+              Copy: the title and all three escape-hatch labels are byte-identical shipped strings. The
+              BODY forks on `relaxExhausted` — the Copywriting Contract's "every rung exhausted" row is
+              a claim about work that was actually done, so it is only said when the ladder ran and
+              every applicable rung came back empty. After an Undo (`relax=0`) nothing was widened, and
+              the shipped sentence is the true one. */}
           <EmptyState
             icon={SearchXIcon}
             titleAs="h2"
             title="No spaces match those filters"
-            body="Try widening your search."
+            body={
+              relaxExhausted
+                ? "We widened the search and still came up empty. Try a different day, or a different part of the city."
+                : "Try widening your search."
+            }
             actions={
               <>
                 <Button
@@ -262,23 +349,12 @@ export function SearchResults({
                 <Button variant="secondary" className="min-h-11" onClick={onClearFilters}>
                   Clear filters
                 </Button>
-                <Button variant="secondary" className="min-h-11" onClick={onShowNearby}>
+                <Button variant="secondary" className="min-h-11" onClick={onWidenToNearby}>
                   Show nearby spaces
                 </Button>
               </>
             }
           />
-
-          {nearbyAlternatives.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Separator className="flex-1" />
-                <p className="text-sm font-semibold text-muted-foreground">You might also like</p>
-                <Separator className="flex-1" />
-              </div>
-              <ResultsGrid rows={nearbyAlternatives} />
-            </div>
-          )}
         </div>
       ) : (
         // Cold start (D-30 liquidity floor) — no filter blame, no escape hatches.

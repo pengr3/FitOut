@@ -8,11 +8,31 @@
 // (Stage-1), never re-derived per card (D-16/D-30).
 //
 // States (UI-SPEC § Screen contract): default city view (D-30) · populated grid + sort + Load more (D-32) ·
-// zero-result escape hatches + a broadened-fallback "You might also like" row (D-31) · cold-start liquidity
-// floor · fetch error. Coral appears exactly once on the page — the SearchBar's Search button.
+// zero-result relaxation band + escape hatches (STATE-03 / D-52, D-53) · cold-start liquidity floor ·
+// fetch error. Coral appears exactly once on the page — the SearchBar's Search button.
+//
+// ── STATE-03, AND THE THING THIS FILE STOPPED DOING (plan 12-12) ───────────────────────────────────
+// A zero-result search used to run ONE broadened query here that dropped radius, category, priceMax,
+// date, start AND end together, and handed the answer to the results shell as a prop it rendered under
+// an unlabelled divider. Six constraints vanished and the page said which one gave: none — which is
+// precisely the gap STATE-03 names. That block is DELETED. In its place `runRelaxationLadder` relaxes
+// ONE constraint at a time, in the fixed order radius -> price -> time-of-day -> date, stopping at the
+// first rung that returns rows and NEVER relaxing the activity (D-52).
+//
+// ── WHERE THE TWO QUERIES LIVE, WHICH IS THE WHOLE OF D-53's SECOND HALF ───────────────────────────
+// The URL keeps the BOOKER'S query — `activeQueryString(parsed, page)` is built from `parsed`, not from
+// the ladder's output — while `barDefaults` is built from the EFFECTIVE params. That is what lets the
+// radius control read `25 km` while `Undo` still has the booker's original `10 km` to restore, and it
+// is why Undo is an ADDITION of `relax=0` rather than a rewrite of anything.
 
 import { db } from "@/lib/db";
 import { searchListings, type SearchResultRow } from "@/lib/search/query";
+import {
+  RELAXATION_LADDER,
+  RELAX_FETCH_LIMIT,
+  runRelaxationLadder,
+  type RelaxationOutcome,
+} from "@/lib/search/relaxation";
 import { searchParamsSchema, type SearchParams } from "@/lib/validation/booking";
 import { SearchBar, type SearchBarDefaults } from "@/components/search/search-bar";
 import { SearchResults } from "@/components/search/search-results";
@@ -37,6 +57,11 @@ function activeQueryString(p: SearchParams, page: number): string {
   if (p.radius !== 10) q.set("radius", String(p.radius));
   if (p.sort !== "nearest") q.set("sort", p.sort);
   if (page !== 0) q.set("page", String(page));
+  // `relax` is serialized only in its non-default form, exactly like `radius` and `sort` above, so a
+  // relaxing search keeps the URL the booker would recognise. `Undo` is what adds `relax=0`, and once
+  // it is in the URL this keeps it there through a sort change or a Load more — otherwise the next
+  // click the booker made would silently re-enter the ladder they just left.
+  if (p.relax !== 1) q.set("relax", String(p.relax));
   return q.toString();
 }
 
@@ -76,24 +101,34 @@ export default async function Home({
     fetchError = true;
   }
 
-  // Zero-result after filtering (D-31): run a broadened fallback (max radius, drop the narrowest filters)
-  // for the "You might also like" cards. Skipped for cold start (no query) and when the fetch already failed.
-  let nearbyAlternatives: SearchResultRow[] = [];
-  if (!fetchError && hasQuery && results.length === 0) {
+  // ── STATE-03: the ladder (D-52 / D-53) ─────────────────────────────────────────────────────────
+  // Entered only on a zero-result search that HAD a query and that has not been suppressed. Cold start
+  // is excluded by `hasQuery` — D-54: no band, no ladder, no escape hatches, because every hatch is a
+  // filter control and offering one to someone in a city with no supply is a button that cannot work.
+  const zeroResult = !fetchError && hasQuery && results.length === 0;
+  // Which rungs COULD change a predicate for this query — no queries run, just the transforms. It is
+  // what entitles the empty state to say "we widened the search and still came up empty": a query with
+  // no origin, no price and no date has nothing to widen, and saying otherwise would be a claim about
+  // work nobody did.
+  const applicableRungs =
+    zeroResult && parsed.relax !== 0
+      ? RELAXATION_LADDER.filter((rung) => rung.relax(parsed) !== null).length
+      : 0;
+
+  let relaxation: RelaxationOutcome | null = null;
+  if (zeroResult && applicableRungs > 0) {
     try {
-      const broadened = await searchListings(db, {
-        ...parsed,
-        radius: 25,
-        category: undefined,
-        priceMax: undefined,
-        date: undefined,
-        start: undefined,
-        end: undefined,
-        page: 0,
-      });
-      nearbyAlternatives = broadened.results.slice(0, 6);
+      relaxation = await runRelaxationLadder(
+        parsed,
+        // Every rung reuses `searchListings` — its parameter-bound Drizzle `sql` templates and its
+        // `parsePickedDate` canonicalisation (T-12-12-SQLI). No rung builds a predicate string, and the
+        // whole ladder runs HERE, on the server (T-12-12-CLIENTFILTER).
+        (p) => searchListings(db, p, undefined, { fetchLimit: RELAX_FETCH_LIMIT }),
+        { log: (message) => console.warn(message) },
+      );
     } catch {
-      // Nearby alternatives are best-effort — a failure just yields the escape hatches with no divider.
+      // Best-effort, exactly as the fallback it replaces was: a failed rung yields the empty state with
+      // its escape hatches, never an error on a search that DID run and simply found nothing.
     }
   }
 
@@ -104,15 +139,21 @@ export default async function Home({
       ? `${count} ${count === 1 ? "space" : "spaces"} near you`
       : `${count} ${count === 1 ? "space" : "spaces"} found`;
 
+  // THE CONTROL SHOWS WHAT WAS USED; THE URL KEEPS WHAT WAS ASKED (D-53). `effective` is the ladder's
+  // relaxed params when a rung fired and the booker's own params otherwise, so the bar and the results
+  // can never disagree — while `activeQueryString(parsed, …)` below still carries the original query,
+  // which is the thing `Undo` restores.
+  const effective: SearchParams = relaxation?.effectiveParams ?? parsed;
   const barDefaults: SearchBarDefaults = {
-    lat: parsed.lat,
-    lng: parsed.lng,
-    category: parsed.category,
-    date: parsed.date,
-    start: parsed.start,
-    end: parsed.end,
-    priceMaxCents: parsed.priceMax,
-    radius: parsed.radius,
+    lat: effective.lat,
+    lng: effective.lng,
+    category: effective.category,
+    date: effective.date,
+    start: effective.start,
+    end: effective.end,
+    priceMaxCents: effective.priceMax,
+    radius: effective.radius,
+    relaxed: relaxation?.rung ?? null,
   };
 
   return (
@@ -139,7 +180,35 @@ export default async function Home({
           city={LAUNCH_CITY}
           queryString={activeQueryString(parsed, page)}
           searchedWindow={{ date: parsed.date, start: parsed.start, end: parsed.end }}
-          nearbyAlternatives={nearbyAlternatives}
+          relaxation={
+            relaxation === null
+              ? null
+              : {
+                  rung: relaxation.rung,
+                  results: [...relaxation.results],
+                  asked: {
+                    category: parsed.category,
+                    // Only meaningful with an origin — without one no radius predicate was in play and
+                    // line 1 must not claim one was.
+                    radiusKm: hasOrigin ? parsed.radius : undefined,
+                    priceMaxCents: parsed.priceMax,
+                    date: parsed.date,
+                    start: parsed.start,
+                    end: parsed.end,
+                  },
+                  effectiveRadiusKm: effective.radius,
+                  // The EFFECTIVE window, not the booker's: a card found by dropping the date must not
+                  // carry an "Available 9–11 AM on Fri, Aug 21" line about a day nothing checked it
+                  // against (D-37's "never advertise a reservation the booker is not buying", one rung
+                  // over).
+                  searchedWindow: {
+                    date: effective.date,
+                    start: effective.start,
+                    end: effective.end,
+                  },
+                }
+          }
+          relaxExhausted={relaxation === null && applicableRungs > 0}
           fetchError={fetchError}
         />
       </div>

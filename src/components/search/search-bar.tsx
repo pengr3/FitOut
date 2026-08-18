@@ -24,6 +24,9 @@ import { SearchIcon, LocateFixedIcon, CalendarIcon } from "lucide-react";
 
 import { searchParamsSchema } from "@/lib/validation/booking";
 import { SPACE_TYPE_LABELS, ACTIVITY_TAG_LABELS } from "@/lib/listing-vocab";
+import type { RelaxationRungId } from "@/lib/search/relaxation";
+import { STATUS_TONE_RECIPES } from "@/lib/design/status-tones";
+import { cn } from "@/lib/utils";
 import { AddressAutocomplete, type ResolvedAddress } from "@/components/listing/address-autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +81,57 @@ export type SearchBarDefaults = {
   /** Frozen price ceiling in CENTS (the serialized param unit); shown to the booker as ₱/hr pesos. */
   priceMaxCents?: number;
   radius?: number;
+  /**
+   * STATE-03 / D-53 (plan 12-12) — which ONE control the relaxation ladder moved, if any.
+   *
+   * THE VALUES ABOVE ARE ALREADY THE EFFECTIVE ONES. `(public)/page.tsx` composes `defaults` from the
+   * ladder's `effectiveParams` while the URL keeps the BOOKER'S query, which is what lets this bar show
+   * `25 km` while `Undo` still has the original 10 km to restore. This field only says WHICH of them
+   * moved, so the control that changed can be marked and tinted — the RESULTS and the CONTROL never
+   * disagreeing is half of D-53's requirement, and the half a booker actually sees.
+   *
+   * THERE IS NO CHIP COMPONENT AND THIS IS NOT ONE (RESEARCH Pitfall 6). "The filter chip" in D-53 and
+   * in 12-UI-SPEC AC#30 means the shipped `<Select id="search-radius">` below, whose `SelectValue`
+   * renders `{r} km`. Building a chip row would be net-new UI on a phase whose own scope guard (D-59)
+   * exists to stop exactly that.
+   */
+  relaxed?: RelaxationRungId | null;
 };
+
+/**
+ * THE SOFT-ACCENT TONE FOR A CONTROL THE SYSTEM MOVED (accent item 9).
+ *
+ * ⚠ NAMED, NEVER QUOTED — and this file is one of the two the rule was measured on. The surface and the
+ * ink below are read from `STATUS_TONE_RECIPES["soft-accent"]` BY NAME, the same way
+ * `patterns/empty-state.tsx` reads the `positive` recipe, and the prose here DESCRIBES the classes
+ * instead of spelling them. Two of `tests/design/brand-recipe.test.ts`'s assertions read this file's
+ * RAW text — the in-scope accent-background scan, and the one that finds the accent CTA by locating its
+ * variant prop with `indexOf` — so a comment that quotes either string is indistinguishable from markup
+ * to both. Measured here, not anticipated: an earlier draft of this very docblock quoted both and turned
+ * the gate red twice, the second time by pointing the CTA scan at a sentence.
+ *
+ * WHY THE RECIPE OBJECT RATHER THAN CLASS LITERALS. Two reasons, and the second one is mechanical:
+ *
+ *   1. It is the design system's declared vocabulary for a brand-relevant informational surface, whose
+ *      one shipped adopter is the spots-left chip. Reading it by name makes this the third surface
+ *      agreeing with a TONE rather than a fourth surface agreeing with a habit.
+ *   2. That gate pins the NON-BUTTON accent recipes per file — the eight occurrences across six files
+ *      allowed to stay token classes. A literal here would be a ninth, in a seventh file, and widening
+ *      the map is the wrong answer: a Radix select trigger is not a `Button` and cannot opt into the
+ *      accent button variant at all, which is exactly the situation the tone object exists for.
+ *
+ * The EDGE is the one literal, and it is legal for a stated reason: the 30% accent border is
+ * `DECORATIVE_ACCENT_EDGE` in that same gate and an `EXCLUDED_PAIRS` row in `contrast-pairs.ts`
+ * (1.60 court / 1.49 grove), declared by plan 12-01 — whose row names THIS surface as an incoming
+ * adopter. That exclusion carries a compensating requirement and this control meets it: the meaning is
+ * carried by the control's own VALUE (foreground ink on the 10% accent tint, 17.04 / 16.24, a declared
+ * passing row) and by the band's sentence beside it, never by the tinted border alone.
+ */
+const RELAXED_TONE = cn(
+  STATUS_TONE_RECIPES["soft-accent"].surface,
+  STATUS_TONE_RECIPES["soft-accent"].text,
+  "border-brand/30",
+);
 
 export function SearchBar({
   defaults = {},
@@ -115,6 +168,20 @@ export function SearchBar({
   const radius = useWatch({ control, name: "radius" });
 
   const hasOrigin = lat !== undefined && lng !== undefined;
+
+  /**
+   * Did the ladder move THIS control? Drives one bare `data-relaxed` attribute and the soft-accent tone.
+   *
+   * Keyed on the RUNG rather than on "the value differs from the URL", because the bar cannot see the
+   * URL: `defaults` already carries the effective values, so a value-diff here would compare a number
+   * against itself. The rung is the RSC's own answer to the same question and it is the one the band
+   * renders, which is what keeps the sentence and the tint pointing at the same control.
+   */
+  const relaxedRung = defaults.relaxed ?? null;
+  const relaxedAttr = (rung: RelaxationRungId): string | undefined =>
+    relaxedRung === rung ? rung : undefined;
+  const relaxedTone = (rung: RelaxationRungId): string | false =>
+    relaxedRung === rung && RELAXED_TONE;
 
   function handleAddress(addr: ResolvedAddress) {
     setValue("lat", addr.lat);
@@ -254,7 +321,11 @@ export function SearchBar({
                 type="button"
                 id="search-date"
                 variant="outline"
-                className="h-11 w-full min-w-[150px] justify-start gap-2 font-normal"
+                data-relaxed={relaxedAttr("date")}
+                className={cn(
+                  "h-11 w-full min-w-[150px] justify-start gap-2 font-normal",
+                  relaxedTone("date"),
+                )}
               >
                 <CalendarIcon className="size-4 shrink-0" />
                 <span className="truncate">
@@ -299,7 +370,11 @@ export function SearchBar({
             onValueChange={(val) => setValue("start", val === ANY ? "" : val)}
             disabled={!date}
           >
-            <SelectTrigger id="search-start" className="h-11 w-full min-w-[110px]">
+            <SelectTrigger
+              id="search-start"
+              data-relaxed={relaxedAttr("time-of-day")}
+              className={cn("h-11 w-full min-w-[110px]", relaxedTone("time-of-day"))}
+            >
               <SelectValue placeholder="Any time" />
             </SelectTrigger>
             <SelectContent>
@@ -320,7 +395,11 @@ export function SearchBar({
             onValueChange={(val) => setValue("end", val === ANY ? "" : val)}
             disabled={!date}
           >
-            <SelectTrigger id="search-end" className="h-11 w-full min-w-[110px]">
+            <SelectTrigger
+              id="search-end"
+              data-relaxed={relaxedAttr("time-of-day")}
+              className={cn("h-11 w-full min-w-[110px]", relaxedTone("time-of-day"))}
+            >
               <SelectValue placeholder="Any time" />
             </SelectTrigger>
             <SelectContent>
@@ -343,7 +422,11 @@ export function SearchBar({
                 type="button"
                 id="search-price"
                 variant="outline"
-                className="h-11 w-full min-w-[130px] justify-start font-normal"
+                data-relaxed={relaxedAttr("price")}
+                className={cn(
+                  "h-11 w-full min-w-[130px] justify-start font-normal",
+                  relaxedTone("price"),
+                )}
               >
                 <span className="truncate">{priceLabel}</span>
               </Button>
@@ -381,8 +464,17 @@ export function SearchBar({
         {/* Radius (applies only with an origin; presets 2/5/10/25, default 10). */}
         <div className="space-y-1.5">
           <Label htmlFor="search-radius">Within</Label>
+          {/* ⚠ THIS IS "THE FILTER CHIP" AC#30 READS. Its `SelectValue` renders `{r} km`, and that
+              rendered string is compared — both sides read from the DOM — against the band's
+              changed-constraint value in `e2e/zero-result-relax.spec.ts`. A page whose control and
+              whose results disagree is the failure D-53 exists to prevent, and this is where it is
+              measured. */}
           <Select value={radius} onValueChange={(val) => setValue("radius", val)}>
-            <SelectTrigger id="search-radius" className="h-11 w-full min-w-[110px]">
+            <SelectTrigger
+              id="search-radius"
+              data-relaxed={relaxedAttr("radius")}
+              className={cn("h-11 w-full min-w-[110px]", relaxedTone("radius"))}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
