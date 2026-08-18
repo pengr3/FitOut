@@ -166,7 +166,35 @@ export default async function Home({
           </p>
         </header>
 
-        <SearchBar defaults={barDefaults} sort={parsed.sort} />
+        {/* ⚠ THE `key` IS WHAT MAKES THE MOVED CONTROL ACTUALLY MOVE, AND IT WAS MEASURED RATHER THAN
+            REASONED ABOUT. `SearchBar` is a react-hook-form form, and RHF reads `defaultValues` ONCE,
+            at mount. A soft `router.push` re-runs this RSC and hands down new `defaults`, but React
+            reuses the same component instance — so the bar kept rendering the booker's own `10 km`
+            while the band beside it said `25 km`. Observed as a red in
+            `e2e/zero-result-relax.spec.ts` case (b), verbatim: `Expected: "10 km" / Received: "25 km"`,
+            with both strings read from the DOM. That is precisely the disagreement D-53 exists to
+            prevent, arriving through the mechanism meant to fix it.
+
+            The key changes ONLY when the ladder's outcome changes, so the ordinary browse path still
+            never remounts the bar and nothing a booker has typed is disturbed by a plain search. It is
+            the same read-once-plus-key pairing `relax-band.tsx`'s latch uses one component over. */}
+        <SearchBar
+          key={
+            relaxation === null
+              ? "booker-query"
+              : [
+                  "relaxed",
+                  relaxation.rung,
+                  effective.radius,
+                  effective.priceMax ?? "",
+                  effective.date ?? "",
+                  effective.start ?? "",
+                  effective.end ?? "",
+                ].join(":")
+          }
+          defaults={barDefaults}
+          sort={parsed.sort}
+        />
 
         <SearchResults
           results={results}
