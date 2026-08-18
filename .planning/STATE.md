@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 2
+current_plan: 3
 status: executing
 stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-08-18T02:57:02.373Z"
+last_updated: "2026-08-18T03:37:26.634Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 53
-  completed_plans: 40
+  completed_plans: 41
   percent: 18
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
-Plan: 2 of 14
-Current Plan: 2
+Plan: 3 of 14
+Current Plan: 3
 Total Plans in Phase: 14
 Status: Ready to execute
 
@@ -276,6 +276,7 @@ Last activity: 2026-08-18
 | Phase 11 P18 | 95min | 3 tasks | 14 files |
 | Phase 11 P22 | 93min | 5 tasks | 9 files |
 | Phase 12 P01 | 32min | 3 tasks | 14 files |
+| Phase 12 P02 | 33min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -560,6 +561,9 @@ Recent decisions affecting current work:
 - [Phase ?]: brand-30 on card measured 1.60 court / 1.50 grove — the culori gate is the authority over the UI-SPEC's 1.59 (D-12)
 - [Phase ?]: GATE-06 is a per-run assertion in tests/design/infra.test.ts (drizzle/ pinned at 0025 and 26 *.sql files), not a sentence in a plan
 - [Phase ?]: The z-sheet step stays at zero call sites: Phase 12 examined the booking sheet, the lightbox and both sticky bars, and each resolved elsewhere
+- [Phase ?]: 12-02: the searched window is parsed as its OWN Zod shape (searchedWindowSchema); slotSelectionSchema stays byte-unchanged and resume=1 stays the discriminator
+- [Phase ?]: 12-02: parsePickedDate/parseWindowHour extracted to the isomorphic src/lib/search/window-params.ts — importing query.ts from validation/booking.ts put the server-only read model in the client graph (measured: 10 Turbopack errors)
+- [Phase ?]: 12-02: RESP-02 and STATE-07 NOT marked complete — 12-10, 12-13 and 12-14 also claim them; this plan lands only the seam they stand on
 
 ### Pending Todos
 
@@ -601,6 +605,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - ⚠️ **VERIFICATION BLIND SPOT found 2026-07-21 (no owner yet)** — the local `public` schema was three migrations behind (`0010`–`0012`, Phase 6) and nothing caught it. The integration harness (`tests/helpers/db.ts`) replays migrations into isolated per-test schemas, so a stale `public` schema is invisible to the entire test suite; Phase 6 verified green against a DB that never had its own `booking_no_overlap` widening applied. Worth a pre-phase guard asserting `public` is fully migrated. Not fixed during Phase 7 — surfaced to the phase verifier.
 - ⚠️ **ORDERING DEPENDENCY (Phase 7, opened by 07-01)** — 07-01 widened the ledger unique constraint to `(booking_id, kind)` and applied only the minimal `ON CONFLICT` repair in `payout-sweep.ts`. `AND kind = 'payout'` scoping is still absent from `queryDuePayouts`, `queryProcessingLedger`, the reconcile stuck-`held` query, `/host/earnings` and `summarizePayouts`. **Plan 07-04 (Wave 2) must land this scoping before 07-11 (Wave 4) ships the host-cancel action** — the first `host_cancel_fee` debit row written without it trips the reconcile operator alert. Wave order already satisfies this; do not reorder.
 - Follow-up (out-of-scope, task chip spawned 2026-07-10): Radix Tooltip SSR hydration mismatch at src/app/listings/[id]/page.tsx:267 (the "Not bookable yet" affordance) — client-recovered, not a 500; worth a cleanup. Also low-pri from 02-UAT: currency defaults to `usd` (should be PHP for the PH launch); no landing page at `/` (deferred to Phase 4).
+- [12-02, PRE-EXISTING] notFound() on /listings/[id] answers HTTP 200 in dev — status-only, no content leak (body is the not-found boundary). e2e/public-listing.spec.ts's two 404 cases are red at 6272c8f, before plan 12-02. See deferred-items.md; discriminator is npm run build && npm start.
 
 ### Quick Tasks Completed
 
@@ -662,7 +667,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-18T02:56:30.852Z
+Last session: 2026-08-18T03:37:05.734Z
 Stopped at: Phase 12 UI-SPEC approved
 Resume file: None
 
