@@ -114,6 +114,28 @@ function toRow(r: RawRow): SearchResultRow {
 }
 
 /**
+ * Caller-side bounds on ONE search. Optional everywhere; the default browse and Load-more paths pass
+ * nothing and are byte-for-byte the query they always were.
+ */
+export type SearchListingsOptions = {
+  /**
+   * Cap Stage-1's `LIMIT`, and with it the number of Stage-2 availability reads.
+   *
+   * WHAT THIS IS FOR, AND THE MEASURED NUMBER BEHIND IT (plan 12-12 / RESEARCH assumption A7).
+   * Stage-2 below is a SEQUENTIAL per-candidate `getAvailability` loop, and `fetchLimit` derives to
+   * **41** whenever a date is picked. That is the right budget for a page of 20 results with a
+   * Load-more probe; it is the wrong budget for the STATE-03 relaxation ladder, whose rungs each
+   * render at most SIX cards inside a band. Without this bound one zero-result search could pay for
+   * up to 4 × 41 sequential availability reads to display 6 cards (T-12-12-LADDERCOST).
+   *
+   * A bound also moves the page size with it — `pageSize` below is `fetchLimit - 1`, so a bound of 7
+   * buys exactly six results plus the has-more probe. A bound that shrank the LIMIT while leaving the
+   * slice at 20 would have made `hasMore` permanently false for a reason nothing stated.
+   */
+  fetchLimit?: number;
+};
+
+/**
  * Search bookable listings (SEARCH-01..05). Stage-1 SQL narrows to a bounded, bookable-only candidate set
  * by radius / category / price / weekday; when a `date` is picked, Stage-2 reuses `getAvailability` (the
  * same read model as the listing calendar, D-34) to keep only listings with a real free window. `now` is
@@ -123,6 +145,7 @@ export async function searchListings(
   db: DbConn,
   params: SearchParams,
   now: Date = new Date(),
+  options: SearchListingsOptions = {},
 ): Promise<SearchResult> {
   const { lat, lng, radius, priceMax, category, sort, page } = params;
 
@@ -157,7 +180,15 @@ export async function searchListings(
   // Stage-2 (per-candidate availability) can drop candidates below the page size, so over-fetch when a
   // date is picked (Pitfall 8 / A5); otherwise a simple +1 "has more" probe suffices.
   const needsAvailabilityFilter = picked !== null;
-  const fetchLimit = needsAvailabilityFilter ? SEARCH_PAGE_SIZE * 2 + 1 : SEARCH_PAGE_SIZE + 1;
+  const derivedFetchLimit = needsAvailabilityFilter ? SEARCH_PAGE_SIZE * 2 + 1 : SEARCH_PAGE_SIZE + 1;
+  // A caller-supplied bound can only ever SHRINK the fetch (`Math.min`) — a caller cannot widen the
+  // page or make the loop below longer than it already is. `Math.max(2, …)` keeps `pageSize` at one or
+  // more so a bound of 1 or 0 cannot produce an empty result set that reads as "nothing matched".
+  const fetchLimit =
+    options.fetchLimit === undefined
+      ? derivedFetchLimit
+      : Math.min(derivedFetchLimit, Math.max(2, Math.trunc(options.fetchLimit)));
+  const pageSize = options.fetchLimit === undefined ? SEARCH_PAGE_SIZE : fetchLimit - 1;
   const offset = page * SEARCH_PAGE_SIZE;
 
   const rows = (await db.execute(sql`
@@ -206,8 +237,8 @@ export async function searchListings(
   // No picked date ⇒ the default browse view returns Stage-1 candidates directly (D-30).
   if (!needsAvailabilityFilter) {
     return {
-      results: candidates.slice(0, SEARCH_PAGE_SIZE),
-      hasMore: candidates.length > SEARCH_PAGE_SIZE,
+      results: candidates.slice(0, pageSize),
+      hasMore: candidates.length > pageSize,
     };
   }
 
@@ -256,5 +287,5 @@ export async function searchListings(
     }
   }
 
-  return { results: kept.slice(0, SEARCH_PAGE_SIZE), hasMore: kept.length > SEARCH_PAGE_SIZE };
+  return { results: kept.slice(0, pageSize), hasMore: kept.length > pageSize };
 }

@@ -35,9 +35,20 @@ export const slotSelectionSchema = z.object(slotWindowShape).refine(endAfterStar
 
 export type SlotSelection = z.infer<typeof slotSelectionSchema>;
 
-// Radius presets (km) — UI-SPEC §Discretionary: 2 / 5 / 10 / 25, default 10. A tampered radius is
-// rejected (not silently clamped) so only a known preset reaches the ST_DWithin query.
-const RADIUS_PRESETS = [2, 5, 10, 25] as const;
+/**
+ * Radius presets (km) — UI-SPEC §Discretionary: 2 / 5 / 10 / 25, default 10. A tampered radius is
+ * rejected (not silently clamped) so only a known preset reaches the ST_DWithin query.
+ *
+ * EXPORTED as of plan 12-12 because the STATE-03 relaxation ladder's first rung is "the next preset
+ * up, to a declared max" (D-52) and it must step through THIS list, not a fourth copy of it. Three
+ * copies already ship (`search-bar.tsx`, `search-results.tsx` and this one) and the ladder is the
+ * only one of them whose correctness is a claim about the ORDER of the values rather than about
+ * membership — so it reads the authority instead of restating it.
+ */
+export const RADIUS_PRESETS = [2, 5, 10, 25] as const;
+
+/** The declared max the radius rung may climb to — the last preset, never a number of its own. */
+export const MAX_RADIUS_KM = RADIUS_PRESETS[RADIUS_PRESETS.length - 1];
 
 /**
  * The search-page URL contract (V5 input-validation control). Every param here is attacker-controllable
@@ -78,6 +89,24 @@ export const searchParamsSchema = z
     sort: z.enum(["nearest", "price"]).default("nearest"),
     // Load-more page index (D-32). Non-negative int, default 0.
     page: z.coerce.number().int().min(0).default(0),
+    /**
+     * STATE-03's SUPPRESSION FLAG (D-52/D-53, plan 12-12). `1` (the default) lets the zero-result
+     * relaxation ladder run; `0` means DO NOT RELAX.
+     *
+     * IT IS HERE, AND NOT PARSED AD-HOC IN THE RSC, FOR TWO REASONS. The first is the same one every
+     * other field above is here for (T-12-12-PARAMTAMPER / Security V5): it is attacker-controllable
+     * and it decides whether four more queries run, so it gets the same bounded coerced-int posture —
+     * a crafted `relax=99` or `relax=abc` fails `safeParse` and the page falls back to the default
+     * view, exactly as a crafted `radius` does, rather than being clamped somewhere downstream.
+     *
+     * The second is the one that made the flag necessary at all. The band's `Undo` must restore the
+     * booker's ORIGINAL query — and re-issuing that query is precisely what makes the ladder fire
+     * again, so "Undo" without a flag is an infinite loop the booker experiences as a button that
+     * does nothing (RESEARCH Pitfall 5). Undo is therefore an ADDITION of `relax=0` to the original
+     * query, not a removal of anything, which is why this had to be decided before the band could be
+     * written. `e2e/zero-result-relax.spec.ts` case (c) is unsatisfiable without it.
+     */
+    relax: z.coerce.number().int().min(0).max(1).default(1),
   })
   .refine((v) => (v.lat === undefined) === (v.lng === undefined), {
     message: "Provide both lat and lng for a radius search.",
