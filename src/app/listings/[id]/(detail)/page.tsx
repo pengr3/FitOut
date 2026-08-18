@@ -57,6 +57,7 @@ import {
 import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { ListingMapPanel } from "@/components/listing/listing-map-panel";
 import { DropInBadge } from "@/components/listing/drop-in-badge";
+import { HostBlock } from "@/components/listing/host-block";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PanelCard } from "@/components/patterns/panel-card";
@@ -491,58 +492,55 @@ export default async function PublicListingPage({
             )}
           </header>
 
-          {pub.description && (
-            <>
-              <Separator />
-              <section className="space-y-3">
+          {/* ── THE DESCRIPTION SLOT: `About this space` then `Amenities`, ONE section ──────────────
+              BFLOW-02 resolves the requirement's one ambiguity here. Its order names six headings and
+              Amenities is not among them, because amenities are DESCRIPTIVE content: they finish the
+              answer to "what is this space" that the description starts. So they render immediately
+              after the description INSIDE the same slot, with the section break AFTER the pair rather
+              than between them. Promoting them to a key fact was refused for a mechanical reason —
+              activity and amenity badges are a wrapping list of unbounded length and the strip is a
+              fixed four cells. */}
+          <Separator />
+          <section className="space-y-6">
+            {pub.description && (
+              <div className="space-y-3">
                 <h2 className="text-xl font-semibold">About this space</h2>
                 <p className="text-base leading-relaxed whitespace-pre-line text-foreground">
                   {pub.description}
                 </p>
-              </section>
-            </>
-          )}
+              </div>
+            )}
 
-          <Separator />
-          <section className="space-y-3">
-            <h2 className="text-xl font-semibold">Amenities</h2>
-            {amenityLabels.length > 0 ? (
-              <ul className="flex flex-wrap gap-2">
-                {amenityLabels.map((label) => (
-                  <li key={label}>
-                    <Badge variant="secondary">{label}</Badge>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No amenities listed yet.</p>
-            )}
-            {activityLabels.length > 0 && (
-              <ul className="flex flex-wrap gap-2 pt-1">
-                {activityLabels.map((label) => (
-                  <li key={label}>
-                    <Badge variant="outline">{label}</Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="space-y-3">
+              <h2 className="text-xl font-semibold">Amenities</h2>
+              {amenityLabels.length > 0 ? (
+                <ul className="flex flex-wrap gap-2">
+                  {amenityLabels.map((label) => (
+                    <li key={label}>
+                      <Badge variant="secondary">{label}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No amenities listed yet.</p>
+              )}
+              {activityLabels.length > 0 && (
+                <ul className="flex flex-wrap gap-2 pt-1">
+                  {activityLabels.map((label) => (
+                    <li key={label}>
+                      <Badge variant="outline">{label}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
 
-          <Separator />
-          <section className="space-y-3">
-            <h2 className="text-xl font-semibold">Location</h2>
-            {pub.lat != null && pub.lng != null ? (
-              <ListingMapPanel
-                lat={pub.lat}
-                lng={pub.lng}
-                showExactAddress={pub.showExactAddress}
-                caption={mapCaption}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">{coarseLocation || "Location coming soon."}</p>
-            )}
-          </section>
-
+          {/* ── AVAILABILITY, NOW ABOVE THE MAP (BFLOW-02, move 1 of 2) ─────────────────────────────
+              This section used to sit BELOW Location. The requirement's order puts it above, and the
+              reason is the booker's own sequence: whether a space is free when they need it decides
+              whether the map matters at all. A booker who scrolls past a map to find out the space is
+              taken has been made to read the wrong fact first. */}
           <Separator />
           <section className="space-y-3">
             {/* Heading stays server-rendered; the calendar itself is the client boundary (SC#2).
@@ -566,6 +564,72 @@ export default async function PublicListingPage({
               // D-59 #1: `initialDate` may now be the SEARCHED day, so the horizon needs today told to
               // it separately — otherwise every day before the searched one would render disabled.
               todayDate={todayLocal}
+            />
+          </section>
+
+          <Separator />
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold">Location</h2>
+            {pub.lat != null && pub.lng != null ? (
+              <ListingMapPanel
+                lat={pub.lat}
+                lng={pub.lng}
+                showExactAddress={pub.showExactAddress}
+                caption={mapCaption}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">{coarseLocation || "Location coming soon."}</p>
+            )}
+          </section>
+
+          {/* ── CANCELLATION POLICY AS A SECTION OF ITS OWN (BFLOW-02, move 2 of 2 · D-46) ──────────
+              ⚠ THIS IS THE SECOND OF TWO RENDERS OF THE SAME COMPONENT ON THIS PAGE, ON PURPOSE.
+              The compact line in the rail is KEPT (see the rail below, which carries the other half of
+              this comment). The two placements answer two different questions and neither substitutes
+              for the other:
+                • THE RAIL puts the refund terms at the moment of commitment, beside the price and the
+                  CTA — but the rail is a `lg:` column, so on a phone it is below the fold at best.
+                • THIS SECTION is the ONLY place the policy appears on mobile at all. Before it existed,
+                  a booker on a phone could reach checkout having never been shown the refund terms —
+                  and D-81's whole claim is that "a refund promise the booker demonstrably saw is the
+                  only kind enforceable in spirit".
+              Duplication here is the requirement, not an oversight. Deleting either one silently
+              removes the disclosure from a whole class of device.
+
+              GATED ON THE TIER, exactly as the rail's copy is: `CancellationPolicyDisclosure` renders
+              NOTHING for a null tier (its own header explains why a legacy row must not be shown a
+              policy its host never chose), so an unconditional heading here would print
+              `Cancellation policy` over empty space on those rows. The two sites therefore appear and
+              disappear together, which is the property that keeps them one disclosure rather than two.
+              After D-77 a listing cannot be published without a tier, so this is a legacy-row branch. */}
+          {row.listing.cancellationPolicy && (
+            <>
+              <Separator />
+              <section className="space-y-3">
+                <h2 className="text-xl font-semibold">Cancellation policy</h2>
+                <CancellationPolicyDisclosure
+                  tier={row.listing.cancellationPolicy}
+                  openCapacity={isOpenCapacity}
+                  // WR-05 — false for the same reason the rail's is: this page has no booking and no
+                  // picked date, so no particular pass's day can have opened yet.
+                  windowAlreadyOpen={false}
+                />
+              </section>
+            </>
+          )}
+
+          <Separator />
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold">Your host</h2>
+            <HostBlock
+              // Every field comes from the Phase-1 allow-list projection above — `host` IS
+              // `publicProfile(row.user)`, and `HostBlockProps` is a `Pick` of that same type, so this
+              // call site cannot pass a private column even by accident (T-05-OWNERLEAK / T-12-08-PII).
+              avatarUrl={host.avatarUrl}
+              firstName={host.firstName}
+              bio={host.bio}
+              createdAt={host.createdAt}
+              bookingMode={row.listing.bookingMode}
             />
           </section>
         </div>
@@ -609,6 +673,12 @@ export default async function PublicListingPage({
                 09-UI-SPEC § 5b: the anchor is the LISTING's persisted occupancy mode — a drop-in listing
                 sells passes for a DATE, so its deadline is when the space opens, not when a session
                 starts. The ladder itself is byte-identical in both modes (OC-15). */}
+            {/* ⚠ D-46 — THE COMPACT LINE IS KEPT, AND THE FULL SECTION ABOVE IS NOT A DUPLICATE OF IT.
+                This is the other half of the comment at the `Cancellation policy` section in the main
+                column. Short version: there is no rail on mobile, so the section is the only place the
+                policy appears there; and the rail line is what keeps the refund terms at the moment of
+                commitment on desktop, beside the price and the CTA. Removing either one deletes the
+                disclosure for a whole class of device rather than tidying a repetition. */}
             {/* WR-05 — ALWAYS false here, and that is a decision rather than a default. This page has no
                 booking and no picked date at render time, so there is no specific pass whose day could
                 have opened: the disclosure describes the LISTING's policy in general, and the concrete
