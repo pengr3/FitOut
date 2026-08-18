@@ -283,7 +283,7 @@ Plans:
 
 **Wave 12** *(blocked on Wave 11)*
 
-- [ ] 12-14-PLAN.md — GATE-01: the Phase-12 visual baselines and the D-58 OG fixture *(checkpoint: human dispatch + the seven manual walks)*
+- [ ] 12-14-PLAN.md — GATE-01: the Phase-12 visual baselines and the D-58 OG fixture *(checkpoint: human dispatch + the seven manual walks)* — **tasks 1–2 committed; the blocking human checkpoint has NOT run**
 
 **UI hint**: yes
 
@@ -461,7 +461,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
-| 12. Booker Path — Search → Listing → Checkout | v1.1 | 13/14 | In Progress|  |
+| 12. Booker Path — Search → Listing → Checkout | v1.1 | 13.5/14 | Checkpoint pending (12-14 Task 3) |  |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
