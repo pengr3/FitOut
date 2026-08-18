@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { seedTheme } from "../helpers/theme";
 import { emulateVisualMedia, injectFreezeStylesheet } from "../helpers/visual-freeze";
+import { newDrive, swapWidthFor } from "../helpers/visual-drive";
 import {
   THEME_SWAP_EXCLUSIONS,
   THEME_SWAP_SURFACES,
@@ -89,30 +90,60 @@ import {
 //     changed pixel satisfies it. A surface whose body re-skins but whose cards do not would pass.
 //     The strong version is the committed baseline pair in `surfaces.spec.ts`, which a human read
 //     once; this is the cheap standing check that the pair is still two different things.
-//   • ONE WIDTH (1280). A surface that re-skins at desktop and not at the 320px floor passes here.
+//   • ONE WIDTH PER SURFACE, and it is 1280 for all but one. A surface that re-skins at desktop
+//     and not at the 320px floor passes here. `listing-sheet` is compared at 375 instead, because
+//     the sticky bar that opens the sheet is `lg:hidden` — at 1280 there is no trigger, no overlay
+//     and nothing to compare, so a 1280 capture would silently compare the page BEHIND a sheet that
+//     cannot exist and would report two different frames while proving nothing about the sheet.
 //   • It says nothing about the three OG cards or about `global-error`, by construction — see above.
 //   • It cannot distinguish "ignores the tokens" from "renders nothing at all"; the reachability
 //     hook is what rejects the second, and it runs first.
-
-/** One width. The smoke is a mechanism check, not a responsive one — see NOT COVERED. */
-const SWAP_VIEWPORT = { width: 1280, height: 800 } as const;
+//   • ⚠ AND AS OF PLAN 12-14 IT CANNOT DISTINGUISH "IGNORES THE TOKENS" FROM "TWO DIFFERENT
+//     PAGES", which is a new way to pass vacuously. Four of the twelve compared surfaces are STATES
+//     driven through `e2e/helpers/visual-drive.ts`, and two of those mint database rows: a checkout
+//     hold and a collision conflict. If the court pass and the grove pass ever claimed DIFFERENT
+//     booking windows, the two buffers would differ because the CONTENT differs and this smoke would
+//     be green with the tokens untouched. What closes it is not an assertion here — it is the drive
+//     helper's slot-allocation table, which hands both passes of one surface the SAME fixed window.
+//     That is also why this file may not "fix" a red by giving a pass its own window.
 
 /**
- * The number of surfaces this smoke compares: six document surfaces minus the one exclusion.
+ * The height every comparison is taken at. The WIDTH is per-surface: 1280 for all but `listing-sheet`,
+ * which does not exist above `lg:` — see NOT COVERED and `swapWidthFor`. The smoke is a mechanism
+ * check, not a responsive one.
+ */
+const SWAP_HEIGHT = 800;
+
+/**
+ * The number of surfaces this smoke compares: thirteen document surfaces minus the one exclusion.
  *
  * PINNED, not derived from the same expression the loop uses. A count computed by the code under
  * test agrees with itself no matter what it is — that is trap 2 above, and it is how a loop over an
  * empty list reports a green run.
+ *
+ * FIVE BECAME TWELVE IN PLAN 12-14, and this pin is why that had to be deliberate. Adding seven
+ * product surfaces to the inventory adds them to THIS smoke automatically (the set is documents minus
+ * exclusions, derived rather than restated), so the only alternative to moving this literal was
+ * EXCLUDING them — which would have meant claiming seven surfaces cannot be themed, in a file whose
+ * whole argument is that such a claim has to be made in prose. They can be themed: grove moves their
+ * geometry, type and elevation. So the number moves instead, in the same commit as the rows.
  */
-const EXPECTED_COMPARED_SURFACES = 5;
+const EXPECTED_COMPARED_SURFACES = 12;
 
-/** The members, not just the count. A swap of one surface for another keeps the count at 5. */
+/** The members, not just the count. A swap of one surface for another keeps the count at 12. */
 const EXPECTED_COMPARED: readonly DocumentSurfaceId[] = [
   "dev-theme",
   "terms",
   "privacy",
   "root-not-found",
   "auth-login",
+  "search-results",
+  "search-relax-band",
+  "listing-detail",
+  "listing-lightbox",
+  "listing-sheet",
+  "checkout",
+  "collision-notice",
 ];
 
 type Capture = {
@@ -137,28 +168,51 @@ async function capture(
   theme: BaselineTheme,
 ): Promise<Capture> {
   const surface = VISUAL_SURFACES[surfaceId];
-  const context = await browser.newContext({ baseURL, viewport: { ...SWAP_VIEWPORT } });
+  const width = swapWidthFor(surfaceId);
+  const where = `${surfaceId} @ ${width}px · ${theme} (theme-swap)`;
+  // `"swap"` IS NOT A LABEL — it selects this spec's OWN booking windows. `surfaces.spec.ts` runs
+  // concurrently and needs the same two driven surfaces; two passes claiming one window produce a
+  // REFUSED hold, and a refused checkout drive photographs the collision surface instead. The
+  // slot-allocation table in `visual-drive.ts` is the whole argument.
+  const drive = newDrive(surfaceId, surface.url, "swap");
+  const context = await browser.newContext({ baseURL, viewport: { width, height: SWAP_HEIGHT } });
   try {
     await seedTheme(context, theme);
     const page: Page = await context.newPage();
     await emulateVisualMedia(page);
-    await page.goto(surface.url as string);
-    await injectFreezeStylesheet(page);
+    // BEFORE the first navigation — Playwright's own caveat for `clock`; see `surfaces.spec.ts`.
+    if (drive.needsClock) await page.clock.install();
 
-    await expect(
-      page.locator(surface.hook).first(),
-      `${surfaceId} (${surface.url}) rendered NO \`${surface.hook}\` — ${surface.hookWhy} ` +
-        "Two screenshots of a page that never rendered differ or agree for reasons that have " +
-        "nothing to do with the tokens, so this is a failure, not a skip.",
-    ).toBeVisible();
+    try {
+      await drive.navigate({ page, theme, width, where });
+      // AFTER the last navigation (a navigation discards the tag) and BEFORE the interaction, so an
+      // overlay opens with zero-duration transitions rather than being caught mid-flight.
+      await injectFreezeStylesheet(page);
+      await drive.interact?.({ page, theme, width, where });
 
-    const resolvedTheme = await page.locator("html").getAttribute("data-theme");
-    const buffer = await page.screenshot({
-      fullPage: true,
-      animations: "disabled",
-      caret: "hide",
-    });
-    return { buffer, resolvedTheme };
+      await expect(
+        page.locator(surface.hook).first(),
+        `${surfaceId} (${surface.url}) rendered NO \`${surface.hook}\` — ${surface.hookWhy} ` +
+          "Two screenshots of a page that never rendered differ or agree for reasons that have " +
+          "nothing to do with the tokens, so this is a failure, not a skip.",
+      ).toBeVisible();
+
+      const resolvedTheme = await page.locator("html").getAttribute("data-theme");
+      const buffer = await page.screenshot({
+        // The two overlay surfaces are captured as the VIEWPORT, for the reason `surfaces.spec.ts`
+        // gives: they are `position: fixed` over a scroll-locked document, so a full-page stitch
+        // scrolls a body that cannot scroll and pins a stitching artefact instead of the overlay.
+        fullPage: drive.captureMode === "fullPage",
+        animations: "disabled",
+        caret: "hide",
+      });
+      return { buffer, resolvedTheme };
+    } finally {
+      // BEFORE the context closes and therefore before the second theme's pass, and in a `finally`
+      // because a failed court pass must not leave a conflict row that makes grove's pass fail for an
+      // unrelated reason: the collision drive's window has to be FREE when the page loads.
+      await drive.cleanup?.({ page, theme, width, where });
+    }
   } finally {
     await context.close();
   }
@@ -206,6 +260,13 @@ test.describe("AC#30 — every baselined surface re-skins, except the one that c
       const surface = VISUAL_SURFACES[surfaceId];
       test.skip(surface.blocked !== null, surface.blocked ?? "");
       expect(baseURL, "no baseURL configured").toBeTruthy();
+
+      // TWICE the drive's own ceiling, because this test performs the whole drive twice — once per
+      // theme, in two fresh contexts. A ceiling, never a wait: raising it cannot turn a failing
+      // comparison green, it only decides how long a genuine hang is allowed to look like progress.
+      // The driven surfaces sign a booker up through the UI and place a real hold, which is why the
+      // number is large; the Phase-11 surfaces keep a modest one.
+      test.setTimeout(newDrive(surfaceId, surface.url, "swap").timeoutMs * 2);
 
       const court = await capture(browser, baseURL as string, surfaceId, "court");
       const grove = await capture(browser, baseURL as string, surfaceId, "grove");

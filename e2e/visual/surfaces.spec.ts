@@ -3,6 +3,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { seedTheme } from "../helpers/theme";
 import { emulateVisualMedia, injectFreezeStylesheet } from "../helpers/visual-freeze";
 import {
+  FIXTURE_URL_CONTRACT,
+  newDrive,
+  SERIAL_SURFACES,
+} from "../helpers/visual-drive";
+import {
   baselineArg,
   blockedSurfaces,
   VISUAL_BASELINES,
@@ -69,11 +74,31 @@ import {
 // allowed to write a baseline is the one that cannot have a stale server.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 12 ADDED TWO THINGS THIS FILE DID NOT HAVE, AND BOTH ARE IN `e2e/helpers/visual-drive.ts`
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// (1) A PER-SURFACE DRIVE. Every Phase-11 surface was one `goto` away. Four of Phase 12's seven are
+// STATES rather than URLs — an opened lightbox, an opened sheet, a checkout behind a `?hold=` that
+// only a POST can mint, and a hold that has just been REFUSED — so the navigation, the interaction,
+// the timeout and the capture mode are per-surface. They live in a HELPER rather than here because
+// `theme-swap.spec.ts` needs the same drives and a spec cannot import a spec (`visual-freeze.ts`'s
+// header records the mechanism). Read that helper's slot-allocation table before adding a row: two
+// drives that mint a hold over the same hours produce a REFUSAL, and a refused checkout drive
+// photographs the collision surface instead — the wrong baseline, minted green.
+//
+// (2) THE FIRST FROZEN CLOCK. `e2e/visual/freeze.css`'s header names this phase's countdown in
+// advance and says the first surface that renders a clock must freeze one IN THE SAME CHANGE that
+// baselines it. `checkout` does: the drive installs the clock BEFORE the first navigation (Playwright's
+// own caveat, quoted in `e2e/hold-countdown.spec.ts`, this repository's first clock user), re-freezes
+// the hold's deadline to the fixture's fixed instant, and jumps the frozen clock to exactly 14:52
+// remaining — asserted, not assumed, before any pixel is compared.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-//   • TWO OF THE 27 DECLARED ROWS ARE BLOCKED and are skipped with their reason (`global-error`,
-//     `og-listing`). A complete run therefore compares 25 baselines. The blocked SET is pinned by
-//     the first test below, so a third one joining it is a failure rather than a quieter run.
+//   • ONE OF THE 53 DECLARED ROWS IS BLOCKED and is skipped with its reason (`global-error`). A
+//     complete run therefore compares 52 baselines. The blocked SET is pinned by the first test
+//     below, so a second one joining it is a failure rather than a quieter run.
 //   • A baseline pins WHAT WAS SHOT, including a defect present on the day it was shot. Nothing here
 //     knows what a surface should look like. The surfaces chosen are ones whose correctness is
 //     separately asserted (contrast, type scale, skeleton geometry, the 320px floor).
@@ -136,14 +161,23 @@ const OG_VIEWPORT = { width: 1400, height: 900 } as const;
 /**
  * The surfaces that cannot be shot today, PINNED as a set rather than merely skipped.
  *
- * A skip is invisible in a green run. Pinning the set means a third surface joining it fails here,
- * naming itself, instead of quietly reducing coverage — which is the same argument
- * `THEME_SWAP_EXCLUSIONS` makes for having exactly one entry.
+ * A skip is invisible in a green run. Pinning the set means a surface joining it fails here, naming
+ * itself, instead of quietly reducing coverage — which is the same argument `THEME_SWAP_EXCLUSIONS`
+ * makes for having exactly one entry.
+ *
+ * ONE ENTRY AS OF PLAN 12-14, DOWN FROM TWO. `og-listing` was blocked for want of a published listing
+ * and is now shot against a committed fixture; the row it left behind is the one surface nothing in
+ * this repository can render at all. A surface LEAVING this list is coverage that has been won, and
+ * this pin is where that gets recorded rather than merely happening.
  */
-const EXPECTED_BLOCKED = ["global-error", "og-listing"] as const;
+const EXPECTED_BLOCKED = ["global-error"] as const;
 
-/** 11-UI-SPEC § GATE-01's total: 3 + 12 + 4 + 1 + 4 + 3. Compile-checked too — see the module. */
-const EXPECTED_BASELINE_COUNT = 27;
+/**
+ * Both UI-SPECs' totals: (3 + 12 + 4 + 1 + 4 + 3) + (6 + 4 + 6 + 2 + 2 + 4 + 2). Compile-checked too —
+ * see `BaselineCountIsFiftyThree` in the module, which is what catches it off Linux where this file
+ * never runs.
+ */
+const EXPECTED_BASELINE_COUNT = 53;
 
 /**
  * Trap 1. Assert the surface rendered its subject before any pixel is read.
@@ -163,12 +197,13 @@ async function expectReachable(page: Page, row: BaselineRow): Promise<void> {
 }
 
 test.describe("GATE-01 — the declared baseline inventory", () => {
-  test("the inventory is the 27 rows the UI-SPEC declares, and exactly two are blocked", () => {
+  test("the inventory is the 53 rows the two UI-SPECs declare, and exactly one is blocked", () => {
     expect(
       VISUAL_BASELINES.length,
-      "11-UI-SPEC § GATE-01 declares 27 baselines (3 + 12 + 4 + 1 + 4 + 3). This is the runtime " +
-        "half of the compile gate in `visual-baselines.ts`; the type-level one is what catches it " +
-        "off Linux, where this file never runs.",
+      "the two UI-SPECs declare 53 baselines — 27 from 11-UI-SPEC § GATE-01 and 26 from " +
+        "12-UI-SPEC § Visual Baselines. This is the runtime half of the compile gate in " +
+        "`visual-baselines.ts`; the type-level one is what catches it off Linux, where this file " +
+        "never runs.",
     ).toBe(EXPECTED_BASELINE_COUNT);
 
     const blocked = blockedSurfaces();
@@ -187,27 +222,101 @@ test.describe("GATE-01 — the declared baseline inventory", () => {
       ).toBeGreaterThan(80);
     }
   });
+
+  /**
+   * THE ONE DRIFT `tsc` CANNOT SEE, CLOSED HERE (plan 12-14).
+   *
+   * Every Phase-12 row's `url` embeds the fixture's exclusive listing id and its collision day as
+   * STRING LITERALS, because `visual-baselines.ts` lives in `src/` and cannot import
+   * `scripts/seed-baseline-fixtures.ts` — that module imports `postgres`, and `src/` is inside
+   * `next build`'s graph. The fixture's own header names the consequence: "renaming one orphans a
+   * declared surface, and `tsc` will not catch it, because a baseline row's URL is a string." An
+   * orphaned row does not fail loudly, either: `/listings/<renamed>` 404s, the reachability hook
+   * rejects it, and the failure reads as a broken listing page rather than as a stale literal.
+   *
+   * So the pair is asserted, against the CONSTANTS the seed script exports, in the run that would
+   * otherwise be baselining a not-found boundary.
+   */
+  test("every Phase-12 row's URL names the fixture ids the seed script actually creates", () => {
+    const listingRows = VISUAL_BASELINES.filter((row) =>
+      (VISUAL_SURFACES[row.surface].url ?? "").startsWith("/listings/"),
+    );
+    expect(
+      listingRows.length,
+      "no baseline row addresses `/listings/…` any more, so this assertion is a scan of nothing — " +
+        "the seventh-plus sighting of the vacuity shape this phase keeps recording",
+    ).toBeGreaterThan(0);
+
+    for (const row of listingRows) {
+      const url = VISUAL_SURFACES[row.surface].url as string;
+      expect(
+        url,
+        `${row.surface} addresses a listing id that is not the fixture's. ` +
+          `\`VRT_IDS.exclusive\` is "${FIXTURE_URL_CONTRACT.listingId}"; this row says "${url}". A ` +
+          "renamed fixture id leaves the row pointing at a listing nobody seeds, which 404s — and a " +
+          "404's not-found boundary is a page that photographs perfectly well.",
+      ).toContain(`/listings/${FIXTURE_URL_CONTRACT.listingId}`);
+    }
+
+    // The DAY, separately: it is what makes the calendar deterministic, and a row that lost it would
+    // silently start baselining whatever month it is today.
+    for (const row of listingRows.filter((r) => (VISUAL_SURFACES[r.surface].url ?? "").includes("?"))) {
+      expect(
+        VISUAL_SURFACES[row.surface].url,
+        `${row.surface} pins a day other than the fixture's ${FIXTURE_URL_CONTRACT.dayIso}. Without ` +
+          "the fixture's own day the hour grid does not show the seeded conflict, and without a day " +
+          "at all the month grid changes with the wall clock.",
+      ).toContain(`date=${FIXTURE_URL_CONTRACT.dayIso}`);
+    }
+  });
 });
 
-for (const row of VISUAL_BASELINES) {
+/**
+ * One document baseline: seed the theme, drive the surface into its state, then compare.
+ *
+ * A FUNCTION RATHER THAN A LOOP BODY, because the rows are no longer all registered the same way:
+ * `collision-notice`'s two rows share one booking window and must therefore run SEQUENTIALLY, which in
+ * Playwright means being registered inside a `serial` describe. Registration order and grouping are the
+ * only difference — the drive, the hook and the comparison are identical, and keeping them in one
+ * function is what stops the serial rows quietly drifting into a weaker check than the parallel ones.
+ */
+function registerDocumentBaseline(row: BaselineRow): void {
   const surface = VISUAL_SURFACES[row.surface];
 
-  if (surface.kind === "document") {
-    test(baselineArg(row), async ({ page }) => {
-      test.skip(surface.blocked !== null, surface.blocked ?? "");
-      // `url` is non-null for every unblocked document row; the skip above is what makes this safe,
-      // and the assertion below is what makes that claim checkable rather than assumed.
-      expect(surface.url, `${row.surface} is unblocked but declares no URL`).not.toBeNull();
+  test(baselineArg(row), async ({ page }) => {
+    test.skip(surface.blocked !== null, surface.blocked ?? "");
+    // `url` is non-null for every unblocked document row; the skip above is what makes this safe,
+    // and the assertion below is what makes that claim checkable rather than assumed.
+    expect(surface.url, `${row.surface} is unblocked but declares no URL`).not.toBeNull();
 
-      // On the CONTEXT and BEFORE the first goto — `e2e/helpers/theme.ts:44-56`. next-themes' inline
-      // pre-paint script reads the seeded key on the very first paint, so there is no flash of the
-      // default theme in the frame and no post-hydration switch to wait out.
-      await seedTheme(page.context(), row.theme);
-      await page.setViewportSize({ width: row.width, height: row.height });
-      await emulateVisualMedia(page);
+    const where = `${row.surface} @ ${row.width}px · ${row.theme}`;
+    const drive = newDrive(row.surface, surface.url);
+    test.setTimeout(drive.timeoutMs);
 
-      await page.goto(surface.url as string);
+    // On the CONTEXT and BEFORE the first goto — `e2e/helpers/theme.ts:44-56`. next-themes' inline
+    // pre-paint script reads the seeded key on the very first paint, so there is no flash of the
+    // default theme in the frame and no post-hydration switch to wait out.
+    await seedTheme(page.context(), row.theme);
+    await page.setViewportSize({ width: row.width, height: row.height });
+    await emulateVisualMedia(page);
+
+    // ⚠ THE CLOCK GOES HERE — BEFORE THE FIRST NAVIGATION, NOT BEFORE THE CAPTURE. Playwright's own
+    // caveat for `clock`, quoted in `e2e/hold-countdown.spec.ts` (the repository's first clock user):
+    // "install the clock before navigating the page … This ensures that all timers run normally
+    // during page loading, preventing the page from getting stuck." A clock installed after a
+    // navigation does not control the timers the page already created, and the countdown's
+    // `setInterval` is exactly such a timer — the run would then be measuring a real fifteen-minute
+    // wall clock and would pass by never reaching any state at all. The checkout drive is the only
+    // surface that asks for one; `freeze.css`'s header named it in advance.
+    if (drive.needsClock) await page.clock.install();
+
+    try {
+      await drive.navigate({ page, theme: row.theme, width: row.width, where });
+      // AFTER the last navigation, because a navigation discards the injected tag.
       await injectFreezeStylesheet(page);
+      // …and the interaction runs AFTER the freeze, so the overlay that is about to open does so with
+      // zero-duration transitions rather than being caught mid-flight.
+      await drive.interact?.({ page, theme: row.theme, width: row.width, where });
 
       await expectReachable(page, row);
 
@@ -223,24 +332,146 @@ for (const row of VISUAL_BASELINES) {
       ).toHaveAttribute("data-theme", row.theme);
 
       await expect(page).toHaveScreenshot(baselineArg(row), {
-        // FULL PAGE, not the viewport. Two reasons, and the second is not optional: `/dev/theme`'s
-        // sections 10-14 and both legal pages' notices sit below the fold at every declared width,
-        // so a viewport capture would pin a header and call it coverage — and D-30's second proof
-        // nudges the FOOTER's padding, which a viewport capture cannot see at all.
-        fullPage: true,
+        // FULL PAGE for every surface except the two OVERLAYS. Two reasons for the default, and the
+        // second is not optional: `/dev/theme`'s sections 10-14 and both legal pages' notices sit
+        // below the fold at every declared width, so a viewport capture would pin a header and call
+        // it coverage — and D-30's second proof nudges the FOOTER's padding, which a viewport capture
+        // cannot see at all. The lightbox and the sheet are the exception BY CONSTRUCTION: they are
+        // `position: fixed` over a scroll-locked document, so a full-page stitch scrolls a body that
+        // cannot scroll and pins a stitching artefact instead of the overlay. The page behind them is
+        // already baselined at the same widths by `listing-detail`.
+        fullPage: drive.captureMode === "fullPage",
         animations: "disabled",
         caret: "hide",
       });
-    });
-    continue;
-  }
+    } finally {
+      // IN A `finally`, and that is the whole point. `collision-notice`'s two rows share one window
+      // that must be FREE when the page loads, so court's inserted conflict has to be gone before
+      // grove's drive runs — including when court FAILED. A cleanup that only runs on the happy path
+      // turns one real failure into a cascade of unrelated ones.
+      await drive.cleanup?.({ page, theme: row.theme, width: row.width, where });
+    }
+  });
+}
+
+const DOCUMENT_ROWS = VISUAL_BASELINES.filter(
+  (row) => VISUAL_SURFACES[row.surface].kind === "document",
+);
+const IMAGE_ROWS = VISUAL_BASELINES.filter((row) => VISUAL_SURFACES[row.surface].kind === "image");
+
+// The parallel-safe document rows — everything whose drive mutates nothing another row depends on.
+for (const row of DOCUMENT_ROWS) {
+  if (SERIAL_SURFACES.includes(row.surface)) continue;
+  registerDocumentBaseline(row);
+}
+
+// …and the ones that must not overlap. `SERIAL_SURFACES` holds the argument; it is not a performance
+// setting. Registering them inside a `serial` describe is the only way Playwright expresses "these
+// share a resource", and the describe's title says so on the report where somebody will read it.
+for (const surfaceId of SERIAL_SURFACES) {
+  const rows = DOCUMENT_ROWS.filter((row) => row.surface === surfaceId);
+  if (rows.length === 0) continue;
+  test.describe(`${surfaceId} — SERIAL (its two rows share one booking window)`, () => {
+    test.describe.configure({ mode: "serial" });
+    for (const row of rows) registerDocumentBaseline(row);
+  });
+}
+
+for (const row of IMAGE_ROWS) {
+  const surface = VISUAL_SURFACES[row.surface];
 
   test(baselineArg(row), async ({ page }) => {
     test.skip(surface.blocked !== null, surface.blocked ?? "");
     expect(surface.url, `${row.surface} is unblocked but declares no URL`).not.toBeNull();
 
+    // 90s rather than the 30s default as of plan 12-14: the `og-listing` row now makes two extra
+    // requests (the listing page, for its head, and the root card, for its byte length) and satori
+    // renders a card from scratch on the dev server's first hit of each route. A ceiling, not a wait.
+    test.setTimeout(90_000);
+
     await page.setViewportSize({ ...OG_VIEWPORT });
     await emulateVisualMedia(page);
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    // D-58 — THE TWO ASSERTIONS THAT MAKE THE LISTING CARD'S BASELINE MEAN ANYTHING, BEFORE ANY PIXEL
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // THE TRAP, restated because it is the whole reason this row was blocked for a phase: this route
+    // ANSWERS 200 WITHOUT A DATABASE. `src/lib/listing/og-facts.ts` returns null for a listing it
+    // cannot read and `opengraph-image.tsx` falls back to its `GenericCard`, which plan 11-20
+    // measured as BYTE-IDENTICAL to the root card at 25,844 bytes. That fallback is a perfectly valid
+    // 1200 × 630 PNG, so EVERY check the other two image rows make — 200, `image/png`, a decoded
+    // 1200 × 630, a rendered box at natural size — passes against it. A baseline shot without a
+    // fixture is therefore a second copy of `og-root` wearing the listing card's name: green forever,
+    // and reading in every review as coverage of a card it has never seen.
+    //
+    // ⚠ THE SECOND ASSERTION IS NOT THE ONE 12-UI-SPEC SPELLED, AND THE SUBSTITUTION IS DELIBERATE.
+    // The spec's falsifiable pair is "the byte length is not 25,844, and its `alt` export contains the
+    // seeded listing's title". THE FIRST HALF IS IMPLEMENTED VERBATIM. The second cannot be: `alt` is
+    // a STATIC module export on this route ("FitOut — a space, the city it is in, and what it costs by
+    // the hour"), and `opengraph-image.tsx`'s own header records why, having rejected both ways to
+    // interpolate a listing into it — `generateImageMetadata` makes Next append an image id so
+    // `/listings/<id>/opengraph-image` stops resolving, and hand-writing `openGraph.images` replaces
+    // the file convention and with it the automatic width/height/type tags. Asserting a substring of a
+    // constant would be a check that cannot fail.
+    //
+    // So the claim is re-aimed at the thing that actually carries the seeded title into the unfurl,
+    // and it is STRONGER rather than weaker: `og:title` on the listing page is composed from
+    // `listingCardFacts(id)` — the SAME cached projection the image route calls, and the same null
+    // check that decides `ListingCard` versus `GenericCard`. A non-null `og:title` carrying the seeded
+    // title is therefore direct evidence that this deployment's image route took the real-card branch.
+    // Plus `og:image`, which proves the page's head points at the very route being captured below.
+    if (row.surface === "og-listing") {
+      const listingPath = `/listings/${FIXTURE_URL_CONTRACT.listingId}`;
+      await page.goto(listingPath);
+
+      const ogTitle = await page
+        .locator('meta[property="og:title"]')
+        .getAttribute("content", { timeout: 20_000 });
+      expect(
+        ogTitle,
+        `${listingPath} published og:title "${ogTitle ?? "(absent)"}". It is composed from ` +
+          "`listingCardFacts(id)`, the same projection `opengraph-image.tsx` reads — so a title that " +
+          "does not name the seeded listing means that read returned NULL, which means the card " +
+          "captured below is the `GenericCard` fallback and not this space's card. Most likely the " +
+          "fixture was not seeded before the visual run (see `.github/workflows/baselines.yml`'s " +
+          "seed step) rather than anything wrong with the route.",
+      ).toContain(FIXTURE_URL_CONTRACT.title);
+
+      const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
+      expect(
+        ogImage,
+        "the listing page's og:image does not point at the route this row captures, so the card " +
+          "being baselined is not the card this page's links actually unfurl with",
+      ).toContain(`${listingPath}/opengraph-image`);
+
+      // THE BYTE LENGTHS, and the reason there are two comparisons rather than the one the spec asks
+      // for. 25,844 is the literal plan 11-20 measured and it is pinned because it is the number in
+      // the record — but a pinned literal goes VACUOUS the day the GenericCard's rendering changes by
+      // a byte, and it would go vacuous silently, in the green direction. So the live root card is
+      // fetched in the SAME RUN and compared too: whatever the fallback weighs today, the listing
+      // card must not weigh it.
+      const listingCard = await page.request.get(surface.url as string);
+      expect(listingCard.status(), `${surface.url} did not answer 200 to a direct fetch`).toBe(200);
+      const listingBytes = (await listingCard.body()).byteLength;
+
+      const rootCard = await page.request.get("/opengraph-image");
+      expect(rootCard.status(), "/opengraph-image did not answer 200").toBe(200);
+      const rootBytes = (await rootCard.body()).byteLength;
+
+      expect(
+        listingBytes,
+        `the listing card is ${listingBytes} bytes — exactly the 25,844 plan 11-20 measured for the ` +
+          "`GenericCard` fallback. This capture is the DB-free card wearing the listing card's name.",
+      ).not.toBe(25_844);
+      expect(
+        listingBytes,
+        `the listing card and the root card are both ${listingBytes} bytes. They are different ` +
+          "compositions with different text, so equal lengths mean the listing route served its " +
+          "`GenericCard` — which 11-20 measured as byte-identical to the root card. This comparison " +
+          "is the durable half of the assertion above: the 25,844 literal can go stale, this cannot.",
+      ).not.toBe(rootBytes);
+    }
 
     // NO `freeze.css` on this path, and the absence is deliberate: the document Chromium builds for
     // a standalone PNG contains one `<img>` and no application CSS, so there is no animation, no
