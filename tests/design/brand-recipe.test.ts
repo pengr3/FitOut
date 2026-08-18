@@ -337,6 +337,19 @@ const EXPECTED_DILUTED_TOKENS: Readonly<Record<string, string>> = {
   "foreground/10": "exempt — the decorative card/overlay hairline (focus-recipe.test.ts)",
   "foreground/60": "declared — inactive tab label on the muted track, 5.11 / 4.81 (WR-09)",
   "foreground/80": "recorded — overlay scrim, never carries text",
+  // 12-07. THE SAME CLASS OF THING AS THE TWO SCRIM ROWS ABOVE, and it is `recorded` rather than
+  // `declared` or `exempt` for the reason those are: a surface carrying NO TEXT AND NO BOUNDARY has
+  // nothing for a contrast ratio to be about. WCAG 1.4.3 is about text and 1.4.11 is about a UI
+  // component's visual boundary; a full-screen tint behind a photograph is neither.
+  //
+  // THE "CARRIES NO TEXT" CLAIM IS STRUCTURAL HERE, NOT A PROMISE. `photo-lightbox.tsx` puts the
+  // counter, prev/next and close on a `bg-background` plate carrying `text-foreground` — a declared,
+  // measured pairing — precisely so the scrim never has ink on it. The scrim is the one surface on
+  // that route with no page token behind it, so ink placed directly on it would be a pairing outside
+  // `contrast-pairs.ts` entirely, which is the third state that inventory exists to forbid. If a
+  // later plan ever writes a string onto the scrim, this row stops being true and the pairing has to
+  // be measured and declared — do not read `recorded` as blanket permission for the token.
+  "foreground/90": "recorded — the photo lightbox's full-screen scrim (12-07), carries no text",
   "input/30": "inert — second-colour-scheme variant only",
   "input/50": "inert — second-colour-scheme variant only",
   "input/80": "inert — second-colour-scheme variant only",

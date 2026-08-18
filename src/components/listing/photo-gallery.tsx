@@ -53,16 +53,28 @@
 // THIS FILE is the mosaic: the box, the six templates, every `<img>` and every `alt` string. It renders
 // on the server, so the plate and the alt text reach the OG scrape and the no-JS reader.
 //
-// The interactive layer (`open`, `activeIndex`, the dialog and THE TRIGGERS) is a sibling client island,
-// wired in the next commit of this same plan. Its triggers wrap each cell's server-rendered `<img>` as a
-// CHILD, which is what keeps this file free of hooks and of the client-boundary directive while still
-// making every photo openable. The alternative (making the mosaic a client component) would drag the plate
-// client-side for one piece of state, and the alternative to THAT (absolutely-positioned overlay
-// buttons) would duplicate the grid geometry in a second file where it could drift.
+// `photo-lightbox.tsx` IS THE INTERACTIVE LAYER: `open`, `activeIndex`, the dialog, and THE TRIGGERS.
+// Its triggers wrap each cell's server-rendered `<img>` as a CHILD, which is what keeps this file free
+// of hooks and of the client-boundary directive while still making every photo openable. The alternative
+// (making the mosaic a client component) would drag the plate client-side for one piece of state, and
+// the alternative to THAT (absolutely-positioned overlay buttons) would duplicate the grid geometry in a
+// second file where it could drift.
+//
+// THE ALT STRINGS ARE BUILT HERE AND HANDED DOWN, which is the other half of keeping the split honest.
+// `photoAlt()` is defined in this server module and the finished strings are passed to the island as
+// props, so the mosaic and the dialog cannot disagree about what photo 3 of 8 is called. It is a prop
+// rather than a shared import because the import would have to go one way or the other: this file
+// importing the island is what already happens, and the island importing `photoAlt` back would be a
+// cycle — while MOVING the helper into the island would make a Server Component call a function exported
+// from a client module, which React rejects at runtime.
 
 import { ImageIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import {
+  PhotoLightbox,
+  PhotoLightboxShowAll,
+  PhotoLightboxTrigger,
+} from "@/components/listing/photo-lightbox";
 import { MOSAIC_ASPECT } from "@/lib/design/measurements";
 import type { PublicListingPhoto } from "@/lib/listing-public";
 
@@ -190,43 +202,52 @@ export function PhotoGallery({
   const visible = photos.slice(0, shape.cells);
   const button = showAllPhotosVisibility(total);
 
+  // EVERY photo, not just the five the mosaic shows — the dialog pages through the whole set, and the
+  // alt strings are built once, here, on the server.
+  const lightboxPhotos = photos.map((photo, i) => ({
+    id: photo.id,
+    url: photo.url,
+    alt: photoAlt(title, i, total),
+  }));
+
   return (
     <section aria-label={`Photos of ${title}`} className="relative">
-      <ul
-        className={`${MOSAIC_ASPECT} ${COLLAPSED_GRID} ${shape.grid} grid w-full gap-2 overflow-hidden rounded-xl`}
-      >
-        {visible.map((photo, i) => (
-          <li
-            key={photo.id}
-            // The hero is the only cell that survives the collapse; the rest are laid out only from
-            // `sm:` up. `overflow-hidden` is per-cell because `object-cover` crops to the CELL, whose
-            // ratio is decided by the template rather than by the photo.
-            className={`overflow-hidden bg-muted ${i === 0 ? shape.heroSpan : "max-sm:hidden"}`}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.url}
-              alt={photoAlt(title, i, total)}
-              loading={i === 0 ? undefined : "lazy"}
-              className="size-full object-cover"
-            />
-          </li>
-        ))}
-      </ul>
-
-      {button.collapsed && (
-        <Button
-          type="button"
-          variant="outline"
-          size="touch"
-          // `bg-background` is restated on the plate because this control sits ON host photography: the
-          // `outline` variant's own background is what keeps it legible over an arbitrary image, and it
-          // must not become transparent at any breakpoint.
-          className={`absolute right-4 bottom-4 bg-background ${button.wide ? "" : "sm:hidden"}`}
+      <PhotoLightbox photos={lightboxPhotos} title={title}>
+        <ul
+          className={`${MOSAIC_ASPECT} ${COLLAPSED_GRID} ${shape.grid} grid w-full gap-2 overflow-hidden rounded-xl`}
         >
-          Show all {total} photos
-        </Button>
-      )}
+          {visible.map((photo, i) => (
+            <li
+              key={photo.id}
+              // The hero is the only cell that survives the collapse; the rest are laid out only from
+              // `sm:` up. `overflow-hidden` is per-cell because `object-cover` crops to the CELL, whose
+              // ratio is decided by the template rather than by the photo.
+              className={`overflow-hidden bg-muted ${i === 0 ? shape.heroSpan : "max-sm:hidden"}`}
+            >
+              <PhotoLightboxTrigger index={i}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.url}
+                  alt={photoAlt(title, i, total)}
+                  loading={i === 0 ? undefined : "lazy"}
+                  className="size-full object-cover"
+                />
+              </PhotoLightboxTrigger>
+            </li>
+          ))}
+        </ul>
+
+        {button.collapsed && (
+          <PhotoLightboxShowAll
+            // `bg-background` is restated on the plate because this control sits ON host photography:
+            // the `outline` variant's own background is what keeps it legible over an arbitrary image,
+            // and it must not become transparent at any breakpoint.
+            className={`absolute right-4 bottom-4 bg-background ${button.wide ? "" : "sm:hidden"}`}
+          >
+            Show all {total} photos
+          </PhotoLightboxShowAll>
+        )}
+      </PhotoLightbox>
     </section>
   );
 }

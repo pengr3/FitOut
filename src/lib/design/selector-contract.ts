@@ -145,6 +145,8 @@ export const SELECTOR_IDS = [
   "hold-countdown",
   // 12-04 — the listing rail's total, once ONE component renders both price surfaces.
   "rail-price-total",
+  // 12-07 — the full-screen photo lightbox.
+  "photo-lightbox",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -352,5 +354,22 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "deliberately NOT declared here — plan 12-10 renders it, and a declared row with no literal in " +
       "`src/` fails this contract's forward assertion.",
     owner: "12-04",
+  },
+
+  // ─── 12-07 ─────────────────────────────────────────────────────────────────────────────────────────
+  "photo-lightbox": {
+    why:
+      "`getByRole(\"dialog\")` cannot distinguish this dialog from the booking sheet, and on this route " +
+      "BOTH are reachable in one document: the listing page renders the gallery and, from 12-10, a " +
+      "second booking view in a `ResponsiveDialog`. A role query would resolve whichever mounted first. " +
+      "Nor is a NAME query a substitute for the hook, and that is the sharper half. The spec this id " +
+      "exists for asserts two things at once — that the element computing the name `Photos of {title}` " +
+      "IS this component, and that it does NOT also carry `responsive-dialog`. The second is a claim " +
+      "about WHICH OVERLAY MECHANISM rendered, which is precisely the claim `responsive-dialog`'s own " +
+      "row records a role query being unable to make; asserting it needs two distinguishable hooks, " +
+      "because an absence assertion against a role is satisfied by any element in the document. D-45 " +
+      "makes the lightbox a raw full-screen `ui/dialog` rather than the RESP-01 pattern, and this pair " +
+      "of ids is what stops that decision quietly reverting to \"some dialog opened\".",
+    owner: "12-07",
   },
 };
