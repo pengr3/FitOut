@@ -43,6 +43,8 @@ import { rungBoundaries, bestFutureRungIndex } from "@/lib/payments/cancellation
 import { Button } from "@/components/ui/button";
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
+import { STICKY_BAR_CLEARANCE } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
 import { PartialGrantNotice } from "@/components/booking/partial-grant-notice";
 import { PaxStepper } from "@/components/booking/pax-stepper";
@@ -398,20 +400,32 @@ export default async function ReservePage({
         </div>
       )}
 
-      {/* LAST in the main column, below everything else it describes — never in the header (SHELL-03's
-          zero-anchor count is over that subtree), never in the rail (the rail is the money column and
-          this is not a money action), never in a sticky bar (a persistent escape hatch beside a
-          terminal action is an invitation to leave). The promise beneath it is the whole reason a link
-          is safe here at all: the hold is not cancelled by looking at the listing again, and a booker
-          who does not know that will sit on this page rather than check. */}
-      <div>
-        <Button asChild variant="ghost" size="touch">
-          <Link href={backHref}>Back to the listing</Link>
-        </Button>
-        <p className="mt-1 text-xs text-muted-foreground">
-          We&apos;ll keep your hold — the timer keeps running.
-        </p>
-      </div>
+    </div>
+  );
+
+  // ── THE WAY BACK, LIFTED OUT OF `summary` SO IT CAN BE LAST AT EVERY WIDTH (plan 12-11) ─────────────
+  // It was the last child of `summary`, which put it last on a DESKTOP — but on a phone the rail stacks
+  // BELOW the summary, so an escape hatch sat between the booker and the price they came to check.
+  // `ReserveView` now takes it as its own slot and places it after the money column below `lg:` and back
+  // in the main column at `lg:`, with CSS and a grid row rather than with a second rendering.
+  //
+  // Everything the original position was chosen for is unchanged: never in the header (SHELL-03's
+  // zero-anchor count is over that subtree), never in the rail (the rail is the money column and this is
+  // not a money action), never in the sticky bar (a persistent escape hatch beside a terminal action is
+  // an invitation to leave, and `<main>` must hold exactly ONE anchor). The promise beneath it is the
+  // whole reason a link is safe here at all: the hold is not cancelled by looking at the listing again,
+  // and a booker who does not know that will sit on this page rather than check.
+  //
+  // It is still dropped on expiry, because `ReserveView` swaps the WHOLE reserve content for
+  // `HoldExpiredState` — which carries its own way back to a listing whose hold is gone.
+  const wayBack = (
+    <div>
+      <Button asChild variant="ghost" size="touch">
+        <Link href={backHref}>Back to the listing</Link>
+      </Button>
+      <p className="mt-1 text-xs text-muted-foreground">
+        We&apos;ll keep your hold — the timer keeps running.
+      </p>
     </div>
   );
 
@@ -494,7 +508,13 @@ export default async function ReservePage({
   );
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
+    // `STICKY_BAR_CLEARANCE` is 80px = 64 (the bar) + 16 (a gap) — the same arithmetic the app shell's
+    // `lg:top-20` uses from the other end of the viewport, and the same clearance `/listings/[id]` spends
+    // for its own bar. Without it the last row of this page — the way back — sits permanently under the
+    // fixed confirm bar, on the one route where the alternative to reading the page is paying for
+    // something else. Unconditional rather than `lg:pb-0` for 12-10's reason: 80px of trailing space on a
+    // desktop page is invisible, and a breakpoint here is one more thing to keep true.
+    <main className={cn("mx-auto w-full max-w-4xl px-4 py-8 sm:py-12", STICKY_BAR_CLEARANCE)}>
       {/* D-49 / plan 12-03 — the deadline crosses UP into the checkout header's countdown, which the
           LAYOUT mounts and which therefore cannot be handed a prop by this page. This renders nothing;
           it writes one already-authorised ISO string into `HoldProvider`. `bk.expiresAt` is non-null
@@ -502,9 +522,14 @@ export default async function ReservePage({
           both `notFound()` calls — none of which this component can reach or repeat. */}
       <PublishExpiresAt expiresAt={bk.expiresAt!.toISOString()} />
 
+      {/* BFLOW-07 — `Confirm and pay`, not `Review and book`. The reviewing happened on the listing
+          page and again in the summary below; what this screen is FOR is the payment, and a heading
+          that names the next action is what makes the redirect at the bottom of it unsurprising.
+          `book/loading.tsx` renders this heading verbatim and moved in the same commit — a skeleton
+          that announces a different screen than the one arriving is a flash of the wrong page. */}
       <header className="space-y-1">
         <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
-          Review and book
+          Confirm and pay
         </h1>
         <p className="text-sm text-muted-foreground">{tzNote}</p>
       </header>
@@ -516,6 +541,7 @@ export default async function ReservePage({
           totalLabel={totalLabel}
           summary={summary}
           breakdown={breakdown}
+          wayBack={wayBack}
         />
       </div>
     </main>

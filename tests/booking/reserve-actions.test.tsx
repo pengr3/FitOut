@@ -40,19 +40,36 @@ const IN_FLIGHT = {
   error: CHECKOUT_IN_FLIGHT_MESSAGE,
 };
 
+/**
+ * BOTH confirm controls, since plan 12-11.
+ *
+ * Checkout renders the terminal action TWICE — inline in the rail at `lg:` and up, and in the fixed
+ * bottom bar below it — from ONE `pending`, through ONE `handleConfirm`, with `hidden` leaving exactly
+ * one reachable at any width. jsdom applies no Tailwind (D-131), so both are in this tree: a singular
+ * query throws outright, and quietly picking the first would leave the other box — a control that spends
+ * money — asserted by nothing at all. Every case below drives `cta()` and then checks the pair.
+ */
 function renderActions() {
   const onResult = vi.fn();
   const view = render(<ReserveActions holdId="hold_1" totalLabel="₱735.00" onResult={onResult} />);
-  return { ...view, onResult, cta: () => screen.getByRole("button", { name: /confirm & pay/i }) };
+  const ctas = () => screen.getAllByRole("button", { name: /confirm & pay/i });
+  return { ...view, onResult, ctas, cta: () => ctas()[0] };
 }
 
 describe("ReserveActions — the checkout-lease refusal is calm, inline, and leaves the page usable", () => {
   it("(1) renders the in-flight sentence inline, re-enables the CTA, and still surfaces the result", async () => {
     confirmBooking.mockResolvedValue(IN_FLIGHT);
-    const { onResult, cta } = renderActions();
+    const { onResult, cta, ctas } = renderActions();
 
     // Nothing before the click — the notice is a consequence of an action, not a standing state.
     expect(screen.queryByText(CHECKOUT_IN_FLIGHT_MESSAGE)).toBeNull();
+
+    // Two boxes, and exactly two: the inline rail control and the bottom bar's (plan 12-11). A third
+    // would mean somebody added a confirm path rather than a confirm box, which on this surface is a
+    // second way to mint a payable PayMongo session for one booking.
+    expect(ctas()).toHaveLength(2);
+    // ONE live region for the pair — the refusal is announced once no matter which box was pressed.
+    expect(screen.queryAllByRole("status")).toHaveLength(0);
 
     fireEvent.click(cta());
 
@@ -64,8 +81,13 @@ describe("ReserveActions — the checkout-lease refusal is calm, inline, and lea
     expect(screen.getByRole("status").textContent).toBe(CHECKOUT_IN_FLIGHT_MESSAGE);
 
     // "Try again" has to be actionable, or the copy is a lie (rule O7: name the state, give a way out).
-    expect(cta().hasAttribute("disabled")).toBe(false);
-    expect(cta().textContent).toMatch(/confirm & pay/i);
+    // BOTH boxes come back, because both read the one `pending` this component owns — a booker who was
+    // refused on a phone must find the bar's control usable again, not just the one they cannot see.
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    for (const button of ctas()) {
+      expect(button.hasAttribute("disabled")).toBe(false);
+      expect(button.textContent).toMatch(/confirm & pay/i);
+    }
 
     // The parent still hears about it — reserve-view.tsx ignores `in-flight`, and that is its choice to
     // make, not this component's to pre-empt.

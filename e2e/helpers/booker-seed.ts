@@ -414,12 +414,14 @@ export async function placeHold(
   expect(holdId, "placeHold redirected without a ?hold= id").toBeTruthy();
 
   // ⚠️ THE URL IS NOT THE PAGE, AND ON THIS ROUTE THE DIFFERENCE IS INVISIBLE. MEASURED
-  // (2026-08-18): `app/listings/[id]/book/loading.tsx` renders the SAME `<h1>Review and book</h1>` as
+  // (2026-08-18): `app/listings/[id]/book/loading.tsx` renders the SAME `<h1>Confirm and pay</h1>` as
   // the resolved page, plus a `PanelSkeleton`. A caller that waits for the URL and then checks for the
   // h1 — the obvious spelling, and the one `shell.spec.ts` uses on a route where it is sufficient — is
   // satisfied by the SKELETON, and every subsequent assertion runs against a page whose body has not
-  // arrived. Observed once already: `main`'s whole text content read "Review and bookLoading your
-  // booking" while a countdown assertion reported zero timers.
+  // arrived. Observed once already (plan 12-03, when the heading still read `Review and book`):
+  // `main`'s whole text content read "Review and bookLoading your booking" while a countdown assertion
+  // reported zero timers. Plan 12-11 renamed the heading on BOTH files in one commit — which changes
+  // nothing here, and that is the point: the trap is the DUPLICATION, not the string.
   //
   // `price-total` is the resolved breakdown's own hook (GATE-05, plan 11-06) and exists nowhere in the
   // fallback, so waiting for it is waiting for the real page rather than for a duration.

@@ -154,11 +154,12 @@ async function expectCheckoutReachable(
   ).toHaveCount(1);
 
   // ⚠️ THE `<h1>` IS NOT A REACHABILITY SIGNAL ON THIS ROUTE, and that was measured the hard way.
-  // `app/listings/[id]/book/loading.tsx` renders the SAME `<h1>Review and book</h1>` as the resolved
+  // `app/listings/[id]/book/loading.tsx` renders the SAME `<h1>Confirm and pay</h1>` as the resolved
   // page. A guard built on it passes against the SKELETON — observed on the first run of this file,
-  // with `main`'s entire text reading "Review and bookLoading your booking" while the assertion under
-  // it reported zero timers and looked like a component defect. So each mode names the thing that only
-  // exists once its own body has actually arrived.
+  // with `main`'s entire text reading "Review and bookLoading your booking" — the heading plan 12-11
+  // later renamed on BOTH files at once, which changes nothing about the trap, because the trap is the
+  // DUPLICATION and not the string. The assertion under it reported zero timers and looked like a
+  // component defect. So each mode names the thing that only exists once its own body has arrived.
   //
   // AND THE EXPIRED BODY HAS NO `<h1>` AT ALL: `book/page.tsx` returns `<HoldExpiredState/>` directly
   // on a non-live hold — no `<main>`, no page header. Requiring one in both modes would have failed the

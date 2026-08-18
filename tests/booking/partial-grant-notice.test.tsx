@@ -312,8 +312,20 @@ describe("Reserve page — the drop-in fork (OPEN-02 · OC-02 / OC-07 / OC-08)",
     expect(alert!.textContent).toContain("Nothing has been charged yet.");
 
     // T-09-43 — reachable BEFORE the coral confirm, so it cannot be paid past unheard.
-    const confirm = screen.getByRole("button", { name: "Confirm & pay" });
-    expect(alert!.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    //
+    // `getAllByRole` since plan 12-11, and the plural is a correctness widening rather than a
+    // concession. Checkout now renders the confirm control TWICE — inline in the rail at `lg:` and up,
+    // and in the fixed bottom bar below it — with `hidden` leaving exactly one reachable per width.
+    // jsdom applies no Tailwind (D-131), so BOTH are in this tree and a singular query throws. The
+    // ordering claim is then asserted over EVERY match, which is strictly stronger than picking one:
+    // the reduction must precede the confirm in the tab order wherever the confirm happens to be.
+    const confirms = screen.getAllByRole("button", { name: "Confirm & pay" });
+    expect(confirms, "checkout renders no confirm control at all").not.toHaveLength(0);
+    for (const confirm of confirms) {
+      expect(
+        alert!.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
   });
 
   it("(7) no `requested` param → no notice at all", async () => {

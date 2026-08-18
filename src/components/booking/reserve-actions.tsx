@@ -28,10 +28,27 @@
 // literal belongs in the tests, which import it directly.
 //
 // Analog: the ConfirmDialog button-disable idiom (listing-card.tsx:96-107).
+//
+// ── BFLOW-06 (plan 12-11) — ONE STATE, ONE ACTION, TWO BOXES ─────────────────────────────────────────
+// Below `lg:` the terminal action lives in a fixed bottom bar so a booker on a phone can reach it
+// without scrolling past the breakdown; at `lg:` and above the desktop rail keeps it inline, exactly as
+// it shipped. Both boxes are rendered by THIS component, from THIS component's `pending`, through THIS
+// component's `handleConfirm` — `grep -n "confirmBooking" src/components/booking/` finds one call site,
+// which is the property that matters on a money path where the provider does not honour an idempotency
+// key. `hidden` is what keeps exactly one of the two reachable (`max-lg:hidden` on the inline control,
+// `lg:hidden` on the bar), which is the same mechanism RESP-02's two booking placements use one route
+// earlier; jsdom applies no Tailwind (D-131), so unit tests see BOTH and query accordingly.
+//
+// THE REASSURANCE LINE AND THE REFUSAL NOTICE STAY IN THE PANEL AT EVERY WIDTH, and that is a decision
+// rather than an omission. A 64px bar has room for a label and an amount and nothing else; the sentence
+// naming the amount, the rails and the destination belongs beside the money it describes, where the
+// booker is already reading. Same shape as D-49's split of the countdown: the words stay, the control
+// moves.
 
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { CheckoutStickyBar } from "@/components/booking/checkout-sticky-bar";
 import { confirmBooking, type ConfirmResult } from "@/app/actions/booking";
 
 export function ReserveActions({
@@ -71,28 +88,45 @@ export function ReserveActions({
     }
   }
 
+  // ONE LABEL EXPRESSION, READ BY BOTH BOXES. Two copies could disagree about which state they are in,
+  // and the state they would disagree about is "a payment is being started" — see the label's own note.
+  const label = pending ? "Taking you to checkout…" : "Confirm & pay";
+
   return (
-    <div className="space-y-2">
-      <Button
-        variant="brand"
-        size="lg"
-        onClick={handleConfirm}
-        disabled={pending}
-        aria-disabled={pending}
-        className="w-full"
-      >
-        {pending ? "Taking you to checkout…" : "Confirm & pay"}
-      </Button>
-      <p className="text-center text-xs text-muted-foreground">
-        You&apos;ll pay {totalLabel} now — cards, GCash, Maya, or QR Ph. Payments are processed securely.
-      </p>
-      {/* Muted and quiet, never an alert variant and never red: nothing went wrong — the booker's own other
-          attempt is winning. role="status" because it appears after an action they took. */}
-      {notice ? (
-        <p className="text-center text-sm text-muted-foreground" role="status">
-          {notice}
+    <>
+      <div className="space-y-2">
+        <Button
+          variant="brand"
+          size="lg"
+          onClick={handleConfirm}
+          disabled={pending}
+          aria-disabled={pending}
+          // `max-lg:hidden` — the bar below owns this action on a phone. Hidden rather than unmounted:
+          // a media query in JS is banned on this path, and `hidden` is what removes the inactive copy
+          // from the accessibility tree so a role query finds exactly one reachable confirm per width.
+          className="w-full max-lg:hidden"
+        >
+          {label}
+        </Button>
+        <p className="text-center text-xs text-muted-foreground">
+          You&apos;ll pay {totalLabel} now — cards, GCash, Maya, or QR Ph. Payments are processed securely.
         </p>
-      ) : null}
-    </div>
+        {/* Muted and quiet, never an alert variant and never red: nothing went wrong — the booker's own other
+            attempt is winning. role="status" because it appears after an action they took. */}
+        {notice ? (
+          <p className="text-center text-sm text-muted-foreground" role="status">
+            {notice}
+          </p>
+        ) : null}
+      </div>
+
+      {/* BFLOW-06's bottom bar. It owns no state and calls no action of its own — see this file's header
+          and the bar's. The amount it renders is the SAME `totalLabel` string the reassurance line above
+          names and `PriceBreakdown`'s `Total` formats, which is what makes their byte-equality a
+          property of one `formatMoney` call rather than of three surfaces agreeing. */}
+      <CheckoutStickyBar totalLabel={totalLabel} pending={pending} onConfirm={handleConfirm}>
+        {label}
+      </CheckoutStickyBar>
+    </>
   );
 }

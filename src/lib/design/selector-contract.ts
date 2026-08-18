@@ -159,6 +159,7 @@ export const SELECTOR_IDS = [
   // 12-11 — BFLOW-06's checkout: the collapsible that hides how the price was built, and the bottom
   // bar that keeps what it IS on screen.
   "price-disclosure",
+  "checkout-sticky-bar",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -479,6 +480,25 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "query would resolve against whichever of them mounted first on a route that holds several. And " +
       "the negative half — `price-total` is NOT inside this region — is an ancestry assertion, which " +
       "needs a handle on the ancestor rather than on anything it announces.",
+    owner: "12-11",
+  },
+  "checkout-sticky-bar": {
+    why:
+      "The same box-is-where-it-says-it-is argument `booking-sticky-bar` records, plus the reason it " +
+      "may not reuse that hook. Both bars are `<div>`s with no role and no accessible name — a " +
+      "`toolbar` role would be a lie about a container holding one control, and naming the box would " +
+      "put a label in a screen reader's element list for content its two children already announce — " +
+      "and the assertions are geometric: 64px tall, bottom edge on the viewport's, holding an action " +
+      "whose own box is at least 44 x 44, with neither line wrapping at 320px. A `position: fixed` " +
+      "element measured through a query that resolved to something in flow fails for the wrong " +
+      "reason. THE SEPARATE ID IS NOT COSMETIC: `e2e/overflow-320.spec.ts` and " +
+      "`e2e/mobile-booker-path.spec.ts` drive `/listings/[id]` and `/listings/[id]/book` in one run " +
+      "and assert on both bars, and the checkout bar's amount is compared byte-for-byte against the " +
+      "checkout Total while the listing bar's is compared against the sheet's — one shared id would " +
+      "let either comparison read the other route's bar and pass. Its ACTION stays on a role query " +
+      "(`getByRole(\"button\", { name: /Confirm & pay/ })` is how the one-reachable-confirm-per-width " +
+      "count is taken), and this hook is deliberately not a substitute for it: `hidden` is what makes " +
+      "the duplication safe, and a testid query finds a hidden element.",
     owner: "12-11",
   },
 };

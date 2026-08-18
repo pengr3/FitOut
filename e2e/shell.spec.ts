@@ -536,7 +536,7 @@ test.describe("AC#5 — the checkout composition has no way out of the page", ()
 // gate keeps running unchanged when this one's seed breaks.
 //
 // ⚠️ ONE MORE MEASURED TRAP, and it is the same one `booker-seed.ts:placeHold` records:
-// `app/listings/[id]/book/loading.tsx` renders the SAME `<h1>Review and book</h1>` as the resolved
+// `app/listings/[id]/book/loading.tsx` renders the SAME `<h1>Confirm and pay</h1>` as the resolved
 // page. Counting anchors inside a `<main>` that is still a skeleton yields ZERO — a perfect pass for
 // the wrong reason, on the criterion that is supposed to prove the booker is NOT trapped. The helper
 // waits for `price-total`, which exists only in the resolved body.

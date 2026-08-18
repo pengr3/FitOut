@@ -32,6 +32,7 @@ export function ReserveView({
   totalLabel,
   summary,
   breakdown,
+  wayBack,
 }: {
   holdId: string;
   listingId: string;
@@ -41,6 +42,16 @@ export function ReserveView({
   summary: React.ReactNode;
   /** Server-rendered PriceBreakdown (the frozen quote). Dropped on expiry. */
   breakdown: React.ReactNode;
+  /**
+   * The ONE labelled way back (D-59 #2 / SHELL-03), as its own slot since plan 12-11.
+   *
+   * It used to be the last child of `summary`, which is last on a DESKTOP and third-from-last on a
+   * phone — where the rail stacks below the summary, so an escape hatch sat between the booker and the
+   * price. Taking it as a slot lets ONE tree place it after the money column below `lg:` and back in
+   * the main column at `lg:`, using a grid row rather than a second rendering. Dropped on expiry with
+   * everything else: `HoldExpiredState` carries its own way back.
+   */
+  wayBack: React.ReactNode;
 }) {
   // TWO ROUTES INTO ONE STATE, and they stay separate on purpose. `timedOut` is the header countdown
   // reaching zero (a display cue). `confirmFailed` is the SERVER refusing — the only authority. Both
@@ -99,12 +110,26 @@ export function ReserveView({
           it is rendered by `book/page.tsx` into `breakdown` so it remains a SERVER node like every
           other word in this column. Do not put a second countdown back: one live region and one
           `role="timer"` per document is the GATE-03 contract. */}
-      <aside>
+      {/* ⚠ `lg:row-span-2` IS THE WHOLE OF THE 12-11 LAYOUT CHANGE, and it is one class rather than a
+          set of explicit placements on purpose. The grid's own class string is BYTE-IDENTICAL to what
+          shipped, and auto-placement does the rest: with three children in DOM order
+          (summary → rail → way back) and two columns at `lg:`, the summary takes (1,1), a rail that
+          spans two rows takes column 2 for both, and the way back falls into the next free cell —
+          (2,1), directly under the summary, which is exactly where it has always rendered on a desktop.
+          Below `lg:` there is one column and no spanning, so DOM order IS reading order: summary, then
+          the price (disclosure → Total → cancellation rungs), then the way out. No conditional
+          rendering, no duplicated node, and nothing that can disagree with itself between widths.
+
+          The span also gives the rail a two-row track to be sticky INSIDE, which the single-row item it
+          replaced did not have — `PanelCard sticky` owns the offset (SHELL-01) and is untouched. */}
+      <aside className="lg:row-span-2">
         <PanelCard sticky>
           {breakdown}
           <ReserveActions holdId={holdId} totalLabel={totalLabel} onResult={handleResult} />
         </PanelCard>
       </aside>
+
+      {wayBack}
     </div>
   );
 }
