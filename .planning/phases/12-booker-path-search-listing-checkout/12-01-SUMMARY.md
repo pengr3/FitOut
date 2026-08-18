@@ -246,6 +246,14 @@ Every later Phase-12 plan can now import the box class, hit-area size or bar hei
 
 **No blockers.**
 
+## Self-Check: PASSED
+
+All claimed artifacts exist on disk and all claimed commits exist in the log.
+
+- Files: `12-01-SUMMARY.md`, `deferred-items.md`, `measurements.ts`, `contrast.pairs.ts`, `infra.test.ts`, `skeleton-geometry.spec.ts` — **6/6 FOUND**
+- Commits: `4c5d1a6`, `77a82b5`, `3ac3790`, `6d086d3`, `56186e4` — **5/5 FOUND**
+- Artifact `contains` checks: `RESULT_GRID_GAP` in `measurements.ts` ✓ · `brand-30` in `contrast-pairs.ts` ✓ · `0025` in `infra.test.ts` ✓
+
 ---
 *Phase: 12-booker-path-search-listing-checkout*
 *Completed: 2026-08-18*

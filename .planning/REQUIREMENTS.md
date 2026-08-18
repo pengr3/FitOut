@@ -56,7 +56,7 @@
 
 ### Booker flow (BFLOW)
 
-- [ ] **BFLOW-01**: The search-result card leads with the photo and puts title and price on one baseline, so price is legible without interaction and in the same unit checkout will use
+- [x] **BFLOW-01**: The search-result card leads with the photo and puts title and price on one baseline, so price is legible without interaction and in the same unit checkout will use
 - [ ] **BFLOW-02**: The listing detail page follows the conventional order (gallery → title → key facts → description → availability → map → cancellation policy → host) and the desktop sticky rail is preserved
 - [ ] **BFLOW-03**: Listing photos are a hero grid opening a full-screen keyboard-pageable dialog, not a carousel
 - [ ] **BFLOW-04**: The price breakdown renders through a visually identical component in the rail estimate and at checkout, so a booker recognises it as the same fact; the fee line explains itself on demand
@@ -204,7 +204,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | SHELL-02 | Phase 11 | Complete |
 | SHELL-03 | Phase 12 | Pending |
 | SHELL-04 | Phase 11 | Complete |
-| BFLOW-01 | Phase 12 | Pending |
+| BFLOW-01 | Phase 12 | Complete |
 | BFLOW-02 | Phase 12 | Pending |
 | BFLOW-03 | Phase 12 | Pending |
 | BFLOW-04 | Phase 12 | Pending |

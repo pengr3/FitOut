@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 22
+current_plan: 2
 status: executing
 stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-08-18T02:23:02.029Z"
-last_activity: 2026-08-18 -- Phase 12 planning complete
+last_updated: "2026-08-18T02:57:02.373Z"
+last_activity: 2026-08-18
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 53
-  completed_plans: 39
+  completed_plans: 40
   percent: 18
 ---
 
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 11 — quality-gates-pattern-layer-app-shell
+**Current focus:** Phase 12 — booker-path-search-listing-checkout
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 11 (quality-gates-pattern-layer-app-shell) — ALL 22 PLANS COMPLETE
-Plan: 22 of 22
-Current Plan: 22
+Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
+Plan: 2 of 14
+Current Plan: 2
 Total Plans in Phase: 14
 Status: Ready to execute
 
@@ -142,7 +142,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-18 -- Phase 12 planning complete
+Last activity: 2026-08-18
 
 ## Performance Metrics
 
@@ -275,6 +275,7 @@ Last activity: 2026-08-18 -- Phase 12 planning complete
 | Phase 11 P17 | 55min | 3 tasks | 24 files |
 | Phase 11 P18 | 95min | 3 tasks | 14 files |
 | Phase 11 P22 | 93min | 5 tasks | 9 files |
+| Phase 12 P01 | 32min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -555,6 +556,10 @@ Recent decisions affecting current work:
 - [Phase 11]: [11-22]:  global-error and og-listing stay BLOCKED baselines with argued reasons — 25 of 27 shot. The COORDINATOR made the global-error call; nothing in this repo can throw from the root layout (src/app/error.tsx catches every page throw), and both manufacturing routes are Rule 4 — a request read in layout.tsx destroys the only two static routes, and rendering the component in a dev page baselines a fake.
 - [Phase 11]: [11-22]:  baselines.yml landed on main (87da176) for workflow_dispatch discoverability only — main otherwise untouched, default branch unchanged, and a push: trigger was refused because it would turn the one job permitted to write baselines into one that rewrites them on every commit.
 - [Phase 11]: [11-22]:  Playwright's default toHaveScreenshot threshold 0.2 is KEPT despite a MEASURED blind spot — border-on-background is YIQ deltaSq 341.6 against a 1408.6 cutoff, four times under, so a change confined to a divider is invisible. Driving threshold to 0 makes antialiasing fail every run; the blind spot is recorded in surfaces.spec.ts NOT COVERED instead.
+- [Phase ?]: D-57 resolved: RESULT_GRID_GAP is the one gutter for the search grid, its skeleton, /dev/theme's preview and /host/listings — the 20px and lg: steps are retired
+- [Phase ?]: brand-30 on card measured 1.60 court / 1.50 grove — the culori gate is the authority over the UI-SPEC's 1.59 (D-12)
+- [Phase ?]: GATE-06 is a per-run assertion in tests/design/infra.test.ts (drizzle/ pinned at 0025 and 26 *.sql files), not a sentence in a plan
+- [Phase ?]: The z-sheet step stays at zero call sites: Phase 12 examined the booking sheet, the lightbox and both sticky bars, and each resolved elsewhere
 
 ### Pending Todos
 
@@ -657,9 +662,9 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-17T18:12:58.803Z
+Last session: 2026-08-18T02:56:30.852Z
 Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-booker-path-search-listing-checkout/12-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-08-17T13:24:00.000Z
 Stopped at: Completed 11-16-PLAN.md — RESUMED from an interrupted run (nine empty blocks onto one EmptyState shell across nine surfaces, not the plan's eight; search-results.tsx:170 deliberately NOT converted — it is an error, and its routeOut decision belongs to 11-18). Design gate 33 → 34 files / 584 → 615 tests. Commits 0820524, 5c2fead, f39b60d. npm test + e2e were UNRUN that session (Docker down); both are green as of 11-20.
