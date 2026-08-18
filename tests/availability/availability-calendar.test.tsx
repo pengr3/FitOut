@@ -96,15 +96,23 @@ vi.mock("@/app/actions/availability", () => ({
   getOpenMonthAvailability: (...args: unknown[]) => getOpenMonthAvailability(...args),
 }));
 
+// `BookCta` (case (5)) imports the capability action, which reaches the DB. Same stub, same reason, as
+// `tests/availability/date-pass-picker.test.tsx`'s: the import graph must stay inert under jsdom.
+vi.mock("@/app/actions/capability", () => ({ activateBooking: vi.fn() }));
+
 import type { DayAvailability } from "@/lib/availability/read-model";
 import {
   AvailabilityCalendar,
   BookingSelectionProvider,
+  RailSelectionSummary,
   useBookingSelection,
+  type AllInTable,
   type DayLocal,
   type OpenSelectionValue,
 } from "@/components/availability/availability-calendar";
 import { RailRateHeadline } from "@/components/booking/rail-rate-headline";
+import { BookCta } from "@/components/booking/book-cta";
+import type { PlaceHoldResult } from "@/app/actions/booking";
 
 const TIMEZONE = "Asia/Manila"; // UTC+8 all year, no DST — every instant below is plain UTC arithmetic
 const CITY = "Makati";
@@ -158,7 +166,12 @@ function renderCalendar(bookable: boolean) {
   return render(
     // Phase-12 seam A: the provider owns the day now, so it takes what the RSC used to hand only to the
     // calendar. THE WRAPPER MOVED; NO ASSERTION BELOW CHANGED.
-    <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
+    <BookingSelectionProvider
+      listingId={LISTING_ID}
+      timezone={TIMEZONE}
+      initialDate={DAY}
+      initialDay={INITIAL_DAY}
+    >
       <AvailabilityCalendar
         listingId={LISTING_ID}
         timezone={TIMEZONE}
@@ -276,7 +289,12 @@ describe("BookingSelectionProvider — one hook owns the day, and the LATEST day
     );
 
     render(
-      <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
+      <BookingSelectionProvider
+        listingId={LISTING_ID}
+        timezone={TIMEZONE}
+        initialDate={DAY}
+        initialDay={INITIAL_DAY}
+      >
         <AvailabilityCalendar
           listingId={LISTING_ID}
           timezone={TIMEZONE}
@@ -376,7 +394,12 @@ function SelectionDriver() {
 
 function renderHeadline() {
   return render(
-    <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
+    <BookingSelectionProvider
+      listingId={LISTING_ID}
+      timezone={TIMEZONE}
+      initialDate={DAY}
+      initialDay={INITIAL_DAY}
+    >
       <RailRateHeadline parts={RATE_PARTS} />
       <SelectionDriver />
     </BookingSelectionProvider>,
@@ -424,11 +447,214 @@ describe("RailRateHeadline — one rate on the rail at a time (D-41)", () => {
     // The pre-existing fallback, asserted because the move out of the RSC is the moment it could have
     // been dropped: an empty parts array must render the words, not an empty heading.
     render(
-      <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
+      <BookingSelectionProvider
+        listingId={LISTING_ID}
+        timezone={TIMEZONE}
+        initialDate={DAY}
+        initialDay={INITIAL_DAY}
+      >
         <RailRateHeadline parts={[]} />
       </BookingSelectionProvider>,
     );
     expect(screen.getByText("Price on request")).toBeTruthy();
     expect(screen.queryByText("Service fee included")).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// (5) STATE-07 / D-55 — the collision drops the rail's selection AND its price, and fires ONE region
+//
+// A FOURTH KIND OF TEST, and the reason to read it as one is that (1)–(4) all drive a surface that
+// already existed. This one drives a TRANSITION between two states of the whole booking grid: a booker
+// with a window picked and a price on the rail presses `Book this space`, the server refuses because
+// somebody else got there first, and every part of the page has to agree about that in one commit.
+//
+// WHAT IS ASSERTED HERE AND WHAT IS DELIBERATELY NOT. jsdom applies no Tailwind (D-131), so a
+// line-through or a coral ring is not observable in this layer at all — the SAME-PAINT half of AC#34
+// belongs to `e2e/collision-in-place.spec.ts`, which reads the notice and both chips' state inside one
+// `page.evaluate` in a real browser. What IS observable here, and is the half that would otherwise be
+// checked by nobody:
+//
+//   • AC#36 — the rail's selection line reads `No time selected` and NO price element survives. A stale
+//     total beside a window nobody can book is the number T-12-13-STALEPRICE is about, and it is a
+//     property of the rendered tree rather than of a stylesheet.
+//   • RULE 6 — `book-cta`'s plain notice and the collision notice are never both mounted, asserted by
+//     counting `role="status"` across the rendered document. The count is ONE, not "the collision
+//     notice is present": a presence assertion is satisfied by a document holding both.
+//
+// GUARD-THE-GUARD IS THE FIRST HALF OF THE CASE. Every assertion after the click is also true of a
+// document where nothing ever rendered, so the price block and the CTA are asserted to be REAL before
+// the collision is provoked. That is the vacuous-pass shape this repository has now recorded seven
+// times.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The server's own refusal sentence for a lost race (`units.ts`'s `mapBookingError`), verbatim. */
+const TAKEN_RULING = "That time was just taken. Pick another slot.";
+
+/**
+ * ⚠ THE ONE LIVE REGION ON THIS ROUTE THAT NOBODY IN THIS REPOSITORY AUTHORED, AND THE REASON THE
+ * "EXACTLY ONE" COUNT IS A NAMED CARVE-OUT RATHER THAN A BLANKET NUMBER.
+ *
+ * MEASURED (plan 12-13, first run of this case): `react-day-picker@9` renders its month caption as
+ * `<span role="status" aria-live="polite">August 2026</span>` — `dist/esm/DayPicker.js:293`, on the
+ * `components.CaptionLabel` element itself. It is therefore mounted PERMANENTLY on `/listings/[id]`,
+ * on every page that shows a month grid, and it is invisible to GATE-03's own gate: that scan reads
+ * the SOURCE of eleven declared product files, and this role is written inside a library.
+ * `src/components/ui/calendar.tsx` does not carry it either (grep: no match), so there is nothing to
+ * edit even if the vendored file were editable — which T-12-09-VENDORFORK says it is not.
+ *
+ * So 12-UI-SPEC AC#37's literal wording — "exactly ONE live region is mounted during the collision" —
+ * is FALSE of the shipped tree for a reason with nothing to do with this plan. The property that IS
+ * load-bearing and completely checkable is one word narrower:
+ *
+ *   EXACTLY ONE LIVE REGION **REPORTS THE COLLISION**.
+ *
+ * The caption reports the MONTH, changes only when the month changes (which a collision never does),
+ * and would have announced identically before and after. It is excluded BY NAME — a named channel, in
+ * the idiom `e2e/error-leak.spec.ts` clause 4 established — and the exclusion is asserted to be
+ * non-vacuous, so it can never widen into "ignore some regions".
+ */
+const VENDORED_CAPTION_CLASS = "rdp-caption_label";
+
+/**
+ * One hour of finished, server-computed figures. `RailSelectionSummary` LOOKS UP `hourly[1]` and
+ * renders `PriceBreakdown`; the numbers themselves are inert here — what matters is that a price block
+ * exists before the collision and does not after it.
+ */
+const ALL_IN: AllInTable = {
+  hourly: { 1: { space: 47333, fee: 2367, total: 49700 } },
+  fullDay: null,
+  perPass: {},
+};
+
+/** The refreshed day the collision path re-reads: the same two hours, with 10:00 AM now taken. */
+const REFRESHED_DAY: DayAvailability = {
+  ...INITIAL_DAY,
+  slots: [
+    { startUtc: AVAILABLE_START, endUtc: AVAILABLE_END, state: "unavailable", freeUnits: 0, unitCount: 1 },
+    { startUtc: OCCUPIED_START, endUtc: OCCUPIED_END, state: "unavailable", freeUnits: 0, unitCount: 1 },
+  ],
+};
+
+describe("STATE-07 / D-55 — a collision drops the rail's price and fires exactly one live region", () => {
+  it("(5) rail reads `No time selected`, no price survives, and one status region is mounted", async () => {
+    // The server ruling. `placeHold` RESOLVES a refusal (a success would redirect and never return),
+    // which is the same shape `book-cta.tsx` branches on in production.
+    const placeHold = vi.fn(
+      async (): Promise<PlaceHoldResult> => ({ ok: false, reason: "taken", error: TAKEN_RULING }),
+    );
+    const placeOpenHold = vi.fn(async (): Promise<PlaceHoldResult> => ({
+      ok: false,
+      reason: "invalid",
+      error: "unused on an exclusive listing",
+    }));
+    // `refreshDay()` re-reads the SELECTED day through this action — the D-55 mechanism. It resolves
+    // the corrected day, which is what the notice has to land alongside.
+    getDayAvailability.mockResolvedValue(REFRESHED_DAY);
+
+    render(
+      <BookingSelectionProvider
+        listingId={LISTING_ID}
+        timezone={TIMEZONE}
+        initialDate={DAY}
+        initialDay={INITIAL_DAY}
+      >
+        <AvailabilityCalendar
+          listingId={LISTING_ID}
+          timezone={TIMEZONE}
+          cityLabel={CITY}
+          gmtLabel={GMT}
+          unitCount={1}
+          bookable
+          initialDate={DAY}
+          initialDay={INITIAL_DAY}
+          occupancyMode="exclusive"
+        />
+        <RailSelectionSummary
+          timezone={TIMEZONE}
+          currency="php"
+          allIn={ALL_IN}
+          hourlyRateCents={47333}
+          dayRateCents={null}
+        />
+        <BookCta
+          listingId={LISTING_ID}
+          placeHold={placeHold}
+          placeOpenHold={placeOpenHold}
+          occupancyMode="exclusive"
+        />
+      </BookingSelectionProvider>,
+    );
+
+    // ── GUARD THE GUARD: the state the collision has to destroy really exists first ────────────────
+    pickOneHour(availableChip());
+    expect(
+      screen.queryByTestId("rail-price-total"),
+      "no price block on the rail BEFORE the collision, so every absence asserted below is also true " +
+        "of a page that never priced anything. This case is about a number DISAPPEARING; without a " +
+        "number it proves nothing.",
+    ).toBeTruthy();
+    expect(screen.queryByText("No time selected")).toBeNull();
+    const bookButton = screen.getByRole("button", { name: "Book this space" });
+    expect((bookButton as HTMLButtonElement).disabled).toBe(false);
+
+    // ── THE COLLISION ─────────────────────────────────────────────────────────────────────────────
+    await act(async () => {
+      fireEvent.click(bookButton);
+    });
+
+    expect(placeHold).toHaveBeenCalledTimes(1);
+    expect(
+      getDayAvailability,
+      "`refreshDay()` was never called, so the grid under the notice is whatever it was before the " +
+        "race was lost. `router.refresh()` cannot do this job — the day's slots are client state it " +
+        "merges AROUND (12-02's seam A).",
+    ).toHaveBeenCalledTimes(1);
+
+    // AC#36 — the selection line, and the absence of any figure beside it.
+    expect(screen.getByText("No time selected")).toBeTruthy();
+    expect(
+      screen.queryByTestId("rail-price-total"),
+      "the rail is still showing a total for a window the server just refused. A stale price beside " +
+        "an unbookable window is a number the system cannot stand behind (T-12-13-STALEPRICE).",
+    ).toBeNull();
+
+    // The CTA is back to its disabled state with the shipped hint — the rail's whole state, not just
+    // its two visible strings.
+    expect((screen.getByRole("button", { name: "Book this space" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(screen.getByText("Pick a time above to book.")).toBeTruthy();
+
+    // RULE 6 — ONE region, counted rather than merely found.
+    const notice = screen.getByTestId("collision-notice");
+    expect(notice.getAttribute("role")).toBe("status");
+
+    // THE CARVE-OUT IS NON-VACUOUS FIRST: the month caption really is a live region and there really is
+    // exactly one of it. Without this, the subtraction below could be two zeros agreeing.
+    const captions = screen
+      .getAllByRole("status")
+      .filter((el) => el.classList.contains(VENDORED_CAPTION_CLASS));
+    expect(
+      captions,
+      "the vendored month caption is no longer a `role=\"status\"` region, so the carve-out below is " +
+        "excluding nothing and the count it produces means something different from what it says.",
+    ).toHaveLength(1);
+
+    expect(
+      screen.getAllByRole("status").filter((el) => !el.classList.contains(VENDORED_CAPTION_CLASS)),
+      "more than one live region is REPORTING THE COLLISION. `book-cta`'s plain notice must UNMOUNT " +
+        "when the collision notice mounts — two regions reporting one event is the defect GATE-03 " +
+        "exists to catch (rule 6).",
+    ).toHaveLength(1);
+    expect(screen.queryAllByRole("alert")).toHaveLength(0);
+
+    // The named line restates the BOOKER'S OWN selection in the VENUE's zone (02:00Z is 10:00 AM in
+    // Manila), and the server's ruling is not what is rendered — the D-55 departure, asserted rather
+    // than described.
+    expect(notice.textContent).toContain("10:00–11:00 AM was just taken");
+    expect(notice.textContent).not.toContain(TAKEN_RULING);
+    // …and the notice takes focus, which is what earns the absence of `assertive` (rule 7).
+    expect(document.activeElement).toBe(notice);
   });
 });

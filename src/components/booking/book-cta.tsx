@@ -11,8 +11,11 @@
 //   - sign-in (D-41): route to /login with a callbackURL that encodes the listing + the selection +
 //     resume=1, so on return checkout resumes WITHOUT re-picking.
 //   - activate-booking (!canBook): surface the Phase-1 "Start booking" activate action, then continue.
-//   - taken / sold-out (SC#4 race) / not-bookable / invalid: a calm neutral notice (NEVER red — occupancy
-//     is normal) + a calendar refresh so the freed/taken capacity re-reflects.
+//   - not-bookable / invalid: a calm neutral notice (NEVER red — occupancy is normal).
+//   - taken / sold-out (SC#4 race): STATE-07 / D-55's in-place recovery — `refreshDay()` re-reads the
+//     selected day, the collision notice names the window that went and lands above the corrected grid
+//     in the same paint, and the rail drops its selection and its price. See the refusal branch for why
+//     `router.refresh()` is kept but is not the mechanism.
 //
 // Resume (D-41): when the page mounts with a restored selection (resume=1 after sign-in), auto-invoke the
 // hold action once so a single Book click round-trips through sign-in without the booker re-picking.
@@ -31,6 +34,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { tz, TZDate } from "@date-fns/tz";
 
 import { Button } from "@/components/ui/button";
 import { useBookingSelection } from "@/components/availability/availability-calendar";
@@ -51,6 +56,46 @@ export type OpenPick = { dateIso: string; passes: number };
 type CtaSelection =
   | { kind: "exclusive"; window: SlotSelectionValue }
   | { kind: "open"; pick: OpenPick };
+
+/**
+ * THE BOOKER'S OWN SELECTION, AS A SENTENCE FRAGMENT — `9:00–11:00 AM`, `Fri, Aug 21`, or
+ * `Full day on Fri, Aug 21`.
+ *
+ * ⚠ THIS IS THE D-55 DEPARTURE, AND IT IS RECORDED HERE IN THE WORDS THE PLAN REQUIRES BECAUSE THIS
+ * IS THE CALL SITE THE RULE IT DEPARTS FROM IS WRITTEN AT (see `submit`'s refusal branch below):
+ *
+ *   THE SERVER SENTENCE IS THE RULING. It is `mapBookingError`'s, decided from what the GiST `EXCLUDE`
+ *   constraint decided inside the transaction, and it is rendered verbatim whenever this function
+ *   cannot produce a name.
+ *
+ *   THE NAMED WINDOW LINE IS A RESTATEMENT OF THE BOOKER'S OWN SELECTION. It is not a second copy of a
+ *   server decision and cannot drift from one: every value in it came out of the picker the booker
+ *   clicked, and the server never uttered it.
+ *
+ * ⚠ THE VENUE TIMEZONE, NEVER THE BROWSER'S. `timezone` comes from the listing row through the shared
+ * provider. A booker in Singapore looking at a Manila court must be told the hour the COURT lost, and
+ * formatting these instants against the device clock is the single most common way a booking app tells
+ * somebody a time that is not the time (CLAUDE.md § What NOT to Use — "storing local/naive timestamps").
+ */
+function namedSelection(sel: CtaSelection, timezone: string): string {
+  const inTz = tz(timezone);
+  if (sel.kind === "open") {
+    const [y, m, d] = sel.pick.dateIso.split("-").map(Number);
+    if (!y || !m || !d) return "";
+    return format(new TZDate(y, m - 1, d, timezone), "EEE, MMM d", { in: inTz });
+  }
+  const start = new Date(sel.window.startUtc);
+  const end = new Date(sel.window.endUtc);
+  if (sel.window.fullDay) {
+    // "Full day was just taken" names no day at all, on a surface whose whole job is naming what went.
+    return `Full day on ${format(start, "EEE, MMM d", { in: inTz })}`;
+  }
+  // `9:00–11:00 AM` when both ends share a meridiem, `11:00 AM–1:00 PM` when they do not. The en dash
+  // is the Copywriting Contract's own character, not a hyphen.
+  const sameMeridiem = format(start, "a", { in: inTz }) === format(end, "a", { in: inTz });
+  const left = format(start, sameMeridiem ? "h:mm" : "h:mm a", { in: inTz });
+  return `${left}–${format(end, "h:mm a", { in: inTz })}`;
+}
 
 export function BookCta({
   listingId,
@@ -105,7 +150,18 @@ export function BookCta({
    */
   layout?: "block" | "bar";
 }) {
-  const { selection, openSelection } = useBookingSelection();
+  const {
+    selection,
+    openSelection,
+    setSelection,
+    // ── THE D-55 SEAM (plan 12-02's `refreshDay`, plan 12-13's collision channel) ──────────────────
+    // `refreshDay` re-reads the CURRENT day through the already-public `getDayAvailability` and returns
+    // its promise. `router.refresh()` provably cannot do this job — see the refusal branch below.
+    refreshDay,
+    timezone,
+    collision,
+    setCollision,
+  } = useBookingSelection();
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -140,6 +196,9 @@ export function BookCta({
     async (sel: CtaSelection) => {
       setPending(true);
       setNotice(null);
+      // A fresh attempt supersedes whatever the last one said. Clearing here is also what keeps rule 6
+      // structurally true: a submit can end in AT MOST ONE of the two notices, never both.
+      setCollision(null);
       // SUCCESS → the action redirects to the reserve page, so on the client the promise resolves to
       // undefined (navigation) and we stay `pending` as this control unmounts. A failure resolves a result.
       const result = (await (sel.kind === "open"
@@ -184,16 +243,74 @@ export function BookCta({
         setPending(false);
         return;
       }
-      // taken / sold-out / not-bookable / invalid — calm neutral notice + refresh the calendar so it
-      // reflects reality. `sold-out` is the drop-in twin of `taken` (OC-13) and deliberately reuses this
-      // exact path: one grammar, one treatment, never red, never a modal. The sentence itself comes from
-      // the server, which is also where the claim decided it — a second copy here would be a second source
-      // of truth, and the one that drifts is always the one nobody is looking at.
-      setNotice(result.error);
+      // taken / sold-out / not-bookable / invalid — calm neutral notice, never red, never a modal.
+      // `sold-out` is the drop-in twin of `taken` (OC-13) and deliberately reuses this exact path: one
+      // grammar, one treatment. The sentence itself comes from the server, which is also where the claim
+      // decided it — a second copy here would be a second source of truth, and the one that drifts is
+      // always the one nobody is looking at.
+      //
+      // ⚠ D-55 DEPARTS FROM THAT RULE ON THE `taken` / `sold-out` BRANCH, IN ONE BOUNDED WAY, AND THE
+      // DEPARTURE IS RECORDED HERE RATHER THAN INFERRED: THE SERVER SENTENCE IS THE **RULING** — it is
+      // what `mapBookingError` decided from what the exclusion constraint decided, and it is carried
+      // through untouched as `ruling`. THE NAMED WINDOW LINE IS A **RESTATEMENT OF THE BOOKER'S OWN
+      // SELECTION** (`namedSelection` above), not a second copy of a server decision: every value in it
+      // came out of the picker they clicked. It must never leak a constraint code, which is asserted from
+      // both sides — a `grep` over `src/components/` and a whole-DOM assertion in
+      // `e2e/collision-in-place.spec.ts`.
       setPending(false);
-      if (result.reason === "taken" || result.reason === "sold-out") router.refresh();
+      if (result.reason !== "taken" && result.reason !== "sold-out") {
+        setNotice(result.error);
+        return;
+      }
+
+      // ── THE IN-PLACE RECOVERY (STATE-07 / D-55) ────────────────────────────────────────────────
+      // ⚠ `refreshDay()` IS THE MECHANISM AND `router.refresh()` IS NOT, AND THAT IS MEASURED RATHER
+      // THAN PREFERRED. Next's own contract is that refresh merges the updated RSC payload "WITHOUT
+      // LOSING unaffected client-side React (e.g. useState)" — and the day's slots are exactly that
+      // state, seeded on mount from a payload the RSC computed for TODAY rather than for the day the
+      // booker is looking at. So the shipped `router.refresh()` left the taken hours on screen looking
+      // free. `refreshDay()` calls the already-public, read-only, Zod-validated `getDayAvailability`
+      // for the SELECTED day (plan 12-02's seam A) and returns its promise.
+      //
+      // THE AWAIT IS WHAT PUTS THE NOTICE AND THE CORRECTED GRID IN ONE PAINT. The refreshed day is
+      // committed by `loadDay`'s own resolution; this continuation runs in the following MICROTASK, and
+      // every microtask drains before the browser paints — so the booker never sees a frame with the
+      // notice on it and the old hours under it. The reverse order (notice first, grid a beat later) is
+      // the defect `e2e/collision-in-place.spec.ts` case (a) reads both halves in ONE `page.evaluate`
+      // to catch.
+      await refreshDay();
+      setCollision({
+        variant: result.reason,
+        named: namedSelection(sel, timezone) || null,
+        ruling: result.error,
+        lostStartUtc: sel.kind === "exclusive" ? sel.window.startUtc : null,
+        lostEndUtc: sel.kind === "exclusive" ? sel.window.endUtc : null,
+      });
+      // THE RAIL DROPS ITS SELECTION, AND WITH IT ITS PRICE (T-12-13-STALEPRICE). A total beside a
+      // window nobody can book is a number the system cannot stand behind.
+      //
+      // ⚠ ONLY THE EXCLUSIVE CHANNEL IS CLEARED, and that is a stated boundary rather than an
+      // oversight: `DatePassPicker` owns its own day, its own fully-booked set and its own pass count,
+      // and writes the shared drop-in value from a mount effect (seam A deliberately did not hoist it —
+      // see `deferred-items.md`). Clearing it from here would leave the picker showing a chosen day
+      // while the rail claimed nothing was chosen, which is a worse disagreement than the one it fixes.
+      if (sel.kind === "exclusive") setSelection(null);
+      // KEPT IN ADDITION, never as the mechanism: the RSC-side facts (the seeded first day, the search
+      // page's cards) are genuinely stale after somebody else's booking landed, and refresh is the right
+      // tool for exactly those. It is simply not the tool for the client-held day grid.
+      router.refresh();
     },
-    [listingId, placeHold, placeOpenHold, router, openIdempotencyKey],
+    [
+      listingId,
+      placeHold,
+      placeOpenHold,
+      router,
+      openIdempotencyKey,
+      refreshDay,
+      setCollision,
+      setSelection,
+      timezone,
+    ],
   );
 
   // The restored selection, normalized to ONE shape before the effect sees it: exactly one of the two can
@@ -295,8 +412,16 @@ export function BookCta({
       {/* ONE `role="status"`, both layouts — see the `layout` prop for why a second element here would
           read as an undeclared live region. In the bar it sits directly ABOVE the 64px box rather than
           inside it: the bar's height is a measured constant that a wrapped refusal sentence would blow,
-          and a notice clipped by the control it is about is a notice nobody receives. */}
-      {notice && (
+          and a notice clipped by the control it is about is a notice nobody receives.
+
+          ⚠ `collision === null` IS RULE 6, WRITTEN STRUCTURALLY (plan 12-13). A `taken` / `sold-out`
+          refusal is reported by `CollisionNotice`, which mounts above the refreshed picker in the main
+          column and supersedes this one as the NAMED result; two regions announcing one outcome is the
+          defect GATE-03 exists to catch. The condition is belt AND braces — `submit` already sets
+          exactly one of the two per attempt — because "the state can only hold one" is an invariant a
+          later edit can break silently, while a rendered condition goes red in
+          `e2e/collision-in-place.spec.ts`'s status+alert count. */}
+      {notice && collision === null && (
         <p
           role="status"
           className={

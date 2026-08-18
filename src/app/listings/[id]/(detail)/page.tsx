@@ -477,6 +477,10 @@ export default async function PublicListingPage({
           RSC still seeds the first paint — `initialDay` is the same server read it always was. */}
       <BookingSelectionProvider
         listingId={id}
+        // SC#2 / D-55 — the LISTING's zone, from the row. Every label the client composes from a booking
+        // instant reads this and never the browser's; plan 12-13's collision notice is the first
+        // consumer, and it names an hour a booker in another country must still read as the venue's.
+        timezone={timezone}
         initialDate={initialDate}
         initialDay={initialDay}
         initialSelection={initialSelection}

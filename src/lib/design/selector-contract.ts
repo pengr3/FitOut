@@ -162,6 +162,8 @@ export const SELECTOR_IDS = [
   "checkout-sticky-bar",
   // 12-12 — STATE-03's relaxation band: the sentence that names the one constraint that gave.
   "search-relax-band",
+  // 12-13 — STATE-07's in-place collision notice: the window that went, above the refreshed picker.
+  "collision-notice",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -525,5 +527,30 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "address text INSIDE this element, and the contract's scope rule is structural hooks, not " +
       "substrings.",
     owner: "12-12",
+  },
+
+  // ─── 12-13 ─────────────────────────────────────────────────────────────────────────────────────────
+  "collision-notice": {
+    why:
+      "THE ASSERTION THIS HOOK CARRIES IS A SAME-PAINT ONE, AND THAT IS WHY NO ACCESSIBLE QUERY CAN " +
+      "CARRY IT. `e2e/collision-in-place.spec.ts` case (a) reads, inside ONE `page.evaluate`, that " +
+      "this element is on screen AND that the two hours the booker just lost already carry " +
+      "`aria-disabled` plus a line-through computed style — because a notice that arrives one paint " +
+      "BEFORE the corrected grid is the defect D-55 exists to prevent, and two awaited Playwright " +
+      "assertions cannot tell that apart from the feature. A `page.evaluate` needs a selector, not a " +
+      "locator. " +
+      "AND THE ROLE QUERY IS THE ASSERTION'S OWN SUBJECT, so it cannot also be its handle: the " +
+      "requirement is that EXACTLY ONE live region is mounted during the collision, counted as " +
+      "`status` plus `alert` across the whole document. Addressing this notice by `getByRole(\"status\")` " +
+      "would mean the element under test and the population being counted were found by the same " +
+      "query — green whenever the count is 1 for the WRONG reason (the day skeleton, `book-cta`'s own " +
+      "notice, the picker's gap hint are all `role=\"status\"` on this route). " +
+      "NOR IS A NAME QUERY AVAILABLE: `status` is nameFrom:author and this region deliberately carries " +
+      "no `aria-label` — naming it risks a screen reader announcing the label instead of the sentence " +
+      "(the argument recorded at six regions in `live-regions.ts`) — so it computes no accessible name " +
+      "at all. A text query is worse than unavailable, it is circular: line 1 is composed from the " +
+      "booker's own selection, so a spec matching on it would have to know the window in order to find " +
+      "the element that proves the window was named.",
+    owner: "12-13",
   },
 };

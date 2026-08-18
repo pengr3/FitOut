@@ -169,16 +169,18 @@ import {
 const SCAN_FILES: readonly string[] = BOOKER_PATH_LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTen`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsEleven`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
- * message. Plans 12-12 and 12-13 each move BOTH, in the commit that adds their component — a set that
+ * message. Plans 12-12 and 12-13 each moved BOTH, in the commit that added their component — a set that
  * widened in one place and not the other is the exact drift T-12-06-SETDRIFT names.
  *
  * TEN as of plan 12-12, which added `src/components/search/relax-band.tsx` (STATE-03's relaxation band,
- * `role="status"`, one announcement on arrival). Eleven when 12-13 adds `collision-notice.tsx`.
+ * `role="status"`, one announcement on arrival). ELEVEN as of plan 12-13, which added
+ * `src/components/booking/collision-notice.tsx` (STATE-07's in-place collision notice, `role="status"`
+ * plus a focus move — rules 1, 6 and 7).
  */
-const DECLARED_FILE_COUNT = 10;
+const DECLARED_FILE_COUNT = 11;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -384,8 +386,8 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsTen` in `src/lib/design/live-regions.ts` fails " +
-        "the build, and this fails the gate with a message. Plans 12-12 and 12-13 each move BOTH, in " +
+        "pinned in TWO places — `DeclaredFileCountIsEleven` in `src/lib/design/live-regions.ts` fails " +
+        "the build, and this fails the gate with a message. Plans 12-12 and 12-13 each moved BOTH, in " +
         "the same commit as the component they add. A set that widened in one place and not the other " +
         "is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);

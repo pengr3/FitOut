@@ -7,11 +7,11 @@
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // GATE-03's text is *"the countdown timer and EVERY live status region announce once rather than per
-// tick"*. "Every" is not a falsifiable quantifier until somebody says what it ranges over. `src/` holds
-// 34 `aria-live` attributes across 18 files; ten of those files are Phase 13's booking-detail, cancel and
-// group surfaces and one is Phase 14's host wizard. A gate written over "every" that quietly means "the
-// nine I happened to open" is green for exactly the reason it should be red, and nothing in a passing run
-// distinguishes the two.
+// tick"*. "Every" is not a falsifiable quantifier until somebody says what it ranges over. `src/` mentions
+// `aria-live` in 19 files; ten of those are Phase 13's booking-detail, cancel and group surfaces and one
+// is Phase 14's host wizard. A gate written over "every" that quietly means "the handful I happened to
+// open" is green for exactly the reason it should be red, and nothing in a passing run distinguishes the
+// two.
 //
 // So the set is a const tuple, its exclusions are a sibling const with a `why` per entry, and the file
 // count is pinned by a type-level assertion. Narrowing the gate's reach then costs a compile error and an
@@ -173,19 +173,21 @@
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
 //   12-12 → `src/components/search/relax-band.tsx`        (the named relaxation band, rule 1) — DONE
-//   12-13 → `src/components/booking/collision-notice.tsx` (STATE-07's in-place notice, rules 1 + 6)
+//   12-13 → `src/components/booking/collision-notice.tsx` (STATE-07's in-place notice, rules 1+6+7) — DONE
 //
 // Each lands its path in `BOOKER_PATH_LIVE_REGION_FILES`, its row(s) in `LIVE_REGIONS`, and BUMPS the
 // count alias — renaming it as it goes, so the number in the name and the number in the assertion can
 // never disagree. The count moving is the signal; a count that silently tracks the tuple's length would
 // assert nothing at all. 12-12 renamed `DeclaredFileCountIsNine` → `DeclaredFileCountIsTen` and moved
-// `DECLARED_FILE_COUNT` in `tests/design/live-regions.test.tsx` with it, in one commit; 12-13 makes it
-// eleven the same way. The line numbers quoted in the two observed reds above are from the nine-file
-// tree and have not been re-measured since — the ERRORS are the record, not the offsets.
+// `DECLARED_FILE_COUNT` in `tests/design/live-regions.test.tsx` with it, in one commit; 12-13 made it
+// `…IsEleven` the same way. The line numbers quoted in the two observed reds above are from the
+// nine-file tree and have not been re-measured since — the ERRORS are the record, not the offsets.
 //
 // 12-13 additionally owns rule 6's other half: `book-cta.tsx`'s notice and the collision notice must
-// never be mounted together. That is a claim about a rendered document, not about source, and it lives
-// in `e2e/collision-in-place.spec.ts` — see this module's NOT COVERED footer.
+// never be mounted together. Source-side that is now STRUCTURAL — `book-cta.tsx` renders its own notice
+// only while no collision is set — but the claim is about a rendered DOCUMENT, so the measurement lives
+// in `e2e/collision-in-place.spec.ts`, which sums `status` and `alert` across the whole document. See
+// this module's NOT COVERED footer.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // WHERE THIS FILE LIVES, AND WHY IT MATTERS HERE TOO
@@ -207,7 +209,7 @@
 // ---------------------------------------------------------------------------
 
 /**
- * THE NINE BOOKER-PATH FILES GATE-03 IS A CLAIM ABOUT.
+ * THE ELEVEN BOOKER-PATH FILES GATE-03 IS A CLAIM ABOUT.
  *
  * Ordered by surface — availability, then booking, then search — rather than alphabetically, because the
  * reading question this list gets asked is "does the gate cover the checkout", not "where is X in the
@@ -225,6 +227,7 @@ export const BOOKER_PATH_LIVE_REGION_FILES = [
   "src/components/availability/spots-left-chip.tsx",
   // ─── booking ────────────────────────────────────────────────────────────────────────────────────
   "src/components/booking/book-cta.tsx",
+  "src/components/booking/collision-notice.tsx",
   "src/components/booking/hold-countdown.tsx",
   "src/components/booking/hold-expired-state.tsx",
   "src/components/booking/reserve-actions.tsx",
@@ -246,9 +249,14 @@ export type LiveRegionExclusion = {
  * EVERY FILE IN `src/` THAT CARRIES `aria-live` AND IS DELIBERATELY NOT AUDITED HERE, WITH ITS REASON.
  *
  * This list plus `BOOKER_PATH_LIVE_REGION_FILES` is the complete `aria-live` inventory of `src/` as
- * measured on 18 August 2026 (`grep -rln aria-live src/ --include=*.tsx` → 18 files; nine declared, nine
- * excluded here). `search-results.tsx` appears in that grep on the strength of a COMMENT and carries no
- * `aria-live` attribute at all — it is declared for its `role="alert"`.
+ * RE-MEASURED on 18 August 2026 after plan 12-13 (`grep -rln aria-live src/ --include=*.tsx` → 19
+ * files; EIGHT of them declared, ELEVEN excluded here). The declared SET is eleven files: `book-cta.tsx`,
+ * `reserve-actions.tsx` and `relax-band.tsx` carry `role="status"` and no `aria-live` attribute, so
+ * they do not appear in that grep at all. Two files appear in it on the strength of a COMMENT rather
+ * than of markup — `search-results.tsx` (declared for its `role="alert"`) and `collision-notice.tsx`
+ * (declared for its `role="status"`, and named in this file's own header as the surface that must
+ * never carry the banned politeness level). The arithmetic is stated because it is the only way a
+ * reader can check that the two lists still PARTITION the tree rather than merely coexist with it.
  *
  * The reasons are not schedule pressure. Phase 13 owns BFLOW-08, TRUST-01..05 and STATE-05/06/08, which
  * is to say it owns the post-booking lifecycle these surfaces render; auditing their regions here would
@@ -382,7 +390,7 @@ export type LiveRegionRow = {
  * Every region on the declared set, one id per REGION (not per file). Ordered by file, matching
  * `BOOKER_PATH_LIVE_REGION_FILES`, then by source order within the file.
  *
- * Thirteen today. The number is deliberately NOT pinned by a type-level assertion, unlike the file
+ * Sixteen today. The number is deliberately NOT pinned by a type-level assertion, unlike the file
  * count: `tests/design/live-regions.test.tsx`'s SCAN 2 asserts this set equals the set of regions
  * actually present in the tree, which is strictly stronger than agreeing with a literal. A count
  * assertion beside a set assertion would only ever fail at the same moment, one line earlier and with
@@ -403,6 +411,8 @@ export const LIVE_REGION_IDS = [
   "spots-left-chip",
   // book-cta.tsx
   "book-cta-notice",
+  // collision-notice.tsx
+  "collision-notice",
   // hold-countdown.tsx
   "hold-countdown-digits",
   "hold-countdown-threshold",
@@ -566,6 +576,48 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "`e2e/collision-in-place.spec.ts` rather than here.",
   },
 
+  // ─── collision-notice.tsx ───────────────────────────────────────────────────────────────────────
+  "collision-notice": {
+    file: "src/components/booking/collision-notice.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      '"9:00–11:00 AM was just taken / Someone booked it while you were choosing, so nothing was ' +
+      'charged. The times below are up to date — the closest free windows are outlined." — ONCE, at ' +
+      "the moment the hold is refused for a slot somebody else took first. It says nothing again: the " +
+      "refreshed grid arriving beneath it is not a live update, and a SECOND collision REMOUNTS this " +
+      "region (the call site keys it on the collision's ordinal) rather than mutating its text, which " +
+      "is what makes a second loss announced exactly once too. The drop-in twin is the same region " +
+      'with the same shape: "Fri, Aug 21 just sold out / The last spots went while you were ' +
+      'choosing…".',
+    why:
+      "RULE 1, RULE 6 and RULE 7, and the third one is the part worth checking rather than skimming.\n" +
+      "\n" +
+      "RULE 1: it is the RESULT of something the booker did — they pressed the primary CTA and the " +
+      "constraint ruled against them. `role=\"status\"`, implicit polite, never `assertive`. It carries " +
+      "NO `aria-label`: `status` is nameFrom:author, and on the VoiceOver/Safari pairing a named live " +
+      "region can be announced BY ITS NAME INSTEAD OF ITS CONTENT — i.e. the sentence naming the lost " +
+      "window would be replaced by a label nobody wrote for them.\n" +
+      "\n" +
+      "RULE 2 EXPRESSLY DOES NOT APPLY. Losing a race fairly is a normal marketplace outcome, not a " +
+      "failure needing a human, so this is never `alert`, never red and never a dialog. The one shape " +
+      "on this whole set that earns `alert` is a fetch that FAILED (`calendar-day-error`).\n" +
+      "\n" +
+      "RULE 6 — ONE REGION PER OUTCOME, AND ITS OTHER HALF IS THE ROW ABOVE. `book-cta.tsx`'s plain " +
+      "notice reports the SAME refusal, so this region supersedes it: that call site renders its own " +
+      "notice only while no collision is set, which makes the exclusion structural rather than a state " +
+      "invariant a later edit could break silently. Neither the struck-through chips nor the outlined " +
+      "free windows announce anything — they are evidence, and evidence is looked at rather than read " +
+      "out. The browser half of the claim is `e2e/collision-in-place.spec.ts`, which sums `status` AND " +
+      "`alert` across the WHOLE document and asserts the total is 1.\n" +
+      "\n" +
+      "RULE 7 — THE FOCUS MOVE IS WHAT EARNS THE ABSENCE OF `assertive`, and it is load-bearing rather " +
+      "than decoration, exactly as `hold-expired-state`'s row records for its own. The region carries " +
+      "`tabIndex={-1}` and focuses itself on mount, so the event is impossible to miss without " +
+      "interrupting whatever was being read, and a keyboard user lands one Tab from the corrected " +
+      "grid. Removing the focus move would make this row's argument false.",
+  },
+
   // ─── hold-countdown.tsx ─────────────────────────────────────────────────────────────────────────
   "hold-countdown-digits": {
     file: "src/components/booking/hold-countdown.tsx",
@@ -699,20 +751,19 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS TEN FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
+ * THE DECLARED SET IS ELEVEN FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
  * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
  * The alias NAME carries the number so that widening the set forces renaming it — it was
- * `DeclaredFileCountIsNine` until plan 12-12 added `relax-band.tsx`, and 12-13 renames it again to
- * `…IsEleven` when it adds `collision-notice.tsx`. A `length extends number` assertion would compile
- * forever and read exactly like this one; that is the failure mode a type-level gate is easiest to
- * write. The friction IS the mechanism: adding a live region to the booker path costs a rename, a row
- * and a second literal in `tests/design/live-regions.test.tsx`, and none of those can be done by
- * accident.
+ * `DeclaredFileCountIsNine` until plan 12-12 added `relax-band.tsx`, `…IsTen` until plan 12-13 added
+ * `collision-notice.tsx`. A `length extends number` assertion would compile forever and read exactly
+ * like this one; that is the failure mode a type-level gate is easiest to write. The friction IS the
+ * mechanism: adding a live region to the booker path costs a rename, a row and a second literal in
+ * `tests/design/live-regions.test.tsx`, and none of those can be done by accident.
  */
-export type DeclaredFileCountIsTen = Assert<
-  (typeof BOOKER_PATH_LIVE_REGION_FILES)["length"] extends 10 ? true : false
+export type DeclaredFileCountIsEleven = Assert<
+  (typeof BOOKER_PATH_LIVE_REGION_FILES)["length"] extends 11 ? true : false
 >;
 
 // ---------------------------------------------------------------------------
@@ -753,6 +804,19 @@ export const LIVE_REGION_KEYS: ReadonlyMap<string, LiveRegionId> = new Map(
 //     clock-driven `toBe(1)`; RULE 6's one-region-per-outcome claim is
 //     `e2e/collision-in-place.spec.ts`'s (plan 12-13); and whether a real reader utters them in the
 //     intended ORDER is a listening test, routed to human UAT in Phase 17.
+//   • A LIVE REGION THIS REPOSITORY DID NOT AUTHOR IS MOUNTED ON `/listings/[id]` AT ALL TIMES, AND
+//     THIS MODULE CANNOT SEE IT. Measured by plan 12-13: `react-day-picker@9` renders its month caption
+//     as `<span role="status" aria-live="polite">August 2026</span>`
+//     (`dist/esm/DayPicker.js:293` — on the `CaptionLabel` element itself). The scan reads the SOURCE of
+//     the eleven declared files, and that role is written inside a library; `src/components/ui/calendar.tsx`
+//     does not carry it either, so there is nothing to declare and nothing to edit — the vendored file is
+//     byte-unchanged by contract (T-12-09-VENDORFORK).
+//     CONSEQUENCE FOR ANY "EXACTLY ONE REGION" CLAIM ON THIS ROUTE: it is one word narrower than it
+//     reads. The checkable property is *exactly one region REPORTS THE OUTCOME*; the caption reports the
+//     MONTH and changes only when the month does. `tests/availability/availability-calendar.test.tsx`
+//     case (5) and `e2e/collision-in-place.spec.ts` case (c) both exclude it BY NAME
+//     (`.rdp-caption_label`) and both assert the exclusion is non-vacuous, so it can never widen into
+//     "ignore some regions". Anyone widening the declared set to cover vendored trees should start here.
 //   • THE EXCLUSIONS ARE A SCOPE BOUNDARY, NOT A VERDICT. Nine excluded files carry `aria-live` today
 //     and this module makes no claim that any of them is correct. Several are probably not — Phase 13's
 //     `request-countdown.tsx` is a second ticking region and rule 3 applies to it identically. Reading

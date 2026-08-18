@@ -151,6 +151,10 @@ function renderPicker(opts: {
     // assertion in this file is unchanged.
     <BookingSelectionProvider
       listingId={LISTING_ID}
+      // Required as of plan 12-13: the provider composes venue-local copy (the collision notice's named
+      // window) and a venue-local day with no zone is a number nobody can turn back into an instant.
+      // The same `TZ` the calendar below is handed, because they are the same listing.
+      timezone={TZ}
       initialDate={DAY_A}
       initialDay={opts.initialDay === undefined ? openDay(DAY_A) : opts.initialDay}
     >
@@ -342,18 +346,37 @@ describe("DatePassPicker — a day and a pass count, never an hour (OPEN-02 · �
     expect(keyOf(2)).not.toBe(keyOf(0));
   });
 
-  it("(7) a lost race renders the SERVER's sold-out sentence and refreshes the calendar (OC-13)", async () => {
+  it("(7) a lost race NAMES the day that sold out, in the collision notice, and still refreshes (OC-13 · D-55)", async () => {
+    // ⚠ THIS CASE CHANGED IN PLAN 12-13, AND THE CHANGE IS THE REQUIREMENT RATHER THAN A TEST BEING
+    // MADE TO PASS. It used to assert that a lost race rendered `book-cta`'s plain `role="status"` line
+    // carrying the SERVER's sentence verbatim. D-55 supersedes that on BOTH twins: the drop-in
+    // collision gets the identical treatment and the identical grammar as the exclusive one — one
+    // component, one live region — and its line 1 names the DAY the booker themselves picked
+    // (`{Fri, Aug 21} just sold out`) rather than restating the server's generic sentence.
+    //
+    // WHAT IS UNCHANGED AND IS STILL ASSERTED HERE: the treatment is calm (no destructive token, no
+    // `alert`, no modal), it is a `role="status"` region, and `router.refresh()` still fires — on the
+    // drop-in path that refresh is doing REAL work, because `DatePassPicker` owns its own day and
+    // `refreshDay()` (which re-reads the EXCLUSIVE day) is inert on this branch.
     const placeOpenHold = makeHold({ ok: false, reason: "sold-out", error: SOLD_OUT_MESSAGE });
     renderPicker({ placeOpenHold });
 
     fireEvent.click(screen.getByRole("button", { name: "Book this space" }));
 
-    await waitFor(() => expect(screen.getByText(SOLD_OUT_MESSAGE)).toBeTruthy());
-    // The shipped calm notice path: a neutral status line, never red, never a modal.
-    const notice = screen.getByText(SOLD_OUT_MESSAGE);
+    await waitFor(() => expect(screen.queryByTestId("collision-notice")).toBeTruthy());
+    const notice = screen.getByTestId("collision-notice");
     expect(notice.getAttribute("role")).toBe("status");
-    expect(notice.className).toContain("text-muted-foreground");
+    expect(notice.getAttribute("role")).not.toBe("alert");
     expect(notice.className).not.toContain("destructive");
+    // The booker's OWN day, formatted in the VENUE's zone — the D-55 restatement, not a second copy of
+    // a server decision. `DatePassPicker` seeds `{today, 1 pass}` on mount, so the day is `DAY_A`.
+    expect(notice.textContent).toContain(
+      `${format(new TZDate(DAY_A.year, DAY_A.month - 1, DAY_A.day, TZ), "EEE, MMM d", { in: nowInTz })} just sold out`,
+    );
+    // The server's sentence is the RULING and is NOT what is rendered while a name is available.
+    expect(notice.textContent).not.toContain(SOLD_OUT_MESSAGE);
+    // Rule 6 — `book-cta`'s plain notice unmounted. The server sentence appears nowhere on the page.
+    expect(screen.queryByText(SOLD_OUT_MESSAGE)).toBeNull();
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 

@@ -54,6 +54,10 @@ import { CALENDAR_CELL, SLOT_CHIP_BOX } from "@/lib/design/measurements";
 import { cn } from "@/lib/utils";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
 import { DatePassPicker } from "@/components/availability/date-pass-picker";
+// STATE-07 / D-55 (plan 12-13). The notice renders DIRECTLY ABOVE the picker, in the main column,
+// which is why it mounts from this file rather than from `book-cta.tsx` — the CTA lives in the rail,
+// a different grid column, and the evidence has to sit with the grid it is about.
+import { CollisionNotice, type CollisionVariant } from "@/components/booking/collision-notice";
 // D-38 / BFLOW-04 — the REAL breakdown, not a lookalike. See the note above RailSelectionSummary for
 // why "one component" is the requirement rather than "two components that agree".
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
@@ -131,6 +135,33 @@ export type OpenSelectionValue = {
 // Shared lifted-selection context (calendar → rail summary)
 // ---------------------------------------------------------------------------
 
+/**
+ * STATE-07 / D-55 — WHAT THE BOOKER LOST, as the client knows it. Held HERE rather than in
+ * `book-cta.tsx` because the notice, the flip and the rail all have to change in one commit and they
+ * live in three different subtrees; the provider is the one place all three can read.
+ *
+ * ⚠ NOTHING IN THIS SHAPE IS A SERVER DECISION EXCEPT `ruling`. `named`, `lostStartUtc` and
+ * `lostEndUtc` are restatements of the BOOKER'S OWN selection — see `collision-notice.tsx`'s header for
+ * the departure this records and the words it is recorded in.
+ */
+export type CollisionInput = {
+  /** `taken` is the exclusive window; `sold-out` is the drop-in day (OC-13). One branch, one grammar. */
+  readonly variant: CollisionVariant;
+  /** The booker's own selection, formatted in the VENUE timezone. Null when there was none to name. */
+  readonly named: string | null;
+  /** The server's refusal sentence, verbatim. The RULING. */
+  readonly ruling: string;
+  /**
+   * The UTC instants of the window that went, so the refreshed grid can strike THOSE hours through.
+   * Null on the drop-in twin, which sells a day rather than a window.
+   */
+  readonly lostStartUtc: string | null;
+  readonly lostEndUtc: string | null;
+};
+
+/** A collision, stamped with a monotonic ordinal so a SECOND one remounts the notice. */
+export type CollisionState = CollisionInput & { readonly at: number };
+
 type SelectionContext = {
   selection: SlotSelectionValue | null;
   setSelection: (sel: SlotSelectionValue | null) => void;
@@ -150,12 +181,31 @@ type SelectionContext = {
   selectDay: (next: DayLocal) => void;
   /** Re-fetch the CURRENT day. Returns the promise so a caller can await it — the D-55 collision seam. */
   refreshDay: () => Promise<void>;
+
+  // ── Phase-12 STATE-07 / D-55: the lost race, and the venue clock the copy is composed against ────
+  /** The venue's IANA timezone. Every label composed from a booking instant reads THIS, never the browser. */
+  timezone: string;
+  /** The collision currently on screen, or null. Set by `book-cta.tsx`; rendered by this file. */
+  collision: CollisionState | null;
+  /** Report a collision (stamping its ordinal), or clear it with `null`. */
+  setCollision: (next: CollisionInput | null) => void;
 };
 
 const BookingSelectionContext = React.createContext<SelectionContext | null>(null);
 
 type BookingSelectionProviderProps = {
   listingId: string;
+  /**
+   * The LISTING's IANA timezone (SC#2), read from the row by the RSC.
+   *
+   * REQUIRED, and the requirement is the point rather than an inconvenience: `day` in this provider is
+   * a VENUE-LOCAL calendar day, and a venue-local day without the zone that makes it one is a number
+   * nobody can turn back into an instant. Plan 12-13 is the first consumer — the collision notice
+   * restates the booker's own window as `9:00–11:00 AM`, and composing that against the BROWSER's zone
+   * is the top booking-app failure mode this repo's stack decision names by name. A defaulted value
+   * would make that mistake silently on every call site that forgot to pass one.
+   */
+  timezone: string;
   /** The day the booking views OPEN on — venue-local today, or the day the booker searched (D-59 #1). */
   initialDate: DayLocal;
   /** That day's availability, read server-side by the RSC so the first paint already carries it. */
@@ -182,6 +232,7 @@ type BookingSelectionProviderProps = {
  */
 export function BookingSelectionProvider({
   listingId,
+  timezone,
   initialDate,
   initialDay,
   initialSelection = null,
@@ -189,6 +240,19 @@ export function BookingSelectionProvider({
 }: BookingSelectionProviderProps) {
   const [selection, setSelection] = React.useState<SlotSelectionValue | null>(initialSelection);
   const [openSelection, setOpenSelection] = React.useState<OpenSelectionValue | null>(null);
+  const [collision, setCollisionState] = React.useState<CollisionState | null>(null);
+
+  /**
+   * The collision ordinal. A ref rather than a piece of state because nothing renders it: it exists so
+   * that a SECOND collision produces a DIFFERENT `key` and therefore a remount, which is what re-runs
+   * the notice's focus move and gives `role="status"` new content to announce. Incremented inside a
+   * callback, never during render (the React Compiler lint rejects the latter outright — measured by
+   * plan 12-12 at eleven errors, not warnings).
+   */
+  const collisionSeq = React.useRef(0);
+  const setCollision = React.useCallback((next: CollisionInput | null) => {
+    setCollisionState(next === null ? null : { ...next, at: ++collisionSeq.current });
+  }, []);
 
   const [day, setDay] = React.useState<DayLocal>(initialDate);
   const [dayAvail, setDayAvail] = React.useState<DayAvailability | null>(initialDay);
@@ -234,6 +298,11 @@ export function BookingSelectionProvider({
     (next: DayLocal) => {
       setDay(next);
       setSelection(null); // a new day clears any prior slot selection in the rail
+      // …and any collision notice with it. The notice names a window on the day being LEFT; carrying it
+      // across would leave a sentence about 9–11 AM on Friday sitting above Saturday's grid, which is
+      // the stale-but-plausible shape IN-03 refuses. Nothing announces the clearing — the region simply
+      // unmounts, which is a removal rather than an update.
+      setCollisionState(null);
       void loadDay(next);
     },
     [loadDay],
@@ -256,8 +325,23 @@ export function BookingSelectionProvider({
       dayError,
       selectDay,
       refreshDay,
+      timezone,
+      collision,
+      setCollision,
     }),
-    [selection, openSelection, day, dayAvail, dayLoading, dayError, selectDay, refreshDay],
+    [
+      selection,
+      openSelection,
+      day,
+      dayAvail,
+      dayLoading,
+      dayError,
+      selectDay,
+      refreshDay,
+      timezone,
+      collision,
+      setCollision,
+    ],
   );
   return (
     <BookingSelectionContext.Provider value={value}>{children}</BookingSelectionContext.Provider>
@@ -400,8 +484,17 @@ export function AvailabilityCalendar({
 }: AvailabilityCalendarProps) {
   // A PURE CONSUMER (Phase-12 seam A). The day, its availability and its two flags are owned by
   // BookingSelectionProvider above every placement; this component owns no fetch and no day state.
-  const { selection, setSelection, setOpenSelection, day, dayAvail, dayLoading, dayError, selectDay } =
-    useBookingSelection();
+  const {
+    selection,
+    setSelection,
+    setOpenSelection,
+    day,
+    dayAvail,
+    dayLoading,
+    dayError,
+    selectDay,
+    collision,
+  } = useBookingSelection();
 
   // The horizon is anchored on TODAY, which `initialDate` no longer necessarily is — see the prop.
   const today = todayDate ?? initialDate;
@@ -433,20 +526,34 @@ export function AvailabilityCalendar({
   // branch — DatePassPicker owns its own day state, and Phase-12 seam A deliberately did not disturb it.
   if (occupancyMode === "open_capacity") {
     return (
-      <DatePassPicker
-        listingId={listingId}
-        timezone={timezone}
-        cityLabel={cityLabel}
-        gmtLabel={gmtLabel}
-        bookable={bookable}
-        initialDate={initialDate}
-        initialDay={initialDay}
-        initialFullDates={initialFullDates ?? []}
-        // Same seam SlotPicker uses one screen down: the picker writes the lifted selection through a
-        // callback instead of reaching into the context itself, so the two modules stay acyclic and the
-        // picker renders standalone in a test.
-        onSelectionChange={setOpenSelection}
-      />
+      // A FRAGMENT, not a wrapper div: the parent on both placements is already a `space-y-*` stack,
+      // so a sibling gets the surface's own rhythm and the shipped drop-in tree keeps its box exactly.
+      <>
+        {/* THE DROP-IN TWIN of the notice below — one component, one grammar, one live region. Its
+            copy names the DAY that sold out rather than a window, because a pass covers a day. */}
+        {collision !== null && (
+          <CollisionNotice
+            key={collision.at}
+            variant={collision.variant}
+            named={collision.named}
+            ruling={collision.ruling}
+          />
+        )}
+        <DatePassPicker
+          listingId={listingId}
+          timezone={timezone}
+          cityLabel={cityLabel}
+          gmtLabel={gmtLabel}
+          bookable={bookable}
+          initialDate={initialDate}
+          initialDay={initialDay}
+          initialFullDates={initialFullDates ?? []}
+          // Same seam SlotPicker uses one screen down: the picker writes the lifted selection through a
+          // callback instead of reaching into the context itself, so the two modules stay acyclic and the
+          // picker renders standalone in a test.
+          onSelectionChange={setOpenSelection}
+        />
+      </>
     );
   }
   // ─── the shipped exclusive surface, unchanged, from here down ────────────────────────────────────
@@ -466,6 +573,15 @@ export function AvailabilityCalendar({
   }
 
   const dayKey = `${day.year}-${day.month}-${day.day}`;
+  /**
+   * The picker's remount key. A COLLISION REMOUNTS IT, and that is a correctness requirement rather
+   * than a flourish: `SlotPicker` holds the gesture (anchor / run / full-day) in its own reducer, read
+   * once from `initialSelection` at mount. The collision clears the LIFTED selection, so without a new
+   * key the rail would say `No time selected` while the grid still showed a filled coral run over hours
+   * nobody can book — the two halves of one page disagreeing about what is selected. The remount reads
+   * the cleared value and starts empty.
+   */
+  const pickerKey = collision === null ? dayKey : `${dayKey}#collision-${collision.at}`;
   const dayLabel = format(selectedDate, "EEEE, MMM d", { in: tz(timezone) });
   // GATE-03 rules 4 + 5 (plan 12-06). ONE binding for the loading region's NAME and its CONTENT, so the
   // two can never drift apart: `role="status"` is nameFrom:author, so the `aria-label` is what names the
@@ -552,6 +668,24 @@ export function AvailabilityCalendar({
         <div className="min-w-0 space-y-3">
           <h3 className="text-sm font-semibold">{dayLabel}</h3>
 
+          {/* ── STATE-07 / D-55: THE NOTICE, DIRECTLY ABOVE THE REFRESHED PICKER ──────────────────
+              Never a dialog, never a toast, never red. It sits here — inside the day panel, under the
+              day's own heading — because the refreshed grid IS the alternative it points at, and a
+              sentence a booker has to leave the page to read is a sentence about somewhere else.
+
+              ⚠ IT IS RENDERED ONLY BY THIS COMPONENT, WHICH IS WHY `book-cta.tsx` DOES NOT ALSO SHOW
+              ITS PLAIN NOTICE ON THIS BRANCH (rule 6 — one outcome, one live region). The two are
+              mutually exclusive by construction at that call site; the browser half of the claim is
+              `e2e/collision-in-place.spec.ts`'s status+alert count. */}
+          {collision !== null && (
+            <CollisionNotice
+              key={collision.at}
+              variant={collision.variant}
+              named={collision.named}
+              ruling={collision.ruling}
+            />
+          )}
+
           {dayLoading ? (
             // The region's whole shape lives in `CalendarDaySkeleton` below — extracted in 12-09 so
             // AC#16 can be ASSERTED rather than reviewed. Rendering this markup used to require
@@ -582,7 +716,7 @@ export function AvailabilityCalendar({
             </div>
           ) : (
             <SlotPicker
-              key={dayKey}
+              key={pickerKey}
               slots={dayAvail.slots}
               timezone={timezone}
               unitCount={unitCount}
@@ -813,8 +947,23 @@ export function RailSelectionSummary({
   dayRateCents,
   surface = "rail",
 }: RailSelectionSummaryProps) {
-  const { selection } = useBookingSelection();
-  if (!selection) return null;
+  const { selection, collision } = useBookingSelection();
+  if (!selection) {
+    // ── D-55 / AC#36 — THE RAIL AFTER A COLLISION ───────────────────────────────────────────────
+    // With no selection this summary has always rendered NOTHING, and outside a collision that is
+    // still right: the rate headline is what occupies the rail before a booker has chosen anything.
+    // A collision is different, and the difference is the whole of T-12-13-STALEPRICE. The booker DID
+    // choose, the choice was refused, and the panel that was showing `₱1,428.00` a moment ago must not
+    // simply fall silent and leave that number as the last thing they read. So the selection line says
+    // — in the Copywriting Contract's own words — that there is nothing selected, and the breakdown is
+    // GONE rather than zeroed: a stale total beside a window nobody can book is a number the system
+    // cannot stand behind, and a `₱0.00` would be a number it can stand behind and does not mean.
+    return collision === null ? null : (
+      <div className="space-y-3 rounded-lg border p-3 text-sm">
+        <p className="font-semibold text-muted-foreground">No time selected</p>
+      </div>
+    );
+  }
 
   const inTz = tz(timezone);
   const start = new Date(selection.startUtc);
