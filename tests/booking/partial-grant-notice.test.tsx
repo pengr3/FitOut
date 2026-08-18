@@ -90,6 +90,7 @@ vi.mock("@/lib/db", () => {
 
 import { formatMoney } from "@/lib/money";
 import { PartialGrantNotice } from "@/components/booking/partial-grant-notice";
+import { HoldProvider } from "@/components/booking/hold-provider";
 import ReservePage from "@/app/listings/[id]/book/page";
 
 afterEach(cleanup);
@@ -255,12 +256,19 @@ function seed(bookingRow: unknown, listingRow: unknown) {
   rows = { booking: [bookingRow], listing: [listingRow], listing_photo: [] };
 }
 
+/**
+ * `HoldProvider` is the page's LAYOUT in production (`app/listings/[id]/book/layout.tsx`, plan 12-03),
+ * and rendering the page tree without it throws — `useHold` refuses to return a null-ish default, for
+ * the reason its own file gives. Wrapping here reproduces the real composition rather than weakening
+ * the hook: the page publishes its `expiresAt` into this provider and `ReserveView` reads `expired`
+ * back out of it, so a bare `render(tree)` is a tree this route never renders.
+ */
 async function renderPage(search: Record<string, string> = {}) {
   const tree = await ReservePage({
     params: Promise.resolve({ id: "lst_1" }),
     searchParams: Promise.resolve({ hold: "bk_1", ...search }),
   });
-  return render(tree as React.ReactElement);
+  return render(<HoldProvider>{tree as React.ReactElement}</HoldProvider>);
 }
 
 /** The alert, found structurally rather than by role — the page has other live regions. */

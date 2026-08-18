@@ -44,6 +44,7 @@ import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
 import { PartialGrantNotice } from "@/components/booking/partial-grant-notice";
 import { PaxStepper } from "@/components/booking/pax-stepper";
+import { PublishExpiresAt } from "@/components/booking/hold-publisher";
 import { ReserveView } from "@/components/booking/reserve-view";
 import { DropInBadge } from "@/components/listing/drop-in-badge";
 
@@ -431,6 +432,13 @@ export default async function ReservePage({
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
+      {/* D-49 / plan 12-03 — the deadline crosses UP into the checkout header's countdown, which the
+          LAYOUT mounts and which therefore cannot be handed a prop by this page. This renders nothing;
+          it writes one already-authorised ISO string into `HoldProvider`. `bk.expiresAt` is non-null
+          here by the `active` gate above, and it has passed the owner gate, the path-id cross-check and
+          both `notFound()` calls — none of which this component can reach or repeat. */}
+      <PublishExpiresAt expiresAt={bk.expiresAt!.toISOString()} />
+
       <header className="space-y-1">
         <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
           Review and book
@@ -442,7 +450,6 @@ export default async function ReservePage({
         <ReserveView
           holdId={bk.id}
           listingId={bk.listingId}
-          expiresAt={bk.expiresAt!.toISOString()}
           totalLabel={totalLabel}
           summary={summary}
           breakdown={breakdown}

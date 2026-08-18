@@ -15,13 +15,33 @@
 // — and it is guaranteed by the file tree (this layout wraps only `book/`) rather than by a
 // conditional that a later edit could invert.
 //
-// ── THE `actions` SLOT IS EMPTY ON PURPOSE, AND PHASE 12 IS THE OWNER ─────────────────────────────
-// Phase 12's SHELL-03 fills the actions slot with the LIVE HOLD COUNTDOWN — the one piece of chrome
-// this route genuinely wants, because it tells the booker how long they have rather than offering
-// them somewhere else to go. It is deliberately not built here: filling the slot now would mean
-// Phase 12 REPLACING a header this phase has just built, instead of composing into the slot it left
-// open for exactly that purpose. An empty slot with a named owner is a hand-off; an empty slot with
-// no note is an oversight.
+// ── THE `actions` SLOT NOW HOLDS THE LIVE HOLD COUNTDOWN (D-49, plan 12-03) ───────────────────────
+// Phase 11 left this slot empty with a named owner, and this is that owner composing into it rather
+// than replacing the header around it: `SiteChrome` is called with the same `brand`, the same
+// `brandHref={null}`, no `nav` and no footer — one new prop and nothing else. The countdown is the one
+// piece of chrome this route genuinely wants, because it tells the booker how long they have rather
+// than offering them somewhere else to go, and it is therefore not an `<a href>`: AC#5's zero-anchor
+// count over this subtree is unaffected by it.
+//
+// ── WHY A CONTEXT WRAPS BOTH SLOTS, AND WHY `{children}` STAYS SERVER-RENDERED ─────────────────────
+// The value the header displays — the hold's `expiresAt` — is read, OWNER-GATED, in `book/page.tsx`,
+// one component tree BELOW the header that must display it, and an App Router layout receives nothing
+// from the page it wraps. So both the header and `{children}` sit inside ONE `HoldProvider`
+// (`components/booking/hold-provider.tsx`, which carries the whole argument), the page publishes its
+// already-authorised `expiresAt` into it, and the countdown publishes `expired` back up for
+// `ReserveView`'s D-44 swap. The layout itself fetches NOTHING: it composes.
+//
+// Wrapping `{children}` in a client provider does NOT client-ify the page. `children` is an
+// ALREADY-RENDERED server node passed through as a prop — the standard App Router composition, and the
+// reason this works at all. THIS FILE CARRIES NO BOUNDARY DIRECTIVE AND MUST NOT ACQUIRE ONE: adding
+// the one that opts a module into the client graph would drag `book/page.tsx`'s owner gate, its db
+// reads and every money computation on this route across the boundary in a single edit (GATE-05).
+//
+// NAMED DESCRIPTIVELY RATHER THAN SPELLED, and this is the TWELFTH instance of the collision the note
+// four paragraphs down records. Plan 12-03's acceptance criterion is a zero-count grep for that
+// directive over this file, and a comment that quotes it satisfies the prose while failing the check,
+// on a tree that is exactly correct. `booking-row.tsx:112` set the precedent; `site-chrome.tsx:45-50`
+// and this file's own header followed it.
 //
 // ── THERE IS NO FOOTER HERE, AND THE OMISSION IS THE REQUIREMENT (SHELL-02 / SHELL-03, plan 11-14) ─
 // The shared footer pattern renders on all SIX other shell-composition sites in `src/app/**` and
@@ -49,15 +69,20 @@
 // component whose job is to add things to headers.
 
 import { SiteChrome } from "@/components/patterns/site-chrome";
+import { HoldProvider } from "@/components/booking/hold-provider";
+import { HoldCountdown } from "@/components/booking/hold-countdown";
 
 export default function CheckoutLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="flex min-h-dvh flex-col">
-      {/* brandHref={null} renders the wordmark as a <span>. No `nav`, no `actions`, no footer. */}
-      <SiteChrome brand="FitOut" brandHref={null} />
-      {children}
-    </div>
+    <HoldProvider>
+      <div className="flex min-h-dvh flex-col">
+        {/* brandHref={null} renders the wordmark as a <span>. No `nav`, no footer, and the one slot
+            that IS filled holds a countdown rather than a link. */}
+        <SiteChrome brand="FitOut" brandHref={null} actions={<HoldCountdown />} />
+        {children}
+      </div>
+    </HoldProvider>
   );
 }

@@ -3,33 +3,38 @@
 // ReserveView (BOOK-01/02 · D-39/D-42/D-44) — the thin CLIENT shell for the reserve page's interactive
 // bits. The RSC (listings/[id]/book/page.tsx) does the owner-gate + server-frozen data read and renders
 // the listing summary + PriceBreakdown as SERVER nodes, then hands them here as `summary`/`breakdown`
-// props so this island ships almost no JS (only the countdown + Confirm are client). Its ONE job beyond
-// layout is to own the live-expiry swap: when the HoldCountdown reaches 0 (or a Confirm comes back
-// `expired`/`denied` because the server — the sole expiry authority — released the slot), it replaces the
-// whole reserve content with the calm HoldExpiredState (D-44), never a stale reserve form. An already
-// EXPIRED hold on first load is handled in the RSC (it renders HoldExpiredState directly); this shell only
-// ever mounts for an ACTIVE pending hold, so the countdown always starts with time remaining.
+// props so this island ships almost no JS (only Confirm is client here). Its ONE job beyond layout is to
+// own the live-expiry swap: when the hold context reports `expired` (the header countdown reached 0), or
+// a Confirm comes back `expired`/`denied` because the server — the sole expiry authority — released the
+// slot, it replaces the whole reserve content with the calm HoldExpiredState (D-44), never a stale
+// reserve form. An already EXPIRED hold on first load is handled in the RSC (it renders HoldExpiredState
+// directly); this shell only ever mounts for an ACTIVE pending hold.
+//
+// PLAN 12-03 — THIS FILE IS NO LONGER "CONTAINER SWAP ONLY". It SUBSCRIBES to a context now, and that
+// is a posture change rather than a layout one: D-49 moved the countdown out of this rail and into the
+// checkout header, so the expiry no longer arrives through a callback this file hands DOWN. It arrives
+// through `useHold()`, from a sibling one component tree UP. A file header that misstated that would be
+// the defect one section down — the next reader would look here for the timer and find a prop that no
+// longer exists. The countdown itself is `components/booking/hold-countdown.tsx`, mounted by
+// `app/listings/[id]/book/layout.tsx`; the composition's argument lives in `hold-provider.tsx`.
 
 import * as React from "react";
 
 import { PanelCard } from "@/components/patterns/panel-card";
-import { HoldCountdown } from "@/components/booking/hold-countdown";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
 import { ReserveActions } from "@/components/booking/reserve-actions";
+import { useHold } from "@/components/booking/hold-provider";
 import type { ConfirmResult } from "@/app/actions/booking";
 
 export function ReserveView({
   holdId,
   listingId,
-  expiresAt,
   totalLabel,
   summary,
   breakdown,
 }: {
   holdId: string;
   listingId: string;
-  /** The hold's TTL deadline (ISO) — drives the countdown; the server re-checks it on Confirm. */
-  expiresAt: string;
   /** Server-formatted charged amount (formatMoney) — threaded to the `Confirm & pay` reassurance (D-57). */
   totalLabel: string;
   /** Server-rendered listing summary (cover, name, type, venue-tz window). Dropped on expiry. */
@@ -37,19 +42,24 @@ export function ReserveView({
   /** Server-rendered PriceBreakdown (the frozen quote). Dropped on expiry. */
   breakdown: React.ReactNode;
 }) {
-  const [expired, setExpired] = React.useState(false);
+  // TWO ROUTES INTO ONE STATE, and they stay separate on purpose. `timedOut` is the header countdown
+  // reaching zero (a display cue). `confirmFailed` is the SERVER refusing — the only authority. Both
+  // land on the same calm interstitial, but merging them into one setter would mean the client cue and
+  // the server verdict shared a write path, which is how a display bug becomes a money bug.
+  const { expired: timedOut } = useHold();
+  const [confirmFailed, setConfirmFailed] = React.useState(false);
 
   // A Confirm that resolves to a graceful failure — the server released the slot (`expired`), an ownership
   // edge (`denied`), or checkout couldn't start / going too fast (`checkout`, D-57) — flips to the SAME
   // calm recovery state, never a red error (occupancy/expiry/checkout-retry are all normal states).
   function handleResult(result: ConfirmResult) {
     if (result.reason === "expired" || result.reason === "denied" || result.reason === "checkout") {
-      setExpired(true);
+      setConfirmFailed(true);
     }
   }
 
   // The countdown hitting 0 flips the whole page into the expiry state (it does NOT silently vanish, D-44).
-  if (expired) return <HoldExpiredState listingId={listingId} />;
+  if (timedOut || confirmFailed) return <HoldExpiredState listingId={listingId} />;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:gap-12">
@@ -81,13 +91,17 @@ export function ReserveView({
           sticky box as every other route's, which is why this rail needs the same clearance the
           listing page's does.
 
-          Container swap only — Phase 12 owns the checkout redesign. The three children are
-          byte-identical; the rhythm moves from this file's `space-y-5` to the pattern's `space-y-4`
-          because a panel that re-declares its own spacing is a fork wearing a composition's name. */}
+          The rhythm moves from this file's `space-y-5` to the pattern's `space-y-4` because a panel
+          that re-declares its own spacing is a fork wearing a composition's name.
+
+          THE RAIL NO LONGER HOLDS A TIMER (D-49, plan 12-03). The digits live in the checkout header,
+          exactly once per document; what stays down here is the reassurance without the numerals, and
+          it is rendered by `book/page.tsx` into `breakdown` so it remains a SERVER node like every
+          other word in this column. Do not put a second countdown back: one live region and one
+          `role="timer"` per document is the GATE-03 contract. */}
       <aside>
         <PanelCard sticky>
           {breakdown}
-          <HoldCountdown expiresAt={expiresAt} onExpire={() => setExpired(true)} />
           <ReserveActions holdId={holdId} totalLabel={totalLabel} onResult={handleResult} />
         </PanelCard>
       </aside>
