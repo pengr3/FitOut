@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 11
+current_plan: 12
 status: executing
-stopped_at: Completed 12-10-PLAN.md
-last_updated: "2026-08-18T12:55:53.554Z"
+stopped_at: Completed 12-11-PLAN.md
+last_updated: "2026-08-18T14:20:22.832Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 53
-  completed_plans: 49
+  completed_plans: 50
   percent: 18
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
-Plan: 11 of 14
-Current Plan: 11
+Plan: 12 of 14
+Current Plan: 12
 Total Plans in Phase: 14
 Status: Ready to execute
 
@@ -285,6 +285,7 @@ Last activity: 2026-08-18
 | Phase 12 P07 | 118min | 3 tasks | 8 files |
 | Phase 12 P09 | 74min | 3 tasks | 11 files |
 | Phase 12 P10 | 118min | 3 tasks | 15 files |
+| Phase 12 P11 | 3h05m | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -595,6 +596,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 12-10: `placement` gates the month grid — measured, not chosen. CALENDAR_GRID_WIDTH is a definite 326px at md:+ against the rail's 312px content box, so a calendar in the rail placement overflows the panel, deletes BFLOW-02's main-column Availability section and reddens calendar-hit-area.spec.ts.
 - [Phase ?]: 12-10: the sticky bar consults only the EXCLUSIVE selection channel. date-pass-picker.tsx seeds {today, 1 pass} from a mount effect, so reading openSelection put an unearned amount on the money path and made RESP-02's sheet structurally unreachable on every drop-in listing.
 - [Phase ?]: 12-10: the bar's selection action IS BookCta in a bar layout, not a second control wired to the same action — one guard, one server ruling, and one already-declared role=status, so GATE-03's DeclaredFileCountIsNine is untouched.
+- [Phase ?]: 12-11: checkout's price disclosure is wired through a new PriceBreakdown boolean (itemsDisclosure), never through `surface` — surface still selects exactly two things, and the disclosure changes no row, order, weight or figure
+- [Phase ?]: 12-11: the confirm control is DUPLICATED (max-lg:hidden inline, lg:hidden in the bar) and the brand inventory records 22 honestly rather than hiding it behind a layout fork to keep the number at 21
+- [Phase ?]: 12-11: overflow-320.spec.ts stays seed-free; AC#29's measurement moved to e2e/helpers/overflow.ts and the resolved checkout is measured at 320px by mobile-booker-path, which already mints a hold
 
 ### Pending Todos
 
@@ -698,8 +702,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-18T12:55:53.529Z
-Stopped at: Completed 12-10-PLAN.md
+Last session: 2026-08-18T14:20:22.808Z
+Stopped at: Completed 12-11-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-18T08:38:58.152Z
