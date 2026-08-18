@@ -22,13 +22,33 @@
 // WHAT RADIX OWNS, AND WHAT THIS FILE ADDS. THE SPLIT IS THE WHOLE DESIGN.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// RADIX OWNS, AND NONE OF IT IS RE-IMPLEMENTED HERE: the focus trap, focus RESTORE to whatever had focus
-// when the dialog opened, `Escape`, the scroll lock, and the portal. That is not a convenience — this
-// app is required to have EXACTLY ONE focus-trap implementation (`ARCHITECTURE.md` §6.3, and the reason
-// `ui/sheet.tsx` does not exist). The rail's fee popover already composes the same primitive; a second
-// mechanism here would be the T-11-FOCUSTRAP regression arriving through a photo viewer.
+// RADIX OWNS, AND NONE OF IT IS RE-IMPLEMENTED HERE: the focus TRAP, `Escape`, the scroll lock, marking
+// the background `aria-hidden`, and the portal. That is not a convenience — this app is required to have
+// EXACTLY ONE focus-trap implementation (`ARCHITECTURE.md` §6.3, and the reason `ui/sheet.tsx` does not
+// exist). The rail's fee popover already composes the same primitive; a second mechanism here would be
+// the T-11-FOCUSTRAP regression arriving through a photo viewer.
 //
-// THIS FILE ADDS THE FOUR THINGS RADIX DOES NOT PROVIDE:
+// ⚠ FOCUS RESTORE IS THE ONE ITEM ON THAT LIST THAT RADIX DOES **NOT** GIVE US FOR FREE, AND IT LOOKS
+// LIKE IT DOES. This paragraph replaces an earlier draft of this header that listed restore beside the
+// trap as something inherited; `e2e/photo-lightbox.spec.ts` case (c) measured otherwise on its first
+// run — Escape closed the dialog and focus went to `<body>`, from where the next Tab starts the page
+// again from the top.
+//
+// The mechanism: Radix's MODAL dialog content sets `onCloseAutoFocus` to `event.preventDefault()`
+// followed by `context.triggerRef.current?.focus()`. It deliberately suppresses the browser's own
+// restore in order to put focus on ITS trigger — and `triggerRef` is only populated by
+// `<DialogTrigger>`. This dialog has no `DialogTrigger` and structurally cannot have one: there are up
+// to five mosaic cells plus a button, all opening ONE dialog at different indices, which is exactly why
+// `openAt(index)` exists. So the optional call is a no-op on `null`, Radix's own preventDefault stands,
+// and nothing focuses anything.
+//
+// The fix is to give it the element it is missing rather than to re-implement anything: each trigger
+// hands its own DOM node to `openAt`, and `onCloseAutoFocus` focuses that. Radix still owns the trap and
+// the timing; what this adds is the one reference it had no way to obtain. `patterns/responsive-dialog
+// .tsx` never met this because every one of its adopters opens through `DialogTrigger asChild`.
+//
+// THIS FILE ADDS THE FOUR THINGS RADIX DOES NOT PROVIDE (plus that fifth, which is a repair rather than
+// an addition):
 //   1. A REQUIRED ACCESSIBLE NAME — an `sr-only` DialogTitle reading `Photos of {title}`. A dialog with
 //      no accessible name is a WCAG 4.1.2 failure and Radix warns at runtime;
 //      `patterns/responsive-dialog.tsx:139-146` makes the same point by typing its `title` as a required
@@ -84,8 +104,14 @@ export type LightboxPhoto = {
 };
 
 type LightboxApi = {
-  /** Open the dialog showing photo `index` (0-based). */
-  readonly openAt: (index: number) => void;
+  /**
+   * Open the dialog showing photo `index` (0-based).
+   *
+   * `opener` is the control that is doing the opening, and it is REQUIRED rather than convenient: it is
+   * the element focus has to come back to when the dialog closes, and Radix cannot work it out for
+   * itself here. See the focus-restore paragraph in this file's header.
+   */
+  readonly openAt: (index: number, opener: HTMLElement | null) => void;
 };
 
 /**
@@ -169,7 +195,9 @@ export function PhotoLightboxTrigger({
   return (
     <button
       type="button"
-      onClick={() => api?.openAt(index)}
+      // `event.currentTarget` rather than a ref: it IS this button, it is never stale, and it costs no
+      // extra state. What matters is that the island is handed the opener at all — see the header.
+      onClick={(event) => api?.openAt(index, event.currentTarget)}
       className="block size-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {children}
@@ -199,7 +227,7 @@ export function PhotoLightboxShowAll({
       variant="outline"
       size="touch"
       className={className}
-      onClick={() => api?.openAt(0)}
+      onClick={(event) => api?.openAt(0, event.currentTarget)}
     >
       {children}
     </Button>
@@ -218,17 +246,46 @@ export function PhotoLightbox({
   const [open, setOpen] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(0);
 
+  /**
+   * The control that opened the dialog, so focus can be put back on it.
+   *
+   * A ref rather than state: nothing renders from it, and writing it during an event handler must not
+   * cause a render. See the focus-restore paragraph in this file's header for why Radix does not know
+   * this element and cannot find it.
+   */
+  const openerRef = React.useRef<HTMLElement | null>(null);
+
   const total = photos.length;
 
   const api = React.useMemo<LightboxApi>(
     () => ({
-      openAt: (index: number) => {
+      openAt: (index: number, opener: HTMLElement | null) => {
+        openerRef.current = opener;
         setActiveIndex(index);
         setOpen(true);
       },
     }),
     [],
   );
+
+  /**
+   * Put focus back on the control that opened the dialog.
+   *
+   * Radix's modal content already calls `preventDefault()` here and then focuses its own
+   * `DialogTrigger`, of which this dialog has none — so without this handler its suppression of the
+   * browser's native restore stands and focus lands on `<body>`. Measured, not assumed:
+   * `e2e/photo-lightbox.spec.ts` case (c) is red without it.
+   *
+   * When there IS no recorded opener the handler does nothing at all and Radix's behaviour is left
+   * exactly as it was. That is deliberate: an unconditional `preventDefault()` here would take over a
+   * decision this file has no basis for making.
+   */
+  const onCloseAutoFocus = React.useCallback((event: Event) => {
+    const opener = openerRef.current;
+    if (opener === null) return;
+    event.preventDefault();
+    opener.focus();
+  }, []);
 
   /**
    * Paging WRAPS rather than clamping, and that is a focus decision more than a navigation one.
@@ -280,6 +337,7 @@ export function PhotoLightbox({
             showCloseButton={false}
             className={LIGHTBOX_PRESENTATION}
             onKeyDown={onKeyDown}
+            onCloseAutoFocus={onCloseAutoFocus}
             {...DESCRIBED_BY}
           >
             <DialogTitle className="sr-only">{`Photos of ${title}`}</DialogTitle>
