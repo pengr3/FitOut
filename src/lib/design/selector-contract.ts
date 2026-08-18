@@ -156,6 +156,9 @@ export const SELECTOR_IDS = [
   "booking-panel",
   "sheet-price-total",
   "booking-sticky-bar",
+  // 12-11 — BFLOW-06's checkout: the collapsible that hides how the price was built, and the bottom
+  // bar that keeps what it IS on screen.
+  "price-disclosure",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -458,5 +461,24 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "`position: fixed`, so a query that resolved to something else would be comparing an in-flow " +
       "box against a viewport-anchored expectation and failing for the wrong reason.",
     owner: "12-10",
+  },
+
+  // ─── 12-11 ─────────────────────────────────────────────────────────────────────────────────────────
+  "price-disclosure": {
+    why:
+      "Every assertion hung on this hook is about the COLLAPSED-versus-EXPANDED STATE OF A SPECIFIC " +
+      "REGION, and no accessible query addresses a region — they address the control that toggles it. " +
+      "The trigger IS reachable by role and deliberately stays so (`getByRole(\"button\", { name: " +
+      "/Price details/ })` is how a spec presses it), but the claims BFLOW-06 makes are that the run, " +
+      "surcharge and fee lines are not on screen while the Total is, and that expanding reveals them " +
+      "without pushing the Total out of view. Those are statements about the CONTENT REGION's box and " +
+      "its contents, and the region is a `<div>` with no role and no accessible name — when it is " +
+      "doing its job it is not in the accessibility tree at all, which is precisely the state that has " +
+      "to be measurable. Radix's own `[data-state]` is not a substitute either: `data-state=\"open\"` " +
+      "is carried by every collapsible, dialog, popover, select and toggle in the tree, so a state " +
+      "query would resolve against whichever of them mounted first on a route that holds several. And " +
+      "the negative half — `price-total` is NOT inside this region — is an ancestry assertion, which " +
+      "needs a handle on the ancestor rather than on anything it announces.",
+    owner: "12-11",
   },
 };

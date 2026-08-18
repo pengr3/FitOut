@@ -88,6 +88,10 @@
 
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { Separator } from "@/components/ui/separator";
+// D-50 / BFLOW-06 — the checkout's collapsible. Imported rather than composed at the call site for the
+// reason the whole `itemsDisclosure` prop exists: the lines it hides are built HERE, and so is the count
+// its trigger states. See that prop's docblock.
+import { PriceDisclosure } from "@/components/booking/price-disclosure";
 // D-39 — the fee's explainer, imported rather than written. Its copy lives in its own module ON
 // PURPOSE: the two whole-source greps above scan THIS file, comments included, so every sentence
 // added here is a sentence inside the scanned region. See that file's header for why the body names
@@ -171,6 +175,35 @@ type PriceBreakdownProps = {
    * "the rendered total" unambiguous per document, which is a structural fact rather than a discipline.
    */
   surface?: "rail" | "sheet" | "checkout";
+  /**
+   * D-50 / BFLOW-06 — put the ITEMISED LINES behind `PriceDisclosure`. Defaults to `false`, so the rail,
+   * the sheet and every shipped call site render byte-for-byte what they render today.
+   *
+   * ⚠ THIS IS NOT A FOURTH THING `surface` SELECTS, AND THE SEPARATION IS DELIBERATE. The docblock above
+   * says `surface` picks exactly two things and must never grow to select a third — because the moment
+   * it decides a row, an order or a figure, "the rail and checkout show the same fact" stops being a
+   * property of the code. This prop changes NO row, NO order, NO weight and NO figure: the same three
+   * lines render, in the same order, with the same classes, inside a region that can be closed. A
+   * booker who opens it is looking at the identical markup the rail shows open. Keeping it as its own
+   * boolean is what makes that checkable — `surface` still has exactly two consequences, and this one
+   * is named after what it does.
+   *
+   * WHY IT LIVES HERE RATHER THAN AT THE CALL SITE. The disclosure's trigger states an ITEM COUNT, and
+   * the only place that knows how many lines were rendered is the place that decides whether each one
+   * renders. A count composed by `book/page.tsx` would be a second expression of the same three
+   * conditions, free to disagree with the region it labels — on a money surface, in the direction a
+   * booker cannot check. The count below reads the SAME two booleans the render gates read.
+   *
+   * WHY IT IS NOT BREAKPOINT-SCOPED. D-50's argument is stated for the phone, and 12-UI-SPEC AC#22
+   * measures it at 375px — but the `Disclosure` row of that spec's Checkout table carries no width
+   * qualifier where the row directly beneath it ("Below `lg:` only") does, and the alternatives all cost
+   * more than they buy: a JS media query is banned on this path, a second rendering of the lines would
+   * put two run lines and two fee lines in one document, and `forceMount` plus a CSS override of the
+   * primitive's own `hidden` is a fork of the block this milestone vendored precisely so as not to fork
+   * one. So checkout collapses at every width, and the desktop rail's Total, Separator and trailing line
+   * are exactly where they were.
+   */
+  itemsDisclosure?: boolean;
 };
 
 export function PriceBreakdown({
@@ -189,6 +222,7 @@ export function PriceBreakdown({
   hourlyRateCents,
   dayRateCents,
   surface = "checkout",
+  itemsDisclosure = false,
 }: PriceBreakdownProps) {
   // Line label is `{₱rate}/hr × {N} hours` or `{₱rate}/day × 1 day` — formatting only, no multiplication.
   //
@@ -204,9 +238,20 @@ export function PriceBreakdown({
         ? `${formatMoney(dayRateCents ?? 0, currency)}/day × 1 day`
         : `${formatMoney(hourlyRateCents ?? 0, currency)}/hr × ${hours} ${hours === 1 ? "hour" : "hours"}`;
 
-  return (
-    <div className="space-y-3">
-      <div className="space-y-2">
+  // THE TWO RENDER GATES, LIFTED TO NAMES so the item count and the lines cannot disagree. Both are
+  // COMPARISONS against a server-frozen figure and neither is arithmetic: nothing here makes a new
+  // number out of an old one, which is what `tests/design/price-surface.test.ts`'s AST walk asserts over
+  // this file. The count below is deliberately built by FILTERING a list of these booleans rather than
+  // by summing them — a `+` anywhere in a subtree that touches a money prop is a violation by that
+  // gate's definition, and rightly so: this file must never be able to add two of its own figures
+  // together, not even two zeroes.
+  const showSurchargeLine = extraSurchargeCents > 0;
+  const showFeeLine = serviceFeeCents > 0;
+  /** How many lines are inside the disclosure. The run line always renders; the other two are gated. */
+  const itemCount = [true, showSurchargeLine, showFeeLine].filter(Boolean).length;
+
+  const items = (
+    <div className="space-y-2">
         {/* The run line — rate × qty on the left, the frozen SPACE price on the right (not the all-in
             total: the fee gets its own disclosed line below, and the two must sum to the Total). */}
         <div className="flex items-baseline justify-between gap-4 text-sm">
@@ -229,7 +274,7 @@ export function PriceBreakdown({
           product computed in the browser could disagree with the amount PayMongo charges, which is the exact
           trust failure the header contract forbids.
         */}
-        {extraSurchargeCents > 0 && (
+        {showSurchargeLine && (
           <div className="flex items-baseline justify-between gap-4 text-sm">
             {/* Same AC#33 reason as the run line: the per-head fee is a money figure inside a label. */}
             <span className="text-muted-foreground tabular-nums">
@@ -251,7 +296,7 @@ export function PriceBreakdown({
           Omitted entirely at 0 rather than rendered as ₱0: a legacy pre-D-74 booking genuinely had no fee,
           and showing a zero line would imply one was assessed.
         */}
-        {serviceFeeCents > 0 && (
+        {showFeeLine && (
           <div className="flex items-baseline justify-between gap-4 text-sm">
             {/* D-39 — THE TRIGGER SITS IMMEDIATELY AFTER THE LABEL, INSIDE IT, AND NOWHERE ELSE.
                 Two placements were available and only one is correct in the accessibility tree.
@@ -272,7 +317,21 @@ export function PriceBreakdown({
             <span className="tabular-nums">{formatMoney(serviceFeeCents, currency)}</span>
           </div>
         )}
-      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* D-50 — THE ITEMISED LINES MAY COLLAPSE; EVERYTHING BELOW THIS EXPRESSION MAY NOT.
+          `items` is ONE node rendered ONE way in both branches, so the disclosure cannot become a
+          second presentation of the derivation — it is the same subtree with a lid on it. The
+          `Separator`, the `Total` and the trailing line are outside this expression entirely, which is
+          what makes "the Total never collapses" a fact about the tree rather than about a class. */}
+      {itemsDisclosure ? (
+        <PriceDisclosure itemCount={itemCount}>{items}</PriceDisclosure>
+      ) : (
+        items
+      )}
 
       <Separator />
 

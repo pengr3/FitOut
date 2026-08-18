@@ -468,6 +468,11 @@ export default async function ReservePage({
         hours={hours}
         hourlyRateCents={lst.hourlyRateCents}
         dayRateCents={lst.dayRateCents}
+        // D-50 / BFLOW-06 — checkout, and ONLY checkout, puts the derivation behind `PriceDisclosure`.
+        // The Total, its Separator and the trailing line stay outside it, so the amount the booker is
+        // agreeing to is on screen in every state at every width. The listing rail and the booking sheet
+        // do not pass this and are byte-identical to what they render today.
+        itemsDisclosure
       />
       <CancellationPolicyDisclosure
         tier={tier}

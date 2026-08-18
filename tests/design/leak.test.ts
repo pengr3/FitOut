@@ -316,16 +316,27 @@ describe("the DS-13 raw-design-value gate", () => {
     expect(generatedTokenViolations.length).toBeGreaterThanOrEqual(40);
   });
 
-  it("visits all 30 vendored primitives — there is no vendored exemption (D-17)", () => {
+  it("visits all 31 vendored primitives — there is no vendored exemption (D-17)", () => {
     // D-17 made checkable. The primitives are where every card, dialog and button in the app is
     // actually defined; an exemption for them would exempt the majority of the rendered surface and
     // leave the gate policing only the thin layer above it.
-    expect(VENDORED_PRIMITIVES).toHaveLength(30);
+    //
+    // 30 -> 31 BY PLAN 12-11, in that plan's own commit, and the movement is the point rather than an
+    // inconvenience. `ui/collapsible.tsx` is the first registry block vendored since Phase 10 closed
+    // the leak sweep over the other thirty, and this number is what forced it to be ADMITTED to the
+    // gate instead of quietly appearing beside it. The block itself contains zero Tailwind classes
+    // and zero raw design values, so the real `toEqual([])` assertion below did not move — which is
+    // exactly the case this positive control exists for: a new primitive that leaks nothing looks
+    // identical, to a violations list, to a new primitive the walker never opened.
+    expect(VENDORED_PRIMITIVES).toHaveLength(31);
     expect(VENDORED_PRIMITIVES).toContain("src/components/ui/button.tsx");
     expect(VENDORED_PRIMITIVES).toContain("src/components/ui/badge.tsx");
     // dialog.tsx:42 carried the one vendored `bg-black` at baseline (landmine L7). It is fixed, and
     // this is the file that proves the gate would have seen it.
     expect(VENDORED_PRIMITIVES).toContain("src/components/ui/dialog.tsx");
+    // The 12-11 addition, named rather than left to the length alone: a count is satisfied by any
+    // thirty-first file, and the claim here is that THIS one is inside the scanned set.
+    expect(VENDORED_PRIMITIVES).toContain("src/components/ui/collapsible.tsx");
   });
 
   it("visits the specific files whose leaks this phase removed", () => {

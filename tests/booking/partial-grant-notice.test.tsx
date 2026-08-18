@@ -34,7 +34,7 @@
 
 import * as React from "react";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import { getTableName } from "drizzle-orm";
 
 const getSession = vi.hoisted(() => vi.fn());
@@ -262,13 +262,32 @@ function seed(bookingRow: unknown, listingRow: unknown) {
  * the reason its own file gives. Wrapping here reproduces the real composition rather than weakening
  * the hook: the page publishes its `expiresAt` into this provider and `ReserveView` reads `expired`
  * back out of it, so a bare `render(tree)` is a tree this route never renders.
+ *
+ * ── AND IT OPENS THE PRICE DISCLOSURE, WHICH IS A CORRECTNESS FIX AND NOT A CONVENIENCE (plan 12-11) ──
+ *
+ * D-50 puts checkout's itemised lines — the run line, the D-108 surcharge line, the service-fee line —
+ * inside `PriceDisclosure`, and Radix UNMOUNTS a closed collapsible's content. Every assertion in this
+ * file was written against the expanded breakdown, and the ones that matter most here are NEGATIVE:
+ * case (12) asserts the drop-in summary carries no `/hr ×`, no `/day ×` and no `Extra guests` line at
+ * all. A negative assertion over a region that is not in the document is green for free — the gate would
+ * have deleted itself while reporting success, which is strictly worse than the two positive cases that
+ * failed loudly and pointed at this.
+ *
+ * So the trigger is PRESSED, through its real accessible name, and the tree under assertion is the one a
+ * booker reads once they have asked how the price was built. The COLLAPSED state is a claim about a
+ * rendered viewport and is asserted where that can be measured — at 375px, in a browser, by
+ * `e2e/mobile-booker-path.spec.ts` (12-UI-SPEC AC#22). `queryByRole` rather than `getByRole` because an
+ * expired hold renders `HoldExpiredState` and has no breakdown to open.
  */
 async function renderPage(search: Record<string, string> = {}) {
   const tree = await ReservePage({
     params: Promise.resolve({ id: "lst_1" }),
     searchParams: Promise.resolve({ hold: "bk_1", ...search }),
   });
-  return render(<HoldProvider>{tree as React.ReactElement}</HoldProvider>);
+  const result = render(<HoldProvider>{tree as React.ReactElement}</HoldProvider>);
+  const disclosure = result.queryByRole("button", { name: /Price details/ });
+  if (disclosure) fireEvent.click(disclosure);
+  return result;
 }
 
 /** The alert, found structurally rather than by role — the page has other live regions. */
