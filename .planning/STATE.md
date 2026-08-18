@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 12
+current_plan: 13
 status: executing
-stopped_at: Completed 12-11-PLAN.md
-last_updated: "2026-08-18T14:20:22.832Z"
+stopped_at: Completed 12-12-PLAN.md
+last_updated: "2026-08-18T15:33:18.026Z"
 last_activity: 2026-08-18
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 53
-  completed_plans: 50
+  completed_plans: 51
   percent: 18
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
-Plan: 12 of 14
-Current Plan: 12
+Plan: 13 of 14
+Current Plan: 13
 Total Plans in Phase: 14
 Status: Ready to execute
 
@@ -286,6 +286,7 @@ Last activity: 2026-08-18
 | Phase 12 P09 | 74min | 3 tasks | 11 files |
 | Phase 12 P10 | 118min | 3 tasks | 15 files |
 | Phase 12 P11 | 3h05m | 3 tasks | 23 files |
+| Phase 12 P12 | 67min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -599,6 +600,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 12-11: checkout's price disclosure is wired through a new PriceBreakdown boolean (itemsDisclosure), never through `surface` — surface still selects exactly two things, and the disclosure changes no row, order, weight or figure
 - [Phase ?]: 12-11: the confirm control is DUPLICATED (max-lg:hidden inline, lg:hidden in the bar) and the brand inventory records 22 honestly rather than hiding it behind a layout fork to keep the number at 21
 - [Phase ?]: 12-11: overflow-320.spec.ts stays seed-free; AC#29's measurement moved to e2e/helpers/overflow.ts and the resolved checkout is measured at 320px by mobile-booker-path, which already mints a hold
+- [Phase ?]: D-52/D-53 shipped: the four-rung relaxation ladder runs un-bounded — measured at 11ms (real four-rung path) and 179ms (four full Stage-2 loops) against a declared 2000ms budget, so the UI-SPEC's two-rung fallback was not taken
+- [Phase ?]: Undo is an ADDITION of relax=0 to the booker's query, never a removal — the flag lives in searchParamsSchema so it is bounds-validated like every other param; without it Undo is a visible no-op (watched red in both jsdom and Chromium)
 
 ### Pending Todos
 
@@ -702,8 +705,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-18T14:20:22.808Z
-Stopped at: Completed 12-11-PLAN.md
+Last session: 2026-08-18T15:33:12.436Z
+Stopped at: Completed 12-12-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-18T08:38:58.152Z

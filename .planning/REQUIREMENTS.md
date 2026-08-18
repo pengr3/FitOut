@@ -40,7 +40,7 @@
 
 - [x] **STATE-01**: Every data-backed route has a designed loading state whose skeleton is built from the same measurement constants as the real content, so nothing shifts on arrival (2 of ~27 routes have one today)
 - [x] **STATE-02**: Every route group has an error boundary offering both a retry and a route out, plus a global error page and not-found pages for a missing listing and for the root (zero exist today)
-- [ ] **STATE-03**: A booker who gets no search results is never at a dead end — the page names which constraint was relaxed and always offers alternatives rather than an empty page
+- [x] **STATE-03**: A booker who gets no search results is never at a dead end — the page names which constraint was relaxed and always offers alternatives rather than an empty page
 - [x] **STATE-04**: Every list surface has a designed empty state, and host request inbox-zero reads as a positive state rather than an absence
 - [ ] **STATE-05**: Payment states are three distinct things and never conflated — *not completed* (neutral, states "you haven't been charged", offers retry and the alternative rails inline), *pending settlement* (no error affordance at all while the webhook is still the outstanding authority), and *reversed* (explicit money statement plus a support path carrying the reference)
 - [ ] **STATE-06**: Every payment state states where the money is, in words, above the fold
@@ -194,7 +194,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | THEME-05 | Phase 10 | Complete |
 | STATE-01 | Phase 11 | Complete |
 | STATE-02 | Phase 11 | Complete |
-| STATE-03 | Phase 12 | Pending |
+| STATE-03 | Phase 12 | Complete |
 | STATE-04 | Phase 11 | Complete |
 | STATE-05 | Phase 13 | Pending |
 | STATE-06 | Phase 13 | Pending |
