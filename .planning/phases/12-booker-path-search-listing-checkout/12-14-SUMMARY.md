@@ -281,3 +281,15 @@ Two things must not be confused when Task 3 is run:
 ---
 *Phase: 12-booker-path-search-listing-checkout*
 *Completed: Tasks 1–2 on 2026-08-19. Task 3 awaiting the operator.*
+
+## Self-Check: PASSED
+
+Files claimed, verified present on disk: `scripts/seed-baseline-fixtures.ts`,
+`scripts/verify-baselines-workflow.mjs`, `e2e/helpers/visual-drive.ts`,
+`.planning/phases/12-booker-path-search-listing-checkout/12-14-SUMMARY.md`.
+
+Commits claimed, verified in `git log`: `18e13f7` (Task 1), `f84d64a` (Task 2),
+`e7662c7` (this summary), `a2c6d10` (STATE + ROADMAP).
+
+Working tree clean apart from the pre-existing `.planning/config.json` modification,
+which was left untouched as instructed.
