@@ -88,6 +88,11 @@
 
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { Separator } from "@/components/ui/separator";
+// D-39 — the fee's explainer, imported rather than written. Its copy lives in its own module ON
+// PURPOSE: the two whole-source greps above scan THIS file, comments included, so every sentence
+// added here is a sentence inside the scanned region. See that file's header for why the body names
+// no percentage and why it is a popover rather than a tooltip.
+import { ServiceFeePopover } from "@/components/booking/service-fee-popover";
 
 /**
  * The total VALUE's classes, shared by both surface branches below.
@@ -240,7 +245,22 @@ export function PriceBreakdown({
         */}
         {serviceFeeCents > 0 && (
           <div className="flex items-baseline justify-between gap-4 text-sm">
-            <span className="text-muted-foreground">Service fee</span>
+            {/* D-39 — THE TRIGGER SITS IMMEDIATELY AFTER THE LABEL, INSIDE IT, AND NOWHERE ELSE.
+                Two placements were available and only one is correct in the accessibility tree.
+                Between the label and its amount as a SIBLING of both, a keyboard user tabs through a
+                control that stands between a thing and its price; on the total row, the explanation
+                would attach to the figure it does not explain — the total is the whole charge, and
+                the fee is one line of it. Inside the label, the tab order reads exactly as the
+                sentence does: `Service fee` → `What is the service fee?` → the amount.
+
+                `inline-flex items-center` so the glyph centres on the label's text; the ROW stays
+                `items-baseline`, which is what keeps every money figure in this breakdown sitting on
+                one baseline, and an inline-flex box takes its baseline from its first item — the
+                label text. The row's height is unchanged: see the trigger's own `-my-3` note. */}
+            <span className="inline-flex items-center gap-1 text-muted-foreground">
+              Service fee
+              <ServiceFeePopover />
+            </span>
             <span className="tabular-nums">{formatMoney(serviceFeeCents, currency)}</span>
           </div>
         )}
