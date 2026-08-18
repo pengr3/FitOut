@@ -3,8 +3,9 @@
 // A single Playwright spec that drives the dev app against the dev Postgres (public schema — the same DB
 // the Playwright webServer's dev app reads):
 //   search (`/`) → apply a filter → click a result card → open the listing → pick a venue-tz window →
-//   `Book this space` → land on the LIVE reserve page (venue-tz window + ₱ price breakdown + live "Held for
-//   mm:ss" countdown). The seeded listing is `instant` (the host is payouts-enabled), so `Book this space`
+//   `Book this space` → land on the LIVE reserve page (venue-tz window + ₱ price breakdown + the live
+//   mm:ss countdown, which plan 12-03 moved into the checkout HEADER — see the amended assertions
+//   below). The seeded listing is `instant` (the host is payouts-enabled), so `Book this space`
 //   mints a 15-min hold and redirects to `/book?hold=<id>` — the reserve page is the automatable END of the
 //   instant flow. The tail past it (`Confirm booking` → a PayMongo HOSTED CHECKOUT → the durable
 //   confirmation) CANNOT be driven from Playwright, so the durable-confirmation coverage comes from a
@@ -274,12 +275,22 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     // ── Reserve page: the placeHold POST minted the pending hold and redirected here (?hold=<id>). ──────
     await page.waitForURL(/\/book\?hold=/);
     await expect(page.getByRole("heading", { name: /review and book/i })).toBeVisible();
-    // Venue-tz window + tz note (SC#2), the frozen ₱ breakdown, and the live "Held for mm:ss" countdown.
+    // Venue-tz window + tz note (SC#2), the frozen ₱ breakdown, and the live countdown.
     await expect(page.getByText(/\(GMT\+8\)/i).first()).toBeVisible();
     await expect(page.getByText(/5:00\s*PM\s*[–-]\s*7:00\s*PM/i)).toBeVisible();
     await expect(page.getByText("Total", { exact: true })).toBeVisible();
     await expect(page.getByText(/₱[\d,]+/).first()).toBeVisible();
-    await expect(page.getByText(/Held for/i)).toBeVisible();
+    // AMENDED BY PLAN 12-03 (D-49). This line read `getByText(/Held for/i)` and went red on a correct
+    // tree: the countdown moved out of the booking rail and into the CHECKOUT HEADER, where it is a
+    // clock glyph plus mm:ss inside a 96px reservation and has no room for a sentence. The rail keeps
+    // the words and loses the digits, so both halves of the old assertion still exist — they are just
+    // in two places now, and asserting each where it actually lives is what makes this a real check
+    // rather than a copy pin. The `role="timer"` line below is unchanged and is still the digits.
+    await expect(page.getByText(/We.re holding this for you while you review/i)).toBeVisible();
+    await expect(
+      page.getByTestId("site-header").getByRole("timer"),
+      "the countdown is not in the checkout header (D-49 / SHELL-03)",
+    ).toBeVisible();
     await expect(page.getByRole("timer")).toContainText(/\d+:\d{2}/);
     // The terminal action + its HONEST pre-charge reassurance (D-57): the current reserve page shows a
     // `Confirm & pay` CTA and "You'll pay {total} now — cards, GCash, Maya, or QR Ph." — NOT the stale
@@ -332,8 +343,11 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     await bookBtn.click();
 
     await page.waitForURL(/\/book\?hold=/);
-    // Sanity: an ACTIVE hold shows the countdown before we force it to expire.
-    await expect(page.getByText(/Held for/i)).toBeVisible();
+    // Sanity: an ACTIVE hold shows the countdown before we force it to expire. AMENDED BY PLAN 12-03
+    // (D-49) for the same reason as the line above: the digits are in the checkout HEADER now, so the
+    // sanity check is the timer's presence there rather than the rail sentence that used to accompany
+    // it. `role="timer"` is the accessible query and stays one.
+    await expect(page.getByTestId("site-header").getByRole("timer")).toContainText(/\d+:\d{2}/);
 
     const holdId = new URL(page.url()).searchParams.get("hold");
     expect(holdId).toBeTruthy();

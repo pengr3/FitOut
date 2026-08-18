@@ -6,6 +6,12 @@ import {
   installTruncator,
   type TruncatorState,
 } from "./helpers/served-document";
+import {
+  placeHold,
+  seedBookableListing,
+  signUpBooker,
+  type SeededListing,
+} from "./helpers/booker-seed";
 import { seedTheme } from "./helpers/theme";
 
 // SHELL-01 / SHELL-03 — the app shell's geometry, measured in real pixels in real Chromium.
@@ -121,6 +127,10 @@ import { seedTheme } from "./helpers/theme";
 //     needs a minted hold — a session, a bookable listing and an open slot — and a gate with that
 //     seed dependency stops running the first time the seed changes (this plan's own threat model).
 //     See that test's own note for the two states it measured and why it asserts on the first.
+//     AMENDED BY PLAN 12-03: the seed-bearing half now exists as its own describe at the bottom of
+//     this file, because SHELL-03's third criterion — EXACTLY ONE `<a href>` inside `<main>` — is a
+//     PRESENCE claim and cannot be made against a not-found boundary. The two are deliberately kept
+//     apart rather than merged: the cheap absence gate above keeps running when the seed breaks.
 //   • It says nothing about colour, contrast or type. Those are `tests/design/**` and Phase 17.
 
 /** The two themes, seeded pre-paint through the provider's own storage key. */
@@ -508,6 +518,117 @@ test.describe("AC#5 — the checkout composition has no way out of the page", ()
       ).toHaveCount(0);
     });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// SHELL-03 (plan 12-03) — AC#5's three criteria on a REAL, RESOLVED checkout, and the one way back.
+//
+// WHY THIS IS A SECOND DESCRIBE RATHER THAN THREE MORE ASSERTIONS IN AC#5's. AC#5 above measures the
+// SERVED document, and its own note says why: without a minted hold the checkout `notFound()`s and the
+// client swaps in the root not-found, which mounts a different shell entirely. That is the right call
+// for the two ABSENCE claims (zero header anchors, zero footers) — an absence is provable on the
+// server's own bytes and needs no seed.
+//
+// The third criterion is a PRESENCE claim — exactly one `<a href>` inside `<main>`, and it must point
+// at `/listings/` and must not carry the resume discriminator — and there is no way to make it on a
+// document whose `<main>` is a not-found boundary. So it needs a real hold, which means a seed, which
+// is exactly the dependency AC#5 was written to avoid. Keeping them apart means the cheap absence
+// gate keeps running unchanged when this one's seed breaks.
+//
+// ⚠️ ONE MORE MEASURED TRAP, and it is the same one `booker-seed.ts:placeHold` records:
+// `app/listings/[id]/book/loading.tsx` renders the SAME `<h1>Review and book</h1>` as the resolved
+// page. Counting anchors inside a `<main>` that is still a skeleton yields ZERO — a perfect pass for
+// the wrong reason, on the criterion that is supposed to prove the booker is NOT trapped. The helper
+// waits for `price-total`, which exists only in the resolved body.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+test.describe("SHELL-03 — the checkout gives the booker exactly one labelled way back", () => {
+  test.describe.configure({ mode: "serial" });
+
+  let seed: SeededListing;
+
+  test.beforeAll(async () => {
+    seed = await seedBookableListing({ titlePrefix: "E2E Shell" });
+  });
+
+  test.afterAll(async () => {
+    await seed.teardown();
+  });
+
+  test("a live checkout: 0 header anchors, 0 footers, and EXACTLY ONE anchor in <main>", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await seedTheme(page.context(), "court");
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await signUpBooker(page, seed);
+    await placeHold(page, seed, "9:00 AM", "10:00 AM");
+    const where = "/listings/[id]/book (live hold) · court";
+    await expectShellReachable(page, where);
+
+    // The two ABSENCE claims, restated here against the RESOLVED document. AC#5 proves them on the
+    // served bytes; this proves the hydrated, hold-bearing page did not grow one — a countdown in the
+    // header (D-49) is new chrome on this route, and "new chrome" is exactly how a link arrives.
+    const headerAnchors = await page.evaluate(
+      () =>
+        document.querySelector('[data-testid="site-header"]')?.querySelectorAll("a[href]").length ??
+        -1,
+    );
+    expect(
+      headerAnchors,
+      `${where}: the checkout header holds ${headerAnchors} <a href>. SHELL-03 forbids navigation that ` +
+        "can silently lose an active hold, and the hold on this page is a real row with a real expiry. " +
+        "The countdown that now fills the actions slot is a <div>, not a link, and must stay one.",
+    ).toBe(0);
+
+    await expect(
+      page.getByTestId("site-footer"),
+      `${where}: the checkout route rendered a footer. A footer is a grid of links, which is the same ` +
+        "hazard as a linked wordmark.",
+    ).toHaveCount(0);
+
+    // THE PRESENCE CLAIM. "No way out" and "trapped" are different things: the booker must have exactly
+    // ONE labelled way back, it must go to the listing, and it must not be able to mint a second hold.
+    const mainAnchors = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("main a[href]")).map((a) => ({
+        href: a.getAttribute("href") ?? "",
+        text: (a.textContent ?? "").trim(),
+      })),
+    );
+    expect(
+      mainAnchors.length,
+      `${where}: <main> holds ${mainAnchors.length} anchors: ${JSON.stringify(mainAnchors)}. ` +
+        "EXACTLY ONE is the requirement in both directions — zero traps the booker on a page whose " +
+        "header deliberately has nothing to click, and two or more re-opens the wandering-off problem " +
+        "SHELL-03 exists to close.",
+    ).toBe(1);
+
+    const [back] = mainAnchors;
+    expect(
+      back.href.startsWith("/listings/"),
+      `${where}: the one way back points at "${back.href}". It must return the booker to the listing ` +
+        "they are holding, not to the catalogue and not off-site.",
+    ).toBe(true);
+    expect(
+      back.href.includes("resume"),
+      `${where}: the way back carries "${back.href}". The resume discriminator re-fires a hold on ` +
+        "arrival (book-cta.tsx), which turns this link into a hold-creating GET — the T-04-GETDUP " +
+        "shape, arriving through the one anchor SHELL-03 allows (T-12-03-GETDUP).",
+    ).toBe(false);
+    expect(
+      back.text,
+      `${where}: the one way back reads "${back.text}". An unlabelled or vaguely-labelled escape from ` +
+        "a page holding a live booking is the same defect as no escape at all.",
+    ).toBe("Back to the listing");
+
+    // …and it says what happens to the hold. The promise is what makes the link safe to use rather
+    // than merely present.
+    await expect(
+      page.getByText(/we'll keep your hold/i),
+      `${where}: the way back does not state that the hold survives it.`,
+    ).toBeVisible();
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════

@@ -689,7 +689,13 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // and the live hold countdown.
     await expect(page.getByText(/₱[\d,]+\.\d{2}\/person × 1 pass/)).toBeVisible();
     await expect(page.getByText("Total", { exact: true })).toBeVisible();
-    await expect(page.getByText(/Held for/i)).toBeVisible();
+    // AMENDED BY PLAN 12-03 (D-49): the countdown moved from the booking rail to the checkout HEADER,
+    // where it is a clock glyph plus mm:ss in a 96px reservation and has no room for a sentence. The
+    // rail keeps the reassurance without the digits; both halves are asserted where they now live. A
+    // drop-in hold reaches the same header through the same context as an exclusive one, which is the
+    // property this line is now checking.
+    await expect(page.getByText(/We.re holding this for you while you review/i)).toBeVisible();
+    await expect(page.getByTestId("site-header").getByRole("timer")).toContainText(/\d+:\d{2}/);
 
     // …and the terminal control is PRESENT and ENABLED. This is the frontier of the browser proof.
     const confirm = page.getByRole("button", { name: /confirm & pay/i });
