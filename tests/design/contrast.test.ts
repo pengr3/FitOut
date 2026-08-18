@@ -220,9 +220,12 @@ describe("the derived values this phase committed to", () => {
   it("carries every failing pairing as data with a stated reason (D-13)", () => {
     // An inventory that omits a failing pair is indistinguishable from one that forgot it.
     // 3 at phase 10 (`--border`, `--input`, `destructive-40`); 6 since plan 11-07 added the two
-    // skeleton fills and `ui/card.tsx:15`'s hairline. A FLOOR, not an equality (D-32) — a future
-    // exclusion is a legitimate addition, but LOSING one is the silent direction this pins.
-    expect(EXCLUDED_PAIRS.length).toBeGreaterThanOrEqual(6);
+    // skeleton fills and `ui/card.tsx:15`'s hairline; 7 since plan 12-01 declared the soft-accent
+    // notice's `border-brand/30` edge, which had been shipping at `slot-picker.tsx:268` unmeasured.
+    // A FLOOR, not an equality (D-32) — a future exclusion is a legitimate addition, but LOSING one
+    // is the silent direction this pins, and the floor is RAISED with the inventory so that it keeps
+    // being able to notice.
+    expect(EXCLUDED_PAIRS.length).toBeGreaterThanOrEqual(7);
     for (const entry of EXCLUDED_PAIRS) {
       expect(entry.reason.length, `${entry.fg} on ${entry.bg}`).toBeGreaterThan(20);
       expect(entry.measured.length).toBeGreaterThan(0);

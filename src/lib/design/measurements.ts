@@ -175,3 +175,105 @@ export const PANEL_MIN_HEIGHT = "min-h-40";
  * here anyway because AC#16 asks for zero literal heights, not for zero unmeasured ones.
  */
 export const TEXT_BAR_HEIGHT = "h-4";
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 12 — the seven values the booker path spends, declared BEFORE any surface consumes one
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Every one of these is taken verbatim from `12-UI-SPEC.md § New measurement constants`, and every one
+// is a DERIVATION rather than a preference — the derivation is the comment beside it, in the shape the
+// nine constants above established. They are declared here, in plan 12-01, before the plans that render
+// them exist, for the reason this module's header gives: a constant declared once is a value ONE plan
+// can be wrong about, whereas a literal invented at nine call sites is nine independent chances to be
+// wrong and no mechanism that can notice.
+//
+// TWO OF THEM CARRY A HAZARD, and the hazard lives here rather than only in a planning document —
+// a later plan reads the constant, not the document. See `CALENDAR_CELL` and `SLOT_CHIP_BOX`.
+
+/**
+ * The gutter shared by the search result grid and its skeleton: 16px, 24px from `sm:` up.
+ *
+ * THE `[11-17]` ±4px DRIFT, RESOLVED MECHANICALLY (D-57). `ResultsGrid` shipped `gap-4 lg:gap-6` and
+ * `CardGridSkeleton` shipped a 20px gutter — ±4px per gutter, in OPPOSITE directions either side of
+ * `lg`, which is why neither side looked wrong on its own. The 20px step is retired: it is not on the
+ * declared spacing ladder (D-05), and both 16px and 24px are. The `lg:` step goes with it — a third
+ * gutter value at a third breakpoint is a number nobody can justify, and the grid already changes
+ * column count at `sm:` and `lg:`.
+ *
+ * The two sides cannot disagree again, because there is only one string. That is this module's whole
+ * argument, applied to the one geometry that had already drifted.
+ *
+ * `/host/listings` (Phase 14) composes `CardGridSkeleton` and its gutter moves with this constant. That
+ * is intended: it adopts the constant when it adopts the skeleton, it does not get a second one.
+ */
+export const RESULT_GRID_GAP = "gap-4 sm:gap-6";
+
+/**
+ * The availability calendar's cell size: 44px.
+ *
+ * `ui/calendar.tsx` ships `--spacing(7)` = 28px, which is the BFLOW-05 debt MEASURED rather than
+ * asserted. Overriding the variable at the call site is the whole edit: the nav buttons, the weekday
+ * row and the caption all read `--cell-size` and re-size together.
+ *
+ * HAZARD — THE DAY BUTTON IS NOT COVERED BY THIS CONSTANT, and a later plan that assumes it is will
+ * ship a 28px touch target under a 44px grid. `ui/calendar.tsx`'s day class carries `aspect-square`
+ * plus `min-w-(--cell-size)`, so the day button's HEIGHT does not follow the variable the way its
+ * width does (RESEARCH Pitfall 2). The day-button half goes through the `components={{ DayButton }}`
+ * seam and must be MEASURED — a rendered `boundingBox()`, not a class inspection — by the plan that
+ * owns it (12-09). Setting this variable is necessary and NOT sufficient.
+ */
+export const CALENDAR_CELL = "[--cell-size:--spacing(11)]";
+
+/**
+ * A slot chip's box: 44 × 80px.
+ *
+ * 44px is the WCAG 2.5.5 target-size figure, already this app's declared `size="touch"` (D-22) and
+ * already `NOTIFICATION_BELL_BOX`. 80px is the width the shipped slot skeleton
+ * (`availability-calendar.tsx`) reserves for a chip.
+ *
+ * HAZARD — THIS IS THE SHIMMER'S BOX TODAY, NOT YET THE SINGLE SOURCE OF BOTH. The UI-SPEC derives
+ * `w-20` from "the real chip's minimum", and the real chip does NOT have that minimum: `slot-picker`'s
+ * chips carry `min-h-11` and no `min-w-20` (RESEARCH Pitfall 9). So the two boxes agree in height and
+ * are free to disagree in width right now. Whichever plan makes this constant the single source of
+ * both MUST add `min-w-20` to the real chip in the SAME commit — otherwise it has declared a shared
+ * measurement that only one side obeys, which is the exact defect this module exists to remove.
+ */
+export const SLOT_CHIP_BOX = "h-11 w-20";
+
+/**
+ * A sticky bottom bar's height: 64px.
+ *
+ * A declared ladder step, and the same height as the desktop header (`HEADER_HEIGHT`'s `sm:h-16`), so
+ * the app's two fixed edges match. A 44px action centred inside it needs no declared vertical padding
+ * at all, which is why the bar's height is the only number the bar spends.
+ */
+export const STICKY_BAR_HEIGHT = "h-16";
+
+/**
+ * The bottom padding a page needs when it renders a sticky bottom bar: 80px.
+ *
+ * 64 (the bar) + 16 (a gap) — the SAME arithmetic as the app shell's `lg:top-20`, from the other end
+ * of the viewport. It is a measurement rather than a taste call because without it the last row of
+ * content sits under the bar and the page has a permanently unreachable line.
+ */
+export const STICKY_BAR_CLEARANCE = "pb-20";
+
+/**
+ * The checkout header's hold-countdown box: 32 × 96px.
+ *
+ * A RESERVATION, not a design value. `14:52` and `0:09` are different character counts, so a box with
+ * a width floor is what stops the header reflowing once per session — the same argument `AUTH_SLOT_BOX`
+ * makes for the session slot. The 96px reuses `AUTH_SLOT_CONTROL`'s width rather than inventing a
+ * second reservation, and `h-8` is the header's control step restated on the child.
+ */
+export const HOLD_COUNTDOWN_BOX = "h-8 min-w-24";
+
+/**
+ * The listing gallery mosaic's outer box.
+ *
+ * The gallery renders a different INTERNAL arrangement at one, two, three and five-plus photos; this is
+ * the box all of those arrangements sit inside. Declaring the outer ratio is what lets the listing
+ * route's `loading.tsx` skeleton occupy the mosaic's height before any photo count is known — the same
+ * mechanism as `RESULT_CARD_MEDIA`, one level up.
+ */
+export const MOSAIC_ASPECT = "aspect-[16/9]";
