@@ -58,6 +58,7 @@ import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { ListingMapPanel } from "@/components/listing/listing-map-panel";
 import { DropInBadge } from "@/components/listing/drop-in-badge";
 import { HostBlock } from "@/components/listing/host-block";
+import { KeyFacts } from "@/components/listing/key-facts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PanelCard } from "@/components/patterns/panel-card";
@@ -491,6 +492,19 @@ export default async function PublicListingPage({
               <p className="text-sm text-muted-foreground">Hosted by {host.firstName}</p>
             )}
           </header>
+
+          {/* D-43 — the key-facts strip, immediately after the title and before the description slot.
+              `PublicListing` needed NO projection change for this: `bookingMode`, `occupancyMode` and
+              `unitCount` are read off the listing row directly, exactly as the rest of this file
+              already reads them, while `maxOccupancy` and `primarySpaceType` come off the public
+              projection that has always carried them. */}
+          <KeyFacts
+            occupancyMode={row.listing.occupancyMode}
+            bookingMode={row.listing.bookingMode}
+            primarySpaceType={pub.primarySpaceType}
+            maxOccupancy={pub.maxOccupancy}
+            unitCount={row.listing.unitCount}
+          />
 
           {/* ── THE DESCRIPTION SLOT: `About this space` then `Amenities`, ONE section ──────────────
               BFLOW-02 resolves the requirement's one ambiguity here. Its order names six headings and

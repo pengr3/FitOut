@@ -147,6 +147,8 @@ export const SELECTOR_IDS = [
   "rail-price-total",
   // 12-07 — the full-screen photo lightbox.
   "photo-lightbox",
+  // 12-08 — the listing page's key-facts strip.
+  "listing-key-facts",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -371,5 +373,20 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "makes the lightbox a raw full-screen `ui/dialog` rather than the RESP-01 pattern, and this pair " +
       "of ids is what stops that decision quietly reverting to \"some dialog opened\".",
     owner: "12-07",
+  },
+
+  // ─── 12-08 ─────────────────────────────────────────────────────────────────────────────────────────
+  "listing-key-facts": {
+    why:
+      "A `<dl>` has no implicit ARIA role in any browser, so there is no role query that can address " +
+      "the strip at all — and a NAME query is worse than unavailable, it is wrong: the assertions hung " +
+      "on this element are about the SET of pairs it renders (how many, in which order, and — the one " +
+      "that is a correctness rule rather than a layout preference — that the `Units` value reads " +
+      "`1 of 4 courts` and never a bare `4 courts`). A set assertion needs the container, because its " +
+      "whole content is the claim; addressing any individual `<dt>` by its text would be green for a " +
+      "strip that had silently lost the other three. The page also renders definition-free label/value " +
+      "prose elsewhere (the rail's price lines, the host block), so scoping by tag alone would collect " +
+      "the wrong nodes the moment either of those grows a description list of its own.",
+    owner: "12-08",
   },
 };
