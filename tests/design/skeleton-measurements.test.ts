@@ -71,6 +71,58 @@
 //     passed.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WATCHED RED — the D-57 gutter clause, both probes run, both reverted, verbatim (18 August 2026)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// (c) THE IMPORT HALF. `card-grid-skeleton.tsx`'s `cn(RESULT_GRID_GAP, "grid sm:grid-cols-2
+//     lg:grid-cols-3")` was changed to the literal `"grid gap-4 sm:gap-6 sm:grid-cols-2
+//     lg:grid-cols-3"` and `RESULT_GRID_GAP` dropped from the import — the constant's VALUE inlined,
+//     which is the review-invisible edit that re-opens `[11-17]`. Verbatim:
+//
+//       AssertionError: these files render the search result grid's gutter without importing
+//       RESULT_GRID_GAP from @/lib/design/measurements. The pending grid and the resolved grid stand
+//       in for each other on the same route, so a gutter either of them owns privately is the ±4px
+//       drift `[11-17]` recorded and D-57 closed — reachable again the moment one side stops
+//       importing.: expected [ Array(1) ] to deeply equal []
+//
+//       - Expected
+//       + Received
+//
+//       - []
+//       + [
+//       +   "src/components/patterns/card-grid-skeleton.tsx",
+//       + ]
+//
+//     1 failed / 8 passed. THE BLAST RADIUS IS THE POINT, and it is why this clause exists as its own
+//     assertion rather than as an extension of the two above: BOTH shipped clauses stayed GREEN
+//     through it. The import check passed because the file still imports `RESULT_CARD_MEDIA` and
+//     `TEXT_BAR_HEIGHT` (it asserts "at least one", by design — see probe (a)); the literal ban passed
+//     because `gap-*` is spacing BETWEEN boxes, not a box, so `BOX_PREFIXES` cannot see it and must
+//     not be widened to try. The inlined gutter was invisible to this entire file before this clause.
+//     Reverted (`cp` from a pre-probe copy; `git diff` clean) → 9 passed.
+//
+// (d) THE RETIRED-STEP HALF, ISOLATED. The import left intact and only the class list changed, to
+//     `cn(RESULT_GRID_GAP, "grid gap-5 sm:grid-cols-2 lg:grid-cols-3")` — i.e. the 20px step written
+//     BESIDE the constant, which is the shape the `measurements.ts` header calls out as the violation
+//     it is structurally unable to see. The import clause therefore passes and only the absence
+//     clause can fire. Verbatim:
+//
+//       AssertionError: the 20px gutter step is RETIRED: it is not on the declared spacing ladder
+//       (D-05), and both 16px and 24px are. A file still writing it has re-opened the drift.:
+//       expected [ Array(1) ] to deeply equal []
+//
+//       - Expected
+//       + Received
+//
+//       - []
+//       + [
+//       +   "src/components/patterns/card-grid-skeleton.tsx",
+//       + ]
+//
+//     1 failed / 8 passed, and it is the OTHER expectation that fired — which is what makes the two
+//     halves independently load-bearing rather than one assertion written twice. Reverted → 9 passed.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //   • THE BOX CAN BE RIGHT AND THE SHAPE STILL WRONG. This proves a skeleton's classes come from the
@@ -85,6 +137,12 @@
 //     import `ROW_CARD_HEIGHT`, never reference it, and satisfy this half — which is precisely what
 //     probe (a) above demonstrates. The literal ban is what makes the pair meaningful; neither clause
 //     is worth much alone.
+//   • THE D-57 GUTTER CLAUSE IS A CLAIM ABOUT SOURCE TEXT, NOT ABOUT PIXELS. It proves both files
+//     import the same constant and neither writes the retired step. It cannot prove the two grids
+//     RENDER the same gutter — a wrapper with its own padding, a `cn` collision, a Tailwind class that
+//     never got emitted, all pass here and all shift the layout. That is
+//     `e2e/skeleton-geometry.spec.ts`'s `/`-based case, which measures both states' `boundingBox()`es
+//     on the real route and asserts the absolute 16/24px as well as the equality.
 //   • The scan is scoped to `patterns/*skeleton*.tsx`. A surface that hand-rolls its own skeleton
 //     inline, instead of composing one of the three, is outside this gate entirely. Plan `11-22`'s
 //     forward direction over `selector-contract.ts` is what would notice a shape that never shipped;
@@ -94,6 +152,8 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import ts from "typescript";
+
+import { stripComments } from "./helpers/strip-comments";
 
 /** The scanned directory, as one constant — probe (b) above is a one-line edit here. */
 const PATTERNS_DIR = resolve(process.cwd(), "src/components/patterns");
@@ -376,6 +436,71 @@ describe("AC#16 — a skeleton's box comes from the measurement inventory", () =
     expect(boxViolationIn("lg:grid-cols-3")).toBeNull();
     expect(boxViolationIn("rounded-xl")).toBeNull();
     expect(boxViolationIn("sr-only")).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------------------------
+  // D-57 / `[11-17]` — THE ONE GUTTER, asserted on BOTH sides of the pair.
+  //
+  // This is the same rule as the literal ban above, applied to the one geometry that had ALREADY
+  // drifted, and it needs its own clause because only one of the two files is a `patterns/*skeleton*`
+  // and so only one of them is inside the scan above. `gap-*` is not a box utility either — it is
+  // spacing BETWEEN boxes — so `BOX_PREFIXES` would never have caught it in either file.
+  // -------------------------------------------------------------------------------------------
+
+  it("gives the result grid and its skeleton ONE gutter, imported (D-57)", () => {
+    const PAIR = [
+      "src/components/search/search-results.tsx",
+      "src/components/patterns/card-grid-skeleton.tsx",
+    ] as const;
+
+    // The retired 20px step, spelled as a fragment so this assertion's own source cannot satisfy
+    // the `.includes()` it performs — the same reason `contrast-pairs.ts` describes the rejected
+    // brand alpha class instead of quoting it.
+    const RETIRED_GUTTER = `gap-${5}`;
+
+    const read = PAIR.map((label) => ({
+      label,
+      text: readFileSync(resolve(process.cwd(), label), "utf8"),
+    }));
+
+    // GUARD THE GUARD, FIRST — both clauses below are absence/presence claims over file text, and
+    // a `readFileSync` that returned an empty string satisfies the absence half perfectly. Probe (b)
+    // in the header is what this is modelled on.
+    for (const file of read) {
+      expect(file.text.length, `${file.label} was read as empty`).toBeGreaterThan(200);
+      expect(stripComments(file.text).trim().length, `${file.label} is all comment`).toBeGreaterThan(
+        100,
+      );
+    }
+
+    const notImporting = read
+      .filter((file) => !measurementImportsIn(file.label, file.text).includes("RESULT_GRID_GAP"))
+      .map((file) => file.label);
+    expect(
+      notImporting,
+      `these files render the search result grid's gutter without importing RESULT_GRID_GAP from ` +
+        `${MEASUREMENTS_MODULE}. The pending grid and the resolved grid stand in for each other on ` +
+        `the same route, so a gutter either of them owns privately is the ±4px drift \`[11-17]\` ` +
+        `recorded and D-57 closed — reachable again the moment one side stops importing.`,
+    ).toEqual([]);
+
+    // …and the retired step survives in NEITHER, comments included — counted over comment-stripped
+    // source, because both files explain the hazard in prose and a bare text scan counts the
+    // explanation. (This is the same finding the header records against the plan's prescribed grep.)
+    const retained = read
+      .filter((file) => stripComments(file.text).includes(RETIRED_GUTTER))
+      .map((file) => file.label);
+    expect(
+      retained,
+      `the 20px gutter step is RETIRED: it is not on the declared spacing ladder (D-05), and both ` +
+        `16px and 24px are. A file still writing it has re-opened the drift.`,
+    ).toEqual([]);
+
+    // GUARD THE GUARD, SECOND DIRECTION: the absence assertion must be capable of firing. If
+    // `stripComments` ever returns something a `.includes()` cannot match, the clause above passes
+    // over anything.
+    expect(stripComments(`const a = "${RETIRED_GUTTER} grid";`)).toContain(RETIRED_GUTTER);
+    expect(stripComments(`// a comment naming ${RETIRED_GUTTER}`)).not.toContain(RETIRED_GUTTER);
   });
 
   it("does not mistake a class named in a comment for one written at a call site", () => {

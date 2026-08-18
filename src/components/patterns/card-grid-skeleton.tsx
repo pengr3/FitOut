@@ -15,7 +15,11 @@
 // to the surface and to the UI-SPEC that approved it, never to a file in `patterns/`.
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { RESULT_CARD_MEDIA, TEXT_BAR_HEIGHT } from "@/lib/design/measurements";
+import {
+  RESULT_CARD_MEDIA,
+  RESULT_GRID_GAP,
+  TEXT_BAR_HEIGHT,
+} from "@/lib/design/measurements";
 import { cn } from "@/lib/utils";
 
 export function CardGridSkeleton({
@@ -41,7 +45,14 @@ export function CardGridSkeleton({
     // appears — which is a different thing from the region's name, and both are wanted.
     <div role="status" aria-busy="true" aria-label={label} data-testid="skeleton-card-grid">
       <span className="sr-only">{label}</span>
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {/* THE GUTTER IS `RESULT_GRID_GAP`, NOT A LITERAL, and that is the `[11-17]` ±4px drift closed
+          mechanically (D-57). This grid and `search-results.tsx`'s `ResultsGrid` stand in for each
+          other on the same route — the pending state and the resolved one — so a gutter either of
+          them owns privately is a layout shift waiting for the results to land. The retired 20px
+          step was not on the declared spacing ladder either way. `/host/listings` composes this
+          pattern and its gutter moves with the constant; that is intended, it adopts the constant
+          when it adopts the skeleton rather than getting a second one. */}
+      <div className={cn(RESULT_GRID_GAP, "grid sm:grid-cols-2 lg:grid-cols-3")}>
         {Array.from({ length: count }).map((_, i) => (
           <div key={i} className="space-y-3">
             {/* Every box class comes from `measurements.ts` — `RESULT_CARD_MEDIA` is the constant

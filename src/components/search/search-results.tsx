@@ -21,6 +21,8 @@ import { CardGridSkeleton } from "@/components/patterns/card-grid-skeleton";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { RESULT_GRID_GAP } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -61,7 +63,13 @@ function ResultsGrid({
   searchedWindow?: SearchedWindow;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+    // THE GUTTER COMES FROM `RESULT_GRID_GAP` (D-57 / `[11-17]`). This grid and the skeleton that
+    // stands in for it on the same route used to own a gutter each, ±4px apart in opposite
+    // directions either side of `lg` — invisible to jsdom (D-131) and to review. One imported string
+    // means they cannot disagree again. The `lg:` gutter step is gone with the drift: a third gutter
+    // value at a third breakpoint is a number nobody can justify, and the grid already changes
+    // COLUMN COUNT at `sm:` and `lg:`, which is the change a reader actually perceives.
+    <div className={cn(RESULT_GRID_GAP, "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
       {rows.map((row) => (
         <SearchResultCard key={row.id} listing={row} searchedWindow={searchedWindow} />
       ))}
@@ -198,13 +206,15 @@ export function SearchResults({
         // busy state to nobody: `role="status"` is `nameFrom:author`, so the pattern's `aria-label` is
         // what makes it a named live region (measured in plan 11-07 with `dom-accessibility-api`).
         //
-        // MEASURED RESIDUAL, recorded rather than hidden: `ResultsGrid` above is `gap-4 lg:gap-6` and
-        // the shared pattern is `gap-5`, because the other adopter (`/host/listings`) is a `gap-5`
-        // grid. That is ±4px per gutter, in opposite directions either side of `lg`. It is left as-is
-        // rather than pushed into the pattern as a spacing prop — a pattern that takes its geometry
-        // from the call site has stopped deciding anything, which is `invite-card.tsx`'s argument for
-        // owning its own rhythm — and it is handed to plan 11-21, whose ±2px `boundingBox()`
-        // comparison is the only thing that can actually see it (jsdom cannot, D-131).
+        // THE MEASURED RESIDUAL `[11-17]` RECORDED HERE IS CLOSED (plan 12-01 / D-57). This pattern
+        // and `ResultsGrid` above each owned a gutter, ±4px apart in opposite directions either side
+        // of `lg`; both now read `RESULT_GRID_GAP` from `measurements.ts` and cannot disagree again,
+        // which is a stronger resolution than the spacing prop that was considered and rejected — a
+        // pattern that takes its geometry from the call site has stopped deciding anything, which is
+        // `invite-card.tsx`'s argument for owning its own rhythm. The residual was NOT closed by
+        // review: jsdom cannot see a rendered gutter at all (D-131), so `e2e/skeleton-geometry.spec.ts`
+        // measures both states' `boundingBox()`es on `/` itself and asserts they agree AND that they
+        // agree at 16/24px.
         <CardGridSkeleton label="Loading spaces" />
       ) : hasResults ? (
         <div className={isPending ? "opacity-60 transition-opacity" : undefined}>

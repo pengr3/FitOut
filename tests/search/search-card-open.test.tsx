@@ -135,6 +135,40 @@
 //   than beside it, and the proof comes from assertions written before this line existed. A drop-in card
 //   still cannot advertise hours the pass does not reserve, whichever line tries to.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
+// CASE (10) — plan 12-01, D-37 as an EXECUTABLE rule: the tile carries the all-in RATE and never a
+// total computed from the searched window.
+//
+// It is GREEN on unchanged `src/` — 12-01 modifies no component this file renders, and a regression
+// pin that reddens on its own plan is measuring that plan rather than protecting the card (the
+// discipline case (9) states in its own note). So its teeth come from a mutation, not from a first red.
+//
+// M4 — a computed window total added to `search-result-card.tsx`'s `price` node, beside the existing
+//   rate: a second `<span>` rendering `₱<rate × 2> total`, i.e. the two-hour window the props already
+//   carry. This is the exact one-line edit Phase 12 makes tempting — the listing page and the checkout
+//   summary both compute a total from THIS window — and it is locally reasonable, which is why it
+//   needs a gate rather than a review.
+//   PREDICTED: (10) red on the money-array equality.  OBSERVED: (10) AND (9) red. VERBATIM:
+//
+//    FAIL  … > (10) REGRESSION (D-37): the tile shows the all-in RATE and no window total, in either mode
+//   AssertionError: exclusive: the tile renders money the rate parts do not declare: expected
+//   [ '₱322.88', '₱645.76' ] to deeply equal [ '₱322.88' ]
+//
+//     - Expected
+//     + Received
+//
+//       [
+//         "₱322.88",
+//     +   "₱645.76",
+//       ]
+//
+//    Test Files  1 failed (1) · Tests  2 failed | 8 passed (10)
+//
+//   (9) reddening alongside is CORRECT rather than redundant: it is a byte-identity pin on the
+//   exclusive card, so any added node moves it. What (9) cannot do is speak about the drop-in card or
+//   name the rule — its failure says "the text changed", while (10)'s says "money rendered that the
+//   server's rate parts do not declare", in both modes, with the offending figure printed. Reverted
+//   (`git diff --exit-code src/` clean) → 10 passed.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
@@ -214,6 +248,20 @@ function makeExclusiveRow(overrides: Partial<SearchResultRow> = {}): SearchResul
 
 /** Any digit immediately followed by a colon — i.e. a wall-clock time anywhere in the rendered card. */
 const CLOCK_TIME = /\d:/;
+
+/**
+ * Any peso amount anywhere in the rendered card — `₱322.88`, `₱1,234.00`, `₱350`.
+ *
+ * The `g` flag is deliberate and the regex is re-created per use (`new RegExp(MONEY)`) rather than
+ * shared, because a global regex carries `lastIndex` between `matchAll` calls in some engines and a
+ * stateful matcher in an assertion is a false green waiting to happen.
+ */
+const MONEY = /₱[\d,]+(?:\.\d{2})?/g;
+
+/** Every peso amount in a string, in render order. */
+function moneyIn(text: string): string[] {
+  return [...text.matchAll(new RegExp(MONEY))].map((m) => m[0]);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // Cases (7)-(9): the drop-in explainer line (quick task 260811-elm · audit item #6, copy clause).
@@ -420,5 +468,79 @@ describe("SearchResultCard — drop-in listings (OC-12 / O2)", () => {
 
     expect(screen.queryByText(BLURB)).toBeNull();
     expect(container.textContent ?? "").not.toMatch(FORBIDDEN);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // Case (10) — D-37, THE RATE-ONLY TILE, as an executable rule (plan 12-01).
+  //
+  // The card carries the all-in RATE and never a total computed from the searched window. That has
+  // been true since the card shipped and it is stated as a header comment in `search-result-card.tsx`
+  // — which is exactly the shape of guarantee this repo has twice watched go quietly false (the
+  // `AUTH_SLOT_ICON` docblock, the `lg:sticky` count). A sentence in a file cannot fail.
+  //
+  // WHY IT IS WORTH PINNING NOW, IN A PLAN THAT DOES NOT TOUCH THIS COMPONENT. Phase 12 is the phase
+  // that introduces a window total — the listing page's price breakdown and the checkout summary both
+  // compute (rate × hours) + fees for the SAME searched window this card already receives in props.
+  // The cheap-looking edit ("the searcher picked 9–11, show them what 9–11 costs") is one line, is
+  // locally reasonable, and would put an unreserved price on the busiest surface in the product: the
+  // tile is a search result, not a quote, and the hours are not held. This case is written BEFORE the
+  // plans that build the totals, so the constraint arrives before the temptation.
+  //
+  // IT IS GREEN ON UNCHANGED `src/`, BY CONSTRUCTION — this plan modifies no component this file
+  // renders. That is the point of a regression pin (the discipline case (9) states in its own note):
+  // if it had gone red here it would be measuring this plan's changes rather than protecting the card.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+
+  it("(10) REGRESSION (D-37): the tile shows the all-in RATE and no window total, in either mode", () => {
+    const cases = [
+      { label: "exclusive", row: makeExclusiveRow() },
+      { label: "drop-in", row: makeOpenRow({ spots: { remaining: 8, cap: 20, state: "open" } }) },
+    ] as const;
+
+    for (const { label, row } of cases) {
+      // A FULL window — date AND both hours — because that is precisely the input a total would be
+      // computed FROM. Pinning this with `date` alone would leave the interesting case untested.
+      const { container } = render(
+        <SearchResultCard
+          listing={row}
+          searchedWindow={{ date: FRIDAY, start: "09:00", end: "11:00" }}
+        />,
+      );
+      const text = container.textContent ?? "";
+
+      // GUARD THE GUARD, FIRST. Every clause below is "the money we found was only the declared
+      // money", and a card that rendered nothing satisfies that perfectly. Assert the card really
+      // rendered, and really received the window.
+      expect(text.length, `${label}: the card rendered nothing`).toBeGreaterThan(20);
+      expect(text, `${label}: the title did not render`).toContain(row.title);
+
+      // The declared money, taken from the SERVER's own finished strings rather than from a peso
+      // figure typed here — so a SERVICE_FEE_BPS change moves both sides together (case (9)'s rule).
+      const declared = moneyIn(row.allInRateParts.join(" · "));
+      expect(declared.length, `${label}: the fixture declares no rate at all`).toBeGreaterThan(0);
+
+      // THE ASSERTION. Every peso amount in the whole rendered card, in order, is exactly the
+      // server's rate parts — no more, no fewer, nothing computed. `toEqual` on the ARRAY and not a
+      // `toContain` per part: a total added beside the rate would satisfy "contains the rate".
+      expect(moneyIn(text), `${label}: the tile renders money the rate parts do not declare`).toEqual(
+        declared,
+      );
+
+      // …and the rate keeps its qualifier, which is the other half of D-37: an all-in rate that does
+      // not say it is all-in is just a rate.
+      expect(text, `${label}: the all-in qualifier is missing`).toContain("Service fee included");
+
+      // A NAMED POSITIVE CONTROL for the exact string this case exists to keep out — the 2-hour
+      // window total, derived from the card's own rate rather than hardcoded, so it stays the right
+      // wrong answer if the fee moves. Redundant with the array equality above ON PURPOSE: it names
+      // the failure mode, so a future reader meets "no window total" rather than inferring it.
+      const rate = Number(declared[0].replace(/[₱,]/g, ""));
+      const twoHourTotal = `₱${(rate * 2).toFixed(2)}`;
+      expect(text, `${label}: a computed window total (${twoHourTotal}) reached the tile`).not.toContain(
+        twoHourTotal,
+      );
+
+      cleanup();
+    }
   });
 });
