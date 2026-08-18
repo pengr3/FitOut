@@ -16,6 +16,7 @@
 // Times are timestamptz UTC, displayed venue-local at the edge (SC#2). Prices are the server-FROZEN quote
 // (booking.quotedTotalCents, D-49) — never a client recompute.
 
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { asc, eq } from "drizzle-orm";
@@ -39,6 +40,7 @@ import {
 // is a legacy safety net for the refund ENGINE; using it here would put a policy the host never chose in
 // front of a booker.
 import { rungBoundaries, bestFutureRungIndex } from "@/lib/payments/cancellation";
+import { Button } from "@/components/ui/button";
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { HoldExpiredState } from "@/components/booking/hold-expired-state";
@@ -289,6 +291,38 @@ export default async function ReservePage({
   // they are consenting to and the amount named on the confirm must not be two separate renderings.
   const totalLabel = formatMoney(quoted, currency);
 
+  // ── D-59 #2 / SHELL-03 — THE ONE WAY BACK, AND THE PARAM IT MUST NOT CARRY ──────────────────────────
+  // SHELL-03 strips this route of navigation because a stray link is a one-click way to abandon a slot
+  // the booker believes they are holding. "No way out" and "trapped" are different things, though, and
+  // the difference is a LABEL and a PROMISE: exactly one link, in the main column, saying where it goes
+  // and what happens to the hold.
+  //
+  // The window is recomposed from the hold's OWN frozen instants rather than forwarded from a search
+  // param, which is both simpler and stricter — this page never receives `date`/`start`/`end`, and the
+  // booking row is the only thing here that knows what was actually reserved. `parseWindowHour` accepts
+  // on-the-hour venue-local `HH:mm` only (D-22), which is exactly what an hourly booking's boundaries
+  // are; a full-day or drop-in booking contributes the DAY alone, because it has no hour window to
+  // restore and half-seeding a picker is worse than not seeding it (12-02's rule).
+  //
+  // ⚠️ IT MUST NEVER CARRY THE RESUME DISCRIMINATOR — the `resume` param set to 1, which `book-cta.tsx`
+  // reads on arrival to re-fire a hold. Carrying it would turn a back LINK into a hold-creating GET:
+  // the T-04-GETDUP shape this route's own header refuses, arriving through the one anchor SHELL-03
+  // allows (T-12-03-GETDUP). `e2e/shell.spec.ts` asserts its absence from the RENDERED href, which is
+  // why this paragraph may name it plainly — the assertion reads the DOM, not this file. Safe by
+  // construction even so: `createPendingHold` REPLAYS a booker's own live hold for the same window
+  // rather than minting a second one.
+  //
+  // The params are built through `URLSearchParams` rather than string-concatenated, so the `:` in
+  // `HH:mm` is percent-encoded on the wire and decoded back before `parseWindowHour` ever sees it.
+  const backParams = new URLSearchParams({
+    date: format(bk.startsAt, "yyyy-MM-dd", { in: inTz }),
+  });
+  if (!bk.openCapacity && !fullDay) {
+    backParams.set("start", format(bk.startsAt, "HH:mm", { in: inTz }));
+    backParams.set("end", format(bk.endsAt, "HH:mm", { in: inTz }));
+  }
+  const backHref = `/listings/${bk.listingId}?${backParams.toString()}`;
+
   const summary = (
     <div className="space-y-6">
       {/* OC-07 — the reduction alert, FIRST in the DOM (09-UI-SPEC § 3: "top of the reserve page, above
@@ -363,6 +397,21 @@ export default async function ReservePage({
           />
         </div>
       )}
+
+      {/* LAST in the main column, below everything else it describes — never in the header (SHELL-03's
+          zero-anchor count is over that subtree), never in the rail (the rail is the money column and
+          this is not a money action), never in a sticky bar (a persistent escape hatch beside a
+          terminal action is an invitation to leave). The promise beneath it is the whole reason a link
+          is safe here at all: the hold is not cancelled by looking at the listing again, and a booker
+          who does not know that will sit on this page rather than check. */}
+      <div>
+        <Button asChild variant="ghost" size="touch">
+          <Link href={backHref}>Back to the listing</Link>
+        </Button>
+        <p className="mt-1 text-xs text-muted-foreground">
+          We&apos;ll keep your hold — the timer keeps running.
+        </p>
+      </div>
     </div>
   );
 
@@ -427,6 +476,15 @@ export default async function ReservePage({
         boundaryLabels={boundaryLabels}
         bestRungIndex={bestRungIndex}
       />
+      {/* D-49 — THE RAIL KEEPS THE WORDS AND LOSES THE DIGITS. The countdown moved to the header, and
+          this sentence went with the reassurance rather than with the timer: it is the reason the
+          booker can take their time, and it belongs beside the money they are about to agree to. It
+          carries NO figure and NO live region — one `hold-countdown` per document, one `role="timer"`,
+          one polite region, all of them in the header. Rendered here as a SERVER node like every other
+          word in this column. */}
+      <p className="text-xs text-muted-foreground">
+        We&apos;re holding this for you while you review.
+      </p>
     </>
   );
 

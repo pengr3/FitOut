@@ -141,6 +141,8 @@ export const SELECTOR_IDS = [
   "site-footer",
   // 11-15 — the legal placeholder.
   "legal-placeholder-notice",
+  // 12-03 — the checkout header's hold countdown slot.
+  "hold-countdown",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -316,5 +318,21 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "built from. The gate asserts string equality on the sentinel copy and exactly one notice per legal " +
       "page — both need a handle on the notice itself, not on the prose around it.",
     owner: "11-15",
+  },
+
+  // ─── 12-03 ─────────────────────────────────────────────────────────────────────────────────────────
+  "hold-countdown": {
+    why:
+      "The assertion this hook carries is that a BOX does not move: the checkout header's countdown " +
+      "slot must measure identically with the slot empty, at 14:52, at 0:09 and at \"Hold expired\", " +
+      "which is exactly what HOLD_COUNTDOWN_BOX reserves. `role=\"timer\"` cannot be that handle, for " +
+      "two reasons either of which alone is fatal. It matches the DIGITS INSIDE the box rather than " +
+      "the box, and the digits are type-sized — \"14:52\" and \"0:09\" are different widths, so the " +
+      "assertion would go red on a header that never moved. And the timer is ABSENT in two of the four " +
+      "states: before the page publishes a deadline, and after expiry, where D-49 removes both the " +
+      "role and the live region. A role query therefore cannot address the very states the reservation " +
+      "exists for. Nor is there an accessible name on an empty reserved box — when it is doing its job " +
+      "it holds nothing.",
+    owner: "12-03",
   },
 };
