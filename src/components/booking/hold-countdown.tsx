@@ -30,12 +30,16 @@
 //
 // THE EXPIRY ARM OF THAT MESSAGE IS DELETED, AND ITS DELETION IS THE POINT (GATE-03 rule 6). It used
 // to read `expired ? "Your hold has expired." : …`. The thing that actually replaced the page is
-// `HoldExpiredState`, whose `role="status" aria-live="assertive"` region announces the expiry and
-// which also moves focus — so keeping the arm here meant TWO regions reporting ONE event, in two
-// different politeness levels, on the same paint. That is the double-announcement GATE-03 is about,
-// and it is not decorative: the assertive region interrupts, the polite one queues, and the booker
-// hears the same fact twice with a gap in between. The countdown reports TIME; the state that replaced
-// the page reports the EXPIRY.
+// `HoldExpiredState`, whose `role="status"` region announces the expiry and which also moves focus —
+// so keeping the arm here meant TWO regions reporting ONE event on the same paint. That is the
+// double-announcement GATE-03 is about, and it is not decorative: the booker hears the same fact
+// twice, with a gap in between. The countdown reports TIME; the state that replaced the page reports
+// the EXPIRY.
+//
+// WHEN THIS COMMENT WAS FIRST WRITTEN THE OTHER REGION ALSO USED THE INTERRUPTING POLITENESS LEVEL,
+// which made the doubling worse still. Plan 12-06 banned that level across the whole booker path and
+// `hold-expired-state.tsx` now carries the role alone; the sentence above is corrected rather than
+// deleted because the argument for deleting the arm never depended on the level.
 //
 // ON EXPIRY THE REGION KEEPS ITS TEXT AND LOSES ITS `aria-live`, which is the one non-obvious line in
 // this file. Unmounting it would ALSO be silent, but it would make the region's text "change" from the

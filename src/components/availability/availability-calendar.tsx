@@ -346,6 +346,12 @@ export function AvailabilityCalendar({
 
   const dayKey = `${day.year}-${day.month}-${day.day}`;
   const dayLabel = format(selectedDate, "EEEE, MMM d", { in: tz(timezone) });
+  // GATE-03 rules 4 + 5 (plan 12-06). ONE binding for the loading region's NAME and its CONTENT, so the
+  // two can never drift apart: `role="status"` is nameFrom:author, so the `aria-label` is what names the
+  // region and the `sr-only` child is what it has to say, and a name that disagreed with the sentence
+  // would be two different answers to "what is loading". Declared as `calendar-day-loading` in
+  // `src/lib/design/live-regions.ts`.
+  const dayLoadingLabel = `Loading times for ${dayLabel}`;
   const hasAnyAvailable = (dayAvail?.slots ?? []).some((s) => s.state === "available");
 
   return (
@@ -387,9 +393,27 @@ export function AvailabilityCalendar({
           <h3 className="text-sm font-semibold">{dayLabel}</h3>
 
           {dayLoading ? (
-            <div className="flex flex-wrap gap-2" aria-live="polite" aria-busy="true">
+            // GATE-03 RULES 4 + 5. This shipped as a bare `aria-live="polite" aria-busy="true"` on a
+            // `<div>` with NO role and NO accessible name, wrapping eight placeholder chips — a live
+            // region whose entire announceable content was decorative bars, i.e. a region that
+            // announced the empty string to nobody. `role="status"` is nameFrom:author (measured in
+            // `tests/design/skeleton-a11y.test.tsx`, re-measured in
+            // `tests/design/live-regions.test.tsx`), so the `aria-label` is the NAME and the `sr-only`
+            // span is the CONTENT: different mechanisms, both wanted, and byte-identical here because
+            // they come from one binding. No `aria-live` attribute — `role="status"` is already
+            // implicitly polite, which is the shape `patterns/card-grid-skeleton.tsx` ships.
+            //
+            // THE BARS' BOX CLASSES ARE DELIBERATELY UNTOUCHED. Plan 12-09 owns SLOT_CHIP_BOX adoption
+            // and the month-grid skeleton; landing that here would make both changes unreviewable.
+            <div
+              role="status"
+              aria-busy="true"
+              aria-label={dayLoadingLabel}
+              className="flex flex-wrap gap-2"
+            >
+              <span className="sr-only">{dayLoadingLabel}</span>
               {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-11 w-20 rounded-lg" />
+                <Skeleton key={i} aria-hidden="true" className="h-11 w-20 rounded-lg" />
               ))}
             </div>
           ) : dayError ? (

@@ -268,9 +268,17 @@ export function SlotPicker({
           </ToggleGroup>
         </ScrollArea>
 
-        {/* Pending helper: a start is anchored but no end yet. Muted, never red — this is normal flow. */}
+        {/* Pending helper: a start is anchored but no end yet. Muted, never red — this is normal flow.
+
+            GATE-03 RULE 5 (plan 12-06): this shipped as a bare `aria-live="polite"` on a `<p>` with no
+            role, so it was an anonymous live region rather than a named KIND of one. `role="status"` is
+            what says "this is the result of something you just did" — and it matches the gap hint eight
+            lines below, so one file no longer carries two idioms for one concept. Declared as
+            `slot-picker-pending-helper` in `src/lib/design/live-regions.ts`. The attribute stays beside
+            the role for the same reason the gap hint keeps its: `role="status"` is already implicitly
+            polite, the redundancy is harmless, and it is the shipped idiom on this path. */}
         {sel.anchor !== null && !sel.run && (
-          <p aria-live="polite" className="text-sm text-muted-foreground">
+          <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
             Start selected — pick an end hour.
           </p>
         )}

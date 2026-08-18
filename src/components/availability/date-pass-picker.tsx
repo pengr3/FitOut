@@ -208,6 +208,12 @@ export function DatePassPicker({
 
   const inTz = tz(timezone);
   const dayLabel = format(selectedDate, "EEEE, MMM d", { in: inTz });
+  // GATE-03 rules 4 + 5 (plan 12-06). ONE binding for the loading region's NAME and its CONTENT — see
+  // the region below for why both are needed. The SENTENCE deliberately differs from the hourly
+  // calendar's `Loading times for {day}`: a drop-in listing sells a DAY PASS, so no times are coming and
+  // promising them would send a screen-reader user looking for a control this surface never renders.
+  // Declared as `date-pass-day-loading` in `src/lib/design/live-regions.ts`.
+  const dayLoadingLabel = `Loading availability for ${dayLabel}`;
   // Present ONLY when this listing is open-capacity AND the venue opens on the picked weekday. A non-open
   // payload means the read model returned its unknown/unpublished fallback, which lands on the same
   // dashed no-hours shell the hourly calendar renders for the identical case.
@@ -288,8 +294,15 @@ export function DatePassPicker({
           {loading ? (
             // ONE panel skeleton, not the hourly picker's eight chip skeletons: there is one answer coming,
             // not a grid of them, and a chip grid flashing in would promise hours that never arrive.
-            <div aria-live="polite" aria-busy="true">
-              <Skeleton className="h-24 w-full rounded-xl" />
+            //
+            // GATE-03 RULES 4 + 5, the same correction the hourly calendar's day panel took and for the
+            // same measured reason: this shipped as a bare `aria-live="polite" aria-busy="true"` on a
+            // `<div>` with no role and no name, wrapping one `aria-hidden`-able placeholder — a live
+            // region with nothing announceable in it. `role="status"` is nameFrom:author, so the
+            // `aria-label` names it and the `sr-only` span gives it something to say.
+            <div role="status" aria-busy="true" aria-label={dayLoadingLabel}>
+              <span className="sr-only">{dayLoadingLabel}</span>
+              <Skeleton aria-hidden="true" className="h-24 w-full rounded-xl" />
             </div>
           ) : error ? (
             <div className="rounded-xl border border-dashed p-6 text-center" role="alert">
