@@ -19,22 +19,57 @@
 // figure is EXACT — the same arithmetic checkout freezes (D-75) — so a multiply would have quietly made
 // those sentences false while every gate stayed green. `tests/booking/all-in-table.test.ts` pins both
 // halves: the table agrees with checkout, and the multiply does not.
+//
+// ── D-38 — WHY EACH VALUE IS THREE FIGURES AND NOT ONE ───────────────────────────────────────────────
+// The rail renders the REAL `PriceBreakdown` (plan 12-05), which is an ITEMISED surface: a run line, a
+// `Service fee` line and a `Total`. So the table hands over `{space, fee, total}` per key instead of the
+// single all-in figure it used to. That is a SHAPE change, not a computation move — the fee rate, the
+// formula and `computeServiceFee` itself stay exactly where they were, on this side of the boundary.
+//
+// `fee` IS COMPUTED HERE, AND THAT PLACEMENT IS THE POINT. It is `allInCents − spacePriceCents` from the
+// SAME `computeServiceFee` call that produced `total`, evaluated inside this guarded module. The obvious
+// alternative — ship `space` and `total` and let the breakdown subtract — would have put a subtraction in
+// the browser, and a client that subtracts is a client that can be handed the wrong two numbers and asked
+// to produce a plausible third (D-130). The client receives three FINISHED figures and renders them.
+//
+// The subtraction is exact by construction rather than by luck: `computeServiceFee` rounds ONCE and then
+// ADDS (`allInCents = spacePriceCents + serviceFeeCents`, service-fee.ts), so `allInCents − spacePriceCents`
+// is that same `serviceFeeCents` integer and never a second rounding. `space + fee === total` is asserted
+// per key in the test file, over a rate that lands on the .5 rounding tie.
 
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { ALL_IN_TABLE_MAX_HOURS } from "@/lib/availability/horizon";
 
 /**
- * All-in integer centavos, keyed by the selection the booker actually made. A MISSING KEY means the rail
- * renders no estimate line — the shipped behaviour when a rate is null — and is never a cue to compute one
- * on the client.
+ * ONE key's three finished figures, all integer centavos, all computed on the server.
+ *
+ * `space` is the listing-priced portion (the host payout basis), `fee` is the booker-facing D-74 service
+ * fee, and `total` is what would actually be charged. They are the same three values `PriceBreakdown`
+ * takes as its frozen money props at checkout, which is what lets ONE component render both surfaces.
+ *
+ * `space + fee === total` always — but a consumer must never RE-DERIVE any one of the three from the other
+ * two. The invariant is a property this module guarantees, not a licence to compute downstream.
+ */
+export type AllInParts = {
+  /** The space price this key prices — `hourlyRate × hours`, the day rate, or `perHead × passes`. */
+  space: number;
+  /** `computeServiceFee(space)`'s fee, obtained as `allInCents − space` inside this guarded module. */
+  fee: number;
+  /** `computeServiceFee(space).allInCents` — the figure checkout freezes for this selection. */
+  total: number;
+};
+
+/**
+ * All-in figures, keyed by the selection the booker actually made. A MISSING KEY means the rail renders no
+ * price block — the shipped behaviour when a rate is null — and is never a cue to compute one on the client.
  */
 export type AllInTable = {
   /** Keyed 1…ALL_IN_TABLE_MAX_HOURS. Empty when the listing has no hourly rate. */
-  hourly: Record<number, number>;
-  /** The full-day selection's all-in figure, or null when the listing has no day rate. */
-  fullDay: number | null;
+  hourly: Record<number, AllInParts>;
+  /** The full-day selection's figures, or null when the listing has no day rate. */
+  fullDay: AllInParts | null;
   /** Keyed 1…passCap. Empty when the listing is not sold as day passes. */
-  perPass: Record<number, number>;
+  perPass: Record<number, AllInParts>;
 };
 
 export type AllInTableInput = {
@@ -57,23 +92,36 @@ export function buildAllInTable(input: AllInTableInput): AllInTable {
   const { hourlyRateCents, dayRateCents, perHeadPriceCents } = input;
   const passCap = Math.max(0, input.passCap ?? 0);
 
-  const hourly: Record<number, number> = {};
+  const hourly: Record<number, AllInParts> = {};
   if (hourlyRateCents != null) {
     for (let h = 1; h <= ALL_IN_TABLE_MAX_HOURS; h++) {
-      hourly[h] = computeServiceFee(hourlyRateCents * h).allInCents;
+      hourly[h] = parts(hourlyRateCents * h);
     }
   }
 
-  const perPass: Record<number, number> = {};
+  const perPass: Record<number, AllInParts> = {};
   if (perHeadPriceCents != null) {
     for (let n = 1; n <= passCap; n++) {
-      perPass[n] = computeServiceFee(perHeadPriceCents * n).allInCents;
+      perPass[n] = parts(perHeadPriceCents * n);
     }
   }
 
   return {
     hourly,
-    fullDay: dayRateCents == null ? null : computeServiceFee(dayRateCents).allInCents,
+    fullDay: dayRateCents == null ? null : parts(dayRateCents),
     perPass,
   };
+}
+
+/**
+ * ONE key's three figures, from ONE `computeServiceFee` call.
+ *
+ * Not exported, and that is deliberate: the only supported way to obtain an `AllInParts` is to build the
+ * table, so there is no second entry point where the rate argument could be supplied differently. The
+ * subtraction lives HERE — inside the module the `server-only` guard reaches by transitivity — rather than
+ * in the component that renders the three lines. See the D-38 note in the header.
+ */
+function parts(spaceCents: number): AllInParts {
+  const { allInCents } = computeServiceFee(spaceCents);
+  return { space: spaceCents, fee: allInCents - spaceCents, total: allInCents };
 }

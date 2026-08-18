@@ -11,7 +11,7 @@
 //   - BookingSelectionProvider — holds the lifted { selection } state AND the lifted DAY state; wraps
 //                                the whole booking grid.
 //   - AvailabilityCalendar     — the month grid + SlotPicker; writes selection into the context.
-//   - RailSelectionSummary     — reads selection; shows date · time range · est. price in the rail.
+//   - RailSelectionSummary     — reads selection; shows date · time range · all-in price in the rail.
 //
 // PHASE 12 (RESP-02 / STATE-07 · seam A) — THE DAY IS HOISTED, AND THAT IS THE POINT OF THIS FILE NOW.
 // `day`, `dayAvail`, `dayLoading` and `dayError` used to be four `useState` calls INSIDE
@@ -456,7 +456,7 @@ type RailSelectionSummaryProps = {
   allIn: AllInTable;
 };
 
-/** In the booking rail, ABOVE the CTA: the chosen date · time range · est. price (display-only). */
+/** In the booking rail, ABOVE the CTA: the chosen date · time range · all-in price (display-only). */
 export function RailSelectionSummary({
   timezone,
   currency,
@@ -481,8 +481,12 @@ export function RailSelectionSummary({
   // the RSC built this table by applying computeServiceFee to the same space price checkout freezes, at
   // the same rate, so the two agree to the centavo. A LOOKUP, never arithmetic (D-130) — and a lookup is
   // what keeps "exact" true, since multiplying a per-hour all-in figure here would round n times instead
-  // of once. A missing key means no estimate line, exactly as a null rate always has.
-  const cents = selection.fullDay ? allIn.fullDay : (allIn.hourly[hours] ?? null);
+  // of once. A missing key means no price line, exactly as a null rate always has.
+  //
+  // D-38 widened each value to `{space, fee, total}` so plan 12-05 can feed the REAL `PriceBreakdown`
+  // here, itemised. `.total` is the identical integer this line has rendered since Phase 11 — the widening
+  // added the two other finished figures beside it, it did not change this one.
+  const cents = (selection.fullDay ? allIn.fullDay : (allIn.hourly[hours] ?? null))?.total ?? null;
 
   return (
     <div className="space-y-1 rounded-lg border p-3 text-sm">
@@ -491,9 +495,14 @@ export function RailSelectionSummary({
         <span className="tabular-nums">{timeLabel}</span>
         {!selection.fullDay && ` · ${hours} ${hours === 1 ? "hour" : "hours"}`}
       </p>
+      {/* D-40 — THE HEDGE IS GONE, AND ITS REMOVAL IS A CORRECTION RATHER THAN A COPY PREFERENCE.
+          The prefix that used to sit here said "approximately" about a figure that is exact BY
+          CONSTRUCTION: the RSC applied `computeServiceFee` to the same space price checkout freezes, at
+          the same rate, and the comment above has claimed that byte-identity since Phase 11. Hedging a
+          guarantee the system actually makes is not caution — it teaches a booker to expect the number to
+          move, which is the D-75 failure mode restated as copy. 12-UI-SPEC AC#9. */}
       {cents != null && (
         <p className="pt-0.5">
-          <span className="text-muted-foreground">Est. </span>
           <span className="font-semibold tabular-nums">{formatMoney(cents, currency)}</span>
         </p>
       )}
@@ -520,7 +529,7 @@ type RailPassSummaryProps = {
   allIn: AllInTable;
 };
 
-/** In the booking rail, ABOVE the CTA: the chosen date · pass count · est. all-in price (display-only). */
+/** In the booking rail, ABOVE the CTA: the chosen date · pass count · all-in price (display-only). */
 export function RailPassSummary({ timezone, currency, allIn }: RailPassSummaryProps) {
   const { openSelection } = useBookingSelection();
   if (!openSelection) return null;
@@ -540,7 +549,9 @@ export function RailPassSummary({ timezone, currency, allIn }: RailPassSummaryPr
   // The one case it can differ is a lost race: if the claim grants FEWER heads than were asked for, the
   // frozen total is lower, and the reserve page (09-13) states both figures before anything is charged.
   // The number can go DOWN with an explicit confirmation; it can never go up.
-  const cents = allIn.perPass[passes] ?? null;
+  //
+  // D-38: `.total` off the widened `{space, fee, total}` value — the same integer this line always showed.
+  const cents = allIn.perPass[passes]?.total ?? null;
 
   return (
     <div className="space-y-1 rounded-lg border p-3 text-sm">
@@ -548,9 +559,11 @@ export function RailPassSummary({ timezone, currency, allIn }: RailPassSummaryPr
       <p className="text-muted-foreground">
         <span className="tabular-nums">{passes}</span> {passes === 1 ? "pass" : "passes"}
       </p>
+      {/* D-40, same removal and the same reason as RailSelectionSummary above — and it binds harder here,
+          because open pricing is purely linear and this figure is the one `quoteOpenCapacity` freezes on
+          the row inside the claim's transaction. */}
       {cents != null && (
         <p className="pt-0.5">
-          <span className="text-muted-foreground">Est. </span>
           <span className="font-semibold tabular-nums">{formatMoney(cents, currency)}</span>
         </p>
       )}
