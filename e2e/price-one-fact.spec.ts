@@ -97,14 +97,16 @@
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-//   • IT DOES NOT VISIT THE SHEET. RESP-02's mobile booking sheet is plan 12-10's, and so is
-//     `sheet-price-total`. This file asserts `.toBe(1)` on the two hooks that exist TODAY and
-//     deliberately says nothing about a third; 12-10 extends it. A `sheet-price-total` assertion added
-//     here before that plan would be red for a surface nobody has written.
-//   • ONE VIEWPORT WIDTH (1280) FOR BOTH SURFACES. The rail and the checkout column are compared where
-//     they both render at desktop, and nowhere else. Nothing here says the two totals still agree at
-//     375px — where the rail is not the surface a booker reads at all — and the sticky-bar / sheet
-//     widths are 12-10's and 12-11's to measure.
+//   • THE SHEET IS VISITED FOR ITS HOOK COUNT AND NOT FOR ITS TYPE (plan 12-10). The block at the
+//     bottom of this file measures ONE HOOK PER SURFACE across the two widths of one document; it does
+//     NOT compare the sheet's Total's computed type with the rail's. It does not need to: all three
+//     branches of `price-breakdown.tsx` consume the same `TOTAL_VALUE_CLASS` constant, which is what
+//     probe (a) below is about, and the sheet's own byte-equality claim (its `Total` string against the
+//     sticky bar's amount) is `e2e/mobile-booker-path.spec.ts` case (d).
+//   • ONE VIEWPORT WIDTH (1280) FOR THE TYPE COMPARISON. The rail and the checkout column are compared
+//     where they both render at desktop, and nowhere else. Nothing here says the two totals still agree
+//     at 375px — where the rail is not the surface a booker reads at all — and the sticky-bar geometry
+//     is `e2e/mobile-booker-path.spec.ts`'s and 12-11's to measure.
 //   • IT MEASURES TYPE, NOT VALUE. Two elements can resolve to identical type while showing different
 //     numbers. The NUMBER is `price-parity.spec.ts`'s (DOM vs the frozen DB column) and
 //     `tests/booking/all-in-table.test.ts`'s (`space + fee === total`, per key).
@@ -119,9 +121,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  BASE,
   openSeededListing,
   pickWindow,
   seedBookableListing,
+  openBookingSheet,
+  selectTargetDayIn,
   signUpBooker,
   type SeededListing,
 } from "./helpers/booker-seed";
@@ -165,7 +170,11 @@ const WINDOWS = {
   court: ["8:00 AM", "9:00 AM"],
   grove: ["11:00 AM", "12:00 PM"],
   popover: ["2:00 PM", "3:00 PM"],
+  perSurface: ["4:00 PM", "5:00 PM"],
 } as const;
+
+/** 12-UI-SPEC's reference phone, where the SHEET is the booking surface (plan 12-10). */
+const PHONE_WIDTH = 375;
 
 /** The accessible name D-39 assigns the fee explainer's trigger. A question, because that is the ask. */
 const TRIGGER_NAME = "What is the service fee?";
@@ -526,5 +535,92 @@ test.describe("D-39 — the fee explains itself, on touch as well as on hover", 
       `${where}: focus did not return to the trigger after Escape. A keyboard user who opens this ` +
         `explanation and closes it must be back where they were, not at the top of the document.`,
     ).toBe(true);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// (e) ONE HOOK PER SURFACE — measured on ONE document at two widths (plan 12-10, RESP-02 condition 3)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// 12-UI-SPEC's third hard condition for rendering `BookingPanel` twice is *"exactly one hook per
+// surface: `rail-price-total` is emitted by the rail placement, `sheet-price-total` by the sheet
+// placement, never both by one"*. That is a claim about ONE DOCUMENT, and asserting it across two runs
+// would be strictly weaker: two pages each holding one hook satisfies "one each" perfectly while a
+// single page holding both — the actual regression, a placement rendering the other's breakdown — goes
+// unnoticed. So this drives one page from 375 to 1280 and counts at both.
+//
+// ⚠ AT 375 WITH THE SHEET OPEN, BOTH IDS ARE IN THE DOM, AND THAT IS THE CORRECT ANSWER RATHER THAN A
+// TOLERATED ONE. The rail placement is mounted at every width — `max-lg:hidden` is `display:none`, not
+// unmounted — so its breakdown is genuinely present and genuinely unreachable. The condition is one
+// hook PER PLACEMENT, and the count that would mean the defect is 2 of the SAME id.
+//
+// ONE THEME, deliberately. Every assertion here is a DOM count, and a count is not a per-theme
+// property — the theme-sensitive claim in this file is the computed type above, where grove's 22px/700
+// is what makes the assertion worth writing.
+
+test.describe("RESP-02 — one price hook per placement, on one document", () => {
+  test("375 sheet + rail, then 1280 rail alone", async ({ page, context }) => {
+    test.setTimeout(180_000);
+    await seedTheme(context, "court");
+    await page.setViewportSize({ width: PHONE_WIDTH, height: 812 });
+    await page.goto(`${BASE}/listings/${seed.listingId}`);
+    await page.evaluate(() => document.fonts.ready);
+
+    // ── 375px, SHEET OPEN ─────────────────────────────────────────────────────────────────────────
+    const phoneWhere = `375px · sheet`;
+    // Retried, through the shared opener — a server-rendered trigger is clickable before React has
+    // finished with the route, and the measurement behind that is in `openBookingSheet`.
+    const sheet = await openBookingSheet(page, phoneWhere);
+
+    // Scoped to the sheet: with it open the document holds two month grids, and `selectTargetDayIn`'s
+    // CSS half does not inherit the accessibility-tree filter its role half gets for free.
+    await selectTargetDayIn(sheet);
+    await sheet.getByRole("button", { name: WINDOWS.perSurface[0], exact: true }).click();
+    await sheet.getByRole("button", { name: WINDOWS.perSurface[1], exact: true }).click();
+
+    expectReachable(await countHook(page, "sheet-price-total"), "sheet-price-total", phoneWhere);
+    expectReachable(await countHook(page, "rail-price-total"), "rail-price-total", phoneWhere);
+    expect(
+      await page.getByTestId("price-total").count(),
+      `${phoneWhere}: the listing page emits the CHECKOUT's \`price-total\` hook. Each surface owns ` +
+        "exactly one id (D-38 / 12-04 / 12-10) so that every document holds one match per hook — and " +
+        "`price-parity.spec.ts` normalises that hook's text back to centavos on a page it never visits.",
+    ).toBe(0);
+
+    // The panel's own hook answers the different question: how many copies are MOUNTED. Two here — the
+    // rail placement and the sheet placement — which is the declared duplication, and three would mean
+    // a third booking view arrived without a decision.
+    expect(
+      await page.getByTestId("booking-panel").count(),
+      `${phoneWhere}: the document holds a number of booking panels this plan did not declare. RESP-02 ` +
+        "mounts exactly two — the rail placement and the sheet placement — and the safety argument for " +
+        "that duplication is written against exactly two.",
+    ).toBe(2);
+
+    // ── 1280px, SHEET CLOSED ──────────────────────────────────────────────────────────────────────
+    // Closed BEFORE the resize on purpose: the sheet's panel is wrapped in `lg:hidden`, so a sheet left
+    // open across the resize would leave `sheet-price-total` in the DOM but invisible — a count of 1
+    // that means nothing.
+    await page.keyboard.press("Escape");
+    await expect(sheet, "the sheet did not dismiss on Escape").toHaveCount(0);
+    await page.setViewportSize({ width: WIDTH, height: 900 });
+    await page.evaluate(() => document.fonts.ready);
+
+    const deskWhere = `1280px · rail`;
+    expectReachable(await countHook(page, "rail-price-total"), "rail-price-total", deskWhere);
+    expect(
+      await page.getByTestId("sheet-price-total").count(),
+      `${deskWhere}: the desktop layout emits the SHEET's hook. The sheet is a portal and is not ` +
+        "mounted while it is closed, so a match here means a booking view is rendering at a width " +
+        "where it is unreachable.",
+    ).toBe(0);
+    expect(
+      await page.getByTestId("price-total").count(),
+      `${deskWhere}: the listing page emits the checkout's hook.`,
+    ).toBe(0);
+    expect(
+      await page.getByTestId("booking-panel").count(),
+      `${deskWhere}: with the sheet closed exactly one booking panel is mounted — the rail's.`,
+    ).toBe(1);
   });
 });

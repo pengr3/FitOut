@@ -124,11 +124,30 @@ export function BookingStickyBar({
   placeHold,
   placeOpenHold,
 }: BookingStickyBarProps) {
-  const { selection, openSelection } = useBookingSelection();
+  const { selection } = useBookingSelection();
 
   // The SAME lookup and the SAME format the sheet's `Total` uses — see `selectedTotalLabel`. Null while
   // nothing is selected, which is exactly the condition that decides which action this bar renders.
-  const total = selectedTotalLabel(allIn, selection, openSelection, currency);
+  //
+  // ⚠ THE DROP-IN CHANNEL IS DELIBERATELY NOT CONSULTED, AND THE REASON WAS MEASURED RATHER THAN
+  // REASONED ABOUT. `date-pass-picker.tsx:227-234` writes `{today, 1 pass}` into the shared context from
+  // a MOUNT EFFECT, before the booker has touched anything — so on an `open_capacity` listing
+  // `openSelection` is non-null on the very first paint. Reading it here cost two things at once:
+  //
+  //   1. the bar's primary action named an AMOUNT the booker never chose, on the money path; and
+  //   2. `Check availability` — the ONLY affordance that opens the sheet — never rendered at all, so
+  //      RESP-02's overlay was structurally unreachable on every drop-in listing.
+  //
+  // Found by `e2e/overflow-320.spec.ts`'s sheet-open row failing in BOTH themes on a seeded drop-in
+  // listing (`E2E Same-Day Drop-In Dance Loft`), with the trigger resolving to 0 elements for 15s. Its
+  // page snapshot is what named the mode.
+  //
+  // D-59 #3 says *"with a selection ALREADY MADE"*, and a default written by an effect is not one. The
+  // drop-in booker therefore gets the sheet, where the pass picker they would be choosing with is
+  // actually in front of them and the pinned action names the amount honestly. One extra tap on that
+  // path, against an unreachable overlay and an unearned figure — see `selectedTotalLabel`'s own note
+  // for why the second selection channel exists at all.
+  const total = selectedTotalLabel(allIn, selection, null, currency);
 
   const actionRef = React.useRef<HTMLDivElement | null>(null);
   const restoreFocusToAction = React.useCallback((event: Event) => {

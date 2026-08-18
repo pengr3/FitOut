@@ -35,7 +35,7 @@
 //      hours and tags — and THEN the signed-up booker. Deleting the booker first fails with a foreign-key
 //      error that says nothing about ordering.
 
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { format } from "date-fns";
@@ -72,18 +72,98 @@ const targetDayLabel = new RegExp(
   `${targetMonthName}\\s+${targetDay}(st|nd|rd|th)?,?\\s+${targetYear}`,
 );
 
-/** Navigate the venue-tz calendar to the seeded target day (advancing one month if it's next month). */
+/**
+ * Navigate the venue-tz calendar to the seeded target day, inside a GIVEN scope.
+ *
+ * ⚠ ONE COPY OF THE MATH, TWO ENTRY POINTS (plan 12-10). `selectTargetDay(page)` below delegates here,
+ * so the day arithmetic and the react-day-picker label form still exist exactly once — the rule this
+ * file's header states and the reason the file exists at all.
+ *
+ * THE SCOPE PARAMETER IS NOT CONVENIENCE. RESP-02 mounts a SECOND booking view inside a sheet on
+ * `/listings/[id]`, so while that sheet is open the document holds two month grids. Radix marks
+ * everything outside its portal `aria-hidden`, which means the two ROLE queries below already resolve to
+ * the sheet's grid alone — but `.and(page.locator(…))` composes a CSS locator that does not, and an
+ * unscoped intersection would silently match zero elements. Passing the sheet as the scope makes both
+ * halves address the same subtree.
+ */
 // VERBATIM from price-parity.spec.ts:171-183 — see the header's copy note.
-export async function selectTargetDay(page: Page): Promise<void> {
+export async function selectTargetDayIn(scope: Page | Locator): Promise<void> {
   if (crossesMonth) {
-    await page.getByRole("button", { name: /next month/i }).click();
+    await scope.getByRole("button", { name: /next month/i }).click();
   }
   // Scope to the enabled, in-month occurrence so the click never lands on a showOutsideDays duplicate.
-  const day = page
+  const day = scope
     .getByRole("button", { name: targetDayLabel })
-    .and(page.locator("td:not([data-outside='true']) button"))
-    .and(page.locator("button:not([disabled])"));
+    .and(scope.locator("td:not([data-outside='true']) button"))
+    .and(scope.locator("button:not([disabled])"));
   await day.first().click();
+}
+
+/** Navigate the venue-tz calendar to the seeded target day (advancing one month if it's next month). */
+export async function selectTargetDay(page: Page): Promise<void> {
+  await selectTargetDayIn(page);
+}
+
+/** RESP-02's sticky-bar trigger, and the overlay it opens. Both declared in `selector-contract.ts`. */
+const SHEET_TRIGGER_NAME = "Check availability";
+const SHEET_SELECTOR = '[data-testid="responsive-dialog"]';
+
+/**
+ * Open the listing page's booking sheet through the sticky bar's own trigger — RETRIED.
+ *
+ * ⚠ THE RETRY IS A MEASURED REQUIREMENT, NOT A HEDGE, AND IT IS 12-09's FINDING 6 IN A SECOND SHAPE.
+ * `e2e/overflow-320.spec.ts`'s sheet-open row passed every isolated invocation and then failed in the
+ * full-suite run, in BOTH themes, with Playwright's own call log naming the mechanism:
+ *
+ *     - locator resolved to <button … data-slot="dialog-trigger">Check availability</button>
+ *     - attempting click action
+ *       - waiting for element to be visible, enabled and stable
+ *       - element is not stable
+ *     - retrying click action
+ *     - element was detached from the DOM, retrying
+ *
+ * The trigger EXISTS in the server-rendered document — `toHaveCount(1)` resolved it immediately — and
+ * is then replaced while React finishes with the route. Under load the click lands on a node on its way
+ * out and the event goes with it: the click is LOST, not queued, so polling for the sheet afterwards
+ * would hang until the test timeout on a page with nothing wrong with it. Retrying the CLICK until the
+ * overlay is mounted is the guard, exactly as `reduced-motion.spec.ts`'s `advanceMonth` retries the
+ * month-nav click for the same reason.
+ *
+ * The guard is not weakened by the retry: a trigger that opens nothing still fails, with this
+ * function's own message rather than with a generic locator timeout.
+ */
+export async function openBookingSheet(page: Page, where: string): Promise<Locator> {
+  const sheet = page.locator(SHEET_SELECTOR);
+  const trigger = page.getByRole("button", { name: SHEET_TRIGGER_NAME });
+
+  await expect(
+    trigger,
+    `${where}: the sticky bar rendered no \`${SHEET_TRIGGER_NAME}\` action, so the sheet cannot be ` +
+      "opened. With no selection this is the bar's ONLY action (D-59 #3 replaces it with the hold " +
+      "submission once a window is picked), and the bar itself is `lg:hidden` — a viewport at or above " +
+      "`lg:` renders neither.",
+  ).toHaveCount(1, { timeout: 15_000 });
+
+  await expect
+    .poll(
+      async () => {
+        if ((await sheet.count()) > 0) return true;
+        await trigger.click({ timeout: 5_000 }).catch(() => {});
+        return (await sheet.count()) > 0;
+      },
+      {
+        timeout: 30_000,
+        message:
+          `${where}: tapping \`${SHEET_TRIGGER_NAME}\` never opened the booking sheet. The click is ` +
+          "retried because a server-rendered trigger is clickable before React has finished with the " +
+          "route (see this helper's note); a persistent failure here means the bar's trigger is not " +
+          "wired to the one overlay primitive at all.",
+      },
+    )
+    .toBe(true);
+
+  await expect(sheet).toBeVisible();
+  return sheet;
 }
 
 /** Open the listing, navigate to the target day, and pick the [startLabel, endLabel] hourly run. */
@@ -305,7 +385,27 @@ export async function placeHold(
   await openSeededListing(page, seed);
   await pickWindow(page, startLabel, endLabel);
 
-  const bookBtn = page.getByRole("button", { name: "Book this space" });
+  // ⚠ THE CTA IS ADDRESSED BY THE HOLD-CTA FAMILY AND NOT BY THE RAIL'S NAME, AS OF PLAN 12-10, AND
+  // THIS HELPER'S CALLERS ARE WHY. RESP-02 makes the listing rail `max-lg:hidden` and puts the hold
+  // action on a sticky bottom bar reading `Book · {total}` below `lg:`, so `Book this space` — the name
+  // this line used to carry — resolves to ZERO elements at any width the rail does not render at.
+  //
+  // MEASURED, not anticipated: `e2e/hold-countdown.spec.ts` sets 375px before minting its hold (its
+  // geometry run sweeps 375 / 768 / 1280) and went red here with `element(s) not found` on a tree that
+  // was working exactly as designed. This helper's own docstring calls it "the whole booker path in one
+  // call", and a booker path that only exists above 1024px is not one.
+  //
+  // The regex is safe to leave unqualified precisely because RESP-02 asserts what it depends on:
+  // `e2e/mobile-booker-path.spec.ts` case (c) pins EXACTLY ONE reachable hold CTA at 375px and at
+  // 1280px. It deliberately does not match `slot-picker.tsx`'s `Book full day`, which selects a window
+  // and places no hold — the same distinction that spec's header records measuring.
+  const bookBtn = page.getByRole("button", { name: /^Book(?: this space| · )/ });
+  await expect(
+    bookBtn,
+    "the listing page rendered no reachable hold CTA. Below `lg:` that is the sticky bar's " +
+      "`Book · {total}`, which only appears once a window is picked; at and above it, the rail's " +
+      "`Book this space`. More than one means the placement that should be `hidden` is not.",
+  ).toHaveCount(1);
   await expect(bookBtn).toBeEnabled();
   await bookBtn.click();
 

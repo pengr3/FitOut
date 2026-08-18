@@ -1,10 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openBookingSheet } from "./helpers/booker-seed";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
 
-// RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on twelve named routes, in
-// both themes. Measured in real pixels in real Chromium.
+// RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on twelve named routes plus
+// one route STATE, in both themes. Measured in real pixels in real Chromium.
+//
+// THE THIRTEENTH ROW IS `/listings/[id]` WITH THE BOOKING SHEET OPEN (plan 12-10), and it is a state
+// rather than a route on purpose: RESP-02's sheet is a portal holding a second month grid inside a
+// full-bleed overlay, so at this width it is the widest subtree on the route — and it does not exist in
+// the document at all until a booker taps the sticky bar. See that row for the whole argument.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // THIS HARNESS IS NET-NEW, AND THAT IS A CORRECTION TO THE PHASE'S OWN INPUTS
@@ -243,6 +249,16 @@ type RouteRow = {
   readonly tell: string;
   /** Serve the pre-hydration document instead of the hydrated one — see the checkout row's reason. */
   readonly served?: boolean;
+  /**
+   * An interaction to perform AFTER `goto` and BEFORE the measurement, for a row whose subject only
+   * exists once a booker has done something.
+   *
+   * Added by plan 12-10 for exactly one row and deliberately not generalised further: RESP-02's booking
+   * sheet is a portal, so at 320px the widest thing on the whole route is a subtree that is not in the
+   * document until the sticky bar is tapped. A row that measured the closed page would be measuring the
+   * page this table already covers, twice.
+   */
+  readonly open?: (page: Page) => Promise<void>;
 };
 
 /**
@@ -273,6 +289,31 @@ const ROUTES: readonly RouteRow[] = [
     // and the assertions below green — the same "true of a blank page" hole every other row's `tell`
     // exists to close, arriving one level in.
     tell: '[data-slot="calendar"]',
+  },
+  {
+    name: "/listings/[id] · sheet open",
+    path: firstListingPath,
+    // ⚠ THE SAME ROUTE, MEASURED IN A STATE THE ROW ABOVE STRUCTURALLY CANNOT REACH (plan 12-10).
+    // RESP-02's booking sheet is a Radix portal: its contents do not exist in the document until the
+    // sticky bar's `Check availability` is tapped, so the row above measures a page the sheet is not on.
+    // And the sheet is where the 320px floor is HARDEST — it mounts a second month grid (seven cells,
+    // the one control on this whole twelve-route table structurally able to break the floor, per the
+    // row above), inside a full-bleed overlay whose own `p-4` leaves a 288px content box, with a
+    // `sticky bottom-0` action bar pinned inside it. Every one of those is a fresh chance to overflow
+    // and none of them was previously measured anywhere.
+    //
+    // THE `tell` IS THE SHEET'S OWN CALENDAR, addressed through the overlay hook rather than by
+    // `[data-slot="calendar"]` alone — the closed page already renders one of those in the main column,
+    // so the plainer selector would be satisfied by a tap that did nothing at all.
+    //
+    // ⚠ THE OPEN IS RETRIED, AND THE RETRY WAS EARNED IN THIS FILE. This row passed every isolated
+    // invocation and failed the first FULL-SUITE run in both themes, with Playwright's call log
+    // reporting the trigger `not stable` and then `detached from the DOM` — a server-rendered control
+    // clicked while React was still finishing with the route, where the event is LOST rather than
+    // queued. `openBookingSheet` carries the whole measurement; it is the same shape
+    // `reduced-motion.spec.ts`'s `advanceMonth` needed for the month-nav click.
+    open: (page) => openBookingSheet(page, "/listings/[id] · sheet open").then(() => undefined),
+    tell: '[data-testid="responsive-dialog"] [data-slot="calendar"]',
   },
   {
     name: "/listings/[id]/book",
@@ -432,6 +473,13 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
 
         await page.goto(`${BASE}${path}`);
         await page.evaluate(() => document.fonts.ready);
+
+        // The one row whose subject is behind an interaction. It runs BEFORE `expectReachable`, because
+        // that guard's `tell` is the thing the interaction produces.
+        if (row.open) {
+          await row.open(page);
+          await page.evaluate(() => document.fonts.ready);
+        }
 
         const where = `${title} · ${FLOOR_PX}px`;
         await expectReachable(page, row, where);
