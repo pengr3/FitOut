@@ -1,3 +1,5 @@
+"use client";
+
 // PriceBreakdown (BOOK-01 · D-45/D-46/D-74) — formalizes the display-only RailSelectionSummary estimate
 // (availability-calendar.tsx:233-268) into the committed, SERVER-FROZEN breakdown on the reserve page.
 //
@@ -42,10 +44,59 @@
 // same double-padding trap `.planning/…/deferred-items.md` measured at 112px vs 80px on the row cards.
 // A breakdown is CONTENT; the panel is the surface it is rendered onto.
 //
-// Pure display, no hooks → a Server Component (no "use client").
+// ── WHY THIS IS A CLIENT COMPONENT AS OF PHASE 12 (D-38 / BFLOW-04), AND WHAT DID NOT CHANGE ─────────
+// This file used to end with the sentence *"Pure display, no hooks → a Server Component (no `use
+// client`)"*. That sentence was true for one call site and stopped being true the moment there were two.
+//
+// THE REASON, and it is a structural one rather than a preference. BFLOW-04's claim is that the listing
+// rail and the checkout page show THE SAME FACT, and the only way to make that true rather than asserted
+// is for there to be ONE component rendering both. The rail's breakdown depends on the selection the
+// booker is holding in the browser — a day, a window, a pass count that changes on every click — so the
+// RSC cannot pre-render the right one; the rail's parent must be a Client Component, and a Server
+// Component cannot be imported by a Client Component. Hence `"use client"` on line 1.
+//
+// WHAT DID NOT CHANGE, because this is a money surface and the distinction is the whole of GATE-05:
+//   • The component still performs ZERO ARITHMETIC. Every figure below is a server-computed prop, and
+//     `tests/design/price-surface.test.ts` walks this file's AST to assert there is no `+`, `-`, `*` or
+//     `/` on any of them.
+//   • It still receives only FINISHED figures. The rail's three numbers come from `AllInParts`
+//     (`@/lib/booking/all-in-table.ts`), where the fee was subtracted on the server inside the module the
+//     `server-only` guard reaches; checkout's come from the frozen booking row. Neither surface is handed
+//     the ingredients to compute a price (D-130).
+//   • `SERVICE_FEE_BPS`, `computeServiceFee` and the formula are still absent from every client module.
+//     GATE-05 guards the COMPUTATION, not the rendering, so `service-fee.ts`'s `import "server-only"` is
+//     untouched and `next build`'s boundary check was re-run explicitly over this flip rather than
+//     assumed from a previous green build.
+//   • `@/lib/money` was already explicitly isomorphic (*"both Server Components and Client Components can
+//     import it"*, `money.ts:6-7`) and `ui/separator` is already a client-safe primitive, so the flip
+//     needed no other file to move.
+//
+// ── THE `surface` PROP, AND WHY THE TOTAL ROW IS WRITTEN TWICE ───────────────────────────────────────
+// `surface` defaults to `"checkout"`, so the shipped call site (`listings/[id]/book/page.tsx`) is
+// byte-identical and did not need an edit. Rows, order, weights, `tabular-nums` and the word `Total` are
+// IDENTICAL across the two surfaces — that identity IS what BFLOW-04 buys, and nothing new may be made to
+// vary here casually. Exactly two things fork: the total's `data-testid`, and the trailing line.
+//
+// The total row is TWO SIBLING BRANCHES with two string-literal ids rather than one element with a
+// computed one, and that is a hard constraint rather than a style: `tests/design/selector-contract.test
+// .ts`'s AST collector resolves a `data-testid` only when the value is a string literal. `data-testid=
+// {MAP[surface]}` and `data-testid={cond ? "a" : "b"}` both resolve to null, the declared row then reads
+// as "rendered NOWHERE in src/", and `npm run build` fails on the contract's forward assertion. Both
+// branches consume ONE shared class constant so the two totals are computed-style identical by
+// construction rather than by copy-paste, and exactly one branch renders per surface, which makes
+// "exactly one total hook per document" structural.
 
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { Separator } from "@/components/ui/separator";
+
+/**
+ * The total VALUE's classes, shared by both surface branches below.
+ *
+ * One constant, two call sites, on purpose. `e2e/price-one-fact.spec.ts` (plan 12-05) asserts that the
+ * rail's total and the checkout's total have identical computed styles; a constant makes that true by
+ * construction, where two hand-written class strings make it true until someone edits one of them.
+ */
+const TOTAL_VALUE_CLASS = "text-xl font-semibold tabular-nums";
 
 type PriceBreakdownProps = {
   /**
@@ -97,6 +148,16 @@ type PriceBreakdownProps = {
   hours: number;
   hourlyRateCents: number | null;
   dayRateCents: number | null;
+  /**
+   * WHICH price surface this instance is (D-38 / BFLOW-04). Defaults to `"checkout"` so the shipped call
+   * site renders byte-for-byte what it always has.
+   *
+   * It selects exactly two things — the total's structural hook and the trailing line — and it must never
+   * grow to select a third without a decision to point at. The moment the two surfaces differ in a row, an
+   * order, a weight or a figure, "the rail and checkout show the same fact" stops being a property of the
+   * code and goes back to being a claim in a document.
+   */
+  surface?: "rail" | "checkout";
 };
 
 export function PriceBreakdown({
@@ -114,6 +175,7 @@ export function PriceBreakdown({
   hours,
   hourlyRateCents,
   dayRateCents,
+  surface = "checkout",
 }: PriceBreakdownProps) {
   // Line label is `{₱rate}/hr × {N} hours` or `{₱rate}/day × 1 day` — formatting only, no multiplication.
   //
@@ -203,19 +265,42 @@ export function PriceBreakdown({
             ⚠️ The attribute+value pair is deliberately NEVER written contiguously in prose here. The
             plan's acceptance criterion counts that exact pair and expects ONE; a first draft of this very
             comment spelled it out and made the count read 2 — the file header's GREP TRIPWIRE rule,
-            tripped by the note explaining the thing it guards. Measured, not hypothesised. */}
-        <span
-          data-testid="price-total"
-          className="text-xl font-semibold tabular-nums"
-        >
-          {formatMoney(quotedTotalCents, currency)}
-        </span>
+            tripped by the note explaining the thing it guards. Measured, not hypothesised.
+
+            THE RAIL GETS ITS OWN HOOK, AND SHARING ONE WOULD HAVE BEEN THE DEFECT. Plan 12-10 renders a
+            booking sheet, so a single document can hold two breakdowns; the parity spec reads the hook
+            and normalises its text back to integer centavos, and with two matches it would silently
+            parse whichever came first in the DOM. Two literals, one per surface, one match each — see
+            the header for why this is written as two branches rather than one computed attribute. */}
+        {surface === "rail" ? (
+          <span data-testid="rail-price-total" className={TOTAL_VALUE_CLASS}>
+            {formatMoney(quotedTotalCents, currency)}
+          </span>
+        ) : (
+          <span data-testid="price-total" className={TOTAL_VALUE_CLASS}>
+            {formatMoney(quotedTotalCents, currency)}
+          </span>
+        )}
       </div>
 
       {/* C7: once D-74 ships, no booker surface may reassure that nothing was added or that this figure is
           conclusive. The string previously here did both, and became FALSE the moment the fee existed. The
-          forbidden phrases are deliberately not written out — see the GREP TRIPWIRE note in the header. */}
-      <p className="text-xs text-muted-foreground">Includes our service fee. You&apos;ll pay this now.</p>
+          forbidden phrases are deliberately not written out — see the GREP TRIPWIRE note in the header.
+
+          THE RAIL'S LINE IS A STRICT PREFIX OF THE CHECKOUT LINE, and that is what keeps it safe rather
+          than merely shorter. The second sentence is a statement about a payment that is about to happen,
+          and on the listing page it is simply not true yet — nothing is being charged from the rail. So it
+          is dropped rather than reworded: every alternative phrasing is new booker-facing copy on a money
+          surface, which is exactly where the two whole-source greps in the header live. Do not "improve"
+          either string. */}
+      {surface === "rail" ? (
+        <p className="text-xs text-muted-foreground">Includes our service fee.</p>
+      ) : (
+        /* Kept on ONE line, exactly as it shipped. JSX would collapse the wrapped form to the same
+           string, but this is UAT-passed booker-facing copy and "the same after a transform" is a
+           weaker thing to be able to say than "unchanged". */
+        <p className="text-xs text-muted-foreground">Includes our service fee. You&apos;ll pay this now.</p>
+      )}
     </div>
   );
 }

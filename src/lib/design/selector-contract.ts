@@ -143,6 +143,8 @@ export const SELECTOR_IDS = [
   "legal-placeholder-notice",
   // 12-03 — the checkout header's hold countdown slot.
   "hold-countdown",
+  // 12-04 — the listing rail's total, once ONE component renders both price surfaces.
+  "rail-price-total",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -334,5 +336,21 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "exists for. Nor is there an accessible name on an empty reserved box — when it is doing its job " +
       "it holds nothing.",
     owner: "12-03",
+  },
+
+  // ─── 12-04 ─────────────────────────────────────────────────────────────────────────────────────────
+  "rail-price-total": {
+    why:
+      "The same no-role-for-a-number argument `price-total` records, plus the reason it may NOT simply " +
+      "reuse that hook. D-38 makes ONE component render the breakdown on both the listing rail and " +
+      "checkout, and 12-10 then mounts a second booking view in a SHEET — so a single document can hold " +
+      "two totals. `e2e/price-parity.spec.ts` reads the hook's textContent, normalises it back to " +
+      "integer centavos and asserts equality with `booking.quoted_total_cents`; with two elements " +
+      "carrying one id it would resolve whichever came first in the DOM and be green for the wrong " +
+      "element, on the one CI-gated money spec. A per-surface id makes each match exactly one element " +
+      "per document, which is a structural fact rather than a discipline. `sheet-price-total` is " +
+      "deliberately NOT declared here — plan 12-10 renders it, and a declared row with no literal in " +
+      "`src/` fails this contract's forward assertion.",
+    owner: "12-04",
   },
 };
