@@ -3,10 +3,13 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   BASE,
   openBookingSheet,
+  placeHold,
   seedBookableListing,
   selectTargetDayIn,
+  signUpBooker,
   type SeededListing,
 } from "./helpers/booker-seed";
+import { FLOOR_PX, expectNoOverflow } from "./helpers/overflow";
 import { seedTheme } from "./helpers/theme";
 
 // RESP-02 — THE MOBILE BOOKER PATH, MEASURED AT THE WIDTH IT IS ABOUT.
@@ -658,6 +661,288 @@ test.describe("RESP-02 — two views, one state, ONE fetch", () => {
         await page.getByRole("dialog").count(),
         `${deskWhere}: a dialog is mounted at a width where the sheet is unreachable.`,
       ).toBe(0);
+    });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// (g)–(k) — BFLOW-06 / BFLOW-07: THE CHECKOUT HALF, ONE ROUTE LATER IN THE SAME JOURNEY (plan 12-11)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-50's sentence is the whole specification: *"the booker never opens anything to see what they are
+// PAYING — only to see how it was BUILT."* Two claims come out of it and they fail in opposite
+// directions, so both are asserted:
+//
+//   • THE DERIVATION IS HIDDEN. Collapsed, the run line and the fee line are not on screen. A test that
+//     only checked the Total would be green against a disclosure that collapses nothing.
+//   • THE TOTAL IS NOT. It is outside the collapsible — asserted as ANCESTRY, not as visibility, because
+//     "is it on screen" on a 812px-tall phone is a question about scroll position and "is it inside the
+//     region that can be closed" is the structural claim BFLOW-06 actually makes. The bar's copy of the
+//     amount is what carries the VISIBILITY half at `scrollY === 0`, which is what the bar is for.
+//
+// ⚠ THESE CASES PLACE A REAL HOLD, and that is why they run LAST and on their own windows. The listing
+// cases above only SELECT — nothing they touch becomes unavailable. A hold makes its hours unbookable on
+// the shared seeded listing for the rest of the run, so reusing `WINDOWS` here would make the earlier
+// cases order-dependent on this one. `mode: "serial"` means order is deterministic; it does not make a
+// consumed slot reappear.
+//
+// ⚠ BFLOW-07's CLAIM STOPS AT "THE BOOKER IS TOLD WHERE THEY ARE GOING", and case (k) is written to the
+// edge of what is honest. `Confirm & pay` opens a PayMongo HOSTED CHECKOUT — `e2e/search-and-book.spec.ts`'s
+// header records that the tail past it is un-automatable from Playwright, which is why the automatable
+// booker path ends at this button in every spec in this repository. So the button is NEVER pressed here:
+// the assertion is that the destination is NAMED before the press, on the surface where naming it can
+// still change a decision. Pressing it to "prove the redirect" would mint a real payable session against
+// a provider that does not honour an idempotency key.
+//
+// ⚠ WATCHED RED (run and reverted; see the SUMMARY for the verbatim output). `PriceDisclosure`'s
+// `children` moved to sit BESIDE the collapsible instead of inside its content — a disclosure that
+// renders a trigger and hides nothing, which every "the Total is visible" assertion is green for.
+
+const CHECKOUT_BAR = '[data-testid="checkout-sticky-bar"]';
+const DISCLOSURE = '[data-testid="price-disclosure"]';
+
+/**
+ * One window per theme, DISTINCT from `WINDOWS` above and from each other.
+ *
+ * The seeded listing opens 06:00–21:00 every day (`booker-seed.ts`), so both sit well inside the
+ * operating window. They are afternoon hours so that a failure here cannot be confused with the morning
+ * runs the earlier cases select.
+ */
+const CHECKOUT_WINDOWS = {
+  court: ["2:00 PM", "3:00 PM"],
+  grove: ["4:00 PM", "5:00 PM"],
+} as const;
+
+/** The run line's signature — `{₱rate}/hr × {N} hours`, `price-breakdown.tsx`'s `runLabel`. */
+const RUN_LINE = /\/hr ×/;
+
+test.describe("BFLOW-06 / BFLOW-07 — checkout at 375px", () => {
+  test.describe.configure({ timeout: 180_000 });
+
+  for (const theme of THEMES) {
+    test(`${theme} · 375px · a confirm bar, a collapsed derivation, and one amount`, async ({
+      page,
+      context,
+    }) => {
+      await seedTheme(context, theme);
+      await page.setViewportSize(PHONE);
+      await signUpBooker(page, seed);
+      const [start, end] = CHECKOUT_WINDOWS[theme];
+      await placeHold(page, seed, start, end);
+      await page.evaluate(() => document.fonts.ready);
+
+      const where = `${theme} · checkout · ${PHONE.width}px`;
+
+      // TRAP 1 again: prove the surface exists before measuring it. `placeHold` already waits for
+      // `price-total`, so the body has resolved — this is about the BAR specifically.
+      await expect(
+        page.locator(CHECKOUT_BAR),
+        `${where}: the checkout rendered no \`${CHECKOUT_BAR}\`. Every measurement below reads a box or ` +
+          "a string out of that element, and an absent element yields a null box and an empty string.",
+      ).toHaveCount(1, { timeout: 15_000 });
+
+      // ── (g) THE BAR IS THE SAME BOX AS THE LISTING PAGE'S ────────────────────────────────────────
+      // Same constant, same height, same anchor — a booker who met the listing bar one route ago meets
+      // this one at the same place on the screen. `scrollY === 0` for the same reason case (a) reads it:
+      // "reachable without scrolling" is a claim about an unscrolled document.
+      expect(
+        await page.evaluate(() => window.scrollY),
+        `${where}: the page was not at the top when the bar's box was read.`,
+      ).toBe(0);
+
+      const bar = await boxOf(page.locator(CHECKOUT_BAR), `checkout bar · ${where}`);
+      expect(
+        bar.height,
+        `${where}: the confirm bar is ${bar.height}px tall, not ${BAR_HEIGHT_PX}. Both bars are sized ` +
+          "from STICKY_BAR_HEIGHT precisely so the two most decisive taps on the money path do not " +
+          "read as two different apps.",
+      ).toBe(BAR_HEIGHT_PX);
+      expect(
+        bar.y + bar.height,
+        `${where}: the bar's bottom edge is at ${bar.y + bar.height} against a ${PHONE.height}px ` +
+          "viewport — it is not anchored to the bottom of the screen.",
+      ).toBeLessThanOrEqual(PHONE.height + TOLERANCE_PX);
+
+      const action = await boxOf(
+        page.locator(CHECKOUT_BAR).getByRole("button"),
+        `confirm action · ${where}`,
+      );
+      expect(
+        { width: action.width >= TOUCH_TARGET_PX, height: action.height >= TOUCH_TARGET_PX },
+        `${where}: the confirm action measures ${action.width} × ${action.height}, below the ` +
+          `${TOUCH_TARGET_PX} × ${TOUCH_TARGET_PX} WCAG 2.5.5 target — on the one control in this app ` +
+          "that spends money.",
+      ).toEqual({ width: true, height: true });
+
+      // ── (h) THE DERIVATION IS COLLAPSED, AND THE TOTAL IS NOT INSIDE IT (12-UI-SPEC AC#22) ───────
+      const disclosure = page.locator(DISCLOSURE);
+      await expect(
+        disclosure,
+        `${where}: the checkout rendered no \`${DISCLOSURE}\`.`,
+      ).toHaveCount(1);
+
+      const trigger = page.getByRole("button", { name: /Price details/ });
+      await expect(
+        trigger,
+        `${where}: the disclosure rendered no trigger reachable by role. Radix wires ` +
+          "`aria-expanded`/`aria-controls` onto it, and a region a keyboard cannot open is a region " +
+          "whose contents are simply gone.",
+      ).toHaveCount(1);
+      expect(
+        await trigger.getAttribute("aria-expanded"),
+        `${where}: the disclosure is OPEN on first paint. D-50's claim is that the itemised lines are ` +
+          "behind it by default — a disclosure that starts open hides nothing and the assertions below " +
+          "would be measuring the shipped, un-collapsed breakdown.",
+      ).toBe("false");
+
+      // The derivation really is off screen — not merely styled small. Radix unmounts closed content.
+      expect(
+        await page.getByText(RUN_LINE).count(),
+        `${where}: the run line is in the document with the disclosure collapsed. The trigger is then ` +
+          "decoration, and BFLOW-06's single-column claim is unmet on the surface it is stated for.",
+      ).toBe(0);
+      expect(
+        await page.getByText("Service fee", { exact: true }).count(),
+        `${where}: the service-fee line is in the document with the disclosure collapsed.`,
+      ).toBe(0);
+
+      // …and the Total is OUTSIDE the region that can be closed. Structural, not visual: on an 812px
+      // phone "is it on screen" depends on scroll position, and the claim D-50 makes is that closing
+      // the derivation can never take the amount with it.
+      const total = page.getByTestId("price-total");
+      await expect(total, `${where}: the checkout rendered no \`price-total\`.`).toHaveCount(1);
+      expect(
+        await total.evaluate((el, sel) => el.closest(sel) !== null, DISCLOSURE),
+        `${where}: the Total is INSIDE the price disclosure. Collapsing it would then hide the one ` +
+          "figure the booker is agreeing to, on the screen where they agree to it — which is the " +
+          "single defect BFLOW-06's wording exists to forbid (T-12-11-HIDDENTOTAL).",
+      ).toBe(false);
+
+      // ── (i) THE BAR CARRIES THE AMOUNT AT scrollY 0, BYTE-EQUAL TO THE TOTAL ─────────────────────
+      // This is the half that makes "the Total is visible" true on a phone: the breakdown's Total is
+      // below the fold on any real checkout, and the bar is the surface that keeps the figure present.
+      const barText = ((await page.locator(CHECKOUT_BAR).textContent()) ?? "").trim();
+      const totalText = ((await total.textContent()) ?? "").trim();
+
+      expect(
+        totalText.length,
+        `${where}: the breakdown's Total rendered no text, so the equality below compares two empty ` +
+          "strings.",
+      ).toBeGreaterThan(0);
+      expect(
+        barText,
+        `${where}: the bar renders no \`Total\` label — the amount beside it is then an unlabelled ` +
+          "number on a payment screen.",
+      ).toContain("Total");
+      expect(
+        barText,
+        `${where}: the bar's amount and the breakdown's Total are not the same string.\n` +
+          `  bar   ${JSON.stringify(barText)}\n  total ${JSON.stringify(totalText)}\n` +
+          "Both are the SAME `formatMoney(quoted, currency)` string, produced once in `book/page.tsx` " +
+          "and threaded to both surfaces. A bar that composed its own figure would agree at most rates " +
+          "and diverge by a centavo at the rounding edge (GATE-05 / T-12-11-HIDDENTOTAL).",
+      ).toContain(totalText);
+
+      const barBox = await boxOf(page.locator(CHECKOUT_BAR), `bar (amount) · ${where}`);
+      expect(
+        barBox.y,
+        `${where}: the bar carrying the amount is not inside the viewport at scrollY 0.`,
+      ).toBeLessThan(PHONE.height);
+
+      // ── (j) EXPANDING REVEALS THE DERIVATION AND DOES NOT MOVE THE TOTAL OUT OF VIEW ─────────────
+      const totalBefore = await boxOf(total, `Total (collapsed) · ${where}`);
+      await trigger.click();
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+      await expect(
+        page.getByText(RUN_LINE),
+        `${where}: expanding the disclosure revealed no run line. The region opened and holds nothing, ` +
+          "which every collapsed-state assertion above is equally green for.",
+      ).toHaveCount(1);
+      await expect(
+        page.getByText("Service fee", { exact: true }),
+        `${where}: expanding the disclosure revealed no service-fee line.`,
+      ).toHaveCount(1);
+
+      const totalAfter = await boxOf(total, `Total (expanded) · ${where}`);
+      expect(
+        totalAfter.y,
+        `${where}: opening the disclosure pushed the Total UP the page (from ${totalBefore.y} to ` +
+          `${totalAfter.y}). It sits below the region, so it can only move down — a Total that moved ` +
+          "up means the layout reflowed around it rather than the region growing beneath it.",
+      ).toBeGreaterThanOrEqual(totalBefore.y - TOLERANCE_PX);
+      // It is still IN THE DOCUMENT and still outside the region — expanding must not restructure it.
+      expect(
+        await total.evaluate((el, sel) => el.closest(sel) !== null, DISCLOSURE),
+        `${where}: expanding the disclosure moved the Total inside it.`,
+      ).toBe(false);
+      // …and the amount the bar carries has not drifted from it.
+      expect(
+        ((await total.textContent()) ?? "").trim(),
+        `${where}: the Total's own string changed when the disclosure opened.`,
+      ).toBe(totalText);
+
+      // ── (k) BFLOW-07 — ONE REACHABLE CONFIRM, AND IT NAMES ITS DESTINATION BEFORE IT IS PRESSED ──
+      const confirms = await page
+        .getByRole("button", { name: /^Confirm & pay$/ })
+        .allInnerTexts();
+      expect(
+        confirms.length,
+        `${where}: the document holds ${confirms.length} reachable \`Confirm & pay\` controls; ` +
+          "expected exactly 1. Checkout renders the action twice — inline in the rail and in the bar — " +
+          "and `hidden` is the only thing that makes that safe. Two reachable confirms on a provider " +
+          "that does not honour an idempotency key is two payable sessions one tap apart.\n" +
+          `  found: ${confirms.map((n) => JSON.stringify(n)).join(" / ")}`,
+      ).toBe(1);
+
+      // ⚠ THE APOSTROPHE IS A `.`, AND IT IS THE SHIPPED IDIOM RATHER THAN A SHRUG.
+      // `e2e/search-and-book.spec.ts` has matched this same sentence as `/You.ll pay …/` since Phase 5.
+      // A literal `'` in the pattern resolved to ZERO elements here against a page rendering the
+      // sentence correctly — measured, on the first run of this case — so the character the DOM carries
+      // is not the one a `.ts` regex literal spells. The claim this assertion makes is about the WORD
+      // `PayMongo`, the amount and the rails; pinning a punctuation glyph would be pinning the wrong
+      // thing and is why the rest of the pattern is explicit and this one character is not.
+      const line = page.getByText(/You.ll pay .* on PayMongo — card, GCash, Maya or QR ?Ph/);
+      await expect(
+        line,
+        `${where}: the line beneath the CTA does not name PayMongo. BFLOW-07's whole gap was this ` +
+          "word: the booker is about to be handed to a domain they have never been told about, with " +
+          "their card out (12-UI-SPEC AC#28).",
+      ).toHaveCount(1);
+      // …and it names the amount it is about — the same string the bar and the breakdown carry.
+      await expect(
+        line,
+        `${where}: the destination line does not name the amount. "You'll pay … on PayMongo" without ` +
+          "a figure tells the booker where they are going and not what for.",
+      ).toContainText(totalText);
+
+      // The button is deliberately NOT pressed — see this block's header.
+      expect(
+        await page.getByRole("dialog").count(),
+        `${where}: a dialog is mounted on the checkout. D-51 refuses an interstitial in front of the ` +
+          "redirect, and this route opens no overlay of its own at all.",
+      ).toBe(0);
+
+      // ── (l) AC#23's CHECKOUT ROW, ON THE RESOLVED BODY, AT THE 320px FLOOR ───────────────────────
+      // `e2e/overflow-320.spec.ts` measures this route PRE-HYDRATION (`served: true`) because reaching
+      // the resolved checkout needs a minted hold and that table is deliberately seed-free — its own
+      // checkout row now says so. The served shell holds none of what 12-11 added: not the fixed bar,
+      // not the disclosure, not the breakdown. This is where they get measured, using the SAME
+      // `expectNoOverflow` that table calls, so the two can never disagree about what "clipped" means.
+      //
+      // The per-element clause is the one doing the work here rather than the document one: a
+      // `position: fixed` bar can lay out past the viewport WITHOUT widening `scrollWidth` at all, and
+      // this route now has one.
+      await page.setViewportSize({ width: FLOOR_PX, height: FLOOR.height });
+      await page.evaluate(() => document.fonts.ready);
+
+      const floorWhere = `${theme} · checkout · ${FLOOR_PX}px`;
+      await expect(
+        page.locator(CHECKOUT_BAR),
+        `${floorWhere}: the bar is absent at the floor width, so the measurement below would be about ` +
+          "a page missing the very element it was written for.",
+      ).toHaveCount(1);
+      await expectNoOverflow(page, floorWhere);
     });
   }
 });

@@ -129,3 +129,114 @@ describe("ReserveActions — the checkout-lease refusal is calm, inline, and lea
     expect(screen.queryByText(CHECKOUT_IN_FLIGHT_MESSAGE)).toBeNull();
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// BFLOW-07 (plan 12-11) — THE BOOKER IS TOLD WHERE THEY ARE GOING BEFORE THEY GO
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The requirement's whole gap was ONE WORD. `Confirm & pay` has redirected to a PayMongo hosted checkout
+// since D-57, and the pressed label read `Taking you to checkout…` — true, and naming no destination at
+// all: "checkout" is the screen the booker is already looking at. What arrives next is a domain they
+// were never told about, at the moment their card comes out.
+//
+// WHAT THESE CASES CAN AND CANNOT CLAIM, stated so nobody reads more into them than they hold. They
+// assert the two STRINGS and the absence of a second step. They do NOT assert the redirect: the tail
+// past `Confirm & pay` is a hosted checkout Playwright cannot drive (`e2e/search-and-book.spec.ts`'s own
+// header records this, and it is why the automatable booker path ends at this button). This phase's
+// claim therefore stops exactly at "the booker is told where they are going", which is the claim
+// BFLOW-07 actually makes; the tail is human UAT and is not faked here.
+//
+// THE NEGATIVE CASE IS THE ONE THAT WILL EARN ITS KEEP. D-51 refuses an "are you sure / you're about to
+// be redirected" interstitial, and the reason is not minimalism: a 15-minute hold is expiring while the
+// booker reads it, and they have already decided — pressing a terminal action IS the decision. A dialog
+// is the single most likely thing a future well-meaning change adds to this surface, and it would look
+// like care while costing a tap and some of a hold.
+describe("BFLOW-07 — the confirm names its destination, and adds no step in front of it", () => {
+  const TOTAL = "₱735.00";
+  /** The four rails PayMongo actually settles for this app (CLAUDE.md § Payments). */
+  const RAILS = ["card", "GCash", "Maya", "QR Ph"] as const;
+
+  function renderAtRest() {
+    confirmBooking.mockReturnValue(new Promise(() => {})); // never resolves: the pressed state is durable
+    return render(<ReserveActions holdId="hold_1" totalLabel={TOTAL} onResult={vi.fn()} />);
+  }
+
+  it("(4) the at-rest line names the amount, the destination and all four rails", () => {
+    const { container } = renderAtRest();
+
+    // Read the LINE, not the document: `toContain` over `container.textContent` would also be satisfied
+    // by the word appearing in a button label, which is the other half of this requirement and is
+    // asserted separately below. The line is the element whose text is the sentence.
+    const line = [...container.querySelectorAll("p")]
+      .map((p) => p.textContent ?? "")
+      .find((text) => text.includes("You'll pay"));
+
+    expect(line, "the reassurance line beneath the CTA is not rendered at all").toBeTruthy();
+    expect(line, "the line does not name the amount the booker is agreeing to").toContain(TOTAL);
+    expect(
+      line,
+      "the line does not name PayMongo. BFLOW-07's gap was exactly this word: a booker who is not " +
+        "told where they are going meets an unfamiliar domain with their card out.",
+    ).toContain("PayMongo");
+    for (const rail of RAILS) {
+      expect(line, `the line does not name the ${rail} rail`).toContain(rail);
+    }
+  });
+
+  it("(5) the PRESSED label names PayMongo — on BOTH boxes, from the one pending state", async () => {
+    const { container } = renderAtRest();
+
+    const ctas = () => screen.getAllByRole("button", { name: /confirm & pay|taking you to/i });
+    expect(ctas(), "checkout renders the inline control and the sticky bar's").toHaveLength(2);
+
+    fireEvent.click(ctas()[0]);
+
+    await waitFor(() => {
+      for (const button of ctas()) {
+        expect(
+          button.textContent,
+          "a pressed confirm that does not name its destination is the shipped defect BFLOW-07 " +
+            "names — `Taking you to checkout…` describes no movement at all.",
+        ).toContain("PayMongo");
+        // The courtesy pair, on both boxes, from one `pending` — see the component's handleConfirm note
+        // for why this is a courtesy and where the real guard lives.
+        expect(button.hasAttribute("disabled")).toBe(true);
+        expect(button.getAttribute("aria-disabled")).toBe("true");
+      }
+    });
+
+    // …and pressing it did NOT also swap the at-rest line out from under the booker.
+    expect(container.textContent).toContain("PayMongo");
+  });
+
+  it("(6) pressing the CTA opens NO dialog and inserts NO second confirmation step (D-51)", async () => {
+    const { container, baseElement } = renderAtRest();
+
+    // Guard the guard: an absence assertion is free against a tree that rendered nothing, and free
+    // again against a tree that never reached the pressed state.
+    expect(screen.queryAllByRole("dialog")).toHaveLength(0);
+    const buttonsBefore = [...baseElement.querySelectorAll("button")].length;
+    expect(buttonsBefore).toBe(2);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /confirm & pay/i })[0]);
+    await waitFor(() => {
+      expect(container.textContent).toContain("PayMongo");
+    });
+
+    // `baseElement` rather than `container`: a Radix dialog PORTALS to `document.body`, so a scan of
+    // the component's own subtree is exactly the scan a real interstitial would escape.
+    expect(
+      screen.queryAllByRole("dialog"),
+      "a confirmation dialog appeared between the booker and the payment. D-51 refuses one: a hold is " +
+        "expiring while they read it, and they already decided — pressing the terminal action IS the " +
+        "decision. Name the destination in the line beneath the CTA instead, where it can still change " +
+        "one.",
+    ).toHaveLength(0);
+    expect(screen.queryAllByRole("alertdialog")).toHaveLength(0);
+    expect(
+      [...baseElement.querySelectorAll("button")].length,
+      "the pressed state grew a control. A second step on the money path is the thing this case exists " +
+        "to notice, and it does not have to call itself a dialog to be one.",
+    ).toBe(buttonsBefore);
+  });
+});

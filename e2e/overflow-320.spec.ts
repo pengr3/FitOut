@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { openBookingSheet } from "./helpers/booker-seed";
+import { FLOOR_PX, expectNoOverflow } from "./helpers/overflow";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
 
@@ -130,82 +131,19 @@ import { seedTheme } from "./helpers/theme";
 //     running app rather than naming a seeded row, and they fail with a named reason when the
 //     catalogue is empty — but they cannot run against a database with nothing in it.
 
-/** The floor. Not a breakpoint — the narrowest viewport the UI-SPEC's responsive baseline names. */
-const FLOOR_PX = 320;
-
-/**
- * Sub-pixel tolerance, in `scroll-area-overflow.spec.ts:123`'s form.
- *
- * 0.5 rather than 0: `scrollWidth` is an integer but `clientWidth` can be affected by a fractional
- * scrollbar gutter, and the defect this file is about is measured in tens of pixels — the watched red
- * above overflowed by 80. Half a pixel is nowhere near signal.
- */
-const TOLERANCE_PX = 0.5;
-
-/**
- * The floor on how many laid-out elements a measured page must have, and it is a MEASUREMENT.
- *
- * Every assertion in this file is "a number is small" or "a list is empty", and a page that rendered
- * nothing satisfies both perfectly — so the scan has to prove it looked at something. The number is
- * set from the two SMALLEST surfaces in the table rather than chosen: the root error boundary lays
- * out 12 elements (an icon, a heading, a body line and two actions) and the served checkout shell
- * lays out 14 (a header, a wordmark, an `h1` and a panel skeleton). The first draft used 20 and went
- * red on both — a guard tuned above the thing it is guarding is a guard that gets deleted. 8 sits
- * below both and still fires on a blank document, a redirect and a 404 body.
- */
-const MIN_EXAMINED_ELEMENTS = 8;
+// THE FLOOR, THE TOLERANCE, THE VACUITY BAR AND THE SCAN ITSELF ALL LIVE IN `helpers/overflow.ts`
+// SINCE PLAN 12-11, and the move is a measurement-sharing decision rather than tidying. Plan 12-11 put
+// a fixed confirm bar and a full-width disclosure trigger on `/listings/[id]/book`, neither of which is
+// in the SERVED document this table's checkout row measures — see that row. Reaching the resolved
+// checkout needs a minted hold, and adding that seed HERE would have made the cheapest gate in the
+// suite the fifth DB-seeding spec sharing one Postgres, which `deferred-items.md` warns against by
+// name. So `e2e/mobile-booker-path.spec.ts` — which already mints a hold — takes the resolved checkout
+// to 320px and calls the SAME function. Two fixtures, one definition of the assertion.
+//
+// Nothing about this file's 26 cases changed in that move: the constants, the scan and the three
+// expectations are byte-identical, and their reasons travelled with them.
 
 const THEMES = ["court", "grove"] as const;
-
-type OverflowMeasurement = {
-  scrollWidth: number;
-  clientWidth: number;
-  /** Unclipped elements whose right edge is past the viewport, outermost first. */
-  offenders: string[];
-  /** How many elements were examined. Zero means the page was empty and the number below is free. */
-  examined: number;
-};
-
-/**
- * ONE evaluate, ONE typed object, asserted in Node — `scroll-area-overflow.spec.ts:143-172`'s idiom.
- *
- * `examined` is not decoration: every assertion in this file is "a number is small" or "a list is
- * empty", and a page with no elements satisfies both perfectly.
- */
-async function measureOverflow(page: Page): Promise<OverflowMeasurement> {
-  return page.evaluate(() => {
-    const de = document.documentElement;
-    const limit = de.clientWidth;
-    const offenders: string[] = [];
-    let examined = 0;
-
-    /** True when something between `el` and the document element clips it horizontally. */
-    const isClipped = (el: Element): boolean => {
-      let parent = el.parentElement;
-      while (parent && parent !== de) {
-        const style = getComputedStyle(parent);
-        if (style.overflowX !== "visible" || style.overflow !== "visible") return true;
-        parent = parent.parentElement;
-      }
-      return false;
-    };
-
-    for (const el of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) continue;
-      examined += 1;
-      if (rect.right <= limit + 0.5) continue;
-      if (isClipped(el)) continue;
-      const testId = el.getAttribute("data-testid");
-      const cls = typeof el.className === "string" ? el.className : "";
-      offenders.push(
-        `${el.tagName.toLowerCase()}${testId ? `[${testId}]` : ""}.${cls.slice(0, 48)} right=${Math.round(rect.right)}`,
-      );
-    }
-
-    return { scrollWidth: de.scrollWidth, clientWidth: de.clientWidth, offenders, examined };
-  });
-}
 
 /**
  * The first listing in the catalogue, DISCOVERED from the running app and memoised per worker.
@@ -329,6 +267,16 @@ const ROUTES: readonly RouteRow[] = [
     // bookable listing and an open slot, and a gate with that seed dependency stops running the
     // first time the seed changes (this plan's threat model). The served document is
     // `listings/[id]/book/layout.tsx`'s own output, which is the composition AC#29 is about here.
+    //
+    // ⚠ WHAT THIS ROW DOES NOT COVER, STATED RATHER THAN LEFT TO BE DISCOVERED (plan 12-11). The served
+    // document is the SHELL plus `book/loading.tsx`'s skeleton. It does not contain the fixed 64px
+    // confirm bar, the price disclosure or the breakdown — all three of which 12-11 put on the resolved
+    // body, and two of which are the kind of thing that overflows at this width (a full-bleed fixed bar
+    // with a `whitespace-nowrap` amount beside a 44px action; a `-mx-4 w-full` trigger that deliberately
+    // renders wider than its own content box). Those are measured at 320px in both themes by
+    // `e2e/mobile-booker-path.spec.ts`, which already mints a real hold, through the SAME
+    // `expectNoOverflow` this table calls. The seed stayed there rather than coming here for the reason
+    // in the note above `ROUTES`.
     served: true,
     tell: '[data-testid="skeleton-panel"]',
   },
@@ -484,35 +432,7 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
         const where = `${title} · ${FLOOR_PX}px`;
         await expectReachable(page, row, where);
 
-        const m = await measureOverflow(page);
-
-        // TRAP 1, second half: a scan that examined nothing satisfies both assertions below.
-        expect(
-          m.examined,
-          `${where}: the measurement examined ${m.examined} elements. A page with nothing laid out ` +
-            "on it never overflows, so this number is what makes the two assertions below mean " +
-            `something. The floor is ${MIN_EXAMINED_ELEMENTS} — see the constant for the two ` +
-            "surfaces it was measured from.",
-        ).toBeGreaterThanOrEqual(MIN_EXAMINED_ELEMENTS);
-
-        expect(
-          m.scrollWidth,
-          `${where}: the document scrolls horizontally — scrollWidth ${m.scrollWidth} against a ` +
-            `clientWidth of ${m.clientWidth}. Offending elements (right edge past the viewport):\n` +
-            (m.offenders.length ? m.offenders.map((o) => `  ${o}`).join("\n") : "  (none — the " +
-              "overflow comes from something this collector cannot see: a margin, a negative " +
-              "offset, or an element clipped by an ancestor that is itself too wide)"),
-        ).toBeLessThanOrEqual(m.clientWidth + TOLERANCE_PX);
-
-        // The stronger clause, and it is not implied by the one above: an element can sit past the
-        // viewport without widening the document (a `position: fixed` box, or a row inside a
-        // container that scrolls on its own). At 320px, on these routes, nothing should.
-        expect(
-          m.offenders,
-          `${where}: ${m.offenders.length} element(s) lay out past the ${m.clientWidth}px viewport ` +
-            "without being clipped by an ancestor:\n" +
-            m.offenders.map((o) => `  ${o}`).join("\n"),
-        ).toEqual([]);
+        await expectNoOverflow(page, where);
       });
     }
   }

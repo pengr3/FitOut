@@ -677,7 +677,7 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
 
     // ── The reserve page for a SAME-DAY pass: a real pending hold, minted minutes after the venue opened. ─
     await page.waitForURL(/\/book\?hold=/, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: /review and book/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /confirm and pay/i })).toBeVisible();
 
     // NOT the hold-expired interstitial. Before the `expires_at` divergence in createOpenCapacityHold this
     // is precisely what a same-day claim would have rendered — the hold would lapse at the instant it was
@@ -687,8 +687,21 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
 
     // The PAYABLE summary: the per-person run line (OC-08 — priced per head, no duration term), a Total,
     // and the live hold countdown.
+    //
+    // AMENDED BY PLAN 12-11 (D-50 / BFLOW-06). The ITEMISED lines — including this per-person run line —
+    // now sit inside `PriceDisclosure`, and Radix UNMOUNTS a closed collapsible's content, so the run
+    // line is genuinely absent until the booker asks how the price was built. That is the requirement,
+    // not a regression: what may never collapse is the TOTAL, which is asserted below and is outside
+    // the region. The trigger is pressed here rather than the assertion being weakened, because the
+    // claim OC-08 makes is about the run line's WORDING — that a pass is priced per head with no
+    // duration term — and that claim is only checkable against the line itself.
+    await page.getByRole("button", { name: /Price details/ }).click();
     await expect(page.getByText(/₱[\d,]+\.\d{2}\/person × 1 pass/)).toBeVisible();
-    await expect(page.getByText("Total", { exact: true })).toBeVisible();
+    // `.first()` since 12-11: checkout renders the word `Total` TWICE — the breakdown's label, first in
+    // the DOM, and the sticky confirm bar's, which is `lg:hidden` at this viewport. A bare exact-text
+    // query is a strict-mode violation against a correct tree. The bar's own copy is asserted, with its
+    // amount, by `e2e/mobile-booker-path.spec.ts` at the width where it is the surface a booker reads.
+    await expect(page.getByText("Total", { exact: true }).first()).toBeVisible();
     // AMENDED BY PLAN 12-03 (D-49): the countdown moved from the booking rail to the checkout HEADER,
     // where it is a clock glyph plus mm:ss in a 96px reservation and has no room for a sentence. The
     // rail keeps the reassurance without the digits; both halves are asserted where they now live. A

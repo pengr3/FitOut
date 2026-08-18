@@ -274,11 +274,14 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
 
     // ── Reserve page: the placeHold POST minted the pending hold and redirected here (?hold=<id>). ──────
     await page.waitForURL(/\/book\?hold=/);
-    await expect(page.getByRole("heading", { name: /review and book/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /confirm and pay/i })).toBeVisible();
     // Venue-tz window + tz note (SC#2), the frozen ₱ breakdown, and the live countdown.
     await expect(page.getByText(/\(GMT\+8\)/i).first()).toBeVisible();
     await expect(page.getByText(/5:00\s*PM\s*[–-]\s*7:00\s*PM/i)).toBeVisible();
-    await expect(page.getByText("Total", { exact: true })).toBeVisible();
+    // `.first()` since plan 12-11: checkout renders the word `Total` TWICE — the breakdown's label,
+    // first in the DOM, and the sticky confirm bar's (`lg:hidden` at this 1280px viewport, so present
+    // but not visible). A bare exact-text query is a strict-mode violation against a correct tree.
+    await expect(page.getByText("Total", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/₱[\d,]+/).first()).toBeVisible();
     // AMENDED BY PLAN 12-03 (D-49). This line read `getByText(/Held for/i)` and went red on a correct
     // tree: the countdown moved out of the booking rail and into the CHECKOUT HEADER, where it is a
@@ -292,11 +295,20 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
       "the countdown is not in the checkout header (D-49 / SHELL-03)",
     ).toBeVisible();
     await expect(page.getByRole("timer")).toContainText(/\d+:\d{2}/);
-    // The terminal action + its HONEST pre-charge reassurance (D-57): the current reserve page shows a
-    // `Confirm & pay` CTA and "You'll pay {total} now — cards, GCash, Maya, or QR Ph." — NOT the stale
-    // "you won't be charged yet" the never-run Phase-4 draft asserted, which contradicts the live copy.
+    // The terminal action + its HONEST pre-charge reassurance (D-57), MOVED BY PLAN 12-11 in the commit
+    // that changed the copy. BFLOW-07's gap was one word: the line now NAMES THE DESTINATION —
+    // "You'll pay {total} on PayMongo — card, GCash, Maya or QR Ph. We'll bring you straight back." —
+    // where it previously said "now … Payments are processed securely", which reassures about
+    // infrastructure the booker cannot check while telling them nothing about the domain they are about
+    // to be handed to. It is still NOT the stale "you won't be charged yet" the never-run Phase-4 draft
+    // asserted, which contradicts the live copy.
+    //
+    // ⚠ `toBeVisible()` AND NOT A COUNT. Checkout renders the confirm control TWICE as of 12-11 — inline
+    // in the rail and in the fixed bottom bar — with `hidden` leaving exactly one reachable per width.
+    // This spec runs at Playwright's default 1280×720, where the bar is `lg:hidden`, so a role query
+    // resolves to the inline one alone. The per-width count is `e2e/mobile-booker-path.spec.ts`'s.
     await expect(page.getByRole("button", { name: /confirm & pay/i })).toBeVisible();
-    await expect(page.getByText(/You.ll pay .* now.*cards, GCash, Maya, or QR ?Ph/i)).toBeVisible();
+    await expect(page.getByText(/You.ll pay .* on PayMongo.*card, GCash, Maya or QR ?Ph/i)).toBeVisible();
 
     // The reserve page is where the automatable instant flow ENDS. Clicking `Confirm booking` from here now
     // opens a PayMongo HOSTED CHECKOUT that Playwright cannot complete (see the header + e2e/cancel.spec.ts),

@@ -292,7 +292,12 @@ test("the total rendered on the reserve page IS the total the database froze (GA
 
   // ── The reserve page. This is where the flow STOPS — see the header: the tail is a hosted checkout.
   await page.waitForURL(/\/book\?hold=/);
-  await expect(page.getByRole("heading", { name: /review and book/i })).toBeVisible();
+  // ⚠ THE HEADING MOVED IN PLAN 12-11 (BFLOW-07): `Review and book` -> `Confirm and pay`, in the same
+  // commit as the page and `book/loading.tsx`. This line is the ONLY byte of this file that plan
+  // touched; its env surface is still `DATABASE_URL` alone. Note what this assertion cannot do —
+  // `book/loading.tsx` renders the SAME heading, so it is satisfied by the skeleton; the reachability
+  // guard that is not is the `price-total` read below, which exists only in the resolved body.
+  await expect(page.getByRole("heading", { name: /confirm and pay/i })).toBeVisible();
 
   const holdId = new URL(page.url()).searchParams.get("hold");
   expect(holdId, "placeHold redirected without a ?hold= id").toBeTruthy();

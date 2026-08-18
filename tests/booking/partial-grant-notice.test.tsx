@@ -362,7 +362,13 @@ describe("Reserve page — the drop-in fork (OPEN-02 · OC-02 / OC-07 / OC-08)",
     expect(alert!.textContent).toContain(money(147000));
     expect(alert!.textContent).not.toContain("99999");
     // And the charge is untouched by any of it: still the frozen quote for the ONE granted pass.
-    expect(container.textContent).toContain(`You'll pay ${money(36750)} now`);
+    //
+    // MOVED BY PLAN 12-11 (BFLOW-07): the sentence now NAMES THE DESTINATION — `on PayMongo` where it
+    // read `now`. The assertion's subject is unchanged and is the reason it is pinned at all: the figure
+    // beside a tampered `?requested=` is still the row's frozen total and not the estimate the query
+    // param asked for. The destination word is asserted properly in `tests/booking/reserve-actions.test.tsx`;
+    // what matters here is that the amount travelled with it.
+    expect(container.textContent).toContain(`You'll pay ${money(36750)} on PayMongo`);
   });
 
   it("(11) an open booking mounts NO head-count stepper (D-126 / T-09-25)", async () => {
