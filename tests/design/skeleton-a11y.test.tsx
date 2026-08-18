@@ -97,6 +97,10 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { CardGridSkeleton } from "@/components/patterns/card-grid-skeleton";
 import { RowListSkeleton } from "@/components/patterns/row-list-skeleton";
 import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
+import {
+  CalendarDaySkeleton,
+  CalendarMonthSkeleton,
+} from "@/components/availability/availability-calendar";
 import { SELECTOR_IDS } from "@/lib/design/selector-contract";
 
 /**
@@ -244,5 +248,157 @@ describe("AC#18 — every skeleton announces itself exactly once", () => {
 
     const { container: rowList } = render(<RowListSkeleton label={LABEL} rows={2} />);
     expect(rowList.querySelectorAll(BAR_SELECTOR)).toHaveLength(2);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// 12-UI-SPEC AC#16 — THE TWO CALENDAR SKELETONS (plan 12-09 · BFLOW-05)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHY THEY ARE A SECOND BLOCK RATHER THAN TWO MORE `CASES` ROWS. Everything above is about
+// `src/components/patterns/**` — a layer with a declared no-product-copy rule (`label` is required and
+// has no default, so the sentence belongs to the surface) and a declared one-hook-per-shape rule. The
+// two below are DOMAIN components: one takes its sentence from the day it is loading, the other owns
+// its sentence outright because the Copywriting Contract assigns it one, and only one of the two
+// carries a `data-testid` at all. Folding them into `CASES` would mean loosening three assertions
+// that are correct about `patterns/`, which is how a shared fixture stops being a contract.
+//
+// WHY THEY ARE TESTABLE AT ALL, WHICH THEY WERE NOT BEFORE THIS PLAN. The day plate used to be inline
+// JSX inside `AvailabilityCalendar`, so reaching it in jsdom meant mounting react-day-picker, a
+// context provider and a server action — which is why plan 12-06 could correct these two regions and
+// then only assert the correction by scanning source. Plan 12-09 extracted `CalendarDaySkeleton`
+// markup-for-markup, and the month plate was written as a component from the start.
+//
+// WHAT THIS BLOCK STILL CANNOT SEE, restated from the footer above because it bites harder here: jsdom
+// has no layout engine, so it says NOTHING about the month plate being the same box as the resolved
+// month grid. That is `e2e/calendar-hit-area.spec.ts`'s ±2px comparison, in a real browser, in both
+// themes — and the plate exists to prevent a layout shift, so the geometry half is the requirement and
+// this half is the accessibility that makes its 1.09:1 fill legal.
+
+/** The day plate's sentence comes from the surface, exactly as the `patterns/` shapes' do. */
+const DAY_LABEL = "Loading times for Friday, Aug 21";
+
+/**
+ * The month plate's sentence is the Copywriting Contract's, and the test states it as a LITERAL rather
+ * than importing the component's own constant. Importing it would make this assertion true by
+ * construction — the component would be compared against itself — and the sentence is a product
+ * decision the contract owns, not an implementation detail the component may change silently.
+ */
+const MONTH_LABEL = "Loading the calendar";
+
+const CALENDAR_CASES = [
+  {
+    name: "CalendarDaySkeleton",
+    label: DAY_LABEL,
+    testId: null,
+    element: <CalendarDaySkeleton label={DAY_LABEL} />,
+  },
+  {
+    name: "CalendarMonthSkeleton",
+    label: MONTH_LABEL,
+    testId: "skeleton-calendar",
+    element: <CalendarMonthSkeleton />,
+  },
+] as const;
+
+describe("AC#16 — the calendar's two skeletons announce themselves exactly once", () => {
+  it("covers both calendar skeleton shapes, and the one that declares a hook declares it", () => {
+    // Guard-the-guard: an `it.each` over a list that lost an entry is green and tests nothing.
+    expect(CALENDAR_CASES).toHaveLength(2);
+    for (const testCase of CALENDAR_CASES) {
+      if (testCase.testId === null) continue;
+      expect(
+        [...SELECTOR_IDS],
+        `${testCase.name} renders an id that GATE-04's inventory does not declare`,
+      ).toContain(testCase.testId);
+    }
+  });
+
+  it.each(CALENDAR_CASES)("$name renders one named, busy status region", ({ name, label, element }) => {
+    render(element);
+
+    const regions = screen.queryAllByRole("status");
+    expect(
+      regions.length,
+      `${name} must render exactly one role="status" — found ${regions.length}. Zero leaves the ` +
+        "1.09:1 fill as the only carrier of the loading state, which turns contrast-pairs.ts's two " +
+        "skeleton exclusions into real WCAG 1.4.11 failures. Two announce one wait twice, which is " +
+        "rule 6 of the live-region inventory.",
+    ).toBe(1);
+
+    const region = regions[0];
+    expect(region.getAttribute("aria-busy"), `${name}'s status region must be aria-busy`).toBe("true");
+
+    // NO `aria-live` ATTRIBUTE. `role="status"` is already implicitly polite, and writing the
+    // attribute beside it on a LOADING region is how `search-results.tsx`'s original defect looked in
+    // review — correct-seeming markup around a region with nothing to announce.
+    expect(
+      region.getAttribute("aria-live"),
+      `${name} writes an explicit aria-live beside role="status"; the role is already implicitly ` +
+        "polite and `patterns/card-grid-skeleton.tsx` is the shape these two follow",
+    ).toBeNull();
+
+    // THE NAME, computed rather than read off the attribute — this is the clause that would go red on
+    // a "simplification" that drops the `aria-label` as redundant, leaving the sr-only child in place
+    // and the region computing "".
+    expect(
+      screen.queryAllByRole("status", { name: label }),
+      `${name}'s status region must compute the accessible name "${label}". role="status" is ` +
+        "nameFrom:author, so an sr-only child alone leaves it empty — see the synthetic control above.",
+    ).toHaveLength(1);
+    expect(
+      screen.queryAllByRole("status", { name: "" }),
+      `${name} computed an EMPTY accessible name, which is the defect this file exists for`,
+    ).toHaveLength(0);
+  });
+
+  it.each(CALENDAR_CASES)("$name carries its live region's CONTENT as well as its name", ({
+    name,
+    label,
+    element,
+  }) => {
+    const { container } = render(element);
+    const srOnly = container.querySelectorAll(".sr-only");
+    expect(srOnly, `${name} must carry exactly one sr-only label element`).toHaveLength(1);
+    expect(
+      srOnly[0].textContent,
+      `${name}'s sr-only content and its aria-label must come from ONE binding — two sentences for ` +
+        "one wait is two answers to the same question",
+    ).toBe(label);
+  });
+
+  it.each(CALENDAR_CASES)("$name hides every placeholder bar from assistive technology", ({
+    name,
+    element,
+  }) => {
+    const { container } = render(element);
+    const bars = container.querySelectorAll(BAR_SELECTOR);
+    expect(bars.length, `${name} rendered no placeholder bars at all`).toBeGreaterThan(0);
+
+    const exposed = [...bars].filter((bar) => bar.getAttribute("aria-hidden") !== "true");
+    expect(
+      exposed.map((bar) => bar.className),
+      `${name} exposes ${exposed.length} placeholder bar(s) to assistive technology. A decorative ` +
+        "1.09:1 fill that is announced is meaningful non-text content, and the exclusion rows in " +
+        "contrast-pairs.ts stop being true.",
+    ).toEqual([]);
+  });
+
+  it("the month plate renders a full 7 × 6 grid, plus a caption and a weekday row", () => {
+    // The COUNT is the geometry claim this layer can actually make. jsdom cannot measure the box, but
+    // it can prove the plate is a month rather than three bars in a border: 42 day cells + 7 weekday
+    // marks + 1 caption = 50. A plate with fewer cells would be the same 409px tall only by accident.
+    const { container } = render(<CalendarMonthSkeleton />);
+    expect(container.querySelectorAll(BAR_SELECTOR)).toHaveLength(7 * 6 + 7 + 1);
+  });
+
+  it("the month plate carries its declared hook as a string literal on the region itself", () => {
+    render(<CalendarMonthSkeleton />);
+    const region = screen.queryAllByRole("status")[0];
+    expect(
+      region.getAttribute("data-testid"),
+      "the hook must be on the REGION, because e2e/calendar-hit-area.spec.ts measures that element's " +
+        "box against the resolved calendar's",
+    ).toBe("skeleton-calendar");
   });
 });

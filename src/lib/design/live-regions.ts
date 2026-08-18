@@ -387,6 +387,7 @@ export type LiveRegionRow = {
 export const LIVE_REGION_IDS = [
   // availability-calendar.tsx
   "calendar-day-loading",
+  "calendar-month-loading",
   "calendar-day-error",
   // date-pass-picker.tsx
   "date-pass-day-loading",
@@ -434,6 +435,29 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "`aria-label` is what gives it a name and the `sr-only` child is what gives it something to say; " +
       "both are present and they are byte-identical. Every bar is `aria-hidden` so a decorative 1.09:1 " +
       "placeholder is not read out as content.",
+  },
+  "calendar-month-loading": {
+    file: "src/components/availability/availability-calendar.tsx",
+    kind: "loading",
+    at: 2,
+    announces:
+      '"Loading the calendar" — once, when a surface mounts `CalendarMonthSkeleton` as its own busy ' +
+      "region while the month grid does not exist yet. It says nothing again; the arriving grid " +
+      "replaces the plate rather than updating it.",
+    why:
+      "RULE 4 + RULE 5, the same shape as the day plate above it: `role=\"status\"` is nameFrom:author, " +
+      "so the `aria-label` names the region and the `sr-only` child gives it something to say, both " +
+      "from ONE binding, with every placeholder bar `aria-hidden` so a decorative 1.09:1 fill is never " +
+      "read as content. " +
+      "⚠ ITS ONE SHIPPED CALL SITE ANNOUNCES NOTHING, AND THAT IS RULE 6 RATHER THAN AN OVERSIGHT. " +
+      "`src/app/listings/[id]/(detail)/loading.tsx` already renders `PanelSkeleton` as that route's " +
+      "one busy region for one wait, so it mounts this plate inside an `aria-hidden` wrapper — the " +
+      "same treatment, for the same reason, that its mosaic plate has carried since 12-07. The row " +
+      "exists anyway because the REGION exists in this file's source and SCAN 2 compares source " +
+      "against declarations; and because 12-10's booking sheet is a surface that will mount it as its " +
+      "own region, at which point the contract above is what it inherits. A row that quietly said " +
+      '"announced on the listing page" would be the kind of stated-reason-gone-false this module was ' +
+      "written to prevent.",
   },
   "calendar-day-error": {
     file: "src/components/availability/availability-calendar.tsx",

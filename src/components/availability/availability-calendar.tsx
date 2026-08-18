@@ -50,7 +50,7 @@ import { BOOKING_HORIZON_DAYS } from "@/lib/availability/horizon";
 import type { DayAvailability } from "@/lib/availability/read-model";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CALENDAR_CELL } from "@/lib/design/measurements";
+import { CALENDAR_CELL, SLOT_CHIP_BOX } from "@/lib/design/measurements";
 import { cn } from "@/lib/utils";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
 import { DatePassPicker } from "@/components/availability/date-pass-picker";
@@ -472,29 +472,12 @@ export function AvailabilityCalendar({
           <h3 className="text-sm font-semibold">{dayLabel}</h3>
 
           {dayLoading ? (
-            // GATE-03 RULES 4 + 5. This shipped as a bare `aria-live="polite" aria-busy="true"` on a
-            // `<div>` with NO role and NO accessible name, wrapping eight placeholder chips — a live
-            // region whose entire announceable content was decorative bars, i.e. a region that
-            // announced the empty string to nobody. `role="status"` is nameFrom:author (measured in
-            // `tests/design/skeleton-a11y.test.tsx`, re-measured in
-            // `tests/design/live-regions.test.tsx`), so the `aria-label` is the NAME and the `sr-only`
-            // span is the CONTENT: different mechanisms, both wanted, and byte-identical here because
-            // they come from one binding. No `aria-live` attribute — `role="status"` is already
-            // implicitly polite, which is the shape `patterns/card-grid-skeleton.tsx` ships.
-            //
-            // THE BARS' BOX CLASSES ARE DELIBERATELY UNTOUCHED. Plan 12-09 owns SLOT_CHIP_BOX adoption
-            // and the month-grid skeleton; landing that here would make both changes unreviewable.
-            <div
-              role="status"
-              aria-busy="true"
-              aria-label={dayLoadingLabel}
-              className="flex flex-wrap gap-2"
-            >
-              <span className="sr-only">{dayLoadingLabel}</span>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} aria-hidden="true" className="h-11 w-20 rounded-lg" />
-              ))}
-            </div>
+            // The region's whole shape lives in `CalendarDaySkeleton` below — extracted in 12-09 so
+            // AC#16 can be ASSERTED rather than reviewed. Rendering this markup used to require
+            // mounting the entire calendar (react-day-picker, a context provider and a server action)
+            // inside jsdom, which is why `tests/design/skeleton-a11y.test.tsx` covered the three
+            // `patterns/` shapes and neither of these two. The extraction is markup-for-markup.
+            <CalendarDaySkeleton label={dayLoadingLabel} />
           ) : dayError ? (
             <div className="rounded-xl border border-dashed p-6 text-center" role="alert">
               <p className="font-medium">Couldn&apos;t load this day</p>
@@ -533,6 +516,150 @@ export function AvailabilityCalendar({
               initialSelection={selection}
             />
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The two calendar skeletons (12-UI-SPEC § The skeletons · AC#15 / AC#16)
+// ---------------------------------------------------------------------------
+
+/**
+ * The day panel's placeholder: eight `SLOT_CHIP_BOX` chips while the day's slots are in flight.
+ *
+ * GATE-03 RULES 4 + 5. It shipped as a bare `aria-live="polite" aria-busy="true"` on a `<div>` with NO
+ * role and NO accessible name, wrapping eight placeholder chips — a live region whose entire
+ * announceable content was decorative bars, i.e. one that announced the empty string to nobody. Plan
+ * 12-06 corrected the region; plan 12-09 moved the BARS onto the constant and extracted the whole
+ * thing into this component so the correction is assertable in jsdom.
+ *
+ * `role="status"` is nameFrom:author (measured in `tests/design/skeleton-a11y.test.tsx`, re-measured
+ * in `tests/design/live-regions.test.tsx`), so the `aria-label` is the NAME and the `sr-only` span is
+ * the CONTENT — different mechanisms, both wanted, and byte-identical here because they come from one
+ * `label`. No `aria-live` attribute: `role="status"` is already implicitly polite, which is the shape
+ * `patterns/card-grid-skeleton.tsx` ships. Declared as `calendar-day-loading`.
+ *
+ * THE BARS READ `SLOT_CHIP_BOX`. 12-06 left them as literals with a note saying so, because the
+ * constant only becomes the SINGLE SOURCE of both boxes in the commit that also gives the real chip
+ * its matching minimum width — see the Pitfall-9 reason written at `slot-picker.tsx`'s `CHIP_BASE`.
+ * Both halves are in that commit, so "the shimmer and the chips are the same box" is a construction
+ * rather than a hope.
+ */
+export function CalendarDaySkeleton({ label }: { label: string }) {
+  return (
+    <div role="status" aria-busy="true" aria-label={label} className="flex flex-wrap gap-2">
+      <span className="sr-only">{label}</span>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Skeleton key={i} aria-hidden="true" className={cn(SLOT_CHIP_BOX, "rounded-lg")} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The Copywriting Contract's sentence for the month plate, bound ONCE.
+ *
+ * `role="status"` is nameFrom:author, so the `aria-label` is what NAMES the region and the `sr-only`
+ * child is what it has to SAY. They are different mechanisms and both are wanted — one binding is what
+ * stops them drifting into two different answers to "what is loading".
+ */
+const CALENDAR_LOADING_LABEL = "Loading the calendar";
+
+/**
+ * The month grid's placeholder: a caption bar, a weekday row and six rows of seven 44px cells, inside
+ * the same box the resolved calendar occupies.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * WHERE IT MOUNTS, AND WHY IT IS NOT INSIDE `AvailabilityCalendar`
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `src/app/listings/[id]/(detail)/loading.tsx` — the listing route's own loading state, which is up
+ * while the RSC reads the listing AND the day's availability. That is the only place on this path
+ * where the month grid genuinely does not exist yet, and it was chosen by elimination rather than by
+ * preference:
+ *
+ *   • `dayLoading` is the DAY's read, not the month's, and the day panel already has its own skeleton
+ *     for it. Rendering this one at the same moment would put TWO `role="status"` regions on screen
+ *     for ONE wait — rule 6 of `src/lib/design/live-regions.ts`, the rule 12-03 deleted a whole
+ *     expiry arm to satisfy.
+ *   • Replacing the resolved `<Calendar>` mid-interaction would take the control out from under the
+ *     booker's cursor on every day click, and on the error path it would remove the retry affordance
+ *     the day panel's own copy points at ("Pick the day again to retry").
+ *   • The exclusive calendar performs NO month-level read at all, so "while the month's availability
+ *     is in flight" has no referent inside this component. (`date-pass-picker.tsx` does perform one,
+ *     per month change, with no loading state of any kind — logged in `deferred-items.md`.)
+ *
+ * ⚠ AT THAT CALL SITE THE PLATE IS WRAPPED IN `aria-hidden`, and the reason is rule 6 again:
+ * `loading.tsx` already renders `PanelSkeleton` as the route's one busy region, and the mosaic plate
+ * beside it is `aria-hidden` for exactly the same reason. So this component's region is the CONTRACT
+ * — asserted in `tests/design/skeleton-a11y.test.tsx` and declared as `calendar-month-loading` — and
+ * a surface that mounts it as its OWN busy region gets an announced one. The listing route is not
+ * that surface, and saying so here is cheaper than a reader discovering it in a diff.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * THE BOX IS THE ARGUMENT, AND EVERY NUMBER IN IT IS DERIVED
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `CALENDAR_CELL` and `CALENDAR_GRID_WIDTH` are the SAME two strings the resolved `Calendar` reads, so
+ * the width cannot drift: 326px at and above ~358px of viewport, `w-full` below it. The height is the
+ * resolved calendar's own composition, measured:
+ *
+ *    18   `ui/calendar.tsx`'s `p-2` (16) + this call site's border (2)
+ *    44   the month caption — `h-(--cell-size)`
+ *    16   the `gap-4` between the caption and the grid
+ *    19   the weekday row (`text-[0.8rem]`; the resolved row measures 19.19)
+ *   312   six week rows — 6 × (44 + 8), the `mt-2` `ui/calendar.tsx` puts on every week
+ *   ───
+ *   409   against a resolved calendar measured at 409.19. Δ0.81, inside the ±2px this repo's geometry
+ *         specs assert (`e2e/calendar-hit-area.spec.ts`).
+ *
+ * The one approximation is the weekday row, and it is stated rather than tuned: an `h-5` bar is 20px
+ * where the real row's line box is 19.19. Reproducing a line box exactly would mean rendering the
+ * weekday LETTERS into a placeholder, which is content a skeleton must not have.
+ */
+export function CalendarMonthSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label={CALENDAR_LOADING_LABEL}
+      data-testid="skeleton-calendar"
+      className={cn(CALENDAR_CELL, CALENDAR_GRID_WIDTH, "rounded-xl border bg-background p-2")}
+    >
+      <span className="sr-only">{CALENDAR_LOADING_LABEL}</span>
+      {/* EVERY BAR CARRIES `aria-hidden` INDIVIDUALLY, not one wrapper for the lot. The attribute is
+          the contract `tests/design/skeleton-a11y.test.tsx` asserts per bar, and a decorative 1.09:1
+          fill that is announced is what turns `contrast-pairs.ts`'s two skeleton exclusions back into
+          real WCAG 1.4.11 failures. */}
+      <div className="flex flex-col gap-4">
+        {/* The month caption: `ui/calendar.tsx` gives it `h-(--cell-size)` and centres it. */}
+        <div className="flex h-(--cell-size) w-full items-center justify-center">
+          <Skeleton aria-hidden="true" className="h-4 w-28 rounded-md" />
+        </div>
+        <div>
+          {/* The weekday row — see the docblock for the 0.81px this approximates. */}
+          <div className="grid h-5 grid-cols-7 items-center">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex justify-center">
+                <Skeleton aria-hidden="true" className="h-3 w-6 rounded-sm" />
+              </div>
+            ))}
+          </div>
+          {/* Six weeks of seven cells. `grid-cols-7` is the resolved row's `1fr` per cell, and `mt-2`
+              is `ui/calendar.tsx`'s own `week` spacing — both are what make the 312 above true. */}
+          {Array.from({ length: 6 }).map((_, week) => (
+            <div key={week} className="mt-2 grid grid-cols-7">
+              {Array.from({ length: 7 }).map((_, cell) => (
+                <Skeleton
+                  key={cell}
+                  aria-hidden="true"
+                  className="h-(--cell-size) w-full rounded-md"
+                />
+              ))}
+            </div>
+          ))}
         </div>
       </div>
     </div>

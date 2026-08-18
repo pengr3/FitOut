@@ -26,6 +26,21 @@
 // announced region for the same wait is rule 6 of the live-region inventory (`src/lib/design/
 // live-regions.ts`), and this plate has no content to announce anyway.
 
+// THE MONTH GRID IS PLATED TOO (plan 12-09 · BFLOW-05). The availability section is several hundred
+// pixels of this page and this fallback reserved none of it, so the resolved calendar used to arrive
+// by pushing everything below it down the screen. `CalendarMonthSkeleton` reads the same two strings
+// the resolved `Calendar` reads (`CALENDAR_CELL` and the call site's width), which is what makes "the
+// placeholder and the grid are the same box" a construction rather than two numbers that agree today
+// — `e2e/calendar-hit-area.spec.ts` measures the pair at 320 / 768 / 1280 in both themes.
+//
+// It is `aria-hidden` here for the SAME reason the mosaic plate above it is, and the reason is worth
+// restating because this plate is the one that arrives carrying a `role="status"` of its own:
+// `PanelSkeleton` already owns this route's one busy region, and two regions announcing one wait is
+// rule 6 of `src/lib/design/live-regions.ts`. The component's region is a contract asserted in
+// `tests/design/skeleton-a11y.test.tsx` and declared as `calendar-month-loading`; a surface that
+// mounts it as its OWN busy region gets an announced one, and this route is not that surface.
+
+import { CalendarMonthSkeleton } from "@/components/availability/availability-calendar";
 import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
 import { MOSAIC_ASPECT } from "@/lib/design/measurements";
 
@@ -39,6 +54,9 @@ export default function ListingDetailLoading() {
       />
       <div className="mt-8">
         <PanelSkeleton label="Loading this listing" />
+      </div>
+      <div aria-hidden="true" className="mt-8">
+        <CalendarMonthSkeleton />
       </div>
     </main>
   );

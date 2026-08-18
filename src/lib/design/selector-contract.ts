@@ -149,6 +149,8 @@ export const SELECTOR_IDS = [
   "photo-lightbox",
   // 12-08 — the listing page's key-facts strip.
   "listing-key-facts",
+  // 12-09 — the month grid's loading plate.
+  "skeleton-calendar",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -388,5 +390,20 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "prose elsewhere (the rail's price lines, the host block), so scoping by tag alone would collect " +
       "the wrong nodes the moment either of those grows a description list of its own.",
     owner: "12-08",
+  },
+
+  // ─── 12-09 ─────────────────────────────────────────────────────────────────────────────────────────
+  "skeleton-calendar": {
+    why:
+      "The fourth member of the `role=\"status\"` skeleton family, and the argument the other three " +
+      "rows make binds harder here rather than more weakly. `getByRole(\"status\")` matches every " +
+      "skeleton shape and cannot say which one mounted — and on `/listings/[id]` the loading state " +
+      "mounts TWO of them in one document (`PanelSkeleton` and this plate), so a role query would " +
+      "resolve whichever came first and the ±2px geometry assertion would be comparing the panel's " +
+      "box against the calendar's. Nor is a NAME query a substitute: this plate is wrapped in " +
+      "`aria-hidden` at that call site (rule 6 — `PanelSkeleton` owns the route's one busy region), " +
+      "so it computes no accessible name in the document the spec measures, which is precisely the " +
+      "state a hook has to survive.",
+    owner: "12-09",
   },
 };

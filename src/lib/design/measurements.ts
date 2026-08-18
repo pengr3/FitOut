@@ -221,6 +221,18 @@ export const RESULT_GRID_GAP = "gap-4 sm:gap-6";
  * width does (RESEARCH Pitfall 2). The day-button half goes through the `components={{ DayButton }}`
  * seam and must be MEASURED — a rendered `boundingBox()`, not a class inspection — by the plan that
  * owns it (12-09). Setting this variable is necessary and NOT sufficient.
+ *
+ * PAID, AND THE HAZARD WAS AN UNDERSTATEMENT (plan 12-09). The measurement found THREE more overrides,
+ * not one, and the third is the one nobody predicted:
+ *   • `aspect-auto h-11 w-full min-w-0` on the day button, through the `DayButton` seam;
+ *   • `[&_td]:aspect-auto` on the root — the vendored ratio is on the day `<td>` as well as on the
+ *     button, so a 44px button sat in a 25px cell and every week row overlapped the next by 19px;
+ *   • a responsive WIDTH on the calendar itself, because `min-w-0` makes the cell `1fr` and
+ *     `ui/calendar.tsx`'s `w-fit` root then collapses the whole grid to the width of the numerals —
+ *     MEASURED at 25.08px per cell, i.e. WORSE than the 28px debt, with every source gate green.
+ * All three live at `availability-calendar.tsx`'s Calendar call site with their derivations; the
+ * numbers are in `e2e/calendar-hit-area.spec.ts`'s header. `date-pass-picker.tsx` mounts the same
+ * vendored `Calendar` and did NOT receive them — see `deferred-items.md`.
  */
 export const CALENDAR_CELL = "[--cell-size:--spacing(11)]";
 
@@ -231,12 +243,18 @@ export const CALENDAR_CELL = "[--cell-size:--spacing(11)]";
  * already `NOTIFICATION_BELL_BOX`. 80px is the width the shipped slot skeleton
  * (`availability-calendar.tsx`) reserves for a chip.
  *
- * HAZARD — THIS IS THE SHIMMER'S BOX TODAY, NOT YET THE SINGLE SOURCE OF BOTH. The UI-SPEC derives
- * `w-20` from "the real chip's minimum", and the real chip does NOT have that minimum: `slot-picker`'s
- * chips carry `min-h-11` and no `min-w-20` (RESEARCH Pitfall 9). So the two boxes agree in height and
- * are free to disagree in width right now. Whichever plan makes this constant the single source of
- * both MUST add `min-w-20` to the real chip in the SAME commit — otherwise it has declared a shared
- * measurement that only one side obeys, which is the exact defect this module exists to remove.
+ * HAZARD DISCHARGED (plan 12-09), and the condition it set is what makes this constant true rather
+ * than aspirational. It used to read: *"this is the shimmer's box today, NOT yet the single source of
+ * both — the UI-SPEC derives `w-20` from 'the real chip's minimum' and the real chip does not have
+ * that minimum (`min-h-11` and no `min-w-20`, RESEARCH Pitfall 9), so whichever plan makes this the
+ * single source MUST add `min-w-20` to the real chip in the SAME commit."*
+ *
+ * That commit is 12-09's second task. `availability-calendar.tsx`'s `CalendarDaySkeleton` now sizes
+ * its eight bars from this string, and `slot-picker.tsx`'s `CHIP_BASE` carries `min-w-20` — added in
+ * the same commit, with the reason at the class site. A MINIMUM rather than a fixed width on the chip,
+ * deliberately: the multi-unit sub-label (`2 of 4 free`) is wider than 80px at some counts, and the
+ * number the shimmer has to reserve is the floor, because the floor is what decides how many chips fit
+ * on a row and therefore how tall the grid is.
  */
 export const SLOT_CHIP_BOX = "h-11 w-20";
 
