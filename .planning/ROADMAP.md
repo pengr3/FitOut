@@ -250,7 +250,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 12-05-PLAN.md — The rail renders the real breakdown; the fee explains itself
+- [x] 12-05-PLAN.md — The rail renders the real breakdown; the fee explains itself
 
 **Wave 5** *(blocked on Wave 4)*
 
@@ -461,7 +461,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
-| 12. Booker Path — Search → Listing → Checkout | v1.1 | 4/14 | In Progress|  |
+| 12. Booker Path — Search → Listing → Checkout | v1.1 | 5/14 | In Progress|  |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
