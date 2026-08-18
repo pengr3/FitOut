@@ -23,6 +23,8 @@ import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
 // finished strings. See src/lib/listing/card-price.ts for why, and src/lib/search/query.ts for the same
 // seam on the search grid.
 import { listingCardPriceParts } from "@/lib/listing/card-price";
+import { RESULT_GRID_GAP } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 import { unlistListing, softDeleteListing } from "@/app/actions/listing";
 import {
   ListingCard,
@@ -114,7 +116,14 @@ export default async function HostListingsPage() {
           }
         />
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        // THE GUTTER IS `RESULT_GRID_GAP` (D-57, plan 12-01), not a literal. This route's
+        // `loading.tsx` composes `CardGridSkeleton`, which moved onto the constant — so leaving the
+        // 20px literal here would have opened a FRESH ±4px shift on a shipped host surface, between
+        // this grid and the placeholder that stands in front of it, which is the exact defect the
+        // constant exists to close. `/host/listings` adopts the constant rather than getting a
+        // second one; the column count stays literal because how many columns fit is a window
+        // question, not a measurement.
+        <div className={cn(RESULT_GRID_GAP, "grid sm:grid-cols-2 lg:grid-cols-3")}>
           {rows.map((r) => {
             const data: ListingCardData = {
               id: r.id,

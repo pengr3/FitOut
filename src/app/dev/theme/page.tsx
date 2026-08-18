@@ -57,6 +57,7 @@ import {
   AUTH_SLOT_BOX,
   AUTH_SLOT_CONTROL,
   AUTH_SLOT_ICON,
+  RESULT_GRID_GAP,
 } from "@/lib/design/measurements";
 import { SpotsLeftChip } from "@/components/availability/spots-left-chip";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
@@ -695,8 +696,15 @@ function ThemePane({ name }: { name: string }) {
                 only here: the two containers must lay out at the SAME column width or the ±2px media
                 comparison is measuring the wrapper rather than the constant. How many columns fit is
                 a window question, which is why this line is viewport breakpoints and the card's own
-                internals are container queries. */}
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                internals are container queries.
+
+                THE GUTTER IS NO LONGER ONE OF THE DUPLICATED CLASSES — it is `RESULT_GRID_GAP`,
+                imported (D-57, plan 12-01). Worth recording why that had to change HERE too: this
+                preview was a THIRD copy of the number, so moving the skeleton onto the constant made
+                the preview's two containers disagree and turned the shipped ±2px media comparison in
+                `e2e/skeleton-geometry.spec.ts` red at Δwidth 2.67px, in both themes. A duplicated
+                measurement does not announce itself until something moves. */}
+            <div className={cn(RESULT_GRID_GAP, "grid sm:grid-cols-2 lg:grid-cols-3")}>
               {PATTERN_RESULT_CARDS.map((card) => (
                 <ResultCard key={card.title} {...card} />
               ))}
