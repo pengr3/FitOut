@@ -102,7 +102,9 @@ import {
   BookingSelectionProvider,
   useBookingSelection,
   type DayLocal,
+  type OpenSelectionValue,
 } from "@/components/availability/availability-calendar";
+import { RailRateHeadline } from "@/components/booking/rail-rate-headline";
 
 const TIMEZONE = "Asia/Manila"; // UTC+8 all year, no DST — every instant below is plain UTC arithmetic
 const CITY = "Makati";
@@ -320,5 +322,113 @@ describe("BookingSelectionProvider — one hook owns the day, and the LATEST day
 
     // The stale resolution must also not touch the flags: no phantom skeleton, no phantom error.
     expect(screen.getByTestId("flags").textContent).toBe("false|false");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// (4) D-41 — the rail's rate headline and the breakdown's run line never coexist
+//
+// A DIFFERENT KIND OF TEST AGAIN, and worth reading as one. (1)/(2) are a reachability pair and (3)
+// is a red anchor for a race; (4) is a PRESENCE/ABSENCE pair over one client leaf.
+//
+// WHAT IT IS ACTUALLY ABOUT. 12-05 puts the real `PriceBreakdown` in the booking rail, whose run line
+// reads `₱473.33/hr × 2 hours` — the host's RAW space rate, because the service fee is disclosed on
+// its own line beneath it. This headline reads `₱497.00/hr` — the ALL-IN browse rate (D-75). Both are
+// correct and they are not the same number; with the breakdown in the rail they would sit ~60px apart
+// wearing the same `/hr` suffix, on the panel where money commits. So the headline exists in exactly
+// one state.
+//
+// BOTH DIRECTIONS ARE ASSERTED, and the first is the one a refactor loses silently: a component that
+// never rendered at all would satisfy "absent once a selection exists" perfectly, and a deep-linked
+// booker would land on a rail with no price on it whatsoever. Driven through the CONTEXT rather than
+// through a click, for the same reason case (3) is: `setSelection` / `setOpenSelection` are what the
+// calendar, the picker and (from 12-10) the sheet all ultimately call.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The formatted, server-composed strings the RSC hands down (`allInRateParts`'s output shape). */
+const RATE_PARTS = ["₱497.00/hr", "₱3,033.32/day"];
+
+/** A complete exclusive selection, in the shape SlotPicker lifts. */
+const A_SELECTION = { startUtc: AVAILABLE_START, endUtc: AVAILABLE_END, fullDay: false };
+
+/** A complete drop-in selection, in the shape DatePassPicker lifts (OC-02: a date and a count). */
+const AN_OPEN_SELECTION: OpenSelectionValue = {
+  kind: "open",
+  date: DAY,
+  dateIso: `${DAY.year}-${String(DAY.month).padStart(2, "0")}-${String(DAY.day).padStart(2, "0")}`,
+  passes: 2,
+};
+
+/** Writes a selection into the shared context — the transition, without the picker around it. */
+function SelectionDriver() {
+  const { setSelection, setOpenSelection } = useBookingSelection();
+  return (
+    <div>
+      <button type="button" onClick={() => setSelection(A_SELECTION)}>
+        pick a window
+      </button>
+      <button type="button" onClick={() => setOpenSelection(AN_OPEN_SELECTION)}>
+        pick passes
+      </button>
+    </div>
+  );
+}
+
+function renderHeadline() {
+  return render(
+    <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
+      <RailRateHeadline parts={RATE_PARTS} />
+      <SelectionDriver />
+    </BookingSelectionProvider>,
+  );
+}
+
+describe("RailRateHeadline — one rate on the rail at a time (D-41)", () => {
+  it("(4) is PRESENT with no selection and ABSENT once a window is picked", () => {
+    renderHeadline();
+
+    // THE PRESENCE HALF. A booker who deep-links to this listing, or whose searched window could not
+    // be honoured, must still see a price. Do not "fix" a failure here by deleting the assertion.
+    expect(screen.getByText(RATE_PARTS[0])).toBeTruthy();
+    expect(screen.getByText(RATE_PARTS[1])).toBeTruthy();
+    expect(screen.getByText("Service fee included")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("pick a window"));
+
+    // THE ABSENCE HALF — the whole of D-41. From here the breakdown states the same fact more
+    // precisely, and its run line carries the SPACE rate under the identical `/hr` suffix.
+    expect(
+      screen.queryByText(RATE_PARTS[0]),
+      "the all-in rate headline is still on the rail while a window is selected: two different " +
+        "correct rates, same /hr suffix, ~60px apart, on the panel where money commits (D-41)",
+    ).toBeNull();
+    expect(screen.queryByText("Service fee included")).toBeNull();
+  });
+
+  it("(4b) disappears for the DROP-IN selection too, which writes the other channel", () => {
+    // The headline reads `₱262.50/person` on this branch and the breakdown's run line reads
+    // `₱250.00/person × 2 passes` — the same collision, on the mode that uses `openSelection`. A
+    // component that consulted only `selection` would pass (4) and leave both rates on screen here.
+    renderHeadline();
+    expect(screen.getByText(RATE_PARTS[0])).toBeTruthy();
+
+    fireEvent.click(screen.getByText("pick passes"));
+
+    expect(
+      screen.queryByText(RATE_PARTS[0]),
+      "the rate headline survived a drop-in selection — `openSelection` is not being consulted",
+    ).toBeNull();
+  });
+
+  it("(4c) says `Price on request` when the listing advertises no rate at all", () => {
+    // The pre-existing fallback, asserted because the move out of the RSC is the moment it could have
+    // been dropped: an empty parts array must render the words, not an empty heading.
+    render(
+      <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
+        <RailRateHeadline parts={[]} />
+      </BookingSelectionProvider>,
+    );
+    expect(screen.getByText("Price on request")).toBeTruthy();
+    expect(screen.queryByText("Service fee included")).toBeNull();
   });
 });

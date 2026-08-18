@@ -375,6 +375,25 @@ const MONEY_IDENTIFIERS = [
   "dayRateCents",
 ] as const;
 
+/**
+ * THE RAIL'S SEEDS (plan 12-05, T-12-05-RAILCOMPUTE) — the same ban, on the OTHER surface that now
+ * renders the breakdown.
+ *
+ * 12-05 made the listing rail render the real `PriceBreakdown` from `AllInTable`, which means
+ * `availability-calendar.tsx` is a price surface in the arithmetic sense for the first time: it picks a
+ * key out of a server-built table and passes three finished figures down. The regression this seeds
+ * against is not hypothetical — it is the exact edit the module's own header argues against, twice, in
+ * prose (`n × allIn(unit) ≠ allIn(n × unit)`): a `.total` multiplied by a count, or a `.space` added to a
+ * `.fee` to save a lookup, either of which drifts from the frozen quote by up to n−1 centavos while every
+ * other gate stays green.
+ *
+ * `allIn` is the table itself, so the taint set carries it into `const parts = allIn.hourly[hours]` and
+ * from there to anything built out of `parts`. The nine names above ride along because the rail now
+ * receives the host's raw rates for the run LABEL — formatting a rate is legal, multiplying it is the
+ * thing this scan exists to refuse, and the distinction is invisible to a grep.
+ */
+const RAIL_MONEY_IDENTIFIERS = [...MONEY_IDENTIFIERS, "allIn"] as const;
+
 /** The operators that make a new number out of old ones. Compound assignment included. */
 const ARITHMETIC_OPERATORS = new Set<ts.SyntaxKind>([
   ts.SyntaxKind.PlusToken,
@@ -405,10 +424,20 @@ type ArithmeticScan = {
  * money, so `t * 2` is caught. Computed to a FIXPOINT rather than in source order, because a
  * declaration can legally follow its use inside a function body.
  */
-function scanArithmetic(rel: string, text: string): ArithmeticScan {
+function scanArithmetic(
+  rel: string,
+  text: string,
+  /**
+   * The identifiers the taint set starts from. Parameterised by plan 12-05 so a SECOND price surface
+   * can be scanned with the names that are money ON THAT SURFACE — the rail holds a table called
+   * `allIn`, not the component's three frozen props — without widening the component's own seed set and
+   * quietly changing what the shipped assertion means.
+   */
+  seeds: readonly string[] = MONEY_IDENTIFIERS,
+): ArithmeticScan {
   const sf = ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
-  const tainted = new Set<string>(MONEY_IDENTIFIERS);
+  const tainted = new Set<string>(seeds);
   const seen = new Set<string>();
 
   /** Every identifier name appearing anywhere under `node`. */
@@ -452,7 +481,7 @@ function scanArithmetic(rel: string, text: string): ArithmeticScan {
   let binaryExpressions = 0;
 
   const visit = (node: ts.Node): void => {
-    if (ts.isIdentifier(node) && (MONEY_IDENTIFIERS as readonly string[]).includes(node.text)) {
+    if (ts.isIdentifier(node) && seeds.includes(node.text)) {
       seen.add(node.text);
     }
 
@@ -484,11 +513,22 @@ function scanArithmetic(rel: string, text: string): ArithmeticScan {
   return { violations, seen: [...seen].sort(), binaryExpressions };
 }
 
+const EMPTY_SCAN: ArithmeticScan = { violations: [], seen: [], binaryExpressions: 0 };
+
 const breakdown = opened.get(PRICE_BREAKDOWN);
 const arithmetic =
-  breakdown === undefined
-    ? { violations: [], seen: [], binaryExpressions: 0 }
-    : scanArithmetic(breakdown.rel, breakdown.raw);
+  breakdown === undefined ? EMPTY_SCAN : scanArithmetic(breakdown.rel, breakdown.raw);
+
+/**
+ * The rail's scan (plan 12-05). A SECOND walk over a second file, not a widening of the first — the
+ * two surfaces hold different names and a shared seed set would have made each assertion weaker in the
+ * other's direction.
+ */
+const calendar = opened.get(AVAILABILITY_CALENDAR);
+const railArithmetic =
+  calendar === undefined
+    ? EMPTY_SCAN
+    : scanArithmetic(calendar.rel, calendar.raw, RAIL_MONEY_IDENTIFIERS);
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // THE `Est.` INVENTORY — an EMPTY declared-exception map, and the emptiness IS the assertion
@@ -585,6 +625,23 @@ describe("guard-the-guard — the scanners read the files they are asserting abo
       arithmetic.binaryExpressions,
       "the walker visited zero binary expressions. The component contains `??` fallbacks and `> 0` " +
         "render gates, so zero means the tree was never traversed.",
+    ).toBeGreaterThan(0);
+  });
+
+  it("the arithmetic scanner actually parsed the RAIL too (12-05)", () => {
+    // The same two positive controls, for the second surface. `availability-calendar.tsx` is the file
+    // 12-05 turned into a price surface, and an empty-violations assertion over it is worth exactly as
+    // little as one over the component if the walk saw nothing.
+    expect(
+      railArithmetic.seen,
+      `the AST walk found no money identifier in ${AVAILABILITY_CALENDAR}. Either the parse produced ` +
+        `an empty tree or the rail stopped receiving the all-in table — in both cases the rail's ` +
+        `zero-arithmetic assertion below is asserting about nothing.`,
+    ).toContain("allIn");
+    expect(
+      railArithmetic.binaryExpressions,
+      "the rail walker visited zero binary expressions. The file computes an hour count and two " +
+        "venue-tz month offsets, so zero means the tree was never traversed.",
     ).toBeGreaterThan(0);
   });
 
@@ -764,6 +821,36 @@ describe("(3) zero arithmetic — the component computes no money figure", () =>
     for (const prop of ["quotedTotalCents", "spacePriceCents", "serviceFeeCents"]) {
       expect(arithmetic.seen, `${prop} is gone from ${PRICE_BREAKDOWN}`).toContain(prop);
     }
+  });
+
+  it("nor does the RAIL compute one, now that it renders the same breakdown (12-05)", () => {
+    expect(
+      railArithmetic.violations,
+      `${AVAILABILITY_CALENDAR} performs arithmetic on a money value: ` +
+        `${JSON.stringify(railArithmetic.violations)}. The rail is a client module, so an arithmetic ` +
+        `edit here runs in the BROWSER, on the last number a booker reads before checkout (D-75). The ` +
+        `table is keyed by the selection precisely so no multiply is ever needed: ` +
+        `n * allIn(unit) != allIn(n * unit), because computeServiceFee rounds ONCE over the whole ` +
+        `space price, so a product computed here drifts from the frozen quote by up to n-1 centavos ` +
+        `(T-12-05-RAILCOMPUTE). A missing key means NO breakdown, never a computed one.`,
+    ).toEqual([]);
+  });
+
+  it("and the rail has not simply stopped rendering money (12-05)", () => {
+    // Same both-sides rule as the component's positive control above. A rail that dropped the
+    // breakdown satisfies the ban perfectly and deletes BFLOW-04 in the process, so the two things
+    // that make it a price surface at all are asserted present: the table, and the component it feeds.
+    expect(railArithmetic.seen, `the all-in table is gone from ${AVAILABILITY_CALENDAR}`).toContain(
+      "allIn",
+    );
+    const file = opened.get(AVAILABILITY_CALENDAR);
+    expect(file).toBeDefined();
+    expect(
+      file!.stripped.includes('surface="rail"'),
+      `${AVAILABILITY_CALENDAR} no longer renders <PriceBreakdown surface="rail">. BFLOW-04's claim ` +
+        `is that the rail and checkout are ONE component; a rail that went back to its own money ` +
+        `markup would satisfy every ban in this file and fail the requirement.`,
+    ).toBe(true);
   });
 });
 

@@ -75,6 +75,7 @@ import {
 } from "@/components/availability/availability-calendar";
 import { BookCta } from "@/components/booking/book-cta";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
+import { RailRateHeadline } from "@/components/booking/rail-rate-headline";
 import { placeHold, placeOpenHold } from "@/app/actions/booking";
 import {
   NO_SEARCHED_WINDOW,
@@ -591,17 +592,14 @@ export default async function PublicListingPage({
             trap `deferred-items.md` measured at 112px vs 80px on the row cards). */}
         <aside>
           <PanelCard sticky>
-            <div>
-              <p className="text-2xl font-semibold tracking-tight">
-                {priceParts[0] ?? "Price on request"}
-              </p>
-              {priceParts[1] && (
-                <p className="text-sm text-muted-foreground">{priceParts[1]}</p>
-              )}
-              {priceParts.length > 0 && (
-                <p className="text-sm text-muted-foreground">Service fee included</p>
-              )}
-            </div>
+            {/* D-41 — the all-in rate headline, which now RENDERS ONLY WHILE THERE IS NO SELECTION.
+                It moved out of this file into a client leaf because the condition is a fact about the
+                browser's state, not the request's. The three `<p>` elements below are byte-identical to
+                the ones that stood here; what changed is that they can now be absent. The reason they
+                must be — two correct rates, same `/hr` suffix, 60px apart, on the panel where money
+                commits — is written in the component, together with the alternative that was rejected,
+                so nobody "restores" the headline as a regression fix. */}
+            <RailRateHeadline parts={priceParts} />
 
             {/* D-81 — the refund promise, next to the price it qualifies. GENERIC mode: there is no
                 booking yet, so rungs are stated relative to the listing's own deadline anchor; checkout
@@ -632,20 +630,29 @@ export default async function PublicListingPage({
             )}
 
             {/* Selection summary — appears once the booker picks a run/full day, or a date and a number
-                of passes (display-only either way). Neither branch composes money: both LOOK UP a figure
+                of passes (display-only either way). Neither branch composes money: both LOOK UP figures
                 this RSC already computed with the same `computeServiceFee` checkout freezes, so the rail
-                and the charge agree to the centavo (D-75) and no fee input reaches the browser (D-130). */}
+                and the charge agree to the centavo (D-75) and no fee input reaches the browser (D-130).
+
+                D-38 / BFLOW-04: each branch now renders the REAL `PriceBreakdown`, itemised, from the
+                widened table's `{space, fee, total}` for the booker's own selection — the same component
+                checkout renders, so the two totals are computed-style identical by construction rather
+                than by assertion. The RAW rate props below feed the run line's LABEL only
+                (`₱473.33/hr × 2 hours`); every VALUE rendered is one of the three finished figures. */}
             {isOpenCapacity ? (
               <RailPassSummary
                 timezone={timezone}
                 currency={DISPLAY_CURRENCY}
                 allIn={allIn}
+                perHeadPriceCents={row.listing.perHeadPriceCents}
               />
             ) : (
               <RailSelectionSummary
                 timezone={timezone}
                 currency={DISPLAY_CURRENCY}
                 allIn={allIn}
+                hourlyRateCents={pub.hourlyRateCents}
+                dayRateCents={pub.dayRateCents}
               />
             )}
 

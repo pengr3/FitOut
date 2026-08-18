@@ -48,11 +48,13 @@ import { getDayAvailability } from "@/app/actions/availability";
 // module; this constant was split out of it precisely so this line can exist in a `"use client"` file.
 import { BOOKING_HORIZON_DAYS } from "@/lib/availability/horizon";
 import type { DayAvailability } from "@/lib/availability/read-model";
-import { formatMoney } from "@/lib/money";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
 import { DatePassPicker } from "@/components/availability/date-pass-picker";
+// D-38 / BFLOW-04 — the REAL breakdown, not a lookalike. See the note above RailSelectionSummary for
+// why "one component" is the requirement rather than "two components that agree".
+import { PriceBreakdown } from "@/components/booking/price-breakdown";
 
 export type DayLocal = { year: number; month: number; day: number };
 
@@ -452,15 +454,39 @@ type RailSelectionSummaryProps = {
    * COMPUTATION on the client, which is what GATE-05 fails the build over: reaching `computeServiceFee`
    * from a `"use client"` module drags the guarded money graph into the browser bundle. Now nothing about
    * the fee — not the rate, not the formula — is shipped at all.
+   *
+   * D-38 WIDENED EACH VALUE TO `{space, fee, total}`, and the widening is a SHAPE change rather than a
+   * computation move: all three figures are still produced by one `computeServiceFee` call inside the
+   * guarded module, and `fee` is subtracted THERE (`allInCents − space`) rather than here. A client that
+   * subtracts is a client that can be handed the wrong two numbers and asked to produce a plausible third.
    */
   allIn: AllInTable;
+  /**
+   * The host's RAW hourly and day rates, for the breakdown's run LABEL only (`₱473.33/hr × 2 hours`).
+   *
+   * ⚠️ THESE ARE NOT A D-130 BREACH, AND THE DISTINCTION IS THE WHOLE OF GATE-05. D-130 forbids handing a
+   * client the INGREDIENTS OF A PRICE — a rate plus the fee rate, from which it would compute what to
+   * charge. What crosses here is a rate that is only ever FORMATTED into a label; the figure beside it is
+   * `allIn[…].space` and the figure below it is `allIn[…].total`, both finished on the server. Nothing on
+   * this surface multiplies a rate by a count, and that is enforced rather than promised:
+   * `tests/design/price-surface.test.ts` walks THIS FILE's AST and fails the build on any `+`, `-`, `*`
+   * or `/` touching a money identifier or anything derived from one.
+   *
+   * THE RUN LINE IS THE SPACE RATE, NOT THE ALL-IN RATE, and that is what makes it honest: the fee is
+   * disclosed on its own line directly beneath it, and the two add to the `Total`. It is also exactly why
+   * D-41 removes the all-in headline the moment a selection exists — see `booking/rail-rate-headline.tsx`.
+   */
+  hourlyRateCents: number | null;
+  dayRateCents: number | null;
 };
 
-/** In the booking rail, ABOVE the CTA: the chosen date · time range · all-in price (display-only). */
+/** In the booking rail, ABOVE the CTA: the chosen date · time range · the REAL itemised breakdown. */
 export function RailSelectionSummary({
   timezone,
   currency,
   allIn,
+  hourlyRateCents,
+  dayRateCents,
 }: RailSelectionSummaryProps) {
   const { selection } = useBookingSelection();
   if (!selection) return null;
@@ -474,37 +500,54 @@ export function RailSelectionSummary({
     ? "Full day"
     : `${format(start, "h:mm a", { in: inTz })} – ${format(end, "h:mm a", { in: inTz })}`;
 
-  // D-75: the rail is the LAST number a booker sees before checkout, so it must be ALL-IN. Showing the
-  // space price here and charging space + fee on the next screen is the "number goes up between browsing
-  // and paying" failure D-75 exists to prevent — and at 5% of the booking it is not a rounding edge.
-  // Unlike a search card this IS a total for a chosen window, and it is EXACT rather than approximate:
-  // the RSC built this table by applying computeServiceFee to the same space price checkout freezes, at
-  // the same rate, so the two agree to the centavo. A LOOKUP, never arithmetic (D-130) — and a lookup is
-  // what keeps "exact" true, since multiplying a per-hour all-in figure here would round n times instead
-  // of once. A missing key means no price line, exactly as a null rate always has.
+  // D-75: the rail is the LAST number a booker sees before checkout, so its TOTAL must be ALL-IN. Showing
+  // the space price as the bottom line here and charging space + fee on the next screen is the "number
+  // goes up between browsing and paying" failure D-75 exists to prevent — and at 5% of the booking it is
+  // not a rounding edge. Unlike a search card this IS a total for a chosen window, and it is EXACT rather
+  // than approximate: the RSC built this table by applying computeServiceFee to the same space price
+  // checkout freezes, at the same rate, so the two agree to the centavo. A LOOKUP, never arithmetic
+  // (D-130) — and a lookup is what keeps "exact" true, since multiplying a per-hour all-in figure here
+  // would round n times instead of once. A MISSING KEY MEANS NO BREAKDOWN AT ALL, exactly as a null rate
+  // has always meant no price line: it is never a cue to compute one on the client.
   //
-  // D-38 widened each value to `{space, fee, total}` so plan 12-05 can feed the REAL `PriceBreakdown`
-  // here, itemised. `.total` is the identical integer this line has rendered since Phase 11 — the widening
-  // added the two other finished figures beside it, it did not change this one.
-  const cents = (selection.fullDay ? allIn.fullDay : (allIn.hourly[hours] ?? null))?.total ?? null;
+  // D-38 widened each value from a single integer to `{space, fee, total}` — THREE finished figures for
+  // this one selection — which is what lets the block below be the real `PriceBreakdown` rather than a
+  // lookalike. `.total` is the identical integer this rail has rendered since Phase 11; the widening added
+  // the two figures beside it and changed neither the arithmetic nor where it happens.
+  const parts = selection.fullDay ? allIn.fullDay : (allIn.hourly[hours] ?? null);
 
   return (
-    <div className="space-y-1 rounded-lg border p-3 text-sm">
-      <p className="font-semibold">{dateLabel}</p>
-      <p className="text-muted-foreground">
-        <span className="tabular-nums">{timeLabel}</span>
-        {!selection.fullDay && ` · ${hours} ${hours === 1 ? "hour" : "hours"}`}
-      </p>
-      {/* D-40 — THE HEDGE IS GONE, AND ITS REMOVAL IS A CORRECTION RATHER THAN A COPY PREFERENCE.
-          The prefix that used to sit here said "approximately" about a figure that is exact BY
-          CONSTRUCTION: the RSC applied `computeServiceFee` to the same space price checkout freezes, at
-          the same rate, and the comment above has claimed that byte-identity since Phase 11. Hedging a
-          guarantee the system actually makes is not caution — it teaches a booker to expect the number to
-          move, which is the D-75 failure mode restated as copy. 12-UI-SPEC AC#9. */}
-      {cents != null && (
-        <p className="pt-0.5">
-          <span className="font-semibold tabular-nums">{formatMoney(cents, currency)}</span>
+    <div className="space-y-3 rounded-lg border p-3 text-sm">
+      <div className="space-y-1">
+        <p className="font-semibold">{dateLabel}</p>
+        <p className="text-muted-foreground">
+          <span className="tabular-nums">{timeLabel}</span>
+          {!selection.fullDay && ` · ${hours} ${hours === 1 ? "hour" : "hours"}`}
         </p>
+      </div>
+      {/* D-38 / BFLOW-04 — THE SAME COMPONENT CHECKOUT RENDERS, fed the same three frozen values under
+          the same names. BFLOW-04's claim is that a booker RECOGNISES the rail's price and checkout's
+          price as one fact, which is a claim about pixels; the only way to make it true rather than
+          asserted is for there to be one component. `e2e/price-one-fact.spec.ts` settles it by comparing
+          the two totals' COMPUTED STYLES in a real browser, in both themes — not by observing that two
+          files import the same module.
+          D-40: the figure is labelled `Total` and carries no hedge, on both surfaces. It is exact by
+          construction (see above), and hedging a guarantee the system actually makes teaches a booker to
+          expect the number to move — D-75's failure mode restated as copy. 12-UI-SPEC AC#9.
+          Every figure below is a finished server-computed prop; this file performs no arithmetic on any
+          of them, which `tests/design/price-surface.test.ts` asserts over this file's AST. */}
+      {parts != null && (
+        <PriceBreakdown
+          surface="rail"
+          quotedTotalCents={parts.total}
+          spacePriceCents={parts.space}
+          serviceFeeCents={parts.fee}
+          currency={currency}
+          fullDay={selection.fullDay}
+          hours={hours}
+          hourlyRateCents={hourlyRateCents}
+          dayRateCents={dayRateCents}
+        />
       )}
     </div>
   );
@@ -525,12 +568,30 @@ type RailPassSummaryProps = {
    * (`perHeadPriceCents` + `serviceFeeBps`) were together the INPUTS to a price, which is precisely what
    * D-130 forbids crossing this boundary — a client component may receive money as a finished figure,
    * never as the ingredients to compute one.
+   *
+   * D-38 widened each value to `{space, fee, total}` so this rail can render the REAL, ITEMISED
+   * breakdown. The widening moved no computation: `perPass[N]`'s three figures come from one
+   * `computeServiceFee(perHead × N)` call inside the guarded module, exactly as the single figure did.
    */
   allIn: AllInTable;
+  /**
+   * The host's RAW per-head price, for the breakdown's run LABEL only (`₱250.00/person × 3 passes`).
+   *
+   * The same distinction `RailSelectionSummary`'s own rate props record, and it binds identically here: a
+   * rate that is FORMATTED into a label is not the ingredients of a price. The value beside it is
+   * `allIn.perPass[N].space` and the bottom line is `.total`, both finished on the server, and the AST
+   * scan in `tests/design/price-surface.test.ts` fails the build if this file ever multiplies the two.
+   */
+  perHeadPriceCents: number | null;
 };
 
-/** In the booking rail, ABOVE the CTA: the chosen date · pass count · all-in price (display-only). */
-export function RailPassSummary({ timezone, currency, allIn }: RailPassSummaryProps) {
+/** In the booking rail, ABOVE the CTA: the chosen date · pass count · the REAL itemised breakdown. */
+export function RailPassSummary({
+  timezone,
+  currency,
+  allIn,
+  perHeadPriceCents,
+}: RailPassSummaryProps) {
   const { openSelection } = useBookingSelection();
   if (!openSelection) return null;
 
@@ -550,22 +611,42 @@ export function RailPassSummary({ timezone, currency, allIn }: RailPassSummaryPr
   // frozen total is lower, and the reserve page (09-13) states both figures before anything is charged.
   // The number can go DOWN with an explicit confirmation; it can never go up.
   //
-  // D-38: `.total` off the widened `{space, fee, total}` value — the same integer this line always showed.
-  const cents = allIn.perPass[passes]?.total ?? null;
+  // D-38: the widened `{space, fee, total}` value for exactly this pass count. `.total` is the same
+  // integer this rail always showed; `.space` and `.fee` are the two finished figures beside it that make
+  // an ITEMISED breakdown possible without a single client computation. A missing key (a pass count past
+  // the cap) still means no breakdown at all — never a cue to derive one here.
+  const parts = allIn.perPass[passes] ?? null;
 
   return (
-    <div className="space-y-1 rounded-lg border p-3 text-sm">
-      <p className="font-semibold">{dateLabel}</p>
-      <p className="text-muted-foreground">
-        <span className="tabular-nums">{passes}</span> {passes === 1 ? "pass" : "passes"}
-      </p>
-      {/* D-40, same removal and the same reason as RailSelectionSummary above — and it binds harder here,
-          because open pricing is purely linear and this figure is the one `quoteOpenCapacity` freezes on
-          the row inside the claim's transaction. */}
-      {cents != null && (
-        <p className="pt-0.5">
-          <span className="font-semibold tabular-nums">{formatMoney(cents, currency)}</span>
+    <div className="space-y-3 rounded-lg border p-3 text-sm">
+      <div className="space-y-1">
+        <p className="font-semibold">{dateLabel}</p>
+        <p className="text-muted-foreground">
+          <span className="tabular-nums">{passes}</span> {passes === 1 ? "pass" : "passes"}
         </p>
+      </div>
+      {/* D-38 / BFLOW-04 — the same component, on the drop-in branch. `PriceBreakdown` already handles the
+          pass shape through its optional `perHeadPriceCents` / `passes` props (OC-08), so NO FORK is
+          needed: a pass is priced per head with no duration term at all, and the run label resolves that
+          branch first, which is why `fullDay` and `hours` below say nothing and are never read.
+          D-40 binds HARDER here than on the exclusive branch: open pricing is purely linear, so this
+          `.total` is precisely the figure `quoteOpenCapacity` freezes on the row inside the claim's own
+          transaction. The one case it moves is a lost race granting fewer heads — it moves DOWN, and the
+          reserve page states both figures before anything is charged (09-13). */}
+      {parts != null && (
+        <PriceBreakdown
+          surface="rail"
+          quotedTotalCents={parts.total}
+          spacePriceCents={parts.space}
+          serviceFeeCents={parts.fee}
+          perHeadPriceCents={perHeadPriceCents}
+          passes={passes}
+          currency={currency}
+          fullDay={false}
+          hours={0}
+          hourlyRateCents={null}
+          dayRateCents={null}
+        />
       )}
     </div>
   );
