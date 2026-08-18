@@ -335,7 +335,14 @@ export default async function PublicListingPage({
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
       <PhotoGallery photos={pub.photos} title={title} />
 
-      <BookingSelectionProvider>
+      {/* Phase-12 seam A: the provider owns the DAY, not just the selection, so the sheet's second
+          booking view and the D-55 collision recovery share one day and one availability read. The
+          RSC still seeds the first paint — `initialDay` is the same server read it always was. */}
+      <BookingSelectionProvider
+        listingId={id}
+        initialDate={initialDate}
+        initialDay={initialDay}
+      >
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px] lg:gap-12">
         {/* Main content column */}
         <div className="space-y-8">

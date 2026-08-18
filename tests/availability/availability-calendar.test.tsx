@@ -53,9 +53,24 @@
 //       measured pair doing its job.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// PHASE 12 (seam A) — case (3) is a DIFFERENT KIND OF TEST from (1) and (2) and should be read as one.
+//
+// (1) and (2) are the reachability pair above. (3) is a RED ANCHOR for the stale-response guard
+// introduced when `day`/`dayAvail`/`dayLoading`/`dayError` moved out of AvailabilityCalendar and into
+// BookingSelectionProvider (T-12-02-RACE). Two placements sharing one hook makes overlapping day reads
+// real rather than theoretical, and the loser resolving LAST would paint the wrong day's hours under
+// the right day's heading — stale-but-plausible availability, the exact failure IN-03 refuses.
+//
+// It is written against the CONTEXT, not against a day click: `selectDay` is the transition the sheet
+// and the calendar both run, and react-day-picker's month grid is not the thing under test here. The
+// two responses are resolved OUT OF ORDER on purpose (newer first, older second) — the only ordering
+// a correct implementation and a naive one disagree about.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
 import * as React from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 
 // jsdom implements no ResizeObserver, and Radix's ScrollArea (which wraps the hour chips) measures
 // itself with one. Same stub as tests/listing/wizard-occupancy.test.tsx.
@@ -139,7 +154,9 @@ function SelectionProbe() {
 
 function renderCalendar(bookable: boolean) {
   return render(
-    <BookingSelectionProvider>
+    // Phase-12 seam A: the provider owns the day now, so it takes what the RSC used to hand only to the
+    // calendar. THE WRAPPER MOVED; NO ASSERTION BELOW CHANGED.
+    <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
       <AvailabilityCalendar
         listingId={LISTING_ID}
         timezone={TIMEZONE}
@@ -208,5 +225,100 @@ describe("AvailabilityCalendar — a non-bookable listing is a READ-ONLY PREVIEW
     );
 
     expect(getDayAvailability).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// (3) The hoisted day: a stale response must never overwrite a newer one (T-12-02-RACE)
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A second venue-local day, far enough from DAY that its chips carry different labels. */
+const DAY_A: DayLocal = { ...DAY, day: DAY.day };
+const DAY_B: DayLocal = { ...DAY, day: DAY.day + 1 };
+
+/** 01:00Z = 9:00 AM Manila; 07:00Z = 3:00 PM Manila. Two labels that cannot be confused for each other. */
+function dayWithHour(d: DayLocal, utcHour: number): DayAvailability {
+  const start = new Date(Date.UTC(d.year, d.month - 1, d.day, utcHour, 0, 0)).toISOString();
+  const end = new Date(Date.UTC(d.year, d.month - 1, d.day, utcHour + 1, 0, 0)).toISOString();
+  return {
+    ...INITIAL_DAY,
+    slots: [{ startUtc: start, endUtc: end, state: "available", freeUnits: 1, unitCount: 1 }],
+  };
+}
+
+const A_LABEL = "9:00 AM"; // DAY_A's only hour  (01:00Z)
+const B_LABEL = "3:00 PM"; // DAY_B's only hour  (07:00Z)
+
+/** Drives the HOISTED transition directly — the same `selectDay` the calendar and the sheet both call. */
+function DayDriver() {
+  const { selectDay, dayLoading, dayError } = useBookingSelection();
+  return (
+    <div>
+      <button type="button" onClick={() => selectDay(DAY_A)}>
+        go A
+      </button>
+      <button type="button" onClick={() => selectDay(DAY_B)}>
+        go B
+      </button>
+      <span data-testid="flags">{`${dayLoading}|${dayError}`}</span>
+    </div>
+  );
+}
+
+describe("BookingSelectionProvider — one hook owns the day, and the LATEST day wins", () => {
+  it("(3) an OLDER day's response resolving last does not overwrite the newer day's availability", async () => {
+    // Hand out deferred promises so the resolution ORDER is under the test's control, not the runtime's.
+    const resolvers: Array<(v: DayAvailability) => void> = [];
+    getDayAvailability.mockImplementation(
+      () => new Promise<DayAvailability>((resolve) => resolvers.push(resolve)),
+    );
+
+    render(
+      <BookingSelectionProvider listingId={LISTING_ID} initialDate={DAY} initialDay={INITIAL_DAY}>
+        <AvailabilityCalendar
+          listingId={LISTING_ID}
+          timezone={TIMEZONE}
+          cityLabel={CITY}
+          gmtLabel={GMT}
+          unitCount={1}
+          bookable
+          initialDate={DAY}
+          initialDay={INITIAL_DAY}
+          occupancyMode="exclusive"
+        />
+        <DayDriver />
+      </BookingSelectionProvider>,
+    );
+
+    // Two day selections in flight at once — the race this guard exists for.
+    fireEvent.click(screen.getByText("go A"));
+    fireEvent.click(screen.getByText("go B"));
+    expect(getDayAvailability).toHaveBeenCalledTimes(2);
+    expect(resolvers).toHaveLength(2);
+
+    // GUARD THE GUARD: without a real race there is nothing to discard, so prove both calls are pending
+    // and that the calendar is in its loading state before either resolves.
+    expect(screen.getByTestId("flags").textContent).toBe("true|false");
+
+    // Resolve the NEWER selection (B) first…
+    await act(async () => {
+      resolvers[1](dayWithHour(DAY_B, 7));
+    });
+    expect(screen.getByText(B_LABEL)).toBeTruthy();
+
+    // …then let the OLDER one (A) land late. A naive implementation writes it and the grid silently
+    // becomes day A's hours under day B's heading.
+    await act(async () => {
+      resolvers[0](dayWithHour(DAY_A, 1));
+    });
+
+    expect(
+      screen.queryByText(A_LABEL),
+      "the older day's late response overwrote the newer day's availability (T-12-02-RACE)",
+    ).toBeNull();
+    expect(screen.getByText(B_LABEL)).toBeTruthy();
+
+    // The stale resolution must also not touch the flags: no phantom skeleton, no phantom error.
+    expect(screen.getByTestId("flags").textContent).toBe("false|false");
   });
 });

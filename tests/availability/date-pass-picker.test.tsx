@@ -146,7 +146,14 @@ function renderPicker(opts: {
   const placeOpenHold = opts.placeOpenHold ?? makeHold();
   const placeHold = makeHold();
   const view = render(
-    <BookingSelectionProvider>
+    // Phase-12 seam A: the provider owns the day. The drop-in fork below is UNAFFECTED — DatePassPicker
+    // still owns its own day state — so the provider's day simply goes unused on this branch, and every
+    // assertion in this file is unchanged.
+    <BookingSelectionProvider
+      listingId={LISTING_ID}
+      initialDate={DAY_A}
+      initialDay={opts.initialDay === undefined ? openDay(DAY_A) : opts.initialDay}
+    >
       <AvailabilityCalendar
         listingId={LISTING_ID}
         timezone={TZ}

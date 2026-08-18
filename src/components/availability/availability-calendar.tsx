@@ -8,9 +8,27 @@
 // This file exports three small, related client pieces so the selection made in the calendar (main
 // column) can drive the summary in the booking rail (a different grid column) without prop-drilling a
 // callback across the RSC boundary:
-//   - BookingSelectionProvider — holds the lifted { selection } state; wraps the whole booking grid.
+//   - BookingSelectionProvider — holds the lifted { selection } state AND the lifted DAY state; wraps
+//                                the whole booking grid.
 //   - AvailabilityCalendar     — the month grid + SlotPicker; writes selection into the context.
 //   - RailSelectionSummary     — reads selection; shows date · time range · est. price in the rail.
+//
+// PHASE 12 (RESP-02 / STATE-07 · seam A) — THE DAY IS HOISTED, AND THAT IS THE POINT OF THIS FILE NOW.
+// `day`, `dayAvail`, `dayLoading` and `dayError` used to be four `useState` calls INSIDE
+// AvailabilityCalendar, which made three later requirements impossible rather than merely awkward:
+//   1. RESP-02's booking SHEET mounts a SECOND booking view. Two copies of this component would hold
+//      two independent days and issue two availability requests for one day selection (AC#21 requires
+//      exactly one).
+//   2. STATE-07 / D-55 needs refreshed availability to land in the SAME PAINT as the collision notice.
+//      `router.refresh()` provably cannot do that: Next's own contract is that refresh "will merge the
+//      updated React Server Component payload WITHOUT LOSING unaffected client-side React (e.g.
+//      useState)" — and the day's slots WERE client state seeded, on mount only, from a prop computed
+//      for TODAY. The existing `router.refresh()` in book-cta.tsx is therefore a no-op on this grid.
+//      `refreshDay()` below is the seam that actually works, and it returns its promise so the caller
+//      can batch the notice and the new grid.
+//   3. D-59 #1 ("never make the booker tell us something twice") needs the SEARCHED day to survive the
+//      click from the search card. That day now arrives as the provider's `initialDate`.
+// AvailabilityCalendar is a PURE CONSUMER of those four values; it owns no fetch.
 //
 // The calendar is ADVISORY (Pitfall 6): the DB EXCLUDE constraint is the sole authority and Phase 4
 // re-derives + re-validates the selection. Selection is enabled ONLY when the listing is `bookable`
@@ -74,17 +92,118 @@ type SelectionContext = {
    *  the two are mutually exclusive because a listing is exactly one mode. */
   openSelection: OpenSelectionValue | null;
   setOpenSelection: (sel: OpenSelectionValue | null) => void;
+
+  // ── Phase-12 seam A: ONE day, above every placement ────────────────────────────────────────────
+  /** The venue-local calendar day every mounted booking view is showing. */
+  day: DayLocal;
+  /** That day's server-authoritative availability, or null when it could not be read. */
+  dayAvail: DayAvailability | null;
+  dayLoading: boolean;
+  dayError: boolean;
+  /** Move to `next`: sets the day, clears any slot selection, and fetches the day's availability. */
+  selectDay: (next: DayLocal) => void;
+  /** Re-fetch the CURRENT day. Returns the promise so a caller can await it — the D-55 collision seam. */
+  refreshDay: () => Promise<void>;
 };
 
 const BookingSelectionContext = React.createContext<SelectionContext | null>(null);
 
-/** Provides the lifted booker selection to the calendar + the rail summary. Wrap the booking grid. */
-export function BookingSelectionProvider({ children }: { children: React.ReactNode }) {
+type BookingSelectionProviderProps = {
+  listingId: string;
+  /** The day the booking views OPEN on — venue-local today, or the day the booker searched (D-59 #1). */
+  initialDate: DayLocal;
+  /** That day's availability, read server-side by the RSC so the first paint already carries it. */
+  initialDay: DayAvailability | null;
+  children: React.ReactNode;
+};
+
+/**
+ * Provides the lifted booker selection AND the lifted day to the calendar + the rail summary. Wrap the
+ * booking grid.
+ *
+ * `getDayAvailability` (src/app/actions/availability.ts) is the ONLY read this hook performs, and it is
+ * called from exactly one place in the whole client tree — right here. It is public, read-only, session-
+ * less by design, Zod-validates its untrusted `dayLocal`, and re-enforces the published + non-deleted
+ * gate independently (WR-01). Nothing about money or availability COMPUTATION crosses this boundary
+ * (GATE-05): the client asks the server for a day and holds the answer.
+ */
+export function BookingSelectionProvider({
+  listingId,
+  initialDate,
+  initialDay,
+  children,
+}: BookingSelectionProviderProps) {
   const [selection, setSelection] = React.useState<SlotSelectionValue | null>(null);
   const [openSelection, setOpenSelection] = React.useState<OpenSelectionValue | null>(null);
+
+  const [day, setDay] = React.useState<DayLocal>(initialDate);
+  const [dayAvail, setDayAvail] = React.useState<DayAvailability | null>(initialDay);
+  const [dayLoading, setDayLoading] = React.useState(false);
+  const [dayError, setDayError] = React.useState(false);
+
+  /**
+   * THE STALE-RESPONSE GUARD (T-12-02-RACE). Two placements now share one hook, so a booker tapping
+   * days quickly has two reads genuinely in flight — this is a real race, not a theoretical one, and
+   * the loser resolving last would paint the WRONG day's hours under the RIGHT day's heading: stale-
+   * but-plausible availability, which is the one failure mode IN-03 already refuses to ship.
+   *
+   * A monotonic token rather than an AbortController: a server action is a POST the client cannot
+   * meaningfully abort, and the token costs one integer. Any resolution whose token is not the latest
+   * is DISCARDED — it must not touch `dayAvail`, `dayError` or `dayLoading` (clearing the flag from a
+   * stale call would hide the newer call's own skeleton).
+   */
+  const tokenRef = React.useRef(0);
+
+  const loadDay = React.useCallback(
+    async (target: DayLocal) => {
+      const token = ++tokenRef.current;
+      setDayLoading(true);
+      setDayError(false);
+      try {
+        const res = await getDayAvailability(listingId, target);
+        if (token !== tokenRef.current) return;
+        setDayAvail(res);
+      } catch {
+        if (token !== tokenRef.current) return;
+        // IN-03: a failed day fetch must NOT leave the prior day's slots on screen (stale-but-plausible).
+        // Clear the grid and flag an inline error so the user sees a retry hint, not wrong availability.
+        setDayAvail(null);
+        setDayError(true);
+      } finally {
+        if (token === tokenRef.current) setDayLoading(false);
+      }
+    },
+    [listingId],
+  );
+
+  const selectDay = React.useCallback(
+    (next: DayLocal) => {
+      setDay(next);
+      setSelection(null); // a new day clears any prior slot selection in the rail
+      void loadDay(next);
+    },
+    [loadDay],
+  );
+
+  // Deliberately does NOT clear the selection: the collision path (12-13) drops its own selection with
+  // the notice it renders, and a plain re-read of the current day must not silently discard the
+  // booker's pick.
+  const refreshDay = React.useCallback(() => loadDay(day), [loadDay, day]);
+
   const value = React.useMemo(
-    () => ({ selection, setSelection, openSelection, setOpenSelection }),
-    [selection, openSelection],
+    () => ({
+      selection,
+      setSelection,
+      openSelection,
+      setOpenSelection,
+      day,
+      dayAvail,
+      dayLoading,
+      dayError,
+      selectDay,
+      refreshDay,
+    }),
+    [selection, openSelection, day, dayAvail, dayLoading, dayError, selectDay, refreshDay],
   );
   return (
     <BookingSelectionContext.Provider value={value}>{children}</BookingSelectionContext.Provider>
@@ -137,11 +256,10 @@ export function AvailabilityCalendar({
   occupancyMode,
   initialFullDates,
 }: AvailabilityCalendarProps) {
-  const { setSelection, setOpenSelection } = useBookingSelection();
-  const [day, setDay] = React.useState<DayLocal>(initialDate);
-  const [dayAvail, setDayAvail] = React.useState<DayAvailability | null>(initialDay);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(false);
+  // A PURE CONSUMER (Phase-12 seam A). The day, its availability and its two flags are owned by
+  // BookingSelectionProvider above every placement; this component owns no fetch and no day state.
+  const { setSelection, setOpenSelection, day, dayAvail, dayLoading, dayError, selectDay } =
+    useBookingSelection();
 
   // Venue-local "today" and the 90-day horizon end (D-26), built as venue-tz instants so the day
   // matchers compare in the venue tz — never the browser tz.
@@ -172,8 +290,8 @@ export function AvailabilityCalendar({
   // and the mutation that admits them can never disagree.
   //
   // It sits AFTER the hooks above rather than at the very first line, so this component's hook order is
-  // identical on every render (rules-of-hooks). The exclusive day state those hooks hold is simply unused
-  // on this branch — DatePassPicker owns its own.
+  // identical on every render (rules-of-hooks). The hoisted day in the context is simply unused on this
+  // branch — DatePassPicker owns its own day state, and Phase-12 seam A deliberately did not disturb it.
   if (occupancyMode === "open_capacity") {
     return (
       <DatePassPicker
@@ -194,29 +312,18 @@ export function AvailabilityCalendar({
   }
   // ─── the shipped exclusive surface, unchanged, from here down ────────────────────────────────────
 
-  async function handleDaySelect(picked: Date | undefined) {
+  // The venue-local day the booker clicked, handed UP to the one hook that owns the day. Everything the
+  // transition used to do inline — clearing the rail's selection, the loading flag, the error flag, the
+  // fetch and its stale-response guard — lives in `selectDay` now, so the sheet's second placement runs
+  // the identical transition rather than a second copy of it.
+  function handleDaySelect(picked: Date | undefined) {
     if (!picked) return;
     const inTz = tz(timezone);
-    const next: DayLocal = {
+    selectDay({
       year: Number(format(picked, "yyyy", { in: inTz })),
       month: Number(format(picked, "M", { in: inTz })),
       day: Number(format(picked, "d", { in: inTz })),
-    };
-    setDay(next);
-    setSelection(null); // a new day clears any prior slot selection in the rail
-    setLoading(true);
-    setError(false);
-    try {
-      const res = await getDayAvailability(listingId, next);
-      setDayAvail(res);
-    } catch {
-      // IN-03: a failed day fetch must NOT leave the prior day's slots on screen (stale-but-plausible).
-      // Clear the grid and flag an inline error so the user sees a retry hint, not wrong availability.
-      setDayAvail(null);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+    });
   }
 
   const dayKey = `${day.year}-${day.month}-${day.day}`;
@@ -261,13 +368,13 @@ export function AvailabilityCalendar({
         <div className="min-w-0 space-y-3">
           <h3 className="text-sm font-semibold">{dayLabel}</h3>
 
-          {loading ? (
+          {dayLoading ? (
             <div className="flex flex-wrap gap-2" aria-live="polite" aria-busy="true">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-11 w-20 rounded-lg" />
               ))}
             </div>
-          ) : error ? (
+          ) : dayError ? (
             <div className="rounded-xl border border-dashed p-6 text-center" role="alert">
               <p className="font-medium">Couldn&apos;t load this day</p>
               <p className="mx-auto mt-1 max-w-prose text-sm text-muted-foreground">
