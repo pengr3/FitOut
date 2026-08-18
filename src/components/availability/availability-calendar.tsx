@@ -50,6 +50,8 @@ import { BOOKING_HORIZON_DAYS } from "@/lib/availability/horizon";
 import type { DayAvailability } from "@/lib/availability/read-model";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CALENDAR_CELL } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 import { SlotPicker, type SlotSelectionValue } from "@/components/availability/slot-picker";
 import { DatePassPicker } from "@/components/availability/date-pass-picker";
 // D-38 / BFLOW-04 — the REAL breakdown, not a lookalike. See the note above RailSelectionSummary for
@@ -57,6 +59,44 @@ import { DatePassPicker } from "@/components/availability/date-pass-picker";
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
 
 export type DayLocal = { year: number; month: number; day: number };
+
+/**
+ * The month grid's OUTER width, so a fluid 44px day cell is possible at all — BFLOW-05, and it is a
+ * MEASURED number rather than a design preference.
+ *
+ * `CALENDAR_CELL` sets `--cell-size` to 44px, which sizes the nav buttons, the weekday row and the
+ * caption because those three read the variable. It does NOT size the day cell: the day button is
+ * `w-full min-w-0` (see the override at the call site), so the cell is `1fr` of the calendar's CONTENT
+ * box and its width is whatever that box divided by seven happens to be. Left alone, `ui/calendar.tsx`'s
+ * `classNames.root` is `w-fit`, and with no per-cell minimum the whole grid collapses to the width of
+ * the numerals — MEASURED at 25.08px per cell, in a 193.53px calendar, at every viewport from 320 to
+ * 1280. A 25px hit area is WORSE than the 28px debt this plan is paying off.
+ *
+ * So the seven-cell figure is stated on the container instead of on each cell:
+ *   7 × 44 (the cells)  +  16 (`ui/calendar.tsx`'s own `p-2`)  +  2 (this call site's `border`)  = 326
+ * and `max-w-full` is what lets it shrink rather than overflow at the 320px floor, where the page's
+ * `px-4` leaves a 288px content box (T-12-09-OVERFLOW). Below ~358px viewport the cell is fluid, which
+ * is the declared consequence 12-UI-SPEC § Spacing records.
+ *
+ * ⚠ WHY THE FIGURE IS A `max-w` BELOW `md:` AND A `w` AT AND ABOVE IT, MEASURED RATHER THAN CHOSEN.
+ * The obvious spelling — `w-[…326px] max-w-full` — OVERFLOWS at 320px, and `min-w-0` does not save it.
+ * A box with a DEFINITE width contributes that width as its min-content size, a percentage `max-width`
+ * is indefinite during intrinsic sizing and is therefore ignored while that contribution is computed,
+ * and an `auto` grid track never shrinks below its items' min-content. So the definite 326 travelled up
+ * two nested grids and became the track: `/listings/[id]` measured `scrollWidth 342` against
+ * `clientWidth 320`, i.e. `max-w-full` was resolving against a track the width itself had widened.
+ * A `max-width` contributes nothing, so below `md:` the box is `w-full` capped at 326 and simply
+ * shrinks; at `md:` and above — where the calendar shares a row with the day panel and the container
+ * has room — the definite width is what makes the `auto` track 326 instead of collapsing to the
+ * numerals.
+ *
+ * ⚠ THE 18px IS THIS CALL SITE'S CHROME, and it is why the cell floors at 38.57px rather than the
+ * UI-SPEC's 41: the spec's figure is 288 ÷ 7 and silently assumes a calendar with no padding and no
+ * border. Both are shipped, both are real, and 38.57 still clears the WCAG 2.5.8 AA 24px bar by 60%.
+ * The measured numbers are in `e2e/calendar-hit-area.spec.ts`'s header.
+ */
+const CALENDAR_GRID_WIDTH =
+  "w-full max-w-[calc(7*var(--cell-size)+18px)] md:w-[calc(7*var(--cell-size)+18px)]";
 
 // D-130 / GATE-05 — the rail's prices arrive as a server-built lookup table of integer centavos.
 //
@@ -382,11 +422,50 @@ export function AvailabilityCalendar({
             DayButton: (dayButtonProps) => (
               <CalendarDayButton
                 {...dayButtonProps}
-                className="data-[selected-single=true]:bg-brand data-[selected-single=true]:text-brand-foreground data-[selected-single=true]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]"
+                // ── BFLOW-05 OVERRIDE 2, AND THE ONE THAT HAD TO BE MEASURED ────────────────────
+                // `CALENDAR_CELL` on the root (below) re-sizes the nav buttons, the weekday row and
+                // the caption, because all three read `--cell-size`. It does NOT size this button:
+                // `ui/calendar.tsx:221` carries `aspect-square size-auto w-full min-w-(--cell-size)`,
+                // and those four classes cost two separate defects.
+                //   • `aspect-square` ties HEIGHT to WIDTH, so "44px tall and ~41px wide" is
+                //     unsatisfiable while it is present — hence `aspect-auto` plus an explicit `h-11`.
+                //   • `min-w-(--cell-size)` FLOORS the width at 44px, and seven 44px cells is 308px
+                //     against a 288px content box at the 320px floor — a direct route to reddening
+                //     `e2e/overflow-320.spec.ts` (T-12-09-OVERFLOW). Hence `min-w-0`: the cell's
+                //     HEIGHT is fixed at 44 and its WIDTH is fluid, which is the declared consequence
+                //     12-UI-SPEC § Spacing records (~41px between 320px and ~376px; the WCAG 2.5.8 AA
+                //     bar is 24px, and the alternative — a horizontally scrolling month grid — fails
+                //     both the responsive and the keyboard gate).
+                // ⚠ THE MERGE WAS NOT ASSUMED. `cn()` is clsx + tailwind-merge v3, whose `size` group
+                // removes EARLIER `h-*`/`w-*` rather than later ones, so a later `h-11` does not
+                // delete the earlier `size-auto` — both survive into the class string and Tailwind's
+                // own utility order decides. `e2e/calendar-hit-area.spec.ts` is the rendered
+                // `boundingBox()` that settles it at four widths in two themes; the measured
+                // before/after numbers are in that file's header.
+                className="aspect-auto h-11 w-full min-w-0 data-[selected-single=true]:bg-brand data-[selected-single=true]:text-brand-foreground data-[selected-single=true]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]"
               />
             ),
           }}
-          className="rounded-xl border"
+          // ── BFLOW-05 OVERRIDE 1 ────────────────────────────────────────────────────────────────
+          // `ui/calendar.tsx:34` ships `[--cell-size:--spacing(7)]` = 28px. `CALENDAR_CELL` is the
+          // 44px replacement, and setting it HERE (never by editing the vendored file — T-12-09-
+          // VENDORFORK) re-sizes both nav buttons, the weekday row and the caption in one edit.
+          // `CALENDAR_GRID_WIDTH` is the other half, and its derivation is at the constant: the day
+          // button is `w-full min-w-0`, so the cell is `1fr` of the calendar's CONTENT box, and the
+          // content box has to be 7 × 44 for the cell to be 44.
+          //
+          // `[&_td]:aspect-auto` IS A THIRD OVERRIDE, AND IT WAS FOUND BY MEASURING RATHER THAN BY
+          // READING. `ui/calendar.tsx:106` puts `aspect-square h-full w-full` on the day `<td>`, not
+          // only on the button — so with the button at `h-11` and the cell still square, the td
+          // measured 25.08px tall while the button inside it measured 44, and every week row
+          // overlapped the next by 19px. Dropping the ratio lets the flex row's default `stretch` take
+          // the td to the button's height, which is what makes the grid six rows of 44 rather than six
+          // rows of 25 with the numerals colliding. It is an arbitrary VARIANT rather than the
+          // `classNames={{ day }}` escape hatch on purpose: the hatch is spread LAST in the vendored
+          // file, so taking it would mean restating the `group/day` marker, the cell radius, `p-0`,
+          // `text-center`, `select-none` and both range selectors — six copies that can go stale
+          // against a file this repo deliberately never edits.
+          className={cn(CALENDAR_CELL, CALENDAR_GRID_WIDTH, "[&_td]:aspect-auto rounded-xl border")}
         />
 
         <div className="min-w-0 space-y-3">
