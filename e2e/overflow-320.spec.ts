@@ -78,6 +78,28 @@ import { seedTheme } from "./helpers/theme";
 //   compiles routes on demand, so the guard was racing a compile. It now allows 15s; a reachability
 //   guard that flakes is one people learn to ignore.
 //
+//   SECOND WATCHED RED — 18 August 2026, plan 12-09, run and reverted. Command:
+//   `npx playwright test e2e/overflow-320.spec.ts --project=chromium --grep "listings"`
+//
+//   MUTATION: `min-w-0` on the calendar day button restored to the vendored `min-w-(--cell-size)` in
+//   `availability-calendar.tsx` — i.e. the 44px hit area BFLOW-05 asks for, floored on the wrong axis.
+//   Seven of those is 308px inside a 270px content box. **2 failed / 0 passed**, and the offender list
+//   is the whole reason this file collects one:
+//
+//     Error: /listings/[id] · court · 320px: the document scrolls horizontally — scrollWidth 342
+//     against a clientWidth of 320. Offending elements (right edge past the viewport):
+//       button.group/button inline-flex shrink-0 items-center j right=333
+//       table.w-full border-collapse rdp-month_grid right=333
+//       td.group/day relative aspect-square h-full w-full r right=333
+//       button.group/button shrink-0 items-center justify-cente right=333
+//       …
+//     Expected: <= 320.5
+//     Received:    342
+//
+//   It names the day buttons and the month grid by class, in both themes, and 342 − 320 = 22 is
+//   exactly 308 + 18 (the calendar's own chrome) − 304. A number and a list; the number alone would
+//   have sent a reader looking at the footer again. Reverted; 16 passed, 8 skipped.
+//
 //   VACUITY PROBE, same session: `/terms`' row repointed at `/a-route-that-renders-nothing-11-21`,
 //   which 404s into the root not-found. The overflow assertion PASSED (that page does not overflow
 //   either) and `expectReachable` failed instead, naming the selector it could not find:
@@ -239,7 +261,18 @@ const ROUTES: readonly RouteRow[] = [
   {
     name: "/listings/[id]",
     path: firstListingPath,
-    tell: "h1",
+    // THE `tell` IS THE CALENDAR, NOT THE `h1` (plan 12-09 · T-12-09-OVERFLOW). BFLOW-05 puts a
+    // SEVEN-COLUMN grid of 44px-tall day cells on this route, and the shipped vendored day button
+    // floors its own width at `--cell-size`: seven of those is 308px against the 288px content box
+    // this row measures, i.e. the one control on the whole twelve-route table that is structurally
+    // able to break it. MEASURED while writing the override — with `w-[326px] max-w-full` and no
+    // `min-w-0` on the button, this route reported `scrollWidth 342` against `clientWidth 320`.
+    //
+    // An `h1` proves the listing page rendered; it does NOT prove the calendar did, and the calendar
+    // is what this row is now covering. A calendar that failed to mount would leave the `h1` in place
+    // and the assertions below green — the same "true of a blank page" hole every other row's `tell`
+    // exists to close, arriving one level in.
+    tell: '[data-slot="calendar"]',
   },
   {
     name: "/listings/[id]/book",

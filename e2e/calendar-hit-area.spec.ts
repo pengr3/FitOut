@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { BASE, seedBookableListing, type SeededListing } from "./helpers/booker-seed";
+import { installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
 
 // BFLOW-05 / 12-UI-SPEC AC#14 — THE DAY CELL IS 44px TALL BECAUSE A BROWSER SAID SO.
@@ -163,6 +164,20 @@ const WCAG_AA_TARGET_PX = 24;
  */
 const TOLERANCE_PX = 1;
 
+/**
+ * The ±2px band the skeleton comparison uses, and it is `skeleton-geometry.spec.ts`'s number rather
+ * than a second opinion. Wider than `TOLERANCE_PX` above because that one bounds a single derived
+ * figure and this one bounds a SUM: the plate reproduces the resolved calendar's caption, weekday row
+ * and six week rows, and the weekday row's line box is 19.19px against the plate's `h-5`.
+ */
+const SKELETON_TOLERANCE_PX = 2;
+
+/** `ui/calendar.tsx`'s `week` class is `mt-2 flex w-full` — the 8px between every pair of week rows. */
+const WEEK_GAP_PX = 8;
+
+/** Six, because a month grid always renders six week rows (`reachableCalendar` asserts it). */
+const WEEK_ROWS = 6;
+
 const THEMES = ["court", "grove"] as const;
 
 type Box = { width: number; height: number };
@@ -323,6 +338,162 @@ test.describe("AC#14 — a calendar day cell is 44px tall at every width, in bot
               "different edit from the day-button override above.",
           ).toEqual([CELL_PX, CELL_PX]);
         }
+      }
+    });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// 12-UI-SPEC AC#15 — THE MONTH PLATE AND THE RESOLVED MONTH GRID ARE THE SAME BOX
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A skeleton whose shape differs from what loads is not a smaller defect than no skeleton — it is a
+// layout shift with a shimmer in front of it, and the shift is the thing STATE-01 exists to prevent.
+// So the plate is measured against the grid it stands in for, on the route that renders both.
+//
+// HOW THE TWO STATES ARE PRODUCED, AND WHY NOTHING HERE IS TIMED. `e2e/helpers/served-document.ts`
+// truncates the response at React's first streamed-boundary completion marker, which yields the exact
+// prefix the browser paints first — produced by the real server, from the real request. On
+// `/listings/{id}` that prefix is `(detail)/loading.tsx`'s output, because the page component awaits
+// the listing row AND the day's availability inside the route segment's own `<Suspense>`. Measured:
+// the marker sits at byte 13,786. So "the month's availability is in flight" is not simulated here,
+// it is the state the page is genuinely in while that read runs.
+//
+// THE MEASURED PAIR — 18 August 2026, court (grove is identical; both are asserted):
+//
+//   width   plate (pending)   calendar (resolved)   Δ
+//   ─────   ───────────────   ───────────────────   ────
+//   320     288 × 410         288 × 409.19          0.81
+//   768     326 × 410         326 × 409.19          0.81
+//   1280    326 × 410         326 × 409.19          0.81
+//
+// The 0.81 is the whole of the plate's approximation and it is spent in one place: the weekday row is
+// an `h-5` (20px) bar where the resolved row's `text-[0.8rem]` line box is 19.19px. The width is EXACT
+// at every step, because both sides read the same two strings.
+//
+// WHY THE ABSOLUTE FIGURE IS ASSERTED TOO, in the shape `skeleton-geometry.spec.ts` and the block
+// above both use: two boxes that agree at 340px are exactly as "equal" as two that agree at 409, and
+// only one of those is six rows of 44px cells. The number pinned is the WEEKS' box — 6 × (44 + 8) =
+// 312 — because that is the part of the calendar BFLOW-05 is a claim about, and it is derived from the
+// cell size rather than typed in.
+//
+// ── WATCHED RED, run and reverted, 18 August 2026 ────────────────────────────────────────────────
+//
+//   (c) THE PLATE LOSES A WEEK. `CalendarMonthSkeleton`'s six rows changed to five. The plate is then
+//       52px shorter than the grid it stands in for — a shift of exactly one week row, which is the
+//       defect this case exists for and one a review of the component would plausibly wave through:
+//
+//         Error: month plate · court · 320px: the skeleton and its resolved twin differ by more than
+//         2px. skeleton {"width":288,"height":358} resolved {"width":288,"height":409.19} —
+//         Δwidth 0, Δheight 51.19
+//         expect(received).toBeLessThanOrEqual(expected)
+//         Expected: <= 2
+//         Received: 51.19
+//
+//       **2 failed / 0 passed**, and the WIDTH stayed exact in both themes — a mutation to the row
+//       count reddens the height only, which is the blast radius that says this is measuring the
+//       composition rather than the wrapper. Reverted; 2 passed.
+//
+// ── NOT COVERED ──────────────────────────────────────────────────────────────────────────────────
+//   • THE PENDING DOCUMENT DOES NOT HYDRATE (`served-document.ts` property 1). Correct for geometry —
+//     it is the pre-hydration paint, which is exactly when a layout shift is visible — and it means
+//     this says nothing about a plate mounted INSIDE an already-hydrated page (12-10's sheet).
+//   • It compares the plate to the calendar's OUTER box. Two boxes can agree while the caption and the
+//     grid inside them sit at different offsets.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The ±2px claim, with both boxes and both deltas in the message — `skeleton-geometry.spec.ts:260`. */
+function expectSameBox(shape: string, where: string, skeleton: Box, resolved: Box): void {
+  const dw = Math.abs(skeleton.width - resolved.width);
+  const dh = Math.abs(skeleton.height - resolved.height);
+  const detail =
+    `${shape} · ${where}: the skeleton and its resolved twin differ by more than ` +
+    `${SKELETON_TOLERANCE_PX}px. skeleton ${JSON.stringify(skeleton)} resolved ` +
+    `${JSON.stringify(resolved)} — Δwidth ${Math.round(dw * 100) / 100}, ` +
+    `Δheight ${Math.round(dh * 100) / 100}`;
+  expect(dw, detail).toBeLessThanOrEqual(SKELETON_TOLERANCE_PX);
+  expect(dh, detail).toBeLessThanOrEqual(SKELETON_TOLERANCE_PX);
+}
+
+/** 320 is the floor, 768 the `md:` step, 1280 Desktop Chrome's default — 12-UI-SPEC AC#15's three. */
+const SKELETON_WIDTHS = [320, 768, 1280] as const;
+
+test.describe("AC#15 — the month plate occupies the box the month grid will", () => {
+  test.describe.configure({ timeout: 120_000 });
+
+  for (const theme of THEMES) {
+    test(`${theme} · plate and grid agree within ±${SKELETON_TOLERANCE_PX}px at 320 / 768 / 1280`, async ({
+      page,
+      context,
+    }) => {
+      await seedTheme(context, theme);
+
+      // Install BEFORE the first navigation — `served-document.ts`'s stated ordering.
+      const truncator = installTruncator(page);
+      await truncator.ready;
+
+      const url = `${BASE}/listings/${seed.listingId}`;
+
+      for (const width of SKELETON_WIDTHS) {
+        const where = `${theme} · ${width}px`;
+        await page.setViewportSize({ width, height: 900 });
+
+        // ── PENDING: the route's own loading.tsx, every boundary still in its fallback ────────────
+        truncator.set(true);
+        await page.goto(url);
+        await page.evaluate(() => document.fonts.ready);
+
+        // VACUITY GUARD 1: the truncation actually happened. If the marker were ever absent this
+        // helper serves the WHOLE document in both modes, and the two "states" below become the same
+        // page compared with itself — an equality that passes and measures nothing.
+        expect(
+          truncator.state.cut,
+          `${where}: the pending pass served an untruncated document (${truncator.state.length} ` +
+            "bytes, no completion marker found), so both measurements below are the resolved page.",
+        ).toBeGreaterThan(0);
+
+        // VACUITY GUARD 2: it is genuinely the PENDING state — the resolved calendar is NOT there.
+        await expect(
+          page.locator('[data-slot="calendar"]'),
+          `${where}: the pending shell already rendered the resolved calendar, so the truncation did ` +
+            "not hold the route in its loading state.",
+        ).toHaveCount(0);
+
+        const plate = await boxOf(
+          page,
+          '[data-testid="skeleton-calendar"]',
+          `month plate · ${where}`,
+        );
+
+        // ── RESOLVED: the whole document ─────────────────────────────────────────────────────────
+        truncator.set(false);
+        await page.goto(url);
+        await page.evaluate(() => document.fonts.ready);
+        await reachableCalendar(page, where);
+
+        // VACUITY GUARD 3, the mirror of guard 2: the plate is gone, so the second reading is not the
+        // placeholder again and this test is not comparing one box with itself.
+        await expect(
+          page.locator('[data-testid="skeleton-calendar"]'),
+          `${where}: the resolved document still holds the month plate, so both measurements are the ` +
+            "placeholder.",
+        ).toHaveCount(0, { timeout: 15_000 });
+
+        const resolved = await boxOf(page, '[data-slot="calendar"]', `month grid · ${where}`);
+
+        expectSameBox("month plate", where, plate, resolved);
+
+        // ── THE ABSOLUTE FIGURE, IN ITS OWN EXPECTATION ──────────────────────────────────────────
+        // Six rows of 44px cells with `ui/calendar.tsx`'s 8px between them. Derived from CELL_PX so a
+        // change to the constant moves this number with it rather than reddening it for no reason.
+        const weeks = await boxOf(page, '[data-slot="calendar"] tbody', `month weeks · ${where}`);
+        expect(
+          weeks.height,
+          `month weeks · ${where}: the six week rows measure ${weeks.height}px against a derived ` +
+            `${WEEK_ROWS * (CELL_PX + WEEK_GAP_PX)} = ${WEEK_ROWS} × (${CELL_PX} + ${WEEK_GAP_PX}). ` +
+            "Two boxes that agree at the wrong height are as equal as two that agree at the right " +
+            "one, which is why this is asserted separately from the comparison above.",
+        ).toBe(WEEK_ROWS * (CELL_PX + WEEK_GAP_PX));
       }
     });
   }
