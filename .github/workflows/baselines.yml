@@ -68,14 +68,44 @@
 #       threat T-11-UNVERIFIED.)
 #
 # ── WHAT THIS JOB HOLDS: NOTHING (T-11-CISECRET) ─────────────────────────────────────────────
-# One environment input, `DATABASE_URL`, and it points at a closed port. No `secrets.*`, no
-# PayMongo / Resend / Cloudinary / Better-Auth / Google credential, and none is needed:
-# Playwright boots the app with `npm run dev`, and `next dev` does not set NODE_ENV=production,
-# so none of the five fail-closed module-scope boot guards `ci.yml` job 1 documents arms here.
-# (That is the same reason `ci.yml` job 3 needs no credential; the argument is written out
-# there.) IF A FUTURE EDIT MAKES THIS JOB NEED A SECRET, that is the signal a baselined surface
-# has left the DB-free scope — fix the inventory, do not add a credential to the one job that
-# can write to the repository.
+# One environment input, `DATABASE_URL`, and it points at an EPHEMERAL POSTGRES SERVICE CONTAINER
+# whose credentials are its own fixed, local-to-the-runner pair. No `secrets.*`, no PayMongo /
+# Resend / Cloudinary / Better-Auth / Google credential, and none is needed: Playwright boots the
+# app with `npm run dev`, and `next dev` does not set NODE_ENV=production, so none of the five
+# fail-closed module-scope boot guards `ci.yml` job 1 documents arms here. (That is the same
+# reason `ci.yml` job 3 needs no credential; the argument is written out there.)
+#
+# ⚠ THIS PARAGRAPH USED TO SAY THE URL POINTED AT A CLOSED PORT, AND THAT WAS LOAD-BEARING —
+# SO HERE IS THE INVARIANT IT ENCODED AND WHERE IT WENT (plan 12-14). Until Phase 12 every
+# baselined surface was DB-free by 11-UI-SPEC § GATE-01's own scoping rule, so pointing this job
+# at `127.0.0.1:59999` converted that rule from a claim in a document into a standing per-run
+# assertion: the day somebody baselined a surface that read the database, this job failed at that
+# surface's reachability hook and the message named the surface.
+#
+# Phase 12's surfaces are PRODUCT surfaces — search results, a listing page, a checkout, a
+# relaxation band, a collision notice — and Phase 11 named this phase in advance as the one that
+# would need fixtures. The unreachable port could not survive that, so the invariant is preserved
+# in a NEW form rather than deleted:
+#
+#   OLD: a baselined surface must not read a database        (enforced by an unreachable URL)
+#   NEW: a baselined surface may read a SEEDED EPHEMERAL     (enforced by this job holding no
+#        database, and must need NOTHING ELSE                 credential, and by the parser below)
+#
+# A SERVICE CONTAINER'S OWN USER/PASSWORD IS NOT A CREDENTIAL IN THE SENSE THAT MATTERS. It is
+# fixed, it is local to the runner, the database it opens is destroyed with the job, and it is
+# reachable only from inside the job's network. `ci.yml` jobs 2 and 3 already make exactly this
+# argument for exactly this pair.
+#
+# IF A FUTURE EDIT MAKES THIS JOB NEED A *REAL* SECRET — a PayMongo key, an OAuth client, an
+# upload token — that is unchanged from the original rule and is the signal a baselined surface
+# has left GATE-01's scope. FIX THE INVENTORY. Do not add a credential to the one job that can
+# write to the repository; `scripts/verify-baselines-workflow.mjs` asserts the prohibition over
+# every `env`, `run` and `with` VALUE in this file, so an attempt fails a gate rather than a review.
+#
+# DO NOT "fix" a red here by unsetting `DATABASE_URL`. An UNSET value is strictly worse than a
+# wrong one — `postgres(undefined!)` falls back to libpq defaults and may find a real database on
+# some future runner, at which point the job is green and the property is gone. That warning
+# survives the change verbatim, because it was never about the port.
 #
 # ── SUPPLY CHAIN (T-11-SC) ───────────────────────────────────────────────────────────────────
 # Two first-party actions (`actions/checkout`, `actions/setup-node`) and one verified image.
@@ -114,7 +144,19 @@
 # The parse below asserts the prohibition over the job's `env`, `run` and `with` values only,
 # which is where a credential could actually live, and comments are gone before it looks.
 #
-# Parse it instead:
+# Parse it instead — and as of plan 12-14 the parse is COMMITTED rather than a recipe you are
+# trusted to re-type:
+#
+#   node scripts/verify-baselines-workflow.mjs
+#
+# It asserts all of the invariants below over the parsed tree, prints the value it read for each so
+# its output is evidence rather than a boolean, and exits non-zero naming the invariant that broke.
+# Its own guard was watched failing before it was trusted: with a `push:` trigger added beside
+# `workflow_dispatch`, the parser exits 1 reporting `triggers=[workflow_dispatch, push]` while all
+# SEVEN substring tokens remain PRESENT — the seventh independent measurement of the vacuity table
+# above, and the one that matters most.
+#
+# The ad-hoc form, if you want to look at the tree by hand:
 #
 #   node -e "const d=require('yaml').parse(require('fs').readFileSync('.github/workflows/baselines.yml','utf8'));
 #            console.log(Object.keys(d.on), d.permissions, d.concurrency.group,
@@ -190,18 +232,50 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
       options: --ipc=host
 
+    # Phase 12's baselined surfaces are product surfaces, so this job needs a database. Same image
+    # tag as `ci.yml` jobs 2/3 and `docker-compose.yml`.
+    #
+    # POSTGIS, NOT PLAIN `postgres`: `drizzle/0005_booking_exclusion.sql` needs `btree_gist`, and the
+    # migration set this job runs includes it — a plain postgres image makes provisioning fail. The
+    # bare major-only tag is a confirmed 404 on Docker Hub (probed 2026-08-13); do not shorten it.
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: fitout
+          POSTGRES_PASSWORD: fitout
+          POSTGRES_DB: fitout
+        # ⚠️ NO `ports:` MAPPING, AND THAT ABSENCE IS DELIBERATE — see the DATABASE_URL comment
+        # below. Publishing a port would not break this job, but it would make the `localhost`
+        # spelling appear to work and quietly invite the wrong one back. Copied from `ci.yml` job 3,
+        # which is the other container job and therefore the correct analog.
+        options: >-
+          --health-cmd "pg_isready -U fitout -d fitout"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
-      # The SAME unreachable URL `ci.yml` job 1 uses, and for the same reason: nothing listens on
-      # 59999 and nothing ever will. Every baselined surface is DB-free by 11-UI-SPEC § GATE-01's
-      # own scoping rule ("Phase 11 baselines ONLY DB-free surfaces"), so setting this converts
-      # that rule from a claim in a document into a standing per-run assertion. The day somebody
-      # baselines a surface that reads the database, this job fails at that surface's reachability
-      # hook and the message names the surface.
+      # THE SERVICE LABEL `postgres`, NOT `localhost` — and this job is the case where that is
+      # correct. The addressing rule (docs.github.com, Creating PostgreSQL service containers):
       #
-      # DO NOT "fix" a red here by unsetting it. An UNSET DATABASE_URL is strictly worse than a
-      # wrong one — `postgres(undefined!)` falls back to libpq defaults and may find a real
-      # database on some future runner, at which point the job is green and the property is gone.
-      DATABASE_URL: postgres://unreachable:unreachable@127.0.0.1:59999/nope
+      #   job runs IN a container   → reach the service by its LABEL, no port mapping needed
+      #                               (both sit on the same user-defined bridge network)
+      #   job runs ON the runner    → reach it at `localhost`, and `ports:` is required
+      #
+      # This job runs IN the pinned Playwright image (see `container:` above), so it is the FIRST
+      # case — the same as `ci.yml` job 3, and the opposite of `ci.yml` job 2. Getting it backwards
+      # produces a connection-refused that reads exactly like a flaky service, so it gets retried
+      # rather than diagnosed, and every retry fails the same way.
+      #
+      # Both the app under test (the dev server Playwright boots) and the seed script read this one
+      # variable, so they cannot drift onto different databases.
+      #
+      # DO NOT "fix" a red here by unsetting it — see the header. An UNSET DATABASE_URL is strictly
+      # worse than a wrong one, because `postgres(undefined!)` falls back to libpq defaults and may
+      # find a real database on some future runner, at which point the job is green and the property
+      # is gone.
+      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout
 
     steps:
       - uses: actions/checkout@v4
@@ -238,6 +312,30 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # The TABLES have to exist before anything can be seeded into them. Only the dev database
+      # `fitout` is needed — this job runs no vitest, so the `fitout_test` provisioning `ci.yml`
+      # job 2 does is deliberately absent here, exactly as in job 3.
+      - name: Migrate the database
+        run: npm run db:migrate
+
+      # THE FIXTURE, AND WHY IT IS COMMITTED RATHER THAN INLINE.
+      #
+      # `scripts/seed-baseline-fixtures.ts` uses FIXED ids, coordinates, rates, photo urls and a
+      # fixed collision window — deliberately not `randomUUID()`, which is right for a per-run e2e
+      # fixture and wrong for a baseline source: anything that varies between dispatches shows up as
+      # a pixel diff and trains people to re-mint the reference instead of reading the diff.
+      #
+      # It is IDEMPOTENT (it deletes every `vrt_%` row first, in FK-safe order), which is what makes
+      # re-dispatching safe — and re-dispatching is how you confirm a baseline set is STABLE.
+      #
+      # ⚠ IT ALSO OWNS THE D-58 TRAP. `/listings/-/opengraph-image` answers 200 with NO database,
+      # serving a `GenericCard` byte-identical to the root card (25,844 B, measured in plan 11-20).
+      # Without this step the OG baseline is green forever while covering the wrong card. The two
+      # assertions that catch it live in `e2e/visual/surfaces.spec.ts`, but they can only pass
+      # because this step ran.
+      - name: Seed the baseline fixtures
+        run: npx tsx scripts/seed-baseline-fixtures.ts
 
       # THE ONE SANCTIONED WRITE PATH IN THE REPOSITORY.
       #
