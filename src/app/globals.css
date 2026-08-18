@@ -136,6 +136,42 @@
   --ease-standard: var(--motion-ease-standard);
   --default-transition-duration: var(--motion-fast);
   --default-transition-timing-function: var(--motion-ease-standard);
+  /* -------------------------------------------------------------------------------------------
+     THE ONE NAMED ANIMATION THIS APP DECLARES (STATE-07 / D-55, plan 12-13).
+
+     `animate-collision-pulse` marks the hours a booker lost the moment the refreshed grid says they
+     are gone: ONE brief accent ring, ONE iteration, inside `--motion-slow`. That single beat is what
+     makes the collision notice EVIDENCE rather than an assertion — the booker sees the hours change
+     under the sentence instead of being told they did.
+
+     THREE THINGS ABOUT ITS SHAPE ARE DELIBERATE:
+       • ONE ITERATION, stated in the token rather than left to the default. A repeating pulse on a
+         normal marketplace outcome would read as an alarm, which is the calibration this whole
+         surface is written against.
+       • THE DURATION IS THE SLOWEST NAMED STEP AND NOT A LITERAL, so the 320ms budget
+         `tests/design/motion-budget.test.ts` caps applies to it by construction and needs no new
+         exemption. Retuning motion stays a two-line edit in the block above.
+       • IT ANIMATES `box-shadow` AND ENDS AT NOTHING. A statically-applied ring plus a fade would
+         leave the ring on screen after the beat; a keyframe with no fill-mode returns the element to
+         its own resting style, so the pulse is genuinely transient and the chip is left in the
+         ordinary struck-through unavailable treatment it now belongs to.
+
+     Covered by the global reduced-motion reset in `@layer base` like everything else — that rule sets
+     `animation-duration` AND `animation-iteration-count`, which is exactly why it was written with
+     both rather than as a transition-only reset. */
+  --animate-collision-pulse: collision-pulse var(--motion-slow) var(--motion-ease-standard) 1;
+}
+
+/* The keyframes for the token above, declared at the top level rather than inside `@theme` so they are
+   emitted verbatim by the pipeline and cannot be dropped by an unused-token sweep. `transparent` rather
+   than removing the shadow outright, so the ring FADES rather than blinking off at the last frame. */
+@keyframes collision-pulse {
+  from {
+    box-shadow: 0 0 0 2px var(--brand);
+  }
+  to {
+    box-shadow: 0 0 0 2px transparent;
+  }
 }
 
 /* ===========================================================================================

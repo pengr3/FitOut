@@ -515,6 +515,30 @@ export function AvailabilityCalendar({
     [day, timezone],
   );
 
+  /**
+   * STATE-07 / D-55 — THE HOURS THAT WENT, read off the REFRESHED day rather than remembered.
+   *
+   * The booker's lost window is a pair of instants; WHICH CHIPS to mark is a question only the day the
+   * server just returned can answer, so this intersects the two: a slot inside the lost span that the
+   * refreshed read model no longer calls `available`. If the read model still reports those hours free
+   * — a `not-bookable` refusal, a listing that went unpayable mid-flight — nothing is marked at all,
+   * which is correct: the grid may only ever say what the server said.
+   *
+   * ⚠ IT IS NOT A PRE-CHECK AND MUST NEVER BECOME ONE. It runs strictly AFTER the constraint has ruled
+   * and it decides a CLASS on a chip that is already unavailable. The GiST `EXCLUDE` inside the
+   * transaction remains the sole arbiter of what can be booked (CLAUDE.md § What NOT to Use).
+   *
+   * Empty on every render outside a collision, so the picker below is byte-identical to what shipped.
+   */
+  const lostStartUtcs = React.useMemo<readonly string[]>(() => {
+    const from = collision?.lostStartUtc ?? null;
+    const to = collision?.lostEndUtc ?? null;
+    if (from === null || to === null) return [];
+    return (dayAvail?.slots ?? [])
+      .filter((s) => s.state !== "available" && s.startUtc >= from && s.startUtc < to)
+      .map((s) => s.startUtc);
+  }, [collision, dayAvail]);
+
   // ─── Phase-9 fork (OPEN-02) ──────────────────────────────────────────────────────────────────────
   // A drop-in listing asks a DIFFERENT question ("which day?" instead of "which hours?"), so it gets a
   // different surface rather than a disabled version of this one. The branch is taken on the PERSISTED
@@ -729,6 +753,8 @@ export function AvailabilityCalendar({
               // searched window on the first paint, and null on every subsequent day (selectDay clears
               // it in the same transition that remounts this via `key`). Read once; see the prop.
               initialSelection={selection}
+              // D-55's flip and its outlined alternatives. Empty outside a collision; see the memo.
+              lostStartUtcs={lostStartUtcs}
             />
           )}
         </div>

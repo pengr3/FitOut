@@ -70,7 +70,69 @@ type SlotPickerProps = {
    * never resurrect a selection the booker cleared.
    */
   initialSelection?: SlotSelectionValue | null;
+  /**
+   * Phase-12 (STATE-07 / D-55) — THE HOURS THE BOOKER JUST LOST, as start instants.
+   *
+   * Computed by the calendar from the collision's own window intersected with the REFRESHED day, so
+   * every entry here is an hour the server has already ruled on. Empty on every ordinary render, which
+   * is what keeps the shipped picker byte-identical outside a collision.
+   *
+   * ⚠ IT DECIDES A CLASS, NEVER A BOOKABILITY. These hours already render through the unavailable
+   * branch because the read model says so; this prop only tells the branch WHICH of them are the ones
+   * that just changed under the booker, so that single beat of motion lands on the right chips. Nothing
+   * here pre-checks, pre-filters or decides whether anything can be booked — the exclusion constraint
+   * inside the transaction remains the sole arbiter (CLAUDE.md § What NOT to Use).
+   */
+  lostStartUtcs?: readonly string[];
 };
+
+/**
+ * The nearest FREE hours on each side of the hours that were lost — the "closest free windows are
+ * outlined" half of the collision copy (12-UI-SPEC § The Collision, accent item 10).
+ *
+ * ⚠ PRESENTATION ONLY, AND THE DISTINCTION IS LOAD-BEARING. This is a HIGHLIGHT OVER AVAILABILITY THE
+ * SERVER ALREADY RETURNED — it reads `slots` and nothing else, performs no fetch, and makes no claim
+ * about bookability. A booker who taps an outlined chip goes through exactly the same `placeHold` and
+ * exactly the same constraint as any other chip, and may lose that race too.
+ *
+ * WHAT "NEAREST FREE WINDOW" MEANS HERE, stated because the phrase could mean three things. It is the
+ * first `available` hour walking OUTWARD from the lost run, once in each direction — the two hours a
+ * booker would actually reach for. It is deliberately NOT "the nearest free RUN of the same length":
+ * that would be a duration claim, and a run long enough for the booker's original window is precisely
+ * the thing only the constraint may promise. It is also not the whole run outlined, which on a 06:00
+ * to 21:00 day would put an accent on eleven chips and stop being a pointer.
+ *
+ * WHEN ONE SIDE HAS NOTHING (the lost hours sit against the end of the day), the walk takes TWO from
+ * the other side, so the copy's plural stays honest wherever the day the booker lost sits.
+ */
+function nearestFreeStarts(
+  slots: AvailabilitySlot[],
+  lost: ReadonlySet<string>,
+): ReadonlySet<string> {
+  if (lost.size === 0) return EMPTY_SET;
+  const indices = slots.flatMap((s, i) => (lost.has(s.startUtc) ? [i] : []));
+  if (indices.length === 0) return EMPTY_SET;
+
+  const lo = Math.min(...indices);
+  const hi = Math.max(...indices);
+  const before: string[] = [];
+  const after: string[] = [];
+  for (let i = lo - 1; i >= 0 && before.length < 2; i--) {
+    if (slots[i].state === "available") before.push(slots[i].startUtc);
+  }
+  for (let i = hi + 1; i < slots.length && after.length < 2; i++) {
+    if (slots[i].state === "available") after.push(slots[i].startUtc);
+  }
+
+  const picked =
+    before.length > 0 && after.length > 0
+      ? [before[0], after[0]] // one on each side — the ordinary case
+      : [...before, ...after].slice(0, 2); // one side is empty: take two from the other
+  return new Set(picked);
+}
+
+/** Shared empty set, so an ordinary render allocates nothing and `useMemo` has a stable identity. */
+const EMPTY_SET: ReadonlySet<string> = new Set<string>();
 
 /** Human-readable reason a chip can't be picked (never leaks "unit"/"tstzrange" jargon — UI-SPEC copy). */
 function reasonFor(state: AvailabilitySlot["state"], mode: BookingMode): string {
@@ -150,8 +212,16 @@ export function SlotPicker({
   disabled,
   onSelectionChange,
   initialSelection,
+  lostStartUtcs,
 }: SlotPickerProps) {
   const inTz = tz(timezone);
+
+  // D-55. Both are empty on every ordinary render — see the prop and `nearestFreeStarts`.
+  const lost = React.useMemo<ReadonlySet<string>>(
+    () => (lostStartUtcs === undefined || lostStartUtcs.length === 0 ? EMPTY_SET : new Set(lostStartUtcs)),
+    [lostStartUtcs],
+  );
+  const outlined = React.useMemo(() => nearestFreeStarts(slots, lost), [slots, lost]);
   // The whole gesture (anchor / run / full-day / gap) lives in one reducer state; ./slot-selection owns
   // every transition so the DOM shell never re-implements the range-fill rules.
   // Lazy initializer: `initialSelection` is consulted exactly once, at mount. See the prop's docblock.
@@ -250,6 +320,15 @@ export function SlotPicker({
               // below now carries the FULL reason (the notice requirement included, not just the
               // short form), and the day panel names the day's distinct states in one visible line —
               // see `tooltipFor`'s docblock for why that pair rather than either half.
+              //
+              // D-55'S FLIP RIDES THIS EXACT BRANCH AND CHANGES NOTHING ELSE ABOUT IT. An hour the
+              // booker just lost is not a NEW state — it is this state, arriving under them — so it
+              // gets the shipped muted-and-struck-through treatment plus ONE brief accent ring, one
+              // iteration, inside the slowest named step (`globals.css`'s `--animate-collision-pulse`,
+              // where the whole argument for its shape lives). It ANNOUNCES NOTHING: the collision
+              // notice above the grid is the one live region for this outcome (rule 6), and a chip
+              // that spoke would be a second one. The beat is what makes the sentence evidence; a
+              // repeating pulse would make a normal marketplace outcome read as an alarm.
               return (
                 <ToggleGroupItem
                   key={slot.startUtc}
@@ -260,6 +339,7 @@ export function SlotPicker({
                   className={cn(
                     CHIP_BASE,
                     "cursor-not-allowed bg-muted text-muted-foreground line-through",
+                    lost.has(slot.startUtc) && "animate-collision-pulse",
                   )}
                 >
                   <span className="tabular-nums">{timeLabel}</span>
@@ -293,6 +373,23 @@ export function SlotPicker({
                   // seeing it. Solid `brand` on `card` is already a DECLARED, measured row in
                   // `contrast-pairs.ts`, so this shape needs no new exemption.
                   isAnchor && "border-brand ring-2 ring-brand",
+                  // D-55's ALTERNATIVES (accent item 10): the nearest free hour on each side of the
+                  // window that went, carrying a coral EDGE — the same solid `brand on card` pairing
+                  // the anchor's note measures, so no new inventory row is needed either.
+                  //
+                  // ⚠ AN EDGE AND NOT A RING, WHICH IS WHAT KEEPS IT DISTINGUISHABLE FROM THE ANCHOR
+                  // ABOVE. Two accent indicators that looked identical would tell a booker their
+                  // pending start is in two places at once. In practice they cannot co-occur — a
+                  // collision remounts this picker with no selection — but "cannot co-occur today" is
+                  // the kind of invariant a later edit breaks quietly, and the two treatments differing
+                  // costs nothing.
+                  //
+                  // NOT LIFTED OUT AS BUTTONS, deliberately: a pair of "book 8 AM instead" chips
+                  // duplicates two controls that already exist directly below, and a duplicate control
+                  // is a second thing to keep in sync with the run-fill rules. NO `role`, NO
+                  // `aria-live`, NO `tabindex` of its own — the notice is the one live region and these
+                  // chips are already reachable as exactly what they are.
+                  outlined.has(slot.startUtc) && "border-brand",
                 )}
               >
                 <span className="tabular-nums">{timeLabel}</span>
