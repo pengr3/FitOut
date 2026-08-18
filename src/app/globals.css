@@ -405,7 +405,19 @@
      a second mechanism — so it renders at the dialog step at every width. The token is KEPT rather
      than deleted because Phase 12's mobile filters and booking rail may yet need a layer strictly
      below the dialog and above the sticky header, which is exactly the gap this step fills. The zero
-     is ASSERTED, with this reason, in `tests/design/sheet-absent.test.ts`. */
+     is ASSERTED, with this reason, in `tests/design/sheet-absent.test.ts`.
+
+     PHASE 12 EXAMINED THIS STEP AND DECLINED IT (plan 12-01), which is the successor 11-09 named and
+     is recorded here so the zero is a CONTRACT rather than an accident nobody re-checked. All three
+     candidates resolve elsewhere, each for a reason rather than by default:
+       • The booking sheet IS `ResponsiveDialog` — the vendored dialog in another presentation — so
+         it renders at `--z-dialog`, exactly as 11-09 predicted.
+       • The photo lightbox is a dialog too, so it is the same answer, not a second one.
+       • Both sticky bars are `z-(--z-sticky)` and are therefore CORRECTLY beneath the sheet's scrim:
+         a bottom bar that floated above the overlay dimming the page behind it would be claiming the
+         page is still interactive while the sheet says it is not.
+     The step stays because a real gap still exists between sticky and dialog; nothing in this phase
+     needed it. A future plan reaching for it should re-argue it here, not just use it. */
   --z-sheet: 20;
   --z-dialog: 30;
   --z-toast: 40;

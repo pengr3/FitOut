@@ -23,6 +23,8 @@
 //     `@media`-nested or `@supports`-nested theme blocks, because the phase declares none.
 
 import { describe, it, expect } from "vitest";
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   DESIGN_LEAK_PATTERNS,
@@ -267,4 +269,108 @@ describe("tests/design/helpers/compile-css.ts", () => {
     expect(declarationsFor(css, ".bg-background")).toContain("background-color");
     expect(declarationsFor(css, ".no-such-rule-anywhere")).toBeNull();
   }, 60_000);
+});
+
+// ---------------------------------------------------------------------------
+// GATE-06 — a v1.1 phase adds NO schema migration (plan 12-01)
+// ---------------------------------------------------------------------------
+//
+// WHY IT LIVES IN THE DESIGN GATE AND NOT IN THE DB SUITE, which is the first question a reader has.
+// This assertion must run on a machine with no Docker and no Postgres, and it must run inside
+// `next build` — `vitest.design.config.ts` is the only config in this repo that can promise that
+// (it has no `globalSetup` and no `setupFiles`, by design). A migration tripwire that needs a
+// database to tell you a migration appeared is a tripwire nobody runs. It also touches no database
+// here: it reads a DIRECTORY LISTING, which is the same kind of tree scan the leak-pattern gates
+// above perform.
+//
+// WHY IT IS AN ASSERTION AND NOT A SENTENCE IN A PLANNING DOCUMENT. GATE-06 is a scope boundary:
+// v1.1 phases ship on the v1.0 schema. A phase that quietly adds `0026_*.sql` has changed what
+// "v1.1" means, and it does so in the one file class nobody diffs carefully because migrations are
+// append-only and always look additive. The whole value of this file is that the boundary is checked
+// on every run of the build rather than remembered at review time.
+//
+// WATCHED RED — a zero-byte `drizzle/0026_probe.sql` created, run, removed (18 August 2026).
+// `npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts` → 2 failed / 28
+// passed. BOTH real assertions fired — the lexically-last check and the count — while the
+// guard-the-guard stayed green, which is the correct shape: the guard says the listing was read, the
+// two clauses say what was in it. The count's failure, VERBATIM (truncated at the file list):
+//
+//   AssertionError: GATE-06: this is a v1.1 phase and v1.1 phases ship on the v1.0 schema. … That is
+//   a SCOPE ALARM TO RAISE, never one to absorb: do not bump the pinned number to make this green,
+//   and do not delete the migration to make it green either. Take it to the phase owner. Found:
+//   0000_sturdy_nighthawk.sql, … 0025_audit_resolved_by.sql, 0026_probe.sql: expected 27 to be 26
+//
+//     - Expected
+//     + Received
+//
+//     - 26
+//     + 27
+//
+// Probe removed (`git status drizzle/` clean) → 30 passed.
+//
+// NOT COVERED — a real blind spot: this reads FILENAMES. A migration whose SQL is edited in place,
+// or schema drift introduced through `drizzle-kit push` without a file, is invisible here. It
+// catches the common shape (a new numbered file), not every shape.
+
+/** The migration directory, as one constant — the vacuity probe is a one-line edit here. */
+const DRIZZLE_DIR = resolve(process.cwd(), "drizzle");
+
+/** The last migration v1.0 shipped. GATE-06 says v1.1 does not add another. */
+const LAST_MIGRATION = "0025_audit_resolved_by.sql";
+
+/** How many `*.sql` files that directory holds today. MEASURED (18 August 2026), not guessed. */
+const MIGRATION_COUNT = 26;
+
+/**
+ * The failure message both assertions share.
+ *
+ * It says what to DO, because the correct response to this red is neither "bump the number" nor
+ * "delete the file" — it is to stop and raise the scope question with a human.
+ */
+const GATE_06_TELL =
+  "GATE-06: this is a v1.1 phase and v1.1 phases ship on the v1.0 schema. A migration appearing in " +
+  "`drizzle/` means the work has grown a database change that no v1.1 plan budgeted for. That is a " +
+  "SCOPE ALARM TO RAISE, never one to absorb: do not bump the pinned number to make this green, and " +
+  "do not delete the migration to make it green either. Take it to the phase owner.";
+
+describe("GATE-06 — drizzle/ is frozen at the v1.0 schema", () => {
+  const entries = (() => {
+    try {
+      return readdirSync(DRIZZLE_DIR);
+    } catch {
+      // `[]` rather than a throw, for `skeleton-measurements.test.ts`'s reason: a broken scan must
+      // surface as one named guard-the-guard failure, not as a stack trace that buries which gate
+      // went quiet.
+      return [] as string[];
+    }
+  })();
+  const migrations = entries.filter((name) => name.endsWith(".sql")).sort();
+
+  // GUARD THE GUARD, ASSERTED FIRST. Both real assertions below are claims about a LIST, and a
+  // directory that could not be read yields an empty list — which would make "the last migration is
+  // 0025" fail loudly (good) but a count check against 0 pass trivially if it were ever relaxed to a
+  // floor. Assert the listing is non-empty before asserting anything about its contents.
+  it("read a non-empty migration directory", () => {
+    expect(
+      entries.length,
+      `${DRIZZLE_DIR} listed no entries at all. Every assertion below is about that listing; an ` +
+        "empty one is a broken scan, not a clean tree.",
+    ).toBeGreaterThan(0);
+    expect(migrations.length, "no `*.sql` files in the migration directory").toBeGreaterThan(0);
+  });
+
+  it("still ends at the v1.0 migration", () => {
+    expect(migrations[migrations.length - 1], GATE_06_TELL).toBe(LAST_MIGRATION);
+  });
+
+  it("holds exactly the migration count v1.0 shipped", () => {
+    // An EQUALITY and not a floor, unlike most counts in this suite. A floor would notice a deletion
+    // and wave through an addition, and addition is the direction GATE-06 is about. It also catches
+    // the case the assertion above cannot: a migration numbered BELOW 0025 (a rebase artefact, a
+    // renumbered branch) leaves the lexically-last file unchanged.
+    expect(
+      migrations.length,
+      `${GATE_06_TELL} Found: ${migrations.join(", ")}`,
+    ).toBe(MIGRATION_COUNT);
+  });
 });

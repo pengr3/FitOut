@@ -193,6 +193,19 @@ const MIN_COMPONENT_FILES = 50;
  * This is the precedent 10-12 set for `shadow-sticky` and 10-16 then moved when a real exerciser
  * appeared. If a Phase 12 surface genuinely needs this layer, this map gains a row with its reason,
  * in that plan's own commit — the same mechanism, deliberately.
+ *
+ * PHASE 12 EXAMINED THE STEP AND DECLINED IT (plan 12-01). That is the successor sentence above,
+ * ANSWERED rather than left open, and it is mirrored here from `globals.css` so a reader meets the
+ * finding AT THE GATE instead of only in a stylesheet comment. All three candidates resolved
+ * elsewhere, each for a reason:
+ *   • the booking sheet IS `ResponsiveDialog`, so it renders at `--z-dialog` — 11-09's prediction,
+ *     confirmed by the surface that was supposed to need the step;
+ *   • the photo lightbox is a dialog too, so it is the same answer rather than a second one;
+ *   • both sticky bars are `z-(--z-sticky)` and are therefore CORRECTLY beneath the sheet's scrim —
+ *     a bottom bar floating above the overlay would claim the page is interactive while the sheet
+ *     says it is not.
+ * The zero is therefore a CONTRACT that has now survived the phase most likely to break it, not an
+ * accident nobody re-checked.
  */
 const Z_SHEET_INVENTORY: Record<string, string> = {};
 
@@ -387,7 +400,15 @@ describe("AC#27 — `--z-sheet` has zero call sites, in both consumption forms",
   it("declares an EMPTY inventory, and the emptiness is the assertion", () => {
     // The inventory carries its reason in its own docblock rather than in a comment beside this
     // line, so the argument travels with the data — `contrast-pairs.ts`'s rule.
-    expect(Object.keys(Z_SHEET_INVENTORY)).toEqual([]);
+    expect(
+      Object.keys(Z_SHEET_INVENTORY),
+      "`--z-sheet` has zero declared call sites and Phase 12 EXAMINED AND DECLINED the step (plan " +
+        "12-01): the booking sheet is `ResponsiveDialog` — the vendored dialog in another " +
+        "presentation — so it renders at `--z-dialog`; the photo lightbox is a dialog too; and both " +
+        "sticky bars are `z-(--z-sticky)`, correctly BENEATH the sheet's scrim. If a surface " +
+        "genuinely needs a layer strictly between sticky and dialog, add a row here WITH ITS REASON " +
+        "in that plan's own commit — do not delete this inventory to make the step usable.",
+    ).toEqual([]);
   });
 
   it("finds zero POSITIVE call sites under src/app/** and src/components/**", () => {

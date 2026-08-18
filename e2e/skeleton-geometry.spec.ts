@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { BASE_URL, installTruncator } from "./helpers/served-document";
+import { seedTheme } from "./helpers/theme";
+
 // STATE-01 / AC#17 / GATE-STATES — the RENDERED half of "the skeleton does not shift".
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -146,6 +149,23 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 //   • THIS SPEC IS NOT IN CI (D-24), like the other eleven under `e2e/`. It runs locally and before
 //     `/gsd:verify-work`. Push and CI green is asserted for the repository (D-25), not for this file.
 //   • It measures BOXES. Two boxes can agree to the pixel while the contents inside them are wrong.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE `/dev/theme` BLIND SPOT ABOVE IS NOW COVERED FOR EXACTLY ONE CONSTANT (plan 12-01 · D-57)
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// The second bullet — *"the page is a preview, not a product route"* — is what `[11-21]` recorded as
+// the reason the ±4px grid-gutter drift `[11-17]` could not be measured here: `/dev/theme` renders
+// the skeleton beside a RESULT CARD, not beside the real `ResultsGrid`, so the two GUTTERS never
+// appear on the same page at all. The describe block at the bottom of this file closes that for
+// `RESULT_GRID_GAP` and for nothing else, by measuring both states on `/` itself through
+// `e2e/helpers/served-document.ts` — the pending shell (route-level `loading.tsx`, which renders
+// `CardGridSkeleton`) and the resolved document (which renders `ResultsGrid`), produced by the same
+// server from the same request.
+//
+// EVERY OTHER CONSTANT IS STILL MEASURED ON THE PREVIEW ONLY. This is one route, one constant and
+// three widths; it is not a general migration of this file onto product routes, and reading it as one
+// would over-trust it exactly the way this footer exists to prevent.
 
 const PAGE = "/dev/theme";
 
@@ -356,6 +376,205 @@ test.describe("AC#17 — a skeleton and its resolved twin occupy the same box", 
           `placeholder claimed (${skeleton.height}px). The page moves upward when the data arrives, ` +
           "which is the shift the floor exists to prevent.",
       ).toBeGreaterThanOrEqual(skeleton.height - TOLERANCE_PX);
+    });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// D-57 / `[11-17]` — THE RESULT GRID'S GUTTER, MEASURED WHERE IT ACTUALLY RENDERS
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHY THIS IS NOT ON `/dev/theme` LIKE EVERYTHING ELSE IN THIS FILE. The preview page renders
+// `CardGridSkeleton` beside a single `ResultCard`; it has no `ResultsGrid`, so the two gutters that
+// drifted never sit on one page there. That is precisely the blind spot the footer above records and
+// `[11-21]` handed forward. `/` has both — the route-level `loading.tsx` shell renders the skeleton,
+// the resolved document renders the grid — and `e2e/helpers/served-document.ts` produces both states
+// from ONE real response, so nothing is mocked and nothing is timed.
+//
+// WHY THE ABSOLUTE VALUE IS ASSERTED AS WELL AS THE EQUALITY, in one sentence: two grids that agree
+// at 20px are exactly as "equal" as two that agree at 16, and only one of those is `RESULT_GRID_GAP`
+// — the same argument the row-list case above makes for pinning `ROW_CARD_HEIGHT` at 80.
+//
+// WHY THE GUTTER IS READ ON A DIFFERENT AXIS AT 320px. `RESULT_GRID_GAP` sets `gap`, which is BOTH
+// row-gap and column-gap, and the grid is one column below `sm:`. So at 320px the first two cells are
+// vertically adjacent and the gutter between them is the row gap; at 768px and 1280px they are
+// horizontally adjacent and it is the column gap. Reading the horizontal axis at 320px would measure
+// the distance between a cell and the one BELOW it, which is not a gutter and is not a number.
+//
+// ── WATCHED RED, run and reverted, 18 August 2026 ────────────────────────────────────────────────
+// Command: `npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --grep "D-57"`
+//
+//   (c) THE CONSTANT HALVED ABOVE `sm:`. `RESULT_GRID_GAP` changed from `"gap-4 sm:gap-6"` to
+//       `"gap-4"` in `src/lib/design/measurements.ts` — i.e. both grids still agree perfectly, and
+//       they agree at the WRONG number, which is the failure an equality-only assertion cannot see
+//       and the reason the absolute value is a separate expectation.
+//       PREDICTED: the 768 and 1280 steps fail on the absolute value; 320 passes; the equality clause
+//       stays green at every width. OBSERVED: exactly that, in both themes. VERBATIM (grove; court is
+//       identical but for the theme name):
+//
+//         Error: grid gutter · grove · 768px: the rendered pending gutter is 16px, but
+//         RESULT_GRID_GAP declares 24px at this width (`sm:grid-cols-2` — the gutter is the COLUMN
+//         gap). Two grids that agree at the wrong number are as "equal" as two that agree at the
+//         right one, which is why this is asserted separately.
+//         expect(received).toBeLessThanOrEqual(expected)
+//         Expected: <= 2
+//         Received: 8
+//
+//       2 failed / 0 passed under `--grep "D-57"`. The 320px step of each test ran FIRST and passed
+//       (16px is correct below `sm:` either way), so the failure names the width it actually broke
+//       at rather than the first one it looked at — and the six `/dev/theme` tests were untouched by
+//       the mutation, because nothing on that page reads this constant for its media box. Reverted
+//       (`git diff --stat` clean) → 8 passed.
+//
+// ── NOT COVERED, beyond the footer above ─────────────────────────────────────────────────────────
+//   • THE PENDING DOCUMENT DOES NOT HYDRATE (`served-document.ts` property 1). That is correct for
+//     geometry — it is the pre-hydration paint, which is exactly when a gutter mismatch is visible —
+//     and it means this says nothing about the OTHER skeleton state on `/`, the `isPending` one
+//     `search-results.tsx` renders inside an already-hydrated page. Both render the same component,
+//     so the constant is the same; the layout around them is not measured twice.
+//   • It reads the first TWO cells. A grid whose third cell disagreed with the first two would pass.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The pending shell's grid cells — `CardGridSkeleton`'s inner grid, then its children. */
+const SKELETON_CELLS = '[data-testid="skeleton-card-grid"] > div > div';
+
+/** The resolved grid's cells. `ResultCard` puts the hook on the `<Link>`, which IS the grid child. */
+const RESOLVED_CELLS = '[data-testid="result-card"]';
+
+/**
+ * The three widths, the axis the gutter renders on at each, and the value `RESULT_GRID_GAP` declares.
+ *
+ * 320 is the responsive floor (`overflow-320.spec.ts`); 768 is above Tailwind's `sm:` (640) and below
+ * `lg:` (1024), so it is the 2-column step; 1280 is Desktop Chrome's default and the 3-column step.
+ */
+const GUTTER_STEPS = [
+  { width: 320, axis: "y", expected: 16, why: "one column below `sm:` — the gutter is the ROW gap" },
+  { width: 768, axis: "x", expected: 24, why: "`sm:grid-cols-2` — the gutter is the COLUMN gap" },
+  { width: 1280, axis: "x", expected: 24, why: "`lg:grid-cols-3` — still the `sm:` gutter value" },
+] as const;
+
+/**
+ * The gap between the first two cells of a grid, or a named failure.
+ *
+ * Never returns a number computed from a null box — two absent cells subtract to `NaN`, and `NaN`
+ * compares false against every bound, which would turn this whole block into a silent pass.
+ */
+async function gutterOf(
+  page: Page,
+  selector: string,
+  axis: "x" | "y",
+  label: string,
+): Promise<number> {
+  const cells = page.locator(selector);
+  await expect(
+    cells,
+    `${label}: no cell matched \`${selector}\`. A gutter is the distance BETWEEN two boxes; with ` +
+      "one box or none there is no gutter and every comparison below would compare nothing. Seed " +
+      "the local catalogue (`npm run db:seed`) before reading this as a drift.",
+  ).not.toHaveCount(0, { timeout: 15_000 });
+  const count = await cells.count();
+  expect(count, `${label}: matched ${count} cell(s) via \`${selector}\``).toBeGreaterThanOrEqual(2);
+
+  const first = await cells.nth(0).boundingBox();
+  const second = await cells.nth(1).boundingBox();
+  expect(
+    first,
+    `${label}: the first cell matched but has no layout box (display:none?)`,
+  ).not.toBeNull();
+  expect(second, `${label}: the second cell matched but has no layout box`).not.toBeNull();
+
+  return axis === "x"
+    ? second!.x - (first!.x + first!.width)
+    : second!.y - (first!.y + first!.height);
+}
+
+test.describe("D-57 — `/` renders ONE gutter in both its pending and its resolved state", () => {
+  // 60s rather than the default 30s, for `overflow-320.spec.ts`'s measured reason: this block drives
+  // six navigations against a dev server that compiles routes on demand.
+  test.describe.configure({ timeout: 60_000 });
+
+  for (const theme of THEMES) {
+    test(`${theme} · the pending and resolved grids share RESULT_GRID_GAP at 320 / 768 / 1280`, async ({
+      page,
+      context,
+    }) => {
+      await seedTheme(context, theme);
+
+      // Install BEFORE the first navigation — `served-document.ts`'s stated ordering.
+      const truncator = installTruncator(page);
+      await truncator.ready;
+
+      for (const step of GUTTER_STEPS) {
+        const where = `grid gutter · ${theme} · ${step.width}px`;
+        await page.setViewportSize({ width: step.width, height: 900 });
+
+        // ── PENDING: the shell, every boundary still in its fallback ──────────────────────────────
+        truncator.set(true);
+        await page.goto(`${BASE_URL}/`);
+        await page.evaluate(() => document.fonts.ready);
+
+        // VACUITY GUARD 1: the truncation actually happened. If the completion marker were ever
+        // absent, this helper serves the WHOLE document in both modes and the two "states" below
+        // become the same page compared with itself — every equality asserted over the pair would
+        // pass and measure nothing.
+        expect(
+          truncator.state.cut,
+          `${where}: the pending pass served an untruncated document (${truncator.state.length} ` +
+            "bytes, no completion marker found). Both states would then be the same page and the " +
+            "comparison would be vacuous.",
+        ).toBeGreaterThan(0);
+
+        // VACUITY GUARD 2: it is genuinely the PENDING state — the skeleton is on screen and the
+        // resolved grid is not. Two states that both rendered result cards would be one state.
+        await expect(
+          page.locator('[data-testid="skeleton-card-grid"]'),
+          `${where}: the pending shell rendered no skeleton-card-grid, so this is not the loading ` +
+            "state and there is no placeholder gutter to measure.",
+        ).not.toHaveCount(0, { timeout: 15_000 });
+        await expect(
+          page.locator(RESOLVED_CELLS),
+          `${where}: the pending shell already contains result cards, so the truncation did not ` +
+            "hold the page in its loading state and both measurements below are the resolved grid.",
+        ).toHaveCount(0);
+
+        const pending = await gutterOf(page, SKELETON_CELLS, step.axis, `${where} · pending`);
+
+        // ── RESOLVED: the whole document ──────────────────────────────────────────────────────────
+        truncator.set(false);
+        await page.goto(`${BASE_URL}/`);
+        await page.evaluate(() => document.fonts.ready);
+
+        await expect(
+          page.locator('[data-testid="skeleton-card-grid"]'),
+          `${where}: the resolved document still shows the skeleton, so the second measurement is ` +
+            "the placeholder again and this test is comparing one grid with itself.",
+        ).toHaveCount(0, { timeout: 15_000 });
+
+        const resolved = await gutterOf(page, RESOLVED_CELLS, step.axis, `${where} · resolved`);
+
+        // ── THE EQUALITY: the `[11-17]` drift, on the route where it renders ──────────────────────
+        expect(
+          Math.abs(pending - resolved),
+          `${where}: the placeholder grid's gutter (${pending}px) and the resolved grid's ` +
+            `(${resolved}px) differ by more than ${TOLERANCE_PX}px on the SAME route. Both read ` +
+            "RESULT_GRID_GAP, so this is either a second gutter written at a call site or a " +
+            "wrapper adding space between the cells — the ±4px drift `[11-17]` recorded, re-opened.",
+        ).toBeLessThanOrEqual(TOLERANCE_PX);
+
+        // ── THE ABSOLUTE VALUE, ASSERTED SEPARATELY AND FOR EACH STATE ────────────────────────────
+        for (const [state, measured] of [
+          ["pending", pending],
+          ["resolved", resolved],
+        ] as const) {
+          expect(
+            Math.abs(measured - step.expected),
+            `${where}: the rendered ${state} gutter is ${measured}px, but RESULT_GRID_GAP declares ` +
+              `${step.expected}px at this width (${step.why}). Two grids that agree at the wrong ` +
+              'number are as "equal" as two that agree at the right one, which is why this is ' +
+              "asserted separately.",
+          ).toBeLessThanOrEqual(TOLERANCE_PX);
+        }
+      }
     });
   }
 });
