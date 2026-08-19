@@ -65,7 +65,7 @@ completed: 2026-08-19
 - **Duration:** ~2h 25m across two sessions (Task 1: 2026-08-18 evening; Task 2: 2026-08-19 01:30–03:00 +08:00)
 - **Started:** 2026-08-18T16:00:00Z (approx., Task 1 session)
 - **Task 2 committed:** 2026-08-18T18:57:35Z
-- **Tasks:** 2 of 3 complete; Task 3 is a blocking human-action checkpoint and is AWAITING THE OPERATOR
+- **Tasks:** 3 of 3 complete. Task 3's blocking human-action checkpoint was discharged 2026-08-19
 - **Files modified:** 7 (3 created, 4 modified)
 
 ## Accomplishments
@@ -323,7 +323,7 @@ Operator verdicts, recorded verbatim as given on 2026-08-19. Six of seven settle
 | 3 | Collision announcement: notice before grid (3a), focus not double-read (3b) | **okay** — both |
 | 4 | Lightbox: 44px reachable one-handed (4a), controls page (4b), absent swipe reads as designed (4c) | **okay** — all three |
 | 5 | At-rest PayMongo line matches where you land | **okay** — matches |
-| 6 | Are the new pixels right? | **OPEN** — see below |
+| 6 | Are the new pixels right? | **okay** — after a fixture fix and a second mint; see below |
 | 7 | Collision reads as normal outcome, not failure | **okay** — normal outcome |
 
 Item 2 and item 4 were pre-checked in code before the walk and the walk confirmed both:
@@ -348,7 +348,7 @@ Four of the five surface-specific claims were verified by inspecting the minted 
 
 `listing-sheet`, `search-results` and `search-relax-band` were not individually inspected.
 
-**⚠ OPEN — every photo in every baseline is a broken image.**
+**RESOLVED (2026-08-19) — every photo in every baseline was a broken image.**
 `scripts/seed-baseline-fixtures.ts:197` seeds `https://example.invalid/vrt-${i}.jpg`. `.invalid` is an
 RFC 2606 reserved TLD, guaranteed never to resolve, so a photo can never load. The baselines therefore
 encode broken-image placeholders wherever a photo belongs: all eight `listing-detail` mosaic tiles, the
@@ -363,6 +363,46 @@ makes photos render, the visual gate goes red and reads as a regression rather t
 The available fix is a committed local placeholder asset served from `public/`, which is deterministic
 *and* representative. Awaiting an operator decision.
 
+### How item 6 was resolved — the fixture fix and the second mint
+
+Operator verdict on the broken-photo finding was **fix**, executed as quick task
+`260819-vrt-local-photo-placeholders` (`cb34581`, `1bd6678`).
+
+`scripts/seed-baseline-fixtures.ts` now seeds `/vrt/photo-${i}.svg` against eight committed assets in
+`public/vrt/`. They are pure geometry with no text, so glyph rasterisation never enters a byte
+comparison, and every colour is a literal rather than a token, so a placeholder cannot silently start
+tracking a design token that later moves. The index is encoded three ways — hue, sun position and
+counter pips — because eight identical placeholders would make the lightbox's 1/8 → 8/8 paging
+invisible in the baseline and would hide a wrong-photo bug behind a green diff.
+
+A `VRT_PHOTO_ASSETS = 8` guard now refuses a listing declaring more photos than there are assets.
+Without it a future `photos: 9` would be handed a 404 and would silently re-mint the exact defect
+just removed, with every automated signal still green.
+
+**One measurement worth keeping.** The first draft placed the index encodings at x≈96 and x≈260. Both
+would have been cropped away in every mosaic tile: `object-cover` keeps the centre, and the tightest
+band any consumer leaves visible is x ∈ [400, 1200]. This was found by rendering the four real crops
+side by side rather than by reasoning about the CSS, and both encodings were moved mid-frame. Had it
+not been caught, all eight placeholders would have been indistinguishable in the mosaic — the precise
+failure the distinctness exists to prevent.
+
+**Second dispatch cycle, after the fix:**
+
+| Step | Result |
+|------|--------|
+| Predicted red | `ci` **32259490587** failed on `1bd6678` exactly as forecast — the 24 photo-bearing references had been minted against broken images |
+| Re-mint | `baselines` run **32269238524** → commit `4078bc0` |
+| A2 | **24 modified, 0 added, 0 deleted.** The inventory did not shift; only pixels inside existing references moved |
+| A3 | 23 of 23 two-theme pairs still differ byte-wise |
+| **A4 comparison** | **32271124959 — GREEN**, all four jobs |
+
+Totals unchanged at 52 PNGs / 23 pairs / 6 court-only. The `listing-lightbox` baseline, previously a
+picture of the browser's broken-image glyph, now shows a rendered placeholder with its index pip
+visible mid-frame — confirming the crop correction held.
+
+**Final run ids for this plan: re-mint 32269238524, comparison 32271124959.** The earlier pair
+(32240742591 / 32242065058) is superseded and recorded above for history.
+
 ### Two secondary observations, recorded not resolved
 
 1. **The calendar and the slot panel disagree about the month.** On both `listing-detail` and
@@ -375,7 +415,7 @@ The available fix is a committed local placeholder asset served from `public/`, 
 
 ---
 
-*Completed: Tasks 1–2 on 2026-08-19. Task 3 Part A verified 2026-08-19 (comparison run 32242065058). Task 3 Part B: items 1–5 and 7 verified by the operator 2026-08-19; item 6 open on the broken-photo fixture question.*
+*Completed: Tasks 1–2 on 2026-08-19. Task 3 Part A verified 2026-08-19 (comparison run 32242065058). Task 3 complete 2026-08-19: Part A verified across two dispatch cycles (final comparison run 32271124959), all seven Part B walks verified by the operator.*
 
 ## Self-Check: PASSED
 
