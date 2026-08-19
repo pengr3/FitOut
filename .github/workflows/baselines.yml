@@ -99,7 +99,7 @@
 # IF A FUTURE EDIT MAKES THIS JOB NEED A *REAL* SECRET — a PayMongo key, an OAuth client, an
 # upload token — that is unchanged from the original rule and is the signal a baselined surface
 # has left GATE-01's scope. FIX THE INVENTORY. Do not add a credential to the one job that can
-# write to the repository; `scripts/verify-baselines-workflow.mjs` asserts the prohibition over
+# write to the repository; `scripts/verify-workflows.mjs` asserts the prohibition over
 # every `env`, `run` and `with` VALUE in this file, so an attempt fails a gate rather than a review.
 #
 # DO NOT "fix" a red here by unsetting `DATABASE_URL`. An UNSET value is strictly worse than a
@@ -145,9 +145,15 @@
 # which is where a credential could actually live, and comments are gone before it looks.
 #
 # Parse it instead — and as of plan 12-14 the parse is COMMITTED rather than a recipe you are
-# trusted to re-type:
+# trusted to re-type. AS OF PLAN 12-15 IT ALSO RUNS WITHOUT BEING ASKED: `ci.yml`'s `gate-db-free`
+# executes it on every push and pull request, so the last row of the table above — an ADDED `push:`
+# trigger, the single most dangerous edit anyone can make to this file — now fails `ci` instead of
+# waiting for somebody to remember the command. The script was renamed in the same plan, because it
+# now covers `ci.yml` and the invariants that exist only BETWEEN the two files, and a checker named
+# for one file that asserts the properties of two is the defect class this repository keeps recording:
 #
-#   node scripts/verify-baselines-workflow.mjs
+#   node scripts/verify-workflows.mjs                      (both files, plus the cross-file section)
+#   node scripts/verify-workflows.mjs --section=baselines  (this file's eleven invariants alone)
 #
 # It asserts all of the invariants below over the parsed tree, prints the value it read for each so
 # its output is evidence rather than a boolean, and exits non-zero naming the invariant that broke.
