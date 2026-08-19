@@ -45,7 +45,8 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 
 - [x] **Phase 10: Design-System Foundation & Theme Runtime** - One token contract, two themes, and the shipped defects fixed before a single baseline is shot (completed 2026-08-12)
 - [x] **Phase 11: Quality Gates, Pattern Layer & App Shell** - Make the gates capable of failing, seed the shared patterns, and give the app a real header, footer and state families (completed 2026-08-17)
-- [ ] **Phase 12: Booker Path — Search → Listing → Checkout** - The route from an empty search box to the payment redirect reads as one designed product
+- [x] **Phase 12: Booker Path — Search → Listing → Checkout** - The route from an empty search box to the payment redirect reads as one designed product
+ (completed 2026-08-19)
 - [ ] **Phase 13: Confirmation, Bookings & Trust** - After paying, a booker sees exactly what they bought, where their money is, and what happens next
 - [ ] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees
 - [ ] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity
@@ -283,7 +284,7 @@ Plans:
 
 **Wave 12** *(blocked on Wave 11)*
 
-- [ ] 12-14-PLAN.md — GATE-01: the Phase-12 visual baselines and the D-58 OG fixture *(checkpoint: human dispatch + the seven manual walks)* — **tasks 1–2 committed; the blocking human checkpoint has NOT run**
+- [x] 12-14-PLAN.md — GATE-01: the Phase-12 visual baselines and the D-58 OG fixture *(checkpoint: human dispatch + the seven manual walks)* — **complete 2026-08-19: 52 baselines minted, comparison run 32271124959 watched green, all seven walks verified**
 
 **Wave 13** *(gap closure, blocked on Wave 12; lands BEFORE 12-14 Task 3's dispatch)*
 
@@ -465,7 +466,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
-| 12. Booker Path — Search → Listing → Checkout | v1.1 | 14.5/15 | Checkpoint pending (12-14 Task 3) |  |
+| 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete   | 2026-08-19 |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
