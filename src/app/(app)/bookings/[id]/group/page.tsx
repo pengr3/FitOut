@@ -36,6 +36,11 @@
 // TIMES. The subhead's window label comes from the shared `composeWhenLabel` — the SAME formatter 08-06's
 // group notifications compose their `whenLabel` with, so the page an organizer opens from a notification and
 // the notification itself state the session identically (D-105/SC#2 — venue-local, venue tz named).
+//
+// ── THE CONTAINER ON BOTH BRANCHES IS A `div`, NOT A LANDMARK (fixed 20 Aug 2026). ───────────────────────
+// `(app)/layout.tsx:96` already wraps `{children}` in this route's one `main` landmark; a second one nested
+// inside it is the defect `(app)/bookings/[id]/page.tsx`'s own header records in full, and `loading.tsx`
+// here already renders the same container as a `div`. Pinned by `e2e/shell.spec.ts`.
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -124,7 +129,7 @@ export default async function GroupManagementPage({
 
   if (loadFailed) {
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
           {/* Calm, NOT red — a read that blipped is not a failure the organizer caused (§Error states). */}
           <CardContent
@@ -141,7 +146,7 @@ export default async function GroupManagementPage({
             <RefreshGroupButton />
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
@@ -160,7 +165,7 @@ export default async function GroupManagementPage({
   const inviteUrl = `${process.env.BETTER_AUTH_URL ?? "http://localhost:3000"}/invite/${group.accessToken}`;
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
       <div className="space-y-8">
         <div className="space-y-2">
           <h1 className="text-xl leading-tight font-semibold tracking-tight">Your group</h1>
@@ -222,6 +227,6 @@ export default async function GroupManagementPage({
 
       {/* Renders nothing; refreshes this RSC on a bounded interval, paused when the tab is hidden. */}
       <GroupPoller />
-    </main>
+    </div>
   );
 }

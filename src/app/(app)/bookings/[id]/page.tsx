@@ -49,6 +49,16 @@
 // back Postgres TEXT rather than a Date — a cast over it satisfies tsc, eslint AND `next build`, then throws
 // on `.getTime()` with the first real row; `readDbNow` is the ONE hydrating reader (the 07-06 boundary
 // contract). There is no JS clock read anywhere on this page.
+//
+// ── ONE `main` LANDMARK PER DOCUMENT, SO THE CONTAINER ON EVERY BRANCH IS A `div` (fixed 20 Aug 2026). ───
+// `(app)/layout.tsx:96` already wraps `{children}` in this route's one `main` landmark. All five returns
+// below used to open their own inside it, so the page shipped TWO nested `main` landmarks —
+// `document.querySelectorAll("main").length === 2`, measured here — which assistive tech resolves
+// differently per tool: extra regions are dropped by some and announced as duplicates by others, and the
+// outer one is the layout shell rather than this page's content either way. `loading.tsx:14-15` already
+// states the rule and already obeys it, against a container it copies from this file verbatim; the skeleton
+// was right and these branches were wrong. A SIXTH branch must copy the container from `loading.tsx`.
+// Pinned by `e2e/shell.spec.ts` — one `main` landmark on this route at 320px and at 1280px.
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -255,7 +265,7 @@ export default async function BookingConfirmationPage({
   // ── requested (BOOK-06, D-66): "Request sent — awaiting host". Calm, NO pay CTA, "you haven't been charged". ──
   if (bk.status === "requested") {
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
           <CardContent className="space-y-6 py-8">
             <div className="flex flex-col items-center gap-3 text-center">
@@ -309,14 +319,14 @@ export default async function BookingConfirmationPage({
             <CancelRequestDialog bookingId={bk.id} />
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
   // ── approved (BOOK-06, D-66): "Your request was approved — pay now". The ONE coral CTA + payment-window countdown. ──
   if (bk.status === "approved") {
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
           <CardContent className="space-y-6 py-8">
             <div className="flex flex-col items-center gap-3 text-center">
@@ -380,7 +390,7 @@ export default async function BookingConfirmationPage({
             <CancelRequestDialog bookingId={bk.id} />
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
@@ -394,7 +404,7 @@ export default async function BookingConfirmationPage({
   if (bk.status === "declined") {
     const copy = declinedCopy(bk.cancelledBy);
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
           <CardContent
             role="status"
@@ -423,7 +433,7 @@ export default async function BookingConfirmationPage({
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
@@ -488,7 +498,7 @@ export default async function BookingConfirmationPage({
           : "No refund — cancelled inside the no-refund window";
 
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
           <CardContent
             role="status"
@@ -519,7 +529,7 @@ export default async function BookingConfirmationPage({
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
@@ -567,7 +577,7 @@ export default async function BookingConfirmationPage({
     : null;
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
       <Card>
         <CardContent className="space-y-6 py-8">
           {/* Focal point: reassurance first — the badge (icon + text, never color-only) + reference. The
@@ -673,6 +683,6 @@ export default async function BookingConfirmationPage({
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 import {
   BASE_URL as BASE,
@@ -429,6 +430,189 @@ test.describe("AC#4 — one navigation landmark at every width", () => {
         `/ · ${width}px: ${count} navigation landmarks. The public header has no primary nav and ` +
           "the footer must not add one — a second landmark here would break AC#4 on every route.",
       ).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// AC#4's SIBLING — exactly ONE `main` landmark, on the three routes that used to ship two.
+//
+// The same claim as AC#4 above, about the other landmark, and it lives here because the argument that
+// describe makes about counting the RIGHT thing is exactly the argument this one needs: "0 is not 1 for
+// the wrong reason — or, worse, 1 is 1 against some other landmark". A main-landmark count is the
+// sharpest case of it, because the ONE landmark this test wants to see is rendered by
+// `(app)/layout.tsx:96` — the shell — and is on screen before the page under test has produced a byte.
+// A count of 1 proves nothing unless the page's OWN body is live when it is taken.
+//
+// WHAT THIS PINS (quick task 260820-nested-main-landmarks, 20 Aug 2026). `/bookings/[id]`,
+// `…/cancel` and `…/group` each opened their own `main` INSIDE the layout's, across nine return
+// branches — `document.querySelectorAll("main").length === 2`, measured on the detail route. Two nested
+// main landmarks are resolved differently by different assistive tech (dropped by some, announced as
+// duplicates by others), and the outer one is the layout shell rather than the page's content either
+// way. `(app)/bookings/[id]/loading.tsx:14-15` had the rule written down and obeyed it against a
+// container it copies from the page verbatim; the pages it mirrors did not. NOTHING in `e2e/` or
+// `tests/` counted landmarks before this, so the regression that arrives by copying a sixth return
+// branch from the fifth would have been invisible.
+//
+// ⚠ TWO HALVES OF THE STREAMING-BUFFER RULE (`e2e/search-and-book.spec.ts:230-283` — read it there;
+// it is cited, not restated) decide how this is written:
+//
+//   1. THE MATCHER IS PART OF THE ASSERTION. `getByRole("main")` is buffer-IMMUNE — React's
+//      `<div hidden id="S:N">` staging copy is display:none and therefore out of the accessibility
+//      tree, so a role query counts the live tree only. That file MEASURED the staged copy carrying
+//      this very route's container (`class="mx-auto w-full max-w-2xl …"`), so a CSS `locator("main")`
+//      here would have counted 2 during the ~100ms overlap and failed against a document no user sees.
+//   2. VACUITY IS THE REAL HAZARD. `toHaveCount(1)` goes green while the page body is still staged,
+//      satisfied by the shell's landmark alone — green against the exact document in which a nested
+//      landmark would still be sitting in the buffer. So every route below is gated on a RESOLVED-ONLY
+//      signal first, taken from that route's own `loading.tsx`: the detail and cancel skeletons render
+//      NO h1 (their headers say why), so an h1 proves the body landed; the group skeleton DOES render
+//      `Your group`, so that route is gated on `Copy link`, which only the resolved page mounts. This
+//      is the same trap SHELL-03 records below for the checkout's `Confirm and pay`.
+//
+// ONE THEME, not two. AC#2/AC#3 loop `THEMES` because they measure PIXELS and a theme token can move
+// them. A landmark count is structural — the same tree in both themes — so a second pass would double
+// the runtime of a seeded test to re-measure an integer that cannot vary.
+//
+// WATCHED RED — 20 Aug 2026, recorded verbatim, because a gate nobody watched fail is not a gate.
+// The confirmed branch's container in `(app)/bookings/[id]/page.tsx` (line 580 / 686 — the branch the
+// defect was originally MEASURED on) reverted to the nested landmark, the other eight left fixed.
+// Command: `npx playwright test e2e/shell.spec.ts --project=chromium --workers=1 -g "landmark on the
+// booking routes"`. **1 failed**, on the FIRST route at the FIRST width:
+//
+//     Error: /bookings/e2e_landmark_booking_50bf5961-… · court · 320px: the document exposes a number
+//     of `main` landmarks other than one. …
+//     expect(locator).toHaveCount(expected) failed
+//     Locator:  getByRole('main')
+//     Expected: 1
+//     Received: 2
+//     Call log:
+//       - waiting for getByRole('main')
+//         14 × locator resolved to 2 elements
+//           - unexpected value "2"
+//
+// READ THE CALL LOG, not just the number: 14 consecutive polls over the 5s timeout all saw 2. The
+// streaming buffer's overlap is ~100ms (search-and-book.spec.ts's own measurement), so a buffer
+// artifact could not have held for 14 samples — this is the live tree holding two landmarks, which is
+// the claim. Restored; green, and green again on an immediately consecutive run (the streaming defect
+// is warmth-dependent, so one green proves little).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+test.describe("AC#4's sibling — one `main` landmark on the booking routes", () => {
+  test.describe.configure({ mode: "serial" });
+
+  let seed: SeededListing;
+  /** Set inside the test (it needs the signed-up booker), read by `afterAll` — hence this scope. */
+  let groupId: string | null = null;
+
+  test.beforeAll(async () => {
+    seed = await seedBookableListing({ titlePrefix: "E2E Landmark" });
+  });
+
+  test.afterAll(async () => {
+    // ORDER, and it is not the helper's order: `booking_group.booking_id` is ON DELETE RESTRICT
+    // (`schema.ts:970-975` — "a booking that owns a group cannot be hard-deleted"), so the group row
+    // must go BEFORE `teardown()` deletes the booking it hangs off. Without this the whole seed is
+    // undeletable and the failure reads as a teardown bug rather than as a missing DELETE here.
+    if (groupId) {
+      await seed.sql`DELETE FROM booking_group WHERE id = ${groupId}`;
+    }
+    await seed.teardown();
+  });
+
+  test("/bookings/[id], its cancel and its group render exactly one `main` at 320px and 1280px", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await seedTheme(page.context(), "court");
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    // The booker signs up through the UI (the shipped idiom, for `booker-seed.ts`'s own reason) and the
+    // BOOKING is seeded directly — a `confirmed` row on a refundable rail, 10 hours before its session,
+    // copied from `e2e/cancel.spec.ts:88-104`. Driving a real payment is impossible from Playwright (a
+    // hosted checkout) and irrelevant here: this test reads landmark structure, not money. The 10 hours
+    // are not arbitrary — they are what makes `…/cancel` render its LIVE branch rather than the
+    // "already started" refusal, so the container under test is the one a booker actually reaches.
+    const email = await signUpBooker(page, seed);
+    const [bookerRow] = await seed.sql`SELECT id FROM "user" WHERE email = ${email}`;
+    expect(
+      bookerRow?.id,
+      "the signed-up booker has no row in `user`, so the booking below cannot be owned by the session " +
+        "this test drives — every route would 404 and every landmark count would be a measurement of " +
+        "the not-found boundary instead",
+    ).toBeTruthy();
+    const bookerId = bookerRow.id as string;
+
+    const bookingId = `e2e_landmark_booking_${randomUUID()}`;
+    await seed.sql`
+      INSERT INTO "booking" (
+        id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
+        cancellation_policy, space_price_cents, service_fee_cents, quoted_total_cents,
+        currency, payment_id, payment_method, created_at
+      ) VALUES (
+        ${bookingId}, ${seed.listingId}, ${1}, ${bookerId},
+        now() + make_interval(hours => ${10}),
+        now() + make_interval(hours => ${11}),
+        ${"confirmed"}::booking_status, ${"instant"}::booking_mode,
+        ${"standard"}::cancellation_policy, ${100000}, ${5000}, ${105000}, ${"php"},
+        ${`pay_e2e_${randomUUID()}`}, ${"gcash"}, now()
+      )
+    `;
+
+    // A group row is the ONLY thing that makes `…/group` reachable: without one the page redirects to
+    // the booking (`group/page.tsx` — "a REDIRECT rather than a 404, because this visitor demonstrably
+    // owns the booking"), and a redirect would silently move this assertion onto the detail route,
+    // where it is already made. `capacity_snapshot` is the seeded listing's `max_occupancy`.
+    groupId = `e2e_landmark_group_${randomUUID()}`;
+    await seed.sql`
+      INSERT INTO "booking_group" (id, booking_id, capacity_snapshot, access_token, created_at)
+      VALUES (${groupId}, ${bookingId}, ${8}, ${`e2e-landmark-${randomUUID()}`}, now())
+    `;
+
+    /** Route, and the ONE thing on it that only the RESOLVED page renders (see the header, point 2). */
+    const routes = [
+      {
+        url: `/bookings/${bookingId}`,
+        resolved: () => page.getByRole("heading", { level: 1, name: "Booking confirmed" }),
+        resolvedName: 'the h1 "Booking confirmed"',
+      },
+      {
+        url: `/bookings/${bookingId}/cancel`,
+        resolved: () => page.getByRole("heading", { level: 1, name: "Cancel this booking?" }),
+        resolvedName: 'the h1 "Cancel this booking?"',
+      },
+      {
+        url: `/bookings/${bookingId}/group`,
+        resolved: () => page.getByRole("button", { name: "Copy link" }),
+        resolvedName: 'the "Copy link" button (this route\'s skeleton renders the h1 too)',
+      },
+    ];
+
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+
+      for (const route of routes) {
+        await page.goto(`${BASE}${route.url}`);
+        const where = `${route.url} · court · ${width}px`;
+        await expectShellReachable(page, where);
+
+        await expect(
+          route.resolved(),
+          `${where}: ${route.resolvedName} is absent, so this page is still its skeleton (or a 404). ` +
+            "The layout's own landmark satisfies the count below on its own, so asserting it now would " +
+            "pass against a document whose body — the thing that used to add the second landmark — has " +
+            "not rendered yet.",
+        ).toHaveCount(1);
+
+        await expect(
+          page.getByRole("main"),
+          `${where}: the document exposes a number of \`main\` landmarks other than one. ` +
+            "`(app)/layout.tsx:96` wraps every child in the ONE main landmark this group gets, so a " +
+            "page under it that opens its own nests a second inside the first — the defect this " +
+            "describe exists for. The container a page returns is the one its `loading.tsx` renders: " +
+            "a `div` carrying the page's classes, on every return branch.",
+        ).toHaveCount(1);
+      }
     }
   });
 });

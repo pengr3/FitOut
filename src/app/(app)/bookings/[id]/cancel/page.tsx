@@ -18,6 +18,11 @@
 // session, so a rung crossed between this render and the confirm can only ever LOWER the refund. That is
 // why the D-81 boundary disclosure below is not decoration: a booker close to a boundary is told the exact
 // instant their refund changes, so the recompute can never be a surprise.
+//
+// ── THE CONTAINER ON BOTH BRANCHES IS A `div`, NOT A LANDMARK (fixed 20 Aug 2026). ───────────────────────
+// `(app)/layout.tsx:96` already wraps `{children}` in this route's one `main` landmark; a second one nested
+// inside it is the defect `(app)/bookings/[id]/page.tsx`'s own header records in full, and `loading.tsx:16-19`
+// here already renders the same container as a `div`. Pinned by `e2e/shell.spec.ts`.
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -163,7 +168,7 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   const windowEnd = bk.openCapacity ? bk.endsAt : bk.startsAt;
   if (windowEnd.getTime() <= now.getTime()) {
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
         <Card>
           <CardContent role="status" aria-live="polite" className="space-y-4 py-10 text-center">
             {/* NT-01 — the refusal is stated in the words of the thing that actually ran out. A pass-holder
@@ -194,7 +199,7 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
             </p>
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
@@ -269,7 +274,7 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   const destinationFormReady = needsDestination && institutions.length > 0;
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
       <Card>
         <CardContent className="space-y-6 py-8">
           <div className="space-y-2">
@@ -373,6 +378,6 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }
