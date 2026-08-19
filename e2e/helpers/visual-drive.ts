@@ -147,6 +147,25 @@ const LISTING_ID = VRT_IDS.exclusive;
 /** The remainder the checkout baseline is captured at, in ms. Same reading `hold-countdown.spec.ts` uses. */
 const AT_14_52_MS = 14 * 60_000 + 52_000;
 
+/**
+ * ⚠ `page.clock.fastForward`'s REAL CEILING, and it is not documented anywhere in Playwright's API.
+ *
+ * The injected clock computes `shiftTicks(this._now.ticks, ticks | 0)`, and `| 0` is a signed 32-bit
+ * cast — so any argument above 2^31-1 ms (~24.8 days) wraps NEGATIVE and the next line throws "Cannot
+ * fast-forward to the past". MEASURED against the shipped `playwright-core`, not read off the docs:
+ * `fastForward(2_147_483_647)` is accepted and `fastForward(2_147_483_648)` throws. `pauseAt` has no
+ * such cast and can cross any distance — which is why the checkout drive pauses to its target and
+ * fast-forwards only the last second. Named here because the truncation is invisible at the call site.
+ */
+const MAX_FAST_FORWARD_MS = 2_147_483_647;
+
+/**
+ * How far short of 14:52 the absolute pause lands, so there is a jump left to fire the countdown's
+ * interval on. One second, because that is the countdown's own tick period — see the block in
+ * `checkoutDrive.interact` for why a jump is needed at all after an absolute pause.
+ */
+const LAST_TICK_MS = 1_000;
+
 /** The hold CTA family (12-10). Below `lg:` it is the sticky bar's `Book · {total}`; above, the rail's
  *  `Book this space`. Deliberately NOT `/^Book/`, which also collects `slot-picker.tsx`'s `Book full day`. */
 const HOLD_CTA = /^Book(?: this space| · )/;
@@ -559,18 +578,52 @@ function checkoutDrive(purpose: DrivePurpose): SurfaceDrive {
           `the shelf-life failure: ${VRT_CLOCK_ISO} is no longer in the future.`,
       ).toBeGreaterThan(AT_14_52_MS + 60_000);
 
-      // FREEZE FIRST, THEN JUMP BY A MEASURED DELTA. This shape was arrived at by MEASUREMENT in plan
-      // 12-03, not by preference: `pauseAt(<absolute instant>)` alone did NOT move the digits — with
-      // the clock running and the interval due a second after mount, the one tick it is allowed to fire
-      // ran at its own scheduled time and the slot still read the un-jumped remainder. `fastForward`
-      // from an ALREADY-PAUSED clock does land the tick on the jumped instant. Pausing first is also
-      // what makes the delta exact: while the clock runs, real time passes between reading `Date.now()`
-      // and issuing the jump, and a few hundred milliseconds is the difference between 14:52 and 14:51.
-      await page.clock.pauseAt(new Date(pageNow + 1_000));
+      // ⚠ THE PAUSE CARRIES THE WHOLE DISTANCE AND THE `fastForward` CARRIES ONE SECOND. THAT SPLIT IS
+      // THE FIX FOR THE FIRST-RUN FAILURE IN CI 32228371235, AND BOTH HALVES ARE MEASURED.
+      //
+      // WHAT BROKE. `pauseAt(pageNow + 1_000)` used to leave the clock at REAL now, so the jump to the
+      // re-frozen deadline had to be carried by `fastForward(delta)` — and `delta` is the distance from
+      // real now to `VRT_CLOCK_ISO`, i.e. WEEKS. Playwright truncates that argument:
+      // `fastForward(ticks)` computes `shiftTicks(this._now.ticks, ticks | 0)`, and `| 0` is a 32-bit
+      // SIGNED cast. Measured locally against the shipped `playwright-core`: `fastForward(2_147_483_647)`
+      // is accepted, `fastForward(2_147_483_648)` throws, and the real delta of 2_316_858_550 ms became
+      // -1_978_108_746 ms — so the very next line inside Playwright rejected it as "Cannot fast-forward
+      // to the past". The two guards above were INNOCENTLY TRUE: `delta` really was positive, and the
+      // wrap happens after they run, inside the browser-side clock. That is why neither fired.
+      //
+      // WHY THE PAUSE CAN CARRY IT. `pauseAt(instant)` computes `toConsume = time - this._now.time` with
+      // NO `| 0` and hands it straight to the same forward-only check, so an absolute pause crosses weeks
+      // that `fastForward` cannot. Measured: `pauseAt` to `VRT_CLOCK_ISO - 14:52 - 1s` lands the page
+      // clock exactly there.
+      //
+      // WHY THERE IS STILL A `fastForward` AT ALL. Plan 12-03's measurement stands: `pauseAt(<absolute
+      // instant>)` alone did NOT move the digits — the countdown's interval was due a second after mount,
+      // the one tick it is allowed to fire ran at its own scheduled time, and the slot still read the
+      // un-jumped remainder. `fastForward` from an ALREADY-PAUSED clock does land the tick on the jumped
+      // instant. So the pause stops one second short of the target and the jump covers that second.
+      //
+      // The delta is now EXACT rather than nearly exact, which is the other thing this buys: it is
+      // computed from `expiresAt` (a database constant) instead of from a `Date.now()` read while the
+      // clock was still running, so no real milliseconds can slip in between the read and the jump.
+      await page.clock.pauseAt(new Date(expiresAt - AT_14_52_MS - LAST_TICK_MS));
       const frozenNow = await page.evaluate(() => Date.now());
       const delta = expiresAt - AT_14_52_MS - frozenNow;
       expect(delta, `${where}: reaching 14:52 needs the clock to move ${delta}ms, which is backwards`)
         .toBeGreaterThan(0);
+      // THE GUARD THAT SHOULD HAVE CAUGHT THE FIRST-RUN FAILURE AND DID NOT EXIST. `> 0` is not the
+      // precondition `fastForward` actually has — its precondition is `> 0 AND within a signed 32-bit
+      // int`, because of the `| 0` above. Asserting the ceiling here turns Playwright's opaque "Cannot
+      // fast-forward to the past" into the sentence that names the cause, and it can only ever fail on a
+      // clock that was installed too far from the deadline — never on a correct one, where the distance
+      // is `LAST_TICK_MS`.
+      expect(
+        delta,
+        `${where}: the jump to 14:52 is ${delta}ms, past the ${MAX_FAST_FORWARD_MS}ms ceiling ` +
+          "`page.clock.fastForward` silently truncates to (it casts its argument with `| 0`, a signed " +
+          "32-bit int, so anything larger WRAPS NEGATIVE and is then rejected as \"the past\"). The " +
+          "pause above is what is supposed to carry the distance; if this fails, the pause did not land " +
+          "where it was aimed.",
+      ).toBeLessThanOrEqual(MAX_FAST_FORWARD_MS);
       await page.clock.fastForward(delta);
 
       // The determinism claim, ASSERTED rather than commented. A checkout baseline whose digits were
@@ -614,10 +667,21 @@ function checkoutDrive(purpose: DrivePurpose): SurfaceDrive {
  * BOTH UNITS, AND THAT IS THE FIXTURE'S OWN LESSON: the GiST `EXCLUDE` arbitrates per (listing, unit),
  * so one confirmed row on a two-unit listing leaves unit 2 free and the hold SUCCEEDS — and the
  * baseline is then a picture of the feature not firing.
+ *
+ * ⚠ AND IT NEEDS A SIGNED-IN BOOKER, WHICH IS WHAT THIS DRIVE WAS MISSING ON ITS FIRST RUN (CI
+ * 32228371235). A COLLISION IS THE SECOND-TO-LAST GATE `placeHold` APPLIES, NOT THE FIRST: the action
+ * opens with the D-41 session gate and returns `reason: "sign-in"` to an anonymous caller, at which point
+ * `book-cta.tsx` pushes `/login?callbackURL=…` and NO HOLD IS EVER ATTEMPTED. The picker still seeds, the
+ * rail still prices and the CTA is still enabled — an anonymous booker is *allowed* to press Book, they
+ * are just sent to sign in first — so `expectSelectionSeeded` passes and the drive walks into a 45s poll
+ * for a notice that nothing can produce. `e2e/collision-in-place.spec.ts` signs a booker up before its
+ * first `goto` for this reason, and so does `checkoutDrive` above; this drive did not, and it was the only
+ * driven surface that touched the hold path without one.
  */
 function collisionDrive(purpose: DrivePurpose): SurfaceDrive {
   const idPrefix = purpose === "swap" ? "vrt_swap_coll" : "vrt_vis_coll";
   const slot = purpose === "swap" ? WINDOWS.swapCollision : WINDOWS.collision;
+  let bookerEmail: string | null = null;
   return {
     needsClock: false,
     captureMode: "fullPage",
@@ -626,6 +690,12 @@ function collisionDrive(purpose: DrivePurpose): SurfaceDrive {
       await stubMapTiles(page);
 
       await withSql(async (sql) => {
+        // THE SESSION, FIRST — before the listing `goto`, because signing up navigates. The shipped
+        // helper, so this drive authenticates by the same path the functional specs do rather than by a
+        // hand-written session row. Its booker mints nothing here (every submit below is refused), but it
+        // is still deleted in `cleanup` so a re-dispatch does not accumulate one user per capture.
+        bookerEmail = await signUpBooker(page, fixtureAsSeed(sql));
+
         // Delete BEFORE inserting, not only after capturing. The two themes share one window (D-135 —
         // see the header), so a crashed predecessor would otherwise leave the window full and the next
         // drive would fail at `expectSelectionSeeded` for a reason that has nothing to do with the
@@ -664,22 +734,35 @@ function collisionDrive(purpose: DrivePurpose): SurfaceDrive {
       // it would not be on a green path: every submit in this drive is REFUSED, so no click can mint a
       // hold. The poll bails the moment the URL leaves the listing, because that is what a GRANTED hold
       // looks like, and a granted hold is a fixture failure rather than something to retry through.
+      //
+      // ⚠ THE `navigated` VALUE CARRIES THE URL, AND THAT IS THE LESSON OF CI 32228371235. This poll
+      // returned a bare `"navigated"` for 45 seconds while the message below offered two hypotheses —
+      // hold-succeeded, or plain-notice branch — and the truth was a THIRD one it did not name: the drive
+      // had no session, so the click went to `/login?callbackURL=…` and no hold was ever attempted.
+      // `expect.poll` prints the received value, so putting the destination INSIDE it is what makes the
+      // three outcomes tell themselves apart in the log: `/listings/…/book?hold=` is a granted hold,
+      // `/login?…` is a missing session, and `pending` is a page that stayed put with no notice on it.
       await expect
         .poll(
           async () => {
             if ((await notice.count()) > 0) return "notice";
-            if (!page.url().includes(`/listings/${LISTING_ID}`)) return "navigated";
+            const url = page.url();
+            if (!url.includes(`/listings/${LISTING_ID}`)) return `navigated → ${url}`;
             await cta.click({ timeout: 5_000 }).catch(() => {});
             return (await notice.count()) > 0 ? "notice" : "pending";
           },
           {
             timeout: 45_000,
             message:
-              `${where}: no collision notice. Either the hold SUCCEEDED — in which case the inserted ` +
-              "conflict did not occupy the hours that were selected, and this capture would be a " +
-              "baseline of a normal listing page — or the refusal took the plain-notice branch instead " +
-              "of D-55's in-place one. The click is retried because a server-rendered control is " +
-              "clickable before it is interactive; a persistent failure here is not a lost click.",
+              `${where}: no collision notice. Read the RECEIVED value: \`pending\` means the page stayed ` +
+              "on the listing and never rendered the notice — either the hold SUCCEEDED (the inserted " +
+              "conflict did not occupy the hours that were selected) or the refusal took the plain-notice " +
+              "branch instead of D-55's in-place one. `navigated → …` names where it went instead: a " +
+              "`/book?hold=` URL is a GRANTED hold and therefore a fixture failure, and a `/login` URL " +
+              "means the click hit `placeHold`'s D-41 session gate, i.e. this drive lost its signed-in " +
+              "booker and never reached the collision at all. The click is retried because a " +
+              "server-rendered control is clickable before it is interactive; a persistent failure here " +
+              "is not a lost click.",
           },
         )
         .toBe("notice");
@@ -696,7 +779,15 @@ function collisionDrive(purpose: DrivePurpose): SurfaceDrive {
 
     async cleanup({ theme }) {
       await withSql(async (sql) => {
+        // ORDER MATTERS for the same reason it does on the checkout drive: `booking.booker_id` is ON
+        // DELETE RESTRICT. The conflict rows belong to the RIVAL and are the mechanism (see the slot
+        // table's second load-bearing property), so they go first regardless; the signed-up booker owns
+        // no bookings here — every submit was refused — but is deleted so a re-dispatch does not
+        // accumulate one user per capture.
         await sql`DELETE FROM booking WHERE id LIKE ${`${idPrefix}_${theme}_%`}`;
+        if (bookerEmail !== null) {
+          await sql`DELETE FROM "user" WHERE email = ${bookerEmail}`;
+        }
       });
     },
   };
