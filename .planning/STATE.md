@@ -4,9 +4,9 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 15
 status: executing
-stopped_at: 12-15 complete (gap closure); 12-14 Task 3 is still a BLOCKING human checkpoint and has not run
-last_updated: "2026-08-19T07:25:00.000Z"
-last_activity: 2026-08-19 -- 12-15 executed and committed (f009864, 7f63e34, ceb54d7); the comparison job can now reach a seeded database, so the Task 3 dispatch is unblocked
+stopped_at: 12-15 complete (gap closure); 12-14 Task 3 is still a BLOCKING human checkpoint and has not run -- and it now REQUIRES a baseline re-mint, because quick 260819-vrt invalidated every photo-bearing reference on purpose
+last_updated: "2026-08-19T13:34:49.000Z"
+last_activity: 2026-08-19 -- quick 260819-vrt (cb34581) repointed the visual fixture's photo urls from an unreachable `.invalid` host to committed assets under `public/vrt/`, so the baselines stop encoding broken-image glyphs; gate-visual is RED by design until the operator re-mints via the human-gated `baselines` workflow (D-27)
 progress:
   total_phases: 11
   completed_phases: 2
@@ -704,6 +704,7 @@ means the task predates that flag being used here, not that it failed.
 | 260811-fh6 | Add `resolved_by` to the audit table so a discharge records which human performed it (migration 0025) | 2026-08-11 | e4722eb | Verified | [260811-fh6-add-resolved-by-to-the-audit-table-so-a-](./quick/260811-fh6-add-resolved-by-to-the-audit-table-so-a-/) |
 | 260812-usm | Fix SEC-01: reject a callback path that is an authority to the next parser, closing the residual post-auth open redirect (CWE-601) surfaced by /gsd-secure-phase 10 | 2026-08-12 | e6180a0 | | [260812-usm-fix-sec-01-open-redirect](./quick/260812-usm-fix-sec-01-open-redirect/) |
 | 260813-0h2 | Fix G-01: constrain the Radix ScrollArea wrapper so panel children cannot lay out wider than the panel (closes the phase 10 UAT gap) | 2026-08-13 | af71b62 | | [260813-0h2-fix-g01-scrollarea-row-overflow](./quick/260813-0h2-fix-g01-scrollarea-row-overflow/) |
+| 260819-vrt | Serve baselined photos from committed local assets (`public/vrt/photo-{0..7}.svg`) — the fixture seeded an RFC 2606 `.invalid` URL, so the 27 baselines minted 2026-08-19 encode broken-image glyphs. **Invalidates every photo-bearing baseline by design; the operator must re-mint via the human-gated `baselines` workflow (D-27).** | 2026-08-19 | cb34581 | | [260819-vrt-local-photo-placeholders](./quick/260819-vrt-local-photo-placeholders/) |
 
 ## Deferred Items
 
