@@ -81,7 +81,7 @@ completed: 2026-08-19
 
 1. **Task 1: The committed fixture, and a workflow that can reach a database** — `18e13f7` (feat)
 2. **Task 2: Eight surfaces, one frozen clock, and the OG trap closed** — `f84d64a` (feat)
-3. **Task 3: Dispatch, verify, and walk the path** — ⛔ **NOT RUN.** `type="checkpoint:human-action" gate="blocking"`. No automation beyond Parts A and B is permitted, and neither part is automatable: the dispatch is the only human-gated write path in the repository, and the seven Part-B walks are the things automation cannot settle. Awaiting the operator.
+3. **Task 3: Dispatch, verify, and walk the path** — ◑ **PART A COMPLETE (2026-08-19), PART B AWAITING THE OPERATOR.** See § Task 3 Part A below for the run ids and measured values. Originally recorded as NOT RUN: `type="checkpoint:human-action" gate="blocking"`. No automation beyond Parts A and B is permitted, and neither part is automatable: the dispatch is the only human-gated write path in the repository, and the seven Part-B walks are the things automation cannot settle. Awaiting the operator.
 
 **Plan metadata:** this file.
 
@@ -280,7 +280,41 @@ Two things must not be confused when Task 3 is run:
 
 ---
 *Phase: 12-booker-path-search-listing-checkout*
-*Completed: Tasks 1–2 on 2026-08-19. Task 3 awaiting the operator.*
+## Task 3 Part A — dispatch, verified (2026-08-19)
+
+Part A is discharged in full. Part B, the seven manual walks, remains with the operator.
+
+| Step | Result |
+|------|--------|
+| **A1** dispatch | `baselines` run **32240742591**, `workflow_dispatch` against `dev` @ `4bce622` — **success**. Committed `f2f08f3`, pushed to `refs/heads/dev` by the job. |
+| **A2** only Linux baselines | **PASS.** 30 files, every one `*-visual-linux.png`. `added=27 modified=3 deleted=0` — the 27 new references plus the three stale `dev-theme-*` regenerated. Nothing rode along. |
+| **A3** both-theme byte divergence (D-135) | **PASS.** 23 of 23 two-theme surfaces differ byte-wise. 6 court-only, all expected: `dev-theme-{320,768,1280}` (both panes in one shot), `og-root-1200`, `og-invite-1200`, `og-listing-1200`. |
+| **A4** ⭐ **comparison run** | **`32242065058` — GREEN.** All four jobs pass, `gate-visual` included. This is the deliverable, not A1's id. |
+
+**Totals measured after the mint:** 52 baseline PNGs tracked — exactly 53 declared rows minus the one
+blocked surface (`global-error`). 23 two-theme pairs, 6 court-only.
+
+**Why A4 is the deliverable and A1 is not.** The dispatch job pushes with `GITHUB_TOKEN`, and a
+`GITHUB_TOKEN` push fires no workflow run — so at the end of A1 nothing had ever compared against the
+52 new references. `ci.yml` carries no `workflow_dispatch` trigger (only `push` and `pull_request`), so
+the comparison could not be raised from the Actions UI either; re-running the previous `ci` run would
+have re-run it at `4bce622`, before the baselines existed. An empty commit (`880aa57`) was the only
+route to a real comparison. Until that run went green the gate merely looked armed.
+
+**What A4 green does and does not prove.** It proves the 52 references are stable and that the machine
+that compares is the machine that shot (D-27). It does NOT prove the pixels are correct — that a
+countdown really reads a frozen 14:52, that the collision notice actually fired, that the OG card shows
+the seeded listing rather than the generic one. Part B item 6 is the only thing that settles that, and
+it is outstanding.
+
+**Two prerequisites that had to land first, discovered by this dispatch attempt and fixed before it:**
+plan **12-15** (the comparison job could not reach a database — `ECONNREFUSED 127.0.0.1:59999`), and
+commit `cfcb658` (the checkout clock's int32-truncated `fastForward` jump, and `collisionDrive` never
+signing a booker in). CI run 32216145319 is where the first surfaced; 32228371235 the second.
+
+---
+
+*Completed: Tasks 1–2 on 2026-08-19. Task 3 Part A verified 2026-08-19 (comparison run 32242065058). Task 3 Part B awaiting the operator.*
 
 ## Self-Check: PASSED
 
