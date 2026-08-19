@@ -2,7 +2,7 @@
 status: awaiting_human_verify
 trigger: "e2e/search-and-book.spec.ts test 2 (`directly-seeded confirmed booking → the durable confirmation, unchanged across a refresh (D-43)`) fails at line 341 with `strict mode violation: getByText('FIT-XXXXXXXX', { exact: true }) resolved to 2 elements` — but ONLY when test 1 (`live instant hold`) runs first. Alone it passes 3/3."
 created: 2026-08-20T00:00:00Z
-updated: 2026-08-20T04:30:00Z
+updated: 2026-08-20T08:15:00Z
 ---
 
 ## Current Focus
@@ -277,6 +277,124 @@ started: pre-existing; NOT introduced by Phase 12 (order-dependent, surfaced dur
     runs, so the greens are attributable to the treatment rather than to a cooled server. 8 runs at an
     observed per-run failure rate of ~1/3 puts the probability of 8 false greens at roughly 0.04%.
 
+- timestamp: 2026-08-20T05:30:00Z
+  checked: |
+    SWEEP 2, of the two specs flagged as latent: `e2e/hold-countdown.spec.ts` and
+    `e2e/open-capacity.spec.ts`. Started with the STRUCTURAL question nobody had asked — what is actually
+    IN the buffer — via a MutationObserver installed before the first script on each route, recording the
+    full contents of every `div[hidden][id^="S:"]` it ever saw.
+  found: |
+    /                    id=S:1  main=true  siteHeader=false  testids=[result-card x7]
+                                 ids=[search-category, search-date, search-start, search-end,
+                                      search-price, search-radius, search-submit, search-sort-hint]
+    /listings/[id]       id=S:2  main=true  siteHeader=false  testids=[listing-key-facts, panel-card,
+                                                                      booking-panel, booking-sticky-bar]
+    /listings/[id]/book  id=S:0  main=true  siteHeader=false  holdCountdown=false  timer=false
+                                 priceTotal=TRUE  testids=[panel-card, price-disclosure, price-total,
+                                                           checkout-sticky-bar]        (8/8 loads)
+  implication: |
+    THE BUFFER HOLDS PAGE CONTENT ONLY, NEVER THE LAYOUT. That single fact decides most of both sweeps:
+    anything composed in a layout — `site-header`, and the checkout countdown, which lives in
+    `listings/[id]/book/layout.tsx` — is outside the page's Suspense boundary and can never be duplicated
+    by it. It also shows the exposure is NOT a `getByText` phenomenon: the buffer carries ids and testids
+    too, so `page.locator("#search-submit")` and `getByTestId("price-total")` are exposed exactly as text
+    locators are.
+
+- timestamp: 2026-08-20T05:45:00Z
+  checked: |
+    THE FAKE-CLOCK QUESTION, asked because `hold-countdown.spec.ts` is this repo's first `page.clock` user
+    and a paused clock could plausibly change the reveal's timing. Same probe, 8 loads with
+    `page.clock.install()` and 8 without.
+  found: |
+    clock=none      runsWithStagedPayload=8/8
+    clock=INSTALLED runsWithStagedPayload=8/8   — byte-identical payload, identical settled counts
+  implication: |
+    The clock changes NOTHING about the staging window. It governs the page's timers; the streaming reveal
+    is the document parser plus React's runtime, which the clock does not touch. Nothing about that file's
+    load-bearing install order interacts with this defect.
+
+- timestamp: 2026-08-20T06:00:00Z
+  checked: |
+    THE MATCHER ASYMMETRY — the thing that decides what "exposed" even means per site, and it is not what
+    Sweep 1 assumed. `toBeVisible()` and `toHaveCount(n)` fail in OPPOSITE directions.
+  found: |
+    `toBeVisible()`  — a strict-mode violation is NOT retried away. A transient 2 is a hard failure.
+                       (Measured all through Sweep 1: 5/10, 8/10 at the worst sites.)
+    `toHaveCount(1)` — RETRIES, and does not enforce strict mode at all. A transient 2 heals itself and is
+                       harmless. Its hazard is the OTHER phase: in the staged-only window the element
+                       exists ONLY inside the hidden buffer, the count is 1, and the assertion goes green
+                       while the live page still shows loading.tsx's skeleton.
+    `toHaveCount(0)` — an absence claim. A duplicate cannot inflate zero, and a visibility filter would
+                       weaken it from "not rendered" to "not rendered VISIBLY".
+  implication: |
+    This reframes `hold-countdown.spec.ts` entirely. Its exposed site is a `toHaveCount(1)`, so the risk was
+    never a strict-mode violation — it is VACUITY, and specifically the vacuity that
+    `expectCheckoutReachable` was written to prevent ("book/loading.tsx's skeleton is still up, and its
+    <h1> is identical to the resolved page's"), arriving by a route its author could not have known about.
+    It also means every `toHaveCount(0)` in `open-capacity.spec.ts` must be LEFT BARE.
+
+- timestamp: 2026-08-20T06:20:00Z
+  checked: |
+    Per-site classification of both files against those two facts (buffer = page content; matcher decides
+    the failure direction), plus a width sweep for the one hold-countdown site.
+  found: |
+    hold-countdown.spec.ts — EXACTLY ONE exposed site out of ten locator sites:
+      :169 getByTestId("price-total") toHaveCount(1)     EXPOSED (page content, inside the boundary)
+      :151 getByTestId("site-header") toHaveCount(1)     immune — layout, siteHeader=false on 8/8
+      :202 slotText / :212 countHook / :313 / :321 /
+           :329 / :405 / :499  (hold-countdown, its
+           sr-only child, role="timer")                  immune — all composed in book/layout.tsx
+      :175 / :347 getByRole                              immune — buffer is `hidden`, out of the a11y tree
+      `price-total` visible at 375 / 768 / 1280 (total=1 visible=1 at each) — the three widths `capture()`
+      drives — so the filter cannot turn the guard red at a narrow viewport.
+
+    open-capacity.spec.ts — 22 sites treated, and four categories deliberately left alone:
+      treated    every getByText / page.locator naming PAGE content after a navigation
+      left bare  getByRole(...)                       immune (measured)
+      left bare  toHaveCount(0) absence claims        filtering would weaken them; 0 cannot be inflated
+      left bare  getByTestId("site-header")           layout, never staged
+      left bare  page.locator("body").innerText()     innerText is RENDER-AWARE — measured during an
+                                                      overlap: textContent found the needle 4x, innerText 1
+      `chip` (:455) is `getByRole("status").filter(...)` — already immune, untouched.
+
+- timestamp: 2026-08-20T06:40:00Z
+  checked: |
+    CARRY-OVER INTO THE ALREADY-SWEPT FILE. The `/` buffer contains the SearchBar's ids, so
+    `search-and-book.spec.ts`'s `page.locator("#search-submit")` / `#search-category` are exposed — and
+    `.click()` enforces strict mode too, so two of the three are ACTIONS, not assertions.
+  found: 0/8 duplicate-id runs observed.
+  implication: |
+    Treated anyway, on the structural fact. This is the same call the review forced in Sweep 1 and the
+    reason is unchanged: the worst site in that file was green 5 times out of 10. Sweep 1 was a
+    `getByText` sweep when the defect was never about `getByText`.
+
+- timestamp: 2026-08-20T07:00:00Z
+  checked: |
+    HONEST LIMIT ON THE hold-countdown EVIDENCE. 10 fresh loads, sampling `price-total`'s total/visible
+    the instant the readiness heading resolved, looking for either failure phase.
+  found: vacuous(hidden-only, count==1) = 0/10 · overlap(count==2) = 0/10
+  implication: |
+    NO FAILING OBSERVATION WAS EVER PRODUCED AT THAT SITE. It is treated on the structural fact alone —
+    the buffer demonstrably contains `price-total` on 8/8 loads — and the in-file comment says exactly
+    that rather than implying a failure anyone has watched. An earlier draft of that comment claimed it
+    "reads 2 during the overlap"; that was an overclaim and was corrected before commit.
+
+- timestamp: 2026-08-20T07:40:00Z
+  checked: |
+    VERIFICATION, at the bar set by Sweep 1, with warmth probes on BOTH sides. The control is the untreated
+    form of an open-capacity site (`getByText(/Times shown in …/)` + `toBeVisible()` on /listings/[id]),
+    run verbatim in try/catch.
+  found: |
+    warmth probe BEFORE:  untreated 3/10 strict-mode failures · treated 0/10
+    e2e/open-capacity.spec.ts   --workers=1   7/7 consecutive runs passed (42/42 tests), 0 violations
+    e2e/hold-countdown.spec.ts  --workers=1   6/6 consecutive runs passed (24/24 tests), 0 violations
+    e2e/search-and-book.spec.ts --workers=1   6/6 consecutive runs passed (18/18 tests)  [carry-over edit]
+    warmth probe AFTER:   untreated 5/10 strict-mode failures · treated 0/10
+  implication: |
+    The server was producing the failure on the untreated form on both sides of the greens — and MORE
+    often after (5/10) than before (3/10) — so the greens are attributable to the treatment rather than to
+    a cooled server. 19 consecutive full-file runs across the three specs.
+
 ## Resolution
 
 root_cause: |
@@ -349,13 +467,17 @@ adjacent_findings_not_fixed:
     file has no reason to add") — the page does not. A real assistive-tech defect, unrelated to this bug, touching
     five return branches, deliberately left for its own change rather than folded into a debug fix.
   - |
-    LATENT SAME-CLASS HAZARD IN OTHER SPECS: `e2e/hold-countdown.spec.ts:255,345` and
-    `e2e/open-capacity.spec.ts:477,497,587` also assert straight after a `reload()`, and any `getByText`
-    after any navigation in any spec is exposed on any route with a `loading.tsx`. NOT swept here — that is
-    a suite-wide change and this session's remit was one file — but the evidence now says plainly that
-    "those specs are green" is not evidence they are safe, because the worst site in THIS file was green
-    5 times in 10. THE STREAMING-BUFFER RULE at the top of `search-and-book.spec.ts` is written to be the
-    reference for that sweep when it is done.
+    SWEPT IN SWEEP 2 (no longer outstanding): `e2e/hold-countdown.spec.ts` and `e2e/open-capacity.spec.ts`.
+    The flagged line numbers were starting points only — the actual exposed set was 1 site in the first
+    file and 22 in the second, and neither set matched the reload-adjacent lines that prompted the flag.
+  - |
+    STILL OUTSTANDING, and now cheap to do: the rest of `e2e/`. The generalisable rule is settled and
+    written down once — buffer = page content, never layout; `getByRole` immune; `toBeVisible()` fails on
+    strict mode, `toHaveCount(1)` fails by vacuity, `toHaveCount(0)` is safe and must stay bare;
+    `innerText` is render-aware but its LOCATOR still enforces strict mode. Any remaining spec can be
+    classified against that list without re-deriving anything.
 
 files_changed:
-  - "e2e/search-and-book.spec.ts — all 11 `getByText` sites visibility-filtered (9 as exact `toHaveCount(1)`, 2 as argued at-least-one), with THE STREAMING-BUFFER RULE hoisted once to file level"
+  - "e2e/search-and-book.spec.ts — all 11 `getByText` sites visibility-filtered (9 as exact `toHaveCount(1)`, 2 as argued at-least-one), with THE STREAMING-BUFFER RULE hoisted once to file level; plus the 3 `#search-*` id locators (2 of them `.click()` actions) treated in sweep 2"
+  - "e2e/hold-countdown.spec.ts — ONE site (`price-total` in `expectCheckoutReachable`); every countdown assertion left as written because the countdown is layout, not page content, and that was measured"
+  - "e2e/open-capacity.spec.ts — 22 page-content sites visibility-filtered; `.first()` on `Total` converted to a visible-filtered `toHaveCount(1)`; all `toHaveCount(0)`, all `getByRole`, `site-header` and `body.innerText()` deliberately left bare, each saying so at the site"
