@@ -14,6 +14,28 @@
 //      choice here: a baseline is a reference every future run is compared against, so anything
 //      that varies between dispatches shows up as a pixel diff and trains people to re-mint.
 //
+//      ⚠ A FIXED LITERAL IS NOT ENOUGH FOR A PHOTO URL. IT ALSO HAS TO RESOLVE, AND TO THE SAME
+//      BYTES. This file learned that from its own first baseline set. The 27 surfaces minted on
+//      2026-08-19 were seeded against `https://example.invalid/vrt-N.jpg` — a fixed literal, and so
+//      "deterministic" by the letter of the property above, but `.invalid` is an RFC 2606 reserved
+//      TLD guaranteed never to resolve. Every reference that set minted is therefore a picture of
+//      the browser's BROKEN-IMAGE glyph wherever a photograph belongs: all eight mosaic tiles, the
+//      lightbox's entire subject, the checkout thumbnail, the search cards.
+//
+//      Deterministic-and-wrong is the worse of the two failures, because it is GREEN. That set was
+//      stable, reproducible, and defending a defect — so the next person to make photos render
+//      would have tripped the gate and read their own improvement as a regression. That is the D-58
+//      shape this fixture exists to close, arriving through the fixture itself.
+//
+//      SO THE RULE IS: A BASELINED PHOTO IS SERVED FROM A COMMITTED LOCAL ASSET. `public/vrt/photo-
+//      {0..7}.svg` are in the repository — same-origin, byte-identical on every checkout, no network
+//      involved — which is deterministic AND representative, the pair the reserved-TLD literal only
+//      half satisfied. A fixture that reaches for an EXTERNAL host has left the determinism
+//      guarantee even when the URL is a constant, because what the reference then encodes is that
+//      host's uptime and that host's current bytes, neither of which this repository controls. If a
+//      future surface needs imagery this set does not have, the fix is another committed asset under
+//      `public/vrt/`, never a remote URL.
+//
 //   2. IDEMPOTENT — `reset()` deletes every `vrt_%` row first, in FK-safe order, so a re-dispatch
 //      is a normal thing to do. Re-dispatching is how you confirm a baseline set is STABLE, and a
 //      fixture that duplicate-keys on the second run makes that impossible.
@@ -92,6 +114,18 @@ export const VRT_IDS = {
  * DB-free route serves (byte-identical to the root card at 25,844 B, measured in plan 11-20).
  */
 export const VRT_EXCLUSIVE_TITLE = "Poblacion Boxing Room";
+
+/**
+ * HOW MANY PLACEHOLDER ASSETS EXIST UNDER `public/vrt/`, i.e. the highest `photos` count any listing
+ * below may declare. The files are `photo-0.svg` … `photo-7.svg`; the seeded url is index-addressed,
+ * so a listing asking for a ninth photo would be handed `/vrt/photo-8.svg`, get a 404, and reinstate
+ * the exact broken-image baseline this constant's own header paragraph exists to describe.
+ *
+ * `seedListing()` therefore refuses rather than seeds. The check is here and not in a test because
+ * the failure is invisible in every place a test would look: the row inserts, the count matches, the
+ * seed exits 0, and the defect only appears as pixels in a reference nobody re-reads.
+ */
+const VRT_PHOTO_ASSETS = 8;
 
 type VrtListing = {
   id: string;
@@ -190,11 +224,28 @@ async function seedListing(l: VrtListing): Promise<void> {
       now(), now(), now()
     )
   `;
-  // FIXED photo ids and urls — a per-run id here would change the DOM between dispatches.
+  // FIXED photo ids and COMMITTED LOCAL photo urls. Two different hazards, closed two ways: a
+  // per-run id would change the DOM between dispatches, and a remote url would change the PIXELS.
+  // `/vrt/photo-{i}.svg` lives in `public/`, so Next serves it same-origin out of the very checkout
+  // under test — see this file's determinism paragraph for why that is the rule rather than a
+  // convenience, and `public/vrt/photo-0.svg`'s own header for why the assets are pure geometry and
+  // why each index looks different.
+  //
+  // `public_id` is deliberately UNCHANGED. It still reads `fitout/vrt/...`, a Cloudinary-shaped
+  // identifier, because nothing derives a URL from it — only the host-side uploader flow
+  // (`photo-uploader.tsx`) consumes that column, and no baselined surface renders it. Rewriting it
+  // to match the local path would imply these placeholders exist in Cloudinary, which they do not.
+  if (l.photos > VRT_PHOTO_ASSETS) {
+    throw new Error(
+      `${l.id} declares ${l.photos} photos but only ${VRT_PHOTO_ASSETS} placeholder assets exist ` +
+        `(public/vrt/photo-0.svg … photo-${VRT_PHOTO_ASSETS - 1}.svg). Add the missing file before ` +
+        `raising the count — an index with no asset seeds a 404 and re-mints a broken-image baseline.`,
+    );
+  }
   for (let i = 0; i < l.photos; i++) {
     await sql`
       INSERT INTO "listing_photo" (id, listing_id, public_id, url, position)
-      VALUES (${`${l.id}_p${i}`}, ${l.id}, ${`fitout/vrt/${l.id}/${i}`}, ${`https://example.invalid/vrt-${i}.jpg`}, ${i})
+      VALUES (${`${l.id}_p${i}`}, ${l.id}, ${`fitout/vrt/${l.id}/${i}`}, ${`/vrt/photo-${i}.svg`}, ${i})
     `;
   }
   // 06:00–21:00 every weekday, so whichever day the frozen clock lands on is bookable.
@@ -261,9 +312,19 @@ async function main(): Promise<void> {
     SELECT count(*)::int AS tags FROM listing_activity_tag WHERE listing_id LIKE 'vrt_%'
   `;
 
+  // Every seeded photo url, deduplicated. Printed rather than merely asserted because the property
+  // that matters is "these all resolve", and a human reading `/vrt/photo-N.svg` can check that
+  // against `ls public/vrt/` in a way they cannot check a count. A remote host reappearing here is
+  // the regression this line exists to make loud.
+  const photoUrls = await sql<{ url: string }[]>`
+    SELECT DISTINCT url FROM listing_photo WHERE listing_id LIKE 'vrt_%' ORDER BY url
+  `;
+
   console.log(
     `[vrt-fixture] published listings=${listings} photos=${photos} bookings=${bookings} ` +
       `operating_hours=${hours} activity_tags=${tags}\n` +
+      `[vrt-fixture] photo urls (${photoUrls.length} distinct, all committed under public/): ` +
+      `${photoUrls.map((r) => r.url).join(" ")}\n` +
       `[vrt-fixture] clock=${VRT_CLOCK_ISO} collision=${VRT_COLLISION.startUtc}..${VRT_COLLISION.endUtc} ` +
       `(both units of ${VRT_IDS.exclusive})\n` +
       `[vrt-fixture] ${VRT_IDS.farTennis} is the only tennis supply and sits ~20 km out — a tennis ` +
