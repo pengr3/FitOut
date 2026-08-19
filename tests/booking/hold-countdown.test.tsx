@@ -38,7 +38,7 @@ import * as React from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, act } from "@testing-library/react";
 
-import { HoldProvider } from "@/components/booking/hold-provider";
+import { HoldProvider, useHold } from "@/components/booking/hold-provider";
 import { PublishExpiresAt } from "@/components/booking/hold-publisher";
 import { HoldCountdown } from "@/components/booking/hold-countdown";
 
@@ -243,6 +243,101 @@ describe("GATE-03 — the hold countdown announces once and only once", () => {
       "a hold that skipped from 15 minutes straight to expiry announced a threshold that never " +
         "arrived.",
     ).toBe("");
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// 12-REVIEW WR-02 — THE HEADER AND THE REST OF THE PAGE AGREE FROM THE FIRST PAINT
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A different property from the four above, in the same component, so it gets its own block.
+//
+// The displayed `expired` state comes from a clock reading taken in a lazy `useState` initializer, so
+// this component can render "Hold expired" on its VERY FIRST paint — the hold ran out while the page was
+// hydrating. But the thing that tells the REST of the document — `markExpired()` on the shared hold
+// context, which is the only input to `ReserveView`'s D-44 whole-page swap — used to be reachable only
+// from inside the `setInterval` callback, which does not run until roughly a second after mount. In that
+// window the header read "Hold expired" while the price breakdown, the cancellation disclosure and
+// `Confirm & pay` were still rendered and pressable.
+//
+// The cases below are a pair, and the negative is the load-bearing one: the mount check must fire ONLY
+// for a deadline that has already passed. A version that reported an expiry on every mount would flip
+// every ordinary checkout render into the expiry interstitial — which is both a wrong page and a change
+// to a photographed surface.
+//
+// The probe reads the context rather than the DOM on purpose. What the header PAINTS is case (3)/(4)'s
+// subject; what the rest of the page is TOLD is this one's, and they were the two halves that disagreed.
+
+describe("WR-02 — an already-expired deadline is reported to the page at mount, not a tick later", () => {
+  const PROBE_ID = "hold-expired-probe";
+
+  /**
+   * What `ReserveView` would read, RENDERED rather than captured.
+   *
+   * Writing the context value into a variable declared outside the component is the obvious shape and
+   * the lint rule `react-hooks/immutability` rejects it outright (it is a render-phase write to
+   * module-adjacent state — the exact pattern the compiler cannot reason about). Rendering it is also
+   * simply more honest: the assertion then reads a value React actually committed, not one a render
+   * happened to leave behind. Plain `id`, never a `data-testid`: those are a declared GATE-04 contract
+   * over `src/`, and a test fixture has no business appearing in one.
+   */
+  function Probe() {
+    const { expired } = useHold();
+    return <span id={PROBE_ID}>{String(expired)}</span>;
+  }
+
+  /** Renders the real composition plus that probe. */
+  function mountWithProbe(expiresAt: string) {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    const utils = render(
+      <HoldProvider>
+        <PublishExpiresAt expiresAt={expiresAt} />
+        <HoldCountdown />
+        <Probe />
+      </HoldProvider>,
+    );
+    // Flushes the publisher's effect, exactly as `mount()` above does. It advances the clock by NOTHING,
+    // so the 1-second interval has still never run when the assertions below are made — which is the
+    // whole point: the report must not depend on it.
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    const seenExpired = () => utils.container.querySelector(`#${PROBE_ID}`)?.textContent ?? null;
+    return { ...utils, seenExpired };
+  }
+
+  it("(6) reports the expiry before the first interval tick", () => {
+    const { container, seenExpired } = mountWithProbe(new Date(T0.getTime() - 1_000).toISOString());
+
+    // Guard the guard: the header must actually be in its expired render, or "the page was told" is a
+    // claim about a state nobody is in.
+    expect(
+      slotOf(container).textContent,
+      "the countdown is not showing the expired render, so the disagreement this case is about cannot " +
+        "arise and the assertion below would pass for the wrong reason.",
+    ).toContain("Hold expired");
+
+    expect(
+      seenExpired(),
+      "the header renders `Hold expired` and the hold context still says the hold is live. For as long " +
+        "as that holds, ReserveView keeps the reserve form on screen — the price, the cancellation " +
+        "rungs and a pressable `Confirm & pay` — under a header saying the hold is over. The client " +
+        "timer is only a display cue (the server re-checks expires_at on confirm), but one document " +
+        "must not contradict itself about whether the booker still has a hold.",
+    ).toBe("true");
+  });
+
+  it("(7) a LIVE deadline reports nothing at mount", () => {
+    const { container, seenExpired } = mountWithProbe(EXPIRES_AT);
+
+    expect(slotOf(container).textContent, "the countdown rendered no mm:ss").toMatch(/\d+:\d{2}/);
+    expect(
+      seenExpired(),
+      "mounting a countdown on a hold with 15 minutes left reported an expiry. That would swap every " +
+        "ordinary checkout render for the expiry interstitial — the mount check is conditional on the " +
+        "deadline having ALREADY passed, and this is the case that pins the condition.",
+    ).toBe("false");
   });
 });
 

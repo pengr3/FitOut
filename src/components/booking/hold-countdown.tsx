@@ -117,10 +117,41 @@ function LiveCountdown({ expiresAt, onExpire }: { expiresAt: string; onExpire: (
     onExpireRef.current = onExpire;
   }, [onExpire]);
 
+  // FIRE-ONCE, SHARED BY BOTH EFFECTS BELOW. It was a `let` scoped inside the interval effect, which was
+  // enough while the interval was the only caller; it is a ref now because the mount check can get there
+  // first and the two must not both report one expiry.
+  const firedRef = React.useRef(false);
+
+  // ── THE MOUNT CHECK (12-REVIEW WR-02) ────────────────────────────────────────────────────────────
+  // The displayed `expired` state is derived from a clock reading taken in the lazy `useState`
+  // initializer, so this component can render "Hold expired" on its VERY FIRST paint — a hold whose TTL
+  // ran out while the page was still hydrating. `onExpireRef.current()` is what tells the rest of the
+  // document, and it lived only inside the interval callback, which does not fire until ~1s after mount.
+  // For that one second the header said the hold was over while the price breakdown, the cancellation
+  // disclosure and `Confirm & pay` were all still rendered and pressable, on the one route whose docs are
+  // most emphatic that ONE source of truth decides this ("ReserveView flips the whole page… never a
+  // stale reserve form"). No money rides on it — `confirmBooking` re-checks `expires_at > now()`
+  // server-side and is the sole authority — but a page that visibly disagrees with itself about whether
+  // the booker still has a hold is not something to ship because the window is short.
+  //
+  // IT IS AN EFFECT, NOT A RENDER-TIME CALL, and that is not stylistic: `onExpire` is `markExpired()`,
+  // a setter on the shared HoldProvider context, and calling a parent's setter during render is its own
+  // defect. It cannot loop either — `markExpired` is a one-way latch that bails out on an unchanged
+  // value, `expiresAt` does not move, so the `key={expiresAt}` that mounts this component does not
+  // change and this effect does not re-run.
+  //
+  // A LIVE HOLD REACHES `return` ON THE FIRST LINE AND NOTHING HAPPENS. That is the whole of its
+  // interaction with the ordinary checkout render.
+  React.useEffect(() => {
+    if (target - Date.now() > 0) return;
+    if (firedRef.current) return;
+    firedRef.current = true;
+    onExpireRef.current?.();
+  }, [target]);
+
   React.useEffect(() => {
     // The interval is the ONLY place state is set — never synchronously in the effect body (that would
     // trip react-hooks/set-state-in-effect and loop). It ticks once a second and fires onExpire once at 0.
-    let fired = false;
     const id = window.setInterval(() => {
       const r = target - Date.now();
       setRemaining(r);
@@ -129,10 +160,15 @@ function LiveCountdown({ expiresAt, onExpire }: { expiresAt: string; onExpire: (
       // already expired. In that case nobody announces the threshold and HoldExpiredState announces
       // the expiry, which is the correct pair of statements.
       if (r > 0 && r <= FINAL_MINUTE_MS) setAnnounced(true);
-      if (r <= 0 && !fired) {
-        fired = true;
+      if (r <= 0) {
+        // The clear is UNCONDITIONAL while the report is guarded. Hanging the clear off the fire-once
+        // flag would leave the interval running forever whenever the mount check above got there first
+        // — a timer with nothing left to time, re-rendering once a second for as long as the tab lives.
         window.clearInterval(id);
-        onExpireRef.current?.();
+        if (!firedRef.current) {
+          firedRef.current = true;
+          onExpireRef.current?.();
+        }
       }
     }, 1000);
     return () => window.clearInterval(id);
