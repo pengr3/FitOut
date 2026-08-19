@@ -2,7 +2,7 @@
 status: awaiting_human_verify
 trigger: "e2e/search-and-book.spec.ts test 2 (`directly-seeded confirmed booking → the durable confirmation, unchanged across a refresh (D-43)`) fails at line 341 with `strict mode violation: getByText('FIT-XXXXXXXX', { exact: true }) resolved to 2 elements` — but ONLY when test 1 (`live instant hold`) runs first. Alone it passes 3/3."
 created: 2026-08-20T00:00:00Z
-updated: 2026-08-20T02:10:00Z
+updated: 2026-08-20T04:30:00Z
 ---
 
 ## Current Focus
@@ -35,12 +35,22 @@ reasoning_checkpoint:
     - Verified against `next dev` (Turbopack) only, which is what `playwright.config.ts`'s webServer boots.
       A production build streams through the same `<div hidden id="S:N">` + `$RC` machinery, so the fix is
       not dev-specific, but the OVERLAP RATE under `next start` was not measured.
-    - The three assertions above the reload (`/booking reference/i`, `"Confirmed"` exact) are the same shape
-      and were left alone: they run against the COLD first load, which was clean on all 16 iterations. They
-      are latent, and the comment added to the spec says so and says what fixes them.
     - The regime is warmth-dependent: 0/20 duplicates on a cool dev server, then 10/20, then 15/16, then 8/8.
       The exact warm-up variable (cached chunks making hydration outrun `$RC`) was inferred from the timeline,
       not isolated with a dedicated experiment.
+    - TWO BLIND SPOTS FROM THE FIRST PASS WERE REAL MISSES, both caught in review, both now closed. They are
+      left in the record rather than edited away because the second one is a method error, not a detail:
+        (i)  SCOPE. The first pass fixed only the reference in test 2 and reasoned about the rest of the file
+             instead of measuring it. `:263` (`km away`, bare, straight after a `goto`) was live the whole
+             time and is in fact the second-worst site in the file at 5/10. "One site failed, so one site is
+             affected" was never a supported inference — the mechanism is per-navigation, and every route in
+             this flow has a `loading.tsx`.
+        (ii) SAMPLE SIZE. The first pass claimed verification off THREE consecutive green full-file runs. The
+             per-site rate at the worst site is ~1 in 3, so three greens has ~30% odds of proving nothing.
+             The claim "the cold first load is clean" rested on 16 iterations of a DIFFERENT harness that
+             never ran those assertions — and at 10 iterations that did run them, `:333` and `:334` each
+             produced a violation. For this defect class the sample must be >= 6 full-file runs on a server
+             demonstrated warm at the time of the run, and the session must state the number.
 
 ## Symptoms
 
@@ -178,6 +188,95 @@ started: pre-existing; NOT introduced by Phase 12 (order-dependent, surfaced dur
     post-`npm run build` re-run of the full file: 3 passed
   implication: The fix holds under the exact condition that reproduces the failure 8/8 without it.
 
+- timestamp: 2026-08-20T03:10:00Z
+  checked: |
+    REVIEW FINDING (coordinator): the same defect was still live at `e2e/search-and-book.spec.ts:263`,
+    `await expect(page.getByText(/\\d+(\\.\\d+)?\\s*km away/i)).toBeVisible()`, immediately after
+    `page.goto(/?lat=…&category=tennis_court&radius=25)`. Independently, 6 full-file runs on a warm server
+    gave 5 passes and 1 failure — roughly 1 in 3 — against the 3 consecutive greens the first pass called
+    verification.
+  found: Confirmed on both counts. The first pass fixed one site and under-sampled its own verification.
+  implication: |
+    The fix was correct but the SCOPE was wrong, and the verification protocol could not have detected that.
+    Every `getByText` that follows a navigation in this file is exposed, because every route in the flow has
+    a `loading.tsx` and therefore a streaming buffer.
+
+- timestamp: 2026-08-20T03:30:00Z
+  checked: |
+    FILE-WIDE SWEEP, measured rather than reasoned. A temporary harness ran the SHIPPED assertions verbatim,
+    each wrapped in try/catch for per-site attribution, 10 fresh contexts on a warm server; plus a settled
+    total/visible count per site via one atomic `locator.evaluateAll` (checkVisibility + bounding box).
+  found: |
+    SITE                              SHIPPED ASSERTION       STRICT-MODE VIOLATIONS   SETTLED total/visible
+    :263  km away              (bare)                          5/10                    1 / 1
+    :341  reference, reload    (bare, pre-fix)                 8/10                    2 / 1
+    :341  reference, reload    (treated)                       0/10                    -
+    :333  booking reference    (bare, cold load)               1/10                    1 / 1
+    :334  Confirmed exact      (bare, cold load)               1/10                    1-2 / 1
+    :230  Times shown in       (bare)                          0/10                    1 / 1
+    :280  5:00-7:00 PM         (bare)                          0/10                    1 / 1
+    :292  We're holding this   (bare)                          0/10                    1 / 1
+    :311  PayMongo line        (bare)                          0/10                    1 / 1
+    :257  price/hr             (.first())                      0/10                    1 / 1
+    :279  (GMT+8)              (.first())                      0/10                    2 / 2
+    :284  Total exact          (.first())                      0/10                    2 / 1
+    :285  peso                 (.first())                      0/10                    3 / 2
+    A separate single-shot measurement at :263 caught a THIRD phase: 3/8 iterations had total=1 where that
+    ONE match was HIDDEN — the staged-only window, before the live copy is inserted.
+  implication: |
+    - The overlap has THREE phases, not two: staged-only (hidden) -> staged + live (the strict-mode window)
+      -> live-only. A bare `toBeVisible()` retries THROUGH all three, which is how its retry loop lands in
+      the middle one. This also means `.first()` is unsafe on its own terms: the staging div PRECEDES the
+      live tree in DOM order, so `.first()` can resolve to the hidden copy and then fail `toBeVisible()`
+      with a misleading "element is not visible" rather than a strict-mode violation.
+    - 0/10 is NOT evidence of safety when the worst site only fires half the time. The bare sites at 0/10
+      are structurally identical to the ones at 5/10 and were treated on that basis, not on their score.
+    - The four `.first()` sites split cleanly on their SETTLED VISIBLE count, which is the only number that
+      decides whether cardinality is assertable.
+
+- timestamp: 2026-08-20T03:45:00Z
+  checked: |
+    PER-SITE DECISIONS on the four pre-existing `.first()` sites — `.first()` silences the strict-mode
+    violation but drops the singularity claim entirely, which is the same objection raised against using
+    `.first()` for the reference. Each was decided on its measured visible count, not converted silently.
+  found: |
+    :257  price/hr        visible=1  -> CONVERTED to a visible-filtered toHaveCount(1). The `.first()` was
+                                        silencing the line's own stated claim: the comment above it says
+                                        "only the tennis listing matches the filter, SEARCH-05", and with
+                                        `.first()` a second result card carrying a second price would pass.
+    :284  Total exact     visible=1  -> CONVERTED to a visible-filtered toHaveCount(1). The existing comment
+                                        already documents total=2 / one reachable per width (the sticky bar
+                                        is `lg:hidden` at 1280px). Measurement confirms it exactly. That is
+                                        a real invariant, so the line now asserts it instead of stepping
+                                        around it; `.first()` made the documented claim untestable.
+    :279  (GMT+8)         visible=2  -> KEPT as at-least-one. Two genuinely visible occurrences (the window
+                                        line's tz suffix and the standalone tz note). `toHaveCount(2)` would
+                                        copy-pin an incidental number. `.filter({ visible: true })` inserted
+                                        BEFORE `.first()` so `.first()` can never pick the buffer's copy.
+    :285  peso            visible=2  -> KEPT as at-least-one. The breakdown is several money figures and the
+                                        count is incidental to what the line checks (that money renders).
+                                        Same `.filter({ visible: true })` before `.first()`.
+  implication: |
+    Two of the four `.first()` sites were hiding assertable invariants and are now stronger than before this
+    bug was found. The other two are honest at-least-one checks and say so at the call site. No site was
+    weakened, and no second pattern was invented — every site uses the same
+    `.filter({ visible: true })` treatment already argued for the reference.
+
+- timestamp: 2026-08-20T04:20:00Z
+  checked: |
+    VERIFICATION AT THE CORRECTED SAMPLE SIZE. Server demonstrated warm immediately BEFORE the runs and
+    again immediately AFTER, using the untreated assertion as the probe.
+  found: |
+    warmth probe, before:  bare reload assertion 1/6 pass (5 strict-mode violations); treated 6/6 pass
+    full file, --workers=1: 8/8 runs passed (3 tests each, 24/24 tests), 0 strict-mode violations
+    warmth probe, after:   bare reload assertion 2/6 pass (4 violations); bare `:263` 5/6 (1 violation);
+                           treated 6/6 pass
+    targeted `-g "directly-seeded confirmed booking"`: 3/3 passed
+  implication: |
+    The server was still producing the failure on the untreated assertions on either side of the 8 green
+    runs, so the greens are attributable to the treatment rather than to a cooled server. 8 runs at an
+    observed per-run failure rate of ~1/3 puts the probability of 8 false greens at roughly 0.04%.
+
 ## Resolution
 
 root_cause: |
@@ -200,27 +299,38 @@ root_cause: |
   dev-server warmth, which flips the overlap from ~0% to ~95%.
 
 fix: |
-  `e2e/search-and-book.spec.ts` — the durable-confirmation test now asserts on the VISIBLE reference:
+  `e2e/search-and-book.spec.ts` — a FILE-WIDE sweep of all 11 `getByText` sites, one pattern throughout:
+  `.filter({ visible: true })`, plus `toHaveCount(n)` wherever the visible count is deterministic.
 
-      const referenceOnScreen = page.getByText(/FIT-[0-9A-Z]{8}/).filter({ visible: true });
-      const reference = await referenceOnScreen.textContent();
-      …
-      await expect(
-        page.getByText(reference!.trim(), { exact: true }).filter({ visible: true }),
-        "the durable confirmation must show exactly ONE on-screen booking reference after a refresh",
-      ).toHaveCount(1);
+    9 sites -> visible-filtered `toHaveCount(1)`   :230 :257 :263 :280 :284 :292 :311 :333 :334 :341
+    2 sites -> visible-filtered `.first()`         :279 (visible=2)  :285 (visible=2)
 
-  A STRENGTHENING, not a `.first()` shrug: the old line required one TOTAL match, the new one requires exactly
-  one VISIBLE match, so a genuine double render a booker could read still fails. An in-file comment block
-  records the DOM timeline, the measured counts, why `.first()` / a longer timeout / a CSS scope were each
-  rejected, and the general `getByRole`-is-immune / `getByText`-is-not rule.
+  Every conversion is a strengthening: the bare `toBeVisible()` required one TOTAL match, these require an
+  exact VISIBLE count, so a genuine double render a person could read still fails. The two `.first()` sites
+  keep at-least-one semantics because their visible count is genuinely >1 and incidental — but the visibility
+  filter goes IN FRONT of `.first()`, because the staging buffer precedes the live tree in DOM order and an
+  unfiltered `.first()` can resolve to the hidden copy.
+
+  The long explanation is hoisted ONCE to a file-level block, THE STREAMING-BUFFER RULE, above `pickWindow`:
+  the DOM timeline, the measured per-site exposure table, the rejected alternatives (`.first()`, a longer
+  timeout, a CSS scope — each with the measurement that rejected it) and the `getByRole`-is-immune /
+  `getByText`-is-not rule. Each call site carries only its own one-line reason.
 
 verification: |
-  - Failing regime confirmed hot immediately before the fix (8/8 duplicates) and after (7/8).
-  - `npx playwright test e2e/search-and-book.spec.ts --project=chromium --workers=1` — 3 passed × 3 consecutive runs.
-  - `npx playwright test … -g "directly-seeded confirmed booking" --workers=1` — 1 passed × 2.
-  - Full-file re-run after `npm run build` — 3 passed.
-  - `npx tsc --noEmit` — 0 errors.
+  SAMPLE SIZE IS STATED DELIBERATELY. The observed per-run failure rate is ~1 in 3, so a small number of
+  greens proves nothing; the first pass reported 3 consecutive greens and was wrong to call that verified.
+
+  - Warmth probe BEFORE the runs (untreated assertion as the control): bare reload assertion 1/6 pass,
+    5 strict-mode violations; treated assertion 6/6 pass.
+  - `npx playwright test e2e/search-and-book.spec.ts --project=chromium --workers=1`
+    — 8/8 consecutive full-file runs passed (24/24 tests), 0 strict-mode violations.
+  - Warmth probe AFTER the runs: bare reload assertion 2/6 pass (4 violations), bare `:263` 5/6 (1
+    violation), treated 6/6 pass — i.e. the server was still producing the failure on either side of the
+    8 greens, so they are attributable to the treatment and not to a cooled server.
+  - `npx playwright test … -g "directly-seeded confirmed booking" --workers=1` — 3/3 passed.
+  - Per-site, treated vs untreated under identical conditions: `:341` 0/10 violations treated against
+    8/10 bare; `:263` 5/10 bare.
+  - `npx tsc --noEmit` — 0 errors.  `npx eslint e2e/search-and-book.spec.ts` — clean.
   - `npx vitest run` — 141 files / 1307 tests passed (1 file / 4 tests skipped) — baseline unchanged.
   - `npm run build` — lint 0 errors / 12 known warnings, design suite 41 files passed, compiled successfully.
 
@@ -239,10 +349,13 @@ adjacent_findings_not_fixed:
     file has no reason to add") — the page does not. A real assistive-tech defect, unrelated to this bug, touching
     five return branches, deliberately left for its own change rather than folded into a debug fix.
   - |
-    LATENT SAME-CLASS HAZARD elsewhere: `e2e/hold-countdown.spec.ts:255,345` and
-    `e2e/open-capacity.spec.ts:477,497,587` also assert straight after a `reload()`. Any `getByText` there is
-    exposed to the identical streaming overlap on any route with a `loading.tsx`. Not touched (they are green);
-    the rule and its fix are written out in the comment added to `search-and-book.spec.ts`.
+    LATENT SAME-CLASS HAZARD IN OTHER SPECS: `e2e/hold-countdown.spec.ts:255,345` and
+    `e2e/open-capacity.spec.ts:477,497,587` also assert straight after a `reload()`, and any `getByText`
+    after any navigation in any spec is exposed on any route with a `loading.tsx`. NOT swept here — that is
+    a suite-wide change and this session's remit was one file — but the evidence now says plainly that
+    "those specs are green" is not evidence they are safe, because the worst site in THIS file was green
+    5 times in 10. THE STREAMING-BUFFER RULE at the top of `search-and-book.spec.ts` is written to be the
+    reference for that sweep when it is done.
 
 files_changed:
-  - "e2e/search-and-book.spec.ts — visible-filtered reference read + `toHaveCount(1)` on the post-reload assertion, with the evidence recorded in-file"
+  - "e2e/search-and-book.spec.ts — all 11 `getByText` sites visibility-filtered (9 as exact `toHaveCount(1)`, 2 as argued at-least-one), with THE STREAMING-BUFFER RULE hoisted once to file level"
