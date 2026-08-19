@@ -40,10 +40,16 @@ export type SlotSelection = z.infer<typeof slotSelectionSchema>;
  * rejected (not silently clamped) so only a known preset reaches the ST_DWithin query.
  *
  * EXPORTED as of plan 12-12 because the STATE-03 relaxation ladder's first rung is "the next preset
- * up, to a declared max" (D-52) and it must step through THIS list, not a fourth copy of it. Three
- * copies already ship (`search-bar.tsx`, `search-results.tsx` and this one) and the ladder is the
- * only one of them whose correctness is a claim about the ORDER of the values rather than about
- * membership — so it reads the authority instead of restating it.
+ * up, to a declared max" (D-52) and it must step through THIS list, not a fourth copy of it — the
+ * ladder being the one consumer whose correctness is a claim about the ORDER of the values rather
+ * than about membership.
+ *
+ * THIS IS NOW THE ONLY COPY (12-REVIEW WR-03). The note here used to record that three shipped —
+ * `search-bar.tsx`'s radius Select and `search-results.tsx`'s escape hatches each restated the array
+ * beside this one — as a known cost of exporting late. Both now import from here. That matters
+ * because adding a preset (a 50 km rung, say) touched three files and only ONE of them, the refine
+ * below, would have failed to compile if a copy were missed; the other two would have silently
+ * offered a booker a radius the schema rejects, or refused to climb to one it accepts.
  */
 export const RADIUS_PRESETS = [2, 5, 10, 25] as const;
 

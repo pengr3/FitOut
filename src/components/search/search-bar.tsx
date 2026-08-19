@@ -22,7 +22,10 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { SearchIcon, LocateFixedIcon, CalendarIcon } from "lucide-react";
 
-import { searchParamsSchema } from "@/lib/validation/booking";
+// `RADIUS_PRESETS` comes from the authority rather than a fourth copy (12-REVIEW WR-03). This file used
+// to restate `[2, 5, 10, 25]` beside the schema that refines against it, so adding a preset meant editing
+// three files and only one of them — the schema — would have failed to compile if a copy were missed.
+import { RADIUS_PRESETS, searchParamsSchema } from "@/lib/validation/booking";
 import { SPACE_TYPE_LABELS, ACTIVITY_TAG_LABELS } from "@/lib/listing-vocab";
 import type { RelaxationRungId } from "@/lib/search/relaxation";
 import { STATUS_TONE_RECIPES } from "@/lib/design/status-tones";
@@ -44,8 +47,6 @@ import {
 } from "@/components/ui/select";
 
 const ANY = "__any__"; // Radix Select forbids an empty-string item value — sentinel for "no filter".
-
-const RADIUS_PRESETS = [2, 5, 10, 25] as const; // UI-SPEC § Discretionary — default 10.
 
 /** On-the-hour "HH:mm" options (00:00..23:00), 12-hour labels — matches the on-the-hour rule (D-22). */
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {

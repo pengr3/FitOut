@@ -30,6 +30,11 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { SearchXIcon, SparklesIcon } from "lucide-react";
 
+// The preset ladder and its declared max come from the authority rather than a third copy (12-REVIEW
+// WR-03). `MAX_RADIUS_KM` is the same `RADIUS_PRESETS[length - 1]` derivation this file used to write
+// out for itself — imported, not re-derived, so the escape hatches below and the STATE-03 ladder in
+// `lib/search/relaxation.ts` step through one list.
+import { MAX_RADIUS_KM, RADIUS_PRESETS } from "@/lib/validation/booking";
 import { SearchResultCard, type SearchedWindow } from "@/components/search/search-result-card";
 import { RelaxBand, type RelaxBandProps } from "@/components/search/relax-band";
 import type { SearchResultRow } from "@/lib/search/query";
@@ -47,8 +52,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const RADIUS_PRESETS = [2, 5, 10, 25] as const;
-const MAX_RADIUS = RADIUS_PRESETS[RADIUS_PRESETS.length - 1];
 const SORT_HINT_ID = "search-sort-hint";
 
 type SearchResultsProps = {
@@ -150,10 +153,10 @@ export function SearchResults({
   const onSortChange = (value: string) => pushWith((p) => p.set("sort", value), { resetPage: true });
   const onLoadMore = () => pushWith((p) => p.set("page", String(page + 1)));
 
-  const atMaxRadius = currentRadius >= MAX_RADIUS;
+  const atMaxRadius = currentRadius >= MAX_RADIUS_KM;
   const onBroadenRadius = () =>
     pushWith((p) => {
-      const next = RADIUS_PRESETS.find((r) => r > currentRadius) ?? MAX_RADIUS;
+      const next = RADIUS_PRESETS.find((r) => r > currentRadius) ?? MAX_RADIUS_KM;
       p.set("radius", String(next));
     }, { resetPage: true });
   const onClearFilters = () => startTransition(() => router.push("/"));
@@ -165,7 +168,7 @@ export function SearchResults({
   // the booker came for.
   const onWidenToNearby = () =>
     pushWith((p) => {
-      p.set("radius", String(MAX_RADIUS));
+      p.set("radius", String(MAX_RADIUS_KM));
       for (const k of ["priceMax", "date", "start", "end"]) p.delete(k);
     }, { resetPage: true });
   // STATE-03's Undo. An ADDITION of `relax=0` to the BOOKER'S query — `queryString` is that query, not
