@@ -116,6 +116,16 @@ export default async function Home({
       : 0;
 
   let relaxation: RelaxationOutcome | null = null;
+  // ⚠ "THE LADDER FOUND NOTHING" AND "THE LADDER NEVER FINISHED" ARE THE SAME `relaxation === null`, AND
+  // THEY ARE NOT THE SAME CLAIM (12-REVIEW WR-01). `relaxExhausted` below entitles the empty state to
+  // say *"We widened the search and still came up empty"* — which `search-results.tsx` states plainly is
+  // "a claim about work that was actually done". A ladder that THREW mid-rung (a transient DB error
+  // inside one of the `searchListings` calls it drives) leaves `relaxation` at exactly the null the
+  // all-rungs-empty case leaves it at, so without this flag the booker is told, specifically and
+  // falsely, that four queries ran and came back empty when none of them completed. `applicableRungs` is
+  // a STATIC count of what could be widened, computed before any query runs, so it cannot tell the two
+  // apart either. This is the one bit that can.
+  let ladderFailed = false;
   if (zeroResult && applicableRungs > 0) {
     try {
       relaxation = await runRelaxationLadder(
@@ -128,7 +138,10 @@ export default async function Home({
       );
     } catch {
       // Best-effort, exactly as the fallback it replaces was: a failed rung yields the empty state with
-      // its escape hatches, never an error on a search that DID run and simply found nothing.
+      // its escape hatches, never an error on a search that DID run and simply found nothing. What is
+      // recorded rather than swallowed is the FACT of the failure — the swallowing was right, the
+      // silence about it was not.
+      ladderFailed = true;
     }
   }
 
@@ -236,7 +249,14 @@ export default async function Home({
                   },
                 }
           }
-          relaxExhausted={relaxation === null && applicableRungs > 0}
+          relaxExhausted={
+            // A CRASHED LADDER IS NOT "WORK THAT WAS ACTUALLY DONE" (WR-01) — see `ladderFailed` above.
+            // Falling back to the shipped `Try widening your search.` body is the honest answer: it is
+            // the same sentence a booker gets after an Undo, where nothing was widened either. It is
+            // deliberately NOT `fetchError`: that copy is about the search itself failing, and the
+            // booker's OWN search succeeded here and genuinely returned nothing.
+            relaxation === null && applicableRungs > 0 && !ladderFailed
+          }
           fetchError={fetchError}
         />
       </div>
