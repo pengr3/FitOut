@@ -332,13 +332,66 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     await expect(page.getByRole("heading", { name: /booking confirmed/i })).toBeVisible();
     await expect(page.getByText(/booking reference/i)).toBeVisible();
     await expect(page.getByText("Confirmed", { exact: true })).toBeVisible();
-    const reference = await page.getByText(/FIT-[0-9A-Z]{8}/).textContent();
+    // ⚠ `.filter({ visible: true })` ON BOTH REFERENCE QUERIES. This is a STRENGTHENING, not the
+    // usual `.first()` shrug, and the difference is the whole point — see the block below the reload.
+    const referenceOnScreen = page.getByText(/FIT-[0-9A-Z]{8}/).filter({ visible: true });
+    const reference = await referenceOnScreen.textContent();
     expect(reference).toMatch(/FIT-[0-9A-Z]{8}/);
 
     // ── Durable across a refresh (D-43) — the same reference re-renders from persisted state, no hold. ──
     await page.reload();
     await expect(page.getByRole("heading", { name: /booking confirmed/i })).toBeVisible();
-    await expect(page.getByText(reference!.trim(), { exact: true })).toBeVisible();
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    // WHY THIS IS A VISIBLE-FILTERED COUNT AND NOT A BARE `toBeVisible()`
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // This line used to read `await expect(page.getByText(ref, { exact: true })).toBeVisible()` and
+    // failed intermittently — and, once the dev server had been exercised for a while, on nearly every
+    // run — with a strict-mode violation naming TWO `<p class="… tabular-nums sm:text-display">` nodes
+    // carrying the same reference. The obvious readings are all wrong and were each ruled out: the
+    // reference is a SHA-256 of the booking id so two bookings cannot collide; `bookings/[id]/page.tsx`
+    // has exactly ONE `{reference}`; there are no parallel/intercepting segments and no `template.tsx`.
+    //
+    // A MutationObserver installed before the reload's first script (see
+    // `.planning/debug/resolved/confirmation-reference-duplicate.md`) showed what actually happens:
+    //
+    //   t=121 ms  ONE match, inside  <div hidden="" id="S:1">   ← React's out-of-order STREAMING buffer
+    //   t=218 ms  TWO matches: the live one under `<main>`, plus that staged copy, still unreclaimed
+    //   t=316 ms  ONE match, live only — the hidden staging div is gone
+    //
+    // `<div hidden id="S:N">` is where React parks a Suspense boundary's payload until it swaps it into
+    // place; the boundary here is the one `bookings/[id]/loading.tsx` creates. When the client is warm
+    // the boundary is client-rendered from the flight payload BEFORE `$RC` reclaims the buffer, so for
+    // roughly one tenth of a second the document holds both. Measured over 16 fresh contexts: 15 hit the
+    // overlap, and in EVERY ONE of them `filter({ visible: true }).count()` was exactly 1 and the browser
+    // console was empty (no hydration error, nothing recovered, nothing wrong with the page). The extra
+    // copy is under the `hidden` attribute — display:none, out of the accessibility tree, off every
+    // screenshot. A booker never sees the reference twice; only a Playwright locator does, because
+    // locators match hidden elements and strict mode counts them BEFORE `toBeVisible()` filters.
+    //
+    // So the bare assertion was not testing the product, it was testing React's streaming schedule. The
+    // replacement asserts the thing the surface actually promises — EXACTLY ONE booking reference on
+    // screen after a refresh — and is stronger than what it replaces: the old line only required one
+    // total match, this one requires one VISIBLE match, so a genuine double render (two copies a booker
+    // could read) still fails here exactly as it should.
+    //
+    // WHY NOT `.first()`, A LONGER TIMEOUT, OR A CSS SCOPE. `.first()` and a timeout both stop asserting
+    // singularity, which is the only interesting part of the claim. A CSS scope does not even work:
+    // the staged copy carries its own `<main class="mx-auto w-full max-w-2xl …">`, so scoping to it
+    // measured 2 on most overlapping iterations and 1 on the rest — a race, not a fix.
+    //
+    // THE GENERAL RULE, for anyone writing the next assertion after a `reload()` or a `goto()`:
+    // `getByRole` is IMMUNE to this (the staged subtree is `hidden`, so it is not in the a11y tree —
+    // measured at exactly 1 on all 16 iterations, including the 15 where `getByText` saw 2), and
+    // `getByText` is NOT. The three assertions above the reload are the same shape and stay as they are
+    // because they run against the COLD first load, where the buffer is always reclaimed first; if one
+    // of them ever goes red the same two words fix it for the same reason.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    await expect(
+      page.getByText(reference!.trim(), { exact: true }).filter({ visible: true }),
+      "the durable confirmation must show exactly ONE on-screen booking reference after a refresh",
+    ).toHaveCount(1);
   });
 
   test("abandoned hold → the calm 'Your hold expired' state with a recovery CTA (D-44)", async ({
