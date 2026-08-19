@@ -306,12 +306,20 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     // ── Search home replaced the Next.js scaffold (D-29). ──────────────────────────────────────────────
     await page.goto(`${BASE}/`);
     await expect(page.getByRole("heading", { name: /find a space to play/i })).toBeVisible();
-    await expect(page.locator("#search-submit")).toBeVisible();
+    // CARRY-OVER, found while sweeping the other two specs: THE STREAMING-BUFFER RULE is not a
+    // `getByText` rule. The buffer parked on `/` was measured to contain the SearchBar's own ids —
+    // `search-category`, `search-date`, `search-start`, `search-end`, `search-price`, `search-radius`,
+    // `search-submit` — so during the reveal this document holds two `#search-submit`s, and an id
+    // locator matches hidden elements exactly as a text locator does. `.click()` enforces strict mode
+    // too, so the two clicks below are exposed, not just the assertion. Observed at 0/8 here, which is
+    // why they are treated on the structural fact rather than on the score: the worst site in this file
+    // was also green 5 times out of 10.
+    await expect(page.locator("#search-submit").filter({ visible: true })).toBeVisible();
 
     // ── Apply a filter through the SearchBar (a Select + Search — no network geocoding). ────────────────
-    await page.locator("#search-category").click();
+    await page.locator("#search-category").filter({ visible: true }).click();
     await page.getByRole("option", { name: "Tennis court" }).click();
-    await page.locator("#search-submit").click();
+    await page.locator("#search-submit").filter({ visible: true }).click();
     await page.waitForURL(/category=tennis_court/);
 
     // The result card renders photo + name + ₱ price (only the tennis listing matches the filter, SEARCH-05).

@@ -372,6 +372,37 @@ async function pickDay(page: Page, d: DayLocal): Promise<void> {
 
 // ---- The five cases ---------------------------------------------------------
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE STREAMING-BUFFER RULE — why some locators here carry `.filter({ visible: true })`
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// React parks a Suspense boundary's payload in a `<div hidden id="S:n">` while it reveals it, so on a
+// route with a `loading.tsx` every SERVER-RENDERED element on the page briefly exists TWICE — once live,
+// once in that buffer. A Playwright locator matches hidden elements, so it resolves to 2 and strict mode
+// throws before `toBeVisible()` ever filters. The canonical account — the DOM timeline, the measurements,
+// and why `.first()`, a longer timeout and a CSS scope were each rejected — is in
+// `e2e/search-and-book.spec.ts`; search it for THE STREAMING-BUFFER RULE. Session:
+// `.planning/debug/resolved/confirmation-reference-duplicate.md`.
+//
+// MEASURED FOR THIS FILE. All three routes it drives stage PAGE content and never the layout:
+//   /                    id=S:1  main=true  siteHeader=false  testids=[result-card × 7]
+//   /listings/[id]       id=S:2  main=true  siteHeader=false  testids=[listing-key-facts, panel-card,
+//                                                                     booking-panel, booking-sticky-bar]
+//   /listings/[id]/book  id=S:0  main=true  siteHeader=false  testids=[panel-card, price-disclosure,
+//                                                                     price-total, checkout-sticky-bar]
+//
+// SO THE SPLIT IN THIS FILE IS, EXACTLY:
+//   • filtered   — every `getByText` / `page.locator` that names PAGE content after a navigation
+//   • NOT filtered, and each says so at the site:
+//       - `getByRole(...)` — immune; the buffer is `hidden` and therefore out of the accessibility tree
+//       - `toHaveCount(0)` — an absence claim; a duplicate cannot inflate zero, and filtering would
+//         weaken it to "not visible" (see the `Closed for today` line)
+//       - `getByTestId("site-header")` — layout, never staged
+//       - `page.locator("body").innerText()` — `innerText` is RENDER-AWARE and already excludes the
+//         buffer. Measured during an overlap: `textContent` found the needle 4 times, `innerText` 1.
+//         (The locator itself resolves to `<body>`, of which there is only ever one.)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+
 test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
   test("1 · the public drop-in page asks for a DAY, and no hour is offered anywhere on it", async ({
     page,
@@ -386,10 +417,14 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // Availability heading carries the Drop-in badge's own word.
     await expect(page.getByRole("heading", { name: /availability\s+drop-in/i })).toBeVisible();
     await expect(
-      page.getByText("Pick a day — your pass is good any time they're open.", { exact: true }),
+      page
+        .getByText("Pick a day — your pass is good any time they're open.", { exact: true })
+        .filter({ visible: true }),
     ).toBeVisible();
     // SC#2 — the venue timezone is named regardless of the browser's.
-    await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+    await expect(
+      page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i).filter({ visible: true }),
+    ).toBeVisible();
 
     // ── THE ABSENCE IS THE PRIMARY SIGNAL (§ 2). The hour picker is not disabled, it is NOT MOUNTED. ──
     // SlotPicker's Radix ToggleGroup is the hour grid (slot-picker.tsx:156-161); "Book full day" is D-23's
@@ -402,15 +437,25 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
 
     // The day panel: the date, the scarcity chip, the venue's opening hours, and the pass framing.
     await expect(page.getByRole("heading", { name: panelHeading(spotsDate) })).toBeVisible();
-    await expect(page.getByText("Spots available", { exact: true })).toBeVisible();
-    await expect(page.getByText("Open 6:00 AM – 10:00 PM · Makati time", { exact: true })).toBeVisible();
     await expect(
-      page.getByText("Your pass covers the whole day — come any time while they're open.", {
-        exact: true,
-      }),
+      page.getByText("Spots available", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByText("Open 6:00 AM – 10:00 PM · Makati time", { exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByText("Your pass covers the whole day — come any time while they're open.", {
+          exact: true,
+        })
+        .filter({ visible: true }),
     ).toBeVisible();
     // OC-06 — the head count is chosen PRE-hold, on this page.
-    await expect(page.getByText("How many passes?", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("How many passes?", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
 
     // Still no hour grid once a date is picked (the fork is the whole surface, not just its empty state).
     await expect(page.getByRole("group", { name: "Available hours" })).toHaveCount(0);
@@ -497,10 +542,12 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await page.reload();
     await pickDay(page, spotsDate);
     await expect(chip).toHaveText("Only 1 left");
-    await expect(page.getByText("Only 1 left", { exact: true })).toBeVisible();
+    await expect(page.getByText("Only 1 left", { exact: true }).filter({ visible: true })).toBeVisible();
 
     // The date is still bookable — a low count is scarcity, never a refusal.
-    await expect(page.getByText("How many passes?", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("How many passes?", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test("3 · a drop-in search card names the day, never a time range, and links with `date` alone", async ({
@@ -514,7 +561,11 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
       `${BASE}/?category=${SPACE_TYPE}&date=${isoOf(spotsDate)}&start=09:00&end=11:00`,
     );
 
-    const card = page.locator(`a[href*="/listings/${openListingId}"]`);
+    // `.filter({ visible: true })` — THE STREAMING-BUFFER RULE. `/` stages the whole results `<main>`
+    // (measured: testids=[result-card × 7]), so an unfiltered card locator resolves to 2 during the
+    // reveal. It matters twice here: `expect(card).toBeVisible()` AND `card.innerText()` below, which
+    // enforces strict mode before it reads anything.
+    const card = page.locator(`a[href*="/listings/${openListingId}"]`).filter({ visible: true });
     await expect(card).toBeVisible();
 
     const cardText = await card.innerText();
@@ -560,7 +611,9 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // A second date, untouched so far, is taken all the way to zero by three different bookers.
     await page.goto(`${BASE}/listings/${openListingId}`);
     await pickDay(page, soldDate);
-    await expect(page.getByText("Spots available", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Spots available", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
 
     await takePasses(soldDate, bookerAId, 1);
     await takePasses(soldDate, bookerBId, 1);
@@ -572,9 +625,13 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await pickDay(page, spotsDate); // move off the date so re-selecting it re-fetches
     await pickDay(page, soldDate);
     await expect(page.getByRole("heading", { name: panelHeading(soldDate) })).toBeVisible();
-    await expect(page.getByText("Fully booked", { exact: true })).toBeVisible();
     await expect(
-      page.getByText(`All ${CAP} passes for this day are taken. Try another day.`, { exact: true }),
+      page.getByText("Fully booked", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByText(`All ${CAP} passes for this day are taken. Try another day.`, { exact: true })
+        .filter({ visible: true }),
     ).toBeVisible();
     // OC-14 — v1 ships NO back-in-stock affordance, so the sold-out panel must not offer one, and the
     // pass stepper is gone with the availability it was bounding.
@@ -595,7 +652,7 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // ── NEVER A DEAD END. The grid is still fully interactive: the other date is selectable and still sells.
     await pickDay(page, spotsDate);
     await expect(page.getByRole("heading", { name: panelHeading(spotsDate) })).toBeVisible();
-    await expect(page.getByText("Only 1 left", { exact: true })).toBeVisible();
+    await expect(page.getByText("Only 1 left", { exact: true }).filter({ visible: true })).toBeVisible();
   });
 
   test("5 · a sold-out date drops the drop-in listing out of search, and only it (OC-12)", async ({
@@ -610,13 +667,19 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await expect(page.locator(`a[href*="/listings/${openListingId}"]`)).toHaveCount(0);
     // …and the exclusive control on the same date, same query, same host is still there — proving the
     // disappearance is a fact about that date's occupancy, not a search that returned nothing.
-    await expect(page.locator(`a[href*="/listings/${exclusiveListingId}"]`)).toBeVisible();
+    await expect(
+      page.locator(`a[href*="/listings/${exclusiveListingId}"]`).filter({ visible: true }),
+    ).toBeVisible();
 
     // The same query one date earlier still shows both: the drop-in listing is gone from the sold-out date
     // only, not from search.
     await page.goto(`${BASE}/?category=${SPACE_TYPE}&date=${isoOf(spotsDate)}&start=09:00&end=11:00`);
-    await expect(page.locator(`a[href*="/listings/${openListingId}"]`)).toBeVisible();
-    await expect(page.locator(`a[href*="/listings/${exclusiveListingId}"]`)).toBeVisible();
+    await expect(
+      page.locator(`a[href*="/listings/${openListingId}"]`).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      page.locator(`a[href*="/listings/${exclusiveListingId}"]`).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   // ── 09-17 · CR-01. THE BLIND SPOT THIS CASE EXISTS TO REMOVE. ────────────────────────────────────────
@@ -660,16 +723,24 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // The venue opened up to two hours ago and closes at 23:59, so the day is live RIGHT NOW: the pass
     // framing renders, not the "Closed for today" evening state.
     await expect(
-      page.getByText("Your pass covers the whole day — come any time while they're open.", {
-        exact: true,
-      }),
+      page
+        .getByText("Your pass covers the whole day — come any time while they're open.", {
+          exact: true,
+        })
+        .filter({ visible: true }),
     ).toBeVisible();
+    // NOT filtered, and deliberately: an ABSENCE claim. A streaming duplicate cannot turn 0 into
+    // anything, and `.filter({ visible: true })` here would downgrade "this state is not rendered" to
+    // "this state is not rendered VISIBLY" — the one direction that is a real weakening. Every
+    // `toHaveCount(0)` in this file is left bare for the same reason.
     await expect(page.getByText("Closed for today", { exact: true })).toHaveCount(0);
 
     // ONE pass — the stepper's own reset value whenever a date is picked (pass-stepper.tsx), asserted
     // rather than clicked so the case measures the shipped default a walk-in booker actually gets.
-    await expect(page.getByText("How many passes?", { exact: true })).toBeVisible();
-    await expect(page.locator("#requested-passes")).toHaveValue("1");
+    await expect(
+      page.getByText("How many passes?", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(page.locator("#requested-passes").filter({ visible: true })).toHaveValue("1");
 
     const bookBtn = page.getByRole("button", { name: "Book this space" });
     await expect(bookBtn).toBeEnabled();
@@ -696,18 +767,32 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // claim OC-08 makes is about the run line's WORDING — that a pass is priced per head with no
     // duration term — and that claim is only checkable against the line itself.
     await page.getByRole("button", { name: /Price details/ }).click();
-    await expect(page.getByText(/₱[\d,]+\.\d{2}\/person × 1 pass/)).toBeVisible();
-    // `.first()` since 12-11: checkout renders the word `Total` TWICE — the breakdown's label, first in
-    // the DOM, and the sticky confirm bar's, which is `lg:hidden` at this viewport. A bare exact-text
-    // query is a strict-mode violation against a correct tree. The bar's own copy is asserted, with its
-    // amount, by `e2e/mobile-booker-path.spec.ts` at the width where it is the surface a booker reads.
-    await expect(page.getByText("Total", { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText(/₱[\d,]+\.\d{2}\/person × 1 pass/).filter({ visible: true }),
+    ).toBeVisible();
+    // AMENDED, the same way and for the same measured reason as `search-and-book.spec.ts`'s copy of
+    // this line. The account under it was right — checkout renders the word `Total` TWICE since 12-11,
+    // the breakdown's label and the sticky confirm bar's, the latter `lg:hidden` at this viewport —
+    // and the measurement agrees exactly: total=2, VISIBLE=1. That is an invariant worth asserting, so
+    // this counts the visible ones instead of stepping around them with `.first()`, which would have
+    // passed just as happily on a second VISIBLE `Total` (the failure `lg:hidden` exists to prevent).
+    // The bar's own copy is asserted, with its amount, by `e2e/mobile-booker-path.spec.ts` at the width
+    // where it is the surface a booker reads.
+    await expect(
+      page.getByText("Total", { exact: true }).filter({ visible: true }),
+      "exactly one `Total` is reachable at this width — the sticky confirm bar's copy is lg:hidden",
+    ).toHaveCount(1);
     // AMENDED BY PLAN 12-03 (D-49): the countdown moved from the booking rail to the checkout HEADER,
     // where it is a clock glyph plus mm:ss in a 96px reservation and has no room for a sentence. The
     // rail keeps the reassurance without the digits; both halves are asserted where they now live. A
     // drop-in hold reaches the same header through the same context as an exclusive one, which is the
     // property this line is now checking.
-    await expect(page.getByText(/We.re holding this for you while you review/i)).toBeVisible();
+    await expect(
+      page.getByText(/We.re holding this for you while you review/i).filter({ visible: true }),
+    ).toBeVisible();
+    // NOT filtered: `site-header` is composed in the route's LAYOUT, outside the page's Suspense
+    // boundary, so it never enters the streaming buffer (measured — siteHeader=false on 8/8 loads),
+    // and `getByRole` is immune regardless because the buffer is `hidden` and out of the a11y tree.
     await expect(page.getByTestId("site-header").getByRole("timer")).toContainText(/\d+:\d{2}/);
 
     // …and the terminal control is PRESENT and ENABLED. This is the frontier of the browser proof.

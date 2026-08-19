@@ -142,6 +142,30 @@ test.afterAll(async () => {
  * `null` equals `null` perfectly. A checkout that 404'd, redirected or lost its header would satisfy
  * every equality and prove nothing.
  */
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE STREAMING-BUFFER RULE — why some locators here carry `.filter({ visible: true })`
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// React parks a Suspense boundary's payload in a `<div hidden id="S:n">` while it reveals it, so on a
+// route with a `loading.tsx` every SERVER-RENDERED element on the page briefly exists TWICE — once live,
+// once in that buffer. A Playwright locator matches hidden elements, so it resolves to 2 and strict mode
+// throws before `toBeVisible()` ever filters. The canonical account — the DOM timeline, the measurements,
+// and why `.first()`, a longer timeout and a CSS scope were each rejected — is in
+// `e2e/search-and-book.spec.ts`; search it for THE STREAMING-BUFFER RULE. Session:
+// `.planning/debug/resolved/confirmation-reference-duplicate.md`.
+//
+// MEASURED FOR THIS FILE: exactly ONE site is exposed — `price-total` in `expectCheckoutReachable`
+// below. The checkout header's countdown is composed in `listings/[id]/book/layout.tsx`, outside the
+// page's Suspense boundary, so `site-header` / `hold-countdown` / `role="timer"` never enter the buffer
+// (observed on 8/8 loads) and every geometry and announce-once assertion here stands as written.
+//
+// AND THE FAKE CLOCK CHANGES NOTHING. This file is the repo's first `page.clock` user, so it was worth
+// checking rather than assuming: with `page.clock.install()` and without it, the buffer appeared on 8/8
+// loads with a byte-identical payload. The clock governs the page's timers; the streaming reveal is the
+// document parser and React's runtime, which the clock does not touch. Navigations here already happen
+// with the clock running (see the header), so nothing about the install order interacts with this.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+
 async function expectCheckoutReachable(
   page: Page,
   where: string,
@@ -165,8 +189,37 @@ async function expectCheckoutReachable(
   // on a non-live hold — no `<main>`, no page header. Requiring one in both modes would have failed the
   // empty-slot state for a reason that has nothing to do with the header.
   if (mode === "live") {
+    // ⚠️ `.filter({ visible: true })` — THE STREAMING-BUFFER RULE (see the block above the describe).
+    // This is the ONLY exposed locator in this file, and that was measured rather than assumed: the
+    // buffer parked on this route holds PAGE content only —
+    //
+    //   id=S:0  siteHeader=false  holdCountdown=false  timer=false  priceTotal=TRUE  main=true
+    //   testids=[panel-card, price-disclosure, price-total, checkout-sticky-bar]      (8/8 loads)
+    //
+    // — so `site-header`, `hold-countdown`, its sr-only child and `role="timer"` are all composed in
+    // `book/layout.tsx`, OUTSIDE the page's boundary, and cannot be duplicated by it. Every countdown
+    // assertion in this file is therefore immune as written; `price-total` is the one thing here that
+    // lives inside the boundary.
+    //
+    // AND THE HAZARD IS VACUITY, NOT A STRICT-MODE VIOLATION — the two matchers fail in opposite
+    // directions and this one is a `toHaveCount`. `toHaveCount(1)` RETRIES, so a transient count of 2
+    // heals itself and is harmless. What does not heal is the other phase: in the staged-only window
+    // `price-total` exists ONLY inside the hidden buffer, the count is 1, and this guard goes green
+    // while the live page is still showing `book/loading.tsx`'s skeleton — which is precisely the
+    // vacuity the guard was written to prevent, arriving by a route its author could not have known
+    // about. Requiring a VISIBLE one closes it. (`toBeVisible()` sites have the mirror-image problem:
+    // strict mode is not retried away, so for them a transient 2 is the hard failure.)
+    //
+    // HONEST LIMIT OF THE EVIDENCE: across 10 fresh loads sampled the instant the readiness heading
+    // resolved, this site showed neither phase — 0/10 vacuous, 0/10 overlapping. It is treated on the
+    // STRUCTURAL fact (the buffer demonstrably contains `price-total` on 8/8 loads), not on a failure
+    // anyone has watched here. 0/10 is not evidence of safety: the worst site in `search-and-book`
+    // was green 5 times out of 10.
+    //
+    // `price-total` measured total=1 / visible=1 at 375, 768 AND 1280 — all three widths `capture()`
+    // drives — so the filter cannot turn this guard red at a narrow viewport.
     await expect(
-      page.getByTestId("price-total"),
+      page.getByTestId("price-total").filter({ visible: true }),
       `${where}: the checkout body has not resolved — book/loading.tsx's skeleton is still up, and ` +
         `its <h1> is identical to the resolved page's.`,
     ).toHaveCount(1);
