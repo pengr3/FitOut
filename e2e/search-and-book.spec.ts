@@ -225,9 +225,72 @@ async function selectTargetDay(page: Page): Promise<void> {
   await day.first().click();
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * THE STREAMING-BUFFER RULE — why every `getByText` in this file is visibility-filtered
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Assertions here kept going red with `strict mode violation: … resolved to 2 elements`, naming two
+ * nodes with identical tags, identical classes and identical text. Every obvious reading is wrong and
+ * each was ruled out: the FIT- reference is a SHA-256 of the booking id so two bookings cannot collide;
+ * `bookings/[id]/page.tsx` has exactly ONE `{reference}`; there are no parallel or intercepting route
+ * segments and no `template.tsx` anywhere under `src/app`.
+ *
+ * A MutationObserver installed before the reload's first script (full record in
+ * `.planning/debug/resolved/confirmation-reference-duplicate.md`) showed what actually happens:
+ *
+ *   t=121 ms  ONE match, inside  <div hidden="" id="S:1">   ← React's out-of-order STREAMING buffer
+ *   t=218 ms  TWO matches: the live one under `<main>`, plus that staged copy, still unreclaimed
+ *   t=316 ms  ONE match, live only — the hidden staging div is gone
+ *
+ * `<div hidden id="S:N">` is where React parks a Suspense boundary's payload until it swaps it into
+ * place. Every route in this flow has a `loading.tsx`, so every navigation in this file creates one.
+ * When the client is warm the boundary is client-rendered from the flight payload BEFORE `$RC` reclaims
+ * the buffer, and for roughly a tenth of a second the document holds both copies. The staged copy is
+ * under the `hidden` attribute — display:none, out of the accessibility tree, off every screenshot — so
+ * A USER NEVER SEES ANYTHING TWICE. Only a Playwright locator does, because locators match hidden
+ * elements and strict mode counts them BEFORE `toBeVisible()` filters. In every overlapping sample the
+ * browser console was empty: no hydration error, nothing recovered, nothing wrong with the page.
+ *
+ * `getByRole` IS IMMUNE (the staged subtree is out of the a11y tree — measured at exactly 1 on all 16
+ * iterations of a run where `getByText` saw 2 on 15 of them). `getByText` IS NOT. That asymmetry is why
+ * the heading assertions in this file never failed while the text ones did.
+ *
+ * ── THE TREATMENT, AND WHY IT IS A STRENGTHENING ────────────────────────────────────────────────────
+ *
+ * `.filter({ visible: true })` + `toHaveCount(n)` where the visible count is deterministic. The bare
+ * `toBeVisible()` it replaces required exactly one TOTAL match; this requires exactly n VISIBLE matches,
+ * so a genuine double render — two copies a person could actually read — still fails, which is the only
+ * interesting half of the claim.
+ *
+ * REJECTED, with the measurements that rejected them:
+ *   • `.first()` / a longer timeout — both stop asserting cardinality altogether. `.first()` is also
+ *     unsafe on its own terms here: the staging div precedes the live tree in DOM order, so `.first()`
+ *     can resolve to the hidden copy and then fail `toBeVisible()` with a misleading message.
+ *   • A CSS scope — does not work. The staged copy carries its own `<main class="mx-auto w-full
+ *     max-w-2xl …">`, so scoping to it measured 2 on 13 of 15 overlapping iterations and 1 on the rest.
+ *
+ * WHERE `.first()` SURVIVES it is because the VISIBLE count is genuinely greater than one and the number
+ * itself is incidental; those two sites say so at the call site and keep `.filter({ visible: true })` in
+ * front of `.first()` so the buffer can never be what `.first()` picks.
+ *
+ * MEASURED EXPOSURE (10 fresh contexts, warm dev server, shipped assertions run verbatim):
+ *   :263 `km away`                 5/10 strict-mode violations   ← the site that was still live
+ *   :341 reference after reload    8/10 with the bare assertion, 0/10 with the treatment
+ *   :333 `booking reference`       1/10        :334 `Confirmed`  1/10
+ *   every other site               0/10, but structurally identical — 0/10 is not evidence of safety
+ *                                  when the worst site only fires half the time
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ */
+
 /** Open the listing, navigate to the target day, and pick the [startLabel, endLabel] hourly run. */
 async function pickWindow(page: Page, startLabel: string, endLabel: string): Promise<void> {
-  await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+  // ONE visible tz note. Measured total=1 / visible=1 over 10 runs, and on a surface whose whole
+  // subject is venue-local time a SECOND tz note would be a real defect worth failing on (SC#2).
+  await expect(
+    page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i).filter({ visible: true }),
+    "the listing shows exactly one venue-tz note before a window is picked (SC#2)",
+  ).toHaveCount(1);
   await selectTargetDay(page);
   await page.getByRole("button", { name: startLabel, exact: true }).click(); // start anchor
   await page.getByRole("button", { name: endLabel, exact: true }).click(); // end → fills the run
@@ -254,13 +317,26 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     // The result card renders photo + name + ₱ price (only the tennis listing matches the filter, SEARCH-05).
     await expect(page.getByRole("img", { name: LISTING_TITLE })).toBeVisible();
     await expect(page.getByRole("heading", { name: LISTING_TITLE })).toBeVisible();
-    await expect(page.getByText(/₱[\d,]+(\.\d+)?\/hr/).first()).toBeVisible();
+    // CONVERTED FROM `.first()`, and the conversion restores the claim the comment above makes.
+    // SEARCH-05 is precisely "only the tennis listing matches the filter" — measured total=1 / visible=1
+    // over 10 runs — so `.first()` was silencing the one assertion this line exists to make: with it, a
+    // second result card carrying a second ₱/hr would have passed.
+    await expect(
+      page.getByText(/₱[\d,]+(\.\d+)?\/hr/).filter({ visible: true }),
+      "the category filter narrows to exactly one result card, hence one ₱/hr price (SEARCH-05)",
+    ).toHaveCount(1);
 
     // A location-origin search shows the distance line (SEARCH-03 radius + SEARCH-05 distance) — deterministic.
     await page.goto(
       `${BASE}/?lat=${ORIGIN_LAT}&lng=${ORIGIN_LNG}&category=tennis_court&radius=25`,
     );
-    await expect(page.getByText(/\d+(\.\d+)?\s*km away/i)).toBeVisible();
+    // ⚠ THE SITE THAT WAS STILL RED after the first pass at this bug fixed only the reference in the
+    // next test. Bare, straight after a `goto` — 5 strict-mode violations in 10 warm runs, the worst in
+    // the file. See THE STREAMING-BUFFER RULE above. Settled at total=1 / visible=1.
+    await expect(
+      page.getByText(/\d+(\.\d+)?\s*km away/i).filter({ visible: true }),
+      "the location-origin search renders exactly one distance line (SEARCH-03 radius + SEARCH-05)",
+    ).toHaveCount(1);
 
     // ── Click the card → the public listing detail page. ───────────────────────────────────────────────
     await page.getByRole("link", { name: new RegExp(LISTING_TITLE) }).click();
@@ -276,20 +352,41 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     await page.waitForURL(/\/book\?hold=/);
     await expect(page.getByRole("heading", { name: /confirm and pay/i })).toBeVisible();
     // Venue-tz window + tz note (SC#2), the frozen ₱ breakdown, and the live countdown.
-    await expect(page.getByText(/\(GMT\+8\)/i).first()).toBeVisible();
-    await expect(page.getByText(/5:00\s*PM\s*[–-]\s*7:00\s*PM/i)).toBeVisible();
-    // `.first()` since plan 12-11: checkout renders the word `Total` TWICE — the breakdown's label,
-    // first in the DOM, and the sticky confirm bar's (`lg:hidden` at this 1280px viewport, so present
-    // but not visible). A bare exact-text query is a strict-mode violation against a correct tree.
-    await expect(page.getByText("Total", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/₱[\d,]+/).first()).toBeVisible();
+    // `.first()` KEPT, deliberately, and this is one of the two sites where it is the honest choice:
+    // measured total=2 / VISIBLE=2 — the window line's tz suffix and the standalone tz note are both
+    // real and both on screen, so this line means "the venue tz is stated", not "stated once", and
+    // pinning 2 would copy-pin an incidental number. `.filter({ visible: true })` goes IN FRONT of
+    // `.first()` so `.first()` can never land on the streaming buffer's copy, which precedes the live
+    // tree in DOM order and would fail `toBeVisible()` with a misleading message.
+    await expect(page.getByText(/\(GMT\+8\)/i).filter({ visible: true }).first()).toBeVisible();
+    await expect(
+      page.getByText(/5:00\s*PM\s*[–-]\s*7:00\s*PM/i).filter({ visible: true }),
+      "the booked window is stated once, in venue tz (SC#2)",
+    ).toHaveCount(1);
+    // AMENDED. This read `.first()`, under a comment explaining that checkout renders the word `Total`
+    // TWICE since plan 12-11 — the breakdown's label, first in the DOM, and the sticky confirm bar's,
+    // which is `lg:hidden` at this 1280px viewport and therefore present but NOT VISIBLE. That account
+    // is exactly right and is confirmed by measurement (total=2, visible=1). It is also a real invariant,
+    // so this line now ASSERTS it instead of stepping around it: exactly one `Total` is reachable at this
+    // width. `.first()` made the documented claim untestable — a second VISIBLE `Total`, which is the
+    // failure the `lg:hidden` is there to prevent, would have passed silently.
+    await expect(
+      page.getByText("Total", { exact: true }).filter({ visible: true }),
+      "exactly one `Total` is reachable at 1280px — the sticky confirm bar's copy is lg:hidden",
+    ).toHaveCount(1);
+    // `.first()` KEPT — the second of the two honest at-least-one sites. The breakdown is several ₱
+    // figures (measured total=3 / visible=2: the space price and the total, plus the bar's hidden copy)
+    // and the count is incidental to what this line checks, which is that money is rendered at all.
+    await expect(page.getByText(/₱[\d,]+/).filter({ visible: true }).first()).toBeVisible();
     // AMENDED BY PLAN 12-03 (D-49). This line read `getByText(/Held for/i)` and went red on a correct
     // tree: the countdown moved out of the booking rail and into the CHECKOUT HEADER, where it is a
     // clock glyph plus mm:ss inside a 96px reservation and has no room for a sentence. The rail keeps
     // the words and loses the digits, so both halves of the old assertion still exist — they are just
     // in two places now, and asserting each where it actually lives is what makes this a real check
     // rather than a copy pin. The `role="timer"` line below is unchanged and is still the digits.
-    await expect(page.getByText(/We.re holding this for you while you review/i)).toBeVisible();
+    await expect(
+      page.getByText(/We.re holding this for you while you review/i).filter({ visible: true }),
+    ).toHaveCount(1);
     await expect(
       page.getByTestId("site-header").getByRole("timer"),
       "the countdown is not in the checkout header (D-49 / SHELL-03)",
@@ -308,7 +405,11 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     // This spec runs at Playwright's default 1280×720, where the bar is `lg:hidden`, so a role query
     // resolves to the inline one alone. The per-width count is `e2e/mobile-booker-path.spec.ts`'s.
     await expect(page.getByRole("button", { name: /confirm & pay/i })).toBeVisible();
-    await expect(page.getByText(/You.ll pay .* on PayMongo.*card, GCash, Maya or QR ?Ph/i)).toBeVisible();
+    await expect(
+      page
+        .getByText(/You.ll pay .* on PayMongo.*card, GCash, Maya or QR ?Ph/i)
+        .filter({ visible: true }),
+    ).toHaveCount(1);
 
     // The reserve page is where the automatable instant flow ENDS. Clicking `Confirm booking` from here now
     // opens a PayMongo HOSTED CHECKOUT that Playwright cannot complete (see the header + e2e/cancel.spec.ts),
@@ -330,10 +431,14 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     // The one terminal --success surface: the "Booking confirmed" heading, the "Booking reference" label, the
     // shared `Confirmed` status badge (icon + text, never colour-only), and the FIT-XXXXXXXX reference.
     await expect(page.getByRole("heading", { name: /booking confirmed/i })).toBeVisible();
-    await expect(page.getByText(/booking reference/i)).toBeVisible();
-    await expect(page.getByText("Confirmed", { exact: true })).toBeVisible();
-    // ⚠ `.filter({ visible: true })` ON BOTH REFERENCE QUERIES. This is a STRENGTHENING, not the
-    // usual `.first()` shrug, and the difference is the whole point — see the block below the reload.
+    // These two ran against the COLD first load and were left bare by the first pass at this bug, on
+    // the strength of 16 clean iterations. That was under-sampling: at 10 further warm iterations each
+    // produced a strict-mode violation once. The cold load is less exposed than the reload, not unexposed.
+    await expect(page.getByText(/booking reference/i).filter({ visible: true })).toHaveCount(1);
+    await expect(
+      page.getByText("Confirmed", { exact: true }).filter({ visible: true }),
+      "one status badge, and it says Confirmed",
+    ).toHaveCount(1);
     const referenceOnScreen = page.getByText(/FIT-[0-9A-Z]{8}/).filter({ visible: true });
     const reference = await referenceOnScreen.textContent();
     expect(reference).toMatch(/FIT-[0-9A-Z]{8}/);
@@ -342,52 +447,10 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     await page.reload();
     await expect(page.getByRole("heading", { name: /booking confirmed/i })).toBeVisible();
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════
-    // WHY THIS IS A VISIBLE-FILTERED COUNT AND NOT A BARE `toBeVisible()`
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════
-    //
-    // This line used to read `await expect(page.getByText(ref, { exact: true })).toBeVisible()` and
-    // failed intermittently — and, once the dev server had been exercised for a while, on nearly every
-    // run — with a strict-mode violation naming TWO `<p class="… tabular-nums sm:text-display">` nodes
-    // carrying the same reference. The obvious readings are all wrong and were each ruled out: the
-    // reference is a SHA-256 of the booking id so two bookings cannot collide; `bookings/[id]/page.tsx`
-    // has exactly ONE `{reference}`; there are no parallel/intercepting segments and no `template.tsx`.
-    //
-    // A MutationObserver installed before the reload's first script (see
-    // `.planning/debug/resolved/confirmation-reference-duplicate.md`) showed what actually happens:
-    //
-    //   t=121 ms  ONE match, inside  <div hidden="" id="S:1">   ← React's out-of-order STREAMING buffer
-    //   t=218 ms  TWO matches: the live one under `<main>`, plus that staged copy, still unreclaimed
-    //   t=316 ms  ONE match, live only — the hidden staging div is gone
-    //
-    // `<div hidden id="S:N">` is where React parks a Suspense boundary's payload until it swaps it into
-    // place; the boundary here is the one `bookings/[id]/loading.tsx` creates. When the client is warm
-    // the boundary is client-rendered from the flight payload BEFORE `$RC` reclaims the buffer, so for
-    // roughly one tenth of a second the document holds both. Measured over 16 fresh contexts: 15 hit the
-    // overlap, and in EVERY ONE of them `filter({ visible: true }).count()` was exactly 1 and the browser
-    // console was empty (no hydration error, nothing recovered, nothing wrong with the page). The extra
-    // copy is under the `hidden` attribute — display:none, out of the accessibility tree, off every
-    // screenshot. A booker never sees the reference twice; only a Playwright locator does, because
-    // locators match hidden elements and strict mode counts them BEFORE `toBeVisible()` filters.
-    //
-    // So the bare assertion was not testing the product, it was testing React's streaming schedule. The
-    // replacement asserts the thing the surface actually promises — EXACTLY ONE booking reference on
-    // screen after a refresh — and is stronger than what it replaces: the old line only required one
-    // total match, this one requires one VISIBLE match, so a genuine double render (two copies a booker
-    // could read) still fails here exactly as it should.
-    //
-    // WHY NOT `.first()`, A LONGER TIMEOUT, OR A CSS SCOPE. `.first()` and a timeout both stop asserting
-    // singularity, which is the only interesting part of the claim. A CSS scope does not even work:
-    // the staged copy carries its own `<main class="mx-auto w-full max-w-2xl …">`, so scoping to it
-    // measured 2 on most overlapping iterations and 1 on the rest — a race, not a fix.
-    //
-    // THE GENERAL RULE, for anyone writing the next assertion after a `reload()` or a `goto()`:
-    // `getByRole` is IMMUNE to this (the staged subtree is `hidden`, so it is not in the a11y tree —
-    // measured at exactly 1 on all 16 iterations, including the 15 where `getByText` saw 2), and
-    // `getByText` is NOT. The three assertions above the reload are the same shape and stay as they are
-    // because they run against the COLD first load, where the buffer is always reclaimed first; if one
-    // of them ever goes red the same two words fix it for the same reason.
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    // The assertion that started all of this: it read `expect(getByText(ref, { exact: true }))
+    // .toBeVisible()` and threw a strict-mode violation naming two identical `<p>` nodes — 8 times in
+    // 10 warm runs, the worst-affected site in the file. THE STREAMING-BUFFER RULE at the top of this
+    // file has the DOM timeline, the measurements and the rejected alternatives. Treated, it is 10/10.
     await expect(
       page.getByText(reference!.trim(), { exact: true }).filter({ visible: true }),
       "the durable confirmation must show exactly ONE on-screen booking reference after a refresh",
