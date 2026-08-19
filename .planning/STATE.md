@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 15
-status: executing
-stopped_at: Phase 12 complete -- 12-14 Task 3 discharged 2026-08-19 (comparison run 32271124959 watched green after the quick 260819-vrt re-mint); all 15 plans have SUMMARYs; phase verification is the next step
-last_updated: "2026-08-19T13:34:49.000Z"
+status: ready_to_plan
+stopped_at: Phase 12 complete (15/15) — ready to discuss Phase 999.1
+last_updated: 2026-08-19T16:12:12.970Z
 last_activity: 2026-08-19 -- quick 260819-vrt (cb34581) repointed the visual fixture's photo urls from an unreachable `.invalid` host to committed assets under `public/vrt/`, so the baselines stop encoding broken-image glyphs; gate-visual is RED by design until the operator re-mints via the human-gated `baselines` workflow (D-27)
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 54
-  completed_plans: 53
+  completed_plans: 54
   percent: 18
 ---
 
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 12 — booker-path-search-listing-checkout
+**Current focus:** Phase 999.1 — auth flow tells the user nothing thin emails and silent post
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
+Phase: 999.1
 Plan: 15 of 15
-Current Plan: 15
+Current Plan: Not started
 Total Plans in Phase: 15 (14 planned + the 12-15 gap-closure plan)
-Status: PHASE 12 COMPLETE — 12-14 Task 3 discharged 2026-08-19; awaiting phase verification
+Status: Ready to plan
 
 **12-15 IS THE GAP-CLOSURE PLAN AND IT IS DONE (`f009864` · `7f63e34` · `ceb54d7`).** `ci.yml` now has a
 FOURTH job, `gate-visual`, that runs the visual project in the pinned Playwright image against a seeded
@@ -166,13 +166,13 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-19 -- 12-14 Task 3 discharged: 52 baselines minted (32269238524), comparison run 32271124959 green, all seven Part B walks verified
+Last activity: 2026-08-19
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 47
+- Total plans completed: 62
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -186,6 +186,7 @@ Last activity: 2026-08-19 -- 12-14 Task 3 discharged: 52 baselines minted (32269
 | 08 | 9 | - | - |
 | 10 | 17 | - | - |
 | 11 | 22 | - | - |
+| 12 | 15 | - | - |
 
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 *11-22: ~93 min wall-clock, 5 tasks (3 auto + 2 blocking checkpoints) plus one unplanned CI fix, 9 source/config files + 25 baseline PNGs, 8 commits. Four observed CI runs driven by the coordinator; three OBSERVED REDs recorded.*
