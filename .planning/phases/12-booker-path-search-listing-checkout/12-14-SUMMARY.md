@@ -312,9 +312,70 @@ plan **12-15** (the comparison job could not reach a database — `ECONNREFUSED 
 commit `cfcb658` (the checkout clock's int32-truncated `fastForward` jump, and `collisionDrive` never
 signing a booker in). CI run 32216145319 is where the first surfaced; 32228371235 the second.
 
+## Task 3 Part B — the seven walks
+
+Operator verdicts, recorded verbatim as given on 2026-08-19. Six of seven settled; item 6 open.
+
+| # | Walk | Verdict |
+|---|------|---------|
+| 1 | One product, or a seam? (phone + desktop) | **okay** — reads as one designed product |
+| 2 | Reduced motion: any perceptible month-change transition? | **okay** — no perceptible motion |
+| 3 | Collision announcement: notice before grid (3a), focus not double-read (3b) | **okay** — both |
+| 4 | Lightbox: 44px reachable one-handed (4a), controls page (4b), absent swipe reads as designed (4c) | **okay** — all three |
+| 5 | At-rest PayMongo line matches where you land | **okay** — matches |
+| 6 | Are the new pixels right? | **OPEN** — see below |
+| 7 | Collision reads as normal outcome, not failure | **okay** — normal outcome |
+
+Item 2 and item 4 were pre-checked in code before the walk and the walk confirmed both:
+`src/app/globals.css:544` zeroes `animation-duration`, `transition-duration`,
+`animation-iteration-count` and `scroll-behavior` under `prefers-reduced-motion` across `*`,
+`*::before` and `*::after`; `size="touch"` resolves to `h-11` = 44px on four lightbox controls.
+
+Item 5's destination claim was additionally confirmed in code: `src/app/actions/booking.ts:1021`
+does `redirect(checkout.checkoutUrl)` to PayMongo's hosted checkout, which is what the at-rest line
+on the checkout surface promises.
+
+### Item 6 — what was verified, and the one open question
+
+Four of the five surface-specific claims were verified by inspecting the minted PNGs directly:
+
+| Surface | Claim | Result |
+|---------|-------|--------|
+| `checkout` | countdown reads exactly 14:52 | ✅ confirmed |
+| `og-listing` | seeded card, not the generic root card | ✅ **D-58 trap closed** — "Poblacion Boxing Room · Martial arts / boxing gym · Makati · ₱472.50/hr" |
+| `listing-lightbox` | lightbox OPEN | ✅ scrim, `1 / 8` counter, prev/next/close chrome |
+| `collision-notice` | notice present and in-place (D-55) | ✅ and the copy keeps its promise — it says the closest free windows are outlined, and 11:00 AM / 1:00 PM visibly are |
+
+`listing-sheet`, `search-results` and `search-relax-band` were not individually inspected.
+
+**⚠ OPEN — every photo in every baseline is a broken image.**
+`scripts/seed-baseline-fixtures.ts:197` seeds `https://example.invalid/vrt-${i}.jpg`. `.invalid` is an
+RFC 2606 reserved TLD, guaranteed never to resolve, so a photo can never load. The baselines therefore
+encode broken-image placeholders wherever a photo belongs: all eight `listing-detail` mosaic tiles, the
+`listing-lightbox`'s entire subject, the `checkout` thumbnail, and the `search-results` cards.
+
+This may well be deliberate — a real remote URL would make the reference depend on an external host,
+and determinism is the whole point of a committed fixture. Geometry, aspect ratios and the
+"Show all 8 photos" control are all still exercised.
+
+But the consequence has the same shape as D-58: **the gate now defends broken images.** If anyone later
+makes photos render, the visual gate goes red and reads as a regression rather than as an improvement.
+The available fix is a committed local placeholder asset served from `public/`, which is deterministic
+*and* representative. Awaiting an operator decision.
+
+### Two secondary observations, recorded not resolved
+
+1. **The calendar and the slot panel disagree about the month.** On both `listing-detail` and
+   `collision-notice` the calendar reads **August 2026** (19 highlighted) while the slot panel is headed
+   **Wednesday, Sep 16**. Possibly a consequence of the drive seeding a selection without navigating the
+   calendar, but it is in the committed pixels.
+2. **The sticky header renders mid-page** in the full-page captures, visible partway down
+   `collision-notice`. Almost certainly the known `position: sticky` full-page-screenshot artifact, which
+   Phase 11's baselines would share.
+
 ---
 
-*Completed: Tasks 1–2 on 2026-08-19. Task 3 Part A verified 2026-08-19 (comparison run 32242065058). Task 3 Part B awaiting the operator.*
+*Completed: Tasks 1–2 on 2026-08-19. Task 3 Part A verified 2026-08-19 (comparison run 32242065058). Task 3 Part B: items 1–5 and 7 verified by the operator 2026-08-19; item 6 open on the broken-photo fixture question.*
 
 ## Self-Check: PASSED
 
