@@ -285,6 +285,10 @@ Plans:
 
 - [ ] 12-14-PLAN.md — GATE-01: the Phase-12 visual baselines and the D-58 OG fixture *(checkpoint: human dispatch + the seven manual walks)* — **tasks 1–2 committed; the blocking human checkpoint has NOT run**
 
+**Wave 13** *(gap closure, blocked on Wave 12; lands BEFORE 12-14 Task 3's dispatch)*
+
+- [x] 12-15-PLAN.md — the CI comparison job's missing database: `gate-visual`, and one parse-based guard over both workflow files *(gap closure for `12-FINDING-ci-comparison-db.md`)*
+
 **UI hint**: yes
 
 **Scope note:** this phase holds all three D-130 restructure permissions (search results, listing detail, checkout) and the open-capacity date/pass picker, which is a pre-hold surface on the listing page. It is sequenced **first** among the order-independent set (12–15): it is the highest-risk surface (every money and availability seam runs through it) and it is where the Phase-11 pattern inventory gets its real stress test — a wrong pattern is cheaper to learn here than after three phases adopt it.
@@ -461,7 +465,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 9. Open-Capacity Bookings | v1.0 | 25/25 | Complete (verified 12/12 · all 14 code-review findings closed) | 2026-08-01 |
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
-| 12. Booker Path — Search → Listing → Checkout | v1.1 | 13.5/14 | Checkpoint pending (12-14 Task 3) |  |
+| 12. Booker Path — Search → Listing → Checkout | v1.1 | 14.5/15 | Checkpoint pending (12-14 Task 3) |  |
 | 13. Confirmation, Bookings & Trust | v1.1 | 0/? | Not started | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |

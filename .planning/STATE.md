@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 14
+current_plan: 15
 status: executing
-stopped_at: 12-14 tasks 1-2 committed; Task 3 is a BLOCKING human checkpoint and has not run
-last_updated: "2026-08-18T19:10:00.000Z"
-last_activity: 2026-08-19 -- 12-14 Task 2 committed (f84d64a); awaiting the Task 3 dispatch
+stopped_at: 12-15 complete (gap closure); 12-14 Task 3 is still a BLOCKING human checkpoint and has not run
+last_updated: "2026-08-19T07:25:00.000Z"
+last_activity: 2026-08-19 -- 12-15 executed and committed (f009864, 7f63e34, ceb54d7); the comparison job can now reach a seeded database, so the Task 3 dispatch is unblocked
 progress:
   total_phases: 11
   completed_phases: 2
-  total_plans: 53
-  completed_plans: 52
+  total_plans: 54
+  completed_plans: 53
   percent: 18
 ---
 
@@ -45,10 +45,26 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 12 (booker-path-search-listing-checkout) — EXECUTING
-Plan: 14 of 14
-Current Plan: 14
-Total Plans in Phase: 14
-Status: 12-14 tasks 1-2 committed — BLOCKED on Task 3, a human-action checkpoint
+Plan: 15 of 15
+Current Plan: 15
+Total Plans in Phase: 15 (14 planned + the 12-15 gap-closure plan)
+Status: 12-15 COMPLETE — 12-14 Task 3 is still BLOCKED on a human-action checkpoint
+
+**12-15 IS THE GAP-CLOSURE PLAN AND IT IS DONE (`f009864` · `7f63e34` · `ceb54d7`).** `ci.yml` now has a
+FOURTH job, `gate-visual`, that runs the visual project in the pinned Playwright image against a seeded
+ephemeral postgis service addressed by LABEL — the same migrations and the same committed fixture
+(`scripts/seed-baseline-fixtures.ts`) as `baselines.yml`, byte-for-byte, asserted. `gate-db-free` keeps
+its key, its absent `services:` block, its unreachable `DATABASE_URL` and its container, and gained
+`node scripts/verify-workflows.mjs` before the build, so both workflow files are guarded by a
+parse-based checker that RUNS on every push rather than one somebody had to remember to type. 38
+invariants across three sections (`baselines`=11 preserved verbatim in behaviour, `ci`=20, `cross`=7),
+watched failing against six real mutations of `ci.yml` — RED six of six on the parser, GREEN six of six
+on the substring control, the THIRD independent reproduction of this repository's vacuity law.
+⚠ **WHAT THIS PLAN DOES NOT AND CANNOT PROVE:** a green comparison run. Baselines do not exist yet, and
+only 12-14 Task 3's human dispatch can mint them. The observable belongs to the NEXT push and is
+recorded as a PREDICTION in `12-15-SUMMARY.md`: the 27 DB-backed rows change failure shape from
+`connect ECONNREFUSED 127.0.0.1:59999` (the surface never rendered) to `A snapshot doesn't exist at …`
+(it rendered and has no reference yet).
 
 **12-14 IS NOT DONE, AND THE ROADMAP WAS CORRECTED BY HAND TO SAY SO.** `roadmap.update-plan-progress 12` reported `status: "Complete", complete: true` on the strength of a fourteenth SUMMARY file existing on disk — which is anti-pattern #3 at the roadmap level, since the plan's third task is a BLOCKING human-action checkpoint that has not run and cannot be run by an agent. The phase checkbox, the plan checkbox and the progress row were reverted to "Checkpoint pending (12-14 Task 3)". **Do not re-run that verb on phase 12 until the operator has reported the comparison run id.**
 
@@ -174,6 +190,7 @@ Last activity: 2026-08-19 -- 12-14 Task 2 committed (f84d64a); Task 3 awaiting t
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 *11-22: ~93 min wall-clock, 5 tasks (3 auto + 2 blocking checkpoints) plus one unplanned CI fix, 9 source/config files + 25 baseline PNGs, 8 commits. Four observed CI runs driven by the coordinator; three OBSERVED REDs recorded.*
 *12-08: ~132 min wall-clock, 3 tasks (all auto), 3 files created + 4 modified, 3 commits. Roughly half the wall-clock is the `[11-13]` discriminator: four production builds and four server switches to measure dev-vs-prod on BOTH the restored and the deleted tree, which is what separated "the fix worked" from "the defect was never in production". Six watched reds, all reverted.*
+*12-15: ~35 min wall-clock, 2 tasks (both auto), 0 files created + 4 modified (1 of them a `git mv`), 3 commits + 1 metadata. Seven watched reds: the `--section=ci` hard stop that IS Task 1's deliverable, and the six-mutation matrix over `ci.yml` — parser RED 6/6, substring control GREEN 6/6, every revert `git diff --exit-code` clean. Zero product files: this plan is entirely CI structure.*
 
 **Recent Trend:**
 
@@ -713,7 +730,11 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-18T15:33:12.436Z
+Last session: 2026-08-19T07:25:00.000Z
+Stopped at: Completed 12-15-PLAN.md (gap closure — `gate-visual` + the two-file workflow parser)
+Resume file: None
+
+Prior session: 2026-08-18T15:33:12.436Z
 Stopped at: Completed 12-12-PLAN.md
 Resume file: None
 
@@ -907,6 +928,24 @@ Completed 04-05-PLAN.md — search home UI at / (D-29): SearchResultCard (extend
 Resume file: None
 
 ## Operator Next Steps
+
+- **PHASE 12 — 12-14 TASK 3, AND IT IS NOW UNBLOCKED (12-15 closed the finding).** Push `dev`, then:
+  (A) dispatch `baselines`; confirm the resulting commit added **only** `*-visual-linux.png`; confirm
+  both theme captures of each surface differ byte-wise (D-135); **then push an empty commit or
+  re-dispatch so a `ci` run actually COMPARES** — a `GITHUB_TOKEN` push triggers no workflow run, so
+  the deliverable is the FOLLOW-UP comparison run's id, not the generation run's. The comparison now
+  happens in `gate-visual`, not `gate-db-free`. (B) The seven manual walks in 12-VALIDATION § Manual-Only
+  Verifications. Requirements `BFLOW-01/02/03/06`, `RESP-02`, `STATE-03`, `STATE-07` stay UNMARKED until
+  then — 12-14 claims them and 12-14 is not finished.
+  ⚠ **Watch for one predicted shape change on the FIRST push after 12-15, before any dispatch:** the 27
+  DB-backed baselines should now fail with `A snapshot doesn't exist at …` rather than
+  `connect ECONNREFUSED 127.0.0.1:59999`. The first message means the surface never rendered; the second
+  means it rendered and has no reference yet. Only the second is the correct pre-dispatch state.
+  ⚠ **`gate-visual` is a NEW GitHub check name, and `gate-db-free`'s display name changed** from
+  `gate-db-free (lint + design + build + visual)` to `gate-db-free (lint + design + build + workflow
+  parse)`. If branch protection on this repository requires named checks, both need attention — a
+  required check that disappears blocks merges (loud), and a new job nobody requires is not enforced
+  (silent).
 
 - **Run `/gsd:verify-work` for Phase 10.** All 17 plans are executed; the phase-level ROADMAP
   checkbox and progress row are deliberately still `In Progress` because closing a phase is
