@@ -101,6 +101,19 @@ findings:
   info: 2
   total: 6
 status: issues_found
+fixed:
+  applied: [CR-01, WR-01, WR-02, WR-03]
+  out_of_scope: [IN-01, IN-02]
+  remaining:
+    critical: 0
+    warning: 0
+    info: 2
+  fixed_at: 2026-08-19
+  commits:
+    CR-01: ceccc55
+    WR-01: fd9d82d
+    WR-02: 2b02f99
+    WR-03: cafc5bb
 ---
 
 # Phase 12: Code Review Report
@@ -379,3 +392,70 @@ own, since they were not in scope for this phase's review.
 _Reviewed: 2026-08-18T19:18:42Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+---
+
+## Resolution — `/gsd:code-review 12 --fix` (2026-08-19)
+
+All Critical and Warning findings are fixed and committed. `IN-01` and `IN-02` were left
+untouched: `--all` was not passed, so Info findings were out of the fix scope by contract.
+
+| Finding | Severity | Status | Commit |
+|---------|----------|--------|--------|
+| CR-01 | Critical | fixed + regression test | `ceccc55` |
+| WR-01 | Warning | fixed | `fd9d82d` |
+| WR-02 | Warning | fixed + 2 regression cases | `2b02f99` |
+| WR-03 | Warning | fixed | `cafc5bb` |
+| IN-01 | Info | open — out of fix scope | — |
+| IN-02 | Info | open — out of fix scope | — |
+
+**Gates re-run independently after the fixes:** `npx tsc --noEmit` exit 0 · `npx vitest run`
+141 files / 1307 tests passed (was 140 / 1302 — the delta is the two new regression suites) ·
+`npm run build` exit 0, 0 errors and the same 12 pre-existing lint warnings.
+
+### Deliberate divergences from the suggested fixes
+
+**CR-01 focus target — the recovery CTA, not `CardContent`.** The review's snippet mirrored
+`collision-notice.tsx` by focusing the region. Two of the three contract sites say focus moves to
+*the primary recovery CTA* specifically, and `live-regions.ts` names a different target for the
+collision row on purpose. Focusing the region would have left those two sentences false, forcing a
+choice between shipping a false comment and softening it — both forbidden. The ref rides the
+`Back to availability` `Link`; the test asserts `document.activeElement` **is** that anchor, so a
+ref dropped by Radix `Slot` composition cannot pass.
+
+**CR-01 owner — `HoldExpiredState`, not `ReserveView`.** That state has two mounts: the live-expiry
+swap at `reserve-view.tsx:73` and `book/page.tsx:129`'s direct render for a hold already dead on
+arrival. A parent-owned effect covers one of them. The `live-regions.ts` row records this; nothing
+was weakened.
+
+**WR-01 — the optional half was declined.** The review suggested `fetchError`-style copy when the
+ladder crashes. The booker's own search did run and genuinely returned nothing — only the widening
+failed — so `fetchError` copy would substitute one false claim for another. A crashed ladder now
+falls back to the shipped `Try widening your search.`; no copy was re-worded.
+
+**WR-03 — one extra file.** `src/lib/validation/booking.ts`'s own doc comment still read
+"Three copies already ship". Leaving it would have reproduced exactly the defect class CR-01 is about.
+
+### Visual-baseline impact: none — no re-mint required
+
+No fix alters rendered output on any baselined surface's happy path, which is what allows the
+Task 3 dispatch to proceed against this code.
+
+- **WR-01** — `ladderFailed` is set only inside the `catch`. On the seeded fixture the ladder
+  succeeds, so `relaxExhausted` is unchanged; the zero-result band renders identically.
+- **CR-01 / WR-02** — the focus move fires only from `HoldExpiredState`'s mount, and that component
+  never mounts on a non-expired checkout render; WR-02's mount check returns on its first line for a
+  live deadline. Both are pinned by explicit negative cases
+  (`hold-expired-state.test.tsx` case 3, `hold-countdown.test.tsx` case 7) so a stray focus ring
+  cannot reach the frozen-clock `/listings/[id]/book` baseline.
+- **WR-03** — pure import refactor, verified element-for-element before deletion: all three sites
+  declared `[2, 5, 10, 25] as const`, and the local `MAX_RADIUS` used the same
+  `RADIUS_PRESETS[length - 1]` derivation as canonical `MAX_RADIUS_KM`.
+
+### Regression tests were proven to fail without their fix
+
+Each new suite was run with its fix temporarily neutered, then restored:
+`hold-expired-state.test.tsx` cases (1) and (2) fail while negative case (3) still passes;
+`hold-countdown.test.tsx` case (6) fails while negative case (7) still passes. Both are guards
+against silent recurrence — CR-01's whole point is that a static source scan structurally cannot
+see a missing focus move.
