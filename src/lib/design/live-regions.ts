@@ -666,8 +666,14 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "parent moves focus to the primary recovery CTA, which is what makes the event impossible to miss " +
       "and simultaneously puts the keyboard user on the way out. That focus move is not decoration " +
       "here — it is the half of the pair that earns dropping `assertive`, and removing it would make " +
-      "this row's argument false. RULE 2 does not apply: an expired hold is a normal, expected end to a " +
-      "timer and is never rendered red.",
+      "this row's argument false. WHERE IT LIVES, added after the 12 review found the argument had been " +
+      "paid for with code that did not exist (CR-01): the mount effect is in `HoldExpiredState` itself " +
+      "rather than in `ReserveView`, because that state has TWO mounts — the live-expiry swap and " +
+      "`book/page.tsx`'s direct render for a hold already dead on arrival — and a move owned by one " +
+      "parent fires on one of them. This registry is a SOURCE SCAN and cannot see a focus move at all, " +
+      "which is why it stayed green; `tests/booking/hold-expired-state.test.tsx` renders both mounts and " +
+      "asserts `document.activeElement`, and it is what keeps this sentence honest. RULE 2 does not " +
+      "apply: an expired hold is a normal, expected end to a timer and is never rendered red.",
   },
 
   // ─── reserve-actions.tsx ────────────────────────────────────────────────────────────────────────

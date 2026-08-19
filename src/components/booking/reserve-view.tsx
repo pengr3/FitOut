@@ -70,6 +70,15 @@ export function ReserveView({
   }
 
   // The countdown hitting 0 flips the whole page into the expiry state (it does NOT silently vanish, D-44).
+  //
+  // THE GATE-03 RULE-7 FOCUS MOVE IS NOT WRITTEN HERE, AND THAT IS DELIBERATE (12-REVIEW CR-01). Three
+  // comments — `hold-expired-state.tsx`'s header, `hold-countdown.tsx`'s rule-6 paragraph and the
+  // `hold-expired-state` row of `src/lib/design/live-regions.ts` — declare that focus moves to the
+  // primary recovery CTA when this swap happens, and this file is where a reader will come looking for
+  // it. It lives in `HoldExpiredState`'s own mount effect instead, because this swap is only ONE of the
+  // two ways that state reaches the screen (`book/page.tsx` renders it directly for a hold that was
+  // already dead on arrival) and a move owned here would fire on one of them. Do not "restore" it to
+  // this file: two movers would fight over one focus.
   if (timedOut || confirmFailed) return <HoldExpiredState listingId={listingId} />;
 
   return (
