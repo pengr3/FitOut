@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 13-06-PLAN.md
-last_updated: "2026-08-20T08:16:30.171Z"
+stopped_at: Completed 13-07-PLAN.md
+last_updated: "2026-08-20T09:10:34.056Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 60
+  completed_plans: 61
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 7 of 16
-Current Plan: 7
+Plan: 8 of 16
+Current Plan: 8
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -372,6 +372,7 @@ Last activity: 2026-08-20
 | Phase 13 P04 | 33min | 3 tasks | 6 files |
 | Phase 13 P05 | 40min | 2 tasks | 11 files |
 | Phase 13 P06 | 28min | 2 tasks | 3 files |
+| Phase 13 P07 | 95min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -707,6 +708,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-06: the refund email states the RAIL-FREE window, not a per-rail one — sendRefundIssued is never handed a rail and adding one would move a call site D-78 protects; per-rail email copy is a notify-payload change owned by Phase 15
 - [Phase ?]: 13-06: a ZERO refund quote renders no window sentence at all — a rail's window under a 'Refund to you PHP 0.00' row claims money is moving when none is
 - [Phase ?]: 13-06: the cancel page is NOT added to card-pattern-coverage's CARD_SURFACES (that inventory is 11-UI-SPEC's twelve, derived as 2+5+5); its ALLOWED_RAW_CARD row stays and must be removed only if the file moves
+- [Phase ?]: 13-07: RequestCountdown gained a finalHourEmphasis opt-out (default unchanged) — its alarm-colour emphasis is permanent on a 15-minute hold, which 13-UI-SPEC Color forbids for this phase
+- [Phase ?]: 13-07: the pending branch discriminates row-first (hold liveness vs the DB clock) then probe; every other answer keeps the shipped redirect, because a false money statement is worse than a navigation
 
 ### Pending Todos
 
@@ -812,8 +815,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T08:16:21.302Z
-Stopped at: Completed 13-06-PLAN.md
+Last session: 2026-08-20T09:10:34.025Z
+Stopped at: Completed 13-07-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
