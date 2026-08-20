@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 12
+current_plan: 13
 status: executing
-stopped_at: Completed 13-11-PLAN.md
-last_updated: "2026-08-20T16:57:36.938Z"
-last_activity: 2026-08-21
+stopped_at: Completed 13-12-PLAN.md
+last_updated: "2026-08-20T17:48:51.360Z"
+last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 65
+  completed_plans: 66
   percent: 27
 ---
 
@@ -45,10 +45,53 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 12 of 16
-Current Plan: 12
+Plan: 13 of 16
+Current Plan: 13
 Total Plans in Phase: 16
 Status: Ready to execute
+
+**13-12 IS DONE (`79d5b5d` · `57cf306` · `b702882`) — `/bookings/[id]/receipt` exists, and it is the
+phase's ONE net-new route.** Screen and print, with the browser's own dialog as the entire PDF pipeline
+(D-74); **zero packages**, `globals.css` / `drizzle/` / `package.json` / `src/components/ui/` all
+byte-unchanged. Money is proved, not inspected: `e2e/receipt-access.spec.ts` normalises `receipt-total`'s
+DOM text back to integer centavos and compares it with `quoted_total_cents` **read from Postgres**, and the
+same file carries the IDOR sameness proof (a foreign booking and a random UUID compared to EACH OTHER —
+both 200, `empty-state` innerHTML byte-identical, neither leaking venue/amount/reference) and the
+unpaid-hold 404 driven **as the owner**. D-76's predicate is two steps and **step 2 FAILS CLOSED**: where
+`bookings/[id]/page.tsx` renders its reversed branch on a silent probe (D-96 gave it conditional copy), a
+receipt is a table of amounts with no such register, so a silent probe means **no receipt** rather than a
+receipt carrying an unverified figure.
+
+⚠ **THE MOST TRANSFERABLE FINDING — A TEST THAT COULD NOT FAIL, CAUGHT BY PROBING IT.** The closed-set
+walk asserting `View receipt` on exactly the three money-moved renders stayed **44/44 GREEN** with the
+page's predicate replaced by a bare `true`. The cause is structural: of the ten declared detail renders,
+only two reach a site that renders the entry at all, and the one declared `cancelled` row reaching the
+generic landing carries a refund figure — so it qualifies under the real predicate and the broken one
+alike. The walk measures BRANCH PLACEMENT and nothing else. Case (17) was added — the same branch driven
+with `refundCents: null, paymentId: null`, the swept never-paid hold — and it goes red where the walk
+cannot. **A closed-set walk is not automatically a live assertion: check that some fixture in it actually
+exercises the predicate.**
+
+Three pinned inventories fired, and **two of them were right about wrong code**: `type-scale.test.ts` on a
+receipt `<h1>` using Display (13-UI-SPEC assigns the focal point to the Total — fixed, inventory unchanged
+at 14/11), and `elevation-z.test.ts` on a `print:shadow-none` that is inert because `panel-card.tsx` is
+flat at rest by its own rule (**the class was deleted, not the pin moved**). The third,
+`loading-coverage.test.ts`, moved as scheduled — **28/20/8 → 29/21/8**, measured one constant at a time,
+in the same commit as the route (D-88.3). `selector-contract.test.ts` went red on
+`Rendered-but-undeclared: [receipt]` exactly as 13-09/13-11 predicted, closed in the same commit.
+
+Print styling is Tailwind `print:` only and was **verified in the emitted CSS rather than assumed** —
+`@media print{.print\:\[\&_a\]\:hidden a,.print\:\[\&_button\]\:hidden button{display:none}}` — a
+closed set on the container rather than a class per control. `PanelCard`'s print flattening lives in
+`panel-card.tsx` because DS-11 owns the box and the component deliberately takes no `className`. **A3 is
+CLOSED** by a real build: `├ ƒ /bookings/[id]/receipt`, one row, no routing ambiguity. Gates: `npm test`
+**1507 passed / 4 skipped / 0 failed**, `npm run build` exit 0 (design **789 passed / 3 skipped**),
+`playwright` **27 passed / 1 skipped**, zero files deleted across all three commits. **TRUST-05 and
+TRUST-02 marked complete.** Four more grep/prose collisions closed by describing tokens rather than
+naming them — and one of the plan's own acceptance greps (`/ *\(`) is **unsatisfiable by any documented
+file**: it matches a comment opener followed by a parenthesis. The satisfiable form is recorded in the
+SUMMARY. Deferred: **D-86's per-head line has no seeded fixture** (13-15), the GATE-VRT baseline run for
+A4 (13-15), and the manual two-theme print check (13-16).
 
 **13-08 IS DONE (`e133ed8` · `451f371`) — both group surfaces are a DESIGN PASS ONLY (D-79), and the plan's
 central test exists because the repository's card gate could not see the regression it was supposed to
@@ -250,7 +293,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-21
+Last activity: 2026-08-20
 
 ## Performance Metrics
 
@@ -407,6 +450,7 @@ Last activity: 2026-08-21
 | Phase 13 P09 | 31min | 3 tasks | 7 files |
 | Phase 13 P10 | 71 | 3 tasks | 17 files |
 | Phase 13 P11 | 47min | 3 tasks | 8 files |
+| Phase 13 P12 | 47m | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -754,6 +798,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-11: the D-89 proof counts navigations to a DIFFERENT url — router.refresh() itself emits framenavigated, so a raw count is red at 8 against correct code
 - [Phase ?]: 13-11: a threat assertion runs BEFORE its vacuity guards — assertion order decides which sentence a red names, and a guard protects a pass from any position
 - [Phase ?]: 13-11: ConsumePaidParam is mounted in exactly ONE place, inside the confirmed branch's return — watched failing with it hoisted, and the red printed the checkout url a booker who had already paid gets bounced to
+- [Phase ?]: 13-12: D-76 step 2 FAILS CLOSED on the receipt where the detail page fails open — a silent probe means no receipt, not a receipt carrying an unverified figure
+- [Phase ?]: 13-12: the receipt's h1 is text-heading, not Display — the focal point is the itemisation and its Total (type-scale.test.ts caught the first draft; Display inventory unchanged at 14/11)
+- [Phase ?]: 13-12: PanelCard's print flattening lives in panel-card.tsx because DS-11 owns the box and the component takes no className; print:shadow-none was REMOVED as inert (elevation-z's pin was right to fire)
+- [Phase ?]: 13-12: a receipt for a cancelled/reversed booking takes the PUBLIC address projection — bookedListingAddress() grants the exact street to booked statuses only, and this document is printable
 
 ### Pending Todos
 
@@ -859,8 +907,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T16:56:50.384Z
-Stopped at: Completed 13-10-PLAN.md
+Last session: 2026-08-20T17:48:09.333Z
+Stopped at: Completed 13-12-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
