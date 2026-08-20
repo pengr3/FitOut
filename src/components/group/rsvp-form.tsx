@@ -375,7 +375,19 @@ export function RsvpForm({
         <div className="flex flex-col gap-2 sm:flex-row">
           {/* D-22 — the 44px height is the named opt-in size rather than a hand-rolled height class.
               The size also carries the wider padding that goes with a touch target; both buttons in
-              this row are flex-1, so they stay the same width and the change is invisible here. */}
+              this row are `sm:flex-1`, so they stay the same width and the change is invisible here.
+
+              ⚠ `sm:flex-1` AND NOT `flex-1`, AND THE BREAKPOINT IS THE WHOLE FIX (plan 13-15, MEASURED
+              AND SHIPPED BROKEN UNTIL NOW). This row is `flex-col` below `sm:`, so in that direction
+              the MAIN AXIS IS VERTICAL and `flex-1` sets `flex-basis: 0%` on the HEIGHT — which
+              overrides `h-11` for a flex item, because basis beats `height` in the main axis. Below
+              `sm:` both controls therefore collapsed from their declared 44px to the bare content line
+              box. `e2e/overflow-320.spec.ts`'s Phase-13 sweep measured them at **256x22** on
+              `/invite/{token}` at 320px, in both themes: 22px pointer targets on the app's most-shared
+              public surface, on the only two controls it has, half the WCAG 2.5.8 AA minimum and half
+              the size D-22 declares. Scoping the utility to `sm:` restores `h-11` below the breakpoint
+              and changes nothing at or above it — a column flex container already stretches its items
+              to full width, which is what `flex-1` was reached for. */}
           <Button
             type="button"
             variant="brand"
@@ -383,7 +395,7 @@ export function RsvpForm({
             onClick={form.handleSubmit((v) => onSubmit(v, "yes"))}
             disabled={pending || state === "full"}
             aria-disabled={pending || state === "full"}
-            className="flex-1"
+            className="sm:flex-1"
           >
             {pendingAnswer === "yes" ? "Saving…" : "Yes, I'm coming"}
           </Button>
@@ -398,7 +410,7 @@ export function RsvpForm({
             onClick={form.handleSubmit((v) => onSubmit(v, "no"))}
             disabled={pending}
             aria-disabled={pending}
-            className="flex-1"
+            className="sm:flex-1"
           >
             {pendingAnswer === "no" ? "Saving…" : "Can't make it"}
           </Button>

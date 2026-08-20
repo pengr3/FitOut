@@ -297,7 +297,24 @@ export function ConfirmationMoment({
           nobody "hardens" it later: the page is behind auth and it is the booker's own booking, so
           exposure is nil — and catching a typo is the ONLY reason the line exists, which a mask
           defeats by hiding exactly the characters a typo lives in. */}
-      {email !== null && <p className="text-label text-muted-foreground">{emailLine(email)}</p>}
+      {/* ⚠ `w-full break-words` IS A GATE-RESP FIX, NOT A STYLE PREFERENCE (plan 13-15), AND BOTH
+          HALVES WERE MEASURED — the first attempt shipped `break-words` alone and the sweep stayed RED.
+          An email address is ONE unbreakable token, and at the 320px floor this shell's content box is
+          288px: a 40-odd character address is wider than that. `e2e/overflow-320.spec.ts`'s Phase-13
+          sweep reported this exact `<p>` at `right=322` (`scrollWidth 322` against `clientWidth 320`)
+          on its first run, and at `right=323` on the run AFTER `break-words` was added.
+          WHY THE OBVIOUS CLASS WAS NOT ENOUGH, since the next person will reach for it too:
+          `overflow-wrap: break-word` breaks a token inside its line box but does NOT reduce the
+          element's intrinsic MIN-CONTENT width (that is `overflow-wrap: anywhere`, a different value).
+          This `<p>` is a cross-axis `items-center` item in a column flex container, so its width is
+          `fit-content` — i.e. at least min-content — and min-content was still the whole address. The
+          paragraph was therefore 290px wide inside a 288px box no matter how willing it was to break.
+          `w-full` pins the width to the container first; `break-words` then has somewhere to break.
+          The sibling interpolation in `pending-payment-state.tsx` sits in a normal block context, so it
+          needs the second half only. */}
+      {email !== null && (
+        <p className="w-full text-label break-words text-muted-foreground">{emailLine(email)}</p>
+      )}
 
       {/* 7 — THE CONDENSED TRUST BLOCK (D-67). Signals 1 and 4 only: at the instant of payment the
           booker's two questions are *where is my money* and *what happens next*. Tenure and listing

@@ -238,8 +238,18 @@ export function PaymentReversedState({
 
   return (
     <div className={BOOKING_SHELL} data-testid="payment-state-reversed">
-      <div className="space-y-6">
-        <div className="flex flex-col items-center gap-4 text-center">
+      {/* ⚠ THE TWO RESPONSIVE STEPS BELOW ARE A STATE-06 FIX, MEASURED, NOT A RHYTHM PREFERENCE
+          (plan 13-15). AC#22 requires this state's money panel to be FULLY inside a 320x568 viewport,
+          and `e2e/overflow-320.spec.ts`'s Phase-13 sweep measured its bottom edge at **570.94px** in
+          GROVE — 2.94px below the fold — while court passed. The difference is the theme: grove carries
+          a larger type scale and a 20px radius against court's 10px (D-02), so the same markup is
+          taller. A criterion that holds in one theme and not the other is not held.
+          `space-y-5 sm:space-y-6` and `gap-3 sm:gap-4` each recover 4px BELOW `sm:`, and only below it:
+          every viewport from 640px up renders byte-identically to what shipped. 570.94 − 8 = 562.94,
+          which is 5px of headroom rather than the 1px a single step would have left — and 1px of
+          headroom on a geometric assertion is a flake waiting for a font metric to move. */}
+      <div className="space-y-5 sm:space-y-6">
+        <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
           <Undo2Icon className="size-8 text-muted-foreground" aria-hidden="true" />
           {/* THE HEADING BLOCK. The `<h1>` is the shipped string, preserved byte-for-byte — it was
               never the defect — followed by the one line that says what the status MEANS rather than

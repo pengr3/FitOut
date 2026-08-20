@@ -208,7 +208,10 @@ export function PendingPaymentState({ reference, email, trustBlock }: PendingPay
             sentence={settlementSentence}
             detail={
               <div className="space-y-3">
-                <p>{slow ? takingLonger : waiting}</p>
+                {/* `break-words` for `confirmation-moment.tsx`'s measured reason: `takingLonger`
+                    interpolates the booker's own address, which is one unbreakable token, and at the
+                    320px floor a long one is wider than the 288px content box. */}
+                <p className="break-words">{slow ? takingLonger : waiting}</p>
                 {escalated && (
                   <>
                     <p>{referenceLine}</p>

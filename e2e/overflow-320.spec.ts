@@ -1,9 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { openBookingSheet } from "./helpers/booker-seed";
+import {
+  openBookingSheet,
+  seedBookableListing,
+  signUpBooker,
+  type SeededListing,
+} from "./helpers/booker-seed";
 import { FLOOR_PX, expectNoOverflow } from "./helpers/overflow";
+import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
+// The support constant is imported rather than re-declared, for `site.ts`'s own stated reason: it is
+// pure and isomorphic (no `server-only` guard) precisely so a gate can read it. The D-83 case below
+// branches on it, so a spec carrying its own copy would go green the day the real one changed.
+import { SUPPORT_EMAIL } from "../src/lib/site";
 
 // RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on twelve named routes plus
 // one route STATE, in both themes. Measured in real pixels in real Chromium.
@@ -436,4 +446,720 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
       });
     }
   }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 13 — THE CONFIRMATION, PAYMENT-STATE, RECEIPT AND GROUP SURFACES (plan 13-15)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ROADMAP § Cross-Cutting Constraints makes GATE-RESP and GATE-A11Y exit criteria on every
+// surface-touching phase. 13-UI-SPEC states them as AC#30 (`scrollWidth <= clientWidth` at 320px, both
+// themes, on every surface this phase touches; every control clears the target-size bar; focus visible
+// through the one DS-05 recipe) and AC#22 (`money-statement` fully inside the initial viewport at
+// 320x568 and 1280x800, both themes, on the payment states).
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WHY THIS IS A SECOND DESCRIBE IN THIS FILE RATHER THAN A FOURTEENTH ROW IN THE TABLE ABOVE
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// The table above is deliberately SEED-FREE — it discovers a listing id from the running catalogue and
+// every other path is static, which is what lets 26 cases run with no database fixture.
+// `helpers/overflow.ts`'s header records the decision that follows from that: plan 12-11 needed the
+// RESOLVED checkout at 320px and did NOT add a seeded row here, because `deferred-items.md` warns by
+// name against a fifth DB-seeding spec sharing one Postgres with a `postgres({max:1})` client apiece.
+//
+// Every Phase-13 surface IS a seeded booking — there is no catalogue to discover one from, and four of
+// them are payment states that exist only as particular column combinations. So the seed arrives, but as
+// ONE fixture for the whole block rather than one per row: a single listing, a single booker, one call
+// to `seedPaymentStates`, one group. That is one more Postgres client than this file had, not eleven,
+// and the 26 cases above are untouched — their ids, their table and their three expectations are
+// byte-identical, which `npx playwright test --list` is the check for.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE SESSION IS ESTABLISHED ONCE, AND THAT IS A MEASURED COST RATHER THAN A STYLE PREFERENCE
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// Playwright's `page` fixture is per-TEST — a fresh context, a fresh cookie jar — so the shipped pattern
+// (`receipt-parity.spec.ts:104-118`, `shell.spec.ts:733-742`) logs the booker in again in every case. At
+// this block's case count that is a sign-in per case against a dev server compiling routes on demand.
+// Instead the booker signs up ONCE in `beforeAll`, in its own context, and that context's `storageState`
+// cookies are installed on each test's context. Same session, same cookie, one signup.
+//
+// ⚠ IF EVERY CASE BELOW FAILS AT ITS `tell` AND THE BOOKER IS ON `/login`, THAT IS THE FIRST THING TO
+// CHECK: an unauthenticated `(app)` route redirects, and a redirect renders a perfectly good page with
+// none of these hooks on it.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THREE OF THE SPEC'S SURFACES ARE NOT REACHABLE, AND THE REASON IS STRUCTURAL RATHER THAN SCHEDULE
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// MEASURED 21 August 2026 by seeding all six `seedPaymentStates` shapes and requesting every URL:
+//
+//   • THE NOT-COMPLETED STATE (D-70) NEVER RENDERS FROM A SEED. `page.tsx`'s pending branch reaches it
+//     only when `readPaymentState(status, session) === "not-completed"`, and that pair requires the D-84
+//     probe to answer `active`. `probeCheckoutSession` returns null for a session PayMongo does not know
+//     — which every `cs_e2e_…` fixture id is — and the fallback direction is DELIBERATE and argued in
+//     that file: a probe that learns nothing lands on the redirect, never on the new state, because
+//     *"showing 'you have not been charged' while a payment is quietly settling is a false money
+//     statement"*. The seeded row redirects to `/listings/{id}/book?hold=…`.
+//   • THE TWO NAMED REVERSED BRANCHES ARE THE SAME STORY FROM THE OTHER END. `auto` and `manual` are
+//     chosen by `session === null ? "indeterminate" : isApiRefundable(rail) ? "auto" : "manual"`, so both
+//     presuppose a session the provider confirmed. A seeded row reaches the THIRD branch — D-96's
+//     `indeterminate`, added by plan 13-10 AFTER 13-UI-SPEC's tables were written — which is what a
+//     booker sees in every environment with no live PayMongo session, including CI.
+//
+// Reaching any of the three needs a REAL PayMongo checkout session, and `receipt-parity.spec.ts`'s header
+// records why no spec here may mint one: GATE-05 runs in a job that must never hold a live key (D-35).
+// So the three are SKIPPED WITH THEIR REASON IN THE MESSAGE, never silently, and the reversed row that IS
+// reachable is measured under the branch name it actually renders.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// NOT COVERED — stated so the next reader under-trusts this block
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//   • THE TARGET-SIZE BAR IS WCAG 2.5.8 AA (24px), NOT THE APP'S 44px `size="touch"`. See
+//     `TARGET_FLOOR_PX` for the measured reason a blanket 44 would be red on correct code.
+//   • THE TARGET-SIZE SCAN DOES NOT SEE THE APP SHELL, and the shell has a real 16x16 control in it
+//     below `sm:`. Measured, argued and deferred — `collectControls`'s docstring carries the whole
+//     entry and `deferred-items.md` carries the row.
+//   • FOCUS IS CHECKED ON TWO STOPS, not on every control: the first tab stop (which is shell chrome on
+//     every route, so it is really one assertion made many times) and the first stop INSIDE the
+//     surface's own content, which is the one that says something per-row.
+//   • The above-the-fold claim is `y + height <= viewport.height` with `scrollY === 0`. It says nothing
+//     about whether the sentence is legible at that size.
+//   • Like the rest of this file, none of it runs in CI (D-24).
+
+/**
+ * ⚠ THE FLOOR'S HEIGHT IS 568, NOT THIS FILE'S 800. AC#22 names 320x568 — the iPhone SE viewport and the
+ * shortest screen the product supports. The block above measures at 800 because horizontal overflow does
+ * not depend on height; the above-the-fold claim depends on nothing else.
+ */
+const SHORT_VIEWPORT = { width: FLOOR_PX, height: 568 } as const;
+const DESKTOP_VIEWPORT = { width: 1280, height: 800 } as const;
+
+/**
+ * The target-size floor, and it is 24 rather than 44 BECAUSE 44 WOULD BE RED ON CORRECT CODE.
+ *
+ * `e2e/calendar-hit-area.spec.ts:153-156` already carries both numbers and the distinction between them:
+ * 44px is this app's declared `size="touch"` (D-22) and the WCAG 2.5.5 figure, while **24px is the WCAG
+ * 2.5.8 AA bar** — a conformance requirement rather than a house style. The app ships deliberate sub-44
+ * controls on these very surfaces (`<Button>`'s default is `h-9`, i.e. 36px; `size="sm"` chrome is
+ * smaller still), so a gate asserting 44 on every control would report a dozen shipped, reviewed,
+ * deliberate boxes as defects on its first run. A gate with a high false-positive rate on a clean tree is
+ * a gate somebody deletes — `price-surface.test.ts:60` records the same reasoning about a scan with a
+ * 100% false-positive rate.
+ *
+ * The 44px claim is still made, where it is actually made: on the `size="touch"` controls, by
+ * `calendar-hit-area.spec.ts` and by the components' own tests.
+ */
+const TARGET_FLOOR_PX = 24;
+
+type Control = { readonly label: string; readonly w: number; readonly h: number };
+
+/**
+ * Every interactive control laid out on the page, with its box.
+ *
+ * WCAG 2.5.8's OWN EXCEPTION IS IMPLEMENTED RATHER THAN ASSUMED: a target laid out *in a sentence* is
+ * exempt, and the test is the element's computed `display` being `inline` — which is the spec's own
+ * criterion. Without it this gate reports every inline link in the trust block and the refund copy, which
+ * is exactly the "cries wolf on a green page" failure `collectOffenders` above was rewritten to avoid.
+ *
+ * `sr-only` controls are excluded for a different reason and it is not the same one: they are 1x1 by
+ * construction (`clip-path` plus `w-px h-px`) and are not pointer targets at all — the skip link is the
+ * example — so measuring them would be measuring a thing no finger can miss.
+ *
+ * ⚠ THE SHELL CHROME IS EXCLUDED, AND IT IS EXCLUDED BECAUSE IT FAILS — which is the opposite of the
+ * reason an exclusion is usually written, so it is stated rather than implied. MEASURED on this block's
+ * second run, 21 August 2026: `site-chrome.tsx`'s `ProfileLink` renders as a bare `size-4` icon link
+ * below `sm:` (the label is `hidden sm:inline` to fit the signed-in cluster into 226px), so at the 320px
+ * floor it is a **16x16** pointer target — 8px under the AA bar, on the control that reaches a user's own
+ * account, on every signed-in route in the app.
+ *
+ * That is a real finding and it is NOT this plan's to fix: `site-chrome.tsx` is the Phase-11 app shell,
+ * it is on no Phase-13 surface list, and widening it changes the header on every route in the product
+ * while re-opening the responsive budget its own docstring records. Silently letting it fail here would
+ * have made twenty-two Phase-13 cases red for one Phase-11 element; silently dropping the assertion would
+ * have hidden it. So the scan is scoped to the surface's OWN content, the finding is written up in
+ * `deferred-items.md` with this plan named as the finder, and this comment is the pointer.
+ */
+async function collectControls(page: Page): Promise<Control[]> {
+  return page.evaluate(() => {
+    const SEL =
+      'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], ' +
+      '[role="link"], [role="switch"], [role="checkbox"], [role="tab"]';
+    const out: { label: string; w: number; h: number }[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>(SEL))) {
+      const style = getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden") continue;
+      if (style.display === "inline") continue;
+      if (el.closest(".sr-only") !== null) continue;
+      // The app shell, excluded with a measurement and a reason — see the docstring above.
+      if (
+        el.closest('[data-testid="site-header"]') !== null ||
+        el.closest('[data-testid="site-footer"]') !== null
+      ) {
+        continue;
+      }
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) continue;
+      const name =
+        el.getAttribute("aria-label") ??
+        (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+      out.push({
+        label: `${el.tagName.toLowerCase()}[${name || el.getAttribute("id") || "?"}]`,
+        w: Math.round(rect.width * 10) / 10,
+        h: Math.round(rect.height * 10) / 10,
+      });
+    }
+    return out;
+  });
+}
+
+/** GATE-A11Y's target-size half. The vacuity guard is first, for `expectNoOverflow`'s reason. */
+async function expectTargets(page: Page, where: string): Promise<void> {
+  const controls = await collectControls(page);
+  expect(
+    controls.length,
+    `${where}: the target-size scan found ZERO interactive controls INSIDE the surface. The shell's ` +
+      "header and footer are excluded by design (see `collectControls`), so this counts only the row's " +
+      "own content — and every Phase-13 surface ships at least one action. An empty list is a page that " +
+      "did not render or a selector that stopped matching, never a clean result.",
+  ).toBeGreaterThan(0);
+
+  const undersized = controls
+    .filter((c) => Math.min(c.w, c.h) < TARGET_FLOOR_PX)
+    .map((c) => `  ${c.label} ${c.w}x${c.h}`);
+  expect(
+    undersized,
+    `${where}: ${undersized.length} control(s) are smaller than the ${TARGET_FLOOR_PX}px WCAG 2.5.8 AA ` +
+      `target-size bar on their smaller axis:\n${undersized.join("\n")}\n` +
+      "Inline targets (a link inside a sentence) are exempt by the success criterion itself and are " +
+      "already filtered out, so anything listed here is a block-level control that is genuinely too " +
+      "small to hit. The app's own bar for a primary action is higher still — `size=\"touch\"`, 44px.",
+  ).toEqual([]);
+}
+
+type FocusReading = {
+  readonly tag: string;
+  readonly label: string;
+  readonly inHeader: boolean;
+  readonly outlineStyle: string;
+  readonly outlineWidth: string;
+  readonly boxShadow: string;
+};
+
+/** What the document element currently has focus on, and whether anything is drawn around it. */
+async function readFocus(page: Page): Promise<FocusReading | null> {
+  return page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el === null || el === document.body || el === document.documentElement) return null;
+    const s = getComputedStyle(el);
+    return {
+      tag: el.tagName.toLowerCase(),
+      label: (el.getAttribute("aria-label") ?? el.textContent ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 40),
+      inHeader: el.closest('[data-testid="site-header"]') !== null,
+      outlineStyle: s.outlineStyle,
+      outlineWidth: s.outlineWidth,
+      boxShadow: s.boxShadow,
+    };
+  });
+}
+
+/**
+ * GATE-A11Y's focus half, and it is a RENDERED check rather than "focus moved".
+ *
+ * DS-05 ships exactly one recipe — `focus-visible:ring-2 focus-visible:ring-ring
+ * focus-visible:ring-offset-2 focus-visible:ring-offset-background` (`tests/design/focus-recipe.test.ts`
+ * pins its spelling across the tree) — and Tailwind draws a `ring-*` as a **box-shadow**, not as an
+ * outline. So "the ring is visible" is: a non-`none` box-shadow, or a real outline with a width. Either
+ * satisfies the criterion; NEITHER is satisfied by focus merely having moved, which is the weaker
+ * assertion this function exists instead of.
+ *
+ * The keyboard is what makes it a `:focus-visible` match. A programmatic `.focus()` does not qualify in
+ * Chromium, so a version of this that called `.focus()` would report every control as ringless and would
+ * be red on a correct tree.
+ *
+ * TWO STOPS, and the second is the one that says anything per-row: the first tab stop is shell chrome on
+ * every route in the app, so asserting only that would be one assertion repeated. The loop walks forward
+ * until focus leaves the header and asserts the ring there too.
+ */
+async function expectVisibleFocus(page: Page, where: string): Promise<void> {
+  await page.keyboard.press("Tab");
+  const first = await readFocus(page);
+  expect(
+    first,
+    `${where}: one Tab from a freshly loaded document moved focus nowhere. Either the page has no ` +
+      "focusable control at all, or something is swallowing the key — both are GATE-A11Y failures.",
+  ).not.toBeNull();
+  expectRing(first as FocusReading, `${where} (first tab stop)`);
+
+  // …then walk to the first stop that is NOT shell chrome. A bounded loop: an unbounded one on a page
+  // with a focus trap never returns, and a hang is a worse failure report than an assertion.
+  let inSurface: FocusReading | null = null;
+  for (let i = 0; i < 40; i += 1) {
+    const reading = await readFocus(page);
+    if (reading !== null && !reading.inHeader) {
+      inSurface = reading;
+      break;
+    }
+    await page.keyboard.press("Tab");
+  }
+  expect(
+    inSurface,
+    `${where}: forty Tab presses never left the site header, so this row's own controls were never ` +
+      "reached and the ring assertion below would only ever have measured the shell.",
+  ).not.toBeNull();
+  expectRing(inSurface as FocusReading, `${where} (first in-surface control)`);
+}
+
+function expectRing(reading: FocusReading, where: string): void {
+  const hasOutline = reading.outlineStyle !== "none" && parseFloat(reading.outlineWidth) > 0;
+  const hasRing = reading.boxShadow !== "none" && reading.boxShadow.trim() !== "";
+  expect(
+    hasOutline || hasRing,
+    `${where}: \`${reading.tag}\` ("${reading.label}") has keyboard focus and draws NOTHING — ` +
+      `outline: ${reading.outlineStyle} ${reading.outlineWidth}, box-shadow: ${reading.boxShadow}. ` +
+      "DS-05 is the one focus mechanism in this app and it paints a `ring-*`, which Chromium reports " +
+      "as a box-shadow. A control with no visible focus is a defect, not a variant.",
+  ).toBe(true);
+}
+
+/**
+ * AC#22 / STATE-06 — the money statement is fully inside the INITIAL viewport, with nothing scrolled.
+ *
+ * `scrollY === 0` is asserted rather than assumed: `boundingBox()` is viewport-relative, so a page that
+ * had been scrolled would report a box that fits while the booker had to scroll to see it, which is
+ * precisely the claim being denied.
+ */
+async function expectMoneyStatementAboveFold(page: Page, where: string): Promise<void> {
+  // ⚠ `visible: true` IS A CORRECTION TO A MEASUREMENT INSTRUMENT, NOT A RELAXED ASSERTION, AND THE
+  // MEASUREMENT IS RECORDED BECAUSE IT LOOKS EXACTLY LIKE THE DEFECT AC#22 FORBIDS.
+  //
+  // The first draft counted every element carrying the hook and demanded exactly one, which is AC#22's
+  // own wording. On the pending-settlement surface it reported TWO and went red. Probed 21 August 2026
+  // by loading that surface twice in one run, once with `page.clock` installed and once without:
+  //
+  //   clock=false  count=1   288x100 @ y=184   div[money-statement] < … < div[payment-state-pending] < main
+  //   clock=true   count=2   288x100 @ y=184   (as above)
+  //                          0x0     @ y=0     div[money-statement] < … < div(hidden) < body
+  //
+  // The second copy exists ONLY under a driven clock, is inside a `hidden` container attached directly
+  // to `<body>`, and measures 0x0 — the retained previous tree of a `router.refresh()` transition that a
+  // frozen clock leaves mid-flight. The poller is D-71's, it is on this surface by design, and a driven
+  // clock is what keeps the frame deterministic; so the instrument that makes the surface measurable is
+  // the thing that produces the duplicate. It paints nothing and no booker can read it.
+  //
+  // The claim being made is therefore stated on what is RENDERED: exactly one money statement is visible.
+  // The total is still reported in the failure message, so a real second panel — which would be visible —
+  // still fails, and fails with both numbers in the sentence.
+  const hook = page.getByTestId("money-statement").filter({ visible: true });
+  await expect(
+    hook,
+    `${where}: this surface renders no VISIBLE \`money-statement\` (${await page
+      .getByTestId("money-statement")
+      .count()} carry the hook in total). STATE-06 is a claim about a specific element, and a state ` +
+      "that stopped rendering one has not satisfied it — it has removed the sentence the criterion is " +
+      "about. More than one VISIBLE panel is the AC#22 defect: two money statements in one document " +
+      "are two things that can disagree about what happened to the booker's money.",
+  ).toHaveCount(1);
+
+  expect(
+    await page.evaluate(() => window.scrollY),
+    `${where}: the document was already scrolled when the measurement ran, so a box that fits is not ` +
+      "the same claim as a sentence the booker can see on arrival.",
+  ).toBe(0);
+
+  const box = await hook.boundingBox();
+  expect(box, `${where}: the money statement has no layout box`).not.toBeNull();
+  const viewport = page.viewportSize();
+  expect(viewport, `${where}: no viewport size`).not.toBeNull();
+  const bottom = (box as { y: number; height: number }).y + (box as { height: number }).height;
+  expect(
+    bottom,
+    `${where}: the money statement's bottom edge is at ${Math.round(bottom)}px in a ` +
+      `${(viewport as { height: number }).height}px viewport — the booker has to scroll to read the ` +
+      "sentence that says what happened to their money. STATE-06 puts it above the fold on every " +
+      "payment state at both declared sizes.",
+  ).toBeLessThanOrEqual((viewport as { height: number }).height);
+}
+
+/**
+ * The fixture: one listing, one booker, six payment-state rows and one group, for the whole block.
+ *
+ * `cookies` rather than a login per case — see this block's header.
+ */
+type Phase13Fixture = {
+  readonly seed: SeededListing;
+  readonly states: SeededPaymentStates;
+  readonly inviteToken: string;
+  readonly cookies: readonly { name: string; value: string; domain: string; path: string }[];
+};
+
+type Phase13Row = {
+  readonly name: string;
+  /** `null` for a surface this block cannot reach; `skip` then says why, IN THE MESSAGE. */
+  readonly path: ((f: Phase13Fixture) => string) | null;
+  readonly skip?: string;
+  /** The declared selector proving this surface rendered ITS OWN subject, not the state one step before. */
+  readonly tell: (page: Page) => ReturnType<Page["locator"]>;
+  /** Why that selector cannot be satisfied by the skeleton, the redirect or the branch next door. */
+  readonly tellWhy: string;
+  /** STATE-06 applies: this surface renders a money statement. */
+  readonly money?: boolean;
+  /** Something on this surface ticks, so the clock is installed before the first navigation. */
+  readonly ticks?: boolean;
+};
+
+/**
+ * ⚠ MUST SATISFY `inviteTokenSchema` — `/^[0-9A-HJKMNP-TV-Z]{20}$/`, Crockford base32, exactly twenty.
+ *
+ * A token of any other shape folds onto the SAME inactive branch an unknown one reaches (deliberately —
+ * the shape check must not become a probe), so a fixture with a sloppy token renders `InviteInactive`
+ * and every assertion below measures the wrong surface while looking perfectly healthy. Measured while
+ * writing this block: a 16-character lower-case token did exactly that.
+ */
+function mintInviteToken(): string {
+  const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  let out = "";
+  for (let i = 0; i < 20; i += 1) {
+    out += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+  }
+  return out;
+}
+
+const PHASE_13_ROWS: readonly Phase13Row[] = [
+  {
+    name: "the confirmation moment",
+    path: (f) => `/bookings/${f.states.bookingIds.confirmed}?paid=1`,
+    tell: (page) => page.getByTestId("confirmation-moment"),
+    tellWhy:
+      "the moment's own container. The confirmed DETAIL renders at the same URL without the query and " +
+      "carries `booking-detail` instead, so nothing weaker tells the before-picture from the after.",
+    ticks: true,
+  },
+  {
+    name: "the confirmed detail, no query",
+    path: (f) => `/bookings/${f.states.bookingIds.confirmed}`,
+    tell: (page) => page.getByTestId("booking-detail"),
+    tellWhy:
+      "the detail shell, which the moment does NOT render — so this row cannot be satisfied by the row " +
+      "above, and neither can be satisfied by the route's `loading.tsx` plate.",
+  },
+  {
+    name: "payment state: pending settlement",
+    path: (f) => `/bookings/${f.states.bookingIds.pendingLiveHold}?paid=1`,
+    tell: (page) => page.getByTestId("payment-state-pending"),
+    tellWhy:
+      "the pending container. All three payment states are role-less sectioning `div`s " +
+      "(`selector-contract.ts` records why each needs its own box), and the same row WITHOUT `?paid=1` " +
+      "redirects to checkout — so the query and this hook together are what pin the surface.",
+    money: true,
+    ticks: true,
+  },
+  {
+    name: "payment state: not completed",
+    path: null,
+    skip:
+      "UNREACHABLE FROM A SEED, and the reason is `page.tsx`'s own documented fallback rather than a " +
+      "missing fixture. The pending branch renders `NotCompletedState` only when " +
+      "`readPaymentState(status, session) === 'not-completed'`, which needs the D-84 probe to answer " +
+      "`active`. `probeCheckoutSession` returns null for any session PayMongo does not know — every " +
+      "`cs_e2e_…` id is one — and the branch then REDIRECTS rather than rendering, deliberately: " +
+      "'showing you have not been charged while a payment is quietly settling is a false money " +
+      "statement'. Reaching it needs a real hosted checkout session, which D-35 forbids this suite " +
+      "from minting. Covered instead, in the rendered tree, by tests/booking/payment-states.test.tsx.",
+    tell: (page) => page.getByTestId("payment-state-incomplete"),
+    tellWhy: "moot while the row is skipped; kept so the row is complete if the surface becomes reachable.",
+    money: true,
+  },
+  {
+    name: "payment state: reversed, AUTOMATIC branch",
+    path: null,
+    skip:
+      "UNREACHABLE FROM A SEED. The branch is `session === null ? 'indeterminate' : " +
+      "isApiRefundable(rail) ? 'auto' : 'manual'`, so `auto` presupposes a provider-confirmed session " +
+      "AND a refundable rail. A seeded row has neither: the probe returns null. Same credential " +
+      "boundary as the not-completed row above (D-35).",
+    tell: (page) => page.getByTestId("payment-state-reversed"),
+    tellWhy: "moot while the row is skipped.",
+    money: true,
+  },
+  {
+    name: "payment state: reversed, MANUAL branch",
+    path: null,
+    skip:
+      "UNREACHABLE FROM A SEED, for the automatic branch's reason plus one more: `manual` additionally " +
+      "requires the confirmed session to name a NON-refundable rail (QR Ph, UBP). Two provider facts " +
+      "this suite may not manufacture. See the dedicated ordering case below, which states the second, " +
+      "INDEPENDENT reason that assertion cannot run today.",
+    tell: (page) => page.getByTestId("payment-state-reversed"),
+    tellWhy: "moot while the row is skipped.",
+    money: true,
+  },
+  {
+    name: "payment state: reversed, INDETERMINATE branch (D-96)",
+    path: (f) => `/bookings/${f.states.bookingIds.reversed}`,
+    tell: (page) => page.getByTestId("payment-state-reversed"),
+    tellWhy:
+      "the reversed container, reached with NO query string — which is D-87's falsifiable form: the " +
+      "state used to be gated on `?paid=1` and would have vanished the moment 13-11's confirmation " +
+      "moment consumed that parameter. This is the branch a seeded row actually renders (D-96); the " +
+      "two the UI-SPEC names are skipped above with their reason.",
+    money: true,
+  },
+  {
+    name: "the receipt",
+    path: (f) => `/bookings/${f.states.bookingIds.confirmed}/receipt`,
+    tell: (page) => page.getByTestId("receipt"),
+    tellWhy:
+      "the receipt shell. The route's own loading plate carries no `receipt` id, and the D-76 predicate " +
+      "refusing the row would land on the not-found boundary, which carries none either.",
+  },
+  {
+    name: "/bookings/[id]/cancel",
+    path: (f) => `/bookings/${f.states.bookingIds.confirmed}/cancel`,
+    tell: (page) => page.getByRole("heading", { name: "Cancel this booking?" }),
+    tellWhy:
+      "the LIVE branch's own heading. `cancel/loading.tsx` renders a `PanelSkeleton` labelled 'Loading " +
+      "your cancellation options' and no heading at all, and the already-started refusal renders a " +
+      "different one — so this string separates the branch being measured from both neighbours.",
+  },
+  {
+    name: "/bookings/[id]/group",
+    path: (f) => `/bookings/${f.states.bookingIds.confirmed}/group`,
+    tell: (page) => page.locator("#invite-link"),
+    tellWhy:
+      "the share box's own input, and the heading would have been the trap: `group/loading.tsx` renders " +
+      "`<h1>Your group</h1>` byte-identically to the resolved page, so an `h1` hook is satisfied by the " +
+      "skeleton. The load-FAILURE branch renders neither.",
+  },
+  {
+    name: "/invite/[token]",
+    path: (f) => `/invite/${f.inviteToken}`,
+    tell: (page) => page.getByRole("heading", { name: /^You(’|')re invited to / }),
+    tellWhy:
+      "the ACTIVE invite's own heading. Two neighbours make anything weaker useless: " +
+      "`invite/[token]/loading.tsx` is a SEARCH-PAGE skeleton whose `h1` reads 'Find a space to play' " +
+      "(measured — a curl of this route returns exactly that), and every inactive token folds onto " +
+      "`InviteInactive`'s two sentences under a different heading.",
+  },
+  {
+    name: "bookings/[id]/not-found",
+    path: () => "/bookings/a-booking-id-that-must-never-exist-13-15",
+    tell: (page) => page.getByTestId("empty-state"),
+    tellWhy:
+      "the EmptyState this boundary composes. `not-found.tsx` deliberately uses `EmptyState` rather " +
+      "than `ErrorState` — a stale link is a state, not a fault, and `ErrorState` paints its glyph with " +
+      "the alarm token this phase renders nowhere — so the id is the boundary's signature.",
+  },
+];
+
+test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in both themes`, () => {
+  // SERIAL, and it is not a performance setting: the whole block shares ONE seeded fixture built in
+  // `beforeAll`. Playwright runs `beforeAll` once per WORKER, so a parallel block would seed one listing
+  // and one booker per worker and tear down another worker's rows from under it.
+  test.describe.configure({ mode: "serial", timeout: 120_000 });
+
+  let fixture: Phase13Fixture;
+
+  test.beforeAll(async ({ browser }) => {
+    const seed = await seedBookableListing({ titlePrefix: "E2E Phase13 Sweep" });
+
+    // The signup happens in its own context, ONCE. Its cookies are what every case below reuses.
+    const context = await browser.newContext({ baseURL: BASE });
+    const page = await context.newPage();
+    const email = await signUpBooker(page, seed);
+    const cookies = (await context.storageState()).cookies;
+    await context.close();
+
+    const [{ id: bookerId }] = await seed.sql<{ id: string }[]>`
+      SELECT id FROM "user" WHERE email = ${email}
+    `;
+    const states = await seedPaymentStates(seed, bookerId, { idPrefix: "e2e_p13sweep" });
+
+    const inviteToken = mintInviteToken();
+    await seed.sql`
+      INSERT INTO "booking_group" (id, booking_id, capacity_snapshot, access_token, created_at)
+      VALUES (
+        ${`bg_p13sweep_${inviteToken}`}, ${states.bookingIds.confirmed}, ${8}, ${inviteToken}, now()
+      )
+    `;
+
+    fixture = { seed, states, inviteToken, cookies };
+  });
+
+  test.afterAll(async () => {
+    if (fixture === undefined) return;
+    // ORDER IS THE FK'S, not this block's: `booking_group.booking_id` is ON DELETE RESTRICT, so the
+    // group goes before the bookings and the bookings before the listing — and `seed.teardown()` ends
+    // the connection the earlier statements run on, so it is unconditionally last.
+    await fixture.seed.sql`DELETE FROM booking_group WHERE access_token = ${fixture.inviteToken}`;
+    await fixture.states.teardown();
+    await fixture.seed.teardown();
+  });
+
+  for (const row of PHASE_13_ROWS) {
+    for (const theme of THEMES) {
+      const title = `${row.name} · ${theme}`;
+
+      if (row.path === null) {
+        // NAMED, never silent — the same shape the four unreachable error boundaries above use. A skip
+        // whose reason is only in a comment is a skip nobody reads.
+        test.skip(title, () => {
+          throw new Error(`unreachable: ${row.skip}`);
+        });
+        continue;
+      }
+
+      const resolvePath = row.path;
+
+      test(title, async ({ page }) => {
+        await page.context().addCookies([...fixture.cookies]);
+        await seedTheme(page.context(), theme);
+
+        // ⚠ BEFORE THE FIRST NAVIGATION — Playwright's own caveat for `clock`, quoted in
+        // `e2e/hold-countdown.spec.ts`: a clock installed after a navigation does not control the timers
+        // the page already created. Two surfaces here tick: the pending state's 2.5s `router.refresh()`
+        // poller (D-71) and the confirmation moment's decay (D-60). A sweep that measured a page mid-poll
+        // is a flake, and a `router.refresh()` landing between the box read and the assertion is exactly
+        // the shape that gets a threshold widened instead of a clock installed.
+        if (row.ticks) {
+          await page.clock.install();
+          await page.clock.pauseAt(new Date("2026-08-21T09:00:00Z"));
+        }
+
+        await page.setViewportSize({ ...SHORT_VIEWPORT });
+        await page.goto(`${BASE}${resolvePath(fixture)}`);
+        await page.evaluate(() => document.fonts.ready);
+
+        const where = `${title} · ${FLOOR_PX}px`;
+        await expect(
+          row.tell(page),
+          `${where}: the route rendered no reachability tell — ${row.tellWhy} Every assertion in this ` +
+            "case passes against a page with nothing on it, which is why this runs first and is a " +
+            "failure rather than a skip.",
+        ).not.toHaveCount(0, { timeout: 20_000 });
+
+        await expectNoOverflow(page, where);
+
+        // ⚠ THE ORDER OF THE NEXT THREE IS LOAD-BEARING AND IT WAS MEASURED. STATE-06's claim is about
+        // the INITIAL viewport, and `expectVisibleFocus` walks the keyboard forward until focus leaves
+        // the header — which SCROLLS the document. The first draft ran the focus walk first and the
+        // reversed row failed with `scrollY` of 28, i.e. the guard inside `expectMoneyStatementAboveFold`
+        // catching this file's own instrument rather than a product defect. It is exactly the failure
+        // that guard exists for, arriving from the wrong direction, so the fix is the order and NOT a
+        // `scrollTo(0, 0)` — resetting the scroll would have made the guard unable to see a real one.
+        if (row.money === true) {
+          await expectMoneyStatementAboveFold(page, `${where} (STATE-06)`);
+        }
+
+        await expectTargets(page, where);
+        await expectVisibleFocus(page, where);
+
+        if (row.money === true) {
+          // …and again at the desktop size AC#22 names. A second `goto` rather than a resize, because a
+          // resize leaves the scroll position (see above) and the poller's state from the first pass in
+          // place.
+          await page.setViewportSize({ ...DESKTOP_VIEWPORT });
+          await page.goto(`${BASE}${resolvePath(fixture)}`);
+          await page.evaluate(() => document.fonts.ready);
+          await expect(row.tell(page)).not.toHaveCount(0, { timeout: 20_000 });
+          await expectMoneyStatementAboveFold(
+            page,
+            `${title} · ${DESKTOP_VIEWPORT.width}px (STATE-06)`,
+          );
+        }
+      });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // D-83 / 13-UI-SPEC § The Reversed State — READING ORDER BEATS COLOUR
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // The falsifiable claim: in the MANUAL branch, at 320x568 in both themes, the support control's
+  // bounding box is fully inside the initial viewport and its `boundingBox().y` is LESS than the coral
+  // primary's. That is how D-72's single coral recovery action and D-83's unmissable support path coexist
+  // without a second accent fill in one viewport.
+  //
+  // ⚠ IT SKIPS TODAY, FOR TWO INDEPENDENT REASONS, AND A SKIP WITH A NAMED REASON IS THE POINT. An
+  // assertion that quietly passed over an absent element is the vacuity this repository has now recorded
+  // nine times; both reasons are computed here rather than asserted in prose, so the day either one is
+  // fixed this case starts RUNNING rather than staying green for the wrong reason.
+  test("D-83 — the support control sits above the coral primary in the reversed manual branch", async ({
+    page,
+  }) => {
+    const blockers: string[] = [];
+
+    // (1) THE CONTROL DOES NOT RENDER AT ALL. `SUPPORT_EMAIL` is `null` (D-26/D-64), and the support
+    // component renders nothing in that state by design — `tests/design/site-contacts.test.ts` is an
+    // INVERTED gate asserting zero support affordances anywhere while it is unset, and D-64 forbids
+    // setting it to a placeholder to make a surface pass. This is a `human_needed` item: one line,
+    // `src/lib/site.ts:70`, and it is the PM's to write.
+    if (SUPPORT_EMAIL === null) {
+      blockers.push(
+        "SUPPORT_EMAIL is null (src/lib/site.ts:70), so `support-path` renders NOTHING anywhere in the " +
+          "app — D-64, and site-contacts.test.ts is the inverted gate that keeps it that way. There is " +
+          "no element to measure, and measuring an absent one is how an assertion passes vacuously.",
+      );
+    }
+
+    // (2) THE BRANCH ITSELF IS NOT REACHABLE. Independent of (1): even with the constant set, a seeded
+    // row lands on D-96's `indeterminate` branch, because `manual` requires a provider-confirmed session
+    // on a non-refundable rail. Stated separately so fixing one does not silently look like fixing both.
+    blockers.push(
+      "the MANUAL branch is not reachable from a seed: `page.tsx` picks it only when the D-84 probe " +
+        "returns a session AND `isApiRefundable(rail)` is false, and `probeCheckoutSession` returns " +
+        "null for every fixture session id. A seeded reversed row renders the INDETERMINATE branch " +
+        "(D-96), which carries a different sentence and no rail. Minting a real hosted session is what " +
+        "D-35 forbids this suite from doing.",
+    );
+
+    test.skip(
+      blockers.length > 0,
+      `D-83 ordering NOT asserted — ${blockers.length} independent blocker(s): ${blockers.join(" ALSO: ")}`,
+    );
+
+    // ── From here down the case RUNS the moment both blockers are gone. ───────────────────────────
+    await page.context().addCookies([...fixture.cookies]);
+    await seedTheme(page.context(), "court");
+    await page.setViewportSize({ ...SHORT_VIEWPORT });
+    await page.goto(`${BASE}/bookings/${fixture.states.bookingIds.reversed}`);
+
+    const support = page.getByTestId("support-path");
+    await expect(
+      support,
+      "the reversed manual branch rendered no `support-path`. The whole claim is about that control's " +
+        "position, so an absent one is a failure and never a pass.",
+    ).toHaveCount(1);
+
+    const primary = page.getByRole("link", { name: "Back to availability" });
+    await expect(primary).toHaveCount(1);
+
+    const supportBox = await support.boundingBox();
+    const primaryBox = await primary.boundingBox();
+    expect(supportBox, "the support control has no layout box").not.toBeNull();
+    expect(primaryBox, "the coral primary has no layout box").not.toBeNull();
+
+    const s = supportBox as { y: number; height: number };
+    const p = primaryBox as { y: number };
+    const viewport = page.viewportSize() as { height: number };
+
+    expect(
+      s.y + s.height,
+      `the support control's bottom edge is at ${Math.round(s.y + s.height)}px in a ` +
+        `${viewport.height}px viewport. D-83 requires it fully inside the INITIAL viewport: it is the ` +
+        "only route to the booker's money, and a control below the fold is decorative.",
+    ).toBeLessThanOrEqual(viewport.height);
+
+    expect(
+      s.y,
+      `the support control is at y=${Math.round(s.y)} and the coral primary at ` +
+        `y=${Math.round(p.y)}. Reading order is what makes the support path unmissable WITHOUT a second ` +
+        "accent fill in the viewport (12-UI-SPEC's one-accent rule forbids that resolution), so the " +
+        "order is the requirement, not a layout preference.",
+    ).toBeLessThan(p.y);
+  });
 });

@@ -184,7 +184,11 @@ export function ShareLinkBox({ inviteUrl }: { inviteUrl: string }) {
               readOnly
               value={inviteUrl}
               onFocus={(e) => e.currentTarget.select()}
-              className="h-11 flex-1 text-sm"
+              // `sm:flex-1`, never bare `flex-1` — the identical trap `rsvp-form.tsx` was measured
+              // failing: this row is `flex-col` below `sm:`, so there `flex-1` would set
+              // `flex-basis: 0%` on the HEIGHT and override `h-11`, collapsing the field to its bare
+              // content box. A column flex container already stretches its items to full width.
+              className="h-11 text-sm sm:flex-1"
             />
             <Button
               type="button"
