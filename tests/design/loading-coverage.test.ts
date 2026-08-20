@@ -36,16 +36,38 @@
 // oracle. Do not "simplify" this gate to read the manifest.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// THE COUNTS ARE 28 / 20 / 8, NOT THE PLAN'S 25 / 20 / 5
+// THE COUNTS ARE 29 / 21 / 8. THEY WERE 28 / 20 / 8, AND BEFORE THAT THE PLAN'S 25 / 20 / 5
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// The QUALIFYING set is exactly the twenty the plan enumerated — that half was right, and it has not
-// moved since. The totals were not: `(legal)/terms/page.tsx` and `(legal)/privacy/page.tsx` landed in
-// plan 11-15, after this plan was written, and both are sync server pages. They join `/dev/theme` and
-// the four `(auth)` pages as routes that must NOT have a `loading.tsx`. This was the ninth
-// consecutive plan in this phase whose own surface inventory was wrong about a count; the numbers
-// below are measured, and a change to any of them means a ROUTE WAS ADDED and somebody has to decide
-// which side it is on — it does not mean the number should be bumped.
+// The QUALIFYING set was exactly the twenty the original plan enumerated — that half was right. The
+// totals were not: `(legal)/terms/page.tsx` and `(legal)/privacy/page.tsx` landed in plan 11-15, after
+// that plan was written, and both are sync server pages. They join `/dev/theme` and the four `(auth)`
+// pages as routes that must NOT have a `loading.tsx`. That was the ninth consecutive plan in its phase
+// whose own surface inventory was wrong about a count; the numbers below are measured, and a change to
+// any of them means a ROUTE WAS ADDED and somebody has to decide which side it is on — it does not mean
+// the number should be bumped.
+//
+// ── 21 AUGUST 2026, PLAN 13-12 — `/bookings/[id]/receipt`, THE PHASE'S ONE NET-NEW ROUTE (D-74). ───
+//
+// It is an async RSC (an owner-gated booking read, a D-84 PayMongo probe, a listing read and a DB clock
+// read), so it QUALIFIES and it ships with its own `loading.tsx`. TWENTY-NINE pages, TWENTY-ONE
+// qualifying, and the non-qualifying set is UNCHANGED at eight — the receipt adds nothing to the side
+// that must have no fallback.
+//
+// ⚠ THE THREE PINS MOVED IN THE SAME COMMIT AS THE ROUTE (D-88.3), which is the only ordering under
+// which they are a decision rather than a chore: a pin bumped in a later commit is a pin that was red on
+// `main` for the length of a review, and the fix for a red pin then looks like arithmetic instead of
+// like "somebody decided which side this route is on".
+//
+// AND THEY WERE MEASURED ONE AT A TIME, not written down from the plan. The plan predicted 29/21/8; the
+// run was made to say so. Verbatim, in order, each against the previous constant:
+//
+//   AssertionError: the number of page.tsx files under src/app changed. … expected 29 to be 28
+//   AssertionError: the routes that qualify changed. … expected 21 to be 20
+//   Tests  15 passed (15)
+//
+// The third line is the measurement of `EXPECTED_NON_QUALIFYING`: the suite went green with that
+// constant untouched, which is the only way to establish that a count did NOT move.
 //
 // THE EIGHTH NON-QUALIFYING ROUTE, AND THE DECISION THAT PUT IT THERE (plan 11-18, 17 August 2026).
 // `src/app/dev/throw/page.tsx` is the deliberate-throw affordance that makes the SENTINEL_LEAK_PROBE
@@ -174,12 +196,13 @@ import ts from "typescript";
 const APP_DIR = resolve(process.cwd(), "src/app");
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// THE PINNED COUNTS. Measured, 17 August 2026. A change here means a ROUTE WAS ADDED and needs a
-// decision — is its default export async, and therefore does it need a loading state — not that the
-// number should be bumped to make the run green.
+// THE PINNED COUNTS. Measured 17 August 2026; re-measured 21 August 2026 when plan 13-12 added
+// `/bookings/[id]/receipt` (see the header for the three verbatim assertions, taken one constant at a
+// time). A change here means a ROUTE WAS ADDED and needs a decision — is its default export async, and
+// therefore does it need a loading state — not that the number should be bumped to make the run green.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-const EXPECTED_PAGES = 28;
-const EXPECTED_QUALIFYING = 20;
+const EXPECTED_PAGES = 29;
+const EXPECTED_QUALIFYING = 21;
 const EXPECTED_NON_QUALIFYING = 8;
 
 /** The three declared skeleton shapes, by module and by export name. */

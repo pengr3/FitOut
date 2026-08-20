@@ -71,11 +71,15 @@
 import { Separator } from "@/components/ui/separator";
 
 /**
- * The Total's treatment, named once. `text-heading` is the same NAMED type role the booking detail page's
- * total row carries, so the two surfaces size and weight the figure identically per theme rather than by
- * two call sites agreeing on a step.
+ * The Total's treatment, named once: 13-UI-SPEC § Visual Hierarchy assigns this surface's one focal
+ * point to the itemisation and its Total, carried by `text-heading tabular-nums`.
+ *
+ * ⚠ NO `font-semibold`. The named role already carries a weight per theme — 600 in court, 700 in grove —
+ * so a weight utility beside it would pin both themes to 600 and quietly flatten one of them. The booking
+ * detail page's total row does carry both today; that is a shipped surface and not this plan's to move,
+ * but it is the reason this one is written from the spec rather than copied from the neighbour.
  */
-const TOTAL_VALUE_CLASS = "text-heading font-semibold tabular-nums";
+const TOTAL_VALUE_CLASS = "text-heading tabular-nums";
 
 /** One `<dl>` row: term on the left, figure on the right, tabular figures on every value (GATE-05). */
 function Row({
@@ -102,7 +106,7 @@ function Row({
  * is to pick a default — i.e. to have this file choose between two money words on no information. There is
  * no defensible default, so the type removes the case.
  */
-type ReceiptRefund =
+export type ReceiptRefund =
   | { refundLabel?: undefined; refundKind?: undefined }
   | {
       /** What went back to the booker, already formatted, e.g. "₱500.00". Never netted into the Total. */

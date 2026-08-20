@@ -188,12 +188,14 @@ export const SELECTOR_IDS = [
   // contract is bidirectional, so the gate went red on `Rendered-but-undeclared: [confirmation-moment]`
   // the moment the literal shipped.
   "confirmation-moment",
-  // 13-12 — TRUST-05's receipt. `receipt-total` is declared HERE, one task before the plan scheduled
-  // it, for the reason 13-09's `trust-block` and 13-11's `confirmation-moment` rows both record: the
-  // contract is BIDIRECTIONAL, so the gate goes red on `Rendered-but-undeclared` the moment a literal
-  // ships without its row. A row lands in the same commit as its literal or the tree is red between
-  // two commits.
+  // 13-12 — TRUST-05's receipt. `receipt-total` was declared one task before the plan scheduled it, for
+  // the reason 13-09's `trust-block` and 13-11's `confirmation-moment` rows both record: the contract is
+  // BIDIRECTIONAL, so the gate goes red on `Rendered-but-undeclared` the moment a literal ships without
+  // its row. A row lands in the same commit as its literal or the tree is red between two commits.
+  // `receipt` followed in the next commit with the route, and the gate proved the rule on the way past:
+  // `Rendered-but-undeclared: [receipt]`, observed and then closed by the row below.
   "receipt-total",
+  "receipt",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -794,6 +796,27 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "AND IT SITS ON THE VALUE, NOT THE ROW. The row's text is the label concatenated with the " +
       "number, so a hook on the wrapper would make the parity assertion peel a label off a figure " +
       "before it could parse one.",
+    owner: "13-12",
+  },
+  "receipt": {
+    why:
+      "IT IS THE PRINTABLE `<article>`, AND EVERY PRINT ASSERTION IS SCOPED INSIDE IT. That scoping is " +
+      "the whole reason a hook exists here: `e2e/receipt-print.spec.ts` emulates print media and asks " +
+      "which descendants of THIS element compute `display: none`, which of them still have a non-zero " +
+      "bounding box, and that zero elements inside it compute an exact colour adjustment. Every one of " +
+      "those is a question about a SUBTREE, and a subtree has to be addressed before it can be walked. " +
+      "A ROLE QUERY CANNOT CARRY IT. `<article>` does expose the `article` role, but the role is not " +
+      "unique in principle and says nothing about which article this is; naming the element would put " +
+      "an accessible name on a document whose `<h1>` is the single word this page is already titled " +
+      "with, announcing it twice. " +
+      "A TEXT QUERY WOULD BE CIRCULAR in the way this contract's money-adjacent rows describe: the " +
+      "figures inside are read FROM the database by the assertion that is trying to find them, and the " +
+      "status word varies across every render the D-76 predicate admits. " +
+      "AND IT IS NOT ADDRESSABLE BY ITS SHELL. `BOOKING_SHELL` is a className shared with the detail " +
+      "page's eight renders, `cancel/page.tsx`, `group/page.tsx`, three `loading.tsx` files and the " +
+      "four payment/lapse state components, so a container query keyed on it resolves on routes this " +
+      "hook has nothing to say about. The hook and the shell are the SAME element here — the receipt's " +
+      "measure is what opens up on paper — so the id is what distinguishes it, not the class.",
     owner: "13-12",
   },
 };
