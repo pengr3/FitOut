@@ -68,7 +68,7 @@
 ### Trust & confidence (TRUST)
 
 - [ ] **TRUST-01**: Every booking detail page states status plus what it means, venue name and full address, venue-local time with named timezone, who the host is, exactly what was paid itemised, the cancellation deadline as a concrete date with today's refund amount, the reference, and a support path
-- [x] **TRUST-02**: The booking reference is copyable, rendered in tabular figures, present on every status, and carried in the email subject line
+- [ ] **TRUST-02**: The booking reference is copyable, rendered in tabular figures, present on every status, and carried in the email subject line — ⚠ **PARTIAL after Phase 13:** the on-screen half is delivered and measured (0px advance-width drift, `13-13-SUMMARY.md`); the **email subject line half is Phase 15's** by 13-CONTEXT D-78, which forbids this phase from touching the email shell. Re-marked from `[x]` on 2026-08-21 — it was ticked on the strength of the on-screen half alone.
 - [ ] **TRUST-03**: The cancellation policy is disclosed on the confirmation and in the confirmation email with concrete dates, not only at listing, checkout and cancel-review
 - [ ] **TRUST-04**: Only real trust signals are shown — host since, listing published, payout onboarding complete, request-to-book behaviour — with no invented verification or superhost chrome behind which no program exists
 - [x] **TRUST-05**: A booker can view and print an itemised receipt for a paid booking
@@ -213,7 +213,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | BFLOW-07 | Phase 12 | Complete |
 | BFLOW-08 | Phase 13 | Pending |
 | TRUST-01 | Phase 13 | Pending |
-| TRUST-02 | Phase 13 | Complete |
+| TRUST-02 | Phase 13 + 15 | Partial |
 | TRUST-03 | Phase 13 | Pending |
 | TRUST-04 | Phase 13 | Pending |
 | TRUST-05 | Phase 13 | Complete |
