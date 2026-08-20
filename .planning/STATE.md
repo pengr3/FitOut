@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: "Phase 13 planned — 16 plans / 10 waves; plan-checker 0 blockers, 5 warnings closed; ready to execute"
-last_updated: "2026-08-20T03:04:08.513Z"
-last_activity: 2026-08-20 -- Phase 13 planning complete
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-08-20T05:00:11.838Z"
+last_activity: 2026-08-20 -- 13-01 executed (BOOKING_SHELL, D-88.1 landmark fix, payment-state seed helper)
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 54
+  completed_plans: 56
   percent: 27
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 0 of 16
-Current Plan: Not started
+Plan: 1 of 16
+Current Plan: 2
 Total Plans in Phase: 16
-Status: Ready to execute
+Status: Executing
 
 **12-15 IS THE GAP-CLOSURE PLAN AND IT IS DONE (`f009864` · `7f63e34` · `ceb54d7`).** `ci.yml` now has a
 FOURTH job, `gate-visual`, that runs the visual project in the pinned Playwright image against a seeded
@@ -172,7 +172,7 @@ Last activity: 2026-08-20 -- Phase 13 planning complete
 
 **Velocity:**
 
-- Total plans completed: 62
+- Total plans completed: 63
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -327,6 +327,11 @@ Last activity: 2026-08-20 -- Phase 13 planning complete
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [13-01]: **An instruction is not a mechanism, and this is the commit that stopped restating it.** `mx-auto w-full max-w-2xl px-4 py-8 sm:py-12` was hand-typed at **fourteen** sites (13-UI-SPEC said eleven — the number came from a grep, not from the document), and `bookings/[id]/page.tsx`'s own landmark header ended with *"A SIXTH branch must copy the container from `loading.tsx`."* All fourteen now import `BOOKING_SHELL` from `@/lib/design/measurements`; the instruction was DELETED rather than left beside the constant. Zero pixels changed — the rendered string is byte-identical at every site, which is the property that made the collapse safe to do before any Phase-13 rewrite.
+- [13-01]: **`CONFIRMATION_MOMENT_MIN_H` lives beside `HEADER_HEIGHT`, not beside its phase-mate.** Proximity to the SOURCE of a derivation beats proximity to a phase number: its `calc(100svh-3.5rem)` / `calc(100svh-4rem)` terms are `h-14 sm:h-16` restated in the only unit `calc()` takes, so a header-height change has to break in one place. It has ZERO call sites by instruction (13-08 owns the consumer). The unit argument is recorded in the file: `svh` not `vh` (which counts the retracted iOS URL bar and overshoots) and not `dvh` (which re-resolves as the bar retracts, so a `min-height` in `dvh` grows mid-scroll and reflows under the reader's thumb). Phase 11's "`dvh`, never `vh`" rule was written for a `max-height` on a sheet and is not violated — a `min-height` promise needs the SMALLEST viewport.
+- [13-01]: **The 20 Aug nested-`main` fix missed three files, and the spec could not have caught it.** `pending-payment-state.tsx`, `payment-reversed-state.tsx` and `expired-approval-state.tsx` each opened a `<main>` inside `(app)/layout.tsx`'s. All three are `/bookings/[id]` renders, so the defect survived on the exact route `e2e/shell.spec.ts` already covered — invisible because the only booking shape any e2e seed could produce was `confirmed`, and a `confirmed` row reaches none of the three. Fixed to `div` + `BOOKING_SHELL`, and PROVED: reverting one produced a red naming its seeded route at 320px with `Received: 2` and **14 consecutive polls at 2** (the streaming buffer's overlap is ~100ms, so it cannot be a staging artifact).
+- [13-01]: **`e2e/helpers/seed-payment-states.ts` — the repo's first non-`confirmed` booking fixture.** Five shapes (`confirmed`, `pending`+live hold, `pending`+expired hold, `cancelled`-reversed, `cancelled`-lapsed-approval) from ONE inherited-and-extended 21-column INSERT. Two findings recorded IN the helper: the reversed shape's `payment_id`/`payment_method`/`refund_cents` are NULL **because** the confirm UPDATE is their only writer and a reversal is by definition where it claimed zero rows; and reversed vs lapsed-approval differ by **exactly one column** (`booking_mode`), which is all that separates "your payment was reversed" from "this approval expired". It also needed an `hoursOffset` option — three of the five shapes OCCUPY the slot under `booking_no_overlap`, so a caller with its own `confirmed` row at +10h collides 23P01 unless the whole block moves.
+- [13-01]: **Do NOT run `npm run test:design` while `npm test` is running.** A first full-gate attempt reported `6 failed | 133 passed` — five FILE-LEVEL collection failures plus a 99,983 ms timeout, across files this plan never touched. `npm test` alone: `141 passed | 1 skipped`, exit 0. `tests/global-setup.ts` TRUNCATEs every `public` base table in `fitout_test` on every run, so a second vitest process truncates the first one's data underneath it. The failure signature has real test names and real timeouts and looks nothing like a concurrency artifact.
 - [12-08]: **`[11-13]` was a DEV-MODE ARTEFACT, measured on a 2×2 matrix rather than a before/after.** Same seeded not-payable listing, same theme seed, `npm run build && npm start` vs `npm run dev`, with the `TooltipProvider` site both RESTORED and DELETED: present → dev `Hydration failed × 1` / prod **0**; deleted → **0 / 0**. Running the discriminator on the mutated tree as well as the fixed one is what turned a claimable repair into the correct finding — the production build never had the mismatch, so `[11-03]`/`[11-11](a)`/`[11-14]` resolve together as one dev-mode class. The deletion still stands on its own merits and it did fix `e2e/availability.spec.ts:261` (a standing red since 12-06), because in dev the regenerated tree was dropping the `Not bookable yet` CTA.
 - [12-08]: **The two standing reds on `/listings/[id]` are NOT one investigation.** 12-02 and 12-06 both recorded them as *"plausibly one investigation"* of the route's streaming behaviour. Measured: the draft-404 case fails identically under a production build (`curl` → 200 in both modes; an unmatched URL correctly 404s in both), so it survives the discriminator that the hydration mismatch does not. It is a real rendering-strategy defect needing its own Rule 4 decision, and nothing that fixes a hydration boundary can close it.
 - [12-08]: **An acceptance criterion phrased as a directory grep is wider than the property it names — measure it and report both dispositions rather than deleting another plan's surface.** *"No `components/ui/tooltip` import under `src/components/{search,listing,availability,booking}`"* still matches two files after the listing page's site was deleted: `photo-uploader.tsx` (a HOST surface, not the booker path) and `slot-picker.tsx` (genuinely booker-path, whose tooltip carries the notice requirement and has nowhere else to live on a wrapping grid of 44px chips). Deferred to **12-09**, which already opens that file, with the copy/placement question stated. 12-UI-SPEC's *"D-56 deletes the last one"* is true only of the listing page.
@@ -733,7 +738,11 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T01:23:11.708Z
+Last session: 2026-08-20T05:00:00.000Z
+Stopped at: Completed 13-01-PLAN.md
+Resume file: .planning/phases/13-confirmation-bookings-trust/13-02-PLAN.md
+
+Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
 Resume file: .planning/phases/13-confirmation-bookings-trust/13-CONTEXT.md
 
