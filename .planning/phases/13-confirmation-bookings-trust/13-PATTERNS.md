@@ -19,7 +19,7 @@
 | New file | Role | Data flow | Closest analog | Match |
 |----------|------|-----------|----------------|-------|
 | `src/components/booking/not-completed-state.tsx` (D-70) | component (server) | request-response, terminal render | `src/components/booking/hold-expired-state.tsx` | **exact** |
-| `src/components/booking/money-sentence.tsx` (D-73) | component (server, presentational) | transform (finished string → DOM) | `src/components/booking/refund-breakdown.tsx` | **exact** |
+| `src/components/booking/money-statement.tsx` (D-73) | component (server, presentational) | transform (finished string → DOM) | `src/components/booking/refund-breakdown.tsx` | **exact** |
 | `src/components/booking/support-path.tsx` (D-64) | component (server, guarded) | transform | `src/components/patterns/site-footer.tsx:185-196` | **exact** |
 | `src/components/booking/trust-block.tsx` (D-67/D-68) | component (server) | request-response (props from RSC) | `src/components/booking/cancellation-policy-disclosure.tsx` | role-match |
 | `src/components/booking/booking-reference.tsx` (D-78) | component (**client**) | event-driven (clipboard) | `src/components/group/share-link-box.tsx` | **exact** |
@@ -198,7 +198,7 @@ placeholder example address in copy) — that needs an `EXCLUDED_ADDRESSES` row 
 
 ---
 
-### 3. `src/components/booking/money-sentence.tsx` (component, presentational) — D-73
+### 3. `src/components/booking/money-statement.tsx` (component, presentational) — D-73
 
 **Analog:** `src/components/booking/refund-breakdown.tsx:1-45` — the pre-formatted-string prop contract.
 
@@ -946,7 +946,7 @@ The Phase-13 files **already have rows**, written in advance:
 ```
 
 **Consequences for this phase:**
-- Every **NEW** file (`not-completed-state.tsx`, `money-sentence.tsx`, `trust-block.tsx`, `support-path.tsx`,
+- Every **NEW** file (`not-completed-state.tsx`, `money-statement.tsx`, `trust-block.tsx`, `support-path.tsx`,
   `receipt/page.tsx`, `receipt-lines.tsx`) is **unlisted** → compose `PanelCard`, or add a row with a
   **>40-character** reason in the same commit (`:598-601`).
 - Converting a listed file to `PanelCard` is safe — `parsedByFile` is keyed on every walked source file, so a

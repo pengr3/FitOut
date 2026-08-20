@@ -214,7 +214,7 @@ settling COMPLETED                           │      reversed?           lapsed
 | `src/components/booking/payment-reversed-state.tsx` | Reversal landing | Exists — copy **replaced** per D-69 |
 | `src/components/booking/hold-expired-state.tsx` | Expired-hold recovery, focus move | Exists — untouched; D-70 must not duplicate it |
 | `src/components/booking/not-completed-state.tsx` | D-70's net-new state | **New** |
-| `src/components/booking/money-sentence.tsx` | D-73's single owner of STATE-06's sentence | **New** |
+| `src/components/booking/money-statement.tsx` | D-73's single owner of STATE-06's sentence | **New** |
 | `src/components/booking/booking-reference.tsx` | Copyable reference (client), tabular/mono figures | **New** |
 | `src/components/booking/trust-block.tsx` | D-67/D-68 four signals, full + condensed | **New** |
 | `src/components/booking/support-path.tsx` | D-64's guarded affordance — the guard lives **here** | **New** |
@@ -610,7 +610,7 @@ FitOut's live rail set is `["card", "gcash", "paymaya", "qrph"]` `[VERIFIED: src
 | A4 | Adding `print:hidden` to `site-chrome.tsx` and `site-footer.tsx` leaves all 52 GATE-VRT baselines byte-identical | Pattern 2 | `print:` compiles only inside `@media print`, so screen rendering is unchanged — but the claim is worth one baseline run rather than one sentence. |
 | A5 | Reading the `audit` table from a booker-facing RSC is acceptable | Pitfall 1 option C | It is an operator table by design. The read would be owner-gated and would expose no PII (`meta` is contractually secret-free), but it is a new coupling a reviewer may reject. |
 
-## Open Questions
+## Open Questions (ALL RESOLVED — see 13-CONTEXT.md D-85/D-86/D-87 and 13-UI-SPEC font-mono decision)
 
 1. **Does `tabular-nums` do anything under the Google-Fonts build of Geist — and is it the right tool for a Crockford reference anyway?**
    - What we know: `tabular-nums` is applied on ~20 files already, including the reference itself at `bookings/[id]/page.tsx:590`. Geist is documented as supporting tabular figures, and one source claims its figures are tabular by default at the OS/2 level. `Geist_Mono` is already loaded (`--font-mono: var(--font-geist-mono)`) with **zero call sites**.

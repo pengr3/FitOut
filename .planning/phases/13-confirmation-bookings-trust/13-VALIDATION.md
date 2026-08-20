@@ -1,16 +1,19 @@
 ---
 phase: 13
 slug: confirmation-bookings-trust
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-08-20
+plans_mapped: 2026-08-20
+plan_count: 16
+task_count: 48
 ---
 
 # Phase 13 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
-> Derived from `13-RESEARCH.md` § Validation Architecture. Task IDs are filled in during planning.
+> Derived from `13-RESEARCH.md` § Validation Architecture; mapped to the 16-plan set 2026-08-20.
 
 ---
 
@@ -41,29 +44,31 @@ fast. Do **not** pass a `DATABASE_URL` override. `npm run test:design` is DB-fre
 
 ## Per-Task Verification Map
 
-Task IDs are assigned during planning; the requirement→test contract below is fixed now so no plan can
-invent its own verification. Every row must resolve to a real command before the phase gate.
+**Mapped to the 16-plan set on 2026-08-20.** The `Plan` column below was derived by grepping the plan
+files for each test path — not inferred. Task-level ids resolve at execution time; the plan that owns
+each proof is fixed here. Independently verified after planning: **all 48 tasks across 16 plans carry an
+`<automated>` command, zero watch-mode flags** — which is the substantive Nyquist requirement.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | BFLOW-08 | — | `?paid=1` shows the moment once; URL becomes `/bookings/{id}`; reload renders the ordinary page | e2e | `npx playwright test e2e/confirmation-decay.spec.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | BFLOW-08 | — | The poller never navigates away after the param is consumed (D-89 / Pitfall 2) | e2e | same spec, pending-seeded case | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | TRUST-01 | — | Every status renders status + meaning, venue, address, venue-local time, host, itemised total, deadline, reference | unit (RTL) | `npx vitest run tests/booking/detail-completeness.test.tsx` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | TRUST-01 / STATE-05 | T-13-SUP | Zero support affordances while `SUPPORT_EMAIL === null`; new components guarded lexically (D-64, Pitfall 4) | design | `npx vitest run --config vitest.design.config.ts tests/design/site-contacts.test.ts` | ✅ exists — **must stay green UNMODIFIED** | ⬜ pending |
-| TBD | TBD | TBD | TRUST-02 | — | Reference present on every status; copy button writes the exact `FIT-` string | unit | `npx vitest run tests/booking/reference-surface.test.tsx` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | TRUST-02 | — | `tabular-nums` (or `font-mono`) actually renders fixed-width — measured, not assumed (Open Q1) | e2e (rendering assertion) | `npx playwright test e2e/tabular-figures.spec.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | TRUST-03 | — | On-screen policy shows concrete dates derived from `LADDER` | unit | `npx vitest run tests/booking/cancellation-policy.test.ts` | ✅ exists — extend to new call sites | ⬜ pending |
-| TBD | TBD | TBD | TRUST-04 | — | No forbidden trust string renders (`superhost`, `verified`, `responds within`, `rating`) — D-68 | design (source scan) | `npx vitest run --config vitest.design.config.ts tests/design/trust-signals.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | TRUST-05 | T-13-PRICE | Receipt totals equal the DB's frozen centavos; refund is a separate line (D-76, GATE-05) | e2e | `npx playwright test e2e/receipt-parity.spec.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | TRUST-05 | — | Print stylesheet suppresses chrome; reference + total stay visible (D-74, Pitfall 3) | e2e (`emulateMedia({media:'print'})`) | `npx playwright test e2e/receipt-print.spec.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | STATE-05 | — | Three states visibly distinct; not-completed never appears for an expired hold (D-70) | unit + e2e | `npx vitest run tests/booking/payment-states.test.tsx` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | STATE-05 | T-13-MONEY | Reversed copy never contains the not-completed sentence; manual-return branch never says "refunded" (D-83) | design (grep tripwire, two-piece idiom) | `npx vitest run --config vitest.design.config.ts tests/design/reversed-copy.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | STATE-06 | — | The money sentence renders above the fold in all three states, from one component (D-73) | unit | included in `payment-states.test.tsx` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | STATE-08 | — | No `toast()` call on any must-read outcome in `bookings/**` | design (AST scan) | extend `tests/design/status-vocab.test.ts` | ✅ exists — extend | ⬜ pending |
-| TBD | TBD | TBD | (cross) D-88.1 | — | Exactly one `main` landmark on the pending / reversed / lapsed branches | e2e | extend `e2e/shell.spec.ts` with a `pending` seed | ✅ exists — extend | ⬜ pending |
-| TBD | TBD | TBD | (cross) D-88.2 | — | Every Phase-13 live region is declared; the 10 named exclusions are discharged | design | `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.tsx` | ✅ exists — exclusions must move | ⬜ pending |
-| TBD | TBD | TBD | (cross) D-80 / GATE-06 | — | `drizzle/` still ends at `0025_audit_resolved_by.sql` — zero migrations | design | `npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts` (or a new one-line assertion) | ⚠ verify | ⬜ pending |
-| TBD | TBD | TBD | (cross) D-81 | — | `REFUNDABLE_RAILS` still excludes `qrph` — the re-probe result is pinned, not re-litigated | design | assertion over `src/lib/payments/refund-rail.ts` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-11, 13-16 | per plan | BFLOW-08 | — | `?paid=1` shows the moment once; URL becomes `/bookings/{id}`; reload renders the ordinary page | e2e | `npx playwright test e2e/confirmation-decay.spec.ts` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-11, 13-16 | per plan | BFLOW-08 | — | The poller never navigates away after the param is consumed (D-89 / Pitfall 2) | e2e | same spec, pending-seeded case | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-10, 13-11 | per plan | TRUST-01 | — | Every status renders status + meaning, venue, address, venue-local time, host, itemised total, deadline, reference | unit (RTL) | `npx vitest run tests/booking/detail-completeness.test.tsx` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-02, 13-04, 13-16 | per plan | TRUST-01 / STATE-05 | T-13-SUP | Zero support affordances while `SUPPORT_EMAIL === null`; new components guarded lexically (D-64, Pitfall 4) | design | `npx vitest run --config vitest.design.config.ts tests/design/site-contacts.test.ts` | ✅ exists — **must stay green UNMODIFIED** | ⬜ pending |
+| task-level at execution | 13-10 | per plan | TRUST-02 | — | Reference present on every status; copy button writes the exact `FIT-` string | unit | `npx vitest run tests/booking/reference-surface.test.tsx` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-13 | per plan | TRUST-02 | — | `tabular-nums` (or `font-mono`) actually renders fixed-width — measured, not assumed (Open Q1) | e2e (rendering assertion) | `npx playwright test e2e/tabular-figures.spec.ts` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-06, 13-09, 13-10 | per plan | TRUST-03 | — | On-screen policy shows concrete dates derived from `LADDER` | unit | `npx vitest run tests/booking/cancellation-policy.test.ts` | ✅ exists — extend to new call sites | ⬜ pending |
+| task-level at execution | 13-09, 13-11 | per plan | TRUST-04 | — | No forbidden trust string renders (`superhost`, `verified`, `responds within`, `rating`) — D-68 | design (source scan) | `npx vitest run --config vitest.design.config.ts tests/design/trust-signals.test.ts` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-13 | per plan | TRUST-05 | T-13-PRICE | Receipt totals equal the DB's frozen centavos; refund is a separate line (D-76, GATE-05) | e2e | `npx playwright test e2e/receipt-parity.spec.ts` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-13, 13-16 | per plan | TRUST-05 | — | Print stylesheet suppresses chrome; reference + total stay visible (D-74, Pitfall 3) | e2e (`emulateMedia({media:'print'})`) | `npx playwright test e2e/receipt-print.spec.ts` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-01, 13-07, 13-11, 13-13, 13-15 | per plan | STATE-05 | — | Three states visibly distinct; not-completed never appears for an expired hold (D-70) | unit + e2e | `npx vitest run tests/booking/payment-states.test.tsx` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-04, 13-07 | per plan | STATE-05 | T-13-MONEY | Reversed copy never contains the not-completed sentence; manual-return branch never says "refunded" (D-83) | design (grep tripwire, two-piece idiom) | `npx vitest run --config vitest.design.config.ts tests/design/reversed-copy.test.ts` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-02, 13-07 | per plan | STATE-06 | — | The money sentence renders above the fold in all three states, from one component (D-73) | unit | included in `payment-states.test.tsx` | ❌ W0 | ⬜ pending |
+| task-level at execution | 13-05, 13-09, 13-15 | per plan | STATE-08 | — | No `toast()` call on any must-read outcome in `bookings/**` | design (AST scan) | extend `tests/design/status-vocab.test.ts` | ✅ exists — extend | ⬜ pending |
+| task-level at execution | 13-01, 13-04, 13-07, 13-10, 13-11 | per plan | (cross) D-88.1 | — | Exactly one `main` landmark on the pending / reversed / lapsed branches | e2e | extend `e2e/shell.spec.ts` with a `pending` seed | ✅ exists — extend | ⬜ pending |
+| task-level at execution | 13-05, 13-06, 13-07, 13-14 | per plan | (cross) D-88.2 | — | Every Phase-13 live region is declared; the 10 named exclusions are discharged | design | `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.tsx` | ✅ exists — exclusions must move | ⬜ pending |
+| task-level at execution | 13-03 | per plan | (cross) D-80 / GATE-06 | — | `drizzle/` still ends at `0025_audit_resolved_by.sql` — zero migrations | design | `npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts` (or a new one-line assertion) | ⚠ verify | ⬜ pending |
+| task-level at execution | 13-03, 13-04, 13-07 | per plan | (cross) D-81 | — | `REFUNDABLE_RAILS` still excludes `qrph` — the re-probe result is pinned, not re-litigated | design | assertion over `src/lib/payments/refund-rail.ts` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -93,11 +98,11 @@ invent its own verification. Every row must resolve to a real command before the
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies — 48/48 verified 2026-08-20
 - [ ] Sampling continuity: no 3 consecutive tasks without automated verify
 - [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
+- [x] No watch-mode flags — verified 2026-08-20
 - [ ] Feedback latency < 120s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** plans mapped 2026-08-20; sign-off pending execution (`wave_0_complete` flips when 13-01 lands)
