@@ -121,14 +121,15 @@ const SWAP_HEIGHT = 800;
  * test agrees with itself no matter what it is — that is trap 2 above, and it is how a loop over an
  * empty list reports a green run.
  *
- * FIVE BECAME TWELVE IN PLAN 12-14, and this pin is why that had to be deliberate. Adding seven
+ * FIVE BECAME TWELVE IN PLAN 12-14 AND TWELVE BECAME TWENTY-FOUR IN 13-15, and this pin is why each
+ * had to be deliberate. Adding seven
  * product surfaces to the inventory adds them to THIS smoke automatically (the set is documents minus
  * exclusions, derived rather than restated), so the only alternative to moving this literal was
  * EXCLUDING them — which would have meant claiming seven surfaces cannot be themed, in a file whose
  * whole argument is that such a claim has to be made in prose. They can be themed: grove moves their
  * geometry, type and elevation. So the number moves instead, in the same commit as the rows.
  */
-const EXPECTED_COMPARED_SURFACES = 12;
+const EXPECTED_COMPARED_SURFACES = 24;
 
 /** The members, not just the count. A swap of one surface for another keeps the count at 12. */
 const EXPECTED_COMPARED: readonly DocumentSurfaceId[] = [
@@ -144,6 +145,27 @@ const EXPECTED_COMPARED: readonly DocumentSurfaceId[] = [
   "listing-sheet",
   "checkout",
   "collision-notice",
+  // --- 13-15 - Phase 13's twelve, ELEVEN OF WHICH SKIP AT RUNTIME -----------------------------
+  //
+  // They are in the COMPARED set because the set is documents-minus-exclusions and none of them is
+  // theme-swap-EXCLUDED: every one of them re-skins, and claiming otherwise would be the prose
+  // argument this file's header says an exclusion has to make. What stops eleven of them being
+  // compared today is that they are BLOCKED - a different property, on a different field, for
+  // reasons argued at the rows in `visual-baselines.ts` - and the loop below skips a blocked surface
+  // with `surface.blocked` as the message. Membership and blocking are deliberately separate: the
+  // day the fixture lands, unblocking a row puts it into this smoke with no edit here at all.
+  "booking-moment",
+  "booking-confirmed",
+  "payment-pending",
+  "payment-not-completed",
+  "payment-reversed-auto",
+  "payment-reversed-manual",
+  "payment-reversed-indeterminate",
+  "receipt-screen",
+  "receipt-print",
+  "booking-group",
+  "invite-active",
+  "booking-not-found",
 ];
 
 type Capture = {

@@ -165,6 +165,28 @@ export const SURFACE_IDS = [
   "listing-sheet",
   "checkout",
   "collision-notice",
+  // ─── 13-15 — the confirmation, payment-state, receipt and group surfaces ─────────────────────────
+  //
+  // ⚠ TWELVE IDS FOR AN ELEVEN-ROW TABLE, AND THE TWELFTH IS THE FINDING. 13-UI-SPEC § Visual
+  // Baselines names eleven surfaces and two of them are the reversed state's `auto` and `manual`
+  // branches. Plan 13-10 then added a THIRD branch — D-96's `indeterminate` — for a row whose probe
+  // learns nothing, which is every row this repository can seed and every row CI can produce. The
+  // spec's table predates it. Baselining only the two named branches would have declared coverage of
+  // a surface no environment renders while leaving the one every environment DOES render undeclared,
+  // so the third branch is its own id here and the two named ones keep theirs, blocked, with the
+  // reason attached.
+  "booking-moment",
+  "booking-confirmed",
+  "payment-pending",
+  "payment-not-completed",
+  "payment-reversed-auto",
+  "payment-reversed-manual",
+  "payment-reversed-indeterminate",
+  "receipt-screen",
+  "receipt-print",
+  "booking-group",
+  "invite-active",
+  "booking-not-found",
 ] as const;
 
 /** The closed union every baseline row and every exclusion is typed against. */
@@ -452,6 +474,230 @@ export const VISUAL_SURFACES = {
       "driver tells them apart rather than leaving them to a timeout — a hold that was GRANTED " +
       "navigates away (the seeded conflict did not take, so the fixture is measuring nothing), while " +
       "a hold that was refused down the plain-notice branch stays put with no notice (D-55 regressed).",
+    blocked: null,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  // PHASE 13 — THE CONFIRMATION, PAYMENT-STATE, RECEIPT AND GROUP SURFACES (plan 13-15)
+  //
+  // ⚠ ELEVEN OF THESE TWELVE ARE BLOCKED, THAT IS THE OPPOSITE OF WHAT THE PLAN EXPECTED, AND IT IS
+  // THE HONEST STATE RATHER THAN A SHORTFALL BEING DRESSED UP. There are exactly TWO blockers and
+  // they are independent of each other; every row below names which one (or both) applies to it.
+  //
+  // BLOCKER A — THE CREDENTIAL BOUNDARY (D-35). Three of the spec's surfaces are not reachable by any
+  // fixture this repository is allowed to build. `page.tsx` reaches the not-completed state only when
+  // `readPaymentState(status, session) === "not-completed"`, and the reversed state's branch is
+  // `session === null ? "indeterminate" : isApiRefundable(rail) ? "auto" : "manual"` — so all three
+  // presuppose a checkout session PayMongo has CONFIRMED. `probeCheckoutSession` returns null for a
+  // session the provider does not know, which every fixture id is, and it returns null WITHOUT A
+  // REQUEST when no key is configured, which is the state of the one job allowed to write baselines.
+  // Minting a real hosted session inside the suite is what D-35 forbids and what
+  // `receipt-parity.spec.ts`'s header refuses by name. MEASURED 21 August 2026 against a seeded row
+  // per shape: not-completed REDIRECTS to `/listings/{id}/book?hold=…`, and a seeded reversed row
+  // renders the INDETERMINATE branch.
+  //
+  // BLOCKER B — DETERMINISM. A per-run seed cannot produce a stable screenshot, and every one of the
+  // following is IN FRAME on at least one surface below:
+  //
+  //   • the booking REFERENCE. `bookingReference` is a SHA-256 over the booking id, and
+  //     `seedPaymentStates` suffixes every id with `randomUUID()` — a different `FIT-XXXXXXXX` every
+  //     run, rendered on every status branch by TRUST-02.
+  //   • the ARRIVAL LINE and the receipt's `Booked` date. `starts_at`, `ends_at` and `created_at` are
+  //     all `now()`-relative in that fixture, so they move daily.
+  //   • the BOOKER'S OWN EMAIL. `signUpBooker` mints `e2e.booker.{Date.now()}.{rand}@example.com`, and
+  //     BOTH the confirmation moment (D-63's typo-catching line) and the pending state's escalated
+  //     sentence render it verbatim.
+  //   • the LISTING TITLE. `seedBookableListing` puts a run id in it.
+  //   • the INVITE URL. The group's access token is minted per run and is rendered in a read-only
+  //     field on `/bookings/[id]/group`.
+  //
+  // The fix is a Phase-13 block in `scripts/seed-baseline-fixtures.ts` shaped like the Phase-12 one —
+  // fixed booking ids, fixed literal instants, a fixed group token, and a fixed booker identity the
+  // drive adopts. That is a plan-sized item against a file outside 13-15's scope, and none of it is
+  // runnable on a developer machine (the `visual` project is not constructed off Linux, D-29). It is
+  // carried in `deferred-items.md` with this plan named as the finder. THE ROWS ARE DECLARED ANYWAY,
+  // blocked, for this module's founding reason: *a baseline nobody shot and a baseline somebody
+  // deleted look identical in a green run.* An argued block is a decision somebody can find and work
+  // from; an absent row is silence.
+  //
+  // `booking-not-found` is the ONE that is neither: it renders no booking, no money, no date and no
+  // identity — an `EmptyState` inside the signed-in shell — so it is shot.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+  "booking-moment": {
+    kind: "document",
+    url: "/bookings/{confirmed}?paid=1",
+    hook: '[data-testid="confirmation-moment"]',
+    hookWhy:
+      "the moment's own container, and the ONE hook that separates the before-picture from the " +
+      "after: the same URL WITHOUT `?paid=1` renders the ordinary confirmed detail, which carries " +
+      "`booking-detail` instead and photographs perfectly well. Moot while the row is blocked.",
+    blocked:
+      "BLOCKER B (determinism). This surface renders three things that differ on every run: the " +
+      "TRUST-02 reference (a SHA-256 of a `randomUUID()`-suffixed booking id), the arrival line (from " +
+      "a `now()`-relative `starts_at`), and D-63's line, which prints the booker's own email address " +
+      "verbatim — `signUpBooker` mints a new one every time. A baseline of any of them is a reference " +
+      "the next dispatch disagrees with, which is the flake that gets a threshold widened. Needs the " +
+      "committed Phase-13 fixture; see this block's header.",
+  },
+  "booking-confirmed": {
+    kind: "document",
+    url: "/bookings/{confirmed}",
+    hook: '[data-testid="booking-detail"]',
+    hookWhy:
+      "the detail shell, which the moment does NOT render — so this row cannot be satisfied by the " +
+      "row above, and neither can be satisfied by the route's own `loading.tsx` plate. Moot while " +
+      "the row is blocked.",
+    blocked:
+      "BLOCKER B (determinism): the reference, the arrival line and the money row's frozen date all " +
+      "move per run. Needs the committed Phase-13 fixture.",
+  },
+  "payment-pending": {
+    kind: "document",
+    url: "/bookings/{pending}?paid=1",
+    hook: '[data-testid="payment-state-pending"]',
+    hookWhy:
+      "the pending container. All three payment states are role-less sectioning `div`s — " +
+      "`selector-contract.ts` records why each needs its own box — and the same row without the " +
+      "query redirects to checkout, so the query and this hook together are what pin the surface.",
+    blocked:
+      "BLOCKER B (determinism), plus a SECOND hazard this row is the only one to carry and which is " +
+      "worth recording separately because it is invisible until a picture is taken. The escalated " +
+      "sentence prints the booker's per-run email; that is blocker B. AND the surface polls — D-71's " +
+      "`router.refresh()` every 2500ms — so it must be captured against a driven clock, and a driven " +
+      "clock on THIS page leaves the previous tree attached to `<body>` inside a `hidden` container. " +
+      "Measured 21 August 2026 by loading it twice in one run: clock off, one `money-statement`; " +
+      "clock on, two, the second 0x0 under `div(hidden)`. It paints nothing, so it does not affect " +
+      "the pixels — but any assertion this drive makes about element counts has to be stated on " +
+      "VISIBLE elements, which is what `e2e/overflow-320.spec.ts` now does.",
+  },
+  "payment-not-completed": {
+    kind: "document",
+    url: "/bookings/{pending}",
+    hook: '[data-testid="payment-state-incomplete"]',
+    hookWhy:
+      "the not-completed container, which must never be satisfied by `hold-expired-state.tsx` — D-70 " +
+      "gives that landing to the expired hold one navigation away. Moot while the row is blocked.",
+    blocked:
+      "BLOCKER A (the credential boundary) AND blocker B. `page.tsx`'s pending branch renders this " +
+      "state only when the D-84 probe answers `active`, and its fallback direction is deliberate and " +
+      "argued in that file: a probe that learns nothing REDIRECTS rather than claiming 'you have not " +
+      "been charged' over a payment that may be settling. Measured: a seeded row lands on " +
+      "`/listings/{id}/book?hold=…`. Reaching it needs a real hosted checkout session, which D-35 " +
+      "keeps out of the one job that can write baselines. The rendered tree is covered instead by " +
+      "`tests/booking/payment-states.test.tsx`.",
+  },
+  "payment-reversed-auto": {
+    kind: "document",
+    url: "/bookings/{reversed}",
+    hook: '[data-testid="payment-state-reversed"]',
+    hookWhy: "the reversed container. Moot while the row is blocked — see below for which branch it renders.",
+    blocked:
+      "BLOCKER A (the credential boundary) AND blocker B. The branch is `session === null ? " +
+      "'indeterminate' : isApiRefundable(rail) ? 'auto' : 'manual'`, so `auto` presupposes both a " +
+      "provider-confirmed session and a refundable rail. A seeded row has neither and renders the " +
+      "indeterminate branch. Declared rather than dropped because the spec asked for it and the gap " +
+      "is worth being able to find.",
+  },
+  "payment-reversed-manual": {
+    kind: "document",
+    url: "/bookings/{reversed}",
+    hook: '[data-testid="payment-state-reversed"]',
+    hookWhy:
+      "the reversed container. The 320 row is where 13-UI-SPEC proves the support control's " +
+      "above-the-fold claim, which is why this surface has a narrow width at all. Moot while blocked.",
+    blocked:
+      "BLOCKER A (the credential boundary) AND blocker B, plus a THIRD that is independent of both " +
+      "and outlives them: `SUPPORT_EMAIL` is null (D-26/D-64), so the control this surface exists to " +
+      "photograph renders NOTHING. Even with a real session on a QR Ph rail, the 320 capture would be " +
+      "a picture of the panel without its support path — a baseline of the state the requirement " +
+      "forbids, filed under the name of the state it requires. `e2e/overflow-320.spec.ts` carries the " +
+      "ordering assertion in the same shape: skipped, with both blockers named, running the day " +
+      "either is fixed.",
+  },
+  "payment-reversed-indeterminate": {
+    kind: "document",
+    url: "/bookings/{reversed}",
+    hook: '[data-testid="payment-state-reversed"]',
+    hookWhy:
+      "the reversed container, reached with NO query string — D-87's own falsifiable form, since the " +
+      "state used to be gated on `?paid=1` and would have vanished when 13-11's moment consumed it.",
+    blocked:
+      "BLOCKER B (determinism) ONLY — this is the one reversed branch a seed genuinely reaches, and " +
+      "it is the branch every environment without a live PayMongo session renders, CI included. It " +
+      "prints the TRUST-02 reference and the D-96 sentence; the reference moves per run. Needs the " +
+      "committed Phase-13 fixture and nothing else. It is the highest-value row in this block: the " +
+      "reversed state is the phase's sharpest surface and this is the shape of it that ships.",
+  },
+  "receipt-screen": {
+    kind: "document",
+    url: "/bookings/{confirmed}/receipt",
+    hook: '[data-testid="receipt"]',
+    hookWhy:
+      "the receipt shell. The route's loading plate carries no `receipt` id, and a row the D-76 " +
+      "predicate refuses lands on the not-found boundary, which carries none either.",
+    blocked:
+      "BLOCKER B (determinism): the receipt prints the reference, the session window and D-85's " +
+      "`Booked` date, which is `created_at` — `now()` in the fixture. Needs the committed fixture.",
+  },
+  "receipt-print": {
+    kind: "document",
+    url: "/bookings/{confirmed}/receipt",
+    hook: '[data-testid="receipt"]',
+    hookWhy:
+      "the same shell, captured under `emulateMedia({ media: 'print' })`. The mechanism is already " +
+      "proved by `e2e/receipt-print.spec.ts` (13-13, this repository's first print-media spec); what " +
+      "is missing here is the fixture, not the media emulation.",
+    blocked:
+      "BLOCKER B (determinism), identical to the screen row — same document, same three moving " +
+      "figures. The theme-swap smoke still applies to this row once it is unblocked: D-135 holds in " +
+      "print because the two themes differ by type scale and radius even with every fill dropped.",
+  },
+  "booking-group": {
+    kind: "document",
+    url: "/bookings/{confirmed}/group",
+    hook: "#invite-link",
+    hookWhy:
+      "the share box's own input, and the heading would have been the trap: `group/loading.tsx` " +
+      "renders `<h1>Your group</h1>` byte-identically to the resolved page, so an `h1` hook is " +
+      "satisfied by the skeleton. The load-FAILURE branch renders neither. Measured while writing " +
+      "`e2e/overflow-320.spec.ts`'s Phase-13 sweep.",
+    blocked:
+      "BLOCKER B (determinism): the field this row's own hook points at RENDERS THE ACCESS TOKEN, " +
+      "which is minted per run — the single most obviously unstable string in the phase. Needs the " +
+      "committed fixture's fixed token.",
+  },
+  "invite-active": {
+    kind: "document",
+    url: "/invite/{token}",
+    hook: "h1",
+    hookWhy:
+      "⚠ WEAKER THAN EVERY OTHER HOOK IN THIS FILE, AND SAID SO RATHER THAN LEFT TO BE DISCOVERED. " +
+      "This route has no declared id anywhere on the active branch, and its two neighbours both " +
+      "render an `h1`: `invite/[token]/loading.tsx` is a SEARCH-PAGE skeleton reading 'Find a space " +
+      "to play' (measured — a curl of this route returns exactly that), and every inactive, " +
+      "malformed, voided or regenerated token folds onto `InviteInactive` under a different heading. " +
+      "A bare `h1` therefore proves only that SOMETHING rendered. The drive must assert the heading's " +
+      "TEXT — `/^You(’|')re invited to /` — the way `e2e/overflow-320.spec.ts` does, and this row " +
+      "should be revisited with a declared hook when the fixture lands.",
+    blocked:
+      "BLOCKER B (determinism): the card prints the listing title (which carries a run id), the " +
+      "session window (a `now()`-relative instant) and the headcount. Needs the committed fixture.",
+  },
+  "booking-not-found": {
+    kind: "document",
+    // A literal that must never become a real id, in the shape `root-not-found` already uses and for
+    // its stated reason: a short one is a value somebody might later seed, and the day it exists this
+    // baseline silently starts pinning a real booking.
+    url: "/bookings/a-booking-id-that-must-never-exist-13-15",
+    hook: '[data-testid="empty-state"]',
+    hookWhy:
+      "the `EmptyState` this boundary composes. `bookings/[id]/not-found.tsx` deliberately uses " +
+      "`EmptyState` rather than `ErrorState` on two grounds it records — a stale link is a STATE and " +
+      "not a fault, and `ErrorState` paints its glyph with the alarm token this phase renders " +
+      "nowhere — so the id is the boundary's signature. It also rejects the two documents this URL " +
+      "can otherwise produce: the route's `loading.tsx` plate carries no `empty-state`, and an " +
+      "unauthenticated visit is redirected to `/login`, which carries none either.",
     blocked: null,
   },
 } as const satisfies Record<SurfaceId, SurfaceRow>;
@@ -1000,6 +1246,431 @@ export const VISUAL_BASELINES = [
       "second theme. The notice is the phase's one status surface with a tone, so the pair is also the " +
       "standing check that its tone comes from `status-tones.ts` rather than from a literal.",
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  // PHASE 13 — 42 ROWS ACROSS 12 SURFACES (plan 13-15). ELEVEN OF THE TWELVE ARE BLOCKED.
+  //
+  // 13-UI-SPEC § Visual Baselines' table, row for row, at the widths and themes it names — plus the
+  // reversed state's THIRD branch, which the table predates (see `SURFACE_IDS`). The blocked rows are
+  // declared rather than omitted for this module's founding reason, and each surface's `blocked`
+  // field carries which of the two blockers applies and why.
+  //
+  // ⚠ THE 320px ROWS ARE CAPTURED AT 320x568, NOT AT THE 320x720 PHASE 11 USED. Two reasons and both
+  // are this phase's: 568 is the viewport AC#22 names for the money statement's above-the-fold claim,
+  // and `CONFIRMATION_MOMENT_MIN_H` is `calc(100svh - header)`, so on the moment the viewport HEIGHT
+  // is part of the composition rather than merely the initial scroll position of a full-page stitch.
+  // A 720px capture would pin a taller moment than any phone renders.
+  // ─── booking-moment — 6 ────────────────────────────────────────────────────────────────
+  {
+    surface: "booking-moment",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the 320x568 floor — AC#22's own viewport, and the one the moment is most constrained at: " +
+      "`CONFIRMATION_MOMENT_MIN_H` is `calc(100svh - header)`, so the height is not decoration " +
+      "here, it decides the composition.",
+  },
+  {
+    surface: "booking-moment",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the 320x568 floor — AC#22's own viewport, and the one the moment is most " +
+      "constrained at: `CONFIRMATION_MOMENT_MIN_H` is `calc(100svh - header)`, so the height is " +
+      "not decoration here, it decides the composition.",
+  },
+  {
+    surface: "booking-moment",
+    width: 768,
+    height: 800,
+    theme: "court",
+    why:
+      "the tablet step, where the heading takes its wider Display step and the " +
+      "single-column stack stops being the only option. THE DISPLAY TOKEN IS DELIBERATELY NOT " +
+      "SPELLED IN THIS SENTENCE: `tests/design/type-scale.test.ts` pins the Display call sites BY " +
+      "FILE and reads string LITERALS rather than comments, so naming it in a `why` adds this module " +
+      "to that inventory. Measured — the first draft did, and the gate went red with " +
+      "`src/lib/design/visual-baselines.ts: 2` in the received map.",
+  },
+  {
+    surface: "booking-moment",
+    width: 768,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. the tablet step, where the heading takes its wider Display step and " +
+      "the single-column stack stops being the only option.",
+  },
+  {
+    surface: "booking-moment",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop. The before-picture of the decay: this frame and `booking-confirmed` at the same " +
+      "width are the pair that shows what the moment adds and what it gives back.",
+  },
+  {
+    surface: "booking-moment",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. desktop. The before-picture of the decay: this frame and " +
+      "`booking-confirmed` at the same width are the pair that shows what the moment adds and " +
+      "what it gives back.",
+  },
+  // ─── booking-confirmed — 4 ────────────────────────────────────────────────────────────────
+  {
+    surface: "booking-confirmed",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the floor. The after-picture, and the frame that catches the moment failing to decay — a " +
+      "confirmed detail that still carried the moment's chrome would be visible here as a diff " +
+      "against nothing else changing.",
+  },
+  {
+    surface: "booking-confirmed",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the floor. The after-picture, and the frame that catches the moment " +
+      "failing to decay — a confirmed detail that still carried the moment's chrome would be " +
+      "visible here as a diff against nothing else changing.",
+  },
+  {
+    surface: "booking-confirmed",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, paired with the moment's own 1280 frame.",
+  },
+  {
+    surface: "booking-confirmed",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. desktop, paired with the moment's own 1280 frame.",
+  },
+  // ─── payment-pending — 2 ────────────────────────────────────────────────────────────────
+  {
+    surface: "payment-pending",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "one width only: the surface is a settling interstitial with no responsive claim of its " +
+      "own, and the reason it is baselined at all is D-71 — no error-shaped affordance at ANY " +
+      "threshold, which is a thing a picture can hold and a predicate cannot.",
+  },
+  {
+    surface: "payment-pending",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. one width only: the surface is a settling interstitial with no responsive " +
+      "claim of its own, and the reason it is baselined at all is D-71 — no error-shaped " +
+      "affordance at ANY threshold, which is a thing a picture can hold and a predicate cannot.",
+  },
+  // ─── payment-not-completed — 4 ────────────────────────────────────────────────────────────────
+  {
+    surface: "payment-not-completed",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the floor, where the retry action and the hold display share a 288px column.",
+  },
+  {
+    surface: "payment-not-completed",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the floor, where the retry action and the hold display share a 288px " +
+      "column.",
+  },
+  {
+    surface: "payment-not-completed",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, and the second half of the pair. A surface baselined at one width proves nothing " +
+      "about the other, and each of these compositions changes shape at `lg:` — the booking shell " +
+      "takes its wider column, the group page's share row goes inline, and the invite card stops " +
+      "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
+  },
+  {
+    surface: "payment-not-completed",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
+      "what the D-135 smoke reads when this surface is unblocked.",
+  },
+  // ─── payment-reversed-auto — 2 ────────────────────────────────────────────────────────────────
+  {
+    surface: "payment-reversed-auto",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "one width: the automatic branch's claim is its COPY (a refund was issued, on a rail with " +
+      "a verified window), and the layout is the manual branch's, which is baselined at both " +
+      "widths.",
+  },
+  {
+    surface: "payment-reversed-auto",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. one width: the automatic branch's claim is its COPY (a refund was issued, " +
+      "on a rail with a verified window), and the layout is the manual branch's, which is " +
+      "baselined at both widths.",
+  },
+  // ─── payment-reversed-manual — 4 ────────────────────────────────────────────────────────────────
+  {
+    surface: "payment-reversed-manual",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the phase's sharpest frame — 13-UI-SPEC names this exact capture as where the support " +
+      "control's above-the-fold claim is proved.",
+  },
+  {
+    surface: "payment-reversed-manual",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the phase's sharpest frame — 13-UI-SPEC names this exact capture as where " +
+      "the support control's above-the-fold claim is proved.",
+  },
+  {
+    surface: "payment-reversed-manual",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, so the pair shows that the layout does not reshuffle between branches.",
+  },
+  {
+    surface: "payment-reversed-manual",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. desktop, so the pair shows that the layout does not reshuffle between " +
+      "branches.",
+  },
+  // ─── payment-reversed-indeterminate — 4 ────────────────────────────────────────────────────────────────
+  {
+    surface: "payment-reversed-indeterminate",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the floor. This is the branch a seeded row and a CI run actually render, and 320x568 is " +
+      "where its money panel was measured at 570.94px in grove before plan 13-15's fix — the " +
+      "frame most worth pinning in the whole block.",
+  },
+  {
+    surface: "payment-reversed-indeterminate",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the floor. This is the branch a seeded row and a CI run actually render, " +
+      "and 320x568 is where its money panel was measured at 570.94px in grove before plan " +
+      "13-15's fix — the frame most worth pinning in the whole block.",
+  },
+  {
+    surface: "payment-reversed-indeterminate",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, and the second half of the pair. A surface baselined at one width proves nothing " +
+      "about the other, and each of these compositions changes shape at `lg:` — the booking shell " +
+      "takes its wider column, the group page's share row goes inline, and the invite card stops " +
+      "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
+  },
+  {
+    surface: "payment-reversed-indeterminate",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
+      "what the D-135 smoke reads when this surface is unblocked.",
+  },
+  // ─── receipt-screen — 4 ────────────────────────────────────────────────────────────────
+  {
+    surface: "receipt-screen",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the floor. A receipt is a table of figures in a 288px column, which is where a money " +
+      "surface wraps badly first.",
+  },
+  {
+    surface: "receipt-screen",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the floor. A receipt is a table of figures in a 288px column, which is " +
+      "where a money surface wraps badly first.",
+  },
+  {
+    surface: "receipt-screen",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, and the control frame for the print capture below: the two differ only by " +
+      "media, so a diff between them is the print contract itself.",
+  },
+  {
+    surface: "receipt-screen",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. desktop, and the control frame for the print capture below: the two differ " +
+      "only by media, so a diff between them is the print contract itself.",
+  },
+  // ─── receipt-print — 2 ────────────────────────────────────────────────────────────────
+  {
+    surface: "receipt-print",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "print media via `emulateMedia`. The theme-swap smoke still applies (D-135): the two " +
+      "themes differ by type scale and radius even with every fill dropped, which is the " +
+      "property the print contract is built on.",
+  },
+  {
+    surface: "receipt-print",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. print media via `emulateMedia`. The theme-swap smoke still applies " +
+      "(D-135): the two themes differ by type scale and radius even with every fill dropped, " +
+      "which is the property the print contract is built on.",
+  },
+  // ─── booking-group — 4 ────────────────────────────────────────────────────────────────
+  {
+    surface: "booking-group",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the floor, where the share field, its copy control and the roster stack.",
+  },
+  {
+    surface: "booking-group",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the floor, where the share field, its copy control and the roster stack.",
+  },
+  {
+    surface: "booking-group",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, and the second half of the pair. A surface baselined at one width proves nothing " +
+      "about the other, and each of these compositions changes shape at `lg:` — the booking shell " +
+      "takes its wider column, the group page's share row goes inline, and the invite card stops " +
+      "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
+  },
+  {
+    surface: "booking-group",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
+      "what the D-135 smoke reads when this surface is unblocked.",
+  },
+  // ─── invite-active — 4 ────────────────────────────────────────────────────────────────
+  {
+    surface: "invite-active",
+    width: 320,
+    height: 568,
+    theme: "court",
+    why:
+      "the floor. The app's most-shared public surface, and the one whose two controls shipped " +
+      "as 22px pointer targets until plan 13-15 measured them.",
+  },
+  {
+    surface: "invite-active",
+    width: 320,
+    height: 568,
+    theme: "grove",
+    why:
+      "second theme. the floor. The app's most-shared public surface, and the one whose two " +
+      "controls shipped as 22px pointer targets until plan 13-15 measured them.",
+  },
+  {
+    surface: "invite-active",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, and the second half of the pair. A surface baselined at one width proves nothing " +
+      "about the other, and each of these compositions changes shape at `lg:` — the booking shell " +
+      "takes its wider column, the group page's share row goes inline, and the invite card stops " +
+      "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
+  },
+  {
+    surface: "invite-active",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
+      "what the D-135 smoke reads when this surface is unblocked.",
+  },
+  // ─── booking-not-found — 2 ────────────────────────────────────────────────────────────────
+  {
+    surface: "booking-not-found",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "one width, and the ONLY Phase-13 row that is shot today: it renders no booking, no " +
+      "money, no date and no identity, so it is the one surface in this block a per-run seed " +
+      "cannot destabilise.",
+  },
+  {
+    surface: "booking-not-found",
+    width: 1280,
+    height: 800,
+    theme: "grove",
+    why:
+      "second theme. one width, and the ONLY Phase-13 row that is shot today: it renders no " +
+      "booking, no money, no date and no identity, so it is the one surface in this block a " +
+      "per-run seed cannot destabilise.",
+  },
 ] as const satisfies readonly BaselineRow[];
 
 // ---------------------------------------------------------------------------
@@ -1076,16 +1747,42 @@ type Assert<T extends true> = T;
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /**
- * The two UI-SPECs' totals, as a type. (3 + 12 + 4 + 1 + 4 + 3) + (6 + 4 + 6 + 2 + 2 + 4 + 2) = 53.
- * Probe (a) above, and re-watched failing by plan 12-14 against the new number — see the SUMMARY.
+ * The three UI-SPECs' totals, as a type.
+ *
+ *   11-UI-SPEC § GATE-01 (plan 11-22)          3 + 12 + 4 + 1 + 4 + 3          = 27
+ *   12-UI-SPEC § Visual Baselines (12-14)      6 + 4 + 6 + 2 + 2 + 4 + 2       = 26
+ *   13-UI-SPEC § Visual Baselines (13-15)      6 + 4 + 2 + 4 + 2 + 4 + 4
+ *                                              + 4 + 2 + 4 + 4 + 2             = 42
+ *                                                                        TOTAL = 95
+ *
+ * THE PHASE-13 SUBTOTAL IS 42 AGAINST A TABLE THAT ADDS TO 38, AND THE FOUR ARE THE REVERSED STATE'S
+ * THIRD BRANCH. 13-UI-SPEC's table was written before plan 13-10 added D-96's `indeterminate` arm —
+ * the one a probe that learns nothing lands on, which is every environment GATE-01 can produce. Its
+ * four rows carry the widths the table gave the manual branch, because it is the branch that renders.
+ * See `SURFACE_IDS` for the argument and each surface's `blocked` field for what stands in the way.
+ *
+ * ⚠ ELEVEN OF THE TWELVE PHASE-13 SURFACES ARE BLOCKED, SO 40 OF THESE 42 ROWS SHOOT NOTHING TODAY.
+ * That is stated here as well as at the rows because a reader who takes 95 for a file count will be
+ * wrong by 41 (the 40 plus `global-error`), which is a much bigger error than the one this note used
+ * to warn about. A complete run commits 54 PNGs.
  *
  * THE NAME CARRIES THE NUMBER ON PURPOSE, AND IT IS RENAMED IN THE SAME COMMIT AS THE ROWS. The alias
- * was `BaselineCountIsTwentySeven`. A gate whose name says 27 while its constraint says 53 is a gate
- * that reads correct and is not, and this file's whole argument is that a count nobody restates is a
- * count nobody checks. `tsc` cannot catch a stale NAME, which is exactly why it has to move by hand.
+ * was `BaselineCountIsTwentySeven`, then `BaselineCountIsFiftyThree`. A gate whose name says 53 while
+ * its constraint says 95 is a gate that reads correct and is not, and this file's whole argument is
+ * that a count nobody restates is a count nobody checks. `tsc` cannot catch a stale NAME, which is
+ * exactly why it has to move by hand.
+ *
+ * OBSERVED RED — 21 August 2026, plan 13-15, UNFORCED: inserting the 42 rows with the alias still
+ * reading 53 produced exactly one error, `npx tsc --noEmit` exit 2:
+ *
+ *   src/lib/design/visual-baselines.ts(1739,3): error TS2344: Type 'false' does not satisfy the
+ *   constraint 'true'.
+ *
+ * — the same shape probe (a) recorded in 2026, arriving on its own rather than being staged. Renaming
+ * to 95 in this same commit returned it to exit 0.
  */
-export type BaselineCountIsFiftyThree = Assert<
-  (typeof VISUAL_BASELINES)["length"] extends 53 ? true : false
+export type BaselineCountIsNinetyFive = Assert<
+  (typeof VISUAL_BASELINES)["length"] extends 95 ? true : false
 >;
 
 /** D-135 / AC#30: exactly one exclusion. Probe (b) above. */
@@ -1138,9 +1835,11 @@ export function blockedSurfaces(): readonly { id: SurfaceId; reason: string }[] 
 //   • THIS IS A DECLARATION. It proves nothing about what is on disk. `e2e/visual/surfaces.spec.ts`
 //     is what turns a row into a comparison, and `tests/design/gitignore-baselines.test.ts` is what
 //     stops a platform baseline being committed. Neither of them notices a row nobody reads.
-//   • ONE OF THE 53 IS BLOCKED (`global-error`), so a complete run commits 52 PNGs, not 53. The
-//     reason is above and it is structural rather than schedule pressure. Anyone reading "53
-//     baselines" as "53 files" will be wrong by exactly that one.
+//   • FORTY-ONE OF THE 95 ARE BLOCKED, so a complete run commits 54 PNGs, not 95. One is structural
+//     (`global-error`); forty are Phase 13's and are blocked on a credential boundary and a missing
+//     committed fixture, both argued at the rows. Anyone reading "95 baselines" as "95 files" will
+//     be wrong by forty-one. THE PHASE-13 BLOCK IS THE LARGEST DECLARED GAP IN THIS FILE'S HISTORY
+//     and is deliberately visible rather than deferred to a plan nobody reads.
 //   • THE COUNTS ARE COMPILE-CHECKED; THE CONTENTS ARE NOT. Nothing here can tell a correct width
 //     from a plausible one, and a row whose `why` is true but whose `width` is wrong compiles.
 //   • ⚠ THE FIXTURE HAS A SHELF LIFE, AND SO THEREFORE DO SEVEN OF THESE SURFACES. Every Phase-12

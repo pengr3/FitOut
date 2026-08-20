@@ -793,6 +793,76 @@ function collisionDrive(purpose: DrivePurpose): SurfaceDrive {
   };
 }
 
+/**
+ * `bookings/[id]/not-found` — the ONE Phase-13 surface that is shot (plan 13-15).
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════════════════════════
+ * WHY IT NEEDS A DRIVE AT ALL, WHEN ITS URL IS A PLAIN PATH
+ * ═════════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `newDrive`'s default — navigate to the declared URL and shoot — is what every Phase-11 surface uses,
+ * and it is exactly wrong here. This route lives under `(app)`, whose layout redirects an
+ * unauthenticated visit to `/login`; the default drive would therefore photograph the LOGIN PAGE and
+ * file it under this surface's name. The reachability hook is what stops that becoming a baseline
+ * (`/login` renders no `empty-state`), but a hook can only fail the run — it cannot produce a session.
+ * So the drive signs a booker up first, exactly as `checkoutDrive` and `collisionDrive` do, and for the
+ * same D-41 reason those two record.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════════════════════════
+ * WHY THIS ONE IS DETERMINISTIC WHEN THE OTHER ELEVEN PHASE-13 SURFACES ARE NOT
+ * ═════════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Every other Phase-13 surface is a view of a BOOKING, and a per-run seed puts three moving values in
+ * frame: the TRUST-02 reference (a SHA-256 over a `randomUUID()`-suffixed id), the session window (a
+ * `now()`-relative `starts_at`), and — on the moment and the pending state — the booker's own per-run
+ * email address. `visual-baselines.ts` blocks all eleven on that, with the fixture named as the fix.
+ *
+ * This surface renders NONE of them: it is `EmptyState`'s glyph, heading, one line of copy and one
+ * action, inside the signed-in shell. The booker the drive mints is not in the frame — the header
+ * carries `Bookings`, a `Profile` link whose visible label is a literal, and a notification bell that
+ * is empty for a user seconds old. The URL is a sentence-shaped literal that must never become a real
+ * id, in the shape `root-not-found` already uses and for its stated reason.
+ *
+ * ⚠ THE ONE THING THAT WOULD BREAK IT is the shell starting to render the signed-in user's name or
+ * email. That is not hypothetical — `AUTH_SLOT_BOX`'s docstring describes the widest resolved state as
+ * "an avatar plus a name" — so if this baseline ever goes red across both themes with nothing else
+ * changed, look at the header before looking at the boundary.
+ */
+function bookingNotFoundDrive(_purpose: DrivePurpose, url: string | null): SurfaceDrive {
+  let bookerEmail: string | null = null;
+
+  return {
+    needsClock: false,
+    captureMode: "fullPage",
+    // Generous for the same two reasons `checkoutDrive` gives: a UI signup plus the dev server's
+    // on-demand compile of two routes. A ceiling, never a wait.
+    timeoutMs: 120_000,
+    async navigate({ page, where }) {
+      await withSql(async (sql) => {
+        // The shipped helper rather than a hand-written session row, so this drive authenticates by
+        // the same path the functional specs do. It mints nothing else — no listing, no booking.
+        bookerEmail = await signUpBooker(page, fixtureAsSeed(sql));
+      });
+      expect(
+        url,
+        `${where}: this surface declares no URL, so there is nothing to navigate to. The row is not ` +
+          "blocked, so a null here is an inventory error rather than a decision.",
+      ).not.toBeNull();
+      await page.goto(url as string);
+    },
+    async cleanup() {
+      // The booker owns no bookings — nothing on this path can mint one — so there is no FK order to
+      // respect. Deleted anyway so a re-dispatch does not accumulate one user per capture, which is
+      // `collisionDrive`'s stated reason for the same line.
+      await withSql(async (sql) => {
+        if (bookerEmail !== null) {
+          await sql`DELETE FROM "user" WHERE email = ${bookerEmail}`;
+        }
+      });
+    },
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 // The registry the specs read
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -805,12 +875,20 @@ function collisionDrive(purpose: DrivePurpose): SurfaceDrive {
  * booker's email, the conflict rows' theme). A shared singleton would leak one row's hold into the next
  * row's cleanup, and the two rows that share a window are exactly the pair where that matters.
  */
-const DRIVES: Partial<Record<SurfaceId, (purpose: DrivePurpose) => SurfaceDrive>> = {
+const DRIVES: Partial<
+  Record<SurfaceId, (purpose: DrivePurpose, url: string | null) => SurfaceDrive>
+> = {
   "listing-detail": listingDetailDrive,
   "listing-lightbox": lightboxDrive,
   "listing-sheet": sheetDrive,
   checkout: checkoutDrive,
   "collision-notice": collisionDrive,
+  // ⚠ THE FIRST DRIVE THAT NEEDS THE ROW'S OWN URL, which is why the signature grew a second
+  // parameter in plan 13-15. The five above all address the fixture's listing and compose their paths
+  // from `LISTING_ID`; this one navigates to a literal declared in `visual-baselines.ts`, and
+  // re-typing that literal here is exactly the drift `FIXTURE_URL_CONTRACT` below exists to close for
+  // the Phase-12 rows. Passing it through means there is one spelling of the path in the repository.
+  "booking-not-found": bookingNotFoundDrive,
 };
 
 /** The default: navigate to the declared URL, capture the whole page, compare at 1280. */
@@ -820,7 +898,7 @@ export function newDrive(
   purpose: DrivePurpose = "baseline",
 ): SurfaceDrive {
   const factory = DRIVES[surfaceId];
-  if (factory !== undefined) return factory(purpose);
+  if (factory !== undefined) return factory(purpose, url);
   return {
     needsClock: false,
     captureMode: "fullPage",
@@ -846,7 +924,10 @@ export const SERIAL_SURFACES: readonly SurfaceId[] = ["collision-notice"];
 
 /** The theme-swap smoke's viewport width for one surface. 1280 unless the surface cannot exist there. */
 export function swapWidthFor(surfaceId: SurfaceId): number {
-  return DRIVES[surfaceId]?.("swap").swapWidth ?? 1280;
+  // `null` for the url on purpose: this function constructs a drive ONLY to read its declared
+  // `swapWidth`, never to run it, and no factory touches the url outside `navigate`. Passing a real
+  // path here would imply this call site knows which surface it is asking about, which it does not.
+  return DRIVES[surfaceId]?.("swap", null).swapWidth ?? 1280;
 }
 
 /**

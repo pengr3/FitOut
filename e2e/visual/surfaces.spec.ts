@@ -170,14 +170,38 @@ const OG_VIEWPORT = { width: 1400, height: 900 } as const;
  * this repository can render at all. A surface LEAVING this list is coverage that has been won, and
  * this pin is where that gets recorded rather than merely happening.
  */
-const EXPECTED_BLOCKED = ["global-error"] as const;
+const EXPECTED_BLOCKED = [
+  "global-error",
+  // --- 13-15 - eleven of Phase 13's twelve surfaces -------------------------------------------
+  // TWO independent blockers, both argued in full at the rows in `visual-baselines.ts`: three of
+  // these need a checkout session the provider has CONFIRMED (D-35 keeps the key out of the one job
+  // that can write a baseline), and every one of them needs a COMMITTED Phase-13 fixture, because a
+  // per-run seed renders a different booking reference, a different session date and a different
+  // booker email on every dispatch. `booking-not-found` is the one that is neither and is shot.
+  //
+  // ELEVEN ENTRIES ARRIVING AT ONCE IS EXACTLY WHAT THIS PIN IS FOR. The list's own argument is that
+  // a surface joining it must do so deliberately; that argument does not weaken because eleven join
+  // together, it is the reason the number is restated here rather than derived.
+  "booking-moment",
+  "booking-confirmed",
+  "payment-pending",
+  "payment-not-completed",
+  "payment-reversed-auto",
+  "payment-reversed-manual",
+  "payment-reversed-indeterminate",
+  "receipt-screen",
+  "receipt-print",
+  "booking-group",
+  "invite-active",
+] as const;
 
 /**
- * Both UI-SPECs' totals: (3 + 12 + 4 + 1 + 4 + 3) + (6 + 4 + 6 + 2 + 2 + 4 + 2). Compile-checked too —
- * see `BaselineCountIsFiftyThree` in the module, which is what catches it off Linux where this file
+ * All three UI-SPECs' totals: 27 + 26 + 42 (13-UI-SPEC's table adds to 38; the extra four are the
+ * reversed state's third branch, which that table predates). Compile-checked too —
+ * see `BaselineCountIsNinetyFive` in the module, which is what catches it off Linux where this file
  * never runs.
  */
-const EXPECTED_BASELINE_COUNT = 53;
+const EXPECTED_BASELINE_COUNT = 95;
 
 /**
  * Trap 1. Assert the surface rendered its subject before any pixel is read.
@@ -197,10 +221,10 @@ async function expectReachable(page: Page, row: BaselineRow): Promise<void> {
 }
 
 test.describe("GATE-01 — the declared baseline inventory", () => {
-  test("the inventory is the 53 rows the two UI-SPECs declare, and exactly one is blocked", () => {
+  test("the inventory is the 95 rows the three UI-SPECs declare, and the blocked set is the declared one", () => {
     expect(
       VISUAL_BASELINES.length,
-      "the two UI-SPECs declare 53 baselines — 27 from 11-UI-SPEC § GATE-01 and 26 from " +
+      "the three UI-SPECs declare 95 baselines — 27 from 11-UI-SPEC § GATE-01 and 26 from " +
         "12-UI-SPEC § Visual Baselines. This is the runtime half of the compile gate in " +
         "`visual-baselines.ts`; the type-level one is what catches it off Linux, where this file " +
         "never runs.",
