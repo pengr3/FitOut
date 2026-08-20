@@ -24,12 +24,12 @@ STATE-08.
 
 > **Decision-ID namespace — read before citing a number.** These continue the per-phase CONTEXT
 > sequence (Phase 10 = D-01…D-22, Phase 11 = D-23…D-36, Phase 12 = D-37…D-59), so **Phase 13 runs
-> D-60…D-89**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
+> D-60…D-93**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
 > **D-62** (demand-first booking-mode default flip, cited in `src/lib/db/schema.ts:199`), **D-66** (no
 > React Email / no new email stack), **D-75** (the all-in rate never goes up) and **D-79** (what
 > actually went back to the booker, cited in `src/app/(app)/bookings/[id]/page.tsx:169`). The collision
 > is pre-existing — Phase 11's D-30/D-31 and Phase 12's D-42…D-50 collide the same way — and is
-> recorded rather than silently inherited. **When citing any number in D-60…D-89, say which
+> recorded rather than silently inherited. **When citing any number in D-60…D-93, say which
 > namespace**: "13-CONTEXT D-62" or "PROJECT D-62". Never a bare number.
 
 > **Governing principle carried forward, not re-decided — 12-CONTEXT D-59:** when two options both
@@ -282,6 +282,45 @@ STATE-08.
   consuming the param on the pending branch makes the next poll fall into the existing
   `redirect(…/book?hold=…)` and bounce the booker to checkout mid-webhook. Use
   `window.history.replaceState` (officially router-integrated in Next 16.3), never `router.replace`.
+
+### Corrections found by the UI contract (2026-08-20)
+
+- **D-90: D-62's request-to-book branch is CORRECTED — the booker is never charged while a request is
+  pending, so the money reassurance it specified describes a charge that does not happen.**
+  VERIFIED in code: request-to-book is **pay-on-approval**. `bookings/[id]/page.tsx:382-386` renders a
+  *Pay now* CTA on the `approved` branch routing to the Phase-5 checkout, and both the `requested` and
+  `approved` branches carry a **no-money** cancel dialog whose own comment reads *"an approved-but-unpaid
+  hold is still an unpaid hold"*. ROADMAP § Phase 6 states the same: *"instant-book capture vs
+  request-to-book pay-on-approval"*.
+  **Consequence:** the confirmation moment fires on the `?paid=1` return from checkout, which for a
+  request booking happens **after** the host approved AND after payment — at which point the booking is
+  confirmed. There is no "charged while awaiting approval" state to reassure anyone about.
+  **The corrected rule:** the confirmation moment says what is TRUE for the state it is actually in. The
+  mode distinction does not disappear — it moves to where it belongs, the **detail page's status-meaning
+  copy** (TRUST-01) for the `requested` and `approved` statuses, where the honest and more reassuring
+  fact is that **the booker has not been charged at all yet**.
+  ⚠ Never ship copy telling a booker they were charged for an unpaid hold. It is false, and it is worse
+  than saying nothing.
+
+- **D-91: TRUST-01's full address does NOT conflict with the D-09 privacy toggle — no change to the host
+  promise is needed.** `listing.showExactAddress` defaults to `false`, but the host-facing control in
+  `host/listings/[id]/edit/wizard.tsx:878` already states: *"Off by default — guests see an approximate
+  area until they book."* Revealing the exact street to a booker **on a confirmed or completed booking**
+  is exactly what the host was already promised — not an expansion of it. Route it through one named
+  boundary (e.g. `bookedListingAddress()`) so the exception is auditable and cannot leak to a
+  pre-booking surface. ⚠ Do NOT reveal it on `requested`, `approved`-unpaid, `cancelled` or reversed
+  bookings — those are not "booked" in the sense the host was promised.
+
+- **D-92: The unsourced refund window in `src/lib/email.ts:341` is corrected HERE.** It is a copy
+  constant, **not** a send trigger, so fixing it does not violate D-78's hands-off rule for Phase 15's
+  email shell. Screen and email must not state different refund windows; the verified numbers in D-83
+  are the only permitted values.
+
+- **D-93: Scope additions accepted from the UI contract**, each a correction inside this phase's domain
+  rather than net-new capability: `/bookings/[id]/cancel` (3 named items), `bookings/[id]/not-found.tsx`
+  (explicitly deferred *to this phase* by 11-UI-SPEC), and three STATE-08 toast→alert corrections in
+  `src/components/group/**` (a refund amount or a reduced headcount must be an in-page alert, never a
+  toast). ⚠ These are corrections, not scope creep — but they are recorded so the phase's size is honest.
 
 ### Claude's Discretion
 
