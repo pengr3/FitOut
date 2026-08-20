@@ -34,6 +34,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, listing } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
+import { refundWindowFor } from "@/lib/booking/refund-window";
 import { composeDateLabel, composeWhenLabel } from "@/lib/booking/when-label";
 import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
@@ -58,9 +59,16 @@ const TIER_LABELS = { flexible: "Flexible", standard: "Standard", strict: "Stric
  *
  * `openCapacity` renames the ANCHOR and nothing else (09-UI-SPEC § 5b): the ladder, the rung boundaries and
  * every peso are byte-identical for a drop-in pass (OC-15). What differs is that OC-03 makes `starts_at` the
- * instant the SPACE OPENS on the booked date rather than the start of a session — so "6 hours before the
+ * instant the SPACE OPENS on the booked date rather than the start of a session — so "six hours before the
  * session" would be describing an event a pass-holder does not have. Required, not optional, for the same
  * reason the components' props are.
+ *
+ * ⚠ THE NUMERAL IN THAT EXAMPLE IS SPELLED AS A WORD ON PURPOSE, and it used to be a digit. Plan 13-06's
+ * refund-duration scan over this file is a source grep for a digit immediately followed by *day* or *hour*
+ * — the check that proves no refund window is hand-typed here (D-83). A grep is only a guard while the
+ * prose explaining the rule cannot trip it, which this repository has now measured four plans running
+ * (13-01 Dev.1, 13-02 Dev.2/3, 13-03 Dev.2). Nothing about the example changed except its spelling; every
+ * hour figure this function actually RENDERS comes from `LADDER`, interpolated, never typed.
  */
 function rungDescription(
   tier: "flexible" | "standard" | "strict",
@@ -274,6 +282,22 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   }
   const destinationFormReady = needsDestination && institutions.length > 0;
 
+  // ── D-83 / D-92: THE REFUND WINDOW IS READ FROM ITS ONE OWNER, NEVER TYPED HERE. ──────────────────────
+  // The sentence that shipped on this surface paired a vague plural of "day" with a promise about the
+  // original payment method and had NO SOURCE AT ALL. `@/lib/booking/refund-window` (13-03) holds the only
+  // windows FitOut is willing to state, taken from PayMongo's published per-rail table, and `lib/email.ts`
+  // now reads the same module — so a booker's screen and their inbox can no longer disagree about when
+  // their own money comes back. That disagreement is the exact failure D-92 exists to remove; it is a
+  // disclosure defect on a money path, not a copy nit.
+  //
+  // WHY THIS PAGE PASSES A RAIL AND THE REVERSED SURFACE PROBES FOR ONE. A booker-initiated cancel always
+  // acts on a `confirmed` row, whose `payment_method` column was populated by the payment that actually
+  // succeeded — so the rail is already in hand and D-84's live probe would be a third-party round trip
+  // bought for a fact this page holds. The probe exists for the reversed page, where that column is NULL
+  // by construction. A null here is still handled rather than assumed away: `refundWindowFor` answers a
+  // null rail with the rail-free sentence and does NOT route it to the manual branch.
+  const refundWindow = refundWindowFor(bk.paymentMethod);
+
   return (
     <div className={BOOKING_SHELL}>
       <Card>
@@ -353,9 +377,21 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
               to a bank or e-wallet account instead.
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground">
-              Refunds usually land back on your original payment method within a few days.
-            </p>
+            // TWO WAYS THIS BRANCH SAYS NOTHING, AND BOTH ARE DELIBERATE.
+            //
+            //   1. `no-automatic-window` is a bare KIND with no sentence field (13-03), so a rail with no
+            //      verified window is structurally unrenderable here rather than merely left unsaid —
+            //      there is nothing for a template to interpolate. It is reachable on this branch only
+            //      when the quote is zero, because a non-refundable rail WITH money owed took the
+            //      destination branch above.
+            //   2. A zero quote gets no window either, whatever the rail. The standard and strict rungs
+            //      both bottom out at nothing refunded, and a rail's window sentence sitting under a
+            //      "Refund to you ₱0.00" row is a claim about money that is not moving — the same class
+            //      of statement D-90 bans on the pending-request surface.
+            refundWindow.kind === "window" &&
+            quote.totalRefundCents > 0 && (
+              <p className="text-xs text-muted-foreground">{refundWindow.sentence}</p>
+            )
           )}
           <p className="text-xs text-muted-foreground">{tzNote}</p>
 

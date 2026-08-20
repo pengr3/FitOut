@@ -11,6 +11,10 @@
 
 import { Resend } from "resend";
 
+// D-92 — a COPY CONSTANT, not a trigger. See `sendRefundIssued`'s header for why importing it here is
+// inside this phase's boundary and what it is asserted not to have moved.
+import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
+
 const key = process.env.RESEND_API_KEY;
 const resend = key ? new Resend(key) : null;
 const FROM = process.env.EMAIL_FROM ?? "FitOut <onboarding@resend.dev>";
@@ -322,6 +326,33 @@ export const sendHostCancellationRecord = (
  * moment from the cancellation itself (the webhook is the single writer of terminal refund state, D-57).
  * Carries the settlement-timing note, because "refunded" without a timeframe reliably generates the
  * "where is my money" support thread a single sentence prevents.
+ *
+ * ⚠ THE SETTLEMENT-TIMING NOTE IS NOW READ FROM ITS ONE OWNER (D-92). The string that shipped in this
+ * body was unsourced — a vague plural of "day" paired with a promise about the original payment method —
+ * and it is superseded by `@/lib/booking/refund-window`, the SAME module the cancel review page and the
+ * booking detail page read. A booker's screen and their inbox stating different windows for their own
+ * money is a disclosure defect on a money path, not a copy nit, and removing it is the reason this phase
+ * exists.
+ *
+ * WHY THIS IS NOT A D-78 VIOLATION, WRITTEN DOWN SO THE NEXT READER NEED NOT RE-DERIVE IT. D-78 puts
+ * Phase 15's email shell off limits for send TRIGGERS: none may be added, moved or removed in this
+ * phase, and Phase 15's SC#3 is that not a single one has. This edit changes a STRING inside an existing
+ * body and imports the module that owns it. The `send` call, its subject line, its recipient, its
+ * arguments, its one call site — `src/inngest/functions/notify.ts`'s `refund_issued` case — and the
+ * conditions under which it fires are all byte-identical. `tests/booking/notify-emission.test.ts`
+ * passing unchanged is the PROOF of that rather than the claim of it. SC#3 survives.
+ *
+ * THE RAIL-FREE SENTENCE IS THE RIGHT ONE HERE, and the reason is structural rather than a preference:
+ * this function is handed a recipient, a title, a when-label, a refund label and a url. It is never
+ * handed a rail, and giving it one would change its signature AND its call site — exactly what D-78
+ * protects. `ALL_RAILS_REFUND_WINDOW` names every rail a FitOut booker could have used so they recognise
+ * their own, without the email claiming to know which it was. If a future phase wants the per-rail
+ * sentence in the inbox, that is a change to the notify payload and it belongs to the phase that owns
+ * the shell.
+ *
+ * NOT run through `escapeHtml`, deliberately. WR-01's rule is about interpolated FIELDS — caller-supplied
+ * values that reach an `href` or HTML text. This is a compile-time constant from this repository, in the
+ * same category as the literal prose sitting beside it in the same template, which is likewise unescaped.
  */
 export const sendRefundIssued = (
   to: string,
@@ -338,7 +369,7 @@ export const sendRefundIssued = (
     to,
     `Refund on its way — ${spaceTitle}`,
     `<p><strong>Your refund is on its way</strong></p>` +
-      `<p>We've issued a refund of ${refund} for your booking at ${space} on ${when}. Refunds usually land back on your original payment method within a few days.</p>` +
+      `<p>We've issued a refund of ${refund} for your booking at ${space} on ${when}. ${ALL_RAILS_REFUND_WINDOW}</p>` +
       `<p><a href="${url}">View the booking</a></p>`,
   );
 };
