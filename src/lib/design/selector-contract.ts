@@ -188,6 +188,12 @@ export const SELECTOR_IDS = [
   // contract is bidirectional, so the gate went red on `Rendered-but-undeclared: [confirmation-moment]`
   // the moment the literal shipped.
   "confirmation-moment",
+  // 13-12 — TRUST-05's receipt. `receipt-total` is declared HERE, one task before the plan scheduled
+  // it, for the reason 13-09's `trust-block` and 13-11's `confirmation-moment` rows both record: the
+  // contract is BIDIRECTIONAL, so the gate goes red on `Rendered-but-undeclared` the moment a literal
+  // ships without its row. A row lands in the same commit as its literal or the tree is red between
+  // two commits.
+  "receipt-total",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -767,5 +773,27 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "payment/lapse state components, so a container query keyed on it resolves on routes this hook " +
       "has nothing to say about.",
     owner: "13-11",
+  },
+
+  // ─── 13-12 ─────────────────────────────────────────────────────────────────────────────────────────
+  "receipt-total": {
+    why:
+      "THE FOURTH MONEY HOOK, AND THE REASON IT IS A FOURTH RATHER THAN A REUSE IS MEASURED RATHER " +
+      "THAN ARGUED. `price-breakdown.tsx:363-380` records it: the parity spec reads the hook, " +
+      "normalises its textContent back to integer centavos and asserts equality with the frozen " +
+      "column, and *with two matches it would silently parse whichever came first in the DOM*. The " +
+      "receipt renders a total on a document that a booker may hold beside a bank statement, so a " +
+      "spec that read the wrong element would be green while the one number that matters went " +
+      "unchecked. One surface, one literal — `price-total`, `rail-price-total`, `sheet-price-total`, " +
+      "and this. " +
+      "A ROLE OR TEXT QUERY CANNOT CARRY IT, for the reason every money-adjacent row in this contract " +
+      "gives: the assertion is that the DOM text EQUALS a figure read from the database, so matching " +
+      "on that figure to find the element would be circular — the query would encode the answer. The " +
+      "term beside it is the ordinary word `Total`, which also names the totals on the listing rail, " +
+      "the checkout breakdown and the booking sheet. " +
+      "AND IT SITS ON THE VALUE, NOT THE ROW. The row's text is the label concatenated with the " +
+      "number, so a hook on the wrapper would make the parity assertion peel a label off a figure " +
+      "before it could parse one.",
+    owner: "13-12",
   },
 };
