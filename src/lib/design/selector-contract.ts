@@ -168,6 +168,8 @@ export const SELECTOR_IDS = [
   "support-path",
   "money-statement",
   "booking-reference",
+  // 13-04 — STATE-05's third payment state, and the one D-87 has to reach without a query string.
+  "payment-state-reversed",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -618,5 +620,25 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "name as a side effect. Giving the button a hook would trade that guarantee for a brittle one " +
       "and leave every gate green while the guarantee was gone.",
     owner: "13-02",
+  },
+
+  // ─── 13-04 ─────────────────────────────────────────────────────────────────────────────────────────
+  "payment-state-reversed": {
+    why:
+      "STATE-05'S DISTINCTNESS IS AN ASSERTION BETWEEN THREE CONCRETE CONTAINERS, and a role query " +
+      "cannot address any of them: all three payment states are plain sectioning `div`s with no role, " +
+      "and the property being asserted is that no two of them ever co-render in one document. That is " +
+      "a statement about ELEMENTS, not about text — `expect(a).toHaveCount(1)` beside " +
+      "`expect(b).toHaveCount(0)` — so each state needs its own addressable box. Matching on the " +
+      "heading instead would be circular in the way this contract's money-adjacent rows describe: the " +
+      "three headings are exactly the copy under revision, so a spec keyed to them goes green the day " +
+      "one is reworded, which is the day it most needs to fail. " +
+      "AND D-87 NEEDS THIS ONE BY NAME. Until this plan the state was reachable only from a query " +
+      "parameter, so the moment the confirmation moment consumes that parameter a reversed booking " +
+      "would fall through to the generic cancelled branch with no money statement at all. The " +
+      "falsifiable form of the fix is: seed a reversed row, load `/bookings/{id}` with NO query " +
+      "string, assert this hook renders and carries its money statement. Both halves of that sentence " +
+      "are element counts, and neither is expressible as a role or an accessible name.",
+    owner: "13-04",
   },
 };

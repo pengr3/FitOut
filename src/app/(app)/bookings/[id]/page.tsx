@@ -200,9 +200,23 @@ export default async function BookingConfirmationPage({
     redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
   }
   // D-58 auto-refund landing: the webhook reversed a payment for a slot that was genuinely gone → the calm
-  // reversed state (you weren't charged), never a "Booking confirmed".
+  // reversed state, never a "Booking confirmed".
+  //
+  // ⚠️ INTERIM SHAPE — the props are the corrected ones (D-69) but the GATE and the BRANCH are not yet.
+  // The branch is pinned to the by-hand truth because that is the fail-closed direction: it never claims
+  // money was sent back that was not. The D-84 probe that decides it for real, and the D-87 removal of
+  // the query parameter from this condition, land in the next commit of this plan. The two are split so
+  // the copy rewrite and the discriminator are separately reviewable, not because this is a resting place.
   if (bk.status === "cancelled" && paid === "1") {
-    return <PaymentReversedState listingId={bk.listingId} />;
+    return (
+      <PaymentReversedState
+        listingId={bk.listingId}
+        reference={bookingReference(bk.id)}
+        amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
+        branch="manual"
+        rail={null}
+      />
+    );
   }
   // The states we render a booking-detail card for. 07-12 ADDS `cancelled`: a cancelled booking is durable
   // history the booker is entitled to see (a refund figure, or the D-97 recovery), and 404ing it was the
