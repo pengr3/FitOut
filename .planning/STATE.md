@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 15
+current_plan: 16
 status: executing
-stopped_at: Completed 13-14-PLAN.md
-last_updated: "2026-08-20T19:30:40.436Z"
+stopped_at: Completed 13-15-PLAN.md
+last_updated: "2026-08-20T21:13:26.276Z"
 last_activity: 2026-08-21
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 68
+  completed_plans: 69
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 15 of 16
-Current Plan: 15
+Plan: 16 of 16
+Current Plan: 16
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -329,7 +329,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-21
+Last activity: 2026-08-20
 
 ## Performance Metrics
 
@@ -350,11 +350,25 @@ Last activity: 2026-08-21
 | 10 | 17 | - | - |
 | 11 | 22 | - | - |
 | 12 | 15 | - | - |
+| 13 | 15 | - | - |
 
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 *11-22: ~93 min wall-clock, 5 tasks (3 auto + 2 blocking checkpoints) plus one unplanned CI fix, 9 source/config files + 25 baseline PNGs, 8 commits. Four observed CI runs driven by the coordinator; three OBSERVED REDs recorded.*
 *12-08: ~132 min wall-clock, 3 tasks (all auto), 3 files created + 4 modified, 3 commits. Roughly half the wall-clock is the `[11-13]` discriminator: four production builds and four server switches to measure dev-vs-prod on BOTH the restored and the deleted tree, which is what separated "the fix worked" from "the defect was never in production". Six watched reds, all reverted.*
 *12-15: ~35 min wall-clock, 2 tasks (both auto), 0 files created + 4 modified (1 of them a `git mv`), 3 commits + 1 metadata. Seven watched reds: the `--section=ci` hard stop that IS Task 1's deliverable, and the six-mutation matrix over `ci.yml` — parser RED 6/6, substring control GREEN 6/6, every revert `git diff --exit-code` clean. Zero product files: this plan is entirely CI structure.*
+
+*13-15: ~315 min wall-clock, 3 tasks (all auto), 2 files created + 9 modified, 3 commits + 1 metadata.
+Most of the wall-clock is MEASUREMENT rather than authoring: a browser reachability probe that had to be
+abandoned for a curl-plus-hand-signed-session probe, then six full runs of the new 320px sweep, each one
+red on a different real defect. Seven watched reds — three forced (the alarm-token ban, the accent map,
+the accent count gate), one UNFORCED and better for it (the baseline count alias fired on its own when
+the 42 rows landed), one probe of the Node checker that stands in for the two Linux-only pins, one
+grep/prose collision against `type-scale.test.ts` where the PROSE moved rather than the pin, and one
+self-inflicted tripwire where the file documenting "this file contains no such string" contained one.
+FOUR SHIPPED DEFECTS FIXED: two 320px overflows, one grove-only STATE-06 violation at 570.94px in a
+568px viewport, and — the one that matters most — `/invite/{token}`'s only two controls shipping as
+256x22 pointer targets on mobile, because `flex-1` inside a `flex-col` row sets flex-basis on the HEIGHT
+and overrides `h-11`.*
 
 **Recent Trend:**
 
@@ -845,6 +859,16 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-14: SCAN 3's blanket ban on a named non-loading live region became AUTHOR_NAMED_REGIONS — a closed exception set with a mandatory reason and the exact label per row, asserted in BOTH directions. Stripping the five shipped wrapper names would have reversed 13-02/05/08 and broken two pinning tests.
 - [Phase ?]: 13-14: the discharged live-region set is 17 files / 23 regions / 1 exclusion, MEASURED off an AST walk rather than read off 13-UI-SPEC's table, which assigned two regions to files that do not hold them.
 - [Phase ?]: 13-14: aria-live grep count RE-MEASURED — 13 by text, 7 by markup. 13-08's predicted 18 was never true; do not carry these figures forward without re-reading the tree.
+- [Phase ?]: 13-15: `ACCENT_USES` DID NOT EXIST — measured. 13/12/11-UI-SPEC state the accent pin in its name and three Phase-13 SUMMARYs (13-02/07/09) certify it 'untouched at 10'; nothing in `src/` or `tests/` declared it. Created as `src/lib/design/accent-uses.ts` with a type-level `AccentUseCountIsTen`; the REAL gate is the tree map (every accent recipe under the three Phase-13 roots maps to a declared use, reached-id set pinned at [1, 9]).
+- [Phase ?]: 13-15: with `as const satisfies`, tsc narrows ACCENT_USES' `declaredIn` to `10 | 11 | 12`, so a bare `=== 13` is a COMPILE ERROR — the compiler proves Phase 13 appended nothing before a test runs. The runtime check is kept because one widened annotation silently removes that proof.
+- [Phase ?]: 13-15: 13-UI-SPEC's 'zero alarm tokens under the three roots' is UNSATISFIABLE by the shipped tree — three legal argued uses live there (hold-countdown 12-UI-SPEC's final-60s, refund-breakdown's label-paired numerals, request-countdown's 13-07 opt-out). Implemented as a CLOSED SET with pinned per-file counts asserted in both directions; comments stripped, and the raw-vs-stripped gap (7/5 vs 3/3) is itself asserted so the stripper cannot become a no-op.
+- [Phase ?]: 13-15: the target-size bar is WCAG 2.5.8 AA (24px), NOT the app's 44px `size="touch"` — a blanket 44 is red on shipped deliberate `h-9` controls, and a gate with a high false-positive rate on a clean tree is one somebody deletes. The scan also EXCLUDES the app shell because the shell fails it: `site-chrome.tsx`'s ProfileLink is 16x16 below `sm:` (Phase-11 file, deferred with the argument).
+- [Phase ?]: 13-15: FOUR SHIPPED DEFECTS found by the new sweep. (a) the moment's D-63 email line overflowed 320px, and `break-words` ALONE did not fix it — `overflow-wrap: break-word` does not reduce min-content width, and the `<p>` is an `items-center` cross-axis flex item sized to fit-content, so `w-full` is the other half. (b) the same address in pending-payment-state. (c) a GROVE-ONLY STATE-06 violation: the reversed money panel's bottom edge at 570.94px in a 568px viewport (grove's larger type scale + 20px radius), fixed with two `sm:`-scoped steps for 8px of headroom. (d) `/invite/{token}`'s only two controls at 256x22 — `flex-1` inside a `flex-col` row sets flex-basis on the HEIGHT and overrides `h-11`; `sm:flex-1`. share-link-box carried the identical pattern.
+- [Phase ?]: 13-15: THREE of 13-UI-SPEC's eleven baseline surfaces are UNREACHABLE by any fixture this repo may build (not-completed + both NAMED reversed branches all need a provider-CONFIRMED checkout session; D-35 keeps the key out of the one job that can write a baseline). Measured: a seeded pending row REDIRECTS, a seeded reversed row renders D-96's INDETERMINATE branch — now declared as a twelfth surface, because 13-UI-SPEC's table predates 13-10.
+- [Phase ?]: 13-15: the other EIGHT are non-deterministic from a per-run seed — the booking reference (SHA-256 of a randomUUID-suffixed id), the session window and `created_at` (now()-relative), the listing title (run id), the invite token, and the booker EMAIL, which the moment and the pending state both render. All 42 rows are declared and BLOCKED with the blocker named per row; only `booking-not-found` is shot. The committed Phase-13 fixture is in deferred-items.md.
+- [Phase ?]: 13-15: baseline count alias moved 53 -> 95 (BaselineCountIsNinetyFive) and the red was UNFORCED; THEME_SWAP_SURFACES 12 -> 24 with zero added exclusions. All four Linux-only pins verified on Windows by a scratch Node checker that re-implements the two runtime assertions, and the checker was itself probed (24->23 went FAIL, 5/5 on restore).
+- [Phase ?]: 13-15: two MEASUREMENT-INSTRUMENT artefacts recorded so they are not read as defects — a driven clock on the pending surface leaves a hidden 0x0 duplicate of the tree attached to `<body>` (so element counts are stated on VISIBLE elements), and the focus walk scrolls the document (so STATE-06 is measured BEFORE it, never after a `scrollTo(0,0)` that would blind the guard).
+- [Phase ?]: 13-15: ⚠️ gsd-sdk v1.42.3 string-arg handlers still no-op — metric row, decisions and `stopped_at` hand-written; `state.update-progress` returned 'Progress field not found in STATE.md' and was hand-checked instead. `advance-plan`, `roadmap.update-plan-progress 13` (15/16, In Progress) and `requirements.mark-complete STATE-06` all worked. STATE-05 and TRUST-01 deliberately left Pending — they close PARTIAL on `SUPPORT_EMAIL`.
 
 ### Pending Todos
 
@@ -950,8 +974,17 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T19:30:20.314Z
-Stopped at: Completed 13-14-PLAN.md
+Last session: 2026-08-21T05:20:00.000Z
+Stopped at: Completed 13-15-PLAN.md — the five hard gates. 15/16 plans done; 13-16 (operator-gated) is
+all that remains. ⚠ TWO THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) Three of 13-UI-SPEC's eleven
+baseline surfaces are UNREACHABLE by any fixture this repo may build — the not-completed state and both
+NAMED reversed branches all need a checkout session PayMongo has confirmed, and D-35 keeps that key out
+of the one job that can write a baseline; a seeded reversed row renders D-96's INDETERMINATE branch,
+which is now its own declared surface. (2) The other eight are DECLARED BUT BLOCKED on determinism: a
+per-run seed renders a different booking reference, date, listing title, invite token and booker email
+on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
+rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
+unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
