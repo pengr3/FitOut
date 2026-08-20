@@ -57,8 +57,16 @@
 // differently per tool: extra regions are dropped by some and announced as duplicates by others, and the
 // outer one is the layout shell rather than this page's content either way. `loading.tsx:14-15` already
 // states the rule and already obeys it, against a container it copies from this file verbatim; the skeleton
-// was right and these branches were wrong. A SIXTH branch must copy the container from `loading.tsx`.
+// was right and these branches were wrong.
 // Pinned by `e2e/shell.spec.ts` — one `main` landmark on this route at 320px and at 1280px.
+//
+// THE INSTRUCTION THAT USED TO END THAT PARAGRAPH — *"A SIXTH branch must copy the container from
+// `loading.tsx`"* — IS GONE, because plan 13-01 replaced it with a mechanism. The container is now
+// `BOOKING_SHELL` from `@/lib/design/measurements`, imported by all five branches here, by both branches
+// of `cancel/page.tsx` and `group/page.tsx`, by all three `loading.tsx` files under this segment, and by
+// the three state components that used to open the nested landmarks. A sixth branch copies nothing: it
+// imports the constant. An instruction is obeyed as long as the next author reads the header; a constant
+// is obeyed by construction.
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -79,6 +87,7 @@ import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { venueTzNote } from "@/lib/venue-time";
 import { APPROVAL_SLA_HOURS, APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
+import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -265,7 +274,7 @@ export default async function BookingConfirmationPage({
   // ── requested (BOOK-06, D-66): "Request sent — awaiting host". Calm, NO pay CTA, "you haven't been charged". ──
   if (bk.status === "requested") {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className={BOOKING_SHELL}>
         <Card>
           <CardContent className="space-y-6 py-8">
             <div className="flex flex-col items-center gap-3 text-center">
@@ -326,7 +335,7 @@ export default async function BookingConfirmationPage({
   // ── approved (BOOK-06, D-66): "Your request was approved — pay now". The ONE coral CTA + payment-window countdown. ──
   if (bk.status === "approved") {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className={BOOKING_SHELL}>
         <Card>
           <CardContent className="space-y-6 py-8">
             <div className="flex flex-col items-center gap-3 text-center">
@@ -404,7 +413,7 @@ export default async function BookingConfirmationPage({
   if (bk.status === "declined") {
     const copy = declinedCopy(bk.cancelledBy);
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className={BOOKING_SHELL}>
         <Card>
           <CardContent
             role="status"
@@ -498,7 +507,7 @@ export default async function BookingConfirmationPage({
           : "No refund — cancelled inside the no-refund window";
 
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className={BOOKING_SHELL}>
         <Card>
           <CardContent
             role="status"
@@ -577,7 +586,7 @@ export default async function BookingConfirmationPage({
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    <div className={BOOKING_SHELL}>
       <Card>
         <CardContent className="space-y-6 py-8">
           {/* Focal point: reassurance first — the badge (icon + text, never color-only) + reference. The

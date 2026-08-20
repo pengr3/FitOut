@@ -10,12 +10,14 @@
 // exactly the kind of small that a loading state is supposed to not have. The two muted lines
 // beneath it (the space + when label, and the timezone note) are data-derived and therefore absent.
 
+import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { RowListSkeleton } from "@/components/patterns/row-list-skeleton";
 
 export default function GroupLoading() {
   return (
-    // Container, `space-y-8` and the heading block are `(app)/bookings/[id]/group/page.tsx`'s own.
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    // Container is `BOOKING_SHELL`, shared with `group/page.tsx` rather than copied from it (plan
+    // 13-01); `space-y-8` and the heading block are still that page's own, copied.
+    <div className={BOOKING_SHELL}>
       <div className="space-y-8">
         <div className="space-y-2">
           <h1 className="text-xl leading-tight font-semibold tracking-tight">Your group</h1>

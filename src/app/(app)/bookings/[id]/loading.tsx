@@ -14,12 +14,14 @@
 // It renders as a `<div>`: `(app)/layout.tsx` already wraps `{children}` in `<main>`, and a second
 // `<main>` inside the first is a landmark this file has no reason to add.
 
+import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
 
 export default function BookingDetailLoading() {
   return (
-    // Container is `(app)/bookings/[id]/page.tsx`'s own, verbatim.
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    // Container is `BOOKING_SHELL` — the same constant `page.tsx` renders, so "verbatim" is now
+    // mechanical rather than an instruction to the next author (plan 13-01).
+    <div className={BOOKING_SHELL}>
       <PanelSkeleton label="Loading this booking" />
     </div>
   );

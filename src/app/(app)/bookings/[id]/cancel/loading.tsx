@@ -11,12 +11,14 @@
 // The heading also sits INSIDE the resolved page's card, so a bare copy of it here would be at the
 // wrong indent and the wrong offset even if the words were safe.
 
+import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
 
 export default function CancelBookingLoading() {
   return (
-    // Container is `(app)/bookings/[id]/cancel/page.tsx`'s own, verbatim.
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    // Container is `BOOKING_SHELL` — the same constant `cancel/page.tsx` renders, so "verbatim" is now
+    // mechanical rather than an instruction to the next author (plan 13-01).
+    <div className={BOOKING_SHELL}>
       <PanelSkeleton label="Loading your cancellation options" />
     </div>
   );

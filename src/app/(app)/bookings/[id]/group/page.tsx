@@ -54,6 +54,7 @@ import { composeWhenLabel } from "@/lib/booking/when-label";
 import { venueTzNote } from "@/lib/venue-time";
 import { getHeadcount, getOwnedGroupByBooking, getRoster } from "@/lib/group/rsvp";
 import type { Headcount, RosterEntry } from "@/lib/group/rsvp";
+import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -129,7 +130,7 @@ export default async function GroupManagementPage({
 
   if (loadFailed) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className={BOOKING_SHELL}>
         <Card>
           {/* Calm, NOT red — a read that blipped is not a failure the organizer caused (§Error states). */}
           <CardContent
@@ -165,7 +166,7 @@ export default async function GroupManagementPage({
   const inviteUrl = `${process.env.BETTER_AUTH_URL ?? "http://localhost:3000"}/invite/${group.accessToken}`;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    <div className={BOOKING_SHELL}>
       <div className="space-y-8">
         <div className="space-y-2">
           <h1 className="text-xl leading-tight font-semibold tracking-tight">Your group</h1>

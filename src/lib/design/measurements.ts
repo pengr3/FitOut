@@ -73,6 +73,41 @@ export const ROW_CARD_THUMB = "size-12";
 export const HEADER_HEIGHT = "h-14 sm:h-16";
 
 /**
+ * The confirmation moment's container floor: the viewport MINUS the header, at both header heights.
+ *
+ * DERIVED FROM `HEADER_HEIGHT` DIRECTLY ABOVE, WHICH IS WHY IT SITS HERE rather than in the Phase 13
+ * block at the foot of this file. `h-14` is 3.5rem and `sm:h-16` is 4rem, so the two `calc()` terms
+ * are that constant's two values restated in the only unit `calc()` can consume. A future header-height
+ * change has to break in ONE place, and this is the only arrangement in which the reader changing
+ * `HEADER_HEIGHT` cannot miss the second site.
+ *
+ * WHAT IT BUYS. 13-UI-SPEC § Spacing Scale declares this the phase's ONE exception to the ladder,
+ * because it is not a spacing value at all: it is the only way BFLOW-08's "distinct confirmation
+ * moment" becomes a MEASUREMENT instead of an adjective. The moment fills the viewport below the
+ * chrome, so the ordinary booking detail necessarily begins below the fold.
+ *
+ * `svh`, NOT `vh` AND NOT `dvh` — and the unit is the whole substance of the constant:
+ *   • `vh` counts the viewport as if the iOS URL bar were retracted, so it OVERSHOOTS while the bar
+ *     is showing and the moment spills past the fold by the height of the bar.
+ *   • `dvh` re-resolves as the bar retracts. A `min-height` expressed in `dvh` therefore GROWS
+ *     mid-scroll and reflows the page under the reader's thumb — on the one surface in the product
+ *     whose job is to be calm and final.
+ *   • `svh` is the SMALLEST viewport, so the floor is a promise that holds in every bar state and
+ *     never moves once painted.
+ *
+ * PHASE 11'S "`dvh`, NEVER `vh`" RULE IS NOT BEING VIOLATED HERE, and this is stated so it does not
+ * read as one. That rule was written for a `max-height` on a sheet, where following the LIVE viewport
+ * is exactly right — a sheet that must not exceed what the reader can see should shrink and grow with
+ * the chrome. A `min-height` promise is the opposite obligation: it must hold at the smallest
+ * viewport, so it takes the smallest unit. Different unit, same reasoning.
+ *
+ * DECLARED HERE, CONSUMED BY PLAN 13-08. It is deliberately declared before its call site exists so
+ * its derivation lives beside its source; no call site in plan 13-01 uses it.
+ */
+export const CONFIRMATION_MOMENT_MIN_H =
+  "min-h-[calc(100svh-3.5rem)] sm:min-h-[calc(100svh-4rem)]";
+
+/**
  * The header's auth slot: the box reserved WHILE the session is still resolving.
  *
  * `h-8` is the control height it will contain; `min-w-44` is the widest resolved state (an avatar
@@ -295,3 +330,40 @@ export const HOLD_COUNTDOWN_BOX = "h-8 min-w-24";
  * mechanism as `RESULT_CARD_MEDIA`, one level up.
  */
 export const MOSAIC_ASPECT = "aspect-[16/9]";
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 13 — the booking shell, declared before the phase's first rewrite touches a container
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The phase's SECOND constant, `CONFIRMATION_MOMENT_MIN_H`, is NOT here — it lives beside
+// `HEADER_HEIGHT`, the constant it is derived from, for the reason its own docblock gives. Two Phase 13
+// values in two places is deliberate: proximity to the source of a derivation beats proximity to a
+// phase number.
+
+/**
+ * The booking routes' page container: centred, `max-w-2xl`, `px-4`, `py-8` rising to `py-12` at `sm:`.
+ *
+ * A LAYOUT STRING PROMOTED OUT OF ITS CALL SITES, exactly as `RESULT_GRID_GAP` was in Phase 12 — and
+ * for a sharper reason, because this string had FOURTEEN copies rather than two. It was hand-typed on
+ * six status branches of `(app)/bookings/[id]/page.tsx`, on both branches of `cancel/page.tsx`, on both
+ * branches of `group/page.tsx`, in all three `loading.tsx` skeletons under that segment, and in
+ * `pending-payment-state.tsx`, `payment-reversed-state.tsx` and `expired-approval-state.tsx`.
+ *
+ * WHY A CONSTANT WHEN THE OLD ARRANGEMENT ALREADY "WORKED". `page.tsx`'s own landmark header ends with
+ * the sentence *"A SIXTH branch must copy the container from `loading.tsx`."* That is an INSTRUCTION,
+ * and an instruction is not a mechanism: it is obeyed exactly as long as the next author reads the
+ * header, and the phase that adds a seventh branch is the phase that finds out. A constant makes
+ * "every booking surface is the same box" true by construction rather than by diligence — the same
+ * argument this module's header makes about skeletons, applied one level up to page containers.
+ *
+ * NOTHING ABOUT THE RENDERING CHANGES. Every value in the string is already a declared ladder step,
+ * and the string itself is byte-identical to what it replaced at all fourteen sites. That is the
+ * property that made the collapse safe to do FIRST, before any Phase 13 plan rewrites a branch: a
+ * zero-pixel change cannot be confused with the rewrites that follow it.
+ *
+ * IT IS A CONTAINER, NOT A LANDMARK. Three of the fourteen sites opened a `<main>` around this string,
+ * nested inside `(app)/layout.tsx`'s — see the comment each of those three files now carries. Adopting
+ * this constant does not make an element a landmark; `(app)/layout.tsx` owns the one `main` per
+ * document (D-88.1).
+ */
+export const BOOKING_SHELL = "mx-auto w-full max-w-2xl px-4 py-8 sm:py-12";

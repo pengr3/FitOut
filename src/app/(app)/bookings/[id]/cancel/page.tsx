@@ -41,6 +41,7 @@ import { LADDER, quoteRefund, rungBoundaries, tierOrDefault } from "@/lib/paymen
 import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { listReceivingInstitutions, type ReceivingInstitution } from "@/lib/paymongo";
 import { venueTzNote } from "@/lib/venue-time";
+import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RefundBreakdown } from "@/components/booking/refund-breakdown";
@@ -168,7 +169,7 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   const windowEnd = bk.openCapacity ? bk.endsAt : bk.startsAt;
   if (windowEnd.getTime() <= now.getTime()) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <div className={BOOKING_SHELL}>
         <Card>
           <CardContent role="status" aria-live="polite" className="space-y-4 py-10 text-center">
             {/* NT-01 — the refusal is stated in the words of the thing that actually ran out. A pass-holder
@@ -274,7 +275,7 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   const destinationFormReady = needsDestination && institutions.length > 0;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    <div className={BOOKING_SHELL}>
       <Card>
         <CardContent className="space-y-6 py-8">
           <div className="space-y-2">
