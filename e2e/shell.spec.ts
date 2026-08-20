@@ -13,6 +13,7 @@ import {
   signUpBooker,
   type SeededListing,
 } from "./helpers/booker-seed";
+import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
 import { seedTheme } from "./helpers/theme";
 
 // SHELL-01 / SHELL-03 — the app shell's geometry, measured in real pixels in real Chromium.
@@ -496,6 +497,44 @@ test.describe("AC#4 — one navigation landmark at every width", () => {
 // artifact could not have held for 14 samples — this is the live tree holding two landmarks, which is
 // the claim. Restored; green, and green again on an immediately consecutive run (the streaming defect
 // is warmth-dependent, so one green proves little).
+//
+// ── EXTENDED, PLAN 13-01 — THE THREE BRANCHES THE 20 AUG FIX MISSED AND THIS SPEC COULD NOT SEE. ────
+// The quick task above fixed nine return branches across three ROUTE files and left three COMPONENTS
+// untouched: `pending-payment-state.tsx`, `payment-reversed-state.tsx` and `expired-approval-state.tsx`
+// each opened their own `main` inside the layout's, and every one of them is a `/bookings/[id]` render.
+// So the defect survived on the same route this describe already covered — invisible because the ONLY
+// booking shape any e2e seed could produce was `confirmed`, and a `confirmed` row reaches none of the
+// three. 13-RESEARCH Pitfall 7 recorded it as a verified live defect; this is where it becomes a gate.
+//
+// The three rows now come from `e2e/helpers/seed-payment-states.ts` (13-VALIDATION § Wave 0). The
+// fixture is seeded at `hoursOffset: 24` because its own `confirmed` shape starts at +10h — exactly
+// where this test's inline `confirmed` row starts — and three of its five shapes OCCUPY the slot under
+// `booking_no_overlap`, so an un-shifted block collides 23P01 with the seed directly above it.
+//
+// Each new row is addressed through the URL its branch actually requires, and those differ: the pending
+// and reversed branches only render on the checkout RETURN (`?paid=1` — the UX signal, never the
+// authority), while the lapsed-approval branch renders on a PLAIN visit and would be swallowed by the
+// reversed branch with `?paid=1` appended, because that branch is checked first and keys on nothing but
+// `status='cancelled'`. The markers are all `h1`s, which is resolved-only on this route for the reason
+// point 2 above gives: `bookings/[id]/loading.tsx` renders no heading at all.
+//
+// WATCHED RED — 20 Aug 2026, plan 13-01, recorded verbatim in that plan's SUMMARY. The `div` in
+// `payment-reversed-state.tsx` was reverted to `<main>` and the spec re-run:
+//
+//     Error: /bookings/e2e_landmark_pay_reversed_cedb26e8-4bc6-407a-b560-faa6646e011a?paid=1 · court ·
+//     320px: the document exposes a number of `main` landmarks other than one. …
+//     Expected: 1
+//     Received: 2
+//     Call log:
+//       - waiting for getByRole('main')
+//         14 × locator resolved to 2 elements
+//
+// READ WHAT THE FAILURE POSITION PROVES, not just that it failed. The loop is width-outer/route-inner,
+// so a red on the FIFTH route at the FIRST width means routes 1–4 — the three original ones AND the new
+// pending route — were visited and green in the same run: the new rows are genuinely reached, not
+// skipped past. The sixth (lapsed) route is not reached in a red run, and it is covered by the green
+// run either side. And 14 consecutive polls at 2 rules out the streaming buffer, whose overlap this
+// file measures at ~100ms. Restored; green, and green again on an immediately consecutive run.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 test.describe("AC#4's sibling — one `main` landmark on the booking routes", () => {
@@ -504,6 +543,8 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
   let seed: SeededListing;
   /** Set inside the test (it needs the signed-up booker), read by `afterAll` — hence this scope. */
   let groupId: string | null = null;
+  /** Same reason: the payment-state fixture needs the booker id, and `afterAll` has to delete it. */
+  let payStates: SeededPaymentStates | null = null;
 
   test.beforeAll(async () => {
     seed = await seedBookableListing({ titlePrefix: "E2E Landmark" });
@@ -517,13 +558,23 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
     if (groupId) {
       await seed.sql`DELETE FROM booking_group WHERE id = ${groupId}`;
     }
+    // Same trap, one layer down, which is why the fixture owns its own DELETEs: it must run BEFORE
+    // `seed.teardown()`, because `teardown()` ends the connection both of them run on.
+    if (payStates) {
+      await payStates.teardown();
+    }
     await seed.teardown();
   });
 
   test("/bookings/[id], its cancel and its group render exactly one `main` at 320px and 1280px", async ({
     page,
   }) => {
-    test.setTimeout(120_000);
+    // 240s, up from 120s (plan 13-01). The route table doubled from three rows to six and every row is
+    // walked at both widths, so this test now performs twelve full page loads instead of six — three of
+    // them on branches `next dev` has never compiled before. The budget is raised rather than the
+    // coverage trimmed: this is a serial, seeded structural test, and a timeout here would read as a
+    // landmark failure.
+    test.setTimeout(240_000);
     await seedTheme(page.context(), "court");
     await page.setViewportSize({ width: 1280, height: 900 });
 
@@ -569,6 +620,16 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
       VALUES (${groupId}, ${bookingId}, ${8}, ${`e2e-landmark-${randomUUID()}`}, now())
     `;
 
+    // The three payment-state rows this describe grew for in plan 13-01. `hoursOffset: 24` moves the
+    // whole fixture block off the inline `confirmed` row above — see the header for why that is not
+    // optional. Only three of the five shapes are visited here; the other two are seeded because the
+    // helper seeds the SET (a fixture that varies by caller is a fixture nobody can reason about), and
+    // they cost one INSERT each.
+    payStates = await seedPaymentStates(seed, bookerId, {
+      idPrefix: "e2e_landmark_pay",
+      hoursOffset: 24,
+    });
+
     /** Route, and the ONE thing on it that only the RESOLVED page renders (see the header, point 2). */
     const routes = [
       {
@@ -585,6 +646,25 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
         url: `/bookings/${bookingId}/group`,
         resolved: () => page.getByRole("button", { name: "Copy link" }),
         resolvedName: 'the "Copy link" button (this route\'s skeleton renders the h1 too)',
+      },
+      // ── The three payment-state branches (plan 13-01). Every URL below is the one its branch
+      // actually requires — see the header; `?paid=1` is present on two of them and deliberately
+      // ABSENT on the third, because the reversed branch would otherwise swallow the lapsed row.
+      {
+        url: `/bookings/${payStates.bookingIds.pendingLiveHold}?paid=1`,
+        resolved: () => page.getByRole("heading", { level: 1, name: "Payment received" }),
+        resolvedName: 'the h1 "Payment received" (PendingPaymentState, D-57/D-71)',
+      },
+      {
+        url: `/bookings/${payStates.bookingIds.reversed}?paid=1`,
+        resolved: () =>
+          page.getByRole("heading", { level: 1, name: "We couldn't complete this booking" }),
+        resolvedName: 'the h1 "We couldn\'t complete this booking" (PaymentReversedState, D-58/D-83)',
+      },
+      {
+        url: `/bookings/${payStates.bookingIds.lapsedApproval}`,
+        resolved: () => page.getByRole("heading", { level: 1, name: "This approval expired" }),
+        resolvedName: 'the h1 "This approval expired" (ExpiredApprovalState, D-97)',
       },
     ];
 
