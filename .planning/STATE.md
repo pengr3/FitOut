@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-08-20T06:56:08.004Z"
+stopped_at: Completed 13-05-PLAN.md
+last_updated: "2026-08-20T07:44:34.801Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 58
+  completed_plans: 59
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 5 of 16
-Current Plan: 5
+Plan: 6 of 16
+Current Plan: 6
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -370,6 +370,7 @@ Last activity: 2026-08-20
 | Phase 13 P02 | 25min | 3 tasks | 6 files |
 | Phase 13 P03 | 28min | 3 tasks | 8 files |
 | Phase 13 P04 | 33min | 3 tasks | 6 files |
+| Phase 13 P05 | 40min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -698,6 +699,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-03: CHECKOUT_PROBE_TIMEOUT_MS = 3000, argued from the repo's own measured ~2s for two PayMongo round trips + two UPDATEs (config.ts). The ceiling is set by asymmetry: giving up early costs the rail-free sentence, which is DESIGNED copy (D-84), while waiting costs a booker staring at nothing on the page that exists to explain their payment.
 - [Phase ?]: 13-04: the reversed state's probe runs ONLY on a system-retired row that reached checkout (cancelledBy IS NULL + paymentId IS NULL + checkoutSessionId IS NOT NULL) — probing every cancelled row would report every party cancellation as a reversal
 - [Phase ?]: 13-04: an unanswered D-84 probe falls back to the by-hand branch, never the automatic one; the residual it cannot exclude (a swept abandoned hold) is recorded at the branch for 13-15, since the honest fix needs a persisted signal and D-80 bans migrations
+- [Phase 13]: 13-05: the STATE-08 toast scan bans SEVEN tokens, not 13-UI-SPEC's six — the spec's six do not reach regenerate-link-button.tsx's shipped toast — measured, not predicted: the first run of the scan named three files and that one was not among them
+- [Phase 13]: 13-05: the link-rotation alert is DERIVED from the inviteUrl ShareLinkBox renders, not pushed by a callback — a refused or rate-limited regeneration leaves the URL alone and announces nothing, and the new credential still never crosses RegenerateLinkButton (D-118)
+- [Phase 13]: 13-05: the organizer +1 (D-113) now lives at THREE sites, and the invariant is restated in its checkable form — all three increment the RAW count and none increments each other; a count of sites would have gone stale at the fourth, the never-count-twice property does not
+- [Phase 13]: 13-05: attendee-roster.tsx became a client island to own the removal announcement — an announcement of a change is state; measured cost is zero new fields in the client payload (the entries already crossed for RemoveAttendeeButton) and no money crosses, so GATE-05 is untouched
 
 ### Pending Todos
 
@@ -803,8 +808,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T06:55:50.770Z
-Stopped at: Completed 13-03-PLAN.md
+Last session: 2026-08-20T07:44:28.090Z
+Stopped at: Completed 13-05-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
