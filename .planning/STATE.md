@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 9
+current_plan: 10
 status: executing
-stopped_at: Completed 13-07-PLAN.md
-last_updated: "2026-08-20T09:55:45.576Z"
+stopped_at: Completed 13-09-PLAN.md
+last_updated: "2026-08-20T10:41:28.949Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 62
+  completed_plans: 63
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 9 of 16
-Current Plan: 9
+Plan: 10 of 16
+Current Plan: 10
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -404,6 +404,7 @@ Last activity: 2026-08-20
 | Phase 13 P06 | 28min | 2 tasks | 3 files |
 | Phase 13 P07 | 95min | 3 tasks | 9 files |
 | Phase 13 P08 | 35min | 2 tasks | 10 files |
+| Phase 13 P09 | 31min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -743,6 +744,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-07: the pending branch discriminates row-first (hold liveness vs the DB clock) then probe; every other answer keeps the shipped redirect, because a false money statement is worse than a navigation
 - [Phase ?]: 13-08: card-pattern-coverage.test.ts NOT modified — MEASURED: with a raw <Card> restored into attendee-roster.tsx that gate stays 11/11 green, because both of this plan's files sit on ALLOWED_RAW_CARD, which exempts a file in BOTH directions. tests/group/group-surface-shell.test.tsx (data-slot=card over the RENDERED tree) is now the only guard on those containers.
 - [Phase ?]: 13-08: the group confirm overlays stay on ui/dialog rather than ResponsiveDialog — both files sit outside the plan's declared file set and carry 13-05's STATE-08 plumbing; sheet-absent.test.ts (that clause's falsifiable half) is green. Logged in deferred-items.md.
+- [Phase ?]: 13-09: TRUST-04's closed set is enforced TWICE — a twelve-token scan over authored copy AND an exact row count over the rendered tree. Measured necessary: the token scan stayed GREEN on a real fifth signal ('Trusted host') that only the count caught.
+- [Phase ?]: 13-09: bookedListingAddress() is the ONE route to a booked listing's exact street (D-91) and composes the display lines too, so the page names an address column only inside its SELECT. publicListing() is byte-unchanged; the duplicated allow-list is pinned by a field-for-field equality assertion.
+- [Phase ?]: 13-09: the forbidden-signal scan reads AUTHORED COPY (string literals + JSX text), not raw source — measured, because a raw scan reports ten hits on a clean tree and all ten are comments.
 
 ### Pending Todos
 
@@ -848,8 +852,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T09:55:23.311Z
-Stopped at: Completed 13-07-PLAN.md
+Last session: 2026-08-20T10:41:07.085Z
+Stopped at: Completed 13-09-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z

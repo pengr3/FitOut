@@ -330,7 +330,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 13-09-PLAN.md — the closed four-signal trust block and the post-payment address boundary (Wave 4)
+- [x] 13-09-PLAN.md — the closed four-signal trust block and the post-payment address boundary (Wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -516,7 +516,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
-| 13. Confirmation, Bookings & Trust | v1.1 | 8/16 | In Progress|  |
+| 13. Confirmation, Bookings & Trust | v1.1 | 9/16 | In Progress|  |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
