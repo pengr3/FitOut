@@ -25,8 +25,25 @@
 // (a client component), so it travels in the client bundle — but it imports nothing server-only, and the
 // `action` slot is how the interactive "Change my answer" control is injected without this file owning any
 // behaviour.
+//
+// ── THE REGION NOW HAS A NAME (plan 13-08 · 13-UI-SPEC § The Group Surfaces) ──────────────────────────────
+// This is the ONE region that announces the RSVP RESULT, and it stays one. What it lacked was a name:
+// `role="status"` is `nameFrom: author` in ARIA — a status region takes NO name from its own text — so
+// without an author-supplied one the accessible name computes to the empty string. 13-UI-SPEC requires a
+// non-empty name on the phase's alert regions and `live-regions.ts`'s rule 5 says the same in general.
+//
+// ⚠️ IT IS A LABEL, NOT A SECOND COPY OF THE SENTENCE, for the measured reason `share-link-box.tsx`'s twin
+// records: on the VoiceOver/Safari pairing a NAMED live region can be announced BY ITS NAME INSTEAD OF ITS
+// CONTENT. A name that duplicated the heading would read it twice; a name that paraphrased it would replace
+// it with a worse version. Two words that say which region this is, and the sentences stay the content.
+//
+// It covers BOTH answers deliberately — a "can't make it" is as recorded as a "yes", and a name that said
+// otherwise would be wrong half the time.
 
 import { CalendarCheckIcon, CalendarOffIcon } from "lucide-react";
+
+/** The region's NAME — see the header for why it is a label rather than a copy of the sentence. */
+const RESULT_REGION_NAME = "RSVP recorded";
 
 export function RsvpConfirmation({
   answer,
@@ -48,7 +65,12 @@ export function RsvpConfirmation({
   return (
     // Announced rather than merely re-rendered: the choice buttons vanish and this takes their place, which
     // a screen-reader user would otherwise have to go hunting for (08-UI-SPEC §Accessibility).
-    <div role="status" aria-live="polite" className="flex flex-col items-center gap-4 text-center">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={RESULT_REGION_NAME}
+      className="flex flex-col items-center gap-4 text-center"
+    >
       <Icon className="size-8 text-muted-foreground" aria-hidden="true" />
 
       <div className="space-y-1">

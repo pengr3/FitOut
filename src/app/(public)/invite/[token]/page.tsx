@@ -54,6 +54,36 @@
 // state the session identically. The address is rendered strictly per `listing.showExactAddress`: when the
 // host withheld the exact pin, this page shows the area and says the organizer has the rest — a link holder
 // is not a booker, and this surface must never be the place a withheld address leaks out.
+//
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE DESIGN-SYSTEM PASS (plan 13-08 · 13-CONTEXT D-79) — AND THE FOUR THINGS IT PRESERVED
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// This route carries ZERO dedicated requirements. It inherits Phase 13's tokens, patterns and type roles
+// and it gains NO capability: no new invite mechanism, no new RSVP option, no attendee name anywhere new.
+// What changed is TYPE, and only type — the `<h1>` and the event `<dl>` moved onto the named roles
+// (`text-heading` / `text-body`) instead of `text-xl leading-tight font-semibold tracking-tight` and
+// `text-base`. The distinction is not cosmetic: `type-scale.test.ts`'s header records that a co-located
+// `font-semibold` / `leading-tight` / `tracking-tight` BEATS a named step's per-theme facet, so the old
+// spelling was frozen at court's weight and tracking in both themes. The box was already `PanelCard`
+// (plan 11-13, via `InviteCard`), so there was no container left to adopt.
+//
+// PRESERVED, DELIBERATELY AND PROVABLY — each of these is a security property, not a preference:
+//   1. `generateMetadata`'s `robots: { index: false, follow: false }` and `referrer: "no-referrer"` are
+//      untouched. An indexed invite link is a public one, and a token that rides out in a `Referer` is a
+//      credential handed to whatever the visitor clicks next. Asserted on the AST by `og-routes.test.ts`.
+//   2. The inactive branch's copy is byte-identical and still arrives from the ONE declaration in
+//      `@/lib/group/rsvp`. `invite-notfound-parity.test.ts` is green and UNMODIFIED.
+//   3. `opengraph-image.tsx` beside this file was not opened at all: still no route param, still no DB
+//      read, still the same bytes for a live, unknown and malformed token.
+//   4. The RSVP submission path, its server action and its refusal handling are unchanged.
+//
+// ⚠ `EmptyState` / `ErrorState` ARE DELIBERATELY NOT USED HERE, and that refusal is already recorded and
+// machine-checked. `tests/design/empty-state-adoption.test.ts` states it from the other side: the invite
+// route's sibling `not-found.tsx` "deliberately does NOT use the shell — it must render a BYTE-IDENTICAL
+// inactive surface to the invite page (T-11-ORACLE), so it composes `InviteCard` instead." This surface's
+// empty shape IS the inactive state, and giving it the shared shell — with the shell's own icon, heading
+// level and action slot — is exactly how the two entrances start to look different.
 
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -259,11 +289,11 @@ export default async function InvitePage({
   return (
     <InviteCard>
       <header className="space-y-3">
-        <h1 className="text-xl leading-tight font-semibold tracking-tight">
-          You&apos;re invited to {spaceTitle}
-        </h1>
+        {/* The named role, alone — no `font-semibold` / `leading-tight` / `tracking-tight` beside it, so
+            the per-theme weight, leading and tracking actually reach the element (see the header). */}
+        <h1 className="text-heading">You&apos;re invited to {spaceTitle}</h1>
 
-        <dl className="space-y-3 text-base">
+        <dl className="space-y-3 text-body">
           <div className="flex items-start gap-2">
             <CalendarIcon className="mt-1 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div className="space-y-0.5">

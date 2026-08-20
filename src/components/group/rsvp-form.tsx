@@ -44,6 +44,29 @@
 // COLOUR: `Yes, I'm coming` is the ONE coral on this page (08-UI-SPEC §Color accent #2) and `Can't make it`
 // is a neutral outline — declining is a reversible, expected answer, not damage. `full` and `closed` are
 // neutral alerts: being full is a happy outcome (G4) and a session that has started is just time passing.
+//
+// ── THE DESIGN-SYSTEM PASS (plan 13-08 · 13-CONTEXT D-79) — TWO CHANGES, NO NEW CAPABILITY ────────────────
+//
+//   1. THE REFUSAL REGION HAS A NAME. `role="status"` is `nameFrom: author`, so a region named only by its
+//      content computes an accessible name of `""`. This is the region that reports what the SERVER said
+//      when a submit was refused — the group just filled up, RSVPs have closed, the invite is no longer
+//      active, or a plain retry — and it is the one region on this surface that appears as a CHANGE. It is
+//      a LABEL rather than a copy of the sentence, for the measured VoiceOver/Safari reason
+//      `share-link-box.tsx` records: a named live region can be announced BY ITS NAME instead of its
+//      content, so a name that duplicated the sentence would read it twice and a name that paraphrased it
+//      would replace it with a worse version. The server's sentence is still rendered VERBATIM.
+//   2. `Log in instead` OPTED INTO THE NAMED 44px SIZE (D-22 / WR-01). It was `size="sm"` — a 28px control
+//      — which is the last sub-target on this surface: both answer buttons and `Change my answer` were
+//      already `size="touch"`. Its `px-1 underline` is kept, so it still reads as a link inside the
+//      sentence rather than as a third button competing with the two below it; only the hit area moved.
+//
+// ⚠ THE `full` AND `closed` ALERTS ARE DELIBERATELY UNTOUCHED. They are neither of the two regions
+// 13-UI-SPEC names here, and they differ from the refusal in the way that matters: both are decided
+// SERVER-SIDE and are present on the first paint, so neither ever announces a change. Whether a static
+// advisory should be a region at all is the live-region audit, and `live-regions.ts` assigns this file's
+// audit to Phase 13's own inventory plan (13-14) rather than to this design pass. Note that they already
+// carry the deliberate `role="status"` DOWNGRADE from `Alert`'s hardcoded `role="alert"`, so nothing here
+// is assertive while that audit is pending.
 
 import * as React from "react";
 import Link from "next/link";
@@ -81,6 +104,12 @@ type RsvpIdentityValues = z.input<typeof rsvpIdentitySchema>;
 
 /** What the SERVER recorded, as this component holds it between the submit and the next page load. */
 type RecordedRsvp = { answer: "yes" | "no"; reachable: boolean };
+
+/**
+ * The refusal region's NAME — a label, never a second copy of the server's sentence. See the header
+ * for the measured reason, and `share-link-box.tsx`'s twin for the same decision written out at length.
+ */
+const REFUSAL_REGION_NAME = "RSVP not saved";
 
 export type RsvpFormProps = {
   /** The bearer invite credential (D-118). Passed straight to the action; never logged, never re-emitted. */
@@ -283,10 +312,15 @@ export function RsvpForm({
 
             {/* The alternative, kept deliberately quiet: a ghost link, below the fields, carrying the
                 invite through `callbackURL` so logging in returns to this same page rather than dumping
-                someone on a home page with no idea where their invite went. */}
+                someone on a home page with no idea where their invite went.
+
+                `size="touch"` and NOT `size="sm"` (D-22 / WR-01): quiet is a matter of VARIANT — ghost,
+                no fill, no border — not of hit area, and a 28px target in a guest flow is a target a
+                thumb misses. The `px-1` survives the size's own `px-4` through `cn()`, so the control
+                still sits inside the sentence at its original width. */}
             <p className="text-sm text-muted-foreground">
               Already have a FitOut account?{" "}
-              <Button asChild variant="ghost" size="sm" className="px-1 underline">
+              <Button asChild variant="ghost" size="touch" className="px-1 underline">
                 <Link href={loginHref}>Log in instead</Link>
               </Button>
             </p>
@@ -312,7 +346,7 @@ export function RsvpForm({
         {/* ── The failure the SERVER reported, verbatim. Neutral and announced — "the group just filled
             up" is somebody else's good news, not this person's error. ───────────────────────────────── */}
         {formError && (
-          <Alert role="status" aria-live="polite">
+          <Alert role="status" aria-live="polite" aria-label={REFUSAL_REGION_NAME}>
             <AlertDescription>{formError}</AlertDescription>
           </Alert>
         )}

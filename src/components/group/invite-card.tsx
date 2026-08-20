@@ -38,6 +38,34 @@
 // A SERVER COMPONENT: no `"use client"`, no session read, no database. `not-found.tsx` at the root of
 // this route's segment must stay cheap and must never dial out, and a shared surface that quietly
 // imported a session would take that away from it.
+//
+// ── THE DESIGN-SYSTEM PASS (plan 13-08 · 13-CONTEXT D-79) ────────────────────────────────────────
+// Two changes, and NEITHER touches what this file is for. The box was already `PanelCard`; the
+// copy is still the caller's; both entrances still render one component.
+//
+//   1. THE HEADING IS THE NAMED ROLE. It was `text-xl leading-tight font-semibold`, which is the
+//      exact shape `type-scale.test.ts`'s header warns about: a co-located utility BEATS a named
+//      step's per-theme facet (`font-semibold` sets `--tw-font-weight`, so a role's weight is never
+//      reached on a heading that also carries it). `text-heading` alone therefore travels — 20/600
+//      at court, 24/700 at grove — where the old spelling was 20→22px and 600 in both. This is the
+//      role 11-UI-SPEC assigns to a `PanelCard` title by name, and this heading is that title.
+//   2. ⚠ THE INACTIVE STATE IS NO LONGER A LIVE REGION, AND THE REMOVAL IS THE POINT.
+//      `InviteInactive` wrapped its two STATIC sentences in `role="status" aria-live="polite"` —
+//      but nothing here ever CHANGES. Both entrances render this surface on the FIRST paint of a
+//      fresh navigation: the page's `!group.active` branch and the segment's not-found boundary.
+//      A screen reader already reads a freshly navigated page from the top, so the region announced
+//      either nothing at all or the same sentences twice, and a page is not an event (GATE-03's
+//      rule for this phase; `share-link-box.tsx` states the same rule from the other side, which is
+//      why ITS alert stays silent until the URL actually moves).
+//
+//      THE PARITY IS UNAFFECTED, AND THAT IS STRUCTURAL RATHER THAN LUCKY: there is ONE component,
+//      so both entrances lost the attribute in the same character. T-11-ORACLE's property is that
+//      the two surfaces cannot differ, and one component with two call sites is why.
+//
+//      The live-region INVENTORY bookkeeping is plan 13-14's; `live-regions.ts` still lists this
+//      file under `LIVE_REGION_EXCLUSIONS`, which is correct — the exclusion says Phase 13 owns the
+//      audit, not that a region must exist. ⚠ That file's header quotes a MEASURED count of the
+//      tree's `aria-live` sites; this commit moves it by one, and 13-14 re-measures.
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -89,18 +117,16 @@ export function InviteCard({ children }: { children: ReactNode }) {
 export function InviteInactive({ title, body }: { title: string; body: string }) {
   return (
     <InviteCard>
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex flex-col items-center gap-4 py-4 text-center"
-      >
+      {/* A PLAIN `div` — see the header for why this stopped being a live region. Nothing on this
+          surface changes; it is the first paint of a fresh navigation, both times. */}
+      <div className="flex flex-col items-center gap-4 py-4 text-center">
         {/* Muted, never an alarm colour: a dead link is usually an organizer who rotated it, not a
             fault of the person holding it (08-UI-SPEC §Color — that phase adds no alarm colour
             anywhere, and 11-UI-SPEC's copywriting contract says an unavailable thing is a normal
             state and is never red). */}
         <Link2OffIcon className="size-8 text-muted-foreground" aria-hidden="true" />
         <div className="space-y-1">
-          <h1 className="text-xl leading-tight font-semibold">{title}</h1>
+          <h1 className="text-heading">{title}</h1>
           <p className="mx-auto max-w-prose text-sm text-muted-foreground">{body}</p>
         </div>
       </div>
