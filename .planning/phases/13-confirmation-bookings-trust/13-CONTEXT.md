@@ -24,12 +24,12 @@ STATE-08.
 
 > **Decision-ID namespace — read before citing a number.** These continue the per-phase CONTEXT
 > sequence (Phase 10 = D-01…D-22, Phase 11 = D-23…D-36, Phase 12 = D-37…D-59), so **Phase 13 runs
-> D-60…D-80**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
+> D-60…D-89**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
 > **D-62** (demand-first booking-mode default flip, cited in `src/lib/db/schema.ts:199`), **D-66** (no
 > React Email / no new email stack), **D-75** (the all-in rate never goes up) and **D-79** (what
 > actually went back to the booker, cited in `src/app/(app)/bookings/[id]/page.tsx:169`). The collision
 > is pre-existing — Phase 11's D-30/D-31 and Phase 12's D-42…D-50 collide the same way — and is
-> recorded rather than silently inherited. **When citing any number in D-60…D-80, say which
+> recorded rather than silently inherited. **When citing any number in D-60…D-89, say which
 > namespace**: "13-CONTEXT D-62" or "PROJECT D-62". Never a bare number.
 
 > **Governing principle carried forward, not re-decided — 12-CONTEXT D-59:** when two options both
@@ -198,6 +198,90 @@ STATE-08.
 - **D-80: ZERO schema migrations.** `drizzle/` stays at `0025_audit_resolved_by.sql`, unchanged —
   Phase 17 SC#4 makes this a milestone-closing proof (GATE-06). Every decision above is deliverable
   without a column. If a plan believes it needs one, that is a signal the decision was misread.
+
+### Post-research decisions (added 2026-08-20, after 13-RESEARCH.md)
+
+> These were taken by the PM **after** research surfaced three blockers. They have the same force as
+> D-60…D-80 above and supersede anything earlier that conflicts.
+
+- **D-81: QRPh is STILL not API-refundable — re-probed 2026-08-20, verbatim the same `HTTP 400`.**
+  PayMongo's published docs list QR Ph as refundable and contradict this repository's 2026-07-23 probe,
+  so the probe was re-run against the same test payment with a fresh `Idempotency-Key`. Identical
+  rail-level rejection: *"Refunds are not allowed for payments with source type qrph."* See
+  `13-RESEARCH.md` § Addendum for the verbatim method and body. **Observed behaviour is authoritative
+  over the docs row.** Do NOT widen `REFUNDABLE_RAILS` in `src/lib/payments/refund-rail.ts`. The docs
+  row remains a UAT re-verification item, nothing more.
+
+- **D-82: The refund policy SPLITS BY CAUSE, not by rail alone.** The PM's initial proposal — "QRPh
+  payments cannot be reversed once processed" — was refined after the two cases were separated, because
+  they are not the same promise:
+  1. **Booker-initiated cancellation** → rail-specific terms are legitimate and are adopted: a QRPh
+     payment is not automatically reversible, disclosed at checkout and stated in the refund policy.
+  2. **FitOut-side reversal** (the D-58 gone-slot backstop: the booker paid, the slot was already taken,
+     WE cancelled) → **the money is returned regardless of rail**, by hand where the API refuses, and the
+     copy says so plainly. The booker did nothing wrong and we did not deliver the space; keeping the
+     payment is not a policy we write down.
+  ⚠ The funds are NOT stuck — they sit on the FitOut platform wallet and a human can transfer them. The
+  accurate phrasing everywhere is *"not reversed automatically"*, never *"cannot be reversed"*.
+
+- **D-83: The reversed-state copy BRANCHES ON THE TWO MONEY TRUTHS** (research Pitfall 1):
+  - *Automatic refund issued* → name the amount, say it is refunded in full, give the verified window
+    for the rail.
+  - *Manual path* (QRPh / UBP / unknown rail / failed refund) → **never the word "refunded"**. State that
+    the booking is cancelled and the amount is flagged for return by hand, and carry the reference. Here
+    **the support path is the only route to the money, so it must be unmissable rather than decorative** —
+    D-72's coral *Back to availability* primary still stands, but support is not a quiet afterthought.
+  ⚠ **The verified refund windows (13-RESEARCH § Example 1) are the ONLY numbers permitted in this copy:**
+  card *up to 30 days*; GCash / Maya *within 24 hours*. The shipped string *"within a few days"* is
+  unsourced, appears at three call sites, and is superseded.
+
+- **D-84: The rail is recovered by a LIVE PROBE with a rail-free fallback** (coordinator's technical call;
+  research Pitfall 1 option B). `booking.payment_method` is NULL on every reversed row by construction, so
+  the reversed page widens `getCheckoutSession(booking.checkoutSessionId)` to read
+  `payments[0].source.type` and `attributes.paid_at`. **It must have a timeout and must fall back to
+  rail-free copy** (naming all rails so the booker recognises their own) rather than blocking the render.
+  The same call also supplies D-85's payment date and D-70's discriminator, so one probe pays for three
+  problems. ⚠ Do not let a third-party call fail the page: this surface exists to explain a failure.
+
+- **D-85: "Date paid" comes from the PayMongo probe's real `paid_at`** (D-84's call), not from a proxy.
+  There is no `paidAt`, no `updatedAt`, and `paymongo_event` cannot be joined to a booking. If the probe
+  falls back, the line is labelled **"Booked"** against `booking.createdAt` — truthful — and is **never**
+  labelled "Date paid". A receipt that misstates a payment date is exactly the looks-official-but-isn't
+  failure D-75 guards against.
+
+- **D-86: D-77 is NARROWED to open-capacity bookings only.** Two different things are called "group":
+  - **Open-capacity** (`booking.openCapacity = true`) → per-head itemisation is REAL.
+    `declaredPax` × `listing.perHeadPriceCents` *is* the charge. Use `declaredPax` (the granted passes,
+    frozen at payment) and **never** the live RSVP count. Render the unit line only on a **positive
+    match** (`perHead × declaredPax === spacePriceCents`), mirroring the existing `fullDay` fallback
+    idiom. **Never divide a frozen total to recover a unit.**
+  - **Exclusive group bookings** (Phase 8) → the organiser paid one whole-space price and the RSVP table
+    has **no money column**. These get the ORDINARY whole-space receipt, still with no attendee names.
+    A per-head line here would print a number that never equals what was charged, and no existing gate
+    would catch it (GATE-05's price-parity e2e stops at the reserve page).
+
+- **D-87: The reversed state must survive `?paid=1`'s removal** (research Open Question 4 — in scope).
+  It is currently gated on `status === 'cancelled' && paid === '1'`, so once D-60 consumes the param a
+  reversed booking falls through to the generic `cancelled` branch with **no money statement at all**.
+  D-60's safety argument ("everything it states is repeated on the ordinary detail page") is currently
+  FALSE for this state, and consuming the param is only safe once it is true.
+
+- **D-88: Three debts research found are IN SCOPE, not deferred.**
+  1. **Nested `<main>` landmarks** — `pending-payment-state.tsx`, `payment-reversed-state.tsx` and
+     `expired-approval-state.tsx` each open a `<main>` inside `(app)/layout.tsx`'s. The 2026-08-20 quick
+     fix converted nine *page-level* branches but not these three, and `e2e/shell.spec.ts` seeds only a
+     `confirmed` booking so none is covered. D-83/D-70/D-71 rewrite exactly these files — fix the
+     landmark while there.
+  2. **`src/lib/design/live-regions.ts`** — ten files in `LIVE_REGION_EXCLUSIONS` carry `why` fields
+     naming this phase's REQ-IDs. Discharge the handover rather than inheriting it silently.
+  3. **`loading-coverage.test.ts`** pins exact counts (28/20/8); the new receipt route moves them.
+     Update the pins in the same commit as the route.
+
+- **D-89: Consuming `?paid=1` is mounted on the CONFIRMED branch ONLY** (research Pitfall 2).
+  `PendingPaymentState` polls `router.refresh()`, which re-renders the RSC for the *current* URL — so
+  consuming the param on the pending branch makes the next poll fall into the existing
+  `redirect(…/book?hold=…)` and bounce the booker to checkout mid-webhook. Use
+  `window.history.replaceState` (officially router-integrated in Next 16.3), never `router.replace`.
 
 ### Claude's Discretion
 

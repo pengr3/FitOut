@@ -761,3 +761,30 @@ FitOut's live rail set is `["card", "gcash", "paymaya", "qrph"]` `[VERIFIED: src
 
 **Research date:** 2026-08-20
 **Valid until:** 2026-09-19 for the Next.js/Tailwind/MDN facts (stable). **7 days for the PayMongo refund table** — it is provider-published, already disagrees with this project's own live probe on one row, and is the single most consequential input to D-69.
+
+---
+
+## Addendum — QRPh refundability RE-PROBED 2026-08-20 (coordinator, not the researcher)
+
+Research flagged that PayMongo's **current published docs list QR Ph as refundable** (real-time under
+₱50K), contradicting this repository's own `HTTP 400` recorded on 2026-07-23. Because the whole
+reversed-state copy branch depends on which is true, the probe was re-run rather than reasoned about.
+
+**Method:** `POST https://api.paymongo.com/v1/refunds`, TEST key (`sk_test_`, asserted before the call),
+against the *same* payment the July probe used (`pay_ru6sXqhRJto1NW3T83cqak4q`, `source.type: "qrph"`,
+₱100.00), with a **fresh** `Idempotency-Key: qrph-refund-reprobe-260820` so a cached July response could
+not be returned.
+
+**Result — verbatim, unchanged from July:**
+
+```
+HTTP 400
+{"errors":[{"code":"parameter_invalid","detail":"Refunds are not allowed for payments with source type qrph.","source":{"pointer":"payment_id","attribute":"payment_id"}}]}
+```
+
+**Reading:** the rejection is a **rail-level prohibition**, not "payment too old" or "already refunded" —
+so it is a clean signal, not an ambiguous one. `REFUNDABLE_RAILS` in `src/lib/payments/refund-rail.ts`
+is correct as shipped and must not be widened. **Observed behaviour remains authoritative over the docs
+row**; the docs row stays a UAT re-verification item, exactly as the researcher recommended.
+
+**Consequence:** Pitfall 1's manual-return branch is REAL and must be built. The problem did not dissolve.
