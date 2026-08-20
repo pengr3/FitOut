@@ -46,10 +46,29 @@
 // server-supplied counts, restated so the organizer does not have to do it in their head.
 //
 // Not "use client" — pure presentation, rendered directly by the management RSC.
+//
+// ── THE BOX IS `PanelCard tone="muted"` (DS-11 · 13-UI-SPEC, plan 13-08) ──────────────────────────────────
+//
+// It used to be `ui/alert`'s default variant. The swap is D-79's design-system pass, and it changes two
+// things, both of which the surface's own decisions already required:
+//
+//   1. ONE ADVISORY SHAPE ON THIS PAGE, NOT TWO. Plan 13-05 put the STATE-08 removal and rotation alerts on
+//      `PanelCard tone="muted"` and called it "DS-11's declared in-page advisory surface". This block is the
+//      third advisory on the same page and was the only one wearing a different box.
+//   2. ⚠️ THE `role="alert"` IS GONE, AND ITS REMOVAL IS THE POINT RATHER THAN A SIDE EFFECT. `ui/alert`
+//      hardcodes that role, so this block ANNOUNCED ITSELF ASSERTIVELY on every fresh navigation — while
+//      being ordinary static page content that has not changed while anyone was looking at it. A freshly
+//      navigated page is a page, not an event (GATE-03's rule for this phase; `share-link-box.tsx` states
+//      the same rule from the other side, which is why its rotation alert stays silent on first render).
+//      Two shipped call sites on this route pass `role="status"` to `Alert` precisely to climb back down
+//      from that default; a panel needs no such override because it never claimed to be a region.
+//      Nothing is lost: the copy is durable page content, and the organizer reads it.
+//
+// THE COPY IS BYTE-IDENTICAL and the two guards are untouched. `title` / `description` are `PanelCard`'s
+// own slots and render the same two type treatments the alert's title and description did; the decorative
+// `aria-hidden` icon is dropped, which is what makes this block match the two alerts beside it.
 
-import { UsersRoundIcon } from "lucide-react";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PanelCard } from "@/components/patterns/panel-card";
 
 export function TopUpNudge({
   attendingTotal,
@@ -75,18 +94,16 @@ export function TopUpNudge({
   const extra = attendingTotal - declaredPax;
 
   return (
-    // Default (neutral) variant, deliberately — see the header. The alarm variant is not passed and must not
-    // be: this is information the organizer asked for by inviting people, not a problem they caused.
-    <Alert>
-      <UsersRoundIcon aria-hidden="true" />
-      <AlertTitle>More people are coming than you booked for</AlertTitle>
-      <AlertDescription>
-        {/* "are coming", NOT "have RSVP'd" (08-UI-SPEC §2's original wording): the figure now includes the
-            organizer, who never RSVP'd to anything. Stating a total as a count of RSVPs would be off by the
-            same one person this component was fixed to stop losing. */}
-        {attendingTotal} people are coming, but you booked for {declaredPax}. You may owe a bit more for the
-        extra {extra} {extra === 1 ? "person" : "people"} at check-in.
-      </AlertDescription>
-    </Alert>
+    // `tone="muted"` deliberately — see the header. There is no alarm tone on this surface and there must
+    // not be: this is information the organizer asked for by inviting people, not a problem they caused.
+    //
+    // "are coming", NOT "have RSVP'd" (08-UI-SPEC §2's original wording): the figure now includes the
+    // organizer, who never RSVP'd to anything. Stating a total as a count of RSVPs would be off by the same
+    // one person this component was fixed to stop losing.
+    <PanelCard
+      tone="muted"
+      title="More people are coming than you booked for"
+      description={`${attendingTotal} people are coming, but you booked for ${declaredPax}. You may owe a bit more for the extra ${extra} ${extra === 1 ? "person" : "people"} at check-in.`}
+    />
   );
 }

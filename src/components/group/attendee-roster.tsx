@@ -78,6 +78,40 @@
 // result — computed server-side, inside the transaction that performed the delete, from the row it holds
 // the lock on. `attending` ALREADY INCLUDES THE ORGANIZER (D-113); adding one to it here would be the
 // count-them-twice mistake this file's own header spends a paragraph on.
+//
+// ── THE TWO CONTAINERS ARE `PanelCard` AND `RowCard` (DS-11 · plan 13-08) ────────────────────────────────
+//
+// 13-CONTEXT D-79 gives this surface a design-system pass and NOTHING else. Two container swaps, and the
+// second of them settles a question that was deliberately left open:
+//
+//   1. THE CARD → `PanelCard title="Who's coming"`. The heading was a hand-rolled
+//      `text-xl leading-tight font-semibold tracking-tight`; it is now the pattern's `text-heading`, which
+//      is the role 11-UI-SPEC § Typography assigns to "`PanelCard` title" BY NAME and which therefore
+//      travels per theme. The string is byte-identical.
+//   2. EACH ROW → `RowCard`. `card-pattern-coverage.test.ts`'s allow-list row for this file said in as
+//      many words that it "is also a candidate for RowCard rather than a panel, and guessing which in a
+//      container-swap plan is how a pattern gets adopted wrongly". This is the plan whose phase owns the
+//      surface, so this is where the guess stops being a guess: a roster entry is a LIST ROW — one line
+//      tall, a truncating title, a muted meta line, a badge top-right — which is `RowCard`'s shape down to
+//      the class strings it renders (`truncate text-sm font-semibold` for a row with no `href`, and
+//      `text-sm text-muted-foreground` for `meta`, both already what this file hand-rolled).
+//
+// ⚠️ THAT ALLOW-LIST ROW IS STILL THERE, AND IT NO LONGER GUARDS THIS FILE. Its half of the gate only
+// asserts the named file EXISTS, so a file that stops rendering a raw container does not redden it — and
+// a file it exempts can start rendering one again without reddening it either. MEASURED, not assumed: a
+// raw `<Card>` was put back into this component and `card-pattern-coverage.test.ts` stayed 11/11 green.
+// What catches it is `tests/group/group-surface-shell.test.tsx`, which reads `data-slot="card"` off the
+// RENDERED tree. If that file ever goes away, this component is unguarded in both directions.
+//
+// ⚠️ THE REMOVE CONTROL MOVED FROM BESIDE THE BADGE TO `actions`, AND THAT IS THE PATTERN'S GEOMETRY
+// RATHER THAN A LAYOUT PREFERENCE. `RowCard` renders `status` top-right and `actions` as a lifted sibling
+// BELOW the header line. Putting the button in `status` would have kept the old pixels at the cost of
+// using the badge slot for a control — which is the shape that turns an adoption into a fork. Nothing
+// about the control changed: same neutral `outline` trigger, same accessible name, same confirm dialog,
+// same `onRemoved` outcome feeding the alert above.
+//
+// ⚠️ THE LIST IS `space-y-3`, NOT `divide-y`. A rule between two boxed rows draws a line through the gap
+// between two rings; the rows carry their own boundary now, so the divider is the thing that has to go.
 
 "use client";
 
@@ -92,8 +126,8 @@ import {
 import type { RosterEntry } from "@/lib/group/rsvp";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { PanelCard } from "@/components/patterns/panel-card";
+import { RowCard } from "@/components/patterns/row-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   RemoveAttendeeButton,
   type AttendeeRemoved,
@@ -133,26 +167,29 @@ function AttendeeRow({
   const AccountIcon = entry.isAccount ? CircleUserRoundIcon : UserRoundIcon;
 
   return (
-    <li className="flex items-center justify-between gap-3 py-3">
-      <div className="min-w-0 space-y-0.5">
-        {/* Escaped React text (G6). Never interpolated into markup, never into an href. */}
-        <p className="truncate text-sm font-semibold">{entry.name}</p>
-        <p className="text-sm text-muted-foreground">
-          {entry.status === "yes" ? "Coming" : "Can't make it"}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Badge variant="secondary" className="gap-1.5">
-          <AccountIcon className="size-3.5" aria-hidden="true" />
-          {entry.isAccount ? "Account" : "Guest"}
-        </Badge>
-        {/* The one interactive control on a row. The name is passed so the confirm dialog can name the
-            person; it is escaped React text there too (G6), and it comes back out on the outcome so the
-            alert above can name them without this row re-reading the list. */}
-        {removable && (
-          <RemoveAttendeeButton rsvpId={entry.rsvpId} name={entry.name} onRemoved={onRemoved} />
-        )}
-      </div>
+    <li>
+      {/* `title` is escaped React text inside the pattern too (G6) — `RowCard` renders it as a text child
+          of a `<p>`, never into markup and never into an `href`. There is deliberately no `href` on a
+          roster row: an attendee has no page, and inventing a destination to satisfy an optional prop is
+          the exact scope creep `RowCard`'s own header records making that prop optional to avoid. */}
+      <RowCard
+        title={entry.name}
+        meta={entry.status === "yes" ? "Coming" : "Can't make it"}
+        status={
+          <Badge variant="secondary" className="gap-1.5">
+            <AccountIcon className="size-3.5" aria-hidden="true" />
+            {entry.isAccount ? "Account" : "Guest"}
+          </Badge>
+        }
+        actions={
+          // The one interactive control on a row. The name is passed so the confirm dialog can name the
+          // person; it is escaped React text there too (G6), and it comes back out on the outcome so the
+          // alert above can name them without this row re-reading the list.
+          removable ? (
+            <RemoveAttendeeButton rsvpId={entry.rsvpId} name={entry.name} onRemoved={onRemoved} />
+          ) : undefined
+        }
+      />
     </li>
   );
 }
@@ -190,21 +227,22 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
           </PanelCard>
         </div>
       )}
-      <Card>
-      <CardContent className="space-y-4 p-4 sm:p-6">
-        <h2 className="text-xl leading-tight font-semibold tracking-tight">Who&apos;s coming</h2>
-
-        <ul className="divide-y">
-          {/* D-113 — row #1, always, even before anyone answers. */}
-          <li data-organizer="true" className="flex items-center justify-between gap-3 pb-3">
-            <div className="min-w-0 space-y-0.5">
-              <p className="truncate text-sm font-semibold">You</p>
-              <p className="text-sm text-muted-foreground">You booked this space</p>
-            </div>
-            <Badge variant="secondary" className="shrink-0 gap-1.5">
-              <UserRoundCogIcon className="size-3.5" aria-hidden="true" />
-              Organizer
-            </Badge>
+      <PanelCard title="Who's coming">
+        <ul className="space-y-3">
+          {/* D-113 — row #1, always, even before anyone answers. The SAME `RowCard` as every other row,
+              carrying no `actions`: the organizer's row has no Remove control, and that stays STRUCTURAL
+              (there is no `rsvpId` here to remove) rather than becoming a branch a later edit could flip. */}
+          <li data-organizer="true">
+            <RowCard
+              title="You"
+              meta="You booked this space"
+              status={
+                <Badge variant="secondary" className="gap-1.5">
+                  <UserRoundCogIcon className="size-3.5" aria-hidden="true" />
+                  Organizer
+                </Badge>
+              }
+            />
           </li>
           {coming.map((entry) => (
             <AttendeeRow key={entry.rsvpId} entry={entry} removable onRemoved={setRemoved} />
@@ -249,7 +287,7 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
             <summary className="cursor-pointer text-sm text-muted-foreground">
               Can&apos;t make it ({declined.length})
             </summary>
-            <ul className="mt-1 divide-y">
+            <ul className="mt-3 space-y-3">
               {declined.map((entry) => (
                 <AttendeeRow
                   key={entry.rsvpId}
@@ -261,8 +299,7 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
             </ul>
           </details>
         )}
-      </CardContent>
-      </Card>
+      </PanelCard>
     </div>
   );
 }

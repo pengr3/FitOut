@@ -41,6 +41,29 @@
 // `(app)/layout.tsx:96` already wraps `{children}` in this route's one `main` landmark; a second one nested
 // inside it is the defect `(app)/bookings/[id]/page.tsx`'s own header records in full, and `loading.tsx`
 // here already renders the same container as a `div`. Pinned by `e2e/shell.spec.ts`.
+//
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE DESIGN-SYSTEM PASS (plan 13-08 · 13-CONTEXT D-79) — AND THE BOUNDARY IT DID NOT CROSS
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// This surface carries ZERO dedicated requirements of its own. It INHERITS Phase 13's tokens, patterns,
+// state families and trust decisions, and it gains NO capability. What changed:
+//
+//   • The title block is `PageHeader` — one `<h1>` in a known place, a `max-w-prose` lede, and a title that
+//     WRAPS rather than truncating at the 320px floor (D-131).
+//   • Every container on the page now comes from the declared pattern layer: `PanelCard` (the headcount
+//     meter, the share box, the roster, the two STATE-08 advisories and the top-up nudge) and `RowCard`
+//     (roster rows). Nothing here opens `@/components/ui/card` any more, in either branch.
+//   • `<BookingReference/>` renders below the manage block (TRUST-02 / D-78). The value is server-computed
+//     here and handed down as a finished string, so an organizer who contacts support about THIS booking
+//     quotes the same characters the booker reads on `/bookings/[id]`.
+//
+// ⚠️ WHAT DELIBERATELY DID NOT CHANGE, because D-79's boundary is the whole point of the plan that made
+// these edits: not one line of the owner-scoped SQL, not `getHeadcount`, not `getOwnedGroupByBooking`, not
+// the headcount arithmetic (the D-113 `+ 1` still lives at exactly the two render sites below), not the
+// RSVP state machine, and not the token's handling. No new filter, no new roster action, no new invite
+// mechanism, no attendee name on anything printable. A change that appeared to need any of those would
+// have left this surface's scope and belongs to a phase that owns group capability (D-136).
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -54,10 +77,13 @@ import { composeWhenLabel } from "@/lib/booking/when-label";
 import { venueTzNote } from "@/lib/venue-time";
 import { getHeadcount, getOwnedGroupByBooking, getRoster } from "@/lib/group/rsvp";
 import type { Headcount, RosterEntry } from "@/lib/group/rsvp";
+import { bookingReference } from "@/lib/booking/reference";
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/patterns/page-header";
+import { PanelCard } from "@/components/patterns/panel-card";
+import { BookingReference } from "@/components/booking/booking-reference";
 import { AttendeeRoster } from "@/components/group/attendee-roster";
 import { GroupPoller, RefreshGroupButton } from "@/components/group/group-refresh";
 import { HeadcountMeter } from "@/components/group/headcount-meter";
@@ -131,12 +157,18 @@ export default async function GroupManagementPage({
   if (loadFailed) {
     return (
       <div className={BOOKING_SHELL}>
-        <Card>
+        {/* `PanelCard`, not the Phase-11 `ErrorState` pattern, and the refusal is measured rather than
+            stylistic. `ErrorState` paints its glyph with the alarm token, which 13-UI-SPEC forbids anywhere
+            on this phase's surfaces, and it requires an `onRetry` CALLBACK — a function prop this Server
+            Component cannot supply, and which `RefreshGroupButton` (a client island that already owns the
+            router refresh) supplies to itself. Both halves point the same way: the box changes, the calm
+            state does not. */}
+        <PanelCard>
           {/* Calm, NOT red — a read that blipped is not a failure the organizer caused (§Error states). */}
-          <CardContent
+          <div
             role="status"
             aria-live="polite"
-            className="flex flex-col items-center gap-4 py-10 text-center"
+            className="flex flex-col items-center gap-4 py-4 text-center"
           >
             <div className="space-y-1">
               <h1 className="text-xl leading-tight font-semibold">Your group</h1>
@@ -145,8 +177,8 @@ export default async function GroupManagementPage({
               </p>
             </div>
             <RefreshGroupButton />
-          </CardContent>
-        </Card>
+          </div>
+        </PanelCard>
       </div>
     );
   }
@@ -165,14 +197,22 @@ export default async function GroupManagementPage({
   // link an organizer copies is byte-identical to the one 08-06 emails an attendee.
   const inviteUrl = `${process.env.BETTER_AUTH_URL ?? "http://localhost:3000"}/invite/${group.accessToken}`;
 
+  // TRUST-02 / D-78 — SERVER-COMPUTED, and it can only be computed here: `bookingReference` is a one-way
+  // SHA-256 derivation over the opaque booking id and reaches for `node:crypto`, which is why the component
+  // below takes a FINISHED string and never the id. Deriving it in the client island would put the access
+  // token in the browser bundle to save a prop.
+  const reference = bookingReference(bk.id);
+
   return (
     <div className={BOOKING_SHELL}>
       <div className="space-y-8">
         <div className="space-y-2">
-          <h1 className="text-xl leading-tight font-semibold tracking-tight">Your group</h1>
-          <p className="text-sm text-muted-foreground">
-            Invite people, and see who&apos;s coming to {title} on {whenLabel}.
-          </p>
+          {/* The lede is composed as one string because `PageHeader` measures it at `max-w-prose` and owns
+              its type role; the two interpolations are the same values the paragraph interpolated before. */}
+          <PageHeader
+            title="Your group"
+            lede={`Invite people, and see who's coming to ${title} on ${whenLabel}.`}
+          />
           <p className="text-xs text-muted-foreground">{tzNote}</p>
         </div>
 
@@ -220,8 +260,19 @@ export default async function GroupManagementPage({
           </p>
         </div>
 
-        {/* A ghost link back, deliberately the quietest thing on the page. */}
-        <Button asChild variant="ghost" className="w-full">
+        {/* TRUST-02 — the SAME string the booker reads on `/bookings/[id]`, so an organizer who writes to
+            support from this page quotes what support can look up. It sits down here, in the quiet part of
+            the surface, precisely because it must not compete with the headcount (13-UI-SPEC § Visual
+            Hierarchy): it is a fact to quote when something goes wrong, not the point of the visit. */}
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">Booking reference</p>
+          <BookingReference reference={reference} />
+        </div>
+
+        {/* A ghost link back, deliberately the quietest thing on the page. `size="touch"` is the named
+            44px opt-in (D-22) rather than a hand-rolled height — the same conversion the share box's copy
+            control took in this commit. */}
+        <Button asChild variant="ghost" size="touch" className="w-full">
           <Link href={`/bookings/${bk.id}`}>Back to your booking</Link>
         </Button>
       </div>

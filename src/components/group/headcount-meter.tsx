@@ -29,6 +29,21 @@
 // contract; the bar would only be a colour decision in disguise.
 //
 // Not "use client" — a pure presentational component the management RSC renders directly.
+//
+// ── THE BOX IS `PanelCard` (DS-11 · 13-UI-SPEC § The Group Surfaces, plan 13-08) ─────────────────────────
+// 13-CONTEXT D-79 gives this surface a DESIGN-SYSTEM PASS AND NOTHING ELSE, and the spec's change table
+// assigns the headcount meter a `PanelCard` alongside the invite card and the share box. The figure itself
+// is untouched: same two numbers, same Display step at the same one breakpoint, same `role="img"` label,
+// same muted caption. What changed is that the padding, radius and hairline are now DS-11's decision rather
+// than this file's absence of one — it used to be a bare `space-y-1` div floating on the page background
+// while the two blocks under it sat in boxes.
+//
+// ⚠️ IT IS STILL THE FOCAL POINT (13-UI-SPEC § Visual Hierarchy). Boxing it does not demote it: the panel
+// is `tone="default"`, and the two STATE-08 advisories on this surface are `tone="muted"` — so the meter is
+// the brightest surface on the page as well as the largest type on it. A `tone="muted"` here would have
+// dressed the focal point as an aside.
+
+import { PanelCard } from "@/components/patterns/panel-card";
 
 export function HeadcountMeter({
   confirmed,
@@ -56,19 +71,23 @@ export function HeadcountMeter({
   const spotsLabel = `${confirmed} of ${capacity} spots filled`;
 
   return (
-    <div className="space-y-1">
-      <p
-        role="img"
-        aria-label={full ? `${spotsLabel} — this group is full` : spotsLabel}
-        className="text-2xl leading-tight font-semibold tracking-tight tabular-nums sm:text-display"
-      >
-        {confirmed} of {capacity}
-      </p>
-      {/* aria-hidden: the figure's own label above already says this, and saying it twice is worse than
-          not saying it at all. Muted at the cap — a full group is not a warning (G4). */}
-      <p aria-hidden="true" className="text-sm text-muted-foreground">
-        {full ? "This group is full." : "spots filled"}
-      </p>
-    </div>
+    <PanelCard>
+      {/* ONE child, carrying its own rhythm: `PanelCard`'s content is `space-y-4`, and the figure and its
+          caption are one unit rather than two blocks four steps apart. */}
+      <div className="space-y-1">
+        <p
+          role="img"
+          aria-label={full ? `${spotsLabel} — this group is full` : spotsLabel}
+          className="text-2xl leading-tight font-semibold tracking-tight tabular-nums sm:text-display"
+        >
+          {confirmed} of {capacity}
+        </p>
+        {/* aria-hidden: the figure's own label above already says this, and saying it twice is worse than
+            not saying it at all. Muted at the cap — a full group is not a warning (G4). */}
+        <p aria-hidden="true" className="text-sm text-muted-foreground">
+          {full ? "This group is full." : "spots filled"}
+        </p>
+      </div>
+    </PanelCard>
   );
 }

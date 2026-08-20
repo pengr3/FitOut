@@ -54,6 +54,23 @@
 //
 // ⚠️ THERE IS NO TOAST BESIDE IT. Two live regions announcing one outcome is GATE-03 rule 6's defect. The
 // button's success toast was DELETED rather than kept alongside this.
+//
+// ── THE BOX IS `PanelCard` (DS-11 · 13-UI-SPEC § The Group Surfaces, plan 13-08) ─────────────────────────
+// D-79's design-system pass, and nothing more: the label, the read-only field, the copy control and the
+// microcopy are byte-identical, and the component gained no capability. The panel is `tone="default"` —
+// the ROTATION ALERT above it keeps `tone="muted"`, which is what keeps the advisory legible AS an
+// advisory now that the thing it sits above is also a box. Two `default` panels stacked would have read as
+// one two-part panel.
+//
+// ⚠️ THE ALERT STAYS OUTSIDE THE PANEL, exactly where plan 13-05 put it. It is about the field, not part
+// of it, and a region nested inside the box it describes reads as a line of that box's content.
+//
+// `Copy link` moved from a hand-rolled `h-11` to the NAMED `size="touch"` (WR-01 / D-22). Same 44px, but
+// the number is now the design system's rather than this file's, and the size carries the wider padding
+// that goes with a touch target. `rsvp-form.tsx:336-339` records the same conversion and the defect that
+// motivated it — two adjacent controls expressing one height two ways get different horizontal insets.
+// The `Input` beside it keeps its `h-11`: there is no named size on the input primitive, so a matched
+// height is the only spelling available to it.
 
 import * as React from "react";
 import { CopyIcon } from "lucide-react";
@@ -152,28 +169,40 @@ export function ShareLinkBox({ inviteUrl }: { inviteUrl: string }) {
           </PanelCard>
         </div>
       )}
-      <Label htmlFor="invite-link" className="text-sm font-semibold">
-        Your invite link
-      </Label>
-      {/* Stacked on mobile, inline from `sm` up (08-UI-SPEC §Spacing). Both controls clear 44px. */}
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          id="invite-link"
-          ref={inputRef}
-          readOnly
-          value={inviteUrl}
-          onFocus={(e) => e.currentTarget.select()}
-          className="h-11 flex-1 text-sm"
-        />
-        <Button type="button" variant="outline" className="h-11 sm:w-auto" onClick={handleCopy}>
-          <CopyIcon aria-hidden="true" />
-          Copy link
-        </Button>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Anyone with this link can say whether they&apos;re coming. Share it with the people you want
-        there.
-      </p>
+      <PanelCard>
+        {/* ONE child carrying the box's inner rhythm — `PanelCard`'s content is `space-y-4`, and a label
+            four steps above the field it names is a label that has stopped looking attached to it. */}
+        <div className="space-y-2">
+          <Label htmlFor="invite-link" className="text-sm font-semibold">
+            Your invite link
+          </Label>
+          {/* Stacked on mobile, inline from `sm` up (08-UI-SPEC §Spacing). Both controls clear 44px. */}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              id="invite-link"
+              ref={inputRef}
+              readOnly
+              value={inviteUrl}
+              onFocus={(e) => e.currentTarget.select()}
+              className="h-11 flex-1 text-sm"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="sm:w-auto"
+              onClick={handleCopy}
+            >
+              <CopyIcon aria-hidden="true" />
+              Copy link
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Anyone with this link can say whether they&apos;re coming. Share it with the people you
+            want there.
+          </p>
+        </div>
+      </PanelCard>
     </div>
   );
 }
