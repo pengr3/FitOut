@@ -170,6 +170,10 @@ export const SELECTOR_IDS = [
   "booking-reference",
   // 13-04 — STATE-05's third payment state, and the one D-87 has to reach without a query string.
   "payment-state-reversed",
+  // 13-07 — the other two payment states, so the distinctness claim has three boxes to compare. Each
+  // row ships in the same commit as its literal: the contract is bidirectional, so a declared id with
+  // no call site is as red as a call site with no declaration.
+  "payment-state-incomplete",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -640,5 +644,22 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "string, assert this hook renders and carries its money statement. Both halves of that sentence " +
       "are element counts, and neither is expressible as a role or an accessible name.",
     owner: "13-04",
+  },
+
+  // ─── 13-07 ─────────────────────────────────────────────────────────────────────────────────────────
+  "payment-state-incomplete": {
+    why:
+      "THE SAME THREE-CONTAINER DISTINCTNESS ASSERTION THE REVERSED ROW DESCRIBES — all three payment " +
+      "states are plain sectioning `div`s with no role, and the property is that no two of them ever " +
+      "co-render, which is `expect(a).toHaveCount(1)` beside `expect(b).toHaveCount(0)` and therefore " +
+      "needs a box per state. Keying on the heading instead would be circular: the three headings are " +
+      "the copy under revision, so a spec pinned to them goes green the day one is reworded. " +
+      "AND THE HARD BOUNDARY NEEDS THIS ONE BY NAME. D-70 says this state must NEVER render for a hold " +
+      "that has already lapsed, because `hold-expired-state.tsx` owns that landing one navigation away " +
+      "and two surfaces for one fact is two surfaces to keep true. The falsifiable form of a `never` is " +
+      "a count of ZERO against a seeded expired-hold row at the same URL that renders ONE against a " +
+      "live-hold row — an absence, which no role or accessible-name query can express, because when the " +
+      "assertion holds there is nothing in the document to query for.",
+    owner: "13-07",
   },
 };

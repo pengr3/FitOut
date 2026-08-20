@@ -36,6 +36,7 @@ export function RequestCountdown({
   expiresAt,
   label,
   expiredLabel = "Expired",
+  finalHourEmphasis = true,
   onExpire,
 }: {
   expiresAt: string | Date;
@@ -43,6 +44,19 @@ export function RequestCountdown({
   label: string;
   /** Shown once the window lapses (display cue only — the DB clock is the authority). */
   expiredLabel?: string;
+  /**
+   * Whether the digits take the final-hour emphasis. DEFAULTS TO TODAY'S BEHAVIOUR, so both shipped
+   * call sites (the host inbox SLA and the booker payment window) are unchanged in every respect.
+   *
+   * ⚠ WHY IT EXISTS (plan 13-07). This component was retuned from a 15-minute clone to a 24-hour
+   * horizon, and the emphasis below marks the moment a window ENTERS its last hour — a real threshold
+   * on an hours-scale window. Mounted on a fifteen-minute hold it is not a threshold at all: the
+   * condition is true from the first paint to the last, so the emphasis is permanent, and permanent
+   * emphasis is not emphasis. It is also an alarm colour, and 13-UI-SPEC § Color states that this
+   * phase's surfaces render none — a checkout that did not finish is not an error the booker caused.
+   * `not-completed-state.tsx` is the one call site that opts out, and it says so at the line.
+   */
+  finalHourEmphasis?: boolean;
   onExpire?: () => void;
 }) {
   const target = React.useMemo(() => new Date(expiresAt).getTime(), [expiresAt]);
@@ -91,7 +105,7 @@ export function RequestCountdown({
             {label}{" "}
             {/* suppressHydrationWarning: the server-render minute can differ from the hydration minute. */}
             <span
-              className={cn("tabular-nums", finalHour && "text-destructive")}
+              className={cn("tabular-nums", finalHour && finalHourEmphasis && "text-destructive")}
               suppressHydrationWarning
             >
               {formatRemaining(remaining)}
