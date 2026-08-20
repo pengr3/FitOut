@@ -128,7 +128,10 @@ import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 import { readDbNow } from "@/lib/booking/bookings-query";
 // The ONE owner of a venue-local deadline string (07-02). The `requested` branch's meaning sentence
 // names an instant, and a fifth date format on this page is exactly what this module exists to prevent.
-import { composeDeadlineLabel } from "@/lib/booking/when-label";
+// `composeWhenLabelShort` is the SAME module's dense form (13-11): the confirmation moment's arrival
+// line is one line — venue, date, hours, named timezone — and the module owns four date formats for
+// the whole product. The moment therefore renders a label composed HERE rather than inventing a fifth.
+import { composeDeadlineLabel, composeWhenLabelShort } from "@/lib/booking/when-label";
 // TRUST-03's on-screen half, composed in ONE named function so this page states no percentage and no
 // hour figure of its own — every rung comes from LADDER by way of that module. See its header.
 import { composePolicyDisclosure } from "@/lib/booking/policy-disclosure";
@@ -157,6 +160,8 @@ import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { CancelRequestDialog } from "@/components/booking/cancel-request-dialog";
 import { CreateGroupButton } from "@/components/group/create-group-button";
 import { TrustBlock } from "@/components/booking/trust-block";
+import { ConfirmationMoment } from "@/components/booking/confirmation-moment";
+import { ConsumePaidParam } from "@/components/booking/consume-paid-param";
 import {
   ExpiredApprovalState,
   type ExpiredApprovalSlot,
@@ -1148,8 +1153,88 @@ export default async function BookingConfirmationPage({
     ? await getHeadcount(db, { groupId: group.groupId, organizerId: userId })
     : null;
 
+  // ══ 13-11 — BFLOW-08's CONFIRMATION MOMENT, AND THE ONE PLACE THE PARAMETER IS CONSUMED ═════════
+  //
+  // THE TRIGGER IS THE PARAMETER **AND** THE DB STATUS, BOTH, ALWAYS (PROJECT D-57). `?paid=1` comes
+  // back from a third-party redirect and is trivially forgeable; the `checkout_session.payment.paid`
+  // webhook is the sole confirm authority. Execution only reaches this line on a `confirmed` row —
+  // every other status returned above — so the status half is already established, and the predicate
+  // below re-states it rather than discovering it, in the shape the next author will look for. A
+  // forged parameter on any other booking renders nothing new, because no other branch reads it.
+  //
+  // …AND NOT ON A SESSION THAT IS ALREADY OVER. `completed` is DERIVED off this same `confirmed` row
+  // (D-102), so without this term a stale link carrying the parameter would paint *"You're booked"*
+  // over a session that finished last week — the detail's own heading three lines below says *"This
+  // session is done"*, and the two would contradict each other on one screen. It is D-90's rule
+  // applied to a tense rather than to a charge: the surface says what is TRUE for the state it is
+  // actually in. The combination is unreachable through the shipped flow (nothing appends this
+  // parameter except the checkout return, and D-94 refuses checkout for a session that has started),
+  // which is exactly why it is worth one boolean rather than an argument.
+  const showConfirmationMoment = paid === "1" && bk.status === "confirmed" && !isCompleted;
+
   return (
     <div className={BOOKING_SHELL}>
+      {showConfirmationMoment && (
+        <>
+          {/* ⚠️ THE ONLY MOUNT OF THIS COMPONENT IN THE PRODUCT, AND ITS POSITION IS LOAD-BEARING
+              (D-89). It sits INSIDE the confirmed branch's return, below every other status branch,
+              so the pending poller — which calls `router.refresh()` eight times at 2.5s intervals and
+              re-renders this RSC for whatever the address bar currently says — can never reach it. If
+              it could, the first poll after the parameter was stripped would fall through the pending
+              branch's probe into `redirect(…/book?hold=…)` and navigate a booker who has ALREADY PAID
+              back to a checkout page, mid-webhook. `e2e/confirmation-decay.spec.ts` counts
+              `framenavigated` events over a seeded pending row driven through all eight attempts, and
+              that assertion was watched FAILING with this line hoisted above the branching — which is
+              the only proof the mount point is load-bearing rather than incidental.
+
+              Do NOT move it, do NOT lift it into a shared header, and do NOT add a second read of the
+              checkout-return parameter to any other branch. After this plan the only two reads on
+              this page are the pending branch's gate and the predicate directly above. */}
+          <ConsumePaidParam />
+          <ConfirmationMoment
+            // The BOOKING's creation-time snapshot (D-61) — a fact about how THIS booking came to
+            // exist, which is what makes *"your host approved this"* true or false. The trust block
+            // below reads the LISTING's current mode instead; see its own prop.
+            bookingMode={bk.bookingMode === "request" ? "request" : "instant"}
+            listingBookingMode={lst.listingBookingMode}
+            // Venue, venue-local date, hours and the named timezone, as ONE line, through the module
+            // that owns the product's four date formats (see the import). It resolves the open-capacity
+            // fork itself, so a drop-in pass reads as an entry window rather than as a reservation.
+            arrivalLine={`${title} · ${composeWhenLabelShort({
+              startsAt: bk.startsAt,
+              endsAt: bk.endsAt,
+              timezone,
+              city: lst.city,
+              fullDay: bk.fullDay,
+              openCapacity: bk.openCapacity,
+              spacePriceCents: bk.spacePriceCents,
+              quotedTotalCents: bk.quotedTotalCents,
+              dayRateCents: lst.dayRateCents,
+            })}`}
+            // D-91's boundary composed the lines; this file names no address column outside its
+            // SELECT. On a `confirmed` booking they are the exact street, which is precisely the case
+            // the host's own control already promises ("an approximate area until they book").
+            addressLines={address.lines}
+            // D-90's honest request lede. Formatted HERE through `formatMoney` and travelling as a
+            // finished string (GATE-05 / D-130) — nothing numeric crosses into the component, and
+            // nothing on this page can move money.
+            paidInFullSentence={`You've paid ${totalLabel} in full. FitOut holds it until after your session.`}
+            reference={reference}
+            amountPaid={totalLabel}
+            // D-63 — the booker's OWN session address, FULL and never masked. No join was added for
+            // it: it is the session user's, already read at the top of this file.
+            email={session?.user?.email ?? null}
+            hostSinceLabel={hostSinceLabel}
+            listingPublishedLabel={listingPublishedLabel}
+            // TRUST-03 — the SAME element the detail below renders, passed as a slot so the moment
+            // and the ordinary page cannot disclose two different windows. Gated on the same
+            // `sessionAhead` predicate for 13-10's reason: a policy shown for a booking that can no
+            // longer be cancelled is a window that closed.
+            policyDisclosure={sessionAhead ? policyDisclosure : null}
+          />
+          <Separator />
+        </>
+      )}
       <section data-testid="booking-detail" className="space-y-6">
         {/* Focal point: reassurance first — the badge (icon + text, never color-only) + the heading. The
             badge derivation is the SHARED one, so `Confirmed` here and `Completed` once the session ends

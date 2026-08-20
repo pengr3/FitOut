@@ -13,6 +13,13 @@
 // `HEADER_HEIGHT` lives on the constant itself — read it there before changing anything about this
 // container; the `vh`/`dvh` alternatives each break the promise in their own direction.
 //
+// ⚠️ THIS COMPONENT DOES NOT CARRY `BOOKING_SHELL`, AND MUST NOT BE MADE TO. 13-UI-SPEC § Geometry
+// puts the moment *inside* the shell's measure, so it is a SIBLING of `booking-detail` within the one
+// `<div className={BOOKING_SHELL}>` the page already opens. Restating the container here would nest a
+// second `max-w-2xl px-4 py-8` inside the first: the padding is paid twice and the measure is halved
+// — the same double-box trap `card-pattern-coverage.test.ts` records for a panel nested in a card,
+// and the reason 13-01 promoted the container into one constant with one owner.
+//
 // IT IS A `<section>`, AND IT NEVER OPENS A LANDMARK OF ITS OWN (D-88.1). `(app)/layout.tsx:96`
 // already wraps every child in this route's ONE `main` landmark. This is the fourth place that rule
 // has had to be restated on this segment, and it is restated rather than delegated because the next
@@ -129,7 +136,7 @@
 import type { ReactNode } from "react";
 import { CheckCircle2Icon } from "lucide-react";
 
-import { BOOKING_SHELL, CONFIRMATION_MOMENT_MIN_H } from "@/lib/design/measurements";
+import { CONFIRMATION_MOMENT_MIN_H } from "@/lib/design/measurements";
 import { BookingReference } from "@/components/booking/booking-reference";
 import { TrustBlock } from "@/components/booking/trust-block";
 
@@ -231,7 +238,7 @@ export function ConfirmationMoment({
   return (
     <section
       data-testid="confirmation-moment"
-      className={`${BOOKING_SHELL} ${CONFIRMATION_MOMENT_MIN_H} flex flex-col items-center justify-center gap-6 text-center`}
+      className={`${CONFIRMATION_MOMENT_MIN_H} flex flex-col items-center justify-center gap-6 text-center`}
     >
       <div className="flex flex-col items-center gap-3">
         {/* 1 — THE SUCCESS MARK. One beat, one iteration, and the ONLY use of the success token in
