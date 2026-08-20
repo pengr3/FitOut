@@ -225,11 +225,12 @@ function GroupLoadFailure() {
   return (
     <div className={BOOKING_SHELL}>
       <PanelCard>
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex flex-col items-center gap-4 py-4 text-center"
-        >
+        {/* NOT a live region, mirroring the page after plan 13-14's discharge: this branch IS the
+            page an organizer navigates to, and a live region announces a CHANGE. It could never have
+            announced one either — `Try again` runs `router.refresh()`, so a success unmounts this
+            branch and a failure re-renders byte-identical text. Case (4b) below is what keeps this
+            mirror honest, because case (4) would pass either way. */}
+        <div className="flex flex-col items-center gap-4 py-4 text-center">
           <div className="space-y-1">
             <h1 className="text-xl leading-tight font-semibold">Your group</h1>
             <p className="mx-auto max-w-prose text-sm text-muted-foreground">
@@ -400,6 +401,52 @@ describe("13-08 — the group surface is built from the declared pattern layer",
     // Calm, not an error surface: the branch keeps its own heading and its retry control.
     expect(screen.getByRole("heading", { level: 1, name: "Your group" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  it("(4b) …and it opens NO live region, read from the page's own source rather than the mirror", () => {
+    // THE MIRROR CANNOT PROVE THIS ONE AND MUST NOT BE ASKED TO. Case (4) renders a fixture, so an
+    // assertion that the FIXTURE has no region is an assertion about a file in this directory — it
+    // would stay green over a page that had grown one back, which is the failure mode a mirror always
+    // carries. So this reads `page.tsx` itself, the way case (2) does.
+    //
+    // The claim is plan 13-14's verdict (13-UI-SPEC § Live Regions, D-88.2): the load-failure branch
+    // is a freshly navigated PAGE, not a change, so it carries no region — and `Try again` runs
+    // `router.refresh()`, which either unmounts this branch or re-renders identical text, so there is
+    // no change for one to report either. `attendee-roster.tsx` and `share-link-box.tsx` hold the two
+    // regions this surface keeps, and `tests/design/live-regions.test.tsx` declares them.
+    const source = readFileSync(PAGE_PATH, "utf8");
+    const found: string[] = [];
+    const sf = ts.createSourceFile(PAGE_PATH, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const visit = (node: ts.Node): void => {
+      if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name)) {
+        // The politeness attribute spelled through a join, so a future whole-tree text scan cannot
+        // read this file's own source as a violation (`cancel-page-shell.test.tsx`'s idiom).
+        const politeness = ["aria", "live"].join("-");
+        const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+        if (node.name.text === politeness) found.push(`page.tsx:${line} — ${politeness}`);
+        if (
+          node.name.text === "role" &&
+          node.initializer !== undefined &&
+          ts.isStringLiteral(node.initializer) &&
+          ["status", "alert", "timer"].includes(node.initializer.text)
+        ) {
+          found.push(`page.tsx:${line} — role="${node.initializer.text}"`);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    expect(
+      found,
+      "the group page opened a live region of its own. Every branch it returns is a fresh " +
+        "navigation, and a page is not a change; the two regions this surface keeps live in the " +
+        "client islands that own the state that moves.",
+    ).toEqual([]);
+
+    // Guard the guard: the walker must have read a real page, or the empty array above is a fact
+    // about an unreadable path (`live-regions.test.tsx` probe (d)'s lesson).
+    expect(source.length, `${PAGE_PATH} read as ${source.length} bytes`).toBeGreaterThan(2000);
+    expect(source).toContain("loadFailed");
   });
 
   it("(5) the booking reference renders on the assembled page, verbatim (TRUST-02 / D-78)", () => {

@@ -28,8 +28,18 @@
 // (T-12-06-SC).
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
-// WATCHED RED — FIVE PROBES, ALL RUN, ALL REVERTED (18 August 2026). GREEN IS 20 PASSED.
+// WATCHED RED — FIVE PROBES, ALL RUN, ALL REVERTED (18 August 2026). GREEN WAS 20 PASSED.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ GREEN IS 21 PASSED as of plan 13-14, which widened the set from eleven files to seventeen and added
+// one case ("every declared name is the string the markup actually renders"). FOUR MORE PROBES were run
+// and reverted on 21 August 2026; they are recorded in `13-14-SUMMARY.md` rather than transcribed here,
+// because this header is already the longest thing in the file and the five below are the ones that
+// explain the DESIGN. In one line each: a declared author-name row deleted → SCAN 3 names the region
+// that lost its exemption; the row list padded with an unnamed region → SCAN 3 names the hollow row;
+// the `full` advisory in `rsvp-form.tsx` made a region again → SCAN 2's ordinal displacement report
+// (probe (b)'s shape, on a real edit); a resolved name emptied → the new case reports BOTH the empty
+// name and the drift from the recorded string.
 //
 // Command for all five:
 // `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.tsx`
@@ -135,9 +145,15 @@
 //   • THE RENDER HALF IS SYNTHETIC ON PURPOSE. It proves what `role="status"` does with a name and
 //     without one. It does NOT prove that any product component renders that shape — SCAN 3 is what
 //     says that, and this is what says SCAN 3 is asking for the right attribute.
-//   • THE EXCLUSIONS ARE NOT AUDITED. Nine files carry `aria-live` outside the declared set and this
-//     file makes no claim about any of them. `live-regions.ts`'s own footer says the same thing; it is
-//     repeated here because this is the file whose green run is most likely to be read as coverage.
+//   • THE EXCLUSION IS NOT AUDITED. ONE file carries `aria-live` outside the declared set —
+//     `address-autocomplete.tsx`, Phase 14's host wizard — and this file makes no claim about it. It
+//     was NINE until plan 13-14 discharged Phase 13's ten; the paragraph is kept because this is the
+//     file whose green run is most likely to be read as coverage, and a list of one is still a list.
+//   • THE FIVE AUTHOR-NAMED EXCEPTIONS ARE CHECKED FOR EXISTENCE, NOT FOR QUALITY. SCAN 3 asserts that
+//     every named non-`loading` region is declared and that every declaration is really named. Whether
+//     a given `aria-label` is a LABEL or a paraphrase that would REPLACE the sentence it sits on —
+//     the property the whole exception turns on — is a reading, and `live-regions.ts` records the exact
+//     string per row so that reading is possible without opening five files.
 //   • `announces` AND `why` ARE PROSE. Nothing can tell a true sentence from a plausible one. The
 //     assertions below check that the columns are non-trivially populated, which is a floor, not a
 //     verification.
@@ -157,6 +173,7 @@ import {
   LIVE_REGIONS,
   LIVE_REGION_KEYS,
   AUTHOR_NAMED_KINDS,
+  AUTHOR_NAMED_REGIONS,
   liveRegionKey,
   type LiveRegionKind,
 } from "@/lib/design/live-regions";
@@ -169,18 +186,25 @@ import {
 const SCAN_FILES: readonly string[] = BOOKER_PATH_LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsEleven`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsSeventeen`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
- * message. Plans 12-12 and 12-13 each moved BOTH, in the commit that added their component — a set that
- * widened in one place and not the other is the exact drift T-12-06-SETDRIFT names.
+ * message. Plans 12-12, 12-13 and 13-14 each moved BOTH, in the commit that added their component — a
+ * set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT names.
  *
  * TEN as of plan 12-12, which added `src/components/search/relax-band.tsx` (STATE-03's relaxation band,
  * `role="status"`, one announcement on arrival). ELEVEN as of plan 12-13, which added
  * `src/components/booking/collision-notice.tsx` (STATE-07's in-place collision notice, `role="status"`
  * plus a focus move — rules 1, 6 and 7).
+ *
+ * SEVENTEEN as of plan 13-14, which discharged the ten Phase-13 exclusions: six regions were REMOVED
+ * because they wrapped a freshly navigated page, and six FILES joined the set carrying seven regions
+ * between them — `pending-payment-state.tsx`, `request-countdown.tsx` (two: the digits and the
+ * threshold), `attendee-roster.tsx`, `rsvp-confirmation.tsx`, `rsvp-form.tsx`, `share-link-box.tsx`.
+ * The membership was MEASURED off an AST walk of the tree, not taken from 13-UI-SPEC's table, which
+ * named two files that turned out not to hold the regions it assigned them.
  */
-const DECLARED_FILE_COUNT = 11;
+const DECLARED_FILE_COUNT = 17;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -203,6 +227,15 @@ type FoundRegion = {
   readonly ariaLive: AttrValue | null;
   readonly ariaBusy: AttrValue | null;
   readonly named: boolean;
+  /**
+   * The region's author-supplied NAME as a string, or null when it has none or the scan cannot read it.
+   *
+   * Resolved through `resolveModuleStringConsts` below, so `aria-label={REFUSAL_REGION_NAME}` is read
+   * as its value rather than as "computed, unknowable". That is the one direction this hole can be
+   * closed from a source scan, and it is what makes `AUTHOR_NAMED_REGIONS`'s `name` column a checked
+   * fact instead of a comment.
+   */
+  readonly label: string | null;
   /** The JSX tag, for failure messages — `div`, `p`, `CardContent`. */
   readonly tag: string;
 };
@@ -246,6 +279,32 @@ function classify(role: string | null, ariaBusy: string | null): LiveRegionKind 
 }
 
 /**
+ * Every module-level `const NAME = "literal"` in one source file.
+ *
+ * The four group/booking regions name themselves through a hoisted constant rather than an inline
+ * string, and each of those files says at the declaration WHY the name is a label rather than a copy of
+ * the sentence. A scan that gave up at the identifier would report those four as "named, value unknown"
+ * and `aria-label={""}` would pass — so the ONE hop that is statically decidable is taken.
+ *
+ * Deliberately module-level only, and deliberately no expression evaluation: a name assembled from a
+ * template, a ternary or a prop stays unresolved and is reported as such, which is honest.
+ */
+function resolveModuleStringConsts(sf: ts.SourceFile): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const statement of sf.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const decl of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(decl.name) || decl.initializer === undefined) continue;
+      const init = decl.initializer;
+      if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
+        out.set(decl.name.text, init.text);
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Walk one module's JSX and collect every live region in it, in source order.
  *
  * `(file, text)` rather than `(file)` so the self-tests can feed fixtures that are never written to
@@ -255,6 +314,17 @@ function collectFrom(file: string, text: string): FoundRegion[] {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const out: FoundRegion[] = [];
   const perKind = new Map<LiveRegionKind, number>();
+  const stringConsts = resolveModuleStringConsts(sf);
+
+  /** `aria-label="x"` → `"x"`; `aria-label={NAME}` → the module const's value; anything else → null. */
+  const nameOf = (attrs: Map<string, AttrValue>): string | null => {
+    const attr = attrs.get("aria-label");
+    if (attr === undefined) return null;
+    if (attr.literal) return attr.raw;
+    const ident = /^\{\s*([A-Za-z_$][\w$]*)\s*\}$/.exec(attr.raw);
+    if (ident === null) return null;
+    return stringConsts.get(ident[1]) ?? null;
+  };
 
   const visitElement = (node: ts.JsxOpeningElement | ts.JsxSelfClosingElement): void => {
     const attrs = new Map<string, AttrValue>();
@@ -293,6 +363,7 @@ function collectFrom(file: string, text: string): FoundRegion[] {
       ariaLive,
       ariaBusy,
       named: attrs.has("aria-label") || attrs.has("aria-labelledby"),
+      label: nameOf(attrs),
       tag: node.tagName.getText(sf),
     });
   };
@@ -386,10 +457,10 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsEleven` in `src/lib/design/live-regions.ts` fails " +
-        "the build, and this fails the gate with a message. Plans 12-12 and 12-13 each moved BOTH, in " +
-        "the same commit as the component they add. A set that widened in one place and not the other " +
-        "is exactly the drift T-12-06-SETDRIFT names.",
+        "pinned in TWO places — `DeclaredFileCountIsSeventeen` in `src/lib/design/live-regions.ts` " +
+        "fails the build, and this fails the gate with a message. Plans 12-12, 12-13 and 13-14 each " +
+        "moved BOTH, in the same commit as the components they add. A set that widened in one place " +
+        "and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);
   });
 
@@ -629,22 +700,135 @@ describe("SCAN 3 — the naming mechanism, per kind", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("and no OTHER kind mixes the two naming mechanisms", () => {
-    // The other direction, and it is not symmetry for its own sake. Every non-`loading` region on
-    // this path carries its own sentence, and that sentence IS what a screen reader speaks when the
+  it("and no OTHER kind mixes the two naming mechanisms, except the five that DECLARE it", () => {
+    // The other direction, and it is not symmetry for its own sake. Most non-`loading` regions on
+    // this path carry their own sentence, and that sentence IS what a screen reader speaks when the
     // region updates. An `aria-label` on such a region names it with a second string nobody wrote for
     // the booker, and on at least one AT pairing a named live region is announced BY ITS NAME rather
     // than by its content — i.e. the message is replaced. Two mechanisms, one region, is the
-    // ambiguity; the ban is which one wins being stated in markup rather than left to the reader.
-    const offenders = scanned.regions
-      .filter((region) => !AUTHOR_NAMED_KINDS.includes(region.kind) && region.named)
+    // ambiguity; the rule is which one wins being stated in markup rather than left to the reader.
+    //
+    // ⚠ THIS WAS A BLANKET BAN UNTIL PLAN 13-14, and it went from "impossible" to "declared" for a
+    // measured reason rather than to make a widened set pass. Phase 13 ships five regions whose role
+    // sits on a WRAPPER — a `<div>` or an `<Alert>` around a `PanelCard` / `MoneyStatement` /
+    // `AlertDescription` — which have no text of their own to be named by and are absent from the DOM
+    // until an outcome lands. `status` is nameFrom:author, so those five compute `""` without a
+    // label; three separate plans named them for that reason and
+    // `tests/booking/payment-states.test.tsx` asserts one of the names in its own right. The ban's
+    // load-bearing half is not "no name" but "no name that COMPETES with the sentence", and that half
+    // is a reading no scan can perform — so the list is closed, each entry carries a `why` and the
+    // exact string, and this assertion runs in BOTH directions so the list can neither be padded nor
+    // bypassed.
+    const declared = new Set<string>(
+      AUTHOR_NAMED_REGIONS.map((row) => liveRegionKey(LIVE_REGIONS[row.id])),
+    );
+
+    const undeclaredNames = scanned.regions
+      .filter(
+        (region) =>
+          !AUTHOR_NAMED_KINDS.includes(region.kind) && region.named && !declared.has(region.key),
+      )
       .map(
         (region) =>
           `${region.file}:${region.line} (${region.kind}#${region.at}) carries BOTH its own text and ` +
-          "an author name. Pick one: a decorative-content region is `loading` and takes an " +
-          "aria-label; a region whose text is the message takes neither.",
+          "an author name, and is not in AUTHOR_NAMED_REGIONS. Either the region's own text IS the " +
+          "message (drop the aria-label — a named live region can be announced by its NAME instead " +
+          "of its content), or it is a wrapper with nothing to be named by, in which case add a row " +
+          "in `src/lib/design/live-regions.ts` saying so and quoting the label.",
       );
-    expect(offenders).toEqual([]);
+
+    // …and the list cannot be padding: a row whose region carries no name is a claimed exception to a
+    // rule that region is not breaking, which would quietly widen the exception for the next reader.
+    const found = new Map(scanned.regions.map((region) => [region.key, region] as const));
+    const hollowRows = AUTHOR_NAMED_REGIONS.filter((row) => {
+      const region = found.get(liveRegionKey(LIVE_REGIONS[row.id]));
+      return region === undefined || !region.named;
+    }).map(
+      (row) =>
+        `${row.id} is declared as author-named but its region carries no aria-label/aria-labelledby ` +
+        `(or is absent). An exception nothing is using is an exception the next region inherits.`,
+    );
+
+    expect([...undeclaredNames, ...hollowRows]).toEqual([]);
+
+    // A floor on the exception's prose, the same shape the exclusion list gets: a `why` that does not
+    // say what the region has instead of content is not a reason, and a `name` nobody recorded cannot
+    // be checked against the sentence by a reviewer.
+    const thin = AUTHOR_NAMED_REGIONS.filter(
+      (row) => row.why.length < 40 || row.name.trim().length === 0,
+    ).map((row) => row.id);
+    expect(thin).toEqual([]);
+  });
+
+  it("every declared name is the string the markup actually renders, and none of them is empty", () => {
+    // 13-UI-SPEC's falsifiable claim for this phase is that every `role="status"` on the Phase-13 set
+    // "resolves to a NON-EMPTY accessible name". Presence of the attribute is not that claim —
+    // `aria-label=""` has the attribute and computes the empty string — so the VALUE is read here,
+    // through the one static hop `resolveModuleStringConsts` can take. This is also what stops the
+    // `name` column being a comment: rename `REFUSAL_REGION_NAME`'s value and this goes red.
+    //
+    // The MECHANISM behind the claim — that an `aria-label` is what gives a `role="status"` a name at
+    // all, and that an `sr-only` child does not — is measured in the render half at the bottom of this
+    // file through `@testing-library`'s `{ name }` option, i.e. `dom-accessibility-api`. Two of the
+    // five are additionally computed end-to-end against a real render in
+    // `tests/group/state08-alerts.test.tsx` (`queryAllByRole("status", { name })`), and a third's
+    // attribute is asserted in `tests/booking/payment-states.test.tsx` case (4).
+    const found = new Map(scanned.regions.map((region) => [region.key, region] as const));
+    const problems: string[] = [];
+
+    for (const row of AUTHOR_NAMED_REGIONS) {
+      const region = found.get(liveRegionKey(LIVE_REGIONS[row.id]));
+      if (region === undefined) continue; // already reported by the assertion above
+      if (region.label === null) {
+        problems.push(
+          `${row.id} (${region.file}:${region.line}) has an aria-label this scan cannot resolve to a ` +
+            `string. Inline it, or hoist it to a module-level \`const NAME = "…"\` the way the other ` +
+            `four do — a name nothing can read is a name nothing can check against its sentence.`,
+        );
+        continue;
+      }
+      if (region.label.trim().length === 0) {
+        problems.push(
+          `${row.id} (${region.file}:${region.line}) resolves to an EMPTY accessible name. The ` +
+            `attribute being present is not the claim; the name being non-empty is.`,
+        );
+      }
+      if (region.label !== row.name) {
+        problems.push(
+          `${row.id} renders ${JSON.stringify(region.label)} but AUTHOR_NAMED_REGIONS records ` +
+            `${JSON.stringify(row.name)}. The recorded string exists so a reviewer can check the ` +
+            `LABEL-not-a-paraphrase rule by reading one file; a stale copy defeats that silently.`,
+        );
+      }
+    }
+    expect(problems).toEqual([]);
+
+    // Guard the guard: the resolver must actually resolve something, or every check above is vacuous.
+    const resolved = AUTHOR_NAMED_REGIONS.filter((row) => {
+      const region = found.get(liveRegionKey(LIVE_REGIONS[row.id]));
+      return region?.label !== null && region?.label !== undefined;
+    });
+    expect(
+      resolved.length,
+      "the identifier resolver read no names at all, so the equality checks above compared nothing",
+    ).toBe(AUTHOR_NAMED_REGIONS.length);
+    // …and it resolves an IDENTIFIER, not just an inline literal — the harder half.
+    expect(
+      collectFrom(
+        "fixture.tsx",
+        [
+          'const NAME = "Hoisted name";',
+          'export const A = () => <div role="status" aria-label={NAME}>hi</div>;',
+        ].join("\n"),
+      )[0]?.label,
+    ).toBe("Hoisted name");
+    // A name it CANNOT resolve stays null rather than becoming a plausible-looking string.
+    expect(
+      collectFrom(
+        "fixture.tsx",
+        'export const A = ({ n }: { n: string }) => <div role="status" aria-label={n}>hi</div>;',
+      )[0]?.label,
+    ).toBeNull();
   });
 
   it("holds every kind to its declared attribute shape", () => {
@@ -703,14 +887,23 @@ describe("SCAN 3 — the naming mechanism, per kind", () => {
     expect(problems).toEqual([]);
   });
 
-  it("exactly one `threshold` region exists, and it is the countdown's", () => {
+  it("exactly two `threshold` regions exist, and both are countdowns", () => {
     const thresholds = scanned.regions.filter((region) => region.kind === "threshold");
     expect(
       thresholds.map((region) => region.file),
       "`threshold` is the one shape on this path that carries `aria-live` with NO role, and it is a " +
-        "deliberate exception with a measured reason (see `live-regions.ts`). A second one is far " +
-        "more likely to be an anonymous live region than a second countdown.",
-    ).toEqual(["src/components/booking/hold-countdown.tsx"]);
+        "deliberate exception with a measured reason (see `live-regions.ts`). A THIRD one is far " +
+        "more likely to be an anonymous live region than a third countdown.\n" +
+        "⚠ THIS PIN MOVED FROM ONE TO TWO IN PLAN 13-14, AS THE SCHEDULED CHANGE. There are exactly " +
+        "two ticking values in this application, and rule 3 gives each of them a role-less polite " +
+        "region that changes only at a declared threshold: the checkout hold (60 seconds, " +
+        "`hold-countdown.tsx`) and the approval/payment window (60 minutes, " +
+        "`request-countdown.tsx`). The second was the region `live-regions.ts`'s own footer named for " +
+        "a year as probably wrong. The order is source order within the declared set.",
+    ).toEqual([
+      "src/components/booking/hold-countdown.tsx",
+      "src/components/booking/request-countdown.tsx",
+    ]);
   });
 });
 

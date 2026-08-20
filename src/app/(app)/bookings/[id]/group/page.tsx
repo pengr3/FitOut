@@ -164,12 +164,17 @@ export default async function GroupManagementPage({
             router refresh) supplies to itself. Both halves point the same way: the box changes, the calm
             state does not. */}
         <PanelCard>
-          {/* Calm, NOT red — a read that blipped is not a failure the organizer caused (§Error states). */}
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex flex-col items-center gap-4 py-4 text-center"
-          >
+          {/* Calm, NOT red — a read that blipped is not a failure the organizer caused (§Error states).
+              NOT A LIVE REGION, and its absence is plan 13-14's verdict rather than an omission
+              (13-UI-SPEC § Live Regions, D-88.2). *A live region announces a CHANGE, and a freshly
+              navigated page is not a change — it is a page.* This branch IS the page: the organizer
+              arrives on it, a screen reader reads it from the top, and the region announced either
+              nothing or a duplicate of what was about to be read anyway. It could never announce a
+              change either — `RefreshGroupButton` runs `router.refresh()`, and a refresh that
+              succeeds UNMOUNTS this branch while one that fails re-renders byte-identical text. The
+              STATE-08 alerts on the loaded page (`attendee-roster.tsx`, `share-link-box.tsx`) are the
+              two regions this surface keeps, because those two really do change under the organizer. */}
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
             <div className="space-y-1">
               <h1 className="text-xl leading-tight font-semibold">Your group</h1>
               <p className="mx-auto max-w-prose text-sm text-muted-foreground">

@@ -7,19 +7,80 @@
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // GATE-03's text is *"the countdown timer and EVERY live status region announce once rather than per
-// tick"*. "Every" is not a falsifiable quantifier until somebody says what it ranges over. `src/` mentions
-// `aria-live` in 19 files; ten of those are Phase 13's booking-detail, cancel and group surfaces and one
-// is Phase 14's host wizard. A gate written over "every" that quietly means "the handful I happened to
-// open" is green for exactly the reason it should be red, and nothing in a passing run distinguishes the
-// two.
+// tick"*. "Every" is not a falsifiable quantifier until somebody says what it ranges over. A gate written
+// over "every" that quietly means "the handful I happened to open" is green for exactly the reason it
+// should be red, and nothing in a passing run distinguishes the two.
+//
+// The set was ELEVEN booker-path files with TEN deferred to Phase 13 and one to Phase 14. Plan 13-14
+// discharged the ten (see the DISCHARGE section below): the set is SEVENTEEN files and exactly ONE
+// exclusion remains.
 //
 // So the set is a const tuple, its exclusions are a sibling const with a `why` per entry, and the file
 // count is pinned by a type-level assertion. Narrowing the gate's reach then costs a compile error and an
 // edit somebody has to justify, instead of costing nothing.
 //
-// THE EXCLUSIONS ARE THIS MODULE'S MOST IMPORTANT CONTENT. They are the half a reader cannot reconstruct
-// from the tree: "these ten files were looked at and deliberately left to Phase 13" and "nobody has ever
-// looked at these ten files" produce byte-identical scan results. Only one of them is a decision.
+// THE EXCLUSIONS ARE THIS MODULE'S MOST IMPORTANT CONTENT, and the ten that are gone are the proof
+// rather than a counter-example. They are the half a reader cannot reconstruct from the tree: "this file
+// was looked at and deliberately left to a later phase" and "nobody has ever looked at this file"
+// produce byte-identical scan results. Only one of them is a decision — and only a decision can be
+// DISCHARGED, which is what the section below records happening to ten of the eleven.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE DISCHARGE (plan 13-14 · 13-UI-SPEC § Live Regions · D-88.2) — WHAT THE TEN EXCLUSIONS BECAME
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The footer below used to end with: *"THE EXCLUSIONS ARE A SCOPE BOUNDARY, NOT A VERDICT… Several are
+// probably not [correct]."* Phase 13 owned that debt and no requirement ID named it, which is why
+// 13-RESEARCH Pitfall 8 and 13-CONTEXT D-88.2 wrote it down. Each of the ten was audited against the
+// seven rules and the verdict landed in code. The rule that decided six of them, in one sentence:
+//
+//     A LIVE REGION ANNOUNCES A CHANGE. A FRESHLY NAVIGATED PAGE IS NOT A CHANGE — IT IS A PAGE.
+//
+// On a fresh render a screen reader already reads from the top, so a region wrapped around static,
+// server-rendered landing content announces either nothing or a duplicate of what was about to be read
+// anyway. `ui/alert`'s hardcoded `role="alert"` is how that defect usually arrives (13-08 measured it on
+// `top-up-nudge.tsx`: a static advisory announcing itself assertively on every navigation).
+//
+//   REMOVED — the region wrapped a page                    landed by
+//   ─────────────────────────────────────────────────────  ─────────────────────────────────────────────
+//   bookings/[id]/page.tsx   (declined + cancelled)         13-10
+//   bookings/[id]/cancel/page.tsx                           13-06
+//   bookings/[id]/group/page.tsx   (the load-failed card)   13-14 — and it could never have announced a
+//                                                           change either: `RefreshGroupButton` runs
+//                                                           `router.refresh()`, so a success UNMOUNTS
+//                                                           the branch and a failure re-renders
+//                                                           byte-identical text
+//   payment-reversed-state.tsx                              13-04 — and NO focus move was added; the
+//                                                           `<h1>` is already the first thing
+//   expired-approval-state.tsx                              13-10
+//   group/invite-card.tsx   (`InviteInactive`)              13-08
+//
+//   DECLARED — it genuinely changes under the user          rows below
+//   ─────────────────────────────────────────────────────  ─────────────────────────────────────────────
+//   pending-payment-state.tsx                               `pending-payment` (the one booking-detail
+//                                                           surface that changes while you watch)
+//   request-countdown.tsx                                   `request-countdown-digits` + `-threshold`
+//   group/attendee-roster.tsx                               `group-attendee-removed`   ⎫ the two STATE-08
+//   group/share-link-box.tsx                                `group-link-rotated`       ⎭ alerts
+//   group/rsvp-confirmation.tsx                             `rsvp-recorded`
+//   group/rsvp-form.tsx                                     `rsvp-refused`
+//
+// ⚠ TWO OF THE TEN NAMED A FILE THAT NO LONGER HOLDS THE REGION, AND THE ROWS ARE KEYED TO WHERE IT
+// ACTUALLY IS. 13-UI-SPEC's table assigns "two STATE-08 alerts" to `bookings/[id]/group/page.tsx` and an
+// "RSVP result" to `group/invite-card.tsx`. Measured, 13-05 put both alerts in the CLIENT ISLANDS that
+// own the state that changes (`attendee-roster.tsx`, `share-link-box.tsx`) and the RSVP result lives in
+// `rsvp-confirmation.tsx`, which `invite-card.tsx` does not render. A row describing a region its file
+// does not have fails the scan's "no file is padding" assertion, so the declaration follows the markup.
+//
+// ⚠ THE DECLARED SET IS NO LONGER ONLY THE BOOKER PATH, AND THE CONSTANT'S NAME IS KEPT ANYWAY. Three of
+// the six additions are surfaces a BOOKER never reaches: an organiser manages a group, and an INVITEE —
+// who may have no account at all — answers an RSVP. The name is one this repository's tests and this
+// module's own prose refer to by that spelling, and renaming an exported symbol to widen a comment is
+// churn; the membership RULE is what matters and it is stated once, here: *every file in `src/` that
+// renders a live region on the demand-side journey — search, checkout, and the post-booking lifecycle
+// that journey hands off to.* What is left outside it is the SUPPLY side (Phase 14's host wizard, the
+// one remaining exclusion), the auth/profile forms, and the `patterns/` skeletons that
+// `tests/design/skeleton-a11y.test.tsx` gates instead.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE SEVEN RULES (12-UI-SPEC § GATE-03), STATED ONCE SO NO ROW RE-DERIVES THEM
@@ -74,6 +135,28 @@
 // `aria-label` it announces the empty string to nobody, which is the defect
 // `search-results.tsx:204-207` already records having fixed once. Every other kind carries its own
 // sentence and is named by content.
+//
+// ⚠ …EXCEPT WHERE A REGION IS A WRAPPER, WHICH PHASE 13 SHIPPED FIVE OF AND PLAN 13-14 HAD TO ACCOUNT
+// FOR RATHER THAN OUTLAW. `AUTHOR_NAMED_REGIONS` below is that account, and it is worth reading before
+// deciding it is a loophole. The blanket ban this module used to hold — *a non-`loading` region carries
+// NO author name* — was written over a tree in which every live region was a `<p>` holding one sentence.
+// Phase 13 shipped five that are not: a `<div role="status">` whose announceable content is composed by
+// a CHILD component (`MoneyStatement`, `PanelCard`, `AlertDescription`), sitting empty until an outcome
+// lands. 13-02, 13-05 and 13-08 each named theirs, each recorded the same reason at the line, and
+// `tests/booking/payment-states.test.tsx` pins one of the names with an assertion of its own.
+//
+// The property that is actually load-bearing survives intact, because the hazard the ban protects
+// against is not "a name" but "a name that COMPETES with the sentence": on the VoiceOver/Safari pairing
+// a named live region can be announced BY ITS NAME INSTEAD OF ITS CONTENT. All five names are two- or
+// three-word LABELS ("Payment status", "Attendee removed", "Invite link updated", "RSVP recorded",
+// "RSVP not saved") chosen so they neither duplicate nor paraphrase the sentence they sit on.
+//
+// So the ban became a CLOSED SET with a mandatory reason per entry — `LIVE_REGION_EXCLUSIONS`'s own
+// mechanism, applied to the other axis — and the gate asserts it in BOTH directions: a named
+// non-`loading` region that is not declared here fails, and a declaration whose region carries no name
+// fails. Adding an `aria-label` to a content-named region still costs a compile-visible edit and a
+// written argument; it is no longer impossible, which is the only honest state given five shipped,
+// argued, test-pinned instances of it.
 //
 // So `kind` DECIDES the naming mechanism instead of a second field a row could set to whatever makes the
 // scan pass:
@@ -209,11 +292,11 @@
 // ---------------------------------------------------------------------------
 
 /**
- * THE ELEVEN BOOKER-PATH FILES GATE-03 IS A CLAIM ABOUT.
+ * THE SEVENTEEN FILES GATE-03 IS A CLAIM ABOUT.
  *
- * Ordered by surface — availability, then booking, then search — rather than alphabetically, because the
- * reading question this list gets asked is "does the gate cover the checkout", not "where is X in the
- * alphabet".
+ * Ordered by surface — availability, then booking, then search, then the group lifecycle — rather than
+ * alphabetically, because the reading question this list gets asked is "does the gate cover the
+ * checkout", not "where is X in the alphabet".
  *
  * Forward slashes, always. Every consumer normalises `path.relative`'s Windows backslashes before
  * comparing (`tests/design/sheet-absent.test.ts:249-256`'s idiom); without that, every prefix and
@@ -230,10 +313,17 @@ export const BOOKER_PATH_LIVE_REGION_FILES = [
   "src/components/booking/collision-notice.tsx",
   "src/components/booking/hold-countdown.tsx",
   "src/components/booking/hold-expired-state.tsx",
+  "src/components/booking/pending-payment-state.tsx",
+  "src/components/booking/request-countdown.tsx",
   "src/components/booking/reserve-actions.tsx",
   // ─── search ─────────────────────────────────────────────────────────────────────────────────────
   "src/components/search/relax-band.tsx",
   "src/components/search/search-results.tsx",
+  // ─── the group lifecycle (plan 13-14's discharge — see the header) ──────────────────────────────
+  "src/components/group/attendee-roster.tsx",
+  "src/components/group/rsvp-confirmation.tsx",
+  "src/components/group/rsvp-form.tsx",
+  "src/components/group/share-link-box.tsx",
 ] as const;
 
 /** The closed union every row's `file` is typed against. */
@@ -248,80 +338,40 @@ export type LiveRegionExclusion = {
 /**
  * EVERY FILE IN `src/` THAT CARRIES `aria-live` AND IS DELIBERATELY NOT AUDITED HERE, WITH ITS REASON.
  *
- * This list plus `BOOKER_PATH_LIVE_REGION_FILES` is the complete `aria-live` inventory of `src/` as
- * RE-MEASURED on 18 August 2026 after plan 12-13 (`grep -rln aria-live src/ --include=*.tsx` → 19
- * files; EIGHT of them declared, ELEVEN excluded here). The declared SET is eleven files: `book-cta.tsx`,
- * `reserve-actions.tsx` and `relax-band.tsx` carry `role="status"` and no `aria-live` attribute, so
- * they do not appear in that grep at all. Two files appear in it on the strength of a COMMENT rather
- * than of markup — `search-results.tsx` (declared for its `role="alert"`) and `collision-notice.tsx`
- * (declared for its `role="status"`, and named in this file's own header as the surface that must
- * never carry the banned politeness level). The arithmetic is stated because it is the only way a
- * reader can check that the two lists still PARTITION the tree rather than merely coexist with it.
+ * ONE ROW, as of plan 13-14. It was ELEVEN — ten of them Phase 13's, discharged by the audit the header
+ * describes.
  *
- * The reasons are not schedule pressure. Phase 13 owns BFLOW-08, TRUST-01..05 and STATE-05/06/08, which
- * is to say it owns the post-booking lifecycle these surfaces render; auditing their regions here would
- * absorb another phase's scope AND would freeze markup that phase is about to rewrite, so the audit would
- * be re-done rather than reused. Phase 14 owns the host wizard for the same reason.
+ * ⚠ THE ARITHMETIC, RE-MEASURED FROM SCRATCH on 21 August 2026 and NOT carried forward from any earlier
+ * note (13-08 recorded that its own change moved the count and left the re-measurement to this plan;
+ * the number below is a fresh reading of the tree this commit produces, and the two ways of counting
+ * disagree, which is why both are given):
+ *
+ *   • BY MARKUP, which is what the gate actually reads. An AST walk of every `.tsx` under `src/` finds
+ *     `aria-live` on the elements of SEVEN files: `slot-picker.tsx` (×2), `spots-left-chip.tsx`,
+ *     `hold-countdown.tsx`, `request-countdown.tsx`, `rsvp-confirmation.tsx`, `rsvp-form.tsx` — all
+ *     declared — and `address-autocomplete.tsx`, the row below. The two lists PARTITION the attribute
+ *     exactly; there is no third category.
+ *   • BY TEXT, which is what `grep -rln aria-live src/ --include=*.tsx` reports: THIRTEEN files — it
+ *     was 19 at plan 12-13's measurement, and 13-08 recorded that its own change moved the number and
+ *     left the re-reading to this plan. The extra SIX are PROSE. Five are declared files explaining
+ *     regions they hold under a ROLE rather than the attribute (`availability-calendar.tsx`,
+ *     `date-pass-picker.tsx`, `collision-notice.tsx`, `hold-expired-state.tsx`, `search-results.tsx`),
+ *     and the sixth is `invite-card.tsx`, which appears in the grep on the strength of the comment
+ *     explaining why 13-08 REMOVED its region — the one file in the tree that a text scan reports and
+ *     both lists rightly omit. A text scan cannot tell an explanation from a declaration, which is why
+ *     `tests/design/live-regions.test.tsx` strips comments before its own text scan and why this module
+ *     lives outside the DS-13 leak gate's scanned tree.
+ *
+ * The declared SET is seventeen files, which is larger than either count because a `role="status"`,
+ * `role="alert"` or `role="timer"` IS a live region without carrying the attribute at all —
+ * `book-cta.tsx`, `reserve-actions.tsx`, `relax-band.tsx`, `collision-notice.tsx`,
+ * `pending-payment-state.tsx`, `attendee-roster.tsx` and `share-link-box.tsx` are all in that shape.
+ *
+ * The one remaining reason is not schedule pressure. Phase 14 owns the host wizard; auditing its region
+ * here would absorb another phase's scope AND would freeze markup that phase is about to rewrite, so the
+ * audit would be re-done rather than reused.
  */
 export const LIVE_REGION_EXCLUSIONS = [
-  // ─── Phase 13 — the post-booking lifecycle (BFLOW-08, TRUST-01..05, STATE-05/06/08) ──────────────
-  {
-    file: "src/app/(app)/bookings/[id]/page.tsx",
-    why:
-      "Phase 13's booking-detail surface. Its live regions report payment and approval OUTCOMES that " +
-      "phase re-specifies (TRUST-01..05), so an audit written against today's markup would be an " +
-      "audit of markup that is about to be replaced.",
-  },
-  {
-    file: "src/app/(app)/bookings/[id]/cancel/page.tsx",
-    why: "Phase 13's cancellation flow (STATE-06). Same owner, same reason as the detail page.",
-  },
-  {
-    file: "src/app/(app)/bookings/[id]/group/page.tsx",
-    why:
-      "Phase 13's group-organiser surface (BFLOW-08). Group RSVP announcements are a lifecycle this " +
-      "phase's booker path never reaches — checkout ends at the redirect to PayMongo.",
-  },
-  {
-    file: "src/components/booking/expired-approval-state.tsx",
-    why:
-      "Phase 13's request-to-book expiry state (STATE-05). NOT to be confused with " +
-      "`hold-expired-state.tsx`, which IS declared: that one ends the checkout this phase owns, this " +
-      "one ends a host's approval window, which Phase 13 owns.",
-  },
-  {
-    file: "src/components/booking/payment-reversed-state.tsx",
-    why: "Phase 13's reversal state (TRUST-04) — a post-payment outcome, after this phase's redirect.",
-  },
-  {
-    file: "src/components/booking/pending-payment-state.tsx",
-    why: "Phase 13's pending-payment state (TRUST-03). Same boundary: it begins where checkout ends.",
-  },
-  {
-    file: "src/components/booking/request-countdown.tsx",
-    why:
-      "Phase 13's approval-window countdown (STATE-05). It is a SECOND ticking region and rule 3 " +
-      "applies to it identically — `hold-countdown.tsx` is the model for both — but it ticks on a " +
-      "surface Phase 13 owns and gating it here would claim coverage this phase cannot maintain.",
-  },
-  {
-    file: "src/components/group/invite-card.tsx",
-    why:
-      "Phase 13's group invite surface (BFLOW-08). An invitee arrives here from a link AFTER a booking " +
-      "exists, so it is downstream of everything this phase's booker path can reach.",
-  },
-  {
-    file: "src/components/group/rsvp-confirmation.tsx",
-    why:
-      "Phase 13's RSVP confirmation (BFLOW-08). It announces an attendee COUNT changing under the " +
-      "organiser, which is a live region worth auditing — by the phase that owns the count.",
-  },
-  {
-    file: "src/components/group/rsvp-form.tsx",
-    why:
-      "Phase 13's RSVP form (BFLOW-08). Its live region reports a submit RESULT on a surface a booker " +
-      "reaches only after confirming and inviting, i.e. past the redirect this phase ends at.",
-  },
   // ─── Phase 14 — the host wizard ─────────────────────────────────────────────────────────────────
   {
     file: "src/components/listing/address-autocomplete.tsx",
@@ -355,6 +405,18 @@ export type LiveRegionKind = "status" | "alert" | "timer" | "loading" | "thresho
  * of this list is a second place for it to be wrong.
  */
 export const AUTHOR_NAMED_KINDS: readonly LiveRegionKind[] = ["loading"];
+
+/**
+ * One region whose author-supplied name is a DECLARED exception to "every other kind is named by its
+ * content". `why` is mandatory and must say why this region has no content of its own to be named by —
+ * a row without one is not a row.
+ */
+export type AuthorNamedRegion = {
+  readonly id: LiveRegionId;
+  /** The exact label the markup renders, so a reader can check the LABEL-not-a-copy rule by eye. */
+  readonly name: string;
+  readonly why: string;
+};
 
 /** One declared live region. Every field is mandatory; none has a default. */
 export type LiveRegionRow = {
@@ -390,11 +452,11 @@ export type LiveRegionRow = {
  * Every region on the declared set, one id per REGION (not per file). Ordered by file, matching
  * `BOOKER_PATH_LIVE_REGION_FILES`, then by source order within the file.
  *
- * Sixteen today. The number is deliberately NOT pinned by a type-level assertion, unlike the file
- * count: `tests/design/live-regions.test.tsx`'s SCAN 2 asserts this set equals the set of regions
- * actually present in the tree, which is strictly stronger than agreeing with a literal. A count
- * assertion beside a set assertion would only ever fail at the same moment, one line earlier and with
- * less information.
+ * Twenty-three today (sixteen until plan 13-14's discharge added seven). The number is deliberately NOT
+ * pinned by a type-level assertion, unlike the file count: `tests/design/live-regions.test.tsx`'s SCAN 2
+ * asserts this set equals the set of regions actually present in the tree, which is strictly stronger
+ * than agreeing with a literal. A count assertion beside a set assertion would only ever fail at the
+ * same moment, one line earlier and with less information.
  */
 export const LIVE_REGION_IDS = [
   // availability-calendar.tsx
@@ -418,12 +480,25 @@ export const LIVE_REGION_IDS = [
   "hold-countdown-threshold",
   // hold-expired-state.tsx
   "hold-expired-state",
+  // pending-payment-state.tsx
+  "pending-payment",
+  // request-countdown.tsx
+  "request-countdown-digits",
+  "request-countdown-threshold",
   // reserve-actions.tsx
   "reserve-actions-notice",
   // relax-band.tsx
   "search-relax-band",
   // search-results.tsx
   "search-results-fetch-error",
+  // attendee-roster.tsx
+  "group-attendee-removed",
+  // rsvp-confirmation.tsx
+  "rsvp-recorded",
+  // rsvp-form.tsx
+  "rsvp-refused",
+  // share-link-box.tsx
+  "group-link-rotated",
 ] as const;
 
 /** The closed union every row is typed against. */
@@ -676,6 +751,84 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "apply: an expired hold is a normal, expected end to a timer and is never rendered red.",
   },
 
+  // ─── pending-payment-state.tsx ──────────────────────────────────────────────────────────────────
+  "pending-payment": {
+    file: "src/components/booking/pending-payment-state.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      'The money panel\'s DETAIL line, twice at most across one wait. "We\'re waiting on the final ' +
+      'confirmation — this page updates on its own." is on the first paint and is not announced. At ' +
+      "the poll cap the detail becomes \"It's taking longer than usual. Your payment is safe, your " +
+      'booking is held, and we\'ll email you at {address} the moment it confirms." — that is the ' +
+      'first announcement. At the escalation threshold ONE line is added: "Your reference is ' +
+      'FIT-XXXXXXXX — we\'ve recorded it against this booking." The heading, the spinner and the L1 ' +
+      'sentence "Your payment reached us." are OUTSIDE the region and never move.',
+    why:
+      "RULE 1 + RULES 4/5, and it is the ONE Phase-13 booking-detail region that survived plan " +
+      "13-14's audit. Every other status this phase renders is a landing a booker navigates to; this " +
+      "one genuinely changes while they watch it, because a poller is refreshing the RSC underneath " +
+      "and two timers move the copy past two thresholds. It is a RESULT — they paid, and the system " +
+      "is reporting what happened to the money — so `status`, implicitly polite, never `alert`: " +
+      "waiting on a settlement is a normal state and D-71 bans failure-shaped copy on this surface " +
+      "outright.\n" +
+      "\n" +
+      "THE ROLE IS ON A WRAPPER, WHICH IS WHY IT CARRIES AN `aria-label` AND IS DECLARED IN " +
+      "`AUTHOR_NAMED_REGIONS`. `MoneyStatement` is shared with three states that are static on " +
+      "arrival and its contract is that it carries no region at all, so the region is the div around " +
+      'it — a wrapper whose own text content is nothing. "Payment status" is a two-word LABEL that ' +
+      "neither duplicates nor paraphrases any of the three sentences below it.\n" +
+      "\n" +
+      "RULE 6 — ONE REGION, AND THE ESCALATION IS A TEXT CHANGE INSIDE IT rather than a second " +
+      "region appearing beside it. `tests/booking/payment-states.test.tsx` case (4) counts " +
+      "`[role=\"status\"], [role=\"alert\"], [aria-live]` across the whole rendered state at the third " +
+      "threshold and asserts the total is 1, then asserts that one has a non-empty name.",
+  },
+
+  // ─── request-countdown.tsx ──────────────────────────────────────────────────────────────────────
+  "request-countdown-digits": {
+    file: "src/components/booking/request-countdown.tsx",
+    kind: "timer",
+    at: 1,
+    announces:
+      "NOTHING, ever. `aria-live=\"off\"` means the \"{N}h {M}m\" redraws once a minute — up to 1,440 " +
+      "times across a 24-hour window — and announces none of them. The prefix beside the digits " +
+      '("Expires in" / "Pay within" / "Slot held for") is read only when a user navigates to the ' +
+      "element deliberately.",
+    why:
+      "RULE 3, applied to the SECOND ticking region on this tree — the one this module's own footer " +
+      "named for a year as probably wrong. `hold-countdown.tsx` is the model and was not re-decided " +
+      "here. The role is on the TICKING branch only: an expired window counts nothing, and a " +
+      "`role=\"timer\"` on a frozen \"Expired\" announces the element as a live timer that will never " +
+      "move again.",
+  },
+  "request-countdown-threshold": {
+    file: "src/components/booking/request-countdown.tsx",
+    kind: "threshold",
+    at: 1,
+    announces:
+      '"Under one hour left." — AT MOST ONCE in this component\'s whole life, when a tick first ' +
+      "lands inside the final hour of a window that was ABOVE that line when it mounted. Zero times " +
+      "otherwise: an hours-scale countdown that ARRIVES with forty minutes left says nothing at all, " +
+      "and neither does the fifteen-minute reuse in `not-completed-state.tsx`. Measured as a " +
+      "text-change count of `toBe(1)` and `toBe(0)` against a driven clock in " +
+      "`tests/booking/request-countdown.test.tsx`, with the digit-change count beside it so the " +
+      "zero cannot be green over a dead component.",
+    why:
+      "RULE 3's separate polite region, and the second reason `threshold` is a kind. The message " +
+      "LATCHES — set once, never cleared — because the shipped one-MINUTE window went \"\" → message " +
+      "→ \"\", and that second change is a live-region update to empty. On expiry the span KEEPS its " +
+      "text and DROPS its `aria-live`, so it goes silent without its text appearing to change.\n" +
+      "\n" +
+      "RULE 6 OWNS THE TWO DELETIONS THAT MATTER. The expiry arm (\"This window has closed.\") is " +
+      "gone: every surface mounting this component replaces ITSELF when the window closes — " +
+      "`ExpiredApprovalState` on the booker's detail page, the `holdOver` copy in " +
+      "`not-completed-state.tsx`, the row `revalidatePath` drops from the host inbox — so the arm was " +
+      "a second region reporting one event. And a countdown that mounts below the line stays silent, " +
+      "because the fact that it is inside its last hour arrived WITH the page, and a page is not a " +
+      "change.",
+  },
+
   // ─── reserve-actions.tsx ────────────────────────────────────────────────────────────────────────
   "reserve-actions-notice": {
     file: "src/components/booking/reserve-actions.tsx",
@@ -747,7 +900,167 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "`tests/design/skeleton-a11y.test.tsx` rather than here. That split is why this file has one row " +
       "and not two, and it is the reason the scan keys rows to the file that RENDERS the attribute.",
   },
+
+  // ─── attendee-roster.tsx ────────────────────────────────────────────────────────────────────────
+  "group-attendee-removed": {
+    file: "src/components/group/attendee-roster.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      '"{Ana} removed — {5} coming, {2 spots free}." — once, when the organizer confirms a removal ' +
+      "and the server returns the two figures the sentence quotes. It says nothing again; the roster " +
+      "row disappearing beneath it is not a live update, and a SECOND removal replaces this " +
+      "sentence with the next one, which is one announcement per removal.",
+    why:
+      "RULE 1 and RULE 5. STATE-08's rule is that a fact an organizer must READ never travels in a " +
+      "toast, so 13-05 moved this one to an in-page alert above the list it describes — and an " +
+      "alert nobody hears is the same defect one wall further on, which is why it is a region. It is " +
+      "the RESULT of the organizer's own confirm, so `status` and never `alert`: taking someone off " +
+      "a roster is ordinary housekeeping and the seat goes straight back in the pool.\n" +
+      "\n" +
+      "THE ROLE IS ON A WRAPPER AROUND `PanelCard`, which takes no `role` of its own, so the region's " +
+      'own text content is nothing and its name must be author-supplied — "Attendee removed", a ' +
+      "two-word LABEL declared in `AUTHOR_NAMED_REGIONS` with the VoiceOver reason. RULE 2 does not " +
+      "apply and RULE 7 is satisfied without a focus move: the sentence sits directly above the list " +
+      "it is about, and the control that produced it still has focus.",
+  },
+
+  // ─── rsvp-confirmation.tsx ──────────────────────────────────────────────────────────────────────
+  "rsvp-recorded": {
+    file: "src/components/group/rsvp-confirmation.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      '"You\'re in — see you there." (or "Thanks for letting us know." for a decline), followed by ' +
+      "either the change-your-answer line or the G3 disclosure that this screen is the only " +
+      "confirmation. ONCE, at the moment the server’s answer replaces the two choice buttons in " +
+      "place. It does not announce for a RETURNING account, whose recorded answer is the first paint.",
+    why:
+      "RULE 1 and RULE 6. It is the RESULT of the invitee's own press and it REPLACES the control " +
+      "they pressed — a swap a sighted person sees and a screen-reader user would otherwise have to " +
+      "go hunting for, which is the one shape on the group surfaces that genuinely earns a region. " +
+      "One region for one outcome: `rsvp-form.tsx`'s refusal region and this one are mutually " +
+      "exclusive by construction (a submit either records or refuses), so the two can never announce " +
+      "the same submit.\n" +
+      "\n" +
+      "It carries an `aria-label` and is declared in `AUTHOR_NAMED_REGIONS`; the name covers BOTH " +
+      'answers deliberately — "RSVP recorded" is true of a "can\'t make it" too, and a name that ' +
+      "said otherwise would be wrong half the time.",
+  },
+
+  // ─── rsvp-form.tsx ──────────────────────────────────────────────────────────────────────────────
+  "rsvp-refused": {
+    file: "src/components/group/rsvp-form.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      "the refusal sentence the SERVER composed, verbatim — the group just filled up, RSVPs have " +
+      "closed, the invite is no longer active, or a plain \"We couldn't save your RSVP. Try again.\" " +
+      "— once, after the invitee presses one of the two answer buttons and `submitRsvp` refuses it.",
+    why:
+      "RULE 1. It appears strictly AFTER an action the invitee took. `status` and never `alert`: the " +
+      "group filling up is somebody else's good news, not this person's error, and the whole surface " +
+      "renders no alarm colour by contract.\n" +
+      "\n" +
+      "IT IS NOW THE ONLY REGION IN THIS FILE, WHICH IS PLAN 13-14'S VERDICT ON THE OTHER TWO. The " +
+      "`full` and `closed` advisories shipped as `role=\"status\"` — a deliberate 13-08 climb-down " +
+      "from `ui/alert`'s hardcoded `role=\"alert\"` — and both are decided SERVER-SIDE from a prop, " +
+      "so both are on the first paint or are never there at all. Neither could ever announce a " +
+      "change. They now take `role=\"note\"`, the ARIA role for parenthetical content: deleting the " +
+      "override would have restored the interrupting role, and the other shipped answer (swap the " +
+      "box for `PanelCard tone=\"muted\"`, as `top-up-nudge.tsx` did) nests a panel inside " +
+      "`InviteCard`'s panel and pays the block padding twice.\n" +
+      "\n" +
+      'The `aria-label` is "RSVP not saved" — a LABEL, declared in `AUTHOR_NAMED_REGIONS`, never a ' +
+      "copy of the server's sentence, which is rendered verbatim as the content.",
+  },
+
+  // ─── share-link-box.tsx ─────────────────────────────────────────────────────────────────────────
+  "group-link-rotated": {
+    file: "src/components/group/share-link-box.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      '"The old invite link no longer works. Copy the new one below and share it again." — once, at ' +
+      "the moment the box notices the `inviteUrl` it renders is not the one it rendered last. NOT on " +
+      "a fresh mount, and not on any of the poller's refreshes that hand down the same URL.",
+    why:
+      "RULE 1 and RULE 5, and the announcement is DERIVED rather than pushed, which is what makes " +
+      "the row's first sentence checkable. `RegenerateLinkButton` lives in a different subtree; this " +
+      "box compares the prop it renders against the one it last rendered, so a refused or " +
+      "rate-limited regeneration leaves the URL alone and announces nothing — the announcement is a " +
+      "function of the thing announced and cannot outlive its truth. It is the RESULT of the " +
+      "organizer's own press, so `status`; rotating a leaked link is the fix, not the incident, so " +
+      "never `alert` and never the destructive variant.\n" +
+      "\n" +
+      'A wrapper around `PanelCard` again, hence the author-supplied "Invite link updated" declared ' +
+      "in `AUTHOR_NAMED_REGIONS` — three words that say which region this is, with the sentence left " +
+      "as the content.",
+  },
 };
+
+/**
+ * THE FIVE REGIONS WHOSE NAME COMES FROM AN `aria-label` DESPITE NOT BEING `loading`, EACH WITH THE
+ * REASON IT HAS NO CONTENT OF ITS OWN TO BE NAMED BY.
+ *
+ * See the header's naming section for why this exists at all instead of the blanket ban it replaced.
+ * In one line: every one of these five is a WRAPPER — the role sits on a `<div>` (or an `<Alert>`)
+ * whose announceable content is composed by a child, and which is EMPTY until an outcome lands. A
+ * region with no text of its own and no author name computes an accessible name of `""`, which is
+ * the same defect `loading` carries and the same fix.
+ *
+ * ⚠ THE RULE THE NAMES THEMSELVES OBEY, which nothing here can check and every reviewer must: a name
+ * is a two- or three-word LABEL saying WHICH region this is, never a copy or a paraphrase of the
+ * sentence inside it. On the VoiceOver/Safari pairing a named live region can be announced BY ITS NAME
+ * INSTEAD OF ITS CONTENT, so a name that duplicated the sentence would read it twice and a name that
+ * paraphrased it would replace it with a worse version. `name` is recorded per row so that check is a
+ * reading rather than a hunt through five files.
+ *
+ * The GATE asserts membership in BOTH directions — a named non-`loading` region missing from this list
+ * fails, and a row here whose region carries no name fails — so the list can neither be padded nor
+ * quietly bypassed.
+ */
+export const AUTHOR_NAMED_REGIONS = [
+  {
+    id: "pending-payment",
+    name: "Payment status",
+    why:
+      "The role is on a wrapper around `MoneyStatement`, which is shared with three states that are " +
+      "static on arrival and whose own contract is that it carries no region. The wrapper has no text " +
+      "of its own, and the three sentences it holds are the component's, not the region's.",
+  },
+  {
+    id: "group-attendee-removed",
+    name: "Attendee removed",
+    why:
+      "A wrapper around `PanelCard`, which takes no `role` — the bare-wrapper shape " +
+      "`money-statement.tsx` established so the announced box is the panel, padding included. It is " +
+      "absent from the DOM until a removal lands, so there is nothing there to take a name from.",
+  },
+  {
+    id: "group-link-rotated",
+    name: "Invite link updated",
+    why:
+      "The same wrapper-around-`PanelCard` shape as the removal alert beside it, and absent until the " +
+      "box notices the URL it renders has moved. 13-05 chose the label over the sentence explicitly.",
+  },
+  {
+    id: "rsvp-recorded",
+    name: "RSVP recorded",
+    why:
+      "A wrapper whose children are an icon, a heading and a paragraph — `status` is nameFrom:author, " +
+      "so none of them names it. The label covers both answers, because a decline is as recorded as " +
+      "an acceptance.",
+  },
+  {
+    id: "rsvp-refused",
+    name: "RSVP not saved",
+    why:
+      "An `<Alert>` wrapper around `AlertDescription`, mounted only while the server's refusal " +
+      "sentence exists. That sentence is the SERVER's and is rendered verbatim; the region's name has " +
+      "to come from somewhere else or it is the empty string.",
+  },
+] as const satisfies readonly AuthorNamedRegion[];
 
 // ---------------------------------------------------------------------------
 // Compile gate — the declared file count, checked on every machine by tsc and by `next build`
@@ -757,19 +1070,27 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS ELEVEN FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
+ * THE DECLARED SET IS SEVENTEEN FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
  * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
- * The alias NAME carries the number so that widening the set forces renaming it — it was
+ * The alias NAME carries the number so that MOVING the set forces renaming it — it was
  * `DeclaredFileCountIsNine` until plan 12-12 added `relax-band.tsx`, `…IsTen` until plan 12-13 added
- * `collision-notice.tsx`. A `length extends number` assertion would compile forever and read exactly
- * like this one; that is the failure mode a type-level gate is easiest to write. The friction IS the
- * mechanism: adding a live region to the booker path costs a rename, a row and a second literal in
- * `tests/design/live-regions.test.tsx`, and none of those can be done by accident.
+ * `collision-notice.tsx`, `…IsEleven` until plan 13-14's discharge added six at once
+ * (`pending-payment-state.tsx`, `request-countdown.tsx`, `attendee-roster.tsx`,
+ * `rsvp-confirmation.tsx`, `rsvp-form.tsx`, `share-link-box.tsx`). A `length extends number` assertion
+ * would compile forever and read exactly like this one; that is the failure mode a type-level gate is
+ * easiest to write. The friction IS the mechanism: adding a live region to the audited set costs a
+ * rename, a row and a second literal in `tests/design/live-regions.test.tsx`, and none of those can be
+ * done by accident.
+ *
+ * ⚠ THE NUMBER IS MEASURED, NOT PLANNED. 13-UI-SPEC's table predicted a different membership for two
+ * of the six (see the header's TWO OF THE TEN note), so the set was read off an AST walk of the tree
+ * this commit produces rather than off the document that scheduled the work. Watched failing under the
+ * old number on 21 August 2026 — see the SUMMARY for the verbatim `tsc` output.
  */
-export type DeclaredFileCountIsEleven = Assert<
-  (typeof BOOKER_PATH_LIVE_REGION_FILES)["length"] extends 11 ? true : false
+export type DeclaredFileCountIsSeventeen = Assert<
+  (typeof BOOKER_PATH_LIVE_REGION_FILES)["length"] extends 17 ? true : false
 >;
 
 // ---------------------------------------------------------------------------
@@ -823,10 +1144,19 @@ export const LIVE_REGION_KEYS: ReadonlyMap<string, LiveRegionId> = new Map(
 //     case (5) and `e2e/collision-in-place.spec.ts` case (c) both exclude it BY NAME
 //     (`.rdp-caption_label`) and both assert the exclusion is non-vacuous, so it can never widen into
 //     "ignore some regions". Anyone widening the declared set to cover vendored trees should start here.
-//   • THE EXCLUSIONS ARE A SCOPE BOUNDARY, NOT A VERDICT. Nine excluded files carry `aria-live` today
-//     and this module makes no claim that any of them is correct. Several are probably not — Phase 13's
-//     `request-countdown.tsx` is a second ticking region and rule 3 applies to it identically. Reading
-//     the list as "audited and fine" is the one misreading that would make this file harmful.
+//   • THE EXCLUSION IS A SCOPE BOUNDARY, NOT A VERDICT. There is ONE left and this module makes no
+//     claim that it is correct. It used to read: *"Nine excluded files carry `aria-live` today and this
+//     module makes no claim that any of them is correct. Several are probably not — Phase 13's
+//     `request-countdown.tsx` is a second ticking region and rule 3 applies to it identically."* That
+//     sentence was right: plan 13-14 audited the ten, REMOVED six regions that wrapped a page and
+//     reshaped the countdown, so only four of the ten survived as regions at all. The paragraph is kept
+//     rather than deleted because the general point outlives its instance — reading an exclusion list as
+//     "audited and fine" is the one misreading that would make this file harmful, and
+//     `address-autocomplete.tsx` is now the file that sentence is about.
+//   • THE FIVE `AUTHOR_NAMED_REGIONS` NAMES ARE PROSE THE GATE CANNOT JUDGE. It checks THAT each of
+//     those regions carries an author name and that no undeclared region does. Whether a given name is
+//     a LABEL or a paraphrase of the sentence it sits on — the property the whole exception turns on —
+//     is a reading, not a measurement, which is why each row records the exact string.
 //   • `at` IS AN ORDINAL, SO IT ENCODES SOURCE ORDER. Two same-kind regions in one file swapping places
 //     is invisible to the key comparison; only their `announces` text, which nothing mechanically
 //     checks, would be wrong. `slot-picker.tsx` is the only file where that is possible today.

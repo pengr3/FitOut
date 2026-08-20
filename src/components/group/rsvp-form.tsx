@@ -60,13 +60,29 @@
 //      already `size="touch"`. Its `px-1 underline` is kept, so it still reads as a link inside the
 //      sentence rather than as a third button competing with the two below it; only the hit area moved.
 //
-// ⚠ THE `full` AND `closed` ALERTS ARE DELIBERATELY UNTOUCHED. They are neither of the two regions
-// 13-UI-SPEC names here, and they differ from the refusal in the way that matters: both are decided
+// ── THE LIVE-REGION AUDIT 13-08 DEFERRED, SETTLED (plan 13-14 · GATE-03 · D-88.2) ─────────────────────────
+//
+// 13-08 left this note: *"the `full` and `closed` alerts are deliberately untouched… both are decided
 // SERVER-SIDE and are present on the first paint, so neither ever announces a change. Whether a static
 // advisory should be a region at all is the live-region audit, and `live-regions.ts` assigns this file's
-// audit to Phase 13's own inventory plan (13-14) rather than to this design pass. Note that they already
-// carry the deliberate `role="status"` DOWNGRADE from `Alert`'s hardcoded `role="alert"`, so nothing here
-// is assertive while that audit is pending.
+// audit to Phase 13's own inventory plan (13-14)."* This is that audit, and the verdict is the phase's
+// one-sentence rule: **a live region announces a CHANGE, and a freshly navigated page is not a change —
+// it is a page.** `state` is a PROP (see its own doc below), server-computed and never recomputed here,
+// so neither advisory can ever change under anybody. They are no longer regions.
+//
+// THEY KEEP THEIR BOX AND TAKE `role="note"`, which is not a third idiom but the only spelling that
+// works here. `ui/alert` HARDCODES `role="alert"` — the defect 13-08 measured on `top-up-nudge.tsx`,
+// where a static advisory announced itself assertively on every navigation — so simply deleting the
+// `role="status"` override would restore the interrupting role rather than remove the region. The other
+// shipped answer, swapping the box for `PanelCard tone="muted"` (what `TopUpNudge` did), is unavailable
+// on THIS surface: `InviteCard` already wraps `{children}` in a `PanelCard`, so a panel here nests
+// inside a panel and pays the block padding twice — the measured defect `expired-approval-state.tsx`
+// records shedding in 13-10. `note` is the ARIA role for content that is parenthetical or ancillary to
+// the main content, which is exactly what an advisory beside a form is; it is a literal value, so the
+// GATE-03 source scan can read it and see that this file holds ONE region rather than three.
+//
+// THE REFUSAL REGION BELOW IS THE ONE THAT STAYS, and it is now DECLARED in `live-regions.ts` rather
+// than excluded from it.
 
 import * as React from "react";
 import Link from "next/link";
@@ -237,9 +253,10 @@ export function RsvpForm({
   // ── Closed (D-120, the DB clock) ────────────────────────────────────────────────────────────────────────
   if (state === "closed") {
     return (
-      // Neutral, and announced. `Alert` hardcodes role="alert"; role="status" is passed to override it,
-      // because a session that has already started is information, not an emergency.
-      <Alert role="status" aria-live="polite">
+      // Neutral, and NOT announced. `Alert` hardcodes role="alert"; `note` is passed to override it,
+      // because a session that has already started is neither an emergency nor a change — it is the
+      // state this page arrived in. See the header for why the override cannot simply be deleted.
+      <Alert role="note">
         <LockIcon aria-hidden="true" />
         <AlertTitle>RSVPs have closed</AlertTitle>
         <AlertDescription>This session has already started.</AlertDescription>
@@ -333,7 +350,10 @@ export function RsvpForm({
 
         {/* ── Full (D-112, a courtesy — see rule 1) ─────────────────────────────────────────────────── */}
         {state === "full" && (
-          <Alert role="status" aria-live="polite">
+          // `note`, not a region: `state` is a server prop, so this advisory is on the first paint or
+          // it is never there at all. See the header — and note that the SERVER's refusal sentence,
+          // which is what a guest hears if they submit anyway, is the region three elements below.
+          <Alert role="note">
             <UsersRoundIcon aria-hidden="true" />
             <AlertTitle>This group is full</AlertTitle>
             <AlertDescription>
