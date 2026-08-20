@@ -321,7 +321,7 @@ Plans:
 
 - [x] 13-04-PLAN.md — the reversed state: two money truths, and it survives `?paid=1`'s removal (Wave 2)
 - [x] 13-05-PLAN.md — STATE-08: a refund amount, a headcount and a voided invite leave the toasts (Wave 2)
-- [ ] 13-06-PLAN.md — the cancel review page's three items, and the email refund-window copy constant (Wave 2)
+- [x] 13-06-PLAN.md — the cancel review page's three items, and the email refund-window copy constant (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -516,7 +516,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
-| 13. Confirmation, Bookings & Trust | v1.1 | 5/16 | In Progress|  |
+| 13. Confirmation, Bookings & Trust | v1.1 | 6/16 | In Progress|  |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 13-05-PLAN.md
-last_updated: "2026-08-20T07:44:34.801Z"
+stopped_at: Completed 13-06-PLAN.md
+last_updated: "2026-08-20T08:16:30.171Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 59
+  completed_plans: 60
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 6 of 16
-Current Plan: 6
+Plan: 7 of 16
+Current Plan: 7
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -371,6 +371,7 @@ Last activity: 2026-08-20
 | Phase 13 P03 | 28min | 3 tasks | 8 files |
 | Phase 13 P04 | 33min | 3 tasks | 6 files |
 | Phase 13 P05 | 40min | 2 tasks | 11 files |
+| Phase 13 P06 | 28min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -703,6 +704,9 @@ Recent decisions affecting current work:
 - [Phase 13]: 13-05: the link-rotation alert is DERIVED from the inviteUrl ShareLinkBox renders, not pushed by a callback — a refused or rate-limited regeneration leaves the URL alone and announces nothing, and the new credential still never crosses RegenerateLinkButton (D-118)
 - [Phase 13]: 13-05: the organizer +1 (D-113) now lives at THREE sites, and the invariant is restated in its checkable form — all three increment the RAW count and none increments each other; a count of sites would have gone stale at the fourth, the never-count-twice property does not
 - [Phase 13]: 13-05: attendee-roster.tsx became a client island to own the removal announcement — an announcement of a change is state; measured cost is zero new fields in the client payload (the entries already crossed for RemoveAttendeeButton) and no money crosses, so GATE-05 is untouched
+- [Phase ?]: 13-06: the refund email states the RAIL-FREE window, not a per-rail one — sendRefundIssued is never handed a rail and adding one would move a call site D-78 protects; per-rail email copy is a notify-payload change owned by Phase 15
+- [Phase ?]: 13-06: a ZERO refund quote renders no window sentence at all — a rail's window under a 'Refund to you PHP 0.00' row claims money is moving when none is
+- [Phase ?]: 13-06: the cancel page is NOT added to card-pattern-coverage's CARD_SURFACES (that inventory is 11-UI-SPEC's twelve, derived as 2+5+5); its ALLOWED_RAW_CARD row stays and must be removed only if the file moves
 
 ### Pending Todos
 
@@ -808,8 +812,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T07:44:28.090Z
-Stopped at: Completed 13-05-PLAN.md
+Last session: 2026-08-20T08:16:21.302Z
+Stopped at: Completed 13-06-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
