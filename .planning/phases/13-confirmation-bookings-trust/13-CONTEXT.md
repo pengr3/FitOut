@@ -24,12 +24,12 @@ STATE-08.
 
 > **Decision-ID namespace — read before citing a number.** These continue the per-phase CONTEXT
 > sequence (Phase 10 = D-01…D-22, Phase 11 = D-23…D-36, Phase 12 = D-37…D-59), so **Phase 13 runs
-> D-60…D-93**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
+> D-60…D-95**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
 > **D-62** (demand-first booking-mode default flip, cited in `src/lib/db/schema.ts:199`), **D-66** (no
 > React Email / no new email stack), **D-75** (the all-in rate never goes up) and **D-79** (what
 > actually went back to the booker, cited in `src/app/(app)/bookings/[id]/page.tsx:169`). The collision
 > is pre-existing — Phase 11's D-30/D-31 and Phase 12's D-42…D-50 collide the same way — and is
-> recorded rather than silently inherited. **When citing any number in D-60…D-93, say which
+> recorded rather than silently inherited. **When citing any number in D-60…D-95, say which
 > namespace**: "13-CONTEXT D-62" or "PROJECT D-62". Never a bare number.
 
 > **Governing principle carried forward, not re-decided — 12-CONTEXT D-59:** when two options both
@@ -321,6 +321,25 @@ STATE-08.
   (explicitly deferred *to this phase* by 11-UI-SPEC), and three STATE-08 toast→alert corrections in
   `src/components/group/**` (a refund amount or a reduced headcount must be an in-page alert, never a
   toast). ⚠ These are corrections, not scope creep — but they are recorded so the phase's size is honest.
+
+### UI-checker flags closed (2026-08-20)
+
+The UI safety gate returned **APPROVED** (6/6 dimensions; all 8 phase-specific locked-decision checks
+compliant). Two non-blocking flags are closed HERE rather than left to an executor's judgement, because
+both are places where ambiguity would produce invented copy.
+
+- **D-94: `<MoneyStatement/>` mounts ONLY on a status that has a specified sentence — never on the
+  others, and an executor MUST NOT invent one.** The spec's shell pseudocode places it in every status
+  branch while the copy table supplies sentences for four (pending, not-completed, reversed, cancelled).
+  D-73's own scope is *"above the fold in every **payment** state"*, and VALIDATION's acceptance criterion
+  tests only the three payment states. **Resolution:** the component renders where a sentence is defined
+  and is absent elsewhere; the remaining statuses carry their money facts through the status-meaning
+  sentence and the itemised-total panel, which already own them. ⚠ If a planner or executor believes a
+  fifth status needs a money sentence, that is a question to raise, not a sentence to write.
+
+- **D-95: The pending state's manual control is labelled "Refresh status", not bare "Refresh".**
+  A single-word verb with no object fails the copy guideline the gate flagged. The `Copy` control keeps
+  its visible single word because it already carries `aria-label="Copy booking reference"`.
 
 ### Claude's Discretion
 

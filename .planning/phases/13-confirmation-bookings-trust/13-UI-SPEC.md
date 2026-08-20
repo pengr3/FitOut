@@ -1,7 +1,7 @@
 ---
 phase: 13
 slug: confirmation-bookings-trust
-status: draft
+status: approved
 shadcn_initialized: true
 preset: "radix-nova (components.json; baseColor neutral, cssVariables true, registries {})"
 created: 2026-08-20
