@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 14
+current_plan: 15
 status: executing
-stopped_at: Completed 13-13-PLAN.md
-last_updated: "2026-08-20T18:47:03.962Z"
-last_activity: 2026-08-20
+stopped_at: Completed 13-14-PLAN.md
+last_updated: "2026-08-20T19:30:40.436Z"
+last_activity: 2026-08-21
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 67
+  completed_plans: 68
   percent: 27
 ---
 
@@ -45,10 +45,46 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 14 of 16
-Current Plan: 14
+Plan: 15 of 16
+Current Plan: 15
 Total Plans in Phase: 16
 Status: Ready to execute
+
+**13-14 IS DONE (`b00747b` · `81157ee`) — the live-region debt this phase inherited is DISCHARGED BY
+AUDIT, and the numbers in it were all re-measured rather than carried forward.** `LIVE_REGION_EXCLUSIONS`
+went **11 → 1** (only Phase 14's host wizard remains); the declared set went **11 → 17 files / 16 → 23
+regions**; `DeclaredFileCountIsEleven` → `…IsSeventeen`, **watched failing** at eleven with
+`error TS2344: Type 'false' does not satisfy the constraint 'true'`. Six regions were DELETED because they
+wrapped a freshly navigated page — *a live region announces a CHANGE, and a page is not a change* — and
+`request-countdown.tsx` was brought to rule 3: the threshold message **latches**, the expiry arm is gone
+(the page-level state owns expiry), `role="timer"` is off the expired render, and a countdown that MOUNTS
+inside its final hour says nothing at all.
+
+⚠ **THE MOST TRANSFERABLE FINDING — THE SPEC NAMED TWO FILES THAT DO NOT HOLD THE REGIONS IT ASSIGNS
+THEM.** 13-UI-SPEC gives `group/page.tsx` "the two STATE-08 alerts" and `invite-card.tsx` "the RSVP
+result". Measured off an AST walk: 13-05 put both alerts in the CLIENT ISLANDS (`attendee-roster.tsx`,
+`share-link-box.tsx`) and the RSVP result is in `rsvp-confirmation.tsx`, which `invite-card.tsx` does not
+render — and `invite-card.tsx` holds no region at all since 13-08, so it is discharged by REMOVAL and
+declared nowhere. Taking the document as the answer would have written two rows describing regions that do
+not exist. **Measure the set; the spec schedules the work, it does not report the tree.**
+
+⚠ **A BLANKET BAN THAT MEETS FIVE SHIPPED, ARGUED, TEST-PINNED COUNTER-EXAMPLES BECOMES A CLOSED
+EXCEPTION SET — NOT A RELAXED PREDICATE.** SCAN 3 forbade an `aria-label` on any non-`loading` region;
+widening the set put 13-02's, 13-05's and 13-08's five WRAPPER regions on the wrong side of it, two of them
+pinned by `payment-states.test.tsx` and `state08-alerts.test.tsx`. Stripping the names would have moved
+pins that fire on correct code. Instead `AUTHOR_NAMED_REGIONS` declares each with a `why` and the exact
+label, asserted in BOTH directions (a named region missing from the list fails; a row whose region carries
+no name fails) — and the scan now RESOLVES `aria-label={IDENT}` through module consts, so *"resolves to a
+non-empty accessible name"* is checked as a VALUE rather than as the presence of an attribute.
+
+⚠ **THE `aria-live` COUNT: 13 by text, 7 by markup.** 13-08 predicted 18. Neither 19 nor 18 was ever going
+to be right — five plans had removed regions since. Both readings and the reason they differ now live in
+`live-regions.ts`. **Do not carry any count forward without re-reading the tree.** Three more grep/prose
+collisions recorded (`role="timer"` 3-not-1, `aria-live="off"` 2-not-1, `assertive` 3-hits-not-0) — all
+satisfied with comment lines stripped; the design gate already strips them and asserts from the AST too.
+Gates: `npm test` **1516 / 4 skipped / 0 failed**, design **791 / 3 skipped**, `npm run build` clean,
+`tsc` exit 0, `drizzle/` unchanged, zero files deleted. **STATE-08 and TRUST-01 deliberately NOT marked** —
+13-05 declined the same call, and TRUST-01 closes PARTIAL by D-64.
 
 **13-12 IS DONE (`79d5b5d` · `57cf306` · `b702882`) — `/bookings/[id]/receipt` exists, and it is the
 phase's ONE net-new route.** Screen and print, with the browser's own dialog as the entire PDF pipeline
@@ -293,7 +329,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-20
+Last activity: 2026-08-21
 
 ## Performance Metrics
 
@@ -452,6 +488,7 @@ Last activity: 2026-08-20
 | Phase 13 P11 | 47min | 3 tasks | 8 files |
 | Phase 13 P12 | 47m | 3 tasks | 13 files |
 | Phase 13 P13 | 53min | 4 tasks | 5 files |
+| Phase 13 P14 | 40min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -805,6 +842,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-12: a receipt for a cancelled/reversed booking takes the PUBLIC address projection — bookedListingAddress() grants the exact street to booked statuses only, and this document is printable
 - [Phase ?]: 13-13: Assumption A1 SETTLED, good branch live — the next/font/google build of Geist ships a working tnum table. Measured in both themes on the receipt route: the money pair is 0px apart WITH tabular-nums and 42.7px (court) / 49.0px (grove) apart WITHOUT it. The utility is load-bearing on every money surface, not decorative. No Phase-17 finding.
 - [Phase ?]: 13-13: print suppression is measured with checkVisibility() + a null bounding box, never computed display — computed display is an element's OWN value, so an element inside a display:none ancestor still reports its own. A first draft asserted display:none on the receipt status pill and went red on correct code.
+- [Phase ?]: 13-14: SCAN 3's blanket ban on a named non-loading live region became AUTHOR_NAMED_REGIONS — a closed exception set with a mandatory reason and the exact label per row, asserted in BOTH directions. Stripping the five shipped wrapper names would have reversed 13-02/05/08 and broken two pinning tests.
+- [Phase ?]: 13-14: the discharged live-region set is 17 files / 23 regions / 1 exclusion, MEASURED off an AST walk rather than read off 13-UI-SPEC's table, which assigned two regions to files that do not hold them.
+- [Phase ?]: 13-14: aria-live grep count RE-MEASURED — 13 by text, 7 by markup. 13-08's predicted 18 was never true; do not carry these figures forward without re-reading the tree.
 
 ### Pending Todos
 
@@ -910,8 +950,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T18:46:57.054Z
-Stopped at: Completed 13-13-PLAN.md
+Last session: 2026-08-20T19:30:20.314Z
+Stopped at: Completed 13-14-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z

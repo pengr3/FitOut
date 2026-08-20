@@ -347,7 +347,7 @@ Plans:
 **Wave 8** *(blocked on Wave 7 completion)*
 
 - [x] 13-13-PLAN.md — the receipt parity, print-media and glyph-width proofs (Wave 8)
-- [ ] 13-14-PLAN.md — the live-region discharge and the countdown's rule-3 shape (Wave 8)
+- [x] 13-14-PLAN.md — the live-region discharge and the countdown's rule-3 shape (Wave 8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
@@ -516,7 +516,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
-| 13. Confirmation, Bookings & Trust | v1.1 | 13/16 | In Progress|  |
+| 13. Confirmation, Bookings & Trust | v1.1 | 14/16 | In Progress|  |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
