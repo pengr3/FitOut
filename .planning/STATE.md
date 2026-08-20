@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 8
+current_plan: 9
 status: executing
 stopped_at: Completed 13-07-PLAN.md
-last_updated: "2026-08-20T09:10:34.056Z"
+last_updated: "2026-08-20T09:55:45.576Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 61
+  completed_plans: 62
   percent: 27
 ---
 
@@ -45,10 +45,40 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 8 of 16
-Current Plan: 8
+Plan: 9 of 16
+Current Plan: 9
 Total Plans in Phase: 16
 Status: Ready to execute
+
+**13-08 IS DONE (`e133ed8` · `451f371`) — both group surfaces are a DESIGN PASS ONLY (D-79), and the plan's
+central test exists because the repository's card gate could not see the regression it was supposed to
+catch.** `/bookings/[id]/group` is now `PageHeader` + four `PanelCard`s + three `RowCard`s with **zero**
+`@/components/ui/card` imports in either branch; `<BookingReference/>` has its FIRST mount (TRUST-02,
+server-computed, handed down finished); the invite route moved onto the named type roles. ⚠ **THE MOST
+TRANSFERABLE FINDING:** a raw `<Card>` was restored into `attendee-roster.tsx` and
+`card-pattern-coverage.test.ts` stayed **11/11 GREEN** — its forward half only asks about DECLARED surfaces
+and its inverse half `continue`s on any file in `ALLOWED_RAW_CARD`, where **both** of this plan's files sit.
+An allow-list row exempts a file in BOTH directions, forever. That measurement is why the design gate was
+NOT edited (13-06's precedent, now with evidence instead of argument) and why `tests/group/
+group-surface-shell.test.tsx` asserts containers over the RENDERED tree via `data-slot="card"` — the only
+gate that can see a raw `<Card>` INSIDE an imported component (13-07's finding, new place). **13-05's
+deferral is discharged at page scale:** both STATE-08 alerts verified on the ASSEMBLED body — exactly one
+named `role="status"` counted across the whole surface, in a `tone="muted"` panel, above what it describes —
+plus the fact no per-component suite can express, that a freshly navigated page opens **zero** regions of
+any kind. Two live regions over STATIC content were removed as bugs: `TopUpNudge` rendered `ui/alert`, whose
+hardcoded `role="alert"` announced a static advisory ASSERTIVELY on every navigation, and `InviteInactive`
+wrapped its two frozen sentences in `role="status"`. Two regions that computed an EMPTY accessible name
+(`nameFrom: author`) gained labels. Invite security **measured, not assumed**: both inactive entrances render
+**1613 identical bytes** after the restyle, with that measurement watched failing at 1613 vs 1614 — because
+`invite-notfound-parity.test.ts` asserts IMPORTS by its own design and is green either way. ⚠ Operational
+scar: restoring a probe with `git checkout -- <file>` **destroyed this plan's own uncommitted work** in that
+file; probes restore from a saved copy (13-02 said so in one clause and this is why it matters). Gates:
+`npm test` 149 files / 1393 tests exit 0 (+1 file, +10 tests = exactly this plan's suite), design **44/776
+UNCHANGED** (no design file moved), `npm run build` exit 0, drizzle still `0025_audit_resolved_by.sql`, zero
+packages, **10 files** against the plan's declared 11. **Zero requirements marked:** TRUST-02 is still
+hand-rolled on the booking detail page, and STATE-08's second remaining claim is 13-14's live-region gate.
+Deferred to `deferred-items.md`: the two group confirm overlays stay on `ui/dialog` (outside the declared
+file set), and `live-regions.ts`'s prose `aria-live` count drifts 19 → 18 for 13-14 to re-measure.
 
 **13-02 IS DONE (`b04f9ae` · `b1f452d` · `75cb31e`) — the three shared domain components exist and NOTHING
 mounts them, which is the plan's own instruction.** `MoneyStatement` (STATE-06/D-73) composes `PanelCard
@@ -373,6 +403,7 @@ Last activity: 2026-08-20
 | Phase 13 P05 | 40min | 2 tasks | 11 files |
 | Phase 13 P06 | 28min | 2 tasks | 3 files |
 | Phase 13 P07 | 95min | 3 tasks | 9 files |
+| Phase 13 P08 | 35min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -710,6 +741,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-06: the cancel page is NOT added to card-pattern-coverage's CARD_SURFACES (that inventory is 11-UI-SPEC's twelve, derived as 2+5+5); its ALLOWED_RAW_CARD row stays and must be removed only if the file moves
 - [Phase ?]: 13-07: RequestCountdown gained a finalHourEmphasis opt-out (default unchanged) — its alarm-colour emphasis is permanent on a 15-minute hold, which 13-UI-SPEC Color forbids for this phase
 - [Phase ?]: 13-07: the pending branch discriminates row-first (hold liveness vs the DB clock) then probe; every other answer keeps the shipped redirect, because a false money statement is worse than a navigation
+- [Phase ?]: 13-08: card-pattern-coverage.test.ts NOT modified — MEASURED: with a raw <Card> restored into attendee-roster.tsx that gate stays 11/11 green, because both of this plan's files sit on ALLOWED_RAW_CARD, which exempts a file in BOTH directions. tests/group/group-surface-shell.test.tsx (data-slot=card over the RENDERED tree) is now the only guard on those containers.
+- [Phase ?]: 13-08: the group confirm overlays stay on ui/dialog rather than ResponsiveDialog — both files sit outside the plan's declared file set and carry 13-05's STATE-08 plumbing; sheet-absent.test.ts (that clause's falsifiable half) is green. Logged in deferred-items.md.
 
 ### Pending Todos
 
@@ -815,7 +848,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T09:10:34.025Z
+Last session: 2026-08-20T09:55:23.311Z
 Stopped at: Completed 13-07-PLAN.md
 Resume file: None
 
