@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 13
+current_plan: 14
 status: executing
-stopped_at: Completed 13-12-PLAN.md
-last_updated: "2026-08-20T17:48:51.360Z"
+stopped_at: Completed 13-13-PLAN.md
+last_updated: "2026-08-20T18:47:03.962Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 66
+  completed_plans: 67
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 13 of 16
-Current Plan: 13
+Plan: 14 of 16
+Current Plan: 14
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -451,6 +451,7 @@ Last activity: 2026-08-20
 | Phase 13 P10 | 71 | 3 tasks | 17 files |
 | Phase 13 P11 | 47min | 3 tasks | 8 files |
 | Phase 13 P12 | 47m | 3 tasks | 13 files |
+| Phase 13 P13 | 53min | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -802,6 +803,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-12: the receipt's h1 is text-heading, not Display — the focal point is the itemisation and its Total (type-scale.test.ts caught the first draft; Display inventory unchanged at 14/11)
 - [Phase ?]: 13-12: PanelCard's print flattening lives in panel-card.tsx because DS-11 owns the box and the component takes no className; print:shadow-none was REMOVED as inert (elevation-z's pin was right to fire)
 - [Phase ?]: 13-12: a receipt for a cancelled/reversed booking takes the PUBLIC address projection — bookedListingAddress() grants the exact street to booked statuses only, and this document is printable
+- [Phase ?]: 13-13: Assumption A1 SETTLED, good branch live — the next/font/google build of Geist ships a working tnum table. Measured in both themes on the receipt route: the money pair is 0px apart WITH tabular-nums and 42.7px (court) / 49.0px (grove) apart WITHOUT it. The utility is load-bearing on every money surface, not decorative. No Phase-17 finding.
+- [Phase ?]: 13-13: print suppression is measured with checkVisibility() + a null bounding box, never computed display — computed display is an element's OWN value, so an element inside a display:none ancestor still reports its own. A first draft asserted display:none on the receipt status pill and went red on correct code.
 
 ### Pending Todos
 
@@ -907,8 +910,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T17:48:09.333Z
-Stopped at: Completed 13-12-PLAN.md
+Last session: 2026-08-20T18:46:57.054Z
+Stopped at: Completed 13-13-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
