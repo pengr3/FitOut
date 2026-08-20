@@ -506,6 +506,19 @@ const GATE_TREE = ["src/app/", "src/components/"] as const;
  * confirmation moment — so the string is now rendered by the component that owns it, at the role the
  * contract assigns it, with the copy control TRUST-02 also requires. The three that remain are the
  * `<h1>`s of the requested, approved and confirmed branches, which are the page's real headings.
+ *
+ * ─── ONE ROW ADDED BY PLAN 13-11 (13 → 14), AND IT IS THE ONE SURFACE DISPLAY EXISTS FOR ─────────
+ * `components/booking/confirmation-moment.tsx` renders BFLOW-08's post-payment first screen, whose
+ * `<h1>` 13-UI-SPEC § Type Scale names in the Display role's own definition (*"the confirmation
+ * moment's `<h1>`; the detail page's `<h1>` on later visits"*) — so this is the role's headline call
+ * site rather than a new surface reaching for it. It is ONE site: the moment carries exactly one
+ * `<h1>` and no competing `<h2>`, asserted as a count in `tests/booking/confirmation-moment.test.tsx`.
+ *
+ * ⚠ IT DOES NOT PAIR WITH A `loading.tsx` ROW the way the 11-17 pair did, and the absence is correct
+ * rather than an omission: the moment renders only on `?paid=1` AND a `confirmed` booking, so the
+ * segment's loading plate — which fronts all ten status renders and knows none of them — must NOT
+ * reserve a screen-filling success box it will usually be wrong about. `bookings/[id]/loading.tsx`
+ * renders no heading at all, which is why it appears nowhere in this map.
  */
 const DISPLAY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/(app)/bookings/[id]/cancel/page.tsx": 1,
@@ -515,6 +528,7 @@ const DISPLAY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/listings/[id]/(detail)/page.tsx": 1,
   "src/app/listings/[id]/book/loading.tsx": 1,
   "src/app/listings/[id]/book/page.tsx": 1,
+  "src/components/booking/confirmation-moment.tsx": 1,
   "src/components/booking/refund-breakdown.tsx": 1,
   "src/components/group/headcount-meter.tsx": 1,
   "src/components/host/payout-summary.tsx": 2,
@@ -711,9 +725,9 @@ describe("DS-02 second clause — no surface pins a font size to a pixel literal
     expect(scan.slashModifier).toEqual([]);
   });
 
-  it("carries exactly 13 Display call sites, in the 10 files that own them", () => {
+  it("carries exactly 14 Display call sites, in the 11 files that own them", () => {
     expect(scan.display).toEqual(DISPLAY_INVENTORY);
-    expect(totalOf(scan.display)).toBe(13);
+    expect(totalOf(scan.display)).toBe(14);
   });
 
   it("routes the two sub-label numerals onto the built-in `text-xs` step", () => {

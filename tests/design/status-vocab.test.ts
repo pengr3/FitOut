@@ -153,6 +153,39 @@ const POSITIVE_CALL_SITES = [
   "src/components/listing/listing-card.tsx",
 ] as const;
 
+/**
+ * The files that carry the success hue as a BARE MARK rather than as a status chip's icon.
+ *
+ * ─── ADDED BY PLAN 13-11, AND IT IS A THIRD CATEGORY RATHER THAN A FIFTH CALL SITE ──────────────
+ *
+ * `confirmation-moment.tsx` renders BFLOW-08's post-payment first screen, whose success mark
+ * 13-UI-SPEC § Color names as the phase's ONE use of the token: *"the confirmation moment's success
+ * mark, as an **icon**, `text-success` on `--background` (3.0 non-text bar, declared 4.00 / 3.86)"*.
+ * It is a `size-10` `CheckCircle2` standing alone above an `<h1>`, on the page ground.
+ *
+ * WHY IT IS NOT A ROW IN `POSITIVE_CALL_SITES`. That list is the set of STATUS CHIPS, and the
+ * assertions keyed on it require the recipe's `surface` and `text` on ONE element — a chip has a
+ * `bg-muted` fill and a `text-foreground` label with the hue on its glyph. This mark has no fill and
+ * no label: there is no chip. Adding it to that list would have forced either a false pass (relaxing
+ * the same-element requirement, which is WR-09's whole subject) or a `bg-muted` box painted around a
+ * success mark purely to satisfy a test — a design change made by a gate, which is backwards.
+ *
+ * WHY IT STILL HAS TO BE DECLARED SOMEWHERE. The icon-site assertion below is a SET EQUALITY over
+ * every file using the hue, and that is the property worth keeping: an undeclared file reaching for
+ * `--success` is exactly the drift DS-10 exists to catch. So the set is now the union of the two
+ * inventories, each named for what it is — the same shape `LEGAL_FILLED_PAIRING_SITE` above already
+ * uses to record the one legal filled pairing rather than to widen a ban.
+ *
+ * ⚠ THE HUE'S SCARCITY IS THE POINT. This inventory is a RECORD OF A DECISION, not a bucket. A
+ * second bare success mark anywhere in the product goes red here and should — D-14's thesis is that
+ * green retreats to the icon, and a hue that appears on every satisfied outcome stops meaning the
+ * one that matters.
+ */
+const SUCCESS_GLYPH_SITES = ["src/components/booking/confirmation-moment.tsx"] as const;
+
+/** Every file allowed to name the success hue at a call site, whatever shape it takes. */
+const SUCCESS_HUE_SITES = [...POSITIVE_CALL_SITES, ...SUCCESS_GLYPH_SITES] as const;
+
 /** Where a call site may live. `src/lib/` is excluded: the vocabulary itself declares these classes. */
 const CALL_SITE_TREES = ["src/app/", "src/components/"] as const;
 
@@ -621,8 +654,33 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     expect(scan.retiredPairingSites).toEqual([LEGAL_FILLED_PAIRING_SITE]);
   });
 
-  it("re-treats exactly the four shipped status chips onto the positive recipe", () => {
-    expect([...scan.positiveIconSites].sort()).toEqual([...POSITIVE_CALL_SITES].sort());
+  it("names the success hue in exactly the five declared files, and nowhere else", () => {
+    // TWO INVENTORIES, ONE SET (plan 13-11). Four status chips carry it on their glyph; one bare
+    // mark carries it alone, on the confirmation moment. See `SUCCESS_GLYPH_SITES` for why the
+    // second is a distinct category rather than a fifth chip. The equality is over the UNION, so an
+    // undeclared file reaching for `--success` still fails here whichever shape it reaches in.
+    expect([...scan.positiveIconSites].sort()).toEqual([...SUCCESS_HUE_SITES].sort());
+  });
+
+  it("keeps the bare success mark scarce — exactly ONE file, and it is the confirmation moment", () => {
+    // Asserted separately from the union above, because the union alone would go green if a chip
+    // were quietly re-declared as a mark or vice versa. The hue's meaning comes from its scarcity:
+    // 13-UI-SPEC gives this phase ONE use of the token and this is the record of it.
+    expect(SUCCESS_GLYPH_SITES).toEqual(["src/components/booking/confirmation-moment.tsx"]);
+    for (const site of SUCCESS_GLYPH_SITES) {
+      const code = scan.code.get(site) ?? "";
+      expect(code.length, `${site} produced no stripped code`).toBeGreaterThan(0);
+      // From STRIPPED code, for `positive`'s reason (CR-03): read raw, a comment naming the hue
+      // satisfies this for a mark that has lost it.
+      expect(usesClass(code, STATUS_TONE_RECIPES.positive.icon)).toBe(true);
+      // …and it is a MARK, not a chip: it carries no filled surface of its own on any element.
+      const chunks = scan.utilities.get(site) ?? [];
+      expect(
+        chunks.some((u) => u.has(STATUS_TONE_RECIPES.positive.surface)),
+        `${site} paints a chip surface around the success mark — DS-10 retired the filled green ` +
+          "badge, and green retreats to the icon on the page ground",
+      ).toBe(false);
+    }
   });
 
   it("each of the four carries the positive recipe BY VALUE, on ONE element (WR-09)", () => {

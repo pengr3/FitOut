@@ -183,6 +183,11 @@ export const SELECTOR_IDS = [
   // 13-10 — the ordinary booking detail, one shell rendered eight ways. It is the sibling every
   // "nothing important lives only in the moment" assertion has to name, so it ships with the shell.
   "booking-detail",
+  // 13-11 — BFLOW-08's post-payment first screen. Declared in the SAME commit as the component, one
+  // task earlier than this plan scheduled it, for the reason 13-09's `trust-block` row records: the
+  // contract is bidirectional, so the gate went red on `Rendered-but-undeclared: [confirmation-moment]`
+  // the moment the literal shipped.
+  "confirmation-moment",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -734,5 +739,33 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "components, so a container query keyed on it resolves on routes this hook has nothing to say " +
       "about. THE HOOK SITS ON THE SECTION AND NOT ON THE SHELL `div` for exactly that reason.",
     owner: "13-10",
+  },
+
+  // ─── 13-11 ─────────────────────────────────────────────────────────────────────────────────────────
+  "confirmation-moment": {
+    why:
+      "IT IS A `<section>` WITH NO ROLE, and both assertions it exists for are about its BOX and its " +
+      "ABSENCE rather than about anything inside it. A `<section>` acquires the `region` role only " +
+      "when it carries an accessible name, and naming this one would put a landmark inside the " +
+      "layout's `main` for no reader's benefit — the `<h1>` immediately inside it already says what " +
+      "the screen is. " +
+      "THE FIRST ASSERTION IS A MEASUREMENT, AND IT IS WHAT MAKES BFLOW-08 FALSIFIABLE. The " +
+      "requirement asks for a *distinct* confirmation moment, which is an adjective; the executable " +
+      "form is a height on THIS element of at least the viewport minus the header, beside " +
+      "`booking-detail`'s own top edge sitting at or past the viewport height — the ordinary page " +
+      "starts below the fold. Neither is expressible as a role, a name or a text query, and a box has " +
+      "to be addressed before it can be measured. " +
+      "THE SECOND IS AN ABSENCE, WHICH IS THE DECAY ITSELF (D-60). After the client rewrites the URL " +
+      "in place, a reload must render `booking-detail` and ZERO of this element. An element COUNT is " +
+      "the only form that expresses it: a role query would resolve against the detail's own content " +
+      "and report a pass on the very document the assertion is trying to distinguish. " +
+      "A TEXT QUERY WOULD ALSO BE CIRCULAR in the way this contract's copy-adjacent rows describe — " +
+      "the `<h1>` is one of two strings chosen per booking mode, so matching on it would require " +
+      "knowing the mode in order to find the element that proves the mode was stated. " +
+      "IT IS NOT ADDRESSABLE BY ITS SHELL EITHER: `BOOKING_SHELL` is a className shared with the " +
+      "detail branches, `cancel/page.tsx`, `group/page.tsx`, three `loading.tsx` files and the four " +
+      "payment/lapse state components, so a container query keyed on it resolves on routes this hook " +
+      "has nothing to say about.",
+    owner: "13-11",
   },
 };
