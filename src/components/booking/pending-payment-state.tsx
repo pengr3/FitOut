@@ -16,6 +16,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
+import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -49,7 +50,12 @@ export function PendingPaymentState() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    // It renders as a `div`: `(app)/layout.tsx:96` already wraps `{children}` in this route's ONE
+    // `main` landmark, and a second one nested inside it is a landmark this file has no reason to add
+    // (D-88.1). This is the THIRD place the rule has had to be restated — `bookings/[id]/loading.tsx:14-15`
+    // and `[id]/page.tsx`'s own header are the other two — so it is restated here rather than delegated
+    // to a sibling the next author has no reason to open.
+    <div className={BOOKING_SHELL}>
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
           {/* Neutral, decorative spinner — the text status below (aria-live) is what SR users hear. */}
@@ -71,6 +77,6 @@ export function PendingPaymentState() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }
