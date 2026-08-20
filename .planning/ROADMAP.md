@@ -307,7 +307,26 @@ Plans:
   4. A payment that did not complete, one still settling, and one reversed are three visibly different things: *not completed* states "you haven't been charged" and offers retry plus the alternative rails inline; *pending settlement* offers no error affordance at all while the webhook is still the outstanding authority; *reversed* makes an explicit money statement with a support path carrying the reference. Each states where the money is, in words, above the fold.
   5. Terminal success is a full-page moment and non-terminal success is a toast — and anything the user must actually read (a refund amount, a reduced headcount, a voided invite) is an in-page alert, never a toast.
 
-**Plans**: TBD
+**Plans**: 16 plans in 10 waves
+
+Plans:
+- [ ] 13-01-PLAN.md — the booking shell constant, the nested-`<main>` fix, and the payment-state seed helper (Wave 1)
+- [ ] 13-02-PLAN.md — the shared domain pieces: MoneyStatement, the guarded SupportPath, BookingReference (Wave 1)
+- [ ] 13-03-PLAN.md — the D-84 PayMongo probe with an opt-in timeout, the verified refund windows, and the zero-migration / qrph pins (Wave 1)
+- [ ] 13-04-PLAN.md — the reversed state: two money truths, and it survives `?paid=1`'s removal (Wave 2)
+- [ ] 13-05-PLAN.md — STATE-08: a refund amount, a headcount and a voided invite leave the toasts (Wave 2)
+- [ ] 13-06-PLAN.md — the cancel review page's three items, and the email refund-window copy constant (Wave 2)
+- [ ] 13-07-PLAN.md — the net-new not-completed state and the pending state's promise (Wave 3)
+- [ ] 13-08-PLAN.md — the group surfaces' design-system pass, and nothing else (Wave 3)
+- [ ] 13-09-PLAN.md — the closed four-signal trust block and the post-payment address boundary (Wave 4)
+- [ ] 13-10-PLAN.md — the detail page across every status, plus the owner-safe not-found (Wave 5)
+- [ ] 13-11-PLAN.md — the confirmation moment, and its decay (Wave 6)
+- [ ] 13-12-PLAN.md — the receipt route, screen and print (Wave 7)
+- [ ] 13-13-PLAN.md — the receipt parity, print-media and glyph-width proofs (Wave 8)
+- [ ] 13-14-PLAN.md — the live-region discharge and the countdown's rule-3 shape (Wave 8)
+- [ ] 13-15-PLAN.md — the phase-wide surface gates and the eleven visual-baseline fixtures (Wave 9)
+- [ ] 13-16-PLAN.md — the baseline dispatch, the four manual-only walks, and the PARTIAL closes (Wave 10, checkpoints)
+
 **UI hint**: yes
 
 **Scope note:** this phase owns `/bookings/**` on the booker side plus the group surfaces (`/invite/[token]`, `/bookings/[id]/group`). Research treated group/open-capacity as a fourth parallel track; REQUIREMENTS.md defines **no separate REQ-IDs** for it, so a standalone phase would carry zero requirements. Folded here instead — `/invite/[token]` is a post-booking artifact and the open-capacity picker is a pre-hold listing surface (Phase 12). Stated as a deliberate departure from the research's phase shape, with the reason.
