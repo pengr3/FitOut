@@ -34,14 +34,18 @@
 // Three facts, in the order they matter:
 //   1. Row #1 is a display FIXTURE. The organizer has no `rsvpId` and no `rsvp` row of their own — which is
 //      also the reason `capacity_snapshot` excludes them (it caps rows, and they never occupy one).
-//   2. The management page adds the organizer back ONCE, at the one place with the organizer as its
-//      audience: it renders the meter as `confirmed + 1` of `capacity + 1` and hands the nudge an
-//      organizer-inclusive `attendingTotal`. So the figure above this list and the list itself agree —
-//      they would only disagree if the meter left out the person the roster visibly puts first.
+//   2. The organizer is added back at the places whose AUDIENCE is the organizer, and each of them adds
+//      one to the RAW count. There are three, and plan 13-05 added the third: the management page renders
+//      the meter as `confirmed + 1` of `capacity + 1` and hands the nudge an organizer-inclusive
+//      `attendingTotal`, and `removeAttendee` returns an organizer-inclusive `attending` for the removal
+//      alert below. So the figure above this list, the sentence above it, and the list itself all agree —
+//      they would only disagree if one of them left out the person the roster visibly puts first.
 //   3. THE ONE THING THAT MUST NEVER HAPPEN IS COUNTING THEM TWICE. `submitRsvp` deliberately lets an
 //      organizer answer their own link, so a real `rsvp` row can exist for the same person this fixture
-//      renders; adding a second `+ 1` anywhere — here, in `getHeadcount`, or in a second call site — would
-//      claim a body that does not exist and, via the nudge, an overage nobody owes.
+//      renders; adding a second `+ 1` anywhere — here, in `getHeadcount`, or on top of a figure that
+//      already includes them — would claim a body that does not exist and, via the nudge, an overage
+//      nobody owes. Note the shape of the three sites: all three increment `confirmed`, and none of them
+//      increments each other.
 //
 // `no` rows live in a COLLAPSED native `<details>`: they are real information the organizer asked for, but
 // they are not the point of the surface, and a native disclosure is keyboard-operable and screen-reader
@@ -51,9 +55,33 @@
 // hue-indistinguishable by design (§New Tokens), so colour alone could never have carried the distinction
 // (08-UI-SPEC §Accessibility).
 //
-// Not "use client" — a pure presentational component the management RSC renders directly. The one
-// interactive control on a row (Remove attendee) is its own client island.
+// ── STATE-08 (plan 13-05) — THIS FILE OWNS THE REMOVAL ANNOUNCEMENT, AND IS THEREFORE A CLIENT ISLAND ────
+//
+// IT USED TO SAY "Not `use client`". That is no longer true, and the reason is the requirement rather
+// than a convenience. The removal outcome — *"{Name} removed — {N} coming, {M} spots free."* — is a
+// CAPACITY fact: it changes who the organizer can still ask, so STATE-08 puts it in an addressable
+// in-page alert instead of a toast that is dismissible, timed and gone on refresh. An announcement of a
+// change is state, state needs a client boundary, and the alert belongs directly above the list it
+// describes. The alternative shapes were worse: a callback into a server component is not a thing, and a
+// module-level store would have put a second mechanism on the page to move one sentence one level up.
+//
+// WHAT THE BOUNDARY ACTUALLY COSTS, measured rather than waved at: the entries were ALREADY crossing it
+// — `RemoveAttendeeButton` is a client island and takes `rsvpId` and `name` per row — and every field on
+// a `RosterEntry` is rendered into the HTML this component emits regardless. So the change adds no field
+// to the client payload that the organizer's own DOM did not already hold. It carries no money, so
+// GATE-05 is untouched.
+//
+// ⚠️ EXACTLY ONE REGION ANNOUNCES A REMOVAL (GATE-03 rule 6). The button's `toast.success` was DELETED
+// rather than kept alongside this alert; two regions for one outcome is the defect, not the belt.
+//
+// ⚠️ NO ARITHMETIC HAPPENS HERE (T-13-05-COUNTCROSS). Both figures arrive finished on the action's own
+// result — computed server-side, inside the transaction that performed the delete, from the row it holds
+// the lock on. `attending` ALREADY INCLUDES THE ORGANIZER (D-113); adding one to it here would be the
+// count-them-twice mistake this file's own header spends a paragraph on.
 
+"use client";
+
+import * as React from "react";
 import {
   CircleUserRoundIcon,
   UserRoundCogIcon,
@@ -63,11 +91,43 @@ import {
 
 import type { RosterEntry } from "@/lib/group/rsvp";
 import { EmptyState } from "@/components/patterns/empty-state";
+import { PanelCard } from "@/components/patterns/panel-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { RemoveAttendeeButton } from "@/components/group/remove-attendee-button";
+import {
+  RemoveAttendeeButton,
+  type AttendeeRemoved,
+} from "@/components/group/remove-attendee-button";
 
-function AttendeeRow({ entry, removable }: { entry: RosterEntry; removable: boolean }) {
+/**
+ * 13-UI-SPEC § Copywriting Contract → STATE-08 alerts, composed from the SERVER'S OWN NUMBERS.
+ *
+ * The only judgement this function makes is grammatical: `1 spot free` rather than `1 spots free`. It
+ * performs no arithmetic — it reads two finished figures and picks a suffix — because a plural rule is
+ * about the sentence and a count is about the group.
+ */
+function removalSentence({ name, attending, spotsFree }: AttendeeRemoved): string {
+  const places = spotsFree === 1 ? "1 spot free" : `${spotsFree} spots free`;
+  return `${name} removed — ${attending} coming, ${places}.`;
+}
+
+/**
+ * The removal region's NAME. See `share-link-box.tsx`'s twin for the full reasoning: `role="status"` is
+ * `nameFrom: author`, so without an author-supplied name the accessible name is `""` — and the name is
+ * deliberately a LABEL rather than a second copy of the sentence, because a named live region can be
+ * announced by its name instead of its content.
+ */
+const REMOVAL_REGION_NAME = "Attendee removed";
+
+function AttendeeRow({
+  entry,
+  removable,
+  onRemoved,
+}: {
+  entry: RosterEntry;
+  removable: boolean;
+  onRemoved: (removed: AttendeeRemoved) => void;
+}) {
   // D-116 — a display distinction only. It NEVER drives an authorization decision: an account RSVP and a
   // guest RSVP occupy exactly the same kind of seat.
   const AccountIcon = entry.isAccount ? CircleUserRoundIcon : UserRoundIcon;
@@ -86,9 +146,12 @@ function AttendeeRow({ entry, removable }: { entry: RosterEntry; removable: bool
           <AccountIcon className="size-3.5" aria-hidden="true" />
           {entry.isAccount ? "Account" : "Guest"}
         </Badge>
-        {/* The one interactive control on a row — a client island inside this server component. The name is
-            passed so the confirm dialog can name the person; it is escaped React text there too (G6). */}
-        {removable && <RemoveAttendeeButton rsvpId={entry.rsvpId} name={entry.name} />}
+        {/* The one interactive control on a row. The name is passed so the confirm dialog can name the
+            person; it is escaped React text there too (G6), and it comes back out on the outcome so the
+            alert above can name them without this row re-reading the list. */}
+        {removable && (
+          <RemoveAttendeeButton rsvpId={entry.rsvpId} name={entry.name} onRemoved={onRemoved} />
+        )}
       </div>
     </li>
   );
@@ -101,8 +164,33 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
   const coming = entries.filter((e) => e.status === "yes");
   const declined = entries.filter((e) => e.status === "no");
 
+  // The LAST removal, or none yet. One slot rather than a list: STATE-08's alert states the roster's
+  // current shape, and two stacked sentences would be two claims about one list, only one of them true.
+  const [removed, setRemoved] = React.useState<AttendeeRemoved | null>(null);
+
   return (
-    <Card>
+    <div className="space-y-4">
+      {/* ABOVE THE ROSTER, so the sentence is read before the list it describes (13-UI-SPEC § STATE-08),
+          and OUTSIDE the card rather than inside it — the alert is about the list, not a row of it.
+
+          `PanelCard tone="muted"` is DS-11's declared in-page advisory surface: not a new pattern, not
+          `attention` tone (DS-10 reserves that for a genuine failure needing a human), and not the
+          destructive variant, which renders NOWHERE in this phase. Taking someone off a roster is
+          ordinary housekeeping — the seat goes back in the pool and they can RSVP again — which is the
+          same reason the button that did it is neutral.
+
+          The region wraps the panel rather than being it, because `PanelCard` takes no `role`: the bare
+          wrapper shape `money-statement.tsx` uses, so the announced box is the panel, padding included. */}
+      {removed && (
+        <div role="status" aria-label={REMOVAL_REGION_NAME}>
+          <PanelCard tone="muted">
+            {/* Escaped React text (G6) — the name inside this sentence is the same attacker-controlled
+                free text every other rendering of it is, and it is a text child here too. */}
+            <p className="text-sm">{removalSentence(removed)}</p>
+          </PanelCard>
+        </div>
+      )}
+      <Card>
       <CardContent className="space-y-4 p-4 sm:p-6">
         <h2 className="text-xl leading-tight font-semibold tracking-tight">Who&apos;s coming</h2>
 
@@ -119,7 +207,7 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
             </Badge>
           </li>
           {coming.map((entry) => (
-            <AttendeeRow key={entry.rsvpId} entry={entry} removable />
+            <AttendeeRow key={entry.rsvpId} entry={entry} removable onRemoved={setRemoved} />
           ))}
         </ul>
 
@@ -163,12 +251,18 @@ export function AttendeeRoster({ entries }: { entries: RosterEntry[] }) {
             </summary>
             <ul className="mt-1 divide-y">
               {declined.map((entry) => (
-                <AttendeeRow key={entry.rsvpId} entry={entry} removable={false} />
+                <AttendeeRow
+                  key={entry.rsvpId}
+                  entry={entry}
+                  removable={false}
+                  onRemoved={setRemoved}
+                />
               ))}
             </ul>
           </details>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

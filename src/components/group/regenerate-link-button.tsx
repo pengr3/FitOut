@@ -33,6 +33,23 @@
 // THE GATE IS THE ACTION'S. `regenerateLink` re-reads the group under `booker_id = session.user.id` and
 // repeats that scope inside the UPDATE's own WHERE (Security V4). This component sends a group id and
 // nothing else.
+//
+// ── STATE-08 (plan 13-05) — THE OUTCOME LEFT THE TOAST, AND THIS FILE NO LONGER ANNOUNCES IT ─────────────
+// The success toast used to say a fresh link was ready and to share it again. That is a fact the organizer
+// must RETAIN: it decides what they send next, and an organizer who missed a four-second animation will go
+// on pasting a link that resolves to the same calm inactive state a token that never existed does. It now
+// lands as an in-page alert above the share box, where it can be re-read.
+//
+// ⚠️ THIS COMPONENT PASSES NOTHING TO THAT ALERT, AND THAT IS THE SAME D-118 RULE AS THE HEADER'S.
+// `ShareLinkBox` decides to announce by noticing that the URL IT RENDERS has changed under it, on the
+// refreshed server read below. Two things follow, and both are better than a callback would have been:
+// the announcement is a function of the thing announced, so it cannot claim a rotation that did not
+// happen (a refused or rate-limited call leaves the URL alone and says nothing); and the new credential
+// still never passes through this file, which is exactly what the header forbids.
+//
+// ⚠️ THERE IS NO TOAST BESIDE THAT ALERT. Two live regions announcing one outcome is GATE-03 rule 6's
+// defect; the alert REPLACES the toast rather than joining it. The failure path keeps its `toast.error`,
+// because a server refusal is not a fact to retain — nothing changed, and the sentence IS the message.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -62,17 +79,16 @@ export function RegenerateLinkButton({ groupId }: { groupId: string }) {
     setPending(true);
     try {
       const res = await regenerateLink(groupId);
-      if (res.ok) {
-        // `res.accessToken` is deliberately NOT read — see the header. The refresh below is what puts the
-        // new link on screen, through the same owner-scoped server read that rendered the old one.
-        toast.success("New link ready. Copy it and share it again.");
-      } else {
+      if (!res.ok) {
         // Calm sentences only (not yours / no longer active / going a little fast) — never a stack trace.
         toast.error(res.error);
       }
+      // ON SUCCESS THERE IS NOTHING TO SAY HERE. `res.accessToken` is deliberately NOT read (D-118), and
+      // the announcement belongs to the share box — see the header. The refresh below is the whole
+      // success path: it puts the new link on screen through the same owner-scoped server read that
+      // rendered the old one, and that prop change is what the share box announces.
       setPending(false);
       setOpen(false);
-      // The action revalidates the group surfaces; refresh so the share box shows the new link immediately.
       router.refresh();
     } catch (e) {
       setPending(false);

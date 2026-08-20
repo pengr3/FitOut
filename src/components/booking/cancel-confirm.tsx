@@ -8,11 +8,38 @@
 // receives NOTHING but the booking id — no amount, no tier, no rung. The server recomputes all of it from
 // the booking's own snapshot, so there is deliberately nothing here for a tampered client to influence.
 //
+// ── STATE-08 (plan 13-05) — THE MONEY SENTENCE DOES NOT TRAVEL IN THE TOAST ──────────────────────────────
+//
+// This toast used to carry the amount coming back to the booker. That is the single most re-read sentence
+// in the whole flow, and a toast is dismissible, timed, unaddressable and gone the moment the page
+// reloads — so a booker who blinked had no way back to it. It now says exactly one thing: the booking is
+// cancelled. Do not append to it.
+//
+// WHERE THE MONEY TRUTH ACTUALLY LIVES, and why removing it from here loses nothing: the next line
+// navigates to `/bookings/{id}`, whose cancelled branch ALREADY renders it as durable page content, with
+// D-79's two wordings — the amount and *on its way*, or the no-money-back sentence WITH its reason. That
+// is a fact the booker can re-read tomorrow. Plan 13-10 moves that same line onto `<MoneyStatement/>`;
+// the wording is D-79's either way and is not this file's to re-phrase.
+//
+// ⚠️ D-57, WHICH IS WHY THE DESTINATION'S SENTENCE READS *on its way* RATHER THAN A PAST TENSE. The cancel
+// action's PayMongo POST records INTENT only; the webhook is the single writer of terminal state, and a
+// booking row carries no settled signal to read. Claiming a completed return here would be a claim the
+// system cannot stand behind — the same class of false money statement 13-04's reversed-state bans.
+//
+// ⚠️ AND THIS FILE DELIBERATELY DOES NOT SPELL THE MONEY WORD, comments included — the 07-04 tripwire
+// idiom (13-PATTERNS § H). The absence of that vocabulary from this file is checked by grepping for it,
+// and a grep the comment forbidding the thing can trip is not a guard. Which is also why the action's
+// amount field is described rather than named: this component no longer reads it at all. The branch it
+// fed is the destination's now, and re-deriving it here would put two answers to one question on two
+// surfaces.
+//
 // COLOUR RATIONALE (07-UI-SPEC § 3, recorded here so a future design pass does not "fix" it):
 //   - Confirm is neutral `outline` — NOT coral, NOT destructive-red. Cancelling is an expected lifecycle
-//     outcome, not a data-destroying error. Red would misrepresent a refund the booker is contractually
-//     entitled to as a dangerous act; coral would advertise the action FitOut least wants taken. The weight
-//     of this decision is carried by disclosure and step count, not by colour.
+//     outcome, not a data-destroying error. Red would misrepresent money the booker is contractually
+//     entitled to getting back as a dangerous act; coral would advertise the action FitOut least wants
+//     taken. The weight of this decision is carried by disclosure and step count, not by colour.
+//     (The money word is deliberately not spelled here either — see the tripwire note above. This line
+//     said it until plan 13-05, and leaving it would have made the file's own grep read 1.)
 //   - Back is `ghost` — the visually calmer of the two, because it is the outcome that costs nobody
 //     anything.
 
@@ -34,18 +61,9 @@ export function CancelConfirm({ bookingId }: { bookingId: string }) {
     try {
       const res = await cancelBookingAsBooker(bookingId);
       if (res.ok) {
-        // ⚠️ D-57 — the refund POST records INTENT only; the webhook is the single writer of terminal
-        // refund state. So the copy is "on its way", never "Refunded". The detail page renders the durable
-        // truth; keep the button disabled through the navigation.
-        //
-        // CR-01: the toast claims a refund ONLY when the server says one exists. On a 0%-rung
-        // cancellation `refundCents` is 0 and nothing is on its way — saying otherwise here was the
-        // toast-shaped half of the "₱0 refund issued" defect.
-        toast.success(
-          res.refundCents > 0
-            ? "Booking cancelled. Your refund is on its way."
-            : "Booking cancelled.",
-        );
+        // STATE-08 — THE WHOLE TOAST, AND NOTHING ELSE (see the header). The money truth is the
+        // destination's; this sentence is a receipt for the click.
+        toast.success("Booking cancelled.");
         router.push(`/bookings/${bookingId}`);
         router.refresh();
       } else {

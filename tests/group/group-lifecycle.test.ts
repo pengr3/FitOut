@@ -503,7 +503,25 @@ describe("removeAttendee — D-121 frees a seat through the group-row lock", () 
     // Free one — and prove it is the SEAT that moved, not the copy.
     const roster = await getRoster(testDb.db, { groupId: g.id, organizerId });
     await login(ORG_EMAIL);
-    expect(await removeAttendee(roster[0].rsvpId)).toEqual({ ok: true });
+    // STATE-08 (plan 13-05) — THE RESULT NOW CARRIES THE TWO FIGURES THE ORGANIZER IS SHOWN, and this
+    // is the one place they are checked against a real database. The alert that renders them is a
+    // client component with a mocked action (`tests/group/state08-alerts.test.tsx`), so it asserts the
+    // SENTENCE and deliberately says nothing about the arithmetic; this asserts the arithmetic.
+    //
+    // Both numbers are pinned by VALUE rather than by an expression, because an expression here would
+    // be the same derivation the action performs and would agree with itself however wrong it was:
+    //   · `capacity_snapshot` is 2 and one of the two `yes` rows was just deleted, so ONE `rsvp` seat
+    //     is claimable — which the very next line proves independently by claiming it.
+    //   · `attending` is TWO, not one: `capacity_snapshot` caps `rsvp` rows and the organizer never
+    //     occupies one, so the raw count is organizer-EXCLUSIVE and D-113 adds them back exactly once
+    //     for the surface whose audience they are. A `1` here would be the off-book count that made
+    //     the meter and the roster disagree (WR-04's shape), and a `3` would be the same `+ 1` applied
+    //     twice.
+    expect(await removeAttendee(roster[0].rsvpId)).toEqual({
+      ok: true,
+      attending: 2,
+      spotsFree: 1,
+    });
 
     sessionHeaders.cookie = "";
     const nowFits = await submitRsvp(g.accessToken, { name: "Third Tina", answer: "yes" });

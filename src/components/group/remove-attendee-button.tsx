@@ -27,6 +27,25 @@
 //
 // NEVER RENDERED ON THE ORGANIZER'S OWN ROW (08-UI-SPEC §2) — the roster's row #1 is a display fixture with
 // no rsvp id to remove, and "remove yourself from your own booking" is cancelling, which lives elsewhere.
+//
+// ── STATE-08 (plan 13-05) — THE OUTCOME LEFT THE TOAST, AND THIS FILE NO LONGER ANNOUNCES IT ─────────────
+// The success toast used to say the seat was free again. That is a CAPACITY fact: it changes who the
+// organizer can still ask, so it is something they will want to re-read, and a toast is dismissible,
+// timed, unaddressable and gone on refresh. It now travels UP — `onRemoved` hands the outcome to
+// `AttendeeRoster`, which renders it as one in-page alert directly above the list it describes.
+//
+// ⚠️ THERE IS NO TOAST BESIDE THAT ALERT, AND THAT IS THE POINT RATHER THAN AN OMISSION. Two live regions
+// announcing one outcome is GATE-03 rule 6's defect — a screen reader hears the removal twice, in two
+// different wordings, from two places on the page. The alert REPLACES the toast; it does not join it.
+//
+// THE FAILURE PATH KEEPS ITS `toast.error`, deliberately. A server refusal is not a fact to retain: it is
+// "that didn't happen, try again", the roster is unchanged behind it, and the whole content of the message
+// is the calm sentence itself. STATE-08's split puts exactly that on a toast.
+//
+// ⚠️ THIS COMPONENT PERFORMS NO ARITHMETIC ON THE COUNTS (T-13-05-COUNTCROSS). Both numbers arrive finished
+// on the action's own result, computed server-side inside the transaction that did the delete. Do not add
+// one to `attending` here — it already includes the organizer (D-113), and a second increment would claim a
+// body that does not exist.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -46,13 +65,29 @@ import {
 } from "@/components/ui/dialog";
 import { removeAttendee } from "@/app/actions/group";
 
+/** What the roster needs to state the outcome. Every field is finished; nothing here is computed. */
+export type AttendeeRemoved = {
+  /** Guest-typed free text. Escaped React text at the alert, exactly as it is here (G6). */
+  name: string;
+  /** Organizer-INCLUSIVE, straight off the action's result (D-113). Never incremented again. */
+  attending: number;
+  /** `rsvp` places still claimable, straight off the action's result. */
+  spotsFree: number;
+};
+
 export function RemoveAttendeeButton({
   rsvpId,
   /** Guest-typed free text — rendered as an escaped React text child in the confirm copy (G6). */
   name,
+  /**
+   * Where the OUTCOME goes now that it no longer rides a toast (STATE-08). The parent owns the single
+   * announcing region; this component owns the action and the pending state, and nothing else.
+   */
+  onRemoved,
 }: {
   rsvpId: string;
   name: string;
+  onRemoved: (removed: AttendeeRemoved) => void;
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -64,7 +99,8 @@ export function RemoveAttendeeButton({
     try {
       const res = await removeAttendee(rsvpId);
       if (res.ok) {
-        toast.success("Removed. Their spot is free again.");
+        // Passed THROUGH, not derived. See the header: the two figures are the server's.
+        onRemoved({ name, attending: res.attending, spotsFree: res.spotsFree });
       } else {
         // Calm sentences only (not yours / already gone / going a little fast) — never a stack trace.
         toast.error(res.error);

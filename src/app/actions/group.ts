@@ -99,6 +99,38 @@ export type SubmitRsvpResult =
   | { ok: false; error: string };
 
 export type ManageGroupResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * `removeAttendee`'s result — the SAME response the caller already awaited, carrying the two figures
+ * the organizer is shown afterwards (STATE-08 / plan 13-05, threat T-13-05-COUNTCROSS).
+ *
+ * BOTH NUMBERS ARE COMPUTED HERE, SERVER-SIDE, AND ARRIVE FINISHED. The client renders them as text
+ * and performs no arithmetic on them whatsoever — no `+ 1`, no subtraction, no clamp. That is the
+ * whole point of returning them rather than a bare `ok`: the alternative is a client component
+ * re-deriving a headcount from a list it happens to hold, which is how the two sides of a count drift.
+ *
+ * ⚠️ `attending` IS ORGANIZER-INCLUSIVE (D-113), AND THIS IS THE THIRD PLACE THE `+ 1` LIVES.
+ * `capacity_snapshot` caps `rsvp` rows and the organizer never occupies one, so the raw count is
+ * organizer-EXCLUSIVE — and the surface this figure lands on is the management page, whose audience
+ * is the organizer and whose roster puts them at row #1. A figure that left them out would contradict
+ * the meter directly above the alert. The other two sites are the meter and the top-up nudge, both in
+ * `(app)/bookings/[id]/group/page.tsx`; all three add the organizer to the RAW count exactly once and
+ * none of them adds one to a figure that already includes them, which is the mistake that matters
+ * (WR-03). Do NOT add another `+ 1` on top of this one at the call site.
+ *
+ * `spotsFree` is organizer-agnostic by construction — freeing a seat frees an `rsvp` seat, and
+ * `(capacity + 1) - (attending)` is the same number as `capacity - confirmed`.
+ */
+export type RemoveAttendeeResult =
+  | {
+      ok: true;
+      /** People who will be in the room, the organizer included (D-113). Never re-incremented. */
+      attending: number;
+      /** `rsvp` seats still claimable against `capacity_snapshot`, after this removal. */
+      spotsFree: number;
+    }
+  | { ok: false; error: string };
+
 export type RegenerateLinkResult = { ok: true; accessToken: string } | { ok: false; error: string };
 
 // ── Calm copy (08-UI-SPEC §Error / edge states). Shared constants, so two paths cannot drift. ────────────
@@ -560,8 +592,14 @@ export async function submitRsvp(
  * A row is DELETED, not flipped to 'no': "removed by the organizer" and "said they can't make it" are
  * different facts, and putting the first in the "Can't make it" list would put words in someone's mouth.
  * The UI says as much — they can RSVP again if they still have the link.
+ *
+ * IT ALSO REPORTS THE POST-REMOVAL FIGURES (STATE-08 / plan 13-05). The outcome the organizer reads is
+ * an in-page alert naming how many people are still coming and how many places are free, and both
+ * numbers are read INSIDE this transaction, under the lock the delete already holds — so the figure
+ * announced is the one the delete produced rather than the one a second, unserialised read happened to
+ * see. See `RemoveAttendeeResult` for why they are returned at all instead of derived by the caller.
  */
-export async function removeAttendee(rsvpId: string): Promise<ManageGroupResult> {
+export async function removeAttendee(rsvpId: string): Promise<RemoveAttendeeResult> {
   const parsed = rsvpIdSchema.safeParse({ rsvpId });
   if (!parsed.success) return { ok: false, error: DENIED };
 
@@ -591,11 +629,21 @@ export async function removeAttendee(rsvpId: string): Promise<ManageGroupResult>
     return { ok: false, error: TOO_FAST };
   }
 
-  const removed = await db.transaction(async (tx) => {
+  const freed = await db.transaction(async (tx) => {
     // The SAME lock the seat-claim takes, on the SAME single row — this is what serialises the free
     // against a concurrent claim (see the note above).
-    await tx.execute(sql`SELECT capacity_snapshot FROM booking_group WHERE id = ${owned.groupId} FOR UPDATE`);
-    return (await tx.execute(sql`
+    //
+    // ITS RESULT IS NOW READ RATHER THAN DISCARDED. `capacity_snapshot` is half of the figure this
+    // action reports back, and taking it off the row the lock is held on is strictly better than a
+    // second statement afterwards: a concurrent writer cannot move it in between, because it cannot
+    // have the row. The read is also the ONE place a vanished group can still be caught cheaply —
+    // before the delete, so returning here rolls nothing back.
+    const [locked] = (await tx.execute(
+      sql`SELECT capacity_snapshot AS "capacity" FROM booking_group WHERE id = ${owned.groupId} FOR UPDATE`,
+    )) as unknown as { capacity: number }[];
+    if (!locked) return null;
+
+    const removed = (await tx.execute(sql`
       DELETE FROM rsvp
       WHERE id = ${parsed.data.rsvpId}
         AND group_id = ${owned.groupId}
@@ -608,9 +656,21 @@ export async function removeAttendee(rsvpId: string): Promise<ManageGroupResult>
         )
       RETURNING id
     `)) as unknown as { id: string }[];
+    if (removed.length === 0) return null;
+
+    // The post-removal count, same shape and same `::int` cast as `getHeadcount` — postgres.js hands a
+    // bigint back as a STRING, so the cast is in SQL rather than a JS coercion. A bare `count(*)` with
+    // no GROUP BY returns exactly one row by SQL's own definition, so the index below is total.
+    const counted = (await tx.execute(sql`
+      SELECT count(*)::int AS "confirmed"
+      FROM rsvp
+      WHERE group_id = ${owned.groupId} AND status = 'yes'
+    `)) as unknown as { confirmed: number }[];
+
+    return { capacity: locked.capacity, confirmed: counted[0].confirmed };
   });
 
-  if (removed.length === 0) return { ok: false, error: DENIED };
+  if (freed === null) return { ok: false, error: DENIED };
 
   await recordAudit({
     actorId: userId,
@@ -622,7 +682,16 @@ export async function removeAttendee(rsvpId: string): Promise<ManageGroupResult>
   });
 
   revalidateGroupSurfaces(owned.bookingId);
-  return { ok: true };
+
+  // THE `+ 1` IS D-113's, AND IT IS ADDED TO THE RAW COUNT — never to a figure that already includes
+  // the organizer. See `RemoveAttendeeResult` for the full note and for the other two sites.
+  // `spotsFree` is clamped because a negative number of places is not a fact about anything; the
+  // seat-claim's own capacity gate means it cannot arise, and a clamp is cheaper than trusting that.
+  return {
+    ok: true,
+    attending: freed.confirmed + 1,
+    spotsFree: Math.max(0, freed.capacity - freed.confirmed),
+  };
 }
 
 // ── regenerateLink (D-121) ──────────────────────────────────────────────────────────────────────────────

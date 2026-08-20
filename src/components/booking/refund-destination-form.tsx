@@ -69,13 +69,25 @@ export function RefundDestinationForm({
     try {
       const res = await cancelBookingAsBooker(bookingId, values);
       if (res.ok) {
-        // D-57 discipline as in cancel-confirm.tsx: the POST records intent — "on its way", never
-        // "Refunded". A `notice` means the cancellation succeeded but the transfer could not be
-        // dispatched (failure / ceiling) — surface it calmly; the operator seam already has the money.
+        // STATE-08 (plan 13-05) — THE SAME CORRECTION AS `cancel-confirm.tsx`, ON THE SAME FLOW'S OTHER
+        // BRANCH. This toast used to name the money and the destination account. That is the most
+        // re-read sentence in the flow and it cannot ride a surface that removes itself on a timer; the
+        // page this line navigates to renders it as durable content on its cancelled branch, with D-79's
+        // wording. The toast is now a receipt for the click and nothing more.
+        //
+        // ⚠️ THE `notice` PATH IS NOT THE SAME CASE AND KEEPS ITS TOAST. A `notice` means the
+        // cancellation succeeded but the transfer could not be dispatched (a rail failure or a ceiling) —
+        // the operator seam already has the money, and the sentence is a calm server-composed string
+        // rather than a figure to retain. It is also not a literal in this file, so the STATE-08 scan in
+        // `tests/design/status-vocab.test.ts` cannot see it either way; that is recorded as a stated
+        // blind spot there rather than claimed as coverage.
+        //
+        // D-57 still decides the DESTINATION's tense: the POST records intent, so the sentence there is
+        // "on its way" and never a completed past tense.
         if (res.notice) {
           toast.warning(res.notice);
         } else {
-          toast.success("Booking cancelled. Your refund is on its way to your account.");
+          toast.success("Booking cancelled.");
         }
         router.push(`/bookings/${bookingId}`);
         router.refresh();

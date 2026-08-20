@@ -28,6 +28,32 @@
 // handled the same calm way: select the field and tell the organizer to copy it by hand (08-UI-SPEC §Error
 // states). A silent success toast over a clipboard that did nothing would be the worst outcome here — the
 // organizer would paste stale content into a group chat and never know.
+//
+// ── STATE-08 (plan 13-05) — THE ROTATION ALERT, AND WHY THE TWO COPY TOASTS STAY ─────────────────────────
+// THE TWO TOASTS BELOW ARE UNTOUCHED AND ARE THE ALLOW-LISTED ROW IN `tests/design/status-vocab.test.ts`.
+// They announce PLUMBING — whether a clipboard write happened — and the fact the organizer actually needs
+// is the link itself, which is rendered in the read-only field beneath them and survives every refresh.
+// Nothing in either sentence is a fact to retain, which is precisely what STATE-08 says a toast is for.
+//
+// THE ROTATION IS THE OPPOSITE CASE, and it gets an alert. When the invite credential is regenerated the
+// previously-shared link stops resolving, and an organizer who missed a timed animation will keep sending
+// a dead one. So this component announces it, once, in an addressable in-page region above the field.
+//
+// ⚠️ IT DECIDES TO ANNOUNCE BY NOTICING THAT THE URL IT RENDERS CHANGED, NOT BY BEING TOLD. `inviteUrl` is
+// re-read server-side under the owner scope on every `router.refresh()`, so a rotation arrives here as a
+// changed prop. Three consequences, all of them the reason this shape was chosen over a callback from
+// `RegenerateLinkButton` (which lives in a different subtree, below the roster):
+//   1. THE ANNOUNCEMENT CANNOT LIE. It is a function of the thing being announced. A refused, rate-limited
+//      or failed regeneration leaves the URL exactly as it was and says nothing at all — where a callback
+//      fired on `res.ok` would still be one refactor away from announcing a rotation that did not land.
+//   2. THE CREDENTIAL STAYS WHERE D-118 PUT IT. Nothing new carries the token; the button never reads it.
+//   3. IT IS TRUE OF ANY ROTATION, including one performed on the organizer's other device and picked up
+//      by the D-84 poller. The old link is dead either way, and that is the sentence.
+// The first render is NOT a change — a freshly navigated page is a page, not an event (GATE-03's rule for
+// this phase) — so the alert is silent until the URL actually moves.
+//
+// ⚠️ THERE IS NO TOAST BESIDE IT. Two live regions announcing one outcome is GATE-03 rule 6's defect. The
+// button's success toast was DELETED rather than kept alongside this.
 
 import * as React from "react";
 import { CopyIcon } from "lucide-react";
@@ -36,6 +62,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PanelCard } from "@/components/patterns/panel-card";
 
 /**
  * Write to the clipboard, reporting success as a VALUE rather than by not throwing.
@@ -55,8 +82,44 @@ async function writeToClipboard(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * 13-UI-SPEC § Copywriting Contract → STATE-08 alerts. The locked string, hoisted so the test that
+ * asserts it and the surface that renders it read the same characters.
+ */
+const LINK_ROTATED_SENTENCE =
+  "The old invite link no longer works. Copy the new one below and share it again.";
+
+/**
+ * The region's NAME, which is a different mechanism from its CONTENT.
+ *
+ * `role="status"` is `nameFrom: author` in ARIA — a status region takes NO name from its own text — so
+ * without this attribute the accessible name is the empty string. 13-UI-SPEC requires a non-empty one
+ * on both STATE-08 alerts, and `live-regions.ts`'s rule 5 says the same in general.
+ *
+ * ⚠️ IT IS A LABEL, NOT A SECOND COPY OF THE SENTENCE, and that is deliberate rather than lazy.
+ * `live-regions.ts` records the measured hazard: on the VoiceOver/Safari pairing a NAMED live region
+ * can be announced by its name INSTEAD of its content. A name that duplicated the sentence would read
+ * it twice; a name that paraphrased it would replace it with a worse version. Three words that say
+ * which region this is, and the sentence stays the content.
+ */
+const LINK_ROTATED_REGION_NAME = "Invite link updated";
+
 export function ShareLinkBox({ inviteUrl }: { inviteUrl: string }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // ADJUSTING STATE WHEN A PROP CHANGES, in the render body — React's own documented pattern for
+  // exactly this, and the reason there is no effect here. `seenUrl` is what this box last rendered;
+  // when the server hands down a different one, the credential rotated under the organizer.
+  //
+  // A `useEffect` would announce one paint LATE and would re-run on every refresh the poller performs,
+  // which is how a quiet gate becomes a chatty one.
+  const [seenUrl, setSeenUrl] = React.useState(inviteUrl);
+  const [rotated, setRotated] = React.useState(false);
+  if (inviteUrl !== seenUrl) {
+    setSeenUrl(inviteUrl);
+    // NOT on the first render — a freshly mounted box has not seen a rotation, it has seen a page.
+    setRotated(true);
+  }
 
   async function handleCopy() {
     if (await writeToClipboard(inviteUrl)) {
@@ -73,6 +136,22 @@ export function ShareLinkBox({ inviteUrl }: { inviteUrl: string }) {
 
   return (
     <div className="space-y-2">
+      {/* ABOVE THE BOX, so the sentence is read before the field it is about (13-UI-SPEC § STATE-08).
+          `PanelCard tone="muted"` is DS-11's declared in-page advisory surface — not a new pattern, not
+          `attention` tone (DS-10 reserves that for a genuine failure needing a human), and emphatically
+          not the destructive variant, which renders NOWHERE in this phase. Rotating a leaked link is the
+          fix, not the incident.
+
+          The region wraps the panel rather than being the panel, because `PanelCard` takes no `role`:
+          the same bare-wrapper shape `money-statement.tsx` uses to keep the panel's padding inside the
+          measured box. */}
+      {rotated && (
+        <div role="status" aria-label={LINK_ROTATED_REGION_NAME}>
+          <PanelCard tone="muted">
+            <p className="text-sm">{LINK_ROTATED_SENTENCE}</p>
+          </PanelCard>
+        </div>
+      )}
       <Label htmlFor="invite-link" className="text-sm font-semibold">
         Your invite link
       </Label>
