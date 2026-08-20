@@ -137,6 +137,38 @@ const CURRENCY = "php";
 export const REFUND_CENTS = 78_750;
 
 /**
+ * Seed every shape as an OPEN-CAPACITY booking instead of an exclusive one (13-13).
+ *
+ * ⚠ OCCUPANCY IS A PROPERTY OF THE LISTING, NOT OF A PAYMENT STATE — which is why this is an option on
+ * the whole call rather than a seventh shape. A `pending` open-capacity hold and a `pending` exclusive
+ * hold reach the same branch of `page.tsx`; what differs is the listing they sit on. A shape would have
+ * put an open-capacity booking on whatever listing the caller happened to pass, which for an exclusive
+ * listing means `listing.per_head_price_cents IS NULL` and a per-head line that silently does not render.
+ *
+ * ⚠ THE CALLER MUST PASS A LISTING SEEDED `occupancy: "open_capacity"`, and this module CANNOT check it:
+ * it is handed a `SeededListing`, which carries the id and the `sql` handle and not the row. A caller
+ * that gets this wrong sees no error — the booking is written, the receipt renders, and D-86's per-head
+ * line is simply absent. Any spec asserting that line must therefore read `per_head_price_cents` back
+ * from the listing row FIRST, and `receipt-parity.spec.ts` case (3) does exactly that.
+ *
+ * ⚠ AND `declaredPax` MUST SATISFY THE POSITIVE MATCH, or the line is correctly absent for a second and
+ * indistinguishable reason. `receipt/page.tsx` renders the unit only when
+ * `per_head_price_cents × declared_pax === space_price_cents` EXACTLY — a deliberate positive match,
+ * because the rejected alternative (dividing the frozen total to recover a unit) cannot fail and would
+ * print a per-person figure for bookings that were never priced per person. With `booker-seed.ts`'s
+ * `PER_HEAD_PRICE_CENTS` at ₱250.00 and this module's `SPACE_PRICE_CENTS` at ₱1,000.00, the one value
+ * that matches is **4**.
+ *
+ * Open-capacity rows are outside `booking_no_overlap` altogether (drizzle/0022 narrows its partial WHERE
+ * with `AND open_capacity = false`), so these six rows cannot collide with anything — including each
+ * other. The three-hour spacing is kept anyway, so a reader sees the same fixture in the same order.
+ */
+export type OpenCapacityOptions = {
+  /** Granted passes, frozen at payment. Must satisfy the positive match above — see the ⚠. */
+  declaredPax: number;
+};
+
+/**
  * Hours from `now()` at which each shape's session starts; every session is one hour long.
  *
  * Three hours apart so the three OCCUPYING shapes cannot touch under `booking_no_overlap` (see property
@@ -163,6 +195,8 @@ const START_HOURS: Record<PaymentStateShape, number> = {
  *                  not-found boundary is a measurement of the wrong document.
  * @param options.idPrefix  Distinguishes concurrent fixtures in the same database. Defaults to
  *                  `e2e_pay`; the shape name and a UUID are always appended.
+ * @param options.openCapacity  Seed every shape as an open-capacity booking — see `OpenCapacityOptions`
+ *                  for the two things the caller has to get right and this module cannot check.
  * @param options.hoursOffset  Added to EVERY shape's start hour. Its only job is collision avoidance:
  *                  a caller that ALSO seeds its own occupying booking on the same listing and unit —
  *                  `shell.spec.ts` seeds a `confirmed` row at +10h, which is exactly where this
@@ -173,9 +207,9 @@ const START_HOURS: Record<PaymentStateShape, number> = {
 export async function seedPaymentStates(
   seed: SeededListing,
   bookerId: string,
-  options: { idPrefix?: string; hoursOffset?: number } = {},
+  options: { idPrefix?: string; hoursOffset?: number; openCapacity?: OpenCapacityOptions } = {},
 ): Promise<SeededPaymentStates> {
-  const { idPrefix = "e2e_pay", hoursOffset = 0 } = options;
+  const { idPrefix = "e2e_pay", hoursOffset = 0, openCapacity } = options;
   const sql = seed.sql;
 
   const id = (shape: PaymentStateShape) => `${idPrefix}_${shape}_${randomUUID()}`;
@@ -201,7 +235,7 @@ export async function seedPaymentStates(
         id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
         cancellation_policy, space_price_cents, service_fee_cents, quoted_total_cents,
         currency, payment_id, payment_method, expires_at, checkout_session_id,
-        refund_cents, cancelled_by, cancelled_at, created_at
+        refund_cents, cancelled_by, cancelled_at, open_capacity, declared_pax, created_at
       ) VALUES (
         ${bookingIds[shape]}, ${seed.listingId}, ${1}, ${bookerId},
         now() + make_interval(hours => ${START_HOURS[shape] + hoursOffset}),
@@ -213,6 +247,7 @@ export async function seedPaymentStates(
         ${row.expiresAtMinutes === null ? null : sql`now() + make_interval(mins => ${row.expiresAtMinutes})`},
         ${row.checkoutSessionId}, ${row.refundCents},
         ${row.cancelledBy}::cancelled_by, ${row.cancelled ? sql`now()` : null},
+        ${openCapacity !== undefined}, ${openCapacity?.declaredPax ?? null},
         now()
       )
     `;

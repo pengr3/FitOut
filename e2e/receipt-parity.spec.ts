@@ -3,6 +3,17 @@ import { expect, test, type Page } from "@playwright/test";
 import { BASE, seedBookableListing, signUpBooker, type SeededListing } from "./helpers/booker-seed";
 import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
 
+/**
+ * The ONE pass count that satisfies D-86's positive match against these two fixtures.
+ *
+ * `booker-seed.ts` prices an open-capacity listing at ₱250.00 per head and `seed-payment-states.ts`
+ * freezes a ₱1,000.00 space cost, so 4 is not a preference — it is the only integer for which
+ * `per_head × passes === space_price` holds, and the route renders no unit line for any other. Declared
+ * here rather than inline so the arithmetic that makes case (3) reachable is stated once, where a reader
+ * changing either constant will meet it.
+ */
+const PER_HEAD_DECLARED_PAX = 4;
+
 // TRUST-05 / GATE-05 / D-76 — THE NUMBER PRINTED ON THE RECEIPT IS THE NUMBER THE DATABASE FROZE.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -46,6 +57,9 @@ import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-paym
 //      plan 13-13 added the `cancelledRefunded` shape, so D-76's *refund is its own row, never netted
 //      into the Total* had never been rendered by a real request. Case (2) is the assertion that catches
 //      a receipt subtracting a refund from its total, and it is unmakeable without that fixture.
+//   3. THE PER-HEAD LINE (D-86), which 13-12 shipped reasoned and unexercised. No seeded booking anywhere
+//      in `e2e/` carried `open_capacity` + `declared_pax`, so the ONE branch on this route whose failure
+//      mode is SILENCE had never been driven. Case (3) closes it.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // WHY THE COMPARISON IS INTEGER-TO-INTEGER
@@ -63,12 +77,20 @@ test.describe("TRUST-05 — the receipt's total IS the database's, and a refund 
   let seed: SeededListing;
   let payStates: SeededPaymentStates | null = null;
   let ownerEmail: string;
+  /** Case 3's second listing — open-capacity, because occupancy is a property of the LISTING. */
+  let ocSeed: SeededListing | null = null;
+  let ocStates: SeededPaymentStates | null = null;
 
   test.beforeAll(async () => {
     seed = await seedBookableListing({ titlePrefix: "E2E Receipt Parity" });
   });
 
   test.afterAll(async () => {
+    // Bookings before listings, and each fixture's own bookings before its own listing: `booker-seed.ts`'s
+    // teardown ends the connection its statements run on, so a listing torn down first would take its
+    // bookings' handle with it.
+    await ocStates?.teardown();
+    await ocSeed?.teardown();
     await payStates?.teardown();
     await seed.teardown();
   });
@@ -326,18 +348,142 @@ test.describe("TRUST-05 — the receipt's total IS the database's, and a refund 
         `parity read are both resolving against a refund.`,
     ).toBeNull();
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  // CASE 3 — D-86: THE PER-HEAD LINE, ON A REAL OPEN-CAPACITY REQUEST
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // This case closes the gap 13-12 handed forward and 13-13 was asked to either close or hand on in
+  // writing. It is closed here, because the ingredients already existed — `booker-seed.ts` has carried an
+  // `occupancy: "open_capacity"` listing shape since Phase 9 and `PER_HEAD_PRICE_CENTS` with it — and what
+  // was missing was only a booking fixture that carries `open_capacity` and `declared_pax`.
+  //
+  // WHAT WAS UNPROVEN, PRECISELY. `receipt-lines.test.tsx` proves the COMPONENT renders the unit label it
+  // is handed. Nothing proved the RSC hands it the right one, and the RSC is where the whole decision
+  // lives: `perHeadUnitLabel` is composed on a POSITIVE match — `per_head_price_cents × declared_pax ===
+  // space_price_cents` — with division explicitly rejected, because dividing the frozen total to recover a
+  // unit CANNOT FAIL and would print a per-person figure for bookings that were never priced per person.
+  // A positive match has the opposite failure mode: it goes silently ABSENT. So the untested branch was
+  // one whose only symptom is a missing line, on the money surface a booker holds beside a statement.
+  //
+  // THE ASSERTION IS PARITY, NOT A STRING MATCH. The rendered unit and pass count are parsed back out of
+  // the label and MULTIPLIED, and the product is compared with `booking.space_price_cents` read from
+  // Postgres. Matching the label against an expected string would encode the answer and would pass just as
+  // happily against a figure the RSC had divided its way to.
+  test("(3) an open-capacity receipt states a per-head unit whose product IS the frozen space cost (D-86)", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    expect(payStates, "the payment-state fixture is null — see case 1").not.toBeNull();
+
+    // A SECOND listing, because occupancy is a property of the listing and the first one is exclusive.
+    ocSeed = await seedBookableListing({
+      titlePrefix: "E2E Receipt PerHead",
+      occupancy: "open_capacity",
+    });
+    const [{ id: bookerId }] = await ocSeed.sql<{ id: string }[]>`
+      SELECT id FROM "user" WHERE email = ${ownerEmail}
+    `;
+    ocStates = await seedPaymentStates(ocSeed, bookerId, {
+      idPrefix: "e2e_parity_oc",
+      openCapacity: { declaredPax: PER_HEAD_DECLARED_PAX },
+    });
+
+    // GUARD THE FIXTURE BEFORE THE PAGE. `seedPaymentStates` cannot see the listing row, so an exclusive
+    // listing would produce a booking whose per-head line is correctly absent — and this case would fail
+    // naming the RSC for a defect in its own setup. Both halves of the positive match are therefore read
+    // back from the database first.
+    const [lst] = await ocSeed.sql<{ per_head_price_cents: number | null }[]>`
+      SELECT per_head_price_cents FROM listing WHERE id = ${ocSeed.listingId}
+    `;
+    expect(
+      lst.per_head_price_cents,
+      `the seeded listing carries no per_head_price_cents, so D-86's predicate is false for a reason ` +
+        `that has nothing to do with the route. Seed the listing with occupancy: "open_capacity".`,
+    ).not.toBeNull();
+
+    const bookingId = ocStates.bookingIds.confirmed;
+    const [bk] = await ocSeed.sql<
+      { open_capacity: boolean; declared_pax: number | null; space_price_cents: number | null }[]
+    >`
+      SELECT open_capacity, declared_pax, space_price_cents FROM booking WHERE id = ${bookingId}
+    `;
+    expect(bk.open_capacity, `the seeded booking is not open-capacity, so D-86's gate is false`).toBe(
+      true,
+    );
+    expect(
+      Number(lst.per_head_price_cents) * Number(bk.declared_pax),
+      `THE FIXTURE DOES NOT SATISFY THE POSITIVE MATCH: ${lst.per_head_price_cents} × ` +
+        `${bk.declared_pax} is not ${bk.space_price_cents}. The route would then omit the line ` +
+        `CORRECTLY and this case would report a defect that does not exist — the failure mode a ` +
+        `positive match always has, which is why the fixture is checked before the page is.`,
+    ).toBe(Number(bk.space_price_cents));
+
+    await logInAs(page, ownerEmail);
+    await page.goto(`${BASE}/bookings/${bookingId}/receipt`, { waitUntil: "networkidle" });
+    const receipt = page.getByTestId("receipt");
+    await expect(receipt, `no receipt for the open-capacity booking ${bookingId}`).toHaveCount(1);
+
+    // The unit line is a SECOND `<dd>` describing the space cost above it and carries no `<dt>` of its
+    // own — deliberately, per `receipt-lines.tsx`: it is not a new charge, it is how the charge above was
+    // made up. So it is located by its shape (`/person ×`) rather than by a term.
+    const unitLine = receipt.locator("dd", { hasText: /\/person\s*×/ });
+    await expect(
+      unitLine,
+      `no per-head line on the receipt for open-capacity booking ${bookingId}, whose listing prices per ` +
+        `head at ${lst.per_head_price_cents} and whose ${bk.declared_pax} passes multiply exactly to the ` +
+        `frozen space cost ${bk.space_price_cents}. D-86's positive match should therefore be TRUE. ` +
+        `Its failure mode is silence: the line simply does not render, and every other figure on the ` +
+        `document stays correct — which is why this assertion exists rather than a review.`,
+    ).toHaveCount(1);
+
+    const label = ((await unitLine.textContent()) ?? "").trim();
+    // Parse the two numbers back OUT of the rendered label and multiply. The comparison is against the
+    // database, so a route that divided its way to a unit would produce a product that no longer equals
+    // the frozen column — which string-matching an expected label could never detect.
+    const unitCentavos = toCentavos(label.split("/person")[0] ?? "", "per-head unit");
+    const passMatch = label.match(/×\s*(\d+)\s+(pass|passes)\b/);
+    expect(
+      passMatch,
+      `the per-head line "${label}" does not state a pass COUNT, so there is nothing to multiply and the ` +
+        `parity assertion below cannot run.`,
+    ).not.toBeNull();
+    const passes = Number(passMatch![1]);
+
+    expect(
+      unitCentavos * passes,
+      `PER-HEAD PARITY BROKEN. The receipt states "${label}" — ${unitCentavos} centavos × ${passes} ` +
+        `passes = ${unitCentavos * passes} — while booking.space_price_cents is ${bk.space_price_cents}. ` +
+        `The unit line's whole justification is that it is a TRUE decomposition of the frozen charge ` +
+        `(D-86); a product that does not equal it is a per-person figure nobody was charged, printed on ` +
+        `a document a booker may hold beside a bank statement.`,
+    ).toBe(Number(bk.space_price_cents));
+    expect(
+      passes,
+      `the receipt states ${passes} passes; booking.declared_pax is ${bk.declared_pax}. declared_pax is ` +
+        `the GRANTED passes frozen at payment, never the live confirmed-yes count — a receipt that ` +
+        `printed the live count would restate what was charged every time somebody dropped out.`,
+    ).toBe(Number(bk.declared_pax));
+
+    // And the Total is still the Total: an itemisation that decomposes correctly is worth nothing if the
+    // figure it decomposes has moved.
+    expectExactlyOneHook(await countTotalHooks(page), "the open-capacity receipt");
+    const [totalRow] = await ocSeed.sql<{ quoted_total_cents: number | null }[]>`
+      SELECT quoted_total_cents FROM booking WHERE id = ${bookingId}
+    `;
+    expect(
+      toCentavos((await page.getByTestId("receipt-total").textContent()) ?? "", "total"),
+      `the open-capacity receipt's total does not equal booking.quoted_total_cents ` +
+        `(${totalRow.quoted_total_cents}).`,
+    ).toBe(Number(totalRow.quoted_total_cents));
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file by the right amount
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-//   • THE PER-HEAD LINE (D-86). `seed-payment-states.ts` seeds EXCLUSIVE rows only, so the open-capacity
-//     itemisation — `₱x/person × n passes`, gated on `openCapacity === true` and a positive match
-//     against the frozen space price — is not exercised by any seeded request. It is proved at the
-//     component level (`tests/booking/receipt-lines.test.tsx`), which proves the component renders what
-//     it is handed and NOT that the RSC hands it correctly. Handed forward explicitly by 13-12 and again
-//     by 13-13; it wants an open-capacity fixture, not another assertion here.
 //   • THE `paid` HALF OF D-85. `Date paid` renders only from a real provider `paid_at`, which needs a
 //     live PayMongo session — i.e. a secret. It is out of this file's environment boundary BY DESIGN,
 //     and the assertion above is that the fallback is the honest one, not that the real path works.
