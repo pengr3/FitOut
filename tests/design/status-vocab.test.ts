@@ -894,3 +894,515 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     expect(utilitiesIn("data-[state=on]:bg-muted").has("bg-muted")).toBe(true);
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// STATE-08 (plan 13-05) — WHAT A BOOKER MUST *READ* NEVER TRAVELS IN A TOAST
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHY THIS LIVES IN THE STATUS-VOCABULARY FILE. DS-10 above is a claim about the vocabulary a status
+// is ALLOWED to use. This is a claim about the SURFACE a status outcome is allowed to arrive on, and
+// 13-UI-SPEC § STATE-08 states it as one table with the tone table: terminal success is a full-page
+// moment, non-terminal success is a toast, and anything the reader must actually READ — a money
+// amount, a reduced headcount, a dead invite link — is an IN-PAGE ALERT. One file, one scan, one
+// module-level pass; the `it()` blocks below only assert against it, exactly like the DS-10 half.
+//
+// WHAT MAKES A FACT "MUST-READ". A toast is dismissible, timed, unaddressable and gone on refresh.
+// So the split is not about importance in the abstract — it is about whether the sentence carries a
+// fact with MONEY or PLANS attached, which a booker will want to re-read after the animation is
+// over. Three shipped `toast.success` calls carried exactly that and are the reason this scan exists:
+// a cancellation's money-return sentence, an attendee removal's headcount, and a regenerated invite
+// link. All three are STATE-08's own named examples.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WHY AN AST SCAN AND NOT A GREP — two measured reasons, both from this phase
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+//   1. A GREP CANNOT TELL A TOAST FROM A PARAGRAPH. Every banned token here is a word the correct
+//      copy is REQUIRED to use somewhere else in the same file: `cancel-confirm.tsx`'s destination
+//      renders the money sentence, `attendee-roster.tsx` renders the headcount, `share-link-box.tsx`
+//      renders the link. A source grep for those words reports the fix as the defect. The unit that
+//      makes the rule expressible at all is "a string literal reachable from a `toast` call's
+//      arguments", which is an AST question.
+//   2. THE TWO WAYS THIS REPOSITORY HAS ALREADY WATCHED A TEXT GATE GO PERMANENTLY GREEN:
+//        (a) A PROHIBITION CHECKED BY SUBSTRING MATCHES ITS OWN WARNING LABEL. Hit twice here. So
+//            every banned token below is stored in TWO PIECES, split mid-word, joined at runtime —
+//            `price-surface.test.ts:256-283`'s idiom — and the guard-the-guard fixtures are BUILT
+//            from that encoding rather than written out. The plan's own acceptance criterion is a raw
+//            grep for the voided-invite phrase over this file returning ZERO.
+//
+//            THE SAME ASYMMETRY THE DS-10 HALF RELIES ON, RESTATED FOR THIS SCAN. The walk roots at
+//            the three `src/` trees, so `tests/` is outside its own reach and prose here cannot trip
+//            it. The encoding is therefore not what keeps this file from self-tripping — the SCOPE
+//            is. It earns its place for the OTHER audience: the human who greps the repository for
+//            one of these tokens while deciding whether a sentence may ride a toast, and who must
+//            not find the answer only inside the rule forbidding it. Where an incidental substring
+//            survives below (`becoming`, and the payout state's own past tense in the DS-10 half) it
+//            is a word this scan never reads.
+//        (b) JSX ESCAPES APOSTROPHES. Plan 13-04 measured a tripwire that was green against a live
+//            defect because `react/no-unescaped-entities` stores the sentence's apostrophe as
+//            `&apos;` and the scan looked for `'`. `normaliseCopy` folds every spelling onto one
+//            before anything is matched. No row below happens to contain an apostrophe TODAY, so
+//            that pass is prophylactic rather than load-bearing — which is stated here rather than
+//            claimed as coverage, and asserted directly so it cannot rot before the row that needs
+//            it arrives.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// NOT COVERED — stated so the next reader under-trusts this scan
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//   • A RENAMED IMPORT. `import { toast as notify } from "sonner"` is invisible: the callee match is
+//     on the identifier `toast`, syntactically. Closing it means resolving the import graph, which
+//     is a type-checker's job rather than a source walk's. The repo's four toast call sites in scope
+//     all use the plain name.
+//   • A SENTENCE ASSEMBLED AT RUNTIME. `toast.success(messageFor(res))` carries no literal, so the
+//     fact travels invisibly. That is the same safe-direction hole `price-surface.test.ts` records
+//     for its phrase scan: it can miss a violation, it can never invent one. The one shape this scan
+//     DOES follow is a literal reached through a conditional or a template, because that is the
+//     shape the cancellation toast actually shipped in — see the fixtures.
+//   • WHETHER THE REPLACEMENT ALERT IS ANY GOOD. This scan proves the fact LEFT the toast. That it
+//     ARRIVED somewhere addressable is `tests/group/state08-alerts.test.tsx`'s claim, and the
+//     cancellation's destination is the booking detail page's own cancelled branch.
+//   • `src/app/(app)/bookings/**` CONTRIBUTES ZERO TOAST CALLS TODAY. It is in the scanned set
+//     because 13-UI-SPEC names it, and the guard below asserts the walk REACHES it (a non-zero file
+//     count) rather than pretending its silence is coverage.
+
+/** The identifier every scanned call hangs off, spelled once so the fixtures cannot drift from it. */
+const TOAST_CALLEE = "toast";
+
+/**
+ * The three trees 13-UI-SPEC § STATE-08 makes its claim over.
+ *
+ * Forward slashes, always — `label()` above normalises `path.relative`'s Windows backslashes, and
+ * without that every membership test here silently stops matching.
+ */
+const TOAST_SCAN_ROOTS = [
+  "src/app/(app)/bookings",
+  "src/components/booking",
+  "src/components/group",
+] as const;
+
+/**
+ * THE ONE ALLOW-LISTED FILE, AND ITS REASON. A row without a reason is not a row.
+ *
+ * `share-link-box.tsx`'s two toasts are the positive half of STATE-08's split rather than an
+ * exception to it: `Link copied` and its copy-failure twin announce PLUMBING — whether a clipboard
+ * write happened — and the fact the organiser needs is the link itself, which is rendered in a
+ * `readOnly` input directly beneath and survives every refresh. Nothing in either sentence is a fact
+ * to retain, so a timed, dismissible surface is the correct one. (It is also, structurally, the only
+ * confirmation the organiser gets that `Copy link` worked.)
+ */
+const TOAST_ALLOW_LIST: Readonly<Record<string, string>> = {
+  "src/components/group/share-link-box.tsx":
+    "Its toasts announce whether the clipboard write happened, which is plumbing. The fact the " +
+    "organiser needs — the link — is rendered in the read-only field beneath them and survives a " +
+    "refresh, so nothing in either sentence is a fact to retain.",
+};
+
+/** A banned token, in two pieces, with the reason it may not ride a toast. */
+type MustReadToken = {
+  /** Split mid-word so neither fragment reads as the token. Joined at runtime, never written. */
+  readonly pieces: readonly [string, string];
+  /** WHY. Travels into the failure message — a row without a reason is not a row. */
+  readonly why: string;
+};
+
+/**
+ * THE MUST-READ VOCABULARY.
+ *
+ * Six of these are 13-UI-SPEC § STATE-08's falsifiable list verbatim. The seventh is plan 13-05's
+ * own addition and is marked as such: the spec's six do not reach the third violation the same
+ * paragraph names, which is recorded on the row rather than left for the next reader to re-derive.
+ *
+ * The currency sign cannot be split mid-word — it is ONE character — so it is built from its code
+ * point instead. That achieves the same property for the same reason: the glyph never appears in this
+ * file, so a search for it here cannot be satisfied by the rule forbidding it. Its row is the reason
+ * the "is it really split" assertion below is scoped to multi-character tokens.
+ */
+const MUST_READ_TOKENS: readonly MustReadToken[] = [
+  {
+    pieces: ["ref", "und"],
+    why:
+      "a money-return fact. It is the single most re-read sentence in the whole cancellation flow, " +
+      "and a booker who dismissed the toast has no way back to it. STATE-08 names it first; it " +
+      "belongs on the destination — the booking detail page's cancelled branch — where D-79's " +
+      "wording is durable and addressable.",
+  },
+  {
+    pieces: [String.fromCharCode(0x20b1), ""],
+    why:
+      "an amount of money. Whatever sentence carries it, a figure the booker may be reconciling " +
+      "against their own bank app cannot be delivered by a surface that removes itself on a timer.",
+  },
+  {
+    pieces: ["sp", "ot"],
+    why:
+      "a capacity fact — how many places are free. It changes who the organiser can still invite, " +
+      "which is a plan rather than a notification, and it belongs beside the roster and the meter " +
+      "that state the same numbers.",
+  },
+  {
+    pieces: ["com", "ing"],
+    why:
+      "a headcount. STATE-08's second named example: the number of people who will be in the room " +
+      "is the whole reason the organiser opened the page, and it must be re-readable after a refresh.",
+  },
+  {
+    pieces: ["no lon", "ger works"],
+    why:
+      "the voided-invite sentence. STATE-08's third named example: an organiser who missed it will " +
+      "keep sharing a dead link, and there is no second announcement to catch them.",
+  },
+  {
+    pieces: ["inv", "ite"],
+    why:
+      "the invite credential's own vocabulary. Anything a toast says about the invite link is a " +
+      "fact about what the organiser may still share, which outlives the toast by definition.",
+  },
+  {
+    pieces: ["new l", "ink"],
+    why:
+      "PLAN 13-05'S ADDITION, NOT ONE OF 13-UI-SPEC'S SIX — and the row exists because the six do " +
+      "not reach the very violation the same paragraph names. The shipped regenerate toast said the " +
+      "fresh credential was ready and to share it again; it contained none of the other six tokens, " +
+      "so a scan built from the spec's list alone would have gone green against one of STATE-08's " +
+      "three own examples (measured, not predicted — the first run of this scan named three files " +
+      "and that one was not among them). Announcing a freshly minted credential is a must-read fact " +
+      "for the same reason announcing the dead one is: it decides what the organiser shares next.",
+  },
+];
+
+/**
+ * Fold every spelling of an apostrophe onto one, and lower-case. See reason (2b) in the header:
+ * without this a scan is green against a sentence whose apostrophe is an HTML entity, which plan
+ * 13-04 measured rather than predicted.
+ */
+function normaliseCopy(text: string): string {
+  return text
+    .replace(/&apos;|&#0*39;|&#x0*27;|&rsquo;|[‘’ʼ]/gi, "'")
+    .toLowerCase();
+}
+
+/** One string reachable from a `toast` call's arguments. */
+type ToastLiteral = {
+  readonly file: string;
+  readonly line: number;
+  /** `toast` or `toast.<member>` — carried into the failure so the shape is visible in the message. */
+  readonly callee: string;
+  readonly text: string;
+};
+
+type ToastScan = {
+  /** Every `.ts`/`.tsx` file the walk visited, normalised. */
+  readonly files: string[];
+  /** The same, partitioned by declared root, so a root that reached nothing is loud. */
+  readonly filesByRoot: Readonly<Record<string, string[]>>;
+  /** Every `toast` / `toast.*` call expression found, literal-bearing or not. */
+  readonly calls: { file: string; line: number; callee: string }[];
+  /** Every string reachable from one of those calls' arguments. */
+  readonly literals: ToastLiteral[];
+};
+
+/**
+ * Collect every `.ts`/`.tsx` file under a directory, recursively — and return what it has when the
+ * directory is unreadable rather than raising.
+ *
+ * `collectSourceFiles` above throws on a missing root, which for a DECLARED root list is the wrong
+ * failure: a renamed directory would surface as a stack trace burying which gate went quiet, instead
+ * of as the empty-root assertion below naming it. 11-02's rule.
+ */
+function collectSourceFilesSafe(dir: string, out: string[] = []): string[] {
+  try {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) collectSourceFilesSafe(full, out);
+      else if (/\.tsx?$/.test(entry.name)) out.push(full);
+    }
+  } catch {
+    return out;
+  }
+  return out;
+}
+
+/**
+ * Every `toast` / `toast.*` call in one file, and every string literal reachable from its arguments.
+ *
+ * THE ARGUMENT WALK IS RECURSIVE, and that is the whole difference between this and a one-line
+ * `node.arguments.filter(isStringLiteral)`. The cancellation toast shipped as
+ *
+ *     toast.success(condition ? "…the money sentence…" : "Booking cancelled.")
+ *
+ * — a conditional expression whose literals are two levels down. Template spans are collected for the
+ * same reason: an interpolated amount is exactly how a figure re-enters a toast after this scan
+ * exists. `JsxText` is collected because `sonner` accepts a ReactNode, so `toast.success(<p>…</p>)`
+ * is a real shape and would otherwise be a hole with a two-character cost to close.
+ */
+function readToastCalls(file: string, source: string): {
+  calls: { file: string; line: number; callee: string }[];
+  literals: ToastLiteral[];
+} {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+
+  const calls: { file: string; line: number; callee: string }[] = [];
+  const literals: ToastLiteral[] = [];
+
+  const lineOf = (node: ts.Node): number =>
+    sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+
+  /** `toast` / `toast.<member>`, or `null` for every other callee. */
+  const calleeOf = (node: ts.CallExpression): string | null => {
+    const target = node.expression;
+    if (ts.isIdentifier(target)) return target.text === TOAST_CALLEE ? TOAST_CALLEE : null;
+    if (
+      ts.isPropertyAccessExpression(target) &&
+      ts.isIdentifier(target.expression) &&
+      target.expression.text === TOAST_CALLEE
+    ) {
+      return `${TOAST_CALLEE}.${target.name.text}`;
+    }
+    return null;
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const callee = calleeOf(node);
+      if (callee !== null) {
+        calls.push({ file, line: lineOf(node), callee });
+        const collect = (n: ts.Node): void => {
+          if (
+            ts.isStringLiteral(n) ||
+            ts.isNoSubstitutionTemplateLiteral(n) ||
+            ts.isTemplateHead(n) ||
+            ts.isTemplateMiddle(n) ||
+            ts.isTemplateTail(n) ||
+            ts.isJsxText(n)
+          ) {
+            literals.push({ file, line: lineOf(n), callee, text: n.text });
+          }
+          ts.forEachChild(n, collect);
+        };
+        for (const arg of node.arguments) collect(arg);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sf);
+  return { calls, literals };
+}
+
+/** Scanned ONCE at module level; every `it()` below only asserts against this result. */
+function scanToasts(roots: readonly string[]): ToastScan {
+  const filesByRoot: Record<string, string[]> = {};
+  const files: string[] = [];
+  const calls: { file: string; line: number; callee: string }[] = [];
+  const literals: ToastLiteral[] = [];
+
+  for (const root of roots) {
+    const found = collectSourceFilesSafe(resolve(process.cwd(), root)).map(label);
+    filesByRoot[root] = found;
+    for (const name of found) {
+      files.push(name);
+      const read = readToastCalls(name, readFileSync(resolve(process.cwd(), name), "utf8"));
+      calls.push(...read.calls);
+      literals.push(...read.literals);
+    }
+  }
+
+  return { files, filesByRoot, calls, literals };
+}
+
+/**
+ * Every must-read token riding a toast literal, as `file:line — callee(…) — why`.
+ *
+ * Allow-listed files are skipped WHOLE rather than per-token: the allow-list's unit is "this file's
+ * toasts carry no fact to retain", which is a statement about the file, and a per-token exemption
+ * would be a second, weaker vocabulary nobody declared.
+ */
+function mustReadToastViolations(literals: readonly ToastLiteral[]): string[] {
+  const hits: string[] = [];
+  for (const literal of literals) {
+    if (Object.prototype.hasOwnProperty.call(TOAST_ALLOW_LIST, literal.file)) continue;
+    const haystack = normaliseCopy(literal.text);
+    for (const token of MUST_READ_TOKENS) {
+      if (haystack.includes(normaliseCopy(token.pieces.join("")))) {
+        hits.push(`${literal.file}:${literal.line} — ${literal.callee}(…) — ${token.why}`);
+      }
+    }
+  }
+  return hits;
+}
+
+const toasts = scanToasts(TOAST_SCAN_ROOTS);
+
+describe("STATE-08 — the toast scan reaches what it claims to police", () => {
+  it("walked every declared root, and none of them came back empty", () => {
+    // GUARD-THE-GUARD, asserted FIRST. The real assertion below is `toEqual([])`, which a scan over
+    // nothing satisfies perfectly. A renamed route group — `(app)` is exactly the kind of path a
+    // restructure moves — would empty a root silently, and `collectSourceFilesSafe` deliberately
+    // does not raise on it.
+    const barren = TOAST_SCAN_ROOTS.filter((root) => toasts.filesByRoot[root].length === 0);
+    expect(
+      barren,
+      "a declared root contributed no source files at all. Either the directory moved (move this " +
+        "declaration in the same commit) or the walk is broken — and both look identical to a " +
+        "passing ban.",
+    ).toEqual([]);
+  });
+
+  it("found a non-zero number of `toast` calls across the three roots", () => {
+    // THE POSITIVE CONTROL the plan requires. Files being present is not the same as toasts being
+    // reachable: a callee matcher that matched nothing would give every ban below a perfect green.
+    expect(
+      toasts.calls.length,
+      "the scan found no toast call anywhere in the three roots. The tree ships several, so this " +
+        "means the callee matcher stopped matching — a vacuous green, not a clean one.",
+    ).toBeGreaterThan(0);
+
+    // …and it reached BOTH component trees by name, so a walk that quietly covered one of them
+    // cannot read as coverage of both.
+    const filesWithToasts = new Set(toasts.calls.map((call) => call.file));
+    expect([...filesWithToasts].some((f) => f.startsWith("src/components/booking/"))).toBe(true);
+    expect([...filesWithToasts].some((f) => f.startsWith("src/components/group/"))).toBe(true);
+
+    // THE HONEST HALF: `src/app/(app)/bookings/**` carries no toast call today. Its inclusion is
+    // 13-UI-SPEC's, and what this scan can truthfully say about it is that the walk REACHED it.
+    expect(toasts.filesByRoot["src/app/(app)/bookings"].length).toBeGreaterThan(0);
+  });
+
+  it("every allow-listed file exists, still has toasts, and carries its reason", () => {
+    // An allow-list row for a file with no toasts is not an exemption, it is a lie that reads like
+    // one — and it is how an allow-list outlives the thing it was excusing.
+    for (const [file, why] of Object.entries(TOAST_ALLOW_LIST)) {
+      expect(toasts.files, `${file} is allow-listed but was never scanned`).toContain(file);
+      expect(
+        toasts.calls.some((call) => call.file === file),
+        `${file} is allow-listed but carries no toast call — delete the row`,
+      ).toBe(true);
+      expect(why.length, `${file}'s allow-list row has no reason`).toBeGreaterThan(40);
+    }
+
+    // EXACTLY ONE, per 13-UI-SPEC § STATE-08. The number is the record of a decision: a second
+    // allow-listed file is a second surface that decided its fact was not worth re-reading.
+    expect(Object.keys(TOAST_ALLOW_LIST)).toHaveLength(1);
+  });
+
+  it("every banned token declares a reason, and no fragment reads as the token", () => {
+    for (const token of MUST_READ_TOKENS) {
+      expect(token.why.length, `${JSON.stringify(token.pieces)} has no reason`).toBeGreaterThan(40);
+      const whole = token.pieces.join("");
+      expect(whole.length, "an empty token matches every literal").toBeGreaterThan(0);
+      // Neither half may be the whole — that is what makes the encoding an encoding rather than a
+      // formality, and it is the property that keeps this file's own grep at zero.
+      //
+      // SCOPED TO MULTI-CHARACTER TOKENS, and that exemption is exactly one row wide: a token that
+      // IS one character cannot be split at all, so it is built from its code point instead and the
+      // glyph never appears here either way. Asserting the exemption's size is what stops it
+      // becoming the hole every future row is written through.
+      if (whole.length === 1) {
+        expect(
+          MUST_READ_TOKENS.filter((t) => t.pieces.join("").length === 1),
+          "more than one single-character token. The split-mid-word rule is waived for exactly one " +
+            "row (the currency sign, which has nothing to split); a second is a rule quietly relaxed.",
+        ).toHaveLength(1);
+        continue;
+      }
+      for (const piece of token.pieces) {
+        if (piece.length === 0) continue;
+        expect(
+          normaliseCopy(piece) === normaliseCopy(whole),
+          `${JSON.stringify(token.pieces)} is not really split — one piece IS the token`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("finds a banned token when there IS one — plain, ternary, template and JSX shapes", () => {
+    // Every fixture is BUILT from the encoding, so this file still never spells a banned token.
+    for (const token of MUST_READ_TOKENS) {
+      const needle = token.pieces.join("");
+      const source = `export const A = () => ${TOAST_CALLEE}.success("a ${needle} sentence");`;
+      const found = mustReadToastViolations(readToastCalls("fixture.tsx", source).literals);
+      expect(
+        found,
+        `the row encoded as ${JSON.stringify(token.pieces)} matched nothing`,
+      ).toHaveLength(1);
+      expect(found[0]).toContain("fixture.tsx:1");
+      expect(found[0]).toContain(`${TOAST_CALLEE}.success`);
+    }
+
+    const money = MUST_READ_TOKENS[0].pieces.join("");
+
+    // THE SHIPPED SHAPE. The cancellation toast's literals sat inside a conditional expression, two
+    // levels below the argument — the exact reason the argument walk is recursive.
+    const ternary =
+      `export const B = () => ${TOAST_CALLEE}.success(n > 0 ? "your ${money} is on its way" : "ok");`;
+    expect(mustReadToastViolations(readToastCalls("t.tsx", ternary).literals)).toHaveLength(1);
+
+    // An interpolated figure — the way a number re-enters a toast after this scan exists.
+    const template =
+      "export const C = () => " + TOAST_CALLEE + ".success(`${amount} " + money + " on its way`);";
+    expect(mustReadToastViolations(readToastCalls("t.tsx", template).literals)).toHaveLength(1);
+
+    // A ReactNode toast. `sonner` accepts one, so this is a shape rather than a hypothetical.
+    const jsx = `export const D = () => ${TOAST_CALLEE}.success(<p>your ${money} is on its way</p>);`;
+    expect(mustReadToastViolations(readToastCalls("t.tsx", jsx).literals)).toHaveLength(1);
+
+    // The bare-call form, which is `sonner`'s default export shape.
+    const bare = `export const E = () => ${TOAST_CALLEE}("your ${money} is on its way");`;
+    expect(mustReadToastViolations(readToastCalls("t.tsx", bare).literals)).toHaveLength(1);
+  });
+
+  it("does NOT report the same sentence outside a toast call — it is a scan, not a grep", () => {
+    // THE OTHER DIRECTION, and the reason this is an AST scan at all. Every banned token is a word
+    // the CORRECT copy is required to use in the same file: the in-page alert states the headcount,
+    // the detail page states the money sentence, the share box renders the link. A grep reports the
+    // fix as the defect.
+    const money = MUST_READ_TOKENS[0].pieces.join("");
+
+    const paragraph = `export const A = () => <p>Your ${money} is on its way.</p>;`;
+    expect(mustReadToastViolations(readToastCalls("t.tsx", paragraph).literals)).toEqual([]);
+
+    // A different notifier with the same argument is not a toast, and must not be reported as one.
+    const other = `export const B = () => notify.success("your ${money} is on its way");`;
+    expect(mustReadToastViolations(readToastCalls("t.tsx", other).literals)).toEqual([]);
+
+    // …and a clean toast is clean, so the scanner is not simply always positive.
+    const clean = `export const C = () => ${TOAST_CALLEE}.success("Booking cancelled.");`;
+    expect(mustReadToastViolations(readToastCalls("t.tsx", clean).literals)).toEqual([]);
+  });
+
+  it("folds every apostrophe spelling before matching — 13-04's measured failure, pre-empted", () => {
+    // NO ROW ABOVE CONTAINS AN APOSTROPHE TODAY, so this pass is prophylactic and says so. It is
+    // asserted directly rather than through a fixture because the alternative — inventing a row that
+    // needs it — would be a gate written to make its own helper look load-bearing.
+    //
+    // What 13-04 measured: the banned sentence renders as `haven&apos;t` in source, so a scan for the
+    // plain-apostrophe spelling matched nothing and reported a clean file. Every spelling below is
+    // one a formatter, a linter or a copy-paste can produce.
+    for (const spelling of ["&apos;", "&#39;", "&#x27;", "&rsquo;", "’", "‘", "ʼ"]) {
+      expect(normaliseCopy(`don${spelling}t`), spelling).toBe("don't");
+    }
+    // …and it lower-cases, so a capitalised sentence cannot dodge a lower-case row.
+    expect(normaliseCopy("REFUSED")).toBe("refused");
+  });
+});
+
+describe("STATE-08 — no toast in the phase-13 file set carries a must-read fact", () => {
+  it("carries none of the must-read vocabulary, outside the one allow-listed file", () => {
+    expect(
+      mustReadToastViolations(toasts.literals),
+      "a toast is carrying a fact the booker has to READ. A toast is dismissible, timed, " +
+        "unaddressable and gone on refresh; a money amount, a headcount and a dead invite link are " +
+        "none of those things (STATE-08, D-93). The fix is never to re-word the toast — it is to " +
+        "move the fact onto an in-page alert (`PanelCard tone=\"muted\"` + `role=\"status\"` + a " +
+        "non-empty accessible name) or onto the destination the flow navigates to, and to leave the " +
+        "toast carrying nothing anyone needs to keep. Two regions announcing one outcome is " +
+        "GATE-03 rule 6's defect, so the alert REPLACES the toast rather than joining it.",
+    ).toEqual([]);
+  });
+});
