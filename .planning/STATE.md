@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 4
+current_plan: 5
 status: executing
 stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-08-20T06:09:13.014Z"
+last_updated: "2026-08-20T06:56:08.004Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 57
+  completed_plans: 58
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 4 of 16
-Current Plan: 4
+Plan: 5 of 16
+Current Plan: 5
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -101,6 +101,7 @@ anti-vacuity case because an EMPTY set would also satisfy the pin. The `grep -c 
 the same prose-collision the last two plans did — the file says "never raises" throughout. **Zero
 requirements marked** (STATE-05 is carried by 13-04/07/15/16 and closes PARTIAL by D-64). Gates: `npm test`
 145 files / 1349 tests, design 42/754, `npm run build` exit 0, `refund-rail.ts` + `drizzle/` + `package.json`
+
 + `site-contacts.test.ts` + `site.ts` all byte-unchanged, zero packages.
 
 **12-15 IS THE GAP-CLOSURE PLAN AND IT IS DONE (`f009864` · `7f63e34` · `ceb54d7`).** `ci.yml` now has a
@@ -368,6 +369,7 @@ Last activity: 2026-08-20
 | Phase 12 P12 | 67min | 3 tasks | 13 files |
 | Phase 13 P02 | 25min | 3 tasks | 6 files |
 | Phase 13 P03 | 28min | 3 tasks | 8 files |
+| Phase 13 P04 | 33min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -694,6 +696,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-03: the PayMongo deadline is OPT-IN per call site — paymongoFetch accepts a signal and getCheckoutSession(id, { timeoutMs }) can be given one, but every money-path caller (confirmBooking's expire + create, expireCheckoutSession's LW-01 re-probe) still passes NONE. Two negative assertions pin that; a default deadline would turn 'the provider says this session is retired' into a new way to fail closed on the double-charge guard.
 - [Phase ?]: 13-03: refundWindowFor(null) routes to the rail-free sentence BEFORE the isApiRefundable check. isApiRefundable's fail-closed reading answers 'should we CALL the refund API'; 'what copy describes a refund that already happened' is a different question, and collapsing them would tell every D-84 fallback render that the booker's money needs a human when it does not.
 - [Phase ?]: 13-03: CHECKOUT_PROBE_TIMEOUT_MS = 3000, argued from the repo's own measured ~2s for two PayMongo round trips + two UPDATEs (config.ts). The ceiling is set by asymmetry: giving up early costs the rail-free sentence, which is DESIGNED copy (D-84), while waiting costs a booker staring at nothing on the page that exists to explain their payment.
+- [Phase ?]: 13-04: the reversed state's probe runs ONLY on a system-retired row that reached checkout (cancelledBy IS NULL + paymentId IS NULL + checkoutSessionId IS NOT NULL) — probing every cancelled row would report every party cancellation as a reversal
+- [Phase ?]: 13-04: an unanswered D-84 probe falls back to the by-hand branch, never the automatic one; the residual it cannot exclude (a swept abandoned hold) is recorded at the branch for 13-15, since the honest fix needs a persisted signal and D-80 bans migrations
 
 ### Pending Todos
 
@@ -799,7 +803,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T06:09:12.993Z
+Last session: 2026-08-20T06:55:50.770Z
 Stopped at: Completed 13-03-PLAN.md
 Resume file: None
 
