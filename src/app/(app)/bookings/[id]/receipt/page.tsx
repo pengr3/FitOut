@@ -409,7 +409,11 @@ export default async function BookingReceiptPage({
         // per-element classes catches only the ones somebody remembered. That is this phase's own lesson
         // (13-09: a ban list cannot catch the item nobody thought of), applied to print suppression.
         // A button on paper is a rectangle of ink that does nothing.
-        "print:[&_button]:hidden",
+        // THE SET IS BOTH CONTROL ELEMENTS, not only the one that exists today. There is no anchor on
+        // this route right now, which is precisely why the rule is written as a set rather than as a
+        // class on each control: the day somebody adds one — a link back to the booking, a support
+        // path — it is already suppressed, and nobody has to remember a contract written in a document.
+        "print:[&_button]:hidden print:[&_a]:hidden",
       )}
     >
       {/* ── HEAD ──────────────────────────────────────────────────────────────────────────────────── */}

@@ -133,7 +133,12 @@ export function SiteFooter() {
       // `mt-auto` is the whole reason every layout wraps its children in `min-h-dvh flex flex-col`
       // (plan 11-10) — it pushes this block to the bottom of a SHORT page instead of leaving it
       // floating under two paragraphs of content.
-      className="mt-auto border-t bg-muted"
+      // `print:hidden` (13-12 / D-74): the same rule the header carries, and for a sharper reason here.
+      // This block is `bg-muted` with a link column on it; print drops backgrounds by default, so on
+      // paper it becomes a page of legal and navigation links in ink the reader cannot use. Nothing in
+      // it belongs on a printed booking record. `print:` compiles only inside `@media print`, so screen
+      // rendering is unchanged.
+      className="mt-auto border-t bg-muted print:hidden"
     >
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-3 sm:px-6 sm:py-12">
         {/* ── Column 1: the wordmark and the app's one sentence ─────────────────────────────────

@@ -725,3 +725,124 @@ describe("TRUST-03 — the disclosure is on the renders where cancelling is stil
     expect(text).not.toContain("comes back.");
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// TRUST-05 / D-76 — THE RECEIPT ENTRY IS OFFERED EXACTLY WHERE THE RECEIPT EXISTS (plan 13-12)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `/bookings/[id]/receipt` refuses every row where money did not move, and its refusal is deliberately
+// INDISTINGUISHABLE from a stranger's booking — the same bare 404, the same three strings. That is
+// correct for the route and it is exactly what makes an over-offered entry expensive: a booker who
+// follows a link this page gave them lands on *"we couldn't find that booking"* about their own
+// booking, and has no way to tell that from having lost it.
+//
+// So the entry's predicate is not a nicety, and it cannot be asserted by looking at one render. Case
+// (16) walks all TEN and asserts membership of a CLOSED SET — the phase's own lesson (13-09: a ban list
+// cannot catch the item nobody thought of, so prefer a closed-set count). The set is written out by
+// NAME rather than recomputed from each row, because a test that re-derived the predicate would be
+// asserting its own copy of the thing under test.
+//
+// ⚠ AND CASE (16) ALONE CANNOT FAIL, WHICH IS WHY CASE (17) EXISTS. Measured, not reasoned: with the
+// page's predicate replaced by a bare `true`, case (16) stayed GREEN at 44/44. The reason is structural
+// — of the ten declared renders, only two reach a site that renders the entry at all (the confirmed
+// branch and the GENERIC cancelled landing), and the one declared cancelled row that reaches the
+// generic landing carries a refund figure, so it qualifies under both the real predicate and the broken
+// one. Case (16) therefore measures BRANCH PLACEMENT and nothing else, and the phase's own warning
+// applies to it exactly: *a test can enforce the bug — check which fixture a money assertion actually
+// runs against.*
+//
+// Case (17) is the assertion the predicate needs, and it is the pair 13-10 used on the reversed row:
+// the SAME branch, driven twice, differing only in whether money moved. A `cancelled` row with no
+// refund figure and no payment id is the swept unpaid hold `page.tsx`'s own comment names — a booker
+// who was never charged one centavo — and it is the only shape on which offering a receipt is a real
+// defect rather than a hypothetical one.
+describe("TRUST-05 — the receipt entry appears on the money-moved renders and on no other", () => {
+  /**
+   * The three renders that qualify, and why each of the other seven does not.
+   *
+   *   • `confirmed` and `completed (derived)` — the confirm UPDATE ran; it is the only statement in the
+   *     codebase that writes `payment_id`. `completed` is the SAME row a moment later (D-102).
+   *   • `cancelled (party)` — a booking somebody paid for and then cancelled, carrying the refund figure
+   *     the cancel action wrote. D-76 names this case as the one MOST likely to need a document.
+   *
+   *   • `requested` / `approved` — pay-on-approval holds. Nothing has been charged (D-90).
+   *   • `pending (settling)` / `pending (not completed)` — the money has not landed, by definition.
+   *   • `declined` — a request nobody paid for.
+   *   • `cancelled (lapsed approval)` — an approval that ran out before payment; no session, no charge.
+   *   • `cancelled (reversed)` — NOT an omission. The route admits this shape only when the D-84 probe
+   *     CONFIRMS the session was paid, and this branch returns a component that holds that probe result
+   *     itself. An entry rendered from the row signature alone would be offered on precisely the rows
+   *     where the receipt may not exist — the abandoned-hold reading of the same signature (D-96).
+   */
+  const WITH_ENTRY = new Set(["confirmed", "completed (derived)", "cancelled (party)"]);
+
+  it("(16) offers `View receipt` on exactly the three money-moved renders", async () => {
+    for (const r of RENDERS) {
+      cleanup();
+      const { container } = await drive(r);
+      const text = flat(container as unknown as HTMLElement);
+      const expected = WITH_ENTRY.has(r.name);
+      expect(
+        text.includes("View receipt"),
+        expected
+          ? `${r.name}: money moved on this row and the receipt exists for it, but the page offers no ` +
+              "way to reach it. TRUST-05 asks that a booker can view and print an itemised receipt; a " +
+              "real URL nobody links to is not that."
+          : `${r.name}: the page offers a receipt for a booking whose money never moved. The route ` +
+            `404s it (D-76), and that 404 is byte-identical to the one a stranger gets — so the link ` +
+            `sends a booker to the not-found copy about their OWN booking, with no way to tell that ` +
+            `from having lost it.`,
+      ).toBe(expected);
+    }
+  });
+
+  it("(17) withholds it from a cancelled row nobody ever paid for — the branch's OTHER reading", async () => {
+    // The generic cancelled landing, reached the same way `cancelled (party)` reaches it (`cancelledBy`
+    // is set, so neither the reversal branch nor the D-97 lapse branch claims the row) — but with NO
+    // refund figure and NO payment id. `page.tsx` labels this row's money term "Quoted total" for the
+    // same reason the entry must be absent: nobody was charged.
+    const { container } = await renderPage(
+      booking({ status: "cancelled", cancelledBy: "booker", refundCents: null, paymentId: null }),
+    );
+    const text = flat(container as unknown as HTMLElement);
+
+    // THE THREAT FIRST (13-11's ordering rule).
+    expect(
+      text,
+      "a swept, never-paid hold was offered a receipt. The route 404s it (D-76) with the same bare " +
+        "answer a stranger's booking gets, so this link sends a booker who was never charged to the " +
+        "not-found copy about their OWN booking. This is the assertion case (16) cannot make: with " +
+        "the predicate replaced by `true`, that case stays green and this one does not.",
+    ).not.toContain("View receipt");
+
+    // GUARD THE GUARD — the fixture really did reach the generic cancelled landing, so the absence
+    // above is about the predicate rather than about a row that rendered some other branch entirely.
+    expect(
+      text,
+      "the fixture did not land on the generic cancelled branch, so the absence above proves nothing",
+    ).toContain("This booking was cancelled");
+    expect(text, "the fixture is not the never-paid reading of that branch").toContain("Quoted total");
+  });
+
+  it("(18) the entry is never the accent, on either branch that renders it", async () => {
+    for (const name of ["confirmed", "cancelled (party)"]) {
+      cleanup();
+      const r = RENDERS.find((x) => x.name === name);
+      expect(r, `the render table no longer declares "${name}"`).toBeTruthy();
+      const { container } = await drive(r!);
+      const link = [...container.querySelectorAll("a")].find(
+        (a) => a.textContent?.trim() === "View receipt",
+      );
+      expect(link, `${name}: the receipt entry is not an anchor`).toBeTruthy();
+      // One accent per surface (08-UI-SPEC Open Q3), and on both of these branches it is already spoken
+      // for — by `Invite people` on the confirmed render and by `Find another space` on the cancelled
+      // one. Asserted through the RENDERED class list rather than by reading the source, because the
+      // variant reaches the DOM through a CVA recipe and a source scan would only see the prop.
+      expect(
+        link!.className,
+        `${name}: the receipt entry is painted with the accent recipe. It is a calm, secondary way to ` +
+          "a record — never the thing this surface is asking the booker to do.",
+      ).not.toContain("bg-brand");
+    }
+  });
+});

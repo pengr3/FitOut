@@ -162,9 +162,12 @@ export function ReceiptLines({
 }: ReceiptLinesProps) {
   return (
     <dl className="space-y-4">
-      {/* ── The itemisation. Both parts or neither: a lone half is a figure nobody was charged. ────── */}
+      {/* ── The itemisation. Both parts or neither: a lone half is a figure nobody was charged. ──────
+          `print:break-inside-avoid` (D-74): the parts and their sum are one argument, and a page break
+          through the middle of it prints a receipt whose derivation is on a different sheet from the
+          figure it derives. */}
       {spacePriceLabel !== null && serviceFeeLabel !== null ? (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 print:break-inside-avoid">
           <Row term="Space cost" value={spacePriceLabel} muted />
           {/* D-86's unit line, as a SECOND description of the space cost above — the `<dl>` idiom for
               "one term, two things worth saying about it". It carries no term of its own because it is
@@ -181,7 +184,11 @@ export function ReceiptLines({
 
       <Separator />
 
-      <div className="flex items-baseline justify-between gap-4">
+      {/* ⚠ `print:break-inside-avoid` ON THE TOTAL ROW IS THE ONE PAGINATION RULE THAT IS NOT TASTE.
+          A total split across a page break is the single thing a receipt may not do: the label lands on
+          one sheet and the figure on the next, and a document whose whole job is to state one number
+          has stated it in two places, either of which can be read alone. */}
+      <div className="flex items-baseline justify-between gap-4 print:break-inside-avoid">
         <dt className="text-sm font-semibold">Total</dt>
         {/* THE FOURTH MONEY HOOK. Written as a string literal, on the element whose text is the money
             string and nothing else — see the header for the measured reason a shared id would break the

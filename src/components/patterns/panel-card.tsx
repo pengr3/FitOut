@@ -104,6 +104,36 @@ export function PanelCard({
         // `gap-0` for the same reason on the other axis: `Card`'s own `gap-4` would open a 16px
         // channel between the content and a `CardFooter` whose `border-t` is meant to sit flush.
         "gap-0 py-0",
+        // ── THE PANEL FLATTENS ON PAPER (plan 13-12 / D-74 / 13-RESEARCH Pitfall 3). ───────────────
+        //
+        // THIS LIVES HERE AND NOT AT A CALL SITE, and that placement is the whole DS-11 argument rather
+        // than a convenience. This file decides the panel's radius, hairline, elevation and padding for
+        // all five adopters; how that BOX renders in print media is a property of the same box. A route
+        // that reached in to flatten it for itself would be re-deciding the panel's appearance in one
+        // medium, which is exactly the fork this component exists to prevent — and it could not do so
+        // through props anyway, because `PanelCard` deliberately takes no `className`.
+        //
+        // IT IS UNCONDITIONAL BECAUSE IT IS UNIVERSALLY CORRECT. Print starts with backgrounds dropped
+        // (Chrome's Background graphics box is off by default), so a panel that kept its fill on screen
+        // and lost it on paper would print a hairline ring around nothing — a box drawn for a surface
+        // that is not there. Flattening states the same thing the medium was going to do anyway, and
+        // ⚠ AND THERE IS NO ELEVATION UTILITY HERE, THOUGH 13-UI-SPEC's PRINT CONTRACT LISTS ONE.
+        // The spec's row reads `print:bg-transparent print:ring-0 print:shadow-none`, and the third of
+        // those is INERT on this component: the header above states, at length, that a panel is flat at
+        // rest and that there is no `shadow-` utility in this file and must not be one. Removing a
+        // shadow that cannot exist documents nothing; it only adds a call site.
+        //
+        // It was written first and `elevation-z.test.ts` measured it, which is the reason this note is
+        // a measurement rather than an opinion: `expected { …(4) } to deeply equal { …(3) }`, the pin
+        // reporting a SIXTH `shadow-none` site against an inventory of five that all live in vendored
+        // `ui/` files. A pinned inventory going red on a redundant class is the pin doing its job, and
+        // the fix is to delete the class rather than to move the number.
+        //
+        // The forward rule from 13-UI-SPEC § The Print Contract is what the two remaining utilities
+        // preserve: *the receipt never relies on a painted background.* That is a property to keep, not
+        // a value to re-tune — it survives `.dark` ever being activated, which is why nothing here
+        // forces exact colour.
+        "print:bg-transparent print:ring-0",
         // THE STICKY OFFSET IS 80px, AND THAT NUMBER IS DERIVED, NOT CHOSEN. The app shell's header
         // (plan 11-10) is 64px from `sm:` up and is `sticky top-0`, so a rail pinned any closer than
         // 64px to the viewport top scrolls UNDER it. 64 + a 16px gap = 80px = the 20th spacing step.

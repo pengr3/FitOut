@@ -568,6 +568,40 @@ export default async function BookingConfirmationPage({
   );
 
   /**
+   * TRUST-05 — the entry to the receipt (plan 13-12 / D-74 / D-76).
+   *
+   * BUILT ONCE AND RENDERED ON THE TWO BRANCHES THAT QUALIFY, for the same reason the trust block and
+   * the facts panel above are built once: two branches that each composed their own link are two things
+   * to keep true, and the one that matters here is the PREDICATE rather than the markup.
+   *
+   * ⚠ THE PREDICATE IS THE ROUTE'S OWN, RESTATED IN THE SAME TERMS. `receipt/page.tsx` admits a booking
+   * where MONEY MOVED — `confirmed` (which covers the derived `completed`), and a `cancelled` row
+   * carrying a refund figure or a payment id. An entry offered on anything else is a link to a bare 404,
+   * which is worse than no link: the route's refusal is deliberately indistinguishable from a stranger's
+   * booking, so a booker following an offered link would land on *"we couldn't find that booking"* about
+   * their own. The route stays the authority — this is a courtesy that must not disagree with it.
+   *
+   * ⚠ THE REVERSED BRANCH GETS NO ENTRY, AND THAT IS DELIBERATE RATHER THAN AN OMISSION. It returns
+   * `PaymentReversedState` well above this block and has no actions block of this shape; more to the
+   * point, the route admits that shape only when the D-84 probe CONFIRMS the session was paid, so an
+   * entry rendered from the row signature alone would be offered on exactly the rows where the receipt
+   * may not exist. When a reversed booking needs a printable record, the entry belongs inside that
+   * component under the probe result it already holds — a decision for the plan that opens it, not a
+   * link guessed from here.
+   *
+   * `variant="outline"` and never coral: at most one accent per surface, and on both branches below it
+   * is already spoken for.
+   */
+  const moneyMoved =
+    bk.status === "confirmed" ||
+    (bk.status === "cancelled" && (bk.refundCents !== null || bk.paymentId !== null));
+  const receiptEntry = moneyMoved ? (
+    <Button asChild variant="outline" className="w-full">
+      <Link href={`/bookings/${bk.id}/receipt`}>View receipt</Link>
+    </Button>
+  ) : null;
+
+  /**
    * TRUST-03 ON SCREEN — the cancellation policy as CONCRETE DATES, plus what comes back today.
    *
    * ⚠ NOT ONE PERCENTAGE AND NOT ONE HOUR FIGURE IS TYPED ON THIS PAGE, and that is the requirement
@@ -1101,6 +1135,12 @@ export default async function BookingConfirmationPage({
 
           <Separator />
 
+          {/* TRUST-05 — present on a cancellation ONLY where money actually moved, which is the same
+              predicate the row above uses to choose between "Total" and "Quoted total". A swept hold
+              nobody paid for gets no entry, because it gets no receipt (D-76). Above the coral: the
+              record of what happened comes before the way forward. */}
+          {receiptEntry}
+
           <Button asChild variant="brand" className="w-full">
             <Link href="/">Find another space</Link>
           </Button>
@@ -1307,6 +1347,13 @@ export default async function BookingConfirmationPage({
                 </p>
               </div>
             ))}
+
+          {/* TRUST-05 (D-74) — the entry to the printable record. Always present on this branch: every
+              render that reaches it is a `confirmed` row, and the confirm UPDATE is the one statement
+              that writes a payment id. It sits between the group entry and the forward action, which is
+              13-UI-SPEC's own order for this block, and it is `outline` because `Invite people` holds
+              this surface's single accent slot. */}
+          {receiptEntry}
 
           {/* ⚠️ DEMOTED FROM CORAL TO `ghost` (08-UI-SPEC §1 / Open Q3). This was the confirmed branch's
               one coral forward action; `Invite people` now holds that slot, and one-primary-per-surface

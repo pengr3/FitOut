@@ -154,6 +154,16 @@ export function SiteChrome({
         HEADER_HEIGHT,
         "sticky top-0 z-(--z-sticky) border-b",
         surface === "muted" ? "bg-muted" : "bg-background",
+        // ── THE PRINT CONTRACT (13-12 / D-74). App chrome is not part of any document a person prints.
+        // A sticky navigation bar on paper is a band of ink that navigates nowhere, and here it is
+        // actively harmful: this element is `border-b` over a painted surface, and print drops
+        // backgrounds by default — so it would reproduce as a stray rule across the top of the sheet
+        // with the fill it was meant to sit on missing.
+        //
+        // A Tailwind `print:` utility compiles to `@media print` and NOTHING else, so every screen
+        // rendering is byte-identical after this line and all 52 GATE-VRT baselines are unmoved
+        // (13-RESEARCH Assumption A4 — worth one baseline run, which is plan 13-15's).
+        "print:hidden",
       )}
     >
       <div className="mx-auto flex h-full w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
