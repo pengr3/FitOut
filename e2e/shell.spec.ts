@@ -769,11 +769,29 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
         "consuming the checkout-return parameter is that everything the moment states is repeated on " +
         "the ordinary detail page; a reversal with no money sentence is that argument being false.",
     ).toHaveCount(1);
+    // ⚠️ CORRECTED BY 13-CONTEXT D-96 (plan 13-10). This used to assert the by-hand branch's
+    // "You were charged {amount}" — and this fixture is the exact row that made that assertion
+    // wrong. Its `checkout_session_id` is a synthetic `cs_e2e_...`, so the probe deterministically
+    // learns NOTHING, and a row with no `cancelled_by`, no `payment_id` and a real session id is
+    // SHARED with an abandoned hold that a later booker's stale-hold sweep flipped to `cancelled`
+    // (`availability/units.ts:487` / `:922`). That booker was never charged one centavo. So the
+    // committed proof of "the page still explains itself when the provider is unavailable" was also
+    // the committed proof that it asserted a charge it had no way to know had happened.
+    //
+    // The branch is now `indeterminate` and every sentence in it is conditional on a charge, which is
+    // true under BOTH readings of this row. The pair below is what matters: the conditional form is
+    // present, and the amount is nowhere in the document.
     await expect(
       panel,
-      `${url}: the money statement does not state the charge. See the block above for why the by-hand ` +
-        "branch is the deterministic one against this fixture.",
-    ).toContainText("You were charged");
+      `${url}: the money statement does not carry D-96's conditional form. With the probe unanswerable ` +
+        "this row is indistinguishable from a swept unpaid hold, so the copy may state that money is " +
+        "coming back but may not assert that money went out.",
+    ).toContainText("If you were charged for this booking");
+    await expect(
+      page.locator("body"),
+      `${url}: an amount reached a surface that does not know a charge occurred. That is 13-CONTEXT ` +
+        "D-96 exactly — the last place FitOut could state a money fact it has not verified.",
+    ).not.toContainText("1,050.00");
 
     await expect(
       page.getByTestId("booking-reference"),
@@ -951,6 +969,129 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
     // STATE-05's negative, at the one place both could plausibly appear.
     await expect(page.getByTestId("payment-state-pending")).toHaveCount(0);
     await expect(page.getByTestId("payment-state-reversed")).toHaveCount(0);
+  });
+
+  // ═════════════════════════════════════════════
+  // T-13-10-NFORACLE (plan 13-10) — A MISSING BOOKING AND SOMEBODY ELSE'S ARE THE SAME ANSWER
+  // ═════════════════════════════════════════════
+  //
+  // WHY THIS IS AN E2E CASE AND NOT A UNIT ONE. The property is about the RESPONSE, not about a
+  // component: two requests, two status codes, two rendered documents, compared. jsdom can render
+  // `not-found.tsx` all day and never tell you that the owner gate routed both situations to it, nor
+  // that Next served 404 for both. Plan 08-06 closed this class of defect on the invite route and
+  // recorded the distinction that decides it: identical MARKUP is not an identical RESPONSE.
+  //
+  // WHAT AN ORACLE WOULD COST HERE. `/bookings/[id]` renders the host's name, the venue's exact street
+  // address and payment amounts. If a stranger could tell "no such booking" from "not yours" —
+  // from a different sentence, a different action, a different status — they would learn which
+  // ids name real bookings without ever being allowed to see one, and the id space is the only thing
+  // between them and the rest. The gate itself is untouched by plan 13-10; what is new is the page
+  // both answers land on, and a new not-found page is exactly where a well-meant "this one isn't
+  // yours" gets written.
+  //
+  // THE FOREIGN ROW IS REAL, NOT SYNTHETIC. It is the fixture's `confirmed` booking, owned by the
+  // booker the first test in this describe signed up — so this case signs up a DIFFERENT one. A
+  // case that compared two ids which were both missing would pass forever while proving nothing.
+  //
+  // ⚠️ IT RUNS LAST IN THIS DESCRIBE ON PURPOSE. `signUpBooker` APPENDS to `seed.bookerEmails`,
+  // and every case above logs the fixture's owner back in by reading the LAST entry of that array
+  // (the session does not cross a test boundary — see the D-87 case's watched red). Moving this
+  // case earlier would silently hand those cases a booker who owns none of the rows, and every one of
+  // them would fail with the owner gate's 404, which is indistinguishable from the regressions they
+  // exist to catch.
+  test("a missing booking and a foreign booking answer identically (T-13-10-NFORACLE)", async ({
+    page,
+  }) => {
+    expect(
+      payStates,
+      "the payment-state fixture is null, so the first test in this serial describe did not reach " +
+        "its seed. A null here is a failure of that test, not of this assertion.",
+    ).not.toBeNull();
+
+    await signUpBooker(page, seed);
+
+    const foreign = `/bookings/${payStates!.bookingIds.confirmed}`;
+    // A well-formed UUID that names nothing. Deliberately not a malformed id: the route matches any
+    // string, and a malformed one would be a different and weaker question than the one being asked.
+    const missing = `/bookings/${randomUUID()}`;
+
+    const read = async (url: string) => {
+      const response = await page.goto(`${BASE}${url}`, { waitUntil: "networkidle" });
+      const panel = page.getByTestId("empty-state");
+      await expect(
+        panel,
+        `${url}: the owner gate did not land on the booking not-found boundary at all. Either the ` +
+          "gate let the render through, or the boundary is missing and something else answered.",
+      ).toHaveCount(1);
+      return {
+        status: response?.status() ?? null,
+        // THE PANEL'S markup, not the document's. The shell around it carries the signed-in booker's
+        // own chrome, which is identical across these two requests only by the accident of both being
+        // made in one session; scoping to the panel asserts the thing that is actually promised.
+        html: await panel.innerHTML(),
+        // The whole document, for the OTHER half — that neither answer leaked a fact off the row.
+        text: (await page.locator("body").innerText()).replace(/\s+/g, " "),
+      };
+    };
+
+    const notMine = await read(foreign);
+    const notThere = await read(missing);
+
+    // ── THE STATUS CODES ARE ASSERTED EQUAL TO EACH OTHER, NOT EQUAL TO 404 ──────────────────────
+    //
+    // The first draft of this case asserted 404 on both and MEASURED 200 on both, which is worth
+    // recording rather than quietly fixing. `(app)/layout.tsx` streams a `<Suspense>` shell for the
+    // header's auth slot, so by the time `page.tsx` reaches its owner gate and raises `notFound()`
+    // the response headers are long gone; Next renders the boundary into the already-open stream and
+    // the client swaps it in. It is the same measurement `listings/[id]/(detail)/not-found.tsx`
+    // records at length for its own route, in both `next dev` and `next start`, and it is the
+    // framework's choice rather than this page's.
+    //
+    // WHY THAT IS NOT A DEFECT HERE, WHILE IT WOULD BE ON A PUBLIC PAGE. The listing route weighs a
+    // 2xx for a listing that is gone against crawlers keeping the URL. `/bookings/**` sits behind
+    // `(app)`'s session gate and is in no index, so no crawler ever sees either answer.
+    //
+    // AND EQUALITY IS THE PROPERTY ANYWAY. T-13-10-NFORACLE is about a DIFFERENCE, not about a
+    // number: a script walking the id space learns nothing from 200/200 and everything from 200/404
+    // or 404/403. Pinning the literal would also make this case go red on a framework change that
+    // altered nothing about the oracle — an assertion pinning the wrong thing.
+    expect(
+      notMine.status,
+      `${foreign} vs ${missing}: the two answers carry DIFFERENT status codes, which is an ownership ` +
+        "oracle a script reads instantly whatever the page says. A booking that exists but is not " +
+        "yours must be indistinguishable from one that does not exist.",
+    ).toBe(notThere.status);
+    expect(notMine.status, "no response status was captured at all").not.toBeNull();
+
+    // ── AND THE LEAK ITSELF, which parity alone does not cover: two identical pages that both
+    // rendered somebody else's booking would satisfy every assertion above perfectly. Nothing off the
+    // row may reach the document — not the venue, not the money. (The exact street and the host's
+    // name are the other two, and both are unreachable for the same reason these are: the page
+    // returned before it read the listing at all.)
+    expect(
+      notMine.text,
+      `${foreign}: the venue of somebody else's booking reached the response.`,
+    ).not.toContain(seed.title);
+    expect(
+      notMine.text,
+      `${foreign}: the amount on somebody else's booking reached the response.`,
+    ).not.toContain("1,050.00");
+
+    expect(
+      notMine.html,
+      "the two answers differ. Any difference at all — a sentence, an action, a glyph, a heading " +
+        "level — lets somebody walking the id space learn which ids name real bookings. The copy " +
+        "is ONE set of three strings for both situations, deliberately.",
+    ).toBe(notThere.html);
+
+    // GUARD THE GUARD. An equality between two empty strings is satisfied perfectly by a panel that
+    // rendered nothing, and both `toHaveCount(1)` assertions above are just as happy with an empty
+    // container. So the compared markup is asserted to be real, and to be the copy it should be.
+    expect(
+      notMine.html.length,
+      "the compared markup is empty, so the equality above proves nothing",
+    ).toBeGreaterThan(50);
+    expect(notMine.html).toContain("find that booking");
   });
 
 });

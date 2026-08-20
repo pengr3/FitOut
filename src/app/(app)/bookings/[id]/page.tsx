@@ -129,6 +129,9 @@ import { readDbNow } from "@/lib/booking/bookings-query";
 // The ONE owner of a venue-local deadline string (07-02). The `requested` branch's meaning sentence
 // names an instant, and a fifth date format on this page is exactly what this module exists to prevent.
 import { composeDeadlineLabel } from "@/lib/booking/when-label";
+// TRUST-03's on-screen half, composed in ONE named function so this page states no percentage and no
+// hour figure of its own — every rung comes from LADDER by way of that module. See its header.
+import { composePolicyDisclosure } from "@/lib/booking/policy-disclosure";
 import { probeCheckoutSession, readPaymentState } from "@/lib/payments/checkout-probe";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { getAvailability } from "@/lib/availability/read-model";
@@ -144,6 +147,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { BookingReference } from "@/components/booking/booking-reference";
+import { MoneyStatement } from "@/components/booking/money-statement";
+import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 import { NotCompletedState } from "@/components/booking/not-completed-state";
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
@@ -226,6 +231,16 @@ export default async function BookingConfirmationPage({
       // 13-10 — by the facts panel's ITEMISATION, which renders it beside the service fee only on a
       // positive match against the frozen total (see `itemised`).
       spacePriceCents: booking.spacePriceCents,
+      // ── Plan 13-10 (TRUST-03). The booking's OWN snapshot of the cancellation tier (PROJECT D-67),
+      // frozen at creation and the exact value `quoteRefund` will read at cancel time — so the
+      // disclosure below and the refund engine cannot disagree. NEVER the listing's current tier: a
+      // host edit would silently rewrite the terms of a booking already agreed and already paid for
+      // (T-07-90). NULL on a pre-Phase-7 row, which discloses nothing rather than a policy the row
+      // does not carry.
+      cancellationPolicy: booking.cancellationPolicy,
+      // The anchor fork (OC-03): on an open-capacity row `starts_at` is the venue's OPENING instant,
+      // so the deadline copy names the day the space opens rather than a session that does not exist.
+      openCapacity: booking.openCapacity,
       // ── Plan 13-10. TRUST-01 asks for the total ITEMISED, and this is the other half of it. Both
       // parts are nullable on pre-0016 rows, which is exactly why the render is a positive match rather
       // than a subtraction: `quoted - space` would manufacture a "service fee" out of whatever the two
@@ -547,6 +562,65 @@ export default async function BookingConfirmationPage({
     </PanelCard>
   );
 
+  /**
+   * TRUST-03 ON SCREEN — the cancellation policy as CONCRETE DATES, plus what comes back today.
+   *
+   * ⚠ NOT ONE PERCENTAGE AND NOT ONE HOUR FIGURE IS TYPED ON THIS PAGE, and that is the requirement
+   * rather than a style. Every rung, its order and its boundary instant come from `LADDER` — the same
+   * constant `quoteRefund` evaluates — through `composePolicyDisclosure`, so editing a rung in
+   * `cancellation.ts` rewrites this copy automatically. Hand-typed terms drift the first time a rung
+   * moves, and this is precisely the surface where that drift becomes a refund dispute: the booker
+   * points at what they were shown, the ladder says otherwise.
+   *
+   * The tier is the booking's own SNAPSHOT column (PROJECT D-67) and a NULL one discloses nothing —
+   * see the composer's header for why that is conservative rather than a gap.
+   *
+   * `todayRefundCents` is formatted HERE, in the RSC, and travels as a finished string (D-130 /
+   * GATE-05). It is a DISCLOSURE: the enforceable figure recomputes against the Postgres clock inside
+   * the cancel action, so nothing on this page can move money.
+   */
+  const policy = composePolicyDisclosure({
+    tier: bk.cancellationPolicy,
+    startsAt: bk.startsAt,
+    now,
+    timezone,
+    city: lst.city,
+    openCapacity: bk.openCapacity,
+    spacePriceCents: bk.spacePriceCents ?? quoted,
+    serviceFeeCents: bk.serviceFeeCents ?? 0,
+  });
+
+  /**
+   * The disclosure block, or nothing.
+   *
+   * WHERE IT RENDERS IS THE SAME PREDICATE AS THE CANCEL ENTRY, and tying the two together is the
+   * point: a policy disclosed on a booking that can no longer be cancelled is a window that closed,
+   * and a cancel entry offered with no policy beside it is the irreversible money action D-81 exists
+   * to put terms in front of. Both are `sessionAhead` on the confirmed branch below.
+   */
+  const policyDisclosure =
+    policy.tier === null ? null : (
+      <div className="space-y-2">
+        <CancellationPolicyDisclosure
+          tier={policy.tier}
+          openCapacity={policy.openCapacity}
+          windowAlreadyOpen={policy.windowAlreadyOpen}
+          boundaryLabels={policy.boundaryLabels}
+          bestRungIndex={policy.bestRungIndex}
+        />
+        {/* TRUST-01's *"…with today's refund amount"*. The date and the percentage are inside the
+            disclosure above; this is the peso figure they add up to, so the booker is not left doing
+            the arithmetic that decides whether to cancel. Zero is stated as plainly as any other
+            figure — never hidden, and never a bare "₱0.00" with no reason: the disclosure directly
+            above names the window it fell outside. */}
+        {policy.todayRefundCents !== null && (
+          <p className="text-label tabular-nums text-muted-foreground">
+            Cancel today and {formatMoney(policy.todayRefundCents, currency)} comes back.
+          </p>
+        )}
+      </div>
+    );
+
   // Truthfulness (D-57): never render "Booking confirmed" until the DB says 'confirmed'. On return from the
   // hosted checkout the webhook — NOT this ?paid=1 signal — is the confirm authority. Branch on the DB state:
   if (bk.status === "pending") {
@@ -826,21 +900,36 @@ export default async function BookingConfirmationPage({
     // WHAT EACH ANSWER MEANS. Session `paid` ⇒ money moved on a booking that ended cancelled, which is a
     // reversal. Session `expired` (or anything else the provider says) ⇒ NOT this state; fall through to
     // the branches below unchanged. A probe that learned NOTHING — no key, a network error, a non-2xx,
-    // the 3s deadline — falls back to the row signature above, and lands on the by-hand branch.
+    // the 3s deadline — falls back to the row signature above, and lands on the branch that claims least.
     //
     // ⚠️ THE DIRECTION OF THAT FALLBACK IS CHOSEN, NOT INHERITED. Guessing the automatic branch would
     // tell a booker their money had been sent back when nobody sent it back — the same class of false
-    // money statement D-69 exists to remove, pointing the other way. Failing to the by-hand branch says
-    // only that a person is involved, which is true on every path where we are unsure. It is also the
-    // direction `isApiRefundable` itself fails, and `branch` below is literally that predicate.
+    // money statement D-69 exists to remove, pointing the other way.
     //
-    // ⚠️ RESIDUAL, RECORDED RATHER THAN HIDDEN (for 13-15). When the probe learns nothing, the row
-    // signature alone cannot exclude an ABANDONED hold that a later booker's stale-hold sweep flipped to
-    // `cancelled` (`availability/units.ts:487` and `:922`) — that row also has no `cancelled_by`, no
-    // `payment_id` and a real session id. Such a booker would read a charge that never happened. It
-    // needs a provider outage AND an abandoned checkout AND a revisit to coincide; with the probe up,
-    // the session reads `active`/`expired` and the row correctly falls through. Noted here because the
-    // honest fix is a persisted signal, which D-80 puts out of scope for this phase.
+    // ══ 13-CONTEXT D-96 — THE RESIDUAL 13-04 RECORDED HERE IS NOW CLOSED, AND THIS IS WHERE ═════════
+    //
+    // 13-04 wrote the residual at this branch so a later author would find it rather than re-derive it,
+    // and this is that author. It read: when the probe learns nothing, the row signature alone cannot
+    // exclude an ABANDONED hold that a later booker's stale-hold sweep flipped to `cancelled`
+    // (`availability/units.ts:487` for the exclusive path, `:922` for open capacity). Such a row also has
+    // no `cancelled_by`, no `payment_id` and a real session id — and that booker was never charged one
+    // centavo, yet the by-hand copy would have told them *"You were charged {₱X}"*.
+    //
+    // WHY THE OLD FALLBACK WAS NOT SIMPLY "SAFER". 13-04 chose `manual` over `auto` because `manual`
+    // claims less about the REFUND — a person is involved rather than an API call having succeeded — and
+    // that reasoning is correct on the axis it was about. But BOTH of those branches presuppose a charge,
+    // and the question an unanswered probe cannot answer is whether a charge happened at all. Two
+    // different questions; the fail-closed direction for the second one is neither of them.
+    //
+    // THE FIX NEEDS NO COLUMN, WHICH IS WHY IT FITS INSIDE D-80's ZERO MIGRATIONS. It is a third copy
+    // branch whose every sentence is CONDITIONAL on a charge and therefore true under both readings of
+    // the row: the booking is cancelled, and if anything was charged it is coming back — carrying the
+    // reference and the support path, and naming no amount, because the amount is the assertion we
+    // cannot make. A persisted signal on the reversal path would still be the stronger fix and is still
+    // correctly out of scope.
+    //
+    // This closes the last place on `/bookings/**` where FitOut could state a money fact it has not
+    // verified, which is the whole point of D-69 and D-83.
     const systemRetired = bk.cancelledBy === null && bk.paymentId === null;
     const reachedCheckout = systemRetired && bk.checkoutSessionId !== null;
     const session = reachedCheckout ? await probeCheckoutSession(bk.checkoutSessionId) : null;
@@ -851,8 +940,15 @@ export default async function BookingConfirmationPage({
 
     if (isReversal) {
       // The rail PayMongo says the session was paid on, or null when the probe fell back. The component
-      // takes the TOKEN, not a display name: it is what selects the verified window sentence.
+      // takes the TOKEN, not a display name: it is what selects the window sentence.
       const rail = session?.sourceType ?? null;
+      // D-96, as one expression. `session === null` is exactly "the provider told us nothing" — the
+      // probe never raises and returns null on every unanswered path (13-03) — and it is the ONLY input
+      // that can distinguish a reversal from a swept unpaid hold, because 13-RESEARCH established there
+      // is no row-level signal that does. When it is null nothing here knows a charge occurred, so
+      // nothing here says one did. `auto` vs `manual` is then the D-83 refund fork, unchanged, on rows
+      // where the provider confirmed the session was paid and a charge is a fact rather than a guess.
+      const branch = session === null ? "indeterminate" : isApiRefundable(rail) ? "auto" : "manual";
       return (
         <PaymentReversedState
           listingId={bk.listingId}
@@ -860,9 +956,10 @@ export default async function BookingConfirmationPage({
           // The server-frozen quote (D-49), formatted HERE — the component receives a finished string and
           // performs no money arithmetic (D-130 / GATE-05). `refundCents` is deliberately not consulted:
           // it is NULL on this path, and the return is full by design, so charged and returned are the
-          // same figure.
+          // same figure. ⚠ The `indeterminate` branch renders it NOWHERE — the prop is still passed
+          // because a component prop cannot be conditional, and the branch is what decides.
           amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
-          branch={isApiRefundable(rail) ? "auto" : "manual"}
+          branch={branch}
           rail={rail}
           trustBlock={trustBlock}
         />
@@ -942,25 +1039,49 @@ export default async function BookingConfirmationPage({
             </p>
           </div>
 
-          {/* D-79's refund line. ⚠ INTERIM SHAPE — plan 13-10 Task 2 moves both lines into
-              `MoneyStatement`, STATE-06's single owner for every "where is your money" sentence on
-              `/bookings/**` (D-73 / D-94). The wording is D-79's and does not change with the move.
-              Never a bare "₱0 refunded": the zero case always carries its reason. */}
+          {/* ══ D-73 / D-79 / D-94 — THE CANCELLED BRANCH'S REFUND LINE, WITH ONE OWNER ═══════════
+              This shipped as an ad-hoc `<p>` beneath the badge. It is the same kind of sentence, with
+              the same failure mode, as the three payment states' — so it moves into `MoneyStatement`,
+              STATE-06's single owner for every "where is your money" sentence on `/bookings/**`. One
+              component is one thing that is testable; three bespoke paragraphs are three things that
+              drift.
+
+              ⚠ PROJECT D-79's WORDING IS PRESERVED VERBATIM, AND SO IS THE RULE BEHIND IT. A non-zero
+              refund uses the IN-TRANSIT phrasing composed a few lines above and NEVER the past
+              participle: a booker-initiated cancel records the refund INTENT (the PayMongo POST), the
+              settlement webhook is the sole writer of terminal state, and a pre-session cancellation
+              has no ledger row to read it from — so claiming the completed action would be claiming it
+              off the POST, which is exactly what PROJECT D-57 forbids. The zero case is never a bare
+              figure either; it carries its reason in the same breath.
+
+              ⚠ NEITHER SENTENCE IS QUOTED IN THIS COMMENT, and that is deliberate rather than terse.
+              This plan's acceptance criterion is a raw grep over this file for the in-transit phrase
+              returning exactly ONE — the composed string itself — so quoting it here to explain it
+              would make the criterion read 2 against a correct file. `booking-row.tsx:112` is the
+              precedent, and this is the twelfth instance of the collision in Phase 13.
+
+              ⚠ ABSENT when `refund_cents` IS NULL, and the absence is D-94 rather than an omission:
+              no money ever moved on such a row, 13-UI-SPEC specifies a sentence for the refund and the
+              no-refund cases and for no third one, and inventing a third would be writing an
+              un-reviewed money claim. The facts panel's *"Quoted total"* row carries that row's money
+              fact, which is that there is none. */}
           {refundLine && (
-            <div className="space-y-1">
-              <p className="text-body font-semibold tabular-nums text-foreground">{refundLine}</p>
-              {refundCents != null && refundCents > 0 && (
-                // D-83 — THE WINDOW IS READ, NEVER TYPED. The sentence that shipped here paired a vague
-                // plural of "day" with a promise about the original payment method and had no source at
-                // all; the three windows FitOut is willing to state come from PayMongo's published
-                // per-rail table and live in ONE module. The rail-free sentence is the right one for this
-                // branch: it names every rail a booker could have used rather than claiming to know which,
-                // and this page holds no probed rail — a party cancellation is not a reversal and buys no
-                // round trip here. (`cancel/page.tsx` and `lib/email.ts` carry the same superseded string;
-                // plan 13-12 owns those two.)
-                <p className="text-label text-muted-foreground">{ALL_RAILS_REFUND_WINDOW}</p>
-              )}
-            </div>
+            <MoneyStatement
+              sentence={refundLine}
+              detail={
+                refundCents != null && refundCents > 0
+                  ? // D-83 — THE WINDOW IS READ, NEVER TYPED. The sentence that shipped here paired a
+                    // vague plural of "day" with a promise about the original payment method and had no
+                    // source at all; the three windows FitOut is willing to state come from PayMongo's
+                    // published per-rail table and live in ONE module. The rail-free sentence is the
+                    // right one for this branch: it names every rail a booker could have used rather
+                    // than claiming to know which, and this page holds no probed rail — a party
+                    // cancellation is not a reversal and buys no round trip here. (`cancel/page.tsx`
+                    // and `lib/email.ts` carry the same superseded string; plan 13-12 owns those two.)
+                    ALL_RAILS_REFUND_WINDOW
+                  : undefined
+              }
+            />
           )}
 
           {/* "Total" only where money actually moved. A cancelled row can be a party cancellation of a
@@ -1062,6 +1183,10 @@ export default async function BookingConfirmationPage({
             need one, that is a question to raise, not a sentence to write. */}
         {factsPanel("Total")}
         {referencePanel}
+        {/* TRUST-03 — disclosed on exactly the renders where cancelling is still possible, which is
+            the same `sessionAhead` predicate the cancel entry at the foot of this branch uses. A
+            finished session has nothing to cancel and therefore no window to disclose. */}
+        {sessionAhead && policyDisclosure}
 
         {/* TRUST-04 (D-67). The same element the four other branches render. */}
         {trustBlock}

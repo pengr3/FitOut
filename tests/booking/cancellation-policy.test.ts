@@ -34,6 +34,7 @@ import {
   policySummaryLine,
   type DeadlineAnchorInput,
 } from "@/components/booking/cancellation-policy-disclosure";
+import { composePolicyDisclosure } from "@/lib/booking/policy-disclosure";
 
 const HOUR = 60 * 60 * 1000;
 const TIERS: CancellationTier[] = ["flexible", "standard", "strict"];
@@ -435,5 +436,127 @@ describe("disclosure == enforcement — both sides derived from LADDER", () => {
       expect(quote.serviceFeeRefundCents).toBe(0);
       expect(quote.totalRefundCents).toBe(quote.spaceRefundCents);
     }
+  });
+});
+
+
+// ===================================================================================================
+// THE NEW CALL SITE (plan 13-10 - TRUST-03) - the booking DETAIL page's disclosure
+// ===================================================================================================
+//
+// The cases above prove the COMPONENT and `quoteRefund` agree at every rung boundary. That is the right
+// property and it says nothing about a surface: a page that fed the component the wrong tier, boundaries
+// computed against the wrong instant, or a `bestRungIndex` from a different ladder would satisfy every
+// one of them perfectly, because none of them touches a caller.
+//
+// `composePolicyDisclosure` is the caller's half, extracted into a named pure function precisely so it
+// CAN be driven here - an async page component exports nothing a test can import (Next allows `default`,
+// `metadata` and a fixed set of route-segment keys and nothing else), so the alternative was to restate
+// the composition in this file, which would prove only that this file can do arithmetic.
+//
+// EVERY EXPECTATION BELOW IS DERIVED FROM `LADDER`. Not one percentage, hour figure or peso amount is
+// hand-typed: move a rung in `cancellation.ts` and these move with it or go red.
+describe("composePolicyDisclosure - the booking detail page's half of TRUST-03 (13-10)", () => {
+  const startsAt = new Date("2026-07-10T12:00:00Z");
+  const VENUE = { timezone: "Asia/Manila", city: "Makati" };
+  const MONEY = { spacePriceCents: 100000, serviceFeeCents: 5000 };
+
+  const compose = (tier: CancellationTier | null, now: Date, openCapacity = false) =>
+    composePolicyDisclosure({ tier, startsAt, now, ...VENUE, openCapacity, ...MONEY });
+
+  it("(13-10 a) emits one venue-local boundary label per LADDER rung, index-aligned with the ladder", () => {
+    for (const tier of TIERS) {
+      const boundaries = rungBoundaries(tier, startsAt);
+      const composed = compose(tier, new Date(startsAt.getTime() - 100 * HOUR));
+
+      expect(composed.tier).toBe(tier);
+      expect(composed.boundaryLabels).toHaveLength(boundaries.length);
+
+      // The labels ARE what the component renders as its rung dates, so they are fed straight into it:
+      // a length mismatch is what the component THROWS on, and index alignment is what makes each date
+      // belong to the rung beside it. Both asserted through the component rather than restated.
+      const lines = policyDisclosureLines(tier, EXCLUSIVE, composed.boundaryLabels);
+      expect(lines).toHaveLength(boundaries.length + 1);
+      composed.boundaryLabels!.forEach((label, i) => expect(lines[i].when).toContain(label));
+
+      // Venue-local, with the city suffix the shared formatter owns - never a raw ISO instant, and
+      // never a second date format invented at a call site.
+      for (const label of composed.boundaryLabels!) {
+        expect(label.endsWith(" (Makati time)"), label).toBe(true);
+        expect(label).not.toContain("T12:00:00");
+      }
+    }
+  });
+
+  it("(13-10 b) every boundary it discloses is the exact instant quoteRefund changes its answer", () => {
+    // The claim the surface turns on, asserted against the engine rather than against a restatement of
+    // it: standing ON a disclosed boundary must award the rung the copy beside it promises, and one
+    // millisecond later must award strictly less.
+    for (const tier of TIERS) {
+      const boundaries = rungBoundaries(tier, startsAt);
+      const composed = compose(tier, new Date(startsAt.getTime() - 100 * HOUR));
+      expect(composed.boundaryLabels).toHaveLength(boundaries.length);
+
+      boundaries.forEach(({ refundBps, boundary }, i) => {
+        const atBoundary = compose(tier, boundary);
+        const onTheDot = quoteRefund({ tier, ...MONEY, startsAt, now: boundary });
+        expect(onTheDot.refundBps).toBe(refundBps);
+        // The figure the page prints IS the engine's answer at the page's own instant.
+        expect(atBoundary.todayRefundCents).toBe(onTheDot.totalRefundCents);
+
+        const justAfter = compose(tier, new Date(boundary.getTime() + 1));
+        const expectedNext = boundaries[i + 1]?.refundBps ?? 0;
+        expect(justAfter.todayRefundCents).toBe((MONEY.spacePriceCents * expectedNext) / 10000);
+      });
+
+      // Past the final boundary the disclosure says "no refund" and the figure is zero. The two must
+      // agree: a "no refund" rung list beside a non-zero peso promise is the disclosure dispute this
+      // whole apparatus exists to prevent.
+      const last = boundaries[boundaries.length - 1].boundary;
+      const lapsed = compose(tier, new Date(last.getTime() + HOUR));
+      expect(lapsed.todayRefundCents).toBe(0);
+      expect(lapsed.bestRungIndex).toBe(-1);
+      expect(
+        policySummaryLine(tier, EXCLUSIVE, lapsed.boundaryLabels, lapsed.bestRungIndex),
+      ).not.toMatch(/free cancellation/i);
+    }
+  });
+
+  it("(13-10 c) `bestRungIndex` names the best rung STILL OPEN, so no lapsed window is advertised", () => {
+    for (const tier of TIERS) {
+      const boundaries = rungBoundaries(tier, startsAt);
+      expect(compose(tier, new Date(boundaries[0].boundary.getTime() - 1)).bestRungIndex).toBe(0);
+      // One millisecond past each boundary, the index has moved on to the next one (or run out).
+      boundaries.forEach((_, i) => {
+        const justAfter = new Date(boundaries[i].boundary.getTime() + 1);
+        expect(compose(tier, justAfter).bestRungIndex).toBe(i + 1 < boundaries.length ? i + 1 : -1);
+      });
+    }
+  });
+
+  it("(13-10 d) a NULL snapshot tier discloses nothing at all - never the engine's Flexible fallback", () => {
+    // PROJECT D-67 / the component's own NULL-TIER note. `tierOrDefault` exists so the refund ENGINE has
+    // a safe fallback for pre-Phase-7 rows; presenting that internal net as "this host's cancellation
+    // policy" would put a promise in a host's mouth they never made. Showing nothing is the conservative
+    // failure - Flexible is the most generous rung, so no booker is worse off than what they were shown.
+    const none = compose(null, new Date(startsAt.getTime() - 100 * HOUR));
+    expect(none.tier).toBeNull();
+    expect(none.boundaryLabels).toBeUndefined();
+    expect(none.bestRungIndex).toBeUndefined();
+    expect(none.todayRefundCents, "a null tier must quote no figure either").toBeNull();
+  });
+
+  it("(13-10 e) the drop-in anchor forks, and only the ALREADY-OPEN predicate can be true", () => {
+    // OC-03 makes an open row's `startsAt` the venue's OPENING instant. WR-05's predicate is the one
+    // comparison that decides whether the ladder still has anything to offer, and it is FALSE for every
+    // exclusive booking by construction - `confirmBooking` refuses one past its own start (D-94).
+    const afterOpen = new Date(startsAt.getTime() + HOUR);
+    expect(compose("standard", afterOpen, true).windowAlreadyOpen).toBe(true);
+    expect(compose("standard", afterOpen, false).windowAlreadyOpen).toBe(false);
+    expect(compose("standard", new Date(startsAt.getTime() - HOUR), true).windowAlreadyOpen).toBe(
+      false,
+    );
+    // The anchor flag is passed through untouched - it is the component's fork, not this module's.
+    expect(compose("standard", afterOpen, true).openCapacity).toBe(true);
   });
 });

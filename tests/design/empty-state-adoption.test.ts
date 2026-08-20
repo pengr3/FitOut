@@ -352,7 +352,7 @@ type Adopter = {
 };
 
 /**
- * EVERY SURFACE COMPOSING THE ONE SHELL — TWELVE FILES, FIFTEEN BLOCKS.
+ * EVERY SURFACE COMPOSING THE ONE SHELL — THIRTEEN FILES, SIXTEEN BLOCKS.
  *
  * The forward half. A gate that only asserted "no raw dashed panel survives" is satisfied perfectly
  * by a tree where somebody deleted the empty state entirely — an absent panel has no border.
@@ -422,6 +422,13 @@ const ADOPTERS: readonly Adopter[] = [
     why: "The listing-gone boundary, same plan and same argument: an unlisted space is a normal outcome, not a failure. Its sibling `(public)/invite/[token]/not-found.tsx` deliberately does NOT use the shell — it must render a BYTE-IDENTICAL inactive surface to the invite page (T-11-ORACLE), so it composes `InviteCard` instead. That asymmetry is the reason this is an inventory and not a directory rule.",
   },
 
+  // ─── NOT PLAN 11-16'S EITHER. Landed by plan 13-10, and deferred to it BY NAME. ──────────────────
+  {
+    file: "src/app/(app)/bookings/[id]/not-found.tsx",
+    sites: 1,
+    why: "The booking-detail boundary, which 11-UI-SPEC explicitly deferred to Phase 13 (13-CONTEXT D-93 accepted it). Same argument as the two not-found rows above — a stale link is a normal thing to have — plus one this inventory has no other instance of: this page is what the OWNER GATE returns for BOTH a missing booking and a booking that belongs to somebody else (T-04-CONFIRMIDOR), so its copy is a security property. `ErrorState` was refused on two independent grounds: it paints the alarm token, which 13-UI-SPEC § Color bans across this whole phase, and it requires an `onRetry` for a page where there is nothing to retry.",
+  },
+
   // ─── NOT A PRODUCT SURFACE. The design-review preview, landed by plan 11-21. ──────────────────────
   {
     file: "src/app/dev/theme/page.tsx",
@@ -430,9 +437,15 @@ const ADOPTERS: readonly Adopter[] = [
   },
 ];
 
-/** Pinned separately, for the same reason `EXPECTED_DECLARED_SITES` is. */
-const EXPECTED_ADOPTER_FILES = 12;
-const EXPECTED_EMPTY_STATE_SITES = 15;
+/**
+ * Pinned separately, for the same reason `EXPECTED_DECLARED_SITES` is.
+ *
+ * 12 → 13 files and 15 → 16 sites in plan 13-10's own commit, which is the only way these numbers are
+ * ever allowed to move: `bookings/[id]/not-found.tsx` arrived with a row above it. A count that moved
+ * without a row would mean the scan found a surface nobody wrote down.
+ */
+const EXPECTED_ADOPTER_FILES = 13;
+const EXPECTED_EMPTY_STATE_SITES = 16;
 
 /**
  * THE ONE LEGAL `bg-success` IN THE TREE, pinned by name.

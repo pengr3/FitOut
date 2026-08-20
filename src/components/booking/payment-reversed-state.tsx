@@ -108,13 +108,31 @@ import { MoneyStatement } from "@/components/booking/money-statement";
 import { SupportPath } from "@/components/booking/support-path";
 
 /**
- * Which of D-83's two money truths applies. Decided by the caller from the D-84 probe, never here.
+ * Which money truth applies. Decided by the caller from the D-84 probe, never here.
  *
- * ⚠ A null or failed probe resolves to `"manual"` and never to `"auto"`, and the direction is the whole
- * point: guessing `auto` would tell a booker their money was sent back when nobody sent it back. See
- * the caller for where that choice is made and why it matches `isApiRefundable`'s own fail-closed rule.
+ * ⚠ THE THIRD ARM IS 13-CONTEXT D-96, AND IT REPLACES WHAT USED TO BE A KNOWN RESIDUAL.
+ *
+ * Plan 13-04 recorded it in the branch itself rather than hiding it: when the probe learns nothing —
+ * no key, a network fault, a non-2xx, the 3s deadline — the row signature the caller falls back on
+ * (`cancelled` + no `cancelled_by` + no `payment_id` + a real session id) is SHARED with an abandoned
+ * hold that a later booker's stale-hold sweep flipped to `cancelled` (`availability/units.ts:487` for
+ * the exclusive path, `:922` for open capacity). That booker was never charged one centavo, and the
+ * `manual` copy would have told them *"You were charged {₱X}"*.
+ *
+ * 13-04's threat register reasoned about the wrong axis. It chose which REFUND branch to show —
+ * automatic or by hand — and both of those presuppose a charge; the question the fallback cannot
+ * answer is whether a charge happened AT ALL. Those are different questions, and the fail-closed
+ * direction for the second one is not `manual`.
+ *
+ * So a probe that learned nothing lands on `indeterminate`, whose copy is true under BOTH readings: the
+ * booking is cancelled, and IF anything was charged it is being returned. It names no amount, because
+ * naming one is the assertion we cannot make. `auto` and `manual` are reached only when the provider
+ * actually told us the session was paid, at which point a charge is a fact rather than an inference.
+ *
+ * The branch name is `readPaymentState`'s own word for this answer, deliberately: one vocabulary for
+ * "the provider did not tell us", shared between the reader and the copy that renders its consequence.
  */
-export type PaymentReversedBranch = "auto" | "manual";
+export type PaymentReversedBranch = "auto" | "manual" | "indeterminate";
 
 export type PaymentReversedStateProps = {
   /** Where `Back to availability` goes — the listing whose slot was lost. */
@@ -195,11 +213,28 @@ export function PaymentReversedState({
   const manualDetail =
     `This payment can't be sent back automatically, so we've flagged it to be returned by hand. ` +
     `Your reference is ${reference} — we've recorded it against this booking.`;
+
+  // 13-CONTEXT D-96's copy. It sits INSIDE the marked region on purpose: it makes the same by-hand
+  // promise the two lines above make, so it must obey the same two prohibitions, and a scan that
+  // stopped one line short of it would be a scan with a hole exactly where the newest copy is.
+  //
+  // WHAT IT MAY NOT DO, and the reason is the whole arm: it may not name an amount, because the only
+  // reading of the row we have is compatible with nobody having been charged. Every sentence here is
+  // conditional on a charge rather than an assertion of one, and both are still true if there was one.
+  // Do not "tighten" this into a direct statement — see the branch union's note for what it costs.
+  const indeterminateSentence = "If you were charged for this booking, that money is coming back to you.";
+  const indeterminateDetail =
+    `We couldn't reach our payment provider to confirm whether this booking was paid. If any money did ` +
+    `leave your account, we've flagged it to be sent back by hand — nothing stays with FitOut. ` +
+    `Your reference is ${reference} — we've recorded it against this booking.`;
   //
   // MANUAL-RETURN-COPY:END
   // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
   const isAuto = branch === "auto";
+  const isIndeterminate = branch === "indeterminate";
+  const sentence = isAuto ? autoSentence : isIndeterminate ? indeterminateSentence : manualSentence;
+  const detail = isAuto ? autoDetail : isIndeterminate ? indeterminateDetail : manualDetail;
 
   return (
     <div className={BOOKING_SHELL} data-testid="payment-state-reversed">
@@ -213,8 +248,18 @@ export function PaymentReversedState({
             <h1 className="text-xl leading-tight font-semibold">
               We couldn&apos;t complete this booking
             </h1>
+            {/* TRUST-01's meaning sentence. D-97 pins the two-branch wording: the `auto`/`manual`
+                arms keep 13-UI-SPEC § The Reversed State's sketch, which adds the fact the booker
+                does not have, rather than the status table's near-restatement of the `<h1>` above it.
+                ⚠ THE THIRD ARM MAY NOT USE IT. *"This time was taken before your payment landed"*
+                asserts a cause — somebody else got the slot, and a payment of yours was in flight —
+                and on an unanswered probe neither half is known. Under the abandoned-hold reading
+                nothing was taken from anybody and no payment was ever made. What is true on both
+                readings is that the booking ended and the time went back, so that is what it says. */}
             <p className="mx-auto max-w-prose text-body text-muted-foreground">
-              This time was taken before your payment landed.
+              {isIndeterminate
+                ? "This booking was cancelled, so the time was released."
+                : "This time was taken before your payment landed."}
             </p>
           </div>
         </div>
@@ -224,10 +269,10 @@ export function PaymentReversedState({
             rather than centred: it is up to three lines of prose plus a full-width control, and centred
             prose at that length is measurably harder to read back to somebody on the phone. */}
         <MoneyStatement
-          sentence={isAuto ? autoSentence : manualSentence}
+          sentence={sentence}
           detail={
             <div className="space-y-3">
-              <p>{isAuto ? autoDetail : manualDetail}</p>
+              <p>{detail}</p>
               {/* Guarded (D-64). Renders nothing at all today; when the address is set it is the first
                   control on the page, full-width, immediately under the sentence that explains it. */}
               <SupportPath
