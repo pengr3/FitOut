@@ -1,4 +1,4 @@
-// THE PAYMENT-STATE FIXTURE — five booking shapes, one INSERT column list, one ordered teardown.
+// THE PAYMENT-STATE FIXTURE — six booking shapes, one INSERT column list, one ordered teardown.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // WHY THIS FILE EXISTS
@@ -46,14 +46,32 @@
 // either fixture: change `booking_mode` on one of these rows and it silently becomes the other one.
 // (`page.tsx` records the same collision from its own side as a KNOWN EDGE.)
 //
+// ⚠️ AND SHAPE 6 IS THE ONLY ROW IN THIS FIXTURE ON WHICH MONEY CAME BACK (added by plan 13-13). The five
+// original shapes cover every way a payment can FAIL to complete; none of them covers the way it can
+// complete and then be partly UNDONE. That gap had a consequence rather than being untidy: D-76 renders
+// the refund as its OWN row on `/bookings/[id]/receipt`, below the Total and never netted into it, and
+// with no `refund_cents` anywhere in `e2e/` that row had never been rendered by a real request. The one
+// assertion that catches a receipt quietly subtracting a refund from its total — *the Total still equals
+// `quoted_total_cents` while a second, different figure sits beneath it* — was therefore unmakeable.
+// `e2e/receipt-parity.spec.ts` case (2) is what this shape exists for.
+//
+// Its columns are the mirror image of the reversed shape's, and deliberately so: `payment_id` and
+// `payment_method` ARE populated, because the confirm UPDATE — the only writer of those two columns —
+// genuinely ran against this row before anybody cancelled it. `refund_cents` is populated because
+// `cancelBookingAsBooker` computed and wrote it, and `cancelled_by = 'booker'` because that is who
+// cancelled. A row with `cancelled_by IS NULL` and `payment_id IS NULL` is the reversal; this one is
+// neither, and reading the two side by side is the fastest way to see what separates them.
+//
+// The refund is PARTIAL and its value collides with nothing else on the page — see `REFUND_CENTS`.
+//
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // TWO PROPERTIES A CALLER MUST NOT BREAK
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-//   1. THE FIVE WINDOWS DO NOT OVERLAP, AND THEY CANNOT BE COLLAPSED. `booking_no_overlap`
+//   1. THE SIX WINDOWS DO NOT OVERLAP, AND THEY CANNOT BE COLLAPSED. `booking_no_overlap`
 //      (drizzle/0022) excludes on `(listing_id, unit, tstzrange(starts_at, ends_at, '[)'))` WHERE
 //      `status NOT IN ('cancelled','declined','completed') AND open_capacity = false`. `confirmed` and
-//      BOTH `pending` shapes are inside that set, so three of the five rows genuinely occupy the slot and
+//      BOTH `pending` shapes are inside that set, so three of the six rows genuinely occupy the slot and
 //      seeding them on one window raises 23P01. Note that the EXPIRED hold occupies too: D-48's lazy
 //      expiry is a READ-MODEL rule, and the constraint has never heard of it. Each shape therefore gets
 //      its own hour, three hours apart, all on the same day and all well after `now()`.
@@ -68,9 +86,9 @@ import { randomUUID } from "node:crypto";
 import type { SeededListing } from "./booker-seed";
 
 /**
- * The five shapes, named after the BRANCH each one drives rather than after its `status`.
+ * The six shapes, named after the BRANCH each one drives rather than after its `status`.
  *
- * Naming them by status would put three of them in two buckets (`pending` ×2, `cancelled` ×2) and lose
+ * Naming them by status would put four of them in two buckets (`pending` ×2, `cancelled` ×3) and lose
  * the only thing a caller actually selects on — which page the booker lands on.
  */
 export type PaymentStateShape =
@@ -78,7 +96,8 @@ export type PaymentStateShape =
   | "pendingLiveHold"
   | "pendingExpiredHold"
   | "reversed"
-  | "lapsedApproval";
+  | "lapsedApproval"
+  | "cancelledRefunded";
 
 export type SeededPaymentStates = {
   /** The seeded booking id per shape. */
@@ -101,6 +120,23 @@ const QUOTED_TOTAL_CENTS = SPACE_PRICE_CENTS + SERVICE_FEE_CENTS;
 const CURRENCY = "php";
 
 /**
+ * What came back on the `cancelledRefunded` shape — a PARTIAL refund, and the number is chosen rather
+ * than arbitrary.
+ *
+ * It must not equal, and must not be derivable from, any other figure the receipt renders: the quote is
+ * ₱1,050.00, the space cost ₱1,000.00 and the service fee ₱50.00. ₱787.50 is none of those, is not their
+ * difference in any pairing, and is not the total minus any of them — so an assertion that finds it on
+ * the page has found the refund row and nothing else, and a Total that had been quietly netted
+ * (105,000 − 78,750 = 26,250) would render a figure that appears nowhere in this file.
+ *
+ * A FULL refund would be the weaker fixture: `refund_cents = quoted_total_cents` makes "the Total is the
+ * quote" and "the Total is the refund" the same assertion, and a receipt that printed the refund in the
+ * Total's place would pass. It is exported so a spec can name it in a failure message, never so a spec
+ * can assert against it — the parity discipline is to read the column back from Postgres (GATE-05).
+ */
+export const REFUND_CENTS = 78_750;
+
+/**
  * Hours from `now()` at which each shape's session starts; every session is one hour long.
  *
  * Three hours apart so the three OCCUPYING shapes cannot touch under `booking_no_overlap` (see property
@@ -114,6 +150,7 @@ const START_HOURS: Record<PaymentStateShape, number> = {
   pendingExpiredHold: 16,
   reversed: 19,
   lapsedApproval: 22,
+  cancelledRefunded: 25,
 };
 
 /**
@@ -149,11 +186,12 @@ export async function seedPaymentStates(
     pendingExpiredHold: id("pendingExpiredHold"),
     reversed: id("reversed"),
     lapsedApproval: id("lapsedApproval"),
+    cancelledRefunded: id("cancelledRefunded"),
   };
 
   /**
    * The ONE INSERT every shape goes through — the sixteen columns `shell.spec.ts:544-558` names, plus
-   * the five that decide which branch renders. One statement rather than five means a column added to
+   * the five that decide which branch renders. One statement rather than six means a column added to
    * the table is added to every fixture at once, and a shape can only ever differ from its siblings in
    * the VALUES a reader can see side by side below.
    */
@@ -265,6 +303,28 @@ export async function seedPaymentStates(
     checkoutSessionId: null,
     refundCents: null,
     cancelledBy: null,
+    cancelled: true,
+  });
+
+  // ── 6. `cancelled`-REFUNDED — the D-76 refund-row fixture (13-13). ─────────────────────────────────
+  // The ONE shape on which money moved and then partly came back. `payment_id`/`payment_method` ARE
+  // written here — see the header: the confirm UPDATE really did run against this row — and it is that
+  // pair, together with `cancelled_by='booker'`, that keeps this row off BOTH cancelled branches above.
+  // `receipt/page.tsx`'s D-76 predicate admits it on its own columns with no probe at all
+  // (`status === 'cancelled' && (refundCents !== null || paymentId !== null)`), which is why this fixture
+  // needs no PayMongo key to reach the receipt — the CI secret boundary (D-35) is untouched by it.
+  // The rail is `gcash`, which `isApiRefundable` answers TRUE for, so the refund row's term is D-83's
+  // `Refunded` rather than `Returned by hand`. A spec asserting the row exists should accept either word
+  // and assert the AMOUNT; a spec asserting the word is asserting this line, not the receipt.
+  await insert("cancelledRefunded", {
+    status: "cancelled",
+    bookingMode: "instant",
+    paymentId: `pay_e2e_${randomUUID()}`,
+    paymentMethod: "gcash",
+    expiresAtMinutes: null,
+    checkoutSessionId: `cs_e2e_${randomUUID()}`,
+    refundCents: REFUND_CENTS,
+    cancelledBy: "booker",
     cancelled: true,
   });
 
