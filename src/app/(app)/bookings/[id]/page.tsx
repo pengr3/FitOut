@@ -96,6 +96,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
+import { NotCompletedState } from "@/components/booking/not-completed-state";
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
 import { RequestCountdown } from "@/components/booking/request-countdown";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
@@ -213,6 +214,57 @@ export default async function BookingConfirmationPage({
           email={session?.user?.email ?? null}
         />
       );
+    // ══ 13-07 — D-70's THIRD PAYMENT STATE, AND THE BOUNDARY THAT KEEPS IT OFF SOMEBODY ELSE'S ══════
+    //
+    // A `pending` row with no checkout-return parameter used to redirect UNCONDITIONALLY. That is the
+    // right answer for a hold that is over and the wrong one for a hold that is still alive: the
+    // booker's checkout did not finish, no money moved, the slot is still theirs for a few more
+    // minutes, and the app's only response was to bounce them back to the checkout page with no
+    // explanation of what happened to the payment they thought they had made. STATE-05 names three
+    // payment states and this is the one nothing rendered for.
+    //
+    // THE DISCRIMINATOR IS THE ROW FIRST, THEN THE PROVIDER — the ordering plan 13-04 established on
+    // the cancelled branch, for the same two reasons. The hold's own `expires_at` against the DB clock
+    // is free and decides most visits; the probe is a third-party round trip on a render path and only
+    // the surviving case pays for it.
+    //
+    // ⚠️ THE HOLD CHECK IS NOT AN OPTIMISATION, IT IS D-70's HARD BOUNDARY. If the hold has lapsed this
+    // is NOT the not-completed state: `hold-expired-state.tsx` already owns that landing, and the
+    // reserve page this redirect lands on renders it DIRECTLY for a hold that is dead on arrival
+    // (`listings/[id]/book/page.tsx:129`). Rendering our own expiry copy here would be a second surface
+    // to keep true about one fact, which is exactly what D-70 forbids.
+    //
+    // ⚠️ AND THE DIRECTION OF THE FALLBACK IS CHOSEN. A probe that learns nothing — no key configured,
+    // a network fault, a non-2xx, the 3s deadline — lands on the redirect, never on the new state.
+    // Showing *"you have not been charged"* while a payment is quietly settling is a false money
+    // statement, which is the failure this whole phase exists to remove; being bounced to a checkout
+    // page you can simply leave is a navigation. When the two costs are that lopsided the direction is
+    // not a judgement call. `readPaymentState` is the ONE owner of the (booking status, session status)
+    // pairs — reused rather than restated, so this surface and the reversed one cannot drift apart
+    // about what `active` means.
+    //
+    // NO CONSUMER OF THE CHECKOUT-RETURN PARAMETER IS MOUNTED HERE OR ANYWHERE ABOVE THIS BRANCH
+    // (D-89). The poller re-renders this RSC for the CURRENT url every 2.5s, so a parameter stripped
+    // from the address bar mid-settlement would drop the next poll into whichever branch the
+    // no-parameter path leads to — which, as of this plan, is a probe and possibly a redirect, in the
+    // middle of a webhook. Plan 13-11 owns that consumer and mounts it on the CONFIRMED branch only.
+    const pendingNow = await readDbNow(db);
+    // The same hydrating reader the page's own clock uses below; read here because this branch returns
+    // before that line. There is no JS clock read on this page (the 07-06 boundary contract).
+    const holdExpiresAt = bk.expiresAt;
+    if (holdExpiresAt !== null && holdExpiresAt.getTime() > pendingNow.getTime()) {
+      const checkout = await probeCheckoutSession(bk.checkoutSessionId);
+      if (readPaymentState(bk.status, checkout) === "not-completed") {
+        return (
+          <NotCompletedState
+            bookingId={bk.id}
+            listingId={bk.listingId}
+            reference={bookingReference(bk.id)}
+            holdExpiresAt={holdExpiresAt.toISOString()}
+          />
+        );
+      }
+    }
     // Abandoned pending hold (no ?paid) → back to the reserve page to finish checkout (Phase-4 behavior).
     redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
   }

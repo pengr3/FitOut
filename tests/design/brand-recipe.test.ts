@@ -193,6 +193,21 @@ const SANCTIONED_HOVER = "color-mix(in_oklch,var(--brand)";
  * coral buttons either way, and a map that reports one accent where a browser paints two is measuring
  * the wrong thing. The accent budget (D-21) is unaffected: the two are mutually exclusive, so a booker
  * never sees more than one coral control on this route at any width.
+ *
+ * NINETEEN AS OF PLAN 13-07, and the two new sites are one file: `booking/not-completed-state.tsx`,
+ * STATE-05's third payment state, which had no surface at all before that plan. Like 12-10's row it is
+ * an ADDITION rather than a conversion — nothing was migrated onto the variant, because nothing existed
+ * to migrate.
+ *
+ * ⚠ IT IS 2 IN ONE FILE, AND THE REASON IS NOT THE CHECKOUT BAR'S. The two are the arms of a RUNTIME
+ * conditional, not a pair of `hidden`-swapped elements: while the hold is alive the coral is `Try paying
+ * again`, and the moment the countdown reaches zero that element is UNMOUNTED and replaced in place by
+ * `Back to availability`. So unlike `checkout-sticky-bar.tsx` — where both buttons are real elements in
+ * one document and both had to be counted — here the rendered document holds exactly ONE coral at every
+ * instant, at every width, in both states. `expired-approval-state.tsx` is the shape this follows.
+ * `tests/booking/payment-states.test.tsx` asserts the rendered count directly (exactly one `bg-brand`
+ * anchor in the document), so the accent budget (D-21) is checked where it is actually spent rather
+ * than inferred from this map.
  */
 const EXPECTED_CONVERSIONS: Record<string, number> = {
   "src/app/(app)/bookings/[id]/page.tsx": 3,
@@ -203,6 +218,7 @@ const EXPECTED_CONVERSIONS: Record<string, number> = {
   "src/components/booking/checkout-sticky-bar.tsx": 1,
   "src/components/booking/expired-approval-state.tsx": 2,
   "src/components/booking/hold-expired-state.tsx": 1,
+  "src/components/booking/not-completed-state.tsx": 2,
   "src/components/booking/payment-reversed-state.tsx": 1,
   "src/components/booking/reserve-actions.tsx": 1,
   "src/components/group/create-group-button.tsx": 1,
@@ -629,7 +645,7 @@ describe("DS-08 — the scan itself reaches what it claims to police", () => {
 });
 
 describe("DS-08 — the accent reaches the booker through the variant, never through a string", () => {
-  it("converts exactly 17 call sites across the booking, group and search trees", () => {
+  it("converts exactly 19 call sites across the booking, group and search trees", () => {
     // 15 -> 16 by plan 12-10's `booking/booking-sticky-bar.tsx`. See EXPECTED_CONVERSIONS for why that
     // one is an addition rather than a conversion, and why a bar with a brand action is the shape
     // 12-UI-SPEC asks for at this width rather than an accent someone reached for.
@@ -638,8 +654,14 @@ describe("DS-08 — the accent reaches the booker through the variant, never thr
     // a DUPLICATION of an existing accent rather than a new one — the same `Confirm & pay`, in a second
     // box, with `hidden` keeping exactly one reachable per width. EXPECTED_CONVERSIONS records why it
     // is counted honestly instead of being folded into a layout fork to keep this number still.
+    //
+    // 17 -> 19 by plan 13-07's `booking/not-completed-state.tsx`, STATE-05's third payment state, which
+    // rendered nothing at all before that plan. Both of its sites are in ONE file and are the two arms
+    // of a runtime conditional — the retry while the hold is alive, the recovery once it lapses — so
+    // exactly one is mounted at any instant. See EXPECTED_CONVERSIONS for why that is a different fact
+    // from the checkout bar's two, and where the rendered accent count is actually asserted.
     const total = Object.values(scan.conversions).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(17);
+    expect(total).toBe(19);
   });
 
   it("converts exactly the right sites — the per-file map, not just the total", () => {
@@ -767,7 +789,7 @@ describe("DS-08 — the repo-wide scan reaches the trees it now claims to police
 });
 
 describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked for it", () => {
-  it("adopts the brand variant at exactly 22 call sites across src/app and src/components", () => {
+  it("adopts the brand variant at exactly 24 call sites across src/app and src/components", () => {
     // 15 from plan 10-08 (bookings, booking, group, search) + 5 from plan 10-09 (the host surface) +
     // 1 from plan 12-10 (RESP-02's sticky bottom bar, the mobile listing page's single focal action) +
     // 1 from plan 12-11 (BFLOW-06's checkout bar, the mobile checkout's single focal action). The
@@ -785,8 +807,14 @@ describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked
     // bar renders its own for below, with `hidden` leaving exactly one reachable at any width. Both
     // are real elements in the rendered document, so both are counted — see EXPECTED_CONVERSIONS for
     // why the layout-fork spelling was rejected here rather than borrowed from `BookCta`.
+    //
+    // ⚠ AND PLAN 13-07's TWO ADD FOR A THIRD REASON AGAIN, which is why this comment keeps growing
+    // instead of being summarised: `not-completed-state.tsx`'s pair are the arms of a RUNTIME
+    // conditional, so only one of them is ever an element in the document. They are counted because
+    // this scan reads source, and the honest place to assert what a booker actually sees is a render —
+    // `tests/booking/payment-states.test.tsx` does exactly that, and asserts ONE.
     const total = Object.values(scan.adoption).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(22);
+    expect(total).toBe(24);
   });
 
   it("lands the 5 host conversions on the host surface, not somewhere convenient", () => {

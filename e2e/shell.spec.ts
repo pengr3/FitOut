@@ -781,6 +781,178 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
         "person needs in order to move the money by hand.",
     ).toHaveCount(1);
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // D-70 (plan 13-07) — THE NOT-COMPLETED STATE, AND THE LANDING IT MUST NOT STEAL
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // WHY THESE LIVE HERE, like the D-87 case above: they need the payment-state fixture, and the
+  // fixture is seeded by the first test in this serial describe. Re-seeding a second copy on the same
+  // listing collides 23P01 on `booking_no_overlap`.
+  //
+  // WHAT THE PAIR PROVES, AND WHY IT TAKES TWO ROWS THAT DIFFER IN ONE COLUMN. `pendingLiveHold` and
+  // `pendingExpiredHold` are identical except for the sign of `expires_at`, which is exactly the
+  // boundary D-70 draws: a live hold may render the new state, a lapsed one must fall through to the
+  // reserve page, where `hold-expired-state.tsx` — which already owns that landing — renders. A spec
+  // that only ever loaded a live hold would prove the state exists and nothing about whether the
+  // older landing still works, and a duplicated expiry surface is the failure D-70 names.
+  //
+  // ⚠️ AND THE PROBE IS DELIBERATELY LEFT UNANSWERABLE IN THE FIRST TWO CASES. The fixture writes a
+  // synthetic `cs_e2e_…` id, so `probeCheckoutSession` resolves to null on every machine — with a key
+  // it is a 404, without one no request is made at all (D-35's CI secret boundary). That makes these
+  // two cases deterministic AND makes them the committed coverage of the third acceptance criterion:
+  // when the provider answers nothing, the branch degrades to the shipped redirect rather than to a
+  // false money statement, and the page renders instead of raising.
+
+  test("a pending booking with an EXPIRED hold never renders the not-completed state (D-70)", async ({
+    page,
+  }) => {
+    expect(
+      payStates,
+      "the payment-state fixture is null, so the first test in this serial describe did not reach " +
+        "its seed. A null here is a failure of that test, not of this assertion.",
+    ).not.toBeNull();
+
+    // The session does not carry across tests under `mode: "serial"` — see the D-87 case above for
+    // the watched red that cost. Same booker, because the fixture rows are owned by that user id.
+    const bookerEmail = seed.bookerEmails[seed.bookerEmails.length - 1];
+    expect(bookerEmail, "the first test recorded no booker email to log back in with").toBeTruthy();
+    await page.goto(`${BASE}/login`);
+    await page.getByLabel("Email").fill(bookerEmail);
+    await page.getByLabel("Password").fill("averylongpassword");
+    await page.getByRole("button", { name: "Log in" }).click();
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30_000 });
+
+    const url = `/bookings/${payStates!.bookingIds.pendingExpiredHold}`;
+    await page.goto(`${BASE}${url}`);
+
+    await expect(
+      page.getByTestId("payment-state-incomplete"),
+      `${url}: the not-completed state rendered for a hold that has already lapsed. D-70 forbids it ` +
+        "in those words: `hold-expired-state.tsx` owns that landing, and two surfaces telling a " +
+        "booker their hold is gone is two surfaces to keep true about one fact.",
+    ).toHaveCount(0);
+
+    // …and the landing that DOES own it is the one that rendered, one navigation away.
+    await expect(
+      page,
+      `${url}: a lapsed hold did not end on the reserve page. The redirect is the shipped behaviour ` +
+        "this branch keeps precisely so the expiry landing is not duplicated.",
+    ).toHaveURL(new RegExp(`/listings/[^/]+/book\\?hold=${payStates!.bookingIds.pendingExpiredHold}$`));
+    await expect(
+      page.getByText("Your hold expired"),
+      `${url}: the reserve page rendered something other than the expiry interstitial for a dead hold.`,
+    ).toHaveCount(1);
+  });
+
+  test("a pending booking whose probe answers NOTHING degrades to the redirect, not to a money claim", async ({
+    page,
+  }) => {
+    expect(payStates).not.toBeNull();
+
+    const bookerEmail = seed.bookerEmails[seed.bookerEmails.length - 1];
+    await page.goto(`${BASE}/login`);
+    await page.getByLabel("Email").fill(bookerEmail);
+    await page.getByLabel("Password").fill("averylongpassword");
+    await page.getByRole("button", { name: "Log in" }).click();
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30_000 });
+
+    const url = `/bookings/${payStates!.bookingIds.pendingLiveHold}`;
+    const response = await page.goto(`${BASE}${url}`);
+
+    // The page rendered. A third-party read on a render path must never be able to fail the page —
+    // and this branch's whole job is to explain a payment, so failing it is the worst outcome
+    // available (T-13-07-PROBEDOS).
+    expect(
+      response?.status(),
+      `${url}: the pending branch raised instead of rendering when the provider answered nothing.`,
+    ).toBeLessThan(400);
+
+    await expect(
+      page.getByTestId("payment-state-incomplete"),
+      `${url}: the not-completed state rendered off a probe that learned NOTHING. Telling a booker ` +
+        "they have not been charged while a payment may be settling is a false money statement, " +
+        "which is the failure this phase exists to remove; the redirect is a navigation.",
+    ).toHaveCount(0);
+    await expect(page).toHaveURL(
+      new RegExp(`/listings/[^/]+/book\\?hold=${payStates!.bookingIds.pendingLiveHold}$`),
+    );
+  });
+
+  test("a pending booking whose checkout session is ACTIVE renders the not-completed state", async ({
+    page,
+  }) => {
+    // ⚠️ D-35's CI SECRET BOUNDARY. This is the ONE case in the pair that cannot be proved against a
+    // synthetic session id: the branch requires the provider to say `active`, and only a real
+    // test-mode session can. The PayMongo key is absent in CI by design, so this case SKIPS there
+    // rather than being weakened into something that passes without it. Run it locally with the test
+    // key exported into the spec process's environment.
+    test.skip(
+      !process.env.PAYMONGO_SECRET_KEY,
+      "no PayMongo test key in this environment (D-35) — the active-session branch needs a real session",
+    );
+    expect(payStates).not.toBeNull();
+
+    // Mint a REAL test-mode checkout session and point the seeded row at it. Raw fetch rather than the
+    // app's own client: this file is a Playwright spec, not a server module, and the app's PayMongo
+    // wrapper is behind the server-only guard.
+    const key = process.env.PAYMONGO_SECRET_KEY!;
+    const minted = await fetch("https://api.paymongo.com/v1/checkout_sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${key}:`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            line_items: [{ amount: 105_000, currency: "PHP", name: "E2E not-completed", quantity: 1 }],
+            payment_method_types: ["card", "gcash", "paymaya", "qrph"],
+            reference_number: `e2e-${payStates!.bookingIds.pendingLiveHold}`,
+            description: "E2E fixture — never paid",
+            success_url: `${BASE}/`,
+            cancel_url: `${BASE}/`,
+          },
+        },
+      }),
+    });
+    expect(minted.status, "PayMongo refused to mint a test checkout session").toBeLessThan(300);
+    const sessionId = ((await minted.json()) as { data: { id: string } }).data.id;
+
+    await seed.sql`
+      UPDATE booking SET checkout_session_id = ${sessionId}
+      WHERE id = ${payStates!.bookingIds.pendingLiveHold}
+    `;
+
+    const bookerEmail = seed.bookerEmails[seed.bookerEmails.length - 1];
+    await page.goto(`${BASE}/login`);
+    await page.getByLabel("Email").fill(bookerEmail);
+    await page.getByLabel("Password").fill("averylongpassword");
+    await page.getByRole("button", { name: "Log in" }).click();
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30_000 });
+
+    const url = `/bookings/${payStates!.bookingIds.pendingLiveHold}`;
+    await page.goto(`${BASE}${url}`);
+
+    await expect(
+      page.getByTestId("payment-state-incomplete"),
+      `${url}: a live hold with an ACTIVE session did not render STATE-05's third state. Before this ` +
+        "plan the branch redirected unconditionally, which told a booker nothing about the payment " +
+        "they thought they had made.",
+    ).toHaveCount(1);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Your payment didn't go through",
+    );
+    await expect(page.getByTestId("money-statement")).toContainText("You haven't been charged.");
+    await expect(page.getByRole("link", { name: "Try paying again" })).toHaveAttribute(
+      "href",
+      new RegExp(`/book\\?hold=${payStates!.bookingIds.pendingLiveHold}$`),
+    );
+    // STATE-05's negative, at the one place both could plausibly appear.
+    await expect(page.getByTestId("payment-state-pending")).toHaveCount(0);
+    await expect(page.getByTestId("payment-state-reversed")).toHaveCount(0);
+  });
+
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════

@@ -46,6 +46,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
 import { NotCompletedState } from "@/components/booking/not-completed-state";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
+import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
 
 afterEach(() => {
   cleanup();
@@ -381,5 +382,144 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
     );
     // And the state did not fabricate a confirmed booking client-side (D-57 / T-13-07-FAKECONFIRM).
     expect(flat(container as unknown as HTMLElement).toLowerCase()).not.toContain("booking confirmed");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// STATE-05 — THE DISTINCTNESS PROOF. Three states, four columns, and one negative.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The three states, each mounted the way its own page mounts it.
+ *
+ * They are rendered ONE AT A TIME into separate documents and the results compared, rather than side
+ * by side in one tree: "no two co-render" is the property under test, so a harness that put two in one
+ * document to compare them would have to violate the thing it is asserting in order to assert it.
+ */
+const STATES = [
+  {
+    hook: "payment-state-incomplete",
+    render: () =>
+      render(
+        <NotCompletedState
+          bookingId={BOOKING_ID}
+          listingId={LISTING_ID}
+          reference={REFERENCE}
+          holdExpiresAt={new Date(T0.getTime() + FIFTEEN_MIN_MS).toISOString()}
+        />,
+      ),
+  },
+  {
+    hook: "payment-state-pending",
+    render: () => render(<PendingPaymentState reference={REFERENCE} email={EMAIL} />),
+  },
+  {
+    hook: "payment-state-reversed",
+    render: () =>
+      render(
+        <PaymentReversedState
+          listingId={LISTING_ID}
+          reference={REFERENCE}
+          amountLabel="₱1,428.00"
+          branch="auto"
+          rail="gcash"
+        />,
+      ),
+  },
+] as const;
+
+/** Mount one state on the fake clock and return what the four distinctness columns resolve to. */
+function readColumns(state: (typeof STATES)[number]) {
+  vi.useFakeTimers();
+  vi.setSystemTime(T0);
+  const { container } = state.render();
+  act(() => {
+    vi.advanceTimersByTime(0);
+  });
+  const root = container as unknown as HTMLElement;
+  const columns = {
+    hook: root.querySelector(`[data-testid="${state.hook}"]`) !== null,
+    heading: flat(root.querySelector("h1")),
+    // The state's own leading glyph. Lucide stamps a per-icon class, so this reads the ICON identity
+    // rather than a size or colour the three deliberately share.
+    icon: (root.querySelector("svg")?.getAttribute("class") ?? "")
+      .split(/\s+/)
+      .filter((token) => token.startsWith("lucide-"))
+      .join(" "),
+    // The state's OWN action set. The reference's copy control is excluded deliberately: TRUST-02
+    // gives it to every status, so it is shared BY DESIGN and is not a column any two states could
+    // differ on. It is addressed by its accessible name — the property `booking-reference.tsx` keeps
+    // on the control instead of a test hook — so this filter cannot silently widen.
+    actions: [...root.querySelectorAll<HTMLElement>("button, a")]
+      .filter((el) => el.getAttribute("aria-label") !== "Copy booking reference")
+      .map((el) => flat(el)),
+    moneyStatements: root.querySelectorAll('[data-testid="money-statement"]').length,
+    // Every OTHER state's hook, counted inside this one.
+    foreignHooks: STATES.filter((other) => other.hook !== state.hook).filter(
+      (other) => root.querySelector(`[data-testid="${other.hook}"]`) !== null,
+    ).length,
+  };
+  cleanup();
+  vi.useRealTimers();
+  return columns;
+}
+
+describe("STATE-05 — the three payment states are three visibly different things", () => {
+  it("(1) each renders its OWN hook and no other state's", () => {
+    for (const state of STATES) {
+      const columns = readColumns(state);
+      expect(columns.hook, `${state.hook} does not render its declared container`).toBe(true);
+      expect(
+        columns.foreignHooks,
+        `${state.hook} rendered another payment state's container inside its own. Two states in one ` +
+          `document is two answers to "what happened to my money", and the booker has no way to know ` +
+          `which one is about them.`,
+      ).toBe(0);
+    }
+  });
+
+  it("(2) three distinct headings", () => {
+    const headings = STATES.map((state) => readColumns(state).heading);
+    expect(headings.every((heading) => heading.length > 0)).toBe(true);
+    expect(
+      new Set(headings).size,
+      `two payment states share an <h1>: ${JSON.stringify(headings)}. The heading is the first thing ` +
+        `read on the page and it is the whole of what most bookers will take from it.`,
+    ).toBe(STATES.length);
+  });
+
+  it("(3) three distinct icons", () => {
+    const icons = STATES.map((state) => readColumns(state).icon);
+    expect(
+      icons.every((icon) => icon.length > 0),
+      `a state renders no identifiable leading glyph: ${JSON.stringify(icons)}`,
+    ).toBe(true);
+    expect(
+      new Set(icons).size,
+      `two payment states share a glyph: ${JSON.stringify(icons)}. 13-UI-SPEC gives each of the three ` +
+        `its own precisely so the difference survives being skimmed.`,
+    ).toBe(STATES.length);
+  });
+
+  it("(4) three distinct action sets", () => {
+    const actions = STATES.map((state) => readColumns(state).actions);
+    // The pending state's set is EMPTY before its poll backs off, and that is its distinguishing
+    // feature rather than a gap — nothing is asked of a booker whose payment is still settling.
+    expect(actions.map((set) => set.join(" | "))).toEqual([
+      "Try paying again",
+      "",
+      "Back to availability | Search other spaces",
+    ]);
+    expect(new Set(actions.map((set) => set.join(" | "))).size).toBe(STATES.length);
+  });
+
+  it("(5) exactly one money statement per state (STATE-06)", () => {
+    for (const state of STATES) {
+      expect(
+        readColumns(state).moneyStatements,
+        `${state.hook} renders a number of money statements other than one. STATE-06 gives every ` +
+          `payment state exactly one "where is your money" sentence, in one owner, in one box.`,
+      ).toBe(1);
+    }
   });
 });
