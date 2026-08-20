@@ -648,15 +648,18 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
         resolvedName: 'the "Copy link" button (this route\'s skeleton renders the h1 too)',
       },
       // ── The three payment-state branches (plan 13-01). Every URL below is the one its branch
-      // actually requires — see the header; `?paid=1` is present on two of them and deliberately
-      // ABSENT on the third, because the reversed branch would otherwise swallow the lapsed row.
+      // actually requires — see the header. Only the PENDING row still carries the checkout-return
+      // parameter: that branch genuinely reads it (plan 13-05 owns it). The reversed row LOST its
+      // copy in plan 13-04 and that is the point of D-87 — the state is now reached from DB status
+      // plus the D-84 probe, so a URL with no query string on it is the honest fixture. The lapsed
+      // row never had one.
       {
         url: `/bookings/${payStates.bookingIds.pendingLiveHold}?paid=1`,
         resolved: () => page.getByRole("heading", { level: 1, name: "Payment received" }),
         resolvedName: 'the h1 "Payment received" (PendingPaymentState, D-57/D-71)',
       },
       {
-        url: `/bookings/${payStates.bookingIds.reversed}?paid=1`,
+        url: `/bookings/${payStates.bookingIds.reversed}`,
         resolved: () =>
           page.getByRole("heading", { level: 1, name: "We couldn't complete this booking" }),
         resolvedName: 'the h1 "We couldn\'t complete this booking" (PaymentReversedState, D-58/D-83)',
@@ -694,6 +697,89 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
         ).toHaveCount(1);
       }
     }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // D-87 (plan 13-04) — THE REVERSED STATE, REACHED WITH NO QUERY STRING
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // WHY THIS LIVES HERE rather than in its own file: it needs the reversed fixture, and the fixture is
+  // seeded by the test above under `mode: "serial"`. Sharing it is the same shape `groupId` already
+  // uses in this describe, and re-seeding a second copy would collide on `booking_no_overlap`.
+  //
+  // WHAT IT PROVES, AND WHAT IT DELIBERATELY DOES NOT. It proves the state is reachable from DB status
+  // plus the D-84 probe alone — the precondition D-60 needs before the confirmation moment may consume
+  // the checkout-return parameter, and the reason plan 13-04 runs before plan 13-11. It does NOT prove
+  // the automatic branch: the fixture's `checkout_session_id` is a synthetic `cs_e2e_…` id, so the
+  // probe can never read a paid session for it and the render is deterministically the by-hand branch
+  // — with a key it is a 404 and without one no request is made at all, and `probeCheckoutSession`
+  // resolves to null on both paths. That determinism is the reason this assertion can name a branch,
+  // and it is also this case's coverage of the "the page still renders when the provider is
+  // unavailable" requirement: no round trip succeeds here and the surface still explains itself.
+  test("a reversed booking renders its money statement with NO query string on the URL", async ({
+    page,
+  }) => {
+    expect(
+      payStates,
+      "the payment-state fixture is null, so the test above did not reach its seed. This case shares " +
+        "that fixture under `mode: \"serial\"`; a null here is a failure of the previous test, not of " +
+        "this assertion.",
+    ).not.toBeNull();
+
+    // ⚠️ THE SESSION DOES NOT CARRY ACROSS TESTS, AND THAT COST A WATCHED RED. `mode: "serial"` shares
+    // module state between these two tests but Playwright still hands each one a FRESH browser context,
+    // so the cookie `signUpBooker` left in the test above is gone here. `/bookings/[id]` is owner-gated
+    // and answers a signed-out visitor with the same bare 404 it gives a foreign row (T-04-CONFIRMIDOR)
+    // — so the first draft of this case failed with "0 headings" and read exactly like the D-87
+    // regression it exists to catch. Logging the SAME booker back in is the fix: the fixture rows are
+    // owned by that user id, so a fresh signup would 404 for a completely different (and correct)
+    // reason. The password is `signUpBooker`'s own constant; the email is the one it recorded.
+    const bookerEmail = seed.bookerEmails[seed.bookerEmails.length - 1];
+    expect(bookerEmail, "the test above recorded no booker email to log back in with").toBeTruthy();
+    await page.goto(`${BASE}/login`);
+    await page.getByLabel("Email").fill(bookerEmail);
+    await page.getByLabel("Password").fill("averylongpassword");
+    await page.getByRole("button", { name: "Log in" }).click();
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30_000 });
+
+    // The narrow viewport on purpose: STATE-06 requires the money statement inside the initial
+    // viewport at 320x568, and while the geometry itself belongs to plan 13-15, there is no reason to
+    // prove reachability at a width the requirement never asks about.
+    await page.setViewportSize({ width: 320, height: 568 });
+    const url = `/bookings/${payStates!.bookingIds.reversed}`;
+    await page.goto(`${BASE}${url}`);
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "We couldn't complete this booking" }),
+      `${url}: the reversed heading is absent, so this page is still its skeleton (or fell through to ` +
+        "the generic cancelled branch — which is exactly the D-87 regression: with no query string on " +
+        "the URL, a reversed booking used to render as an ordinary cancellation with no money " +
+        "statement at all).",
+    ).toHaveCount(1);
+
+    await expect(
+      page.getByTestId("payment-state-reversed"),
+      `${url}: STATE-05's reversed container is not the one that rendered.`,
+    ).toHaveCount(1);
+
+    const panel = page.getByTestId("money-statement");
+    await expect(
+      panel,
+      `${url}: the reversed state rendered without STATE-06's money statement. The whole argument for ` +
+        "consuming the checkout-return parameter is that everything the moment states is repeated on " +
+        "the ordinary detail page; a reversal with no money sentence is that argument being false.",
+    ).toHaveCount(1);
+    await expect(
+      panel,
+      `${url}: the money statement does not state the charge. See the block above for why the by-hand ` +
+        "branch is the deterministic one against this fixture.",
+    ).toContainText("You were charged");
+
+    await expect(
+      page.getByTestId("booking-reference"),
+      `${url}: TRUST-02 requires the reference on every status, and on this branch it is the token a ` +
+        "person needs in order to move the money by hand.",
+    ).toHaveCount(1);
   });
 });
 

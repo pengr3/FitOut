@@ -81,7 +81,10 @@ import { db } from "@/lib/db";
 import { booking, listing } from "@/lib/db/schema";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { bookingReference } from "@/lib/booking/reference";
+import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 import { readDbNow } from "@/lib/booking/bookings-query";
+import { probeCheckoutSession, readPaymentState } from "@/lib/payments/checkout-probe";
+import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { getAvailability } from "@/lib/availability/read-model";
 import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
@@ -183,6 +186,11 @@ export default async function BookingConfirmationPage({
       // D-61 creation-time snapshot. Only a request-mode booking ever had an approval to lapse.
       bookingMode: booking.bookingMode,
       paymentId: booking.paymentId,
+      // ── Plan 13-04 (D-84/D-87). The hosted session `confirmBooking` persisted BEFORE the booker ever
+      // paid (CR-02) — which is why it survives on a row the confirm UPDATE never touched. It is the
+      // ONLY handle this page has on what PayMongo knows, and the cancelled branch needs it: there is no
+      // column anywhere on `booking` that separates a reversed payment from a swept unpaid hold.
+      checkoutSessionId: booking.checkoutSessionId,
     })
     .from(booking)
     .where(eq(booking.id, id));
@@ -199,25 +207,19 @@ export default async function BookingConfirmationPage({
     // Abandoned pending hold (no ?paid) → back to the reserve page to finish checkout (Phase-4 behavior).
     redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
   }
-  // D-58 auto-refund landing: the webhook reversed a payment for a slot that was genuinely gone → the calm
-  // reversed state, never a "Booking confirmed".
+  // D-58's reversal landing USED TO SIT HERE, gated on the cancelled status AND an equality test against
+  // the checkout-return parameter. It has moved down into the `cancelled` branch and is now reached from
+  // DB state plus the D-84 probe (D-87). The gate is gone rather than relaxed: that parameter is
+  // forgeable and is a UX signal only (D-57), so a state reachable ONLY through it would vanish the
+  // moment the confirmation moment consumes it. See the branch itself for the discriminator and for what
+  // a probe that learned nothing does.
   //
-  // ⚠️ INTERIM SHAPE — the props are the corrected ones (D-69) but the GATE and the BRANCH are not yet.
-  // The branch is pinned to the by-hand truth because that is the fail-closed direction: it never claims
-  // money was sent back that was not. The D-84 probe that decides it for real, and the D-87 removal of
-  // the query parameter from this condition, land in the next commit of this plan. The two are split so
-  // the copy rewrite and the discriminator are separately reviewable, not because this is a resting place.
-  if (bk.status === "cancelled" && paid === "1") {
-    return (
-      <PaymentReversedState
-        listingId={bk.listingId}
-        reference={bookingReference(bk.id)}
-        amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
-        branch="manual"
-        rail={null}
-      />
-    );
-  }
+  // ⚠️ THE OLD CONDITION IS DESCRIBED ABOVE RATHER THAN QUOTED, deliberately: this plan's acceptance
+  // criterion is that a raw grep for that equality test over this file returns exactly ONE — the pending
+  // branch's remaining use, which plan 13-05 owns. Quoting the removed gate in a comment would make the
+  // criterion read 2 against a correct file. Fourth instance of this collision in Phase 13; see
+  // `booking-row.tsx:112` for the precedent.
+  //
   // The states we render a booking-detail card for. 07-12 ADDS `cancelled`: a cancelled booking is durable
   // history the booker is entitled to see (a refund figure, or the D-97 recovery), and 404ing it was the
   // reason confirming a cancellation used to land on a dead page. `completed` is NOT here and must not be —
@@ -460,8 +462,72 @@ export default async function BookingConfirmationPage({
     );
   }
 
-  // ── cancelled (07-12) — two genuinely different events sharing one enum value (D-79). ──────────────────
+  // ── cancelled (07-12) — three genuinely different events sharing one enum value (D-79, D-87). ─────────
   if (bk.status === "cancelled") {
+    // ══ (f) 13-04 — THE D-58 REVERSAL, REACHED WITHOUT A QUERY STRING (D-84 / D-87) ══════════════════
+    //
+    // WHY IT IS DECIDED HERE AND NOT FROM A COLUMN. 13-RESEARCH looked for a row-level signal separating
+    // a reversed payment from a swept unpaid hold and found none: the confirm UPDATE is the only writer
+    // of `payment_id`/`payment_method` and a reversal is BY DEFINITION the branch where that UPDATE
+    // matched zero rows, while `refund_cents` belongs to the booker-cancellation path and nobody
+    // cancelled this. Both shapes are therefore `cancelled` + `cancelled_by IS NULL` + `payment_id IS
+    // NULL`. The provider is the only party that knows which one this is, hence the probe.
+    //
+    // TWO ROW-LEVEL PRECONDITIONS BEFORE THE PROBE, and neither is an optimisation:
+    //   - `cancelledBy === null` — a PARTY cancellation was a decision, and its session was genuinely
+    //     PAID, so a probe-first ordering would report `reversed` for every booker-cancelled booking on
+    //     the site and tell them their confirmed-then-cancelled booking "couldn't be completed". That is
+    //     the one reading of the D-84 discriminator that must never happen.
+    //   - `checkoutSessionId !== null` — a booking that never reached checkout cannot have had a payment
+    //     reversed. It is also what keeps the D-97 lapse branch below intact: an approval that ran out
+    //     before the booker paid has no session id at all.
+    // They also mean the common cancelled render — a party cancellation — pays no round trip whatsoever.
+    //
+    // WHAT EACH ANSWER MEANS. Session `paid` ⇒ money moved on a booking that ended cancelled, which is a
+    // reversal. Session `expired` (or anything else the provider says) ⇒ NOT this state; fall through to
+    // the branches below unchanged. A probe that learned NOTHING — no key, a network error, a non-2xx,
+    // the 3s deadline — falls back to the row signature above, and lands on the by-hand branch.
+    //
+    // ⚠️ THE DIRECTION OF THAT FALLBACK IS CHOSEN, NOT INHERITED. Guessing the automatic branch would
+    // tell a booker their money had been sent back when nobody sent it back — the same class of false
+    // money statement D-69 exists to remove, pointing the other way. Failing to the by-hand branch says
+    // only that a person is involved, which is true on every path where we are unsure. It is also the
+    // direction `isApiRefundable` itself fails, and `branch` below is literally that predicate.
+    //
+    // ⚠️ RESIDUAL, RECORDED RATHER THAN HIDDEN (for 13-15). When the probe learns nothing, the row
+    // signature alone cannot exclude an ABANDONED hold that a later booker's stale-hold sweep flipped to
+    // `cancelled` (`availability/units.ts:487` and `:922`) — that row also has no `cancelled_by`, no
+    // `payment_id` and a real session id. Such a booker would read a charge that never happened. It
+    // needs a provider outage AND an abandoned checkout AND a revisit to coincide; with the probe up,
+    // the session reads `active`/`expired` and the row correctly falls through. Noted here because the
+    // honest fix is a persisted signal, which D-80 puts out of scope for this phase.
+    const systemRetired = bk.cancelledBy === null && bk.paymentId === null;
+    const reachedCheckout = systemRetired && bk.checkoutSessionId !== null;
+    const session = reachedCheckout ? await probeCheckoutSession(bk.checkoutSessionId) : null;
+    // `readPaymentState` is the ONE owner of the four (booking status, session status) pairs — reused,
+    // never restated here, so this surface and the receipt cannot drift apart about what `paid` means.
+    const isReversal =
+      readPaymentState(bk.status, session) === "reversed" || (reachedCheckout && session === null);
+
+    if (isReversal) {
+      // The rail PayMongo says the session was paid on, or null when the probe fell back. The component
+      // takes the TOKEN, not a display name: it is what selects the verified window sentence.
+      const rail = session?.sourceType ?? null;
+      return (
+        <PaymentReversedState
+          listingId={bk.listingId}
+          reference={bookingReference(bk.id)}
+          // The server-frozen quote (D-49), formatted HERE — the component receives a finished string and
+          // performs no money arithmetic (D-130 / GATE-05). `refundCents` is deliberately not consulted:
+          // it is NULL on this path, and the return is full by design, so charged and returned are the
+          // same figure.
+          amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
+          branch={isApiRefundable(rail) ? "auto" : "manual"}
+          rail={rail}
+        />
+      );
+    }
+
     // (c) THE D-97 LAPSE. Three conditions, each excluding something this branch must NOT swallow:
     //   - `cancelledBy === null`   — a PARTY cancellation was a decision, not a lapse. Keeps every
     //                                booker-cancelled and host-cancelled booking (and its refund) out.
@@ -470,11 +536,10 @@ export default async function BookingConfirmationPage({
     // These are the same conditions `reRequestSameWindow` re-checks server-side; this branch only decides
     // what to render.
     //
-    // KNOWN EDGE, stated rather than hidden: the D-58 gone-slot backstop also lands a booking here with no
-    // `cancelled_by` and no persisted payment id. Its own landing is the `?paid=1` PaymentReversedState
-    // branch above, which fires on the return from checkout; a later revisit WITHOUT `?paid=1` on a
-    // request-mode booking would read as a lapse. Vanishingly rare (it needs a payment to land for a slot
-    // already gone) and the recovery offered is still the right one — but it is an edge, not a proof.
+    // THE KNOWN EDGE THAT USED TO BE STATED HERE IS CLOSED. It read: the D-58 backstop also lands a
+    // booking here with no `cancelled_by` and no payment id, its landing fired only on `?paid=1`, so a
+    // later revisit on a request-mode booking would read as a lapse. That is exactly what (f) above now
+    // adjudicates, before this predicate is evaluated and without reading the query string at all.
     const lapsedApproval =
       bk.cancelledBy === null && bk.bookingMode === "request" && bk.paymentId === null;
 
@@ -541,8 +606,16 @@ export default async function BookingConfirmationPage({
                 {title} · {whenLabel}
               </p>
               {refundCents != null && refundCents > 0 && (
+                // D-83 — THE WINDOW IS READ, NEVER TYPED. The sentence that shipped here paired a vague
+                // plural of "day" with a promise about the original payment method and had no source at
+                // all; the three windows FitOut is willing to state come from PayMongo's published
+                // per-rail table and live in ONE module. The rail-free sentence is the right one for this
+                // branch: it names every rail a booker could have used rather than claiming to know which,
+                // and this page holds no probed rail — a party cancellation is not a reversal and buys no
+                // round trip here. (`cancel/page.tsx` and `lib/email.ts` carry the same superseded string;
+                // plan 13-12 owns those two.)
                 <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-                  Refunds usually land back on your original payment method within a few days.
+                  {ALL_RAILS_REFUND_WINDOW}
                 </p>
               )}
               <p className="text-xs text-muted-foreground">{tzNote}</p>
