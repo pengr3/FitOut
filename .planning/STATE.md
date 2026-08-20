@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-08-20T05:32:50.439Z"
-last_activity: 2026-08-20 -- 13-02 executed (MoneyStatement, the guarded SupportPath, BookingReference)
+stopped_at: Completed 13-03-PLAN.md
+last_updated: "2026-08-20T06:09:13.014Z"
+last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 3 of 16
-Current Plan: 3
+Plan: 4 of 16
+Current Plan: 4
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -73,6 +73,35 @@ was deliberately NOT extended — measured precedent: Phase 12's `availability/b
 STATE-06/TRUST-01/TRUST-02/STATE-05 are all carried by later plans, and TRUST-01 + STATE-05 close PARTIAL
 at phase end by D-64 regardless. Gates: `npm test` 143 files / 1319 tests, design 41/749, `npm run build`
 exit 0, drizzle still `0025_audit_resolved_by.sql`, zero packages.
+
+**13-03 IS DONE (`4fb3fc0` · `6bfabd5` · `8fee97c`) — the first `AbortSignal` on any PayMongo call in this
+repository, added so that it changes NOTHING.** `paymongoFetch` gained `signal?: AbortSignal` and
+`getCheckoutSession(id, { timeoutMs })` can now be given a deadline, but the deadline is **OPT-IN per call
+site** and every money-path caller still passes none — the two assertions that carry T-13-03-EXPIREREG are
+the NEGATIVE ones (no signal on the expire POST, no signal on its LW-01 re-probe), and both were green
+BEFORE and AFTER the change, which is the only shape of evidence that means anything for a regression pin.
+`expireCheckoutSession`'s zero-line diff was verified mechanically: the function spans HEAD 271–317 and
+`git diff -U0` reports hunks at 67/89/318/322/326/328/330 only. The return widened to `sourceType` +
+`paidAt`, read **two `attributes` deep** (`payments[0].attributes.source.type`) with `paid_at` as Unix
+SECONDS — the shape is PayMongo's DOCUMENTED contract pinned by fixtures, **not a live-observed body**, and
+that is recorded in the function and carried as a UAT item rather than left as an unmarked assumption.
+`probeCheckoutSession` (server-only, `CHECKOUT_PROBE_TIMEOUT_MS = 3000`) resolves to `null` for every
+failure and makes NO request when the id is null or no secret is configured — which is what keeps later
+specs inside D-35's CI secret boundary. ⚠ **THE MOST TRANSFERABLE FINDING:** removing its `try`/`catch`
+reddened four cases, and case (4) printed PayMongo's own prose — `PayMongo GET /v1/checkout_sessions/cs_gone
+failed (404): No such checkout session cs_gone` — in the caller's stack one frame below the page that would
+have rendered it, so T-13-03-PROBELEAK is demonstrated rather than asserted; case (7)'s
+`TimeoutError: The operation was aborted due to timeout` at ~3014ms does the same for T-13-03-PROBEDOS.
+`refund-window.ts` gives the three verified windows one owner that REUSES `isApiRefundable`, and its manual
+branch returns a bare marker with **no sentence field**, so D-83's ban on the word *refunded* there is
+structural. `money-path-invariants.test.ts` pins `drizzle/` at `0025_audit_resolved_by.sql` and `qrph`'s
+exclusion from `REFUNDABLE_RAILS`; **both were watched failing** (a temporary `0026_probe.sql`; a locally
+widened rails fixture printing the verbatim 2026-08-20 rejection), and the qrph describe carries an
+anti-vacuity case because an EMPTY set would also satisfy the pin. The `grep -c 'throw' === 0` criterion hit
+the same prose-collision the last two plans did — the file says "never raises" throughout. **Zero
+requirements marked** (STATE-05 is carried by 13-04/07/15/16 and closes PARTIAL by D-64). Gates: `npm test`
+145 files / 1349 tests, design 42/754, `npm run build` exit 0, `refund-rail.ts` + `drizzle/` + `package.json`
++ `site-contacts.test.ts` + `site.ts` all byte-unchanged, zero packages.
 
 **12-15 IS THE GAP-CLOSURE PLAN AND IT IS DONE (`f009864` · `7f63e34` · `ceb54d7`).** `ci.yml` now has a
 FOURTH job, `gate-visual`, that runs the visual project in the pinned Playwright image against a seeded
@@ -338,6 +367,7 @@ Last activity: 2026-08-20
 | Phase 12 P11 | 3h05m | 3 tasks | 23 files |
 | Phase 12 P12 | 67min | 3 tasks | 13 files |
 | Phase 13 P02 | 25min | 3 tasks | 6 files |
+| Phase 13 P03 | 28min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -661,6 +691,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-02: the mail href is built INSIDE the SUPPORT_EMAIL true-branch and passed down as a finished string, so the file holds exactly one scheme literal and it is inside the guard's range
 - [Phase ?]: 13-02: a `why` string in selector-contract.ts is a LITERAL, not a comment, so it is visible to every AST source scan — the support-path row's own reason tripped the gate it documents
 - [Phase ?]: 13-02: card-pattern-coverage.test.ts NOT extended — its inventory is the 11-UI-SPEC Replaces lists, and Phase 12's booking-panel.tsx (a PanelCard adopter) is absent from it by the same precedent
+- [Phase ?]: 13-03: the PayMongo deadline is OPT-IN per call site — paymongoFetch accepts a signal and getCheckoutSession(id, { timeoutMs }) can be given one, but every money-path caller (confirmBooking's expire + create, expireCheckoutSession's LW-01 re-probe) still passes NONE. Two negative assertions pin that; a default deadline would turn 'the provider says this session is retired' into a new way to fail closed on the double-charge guard.
+- [Phase ?]: 13-03: refundWindowFor(null) routes to the rail-free sentence BEFORE the isApiRefundable check. isApiRefundable's fail-closed reading answers 'should we CALL the refund API'; 'what copy describes a refund that already happened' is a different question, and collapsing them would tell every D-84 fallback render that the booker's money needs a human when it does not.
+- [Phase ?]: 13-03: CHECKOUT_PROBE_TIMEOUT_MS = 3000, argued from the repo's own measured ~2s for two PayMongo round trips + two UPDATEs (config.ts). The ceiling is set by asymmetry: giving up early costs the rail-free sentence, which is DESIGNED copy (D-84), while waiting costs a booker staring at nothing on the page that exists to explain their payment.
 
 ### Pending Todos
 
@@ -766,8 +799,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T05:32:50.411Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-08-20T06:09:12.993Z
+Stopped at: Completed 13-03-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z

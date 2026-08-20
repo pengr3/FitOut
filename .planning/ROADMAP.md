@@ -315,7 +315,7 @@ Plans:
 
 - [x] 13-01-PLAN.md — the booking shell constant, the nested-`<main>` fix, and the payment-state seed helper (Wave 1)
 - [x] 13-02-PLAN.md — the shared domain pieces: MoneyStatement, the guarded SupportPath, BookingReference (Wave 1)
-- [ ] 13-03-PLAN.md — the D-84 PayMongo probe with an opt-in timeout, the verified refund windows, and the zero-migration / qrph pins (Wave 1)
+- [x] 13-03-PLAN.md — the D-84 PayMongo probe with an opt-in timeout, the verified refund windows, and the zero-migration / qrph pins (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -516,7 +516,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
-| 13. Confirmation, Bookings & Trust | v1.1 | 2/16 | In Progress | - |
+| 13. Confirmation, Bookings & Trust | v1.1 | 3/16 | In Progress | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
