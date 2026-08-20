@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 11
+current_plan: 12
 status: executing
-stopped_at: Completed 13-10-PLAN.md
-last_updated: "2026-08-20T16:07:01.005Z"
-last_activity: 2026-08-20
+stopped_at: Completed 13-11-PLAN.md
+last_updated: "2026-08-20T16:57:36.938Z"
+last_activity: 2026-08-21
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 64
+  completed_plans: 65
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 11 of 16
-Current Plan: 11
+Plan: 12 of 16
+Current Plan: 12
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -250,7 +250,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-20
+Last activity: 2026-08-21
 
 ## Performance Metrics
 
@@ -406,6 +406,7 @@ Last activity: 2026-08-20
 | Phase 13 P08 | 35min | 2 tasks | 10 files |
 | Phase 13 P09 | 31min | 3 tasks | 7 files |
 | Phase 13 P10 | 71 | 3 tasks | 17 files |
+| Phase 13 P11 | 47min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -750,6 +751,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-09: the forbidden-signal scan reads AUTHORED COPY (string literals + JSX text), not raw source — measured, because a raw scan reports ten hits on a clean tree and all ten are comments.
 - [Phase ?]: 13-10: D-96 discharged as a THIRD reversed branch (indeterminate) — with no probe information no copy asserts a charge, proven on both the reversed and the abandoned-hold reading of one shared row signature
 - [Phase ?]: 13-10: bookings/[id] is one shell rendered eight ways; the outer Card is gone and the page moved OFF ALLOWED_RAW_CARD onto CARD_SURFACES as a declared panel-card adopter
+- [Phase ?]: 13-11: the D-89 proof counts navigations to a DIFFERENT url — router.refresh() itself emits framenavigated, so a raw count is red at 8 against correct code
+- [Phase ?]: 13-11: a threat assertion runs BEFORE its vacuity guards — assertion order decides which sentence a red names, and a guard protects a pass from any position
+- [Phase ?]: 13-11: ConsumePaidParam is mounted in exactly ONE place, inside the confirmed branch's return — watched failing with it hoisted, and the red printed the checkout url a booker who had already paid gets bounced to
 
 ### Pending Todos
 
@@ -855,7 +859,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T16:07:00.978Z
+Last session: 2026-08-20T16:56:50.384Z
 Stopped at: Completed 13-10-PLAN.md
 Resume file: None
 

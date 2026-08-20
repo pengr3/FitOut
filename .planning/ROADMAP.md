@@ -338,7 +338,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 13-11-PLAN.md — the confirmation moment, and its decay (Wave 6)
+- [x] 13-11-PLAN.md — the confirmation moment, and its decay (Wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
@@ -516,7 +516,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
-| 13. Confirmation, Bookings & Trust | v1.1 | 10/16 | In Progress|  |
+| 13. Confirmation, Bookings & Trust | v1.1 | 11/16 | In Progress|  |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
