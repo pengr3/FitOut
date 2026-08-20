@@ -24,12 +24,12 @@ STATE-08.
 
 > **Decision-ID namespace — read before citing a number.** These continue the per-phase CONTEXT
 > sequence (Phase 10 = D-01…D-22, Phase 11 = D-23…D-36, Phase 12 = D-37…D-59), so **Phase 13 runs
-> D-60…D-95**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
+> D-60…D-97**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
 > **D-62** (demand-first booking-mode default flip, cited in `src/lib/db/schema.ts:199`), **D-66** (no
 > React Email / no new email stack), **D-75** (the all-in rate never goes up) and **D-79** (what
 > actually went back to the booker, cited in `src/app/(app)/bookings/[id]/page.tsx:169`). The collision
 > is pre-existing — Phase 11's D-30/D-31 and Phase 12's D-42…D-50 collide the same way — and is
-> recorded rather than silently inherited. **When citing any number in D-60…D-95, say which
+> recorded rather than silently inherited. **When citing any number in D-60…D-97, say which
 > namespace**: "13-CONTEXT D-62" or "PROJECT D-62". Never a bare number.
 
 > **Governing principle carried forward, not re-decided — 12-CONTEXT D-59:** when two options both
@@ -340,6 +340,29 @@ both are places where ambiguity would produce invented copy.
 - **D-95: The pending state's manual control is labelled "Refresh status", not bare "Refresh".**
   A single-word verb with no object fails the copy guideline the gate flagged. The `Copy` control keeps
   its visible single word because it already carries `aria-label="Copy booking reference"`.
+
+### Found during execution (Wave 2, 2026-08-20)
+
+- **D-96 (13-CONTEXT): When the probe learns nothing, the fallback copy MUST NOT assert that a charge
+  occurred.** Plan 13-04 found and documented a residual: with no probe information, the fallback row
+  signature (`cancelled` + no `cancelled_by` + no `payment_id` + a real session id) is **shared with an
+  abandoned hold** swept to `cancelled` by `src/lib/availability/units.ts:487`/`:922`. That booker was
+  never charged, and the fallback would tell them *"You were charged ₱X."*
+  **The plan's `T-13-04-FALSEREFUND` reasoned about the wrong axis** — it chose which *refund branch*
+  (automatic vs by-hand) to show, not whether a *charge* happened at all. Those are different questions.
+  **Resolution — and it needs no migration:** when the probe returns nothing, the copy must be true under
+  BOTH readings. State that the booking was cancelled and that **if** anything was charged it is being
+  returned, carrying the reference and the support path — never a bare assertion of an amount charged.
+  A persisted signal would be the stronger fix and is correctly out of scope under D-80.
+  ⚠ **Owner: plan 13-10** (it owns the detail page's status branches). 13-04 wrote the residual at the
+  branch so it is found rather than re-derived. This closes the last place in the phase where FitOut
+  could state a money fact it has not verified — which is the whole point of D-69/D-83.
+
+- **D-97 (13-CONTEXT): The reversed status-meaning sentence is the § The Reversed State sketch**
+  — *"This time was taken before your payment landed."* — **not** the status table's near-restatement of
+  the `<h1>`. 13-UI-SPEC gives both and they disagree; 13-04 chose the sketch and shipped it. Pinned here
+  so a later plan does not silently flip it back. If the table's wording is ever preferred, that is the
+  one line to change, and it changes in the table too.
 
 ### Claude's Discretion
 
