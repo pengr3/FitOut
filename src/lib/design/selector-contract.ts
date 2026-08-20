@@ -166,6 +166,7 @@ export const SELECTOR_IDS = [
   "collision-notice",
   // 13-02 — the three shared domain components every later Phase-13 surface composes.
   "support-path",
+  "money-statement",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -579,6 +580,25 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "this very sentence, and the gate went red on `selector-contract.ts` itself — the scan walks all " +
       "of `src/**`, this module is inside it, and a `why` is a string LITERAL rather than a comment, " +
       "so unlike prose it is visible to the AST walk. Do not re-introduce the word here to explain it.",
+    owner: "13-02",
+  },
+  "money-statement": {
+    why:
+      "A SENTENCE HAS NO ROLE, and this one is deliberately not given a name either. STATE-06's " +
+      "assertion is geometric — at 320x568 and 1280x800, in both themes, on all three payment states, " +
+      "this element's `boundingBox()` must satisfy `y + height <= viewport.height` with zero scrolling " +
+      "— and a box is what has to be addressed, not the text inside it. A text query is worse than " +
+      "unavailable here, it is circular: the sentence is composed by the server and varies per state " +
+      "and per rail (nine specified wordings), so a spec matching on the copy would have to know which " +
+      "sentence it was measuring in order to find the element that proves the sentence was shown, and " +
+      "would go green the day a tenth wording is added. `getByRole(\"paragraph\")` is not a substitute " +
+      "either: every payment state renders several paragraphs, and the panel's own padding — the part " +
+      "of the height most likely to push the bottom edge off a 568px viewport — is OUTSIDE the " +
+      "paragraph. It carries no live region and therefore no `status`/`alert` role to query (13-UI-SPEC " +
+      "§ Live Regions), which is the property that makes the geometric assertion necessary rather than " +
+      "incidental. THE HOOK IS ON A WRAPPER, NOT ON `PanelCard`: that pattern owns its own " +
+      "`panel-card` id and takes no pass-through props, and this collector only sees JSX attributes " +
+      "whose value is a STRING LITERAL — the shape `(legal)/terms/page.tsx:147-152` already records.",
     owner: "13-02",
   },
 };
