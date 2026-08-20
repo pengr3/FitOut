@@ -78,7 +78,7 @@ import { CalendarCheckIcon, HourglassIcon } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { booking, listing } from "@/lib/db/schema";
+import { booking, listing, user } from "@/lib/db/schema";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { bookingReference } from "@/lib/booking/reference";
 import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
@@ -88,6 +88,8 @@ import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { getAvailability } from "@/lib/availability/read-model";
 import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
+import { bookedListingAddress } from "@/lib/listing-public";
+import { formatMemberSince } from "@/lib/profile";
 import { venueTzNote } from "@/lib/venue-time";
 import { APPROVAL_SLA_HOURS, APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
 import { BOOKING_SHELL } from "@/lib/design/measurements";
@@ -102,6 +104,7 @@ import { RequestCountdown } from "@/components/booking/request-countdown";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { CancelRequestDialog } from "@/components/booking/cancel-request-dialog";
 import { CreateGroupButton } from "@/components/group/create-group-button";
+import { TrustBlock } from "@/components/booking/trust-block";
 import {
   ExpiredApprovalState,
   type ExpiredApprovalSlot,
@@ -304,8 +307,45 @@ export default async function BookingConfirmationPage({
       // written out anyway so the open-capacity mode Phase 9 adds cannot inherit an invite flow that was
       // designed around "one payer, one exclusive lock" without someone deciding it should.
       occupancyMode: listing.occupancyMode,
+      // ── Plan 13-09 additions. Every one of them is a DISPLAY input; nothing below writes. ──
+      //
+      // ⚠ THE ADDRESS COLUMNS ARE NAMED HERE AND NOWHERE ELSE ON THIS PAGE, and that is a rule rather
+      // than a coincidence. `bookedListingAddress()` is the ONE route to a booked listing's street
+      // (D-91), so this row is handed to it WHOLE — `bookedListingAddress(lst, …)` — instead of being
+      // taken apart at the call site. A grep over this file for the raw column names therefore finds
+      // them only in this select, which is the acceptance criterion and also the reason the boundary
+      // can be audited at all: there is no second place to look.
+      addressLine1: listing.addressLine1,
+      addressLine2: listing.addressLine2,
+      postalCode: listing.postalCode,
+      neighborhood: listing.neighborhood,
+      region: listing.region,
+      country: listing.country,
+      location: listing.location,
+      // The host's D-09 toggle. Read but never OBEYED for a confirmed/completed booking — see D-91 and
+      // the boundary's own header for why that is the host's promise being kept rather than broken.
+      showExactAddress: listing.showExactAddress,
+      // TRUST-04 signal 3 (D-68). NULL on a listing that was never published — the trust row is then
+      // ABSENT rather than blank.
+      publishedAt: listing.publishedAt,
+      // TRUST-04 signal 4 (D-68). THE LISTING'S CURRENT MODE, deliberately — NOT `booking.bookingMode`,
+      // which is already selected above and is the booking's creation-time snapshot (D-61). The trust
+      // block's sentence is a statement about how this SPACE behaves ("this host approves each
+      // request"), which is a fact about the listing today; the snapshot is a fact about this booking's
+      // history and is what the lapse branch reads. Two different questions, two different columns.
+      listingBookingMode: listing.bookingMode,
+      // TRUST-04 signal 2 (D-68/D-66) — the host's own `createdAt`, through the join below. Formatted
+      // in this RSC and passed down as a finished string.
+      hostCreatedAt: user.createdAt,
+      // Selected here rather than in a later plan because the JOIN is the cost and it is already paid.
+      // 13-10's facts panel renders the host's name; nothing in THIS plan does.
+      hostFirstName: user.firstName,
     })
     .from(listing)
+    // INNER join: `listing.host_id` is NOT NULL with an FK to `user` (schema.ts:175-177), so this can
+    // never drop a row that the un-joined query would have returned. The `!lst` guard below is
+    // therefore unchanged in meaning.
+    .innerJoin(user, eq(listing.hostId, user.id))
     .where(eq(listing.id, bk.listingId));
   if (!lst) notFound();
 
@@ -348,6 +388,78 @@ export default async function BookingConfirmationPage({
   const now = await readDbNow(db);
   const whenLabel = `${dateLabel}, ${timeLabel}`;
 
+  // ══ 13-09 — TRUST-04's FOUR SIGNALS, AND D-91's ADDRESS BOUNDARY ═══════════════════════════════════
+  //
+  // THE DISPLAY STATUS IS DERIVED ONCE, HERE, AGAINST THE SAME `now` EVERY BADGE ON THIS PAGE USES.
+  // `completed` is never stored (D-102) — it is a `confirmed` row whose endsAt has passed — so feeding
+  // the address boundary the raw column would make a finished session silently lose its address the
+  // instant it ended. `cancelledBy` is threaded for the T8 remap (a booker-cancelled `declined` reads
+  // as `cancelled`), which changes no address outcome — both are non-booked — but keeps this derivation
+  // and the badge's derivation the same call with the same arguments, so they cannot drift.
+  //
+  // NO JS CLOCK IS READ. There is not one on this page and this plan adds none (the 07-06 boundary
+  // contract); `now` came from Postgres above.
+  const displayStatus = deriveDisplayStatus(bk.status, bk.endsAt, now, bk.cancelledBy);
+
+  // THE ADDRESS, THROUGH THE ONE NAMED BOUNDARY (D-91 / TRUST-01). The whole listing row is handed over
+  // rather than picked apart: the boundary owns the decision AND the composition, so this file names no
+  // address column outside its select and cannot accidentally grow a second, weaker rule.
+  //
+  // ⚠ WHAT THIS IS AND IS NOT. On `confirmed` and derived-`completed` it yields the exact street — the
+  // host-facing control already promises "an approximate area until they book", so this is that promise
+  // kept. On `requested`, on an `approved` hold nobody has paid for, on `declined` and on every flavour
+  // of `cancelled` (party, lapsed approval, reversed payment) it yields exactly what the PUBLIC listing
+  // page yields: neighbourhood + city, no street, no postal code, coordinates coarsened. Ten renders,
+  // two of them booked — asserted per render in `tests/listing/booked-address.test.ts`.
+  const address = bookedListingAddress(lst, { displayStatus });
+
+  // The two trust-block dates. ONE formatter for both, and it is the shipped one that
+  // `listing/host-block.tsx:115` already renders "Host since" with — so this page and the listing page
+  // can never disagree about the same host, and the product has no fifth date format (D-66).
+  const hostSinceLabel = formatMemberSince(lst.hostCreatedAt);
+  const listingPublishedLabel = lst.publishedAt ? formatMemberSince(lst.publishedAt) : null;
+
+  /**
+   * The trust block, identical on every branch below (D-67).
+   *
+   * IT RENDERS ON THE STATES THAT LOOK WRONG TOO, AND THAT IS THE REQUIREMENT RATHER THAN AN OVERSIGHT:
+   * trust matters most when something has gone wrong, so binding this block to the happy path would
+   * remove it precisely where a booker needs it. Built once as an element so the five branches cannot
+   * drift into five slightly different trust blocks.
+   *
+   * The props are all finished strings by the time they arrive — the component performs no date math
+   * and reads no column (see its header for D-65's reframing and why it touches neither payout flag).
+   */
+  const trustBlock = (
+    <TrustBlock
+      variant="full"
+      hostSinceLabel={hostSinceLabel}
+      listingPublishedLabel={listingPublishedLabel}
+      bookingMode={lst.listingBookingMode}
+      reference={bookingReference(bk.id)}
+    />
+  );
+
+  /**
+   * The address rows for the facts `<dl>`, or nothing when the row holds no address at all.
+   *
+   * `address.lines` is composed INSIDE the boundary, so this file renders lines rather than columns —
+   * see the select's own note. An empty array renders no row, never an empty one.
+   */
+  const addressRow =
+    address.lines.length === 0 ? null : (
+      <div className="flex items-start justify-between gap-4">
+        <dt className="text-muted-foreground">Where</dt>
+        <dd className="text-right">
+          {address.lines.map((line) => (
+            <span key={line} className="block">
+              {line}
+            </span>
+          ))}
+        </dd>
+      </div>
+    );
+
   // ── requested (BOOK-06, D-66): "Request sent — awaiting host". Calm, NO pay CTA, "you haven't been charged". ──
   if (bk.status === "requested") {
     return (
@@ -382,6 +494,7 @@ export default async function BookingConfirmationPage({
                   )}
                 </dd>
               </div>
+              {addressRow}
               <div className="flex items-start justify-between gap-4">
                 <dt className="text-muted-foreground">When</dt>
                 <dd className="text-right">
@@ -396,6 +509,11 @@ export default async function BookingConfirmationPage({
               </div>
             </dl>
             <p className="text-xs text-muted-foreground">{tzNote}</p>
+
+            {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
+                wrong, so the block is not bound to the happy path. Identical element on all
+                five inline branches; see its construction above. */}
+            {trustBlock}
 
             <Separator />
 
@@ -450,6 +568,7 @@ export default async function BookingConfirmationPage({
                   )}
                 </dd>
               </div>
+              {addressRow}
               <div className="flex items-start justify-between gap-4">
                 <dt className="text-muted-foreground">When</dt>
                 <dd className="text-right">
@@ -463,6 +582,11 @@ export default async function BookingConfirmationPage({
               </div>
             </dl>
             <p className="text-xs text-muted-foreground">{tzNote}</p>
+
+            {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
+                wrong, so the block is not bound to the happy path. Identical element on all
+                five inline branches; see its construction above. */}
+            {trustBlock}
 
             <Separator />
 
@@ -513,6 +637,10 @@ export default async function BookingConfirmationPage({
               </p>
               <p className="text-xs text-muted-foreground">{tzNote}</p>
             </div>
+            {/* TRUST-04 on a decline (D-67). `w-full` because this branch is a centred column and
+                a panel that shrink-wrapped its text would read as a different component. */}
+            <div className="w-full">{trustBlock}</div>
+
             {/* Coral recovery forward-action (reuses the confirmation forward-action slot). */}
             <Button asChild variant="brand">
               <Link href="/">Find another space</Link>
@@ -681,6 +809,8 @@ export default async function BookingConfirmationPage({
               )}
               <p className="text-xs text-muted-foreground">{tzNote}</p>
             </div>
+            {/* TRUST-04 on a cancellation (D-67) — see the declined branch for the `w-full`. */}
+            <div className="w-full">{trustBlock}</div>
             <Button asChild variant="brand">
               <Link href="/">Find another space</Link>
             </Button>
@@ -766,6 +896,7 @@ export default async function BookingConfirmationPage({
                 )}
               </dd>
             </div>
+            {addressRow}
             <div className="flex items-start justify-between gap-4">
               <dt className="text-muted-foreground">When</dt>
               <dd className="text-right">
@@ -779,6 +910,9 @@ export default async function BookingConfirmationPage({
             </div>
           </dl>
           <p className="text-xs text-muted-foreground">{tzNote}</p>
+
+          {/* TRUST-04 (D-67). The same element the four other branches render. */}
+          {trustBlock}
 
           <Separator />
 

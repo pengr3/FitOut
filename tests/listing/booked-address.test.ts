@@ -129,9 +129,16 @@ function publicAddressFields(row: BookedListingAddressInput) {
   };
 }
 
-/** The same fields off a `BookedListingAddress`, dropping only the `exact` flag the public shape lacks. */
+/**
+ * The same fields off a `BookedListingAddress`, dropping the two the public shape does not carry.
+ *
+ * `lines` and `exact` are this boundary's own additions — the composed display lines (which exist so no
+ * call site ever names an address column) and the disclosure flag. They are excluded from the
+ * field-for-field comparison and asserted separately, because comparing them against a projection that
+ * has no such fields would be comparing nothing.
+ */
 function bookedAddressFields(row: BookedListingAddressInput, displayStatus: BookedAddressStatus) {
-  const { exact: _exact, ...fields } = bookedListingAddress(row, { displayStatus });
+  const { exact: _exact, lines: _lines, ...fields } = bookedListingAddress(row, { displayStatus });
   return fields;
 }
 
@@ -264,6 +271,30 @@ describe("bookedListingAddress — the post-payment address boundary (D-91 / TRU
     }
   });
 
+  it("(5b) the COMPOSED LINES carry the street on the two and never on the eight", () => {
+    // The lines are what a surface actually renders, so the boundary is only as good as they are: a
+    // correct `addressLine1: null` beside a `lines` array built from the raw row would leak the street
+    // to every one of the eight while every field assertion above stayed green.
+    for (const { render, displayStatus, booked } of RENDERS) {
+      const { lines } = bookedListingAddress(ROW, { displayStatus });
+      const joined = lines.join(" | ");
+      if (booked) {
+        expect(lines[0], `${render}`).toBe("88 Kalayaan Avenue, Unit 4B");
+        expect(joined, `${render}`).toContain(ROW.postalCode!);
+      } else {
+        expect(joined, `${render} leaked the street through its display lines`).not.toContain(
+          ROW.addressLine1!,
+        );
+        expect(joined, `${render} leaked the second line`).not.toContain(ROW.addressLine2!);
+        expect(joined, `${render} leaked the postal code`).not.toContain(ROW.postalCode!);
+      }
+      // The area line is on every render — and it is a LINE, never an empty string standing in for the
+      // street that was withheld.
+      expect(lines, `${render}`).toContain("Teachers Village, Quezon City, Metro Manila");
+      for (const line of lines) expect(line.trim().length).toBeGreaterThan(0);
+    }
+  });
+
   it("(6) handles a row with nothing in it without inventing anything", () => {
     const empty: BookedListingAddressInput = {
       addressLine1: null,
@@ -281,6 +312,9 @@ describe("bookedListingAddress — the post-payment address boundary (D-91 / TRU
       expect(projected.addressLine1).toBeNull();
       expect(projected.lat).toBeNull();
       expect(projected.lng).toBeNull();
+      // NO empty line, no lone comma, no placeholder — an empty array, so a caller rendering `lines`
+      // renders no row at all rather than a row that says nothing.
+      expect(projected.lines).toEqual([]);
     }
   });
 
