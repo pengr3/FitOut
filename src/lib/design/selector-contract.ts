@@ -174,6 +174,7 @@ export const SELECTOR_IDS = [
   // row ships in the same commit as its literal: the contract is bidirectional, so a declared id with
   // no call site is as red as a call site with no declaration.
   "payment-state-incomplete",
+  "payment-state-pending",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -660,6 +661,23 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "a count of ZERO against a seeded expired-hold row at the same URL that renders ONE against a " +
       "live-hold row — an absence, which no role or accessible-name query can express, because when the " +
       "assertion holds there is nothing in the document to query for.",
+    owner: "13-07",
+  },
+  "payment-state-pending": {
+    why:
+      "THE THIRD BOX OF THE SAME THREE-WAY COMPARISON, and the one whose assertions are almost all " +
+      "NEGATIVE — which is precisely why it needs a container of its own rather than a role query. " +
+      "D-71 says this state offers no failure-shaped affordance at ANY threshold, and the falsifiable " +
+      "form of that is a scoped count of ZERO inside this element after the poll has backed off and " +
+      "again after the escalation timer has fired. A document-wide count would be answered by the app " +
+      "shell (the header's own controls) and a role query cannot express \"none of these, inside this " +
+      "box\" at all. " +
+      "IT IS ALSO NOT ADDRESSABLE BY ITS OWN LIVE REGION, even though it carries the one region this " +
+      "phase keeps: `getByRole(\"status\")` on this route resolves against whichever region is up at " +
+      "the moment it runs — the route's loading plate carries one too — and on a page that re-renders " +
+      "itself every 2.5s that ambiguity is exactly what the assertion is trying to resolve. Matching " +
+      "the heading instead would be circular in the way this contract's other payment-state rows " +
+      "describe: the three headings are the copy under revision.",
     owner: "13-07",
   },
 };

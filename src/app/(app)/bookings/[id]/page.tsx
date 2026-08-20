@@ -203,7 +203,16 @@ export default async function BookingConfirmationPage({
   if (bk.status === "pending") {
     // Returned from checkout (?paid=1) → the neutral "finalizing…" interstitial that self-resolves once the
     // webhook confirms (it only ever refreshes; it never fabricates the confirmed state client-side).
-    if (paid === "1") return <PendingPaymentState />;
+    // 13-07: the two props D-71's promise needs, both server-supplied. The reference is the string a
+    // person would ask the booker to quote; the address is the one the promise is about, and it is the
+    // booker's OWN session address, never masked (D-63).
+    if (paid === "1")
+      return (
+        <PendingPaymentState
+          reference={bookingReference(bk.id)}
+          email={session?.user?.email ?? null}
+        />
+      );
     // Abandoned pending hold (no ?paid) → back to the reserve page to finish checkout (Phase-4 behavior).
     redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
   }

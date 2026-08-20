@@ -39,11 +39,18 @@ import { render, screen, cleanup, act } from "@testing-library/react";
 // records.)
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+// `PendingPaymentState` polls by calling `router.refresh()`. The router is mocked so the poll is
+// observable AND harmless — the real one is a Next runtime binding that does not exist under jsdom.
+const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+
 import { NotCompletedState } from "@/components/booking/not-completed-state";
+import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  refresh.mockReset();
 });
 
 const LISTING_ID = "lst_incomplete_1";
@@ -198,5 +205,181 @@ describe("D-70 — the not-completed state, the one place 'you have not been cha
       painted(container as unknown as HTMLElement),
       "…and it must not arrive with the expiry either",
     ).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE PENDING STATE — the promise, the three thresholds, and the affordance that must never appear.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+const EMAIL = "jane@example.com";
+const POLL_CAP_MS = 8 * 2500; // MAX_ATTEMPTS x POLL_INTERVAL_MS — read from the component, not chosen
+const ESCALATION_MS = 120_000;
+
+/** Mount the pending state on a fake clock, before any threshold has fired. */
+function mountPending({ email = EMAIL as string | null } = {}) {
+  vi.useFakeTimers();
+  vi.setSystemTime(T0);
+  const utils = render(<PendingPaymentState reference={REFERENCE} email={email} />);
+  act(() => {
+    vi.advanceTimersByTime(0);
+  });
+  return utils;
+}
+
+/**
+ * Every control inside the state, by its accessible text. The pending assertions are mostly about what
+ * is ABSENT, and an absence assertion is only worth its ink if the set it is drawn from is visible —
+ * so the cases below assert the whole set rather than querying for the strings they hope are missing.
+ */
+function controlNames(root: HTMLElement): string[] {
+  return [...root.querySelectorAll<HTMLElement>("button, a")].map((el) =>
+    (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+  );
+}
+
+describe("D-71 / D-95 — the pending state promises safety and never offers a way to act on a failure", () => {
+  it("(1) at 0-20s: the money truth, the self-updating line, and NOTHING to press", () => {
+    const { container } = mountPending();
+
+    expect(container.querySelector('[data-testid="payment-state-pending"]')).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Payment received");
+
+    const panels = container.querySelectorAll('[data-testid="money-statement"]');
+    expect(panels.length, "STATE-06: exactly one money statement per document").toBe(1);
+    const panel = flat(panels[0] as HTMLElement);
+    expect(panel).toContain("Your payment reached us.");
+    expect(panel).toContain("We're waiting on the final confirmation — this page updates on its own.");
+
+    expect(
+      controlNames(container as unknown as HTMLElement),
+      "the poller has not backed off yet, so there is nothing for the booker to do and nothing offered",
+    ).toEqual([]);
+  });
+
+  it("(2) past the poll cap: the payment is safe, the booking is held, and an email is coming", () => {
+    const { container } = mountPending();
+
+    act(() => {
+      vi.advanceTimersByTime(POLL_CAP_MS);
+    });
+
+    // The poller really ran — otherwise the copy below changed for some other reason.
+    expect(refresh.mock.calls.length, "the poller stops at its cap and the cap is 8 attempts").toBe(8);
+
+    const panel = flat(container.querySelector('[data-testid="money-statement"]') as HTMLElement);
+    expect(panel, "L1 must not change: nothing about the booker's money changed").toContain(
+      "Your payment reached us.",
+    );
+    expect(panel).toContain(
+      `It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you at ${EMAIL} the moment it confirms.`,
+    );
+
+    // D-95 — the control has an object, and it is the ONLY control on the page.
+    expect(controlNames(container as unknown as HTMLElement)).toEqual(["Refresh status"]);
+    expect(screen.getByRole("button", { name: "Refresh status" })).toBeTruthy();
+  });
+
+  it("(3) with no address on the session, the promise still names the mechanism", () => {
+    const { container } = mountPending({ email: null });
+    act(() => {
+      vi.advanceTimersByTime(POLL_CAP_MS);
+    });
+    const panel = flat(container.querySelector('[data-testid="money-statement"]') as HTMLElement);
+    expect(panel).toContain(
+      "It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you the moment it confirms.",
+    );
+    expect(panel, "...and it must not render an empty destination").not.toContain("email you at ");
+  });
+
+  it("(4) past the escalation threshold: the reference is named, inside the SAME one region", () => {
+    const { container } = mountPending();
+
+    // Guard the guard: not yet.
+    act(() => {
+      vi.advanceTimersByTime(POLL_CAP_MS);
+    });
+    expect(flat(container as unknown as HTMLElement)).not.toContain(REFERENCE);
+
+    act(() => {
+      vi.advanceTimersByTime(ESCALATION_MS);
+    });
+
+    const panel = flat(container.querySelector('[data-testid="money-statement"]') as HTMLElement);
+    expect(panel).toContain(
+      `Your reference is ${REFERENCE} — we've recorded it against this booking.`,
+    );
+    // GATE-03 rule 6 — the threshold change is a text change INSIDE one region, not a second region.
+    const regions = container.querySelectorAll('[role="status"], [role="alert"], [aria-live]');
+    expect(
+      regions.length,
+      "a third threshold added a second live region; exactly one region announces one outcome",
+    ).toBe(1);
+    // Rules 4/5 — the region a screen reader lands on has a name.
+    expect((regions[0] as HTMLElement).getAttribute("aria-label")).toBeTruthy();
+  });
+
+  it("(5) offers NO failure-shaped affordance and NO alarm colour at ANY of the three thresholds", () => {
+    const { container } = mountPending();
+    const root = container as unknown as HTMLElement;
+
+    // The phrasings D-71 bans, spelled in two pieces so this test does not become the first violation
+    // of the rule it enforces (the `reversed-copy.test.ts` idiom).
+    const banned = [
+      ["went", " wrong"],
+      ["try", " again"],
+      ["err", "or"],
+      ["failed", " payment"],
+    ].map(([a, b]) => a + b);
+    const alarm = /^(text|bg|border|ring)-destr(uctive)\b/;
+    const painted = () =>
+      [...root.querySelectorAll<HTMLElement>("*")]
+        .flatMap((el) => (el.getAttribute("class") ?? "").split(/\s+/))
+        .filter((token) => alarm.test(token));
+
+    const assertCalm = (when: string) => {
+      const text = flat(root).toLowerCase();
+      expect(
+        banned.filter((phrase) => text.includes(phrase)),
+        `${when}: the pending state offered the booker a failure. The webhook is still the outstanding ` +
+          `authority at every threshold — the money HAS reached us — so a failure-shaped affordance ` +
+          `here tells them to act at the one moment acting is wrong, and could cost a second charge.`,
+      ).toEqual([]);
+      expect(painted(), `${when}: an alarm colour reached the pending state`).toEqual([]);
+      // The one control that may exist is the refresh, and it never grows a sibling.
+      expect(
+        controlNames(root).filter((name) => name !== "Refresh status"),
+        `${when}: a second control appeared beside the refresh`,
+      ).toEqual([]);
+    };
+
+    assertCalm("on arrival");
+    act(() => {
+      vi.advanceTimersByTime(POLL_CAP_MS);
+    });
+    assertCalm("past the poll cap");
+    act(() => {
+      vi.advanceTimersByTime(ESCALATION_MS);
+    });
+    assertCalm("past the escalation threshold");
+  });
+
+  it("(6) the manual control runs the same refresh the poller ran — it retries nothing", () => {
+    const { container } = mountPending();
+    act(() => {
+      vi.advanceTimersByTime(POLL_CAP_MS);
+    });
+    refresh.mockClear();
+
+    const control = screen.getByRole("button", { name: "Refresh status" });
+    act(() => {
+      control.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(refresh.mock.calls.length, "the control must call the router refresh and nothing else").toBe(
+      1,
+    );
+    // And the state did not fabricate a confirmed booking client-side (D-57 / T-13-07-FAKECONFIRM).
+    expect(flat(container as unknown as HTMLElement).toLowerCase()).not.toContain("booking confirmed");
   });
 });
