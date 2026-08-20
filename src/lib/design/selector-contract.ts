@@ -167,6 +167,7 @@ export const SELECTOR_IDS = [
   // 13-02 — the three shared domain components every later Phase-13 surface composes.
   "support-path",
   "money-statement",
+  "booking-reference",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -599,6 +600,23 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "incidental. THE HOOK IS ON A WRAPPER, NOT ON `PanelCard`: that pattern owns its own " +
       "`panel-card` id and takes no pass-through props, and this collector only sees JSX attributes " +
       "whose value is a STRING LITERAL — the shape `(legal)/terms/page.tsx:147-152` already records.",
+    owner: "13-02",
+  },
+  "booking-reference": {
+    why:
+      "THE HOOK TARGETS THE STRING, NOT THE CONTROL BESIDE IT, and the split is the whole reason it " +
+      "exists. `e2e/tabular-figures.spec.ts` measures the reference's `boundingBox().width` and " +
+      "compares two references of equal character length, plus reads the resolved `font-family` off " +
+      "that same element — both are properties of a TEXT NODE, and a text node has no role and no " +
+      "accessible name. A `getByText` would be circular in the exact way this contract's other " +
+      "money-adjacent rows describe: the spec would have to know the reference in order to find the " +
+      "element that proves the reference was rendered legibly, and the reference is a per-booking " +
+      "SHA-256 derivation the spec cannot predict from a fixture id without re-implementing the " +
+      "deriver. THE COPY CONTROL DELIBERATELY GETS NO ID — GATE-04's scope rule keeps every " +
+      "interactive element on an accessible query, and this one is reachable as " +
+      "`getByRole(\"button\", { name: \"Copy booking reference\" })`, which asserts the accessible " +
+      "name as a side effect. Giving the button a hook would trade that guarantee for a brittle one " +
+      "and leave every gate green while the guarantee was gone.",
     owner: "13-02",
   },
 };
