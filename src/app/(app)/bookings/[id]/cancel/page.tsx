@@ -23,6 +23,32 @@
 // `(app)/layout.tsx:96` already wraps `{children}` in this route's one `main` landmark; a second one nested
 // inside it is the defect `(app)/bookings/[id]/page.tsx`'s own header records in full, and `loading.tsx:16-19`
 // here already renders the same container as a `div`. Pinned by `e2e/shell.spec.ts`.
+//
+// ── THE BOX IS `PanelCard`, AND THIS FILE ADDS NO PADDING OF ITS OWN (plan 13-06, 13-UI-SPEC § The Cancel
+//    Review Page item 3). ──────────────────────────────────────────────────────────────────────────────────
+// Both branches used to compose the vendored primitive directly, so this one surface re-decided radius,
+// hairline and padding for itself while the booking detail page and the receipt either side of it took
+// theirs from DS-11. They now take the same box.
+//
+// ⚠ THE ONE TRAP, RECORDED WHERE THE MISTAKE WOULD BE MADE: `PanelCard`'s own CardContent already carries
+// `p-4 sm:p-6`, and this tree's `ui/card.tsx` puts block padding on `Card` ITSELF — so a child that also
+// asks for block padding pays it twice (measured at 112px against 80px; see `panel-card.tsx`'s header and
+// `card-pattern-coverage.test.ts`). The two wrappers inside the panels below carry `space-y-*` and
+// `text-center` and NOTHING ELSE: vertical rhythm between siblings is not padding. For the same reason
+// `PriceBreakdown` and `RefundBreakdown` are bare `div`s by design and must NOT be "finished" by wrapping
+// them in a panel — `price-breakdown.tsx:34-45` says so from the other side.
+//
+// ── AND NO LIVE REGION ON STATIC CONTENT (13-UI-SPEC § Live Regions). ────────────────────────────────────
+// The past-window refusal branch used to carry the polite live-region pair — the status role plus the
+// politeness attribute — on its container. NAMED DESCRIPTIVELY RATHER THAN QUOTED, following
+// `booking-row.tsx:112`'s precedent, because this plan's acceptance criterion is a source count of that
+// attribute over this file and a grep is only a guard while the comment explaining the removal cannot trip
+// it. It is REMOVED, with no focus move and no replacement region, because *a live region announces a
+// CHANGE, and a freshly navigated page is not a change — it is a page.* A screen reader already reads from
+// the top, so the region announced either nothing or a duplicate, and an empty announcement on every
+// navigation is what trains a user to ignore the mechanism. Nothing on this page changes while the booker
+// watches it. (`live-regions.ts` still carries the exclusion row for this file; retiring that bookkeeping
+// is plan 13-14's, and removing the attribute here is what makes it honest to retire.)
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -43,7 +69,7 @@ import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { listReceivingInstitutions, type ReceivingInstitution } from "@/lib/paymongo";
 import { venueTzNote } from "@/lib/venue-time";
 import { BOOKING_SHELL } from "@/lib/design/measurements";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelCard } from "@/components/patterns/panel-card";
 import { Separator } from "@/components/ui/separator";
 import { RefundBreakdown } from "@/components/booking/refund-breakdown";
 import { CancelConfirm } from "@/components/booking/cancel-confirm";
@@ -178,8 +204,10 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
   if (windowEnd.getTime() <= now.getTime()) {
     return (
       <div className={BOOKING_SHELL}>
-        <Card>
-          <CardContent role="status" aria-live="polite" className="space-y-4 py-10 text-center">
+        <PanelCard>
+          {/* `space-y-4 text-center` and nothing else. The block padding is `PanelCard`'s (`p-4 sm:p-6`
+              on its own CardContent) and is deliberately not restated — see the header. */}
+          <div className="space-y-4 text-center">
             {/* NT-01 — the refusal is stated in the words of the thing that actually ran out. A pass-holder
                 never had a session that started; their DAY ended. Both sentences are the action's, verbatim. */}
             {bk.openCapacity ? (
@@ -206,8 +234,8 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
             <p className="text-sm text-muted-foreground">
               {title} · {whenLabel}
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </PanelCard>
       </div>
     );
   }
@@ -300,8 +328,10 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
 
   return (
     <div className={BOOKING_SHELL}>
-      <Card>
-        <CardContent className="space-y-6 py-8">
+      <PanelCard>
+        {/* `space-y-6` is the surface's own section rhythm, carried over unchanged; it is NOT padding,
+            and no padding is added here — see the header. */}
+        <div className="space-y-6">
           <div className="space-y-2">
             {/* The Display step — the question, not the money. The money's focal treatment lives on
                 `Refund to you` inside the breakdown. The step is named rather than measured, so a
@@ -413,8 +443,8 @@ export default async function CancelBookingPage({ params }: { params: Promise<{ 
               <CancelConfirm bookingId={bk.id} />
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </PanelCard>
     </div>
   );
 }
