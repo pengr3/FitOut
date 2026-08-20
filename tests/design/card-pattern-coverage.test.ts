@@ -316,17 +316,41 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "PANEL. The other, `listing/listing-card.tsx:210`, is an inline meta line inside a tile's " +
       "CardContent — a card inside a card is not what the clause means.",
   },
+
+  // ─── Phase 13 — the surface the 11-UI-SPEC could not name, because it did not exist in this shape ──
+  {
+    file: "src/app/(app)/bookings/[id]/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE BOOKING DETAIL PAGE, AND IT ARRIVES HERE FROM THE ALLOW-LIST RATHER THAN FROM THE UI-SPEC. " +
+      "Its row said Phase 13's redesign owned the container decision and that a swap should not " +
+      "pre-empt it. Plan 13-10 is that redesign, and the decision it took is the one this half exists " +
+      "to record: every branch's outer `<Card>` is GONE, and the page is a stack of PanelCards on the " +
+      "page ground. The outer card had to go rather than merely gain panels inside it — a `PanelCard` " +
+      "nested in a container that already supplies `bg-card ring-1 rounded-xl` pays the block padding " +
+      "twice (112px against 80px, this file's own header records the measurement for the row card's " +
+      "twin of the problem). Its ALLOWED_RAW_CARD row was DELETED in the same commit, so the inverse " +
+      "half now polices this file too: a raw `<Card>` reappearing here is a failure rather than an " +
+      "exemption, which a stale allow-list row would have made it permanently (13-08's finding — an " +
+      "allow-list row exempts a file in BOTH directions, forever).",
+  },
 ];
 
 /**
  * How many rows the inventory has. Pinned SEPARATELY from every assertion over it, because probe (c)
  * measured that an emptied inventory satisfies both real assertions perfectly.
  *
- * TWELVE = ResultCard's 2 + RowCard's 5 + PanelCard's 5, which is the 11-UI-SPEC's three `Replaces`
- * lists counted. A change to this number should arrive with a change to those lists, or with the
- * phase that adds the surface.
+ * TWELVE was ResultCard's 2 + RowCard's 5 + PanelCard's 5 — the 11-UI-SPEC's three `Replaces` lists
+ * counted. A change to this number should arrive with a change to those lists, or with the phase that
+ * adds the surface.
+ *
+ * THIRTEEN since plan 13-10, and it is the second case rather than the first: `bookings/[id]/page.tsx`
+ * moved OFF `ALLOWED_RAW_CARD` and ONTO the inventory in one commit, which is the transition the
+ * allow-list's own preamble describes ("a list of files whose boxes have not been pattern-ised YET,
+ * each with the phase whose scope note claims the surface"). Phase 13 claimed it and pattern-ised it.
  */
-const EXPECTED_SURFACES = 12;
+const EXPECTED_SURFACES = 13;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -352,20 +376,26 @@ const ALLOWED_RAW_CARD: Readonly<Record<string, string>> = {
     "The fourth auth shell, and the one carrying the token-bearing URL. Phase 15; its box changes when the set does.",
 
   // ── Phase 13 — Confirmation, Bookings & Trust (owns /bookings/** and the group surfaces) ───────
-  "src/app/(app)/bookings/[id]/page.tsx":
-    "The booking detail page — 5 call sites, and the surface Phase 13's success criteria 2 and 4 rewrite end to end (status meaning, itemised payment, cancellation deadline, the three distinct payment-failure states). Container decisions here are that redesign's, not a swap's.",
+  //
+  // FOUR ROWS LEFT THIS BLOCK IN PLAN 13-10, AND THE DELETION IS THE POINT RATHER THAN THE TIDY-UP.
+  // `bookings/[id]/page.tsx` (now a declared `panel-card` surface above), `expired-approval-state.tsx`
+  // (13-10 removed its outer card), `payment-reversed-state.tsx` (13-04) and `pending-payment-state.tsx`
+  // (13-07) render no raw `<Card>` at all any more. A row for a file with no card left is not harmless:
+  // 13-08's finding is that an allow-list row exempts a file in BOTH directions, permanently — so the
+  // row would have gone on quietly licensing the next raw box somebody added to those files, and the
+  // inverse half would have stayed green over it forever.
+  //
+  // THREE STALE ROWS REMAIN BELOW ON PURPOSE — `cancel/page.tsx`, `group/page.tsx` and
+  // `attendee-roster.tsx` also render no raw card today, but this plan touches none of those files and
+  // deleting an exemption for a surface you have not read is how a gate acquires a hole nobody meant.
+  // Recorded here so the plans that own those surfaces (13-12 / 13-13 / 13-14) find it rather than
+  // re-derive it.
   "src/app/(app)/bookings/[id]/cancel/page.tsx":
     "The cancel confirmation, including the refund-ladder box. Phase 13 (TRUST-04 / STATE-05 — a refund amount is explicitly an in-page alert, never a toast), so its boxes are decided there.",
   "src/app/(app)/bookings/[id]/group/page.tsx":
     "The organizer's group management page. Phase 13's scope note folds the group surfaces in by name.",
   "src/components/group/attendee-roster.tsx":
     "The RSVP roster rendered by the group page above. Same phase, same reason; it is also a candidate for RowCard rather than a panel, and guessing which in a container-swap plan is how a pattern gets adopted wrongly.",
-  "src/components/booking/expired-approval-state.tsx":
-    "One of the four calm full-page booking states rendered from the booking detail page. Phase 13 criterion 4 names these three-plus-one states as things that must become visibly different from each other — a shared container is plausibly the wrong answer for them.",
-  "src/components/booking/payment-reversed-state.tsx":
-    "Same family. Phase 13 criterion 4 requires this one to make an explicit money statement with a support path, so its box is part of that design, not a swap.",
-  "src/components/booking/pending-payment-state.tsx":
-    "Same family — the settling state, which criterion 4 says must offer NO error affordance at all while the webhook is still the authority.",
   "src/components/booking/hold-expired-state.tsx":
     "Same family, but reached from CHECKOUT (`listings/[id]/book`) as well as from the reversed state — so it straddles Phase 12 and Phase 13. Deliberately not swapped by plan 11-13, which was scoped to container-only edits on surfaces the spec names.",
 
@@ -642,7 +672,9 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // cards satisfies both perfectly.
     const adopted = CARD_SURFACES.filter((s) => s.status === "adopted");
     const refused = CARD_SURFACES.filter((s) => s.status === "refused");
-    expect(adopted).toHaveLength(10);
+    // 11 adopted since 13-10 (+1: the booking detail page). `refused` is unchanged — both refusals
+    // were MEASURED by plan 11-11 and neither has been overturned.
+    expect(adopted).toHaveLength(11);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {

@@ -60,6 +60,49 @@
 // was right and these branches were wrong.
 // Pinned by `e2e/shell.spec.ts` — one `main` landmark on this route at 320px and at 1280px.
 //
+// ── Plan 13-10 — ONE SHELL, EIGHT RENDERS, AND THE OUTER CARD IS GONE (TRUST-01 / D-60). ────────────
+//
+// WHY THE CONTAINER CHANGED. Every branch below used to wrap its content in `<Card><CardContent>`. A
+// `PanelCard` nested inside a container that ALREADY supplies `bg-card ring-1 rounded-xl` pays the block
+// padding twice — measured at 112px against 80px, the trap `card-pattern-coverage.test.ts`'s own header
+// records for the row card's twin of the problem — and this page now renders four panels (the facts, the
+// reference, the money statement, the trust block). So the page became a STACK OF PANELS ON THE PAGE
+// GROUND, which is what the pattern layer is for, and this file imports NOTHING from the vendored card
+// primitive any more. `PriceBreakdown` / `RefundBreakdown` stay bare `div`s and are never wrapped — the
+// same rule from the other direction.
+//
+// WHY EVERY BRANCH IS NOW THE SAME SKELETON. D-60 lets the confirmation moment DECAY into this page, and
+// its safety argument is one sentence: *nothing important may live ONLY in the moment; everything it
+// states is repeated on the ordinary detail page.* That is an acceptance criterion rather than a hope —
+// `tests/booking/detail-completeness.test.tsx` renders this page with NO query parameter and asserts
+// every fact is present. The skeleton, in order:
+//
+//   <div BOOKING_SHELL>
+//     <section data-testid="booking-detail">
+//       badge + <h1> + ONE plain sentence saying what the status MEANS   (TRUST-01's first clause)
+//       <MoneyStatement/>            — only where a sentence is SPECIFIED (D-94; see the cancelled branch)
+//       PanelCard: the facts <dl>    — venue, address, when + tz, host, itemised total
+//       PanelCard: the reference     — TRUST-02 / D-78, on EVERY status
+//       CancellationPolicyDisclosure — TRUST-03, where a policy still applies
+//       <TrustBlock variant="full"/> — TRUST-04 / D-67, on EVERY status
+//       <Separator/> + the actions   — at most ONE coral
+//     </section>
+//   </div>
+//
+// ⚠️ D-90 LANDS IN THE `requested` AND `approved` SENTENCES, AND IT IS A MONEY FACT, NOT A TONE CHOICE.
+// Request-to-book is PAY-ON-APPROVAL, verified in this very file: the `approved` branch renders a *Pay
+// now* CTA into the Phase-5 checkout, and BOTH branches carry a no-money cancel dialog whose own comment
+// reads *"an approved-but-unpaid hold is still an unpaid hold"*. A booker with a pending request has not
+// been charged anything, so the honest sentence is also the more reassuring one. Never ship copy telling
+// a booker they were charged for an unpaid hold.
+//
+// ⚠️ THE LIVE REGIONS ON THE `declined` AND `cancelled` BRANCHES ARE GONE (13-UI-SPEC § Live Regions).
+// *A live region announces a CHANGE. A freshly navigated page is not a change — it is a page.* Both were
+// wrapped around static, server-rendered content, where a screen reader already reads from the top and
+// the region announces either nothing or a duplicate. The rows in `LIVE_REGION_EXCLUSIONS` are left for
+// the plan that closes that list (13-04's judgement D): this file no longer needs its exemption, but the
+// list's own count assertion is not this plan's to move.
+//
 // THE INSTRUCTION THAT USED TO END THAT PARAGRAPH — *"A SIXTH branch must copy the container from
 // `loading.tsx`"* — IS GONE, because plan 13-01 replaced it with a mechanism. The container is now
 // `BOOKING_SHELL` from `@/lib/design/measurements`, imported by all five branches here, by both branches
@@ -83,6 +126,9 @@ import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { bookingReference } from "@/lib/booking/reference";
 import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 import { readDbNow } from "@/lib/booking/bookings-query";
+// The ONE owner of a venue-local deadline string (07-02). The `requested` branch's meaning sentence
+// names an instant, and a fifth date format on this page is exactly what this module exists to prevent.
+import { composeDeadlineLabel } from "@/lib/booking/when-label";
 import { probeCheckoutSession, readPaymentState } from "@/lib/payments/checkout-probe";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
 import { getAvailability } from "@/lib/availability/read-model";
@@ -95,8 +141,9 @@ import { APPROVAL_SLA_HOURS, APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payment
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { PanelCard } from "@/components/patterns/panel-card";
+import { BookingReference } from "@/components/booking/booking-reference";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 import { NotCompletedState } from "@/components/booking/not-completed-state";
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
@@ -175,8 +222,15 @@ export default async function BookingConfirmationPage({
       endsAt: booking.endsAt,
       status: booking.status,
       quotedTotalCents: booking.quotedTotalCents,
-      // D-74: the listing-priced portion. Consulted ONLY by the pre-0016 fullDay fallback below.
+      // D-74: the listing-priced portion. Consulted by the pre-0016 fullDay fallback below, and — since
+      // 13-10 — by the facts panel's ITEMISATION, which renders it beside the service fee only on a
+      // positive match against the frozen total (see `itemised`).
       spacePriceCents: booking.spacePriceCents,
+      // ── Plan 13-10. TRUST-01 asks for the total ITEMISED, and this is the other half of it. Both
+      // parts are nullable on pre-0016 rows, which is exactly why the render is a positive match rather
+      // than a subtraction: `quoted - space` would manufacture a "service fee" out of whatever the two
+      // columns happened to disagree about. Never divide or subtract a frozen total to recover a part.
+      serviceFeeCents: booking.serviceFeeCents,
       // WR-06 (drizzle 0016) — the PERSISTED pricing-mode snapshot that now DRIVES the label (see below).
       fullDay: booking.fullDay,
       currency: booking.currency,
@@ -202,96 +256,14 @@ export default async function BookingConfirmationPage({
   // Owner-gate (T-04-CONFIRMIDOR, D-43) — the route group is NOT the gate. Missing OR not-mine → the same 404.
   if (!bk || bk.bookerId !== userId) notFound();
 
-  // Truthfulness (D-57): never render "Booking confirmed" until the DB says 'confirmed'. On return from the
-  // hosted checkout the webhook — NOT this ?paid=1 signal — is the confirm authority. Branch on the DB state:
-  if (bk.status === "pending") {
-    // Returned from checkout (?paid=1) → the neutral "finalizing…" interstitial that self-resolves once the
-    // webhook confirms (it only ever refreshes; it never fabricates the confirmed state client-side).
-    // 13-07: the two props D-71's promise needs, both server-supplied. The reference is the string a
-    // person would ask the booker to quote; the address is the one the promise is about, and it is the
-    // booker's OWN session address, never masked (D-63).
-    if (paid === "1")
-      return (
-        <PendingPaymentState
-          reference={bookingReference(bk.id)}
-          email={session?.user?.email ?? null}
-        />
-      );
-    // ══ 13-07 — D-70's THIRD PAYMENT STATE, AND THE BOUNDARY THAT KEEPS IT OFF SOMEBODY ELSE'S ══════
-    //
-    // A `pending` row with no checkout-return parameter used to redirect UNCONDITIONALLY. That is the
-    // right answer for a hold that is over and the wrong one for a hold that is still alive: the
-    // booker's checkout did not finish, no money moved, the slot is still theirs for a few more
-    // minutes, and the app's only response was to bounce them back to the checkout page with no
-    // explanation of what happened to the payment they thought they had made. STATE-05 names three
-    // payment states and this is the one nothing rendered for.
-    //
-    // THE DISCRIMINATOR IS THE ROW FIRST, THEN THE PROVIDER — the ordering plan 13-04 established on
-    // the cancelled branch, for the same two reasons. The hold's own `expires_at` against the DB clock
-    // is free and decides most visits; the probe is a third-party round trip on a render path and only
-    // the surviving case pays for it.
-    //
-    // ⚠️ THE HOLD CHECK IS NOT AN OPTIMISATION, IT IS D-70's HARD BOUNDARY. If the hold has lapsed this
-    // is NOT the not-completed state: `hold-expired-state.tsx` already owns that landing, and the
-    // reserve page this redirect lands on renders it DIRECTLY for a hold that is dead on arrival
-    // (`listings/[id]/book/page.tsx:129`). Rendering our own expiry copy here would be a second surface
-    // to keep true about one fact, which is exactly what D-70 forbids.
-    //
-    // ⚠️ AND THE DIRECTION OF THE FALLBACK IS CHOSEN. A probe that learns nothing — no key configured,
-    // a network fault, a non-2xx, the 3s deadline — lands on the redirect, never on the new state.
-    // Showing *"you have not been charged"* while a payment is quietly settling is a false money
-    // statement, which is the failure this whole phase exists to remove; being bounced to a checkout
-    // page you can simply leave is a navigation. When the two costs are that lopsided the direction is
-    // not a judgement call. `readPaymentState` is the ONE owner of the (booking status, session status)
-    // pairs — reused rather than restated, so this surface and the reversed one cannot drift apart
-    // about what `active` means.
-    //
-    // NO CONSUMER OF THE CHECKOUT-RETURN PARAMETER IS MOUNTED HERE OR ANYWHERE ABOVE THIS BRANCH
-    // (D-89). The poller re-renders this RSC for the CURRENT url every 2.5s, so a parameter stripped
-    // from the address bar mid-settlement would drop the next poll into whichever branch the
-    // no-parameter path leads to — which, as of this plan, is a probe and possibly a redirect, in the
-    // middle of a webhook. Plan 13-11 owns that consumer and mounts it on the CONFIRMED branch only.
-    const pendingNow = await readDbNow(db);
-    // The same hydrating reader the page's own clock uses below; read here because this branch returns
-    // before that line. There is no JS clock read on this page (the 07-06 boundary contract).
-    const holdExpiresAt = bk.expiresAt;
-    if (holdExpiresAt !== null && holdExpiresAt.getTime() > pendingNow.getTime()) {
-      const checkout = await probeCheckoutSession(bk.checkoutSessionId);
-      if (readPaymentState(bk.status, checkout) === "not-completed") {
-        return (
-          <NotCompletedState
-            bookingId={bk.id}
-            listingId={bk.listingId}
-            reference={bookingReference(bk.id)}
-            holdExpiresAt={holdExpiresAt.toISOString()}
-          />
-        );
-      }
-    }
-    // Abandoned pending hold (no ?paid) → back to the reserve page to finish checkout (Phase-4 behavior).
-    redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
-  }
-  // D-58's reversal landing USED TO SIT HERE, gated on the cancelled status AND an equality test against
-  // the checkout-return parameter. It has moved down into the `cancelled` branch and is now reached from
-  // DB state plus the D-84 probe (D-87). The gate is gone rather than relaxed: that parameter is
-  // forgeable and is a UX signal only (D-57), so a state reachable ONLY through it would vanish the
-  // moment the confirmation moment consumes it. See the branch itself for the discriminator and for what
-  // a probe that learned nothing does.
-  //
-  // ⚠️ THE OLD CONDITION IS DESCRIBED ABOVE RATHER THAN QUOTED, deliberately: this plan's acceptance
-  // criterion is that a raw grep for that equality test over this file returns exactly ONE — the pending
-  // branch's remaining use, which plan 13-05 owns. Quoting the removed gate in a comment would make the
-  // criterion read 2 against a correct file. Fourth instance of this collision in Phase 13; see
-  // `booking-row.tsx:112` for the precedent.
-  //
-  // The states we render a booking-detail card for. 07-12 ADDS `cancelled`: a cancelled booking is durable
-  // history the booker is entitled to see (a refund figure, or the D-97 recovery), and 404ing it was the
-  // reason confirming a cancellation used to land on a dead page. `completed` is NOT here and must not be —
-  // it is DERIVED at read time from a `confirmed` row whose endsAt has passed (D-102) and is never stored, so
-  // a row carrying the unused enum value is a data fault, not a state to render.
-  const RENDERABLE = ["requested", "approved", "declined", "confirmed", "cancelled"];
-  if (!RENDERABLE.includes(bk.status)) notFound();
-
+  // ⚠️ THE LISTING READ AND EVERY SHARED DERIVATION NOW SIT ABOVE THE `pending` BRANCH (13-10), and the
+  // order is load-bearing rather than tidy. That branch returns one of the two component-owned payment
+  // states, and D-67 puts the trust block on EVERY status — including, especially, the ones that look
+  // wrong. Both states therefore need the host, the listing and the reference, and none of them existed
+  // yet at the point the branch used to return from. The cost is one listing query on a path that
+  // previously made none, paid on a render that already makes a third-party round trip; the benefit is
+  // that there is exactly ONE place on this page where the shared facts are composed. The `RENDERABLE`
+  // gate stays BELOW the branch, unchanged, because `pending` was never in it.
   const [lst] = await db
     .select({
       title: listing.title,
@@ -460,69 +432,266 @@ export default async function BookingConfirmationPage({
       </div>
     );
 
-  // ── requested (BOOK-06, D-66): "Request sent — awaiting host". Calm, NO pay CTA, "you haven't been charged". ──
+  // ══ 13-10 — THE PIECES EVERY BRANCH SHARES (TRUST-01, TRUST-02) ════════════════════════════════════
+  //
+  // Built ONCE, above the branches, for the reason the trust block above is built once: eight renders
+  // that each composed their own facts panel would be eight things to keep true, and D-60's decay is
+  // only safe while *everything the moment states is repeated here*. A fact that lives in one branch's
+  // copy of the panel is a fact the next branch can silently lose.
+
+  /**
+   * TRUST-02 / D-78 — server-computed here and passed down as a finished string. `bookingReference`
+   * is a SHA-256 over the booking id using `node:crypto`, so deriving it inside the client copy
+   * control would drag a Node builtin into the browser bundle. It is also a one-way, non-enumerable
+   * LABEL and not the access token: the opaque UUID in the URL is the credential, and it stays gated.
+   */
+  const reference = bookingReference(bk.id);
+
+  /**
+   * THE ITEMISATION, ON A POSITIVE MATCH ONLY.
+   *
+   * TRUST-01 asks for the total ITEMISED. The two parts are rendered beside the frozen quote only when
+   * they are both present AND actually sum to it — the `re-request.ts:234` / D-86 idiom. The rejected
+   * alternative is subtraction (`quoted - space`), which cannot fail: on a pre-0016 row where the two
+   * columns disagree it would print a confident "Service fee" figure nobody was ever charged, on the
+   * one page a booker checks against their bank app. When the match fails the panel shows the frozen
+   * total alone, which is always true.
+   *
+   * `quoted` is the server-FROZEN all-in quote (D-49) and stays the amount on the Total row either way.
+   */
+  const currency = bk.currency ?? DISPLAY_CURRENCY;
+  const itemised =
+    bk.spacePriceCents != null &&
+    bk.serviceFeeCents != null &&
+    bk.spacePriceCents + bk.serviceFeeCents === quoted
+      ? {
+          space: formatMoney(bk.spacePriceCents, currency),
+          fee: formatMoney(bk.serviceFeeCents, currency),
+        }
+      : null;
+
+  /**
+   * The facts `<dl>` in its panel — venue, address, when + the named timezone, host, itemised total.
+   *
+   * @param totalTerm the `<dt>` for the money row, and the ONE thing that differs between branches.
+   *   It is a parameter rather than a second panel because the difference is one word, and it is a
+   *   difference at all for D-90's reason: *"Total"* over a hold nobody ever paid is a money statement
+   *   FitOut cannot stand behind. `requested` keeps its shipped *"You'll pay if approved"*; the two
+   *   never-charged endings (a decline, a swept hold) read *"Quoted total"*; everything a booker
+   *   actually paid for keeps the shipped *"Total"*.
+   */
+  const factsPanel = (totalTerm: string) => (
+    <PanelCard>
+      <dl className="space-y-3 text-body">
+        <div className="flex items-start justify-between gap-4">
+          <dt className="text-muted-foreground">Space</dt>
+          <dd className="text-right font-medium">
+            {title}
+            {spaceTypeLabel && (
+              <span className="block font-normal text-muted-foreground">{spaceTypeLabel}</span>
+            )}
+          </dd>
+        </div>
+        {addressRow}
+        <div className="flex items-start justify-between gap-4">
+          <dt className="text-muted-foreground">When</dt>
+          <dd className="text-right">
+            <span>{dateLabel}</span>
+            <span className="block tabular-nums text-muted-foreground">{timeLabel}</span>
+          </dd>
+        </div>
+        {/* THE HOST. A first name only — it is what the listing page shows and what a booker arriving
+            at a venue actually needs. No surname, no contact detail: this panel is a fact sheet, not a
+            directory, and the host's own contact path is the message thread, not this page. */}
+        <div className="flex items-start justify-between gap-4">
+          <dt className="text-muted-foreground">Host</dt>
+          <dd className="text-right font-medium">{lst.hostFirstName ?? "Your host"}</dd>
+        </div>
+        {itemised && (
+          <>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-muted-foreground">Space cost</dt>
+              <dd className="text-right tabular-nums">{itemised.space}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-muted-foreground">Service fee</dt>
+              <dd className="text-right tabular-nums">{itemised.fee}</dd>
+            </div>
+          </>
+        )}
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="text-muted-foreground">{totalTerm}</dt>
+          <dd className="text-right text-heading font-semibold tabular-nums">{totalLabel}</dd>
+        </div>
+      </dl>
+      {/* THE NAMED TIMEZONE, beside the time it qualifies rather than adrift at the bottom of the page.
+          `venueTzNote` is the one owner of this sentence — no surface composes its own. */}
+      <p className="mt-3 text-label text-muted-foreground">{tzNote}</p>
+    </PanelCard>
+  );
+
+  /**
+   * TRUST-02 / D-78 — the reference in its own panel, on EVERY status branch.
+   *
+   * Its own panel rather than a row inside the facts `<dl>`: it is the string a booker reads back to a
+   * person, and the copy control beside it is an interactive element, which a definition-list row is
+   * the wrong container for. `BookingReference` owns the mono/tabular treatment and the clipboard
+   * behaviour; nothing here restates either.
+   */
+  const referencePanel = (
+    <PanelCard>
+      <div className="space-y-1">
+        <p className="text-label text-muted-foreground">Booking reference</p>
+        <BookingReference reference={reference} />
+      </div>
+    </PanelCard>
+  );
+
+  // Truthfulness (D-57): never render "Booking confirmed" until the DB says 'confirmed'. On return from the
+  // hosted checkout the webhook — NOT this ?paid=1 signal — is the confirm authority. Branch on the DB state:
+  if (bk.status === "pending") {
+    // Returned from checkout (?paid=1) → the neutral "finalizing…" interstitial that self-resolves once the
+    // webhook confirms (it only ever refreshes; it never fabricates the confirmed state client-side).
+    // 13-07: the two props D-71's promise needs, both server-supplied. The reference is the string a
+    // person would ask the booker to quote; the address is the one the promise is about, and it is the
+    // booker's OWN session address, never masked (D-63).
+    if (paid === "1")
+      return (
+        <PendingPaymentState
+          reference={reference}
+          email={session?.user?.email ?? null}
+          trustBlock={trustBlock}
+        />
+      );
+    // ══ 13-07 — D-70's THIRD PAYMENT STATE, AND THE BOUNDARY THAT KEEPS IT OFF SOMEBODY ELSE'S ══════
+    //
+    // A `pending` row with no checkout-return parameter used to redirect UNCONDITIONALLY. That is the
+    // right answer for a hold that is over and the wrong one for a hold that is still alive: the
+    // booker's checkout did not finish, no money moved, the slot is still theirs for a few more
+    // minutes, and the app's only response was to bounce them back to the checkout page with no
+    // explanation of what happened to the payment they thought they had made. STATE-05 names three
+    // payment states and this is the one nothing rendered for.
+    //
+    // THE DISCRIMINATOR IS THE ROW FIRST, THEN THE PROVIDER — the ordering plan 13-04 established on
+    // the cancelled branch, for the same two reasons. The hold's own `expires_at` against the DB clock
+    // is free and decides most visits; the probe is a third-party round trip on a render path and only
+    // the surviving case pays for it.
+    //
+    // ⚠️ THE HOLD CHECK IS NOT AN OPTIMISATION, IT IS D-70's HARD BOUNDARY. If the hold has lapsed this
+    // is NOT the not-completed state: `hold-expired-state.tsx` already owns that landing, and the
+    // reserve page this redirect lands on renders it DIRECTLY for a hold that is dead on arrival
+    // (`listings/[id]/book/page.tsx:129`). Rendering our own expiry copy here would be a second surface
+    // to keep true about one fact, which is exactly what D-70 forbids.
+    //
+    // ⚠️ AND THE DIRECTION OF THE FALLBACK IS CHOSEN. A probe that learns nothing — no key configured,
+    // a network fault, a non-2xx, the 3s deadline — lands on the redirect, never on the new state.
+    // Showing *"you have not been charged"* while a payment is quietly settling is a false money
+    // statement, which is the failure this whole phase exists to remove; being bounced to a checkout
+    // page you can simply leave is a navigation. When the two costs are that lopsided the direction is
+    // not a judgement call. `readPaymentState` is the ONE owner of the (booking status, session status)
+    // pairs — reused rather than restated, so this surface and the reversed one cannot drift apart
+    // about what `active` means.
+    //
+    // NO CONSUMER OF THE CHECKOUT-RETURN PARAMETER IS MOUNTED HERE OR ANYWHERE ABOVE THIS BRANCH
+    // (D-89). The poller re-renders this RSC for the CURRENT url every 2.5s, so a parameter stripped
+    // from the address bar mid-settlement would drop the next poll into whichever branch the
+    // no-parameter path leads to — which, as of this plan, is a probe and possibly a redirect, in the
+    // middle of a webhook. Plan 13-11 owns that consumer and mounts it on the CONFIRMED branch only.
+    // THE PAGE'S OWN `now`, and it is one Postgres read fewer than this branch used to make. 13-07 read
+    // the clock a second time here because the branch returned before the page's own read; 13-10 moved
+    // the shared derivations above it, so there is one hydrated `now` on this page again and the hold
+    // comparison and the status derivations agree by construction rather than by two round trips
+    // landing close together. There is still no JS clock read anywhere (the 07-06 boundary contract).
+    const holdExpiresAt = bk.expiresAt;
+    if (holdExpiresAt !== null && holdExpiresAt.getTime() > now.getTime()) {
+      const checkout = await probeCheckoutSession(bk.checkoutSessionId);
+      if (readPaymentState(bk.status, checkout) === "not-completed") {
+        return (
+          <NotCompletedState
+            bookingId={bk.id}
+            listingId={bk.listingId}
+            reference={reference}
+            holdExpiresAt={holdExpiresAt.toISOString()}
+            trustBlock={trustBlock}
+          />
+        );
+      }
+    }
+    // Abandoned pending hold (no ?paid) → back to the reserve page to finish checkout (Phase-4 behavior).
+    redirect(`/listings/${bk.listingId}/book?hold=${bk.id}`);
+  }
+  // D-58's reversal landing USED TO SIT HERE, gated on the cancelled status AND an equality test against
+  // the checkout-return parameter. It has moved down into the `cancelled` branch and is now reached from
+  // DB state plus the D-84 probe (D-87). The gate is gone rather than relaxed: that parameter is
+  // forgeable and is a UX signal only (D-57), so a state reachable ONLY through it would vanish the
+  // moment the confirmation moment consumes it. See the branch itself for the discriminator and for what
+  // a probe that learned nothing does.
+  //
+  // ⚠️ THE OLD CONDITION IS DESCRIBED ABOVE RATHER THAN QUOTED, deliberately: this plan's acceptance
+  // criterion is that a raw grep for that equality test over this file returns exactly ONE — the pending
+  // branch's remaining use, which plan 13-05 owns. Quoting the removed gate in a comment would make the
+  // criterion read 2 against a correct file. Fourth instance of this collision in Phase 13; see
+  // `booking-row.tsx:112` for the precedent.
+  //
+  // The states we render a booking-detail card for. 07-12 ADDS `cancelled`: a cancelled booking is durable
+  // history the booker is entitled to see (a refund figure, or the D-97 recovery), and 404ing it was the
+  // reason confirming a cancellation used to land on a dead page. `completed` is NOT here and must not be —
+  // it is DERIVED at read time from a `confirmed` row whose endsAt has passed (D-102) and is never stored, so
+  // a row carrying the unused enum value is a data fault, not a state to render.
+  const RENDERABLE = ["requested", "approved", "declined", "confirmed", "cancelled"];
+  if (!RENDERABLE.includes(bk.status)) notFound();
+
+
+  // ── requested (BOOK-06, D-66): "Request sent — awaiting host". Calm, NO pay CTA, nothing charged. ──
   if (bk.status === "requested") {
+    // THE DEADLINE, FROM THE ROW'S OWN `expires_at` AND NOT FROM THE CONFIG CONSTANT. A short-notice
+    // request has its SLA capped, so a label composed from `APPROVAL_SLA_HOURS` would be wrong on
+    // exactly the bookings where the deadline matters most (`when-label.ts`'s own note). The constant
+    // is the fallback for a row that carries no deadline at all — and the fallback says "within N
+    // hours" rather than naming an instant we do not have.
+    const respondBy = bk.expiresAt
+      ? `before ${composeDeadlineLabel(bk.expiresAt, timezone, lst.city)}`
+      : `within ${APPROVAL_SLA_HOURS} hours`;
     return (
       <div className={BOOKING_SHELL}>
-        <Card>
-          <CardContent className="space-y-6 py-8">
-            <div className="flex flex-col items-center gap-3 text-center">
-              {/* Neutral secondary badge — a calm, expected state; NEVER red, NEVER --success (icon + text). */}
-              <Badge variant="secondary" className="gap-1.5">
-                <HourglassIcon className="size-4" aria-hidden="true" />
-                Awaiting host
-              </Badge>
-              <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
-                Request sent
-              </h1>
-              <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-                Your request to book {title} on {dateLabel}, {timeLabel} is with the host. You&apos;ll get an
-                email when they respond — usually within {APPROVAL_SLA_HOURS} hours. You haven&apos;t been
-                charged — you&apos;ll only pay if the host approves.
-              </p>
-            </div>
+        <section data-testid="booking-detail" className="space-y-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            {/* Neutral secondary badge — a calm, expected state; NEVER red, NEVER --success (icon + text). */}
+            <Badge variant="secondary" className="gap-1.5">
+              <HourglassIcon className="size-4" aria-hidden="true" />
+              Awaiting host
+            </Badge>
+            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
+              Request sent
+            </h1>
+            {/* TRUST-01's first clause — what the status MEANS, not only what it is. 13-UI-SPEC's
+                status table, and its second half is D-90: request-to-book is pay-on-approval, so the
+                honest fact is that nothing has been charged at all. See this file's header for where
+                that is verified in code. */}
+            <p className="mx-auto max-w-prose text-body text-muted-foreground">
+              The host has this request. You&apos;ll hear back {respondBy} — nothing is charged until
+              they approve.
+            </p>
+          </div>
 
-            <Separator />
+          {/* The money row reads "You'll pay if approved", NOT "Total" — nothing is charged at request
+              time (D-63 / D-90), and a row labelled Total on an unpaid hold is the false money
+              statement this phase exists to remove. */}
+          {factsPanel("You'll pay if approved")}
+          {referencePanel}
 
-            <dl className="space-y-3 text-sm">
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Space</dt>
-                <dd className="text-right font-medium">
-                  {title}
-                  {spaceTypeLabel && (
-                    <span className="block font-normal text-muted-foreground">{spaceTypeLabel}</span>
-                  )}
-                </dd>
-              </div>
-              {addressRow}
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">When</dt>
-                <dd className="text-right">
-                  <span>{dateLabel}</span>
-                  <span className="block tabular-nums text-muted-foreground">{timeLabel}</span>
-                </dd>
-              </div>
-              {/* Labeled "You'll pay if approved" — NOT "Total charged" (nothing charged at request time, D-63). */}
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-muted-foreground">You&apos;ll pay if approved</dt>
-                <dd className="text-right text-base font-semibold tabular-nums">{totalLabel}</dd>
-              </div>
-            </dl>
-            <p className="text-xs text-muted-foreground">{tzNote}</p>
+          {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
+              wrong, so the block is not bound to the happy path. Identical element on all
+              five inline branches; see its construction above. */}
+          {trustBlock}
 
-            {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
-                wrong, so the block is not bound to the happy path. Identical element on all
-                five inline branches; see its construction above. */}
-            {trustBlock}
+          <Separator />
 
-            <Separator />
-
-            {/* (b) The unpaid-hold cancel — a plain confirm dialog ("Cancel this request?") carrying NO
-                breakdown and NO money UI, because no money moved (D-63). Below the primary content, like
-                every other cancel entry on this page. */}
-            <CancelRequestDialog bookingId={bk.id} />
-          </CardContent>
-        </Card>
+          {/* (b) The unpaid-hold cancel — a plain confirm dialog ("Cancel this request?") carrying NO
+              breakdown and NO money UI, because no money moved (D-63). Below the primary content, like
+              every other cancel entry on this page. */}
+          <CancelRequestDialog bookingId={bk.id} />
+        </section>
       </div>
     );
   }
@@ -531,75 +700,52 @@ export default async function BookingConfirmationPage({
   if (bk.status === "approved") {
     return (
       <div className={BOOKING_SHELL}>
-        <Card>
-          <CardContent className="space-y-6 py-8">
-            <div className="flex flex-col items-center gap-3 text-center">
-              {/* Neutral OUTLINE badge — approved is positive but NOT terminal; --success stays reserved for confirmed. */}
-              <Badge variant="outline" className="gap-1.5">
-                <CalendarCheckIcon className="size-4" aria-hidden="true" />
-                Approved
-              </Badge>
-              <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
-                Your request was approved
-              </h1>
-              <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-                Good news — the host approved your booking for {dateLabel}, {timeLabel}. Pay {totalLabel} to
-                lock in your slot. This approval is held for {APPROVAL_PAYMENT_WINDOW_HOURS} hours.
-              </p>
-              {/* Payment-window countdown (display cue only; the DB now() vs expires_at is the sole authority). */}
-              {bk.expiresAt && (
-                <RequestCountdown
-                  expiresAt={bk.expiresAt.toISOString()}
-                  label="Pay within"
-                  expiredLabel="Payment window closed"
-                />
-              )}
-            </div>
+        <section data-testid="booking-detail" className="space-y-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            {/* Neutral OUTLINE badge — approved is positive but NOT terminal; --success stays reserved for confirmed. */}
+            <Badge variant="outline" className="gap-1.5">
+              <CalendarCheckIcon className="size-4" aria-hidden="true" />
+              Approved
+            </Badge>
+            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
+              Your request was approved
+            </h1>
+            {/* TRUST-01 / 13-UI-SPEC's status table. It says what to do next and by when, and it says
+                NOTHING about a charge — D-90: this is still an unpaid hold, and the cancel dialog
+                below says so in its own words. The amount is one panel down, on a row labelled Total,
+                where it belongs. */}
+            <p className="mx-auto max-w-prose text-body text-muted-foreground">
+              The host said yes. Pay within {APPROVAL_PAYMENT_WINDOW_HOURS} hours to lock in this time.
+            </p>
+            {/* Payment-window countdown (display cue only; the DB now() vs expires_at is the sole authority). */}
+            {bk.expiresAt && (
+              <RequestCountdown
+                expiresAt={bk.expiresAt.toISOString()}
+                label="Pay within"
+                expiredLabel="Payment window closed"
+              />
+            )}
+          </div>
 
-            <Separator />
+          {factsPanel("Total")}
+          {referencePanel}
 
-            <dl className="space-y-3 text-sm">
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Space</dt>
-                <dd className="text-right font-medium">
-                  {title}
-                  {spaceTypeLabel && (
-                    <span className="block font-normal text-muted-foreground">{spaceTypeLabel}</span>
-                  )}
-                </dd>
-              </div>
-              {addressRow}
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">When</dt>
-                <dd className="text-right">
-                  <span>{dateLabel}</span>
-                  <span className="block tabular-nums text-muted-foreground">{timeLabel}</span>
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-muted-foreground">Total</dt>
-                <dd className="text-right text-base font-semibold tabular-nums">{totalLabel}</dd>
-              </div>
-            </dl>
-            <p className="text-xs text-muted-foreground">{tzNote}</p>
+          {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
+              wrong, so the block is not bound to the happy path. Identical element on all
+              five inline branches; see its construction above. */}
+          {trustBlock}
 
-            {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
-                wrong, so the block is not bound to the happy path. Identical element on all
-                five inline branches; see its construction above. */}
-            {trustBlock}
+          <Separator />
 
-            <Separator />
+          {/* The ONE coral CTA introduced this phase — pay-on-approval → the SAME Phase-5 reserve/checkout page. */}
+          <Button asChild variant="brand" className="w-full">
+            <Link href={`/listings/${bk.listingId}/book?hold=${bk.id}`}>Pay now</Link>
+          </Button>
 
-            {/* The ONE coral CTA introduced this phase — pay-on-approval → the SAME Phase-5 reserve/checkout page. */}
-            <Button asChild variant="brand" className="w-full">
-              <Link href={`/listings/${bk.listingId}/book?hold=${bk.id}`}>Pay now</Link>
-            </Button>
-
-            {/* (b) The same no-money cancel dialog as the `requested` branch — an approved-but-unpaid hold is
-                still an unpaid hold. Beneath the pay CTA so the primary action stays primary. */}
-            <CancelRequestDialog bookingId={bk.id} />
-          </CardContent>
-        </Card>
+          {/* (b) The same no-money cancel dialog as the `requested` branch — an approved-but-unpaid hold is
+              still an unpaid hold. Beneath the pay CTA so the primary action stays primary. */}
+          <CancelRequestDialog bookingId={bk.id} />
+        </section>
       </div>
     );
   }
@@ -615,12 +761,11 @@ export default async function BookingConfirmationPage({
     const copy = declinedCopy(bk.cancelledBy);
     return (
       <div className={BOOKING_SHELL}>
-        <Card>
-          <CardContent
-            role="status"
-            aria-live="polite"
-            className="flex flex-col items-center gap-4 py-10 text-center"
-          >
+        {/* NO LIVE REGION. This is a fresh, server-rendered page and a screen reader already reads it
+            from the top — see this file's header for the rule and 13-UI-SPEC § Live Regions for the
+            table it comes from. */}
+        <section data-testid="booking-detail" className="space-y-6">
+          <div className="flex flex-col items-center gap-3 text-center">
             <BookingStatusBadge
               status="declined"
               endsAt={bk.endsAt}
@@ -628,25 +773,31 @@ export default async function BookingConfirmationPage({
               side="booker"
               cancelledBy={bk.cancelledBy}
             />
-            <div className="space-y-1">
-              <h1 className="text-xl leading-tight font-semibold">{copy.heading}</h1>
-              <p className="mx-auto max-w-prose text-sm text-muted-foreground">{copy.body}</p>
-              {/* The venue/time as a sibling line (copy is parameter-free) — mirrors the `cancelled` branch. */}
-              <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-                {title} · {whenLabel}
-              </p>
-              <p className="text-xs text-muted-foreground">{tzNote}</p>
-            </div>
-            {/* TRUST-04 on a decline (D-67). `w-full` because this branch is a centred column and
-                a panel that shrink-wrapped its text would read as a different component. */}
-            <div className="w-full">{trustBlock}</div>
+            <h1 className="text-xl leading-tight font-semibold">{copy.heading}</h1>
+            {/* TRUST-01's meaning sentence IS `declinedCopy`'s body, UNCHANGED — 13-UI-SPEC's status
+                table says so in those words. That single call is also the booker-vs-host selection
+                (T8); the conditional is never re-implemented here. The venue and the time are no
+                longer a sibling line: they are rows in the facts panel below, which is where every
+                other status now carries them. */}
+            <p className="mx-auto max-w-prose text-body text-muted-foreground">{copy.body}</p>
+          </div>
 
-            {/* Coral recovery forward-action (reuses the confirmation forward-action slot). */}
-            <Button asChild variant="brand">
-              <Link href="/">Find another space</Link>
-            </Button>
-          </CardContent>
-        </Card>
+          {/* "Quoted total", not "Total": a declined request was never paid — the sentence above says
+              so in `declinedCopy`'s own words — and a row labelled Total on a hold nobody charged is
+              the same false money statement D-90 removes from the `requested` branch. */}
+          {factsPanel("Quoted total")}
+          {referencePanel}
+
+          {/* TRUST-04 on a decline (D-67). */}
+          {trustBlock}
+
+          <Separator />
+
+          {/* Coral recovery forward-action (reuses the confirmation forward-action slot). */}
+          <Button asChild variant="brand" className="w-full">
+            <Link href="/">Find another space</Link>
+          </Button>
+        </section>
       </div>
     );
   }
@@ -705,7 +856,7 @@ export default async function BookingConfirmationPage({
       return (
         <PaymentReversedState
           listingId={bk.listingId}
-          reference={bookingReference(bk.id)}
+          reference={reference}
           // The server-frozen quote (D-49), formatted HERE — the component receives a finished string and
           // performs no money arithmetic (D-130 / GATE-05). `refundCents` is deliberately not consulted:
           // it is NULL on this path, and the return is full by design, so charged and returned are the
@@ -713,6 +864,7 @@ export default async function BookingConfirmationPage({
           amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
           branch={isApiRefundable(rail) ? "auto" : "manual"}
           rail={rail}
+          trustBlock={trustBlock}
         />
       );
     }
@@ -749,6 +901,8 @@ export default async function BookingConfirmationPage({
           }
           tzNote={tzNote}
           slot={slot}
+          reference={reference}
+          trustBlock={trustBlock}
         />
       );
     }
@@ -776,24 +930,25 @@ export default async function BookingConfirmationPage({
 
     return (
       <div className={BOOKING_SHELL}>
-        <Card>
-          <CardContent
-            role="status"
-            aria-live="polite"
-            className="flex flex-col items-center gap-4 py-10 text-center"
-          >
-            <div className="flex flex-col items-center gap-1.5">
-              <BookingStatusBadge status="cancelled" endsAt={bk.endsAt} now={now} side="booker" />
-              {/* The D-79 sibling line. Never a bare "₱0 refunded" — the zero case always carries its reason. */}
-              {refundLine && (
-                <p className="text-sm tabular-nums text-muted-foreground">{refundLine}</p>
-              )}
-            </div>
+        {/* NO LIVE REGION — see the declined branch and this file's header. */}
+        <section data-testid="booking-detail" className="space-y-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <BookingStatusBadge status="cancelled" endsAt={bk.endsAt} now={now} side="booker" />
+            <h1 className="text-xl leading-tight font-semibold">This booking was cancelled</h1>
+            {/* TRUST-01 / 13-UI-SPEC's status table, verbatim. The venue and the time moved into the
+                facts panel below, where every status now carries them. */}
+            <p className="mx-auto max-w-prose text-body text-muted-foreground">
+              This booking was cancelled. It&apos;s no longer held.
+            </p>
+          </div>
+
+          {/* D-79's refund line. ⚠ INTERIM SHAPE — plan 13-10 Task 2 moves both lines into
+              `MoneyStatement`, STATE-06's single owner for every "where is your money" sentence on
+              `/bookings/**` (D-73 / D-94). The wording is D-79's and does not change with the move.
+              Never a bare "₱0 refunded": the zero case always carries its reason. */}
+          {refundLine && (
             <div className="space-y-1">
-              <h1 className="text-xl leading-tight font-semibold">This booking was cancelled</h1>
-              <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-                {title} · {whenLabel}
-              </p>
+              <p className="text-body font-semibold tabular-nums text-foreground">{refundLine}</p>
               {refundCents != null && refundCents > 0 && (
                 // D-83 — THE WINDOW IS READ, NEVER TYPED. The sentence that shipped here paired a vague
                 // plural of "day" with a promise about the original payment method and had no source at
@@ -803,19 +958,27 @@ export default async function BookingConfirmationPage({
                 // and this page holds no probed rail — a party cancellation is not a reversal and buys no
                 // round trip here. (`cancel/page.tsx` and `lib/email.ts` carry the same superseded string;
                 // plan 13-12 owns those two.)
-                <p className="mx-auto max-w-prose text-sm text-muted-foreground">
-                  {ALL_RAILS_REFUND_WINDOW}
-                </p>
+                <p className="text-label text-muted-foreground">{ALL_RAILS_REFUND_WINDOW}</p>
               )}
-              <p className="text-xs text-muted-foreground">{tzNote}</p>
             </div>
-            {/* TRUST-04 on a cancellation (D-67) — see the declined branch for the `w-full`. */}
-            <div className="w-full">{trustBlock}</div>
-            <Button asChild variant="brand">
-              <Link href="/">Find another space</Link>
-            </Button>
-          </CardContent>
-        </Card>
+          )}
+
+          {/* "Total" only where money actually moved. A cancelled row can be a party cancellation of a
+              booking that was paid (a refund figure, or a payment id) or a hold that was swept without
+              anybody ever paying — and printing "Total" over the second is the D-90 failure one status
+              along. */}
+          {factsPanel(refundCents != null || bk.paymentId !== null ? "Total" : "Quoted total")}
+          {referencePanel}
+
+          {/* TRUST-04 on a cancellation (D-67). */}
+          {trustBlock}
+
+          <Separator />
+
+          <Button asChild variant="brand" className="w-full">
+            <Link href="/">Find another space</Link>
+          </Button>
+        </section>
       </div>
     );
   }
@@ -824,7 +987,8 @@ export default async function BookingConfirmationPage({
   //    afterlife. `completed` is never stored: `deriveDisplayStatus` reads it off a `confirmed` row whose
   //    endsAt has passed, against the DB clock, exactly as the /bookings list's SQL derives it. Nothing here
   //    writes, so it cannot drift and cannot race the occupancy predicate. ──
-  const reference = bookingReference(bk.id);
+  // `reference` is the one derived above the branches (13-10) — it is on every status now, so it is
+  // computed once rather than per branch.
   const isCompleted = deriveDisplayStatus("confirmed", bk.endsAt, now) === "completed";
   // (a) The cancel entry appears ONLY while the session is still ahead — the same D-94 rule the action and
   //     the review page enforce, so all three agree about when cancellation is possible. A finished session
@@ -865,115 +1029,102 @@ export default async function BookingConfirmationPage({
 
   return (
     <div className={BOOKING_SHELL}>
-      <Card>
-        <CardContent className="space-y-6 py-8">
-          {/* Focal point: reassurance first — the badge (icon + text, never color-only) + reference. The
-              badge derivation is the SHARED one, so `Confirmed` here and `Completed` once the session ends
-              read identically to the same booking on /bookings and /host/bookings. Completed is muted, NOT
-              green: it is inert history, not a live success. */}
-          <div className="flex flex-col items-center gap-3 text-center">
-            <BookingStatusBadge status="confirmed" endsAt={bk.endsAt} now={now} side="booker" />
-            <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
-              {isCompleted ? "This session is done" : "Booking confirmed"}
-            </h1>
-            <div className="space-y-0.5">
-              <p className="text-sm text-muted-foreground">Booking reference</p>
-              <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-display">
-                {reference}
-              </p>
-            </div>
-          </div>
+      <section data-testid="booking-detail" className="space-y-6">
+        {/* Focal point: reassurance first — the badge (icon + text, never color-only) + the heading. The
+            badge derivation is the SHARED one, so `Confirmed` here and `Completed` once the session ends
+            read identically to the same booking on /bookings and /host/bookings. Completed is muted, NOT
+            green: it is inert history, not a live success.
 
-          <Separator />
+            ⚠️ THE REFERENCE NO LONGER SITS IN THIS BLOCK. It shipped here as a hand-rolled label +
+            display-sized string, which is a fourth rendering of a fact TRUST-02 gives one owner — and
+            13-08 recorded that this page was still hand-rolling it. It is now `referencePanel` below,
+            the same panel every other status renders, with the copy control that surface needs. */}
+        <div className="flex flex-col items-center gap-3 text-center">
+          <BookingStatusBadge status="confirmed" endsAt={bk.endsAt} now={now} side="booker" />
+          <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
+            {isCompleted ? "This session is done" : "Booking confirmed"}
+          </h1>
+          {/* TRUST-01 / 13-UI-SPEC's status table — the two verbatim sentences for the one status that
+              is two statuses. `completed` is DERIVED (D-102) against the DB clock, never stored. */}
+          <p className="mx-auto max-w-prose text-body text-muted-foreground">
+            {isCompleted
+              ? "This session is finished. This page stays as your record."
+              : "This time is yours. Show this page (or your email) when you arrive."}
+          </p>
+        </div>
 
-          <dl className="space-y-3 text-sm">
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-muted-foreground">Space</dt>
-              <dd className="text-right font-medium">
-                {title}
-                {spaceTypeLabel && (
-                  <span className="block font-normal text-muted-foreground">{spaceTypeLabel}</span>
-                )}
-              </dd>
-            </div>
-            {addressRow}
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-muted-foreground">When</dt>
-              <dd className="text-right">
-                <span>{dateLabel}</span>
-                <span className="block tabular-nums text-muted-foreground">{timeLabel}</span>
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-muted-foreground">Total</dt>
-              <dd className="text-right text-base font-semibold tabular-nums">{totalLabel}</dd>
-            </div>
-          </dl>
-          <p className="text-xs text-muted-foreground">{tzNote}</p>
+        {/* ⚠️ D-94 — NO `MoneyStatement` ON THIS BRANCH, AND THE ABSENCE IS THE DECISION.
+            13-UI-SPEC § Copywriting Contract specifies a money sentence for FOUR statuses (pending, not
+            completed, reversed, cancelled) and for no others. A confirmed booking's money facts travel
+            through the status-meaning sentence above and the itemised-total panel below, which already
+            own them — and writing a fifth sentence here would be an un-reviewed claim about somebody's
+            money on the one surface where being wrong is expensive. If a fifth status ever appears to
+            need one, that is a question to raise, not a sentence to write. */}
+        {factsPanel("Total")}
+        {referencePanel}
 
-          {/* TRUST-04 (D-67). The same element the four other branches render. */}
-          {trustBlock}
+        {/* TRUST-04 (D-67). The same element the four other branches render. */}
+        {trustBlock}
 
-          <Separator />
+        <Separator />
 
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {isCompleted
-                ? "This page is your record of the session — it stays here if you come back later."
-                : "This page is your confirmation — it stays here if you refresh or come back later."}
-            </p>
+        <div className="space-y-4">
+          <p className="text-body text-muted-foreground">
+            {isCompleted
+              ? "This page is your record of the session — it stays here if you come back later."
+              : "This page is your confirmation — it stays here if you refresh or come back later."}
+          </p>
 
-            {/* (e) THE GROUP ENTRY (D-119 / 08-UI-SPEC §1) — the differentiator's front door, and the ONE
-                coral on this surface. Two mutually-exclusive shapes:
-                  - not yet a group → the coral `Invite people` + its helper line. This is the phase's
-                    headline action, so it takes the accent slot (08-UI-SPEC §Color accent #1).
-                  - already a group → a NEUTRAL outline `Manage group · {N} coming` link. Once the group
-                    exists, management is a calm return trip, not a headline action; making it coral would
-                    keep shouting at an organizer who has already done the thing. */}
-            {groupEligible &&
-              (group ? (
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={`/bookings/${bk.id}/group`}>
-                    Manage group · {groupHeadcount?.confirmed ?? 0} coming
-                  </Link>
-                </Button>
-              ) : (
-                <div className="space-y-2">
-                  <CreateGroupButton bookingId={bk.id} />
-                  <p className="text-sm text-muted-foreground">
-                    Invite friends to this booking and track who&apos;s coming.
-                  </p>
-                </div>
-              ))}
-
-            {/* ⚠️ DEMOTED FROM CORAL TO `ghost` (08-UI-SPEC §1 / Open Q3). This was the confirmed branch's
-                one coral forward action; `Invite people` now holds that slot, and one-primary-per-surface
-                forbids two. The demotion is UNCONDITIONAL on this branch rather than tied to whether the
-                group entry rendered: a completed session's "find another space" is a calm afterthought, not
-                a call to action, and a rule that flipped a shipped button's weight depending on a date is a
-                rule nobody can hold in their head. The `declined` and `cancelled` branches keep their coral
-                — there, finding another space genuinely IS the one thing left to do. */}
-            <Button asChild variant="ghost" className="w-full">
-              <Link href="/">Find another space</Link>
-            </Button>
-          </div>
-
-          {/* (a) THE CANCEL ENTRY POINT (D-104). Below the primary content and behind its own Separator —
-              present but not competing, and NEVER on a list row. A LINK, not an action: it routes to the
-              /bookings/[id]/cancel review so the D-78 itemised breakdown (and the exact refund SC#2
-              promises) is always seen before an irreversible money action. Neutral outline — not coral,
-              which would advertise the action FitOut least wants taken, and not an alarm colour, which
-              would misrepresent a refund the booker is contractually entitled to. */}
-          {sessionAhead && (
-            <>
-              <Separator />
+          {/* (e) THE GROUP ENTRY (D-119 / 08-UI-SPEC §1) — the differentiator's front door, and the ONE
+              coral on this surface. Two mutually-exclusive shapes:
+                - not yet a group → the coral `Invite people` + its helper line. This is the phase's
+                  headline action, so it takes the accent slot (08-UI-SPEC §Color accent #1).
+                - already a group → a NEUTRAL outline `Manage group · {N} coming` link. Once the group
+                  exists, management is a calm return trip, not a headline action; making it coral would
+                  keep shouting at an organizer who has already done the thing. */}
+          {groupEligible &&
+            (group ? (
               <Button asChild variant="outline" className="w-full">
-                <Link href={`/bookings/${bk.id}/cancel`}>Cancel booking</Link>
+                <Link href={`/bookings/${bk.id}/group`}>
+                  Manage group · {groupHeadcount?.confirmed ?? 0} coming
+                </Link>
               </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <div className="space-y-2">
+                <CreateGroupButton bookingId={bk.id} />
+                <p className="text-body text-muted-foreground">
+                  Invite friends to this booking and track who&apos;s coming.
+                </p>
+              </div>
+            ))}
+
+          {/* ⚠️ DEMOTED FROM CORAL TO `ghost` (08-UI-SPEC §1 / Open Q3). This was the confirmed branch's
+              one coral forward action; `Invite people` now holds that slot, and one-primary-per-surface
+              forbids two. The demotion is UNCONDITIONAL on this branch rather than tied to whether the
+              group entry rendered: a completed session's "find another space" is a calm afterthought, not
+              a call to action, and a rule that flipped a shipped button's weight depending on a date is a
+              rule nobody can hold in their head. The `declined` and `cancelled` branches keep their coral
+              — there, finding another space genuinely IS the one thing left to do. */}
+          <Button asChild variant="ghost" className="w-full">
+            <Link href="/">Find another space</Link>
+          </Button>
+        </div>
+
+        {/* (a) THE CANCEL ENTRY POINT (D-104). Below the primary content and behind its own Separator —
+            present but not competing, and NEVER on a list row. A LINK, not an action: it routes to the
+            /bookings/[id]/cancel review so the D-78 itemised breakdown (and the exact refund SC#2
+            promises) is always seen before an irreversible money action. Neutral outline — not coral,
+            which would advertise the action FitOut least wants taken, and not an alarm colour, which
+            would misrepresent a refund the booker is contractually entitled to. */}
+        {sessionAhead && (
+          <>
+            <Separator />
+            <Button asChild variant="outline" className="w-full">
+              <Link href={`/bookings/${bk.id}/cancel`}>Cancel booking</Link>
+            </Button>
+          </>
+        )}
+      </section>
     </div>
   );
 }

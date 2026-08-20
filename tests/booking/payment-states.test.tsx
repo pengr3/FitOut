@@ -47,6 +47,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 import { NotCompletedState } from "@/components/booking/not-completed-state";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
+import { TrustBlock } from "@/components/booking/trust-block";
 
 afterEach(() => {
   cleanup();
@@ -57,6 +58,25 @@ afterEach(() => {
 const LISTING_ID = "lst_incomplete_1";
 const BOOKING_ID = "bkg_incomplete_1";
 const REFERENCE = "FIT-9K3MP7QZ";
+
+/**
+ * TRUST-04's block, as the REAL component rather than a stand-in (13-10 / D-67).
+ *
+ * All three states take it as a `ReactNode` SLOT — they are client components and `TrustBlock` is a
+ * Server Component, so the page builds it once in the RSC and hands it down. Passing the real element
+ * here keeps these cases honest in both directions: the distinctness assertions below now compare three
+ * trees that each carry the block, and the "no alarm colour / no extra live region / exactly one coral"
+ * negatives are asserted over what a booker actually sees rather than over three-quarters of it.
+ */
+const TRUST_BLOCK = (
+  <TrustBlock
+    variant="full"
+    hostSinceLabel="June 2026"
+    listingPublishedLabel="June 2026"
+    bookingMode="instant"
+    reference="FIT-9K3MP7QZ"
+  />
+);
 
 const T0 = new Date("2026-08-20T09:00:00.000Z");
 const FIFTEEN_MIN_MS = 15 * 60_000;
@@ -77,6 +97,7 @@ function mountIncomplete({ holdMs = FIFTEEN_MIN_MS }: { holdMs?: number } = {}) 
       listingId={LISTING_ID}
       reference={REFERENCE}
       holdExpiresAt={new Date(T0.getTime() + holdMs).toISOString()}
+      trustBlock={TRUST_BLOCK}
     />,
   );
   act(() => {
@@ -221,7 +242,9 @@ const ESCALATION_MS = 120_000;
 function mountPending({ email = EMAIL as string | null } = {}) {
   vi.useFakeTimers();
   vi.setSystemTime(T0);
-  const utils = render(<PendingPaymentState reference={REFERENCE} email={email} />);
+  const utils = render(
+    <PendingPaymentState reference={REFERENCE} email={email} trustBlock={TRUST_BLOCK} />,
+  );
   act(() => {
     vi.advanceTimersByTime(0);
   });
@@ -239,6 +262,20 @@ function controlNames(root: HTMLElement): string[] {
   );
 }
 
+/**
+ * The reference's copy control, which plan 13-10 put on this state from the first paint (TRUST-02 /
+ * D-78: the reference is present on EVERY status, and "every" is the requirement's own word).
+ *
+ * ⚠ THE SETS BELOW NAME IT RATHER THAN LOOSENING TO A SUBSET MATCH, and the distinction is the whole
+ * value of the assertions it appears in. D-71's property is that the pending state never offers a way
+ * to ACT ON A FAILURE while the webhook is still the outstanding authority — copying a reference is
+ * not that: it changes nothing, retries nothing, and cannot cost a second charge. What must still be
+ * impossible is a control nobody listed, so these cases keep asserting the WHOLE set and simply have
+ * one more member in it. A `filter(name => name !== X)` would have the same teeth; a `toContain` would
+ * not, which is why neither case was rewritten that way.
+ */
+const COPY_CONTROL = "Copy";
+
 describe("D-71 / D-95 — the pending state promises safety and never offers a way to act on a failure", () => {
   it("(1) at 0-20s: the money truth, the self-updating line, and NOTHING to press", () => {
     const { container } = mountPending();
@@ -254,8 +291,10 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
 
     expect(
       controlNames(container as unknown as HTMLElement),
-      "the poller has not backed off yet, so there is nothing for the booker to do and nothing offered",
-    ).toEqual([]);
+      "the poller has not backed off yet, so there is nothing for the booker to DO about the payment " +
+        "and nothing offered. The reference's copy control is not an action on the payment — see " +
+        "COPY_CONTROL's note — and it is named here rather than excused by a looser matcher.",
+    ).toEqual([COPY_CONTROL]);
   });
 
   it("(2) past the poll cap: the payment is safe, the booking is held, and an email is coming", () => {
@@ -276,8 +315,11 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
       `It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you at ${EMAIL} the moment it confirms.`,
     );
 
-    // D-95 — the control has an object, and it is the ONLY control on the page.
-    expect(controlNames(container as unknown as HTMLElement)).toEqual(["Refresh status"]);
+    // D-95 — the control has an object, and it is the only control that acts on the PAYMENT.
+    expect(controlNames(container as unknown as HTMLElement)).toEqual([
+      "Refresh status",
+      COPY_CONTROL,
+    ]);
     expect(screen.getByRole("button", { name: "Refresh status" })).toBeTruthy();
   });
 
@@ -296,11 +338,23 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
   it("(4) past the escalation threshold: the reference is named, inside the SAME one region", () => {
     const { container } = mountPending();
 
-    // Guard the guard: not yet.
+    // Guard the guard: the SENTENCE that names the reference has not appeared yet.
+    //
+    // ⚠ SCOPED TO THE MONEY PANEL SINCE 13-10, AND THE NARROWING IS THE CORRECTION, NOT A CONCESSION.
+    // This used to assert the reference string was absent from the whole DOCUMENT, which was a
+    // truthful reading of the tree at the time and the wrong assertion for the property: TRUST-02
+    // puts the reference on every status from the first paint, so a document-wide absence check was
+    // pinning the one thing this state was missing. What (4) is actually about is the ESCALATION —
+    // that past a threshold one region gains a sentence, and that it is the SAME region rather than a
+    // second one. That is a claim about the money panel, so it is asserted about the money panel.
     act(() => {
       vi.advanceTimersByTime(POLL_CAP_MS);
     });
-    expect(flat(container as unknown as HTMLElement)).not.toContain(REFERENCE);
+    expect(
+      flat(container.querySelector('[data-testid="money-statement"]') as HTMLElement),
+    ).not.toContain(REFERENCE);
+    // …and the reference ITSELF is on the page throughout, which is the half TRUST-02 requires.
+    expect(screen.getByTestId("booking-reference").textContent).toBe(REFERENCE);
 
     act(() => {
       vi.advanceTimersByTime(ESCALATION_MS);
@@ -347,9 +401,13 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
           `here tells them to act at the one moment acting is wrong, and could cost a second charge.`,
       ).toEqual([]);
       expect(painted(), `${when}: an alarm colour reached the pending state`).toEqual([]);
-      // The one control that may exist is the refresh, and it never grows a sibling.
+      // The only control that may act on the PAYMENT is the refresh, and it never grows a sibling.
+      // The reference's copy control is excluded BY NAME (see COPY_CONTROL) rather than by relaxing
+      // the matcher, so an unlisted control still fails this immediately.
       expect(
-        controlNames(root).filter((name) => name !== "Refresh status"),
+        controlNames(root).filter(
+          (name) => name !== "Refresh status" && name !== COPY_CONTROL,
+        ),
         `${when}: a second control appeared beside the refresh`,
       ).toEqual([]);
     };
@@ -406,12 +464,14 @@ const STATES = [
           listingId={LISTING_ID}
           reference={REFERENCE}
           holdExpiresAt={new Date(T0.getTime() + FIFTEEN_MIN_MS).toISOString()}
+          trustBlock={TRUST_BLOCK}
         />,
       ),
   },
   {
     hook: "payment-state-pending",
-    render: () => render(<PendingPaymentState reference={REFERENCE} email={EMAIL} />),
+    render: () =>
+      render(<PendingPaymentState reference={REFERENCE} email={EMAIL} trustBlock={TRUST_BLOCK} />),
   },
   {
     hook: "payment-state-reversed",
@@ -423,6 +483,7 @@ const STATES = [
           amountLabel="₱1,428.00"
           branch="auto"
           rail="gcash"
+          trustBlock={TRUST_BLOCK}
         />,
       ),
   },

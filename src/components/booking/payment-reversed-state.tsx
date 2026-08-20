@@ -95,6 +95,7 @@
 //
 // Analog: `hold-expired-state.tsx` (the calm recovery-state idiom this file's shape comes from).
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Undo2Icon } from "lucide-react";
 
@@ -145,6 +146,15 @@ export type PaymentReversedStateProps = {
    * sentence it returns. A display string could not select anything.
    */
   rail?: string | null;
+  /**
+   * TRUST-04's four-signal block (D-67), rendered by the RSC and handed down as a finished element.
+   *
+   * A SLOT rather than an import so this file stays free of the four sentences and of any decision
+   * about them: it is the SAME element the five inline branches of `bookings/[id]/page.tsx` render,
+   * built once, so nine renders cannot drift into nine trust blocks. D-67 puts it on the states that
+   * look WRONG too — trust matters most when something has — which is why it is required, not optional.
+   */
+  trustBlock: ReactNode;
 };
 
 export function PaymentReversedState({
@@ -153,6 +163,7 @@ export function PaymentReversedState({
   amountLabel,
   branch,
   rail = null,
+  trustBlock,
 }: PaymentReversedStateProps) {
   // The AUTOMATIC branch. L1 describes an action FitOut actually took; L2 is the verified window for the
   // rail, and when the probe fell back it is the rail-free sentence that names every rail a FitOut booker
@@ -234,6 +245,12 @@ export function PaymentReversedState({
         <div className="flex justify-center">
           <BookingReference reference={reference} />
         </div>
+
+        {/* TRUST-04 (D-67), the same block every other status renders — see the prop's own note. It
+            ends with the guarded support ROW; the in-panel control above is the money panel's, and the
+            two are not a duplicate: 13-UI-SPEC's guard-state table gives this state both, because here
+            the support path is the only route to the money and must be unmissable (D-83). */}
+        {trustBlock}
 
         <Separator />
 

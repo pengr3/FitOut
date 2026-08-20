@@ -180,6 +180,9 @@ export const SELECTOR_IDS = [
   // row a task later, and the gate went red on `Rendered-but-undeclared: [trust-block]` the moment the
   // literal shipped.
   "trust-block",
+  // 13-10 — the ordinary booking detail, one shell rendered eight ways. It is the sibling every
+  // "nothing important lives only in the moment" assertion has to name, so it ships with the shell.
+  "booking-detail",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -710,5 +713,26 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "`panel-card` id and takes no pass-through props, so a second id on it is not expressible — the " +
       "shape `money-statement` already records from the other side.",
     owner: "13-09",
+  },
+
+  // ─── 13-10 ─────────────────────────────────────────────────────────────────────────────────────────
+  "booking-detail": {
+    why:
+      "IT IS A `<section>` WITH NO ROLE, and it is the SIBLING every BFLOW-08 assertion has to address " +
+      "rather than the thing they are about. A `<section>` acquires the `region` role only when it " +
+      "carries an accessible name, and naming this one would put a landmark inside the layout's `main` " +
+      "for no reader's benefit — the `<h1>` immediately inside it already says what the page is. " +
+      "THE TWO ASSERTIONS THAT NEED IT ARE BOTH GEOMETRIC OR ABOUT ABSENCE. D-60's decay is falsifiable " +
+      "as: on the confirmation moment's first paint this element starts BELOW the fold (its " +
+      "`boundingBox().y` is greater than the viewport height), and on a later visit with no query " +
+      "string the moment is ABSENT while this renders alone. A box is what has to be measured for the " +
+      "first, and an element count for the second — neither is expressible as a role or a name, and a " +
+      "text query would be circular in the way this contract's money-adjacent rows describe, since the " +
+      "copy inside varies across all ten status renders. " +
+      "IT IS ALSO NOT ADDRESSABLE BY THE SHELL AROUND IT: `BOOKING_SHELL` is a className shared with " +
+      "`cancel/page.tsx`, `group/page.tsx`, three `loading.tsx` files and the four payment/lapse state " +
+      "components, so a container query keyed on it resolves on routes this hook has nothing to say " +
+      "about. THE HOOK SITS ON THE SECTION AND NOT ON THE SHELL `div` for exactly that reason.",
+    owner: "13-10",
   },
 };

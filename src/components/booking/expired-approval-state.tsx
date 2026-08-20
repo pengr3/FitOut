@@ -23,7 +23,20 @@
 // pre-composed display string. There is no data access here to lose by crossing the boundary, and keeping the
 // two variants in ONE file keeps the copy that distinguishes them side by side where a reader can compare it.
 
+// ── Plan 13-10 — THE OUTER CARD AND THE LIVE REGION ARE BOTH GONE. ─────────────────────────────────
+//
+// THE CARD, because this surface now renders panels: `TrustBlock` composes `PanelCard`, and a panel
+// nested inside a container that already supplies `bg-card ring-1 rounded-xl` pays the block padding
+// twice (112px against 80px — `card-pattern-coverage.test.ts`'s own header records the measurement).
+// The two sibling states shed theirs for the same reason in 13-04 and 13-07; this was the last one.
+//
+// THE REGION, because 13-UI-SPEC § Live Regions states the rule in one sentence: *a live region
+// announces a CHANGE, and a freshly navigated page is not a change — it is a page.* This landing is
+// static, server-navigated content; a screen reader already reads it from the top, so the region
+// announced either nothing or a duplicate of what was about to be read anyway.
+
 import * as React from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TimerOffIcon } from "lucide-react";
@@ -32,7 +45,8 @@ import { toast } from "sonner";
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { BookingReference } from "@/components/booking/booking-reference";
 import { reRequestSameWindow } from "@/app/actions/re-request";
 
 /**
@@ -53,6 +67,8 @@ export function ExpiredApprovalState({
   deadlineLabel,
   tzNote,
   slot,
+  reference,
+  trustBlock,
 }: {
   bookingId: string;
   listingId: string;
@@ -70,6 +86,21 @@ export function ExpiredApprovalState({
   deadlineLabel: string | null;
   tzNote: string;
   slot: ExpiredApprovalSlot;
+  /**
+   * TRUST-02 / D-78 — the finished `FIT-XXXXXXXX` string, server-derived. This state used to be the
+   * ONE booking render that carried no reference at all: a lapsed approval is still a booking a person
+   * may ask us about, and "every status" is the requirement's own word.
+   */
+  reference: string;
+  /**
+   * TRUST-04's four-signal block (D-67), rendered by the RSC and handed down as a finished element.
+   *
+   * A SLOT rather than an import, for this file's client boundary — `TrustBlock` is a Server Component
+   * and there is nothing to gain by bundling it. It is the SAME element the five inline branches of
+   * `bookings/[id]/page.tsx` render, built once. Required, not optional: D-67 puts it on every status,
+   * and an optional prop is how a branch quietly loses it.
+   */
+  trustBlock: ReactNode;
 }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
@@ -104,12 +135,8 @@ export function ExpiredApprovalState({
     // and `[id]/page.tsx`'s own header are the other two — so it is restated here rather than delegated
     // to a sibling the next author has no reason to open.
     <div className={BOOKING_SHELL}>
-      <Card>
-        <CardContent
-          role="status"
-          aria-live="polite"
-          className="flex flex-col items-center gap-4 py-10 text-center"
-        >
+      <div className="space-y-6">
+        <div className="flex flex-col items-center gap-4 text-center">
           {/* Muted secondary badge, icon + text — the same calm treatment every terminal lifecycle state
               gets. Never an alarm colour: an expiry is an expected outcome, not a failure. */}
           <Badge variant="secondary" className="gap-1.5 text-muted-foreground">
@@ -119,13 +146,16 @@ export function ExpiredApprovalState({
 
           <div className="space-y-1">
             <h1 className="text-xl leading-tight font-semibold">This approval expired</h1>
-            <p className="mx-auto max-w-prose text-sm text-muted-foreground">
+            {/* TRUST-01's meaning sentence, UNCHANGED — 13-UI-SPEC's status table assigns this branch
+                "the shipped `ExpiredApprovalState` copy" in those words, and it already says both what
+                happened and what it cost (nothing). Not one byte of it moved in 13-10. */}
+            <p className="mx-auto max-w-prose text-body text-muted-foreground">
               {deadlineLabel
                 ? `You had until ${deadlineLabel} to pay, so we released the slot. You weren't charged anything.`
                 : "The payment window for this booking closed, so we released the slot. You weren't charged anything."}
             </p>
-            <p className="text-sm text-muted-foreground">{whenLabel}</p>
-            <p className="text-xs text-muted-foreground">{tzNote}</p>
+            <p className="text-body text-muted-foreground">{whenLabel}</p>
+            <p className="text-label text-muted-foreground">{tzNote}</p>
           </div>
 
           {slot === "free" ? (
@@ -140,7 +170,7 @@ export function ExpiredApprovalState({
               >
                 {pending ? "Sending…" : "Request these times again"}
               </Button>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-label text-muted-foreground">
                 Same space, same time — we&apos;ll send the host a fresh request.
               </p>
             </div>
@@ -152,15 +182,25 @@ export function ExpiredApprovalState({
               <Button asChild variant="brand" className="w-full sm:w-auto sm:min-w-64">
                 <Link href={`/listings/${listingId}`}>Find another time</Link>
               </Button>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-label text-muted-foreground">
                 {slot === "taken"
                   ? "Someone else booked this slot. There may be other times open."
                   : "This time isn't available any more. There may be other times open."}
               </p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* TRUST-02 — the reference on EVERY status (D-78). This render was the one that had none. */}
+        <div className="flex justify-center">
+          <BookingReference reference={reference} />
+        </div>
+
+        <Separator />
+
+        {/* TRUST-04 (D-67) — the same block every other status renders; see the prop's own note. */}
+        {trustBlock}
+      </div>
     </div>
   );
 }

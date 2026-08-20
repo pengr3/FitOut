@@ -69,11 +69,14 @@
 // page ground, which is what 13-UI-SPEC specifies for all three payment states.
 
 import * as React from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { BookingReference } from "@/components/booking/booking-reference";
 import { MoneyStatement } from "@/components/booking/money-statement";
 import { SupportPath } from "@/components/booking/support-path";
 
@@ -105,9 +108,22 @@ export type PendingPaymentStateProps = {
    * still names the mechanism, it just cannot name the destination.
    */
   email: string | null;
+  /**
+   * TRUST-04's four-signal block (D-67), rendered by the RSC and handed down as a finished element.
+   *
+   * A SLOT AND NOT AN IMPORT, and the reason is this file's client boundary. `TrustBlock` is a Server
+   * Component; importing it here would pull it — and everything it composes — into the browser bundle
+   * for no gain, and would put a second copy of the four sentences one import away from a surface that
+   * re-renders itself every 2.5s. As a slot it is the SAME element the five inline branches of
+   * `bookings/[id]/page.tsx` render, built once, so nine renders cannot drift into nine trust blocks.
+   *
+   * REQUIRED rather than optional: D-67 says every status, including the ones that look wrong, because
+   * trust matters most when something has. An optional prop is how a branch quietly loses it.
+   */
+  trustBlock: ReactNode;
 };
 
-export function PendingPaymentState({ reference, email }: PendingPaymentStateProps) {
+export function PendingPaymentState({ reference, email, trustBlock }: PendingPaymentStateProps) {
   const router = useRouter();
   const [slow, setSlow] = React.useState(false);
   const [escalated, setEscalated] = React.useState(false);
@@ -219,6 +235,23 @@ export function PendingPaymentState({ reference, email }: PendingPaymentStatePro
             <Button variant="secondary" onClick={() => router.refresh()}>Refresh status</Button>
           </div>
         )}
+
+        {/* TRUST-02 — the reference on EVERY status (D-78), and this state used to be the one that
+            NAMED it in prose without ever RENDERING it: the escalation line quotes the string, but a
+            person cannot take a string out of a sentence without transcribing it, and a transcription
+            error on the one token support would ask for is the whole reason the copy control exists.
+            It renders from the first paint, not at the escalation threshold — the reference is a fact
+            about the booking, not a fact about how long the webhook is taking. */}
+        <div className="flex justify-center">
+          <BookingReference reference={reference} />
+        </div>
+
+        <Separator />
+
+        {/* TRUST-04 (D-67), the same block every other status renders — see the prop's own note for
+            why it arrives as a slot rather than as an import. It ends with the guarded support row, so
+            this file holds no support literal of its own and `site-contacts.test.ts` is untouched. */}
+        {trustBlock}
       </div>
     </div>
   );

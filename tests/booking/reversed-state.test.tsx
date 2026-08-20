@@ -45,6 +45,7 @@ import { render, screen, cleanup, within } from "@testing-library/react";
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
+import { TrustBlock } from "@/components/booking/trust-block";
 import { ALL_RAILS_REFUND_WINDOW, REFUND_WINDOW_BY_RAIL } from "@/lib/booking/refund-window";
 
 afterEach(cleanup);
@@ -68,6 +69,23 @@ const MAYA_WINDOW = REFUND_WINDOW_BY_RAIL.get("paymaya")!;
 /** STATE-05's not-completed sentence, in two pieces so this file never spells it. See the header. */
 const NOT_COMPLETED_SENTENCE = ["haven't b", "een charged"].join("");
 
+/**
+ * TRUST-04's block, as the REAL component rather than a stand-in (13-10 / D-67).
+ *
+ * This state takes it as a `ReactNode` slot, because the page composes it once in the RSC and hands the
+ * same element to all nine renders. Passing the real one here means the negatives below — no alarm
+ * colour, no live region, exactly one coral — are asserted over the whole tree a booker sees.
+ */
+const TRUST_BLOCK = (
+  <TrustBlock
+    variant="full"
+    hostSinceLabel="June 2026"
+    listingPublishedLabel="June 2026"
+    bookingMode="instant"
+    reference={REFERENCE}
+  />
+);
+
 function renderAuto(rail: string | null) {
   return render(
     <PaymentReversedState
@@ -76,6 +94,7 @@ function renderAuto(rail: string | null) {
       amountLabel={AMOUNT}
       branch="auto"
       rail={rail}
+      trustBlock={TRUST_BLOCK}
     />,
   );
 }
@@ -88,6 +107,7 @@ function renderManual(rail: string | null = "qrph") {
       amountLabel={AMOUNT}
       branch="manual"
       rail={rail}
+      trustBlock={TRUST_BLOCK}
     />,
   );
 }

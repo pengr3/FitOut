@@ -496,10 +496,20 @@ const GATE_TREE = ["src/app/", "src/components/"] as const;
  *
  * The other seventeen `loading.tsx` files add nothing here: fifteen render no heading or a
  * non-Display one, and two render no heading at all because their route always redirects.
+ *
+ * ─── ONE ROW SHRANK IN PLAN 13-10 (14 → 13), AND IT IS A ROLE BEING GIVEN BACK ───────────────────
+ * `bookings/[id]/page.tsx` went 4 → 3. The site that left was NOT a heading: the confirmed branch
+ * rendered the booking reference as a hand-rolled `<p className="text-2xl … sm:text-display">` — a
+ * Display-sized paragraph standing in for a heading, which is the exact shortcut 13-UI-SPEC §
+ * Typography rule 3 names. TRUST-02 gives the reference ONE owner, `BookingReference`, whose type
+ * role is `text-body font-mono tabular-nums` on the detail page and `text-heading` in the
+ * confirmation moment — so the string is now rendered by the component that owns it, at the role the
+ * contract assigns it, with the copy control TRUST-02 also requires. The three that remain are the
+ * `<h1>`s of the requested, approved and confirmed branches, which are the page's real headings.
  */
 const DISPLAY_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/(app)/bookings/[id]/cancel/page.tsx": 1,
-  "src/app/(app)/bookings/[id]/page.tsx": 4,
+  "src/app/(app)/bookings/[id]/page.tsx": 3,
   "src/app/(public)/loading.tsx": 1,
   "src/app/(public)/page.tsx": 1,
   "src/app/listings/[id]/(detail)/page.tsx": 1,
@@ -701,9 +711,9 @@ describe("DS-02 second clause — no surface pins a font size to a pixel literal
     expect(scan.slashModifier).toEqual([]);
   });
 
-  it("carries exactly 14 Display call sites, in the 10 files that own them", () => {
+  it("carries exactly 13 Display call sites, in the 10 files that own them", () => {
     expect(scan.display).toEqual(DISPLAY_INVENTORY);
-    expect(totalOf(scan.display)).toBe(14);
+    expect(totalOf(scan.display)).toBe(13);
   });
 
   it("routes the two sub-label numerals onto the built-in `text-xs` step", () => {
