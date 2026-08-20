@@ -175,6 +175,11 @@ export const SELECTOR_IDS = [
   // no call site is as red as a call site with no declaration.
   "payment-state-incomplete",
   "payment-state-pending",
+  // 13-09 — TRUST-04's closed four-signal set. Declared here in the SAME commit as the component,
+  // which is the bidirectional rule above being obeyed rather than restated: the plan scheduled this
+  // row a task later, and the gate went red on `Rendered-but-undeclared: [trust-block]` the moment the
+  // literal shipped.
+  "trust-block",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -679,5 +684,31 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "the heading instead would be circular in the way this contract's other payment-state rows " +
       "describe: the three headings are the copy under revision.",
     owner: "13-07",
+  },
+
+  // ─── 13-09 ─────────────────────────────────────────────────────────────────────────────────────────
+  "trust-block": {
+    why:
+      "IT IS A `<dl>` CONTAINER, AND A DEFINITION LIST HAS NO ROLE ANY QUERY CAN REACH FOR. Both of " +
+      "this block's assertions are about the BOX rather than about anything inside it. " +
+      "THE CLOSED-SET ASSERTION IS A COUNT SCOPED TO THIS ELEMENT: D-68 fixes the booker-facing signal " +
+      "set at FOUR, each mapped to a real column, so the falsifiable form of \"closed\" is `exactly " +
+      "four rows inside this container` — and a fifth row fails it whatever the fifth row says, which " +
+      "is the whole point, because the realistic invented signal is the one no word list anticipated. " +
+      "A document-wide row count cannot express it: every status branch of `/bookings/[id]` already " +
+      "renders a second `<dl>` (Space / When / Total), so counting `dt` elements across the page " +
+      "answers about the wrong list. Nor can the copy carry it — matching on the four sentences would " +
+      "be circular in the way this contract's money-adjacent rows describe, since those sentences ARE " +
+      "the thing under revision, and one of the four is chosen per `booking_mode` so a text query " +
+      "would have to know the listing's mode in order to find the element that proves the mode was " +
+      "stated. " +
+      "THE PER-STATUS PRESENCE ASSERTION IS THE OTHER HALF, AND IT IS THE REASON THE HOOK CANNOT BE " +
+      "SKIPPED: D-67 requires this block on EVERY status, including the ones that look wrong, because " +
+      "trust matters most when something has. That is one count of ONE per branch across eight " +
+      "renders, and the branches share no heading, no landmark and no accessible name to key on. " +
+      "THE HOOK SITS ON THE `<dl>` AND NOT ON THE SURROUNDING PATTERN: `PanelCard` owns its own " +
+      "`panel-card` id and takes no pass-through props, so a second id on it is not expressible — the " +
+      "shape `money-statement` already records from the other side.",
+    owner: "13-09",
   },
 };
