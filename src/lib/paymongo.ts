@@ -65,6 +65,15 @@ type FetchInit = {
   body?: unknown;
   /** Idempotency-Key for safe POST retries (PayMongo requirement). */
   idempotencyKey?: string;
+  /**
+   * OPT-IN request deadline (D-84, plan 13-03). Defaults to `undefined`, which is why every call site
+   * that existed before this parameter is behaviourally unchanged: per WebIDL an explicitly-`undefined`
+   * optional dictionary member is treated as ABSENT, so `fetch(url, { …, signal: undefined })` and
+   * `fetch(url, { … })` are the same request. The negative assertion in
+   * tests/payments/paymongo-calls.test.ts case (4) pins that, so a later "helpful" default deadline
+   * cannot be added here in silence.
+   */
+  signal?: AbortSignal;
 };
 
 /**
@@ -87,6 +96,8 @@ async function paymongoFetch<T>(path: string, init: FetchInit = {}): Promise<T> 
     method,
     headers,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    // The ONLY place a deadline can be threaded. `undefined` here === no signal at all (see FetchInit).
+    signal: init.signal,
   });
 
   const text = await res.text();
@@ -315,19 +326,75 @@ export async function expireCheckoutSession(id: string): Promise<{ id: string }>
   }
 }
 
-export type CheckoutSessionState = { id: string; status: string };
+export type CheckoutSessionState = {
+  id: string;
+  status: string;
+  /** The RAIL the session was paid on ("card" | "gcash" | "paymaya" | "qrph"), or null if unpaid/absent. */
+  sourceType: string | null;
+  /** The instant PayMongo says it was paid, or null. NEVER a proxy — D-85 forbids inventing one. */
+  paidAt: Date | null;
+};
 
 /**
  * Read a hosted Checkout Session (GET /v1/checkout_sessions/{id}). Returns the id + the provider's
- * `attributes.status` ("active" while payable, "expired" once retired). Used to PROVE a superseded
- * session is no longer payable after expireCheckoutSession — the guarantee the confirm webhook (which
- * keys on reference_number alone, D-57) cannot enforce on its own. Throws through paymongoFetch on non-2xx.
+ * `attributes.status` ("active" while payable, "expired" once retired), plus (D-84) the rail the
+ * session was paid on and the instant it was paid. Used to PROVE a superseded session is no longer
+ * payable after expireCheckoutSession — the guarantee the confirm webhook (which keys on
+ * reference_number alone, D-57) cannot enforce on its own — and, since plan 13-03, to recover the two
+ * money facts `booking` has no column for. Throws through paymongoFetch on non-2xx.
+ *
+ * ── THE RESPONSE SHAPE, AS THE FIXTURES ENCODE IT ────────────────────────────────────────────────────
+ * `attributes.payments` is an array of FULL Payment resources, so the rail sits TWO `attributes` deep —
+ * do not flatten it to `payments[0].source.type`, which is the nesting depth this reads like and is not:
+ *
+ *   { data: { id, attributes: { status, paid_at,
+ *             payments: [ { id, attributes: { source: { type }, status } } ] } } }
+ *
+ * `paid_at` is Unix SECONDS (PayMongo's convention for every timestamp it returns), hence the ×1000.
+ * The shape is PayMongo's DOCUMENTED contract, pinned by fixtures in
+ * tests/payments/paymongo-calls.test.ts; it is NOT a live-observed body, and confirming it against a
+ * real paid session is a named UAT item. Every field defaults defensively (`?? ""` / `?? null`, the
+ * idiom the pre-D-84 line already used) because a fabricated rail would print a payment method the
+ * booker never used, and a non-finite `paid_at` would mint an Invalid Date — truthy, and rendered
+ * verbatim on a receipt.
+ *
+ * ── WHY THE DEADLINE IS OPT-IN AND NOT A DEFAULT (D-84) ──────────────────────────────────────────────
+ * This function is load-bearing INSIDE expireCheckoutSession's double-charge guard (LW-01), where the
+ * ONE tolerated outcome is the provider itself reporting the session retired. A deadline there converts
+ * "the provider says this session can never be paid" into a NEW way to fail closed, on the exact path
+ * whose failure costs an unrefunded double capture — so that call site passes no options and must keep
+ * passing none. The booker-facing surfaces that need a bound are NEW callers (see
+ * src/lib/payments/checkout-probe.ts) and they ask for one explicitly.
  */
-export async function getCheckoutSession(id: string): Promise<CheckoutSessionState> {
-  const json = await paymongoFetch<{ data: { id: string; attributes: { status?: string } } }>(
+export async function getCheckoutSession(
+  id: string,
+  opts?: { timeoutMs?: number },
+): Promise<CheckoutSessionState> {
+  const json = await paymongoFetch<{
+    data: {
+      id: string;
+      attributes: {
+        status?: string;
+        paid_at?: unknown;
+        payments?: Array<{ attributes?: { source?: { type?: string } } }>;
+      };
+    };
+  }>(
     `/v1/checkout_sessions/${id}`,
+    // No `timeoutMs` ⇒ no `signal` key reaches paymongoFetch at all.
+    opts?.timeoutMs !== undefined ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {},
   );
-  return { id: json.data.id, status: json.data.attributes.status ?? "" };
+  const attributes = json.data.attributes;
+  const paidAtSeconds = attributes.paid_at;
+  return {
+    id: json.data.id,
+    status: attributes.status ?? "",
+    sourceType: attributes.payments?.[0]?.attributes?.source?.type ?? null,
+    paidAt:
+      typeof paidAtSeconds === "number" && Number.isFinite(paidAtSeconds)
+        ? new Date(paidAtSeconds * 1000)
+        : null,
+  };
 }
 
 export type Refund = { id: string; status: string };

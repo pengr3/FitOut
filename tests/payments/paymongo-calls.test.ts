@@ -16,6 +16,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   createCheckoutSession,
   expireCheckoutSession,
+  getCheckoutSession,
   createBatchTransfer,
   createRefund,
   listWalletAccounts,
@@ -578,5 +579,140 @@ describe("listWalletAccounts — activated wallets (/v2, GET)", () => {
     expect(call.method).toBe("GET");
     // GET carries no Idempotency-Key (only POSTs do).
     expect(call.headers["Idempotency-Key"]).toBeUndefined();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+// D-84 — getCheckoutSession WIDENED to the rail + the paid-at instant, with an OPT-IN deadline (13-03).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE POINT OF THIS BLOCK IS THE WORD *OPT-IN*. `paymongoFetch` set no `AbortSignal` anywhere in `src/`
+// before this change (the gap `src/lib/payments/config.ts` records against CHECKOUT_LEASE_TTL_SECONDS),
+// so a deadline is NET-NEW infrastructure on the money path. It is threaded per call rather than made a
+// default because `getCheckoutSession` is load-bearing INSIDE `expireCheckoutSession`'s double-charge
+// guard (LW-01): there, a deadline converts "the provider says this session is retired" — the one
+// tolerated outcome — into a new way to fail closed, on a path whose failure costs an unrefunded double
+// capture. The booker-facing surfaces that need a deadline are NEW callers, and they ask for one.
+//
+// So the two assertions that actually protect the money path are the NEGATIVE ones: no signal reaches
+// `fetch` when no options are passed, and no signal reaches the expire recovery probe. T-13-03-EXPIREREG
+// is those two lines. A default timeout would redden them both, which is exactly what they are for.
+//
+// THE RESPONSE SHAPE, as the fixtures below encode it (PayMongo's documented Checkout Session resource —
+// `attributes.payments` is an array of FULL Payment resources, so the rail is TWO `attributes` deep):
+//
+//   { data: { id, attributes: { status, paid_at, payments: [ { id, attributes: { source: { type } } } ] } } }
+//
+// `paid_at` is Unix SECONDS (PayMongo's convention for every timestamp it returns), which is why the
+// assertion below multiplies rather than comparing the raw number.
+describe("getCheckoutSession — the D-84 widening + the opt-in deadline (/v1, GET)", () => {
+  /** A GET /v1/checkout_sessions/<id> body in PayMongo's documented shape. */
+  function sessionBody(
+    id: string,
+    attributes: Record<string, unknown>,
+  ): Response {
+    return jsonResponse({ data: { id, attributes } });
+  }
+
+  /** The RequestInit recorded on the Nth fetch call — the only place `signal` is observable. */
+  function initAt(index: number): RequestInit {
+    return (fetchMock.mock.calls[index] as [string, RequestInit])[1];
+  }
+
+  it("(1) reads the rail out of payments[0].attributes.source.type and paid_at as a Date", async () => {
+    fetchMock.mockResolvedValue(
+      sessionBody("cs_paid", {
+        status: "paid",
+        paid_at: 1_755_600_000,
+        payments: [{ id: "pay_1", attributes: { source: { type: "gcash" }, status: "paid" } }],
+      }),
+    );
+
+    const state = await getCheckoutSession("cs_paid");
+
+    expect(state.id).toBe("cs_paid");
+    expect(state.status).toBe("paid");
+    expect(state.sourceType).toBe("gcash");
+    // Unix SECONDS → ms. Comparing the raw number would pass against a broken ×1 implementation.
+    expect(state.paidAt).toBeInstanceOf(Date);
+    expect(state.paidAt!.getTime()).toBe(1_755_600_000_000);
+
+    expect(lastCall(fetchMock).url).toBe("https://api.paymongo.com/v1/checkout_sessions/cs_paid");
+    expect(lastCall(fetchMock).method).toBe("GET");
+  });
+
+  it("(2) defaults DEFENSIVELY when the provider omits payments, source or paid_at", async () => {
+    // Three shapes an unpaid / partially-populated session really returns. None may throw, and none may
+    // invent a rail: a fabricated `card` here would print a payment method the booker never used.
+    const shapes: Array<Record<string, unknown>> = [
+      {}, // nothing at all — the shape the existing "" status case already relies on
+      { status: "active", payments: [] }, // an unpaid session: the array exists and is empty
+      { status: "active", payments: [{ id: "pay_x", attributes: {} }] }, // a payment with no source
+    ];
+    for (const attributes of shapes) {
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValue(sessionBody("cs_thin", attributes));
+
+      const state = await getCheckoutSession("cs_thin");
+      expect(state.sourceType).toBeNull();
+      expect(state.paidAt).toBeNull();
+    }
+  });
+
+  it("(3) ignores a paid_at that is not a finite number rather than minting an Invalid Date", async () => {
+    for (const paid_at of [null, "2026-08-20", Number.NaN]) {
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValue(sessionBody("cs_odd", { status: "paid", paid_at }));
+      const state = await getCheckoutSession("cs_odd");
+      // An Invalid Date is truthy and formats as "Invalid Date" on a receipt — worse than a null.
+      expect(state.paidAt).toBeNull();
+    }
+  });
+
+  it("(4) T-13-03-EXPIREREG: with NO options, NO signal reaches fetch — the default is unchanged", async () => {
+    fetchMock.mockResolvedValue(sessionBody("cs_nosig", { status: "active" }));
+
+    await getCheckoutSession("cs_nosig");
+
+    expect(initAt(0).signal).toBeUndefined();
+  });
+
+  it("(5) with { timeoutMs }, an AbortSignal DOES reach fetch", async () => {
+    fetchMock.mockResolvedValue(sessionBody("cs_sig", { status: "active" }));
+
+    await getCheckoutSession("cs_sig", { timeoutMs: 5_000 });
+
+    const signal = initAt(0).signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal!.aborted).toBe(false);
+  });
+
+  it("(6) the abort SURFACES as a rejection — never as a silently-empty result", async () => {
+    // A hung provider: fetch resolves only when the deadline fires. If the abort were swallowed, the
+    // caller would receive a session state with no rail and treat a timeout as "the rail is unknown"
+    // — a different fact, and the one D-85 forbids printing as a payment date.
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit = {}) =>
+        new Promise((_resolve, reject) => {
+          const signal = init.signal;
+          if (!signal) return; // hang forever — the test times out and names this line
+          signal.addEventListener("abort", () => reject(signal.reason));
+        }),
+    );
+
+    await expect(getCheckoutSession("cs_hung", { timeoutMs: 20 })).rejects.toThrow();
+  });
+
+  it("(7) T-13-03-EXPIREREG: expireCheckoutSession's recovery probe still passes NO deadline", async () => {
+    stubExpireAndProbe(fetchMock, {
+      expire: () => errorResponse(400, "Checkout session is already expired"),
+      probe: "expired",
+    });
+
+    await expect(expireCheckoutSession("cs_recover")).resolves.toEqual({ id: "cs_recover" });
+
+    expect(fetchMock.mock.calls).toHaveLength(2);
+    expect(initAt(0).signal).toBeUndefined(); // the expire POST
+    expect(initAt(1).signal).toBeUndefined(); // the LW-01 re-probe — the line that must never gain one
   });
 });

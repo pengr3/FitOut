@@ -98,16 +98,22 @@ export const PRE_SESSION_HOST_REMINDER_HOURS = Number(process.env.PRE_SESSION_HO
  *  WHY 90, IN BOTH DIRECTIONS — this number is bounded from below AND above, and the floor is the dangerous
  *  side:
  *   - FLOOR. The lease covers exactly two PayMongo HTTPS round-trips (expire + create) plus two local
- *     UPDATEs. `paymongoFetch` sets NO timeout — plain fetch, no AbortSignal — so a degraded provider can
- *     take tens of seconds. A TTL shorter than that slow path would let a retry OVERTAKE a still-live
- *     attempt and re-open the very race this closes. 90s is roughly 45x the normal ~2s cost.
+ *     UPDATEs. `paymongoFetch` sets NO timeout on either of them — so a degraded provider can take tens
+ *     of seconds. A TTL shorter than that slow path would let a retry OVERTAKE a still-live attempt and
+ *     re-open the very race this closes. 90s is roughly 45x the normal ~2s cost.
  *   - CEILING. A crashed attempt must not wedge the booker for a meaningful slice of the 60-minute
  *     PAYMENT_WINDOW_MINUTES — 90s is 2.5% of it — and one wait-then-retry must still fit the 5/60s
  *     confirm-pay budget, which it does with room to spare.
  *
- *  NAMED RESIDUAL (T-KV2-04, accepted): this bounds the LEASE, not the HTTP call. A request hung beyond 90s
- *  can still be overtaken; adding an AbortSignal.timeout to `paymongoFetch` is the follow-up that would make
- *  the bound total.
+ *  NAMED RESIDUAL (T-KV2-04) — NARROWED by plan 13-03 (D-84), NOT closed. What changed: `paymongoFetch`
+ *  now ACCEPTS an `AbortSignal`, and `getCheckoutSession(id, { timeoutMs })` can be given a deadline per
+ *  call. What did NOT change, and is the half that still matters here: the deadline is OPT-IN, and every
+ *  money-path caller — confirmBooking's expire, its create, and expireCheckoutSession's own LW-01 re-probe
+ *  — still passes NONE, deliberately (a deadline on the re-probe turns "the provider says this session is
+ *  retired" into a new way to fail closed on the double-charge guard). So the FLOOR argument above stands
+ *  unchanged and the 90s is still bounding an unbounded call. Only the booker-facing probe
+ *  (src/lib/payments/checkout-probe.ts) opts in. Making the bound TOTAL still means giving the two
+ *  lease-covered calls a deadline, and that is still a money-path decision nobody has taken.
  *
  *  `Math.round` is load-bearing, not decoration: the value is bound into `make_interval(secs => ...::int)`,
  *  so a fractional env override would raise a cast error ON THE MONEY PATH instead of quietly working. */
