@@ -47,6 +47,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [x] **Phase 11: Quality Gates, Pattern Layer & App Shell** - Make the gates capable of failing, seed the shared patterns, and give the app a real header, footer and state families (completed 2026-08-17)
 - [x] **Phase 12: Booker Path — Search → Listing → Checkout** - The route from an empty search box to the payment redirect reads as one designed product
  (completed 2026-08-19)
+
 - [ ] **Phase 13: Confirmation, Bookings & Trust** - After paying, a booker sees exactly what they bought, where their money is, and what happens next
 - [ ] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees
 - [ ] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity
@@ -310,21 +311,50 @@ Plans:
 **Plans**: 16 plans in 10 waves
 
 Plans:
+**Wave 1**
+
 - [ ] 13-01-PLAN.md — the booking shell constant, the nested-`<main>` fix, and the payment-state seed helper (Wave 1)
 - [ ] 13-02-PLAN.md — the shared domain pieces: MoneyStatement, the guarded SupportPath, BookingReference (Wave 1)
 - [ ] 13-03-PLAN.md — the D-84 PayMongo probe with an opt-in timeout, the verified refund windows, and the zero-migration / qrph pins (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 13-04-PLAN.md — the reversed state: two money truths, and it survives `?paid=1`'s removal (Wave 2)
 - [ ] 13-05-PLAN.md — STATE-08: a refund amount, a headcount and a voided invite leave the toasts (Wave 2)
 - [ ] 13-06-PLAN.md — the cancel review page's three items, and the email refund-window copy constant (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 13-07-PLAN.md — the net-new not-completed state and the pending state's promise (Wave 3)
 - [ ] 13-08-PLAN.md — the group surfaces' design-system pass, and nothing else (Wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 13-09-PLAN.md — the closed four-signal trust block and the post-payment address boundary (Wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 13-10-PLAN.md — the detail page across every status, plus the owner-safe not-found (Wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 13-11-PLAN.md — the confirmation moment, and its decay (Wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 13-12-PLAN.md — the receipt route, screen and print (Wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 13-13-PLAN.md — the receipt parity, print-media and glyph-width proofs (Wave 8)
 - [ ] 13-14-PLAN.md — the live-region discharge and the countdown's rule-3 shape (Wave 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 13-15-PLAN.md — the phase-wide surface gates and the eleven visual-baseline fixtures (Wave 9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
 - [ ] 13-16-PLAN.md — the baseline dispatch, the four manual-only walks, and the PARTIAL closes (Wave 10, checkpoints)
 
 **UI hint**: yes

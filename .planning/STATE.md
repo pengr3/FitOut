@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: Not started
-status: planning
-stopped_at: Phase 13 context gathered
-last_updated: "2026-08-20T01:23:11.747Z"
-last_activity: 2026-08-19
+status: executing
+stopped_at: "Phase 13 planned — 16 plans / 10 waves; plan-checker 0 blockers, 5 warnings closed; ready to execute"
+last_updated: "2026-08-20T03:04:08.513Z"
+last_activity: 2026-08-20 -- Phase 13 planning complete
 progress:
   total_phases: 11
   completed_phases: 3
-  total_plans: 54
+  total_plans: 70
   completed_plans: 54
   percent: 27
 ---
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 999.1 — auth flow tells the user nothing thin emails and silent post
+**Current focus:** **Phase 13 — Confirmation, Bookings & Trust.** Planned 2026-08-20: 16 plans in 10 waves, committed `af2ebd2`. Plan-checker: 0 blockers, 5 warnings all closed (`0b0d01c`). Coverage independently verified: 9/9 requirements, 36/36 decisions (D-60…D-95) cited in `must_haves` frontmatter, 0 same-wave `files_modified` collisions, 16/16 `<threat_model>` blocks, 48/48 tasks carrying `<read_first>` + `<acceptance_criteria>`. ⚠ Phase 999.1 is BACKLOG and was never the active phase — STATE had drifted to it; corrected here. ⚠ TRUST-01 and STATE-05 will close **PARTIAL** (code-complete, address-pending) because `SUPPORT_EMAIL` is null — `src/lib/site.ts:70` is the only line that changes (D-64, a `human_needed` item).
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 999.1
-Plan: 15 of 15
+Phase: 13
+Plan: 0 of 16
 Current Plan: Not started
-Total Plans in Phase: 15 (14 planned + the 12-15 gap-closure plan)
-Status: Ready to plan
+Total Plans in Phase: 16
+Status: Ready to execute
 
 **12-15 IS THE GAP-CLOSURE PLAN AND IT IS DONE (`f009864` · `7f63e34` · `ceb54d7`).** `ci.yml` now has a
 FOURTH job, `gate-visual`, that runs the visual project in the pinned Playwright image against a seeded
@@ -166,7 +166,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-19
+Last activity: 2026-08-20 -- Phase 13 planning complete
 
 ## Performance Metrics
 
