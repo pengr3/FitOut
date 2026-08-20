@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 10
+current_plan: 11
 status: executing
-stopped_at: Completed 13-09-PLAN.md
-last_updated: "2026-08-20T10:41:28.949Z"
+stopped_at: Completed 13-10-PLAN.md
+last_updated: "2026-08-20T16:07:01.005Z"
 last_activity: 2026-08-20
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 63
+  completed_plans: 64
   percent: 27
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13
-Plan: 10 of 16
-Current Plan: 10
+Plan: 11 of 16
+Current Plan: 11
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -405,6 +405,7 @@ Last activity: 2026-08-20
 | Phase 13 P07 | 95min | 3 tasks | 9 files |
 | Phase 13 P08 | 35min | 2 tasks | 10 files |
 | Phase 13 P09 | 31min | 3 tasks | 7 files |
+| Phase 13 P10 | 71 | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -747,6 +748,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-09: TRUST-04's closed set is enforced TWICE — a twelve-token scan over authored copy AND an exact row count over the rendered tree. Measured necessary: the token scan stayed GREEN on a real fifth signal ('Trusted host') that only the count caught.
 - [Phase ?]: 13-09: bookedListingAddress() is the ONE route to a booked listing's exact street (D-91) and composes the display lines too, so the page names an address column only inside its SELECT. publicListing() is byte-unchanged; the duplicated allow-list is pinned by a field-for-field equality assertion.
 - [Phase ?]: 13-09: the forbidden-signal scan reads AUTHORED COPY (string literals + JSX text), not raw source — measured, because a raw scan reports ten hits on a clean tree and all ten are comments.
+- [Phase ?]: 13-10: D-96 discharged as a THIRD reversed branch (indeterminate) — with no probe information no copy asserts a charge, proven on both the reversed and the abandoned-hold reading of one shared row signature
+- [Phase ?]: 13-10: bookings/[id] is one shell rendered eight ways; the outer Card is gone and the page moved OFF ALLOWED_RAW_CARD onto CARD_SURFACES as a declared panel-card adopter
 
 ### Pending Todos
 
@@ -852,8 +855,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-20T10:41:07.085Z
-Stopped at: Completed 13-09-PLAN.md
+Last session: 2026-08-20T16:07:00.978Z
+Stopped at: Completed 13-10-PLAN.md
 Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
