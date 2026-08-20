@@ -164,6 +164,8 @@ export const SELECTOR_IDS = [
   "search-relax-band",
   // 12-13 — STATE-07's in-place collision notice: the window that went, above the refreshed picker.
   "collision-notice",
+  // 13-02 — the three shared domain components every later Phase-13 surface composes.
+  "support-path",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -552,5 +554,31 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "booker's own selection, so a spec matching on it would have to know the window in order to find " +
       "the element that proves the window was named.",
     owner: "12-13",
+  },
+
+  // ─── 13-02 ─────────────────────────────────────────────────────────────────────────────────────────
+  "support-path": {
+    why:
+      "THE ASSERTION THIS HOOK CARRIES IS AN ABSENCE, AND WHILE `SUPPORT_EMAIL` IS NULL THERE IS NO " +
+      "ELEMENT FOR A ROLE QUERY TO FIND. D-64 renders this component as nothing at all in the unfilled " +
+      "state, so the thing that has to be measurable is \"zero of these anywhere in the document\" — " +
+      "and the moment the constant is set, \"exactly one per surface, in the presentation that surface " +
+      "asked for\". A `getByRole(\"link\")` count cannot state either: the booking surfaces this mounts " +
+      "on already render several links (the listing, the receipt, the group page, the footer's own " +
+      "entry once the constant is set), so a role count moves for reasons that have nothing to do with " +
+      "this affordance. Its accessible NAME is no handle either — the label arrives as a prop and " +
+      "differs per call site by design (the money panel's control and the trust block's row are not " +
+      "the same sentence), so a name query would have to enumerate the copy in order to find the " +
+      "element, and would go green the day a surface changes its wording. " +
+      "THE ID IS LOWER-CASE DELIBERATELY, AND THAT IS VERIFIED RATHER THAN INCIDENTAL: " +
+      "`tests/design/site-contacts.test.ts:238` bans an unguarded label matching `/\\bSupport\\b/` — " +
+      "capitalised and word-bounded — so a hyphenated lower-case hook is invisible to that scan by " +
+      "construction. A capitalised spelling of the hook would make the inverted gate red against the " +
+      "very component built to satisfy it. " +
+      "⚠ AND THIS ROW LEARNED THAT THE HARD WAY: its first draft QUOTED the capitalised spelling in " +
+      "this very sentence, and the gate went red on `selector-contract.ts` itself — the scan walks all " +
+      "of `src/**`, this module is inside it, and a `why` is a string LITERAL rather than a comment, " +
+      "so unlike prose it is visible to the AST walk. Do not re-introduce the word here to explain it.",
+    owner: "13-02",
   },
 };
