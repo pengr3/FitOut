@@ -410,10 +410,12 @@ have been given.
 server-only, bounded, resolves `null` on any failure, and returns the rail and `paid_at`. It is exactly
 the call that found the two rows above. Nothing queries it on a schedule.
 
-**Plans:** 0 plans
+**Plans:** 3 plans in 3 waves
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 13.1 to break down)
+- [ ] 13.1-01-PLAN.md — extract D-105's single idempotent confirm path out of the webhook route, carry the `pay_...` off the provider read, and prove the guard by running confirm twice concurrently
+- [ ] 13.1-02-PLAN.md — the 5-minute reconciliation sweep (the guarantee): probe recent paid-but-unconfirmed bookings, confirm through the one path, alert on a missed webhook, no backfill
+- [ ] 13.1-03-PLAN.md — the fast path: one authenticated, rate-limited reconcile after the settling screen's poll cap, reusing the sweep's own body and adding no copy
 
 ### Phase 14: Host Tooling
 
