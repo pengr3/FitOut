@@ -45,7 +45,7 @@
 - [ ] **STATE-05**: Payment states are three distinct things and never conflated — *not completed* (neutral, states "you haven't been charged", offers retry and the alternative rails inline), *pending settlement* (no error affordance at all while the webhook is still the outstanding authority), and *reversed* (explicit money statement plus a support path carrying the reference) — ⚠ **PARTIAL after Phase 13:** the three states are distinct, proved, and joined by D-96's fourth (`indeterminate`) branch; the **support path** is code-complete behind D-64's guard and renders nothing while `SUPPORT_EMAIL` is `null` — `src/lib/site.ts:70` is the only line that changes. Its manual-return copy also awaits WALK C (`13-16-SUMMARY.md`). Code-complete, address-pending, per D-64's explicit instruction.
 - [x] **STATE-06**: Every payment state states where the money is, in words, above the fold
 - [x] **STATE-07**: A "slot just taken" collision resolves in place as a calm result rather than an error — refreshed availability lands in the same paint so the user sees why, and the nearest alternatives are offered rather than only a way back
-- [ ] **STATE-08**: Terminal success is a full-page moment; non-terminal success is a toast — and anything the user must actually read (a refund amount, a reduced headcount) is an in-page alert, never a toast — ⚠ **PARTIAL after Phase 13:** the three named corrections shipped, were verified in situ, and had their live regions declared; the AST scan over `bookings/**` is extended. **One named residual:** `src/components/booking/refund-destination-form.tsx:88`'s `toast.warning(res.notice)` — the D-72 manual-transfer branch, a server-composed sentence saying money the booker is owed did not move automatically. It is invisible to the AST scan (not a string literal) and is a recorded blind spot in `tests/design/status-vocab.test.ts`. Deciding its surface decides its copy; see `13-16-SUMMARY.md`.
+- [x] **STATE-08**: Terminal success is a full-page moment; non-terminal success is a toast — and anything the user must actually read (a refund amount, a reduced headcount) is an in-page alert, never a toast — **COMPLETE after plan 13-18 (2026-08-21).** The three named corrections shipped with their live regions declared, and the last residual is closed: `refund-destination-form.tsx`'s `toast.warning(res.notice)` is gone and `notice` was removed from the action's result type entirely. 13-18 found the toast was only half the defect — `notice` was set ONLY on the unrefundable-rail branch, so a booker whose `createRefund` actually raised, or who supplied no destination, was told **nothing** while `/bookings/{id}` rendered "₱X refund on its way" plus a verified window. The fact is now durable on the destination, derived from the `needs_attention` audit rows the cancellation already writes (zero migrations), and reaches strictly more bookers than the field it replaced. The AST scan's literal-only blind spot is closed by an opaque-argument allow-list keyed on the argument's source text.
 
 ### App shell & chrome (SHELL)
 
@@ -199,7 +199,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | STATE-05 | Phase 13 | Partial |
 | STATE-06 | Phase 13 | Complete |
 | STATE-07 | Phase 12 | Complete |
-| STATE-08 | Phase 13 | Partial |
+| STATE-08 | Phase 13 | Complete |
 | SHELL-01 | Phase 11 | Complete |
 | SHELL-02 | Phase 11 | Complete |
 | SHELL-03 | Phase 12 | Complete |
