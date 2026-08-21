@@ -59,3 +59,34 @@ Left alone DELIBERATELY, under the scope boundary: 13-18 touches the cancellatio
 the path, or delete the stale worktree — are both operator calls about tooling, and picking one inside
 a money-path commit would bury it. Recorded here so the next reader knows it is known rather than
 unnoticed.
+
+---
+
+## From 13-19 — four `checkout` visual baselines need regeneration on CI (D-101.2)
+
+D-101.2 changes the checkout's way-back control from `variant="ghost"` to `variant="outline"` — a
+deliberate visual change, because the defect was that the control was invisible. `checkout` is one of
+the sixteen baselined surfaces in `e2e/visual/surfaces.spec.ts-snapshots/`, and it is `kind:
+"document"`, so all four of its PNGs move:
+
+    checkout-320-court-visual-linux.png    checkout-1280-court-visual-linux.png
+    checkout-320-grove-visual-linux.png    checkout-1280-grove-visual-linux.png
+
+**Nothing else moves.** Every other Phase-13 surface this plan touched — `booking-moment`,
+`booking-confirmed`, `payment-pending`, `payment-reversed-*`, `booking-group` — is BLOCKED in
+`src/lib/design/visual-baselines.ts` and has no baseline to break. Checked file-by-file against the
+snapshot directory rather than assumed: the sixteen ids on disk are `auth-login`, `booking-not-found`,
+`checkout`, `collision-notice`, `dev-theme`, `listing-detail`, `listing-lightbox`, `listing-sheet`,
+`og-{invite,listing,root}`, `privacy`, `root-not-found`, `search-relax-band`, `search-results`,
+`terms`, and `checkout` is the only one this plan's diff can reach.
+
+**Why it is not done here.** Baselines are Linux-container artefacts minted by the `baselines.yml`
+`workflow_dispatch` job; the phase's standing invariant is that **no baseline is ever minted locally**
+on this machine, and this executor was instructed not to push. The regeneration is one dispatch after
+the branch lands.
+
+⚠ **The comparison run is the deliverable, never the generation run** — 13-16 recorded this and it
+applies again: `baselines.yml` emits `::warning::These baselines have NOT been verified` about its own
+output. Dispatch `baselines.yml`, then read the next `ci` run's `gate-visual` job. Until that happens,
+`gate-visual` reports a diff on exactly those four PNGs and on nothing else, and that is the expected
+state rather than a regression.

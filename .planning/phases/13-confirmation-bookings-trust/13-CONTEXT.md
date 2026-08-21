@@ -24,7 +24,8 @@ STATE-08.
 
 > **Decision-ID namespace — read before citing a number.** These continue the per-phase CONTEXT
 > sequence (Phase 10 = D-01…D-22, Phase 11 = D-23…D-36, Phase 12 = D-37…D-59), so **Phase 13 runs
-> D-60…D-97**. That range **collides with PROJECT.md's own D-numbered records**, which already occupy
+> D-60…D-101** (extended from D-97 on 2026-08-21 by the four live-UAT corrections at the end of this
+> section). That range **collides with PROJECT.md's own D-numbered records**, which already occupy
 > **D-62** (demand-first booking-mode default flip, cited in `src/lib/db/schema.ts:199`), **D-66** (no
 > React Email / no new email stack), **D-75** (the all-in rate never goes up) and **D-79** (what
 > actually went back to the booker, cited in `src/app/(app)/bookings/[id]/page.tsx:169`). The collision
@@ -101,11 +102,15 @@ STATE-08.
   least sure. The plain date is factual, does not editorialise, and strengthens on its own as the
   marketplace ages.
 
-- **D-67: Full trust block on the booking detail page for EVERY status; a condensed version inside the
-  confirmation moment.** Trust matters most when something looks wrong — a pending or reversed
+- ~~**D-67: Full trust block on the booking detail page for EVERY status; a condensed version inside the
+  confirmation moment.**~~ ⚠ **SUPERSEDED BY D-98 (2026-08-21) — the panel is removed from every
+  surface.** The reasoning below was right about the NEED and wrong about the answer; see D-98.
+  Original text: Trust matters most when something looks wrong — a pending or reversed
   payment — so binding it to the happy path only would remove it precisely when it is needed.
 
-- **D-68: The four signals are a CLOSED set, and each maps to a real column.** `user.createdAt` (host
+- ~~**D-68: The four signals are a CLOSED set, and each maps to a real column.**~~ ⚠ **SUPERSEDED BY
+  D-98 (2026-08-21).** The half that survives unchanged is the ⚠ paragraph below: no invented signal
+  ships, ever. What is superseded is the mandate to show four. Original text: `user.createdAt` (host
   since), `listing.publishedAt` (listing published), `host_payout.onboarding_complete` (via D-65's
   reframing), `listing.bookingMode` (request-to-book behaviour).
   ⚠ **There is NO response-rate or response-time column in `src/lib/db/schema.ts`.** "Responds within
@@ -364,6 +369,108 @@ both are places where ambiguity would produce invented copy.
   so a later plan does not silently flip it back. If the table's wording is ever preferred, that is the
   one line to change, and it changes in the table too.
 
+### Found in live UAT (2026-08-21) — PM corrections, plan 13-19
+
+> These were taken by the PM **after using the shipped surfaces**, which is a source of evidence no
+> earlier decision in this file had. They have the same force as D-60…D-97 and **supersede anything
+> above that conflicts**. The namespace note at the top of § Implementation Decisions still applies:
+> cite these as "13-CONTEXT D-98" and never as a bare number.
+
+- **D-98: The four-row trust panel is REMOVED from every booking surface. It supersedes D-67 and D-68.**
+  The PM used it and judged it filler. The evidence is on their side:
+  1. **At launch every host and every listing reads the same month.** *Host since* and *Listing
+     published* were therefore the same two strings on every booking in the product. A date that
+     distinguishes nothing is furniture, not a signal — and D-66's own argument for the plain date
+     ("it strengthens on its own as the marketplace ages") concedes that today it carries nothing.
+  2. **On a cancelled or reversed booking the payment row was worse than useless.** *"FitOut holds
+     your payment until after your session"* is a promise about a session that is not happening.
+     D-67's reasoning — trust matters most when something looks wrong — was right about the NEED and
+     wrong about the answer: what those states need is the money truth, and `MoneyStatement` and
+     `ManualReturnNotice` already own it.
+  ⚠ **TRUST-04 IS A CONSTRAINT, NOT A MANDATE TO SHOW FOUR.** The requirement says only REAL trust
+  signals may be shown. `tests/design/trust-signals.test.ts` — twelve forbidden tokens, two-piece
+  encoding, four-part positive control — stays **byte-unchanged and green**. Removing the panel
+  removes signals; it must never remove the ban on inventing new ones.
+  ⚠ **13-09's exact-row COUNT is RETARGETED, not retired.** 13-09 measured that the token ban stayed
+  GREEN on a real fifth signal (`Trusted host`) and only the count caught it, so deleting the count
+  with the component would have dropped the one gate that worked. It now asserts the ordered `<dt>`
+  TERM SET of the whole render, per status, across all ten renders in
+  `tests/booking/detail-completeness.test.tsx` — strictly stronger than a count, because a renamed or
+  reordered row fails it too. The four state components declare `[]`, which is a CLAIM (they open no
+  definition list at all) rather than an absence.
+  **The one sentence worth keeping was kept** — the platform guarantee is D-65's reframing of the
+  hold-until-session payout model, and it moved into D-99's paid statement, on the branch where it is
+  true, instead of onto every branch where it was not.
+
+- **D-99: The confirmed page must state plainly that it is PAID.** The PM's words: *"the ticket shows
+  booking confirmed and not paid… there's no obvious key wherein it stated that it is already paid
+  for."* The page rendered a status badge, an `<h1>` reading *Booking confirmed*, and a facts row
+  labelled *Total* beside a figure — and none of those three answers whether the figure has been paid
+  or is DUE. On a screenshotted ticket `Total ₱1,050.00` reads at least as naturally as an amount
+  outstanding.
+  - The `<h1>` becomes **"Booking confirmed & paid"** on the confirmed render. Confirmed is about the
+    SLOT; paid is about the MONEY, and only the first was on the page.
+  - A named `PaidStatement` names the amount: *"Paid in full — ₱X."*, carrying the platform guarantee
+    as its second sentence.
+  ⚠ **IT MUST BE TRUE FOR THE BRANCH IT RENDERS ON, AND THE COMPLETED BRANCH IS THE TRAP.** The payout
+  sweep runs at `endsAt + PAYOUT_DELAY_HOURS`, so *"FitOut holds your payment until after your
+  session"* is FALSE once the session has happened — one unconditional sentence would be true on
+  Monday and a lie on Wednesday about the same booking. The statement takes a `phase`: `held` carries
+  the clause, `settled` **drops** it rather than rewording it, because the honest replacement would be
+  a second claim about where the money is NOW and this page has read neither the payout ledger nor the
+  sweep (D-96's rule, one correction later).
+  ⚠ **It mounts on `confirmed` and the derived `completed` and on NOTHING ELSE**, asserted per status
+  in both directions. A paid statement on `requested` or an `approved`-but-unpaid hold would tell a
+  booker they were charged for something pay-on-approval means they were not (D-90); on a reversed or
+  indeterminate cancellation it would assert a charge the D-84 probe may never have confirmed (D-96).
+  ⚠ **`MoneyStatement` is untouched (D-73 / D-94).** This is not a fifth member of its closed
+  four-status set: those four explain a payment that is unfinished, undone or returned, and this one
+  states that a payment is complete. Different sentence, different job, different branch.
+
+- **D-100: The confirmation moment must not restate the facts card, and the closing line goes.** The
+  PM found that the celebratory header plus the Space / Where / When / Host / Total card *"says the
+  same thing twice"*. It did: the moment carried the venue, the venue-local window, the named
+  timezone, the full address, the reference, the amount AND the cancellation policy — every one of
+  which renders again in the detail directly beneath it.
+  **The rule: the header carries the moment and the outcome; the facts card carries the detail.**
+  Four items survive — the success mark, the `<h1>`, the paid statement (D-99, passed as a SLOT so the
+  moment and the detail cannot state two different paid sentences), and D-63's email line.
+  ⚠ **NOTHING THAT LIVED ONLY IN THE HEADER MAY BE LOST** — that is D-60's decay-safety argument, and
+  it is the condition to re-check before compacting further. Exactly two facts live only there: the
+  email destination and the request `<h1>`'s approval fact. Both stayed. If a future compaction would
+  drop a fact that exists only in the moment, that fact moves into the facts card FIRST.
+  **The starkest duplication was the policy**: the moment was handed the IDENTICAL
+  `CancellationPolicyDisclosure` element the detail renders, so one screen carried two of it.
+  **The closing sentence is deleted, both arms** — *"This page is your confirmation — it stays here if
+  you refresh or come back later."* and its `completed` twin. A page that persists does not need to
+  announce that it persists.
+
+- **D-101: Two live defects, both real, both fixed in 13-19.**
+  1. **The pending spinner never stopped.** `pending-payment-state.tsx` rendered
+     `<Loader2Icon className="animate-spin">` UNCONDITIONALLY, so it kept turning after the poller
+     stopped at `MAX_ATTEMPTS` (~20s) — forever, under copy reading *"taking longer than usual"* and a
+     promise that an email is coming. The PM reported it as *"an infinite looping payment received"*.
+     Fixed by gating the indicator on `slow` and replacing it with a still clock (replaced, not
+     removed: deleting the glyph would reflow the heading block at the threshold).
+     ⚠ **The poller's mechanics are FROZEN and stayed frozen** (13-07's zero-changed-lines diff). This
+     is a rendering change; a filtered diff of the file for every mechanics token returns zero lines.
+     ⚠ **THE TRANSFERABLE FINDING: a test asserting text and roles cannot see a visual defect.** All
+     twenty existing cases stayed green through it, because a spinning element and a still one share
+     their text (none), their role (none), their accessible name (none — it is `aria-hidden`) and
+     their colour. The only difference is one class token, so the new cases read that token off real
+     elements with `class~=` — narrowed deliberately, since a raw markup match for a utility token is
+     satisfied by any surface whose serialised markup happens to contain it.
+  2. **The checkout's only way back was invisible.** On `/listings/[id]/book` it shipped as
+     `variant="ghost"`, which contributes hover states and nothing else. 12-CONTEXT D-59 §2 requires
+     *"one explicit, safe way back … that states the hold is kept"*, or the no-navigation checkout
+     *"reads as a dead end and the abandonment it causes is self-inflicted"*. Every clause was
+     satisfied except the one the paragraph is about: EXPLICIT is a claim about what a booker can SEE.
+     It is now `variant="outline"`, the product's neutral secondary, which does not compete with the
+     coral `Confirm & pay` (one accent per viewport).
+     ⚠ It moved into a named `WayBackLink` component, because the deeper defect was that a real
+     requirement had no owner: `e2e/shell.spec.ts` asserted its label, its href, its uniqueness and
+     its hold promise, and every one of those was green the whole time it rendered as body text.
+
 ### Claude's Discretion
 
 The PM delegated all technical implementation. Explicitly at the executor's discretion:
@@ -371,8 +478,13 @@ component decomposition, file layout, server/client boundaries (subject to GATE-
 how the URL rewrite is performed, the exact poll thresholds, and print-CSS mechanics.
 
 **Not at discretion — these are locked above:** the decay mechanism (D-60), the mode branch (D-62),
-the guarded support path (D-64), the closed signal set (D-68), the corrected reversed copy (D-69), the
-no-invented-refund-window rule (D-69), the informal-receipt boundary (D-75), and zero migrations (D-80).
+the guarded support path (D-64), the corrected reversed copy (D-69), the no-invented-refund-window rule
+(D-69), the informal-receipt boundary (D-75), zero migrations (D-80), and — since 2026-08-21 — the four
+PM corrections D-98…D-101.
+
+⚠ **The closed four-signal set (D-68) used to be on that list and is SUPERSEDED by D-98.** What remains
+locked from it is the half that was never about the number: no invented trust signal ships, ever, and
+`tests/design/trust-signals.test.ts` enforces it unmodified.
 
 </decisions>
 
