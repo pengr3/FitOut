@@ -432,6 +432,98 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
   });
 });
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// 13-CONTEXT D-101.1 — THE INDICATOR STOPS WHEN THE POLLING STOPS
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE DEFECT, FOUND BY THE PM IN LIVE UAT AND REPORTED AS *"an infinite looping payment received"*.
+// The spinner was rendered UNCONDITIONALLY. The poller stops at `MAX_ATTEMPTS` — eight attempts, about
+// twenty seconds — and after that nothing in this component is working on anything: the copy switches
+// to *"It's taking longer than usual"* and the next thing to happen is an email. The animation kept
+// turning anyway, forever, under copy that said the automatic path had given up. A perpetual animation
+// asserting work that has stopped is a lie the booker reads for as long as they leave the tab open.
+//
+// ⚠ WHY EVERY EXISTING CASE ABOVE STAYED GREEN THROUGH IT, WHICH IS THE TRANSFERABLE PART. They assert
+// on TEXT and on ROLES — the sentences, the control names, the live-region count, the class tokens that
+// paint an alarm colour. Not one of them can see whether an animation is still running, because a
+// spinning element and a still one have the same text, the same role, the same accessible name and the
+// same colour. THE ONLY THING THAT DIFFERS IS A CLASS TOKEN, so that is what this case reads.
+//
+// ⚠ AND IT READS THE TOKEN OFF ELEMENTS, NOT OFF `innerHTML`. A raw markup match for the token would
+// be satisfied by any string containing it anywhere in the subtree — and this repository has already
+// paid for that mistake once: the shipped `Button` recipe strings are long enough that substring
+// matching over serialised markup flags surfaces that render nothing of the kind. `class~=` matches a
+// whitespace-separated token on a real element and nothing else.
+//
+// ⚠ THE POLLER'S MECHANICS ARE NOT TOUCHED BY THE FIX THIS CASE DRIVES. 13-07 froze them — the
+// ref-held router, the interval-only setState, the clear-on-unmount, the bounded attempt count — and
+// proved the freeze with a zero-changed-lines diff. Case (8) below re-proves it from the outside: the
+// attempt count is still exactly the cap. This is a RENDERING change and must stay one.
+describe("D-101.1 — the pending indicator stops when the poller stops", () => {
+  /** Every element inside the tree carrying the spin token, as a real class-token match. */
+  const spinning = (root: HTMLElement) => root.querySelectorAll('[class~="animate-spin"]');
+
+  it("(7) spins while the poller is running, and STOPS once it has given up", () => {
+    const { container } = mountPending();
+    const root = container as unknown as HTMLElement;
+
+    // THE POSITIVE CONTROL FIRST, and it is not ceremony: an assertion that "nothing spins after the
+    // cap" is perfectly satisfied by a component that never spins at all, or by a selector that has
+    // stopped matching. The indicator must be turning while the page really is working on something.
+    expect(
+      spinning(root),
+      "nothing is animating on arrival — the page IS polling here, and an indicator that never moves " +
+        "is the opposite failure from the one this case exists for",
+    ).toHaveLength(1);
+
+    act(() => {
+      vi.advanceTimersByTime(POLL_CAP_MS);
+    });
+
+    // The poller really did stop, read from its own effect rather than from the clock.
+    expect(refresh.mock.calls.length, "the cap is 8 attempts (13-07, frozen)").toBe(8);
+
+    expect(
+      spinning(root),
+      "the spinner is still turning after the poller stopped. The copy beside it now says the " +
+        "automatic path has given up and an email is coming; a perpetual animation over that sentence " +
+        "tells the booker something is still happening when nothing is. The PM read it as an " +
+        "infinite loop, which is exactly what it looks like.",
+    ).toHaveLength(0);
+  });
+
+  it("(8) the indicator that replaces it is still present, still decorative, still calm", () => {
+    const { container } = mountPending();
+    const root = container as unknown as HTMLElement;
+
+    act(() => {
+      vi.advanceTimersByTime(POLL_CAP_MS);
+    });
+
+    // NOT REMOVED — REPLACED. Deleting the glyph outright would reflow the heading block the moment
+    // the threshold fires, which is a layout jump on a surface whose whole contract is calm.
+    const icons = root.querySelectorAll("svg");
+    expect(icons.length, "the heading block lost its glyph entirely at the threshold").toBeGreaterThan(
+      0,
+    );
+    for (const icon of icons) {
+      // The `<h1>` and the money statement are what speak; the glyph never announced anything and
+      // must not start now that it means something different.
+      expect(icon.getAttribute("aria-hidden"), "the indicator entered the accessibility tree").toBe(
+        "true",
+      );
+    }
+
+    // D-71's contract is unchanged at this threshold: the webhook is STILL the outstanding authority,
+    // so the replacement must not read as a failure. Asserted as class tokens because that is the only
+    // thing that distinguishes a calm glyph from an alarming one.
+    const tokens = [...icons].flatMap((el) => (el.getAttribute("class") ?? "").split(/\s+/));
+    for (const banned of ["text-destructive", "text-success", "text-attention"]) {
+      expect(tokens, `${banned} rides the pending indicator`).not.toContain(banned);
+    }
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // STATE-05 — THE DISTINCTNESS PROOF. Three states, four columns, and one negative.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

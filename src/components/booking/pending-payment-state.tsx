@@ -6,7 +6,8 @@
 // confirm authority. This poller therefore NEVER fabricates the confirmed state client-side: it only calls
 // router.refresh() on a bounded interval so the RSC can re-render itself as 'confirmed' when the DB says so.
 // After a cap it stops polling and shows the calm "taking longer" copy + a manual control (still just a
-// refresh). Neutral spinner — NOT success-green, NOT red — until the real status lands.
+// refresh). Neutral indicator — NOT success-green, NOT red — and it STOPS MOVING when the poller does
+// (D-101.1; see the block above the render).
 //
 // Hook discipline mirrors HoldCountdown: the setInterval callback is the ONLY state-mutation site (never a
 // synchronous setState in the effect body — react-hooks/set-state-in-effect); the interval is cleared on
@@ -67,10 +68,42 @@
 // a box that already supplies `bg-card ring-1 rounded-xl` pays the block padding twice (measured at
 // 112px against 80px for the row card's twin of this problem). The page is a stack of panels on the
 // page ground, which is what 13-UI-SPEC specifies for all three payment states.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// PLAN 13-19 (D-101.1) — THE INDICATOR IS GATED ON `slow`, AND IT USED NOT TO BE
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE DEFECT, FOUND BY THE PM IN LIVE UAT AND REPORTED AS *"an infinite looping payment received"*.
+// The spinner was rendered UNCONDITIONALLY, so it kept turning after the poller stopped at its cap —
+// forever, under copy that had just switched to *"It's taking longer than usual"* and a promise that
+// an email is coming. At that point NOTHING in this component is working on anything: the interval is
+// cleared, its callback no longer runs, and the next event in the booker's world arrives by mail. An
+// animation that keeps asserting work after the work has stopped is a lie, and it is a particularly
+// bad one here, because the surface's entire job is to be believed about a payment.
+//
+// ⚠ WHY NINE MONTHS OF TESTS COULDN'T SEE IT, WHICH IS THE PART WORTH CARRYING FORWARD. Every case in
+// `tests/booking/payment-states.test.tsx` asserts on TEXT, on ROLES, on control sets, on live-region
+// counts and on the class tokens that paint an ALARM colour. A spinning element and a still one share
+// all of those: same text (none), same role (none), same accessible name (none — it is `aria-hidden`),
+// same colour. The only difference is one class token, so the new cases (7) and (8) read that token
+// off real elements with `class~=`. Where a VISUAL contract matters, assert over the rendered tree —
+// and narrow it, because a raw `innerHTML` match for a utility token is satisfied by any surface whose
+// serialised markup happens to contain it.
+//
+// ⚠ REPLACED, NOT REMOVED. Deleting the glyph at the threshold would reflow the heading block the
+// instant it fires, which is a layout jump on the one surface whose whole contract is calm. A static
+// clock takes its place: it is the honest picture of the new state — time is passing, nobody is
+// working — and it is still `aria-hidden`, still neutral, still not `--destructive` and not
+// `--success`. D-71's rule is unchanged at this threshold and the icon must not start reading as a
+// failure just because the automatic path gave up: the webhook is STILL the outstanding authority.
+//
+// ⚠ AND THIS IS A RENDERING CHANGE ONLY. Not one line of the poller moved — the interval, the cap, the
+// ref-held router, the interval-only state write and the cleanup are exactly what 13-01 proved by diff
+// and 13-07 preserved. `slow` was already this component's state; it is simply read in one more place.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2Icon } from "lucide-react";
+import { ClockIcon, Loader2Icon } from "lucide-react";
 
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
@@ -177,9 +210,17 @@ export function PendingPaymentState({ reference, email }: PendingPaymentStatePro
     <div className={BOOKING_SHELL} data-testid="payment-state-pending">
       <div className="space-y-6">
         <div className="flex flex-col items-center gap-4 text-center">
-          {/* Neutral, decorative spinner — NOT success-green and NOT an alarm. The announced text is
-              the money statement below, which is the one thing on this page that changes. */}
-          <Loader2Icon className="size-8 animate-spin text-muted-foreground" aria-hidden="true" />
+          {/* Neutral, decorative, and GATED ON `slow` (D-101.1 — see the block above). While the
+              poller is running the spinner is true: the page really is doing something and really
+              will update itself. The moment it stops at its cap, a still clock replaces it, because
+              the true statement then is that time is passing and nobody is working. Neither is
+              success-green and neither is an alarm; the announced text is the money statement below,
+              which is the one thing on this page that changes. */}
+          {slow ? (
+            <ClockIcon className="size-8 text-muted-foreground" aria-hidden="true" />
+          ) : (
+            <Loader2Icon className="size-8 animate-spin text-muted-foreground" aria-hidden="true" />
+          )}
           <h1 className="text-xl leading-tight font-semibold tracking-tight">Payment received</h1>
           {/* NO STATUS-MEANING SENTENCE HERE, and its absence is the TRUST-01 answer rather than a gap:
               13-UI-SPEC's status table gives this branch *"Your payment reached us. We're waiting on
