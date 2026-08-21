@@ -185,6 +185,9 @@ export const SELECTOR_IDS = [
   // true by construction. Declared in the SAME commit as the literal, which is this list's rule in
   // both directions.
   "paid-statement",
+  // 13-19 / D-101.2 — the checkout's one explicit way out, promoted from inline markup to a component
+  // when it turned out that "one explicit, safe way back" had shipped as plain body text.
+  "checkout-way-back",
   // 13-11 — BFLOW-08's post-payment first screen. Declared in the SAME commit as the component, one
   // task earlier than this plan scheduled it, for the reason 13-09's `trust-block` row records: the
   // contract is bidirectional, so the gate went red on `Rendered-but-undeclared: [confirmation-moment]`
@@ -706,6 +709,24 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
 
 
   // ─── 13-19 ─────────────────────────────────────────────────────────────────────────────────────────
+  "checkout-way-back": {
+    why:
+      "THE ASSERTION IS ABOUT PAINT, AND PAINT HAS NO ROLE, NO NAME AND NO TEXT. The anchor inside is " +
+      "perfectly reachable by role and by its label, and `e2e/shell.spec.ts` reaches it that way for " +
+      "everything TEXT and STRUCTURE can express — the one-anchor rule, the /listings/ target, the " +
+      "absent resume discriminator, the label, the hold promise. Every one of those was GREEN while " +
+      "the control shipped as `variant=\"ghost\"` and rendered as body text, which is the defect " +
+      "D-101.2 closed. What the unit cases assert is which CLASSES the control carries, and a class " +
+      "set is a property of an ELEMENT — so the hook scopes the query to the block that holds the " +
+      "control AND its hold promise together, which is also the pair D-59 §2 requires to travel " +
+      "together. " +
+      "A ROLE QUERY CANNOT REPLACE IT for the scoped half either: `getByRole(\"link\")` on the " +
+      "checkout resolves against a page whose contract is that it holds EXACTLY ONE anchor, so a " +
+      "second anchor arriving anywhere would silently make the assertions answer about the wrong " +
+      "element rather than fail — the shape this contract's other single-instance rows record.",
+    owner: "13-19",
+  },
+
   "paid-statement": {
     why:
       "IT IS A `<p>` OF ORDINARY PROSE INSIDE THE HEADING BLOCK, so it has no role, no landmark and " +

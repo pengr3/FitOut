@@ -16,7 +16,6 @@
 // Times are timestamptz UTC, displayed venue-local at the edge (SC#2). Prices are the server-FROZEN quote
 // (booking.quotedTotalCents, D-49) — never a client recompute.
 
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { asc, eq } from "drizzle-orm";
@@ -40,7 +39,6 @@ import {
 // is a legacy safety net for the refund ENGINE; using it here would put a policy the host never chose in
 // front of a booker.
 import { rungBoundaries, bestFutureRungIndex } from "@/lib/payments/cancellation";
-import { Button } from "@/components/ui/button";
 import { PriceBreakdown } from "@/components/booking/price-breakdown";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { STICKY_BAR_CLEARANCE } from "@/lib/design/measurements";
@@ -50,6 +48,7 @@ import { PartialGrantNotice } from "@/components/booking/partial-grant-notice";
 import { PaxStepper } from "@/components/booking/pax-stepper";
 import { PublishExpiresAt } from "@/components/booking/hold-publisher";
 import { ReserveView } from "@/components/booking/reserve-view";
+import { WayBackLink } from "@/components/booking/way-back-link";
 import { DropInBadge } from "@/components/listing/drop-in-badge";
 
 export default async function ReservePage({
@@ -418,16 +417,21 @@ export default async function ReservePage({
   //
   // It is still dropped on expiry, because `ReserveView` swaps the WHOLE reserve content for
   // `HoldExpiredState` — which carries its own way back to a listing whose hold is gone.
-  const wayBack = (
-    <div>
-      <Button asChild variant="ghost" size="touch">
-        <Link href={backHref}>Back to the listing</Link>
-      </Button>
-      <p className="mt-1 text-xs text-muted-foreground">
-        We&apos;ll keep your hold — the timer keeps running.
-      </p>
-    </div>
-  );
+  //
+  // ── 13-19 / D-101.2 — IT IS A COMPONENT NOW, AND IT IS NO LONGER `ghost`. ─────────────────────────
+  // It shipped inline as `variant="ghost"`, which contributes hover states and nothing else: at rest
+  // the checkout's ONLY way out was indistinguishable from the paragraph beneath it. The PM found it
+  // in live UAT. Every clause of 12-CONTEXT D-59 §2 was satisfied except the one the paragraph is
+  // about — *one EXPLICIT, safe way back* — and explicit is a claim about what a booker can SEE. It is
+  // now the product's neutral secondary (`outline`), which is what `Cancel booking`, `View receipt`
+  // and `Manage group` all read as, and which is clearly not the coral `Confirm & pay` beside it.
+  //
+  // The markup moved into `WayBackLink` for a reason worth stating: this was a real requirement with
+  // no owner, implemented inline in a 700-line RSC, asserted only for its label and its href — so it
+  // could ship looking like nothing at all, and did. The component owns the label, the promise, the
+  // variant and the touch size together, and `tests/booking/way-back-link.test.tsx` asserts the paint
+  // off the rendered element rather than the text off the page.
+  const wayBack = <WayBackLink href={backHref} />;
 
   // D-81 / C3 — the rung boundaries as CONCRETE INSTANTS for THIS booking, derived SERVER-SIDE from the
   // booking's own snapshotted tier and its frozen startsAt, then rendered venue-local by the shared
