@@ -15,9 +15,16 @@
 // verbatim output is in 13-03-SUMMARY.md).
 //
 // Harness: the GLOBAL `fetch` is stubbed and the REAL probe + REAL `@/lib/paymongo` client are imported,
-// the `tests/payments/paymongo-calls.test.ts` idiom. Nothing here needs a PayMongo secret — which is the
-// whole point of the wrapper existing (D-35's CI secret boundary: a spec that needs `sk_test_` has left
-// that boundary and must be split).
+// the `tests/payments/paymongo-calls.test.ts` idiom. The secret this file runs under is DECLARED by the
+// harness (HARNESS_SECRET below), never inherited from the ambient environment. No REAL key is needed —
+// which is the whole point of the wrapper existing (D-35's CI secret boundary: a spec that needs a real
+// `sk_test_` has left that boundary and must be split).
+//
+// ⚠ THAT LINE USED TO READ "nothing here needs a PayMongo secret", and it was wrong in a way no local run
+// could show. The probe reads `process.env.PAYMONGO_SECRET_KEY` through its own no-request short-circuit,
+// so this file DID depend on the variable — it just always found one, because `tests/setup.ts` loads
+// `.env.local` on this machine. In CI, where the key is absent BY DESIGN, cases (1) and (7) failed and
+// (3), (4) and (5) passed for the wrong reason. 13-17-SUMMARY.md records the verbatim red.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
@@ -37,11 +44,35 @@ function sessionBody(id: string, attributes: Record<string, unknown>): Response 
   return jsonResponse({ data: { id, attributes } });
 }
 
+/**
+ * The PayMongo credential this file runs under — DECLARED here, never inherited.
+ *
+ * WHY THIS CONSTANT EXISTS. `probeCheckoutSession` answers `null` WITH NO REQUEST when no secret is
+ * configured (checkout-probe.ts:73-75). That short-circuit is correct, deliberate and load-bearing for
+ * D-35's boundary — but it is also an AMBIENT INPUT to every case below, and on a developer machine it
+ * is invisible, because `tests/setup.ts` loads `.env.local` and hands the suite a real key. So each case
+ * that mocks `fetch` was taking one of two different branches depending on whose machine ran it: the
+ * fetch path here, the short-circuit in CI. Stubbing the variable removes the input entirely, and the
+ * same branch then runs everywhere.
+ *
+ * Case (6) — the one case whose SUBJECT is the short-circuit — overrides this back to empty. That is now
+ * a deliberate distinction it asserts rather than the ambient default it silently agreed with.
+ *
+ * The value is deliberately NOT shaped like a PayMongo key. The only thing that reads it is `authHeader()`
+ * (paymongo.ts:58-61), which base64s it into a Basic credential that the mocked `fetch` never inspects —
+ * so a realistic `sk_test_…` literal would buy no fidelity and would plant a secret-shaped string in the
+ * repo for a scanner to trip over. D-35 is untouched: no real key is needed, and none is added to CI.
+ */
+const HARNESS_SECRET = "declared-by-this-harness-not-a-real-paymongo-credential";
+
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
+  // `vi.unstubAllEnvs()` in afterEach restores whatever the environment actually had (a real key here,
+  // nothing in CI), so no other spec in the worker sees this value.
+  vi.stubEnv("PAYMONGO_SECRET_KEY", HARNESS_SECRET);
 });
 
 afterEach(() => {
@@ -80,6 +111,10 @@ describe("probeCheckoutSession — the D-84 booker-facing probe", () => {
 
     // `resolves` is the whole assertion. If the wrapper let the error out, this line reports a rejection.
     await expect(probeCheckoutSession("cs_boom")).resolves.toBeNull();
+    // …and it resolved to null because the rejection was ABSORBED, not because nothing was ever asked.
+    // `null` is also what the no-secret short-circuit returns, so without this line the case is satisfied
+    // by an absent request — which is exactly how it stayed green in CI while (1) and (7) went red.
+    expect(fetchMock.mock.calls).toHaveLength(1);
   });
 
   it("(4) a NON-2xx from the provider also resolves to null, and its prose does not escape", async () => {
@@ -93,6 +128,8 @@ describe("probeCheckoutSession — the D-84 booker-facing probe", () => {
     );
 
     await expect(probeCheckoutSession("cs_gone")).resolves.toBeNull();
+    // The 404 was reached and discarded — not skipped. See case (3)'s note on why this line is required.
+    expect(fetchMock.mock.calls).toHaveLength(1);
   });
 
   it("(5) an UNRECOGNISED response shape resolves to null rather than a half-built state", async () => {
@@ -102,12 +139,18 @@ describe("probeCheckoutSession — the D-84 booker-facing probe", () => {
       fetchMock.mockClear();
       fetchMock.mockResolvedValue(jsonResponse(body));
       await expect(probeCheckoutSession("cs_weird")).resolves.toBeNull();
+      // The body was fetched and rejected as unrecognised — see case (3)'s note.
+      expect(fetchMock.mock.calls).toHaveLength(1);
     }
   });
 
   it("(6) returns null WITHOUT a request when no PayMongo secret is configured", async () => {
     // D-35: the probe must be callable from a spec that has no `sk_test_`. With no key, paymongoFetch
     // would send an empty Basic credential and collect a 401 — a pointless round trip on a render path.
+    //
+    // This OVERRIDES the harness default set in beforeEach, and the override is the point: emptiness is
+    // now a condition this case creates and asserts against, rather than the ambient state of whichever
+    // machine happened to run it. In CI it used to be indistinguishable from every other case here.
     vi.stubEnv("PAYMONGO_SECRET_KEY", "");
 
     await expect(probeCheckoutSession("cs_nokey")).resolves.toBeNull();
