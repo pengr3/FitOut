@@ -85,6 +85,23 @@ vi.mock("@/lib/group/rsvp", () => ({
   getOwnedGroupByBooking: async () => null,
   getHeadcount: async () => null,
 }));
+/**
+ * D-89 / D-103 — THE CHECKOUT-RETURN PARAMETER'S CONSUMER, GIVEN A FOOTPRINT SO IT CAN BE COUNTED.
+ *
+ * The real component renders `null` by contract — it removes a query string and shows nothing — so
+ * WHERE IT IS MOUNTED is invisible to every render assertion in the repository. That is precisely the
+ * property D-89 makes load-bearing (mounted on the pending branch it navigates a booker who has
+ * already paid back to checkout, mid-webhook) and the one D-103 widens, so the mount point stops being
+ * a claim in a comment and becomes a count. It also has to be mocked rather than mounted: it reads
+ * `usePathname`, which the navigation mock above deliberately does not provide.
+ */
+vi.mock("@/components/booking/consume-paid-param", async () => {
+  const react = await import("react");
+  return {
+    ConsumePaidParam: () =>
+      react.createElement("span", { "data-testid": "consume-paid-param" }),
+  };
+});
 // PARTIAL mock: only the network call is replaced. `readPaymentState` stays real — see the header.
 vi.mock("@/lib/payments/checkout-probe", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/payments/checkout-probe")>();
@@ -348,6 +365,26 @@ type Render = {
    * true.
    */
   readonly paid: boolean;
+  /**
+   * D-103 — does this render CONSUME `?paid=1` from the address bar?
+   *
+   * ⚠ FALSE ON THE PENDING BRANCH IS D-89, AND IT IS THE MOST EXPENSIVE FALSE IN THIS TABLE. The
+   * pending poller calls `router.refresh()` eight times at 2.5s intervals, and Next re-renders the
+   * CURRENT route — so a parameter stripped mid-settlement drops the very next poll into the
+   * no-parameter path, which probes and then redirects to checkout. A booker who has ALREADY PAID is
+   * navigated to a payment page in the middle of their own webhook. Both pending rows below say false,
+   * and under a forced `?paid=1` both land on the same settling state, which is the point.
+   *
+   * TRUE IS EVERY BRANCH WHERE THE PARAMETER IS INERT: no branch predicate reads it, no poller runs,
+   * and no redirect can be re-entered. The PM watched a stale `?paid=1` sit in the address bar
+   * indefinitely on a booking whose time had elapsed — a swept hold that ended `cancelled`, and the
+   * derived `completed` render, are exactly those.
+   *
+   * NOT TRUE on `requested` and `approved`, and that is a decision rather than an oversight: neither
+   * is terminal. An approved hold's own next step is the checkout that appends this parameter, so a
+   * consumer there would be stripping a string on the way INTO the flow that sets it.
+   */
+  readonly consumesParam: boolean;
 };
 
 const LIVE_HOLD_EXPIRY = new Date("2026-08-20T02:10:00.000Z"); // ten minutes past the default `now`
@@ -366,6 +403,7 @@ const RENDERS: readonly Render[] = [
     money: false,
     terms: FACTS("You'll pay if approved"),
     paid: false,
+    consumesParam: false,
   },
   {
     name: "approved",
@@ -380,6 +418,7 @@ const RENDERS: readonly Render[] = [
     money: false,
     terms: FACTS("Total"),
     paid: false,
+    consumesParam: false,
   },
   {
     name: "pending (settling)",
@@ -393,6 +432,7 @@ const RENDERS: readonly Render[] = [
     money: true,
     terms: [],
     paid: false,
+    consumesParam: false,
   },
   {
     name: "pending (not completed)",
@@ -408,6 +448,7 @@ const RENDERS: readonly Render[] = [
     money: true,
     terms: [],
     paid: false,
+    consumesParam: false,
   },
   {
     name: "confirmed",
@@ -417,6 +458,7 @@ const RENDERS: readonly Render[] = [
     money: false,
     terms: FACTS("Total"),
     paid: true,
+    consumesParam: true,
   },
   {
     name: "completed (derived)",
@@ -426,6 +468,7 @@ const RENDERS: readonly Render[] = [
     money: false,
     terms: FACTS("Total"),
     paid: true,
+    consumesParam: true,
   },
   {
     name: "declined",
@@ -435,6 +478,7 @@ const RENDERS: readonly Render[] = [
     money: false,
     terms: FACTS("Quoted total"),
     paid: false,
+    consumesParam: true,
   },
   {
     name: "cancelled (party)",
@@ -448,6 +492,7 @@ const RENDERS: readonly Render[] = [
     money: true,
     terms: FACTS("Total"),
     paid: false,
+    consumesParam: true,
   },
   {
     name: "cancelled (lapsed approval)",
@@ -462,6 +507,7 @@ const RENDERS: readonly Render[] = [
     money: false,
     terms: [],
     paid: false,
+    consumesParam: true,
   },
   {
     name: "cancelled (reversed)",
@@ -472,13 +518,14 @@ const RENDERS: readonly Render[] = [
     money: true,
     terms: [],
     paid: false,
+    consumesParam: true,
   },
 ];
 
-async function drive(r: Render) {
+async function drive(r: Render, extraSearch: Record<string, string> = {}) {
   if (r.session !== undefined) probe.session = r.session;
   if (r.now) clock.now = r.now;
-  return renderPage(r.row, r.search ?? {});
+  return renderPage(r.row, { ...(r.search ?? {}), ...extraSearch });
 }
 
 describe("TRUST-01 — the confirmed detail is complete with NO query parameter (BFLOW-08 / D-60)", () => {
@@ -1213,5 +1260,73 @@ describe("STATE-08 / D-83 — a refund that did NOT dispatch says so, durably, o
       "the by-hand caveat renders on a cancellation whose refund dispatched normally. That would " +
         "tell a booker whose money really is in transit to wait for a human instead.",
     ).not.toContain("returned by hand");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// 13-CONTEXT D-103 — THE CHECKOUT-RETURN PARAMETER IS CONSUMED WHERE IT IS INERT, AND NOWHERE ELSE
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE OBSERVATION, FROM THE PM IN LIVE UAT: `?paid=1` was still in the address bar on a booking whose
+// time had already elapsed. It was: `ConsumePaidParam` mounted on the confirmation moment alone, so
+// every OTHER landing a paid checkout can reach — a swept hold that ended `cancelled`, a reversal, the
+// derived `completed` render one session later — kept a stale parameter forever, on a URL the booker
+// may well bookmark or share.
+//
+// ⚠ AND THE FIX MAY NOT WEAKEN D-89 BY ONE INCH, WHICH IS WHY THIS IS A TABLE AND NOT A CASE. Mounting
+// that consumer on the PENDING branch is the phase's most expensive mistake: the poller re-renders this
+// RSC for the CURRENT url every 2.5s, so a stripped parameter drops the next poll into the no-parameter
+// path — a probe, and then `redirect(…/book?hold=…)` — and a booker who has already paid is navigated
+// back to a checkout page in the middle of their own webhook. `e2e/confirmation-decay.spec.ts` counts
+// `framenavigated` events over a real poller and was watched failing with the mount hoisted; that spec
+// proves the CONSEQUENCE. This table proves the MOUNT POINT, per status, in both directions — which is
+// the half that goes quiet the moment somebody adds a branch and nobody re-reads the comment.
+//
+// THE RULE THE COLUMN ENCODES: consume it where it is INERT — no branch predicate reads it, no poller
+// runs, no redirect can be re-entered — and never anywhere else. See the `consumesParam` prop doc.
+describe("D-103 — where the checkout-return parameter decays, per status", () => {
+  for (const r of RENDERS) {
+    it(`${r.name} ${r.consumesParam ? "consumes ?paid=1" : "leaves ?paid=1 alone"}`, async () => {
+      // FORCED ONTO EVERY ROW, including the eight that never carry it in the other cases. The
+      // question is what each branch DOES with the parameter, so every branch has to be handed one.
+      const { container } = await drive(r, { paid: "1" });
+      const mounts = (container as unknown as HTMLElement).querySelectorAll(
+        '[data-testid="consume-paid-param"]',
+      );
+
+      expect(
+        mounts.length,
+        r.consumesParam
+          ? `the ${r.name} render leaves \`?paid=1\` in the address bar. This branch is terminal and ` +
+              `the parameter is inert on it — no predicate here reads it and nothing re-enters — so a ` +
+              `stale checkout-return marker simply sits on a URL the booker can bookmark or share ` +
+              `(D-103). It is also exactly what the PM watched happen on an elapsed booking.`
+          : `the ${r.name} render CONSUMED \`?paid=1\`. On the pending branch that is D-89 and it is ` +
+              `the phase's most expensive defect: the poller re-renders this route every 2.5s, so the ` +
+              `next poll after the strip falls through to the probe and the redirect, and a booker who ` +
+              `has ALREADY PAID lands on a checkout page mid-webhook. On a non-terminal branch it is ` +
+              `stripping a marker on the way INTO the flow that sets it.`,
+      ).toBe(r.consumesParam ? 1 : 0);
+    });
+  }
+
+  it("the table still says both things — a column of one value proves nothing", async () => {
+    // The both-directions guard, as a permanent assertion. Every case above reads its expectation
+    // FROM the row, so a table that had drifted to all-true (or all-false) would be perfectly green
+    // while asserting nothing at all. 13-09's finding: a walk cannot catch the item nobody declared,
+    // and a per-row expectation cannot catch a table that only declares one answer.
+    const consuming = RENDERS.filter((r) => r.consumesParam).map((r) => r.name);
+    const leaving = RENDERS.filter((r) => !r.consumesParam).map((r) => r.name);
+    expect(consuming.length, "no render consumes the parameter — the decay is gone entirely").toBe(6);
+    expect(
+      leaving,
+      "the two pending rows and the two non-terminal ones must all leave it alone; losing one from " +
+        "this list is how D-89 gets weakened without anybody editing its comment",
+    ).toEqual([
+      "requested",
+      "approved",
+      "pending (settling)",
+      "pending (not completed)",
+    ]);
   });
 });
