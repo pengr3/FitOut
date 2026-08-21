@@ -42,10 +42,10 @@
 - [x] **STATE-02**: Every route group has an error boundary offering both a retry and a route out, plus a global error page and not-found pages for a missing listing and for the root (zero exist today)
 - [x] **STATE-03**: A booker who gets no search results is never at a dead end — the page names which constraint was relaxed and always offers alternatives rather than an empty page
 - [x] **STATE-04**: Every list surface has a designed empty state, and host request inbox-zero reads as a positive state rather than an absence
-- [ ] **STATE-05**: Payment states are three distinct things and never conflated — *not completed* (neutral, states "you haven't been charged", offers retry and the alternative rails inline), *pending settlement* (no error affordance at all while the webhook is still the outstanding authority), and *reversed* (explicit money statement plus a support path carrying the reference)
+- [ ] **STATE-05**: Payment states are three distinct things and never conflated — *not completed* (neutral, states "you haven't been charged", offers retry and the alternative rails inline), *pending settlement* (no error affordance at all while the webhook is still the outstanding authority), and *reversed* (explicit money statement plus a support path carrying the reference) — ⚠ **PARTIAL after Phase 13:** the three states are distinct, proved, and joined by D-96's fourth (`indeterminate`) branch; the **support path** is code-complete behind D-64's guard and renders nothing while `SUPPORT_EMAIL` is `null` — `src/lib/site.ts:70` is the only line that changes. Its manual-return copy also awaits WALK C (`13-16-SUMMARY.md`). Code-complete, address-pending, per D-64's explicit instruction.
 - [x] **STATE-06**: Every payment state states where the money is, in words, above the fold
 - [x] **STATE-07**: A "slot just taken" collision resolves in place as a calm result rather than an error — refreshed availability lands in the same paint so the user sees why, and the nearest alternatives are offered rather than only a way back
-- [ ] **STATE-08**: Terminal success is a full-page moment; non-terminal success is a toast — and anything the user must actually read (a refund amount, a reduced headcount) is an in-page alert, never a toast
+- [ ] **STATE-08**: Terminal success is a full-page moment; non-terminal success is a toast — and anything the user must actually read (a refund amount, a reduced headcount) is an in-page alert, never a toast — ⚠ **PARTIAL after Phase 13:** the three named corrections shipped, were verified in situ, and had their live regions declared; the AST scan over `bookings/**` is extended. **One named residual:** `src/components/booking/refund-destination-form.tsx:88`'s `toast.warning(res.notice)` — the D-72 manual-transfer branch, a server-composed sentence saying money the booker is owed did not move automatically. It is invisible to the AST scan (not a string literal) and is a recorded blind spot in `tests/design/status-vocab.test.ts`. Deciding its surface decides its copy; see `13-16-SUMMARY.md`.
 
 ### App shell & chrome (SHELL)
 
@@ -63,15 +63,15 @@
 - [x] **BFLOW-05**: The availability calendar and slot picker pay off their deferred hit-area debt (≥44px day cells), gain a correctly-shaped loading skeleton, and keep month changes inside the motion budget
 - [x] **BFLOW-06**: Checkout is a single column on mobile with the summary collapsed behind a disclosure and a sticky confirm bar carrying the amount
 - [x] **BFLOW-07**: A booker is told the payment redirect is coming, and where they are going, before they leave for the payment provider
-- [ ] **BFLOW-08**: The post-payment view is a distinct confirmation moment — success mark, status, reference, exact amount, venue-local time with named timezone, address, where the copy was emailed, and what happens next — which decays into the normal booking-detail page on later visits
+- [ ] **BFLOW-08**: The post-payment view is a distinct confirmation moment — success mark, status, reference, exact amount, venue-local time with named timezone, address, where the copy was emailed, and what happens next — which decays into the normal booking-detail page on later visits — ⚠ **PARTIAL after Phase 13:** the moment, its full-screen geometry and its `history.replaceState` decay (confirmed branch only, D-89) are built and machine-proved by 7 green cases in `e2e/confirmation-decay.spec.ts`. The last mile is **WALK A** — a real hosted PayMongo `sk_test_` checkout paid on the hosted page — which no harness in this repository can mint (13-VALIDATION § Manual-Only). Deferred to a UAT session on 2026-08-21; see `13-16-SUMMARY.md`.
 
 ### Trust & confidence (TRUST)
 
-- [ ] **TRUST-01**: Every booking detail page states status plus what it means, venue name and full address, venue-local time with named timezone, who the host is, exactly what was paid itemised, the cancellation deadline as a concrete date with today's refund amount, the reference, and a support path
+- [ ] **TRUST-01**: Every booking detail page states status plus what it means, venue name and full address, venue-local time with named timezone, who the host is, exactly what was paid itemised, the cancellation deadline as a concrete date with today's refund amount, the reference, and a support path — ⚠ **PARTIAL after Phase 13:** every clause **but the last** renders on all ten status branches, with the full address routed through the one named `bookedListingAddress()` boundary (D-91) and concrete cancellation dates from `composePolicyDisclosure()`. The **support path** is written and composed everywhere it belongs, and renders nothing while `SUPPORT_EMAIL` is `null` — `src/lib/site.ts:70` is the only line that changes. Code-complete, address-pending, per D-64's explicit instruction.
 - [ ] **TRUST-02**: The booking reference is copyable, rendered in tabular figures, present on every status, and carried in the email subject line — ⚠ **PARTIAL after Phase 13:** the on-screen half is delivered and measured (0px advance-width drift, `13-13-SUMMARY.md`); the **email subject line half is Phase 15's** by 13-CONTEXT D-78, which forbids this phase from touching the email shell. Re-marked from `[x]` on 2026-08-21 — it was ticked on the strength of the on-screen half alone.
-- [ ] **TRUST-03**: The cancellation policy is disclosed on the confirmation and in the confirmation email with concrete dates, not only at listing, checkout and cancel-review
-- [ ] **TRUST-04**: Only real trust signals are shown — host since, listing published, payout onboarding complete, request-to-book behaviour — with no invented verification or superhost chrome behind which no program exists
-- [x] **TRUST-05**: A booker can view and print an itemised receipt for a paid booking
+- [ ] **TRUST-03**: The cancellation policy is disclosed on the confirmation and in the confirmation email with concrete dates, not only at listing, checkout and cancel-review — ⚠ **PARTIAL after Phase 13:** the **on-screen** half is delivered on both the detail page and the confirmation moment via `composePolicyDisclosure()`, so no surface types a percentage or an hour. The **confirmation email** half is Phase 15's by 13-CONTEXT D-78 — measured, not assumed: `sendBookingConfirmed` (`src/lib/email.ts:105`) is three `<p>` elements and none of them is a cancellation policy. Re-marked from `Pending` on 2026-08-21 for the same reason TRUST-02 was: the ID spans two phases.
+- [x] **TRUST-04**: Only real trust signals are shown — host since, listing published, payout onboarding complete, request-to-book behaviour — with no invented verification or superhost chrome behind which no program exists
+- [ ] **TRUST-05**: A booker can view and print an itemised receipt for a paid booking — ⚠ **PARTIAL after Phase 13:** the route, the itemisation, the print contract as a rendering fact in **both** themes, and price parity against Postgres on three shapes (including open-capacity) are all delivered and machine-proved. What is missing is **WALK B** — 13-VALIDATION § Manual-Only's own row for this ID: *print to PDF from the receipt route under both themes; confirm no solid-black flood and that reference + total are readable*. `emulateMedia` proves the stylesheet applies; it cannot prove a grove receipt reads on paper. **Un-ticked from `[x]` on 2026-08-21** — 13-13 recorded that un-ticking another plan's box is the phase close-out's call, and it was ticked before `e2e/receipt-print.spec.ts` existed. One walk re-ticks it; do NOT re-tick it on the strength of the automated spec.
 
 ### Host tooling (HFLOW)
 
@@ -196,10 +196,10 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | STATE-02 | Phase 11 | Complete |
 | STATE-03 | Phase 12 | Complete |
 | STATE-04 | Phase 11 | Complete |
-| STATE-05 | Phase 13 | Pending |
+| STATE-05 | Phase 13 | Partial |
 | STATE-06 | Phase 13 | Complete |
 | STATE-07 | Phase 12 | Complete |
-| STATE-08 | Phase 13 | Pending |
+| STATE-08 | Phase 13 | Partial |
 | SHELL-01 | Phase 11 | Complete |
 | SHELL-02 | Phase 11 | Complete |
 | SHELL-03 | Phase 12 | Complete |
@@ -211,12 +211,12 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | BFLOW-05 | Phase 12 | Complete |
 | BFLOW-06 | Phase 12 | Complete |
 | BFLOW-07 | Phase 12 | Complete |
-| BFLOW-08 | Phase 13 | Pending |
-| TRUST-01 | Phase 13 | Pending |
+| BFLOW-08 | Phase 13 | Partial |
+| TRUST-01 | Phase 13 | Partial |
 | TRUST-02 | Phase 13 + 15 | Partial |
-| TRUST-03 | Phase 13 | Pending |
-| TRUST-04 | Phase 13 | Pending |
-| TRUST-05 | Phase 13 | Complete |
+| TRUST-03 | Phase 13 + 15 | Partial |
+| TRUST-04 | Phase 13 | Complete |
+| TRUST-05 | Phase 13 | Partial |
 | HFLOW-01 | Phase 14 | Pending |
 | HFLOW-02 | Phase 14 | Pending |
 | HFLOW-03 | Phase 14 | Pending |
