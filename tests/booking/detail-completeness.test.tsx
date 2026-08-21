@@ -249,6 +249,52 @@ function flat(container: HTMLElement): string {
   return (container.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * EVERY `<dt>` TERM IN THE RENDER, IN DOCUMENT ORDER — the retargeted closed-set walk (D-98).
+ *
+ * 13-09 closed the booker-facing trust set at four with an exact ROW COUNT inside
+ * `tests/booking/trust-block.test.tsx`, and it measured that the count was the half that worked: with a
+ * fifth `Trusted host` row spliced into the component, the twelve-token ban in
+ * `tests/design/trust-signals.test.ts` reported **6 passed** and only the count went red. D-98 deletes
+ * the component, so that count has nothing left to assert about — and deleting it with the component
+ * would drop the one protection that caught the signal nobody listed.
+ *
+ * IT IS RETARGETED HERE RATHER THAN RETIRED, and the target is the PAGE. With the panel gone, the only
+ * definition list a booking render still opens is the facts panel, which is therefore the one place a
+ * fifth signal could now land — a `Verified host` row, a tenure line, a tick with a tooltip. The
+ * assertion is the ORDERED LIST of terms rather than their number, which is strictly stronger than
+ * 13-09's count: a fifth row fails it, and so does a renamed or reordered one.
+ *
+ * ⚠ THE FOUR STATE COMPONENTS DECLARE `[]`, AND THAT IS A CLAIM RATHER THAN AN ABSENCE. The pending,
+ * not-completed, reversed and lapsed-approval surfaces open no `<dl>` of their own — the trust block was
+ * the only one they ever rendered — so an empty list says *this surface makes no definition-list claim
+ * about anybody*, and a row appearing on one of them is exactly as red as a row appearing on the facts
+ * panel. The six non-empty rows are what keep the walk from being vacuously green.
+ */
+function termsOf(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll("dt")).map((dt) =>
+    (dt.textContent ?? "").replace(/\s+/g, " ").trim(),
+  );
+}
+
+/**
+ * The facts panel's closed row set. The money row's term is the ONE thing that differs between
+ * branches (D-90: *"Total"* over a hold nobody paid is a money statement FitOut cannot stand behind),
+ * so it is the parameter — exactly as it is a parameter of `factsPanel` in the page itself.
+ *
+ * The itemisation rows are unconditional here because the fixture's two parts SUM to the frozen quote,
+ * which is the positive match the page requires before it prints them.
+ */
+const FACTS = (totalTerm: string): readonly string[] => [
+  "Space",
+  "Where",
+  "When",
+  "Host",
+  "Space cost",
+  "Service fee",
+  totalTerm,
+];
+
 beforeEach(() => {
   getSession.mockResolvedValue({ user: { id: USER_ID, email: "jane@example.com" } });
   clock.now = new Date("2026-08-20T02:00:00.000Z");
@@ -261,9 +307,11 @@ beforeEach(() => {
 // branch every assertion in this file loses at once rather than one it quietly stops visiting.
 //
 // It is a table and not eight `it()`s because the properties are per-render and identical: one `<h1>`,
-// a meaning sentence, a reference, a trust block, and the D-94 money-statement boundary. Enumerating
-// them as data is also what makes the COUNT assertions honest — 13-09 measured that a token ban stayed
-// green over a real fifth trust signal and only an exact count caught it.
+// a meaning sentence, a reference, the D-94 money-statement boundary and — since 13-19 — the D-98
+// closed `<dt>` term set. Enumerating them as data is also what makes the COUNT assertions honest:
+// 13-09 measured that a token ban stayed green over a real fifth trust signal and only an exact count
+// caught it, which is why that count was retargeted onto this table rather than deleted with the
+// component it used to live beside.
 // ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 type Render = {
@@ -280,6 +328,11 @@ type Render = {
   readonly meaning: string;
   /** D-94: does this render mount `money-statement`? */
   readonly money: boolean;
+  /**
+   * D-98 — the CLOSED SET of `<dt>` terms this render is allowed to open, in document order. See
+   * `termsOf` for why this is the retarget of 13-09's row count and why `[]` is a claim.
+   */
+  readonly terms: readonly string[];
 };
 
 const LIVE_HOLD_EXPIRY = new Date("2026-08-20T02:10:00.000Z"); // ten minutes past the default `now`
@@ -296,6 +349,7 @@ const RENDERS: readonly Render[] = [
     heading: "Request sent",
     meaning: "nothing is charged until they approve",
     money: false,
+    terms: FACTS("You'll pay if approved"),
   },
   {
     name: "approved",
@@ -308,6 +362,7 @@ const RENDERS: readonly Render[] = [
     heading: "Your request was approved",
     meaning: "The host said yes.",
     money: false,
+    terms: FACTS("Total"),
   },
   {
     name: "pending (settling)",
@@ -318,6 +373,7 @@ const RENDERS: readonly Render[] = [
     // rendering it a second time under the heading would put one sentence on the page twice.
     meaning: "Your payment reached us.",
     money: true,
+    terms: [],
   },
   {
     name: "pending (not completed)",
@@ -331,6 +387,7 @@ const RENDERS: readonly Render[] = [
     heading: "Your payment didn't go through",
     meaning: "This checkout didn't finish.",
     money: true,
+    terms: [],
   },
   {
     name: "confirmed",
@@ -338,6 +395,7 @@ const RENDERS: readonly Render[] = [
     heading: "Booking confirmed",
     meaning: "This time is yours.",
     money: false,
+    terms: FACTS("Total"),
   },
   {
     name: "completed (derived)",
@@ -345,6 +403,7 @@ const RENDERS: readonly Render[] = [
     heading: "This session is done",
     meaning: "This session is finished.",
     money: false,
+    terms: FACTS("Total"),
   },
   {
     name: "declined",
@@ -352,6 +411,7 @@ const RENDERS: readonly Render[] = [
     heading: "This request wasn't available",
     meaning: "The host couldn't take your booking.",
     money: false,
+    terms: FACTS("Quoted total"),
   },
   {
     name: "cancelled (party)",
@@ -363,6 +423,7 @@ const RENDERS: readonly Render[] = [
     heading: "This booking was cancelled",
     meaning: "It's no longer held.",
     money: true,
+    terms: FACTS("Total"),
   },
   {
     name: "cancelled (lapsed approval)",
@@ -375,6 +436,7 @@ const RENDERS: readonly Render[] = [
     heading: "This approval expired",
     meaning: "we released the slot",
     money: false,
+    terms: [],
   },
   {
     name: "cancelled (reversed)",
@@ -383,6 +445,7 @@ const RENDERS: readonly Render[] = [
     heading: "We couldn't complete this booking",
     meaning: "This time was taken before your payment landed.",
     money: true,
+    terms: [],
   },
 ];
 
@@ -478,14 +541,17 @@ describe("TRUST-01 — the confirmed detail is complete with NO query parameter 
     // ── the reference ────────────────────────────────────────────────────────────────────────────
     expect(screen.getByTestId("booking-reference").textContent, "TRUST-02's string").toBe(REFERENCE);
 
-    // ── the support path (guard-open) ────────────────────────────────────────────────────────────
+    // ── the support path ─────────────────────────────────────────────────────────────────────────
     //
-    // ⚠ ASSERTED AS THE TRUST BLOCK'S PRESENCE, NOT AS A CONTROL. `SUPPORT_EMAIL` is null (D-64), so
-    // `SupportPath` renders NOTHING today and a test that demanded a control would go red on the day
-    // an operator fills the constant in — turning a correct configuration change into a failure. What
-    // is asserted is that the block the guarded row lives inside is on the page, which is the half
-    // that is this plan's to keep true. The other half is `tests/design/site-contacts.test.ts`.
-    expect(screen.getByTestId("trust-block"), "TRUST-04's block (D-67)").toBeTruthy();
+    // NOTHING IS ASSERTED HERE ANY MORE, AND THE ABSENCE IS D-98 RATHER THAN A GAP. This used to
+    // assert the trust panel's PRESENCE as a proxy for the guarded support row it ended with, because
+    // `SUPPORT_EMAIL` is null (D-64) and demanding a control would go red on the day an operator fills
+    // the constant in. The panel is deleted, so the proxy is gone with it. The support path still
+    // ships on the two surfaces 13-UI-SPEC's guard-state table gives the in-panel control — the
+    // reversed state and the pending state past its escalation — and it is `payment-states.test.tsx`
+    // and `reversed-state.test.tsx` that own those. The confirmed detail carries no support affordance
+    // today and did not before the panel either: the panel's row rendered NOTHING while the constant
+    // is null. `tests/design/site-contacts.test.ts` remains the other half, unmodified.
   });
 
   it("(2) renders the SAME facts inside the detail section, not merely somewhere on the page", async () => {
@@ -499,7 +565,6 @@ describe("TRUST-01 — the confirmed detail is complete with NO query parameter 
     expect(detail.getByText(LISTING.addressLine1, { exact: false })).toBeTruthy();
     expect(detail.getByText(LISTING.hostFirstName, { exact: false })).toBeTruthy();
     expect(detail.getByTestId("booking-reference")).toBeTruthy();
-    expect(detail.getByTestId("trust-block")).toBeTruthy();
   });
 });
 
@@ -513,7 +578,7 @@ describe("TRUST-01 — every status states what it MEANS, and shows exactly one 
   });
 
   for (const r of RENDERS) {
-    it(`(4·${r.name}) shows its heading, its meaning sentence, the reference and the trust block`, async () => {
+    it(`(4·${r.name}) shows its heading, its meaning sentence and the reference`, async () => {
       const { container } = await drive(r);
       const text = flat(container as unknown as HTMLElement);
 
@@ -529,12 +594,6 @@ describe("TRUST-01 — every status states what it MEANS, and shows exactly one 
         `${r.name}: TRUST-02 requires the reference on EVERY status — "every" is the requirement's own ` +
           "word, and two of these renders had none before plan 13-10.",
       ).toBe(REFERENCE);
-
-      expect(
-        screen.getAllByTestId("trust-block"),
-        `${r.name}: TRUST-04's block is absent or duplicated. D-67 puts it on the states that look ` +
-          "WRONG too, because trust matters most when something has.",
-      ).toHaveLength(1);
     });
 
     it(`(5·${r.name}) renders EXACTLY one <h1>`, async () => {
@@ -595,6 +654,52 @@ describe("D-94 — the money statement mounts on exactly the four specified stat
       'a hold nobody paid for must not carry a row labelled "Total"',
     ).toContain("Quoted total");
   });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// 13-CONTEXT D-98 — THE FOUR-ROW TRUST PANEL IS GONE, AND THE CLOSED SET IS STILL ENFORCED
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHY THE PANEL WENT. The PM used it in live UAT and judged it filler, and the evidence is on their
+// side: at launch EVERY host and EVERY listing reads the same month, so *Host since* and *Listing
+// published* carry no information at all; and on a cancelled or reversed booking a row promising that
+// FitOut holds the payment until after the session is worse than uninformative, because the session is
+// not happening. D-98 supersedes D-67 (the panel on every status) and D-68 (the four-row set).
+//
+// WHAT DID NOT GO. TRUST-04 is a CONSTRAINT — only real trust signals may be shown — not a mandate to
+// show four. `tests/design/trust-signals.test.ts` keeps its twelve-token ban over the whole Phase-13
+// file set, unmodified. Removing the panel removes signals; it must not remove the ban on inventing new
+// ones, and the two cases below are the count half of that pair (see `termsOf`).
+describe("D-98 — no trust panel renders on any status, and the term set stays closed", () => {
+  for (const r of RENDERS) {
+    it(`(9·${r.name}) opens exactly the declared <dt> terms — a fifth is a defect whatever it says`, async () => {
+      const { container } = await drive(r);
+
+      expect(
+        termsOf(container as unknown as HTMLElement),
+        `${r.name}: the definition-list terms on this render are not the declared closed set. ` +
+          "13-09 measured that a twelve-token ban stayed GREEN on a real fifth signal (`Trusted " +
+          "host`) and only an exact row count caught it; this is that count, retargeted from the " +
+          "deleted panel to the page, and stated as the ordered SET so a rename fails it too. If a " +
+          "surface wants one more row about the host, the answer is no — there is no column behind " +
+          "it and D-80 forbids adding one.",
+      ).toEqual([...r.terms]);
+    });
+
+    it(`(10·${r.name}) renders no trust panel at all`, async () => {
+      const { container } = await drive(r);
+
+      // Asserted over the RENDERED TREE and not over the source: 13-07's finding is that a source scan
+      // cannot see what it was not told to look for, and a panel re-introduced through an import would
+      // be invisible to a grep for the component's name at the call site.
+      expect(
+        (container as unknown as HTMLElement).querySelectorAll('[data-testid="trust-block"]'),
+        `${r.name}: the four-row trust panel is still rendering. D-98 removes it from EVERY branch — ` +
+          "its two dated rows say the same month for every host and every listing at launch, and its " +
+          "payment row is false on a booking that is not happening.",
+      ).toHaveLength(0);
+    });
+  }
 });
 
 describe("D-91 — the exact street is on the two BOOKED renders and on no other", () => {

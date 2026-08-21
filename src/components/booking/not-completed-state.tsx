@@ -87,13 +87,11 @@
 // and `payment-reversed-state.tsx` (the sibling payment state's composition).
 
 import * as React from "react";
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { RotateCcwIcon } from "lucide-react";
 
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { BookingReference } from "@/components/booking/booking-reference";
 import { MoneyStatement } from "@/components/booking/money-statement";
 import { RequestCountdown } from "@/components/booking/request-countdown";
@@ -115,16 +113,13 @@ export type NotCompletedStateProps = {
    */
   holdExpiresAt: string;
   /**
-   * TRUST-04's four-signal block (D-67), rendered by the RSC and handed down as a finished element.
-   *
-   * A SLOT AND NOT AN IMPORT: `TrustBlock` is a Server Component and this file is a client one, so
-   * importing it would pull it into the browser bundle for nothing. As a slot it is the SAME element
-   * the five inline branches of `bookings/[id]/page.tsx` render, built once — nine renders, one block.
-   *
-   * It REPLACES the bare `<dl>` this file used to open around the guarded support row: that row is the
-   * last row of the trust block, and rendering it alone was the placeholder 13-07 left for this plan.
+   * ⚠ THE `trustBlock` SLOT IS GONE (13-19 / D-98). It carried TRUST-04's four-row panel, handed down
+   * from the RSC because this file is a client component. The panel is deleted from every booking
+   * surface: two of its four rows read the same month for every host and every listing at launch, and
+   * its payment row promised that FitOut holds a payment for a session that is not happening. The ban
+   * on INVENTING trust signals is untouched — `tests/design/trust-signals.test.ts` still scans this
+   * file among the rest of the phase's three roots.
    */
-  trustBlock: ReactNode;
 };
 
 export function NotCompletedState({
@@ -132,7 +127,6 @@ export function NotCompletedState({
   listingId,
   reference,
   holdExpiresAt,
-  trustBlock,
 }: NotCompletedStateProps) {
   // The in-place swap 13-UI-SPEC specifies. It is one-way and it starts false BY CONSTRUCTION: the
   // page only renders this component for a hold that was alive on the server, so a `true` initial
@@ -214,18 +208,8 @@ export function NotCompletedState({
           <BookingReference reference={reference} />
         </div>
 
-        <Separator />
-
-        {/* THE TRUST-BLOCK SLOT, NOW FILLED (13-10 / D-67). 13-07 rendered only the row that block
-            ends with — the guarded support row — inside a `<dl>` of its own, and said in these words
-            that the block proper belonged to a later plan. This is that plan. The guarded row now
-            arrives INSIDE `TrustBlock`, which is the only place it should be: one `<dl>`, four
-            signals plus the row, and no surface holding a support literal of its own.
-            ⚠ The row presentation rather than the panel one is preserved by that component, for the
-            reason 13-07 recorded: 13-UI-SPEC's guard-state table gives the in-panel control to the
-            reversed state and to the pending state past its escalation, and gives every other status
-            the trust-block row. */}
-        {trustBlock}
+        {/* THE TRUST-BLOCK SLOT AND ITS `<Separator/>` BOTH LEFT WITH THE PANEL (D-98). A rule with
+            nothing after it is a rule dividing the content from the bottom of the page. */}
       </div>
     </div>
   );

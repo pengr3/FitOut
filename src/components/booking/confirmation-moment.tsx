@@ -1,4 +1,4 @@
-// ConfirmationMoment (BFLOW-08 · D-61, D-62-as-corrected-by-D-90, D-63, D-67) — the full-page first
+// ConfirmationMoment (BFLOW-08 · D-61, D-62-as-corrected-by-D-90, D-63, D-98) — the full-page first
 // screen a booker lands on when their payment confirms, inside the SAME route as the ordinary detail.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -51,17 +51,18 @@
 // reassuring fact is that the booker has not been charged at all yet.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// TWO BOOKING-MODE COLUMNS ARRIVE HERE, AND THEY ANSWER DIFFERENT QUESTIONS
+// ONE BOOKING-MODE COLUMN ARRIVES HERE, AND IT IS THE BOOKING'S OWN SNAPSHOT
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
-//   `bookingMode`        — `booking.booking_mode`, the BOOKING's creation-time snapshot (D-61). It is
-//                          a fact about how THIS booking came to exist, so it is what selects the
-//                          `<h1>` and the lede: "your host approved this" is only true of a booking
-//                          that actually went through an approval.
-//   `listingBookingMode` — `listing.booking_mode`, the SPACE's mode TODAY. It is what TRUST-04's
-//                          signal 4 states, and it is 13-09's recorded decision. A booking taken under
-//                          request-to-book on a listing that has since switched to instant must say
-//                          both true things at once, and only two columns can do that.
+//   `bookingMode` — `booking.booking_mode`, the BOOKING's creation-time snapshot (D-61). It is a fact
+//                   about how THIS booking came to exist, so it is what selects the `<h1>`: "your host
+//                   approved this" is only true of a booking that actually went through an approval.
+//
+// ⚠ THE SECOND COLUMN IS GONE WITH THE PANEL (D-98). `listingBookingMode` — the SPACE's mode TODAY —
+// arrived here for exactly one consumer: the condensed trust block's fourth signal. That panel is
+// deleted, so the prop has no reader, and a prop with no reader on a surface whose whole job is that
+// no fact is lost is a fact nobody is stating. The distinction the two columns existed to express
+// still holds and still lives on the detail page's `requested`/`approved` status meanings.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NO CTA. NOT A SMALL ONE, NOT A GHOST ONE, NOT "JUST" A LINK.
@@ -138,7 +139,6 @@ import { CheckCircle2Icon } from "lucide-react";
 
 import { CONFIRMATION_MOMENT_MIN_H } from "@/lib/design/measurements";
 import { BookingReference } from "@/components/booking/booking-reference";
-import { TrustBlock } from "@/components/booking/trust-block";
 
 /**
  * The two `<h1>` variants, as TS constants rather than JSX text — `trust-block.tsx:96`'s three
@@ -163,10 +163,6 @@ export type ConfirmationMomentProps = {
    * lede. See the header for why this is a different column from `listingBookingMode`.
    */
   bookingMode: "instant" | "request";
-  /**
-   * `listing.booking_mode` — the SPACE's mode today, forwarded to TRUST-04's signal 4 (13-09).
-   */
-  listingBookingMode: "instant" | "request";
   /**
    * The arrival facts as ONE finished line: venue, the venue-local date and time, and the named
    * timezone — e.g. `Padel Court Makati · Fri, Aug 21, 9:00 AM – 11:00 AM (Makati time)`.
@@ -203,10 +199,6 @@ export type ConfirmationMomentProps = {
    * a confirmation went, and a promise with no destination reads as a fact being withheld.
    */
   email: string | null;
-  /** TRUST-04 signal 2's value, pre-formatted in the RSC. Not rendered by the condensed variant. */
-  hostSinceLabel: string;
-  /** TRUST-04 signal 3's value or null. Not rendered by the condensed variant. */
-  listingPublishedLabel: string | null;
   /**
    * TRUST-03 — the SAME `CancellationPolicyDisclosure` element the ordinary detail below renders,
    * handed down as a slot, or `null` where no policy applies.
@@ -222,15 +214,12 @@ export type ConfirmationMomentProps = {
 
 export function ConfirmationMoment({
   bookingMode,
-  listingBookingMode,
   arrivalLine,
   addressLines,
   paidInFullSentence,
   reference,
   amountPaid,
   email,
-  hostSinceLabel,
-  listingPublishedLabel,
   policyDisclosure,
 }: ConfirmationMomentProps) {
   const isRequest = bookingMode === "request";
@@ -316,19 +305,10 @@ export function ConfirmationMoment({
         <p className="w-full text-label break-words text-muted-foreground">{emailLine(email)}</p>
       )}
 
-      {/* 7 — THE CONDENSED TRUST BLOCK (D-67). Signals 1 and 4 only: at the instant of payment the
-          booker's two questions are *where is my money* and *what happens next*. Tenure and listing
-          age are reassurance for a later, calmer read and are one scroll below in the full block,
-          permanently. Composition, not construction — the component owns the closed set. */}
-      <div className="w-full text-left">
-        <TrustBlock
-          variant="condensed"
-          hostSinceLabel={hostSinceLabel}
-          listingPublishedLabel={listingPublishedLabel}
-          bookingMode={listingBookingMode}
-          reference={reference}
-        />
-      </div>
+      {/* 7 — THE CONDENSED TRUST PANEL USED TO SIT HERE AND IS GONE (D-98). It carried two of the
+          four signals — the platform guarantee and the listing's booking rule — and the PM judged the
+          whole panel filler in live UAT. The guarantee itself was the one sentence worth keeping and
+          it is not lost: it is part of the paid statement, on the branch where it is true. */}
 
       {/* 8 — TRUST-03. The existing disclosure, whose collapsed `<summary>` already carries the
           concrete-date statement — so a booker sees the terms without expanding anything (D-81). */}

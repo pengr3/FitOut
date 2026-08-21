@@ -47,7 +47,6 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 import { NotCompletedState } from "@/components/booking/not-completed-state";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
-import { TrustBlock } from "@/components/booking/trust-block";
 
 afterEach(() => {
   cleanup();
@@ -60,23 +59,14 @@ const BOOKING_ID = "bkg_incomplete_1";
 const REFERENCE = "FIT-9K3MP7QZ";
 
 /**
- * TRUST-04's block, as the REAL component rather than a stand-in (13-10 / D-67).
+ * ⚠ TRUST-04's FOUR-ROW PANEL USED TO BE MOUNTED INTO ALL THREE STATES AS A SLOT, AND IT IS GONE
+ * (13-19 / D-98).
  *
- * All three states take it as a `ReactNode` SLOT — they are client components and `TrustBlock` is a
- * Server Component, so the page builds it once in the RSC and hands it down. Passing the real element
- * here keeps these cases honest in both directions: the distinctness assertions below now compare three
- * trees that each carry the block, and the "no alarm colour / no extra live region / exactly one coral"
- * negatives are asserted over what a booker actually sees rather than over three-quarters of it.
+ * It was the real component rather than a stand-in so the distinctness assertions below compared three
+ * trees a booker would actually see. That property is preserved and is now stronger in one respect:
+ * the three trees no longer share a large identical block, so "these three states are distinct" is a
+ * claim about the states themselves rather than about the three-quarters of each that differed.
  */
-const TRUST_BLOCK = (
-  <TrustBlock
-    variant="full"
-    hostSinceLabel="June 2026"
-    listingPublishedLabel="June 2026"
-    bookingMode="instant"
-    reference="FIT-9K3MP7QZ"
-  />
-);
 
 const T0 = new Date("2026-08-20T09:00:00.000Z");
 const FIFTEEN_MIN_MS = 15 * 60_000;
@@ -97,7 +87,6 @@ function mountIncomplete({ holdMs = FIFTEEN_MIN_MS }: { holdMs?: number } = {}) 
       listingId={LISTING_ID}
       reference={REFERENCE}
       holdExpiresAt={new Date(T0.getTime() + holdMs).toISOString()}
-      trustBlock={TRUST_BLOCK}
     />,
   );
   act(() => {
@@ -243,7 +232,7 @@ function mountPending({ email = EMAIL as string | null } = {}) {
   vi.useFakeTimers();
   vi.setSystemTime(T0);
   const utils = render(
-    <PendingPaymentState reference={REFERENCE} email={email} trustBlock={TRUST_BLOCK} />,
+    <PendingPaymentState reference={REFERENCE} email={email} />,
   );
   act(() => {
     vi.advanceTimersByTime(0);
@@ -464,14 +453,13 @@ const STATES = [
           listingId={LISTING_ID}
           reference={REFERENCE}
           holdExpiresAt={new Date(T0.getTime() + FIFTEEN_MIN_MS).toISOString()}
-          trustBlock={TRUST_BLOCK}
-        />,
+            />,
       ),
   },
   {
     hook: "payment-state-pending",
     render: () =>
-      render(<PendingPaymentState reference={REFERENCE} email={EMAIL} trustBlock={TRUST_BLOCK} />),
+      render(<PendingPaymentState reference={REFERENCE} email={EMAIL} />),
   },
   {
     hook: "payment-state-reversed",
@@ -483,8 +471,7 @@ const STATES = [
           amountLabel="₱1,428.00"
           branch="auto"
           rail="gcash"
-          trustBlock={TRUST_BLOCK}
-        />,
+            />,
       ),
   },
 ] as const;

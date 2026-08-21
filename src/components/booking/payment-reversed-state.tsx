@@ -95,7 +95,6 @@
 //
 // Analog: `hold-expired-state.tsx` (the calm recovery-state idiom this file's shape comes from).
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { Undo2Icon } from "lucide-react";
 
@@ -165,14 +164,13 @@ export type PaymentReversedStateProps = {
    */
   rail?: string | null;
   /**
-   * TRUST-04's four-signal block (D-67), rendered by the RSC and handed down as a finished element.
-   *
-   * A SLOT rather than an import so this file stays free of the four sentences and of any decision
-   * about them: it is the SAME element the five inline branches of `bookings/[id]/page.tsx` render,
-   * built once, so nine renders cannot drift into nine trust blocks. D-67 puts it on the states that
-   * look WRONG too — trust matters most when something has — which is why it is required, not optional.
+   * ⚠ THE `trustBlock` SLOT IS GONE (13-19 / D-98). It carried TRUST-04's four-row panel, handed down
+   * from the RSC because this file is a client component. The panel is deleted from every booking
+   * surface: two of its four rows read the same month for every host and every listing at launch, and
+   * its payment row promised that FitOut holds a payment for a session that is not happening. The ban
+   * on INVENTING trust signals is untouched — `tests/design/trust-signals.test.ts` still scans this
+   * file among the rest of the phase's three roots.
    */
-  trustBlock: ReactNode;
 };
 
 export function PaymentReversedState({
@@ -181,7 +179,6 @@ export function PaymentReversedState({
   amountLabel,
   branch,
   rail = null,
-  trustBlock,
 }: PaymentReversedStateProps) {
   // The AUTOMATIC branch. L1 describes an action FitOut actually took; L2 is the verified window for the
   // rail, and when the probe fell back it is the rail-free sentence that names every rail a FitOut booker
@@ -301,11 +298,11 @@ export function PaymentReversedState({
           <BookingReference reference={reference} />
         </div>
 
-        {/* TRUST-04 (D-67), the same block every other status renders — see the prop's own note. It
-            ends with the guarded support ROW; the in-panel control above is the money panel's, and the
-            two are not a duplicate: 13-UI-SPEC's guard-state table gives this state both, because here
-            the support path is the only route to the money and must be unmissable (D-83). */}
-        {trustBlock}
+        {/* THE TRUST PANEL IS GONE (D-98), AND ITS LOSS COSTS THIS STATE NOTHING IT NEEDED. The panel
+            ended with the guarded support ROW; the in-panel support control above is this surface's
+            own and is the one 13-UI-SPEC's guard-state table gives it, because here the support path
+            is the only route to the money and must be unmissable (D-83). The `<Separator/>` below
+            STAYS: it is D-72's rule above the recovery block, not the panel's. */}
 
         <Separator />
 

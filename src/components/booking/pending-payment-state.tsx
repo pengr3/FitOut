@@ -69,13 +69,11 @@
 // page ground, which is what 13-UI-SPEC specifies for all three payment states.
 
 import * as React from "react";
-import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { BookingReference } from "@/components/booking/booking-reference";
 import { MoneyStatement } from "@/components/booking/money-statement";
 import { SupportPath } from "@/components/booking/support-path";
@@ -109,21 +107,16 @@ export type PendingPaymentStateProps = {
    */
   email: string | null;
   /**
-   * TRUST-04's four-signal block (D-67), rendered by the RSC and handed down as a finished element.
-   *
-   * A SLOT AND NOT AN IMPORT, and the reason is this file's client boundary. `TrustBlock` is a Server
-   * Component; importing it here would pull it — and everything it composes — into the browser bundle
-   * for no gain, and would put a second copy of the four sentences one import away from a surface that
-   * re-renders itself every 2.5s. As a slot it is the SAME element the five inline branches of
-   * `bookings/[id]/page.tsx` render, built once, so nine renders cannot drift into nine trust blocks.
-   *
-   * REQUIRED rather than optional: D-67 says every status, including the ones that look wrong, because
-   * trust matters most when something has. An optional prop is how a branch quietly loses it.
+   * ⚠ THE `trustBlock` SLOT IS GONE (13-19 / D-98). It carried TRUST-04's four-row panel, handed down
+   * from the RSC because this file is a client component. The panel is deleted from every booking
+   * surface: two of its four rows read the same month for every host and every listing at launch, and
+   * its payment row promised that FitOut holds a payment for a session that is not happening. The ban
+   * on INVENTING trust signals is untouched — `tests/design/trust-signals.test.ts` still scans this
+   * file among the rest of the phase's three roots.
    */
-  trustBlock: ReactNode;
 };
 
-export function PendingPaymentState({ reference, email, trustBlock }: PendingPaymentStateProps) {
+export function PendingPaymentState({ reference, email }: PendingPaymentStateProps) {
   const router = useRouter();
   const [slow, setSlow] = React.useState(false);
   const [escalated, setEscalated] = React.useState(false);
@@ -249,12 +242,10 @@ export function PendingPaymentState({ reference, email, trustBlock }: PendingPay
           <BookingReference reference={reference} />
         </div>
 
-        <Separator />
-
-        {/* TRUST-04 (D-67), the same block every other status renders — see the prop's own note for
-            why it arrives as a slot rather than as an import. It ends with the guarded support row, so
-            this file holds no support literal of its own and `site-contacts.test.ts` is untouched. */}
-        {trustBlock}
+        {/* THE TRUST PANEL AND ITS `<Separator/>` BOTH LEFT HERE (D-98) — see the removed prop's
+            note above. This file still holds no support literal of its own: the guarded affordance at
+            the escalation threshold takes its label as a prop, so `site-contacts.test.ts` is
+            untouched by this change as it was by the panel's arrival. */}
       </div>
     </div>
   );

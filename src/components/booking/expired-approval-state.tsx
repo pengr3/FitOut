@@ -36,7 +36,6 @@
 // announced either nothing or a duplicate of what was about to be read anyway.
 
 import * as React from "react";
-import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TimerOffIcon } from "lucide-react";
@@ -45,7 +44,6 @@ import { toast } from "sonner";
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { BookingReference } from "@/components/booking/booking-reference";
 import { reRequestSameWindow } from "@/app/actions/re-request";
 
@@ -68,7 +66,6 @@ export function ExpiredApprovalState({
   tzNote,
   slot,
   reference,
-  trustBlock,
 }: {
   bookingId: string;
   listingId: string;
@@ -93,14 +90,13 @@ export function ExpiredApprovalState({
    */
   reference: string;
   /**
-   * TRUST-04's four-signal block (D-67), rendered by the RSC and handed down as a finished element.
-   *
-   * A SLOT rather than an import, for this file's client boundary — `TrustBlock` is a Server Component
-   * and there is nothing to gain by bundling it. It is the SAME element the five inline branches of
-   * `bookings/[id]/page.tsx` render, built once. Required, not optional: D-67 puts it on every status,
-   * and an optional prop is how a branch quietly loses it.
+   * ⚠ THE `trustBlock` SLOT IS GONE (13-19 / D-98). It carried TRUST-04's four-row panel, handed down
+   * from the RSC because this file is a client component. The panel is deleted from every booking
+   * surface: two of its four rows read the same month for every host and every listing at launch, and
+   * its payment row promised that FitOut holds a payment for a session that is not happening. The ban
+   * on INVENTING trust signals is untouched — `tests/design/trust-signals.test.ts` still scans this
+   * file among the rest of the phase's three roots.
    */
-  trustBlock: ReactNode;
 }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
@@ -196,10 +192,8 @@ export function ExpiredApprovalState({
           <BookingReference reference={reference} />
         </div>
 
-        <Separator />
-
-        {/* TRUST-04 (D-67) — the same block every other status renders; see the prop's own note. */}
-        {trustBlock}
+        {/* THE TRUST PANEL AND ITS `<Separator/>` BOTH LEFT HERE (D-98) — see the removed prop's
+            note above. A rule with nothing after it divides the content from the page's bottom. */}
       </div>
     </div>
   );

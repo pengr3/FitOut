@@ -45,7 +45,6 @@ import { render, screen, cleanup, within } from "@testing-library/react";
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
-import { TrustBlock } from "@/components/booking/trust-block";
 import { ALL_RAILS_REFUND_WINDOW, REFUND_WINDOW_BY_RAIL } from "@/lib/booking/refund-window";
 
 afterEach(cleanup);
@@ -70,21 +69,14 @@ const MAYA_WINDOW = REFUND_WINDOW_BY_RAIL.get("paymaya")!;
 const NOT_COMPLETED_SENTENCE = ["haven't b", "een charged"].join("");
 
 /**
- * TRUST-04's block, as the REAL component rather than a stand-in (13-10 / D-67).
+ * ⚠ TRUST-04's FOUR-ROW PANEL USED TO BE MOUNTED HERE AS A SLOT, AND IT IS GONE (13-19 / D-98).
  *
- * This state takes it as a `ReactNode` slot, because the page composes it once in the RSC and hands the
- * same element to all nine renders. Passing the real one here means the negatives below — no alarm
- * colour, no live region, exactly one coral — are asserted over the whole tree a booker sees.
+ * It was passed as the real component rather than a stand-in so the negatives below — no alarm colour,
+ * no live region, exactly one coral — were asserted over the whole tree a booker sees. Those negatives
+ * are unchanged and are now asserted over a tree that is simply smaller: the panel is deleted from
+ * every booking surface, because on THIS state its payment row promised that FitOut holds a payment
+ * for a session that is not happening.
  */
-const TRUST_BLOCK = (
-  <TrustBlock
-    variant="full"
-    hostSinceLabel="June 2026"
-    listingPublishedLabel="June 2026"
-    bookingMode="instant"
-    reference={REFERENCE}
-  />
-);
 
 function renderAuto(rail: string | null) {
   return render(
@@ -94,7 +86,6 @@ function renderAuto(rail: string | null) {
       amountLabel={AMOUNT}
       branch="auto"
       rail={rail}
-      trustBlock={TRUST_BLOCK}
     />,
   );
 }
@@ -107,7 +98,6 @@ function renderManual(rail: string | null = "qrph") {
       amountLabel={AMOUNT}
       branch="manual"
       rail={rail}
-      trustBlock={TRUST_BLOCK}
     />,
   );
 }

@@ -84,7 +84,6 @@
 //       PanelCard: the facts <dl>    — venue, address, when + tz, host, itemised total
 //       PanelCard: the reference     — TRUST-02 / D-78, on EVERY status
 //       CancellationPolicyDisclosure — TRUST-03, where a policy still applies
-//       <TrustBlock variant="full"/> — TRUST-04 / D-67, on EVERY status
 //       <Separator/> + the actions   — at most ONE coral
 //     </section>
 //   </div>
@@ -142,7 +141,6 @@ import { getAvailability } from "@/lib/availability/read-model";
 import { getHeadcount, getOwnedGroupByBooking } from "@/lib/group/rsvp";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import { bookedListingAddress } from "@/lib/listing-public";
-import { formatMemberSince } from "@/lib/profile";
 import { venueTzNote } from "@/lib/venue-time";
 import { APPROVAL_SLA_HOURS, APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
 import { BOOKING_SHELL } from "@/lib/design/measurements";
@@ -161,7 +159,6 @@ import { RequestCountdown } from "@/components/booking/request-countdown";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { CancelRequestDialog } from "@/components/booking/cancel-request-dialog";
 import { CreateGroupButton } from "@/components/group/create-group-button";
-import { TrustBlock } from "@/components/booking/trust-block";
 import { ConfirmationMoment } from "@/components/booking/confirmation-moment";
 import { ConsumePaidParam } from "@/components/booking/consume-paid-param";
 import {
@@ -319,20 +316,15 @@ export default async function BookingConfirmationPage({
       // The host's D-09 toggle. Read but never OBEYED for a confirmed/completed booking — see D-91 and
       // the boundary's own header for why that is the host's promise being kept rather than broken.
       showExactAddress: listing.showExactAddress,
-      // TRUST-04 signal 3 (D-68). NULL on a listing that was never published — the trust row is then
-      // ABSENT rather than blank.
-      publishedAt: listing.publishedAt,
-      // TRUST-04 signal 4 (D-68). THE LISTING'S CURRENT MODE, deliberately — NOT `booking.bookingMode`,
-      // which is already selected above and is the booking's creation-time snapshot (D-61). The trust
-      // block's sentence is a statement about how this SPACE behaves ("this host approves each
-      // request"), which is a fact about the listing today; the snapshot is a fact about this booking's
-      // history and is what the lapse branch reads. Two different questions, two different columns.
-      listingBookingMode: listing.bookingMode,
-      // TRUST-04 signal 2 (D-68/D-66) — the host's own `createdAt`, through the join below. Formatted
-      // in this RSC and passed down as a finished string.
-      hostCreatedAt: user.createdAt,
-      // Selected here rather than in a later plan because the JOIN is the cost and it is already paid.
-      // 13-10's facts panel renders the host's name; nothing in THIS plan does.
+      // ⚠ THREE COLUMNS LEFT THIS SELECT WITH THE TRUST PANEL (13-19 / D-98): `publishedAt`,
+      // `listing.bookingMode` as the listing's CURRENT mode, and the host's `createdAt`. They were
+      // read for signals 2, 3 and 4 of a panel that no longer exists, and a selected column with no
+      // reader is a row this page pays for on every render and states nowhere. The booking's own
+      // creation-time mode snapshot (`bk.bookingMode`, selected above) is untouched — the lapse
+      // branch and the confirmation moment both read it, and it answers a different question.
+      //
+      // THE JOIN STAYS, AND IT IS NOT ORPHANED: the facts panel renders the host's first name, which
+      // is the row below and the reason the inner join was worth paying for in the first place.
       hostFirstName: user.firstName,
     })
     .from(listing)
@@ -407,32 +399,34 @@ export default async function BookingConfirmationPage({
   // two of them booked — asserted per render in `tests/listing/booked-address.test.ts`.
   const address = bookedListingAddress(lst, { displayStatus });
 
-  // The two trust-block dates. ONE formatter for both, and it is the shipped one that
-  // `listing/host-block.tsx:115` already renders "Host since" with — so this page and the listing page
-  // can never disagree about the same host, and the product has no fifth date format (D-66).
-  const hostSinceLabel = formatMemberSince(lst.hostCreatedAt);
-  const listingPublishedLabel = lst.publishedAt ? formatMemberSince(lst.publishedAt) : null;
-
-  /**
-   * The trust block, identical on every branch below (D-67).
-   *
-   * IT RENDERS ON THE STATES THAT LOOK WRONG TOO, AND THAT IS THE REQUIREMENT RATHER THAN AN OVERSIGHT:
-   * trust matters most when something has gone wrong, so binding this block to the happy path would
-   * remove it precisely where a booker needs it. Built once as an element so the five branches cannot
-   * drift into five slightly different trust blocks.
-   *
-   * The props are all finished strings by the time they arrive — the component performs no date math
-   * and reads no column (see its header for D-65's reframing and why it touches neither payout flag).
-   */
-  const trustBlock = (
-    <TrustBlock
-      variant="full"
-      hostSinceLabel={hostSinceLabel}
-      listingPublishedLabel={listingPublishedLabel}
-      bookingMode={lst.listingBookingMode}
-      reference={bookingReference(bk.id)}
-    />
-  );
+  // ══ 13-19 / D-98 — THE FOUR-ROW TRUST PANEL USED TO BE BUILT HERE, AND IT IS GONE ════════════════
+  //
+  // It rendered on every status (the old D-67) and carried four signals (the old D-68): the platform
+  // guarantee, `user.created_at` as *Host since*, `listing.published_at` as *Listing published*, and
+  // the listing's booking mode. The PM used it in live UAT and judged it filler; the evidence is on
+  // their side and it is worth writing down rather than re-discovering.
+  //
+  //   • AT LAUNCH EVERY HOST AND EVERY LISTING READS THE SAME MONTH. Two of the four rows were
+  //     therefore the same string on every booking in the product — a date that distinguishes nothing
+  //     is not a signal, it is furniture.
+  //   • ON A CANCELLED OR REVERSED BOOKING THE PAYMENT ROW WAS WORSE THAN USELESS. *"FitOut holds your
+  //     payment until after your session"* is a promise about a session that is not happening. The old
+  //     D-67 put the block on the states that look wrong on the argument that trust matters most
+  //     there; what those states actually needed was the money truth, which `MoneyStatement` and
+  //     `ManualReturnNotice` already own.
+  //
+  // ⚠ TRUST-04 IS UNTOUCHED BY THIS, AND THE DISTINCTION IS THE WHOLE POINT. The requirement is a
+  // CONSTRAINT — only real trust signals may be shown — not a mandate to show four.
+  // `tests/design/trust-signals.test.ts` still bans its twelve invented-signal tokens across this
+  // phase's three roots, unmodified and green. Removing the panel removes signals; it must never
+  // remove the ban on inventing new ones. 13-09's exact-row COUNT — the gate that caught a real
+  // `Trusted host` row the token ban stayed green on — is RETARGETED rather than retired: it now
+  // asserts the ordered `<dt>` term set of the whole render, per status, in
+  // `tests/booking/detail-completeness.test.tsx`.
+  //
+  // ⚠ THE ONE SENTENCE WORTH KEEPING WAS KEPT. The platform guarantee is the hold-until-session payout
+  // model stated to a booker, and it is the answer to *where is my money* — so it moved into the paid
+  // statement on the branch where it is TRUE (D-99), instead of onto every branch where it was not.
 
   /**
    * The address rows for the facts `<dl>`, or nothing when the row holds no address at all.
@@ -675,7 +669,6 @@ export default async function BookingConfirmationPage({
         <PendingPaymentState
           reference={reference}
           email={session?.user?.email ?? null}
-          trustBlock={trustBlock}
         />
       );
     // ══ 13-07 — D-70's THIRD PAYMENT STATE, AND THE BOUNDARY THAT KEEPS IT OFF SOMEBODY ELSE'S ══════
@@ -727,7 +720,6 @@ export default async function BookingConfirmationPage({
             listingId={bk.listingId}
             reference={reference}
             holdExpiresAt={holdExpiresAt.toISOString()}
-            trustBlock={trustBlock}
           />
         );
       }
@@ -795,11 +787,6 @@ export default async function BookingConfirmationPage({
           {factsPanel("You'll pay if approved")}
           {referencePanel}
 
-          {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
-              wrong, so the block is not bound to the happy path. Identical element on all
-              five inline branches; see its construction above. */}
-          {trustBlock}
-
           <Separator />
 
           {/* (b) The unpaid-hold cancel — a plain confirm dialog ("Cancel this request?") carrying NO
@@ -844,11 +831,6 @@ export default async function BookingConfirmationPage({
 
           {factsPanel("Total")}
           {referencePanel}
-
-          {/* TRUST-04 on this branch too (D-67) — trust matters most when something looks
-              wrong, so the block is not bound to the happy path. Identical element on all
-              five inline branches; see its construction above. */}
-          {trustBlock}
 
           <Separator />
 
@@ -902,9 +884,6 @@ export default async function BookingConfirmationPage({
               the same false money statement D-90 removes from the `requested` branch. */}
           {factsPanel("Quoted total")}
           {referencePanel}
-
-          {/* TRUST-04 on a decline (D-67). */}
-          {trustBlock}
 
           <Separator />
 
@@ -1002,7 +981,6 @@ export default async function BookingConfirmationPage({
           amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
           branch={branch}
           rail={rail}
-          trustBlock={trustBlock}
         />
       );
     }
@@ -1040,7 +1018,6 @@ export default async function BookingConfirmationPage({
           tzNote={tzNote}
           slot={slot}
           reference={reference}
-          trustBlock={trustBlock}
         />
       );
     }
@@ -1163,9 +1140,6 @@ export default async function BookingConfirmationPage({
           {factsPanel(refundCents != null || bk.paymentId !== null ? "Total" : "Quoted total")}
           {referencePanel}
 
-          {/* TRUST-04 on a cancellation (D-67). */}
-          {trustBlock}
-
           <Separator />
 
           {/* TRUST-05 — present on a cancellation ONLY where money actually moved, which is the same
@@ -1269,7 +1243,6 @@ export default async function BookingConfirmationPage({
             // exist, which is what makes *"your host approved this"* true or false. The trust block
             // below reads the LISTING's current mode instead; see its own prop.
             bookingMode={bk.bookingMode === "request" ? "request" : "instant"}
-            listingBookingMode={lst.listingBookingMode}
             // Venue, venue-local date, hours and the named timezone, as ONE line, through the module
             // that owns the product's four date formats (see the import). It resolves the open-capacity
             // fork itself, so a drop-in pass reads as an entry window rather than as a reservation.
@@ -1297,8 +1270,6 @@ export default async function BookingConfirmationPage({
             // D-63 — the booker's OWN session address, FULL and never masked. No join was added for
             // it: it is the session user's, already read at the top of this file.
             email={session?.user?.email ?? null}
-            hostSinceLabel={hostSinceLabel}
-            listingPublishedLabel={listingPublishedLabel}
             // TRUST-03 — the SAME element the detail below renders, passed as a slot so the moment
             // and the ordinary page cannot disclose two different windows. Gated on the same
             // `sessionAhead` predicate for 13-10's reason: a policy shown for a booking that can no
@@ -1345,9 +1316,6 @@ export default async function BookingConfirmationPage({
             the same `sessionAhead` predicate the cancel entry at the foot of this branch uses. A
             finished session has nothing to cancel and therefore no window to disclose. */}
         {sessionAhead && policyDisclosure}
-
-        {/* TRUST-04 (D-67). The same element the four other branches render. */}
-        {trustBlock}
 
         <Separator />
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-// BFLOW-08 / D-61 / D-62-as-corrected-by-D-90 / D-63 / D-67 — THE CONFIRMATION MOMENT, AS A CONTRACT.
+// BFLOW-08 / D-61 / D-62-as-corrected-by-D-90 / D-63 / D-98 — THE CONFIRMATION MOMENT, AS A CONTRACT.
 //
 // WHAT THIS FILE IS FOR, AND WHAT IT DELIBERATELY IS NOT FOR.
 //
@@ -12,7 +12,7 @@
 // TREE can answer: WHICH FACTS ARE PRESENT, in WHAT ORDER, in WHICH MODE, and WHAT IS ABSENT.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// THE COPY IS RETYPED HERE, EXACTLY AS `trust-block.test.tsx` RETYPES ITS FOUR SENTENCES
+// THE COPY IS RETYPED HERE RATHER THAN IMPORTED FROM THE COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 //
 // These strings are a COPY CONTRACT (13-UI-SPEC § Copywriting Contract → The confirmation moment).
@@ -54,12 +54,6 @@ const REFERENCE_TERM = "Booking reference";
 const PAID_TERM = "Paid";
 /** D-63 — the FULL address, never masked. Catching a typo is the only reason the line exists. */
 const emailLine = (address: string) => `Confirmation sent to ${address}`;
-/** Trust, condensed — signal 1. */
-const GUARANTEE = "FitOut holds your payment until after your session.";
-/** Trust, condensed — signal 4, `instant`. */
-const INSTANT_RULE = "Books instantly — no approval needed.";
-/** Trust, condensed — signal 4, `request`. */
-const REQUEST_RULE = "This host approves each request before it's confirmed.";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // THE FIXTURE
@@ -90,8 +84,6 @@ const BASE = {
   reference: REFERENCE,
   amountPaid: AMOUNT,
   email: EMAIL,
-  hostSinceLabel: "June 2026",
-  listingPublishedLabel: "July 2026",
   policyDisclosure: policySlot,
 } as const;
 
@@ -100,22 +92,6 @@ function moment(container: HTMLElement): HTMLElement {
   const el = container.querySelector<HTMLElement>('[data-testid="confirmation-moment"]');
   expect(el, "the confirmation moment did not render at all").not.toBeNull();
   return el!;
-}
-
-/**
- * The trust block's SIGNAL rows — its direct-child rows, minus the guarded support row.
- *
- * Lifted verbatim from `tests/booking/trust-block.test.tsx`, including its reason: `SupportPath`
- * renders nothing while `SUPPORT_EMAIL` is null (D-64), so a bare child count agrees with this
- * function today and would stop agreeing the day an operator sets the constant.
- */
-function trustRows(container: HTMLElement): HTMLElement[] {
-  const block = moment(container).querySelector<HTMLElement>('[data-testid="trust-block"]');
-  expect(block, "the condensed trust block did not render inside the moment").not.toBeNull();
-  return Array.from(block!.children).filter(
-    (el): el is HTMLElement =>
-      el instanceof HTMLElement && el.getAttribute("data-testid") !== "support-path",
-  );
 }
 
 /**
@@ -135,7 +111,7 @@ function positionOf(container: HTMLElement, node: Element): number {
 describe("The confirmation moment — the two mode variants (D-62 as corrected by D-90)", () => {
   it("(1) `instant` leads with the ARRIVAL facts under its own `<h1>`", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} />,
     );
     const section = moment(container);
 
@@ -161,7 +137,7 @@ describe("The confirmation moment — the two mode variants (D-62 as corrected b
 
   it("(2) `request` leads with the money answer that is REAL — approved, paid, held (D-90)", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="request" listingBookingMode="request" {...BASE} />,
+      <ConfirmationMoment bookingMode="request" {...BASE} />,
     );
     const section = moment(container);
 
@@ -185,13 +161,13 @@ describe("The confirmation moment — the two mode variants (D-62 as corrected b
 
   it("(3) the two `<h1>` variants are different strings, and neither is the other's fallback", () => {
     const instant = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} />,
     );
     const a = within(moment(instant.container)).getByRole("heading", { level: 1 }).textContent;
     cleanup();
 
     const request = render(
-      <ConfirmationMoment bookingMode="request" listingBookingMode="request" {...BASE} />,
+      <ConfirmationMoment bookingMode="request" {...BASE} />,
     );
     const b = within(moment(request.container)).getByRole("heading", { level: 1 }).textContent;
 
@@ -202,7 +178,7 @@ describe("The confirmation moment — the two mode variants (D-62 as corrected b
 describe("The confirmation moment — what it contains, and in what order (D-61)", () => {
   it("(4) renders a `<section>` carrying the declared hook, and NEVER a `<main>`", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} />,
     );
 
     expect(moment(container).tagName).toBe("SECTION");
@@ -215,7 +191,7 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
   it("(5) renders EXACTLY one `<h1>`, and no `<h2>` competing with it", () => {
     for (const mode of ["instant", "request"] as const) {
       const { container } = render(
-        <ConfirmationMoment bookingMode={mode} listingBookingMode={mode} {...BASE} />,
+        <ConfirmationMoment bookingMode={mode} {...BASE} />,
       );
       const section = moment(container);
 
@@ -232,9 +208,9 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
     }
   });
 
-  it("(6) carries the eight specified items, in the specified order", () => {
+  it("(6) carries the seven specified items, in the specified order", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="request" listingBookingMode="request" {...BASE} />,
+      <ConfirmationMoment bookingMode="request" {...BASE} />,
     );
     const section = moment(container);
 
@@ -259,26 +235,25 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
     const paid = within(section).getByText(PAID_TERM);
     // 6 — the full email line.
     const email = within(section).getByText(emailLine(EMAIL));
-    // 7 — the condensed trust block.
-    const trust = section.querySelector('[data-testid="trust-block"]')!;
-    // 8 — the cancellation policy.
+    // 7 — the cancellation policy. The condensed trust panel used to sit between the email line and
+    //     this one; D-98 deleted it, and case (11) is the assertion that it stayed deleted.
     const policy = within(section).getByText(POLICY_SENTINEL);
 
-    const order = [mark!, h1, lede!, reference, paid, email, trust, policy].map((n) =>
+    const order = [mark!, h1, lede!, reference, paid, email, policy].map((n) =>
       positionOf(container, n),
     );
 
     expect(
       order,
       "13-UI-SPEC § What is in the moment, in order: mark, h1, lede, reference, amount, email, " +
-        "trust, policy. The order is the argument — the booker's questions are answered in the " +
-        "sequence they are asked.",
+        "policy. The order is the argument — the booker's questions are answered in the sequence " +
+        "they are asked.",
     ).toEqual([...order].sort((x, y) => x - y));
   });
 
   it("(7) states the FULL email address, unmasked (D-63)", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} />,
     );
     const section = moment(container);
 
@@ -296,7 +271,7 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
     const { container } = render(
       <ConfirmationMoment
         bookingMode="instant"
-        listingBookingMode="instant"
+       
         {...BASE}
         email={null}
       />,
@@ -310,7 +285,7 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
 
   it("(9) labels the amount `Paid`, and renders the figure exactly once", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} />,
     );
     const section = moment(container);
 
@@ -324,7 +299,7 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
   it("(10) no copy states or implies a charge that is pending, at risk, or conditional (D-90)", () => {
     for (const mode of ["instant", "request"] as const) {
       const { container } = render(
-        <ConfirmationMoment bookingMode={mode} listingBookingMode={mode} {...BASE} />,
+        <ConfirmationMoment bookingMode={mode} {...BASE} />,
       );
       const text = moment(container).textContent!.toLowerCase();
 
@@ -354,41 +329,27 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
   });
 });
 
-describe("The confirmation moment — the condensed trust block (D-67)", () => {
-  it("(11) renders EXACTLY two signal rows, and they are signals 1 and 4", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
-    );
+describe("The confirmation moment — the condensed trust panel is GONE (D-98)", () => {
+  it("(11) renders no trust panel, and neither of the two dated rows it carried", () => {
+    for (const mode of ["instant", "request"] as const) {
+      const { container } = render(<ConfirmationMoment bookingMode={mode} {...BASE} />);
+      const section = moment(container);
 
-    // THE COUNT IS THE REQUIREMENT (13-09's finding: a token ban stayed green on a real fifth signal
-    // that only the row count caught). Two rows, not four, and not the first two off the top.
-    expect(trustRows(container)).toHaveLength(2);
-    expect(trustRows(container).map((r) => r.querySelector("dd")?.textContent?.trim())).toEqual([
-      GUARANTEE,
-      INSTANT_RULE,
-    ]);
+      // ASSERTED OVER THE RENDERED TREE, not over this file's import list. 13-07's finding is that a
+      // source scan cannot see what it was not told to look for, and a panel re-introduced through a
+      // slot rather than an import would be invisible to a grep for the component's name.
+      expect(
+        section.querySelectorAll('[data-testid="trust-block"]'),
+        `${mode}: the condensed trust panel is rendering again. D-98 removed it from every booking ` +
+          "surface: at launch every host and every listing reads the same month, so its two dated " +
+          "rows distinguish nothing.",
+      ).toHaveLength(0);
 
-    // Host tenure and listing age are one scroll below in the FULL block, permanently.
-    expect(moment(container).textContent).not.toContain("Host since");
-    expect(moment(container).textContent).not.toContain("Listing published");
-  });
-
-  it("(12) signal 4 follows the LISTING's mode, not the booking's snapshot", () => {
-    // The two columns answer different questions (13-09's recorded decision): the booking's snapshot
-    // is a fact about THIS booking's history — which is what picks the `<h1>` — while signal 4 is a
-    // statement about how the SPACE behaves today. A booking taken under request-to-book on a
-    // listing that has since switched to instant must say both true things at once.
-    const { container } = render(
-      <ConfirmationMoment bookingMode="request" listingBookingMode="instant" {...BASE} />,
-    );
-    const section = moment(container);
-
-    expect(section.textContent).toContain(H1_REQUEST);
-    expect(trustRows(container).map((r) => r.querySelector("dd")?.textContent?.trim())).toEqual([
-      GUARANTEE,
-      INSTANT_RULE,
-    ]);
-    expect(section.textContent).not.toContain(REQUEST_RULE);
+      // The two terms specifically, because a panel rebuilt inline would carry no test id at all.
+      expect(section.textContent).not.toContain("Host since");
+      expect(section.textContent).not.toContain("Listing published");
+      cleanup();
+    }
   });
 });
 
@@ -396,7 +357,7 @@ describe("The confirmation moment — there is no CTA in it (13-UI-SPEC § Prima
   it("(13) renders ZERO links, on both modes", () => {
     for (const mode of ["instant", "request"] as const) {
       const { container } = render(
-        <ConfirmationMoment bookingMode={mode} listingBookingMode={mode} {...BASE} />,
+        <ConfirmationMoment bookingMode={mode} {...BASE} />,
       );
 
       expect(
@@ -411,7 +372,7 @@ describe("The confirmation moment — there is no CTA in it (13-UI-SPEC § Prima
 
   it("(14) exposes exactly ONE control, and it is the reference's copy control", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} />,
     );
     const section = moment(container);
 
@@ -427,7 +388,7 @@ describe("The confirmation moment — there is no CTA in it (13-UI-SPEC § Prima
 
   it("(15) puts the reference at HEADING weight, never at display weight", () => {
     const { container } = render(
-      <ConfirmationMoment bookingMode="instant" listingBookingMode="instant" {...BASE} />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} />,
     );
     const reference = moment(container).querySelector('[data-testid="booking-reference"]')!;
 
