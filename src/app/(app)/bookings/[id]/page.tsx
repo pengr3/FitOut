@@ -126,6 +126,7 @@ import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { bookingReference } from "@/lib/booking/reference";
 import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 import { readDbNow } from "@/lib/booking/bookings-query";
+import { refundNeedsManualReturn } from "@/lib/booking/refund-dispatch";
 // The ONE owner of a venue-local deadline string (07-02). The `requested` branch's meaning sentence
 // names an instant, and a fifth date format on this page is exactly what this module exists to prevent.
 // `composeWhenLabelShort` is the SAME module's dense form (13-11): the confirmation moment's arrival
@@ -155,6 +156,7 @@ import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 import { NotCompletedState } from "@/components/booking/not-completed-state";
 import { PaymentReversedState } from "@/components/booking/payment-reversed-state";
+import { ManualReturnNotice } from "@/components/booking/manual-return-notice";
 import { RequestCountdown } from "@/components/booking/request-countdown";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { CancelRequestDialog } from "@/components/booking/cancel-request-dialog";
@@ -1057,12 +1059,36 @@ export default async function BookingConfirmationPage({
     // would therefore be claiming it off the POST, which is exactly what D-57 forbids. The settled variant
     // is deliberately not rendered; if a settlement signal is ever persisted, this is where it lands.
     const refundCents = bk.refundCents;
+    const amountLabel =
+      refundCents == null ? null : formatMoney(refundCents, bk.currency ?? DISPLAY_CURRENCY);
     const refundLine =
       refundCents == null
         ? null
         : refundCents > 0
-          ? `${formatMoney(refundCents, bk.currency ?? DISPLAY_CURRENCY)} refund on its way`
+          ? `${amountLabel} refund on its way`
           : "No refund — cancelled inside the no-refund window";
+
+    // ══ PLAN 13-18 — THE SECOND MONEY TRUTH ON THIS BRANCH, AND WHY IT IS READ HERE ═══════════════
+    //
+    // `refund_cents` records what the CANCELLATION OWED. It does NOT record that anything moved: the
+    // action writes the figure, commits the flip, and only THEN tries to dispatch — deliberately, so a
+    // PayMongo outage can never resurrect an occupied slot nobody is going to use. On four paths the
+    // dispatch does not happen (the call raised, the rail is not API-refundable, the destination could
+    // not be verified, the amount is above the InstaPay ceiling), an operator alert is written, and a
+    // person moves the money by hand.
+    //
+    // Until this plan, the sentence composed above — the in-transit one — rendered on those paths too,
+    // and it is FALSE there: nothing is in transit. The only place a booker was ever told otherwise was
+    // a `toast.warning` on the cancel form, which navigated away from itself. STATE-08: what a booker
+    // must READ never travels in a toast. `refundNeedsManualReturn` reads the fact off the audit rows
+    // those paths already write — ZERO new columns (D-80) — and `ManualReturnNotice` states it here,
+    // durably, on the destination.
+    //
+    // THE ROUND TRIP IS GATED ON MONEY BEING OWED, matching this branch's existing discipline for its
+    // payment probe: a party cancellation with no refund (or a swept hold that was never paid) has
+    // nothing to say either way and pays nothing to find that out.
+    const manualReturn =
+      refundCents !== null && refundCents > 0 ? await refundNeedsManualReturn(bk.id) : false;
 
     return (
       <div className={BOOKING_SHELL}>
@@ -1104,7 +1130,14 @@ export default async function BookingConfirmationPage({
               no-refund cases and for no third one, and inventing a third would be writing an
               un-reviewed money claim. The facts panel's *"Quoted total"* row carries that row's money
               fact, which is that there is none. */}
-          {refundLine && (
+          {/* THE FORK. `manualReturn` wins, and it must: the two sentences are mutually exclusive
+              money claims about the same figure, and the in-transit one is the false half whenever
+              the dispatch did not happen. It carries NO window — D-83 permits exactly three (card up
+              to 30 days, GCash and Maya within 24 hours) and every one of them describes an automatic
+              return on a rail that accepted one. Nobody knows when a hand-moved transfer lands. */}
+          {manualReturn && amountLabel !== null ? (
+            <ManualReturnNotice amountLabel={amountLabel} reference={reference} />
+          ) : refundLine ? (
             <MoneyStatement
               sentence={refundLine}
               detail={
@@ -1121,7 +1154,7 @@ export default async function BookingConfirmationPage({
                   : undefined
               }
             />
-          )}
+          ) : null}
 
           {/* "Total" only where money actually moved. A cancelled row can be a party cancellation of a
               booking that was paid (a refund figure, or a payment id) or a hold that was swept without

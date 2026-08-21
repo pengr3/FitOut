@@ -77,6 +77,13 @@ let testAuth: TestAuth;
 type CancelActions = typeof import("@/app/actions/cancel-booking");
 let cancelBookingAsBooker: CancelActions["cancelBookingAsBooker"];
 let cancelUnpaidHold: CancelActions["cancelUnpaidHold"];
+/**
+ * PLAN 13-18 — the reader `/bookings/{id}` uses to decide whether the booker's money is actually in
+ * transit. Imported through the same `vi.doMock("@/lib/db")` curtain as the action, so it reads THIS
+ * file's isolated schema.
+ */
+type RefundDispatchModule = typeof import("@/lib/booking/refund-dispatch");
+let refundNeedsManualReturn: RefundDispatchModule["refundNeedsManualReturn"];
 
 let hostId: string;
 let bookerId: string;
@@ -236,6 +243,7 @@ beforeAll(async () => {
   }));
   vi.resetModules();
   ({ cancelBookingAsBooker, cancelUnpaidHold } = await import("@/app/actions/cancel-booking"));
+  ({ refundNeedsManualReturn } = await import("@/lib/booking/refund-dispatch"));
 });
 
 afterAll(async () => {
@@ -683,6 +691,40 @@ describe("cancelBookingAsBooker — the SC#2 money invariants", () => {
       expect.objectContaining({ bookingId: "bk_dispatch_fail" }),
     );
 
+    // ══ PLAN 13-18 — AND THE BOOKER IS NOW TOLD, DURABLY. ═══════════════════════════════════════════
+    //
+    // THIS PATH NEVER HAD A `notice` AT ALL. The three `notice` strings this plan removed all hung off
+    // the UNREFUNDABLE-rail branch; a refundable rail whose `createRefund` RAISED — exactly the case
+    // this test drives — wrote the operator alert and told the booker nothing, while their detail page
+    // read `refund_cents` and announced "₱500.00 refund on its way". The row above proves the money did
+    // not move. This predicate is what stops the page saying otherwise.
+    expect(await refundNeedsManualReturn("bk_dispatch_fail")).toBe(true);
+
     errorSpy.mockRestore();
+  });
+
+  it("(12) a refund that DID dispatch leaves no manual-return claim behind", async () => {
+    // ⚠ THE COMPANION TO (11), AND IT IS NOT CEREMONY. Case (11)'s assertion is `toBe(true)`, which a
+    // predicate hardwired to `true` — or one that matched any audit row naming the booking — satisfies
+    // perfectly. This booking's cancellation writes a `cancel_booking` audit row whose `meta.bookingId`
+    // is "bk_dispatch_ok" and whose outcome is `ok`, so the row EXISTS and the predicate must still
+    // answer `false`. Together the two cases prove the action set and the outcome filter are both live.
+    //
+    // It is also the assertion that keeps the ordinary cancelled page honest: the overwhelmingly common
+    // outcome is a refund that dispatched, and that booker must keep the in-transit sentence and its
+    // verified window.
+    await seedListing("L_dispatch_ok", "standard");
+    await seedBooking("bk_dispatch_ok", "L_dispatch_ok", 10 * HOUR, { policy: "standard" });
+
+    await login(BOOKER_EMAIL);
+    const res = await cancelBookingAsBooker("bk_dispatch_ok");
+
+    expect(res.ok).toBe(true);
+    // The dispatch really was attempted and really did succeed — otherwise `false` below would be the
+    // right answer for the wrong reason (nothing was ever owed).
+    expect(mockPayMongo.createRefund).toHaveBeenCalledTimes(1);
+    expect((await readRow("bk_dispatch_ok")).refundCents).toBe(50000);
+
+    expect(await refundNeedsManualReturn("bk_dispatch_ok")).toBe(false);
   });
 });

@@ -120,6 +120,9 @@ vi.mock("@/lib/db", () => {
 
 import { formatMoney } from "@/lib/money";
 import { bookingReference } from "@/lib/booking/reference";
+// The three verified refund windows have ONE owner (D-83). Imported, never retyped: a hand-typed
+// expectation here would keep passing after the module's copy moved, which is the drift it exists to stop.
+import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 import { venueTzNote } from "@/lib/venue-time";
 import { LADDER, rungBoundaries, quoteRefund } from "@/lib/payments/cancellation";
 import { composeDeadlineLabel } from "@/lib/booking/when-label";
@@ -208,9 +211,32 @@ function booking(over: Booking = {}): Booking {
 
 const REFERENCE = bookingReference("bkg_1");
 
-async function renderPage(row: Booking, search: Record<string, string> = {}) {
-  dbState.resolve = (table) =>
-    getTableName(table as never) === "booking" ? [row] : [{ ...LISTING }];
+/**
+ * ⚠ THE HARNESS NOW SERVES THREE TABLES, NOT TWO (plan 13-18).
+ *
+ * The cancelled branch reads the `audit` table when — and only when — a refund figure is owed, to find
+ * out whether the money was ever actually dispatched (`@/lib/booking/refund-dispatch`). Before this
+ * parameter existed the table-keyed stub answered every non-`booking` read with the LISTING row, so
+ * that probe would have come back non-empty for every render and quietly flipped the party-cancellation
+ * case onto the by-hand copy. The default is `[]` — no operator alert — which is the ordinary world.
+ *
+ * ⚠ AND WHAT THIS CANNOT PROVE, said here rather than implied. The stub ignores the `where`, so these
+ * renders assert BRANCH SELECTION and the copy that results, never the query. The query — its jsonb
+ * booking scoping, its outcome filter and its four-action set — is proved against a real Postgres in
+ * `tests/paymongo/instapay-refund.test.ts` and `tests/booking/cancellation.test.ts`, each with a
+ * negative control that a hardwired `true` would fail. Two layers, each proving its own half.
+ */
+async function renderPage(
+  row: Booking,
+  search: Record<string, string> = {},
+  auditRows: unknown[] = [],
+) {
+  dbState.resolve = (table) => {
+    const name = getTableName(table as never);
+    if (name === "booking") return [row];
+    if (name === "audit") return auditRows;
+    return [{ ...LISTING }];
+  };
   const tree = await BookingPage({
     params: Promise.resolve({ id: String(row.id) }),
     searchParams: Promise.resolve(search),
@@ -844,5 +870,132 @@ describe("TRUST-05 — the receipt entry appears on the money-moved renders and 
           "a record — never the thing this surface is asking the booker to do.",
       ).not.toContain("bg-brand");
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// PLAN 13-18 — THE CANCELLED BRANCH'S SECOND MONEY TRUTH IS DURABLE ON THE DESTINATION
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE DEFECT THESE TWO CASES CLOSE. A booker cancels; the money is owed; the dispatch does not happen
+// (the call raised, the rail is not API-refundable, the destination could not be verified, or the
+// amount is above the InstaPay ceiling). Every one of those paths writes a `needs_attention` audit row
+// and a person moves the money by hand. The only place the booker was ever told was a `toast.warning`
+// on the cancel form — which then navigated away from itself — and THIS page, the destination, read
+// `refund_cents` and announced the money was on its way. It was not.
+//
+// WHY BOTH DIRECTIONS ARE ASSERTED, AND WHY THAT IS NOT CEREMONY. 13-17 measured five vacuous cases in
+// one spec where a fail-closed short-circuit returned the same value the assertion demanded. An
+// absence here — "the in-transit sentence is gone" — is satisfied perfectly by a page that renders no
+// money sentence at all, or by a fixture that landed on some other branch. So case (19) asserts the
+// REPLACEMENT is present in the same breath, and case (20) asserts the ordinary render still says the
+// ordinary thing, from the SAME fixture with only the audit rows changed. One flipped input, two
+// opposite outputs: neither result is reachable without the branch actually running.
+
+describe("STATE-08 / D-83 — a refund that did NOT dispatch says so, durably, on /bookings/{id}", () => {
+  /** The party-cancellation fixture: cancelled, `cancelled_by` set, ₱1,000.00 owed back. */
+  const cancelledWithRefund = () =>
+    booking({ status: "cancelled", cancelledBy: "booker", refundCents: 100_000 });
+
+  /** What the operator-alert probe finds when a dispatch failed. Shape-irrelevant — see `renderPage`. */
+  const ALERT_ROWS = [{ id: "aud_1" }];
+
+  const OWED = money(100_000);
+
+  it("(19) states the by-hand truth — with the amount, the reference, and NO window", async () => {
+    const { container } = await renderPage(cancelledWithRefund(), {}, ALERT_ROWS);
+    const text = flat(container as unknown as HTMLElement);
+
+    // ── GUARD THE GUARD, FIRST. Every assertion below is about ONE branch's copy; a fixture that
+    //    landed on the reversal branch, the D-97 lapse or a 404 would satisfy several of them for
+    //    entirely the wrong reason.
+    expect(text, "the fixture did not reach the generic cancelled landing").toContain(
+      "This booking was cancelled",
+    );
+    expect(
+      screen.getByTestId("money-statement"),
+      "the money panel did not mount at all — an absent panel passes every absence below",
+    ).toBeTruthy();
+
+    // ── THE FACT IS ON THE PAGE, AND IT IS IN THE MONEY PANEL rather than merely somewhere in the
+    //    document. Scoped, because an unscoped match would be satisfied by the facts panel's own
+    //    total, which carries the same figure for a different reason.
+    const panel = flat(screen.getByTestId("money-statement"));
+    expect(panel, "the by-hand panel does not name the amount that is owed").toContain(OWED);
+    expect(
+      panel,
+      "the by-hand panel does not say the money is coming back. The booker has to be told what " +
+        "happens next; an amount with no verb is a figure, not a statement.",
+    ).toContain("coming back to you");
+    expect(
+      panel,
+      "the by-hand panel does not say a person is moving it. That sentence IS the caveat — without " +
+        "it the panel reads as an ordinary refund and the booker waits for something automatic.",
+    ).toContain("returned by hand");
+
+    // ── TRUST-02 — the reference travels WITH the money sentence, because the sentence is the thing
+    //    a person quotes when they get in touch about it.
+    expect(panel, "the by-hand sentence does not carry the booking reference").toContain(REFERENCE);
+    // …and it is still rendered as its own copyable element, which is where they take it from.
+    expect(screen.getByTestId("booking-reference").textContent).toBe(REFERENCE);
+
+    // ── D-83, THE MONEY-TRUTH RULE. Nothing was sent back, so the word claiming it was may not
+    //    appear in this panel. Built from two pieces for the reason every gate in this phase is:
+    //    a raw grep for the token over this file must not be satisfied by the assertion banning it.
+    const claimed = ["ref", "unded"].join("");
+    expect(
+      panel.toLowerCase(),
+      `the by-hand panel claims the money was already sent back ("${claimed}"). Nothing has been ` +
+        "sent: the amount is on the FitOut platform wallet and a person still has to move it. This " +
+        "is D-83's ban, and it is the same class of false money statement D-69 removed from the " +
+        "reversed state, pointing the other way.",
+    ).not.toContain(claimed);
+
+    // ── THE OLD SENTENCE IS GONE FROM THIS RENDER. Not re-worded, not demoted — replaced. Two
+    //    sentences about one figure, one of them false, is worse than either alone.
+    expect(
+      panel,
+      "the in-transit sentence is still on the page. It is the false half on this branch: the POST " +
+        "was never accepted, so nothing is in transit.",
+    ).not.toContain("on its way");
+
+    // ── D-83's WINDOW RULE — the assertion this plan's objective names explicitly. Exactly three
+    //    windows exist in this product and every one of them describes an AUTOMATIC return on a rail
+    //    that accepted one. Nobody knows when a hand-moved transfer lands, so this branch states
+    //    none. Asserted against the SHIPPED sentence (imported, never retyped) and against the raw
+    //    durations, so a hand-typed window would be caught even if the module's copy changed.
+    expect(
+      text,
+      "a refund window is stated on the path where nothing was dispatched. D-83 permits three, and " +
+        "all three are promises about an automatic return we did not make here.",
+    ).not.toContain(ALL_RAILS_REFUND_WINDOW);
+    for (const duration of ["30 days", "24 hours"]) {
+      expect(text, `the page states "${duration}" on the non-dispatch path`).not.toContain(duration);
+    }
+  });
+
+  it("(20) …and the ORDINARY cancellation still states the in-transit sentence and its window", async () => {
+    // THE COMPANION, AND THE PROOF THE BRANCH IS LIVE. Same fixture, same page, ONE input flipped:
+    // no operator alert. If the by-hand copy were unconditional — or if the probe answered `true`
+    // for everything, which is exactly what the harness's table stub would have done before this
+    // plan parameterised it — this case is the one that goes red, and case (19) never would.
+    const { container } = await renderPage(cancelledWithRefund(), {}, []);
+    const text = flat(container as unknown as HTMLElement);
+    const panel = flat(screen.getByTestId("money-statement"));
+
+    expect(panel, "the ordinary cancelled render lost its in-transit sentence").toContain(
+      `${OWED} refund on its way`,
+    );
+    expect(
+      text,
+      "the ordinary cancelled render lost the verified window that pairs with that sentence (D-83)",
+    ).toContain(ALL_RAILS_REFUND_WINDOW);
+
+    // …and it says nothing about a person moving the money, because nobody has to.
+    expect(
+      panel,
+      "the by-hand caveat renders on a cancellation whose refund dispatched normally. That would " +
+        "tell a booker whose money really is in transit to wait for a human instead.",
+    ).not.toContain("returned by hand");
   });
 });

@@ -84,13 +84,25 @@ export type HostCancelReason = HostCancellationInput["reason"];
 
 /**
  * Cancel result. `refundCents` is what the SERVER computed and wrote — never an echo of a request field.
- * `notice` (optional, D-72) is a calm post-cancellation caveat for the paths where the cancellation
- * SUCCEEDED but the refund could not be dispatched to the supplied destination (transfer failure, the
- * InstaPay ceiling, or an unverifiable institution list) — the operator seam has the money; the booker is
- * told plainly rather than left to infer.
+ *
+ * ⚠ PLAN 13-18 REMOVED `notice`, AND THE REMOVAL IS THE FIX RATHER THAN A CLEANUP. It carried a calm
+ * post-cancellation caveat for the paths where the cancellation SUCCEEDED but the money could not be
+ * dispatched — and its only consumer rendered it as a `toast.warning` and then navigated away from
+ * itself. A statement that somebody's money did not come back is the definition of a must-read fact,
+ * and STATE-08 forbids a must-read fact riding a surface that removes itself on a timer.
+ *
+ * The caveat is now DERIVED on the destination instead of PUSHED from here: every one of those paths
+ * already writes a `needs_attention` audit row naming the booking, `src/lib/booking/refund-dispatch.ts`
+ * reads it, and the booking detail page's cancelled branch states it as durable page content. That is
+ * strictly more coverage than the field had — `refund_dispatch_failed` (an API-refundable rail whose
+ * call raised) and a cancellation with no destination supplied at all both wrote an alert and set NO
+ * notice, so those bookers were told nothing at all.
+ *
+ * Do not reintroduce the field. A returned string is a push, and the only surface a push can land on
+ * here is the one the booker is leaving.
  */
 export type CancelActionResult =
-  | { ok: true; refundCents: number; notice?: string }
+  | { ok: true; refundCents: number }
   | { ok: false; error: string };
 
 // WR-06: money-moving budget per identity — mirrors approveRequest / confirmBooking (5 per 60s).
@@ -691,9 +703,12 @@ export async function cancelBookingAsBooker(
     row.paymentId != null &&
     isApiRefundable(row.paymentMethod);
 
-  // D-72: the calm post-cancel caveat for the destination paths where the money could NOT be dispatched.
-  let notice: string | undefined;
-
+  // ⚠ D-72's post-cancel caveat USED TO BE COMPOSED HERE, as a `notice` string returned to the client.
+  // Plan 13-18 removed it: see `CancelActionResult` for the argument in full. The fact it stated is now
+  // derived on the DESTINATION from the `needs_attention` audit rows every branch below already writes
+  // — which is why those rows are the load-bearing output of this section and not merely an alert.
+  // Adding a non-dispatch branch WITHOUT one of them would leave the booker's page claiming a transfer
+  // that never happened.
   if (refundable) {
     try {
       await createRefund({
@@ -736,8 +751,6 @@ export async function cancelBookingAsBooker(
           outcome: "needs_attention",
           meta: { bookingId, refundCents: quote.totalRefundCents },
         });
-        notice =
-          "Your booking is cancelled. This refund is above the instant-transfer limit, so our team will arrange it with you directly.";
       } else {
         try {
           const transfer = await createRefundTransfer({
@@ -784,8 +797,6 @@ export async function cancelBookingAsBooker(
               destinationLast4: maskAccountLast4(dest.accountNumber),
             },
           });
-          notice =
-            "Your booking is cancelled, but we couldn't send the refund to that account. Our team has been alerted and will arrange your refund — you may be asked to re-enter your details.";
         }
       }
     } else {
@@ -801,12 +812,15 @@ export async function cancelBookingAsBooker(
           paymentId: row.paymentId,
           method: row.paymentMethod,
           refundCents: quote.totalRefundCents,
+          // ⚠ THE CAUSE, MOVED RATHER THAN DROPPED (plan 13-18). This flag used to pick between two
+          // booker-facing `notice` strings; the booker now reads ONE sentence, because both causes have
+          // the same consequence for them (a person will move the money). The DISTINCTION still matters
+          // to whoever works the alert queue — "the booker gave us an account we could not verify" and
+          // "the booker gave us no account at all" need different follow-ups — so it lands here, which
+          // is the audience it was always really for. NOT PII: a boolean about our own reachability.
+          destinationUnverifiable: destUnverifiable,
         },
       });
-      if (destUnverifiable) {
-        notice =
-          "Your booking is cancelled. We couldn't verify your refund account right now, so our team will arrange your refund directly.";
-      }
     }
   }
 
@@ -821,9 +835,7 @@ export async function cancelBookingAsBooker(
   await voidGroupAndNotifyAttendees(row, bookingId);
 
   revalidateCancelSurfaces(bookingId);
-  return notice
-    ? { ok: true, refundCents: quote.totalRefundCents, notice }
-    : { ok: true, refundCents: quote.totalRefundCents };
+  return { ok: true, refundCents: quote.totalRefundCents };
 }
 
 /**

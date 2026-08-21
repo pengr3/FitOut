@@ -75,20 +75,25 @@ export function RefundDestinationForm({
         // page this line navigates to renders it as durable content on its cancelled branch, with D-79's
         // wording. The toast is now a receipt for the click and nothing more.
         //
-        // ⚠️ THE `notice` PATH IS NOT THE SAME CASE AND KEEPS ITS TOAST. A `notice` means the
-        // cancellation succeeded but the transfer could not be dispatched (a rail failure or a ceiling) —
-        // the operator seam already has the money, and the sentence is a calm server-composed string
-        // rather than a figure to retain. It is also not a literal in this file, so the STATE-08 scan in
-        // `tests/design/status-vocab.test.ts` cannot see it either way; that is recorded as a stated
-        // blind spot there rather than claimed as coverage.
+        // ⚠️ PLAN 13-18 — THE `notice` PATH USED TO BE EXEMPTED HERE, AND THE EXEMPTION WAS WRONG.
+        // It read `res.notice` — set only when the cancellation succeeded but the money could NOT be
+        // dispatched — and rendered it as a `toast.warning`, then navigated away from itself. That is
+        // the single most must-read sentence this flow can produce: somebody's money did not come back.
+        // The old reasoning was that the sentence was "a calm server-composed string rather than a
+        // figure to retain", which mistook the ABSENCE of a number for the absence of a fact. STATE-08
+        // does not split on whether a sentence contains a figure; it splits on whether the reader must
+        // RETAIN it, and a booker who dismissed that toast had no way back to it anywhere in the app.
         //
-        // D-57 still decides the DESTINATION's tense: the POST records intent, so the sentence there is
-        // "on its way" and never a completed past tense.
-        if (res.notice) {
-          toast.warning(res.notice);
-        } else {
-          toast.success("Booking cancelled.");
-        }
+        // The sentence now lives on the DESTINATION as durable page content — the booking detail page's
+        // cancelled branch renders `ManualReturnNotice`, derived server-side from the operator-alert
+        // audit rows those paths already write. `res.notice` is gone from the action entirely, so this
+        // toast cannot be reintroduced by reading a field that no longer exists.
+        //
+        // WHAT REMAINS IS CORRECT UNDER THE SAME RULE. "Booking cancelled." is a receipt for the click:
+        // non-terminal success, no money named, and the page it lands on states every fact durably. The
+        // STATE-08 scan's own allow-list vocabulary is the model — a toast may announce that something
+        // happened; it may not be the only place a fact lives.
+        toast.success("Booking cancelled.");
         router.push(`/bookings/${bookingId}`);
         router.refresh();
       } else {

@@ -158,8 +158,22 @@ let testDb: TestDb;
 let testAuth: TestAuth;
 type CancelActions = typeof import("@/app/actions/cancel-booking");
 type PayMongoModule = typeof import("@/lib/paymongo");
+type RefundDispatchModule = typeof import("@/lib/booking/refund-dispatch");
 let cancelBookingAsBooker: CancelActions["cancelBookingAsBooker"];
 let createRefundTransfer: PayMongoModule["createRefundTransfer"];
+/**
+ * ⚠ PLAN 13-18 — THE READER THAT REPLACED `res.notice`, IMPORTED THROUGH THE SAME `vi.doMock` CURTAIN
+ * as the action so it reads the test schema's `audit` table and not the app singleton's.
+ *
+ * Three cases below used to assert that the booker was TOLD by reading a `notice` string off the
+ * action's return value. The PROPERTY they were defending — "the booker is told, and is not left to
+ * infer" — is unchanged and is still asserted; what changed is WHERE the telling happens. A string
+ * returned to a client that immediately navigates away could only ever land on a toast, which is the
+ * one surface STATE-08 forbids for a fact this must-read. The sentence is now durable page content on
+ * `/bookings/{id}`, derived from the very `needs_attention` rows each case below already asserts, and
+ * this predicate is the seam between them.
+ */
+let refundNeedsManualReturn: RefundDispatchModule["refundNeedsManualReturn"];
 
 let hostId: string;
 let bookerId: string;
@@ -285,6 +299,7 @@ beforeAll(async () => {
   vi.resetModules();
   ({ cancelBookingAsBooker } = await import("@/app/actions/cancel-booking"));
   ({ createRefundTransfer } = await import("@/lib/paymongo"));
+  ({ refundNeedsManualReturn } = await import("@/lib/booking/refund-dispatch"));
 
   vi.stubGlobal("fetch", vi.fn(fetchInterceptor));
 });
@@ -406,6 +421,14 @@ describe("cancelBookingAsBooker + createRefundTransfer — the D-72 InstaPay ref
       destinationLast4: MASKED_LAST4,
       refundCents: 100000,
     });
+    // ⚠ THE NEGATIVE CONTROL FOR THE THREE `toBe(true)` ASSERTIONS IN THIS FILE, and it is a real
+    // discriminator rather than a token opposite. This booking has an audit row whose `meta.bookingId`
+    // IS "bk_np" — the `refund_transfer_dispatched` row asserted four lines above — so a predicate that
+    // matched on the booking alone, or that ignored `outcome`, or that ignored the action set, would
+    // answer `true` here. It must answer `false`: this transfer went out, and this booker's destination
+    // page must keep the ordinary in-transit sentence.
+    expect(await refundNeedsManualReturn("bk_np")).toBe(false);
+
     // …and NO audit line carries the full number, the name or the BIC.
     const allAuditText = JSON.stringify(audits);
     expect(allAuditText).not.toContain(DEST.accountNumber);
@@ -434,11 +457,11 @@ describe("cancelBookingAsBooker + createRefundTransfer — the D-72 InstaPay ref
     // The cancellation SUCCEEDED (the flip is durable); the booker gets the calm recovery message, and
     // is NOT invited to believe the refund is on its way.
     expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.refundCents).toBe(100000);
-      expect(res.notice).toMatch(/couldn't send the refund/i);
-      expect(res.notice).toMatch(/re-enter/i);
-    }
+    if (res.ok) expect(res.refundCents).toBe(100000);
+    // …and the telling is DURABLE. This predicate is what `/bookings/{id}` reads to decide between the
+    // in-transit sentence and the by-hand one; `true` here is the whole reason the booker's destination
+    // page cannot claim a transfer that never happened. See the declaration above for what it replaced.
+    expect(await refundNeedsManualReturn("bk_leak")).toBe(true);
     expect((await readRow("bk_leak")).status).toBe("cancelled");
 
     // Exactly ONE transfer attempt — a silent retry with the same reference is exactly what PayMongo's
@@ -504,10 +527,8 @@ describe("cancelBookingAsBooker + createRefundTransfer — the D-72 InstaPay ref
 
     // The cancellation still succeeds — the ceiling is a dispatch problem, not a cancel problem.
     expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.refundCents).toBe(6_000_000);
-      expect(res.notice).toMatch(/instant-transfer limit/i);
-    }
+    if (res.ok) expect(res.refundCents).toBe(6_000_000);
+    expect(await refundNeedsManualReturn("bk_ceil")).toBe(true);
     expect((await readRow("bk_ceil")).status).toBe("cancelled");
 
     // NO transfer was fired — a call we know 4xxs is worse than an alert.
@@ -593,10 +614,8 @@ describe("cancelBookingAsBooker + createRefundTransfer — the D-72 InstaPay ref
     // The booker's right to cancel is not blocked by PayMongo's feature gate — but no transfer fires at
     // an unverified institution, and the booker is told the team will take it from here.
     expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.refundCents).toBe(100000);
-      expect(res.notice).toMatch(/couldn't verify your refund account/i);
-    }
+    if (res.ok) expect(res.refundCents).toBe(100000);
+    expect(await refundNeedsManualReturn("bk_unver")).toBe(true);
     expect((await readRow("bk_unver")).status).toBe("cancelled");
     expect(transferPosts()).toHaveLength(0);
     expect(auditLines(infoSpy)).toContainEqual(
