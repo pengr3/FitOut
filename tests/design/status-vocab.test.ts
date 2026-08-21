@@ -1011,11 +1011,15 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
 //     on the identifier `toast`, syntactically. Closing it means resolving the import graph, which
 //     is a type-checker's job rather than a source walk's. The repo's four toast call sites in scope
 //     all use the plain name.
-//   • A SENTENCE ASSEMBLED AT RUNTIME. `toast.success(messageFor(res))` carries no literal, so the
-//     fact travels invisibly. That is the same safe-direction hole `price-surface.test.ts` records
-//     for its phrase scan: it can miss a violation, it can never invent one. The one shape this scan
-//     DOES follow is a literal reached through a conditional or a template, because that is the
-//     shape the cancellation toast actually shipped in — see the fixtures.
+//   • ~~A SENTENCE ASSEMBLED AT RUNTIME.~~ CLOSED BY PLAN 13-18 — see the OPAQUE-ARGUMENT section
+//     below. This bullet used to read "`toast.success(messageFor(res))` carries no literal, so the
+//     fact travels invisibly", and it was not hypothetical: `refund-destination-form.tsx:88` shipped
+//     `toast.warning(res.notice)`, where `res.notice` was the server's sentence for *your money did
+//     not come back*. The literal scan was structurally incapable of seeing it, this file said so
+//     honestly, and the violation lived in the gap for three plans. The gap is now a CLOSED SET
+//     rather than a stated hole. What is still true, and is restated on the allow-list itself: this
+//     gate cannot read a runtime string's CONTENTS — it can only force every opaque argument to be
+//     declared, with a reason, by a human who looked.
 //   • WHETHER THE REPLACEMENT ALERT IS ANY GOOD. This scan proves the fact LEFT the toast. That it
 //     ARRIVED somewhere addressable is `tests/group/state08-alerts.test.tsx`'s claim, and the
 //     cancellation's destination is the booking detail page's own cancelled branch.
@@ -1148,6 +1152,20 @@ type ToastLiteral = {
   readonly text: string;
 };
 
+/**
+ * A `toast` call that carries a sentence NO SCAN CAN READ — its arguments contain not one string
+ * literal, template chunk or JSX text node, so whatever the booker sees was assembled at runtime.
+ *
+ * `expression` is the SOURCE TEXT of the first argument (`res.notice`, `messageFor(x)`), which is what
+ * the allow-list is keyed on. It is the only handle a source walk has on the sentence's provenance.
+ */
+type OpaqueToast = {
+  readonly file: string;
+  readonly line: number;
+  readonly callee: string;
+  readonly expression: string;
+};
+
 type ToastScan = {
   /** Every `.ts`/`.tsx` file the walk visited, normalised. */
   readonly files: string[];
@@ -1157,6 +1175,8 @@ type ToastScan = {
   readonly calls: { file: string; line: number; callee: string }[];
   /** Every string reachable from one of those calls' arguments. */
   readonly literals: ToastLiteral[];
+  /** Every call whose arguments carried NO readable string at all — plan 13-18's closed set. */
+  readonly opaque: OpaqueToast[];
 };
 
 /**
@@ -1196,6 +1216,7 @@ function collectSourceFilesSafe(dir: string, out: string[] = []): string[] {
 function readToastCalls(file: string, source: string): {
   calls: { file: string; line: number; callee: string }[];
   literals: ToastLiteral[];
+  opaque: OpaqueToast[];
 } {
   const sf = ts.createSourceFile(
     file,
@@ -1207,6 +1228,7 @@ function readToastCalls(file: string, source: string): {
 
   const calls: { file: string; line: number; callee: string }[] = [];
   const literals: ToastLiteral[] = [];
+  const opaque: OpaqueToast[] = [];
 
   const lineOf = (node: ts.Node): number =>
     sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
@@ -1230,6 +1252,7 @@ function readToastCalls(file: string, source: string): {
       const callee = calleeOf(node);
       if (callee !== null) {
         calls.push({ file, line: lineOf(node), callee });
+        let found = 0;
         const collect = (n: ts.Node): void => {
           if (
             ts.isStringLiteral(n) ||
@@ -1239,18 +1262,39 @@ function readToastCalls(file: string, source: string): {
             ts.isTemplateTail(n) ||
             ts.isJsxText(n)
           ) {
+            found += 1;
             literals.push({ file, line: lineOf(n), callee, text: n.text });
           }
           ts.forEachChild(n, collect);
         };
         for (const arg of node.arguments) collect(arg);
+
+        // ── PLAN 13-18 — THE OTHER HALF OF THE SAME WALK. ──────────────────────────────────────
+        //
+        // A call that yielded ZERO readable strings still shows the booker a sentence; the scan
+        // simply cannot see it. Recording it here rather than in a second pass is deliberate: two
+        // walks would be two things to point at the wrong tree, and the literal count is already in
+        // hand at exactly this point.
+        //
+        // A ZERO-ARGUMENT CALL IS NOT OPAQUE, IT IS EMPTY. `toast.dismiss()` displays no sentence at
+        // all, so there is no fact for it to hide and nothing for a human to declare a reason about.
+        // (None exists under the three roots today; the branch is written so that adding one is not
+        // a spurious failure somebody would silence with an allow-list row.)
+        if (found === 0 && node.arguments.length > 0) {
+          opaque.push({
+            file,
+            line: lineOf(node),
+            callee,
+            expression: node.arguments[0].getText(sf).replace(/\s+/g, " ").trim(),
+          });
+        }
       }
     }
     ts.forEachChild(node, visit);
   };
 
   visit(sf);
-  return { calls, literals };
+  return { calls, literals, opaque };
 }
 
 /** Scanned ONCE at module level; every `it()` below only asserts against this result. */
@@ -1259,6 +1303,7 @@ function scanToasts(roots: readonly string[]): ToastScan {
   const files: string[] = [];
   const calls: { file: string; line: number; callee: string }[] = [];
   const literals: ToastLiteral[] = [];
+  const opaque: OpaqueToast[] = [];
 
   for (const root of roots) {
     const found = collectSourceFilesSafe(resolve(process.cwd(), root)).map(label);
@@ -1268,10 +1313,11 @@ function scanToasts(roots: readonly string[]): ToastScan {
       const read = readToastCalls(name, readFileSync(resolve(process.cwd(), name), "utf8"));
       calls.push(...read.calls);
       literals.push(...read.literals);
+      opaque.push(...read.opaque);
     }
   }
 
-  return { files, filesByRoot, calls, literals };
+  return { files, filesByRoot, calls, literals, opaque };
 }
 
 /**
@@ -1293,6 +1339,81 @@ function mustReadToastViolations(literals: readonly ToastLiteral[]): string[] {
     }
   }
   return hits;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// PLAN 13-18 — THE OPAQUE-ARGUMENT CLOSED SET, WHICH IS THIS SCAN'S OLD BLIND SPOT
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// WHAT WENT WRONG, MEASURED RATHER THAN IMAGINED. `refund-destination-form.tsx:88` shipped
+//
+//     toast.warning(res.notice);
+//
+// where `res.notice` was a SERVER-COMPOSED sentence set on exactly one condition: the cancellation
+// succeeded and the booker's money could NOT be sent back. That is a must-read fact by every clause
+// of STATE-08 — money, unrepeatable, and the reader's only notice of it — and the literal scan above
+// was structurally incapable of seeing it, because there is no literal. The file's own comment said
+// so, this file's NOT-COVERED section said so, and the violation sat in the gap for three plans while
+// both gates were green. A hole that is documented is still a hole.
+//
+// WHY A CLOSED SET AND NOT A CLEVERER SCAN. Reading `res.notice`'s contents means resolving an import
+// graph and a return type, which is a type-checker's job. 13-07 and 13-09 both measured the cheaper
+// failure of the alternative: a source scan cannot see a token arriving through an import, and a ban
+// list cannot catch the item nobody thought of. So the direction is inverted. Instead of asking "is
+// this runtime string bad?", which is unanswerable here, the gate asks "did a human look at this one
+// and write down why it is fine?" — which is answerable, and which fails CLOSED for anything new.
+//
+// WHAT THIS DOES AND DOES NOT COVER, stated plainly so the next reader under-trusts it correctly:
+//   ✓ It sees EVERY `toast` / `toast.*` call under the three roots whose arguments carry no readable
+//     string, and requires each one's argument expression to be declared below with a reason.
+//   ✓ A new opaque toast — the exact shape the defect had — is red until somebody declares it.
+//   ✗ It CANNOT read what `res.error` actually contains at runtime. The row below is a claim about
+//     the action-result contract, made by a human, and it is only as good as that human was. What
+//     the gate guarantees is that the claim EXISTS and is attached to a live call site.
+//   ✗ It is keyed on the argument's SOURCE TEXT, so a rename (`res.error` → `result.error`) is a new
+//     undeclared expression and goes red. That is the intended direction: a rename is a re-read.
+//   ✗ It still does not follow a renamed import (`toast as notify`) — that hole is unchanged and is
+//     recorded in the NOT-COVERED section above.
+
+/**
+ * EVERY OPAQUE TOAST ARGUMENT THAT MAY EXIST UNDER THE THREE ROOTS, AND WHY IT MAY.
+ *
+ * Keyed on the argument's source text rather than on a file, because the unit being excused is the
+ * SENTENCE'S PROVENANCE, not a location: `res.error` is the same claim wherever it appears, and nine
+ * call sites should not need nine rows saying the same thing nine times. (Contrast `TOAST_ALLOW_LIST`
+ * above, whose unit genuinely is a file: "this file's toasts carry no fact to retain".)
+ *
+ * A row without a reason is not a row.
+ */
+const OPAQUE_TOAST_ARGUMENTS: Readonly<Record<string, string>> = {
+  "res.error": (
+    "a FAILURE message off a server action's `{ ok: false; error }` arm. Nothing changed — no money " +
+    "moved, no seat was taken, no link was minted — the booker is still on the page that produced " +
+    "it, and the control is still there to press again. That is the exact shape STATE-08 reserves " +
+    "for a toast, and it is the opposite of the shape `res.notice` had: `notice` rode the SUCCESS " +
+    "arm, announced a money outcome, and was followed by a navigation away from the surface " +
+    "carrying it. The two are not the same case and this row does not cover the second one."
+  ),
+};
+
+/** Every opaque call whose argument expression nobody has declared, as `file:line — callee(expr)`. */
+function undeclaredOpaqueToasts(opaque: readonly OpaqueToast[]): string[] {
+  return opaque
+    .filter(
+      (call) =>
+        !Object.prototype.hasOwnProperty.call(TOAST_ALLOW_LIST, call.file) &&
+        !Object.prototype.hasOwnProperty.call(OPAQUE_TOAST_ARGUMENTS, call.expression),
+    )
+    .map(
+      (call) =>
+        `${call.file}:${call.line} — ${call.callee}(${call.expression}) — this toast's sentence is ` +
+        `assembled at runtime, so no scan in this repository can read it. Either it carries a fact ` +
+        `the booker must RETAIN — in which case it belongs on an addressable surface, not a timed ` +
+        `one — or it does not, in which case add a row to OPAQUE_TOAST_ARGUMENTS saying why. Do not ` +
+        `add the row without reading what the expression can actually hold: that is the entire ` +
+        `check, and \`res.notice\` is what it exists to catch.`,
+    );
 }
 
 const toasts = scanToasts(TOAST_SCAN_ROOTS);
@@ -1448,6 +1569,86 @@ describe("STATE-08 — the toast scan reaches what it claims to police", () => {
     // …and it lower-cases, so a capitalised sentence cannot dodge a lower-case row.
     expect(normaliseCopy("REFUSED")).toBe("refused");
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // PLAN 13-18 — GUARD-THE-GUARD FOR THE OPAQUE COLLECTOR
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  it("records an opaque toast when there IS one, and does not invent them", () => {
+    // ⚠ THE FIRST FIXTURE IS THE SHIPPED DEFECT, VERBATIM IN SHAPE. It is written through the
+    // collector rather than described, because the whole finding of this plan is that a gate can be
+    // green against a live violation while its own documentation explains why.
+    const shipped = `export const A = () => ${TOAST_CALLEE}.warning(res.notice);`;
+    const found = readToastCalls("fixture-opaque.tsx", shipped).opaque;
+    expect(found, "the collector did not see a toast with no readable argument").toHaveLength(1);
+    expect(found[0].line).toBe(1);
+    expect(found[0].callee).toBe(`${TOAST_CALLEE}.warning`);
+    expect(found[0].expression).toBe("res.notice");
+    // …and it is UNDECLARED, which is the direction that has to fail. `res.notice` must never be
+    // excusable: it is the one expression this whole section exists because of.
+    expect(undeclaredOpaqueToasts(found)).toHaveLength(1);
+    expect(undeclaredOpaqueToasts(found)[0]).toContain("fixture-opaque.tsx:1");
+
+    // A CALL EXPRESSION, not a property access — the shape the NOT-COVERED section used to name.
+    const composed = `export const B = () => ${TOAST_CALLEE}.success(messageFor(res));`;
+    expect(readToastCalls("t.tsx", composed).opaque).toHaveLength(1);
+
+    // THE OTHER DIRECTION, four ways. A call that carries ANY readable string is not opaque, however
+    // deeply the string sits — otherwise this gate would report every correct toast in the tree and
+    // somebody would delete it within a week.
+    expect(readToastCalls("t.tsx", `export const C = () => ${TOAST_CALLEE}.success("ok");`).opaque)
+      .toEqual([]);
+    expect(
+      readToastCalls("t.tsx", `export const D = () => ${TOAST_CALLEE}.success(n ? "a" : "b");`)
+        .opaque,
+    ).toEqual([]);
+    expect(
+      readToastCalls("t.tsx", "export const E = () => " + TOAST_CALLEE + ".success(`x ${n} y`);")
+        .opaque,
+    ).toEqual([]);
+    // A literal PLUS an options object still counts as readable — the literal is the sentence.
+    expect(
+      readToastCalls("t.tsx", `export const F = () => ${TOAST_CALLEE}.success("ok", opts);`).opaque,
+    ).toEqual([]);
+
+    // AND A ZERO-ARGUMENT CALL IS NOT OPAQUE. `toast.dismiss()` shows no sentence, so there is no
+    // fact to hide; flagging it would be a failure somebody silences with a meaningless row.
+    expect(readToastCalls("t.tsx", `export const G = () => ${TOAST_CALLEE}.dismiss();`).opaque)
+      .toEqual([]);
+    // …but the CALL itself is still counted, so the two collectors have not drifted apart.
+    expect(readToastCalls("t.tsx", `export const H = () => ${TOAST_CALLEE}.dismiss();`).calls)
+      .toHaveLength(1);
+
+    // A DECLARED expression is excused, through the same function the real assertion uses.
+    const declared = Object.keys(OPAQUE_TOAST_ARGUMENTS)[0];
+    const excused = `export const I = () => ${TOAST_CALLEE}.error(${declared});`;
+    expect(readToastCalls("t.tsx", excused).opaque).toHaveLength(1);
+    expect(undeclaredOpaqueToasts(readToastCalls("t.tsx", excused).opaque)).toEqual([]);
+  });
+
+  it("every opaque-argument row is declared with a reason and is still live", () => {
+    // The `TOAST_ALLOW_LIST` discipline, applied to the second list: a row for an expression nobody
+    // calls any more is not an exemption, it is a lie that reads like one. This is also what makes
+    // the removal of `res.notice` STICK — if the field ever comes back and its toast with it, the
+    // row it would need is not there, and adding one means writing down why in front of a reviewer.
+    for (const [expression, why] of Object.entries(OPAQUE_TOAST_ARGUMENTS)) {
+      expect(
+        toasts.opaque.some((call) => call.expression === expression),
+        `\`${expression}\` is declared in OPAQUE_TOAST_ARGUMENTS but no toast under the three ` +
+          `roots passes it any more — delete the row, it is excusing nothing.`,
+      ).toBe(true);
+      expect(why.length, `\`${expression}\`'s row has no reason`).toBeGreaterThan(80);
+    }
+
+    // THE POSITIVE CONTROL. The collector must actually be finding opaque calls in the real tree,
+    // or the ban below is green over an empty list. Nine ship today; the floor is deliberately low
+    // so a legitimate cleanup does not read as a broken scan.
+    expect(
+      toasts.opaque.length,
+      "the opaque collector found no runtime-assembled toast argument anywhere in the three roots. " +
+        "The tree ships several `toast.error(res.error)` calls, so this is a vacuous green.",
+    ).toBeGreaterThan(0);
+  });
 });
 
 describe("STATE-08 — no toast in the phase-13 file set carries a must-read fact", () => {
@@ -1461,6 +1662,20 @@ describe("STATE-08 — no toast in the phase-13 file set carries a must-read fac
         "non-empty accessible name) or onto the destination the flow navigates to, and to leave the " +
         "toast carrying nothing anyone needs to keep. Two regions announcing one outcome is " +
         "GATE-03 rule 6's defect, so the alert REPLACES the toast rather than joining it.",
+    ).toEqual([]);
+  });
+
+  it("carries no toast whose sentence is assembled at runtime and undeclared (13-18)", () => {
+    // THE HALF THE LITERAL SCAN ABOVE CANNOT SEE, and the reason this plan exists. See the
+    // OPAQUE-ARGUMENT section for what this covers and — just as importantly — what it does not.
+    expect(
+      undeclaredOpaqueToasts(toasts.opaque),
+      "a toast is showing the booker a sentence no gate in this repository can read. That is how " +
+        "`toast.warning(res.notice)` — the server's words for `your money did not come back` — " +
+        "survived two STATE-08 gates and three plans. The fix is the same one STATE-08 always " +
+        "prescribes: if the reader must RETAIN it, move it onto the destination as durable page " +
+        "content. If they truly need not, declare the expression in OPAQUE_TOAST_ARGUMENTS with a " +
+        "reason that shows you read what it can hold.",
     ).toEqual([]);
   });
 });

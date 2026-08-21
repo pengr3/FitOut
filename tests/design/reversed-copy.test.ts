@@ -101,15 +101,101 @@ import { resolve, relative } from "node:path";
 /** The tree root every path below is resolved against — parameterised for the vacuity probe. */
 const ROOT = process.cwd();
 
-/** The one file both bans are about. */
+/** The file this gate was built for, named on its own because most failure messages below quote it. */
 const REVERSED_STATE = "src/components/booking/payment-reversed-state.tsx";
 
 /**
- * A file shorter than this was not really read. `price-surface.test.ts`'s `MIN_FILE_BYTES`, for the
- * same reason: this gate opens a DECLARED path rather than walking a tree, so the failure it has to
- * notice is "the file moved and `existsSync` said no", not "the glob narrowed".
+ * PLAN 13-18 — THE GATE NOW COVERS TWO SURFACES, BECAUSE THERE ARE NOW TWO.
+ *
+ * The bans were never really about `payment-reversed-state.tsx`; they are about the MONEY TRUTH that
+ * component happened to be the only holder of — *money is owed, nothing was sent automatically, a
+ * person has to move it*. `manual-return-notice.tsx` states the SAME truth on the cancelled branch,
+ * for the four dispatch failures a cancellation can produce, and it is exposed to both bans in exactly
+ * the same way: claiming the return already happened (D-83) or claiming it is impossible (D-82) would
+ * be the same two lies on a different page.
+ *
+ * A NEW SURFACE WITH THE SAME HAZARD AND NO GATE IS HOW A CORRECTED CLAIM COMES BACK. Widening the
+ * declared list is therefore the whole fix — not a second copy of this file.
+ *
+ * `mustCompose` is the POSITIVE half, per surface, and it differs between them ON PURPOSE:
+ * `payment-reversed-state.tsx` RENDERS `BookingReference` itself, because it is a whole page state and
+ * TRUST-02 puts the reference on every one. `manual-return-notice.tsx` is a panel INSIDE the cancelled
+ * branch, which already renders the reference in its own panel — so it NAMES the string in the sentence
+ * and carries `SupportPath`, the route to the money, instead. Restating one file's inventory over the
+ * other would assert a shape neither surface has.
  */
-const MIN_FILE_BYTES = 1000;
+type ManualSurface = {
+  /** The declared, forward-slash relative path. */
+  readonly rel: string;
+  /** Bytes below which the file was not really read. */
+  readonly minBytes: number;
+  /** Identifiers the file must STILL compose — deleting the copy is not a way to satisfy a ban. */
+  readonly mustCompose: readonly { readonly token: string; readonly why: string }[];
+};
+
+const MANUAL_SURFACES: readonly ManualSurface[] = [
+  {
+    rel: REVERSED_STATE,
+    minBytes: 1000,
+    mustCompose: [
+      {
+        token: "MoneyStatement",
+        why:
+          "STATE-06/D-73 make that component the single owner of every \"where is your money\" " +
+          "sentence on /bookings/**, and this is the state it exists for. Removing it is not a way " +
+          "to satisfy the bans above.",
+      },
+      {
+        token: "BookingReference",
+        why:
+          "TRUST-02 requires it on EVERY status, and on the manual branch it is the token a person " +
+          "needs in order to move the money.",
+      },
+      {
+        token: "amountLabel",
+        why:
+          "D-69 requires the EXACT figure that left the booker's account, and D-130/GATE-05 require " +
+          "it to arrive as a finished string — the RSC formats it, this component never computes money.",
+      },
+    ],
+  },
+  {
+    rel: "src/components/booking/manual-return-notice.tsx",
+    minBytes: 800,
+    mustCompose: [
+      {
+        token: "MoneyStatement",
+        why:
+          "the cancelled branch's by-hand sentence is a \"where is your money\" sentence like every " +
+          "other one on /bookings/**, and STATE-06/D-73 give those exactly one owner. A bespoke <p> " +
+          "here would be the fourth boxed shape DS-11 says there are three of.",
+      },
+      {
+        token: "SupportPath",
+        why:
+          "on this branch the support path is the booker's route to money a person still has to move. " +
+          "It is guarded inside that component (D-64) and renders nothing while SUPPORT_EMAIL is null " +
+          "— which is exactly why its ABSENCE would be invisible in a render test and has to be " +
+          "asserted here, against the source.",
+      },
+      {
+        token: "amountLabel",
+        why:
+          "the figure must arrive as a finished server-composed string (D-130/GATE-05). A `cents` " +
+          "prop here would put money arithmetic in a component, which is the boundary this phase " +
+          "spent a whole plan establishing.",
+      },
+    ],
+  },
+];
+
+/**
+ * A file shorter than this was not really read — declared PER SURFACE (`minBytes` above), because the
+ * two differ by an order of magnitude in job: one is a whole page state, the other is one panel.
+ * `price-surface.test.ts`'s `MIN_FILE_BYTES`, for the same reason: this gate opens a DECLARED path
+ * rather than walking a tree, so the failure it has to notice is "the file moved and `existsSync` said
+ * no", not "the glob narrowed".
+ */
 
 /**
  * The two sentinels delimiting the manual-return branch's strings inside the component.
@@ -275,24 +361,39 @@ function manualRegion(file: Opened): { text: string; startLine: number } | null 
 }
 
 /** Opened ONCE at module level; the `it()` blocks below only assert against this. */
-const reversed = openFile(REVERSED_STATE);
+const opened: readonly { spec: ManualSurface; file: Opened | null }[] = MANUAL_SURFACES.map(
+  (spec) => ({ spec, file: openFile(spec.rel) }),
+);
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // (0) GUARD THE GUARD — asserted FIRST, because every real assertion below is "a list was empty"
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("(0) the scanner can find what it bans, and it really opened the file", () => {
-  it("opened the component, and it is a file somebody actually wrote", () => {
+  it("opened every declared surface, and each is a file somebody actually wrote", () => {
+    // ⚠ THE COUNT IS ASSERTED FIRST. Every ban below iterates `opened`, so a list emptied to one entry
+    // — or to none — would switch the new surface's coverage off silently while every `toEqual([])`
+    // stayed green. 13-09's finding, applied here: a ban list cannot catch the item nobody declared,
+    // so the SIZE of the list is part of the claim.
     expect(
-      reversed,
-      `${REVERSED_STATE} was not found. Every ban in this file is \`toEqual([])\`, which a scan over ` +
-        `nothing satisfies perfectly. If the component moved, move this declaration in the same commit.`,
-    ).not.toBeNull();
-    expect(
-      reversed!.raw.length,
-      `${REVERSED_STATE} is ${reversed!.raw.length} bytes. That is not a component, it is a stub — ` +
-        `and a stub passes every ban here.`,
-    ).toBeGreaterThanOrEqual(MIN_FILE_BYTES);
+      MANUAL_SURFACES.length,
+      `MANUAL_SURFACES declares ${MANUAL_SURFACES.length} surfaces. Two state the by-hand money truth ` +
+        `today (the reversed page state and the cancelled branch's notice). Shrinking this list does ` +
+        `not relax the gate, it removes a surface from it.`,
+    ).toBe(2);
+
+    for (const { spec, file } of opened) {
+      expect(
+        file,
+        `${spec.rel} was not found. Every ban in this file is \`toEqual([])\`, which a scan over ` +
+          `nothing satisfies perfectly. If the component moved, move this declaration in the same commit.`,
+      ).not.toBeNull();
+      expect(
+        file!.raw.length,
+        `${spec.rel} is ${file!.raw.length} bytes. That is not a component, it is a stub — ` +
+          `and a stub passes every ban here.`,
+      ).toBeGreaterThanOrEqual(spec.minBytes);
+    }
   });
 
   it("pointed at a path that does not exist, opens nothing — which is why the floor above exists", () => {
@@ -359,89 +460,102 @@ describe("(0) the scanner can find what it bans, and it really opened the file",
 // (1) BAN 1 — the not-completed state's sentence appears nowhere in the reversed state
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("(1) D-69 — the reversed state never borrows the not-completed state's money sentence", () => {
-  it("spells it nowhere in the file, comments included", () => {
-    const hits = reversed === null ? [] : findInFile(reversed, NOT_COMPLETED_LANGUAGE);
-    expect(
-      hits,
-      `the reversed state spells the not-completed state's money sentence: ${JSON.stringify(hits)}. ` +
-        `A reversal means money LEFT the booker's account, and on the manual rails it has not come ` +
-        `back — so this sentence is the inverse of the truth in two directions and contradicts the ` +
-        `booker's own bank app. It must not appear in the file AT ALL, comments included, because a ` +
-        `grep that matches its own prohibition stops being a guard. Encode it in two pieces if you ` +
-        `must refer to it.`,
-    ).toEqual([]);
-  });
+describe("(1) D-69 — no by-hand surface borrows the not-completed state's money sentence", () => {
+  // ⚠ THE BAN APPLIES TO BOTH SURFACES FOR THE SAME REASON, and it is not weaker on the newer one.
+  // `manual-return-notice.tsx` renders only where `refund_cents > 0`, which means a charge happened and
+  // a cancellation owed it back. Telling that booker no money left their account would contradict the
+  // one document they will check us against — their own statement — exactly as it did on the reversed
+  // state, where this ban was measured against a live defect.
+  for (const { spec, file } of opened) {
+    it(`spells it nowhere in ${spec.rel}, comments included`, () => {
+      const hits = file === null ? [] : findInFile(file, NOT_COMPLETED_LANGUAGE);
+      expect(
+        hits,
+        `${spec.rel} spells the not-completed state's money sentence: ${JSON.stringify(hits)}. ` +
+          `Money LEFT the booker's account on every row these surfaces render for, and on the by-hand ` +
+          `paths it has not come back — so this sentence is the inverse of the truth in two directions ` +
+          `and contradicts the booker's own bank app. It must not appear in the file AT ALL, comments ` +
+          `included, because a grep that matches its own prohibition stops being a guard. Encode it in ` +
+          `two pieces if you must refer to it.`,
+      ).toEqual([]);
+    });
+  }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // (2) BAN 2 — the manual-return branch's vocabulary
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("(2) D-82 / D-83 — the manual-return branch claims no return and no impossibility", () => {
-  it("carries a marked manual-return region that is long enough to be the copy", () => {
-    // ASSERTED FIRST. The ban below scans a slice; an absent or emptied slice satisfies it perfectly.
-    const region = reversed === null ? null : manualRegion(reversed);
-    expect(
-      region,
-      `${REVERSED_STATE} has no \`${MANUAL_BEGIN}\` / \`${MANUAL_END}\` pair. The manual branch's ` +
-        `strings are scanned by that marked region and by nothing else, so removing the sentinels ` +
-        `does not relax this gate — it switches it off. If the branch was restructured, move the ` +
-        `sentinels in the same commit.`,
-    ).not.toBeNull();
-    expect(
-      region!.text.trim().length,
-      `the marked manual-return region is ${region!.text.trim().length} characters. That is not the ` +
-        `branch's copy; an empty region passes every ban below.`,
-    ).toBeGreaterThanOrEqual(MIN_MANUAL_REGION_CHARS);
-  });
+describe("(2) D-82 / D-83 — every by-hand region claims no return and no impossibility", () => {
+  for (const { spec, file } of opened) {
+    it(`${spec.rel} carries a marked region that is long enough to be the copy`, () => {
+      // ASSERTED FIRST. The ban below scans a slice; an absent or emptied slice satisfies it perfectly.
+      const region = file === null ? null : manualRegion(file);
+      expect(
+        region,
+        `${spec.rel} has no \`${MANUAL_BEGIN}\` / \`${MANUAL_END}\` pair. The by-hand copy is ` +
+          `scanned by that marked region and by nothing else, so removing the sentinels does not relax ` +
+          `this gate — it switches it off. If the branch was restructured, move the sentinels in the ` +
+          `same commit.`,
+      ).not.toBeNull();
+      expect(
+        region!.text.trim().length,
+        `${spec.rel}'s marked region is ${region!.text.trim().length} characters. That is not the ` +
+          `copy; an empty region passes every ban below.`,
+      ).toBeGreaterThanOrEqual(MIN_MANUAL_REGION_CHARS);
+    });
 
-  it("uses neither the banned token nor the false impossibility inside that region", () => {
-    const region = reversed === null ? null : manualRegion(reversed);
-    const hits =
-      region === null
-        ? []
-        : findPhrases(REVERSED_STATE, region.text, MANUAL_BRANCH_BANS, region.startLine);
-    expect(
-      hits,
-      `the manual-return branch says something about the booker's money that is not true: ` +
-        `${JSON.stringify(hits)}. On this branch the API refused the rail (or the call failed), the ` +
-        `amount is on the FitOut platform wallet, and a person has to move it — so nothing has been ` +
-        `sent back yet (D-83) and nothing is impossible (D-82: the accurate phrasing is \`not ` +
-        `reversed automatically\`). The automatic branch is a different set of sentences and is ` +
-        `deliberately outside this region.`,
-    ).toEqual([]);
-  });
+    it(`${spec.rel} uses neither the banned token nor the false impossibility inside it`, () => {
+      const region = file === null ? null : manualRegion(file);
+      const hits =
+        region === null
+          ? []
+          : findPhrases(spec.rel, region.text, MANUAL_BRANCH_BANS, region.startLine);
+      expect(
+        hits,
+        `${spec.rel} says something about the booker's money that is not true: ` +
+          `${JSON.stringify(hits)}. On these paths the API refused the rail (or the call failed), the ` +
+          `amount is on the FitOut platform wallet, and a person has to move it — so nothing has been ` +
+          `sent back yet (D-83) and nothing is impossible (D-82: the accurate phrasing is \`not ` +
+          `reversed automatically\`). The automatic branch is a different set of sentences and is ` +
+          `deliberately outside this region.`,
+      ).toEqual([]);
+    });
+  }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // (3) THE POSITIVE HALF — deleting the copy is not a way to satisfy a ban
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("(3) the file still states the money truth it was corrected in order to state", () => {
-  it("still renders the money statement, the reference, and a finished amount string", () => {
-    // `sheet-absent`'s both-sides shape. A file with no money copy at all satisfies (1) and (2)
-    // perfectly, and "we deleted the sentence" is the opposite of D-69.
-    const raw = reversed === null ? "" : reversed.raw;
+describe("(3) every surface still states the money truth it was corrected in order to state", () => {
+  // `sheet-absent`'s both-sides rule. A file with no money copy at all satisfies (1) and (2)
+  // perfectly, and "we deleted the sentence" is the opposite of what D-69 and D-83 asked for.
+  //
+  // ⚠ THE INVENTORY IS PER SURFACE AND THE TWO DIFFER — see `MANUAL_SURFACES` for why. A shared list
+  // would either demand `BookingReference` from a panel that correctly does not render one, or drop it
+  // from the page state that must. Neither is the requirement; the requirement is that each surface
+  // still composes ITS half of the truth.
+  for (const { spec, file } of opened) {
+    it(`${spec.rel} still composes every piece its money truth is made of`, () => {
+      const raw = file === null ? "" : file.raw;
 
-    expect(
-      raw.includes("MoneyStatement"),
-      `${REVERSED_STATE} no longer composes MoneyStatement. STATE-06/D-73 make that component the ` +
-        `single owner of every "where is your money" sentence on /bookings/**, and this is the state ` +
-        `it exists for. Removing it is not a way to satisfy the bans above.`,
-    ).toBe(true);
+      // A source scan, not a render — and that is load-bearing rather than lazy on ONE of these rows.
+      // `SupportPath` is guarded (D-64) and renders NOTHING while `SUPPORT_EMAIL` is null, so its
+      // deletion is invisible to every render assertion in the repository. The source is the only
+      // place its absence is observable today, which is exactly why the row lives here.
+      expect(
+        spec.mustCompose.length,
+        `${spec.rel} declares ${spec.mustCompose.length} required pieces. An emptied inventory makes ` +
+          `the loop below iterate nothing and pass — the same vacuity the surface count guards against.`,
+      ).toBeGreaterThanOrEqual(3);
 
-    expect(
-      raw.includes("BookingReference"),
-      `${REVERSED_STATE} no longer renders the booking reference. TRUST-02 requires it on EVERY ` +
-        `status, and on the manual branch it is the token a person needs in order to move the money.`,
-    ).toBe(true);
-
-    expect(
-      raw.includes("amountLabel"),
-      `${REVERSED_STATE} no longer takes the server-composed amount. D-69 requires the EXACT figure ` +
-        `that left the booker's account, and D-130/GATE-05 require it to arrive as a finished string ` +
-        `— the RSC formats it, this component never computes money.`,
-    ).toBe(true);
-  });
+      for (const { token, why } of spec.mustCompose) {
+        expect(
+          raw.includes(token),
+          `${spec.rel} no longer composes \`${token}\`. ${why}`,
+        ).toBe(true);
+      }
+    });
+  }
 });
