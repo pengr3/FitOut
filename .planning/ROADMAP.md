@@ -361,6 +361,60 @@ Plans:
 
 **Scope note:** this phase owns `/bookings/**` on the booker side plus the group surfaces (`/invite/[token]`, `/bookings/[id]/group`). Research treated group/open-capacity as a fourth parallel track; REQUIREMENTS.md defines **no separate REQ-IDs** for it, so a standalone phase would carry zero requirements. Folded here instead — `/invite/[token]` is a post-booking artifact and the open-capacity picker is a pre-hold listing surface (Phase 12). Stated as a deliberate departure from the research's phase shape, with the reason.
 
+### Phase 13.1: Payment Reconciliation — a lost webhook must never mean a paid booker with no booking (INSERTED)
+
+**Goal**: A booker who paid always ends up with a booking. A lost webhook becomes a delay, never a silent loss.
+**Depends on**: Phase 13
+**Requirements**: TBD (no existing REQ-ID covers this — the milestone's requirements are front-end polish)
+**Inserted**: 2026-08-21, after live UAT surfaced real paid-but-unconfirmed rows.
+
+**WHY THIS IS URGENT — measured, not theorised.** Probing every `pending` booking that holds a
+`checkout_session_id` against PayMongo on 2026-08-21 found **two where the customer's money was taken and
+the booking never confirmed**:
+
+| Booking | Paid at | Rail | Amount | DB status |
+|---|---|---|---|---|
+| `09f32400` | 2026-08-21 18:17 | GCash | ₱1,050.00 | `pending` |
+| `408e054a` | **2026-08-18 02:32** | GCash | ₱2,100.00 | `pending` |
+
+The second sat unnoticed for **three days**. Both are dev-experiment rows and are deliberately being
+**left in place** as fixtures (PM decision, 2026-08-21) — FitOut is not live, so no real customer is
+affected. On a live launch each would be a person who paid and received nothing, discoverable only by
+their complaint.
+
+**The structural cause.** `checkout_session.payment.paid` is treated as the sole *authority* on payment —
+correctly, since a `?paid=1` URL is spoofable (PROJECT D-57) — but it was also made the sole *transport*.
+Webhooks are lost routinely: an endpoint down during deploy, a network blip, a closed tunnel. When one is
+lost the booking waits forever and nothing ever asks the provider.
+
+⚠ **The asymmetry that names the gap:** `src/inngest/functions/payout-reconcile.ts` reconciles money going
+**out** to hosts. **Nothing reconciles money coming IN from bookers.** We check what we owe, not what we
+have been given.
+
+**Success Criteria** (what must be TRUE):
+
+  1. A booking that PayMongo records as paid **always** reaches `confirmed`, even if its webhook never
+     arrives — reconciled on a schedule, not only when a human happens to be looking at the page.
+  2. Reconciliation routes through the **same idempotent confirm path the webhook uses** — never a second
+     one. A replayed webhook and a reconciliation of the same payment converge on one booking, one slot,
+     one payout ledger row, one email.
+  3. A missed webhook is **loud**: an operator alert records that a payment was taken without its webhook,
+     so the transport failing is visible rather than absorbed.
+  4. PROJECT D-57 is **unweakened** — the browser is still never trusted. A server-side probe of PayMongo's
+     own API is as authoritative as the webhook (same source of truth, different transport); a URL
+     parameter is not, and still confirms nothing.
+  5. Reconciliation cannot double-charge, double-confirm, or resurrect a booking whose slot has since been
+     taken — the D-58 gone-slot backstop still governs that case.
+
+**Already built and reusable:** `probeCheckoutSession` (`src/lib/payments/checkout-probe.ts`, 13-03) —
+server-only, bounded, resolves `null` on any failure, and returns the rail and `paid_at`. It is exactly
+the call that found the two rows above. Nothing queries it on a schedule.
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 13.1 to break down)
+
 ### Phase 14: Host Tooling
 
 **Goal**: A host opening FitOut sees what they owe today and can act on it, in the same product the booker side became.
