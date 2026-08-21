@@ -1,7 +1,7 @@
 "use client";
 
-// PendingPaymentState (D-57) — the neutral "payment received, finalizing…" interstitial the confirmation
-// page renders on return from the hosted checkout (`/bookings/[id]?paid=1` while status is still 'pending').
+// PendingPaymentState (D-57) — the neutral "still confirming…" interstitial the confirmation page
+// renders on return from the hosted checkout (`/bookings/[id]?paid=1` while status is still 'pending').
 // The browser return is a UX signal ONLY — the checkout_session.payment.paid webhook (Plan 04) is the sole
 // confirm authority. This poller therefore NEVER fabricates the confirmed state client-side: it only calls
 // router.refresh() on a bounded interval so the RSC can re-render itself as 'confirmed' when the DB says so.
@@ -22,13 +22,17 @@
 // they are unchanged here — the plan's own acceptance criterion is that this file's diff touches none
 // of them. If a copy change ever appears to require a mechanics change, the copy has been misread.
 //
-// WHAT WAS MISSING WAS A PROMISE. The two shipped sentences said the page was working; neither said the
-// booking was SAFE or that anybody would be told. Both are now `MoneyStatement` — STATE-06's single
-// owner of every "where is your money" sentence — across three thresholds:
+// WHAT WAS MISSING WAS A PROMISE. The two shipped sentences said the page was working; neither said
+// that anybody would ever be told. Both are now `MoneyStatement` — STATE-06's single owner of every
+// "where is your money" sentence — across three thresholds:
 //
 //   0–20s        L1 the money truth · L2 the page updates itself
-//   past the cap L1 unchanged · L2 the payment is safe, the booking is held, and an email is coming
+//   past the cap L1 unchanged · L2 it is taking longer than usual, and an email is coming
 //   past ~2 min  L2 additionally carries the reference, and the guarded contact affordance renders
+//
+// ⚠️ 13-07 ALSO PROMISED THE BOOKING WAS SAFE, AND PLAN 13-20 TOOK THAT HALF BACK. It was a claim about
+// money nobody had verified, in a sentence whose whole job was reassurance. The promise that survives
+// is the one that is checkable — that we will write to them — and the block at the bottom is why.
 //
 // ⚠️ THE THIRD THRESHOLD IS THE EXECUTOR'S CALL (13-UI-SPEC § Open Questions 4 puts poll thresholds at
 // the executor's discretion and RECOMMENDS ~2 minutes). Two minutes is what SUPPORT_ESCALATION_MS
@@ -40,10 +44,12 @@
 //
 // ⚠️ THERE IS NO FAILURE-SHAPED AFFORDANCE AT ANY THRESHOLD, AND THAT IS THE CONTRACT (D-71). No alarm
 // colour, no "something has gone amiss", no retry-the-payment control, no second attempt at anything.
-// The webhook is STILL the outstanding authority at every threshold — the money has reached us, the
-// only thing missing is the provider's confirmation — so an affordance shaped like a failure would be
-// telling the booker to act on a state where acting is exactly wrong, and could cost them a second
-// charge on a payment that already landed. The manual control carries a verb AND its object (D-95: a
+// The webhook is STILL the outstanding authority at every threshold — nobody on this page knows yet
+// whether the money moved — so an affordance shaped like a failure would be telling the booker to act
+// on a state where acting is exactly wrong, and could cost them a second charge on a payment that did
+// in fact settle. D-102 STRENGTHENS this argument rather than weakening it: the reason not to offer a
+// retry was never that the money is here, it is that NOBODY KNOWS, and a retry offered into ignorance
+// is how a booker pays twice. The manual control carries a verb AND its object (D-95: a
 // single-word verb with no object fails the copy guideline; `Copy` keeps its single word only because
 // it already carries an accessible name), and it triggers the SAME `router.refresh()` the poller runs.
 //
@@ -73,7 +79,9 @@
 // PLAN 13-19 (D-101.1) — THE INDICATOR IS GATED ON `slow`, AND IT USED NOT TO BE
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// THE DEFECT, FOUND BY THE PM IN LIVE UAT AND REPORTED AS *"an infinite looping payment received"*.
+// THE DEFECT, FOUND BY THE PM IN LIVE UAT AND REPORTED AS AN INFINITE LOOP ON THIS STATE (their words
+// named the heading the surface carried at the time; D-102 has since removed that heading, and the
+// report is recorded verbatim in 13-CONTEXT where no scanner depends on it).
 // The spinner was rendered UNCONDITIONALLY, so it kept turning after the poller stopped at its cap —
 // forever, under copy that had just switched to *"It's taking longer than usual"* and a promise that
 // an email is coming. At that point NOTHING in this component is working on anything: the interval is
@@ -100,6 +108,59 @@
 // ⚠ AND THIS IS A RENDERING CHANGE ONLY. Not one line of the poller moved — the interval, the cap, the
 // ref-held router, the interval-only state write and the cleanup are exactly what 13-01 proved by diff
 // and 13-07 preserved. `slow` was already this component's state; it is simply read in one more place.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// PLAN 13-20 (D-102) — THIS SURFACE STATES WHAT FITOUT KNOWS, NEVER WHERE THE MONEY IS
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE DEFECT, FOUND BY THE PM IN LIVE UAT: the page told them their money had arrived, and they asked
+// whether we had really received it. We had not. Nobody had. The heading and the money statement both
+// asserted receipt as settled fact — plan 05-03's copy, four phases old, which 13-07 rewrote the body
+// AROUND and left standing.
+//
+// WHAT IS ACTUALLY KNOWN AT THIS PAINT IS ONE THING: a browser arrived at `/bookings/{id}?paid=1`.
+// PROJECT D-57 is binding and unambiguous — that parameter is a UX signal and NEVER proof of payment;
+// the `checkout_session.payment.paid` webhook is the sole confirm authority, and the row is still
+// `pending` precisely because the webhook has not spoken. Everything else this surface used to say was
+// inference dressed as fact.
+//
+// ⚠ THE COMMENT THAT DEFENDED THE CLAIM WAS THE DEFECT, NOT ITS DEFENCE, and it is why the rewrite
+// went further than two strings. It argued the sentence was true from the first paint "because the
+// browser only gets here from the hosted checkout's return". A redirect is not a payment: the URL is
+// typable and the parameter is forgeable — that is the whole premise of D-57, and of D-89 one file
+// over — and a hosted session can redirect and still fail to capture. Reasoning that terminates in a
+// money claim has to terminate at a webhook. Left in place, that paragraph would have re-taught the
+// error to whoever touched the copy next, which is exactly how it survived 13-07.
+//
+// THE RULE THE COPY NOW FOLLOWS: describe FITOUT'S KNOWLEDGE STATE, never the money's state. Each
+// sentence was checked on its own against BOTH readings — it settled, it did not — because the four
+// unverified claims this phase has removed were all inherited as a block and read as settled:
+//
+//   `<h1>`  "Confirming your payment"           we are; the answer is not in either way
+//   L1      the provider has not answered yet    the confirm authority is theirs (D-57), not ours
+//   L2 (a)  the page updates itself              true while the poller runs, which is when it renders
+//   L2 (b)  taking longer, and we will write      the send is real; the sentence is conditional on it
+//   L2 (c)  the reference is recorded            server-derived from this booking (TRUST-02)
+//
+// ⚠ AND IT DOES NOT SWING TO DENIAL EITHER. STATE-05 forbids ANY error affordance while the webhook is
+// the outstanding authority, and the booker very probably did pay — so "we have no record of your
+// payment" would be as wrong as the sentence it replaced, in the other direction, and would be read by
+// somebody whose money is fine. Calm, neutral, and silent about what it cannot see.
+//
+// ⚠ "YOUR BOOKING IS HELD" WENT WITH THEM, AND THE REASON IS THE POINT OF THE WHOLE PLAN. It reads
+// like a fact about our own database rather than about money, and on the exclusive path it is one —
+// `pending` sits inside the occupying set of the `booking_no_overlap` EXCLUDE predicate (drizzle/0022:
+// status NOT IN cancelled/declined/completed), so the slot really is blocked for them. But an OPEN
+// CAPACITY booking holds its seats through `OPEN_OCCUPYING_STATUS_SQL`, which requires
+// `expires_at > now()` — so a pending row whose lease lapsed while the booker sat on the hosted page
+// holds nothing, and this component is not told which kind of listing it is rendering for. A sentence
+// that is true for most bookings is what shipped four times already.
+//
+// ⚠ THE MECHANICS ARE UNTOUCHED, AGAIN. This is a COPY change: the interval, the cap, the ref-held
+// router, the interval-only state write, the cleanup and the `slow` gate on the indicator are all
+// exactly as 13-01 proved by diff, 13-07 preserved and 13-19 left alone. A filtered diff of this file
+// for every mechanics token returns zero lines, and `tests/design/pending-copy.test.ts` is the gate
+// that makes the copy half of it enforceable rather than remembered.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -187,14 +248,22 @@ export function PendingPaymentState({ reference, email }: PendingPaymentStatePro
   // THE THREE THRESHOLDS' COPY, composed here and handed to `MoneyStatement` finished (that component
   // takes completed strings and performs no arithmetic and no interpolation of its own).
   //
-  // L1 NEVER CHANGES. "Your payment reached us." is true from the first paint — the browser only gets
-  // here from the hosted checkout's return — and a money sentence that changed under a booker while
-  // nothing about their money changed would be the surface contradicting itself.
-  const settlementSentence = "Your payment reached us.";
-  const waiting = "We're waiting on the final confirmation — this page updates on its own.";
+  // L1 NEVER CHANGES, AND UNDER D-102 IT IS A STATEMENT ABOUT WHO DECIDES rather than about where the
+  // money is. The provider's webhook is the confirm authority (D-57); until it speaks, the honest
+  // answer to "where is my money" is that the people who know have not told us yet. That is true on
+  // the first paint, true at the cap, and true whichever way the settlement goes — which is the test
+  // every sentence on this surface now has to pass. A money sentence that changed under a booker while
+  // nothing about their money had changed would be the surface contradicting itself.
+  const settlementSentence = "We're waiting on your payment provider to confirm it.";
+  // L2 (a) — what the PAGE is doing, which is the half the booker can act on (by not acting). It is
+  // true only while the poller is running, and it is replaced at the cap for exactly that reason.
+  const waiting = "This page updates on its own — you don't need to refresh it.";
+  // L2 (b) — past the cap. What remains is the ONE promise this component can keep: the confirm path
+  // sends this mail, so the sentence is real, and it is conditional on the confirmation rather than
+  // asserting it. The safety clause that used to sit here is gone (see the D-102 block in the header).
   const takingLonger = email
-    ? `It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you at ${email} the moment it confirms.`
-    : `It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you the moment it confirms.`;
+    ? `It's taking longer than usual. We'll email you at ${email} the moment it's confirmed.`
+    : `It's taking longer than usual. We'll email you the moment it's confirmed.`;
   // The third threshold's added line. It names a mechanism that is REAL WITH THE GUARD CLOSED — the
   // reference is derived from this booking and shown on every status — so nothing here promises a
   // channel that does not exist yet (D-64). The wording is the reversed state's closed-guard half,
@@ -221,12 +290,19 @@ export function PendingPaymentState({ reference, email }: PendingPaymentStatePro
           ) : (
             <Loader2Icon className="size-8 animate-spin text-muted-foreground" aria-hidden="true" />
           )}
-          <h1 className="text-xl leading-tight font-semibold tracking-tight">Payment received</h1>
+          {/* D-102 — A HEADING IS THE MOST LOAD-BEARING SENTENCE ON A PAGE, and this one used to assert
+              that the money had arrived. It now names what is happening instead: we are confirming, and
+              the answer is not in. True on the first paint, true at the cap, and true whichever way the
+              settlement goes. It also stays UNIQUE across the app's `<h1>`s, which is what several
+              suites use as the marker proving this route rendered at all. */}
+          <h1 className="text-xl leading-tight font-semibold tracking-tight">
+            Confirming your payment
+          </h1>
           {/* NO STATUS-MEANING SENTENCE HERE, and its absence is the TRUST-01 answer rather than a gap:
-              13-UI-SPEC's status table gives this branch *"Your payment reached us. We're waiting on
-              the final confirmation."*, which is the money statement's two lines verbatim. Rendering it
-              a second time under the heading would put one sentence on the page twice, three lines
-              apart. 13-04 recorded the same reading on the reversed state. */}
+              13-UI-SPEC's status table gives this branch a two-line meaning, and those two lines ARE
+              the money statement below (the table's wording is superseded by D-102, the same way D-97
+              pinned the reversed state's). Rendering it a second time under the heading would put one
+              sentence on the page twice, three lines apart. 13-04 recorded the same reading. */}
         </div>
 
         {/* THE ONE LIVE REGION THIS PHASE KEEPS (see the header). The role goes on a WRAPPER rather

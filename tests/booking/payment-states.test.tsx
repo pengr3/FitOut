@@ -270,13 +270,14 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
     const { container } = mountPending();
 
     expect(container.querySelector('[data-testid="payment-state-pending"]')).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Payment received");
+    // D-102 — the heading names what is happening, not what has arrived. See case (9).
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Confirming your payment");
 
     const panels = container.querySelectorAll('[data-testid="money-statement"]');
     expect(panels.length, "STATE-06: exactly one money statement per document").toBe(1);
     const panel = flat(panels[0] as HTMLElement);
-    expect(panel).toContain("Your payment reached us.");
-    expect(panel).toContain("We're waiting on the final confirmation — this page updates on its own.");
+    expect(panel).toContain("We're waiting on your payment provider to confirm it.");
+    expect(panel).toContain("This page updates on its own — you don't need to refresh it.");
 
     expect(
       controlNames(container as unknown as HTMLElement),
@@ -286,7 +287,7 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
     ).toEqual([COPY_CONTROL]);
   });
 
-  it("(2) past the poll cap: the payment is safe, the booking is held, and an email is coming", () => {
+  it("(2) past the poll cap: it is taking longer than usual, and an email is coming", () => {
     const { container } = mountPending();
 
     act(() => {
@@ -298,10 +299,10 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
 
     const panel = flat(container.querySelector('[data-testid="money-statement"]') as HTMLElement);
     expect(panel, "L1 must not change: nothing about the booker's money changed").toContain(
-      "Your payment reached us.",
+      "We're waiting on your payment provider to confirm it.",
     );
     expect(panel).toContain(
-      `It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you at ${EMAIL} the moment it confirms.`,
+      `It's taking longer than usual. We'll email you at ${EMAIL} the moment it's confirmed.`,
     );
 
     // D-95 — the control has an object, and it is the only control that acts on the PAYMENT.
@@ -319,7 +320,7 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
     });
     const panel = flat(container.querySelector('[data-testid="money-statement"]') as HTMLElement);
     expect(panel).toContain(
-      "It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you the moment it confirms.",
+      "It's taking longer than usual. We'll email you the moment it's confirmed.",
     );
     expect(panel, "...and it must not render an empty destination").not.toContain("email you at ");
   });
@@ -386,8 +387,9 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
       expect(
         banned.filter((phrase) => text.includes(phrase)),
         `${when}: the pending state offered the booker a failure. The webhook is still the outstanding ` +
-          `authority at every threshold — the money HAS reached us — so a failure-shaped affordance ` +
-          `here tells them to act at the one moment acting is wrong, and could cost a second charge.`,
+          `authority at every threshold — nobody here knows yet whether the money moved (D-102) — so a ` +
+          `failure-shaped affordance tells them to act at the one moment acting is wrong, and could ` +
+          `cost a second charge on a payment that did in fact settle.`,
       ).toEqual([]);
       expect(painted(), `${when}: an alarm colour reached the pending state`).toEqual([]);
       // The only control that may act on the PAYMENT is the refresh, and it never grows a sibling.
@@ -520,6 +522,100 @@ describe("D-101.1 — the pending indicator stops when the poller stops", () => 
     const tokens = [...icons].flatMap((el) => (el.getAttribute("class") ?? "").split(/\s+/));
     for (const banned of ["text-destructive", "text-success", "text-attention"]) {
       expect(tokens, `${banned} rides the pending indicator`).not.toContain(banned);
+    }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// 13-CONTEXT D-102 — NOTHING THIS SURFACE RENDERS ASSERTS A PAYMENT NOBODY HAS VERIFIED
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE DEFECT, FOUND BY THE PM IN LIVE UAT: the heading said the money had arrived and the money
+// statement said it had reached us. Neither was known. At this paint the only established fact is that
+// a browser came back to `/bookings/{id}?paid=1`, and PROJECT D-57 is binding — that parameter is a UX
+// signal and never proof; the `checkout_session.payment.paid` webhook is the sole confirm authority,
+// and the row is `pending` because it has not arrived.
+//
+// ⚠ WHY CASES (1)–(3) ABOVE WERE GREEN FOR FOUR PHASES, WHICH IS THE PART WORTH CARRYING FORWARD. They
+// assert that the shipped strings are PRESENT — and they were. A test that pins text cannot see that
+// the text is a lie, exactly as 13-19 measured that a test asserting text and roles cannot see a
+// spinner that never stops. Presence is not truth. Pinning the new strings would inherit the same
+// blindness, so this case asserts the OTHER direction: a set of assertion FORMS that must not appear
+// in the rendered output at any threshold, whatever the copy is next rewritten to say.
+//
+// ⚠ AND IT IS THE SECOND OF TWO LAYERS, NOT A DUPLICATE OF THE FIRST.
+// `tests/design/pending-copy.test.ts` scans the SOURCE (comments included, which is where the last
+// version of this defect was defended). A source scan admits it cannot see copy assembled at runtime —
+// a template with a substitution, a word from a map keyed by a prop — and this component composes two
+// of its three lines from templates. This case reads the rendered tree, so it sees what the booker
+// sees; it cannot see comments. Each covers the other's hole.
+describe("D-102 — the pending state states knowledge, never receipt", () => {
+  /**
+   * The banned forms, in two pieces so this file never spells one (the `reversed-copy.test.ts` idiom
+   * applied to a render assertion). Every one presupposes that money reached FitOut, which is the one
+   * thing this surface cannot know. The first two are what actually shipped.
+   */
+  const RECEIPT_CLAIMS = [
+    ["payment rec", "eived"],
+    ["payment reach", "ed us"],
+    ["payment is s", "afe"],
+    ["money is s", "afe"],
+    ["received your p", "ayment"],
+    ["we have your p", "ayment"],
+    ["we've got your p", "ayment"],
+    ["payment confir", "med"],
+    ["paid in f", "ull"],
+    ["payment lan", "ded"],
+    ["payment went thr", "ough"],
+  ].map(([a, b]) => a + b);
+
+  const claimsIn = (root: HTMLElement) => {
+    // Apostrophes are HTML entities in JSX SOURCE but plain characters once rendered; the curly form
+    // still has to be folded, because a copy pass that pastes from a document brings one with it.
+    const text = flat(root)
+      .replace(/[‘’ʼ]/g, "'")
+      .toLowerCase();
+    return RECEIPT_CLAIMS.filter((claim) => text.includes(claim));
+  };
+
+  it("(9) asserts no receipt at any of the three thresholds, with an address and without one", () => {
+    for (const email of [EMAIL, null]) {
+      const { container, unmount } = mountPending({ email });
+      const root = container as unknown as HTMLElement;
+
+      // GUARD THE GUARD, and it is not ceremony: `claimsIn` returning `[]` is equally consistent with
+      // a matcher that can never match. The same scan over a fixture carrying the shipped heading must
+      // find it, through the same code path.
+      expect(
+        claimsIn({ textContent: RECEIPT_CLAIMS[0] } as HTMLElement),
+        "the scan cannot find the string that actually shipped, so its silence below means nothing",
+      ).toEqual([RECEIPT_CLAIMS[0]]);
+
+      const assertNoClaim = (when: string) =>
+        expect(
+          claimsIn(root),
+          `${when} (email=${email ?? "null"}): the pending surface told the booker something about ` +
+            `their money that no event on this system has established. Say what we KNOW — that we are ` +
+            `confirming, that the provider has not answered, that we will write to them — never what ` +
+            `we HAVE. This is the fourth unverified money claim Phase 13 has had to remove.`,
+        ).toEqual([]);
+
+      assertNoClaim("on arrival");
+      act(() => {
+        vi.advanceTimersByTime(POLL_CAP_MS);
+      });
+      assertNoClaim("past the poll cap");
+      act(() => {
+        vi.advanceTimersByTime(ESCALATION_MS);
+      });
+      assertNoClaim("past the escalation threshold");
+
+      // …and the surface is not silent instead, which is the way every ban above can be satisfied for
+      // the wrong reason. It still names the reference, still promises the mail, still says something.
+      expect(flat(root)).toContain(REFERENCE);
+      if (email) expect(flat(root)).toContain(email);
+
+      unmount();
     }
   });
 });

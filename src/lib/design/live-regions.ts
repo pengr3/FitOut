@@ -757,13 +757,14 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
     kind: "status",
     at: 1,
     announces:
-      'The money panel\'s DETAIL line, twice at most across one wait. "We\'re waiting on the final ' +
-      'confirmation — this page updates on its own." is on the first paint and is not announced. At ' +
-      "the poll cap the detail becomes \"It's taking longer than usual. Your payment is safe, your " +
-      'booking is held, and we\'ll email you at {address} the moment it confirms." — that is the ' +
-      'first announcement. At the escalation threshold ONE line is added: "Your reference is ' +
-      'FIT-XXXXXXXX — we\'ve recorded it against this booking." The heading, the spinner and the L1 ' +
-      'sentence "Your payment reached us." are OUTSIDE the region and never move.',
+      'The money panel\'s DETAIL line, twice at most across one wait. "This page updates on its own ' +
+      '— you don\'t need to refresh it." is on the first paint and is not announced. At the poll cap ' +
+      'the detail becomes "It\'s taking longer than usual. We\'ll email you at {address} the moment ' +
+      'it\'s confirmed." — that is the first announcement. At the escalation threshold ONE line is ' +
+      'added: "Your reference is FIT-XXXXXXXX — we\'ve recorded it against this booking." The ' +
+      'heading, the indicator and the L1 sentence — "We\'re waiting on your payment provider to ' +
+      'confirm it.", which D-102 rewrote so that nothing on this surface asserts a payment the ' +
+      'webhook has not confirmed — are OUTSIDE the region and never move.',
     why:
       "RULE 1 + RULES 4/5, and it is the ONE Phase-13 booking-detail region that survived plan " +
       "13-14's audit. Every other status this phase renders is a landing a booker navigates to; this " +

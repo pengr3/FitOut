@@ -275,7 +275,7 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
       await poll.goto(`${BASE}/bookings/${pendingId}?paid=1`);
 
       await expect(
-        poll.getByRole("heading", { level: 1, name: "Payment received" }),
+        poll.getByRole("heading", { level: 1, name: "Confirming your payment" }),
         "the pending payment state did not render, so the poller under test is not running and a " +
           "navigation count of zero would mean nothing",
       ).toHaveCount(1);

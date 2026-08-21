@@ -385,10 +385,11 @@ const RENDERS: readonly Render[] = [
     name: "pending (settling)",
     row: booking({ status: "pending", paymentId: null, expiresAt: LIVE_HOLD_EXPIRY }),
     search: { paid: "1" },
-    heading: "Payment received",
+    heading: "Confirming your payment",
     // 13-07's recorded reading: this branch's specified sentence IS the money statement's two lines, so
-    // rendering it a second time under the heading would put one sentence on the page twice.
-    meaning: "Your payment reached us.",
+    // rendering it a second time under the heading would put one sentence on the page twice. D-102
+    // rewrote both lines — nothing on this branch may assert a payment the webhook has not confirmed.
+    meaning: "We're waiting on your payment provider to confirm it.",
     money: true,
     terms: [],
     paid: false,

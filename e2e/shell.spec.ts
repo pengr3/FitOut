@@ -655,8 +655,8 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
       // row never had one.
       {
         url: `/bookings/${payStates.bookingIds.pendingLiveHold}?paid=1`,
-        resolved: () => page.getByRole("heading", { level: 1, name: "Payment received" }),
-        resolvedName: 'the h1 "Payment received" (PendingPaymentState, D-57/D-71)',
+        resolved: () => page.getByRole("heading", { level: 1, name: "Confirming your payment" }),
+        resolvedName: 'the h1 "Confirming your payment" (PendingPaymentState, D-57/D-71/D-102)',
       },
       {
         url: `/bookings/${payStates.bookingIds.reversed}`,
