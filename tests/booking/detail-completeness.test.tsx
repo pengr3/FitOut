@@ -333,6 +333,21 @@ type Render = {
    * `termsOf` for why this is the retarget of 13-09's row count and why `[]` is a claim.
    */
   readonly terms: readonly string[];
+  /**
+   * D-99 — does this render state, in words, that the booking has been PAID?
+   *
+   * TRUE on exactly two of the ten: `confirmed` and the derived `completed`. Both have been paid by
+   * construction — the `checkout_session.payment.paid` webhook is the only writer of the confirmed
+   * status, and `completed` is derived off a confirmed row.
+   *
+   * ⚠ FALSE IS THE HALF THAT MATTERS, AND IT IS D-90 EXACTLY. `requested` and `approved` are
+   * PAY-ON-APPROVAL holds: nobody has been charged one centavo, and a paid statement there would be
+   * the false money claim this whole phase exists to remove. `pending` has not settled. The reversed
+   * and indeterminate cancellations may never have carried a charge at all (D-96). A statement that
+   * FitOut is holding a payment is a claim about somebody's money, and it is only true where it is
+   * true.
+   */
+  readonly paid: boolean;
 };
 
 const LIVE_HOLD_EXPIRY = new Date("2026-08-20T02:10:00.000Z"); // ten minutes past the default `now`
@@ -350,6 +365,7 @@ const RENDERS: readonly Render[] = [
     meaning: "nothing is charged until they approve",
     money: false,
     terms: FACTS("You'll pay if approved"),
+    paid: false,
   },
   {
     name: "approved",
@@ -363,6 +379,7 @@ const RENDERS: readonly Render[] = [
     meaning: "The host said yes.",
     money: false,
     terms: FACTS("Total"),
+    paid: false,
   },
   {
     name: "pending (settling)",
@@ -374,6 +391,7 @@ const RENDERS: readonly Render[] = [
     meaning: "Your payment reached us.",
     money: true,
     terms: [],
+    paid: false,
   },
   {
     name: "pending (not completed)",
@@ -388,6 +406,7 @@ const RENDERS: readonly Render[] = [
     meaning: "This checkout didn't finish.",
     money: true,
     terms: [],
+    paid: false,
   },
   {
     name: "confirmed",
@@ -396,6 +415,7 @@ const RENDERS: readonly Render[] = [
     meaning: "This time is yours.",
     money: false,
     terms: FACTS("Total"),
+    paid: true,
   },
   {
     name: "completed (derived)",
@@ -404,6 +424,7 @@ const RENDERS: readonly Render[] = [
     meaning: "This session is finished.",
     money: false,
     terms: FACTS("Total"),
+    paid: true,
   },
   {
     name: "declined",
@@ -412,6 +433,7 @@ const RENDERS: readonly Render[] = [
     meaning: "The host couldn't take your booking.",
     money: false,
     terms: FACTS("Quoted total"),
+    paid: false,
   },
   {
     name: "cancelled (party)",
@@ -424,6 +446,7 @@ const RENDERS: readonly Render[] = [
     meaning: "It's no longer held.",
     money: true,
     terms: FACTS("Total"),
+    paid: false,
   },
   {
     name: "cancelled (lapsed approval)",
@@ -437,6 +460,7 @@ const RENDERS: readonly Render[] = [
     meaning: "we released the slot",
     money: false,
     terms: [],
+    paid: false,
   },
   {
     name: "cancelled (reversed)",
@@ -446,6 +470,7 @@ const RENDERS: readonly Render[] = [
     meaning: "This time was taken before your payment landed.",
     money: true,
     terms: [],
+    paid: false,
   },
 ];
 
@@ -700,6 +725,91 @@ describe("D-98 — no trust panel renders on any status, and the term set stays 
       ).toHaveLength(0);
     });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// 13-CONTEXT D-99 — THE PAGE SAYS IT IS PAID, AND SAYS IT ONLY WHERE IT IS TRUE
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE DEFECT THIS CLOSES, IN THE PM'S OWN WORDS: *"the ticket shows booking confirmed and not paid…
+// there's no obvious key wherein it stated that it is already paid for."* They were right. The page
+// showed a STATUS and a TOTAL, and a booker cannot tell from those two whether they still owe it —
+// `Total: ₱1,050.00` on a ticket reads at least as easily as an amount due.
+//
+// THE NEGATIVE HALF IS THE DANGEROUS ONE, and it is D-90 restated one correction later: a paid
+// statement on `requested` or on an `approved`-but-unpaid hold would tell a booker they had been
+// charged for something PAY-ON-APPROVAL means they have not been charged for. On a reversed or
+// indeterminate cancellation it would assert a charge the D-84 probe may never have confirmed (D-96).
+// So this is asserted per status over all ten renders, in both directions, rather than once on the
+// happy path.
+describe("D-99 — the paid statement mounts on exactly the two paid renders", () => {
+  for (const r of RENDERS) {
+    it(`(11·${r.name}) ${r.paid ? "states" : "does NOT state"} that the booking is paid`, async () => {
+      await drive(r);
+      expect(
+        screen.queryAllByTestId("paid-statement"),
+        r.paid
+          ? `${r.name}: this booking HAS been paid and the page does not say so. A status word and a ` +
+              "row labelled Total do not tell a booker whether they still owe the figure beside it."
+          : `${r.name}: a paid statement rendered on a status where it may be FALSE. D-90: ` +
+              "request-to-book is pay-on-approval, so a pending request has been charged nothing; " +
+              "D-96: an unanswered probe means the booker in front of us may never have been charged " +
+              "at all. Never tell a booker they paid for something they did not.",
+      ).toHaveLength(r.paid ? 1 : 0);
+    });
+  }
+
+  it("(12) the two are exactly the two statuses that have been paid by construction", async () => {
+    // The closed-set half, as a NAMED SET — the shape case (7) uses for D-94, and for its reason: ten
+    // passing booleans and an eleventh status quietly gaining a paid claim look identical from inside
+    // the loop above.
+    expect(RENDERS.filter((r) => r.paid).map((r) => r.name).sort()).toEqual(
+      ["completed (derived)", "confirmed"].sort(),
+    );
+  });
+
+  it("(13) the confirmed heading says PAID, not merely confirmed", async () => {
+    const { container } = await renderPage(booking());
+    expect(
+      flat(container as unknown as HTMLElement),
+      "the `<h1>` still reads only that the booking is confirmed. Confirmed and paid are two " +
+        "different facts to a booker holding a ticket, and the one they cannot infer is the second.",
+    ).toContain("Booking confirmed & paid");
+  });
+
+  it("(14) names the amount that was paid, and carries the hold promise on the held branch", async () => {
+    const { container } = await renderPage(booking());
+    const statement = screen.getByTestId("paid-statement").textContent!.replace(/\s+/g, " ").trim();
+
+    expect(statement, "the figure a booker checks against their bank app").toContain(
+      money(QUOTED_CENTS),
+    );
+    // THE ONE SENTENCE WORTH KEEPING OUT OF THE DELETED PANEL (D-98 → D-99). It is the
+    // hold-until-session payout model stated to a booker, which is the answer to *where is my money* —
+    // it earns its place as a PAYMENT statement even though the panel it used to sit in did not.
+    expect(statement).toContain("FitOut holds your payment until after your session.");
+    void container;
+  });
+
+  it("(15) the COMPLETED render never claims the payment is still being held", async () => {
+    // ⚠ THE TRUTHFULNESS CATCH, and it is the reason this is two sentences and not one. "FitOut holds
+    // your payment until after your session" is FALSE once the session has happened: the payout sweep
+    // runs at endsAt + PAYOUT_DELAY_HOURS, so on a completed booking the hold has arrived at its end
+    // or already released. The paid FACT is still stated — the amount, in full — and the clause that
+    // would have become a lie is simply absent rather than reworded into a second unverified claim
+    // about where the money is now.
+    await drive(RENDERS.find((r) => r.name === "completed (derived)")!);
+    const statement = screen.getByTestId("paid-statement").textContent!.replace(/\s+/g, " ").trim();
+
+    expect(statement, "the amount is still named on a finished session").toContain(
+      money(QUOTED_CENTS),
+    );
+    expect(
+      statement,
+      "the completed render promises a hold that has already ended. A money sentence that is true " +
+        "on Monday and false on Wednesday is the surface contradicting itself.",
+    ).not.toContain("until after your session");
+  });
 });
 
 describe("D-91 — the exact street is on the two BOOKED renders and on no other", () => {

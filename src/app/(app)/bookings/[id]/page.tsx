@@ -150,6 +150,7 @@ import { Separator } from "@/components/ui/separator";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { BookingReference } from "@/components/booking/booking-reference";
 import { MoneyStatement } from "@/components/booking/money-statement";
+import { PaidStatement } from "@/components/booking/paid-statement";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { PendingPaymentState } from "@/components/booking/pending-payment-state";
 import { NotCompletedState } from "@/components/booking/not-completed-state";
@@ -1291,8 +1292,19 @@ export default async function BookingConfirmationPage({
             the same panel every other status renders, with the copy control that surface needs. */}
         <div className="flex flex-col items-center gap-3 text-center">
           <BookingStatusBadge status="confirmed" endsAt={bk.endsAt} now={now} side="booker" />
+          {/* ⚠️ THE HEADING NAMES BOTH FACTS (13-19 / D-99), AND THEY ARE TWO FACTS RATHER THAN ONE.
+              It read *"Booking confirmed"*, and the PM's UAT finding was that a booker cannot tell
+              from that plus a row labelled *Total* whether they still owe the figure beside it —
+              *"there's no obvious key wherein it stated that it is already paid for."* Confirmed is
+              about the SLOT; paid is about the MONEY, and only one of them was on the page.
+
+              IT IS TRUE ON THIS BRANCH BY CONSTRUCTION, which is the only reason it may be stated
+              here: the `checkout_session.payment.paid` webhook is the sole writer of the `confirmed`
+              status (PROJECT D-57), so a row that reaches this line has been paid. The `completed`
+              heading is unchanged — it is a sentence about a session that is over, and the paid fact
+              travels in the statement below it, where the hold clause can be dropped. */}
           <h1 className="text-2xl leading-tight font-semibold tracking-tight sm:text-display">
-            {isCompleted ? "This session is done" : "Booking confirmed"}
+            {isCompleted ? "This session is done" : "Booking confirmed & paid"}
           </h1>
           {/* TRUST-01 / 13-UI-SPEC's status table — the two verbatim sentences for the one status that
               is two statuses. `completed` is DERIVED (D-102) against the DB clock, never stored. */}
@@ -1301,6 +1313,19 @@ export default async function BookingConfirmationPage({
               ? "This session is finished. This page stays as your record."
               : "This time is yours. Show this page (or your email) when you arrive."}
           </p>
+          {/* ══ D-99 — THE PAID FACT, IN WORDS, WITH THE FIGURE ATTACHED ═══════════════════════════
+              THIS IS THE ONLY BRANCH THAT MOUNTS IT, and the exclusions are the dangerous half. A
+              paid statement on `requested` or on an `approved`-but-unpaid hold would tell a booker
+              they had been charged for something PAY-ON-APPROVAL means they have not been charged for
+              (D-90); on a reversed or indeterminate cancellation it would assert a charge the D-84
+              probe may never have confirmed (D-96). Every one of those branches returns above this
+              line, and `tests/booking/detail-completeness.test.tsx` asserts the absence per status
+              rather than trusting the control flow.
+
+              `phase` carries D-98's one surviving sentence — the hold-until-session payout model — on
+              the branch where it is TRUE, and drops it once the session is over rather than rewording
+              it into a second unverified claim about where the money is now. See the component. */}
+          <PaidStatement amountPaid={totalLabel} phase={isCompleted ? "settled" : "held"} />
         </div>
 
         {/* ⚠️ D-94 — NO `MoneyStatement` ON THIS BRANCH, AND THE ABSENCE IS THE DECISION.

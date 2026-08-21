@@ -181,6 +181,10 @@ export const SELECTOR_IDS = [
   // 13-10 — the ordinary booking detail, one shell rendered eight ways. It is the sibling every
   // "nothing important lives only in the moment" assertion has to name, so it ships with the shell.
   "booking-detail",
+  // 13-19 / D-99 — the sentence that says the booking has been PAID, on the two renders where that is
+  // true by construction. Declared in the SAME commit as the literal, which is this list's rule in
+  // both directions.
+  "paid-statement",
   // 13-11 — BFLOW-08's post-payment first screen. Declared in the SAME commit as the component, one
   // task earlier than this plan scheduled it, for the reason 13-09's `trust-block` row records: the
   // contract is bidirectional, so the gate went red on `Rendered-but-undeclared: [confirmation-moment]`
@@ -700,6 +704,23 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
     owner: "13-07",
   },
 
+
+  // ─── 13-19 ─────────────────────────────────────────────────────────────────────────────────────────
+  "paid-statement": {
+    why:
+      "IT IS A `<p>` OF ORDINARY PROSE INSIDE THE HEADING BLOCK, so it has no role, no landmark and " +
+      "no accessible name of its own to query. " +
+      "AND MATCHING ITS TEXT WOULD BE CIRCULAR IN EXACTLY THE WAY THIS CONTRACT'S MONEY-ADJACENT ROWS " +
+      "DESCRIBE: the assertion is that the page STATES the booking is paid, so the sentence IS the " +
+      "thing under revision — a query keyed to today's wording would go green on any rewording that " +
+      "dropped the fact, which is the defect D-99 exists to close. The figure inside it cannot key it " +
+      "either: the amount is the SAME string the facts panel's Total row renders, so a money-text " +
+      "query resolves to two elements and silently asserts about whichever comes first. " +
+      "THE ASSERTION IS ALSO A PER-STATUS COUNT — one on `confirmed` and on the derived `completed`, " +
+      "ZERO on the other eight, because a paid claim on a pay-on-approval hold (D-90) or on an " +
+      "unconfirmed charge (D-96) is false. A count of zero has no text to match on by definition.",
+    owner: "13-19",
+  },
 
   // ─── 13-10 ─────────────────────────────────────────────────────────────────────────────────────────
   "booking-detail": {
