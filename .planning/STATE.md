@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
-status: executing
-stopped_at: Completed 13-15-PLAN.md
-last_updated: "2026-08-20T21:13:26.276Z"
+status: verifying
+stopped_at: "Completed 13-16-PLAN.md — the phase close-out. All 16 plans + the 13-17 gap-closure are done; GATE-VRT comparison run 32449945840 is green on all four jobs. Phase 13 is EXECUTED, AWAITING HUMAN VERIFICATION: four manual-only walks (A-D, see 13-16-SUMMARY.md) are deferred to a UAT session and SUPPORT_EMAIL is still null."
+last_updated: "2026-08-21T05:44:16.354Z"
 last_activity: 2026-08-21
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 70
-  completed_plans: 69
+  completed_plans: 70
   percent: 27
 ---
 
@@ -48,7 +48,56 @@ Phase: 13
 Plan: 16 of 16
 Current Plan: 16
 Total Plans in Phase: 16
-Status: Ready to execute
+Status: **Executed — awaiting human verification.** Not "complete": four manual-only walks are outstanding by operator decision, and phase completion is the verifier's call.
+
+**13-16 IS DONE (`9243ad1` · the close-out) — PHASE 13 IS EXECUTED, NOT COMPLETE, AND THE LEDGER SAYS SO.**
+The GATE-VRT deliverable is the **COMPARISON** run, never the generation run: `32447241600` (`baselines`,
+`workflow_dispatch`, `6f90b7e`) wrote 12 PNGs and compared against nothing — `baselines.yml` emits
+`::warning::These baselines have NOT been verified` itself — and **`32449945840` (`ci`, `dee2d3c`) is the
+one that matters: all four jobs green.** `gate-visual` 122 tests → **70 passed / 52 skipped / 0 failed**,
+and the 52 reconcile exactly against 13-15's inventory (41 blocked rows + 11 blocked theme-swap cases).
+`gate-db` 1516/4, `gate-db-free` 801/3 + build, `gate-price-parity` 1. The generation commit `d6cffb6` is
+**PNG-only** (12 files, `0 insertions 0 deletions`), and the two new surfaces' theme captures differ
+byte-wise (29393 vs 31475 bytes, different digests).
+
+⚠ **THE MOST TRANSFERABLE FINDING — THE TEN REGENERATED BASELINES ARE PHASE 12's, NOT PHASE 13's, AND THE
+OBVIOUS STORY WAS WRONG.** `d6cffb6` also rewrote ten already-committed PNGs, which reads as "Phase 13
+touched shared chrome". Checked instead of assumed: run **`32274691204` on `bcdc7ec` — the phase-12
+completion commit, before a line of Phase-13 code** — reported `gate-visual: 9 failed / 1 did not run / 57
+passed` on **exactly those ten surfaces** (65 and 71 pixel diffs). Phase 13's only shared-chrome edits are
+`print:`-media utilities and comments (`site-chrome.tsx` +10/−0, `site-footer.tsx` +7/−1, `panel-card.tsx`
++30/−0, `listing-public.ts` +192/−0 **insertions-only**), none of which can move a screen render — so
+13-12's Assumption A4 prediction was never falsified, it only looked falsified from the generation commit
+alone. **Phase 13 inherited a red GATE-01 and closed it:** `32449945840` is the first green `ci` on `dev`
+since `2546937` (2026-08-19 15:37Z), nine runs later. **Nothing in this repo notices a phase COMPLETING
+over a red GATE-01** — filed to `deferred-items.md` for Phase 17.
+
+⚠ **THE FOUR MANUAL-ONLY WALKS ARE OUTSTANDING BY OPERATOR DECISION (2026-08-21), NOT PERFORMED AND NOT
+INFERRED.** A (a real hosted-checkout return → BFLOW-08), B (the printed page in both themes → TRUST-05),
+C (the QRPh manual-return copy read beside a real statement → STATE-05), D (the `/v1/refunds` re-probe with
+a fresh `Idempotency-Key` → D-81). Each is written at execution-cold detail in `13-16-SUMMARY.md`. The
+automated half was run and is green (`confirmation-decay` + `receipt-print`: **7 passed, exit 0**) — which
+is exactly the half 13-VALIDATION says does not answer these questions.
+
+**THE LEDGER, MADE HONEST — five of nine close PARTIAL, one CLOSES, one is UN-TICKED.** TRUST-04
+**Complete** (the only ID whose every clause ships AND whose negative half is enforced by a gate that
+proves it can find a violation). TRUST-01 / STATE-05 **PARTIAL** — code-complete, address-pending, by
+D-64. BFLOW-08 **PARTIAL** (walk A). TRUST-03 **PARTIAL** — measured, not assumed: `sendBookingConfirmed`
+is three `<p>`s and none is a policy; the email half is Phase 15's. STATE-08 **PARTIAL** over one named
+residual (`refund-destination-form.tsx:88`'s `toast.warning(res.notice)`). **TRUST-05 UN-TICKED from
+`[x]`** — 13-13 handed that decision to the close-out, and the box was ticked before
+`e2e/receipt-print.spec.ts` existed; one walk re-ticks it, and NOT the automated spec that made the first
+tick look safe.
+
+⚠ **`SUPPORT_EMAIL` IS THE PHASE'S ONE `human_needed` ITEM: `src/lib/site.ts:70`, ONE LINE.** It stays
+`null`; setting it to a placeholder is forbidden in three separate sentences of D-64, and
+`tests/design/site-contacts.test.ts` is proved green **UNMODIFIED** (23 passed) with zero lines changed
+across all 69 commits of the phase. Invariants held: `drizzle/` still ends at `0025_audit_resolved_by.sql`
+(GATE-06/D-80), `REFUNDABLE_RAILS` still excludes `qrph` (D-81), `src/inngest/` untouched so no send
+trigger moved (D-78), `package.json` **and** `package-lock.json` byte-unchanged (zero packages), zero
+`src/components/ui/**` edits, no baseline minted locally. Closing gates all exit 0: `npm test` **1516/4**,
+design **801/3**, `npm run build`, `npx tsc --noEmit`.
+
 
 **13-14 IS DONE (`b00747b` · `81157ee`) — the live-region debt this phase inherited is DISCHARGED BY
 AUDIT, and the numbers in it were all re-measured rather than carried forward.** `LIVE_REGION_EXCLUSIONS`
@@ -329,7 +378,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-20
+Last activity: 2026-08-21
 
 ## Performance Metrics
 
@@ -369,6 +418,16 @@ FOUR SHIPPED DEFECTS FIXED: two 320px overflows, one grove-only STATE-06 violati
 568px viewport, and — the one that matters most — `/invite/{token}`'s only two controls shipping as
 256x22 pointer targets on mobile, because `flex-1` inside a `flex-col` row sets flex-basis on the HEIGHT
 and overrides `h-11`.*
+
+*13-16: ~40 min wall-clock, 3 tasks (1 operator-resolved before start, 1 operator-DEFERRED, 1 auto),
+1 file created + 2 modified, 2 commits. **Zero source files.** No wall-clock went to authoring; it went
+to CHECKING the two things a close-out is tempted to transcribe. The comparison run's four job
+conclusions and every count were read from the API rather than accepted, and the ten regenerated
+baselines were traced back to run `32274691204` on `bcdc7ec` — the PHASE-12 completion commit — which
+falsified the framing this plan was handed (they are Phase 12's inherited drift, not Phase 13's). One
+deviation of substance: the ledger correction reached FIVE requirements rather than the two the plan
+named, because a ledger where BFLOW-08 is partial for a deferred walk while TRUST-05 stays ticked for a
+deferred walk is inconsistent rather than honest.*
 
 **Recent Trend:**
 
@@ -869,6 +928,14 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-15: baseline count alias moved 53 -> 95 (BaselineCountIsNinetyFive) and the red was UNFORCED; THEME_SWAP_SURFACES 12 -> 24 with zero added exclusions. All four Linux-only pins verified on Windows by a scratch Node checker that re-implements the two runtime assertions, and the checker was itself probed (24->23 went FAIL, 5/5 on restore).
 - [Phase ?]: 13-15: two MEASUREMENT-INSTRUMENT artefacts recorded so they are not read as defects — a driven clock on the pending surface leaves a hidden 0x0 duplicate of the tree attached to `<body>` (so element counts are stated on VISIBLE elements), and the focus walk scrolls the document (so STATE-06 is measured BEFORE it, never after a `scrollTo(0,0)` that would blind the guard).
 - [Phase ?]: 13-15: ⚠️ gsd-sdk v1.42.3 string-arg handlers still no-op — metric row, decisions and `stopped_at` hand-written; `state.update-progress` returned 'Progress field not found in STATE.md' and was hand-checked instead. `advance-plan`, `roadmap.update-plan-progress 13` (15/16, In Progress) and `requirements.mark-complete STATE-06` all worked. STATE-05 and TRUST-01 deliberately left Pending — they close PARTIAL on `SUPPORT_EMAIL`.
+- [Phase ?]: 13-16: THE GATE-VRT DELIVERABLE IS THE COMPARISON RUN, NEVER THE GENERATION RUN. `32447241600` (`baselines`, dispatch, `6f90b7e`) wrote 12 PNGs and compared against nothing — a GITHUB_TOKEN push triggers no workflow, and `baselines.yml` says so itself in a `::warning::`. `32449945840` (`ci`, `dee2d3c`) is the record: **all four jobs green**, `gate-visual` 70 passed / 52 skipped / 0 failed, and the 52 reconcile exactly against 13-15's declared 41 blocked rows + 11 blocked theme-swap cases.
+- [Phase ?]: 13-16: ⚠ THE TEN REGENERATED BASELINES ARE PHASE 12's, NOT PHASE 13's — the obvious story was wrong and checking it took ten minutes. Run `32274691204` on `bcdc7ec`, the PHASE-12 COMPLETION COMMIT, already reported `gate-visual: 9 failed / 1 did not run` on exactly those ten surfaces (65 and 71 pixel diffs). Phase 13's only shared-chrome edits are `print:`-media utilities and comments, which cannot move a screen render — so 13-12's Assumption A4 was never falsified, it only looked falsified from the generation commit alone. Phase 13 INHERITED a red GATE-01 and closed it: `32449945840` is the first green `ci` on `dev` since `2546937`, nine runs later.
+- [Phase ?]: 13-16: NOTHING IN THIS REPOSITORY NOTICES A PHASE COMPLETING OVER A RED GATE-01. `gate-visual` failing is visible in a run; a phase closing over it is visible nowhere. Filed to `deferred-items.md` for Phase 17, whose audit leans on that gate. The likely shape is a close-out assertion that the phase head has a green COMPARISON run — the artifact 13-16 had to produce by hand.
+- [Phase ?]: 13-16: THE FOUR MANUAL-ONLY WALKS ARE OUTSTANDING BY OPERATOR DECISION (2026-08-21) — not performed, not inferred, and not reported as passed. A: a real hosted-checkout return (BFLOW-08). B: the printed page in both themes (TRUST-05). C: the QRPh manual-return copy read beside a real bank statement (STATE-05/D-82/D-83). D: the `/v1/refunds` re-probe with a fresh Idempotency-Key (D-81, where a 2xx is a FINDING and never a widening of `REFUNDABLE_RAILS`). Each is written at execution-cold detail in `13-16-SUMMARY.md`.
+- [Phase ?]: 13-16: THE LEDGER CORRECTION REACHED FIVE REQUIREMENTS, NOT THE TWO THE PLAN NAMED. TRUST-04 closes COMPLETE; TRUST-01/STATE-05 close PARTIAL by D-64 (code-complete, address-pending); BFLOW-08 PARTIAL (walk A); TRUST-03 Pending -> PARTIAL, measured not assumed (`sendBookingConfirmed` is three `<p>`s and none is a policy); STATE-08 PARTIAL over one named residual. A ledger where BFLOW-08 is partial for a deferred walk while TRUST-05 stays ticked for a deferred walk is inconsistent rather than honest.
+- [Phase ?]: 13-16: TRUST-05 WAS UN-TICKED FROM `[x]`, and the reason is written into REQUIREMENTS.md so it is not silently reconciled. 13-13 recorded that un-ticking another plan's box is the phase close-out's call and handed the decision forward; the box was ticked by 13-12 BEFORE `e2e/receipt-print.spec.ts` existed. ⚠ One manual walk re-ticks it — NOT the automated spec that made the first tick look safe.
+- [Phase ?]: 13-16: `SUPPORT_EMAIL` remains the phase's one `human_needed` item — `src/lib/site.ts:70`, ONE LINE, and `tests/design/site-contacts.test.ts` is proved green UNMODIFIED (23 passed, zero lines changed across all 69 commits). Setting it to a placeholder is forbidden in three separate sentences of D-64. It also un-skips blocker (1) of two on `overflow-320.spec.ts`'s D-83 ordering case; blocker (2) is walk C's unreachable branch, stated separately for exactly this reason.
+- [Phase ?]: 13-16: ⚠ gsd-sdk v1.42.3 OVER-REACHED on the last plan exactly as the project memory predicts — `state.advance-plan` bumped `completed_phases` 3 -> 4, `completed_plans` 69 -> 71 (above `total_plans: 70`), `percent` 27 -> 36, and truncated `stopped_at` mid-sentence. All four reverted by hand; phase-level completion is the verifier's call. The metric row and these decisions were hand-written because the string-arg handlers still no-op.
 
 ### Pending Todos
 

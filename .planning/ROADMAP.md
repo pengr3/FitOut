@@ -355,7 +355,7 @@ Plans:
 
 **Wave 10** *(blocked on Wave 9 completion)*
 
-- [ ] 13-16-PLAN.md — the baseline dispatch, the four manual-only walks, and the PARTIAL closes (Wave 10, checkpoints)
+- [x] 13-16-PLAN.md — the baseline dispatch, the four manual-only walks, and the PARTIAL closes (Wave 10, checkpoints)
 
 **UI hint**: yes
 
@@ -516,7 +516,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
-| 13. Confirmation, Bookings & Trust | v1.1 | 15/16 | In Progress|  |
+| 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
