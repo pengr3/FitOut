@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-// BFLOW-08 / D-61 / D-62-as-corrected-by-D-90 / D-63 / D-98 — THE CONFIRMATION MOMENT, AS A CONTRACT.
+// BFLOW-08 / D-61 / D-62-as-corrected-by-D-90 / D-63 / D-98 / D-100 — THE CONFIRMATION MOMENT,
+// AS A CONTRACT.
 //
 // WHAT THIS FILE IS FOR, AND WHAT IT DELIBERATELY IS NOT FOR.
 //
@@ -10,6 +11,26 @@
 // zeros, so a height assertion in this file would pass against a component that rendered nothing
 // (D-131, and the reason `e2e/confirmation-decay.spec.ts` exists). This file owns the half a rendered
 // TREE can answer: WHICH FACTS ARE PRESENT, in WHAT ORDER, in WHICH MODE, and WHAT IS ABSENT.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// D-100 — THE MOMENT IS FOUR THINGS NOW, AND THE ABSENCES ARE THE ASSERTION
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The PM's live-UAT finding: the celebratory header and the Space / Where / When / Host / Total facts
+// card *"says the same thing twice"*. It did — the header carried the venue, the venue-local window,
+// the named timezone, the full address, the reference, the amount and the cancellation policy, and
+// every one of those renders again in the detail directly beneath it. A confirmation that restates the
+// page below it is not a moment, it is a preview of the page.
+//
+// SO THE RULE IS: **the header carries the moment and the outcome; the facts card carries the detail.**
+// Four items survive — the success mark, the `<h1>`, the paid statement, and D-63's email line — and
+// the cases below assert the four AND the removals, because a compaction that quietly grew back is
+// invisible to a test that only checks what is present.
+//
+// ⚠ NOTHING THAT EXISTED ONLY IN THE HEADER WAS LOST, which is D-60's decay-safety argument and is
+// checked from the other side by `tests/booking/detail-completeness.test.tsx`. Two things live only
+// here and both stayed: the email line (the destination of the confirmation, stated nowhere else) and
+// the request-mode `<h1>`'s approval fact. Everything removed renders on the ordinary detail below.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // THE COPY IS RETYPED HERE RATHER THAN IMPORTED FROM THE COMPONENT
@@ -28,15 +49,16 @@
 // the host declines. D-90 CORRECTS it: request-to-book is pay-on-approval, so a booker with a pending
 // request has not been charged at all, and there is no "charged while awaiting approval" state to
 // reassure anyone about. A request-mode booking only reaches this surface AFTER the host approved AND
-// the booker paid — at which point it is confirmed. So the request lede leads with the money answer
-// that is REAL. Case (10) asserts the negative from the other side: no sentence anywhere in the moment
-// describes a charge that is at risk, conditional on an approval, or awaiting one.
+// the booker paid — at which point it is confirmed. Case (9) asserts the negative from the other side:
+// no sentence anywhere in the moment describes a charge that is at risk, conditional on an approval,
+// or awaiting one.
 
 import * as React from "react";
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup, within } from "@testing-library/react";
 
 import { ConfirmationMoment } from "@/components/booking/confirmation-moment";
+import { PaidStatement } from "@/components/booking/paid-statement";
 
 afterEach(cleanup);
 
@@ -48,10 +70,6 @@ afterEach(cleanup);
 const H1_INSTANT = "You're booked";
 /** `<h1>` — request. The separator is an em dash, as the contract carries it. */
 const H1_REQUEST = "Your host approved this — you're booked";
-/** The reference's own label. */
-const REFERENCE_TERM = "Booking reference";
-/** The amount's label — `Paid`, not `Total`: this figure is money that has moved. */
-const PAID_TERM = "Paid";
 /** D-63 — the FULL address, never masked. Catching a typo is the only reason the line exists. */
 const emailLine = (address: string) => `Confirmation sent to ${address}`;
 
@@ -61,30 +79,33 @@ const emailLine = (address: string) => `Confirmation sent to ${address}`;
 
 const AMOUNT = "₱1,050.00";
 const EMAIL = "jane.booker+fitout@example.com";
-const REFERENCE = "FIT-8Q3KZ1RA";
-const ARRIVAL = "Padel Court Makati · Fri, Aug 21, 9:00 AM – 11:00 AM (Makati time)";
-const ADDRESS_LINES = ["88 Kalayaan Avenue, Unit 4", "Poblacion, Makati", "1210 Metro Manila"];
-const PAID_IN_FULL = `You've paid ${AMOUNT} in full. FitOut holds it until after your session.`;
 
 /**
- * The policy DISCLOSURE arrives as a slot, so this fixture stands in for it.
+ * The facts the header used to restate, kept here as the negative fixture (D-100).
  *
- * It is a stand-in rather than the real `CancellationPolicyDisclosure` on purpose: the component under
- * test composes nothing about a policy — it renders whatever element the RSC hands down, which is the
- * SAME element the ordinary detail below renders. Mounting the real one here would assert
- * `cancellation-policy.test.ts`'s subject a second time and tell us nothing about this component.
+ * They are not props any more. They are what case (10) proves the moment does NOT say: the venue, the
+ * venue-local window with its named timezone, the full address, the reference and the amount all
+ * render in the facts card, the reference panel and the paid statement of the ordinary detail below,
+ * which is one scroll away and permanently there.
  */
-const POLICY_SENTINEL = "POLICY-DISCLOSURE-SLOT";
-const policySlot = <p>{POLICY_SENTINEL}</p>;
+const ARRIVAL = "Padel Court Makati · Fri, Aug 21, 9:00 AM – 11:00 AM (Makati time)";
+const ADDRESS_LINES = ["88 Kalayaan Avenue, Unit 4", "Poblacion, Makati", "1210 Metro Manila"];
+const REFERENCE = "FIT-8Q3KZ1RA";
+
+/**
+ * D-99's paid statement, as the REAL component rather than a stand-in.
+ *
+ * It arrives as a SLOT and not as props, and the distinction is the one 13-10 established on this
+ * segment: the ordinary detail below renders the IDENTICAL element, so passing the element itself
+ * makes *"the moment and the detail state the same paid sentence"* true by construction rather than by
+ * two call sites agreeing. Passing the real one here also keeps case (9)'s negative honest — it is
+ * asserted over the words a booker actually reads rather than over a sentinel.
+ */
+const paidSlot = <PaidStatement amountPaid={AMOUNT} phase="held" />;
 
 const BASE = {
-  arrivalLine: ARRIVAL,
-  addressLines: ADDRESS_LINES,
-  paidInFullSentence: PAID_IN_FULL,
-  reference: REFERENCE,
-  amountPaid: AMOUNT,
+  paidStatement: paidSlot,
   email: EMAIL,
-  policyDisclosure: policySlot,
 } as const;
 
 /** The moment's own element. Every scoped query below runs inside it, never over the whole document. */
@@ -109,10 +130,8 @@ function positionOf(container: HTMLElement, node: Element): number {
 }
 
 describe("The confirmation moment — the two mode variants (D-62 as corrected by D-90)", () => {
-  it("(1) `instant` leads with the ARRIVAL facts under its own `<h1>`", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="instant" {...BASE} />,
-    );
+  it("(1) `instant` carries its own `<h1>` and the paid outcome under it", () => {
+    const { container } = render(<ConfirmationMoment bookingMode="instant" {...BASE} />);
     const section = moment(container);
 
     expect(
@@ -120,25 +139,14 @@ describe("The confirmation moment — the two mode variants (D-62 as corrected b
       "the instant `<h1>` is 13-UI-SPEC's, verbatim",
     ).toBe(H1_INSTANT);
 
-    // The lede leads with arrival: venue, the venue-local date and time, and the named timezone.
-    expect(section.textContent).toContain(ARRIVAL);
-    // …and the full address is on its own line beneath it (D-91's post-payment boundary; the lines
-    // are composed by `bookedListingAddress()` and arrive finished).
-    for (const line of ADDRESS_LINES) {
-      expect(section.textContent, `the address line "${line}" is missing`).toContain(line);
-    }
-
-    // The instant mode has no money answer in the LEDE — the amount is on the `Paid` row, once.
     expect(
-      section.textContent,
-      "the request-mode money sentence rendered on an instant booking, where it is not specified",
-    ).not.toContain(PAID_IN_FULL);
+      section.querySelectorAll('[data-testid="paid-statement"]'),
+      "the outcome — that the money has moved — is the one fact the moment adds to its heading",
+    ).toHaveLength(1);
   });
 
-  it("(2) `request` leads with the money answer that is REAL — approved, paid, held (D-90)", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="request" {...BASE} />,
-    );
+  it("(2) `request` leads with the approval fact, and states the money answer that is REAL (D-90)", () => {
+    const { container } = render(<ConfirmationMoment bookingMode="request" {...BASE} />);
     const section = moment(container);
 
     expect(
@@ -146,40 +154,28 @@ describe("The confirmation moment — the two mode variants (D-62 as corrected b
       "the request `<h1>` is 13-UI-SPEC's, verbatim — it leads with the approval fact",
     ).toBe(H1_REQUEST);
 
-    expect(
-      section.textContent,
-      "D-90: a request booking reaches this surface only after the host approved AND the booker " +
-        "paid, so the honest lede is the money answer that is real",
-    ).toContain(PAID_IN_FULL);
-
-    // The arrival facts do not disappear on this branch — they follow the money answer.
-    expect(section.textContent).toContain(ARRIVAL);
-    const moneyAt = section.textContent!.indexOf(PAID_IN_FULL);
-    const arrivalAt = section.textContent!.indexOf(ARRIVAL);
-    expect(moneyAt, "the request lede must LEAD with the money answer").toBeLessThan(arrivalAt);
+    // D-90: a request booking reaches this surface only after the host approved AND the booker paid,
+    // so the honest money answer is that the payment HAPPENED — the same statement the instant branch
+    // carries, because by this point the two situations are the same situation.
+    expect(section.textContent).toContain("Paid in full");
+    expect(section.textContent).toContain(AMOUNT);
   });
 
   it("(3) the two `<h1>` variants are different strings, and neither is the other's fallback", () => {
-    const instant = render(
-      <ConfirmationMoment bookingMode="instant" {...BASE} />,
-    );
+    const instant = render(<ConfirmationMoment bookingMode="instant" {...BASE} />);
     const a = within(moment(instant.container)).getByRole("heading", { level: 1 }).textContent;
     cleanup();
 
-    const request = render(
-      <ConfirmationMoment bookingMode="request" {...BASE} />,
-    );
+    const request = render(<ConfirmationMoment bookingMode="request" {...BASE} />);
     const b = within(moment(request.container)).getByRole("heading", { level: 1 }).textContent;
 
     expect(a).not.toBe(b);
   });
 });
 
-describe("The confirmation moment — what it contains, and in what order (D-61)", () => {
+describe("The confirmation moment — what it contains, and in what order (D-61 / D-100)", () => {
   it("(4) renders a `<section>` carrying the declared hook, and NEVER a `<main>`", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="instant" {...BASE} />,
-    );
+    const { container } = render(<ConfirmationMoment bookingMode="instant" {...BASE} />);
 
     expect(moment(container).tagName).toBe("SECTION");
     // `(app)/layout.tsx` owns the one `main` landmark per document (D-88.1). A second one nested
@@ -190,9 +186,7 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
 
   it("(5) renders EXACTLY one `<h1>`, and no `<h2>` competing with it", () => {
     for (const mode of ["instant", "request"] as const) {
-      const { container } = render(
-        <ConfirmationMoment bookingMode={mode} {...BASE} />,
-      );
+      const { container } = render(<ConfirmationMoment bookingMode={mode} {...BASE} />);
       const section = moment(container);
 
       expect(
@@ -208,10 +202,8 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
     }
   });
 
-  it("(6) carries the seven specified items, in the specified order", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="request" {...BASE} />,
-    );
+  it("(6) carries the FOUR specified items, in the specified order (D-100)", () => {
+    const { container } = render(<ConfirmationMoment bookingMode="request" {...BASE} />);
     const section = moment(container);
 
     // 1 — the success mark. An icon with no text, which is why order is measured over elements.
@@ -224,37 +216,22 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
 
     // 2 — the `<h1>`.
     const h1 = within(section).getByRole("heading", { level: 1 });
-    // 3 — the lede (its first sentence on this branch is the money answer).
-    const lede = Array.from(section.querySelectorAll("p")).find((p) =>
-      p.textContent?.includes(PAID_IN_FULL),
-    );
-    expect(lede, "the lede did not render").toBeDefined();
-    // 4 — the reference, with its copy control.
-    const reference = section.querySelector('[data-testid="booking-reference"]')!;
-    // 5 — the amount, labelled `Paid`.
-    const paid = within(section).getByText(PAID_TERM);
-    // 6 — the full email line.
+    // 3 — the outcome: the paid statement, the same element the detail below renders.
+    const paid = section.querySelector('[data-testid="paid-statement"]')!;
+    // 4 — the full email line, which is the ONE fact that exists nowhere else on the page.
     const email = within(section).getByText(emailLine(EMAIL));
-    // 7 — the cancellation policy. The condensed trust panel used to sit between the email line and
-    //     this one; D-98 deleted it, and case (11) is the assertion that it stayed deleted.
-    const policy = within(section).getByText(POLICY_SENTINEL);
 
-    const order = [mark!, h1, lede!, reference, paid, email, policy].map((n) =>
-      positionOf(container, n),
-    );
+    const order = [mark!, h1, paid, email].map((n) => positionOf(container, n));
 
     expect(
       order,
-      "13-UI-SPEC § What is in the moment, in order: mark, h1, lede, reference, amount, email, " +
-        "policy. The order is the argument — the booker's questions are answered in the sequence " +
-        "they are asked.",
+      "the moment is: mark, h1, the paid outcome, the email destination. The order is the argument " +
+        "— what happened, what it means, and where the confirmation went.",
     ).toEqual([...order].sort((x, y) => x - y));
   });
 
   it("(7) states the FULL email address, unmasked (D-63)", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="instant" {...BASE} />,
-    );
+    const { container } = render(<ConfirmationMoment bookingMode="instant" {...BASE} />);
     const section = moment(container);
 
     expect(section.textContent).toContain(emailLine(EMAIL));
@@ -269,12 +246,7 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
 
   it("(8) renders NO email line at all when the session carries no address", () => {
     const { container } = render(
-      <ConfirmationMoment
-        bookingMode="instant"
-       
-        {...BASE}
-        email={null}
-      />,
+      <ConfirmationMoment bookingMode="instant" {...BASE} email={null} />,
     );
     const section = moment(container);
 
@@ -283,24 +255,9 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
     expect(section.textContent).not.toContain("Confirmation sent to");
   });
 
-  it("(9) labels the amount `Paid`, and renders the figure exactly once", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="instant" {...BASE} />,
-    );
-    const section = moment(container);
-
-    expect(within(section).getByText(PAID_TERM)).toBeTruthy();
-    // Once, on the instant branch: the lede carries no money sentence there, so a second occurrence
-    // would be the same figure stated twice three lines apart.
-    const occurrences = section.textContent!.split(AMOUNT).length - 1;
-    expect(occurrences, `the amount ${AMOUNT} renders ${occurrences} times, expected 1`).toBe(1);
-  });
-
-  it("(10) no copy states or implies a charge that is pending, at risk, or conditional (D-90)", () => {
+  it("(9) no copy states or implies a charge that is pending, at risk, or conditional (D-90)", () => {
     for (const mode of ["instant", "request"] as const) {
-      const { container } = render(
-        <ConfirmationMoment bookingMode={mode} {...BASE} />,
-      );
+      const { container } = render(<ConfirmationMoment bookingMode={mode} {...BASE} />);
       const text = moment(container).textContent!.toLowerCase();
 
       // Every phrasing below describes a charge whose outcome is still open. None can be true on
@@ -329,8 +286,69 @@ describe("The confirmation moment — what it contains, and in what order (D-61)
   });
 });
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// D-100 — THE REMOVALS, ASSERTED AS REMOVALS
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A compaction that quietly grows back is invisible to a suite that only checks what is present, and
+// this one WILL be tempting to grow back: every fact below is a fact somebody could reasonably want on
+// a confirmation screen. The answer is that each of them is one scroll down, permanently, in a panel
+// built for it — and the PM's complaint was precisely that reading both is reading the same page twice.
+describe("The confirmation moment — it restates NOTHING from the facts card (D-100)", () => {
+  it("(10) states no venue, no window, no timezone, no street and no reference", () => {
+    for (const mode of ["instant", "request"] as const) {
+      const { container } = render(<ConfirmationMoment bookingMode={mode} {...BASE} />);
+      const text = moment(container).textContent ?? "";
+
+      // The arrival line was the header's restatement of Space + When, timezone included.
+      expect(text, `${mode}: the arrival line is back in the header`).not.toContain(ARRIVAL);
+      expect(text, `${mode}: the venue name is back in the header`).not.toContain(
+        "Padel Court Makati",
+      );
+      // The address lines were the header's restatement of Where.
+      for (const line of ADDRESS_LINES) {
+        expect(text, `${mode}: the address line "${line}" is back in the header`).not.toContain(line);
+      }
+      // The reference renders in its own panel below, with the copy control that surface needs.
+      expect(text, `${mode}: the reference is back in the header`).not.toContain(REFERENCE);
+      expect(text, `${mode}: the reference's own label is back in the header`).not.toContain(
+        "Booking reference",
+      );
+      cleanup();
+    }
+  });
+
+  it("(11) names the amount exactly ONCE, inside the paid statement and nowhere beside it", () => {
+    const { container } = render(<ConfirmationMoment bookingMode="instant" {...BASE} />);
+    const section = moment(container);
+
+    // The header used to carry the figure twice on a request booking — once in the lede's money
+    // sentence and once again on a block labelled `Paid` three lines below. One figure, one place.
+    const occurrences = section.textContent!.split(AMOUNT).length - 1;
+    expect(
+      occurrences,
+      `the amount ${AMOUNT} renders ${occurrences} times inside the moment, expected 1`,
+    ).toBe(1);
+
+    // …and the standalone `Paid` label block that carried the second one is gone with it.
+    expect(within(section).queryAllByText("Paid", { exact: true })).toHaveLength(0);
+  });
+
+  it("(12) discloses no cancellation policy — the identical element renders in the detail below", () => {
+    const { container } = render(<ConfirmationMoment bookingMode="instant" {...BASE} />);
+    const section = moment(container);
+
+    // This was the clearest "same thing twice" on the page: the moment was handed the SAME
+    // `CancellationPolicyDisclosure` element the detail renders, so one screen carried two identical
+    // disclosures. There is no slot for it any more — this asserts the rendered consequence.
+    expect(section.querySelectorAll("details")).toHaveLength(0);
+    expect(section.textContent).not.toContain("Free cancellation");
+    expect(section.textContent).not.toContain("cancel");
+  });
+});
+
 describe("The confirmation moment — the condensed trust panel is GONE (D-98)", () => {
-  it("(11) renders no trust panel, and neither of the two dated rows it carried", () => {
+  it("(13) renders no trust panel, and neither of the two dated rows it carried", () => {
     for (const mode of ["instant", "request"] as const) {
       const { container } = render(<ConfirmationMoment bookingMode={mode} {...BASE} />);
       const section = moment(container);
@@ -354,11 +372,9 @@ describe("The confirmation moment — the condensed trust panel is GONE (D-98)",
 });
 
 describe("The confirmation moment — there is no CTA in it (13-UI-SPEC § Primary CTAs)", () => {
-  it("(13) renders ZERO links, on both modes", () => {
+  it("(14) renders ZERO links, on both modes", () => {
     for (const mode of ["instant", "request"] as const) {
-      const { container } = render(
-        <ConfirmationMoment bookingMode={mode} {...BASE} />,
-      );
+      const { container } = render(<ConfirmationMoment bookingMode={mode} {...BASE} />);
 
       expect(
         moment(container).querySelectorAll("a"),
@@ -370,35 +386,23 @@ describe("The confirmation moment — there is no CTA in it (13-UI-SPEC § Prima
     }
   });
 
-  it("(14) exposes exactly ONE control, and it is the reference's copy control", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="instant" {...BASE} />,
-    );
-    const section = moment(container);
+  it("(15) exposes ZERO controls — a CLOSED SET, not a ban list", () => {
+    for (const mode of ["instant", "request"] as const) {
+      const { container } = render(<ConfirmationMoment bookingMode={mode} {...BASE} />);
 
-    // A CLOSED SET, not a ban list. 13-09's finding, applied here: a list of forbidden CTA labels
-    // cannot catch the control nobody thought of, and the realistic unwanted control is exactly that
-    // one. Naming the whole set means an unlisted control fails immediately, whatever it says.
-    expect(
-      within(section)
-        .getAllByRole("button")
-        .map((b) => b.getAttribute("aria-label") ?? b.textContent?.trim()),
-    ).toEqual(["Copy booking reference"]);
-  });
-
-  it("(15) puts the reference at HEADING weight, never at display weight", () => {
-    const { container } = render(
-      <ConfirmationMoment bookingMode="instant" {...BASE} />,
-    );
-    const reference = moment(container).querySelector('[data-testid="booking-reference"]')!;
-
-    expect(reference.textContent).toBe(REFERENCE);
-    // 13-UI-SPEC § Accent & emphasis: today the reference renders at the same size as the `<h1>` on
-    // the shipped confirmed branch and the two compete. In the moment the `<h1>` is the focal point
-    // and the reference is second.
-    expect(reference.className).toContain("text-heading");
-    expect(reference.className).not.toContain("text-display");
-    // The label is beside it, so the string is never a bare token on the page.
-    expect(moment(container).textContent).toContain(REFERENCE_TERM);
+      // 13-09's finding applied here: a list of forbidden CTA labels cannot catch the control nobody
+      // thought of, and the realistic unwanted control is exactly that one. Naming the whole set —
+      // and the set is now EMPTY — means an unlisted control fails immediately, whatever it says.
+      //
+      // It used to be exactly one: the reference's copy control. D-100 moved the reference into the
+      // panel below, which took its control with it, and the moment is now purely a statement.
+      expect(
+        within(moment(container))
+          .queryAllByRole("button")
+          .map((b) => b.getAttribute("aria-label") ?? b.textContent?.trim()),
+        `${mode}: a control appeared inside the confirmation moment`,
+      ).toEqual([]);
+      cleanup();
+    }
   });
 });

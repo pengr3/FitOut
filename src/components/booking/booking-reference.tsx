@@ -36,9 +36,18 @@
 // reference still aligns with the money column above it.
 //
 // NO `tracking-*` OVERRIDE. Mono advance widths already own the rhythm, and negative tracking on a
-// monospace string is the one place it reads as a defect. The size still comes from a NAMED type role —
-// `text-heading` on the confirmation moment, `text-body` on the detail page, the receipt and the group
-// page — never an arbitrary step; `font-mono` is a font-FAMILY utility, not a fifth size.
+// monospace string is the one place it reads as a defect. The size comes from a NAMED type role —
+// `text-body`, on the detail page, the receipt and the group page — never an arbitrary step;
+// `font-mono` is a font-FAMILY utility, not a fifth size.
+//
+// ⚠ THE `size` PROP IS GONE (13-19 / D-100), AND IT HAD EXACTLY ONE NON-DEFAULT CALLER. `"moment"`
+// selected `text-heading` for the confirmation moment, where the reference used to render second only
+// to the `<h1>`. D-100 removed the reference from that surface — it was restating the reference panel
+// three hundred pixels below it — so the arm lost its only call site. A size variant NAMED AFTER a
+// surface that no longer uses it is worse than no variant: the next author reads the name, believes
+// there is a second presentation to keep in step, and has nothing to check it against. If the moment
+// ever wants the reference back it wants it at the size everything else renders it, or it wants a
+// decision recorded, not an orphaned enum member waiting to be rediscovered.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // STATE-08 — WHY A TOAST IS CORRECT *HERE* AND ALMOST NOWHERE ELSE ON THIS SURFACE
@@ -115,17 +124,9 @@ export type BookingReferenceProps = {
    * lower-cased, never stripped of its prefix, never re-derived. See the header.
    */
   reference: string;
-  /**
-   * Which named type role carries the string.
-   *
-   * `"moment"` → `text-heading`, the confirmation moment, where the reference is second only to the
-   * `<h1>`. `"detail"` (the default) → `text-body`, everywhere it is one fact among several: the detail
-   * page, the receipt and the group page.
-   */
-  size?: "moment" | "detail";
 };
 
-export function BookingReference({ reference, size = "detail" }: BookingReferenceProps) {
+export function BookingReference({ reference }: BookingReferenceProps) {
   const stringRef = React.useRef<HTMLParagraphElement>(null);
 
   async function handleCopy() {
@@ -147,10 +148,7 @@ export function BookingReference({ reference, size = "detail" }: BookingReferenc
         ref={stringRef}
         tabIndex={-1}
         data-testid="booking-reference"
-        className={cn(
-          "font-mono tabular-nums",
-          size === "moment" ? "text-heading" : "text-body",
-        )}
+        className={cn("font-mono tabular-nums", "text-body")}
       >
         {reference}
       </p>

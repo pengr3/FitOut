@@ -128,10 +128,12 @@ import { readDbNow } from "@/lib/booking/bookings-query";
 import { refundNeedsManualReturn } from "@/lib/booking/refund-dispatch";
 // The ONE owner of a venue-local deadline string (07-02). The `requested` branch's meaning sentence
 // names an instant, and a fifth date format on this page is exactly what this module exists to prevent.
-// `composeWhenLabelShort` is the SAME module's dense form (13-11): the confirmation moment's arrival
-// line is one line — venue, date, hours, named timezone — and the module owns four date formats for
-// the whole product. The moment therefore renders a label composed HERE rather than inventing a fifth.
-import { composeDeadlineLabel, composeWhenLabelShort } from "@/lib/booking/when-label";
+// `composeWhenLabelShort` — the same module's dense form — was imported HERE for the confirmation
+// moment's arrival line until D-100 removed that line as a restatement of the facts panel. The module
+// keeps its three other callers (`/bookings`, `/host/bookings`, `/host/requests`) and still owns the
+// product's four date formats; this page composes its own `When` rows from `composeDeadlineLabel` and
+// the shared formatter above, and invents no fifth format.
+import { composeDeadlineLabel } from "@/lib/booking/when-label";
 // TRUST-03's on-screen half, composed in ONE named function so this page states no percentage and no
 // hour figure of its own — every rung comes from LADDER by way of that module. See its header.
 import { composePolicyDisclosure } from "@/lib/booking/policy-disclosure";
@@ -1241,41 +1243,31 @@ export default async function BookingConfirmationPage({
           <ConsumePaidParam />
           <ConfirmationMoment
             // The BOOKING's creation-time snapshot (D-61) — a fact about how THIS booking came to
-            // exist, which is what makes *"your host approved this"* true or false. The trust block
-            // below reads the LISTING's current mode instead; see its own prop.
+            // exist, which is what makes *"your host approved this"* true or false. It selects the
+            // `<h1>` and nothing else now.
             bookingMode={bk.bookingMode === "request" ? "request" : "instant"}
-            // Venue, venue-local date, hours and the named timezone, as ONE line, through the module
-            // that owns the product's four date formats (see the import). It resolves the open-capacity
-            // fork itself, so a drop-in pass reads as an entry window rather than as a reservation.
-            arrivalLine={`${title} · ${composeWhenLabelShort({
-              startsAt: bk.startsAt,
-              endsAt: bk.endsAt,
-              timezone,
-              city: lst.city,
-              fullDay: bk.fullDay,
-              openCapacity: bk.openCapacity,
-              spacePriceCents: bk.spacePriceCents,
-              quotedTotalCents: bk.quotedTotalCents,
-              dayRateCents: lst.dayRateCents,
-            })}`}
-            // D-91's boundary composed the lines; this file names no address column outside its
-            // SELECT. On a `confirmed` booking they are the exact street, which is precisely the case
-            // the host's own control already promises ("an approximate area until they book").
-            addressLines={address.lines}
-            // D-90's honest request lede. Formatted HERE through `formatMoney` and travelling as a
-            // finished string (GATE-05 / D-130) — nothing numeric crosses into the component, and
-            // nothing on this page can move money.
-            paidInFullSentence={`You've paid ${totalLabel} in full. FitOut holds it until after your session.`}
-            reference={reference}
-            amountPaid={totalLabel}
+            // ══ D-100 — FIVE PROPS LEFT THIS CALL SITE, AND EVERY ONE OF THEM STILL RENDERS BELOW ══
+            //
+            // The PM found the moment and the facts card *"says the same thing twice"*. They did: the
+            // arrival line was `Space` + `When` + the timezone note; `addressLines` was `Where`;
+            // `amountPaid` was `Total`; `reference` was the reference panel; and `policyDisclosure`
+            // was the IDENTICAL disclosure element rendered a second time on the same screen. All
+            // five are a scroll away in `booking-detail`, permanently, in the panels built for them.
+            //
+            // ⚠ NOTHING THAT LIVED ONLY IN THE MOMENT WENT WITH THEM, which is D-60's decay-safety
+            // condition and the thing to re-check before compacting further. Two facts live only
+            // here — the email destination below, and the request `<h1>`'s approval fact — and both
+            // stayed. `tests/booking/detail-completeness.test.tsx` asserts the other side of it.
+            //
+            // THE PAID STATEMENT IS A SLOT, NOT PROPS: it is the SAME element the confirmed branch
+            // renders below, so the moment and the detail cannot state two different paid sentences,
+            // and no money value of any kind crosses into the component (GATE-05 / D-130). `held` is
+            // unconditional here because this block is gated on `!isCompleted`.
+            paidStatement={<PaidStatement amountPaid={totalLabel} phase="held" />}
             // D-63 — the booker's OWN session address, FULL and never masked. No join was added for
-            // it: it is the session user's, already read at the top of this file.
+            // it: it is the session user's, already read at the top of this file. THE ONE FACT THIS
+            // SURFACE STATES THAT THE DETAIL BELOW DOES NOT.
             email={session?.user?.email ?? null}
-            // TRUST-03 — the SAME element the detail below renders, passed as a slot so the moment
-            // and the ordinary page cannot disclose two different windows. Gated on the same
-            // `sessionAhead` predicate for 13-10's reason: a policy shown for a booking that can no
-            // longer be cancelled is a window that closed.
-            policyDisclosure={sessionAhead ? policyDisclosure : null}
           />
           <Separator />
         </>
@@ -1345,11 +1337,14 @@ export default async function BookingConfirmationPage({
         <Separator />
 
         <div className="space-y-4">
-          <p className="text-body text-muted-foreground">
-            {isCompleted
-              ? "This page is your record of the session — it stays here if you come back later."
-              : "This page is your confirmation — it stays here if you refresh or come back later."}
-          </p>
+          {/* ⚠️ THE CLOSING SENTENCE IS DELETED (13-19 / D-100), BOTH ARMS OF IT. It read *"This page
+              is your confirmation — it stays here if you refresh or come back later."*, with a
+              `completed` twin saying the same thing about a record. A page that persists does not
+              need to announce that it persists: every other durable surface in this product says
+              nothing of the kind, and a booker who has already navigated back to a booking has
+              demonstrated the fact the sentence was explaining. It was also the third consecutive
+              paragraph of reassurance under a heading that already says the booking is confirmed and
+              paid, which is the same over-explaining D-100 removes from the moment above. */}
 
           {/* (e) THE GROUP ENTRY (D-119 / 08-UI-SPEC §1) — the differentiator's front door, and the ONE
               coral on this surface. Two mutually-exclusive shapes:

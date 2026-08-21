@@ -74,17 +74,18 @@ describe("BookingReference — TRUST-02 / D-78", () => {
   });
 
   it("(2) takes its size from a named type role, never an arbitrary step", () => {
-    const { container } = render(<BookingReference reference={REFERENCE} size="moment" />);
-    expect(container.querySelector('[data-testid="booking-reference"]')!.className).toContain(
-      "text-heading",
-    );
+    // ⚠ ONE ROLE, NOT TWO, SINCE 13-19 / D-100. The `size` prop's only non-default caller was the
+    // confirmation moment, and D-100 removed the reference from that surface as a restatement of the
+    // reference panel below it. What is asserted is the property the prop existed to protect and
+    // which outlives it: the size is a NAMED role from the type scale, never an arbitrary step.
+    const { container } = render(<BookingReference reference={REFERENCE} />);
+    const el = container.querySelector('[data-testid="booking-reference"]')!;
 
-    cleanup();
-
-    const detail = render(<BookingReference reference={REFERENCE} />).container;
-    expect(detail.querySelector('[data-testid="booking-reference"]')!.className).toContain(
-      "text-body",
-    );
+    expect(el.className).toContain("text-body");
+    // The failure this pins is an arbitrary pixel step sneaking in beside (or instead of) the role —
+    // `text-[17px]` and its family are banned by the design gates and would be invisible to a
+    // `toContain("text-body")` on its own.
+    expect(el.className, "an arbitrary type step rides the reference").not.toMatch(/text-\[/);
   });
 
   it("(3) puts the hook on the STRING and leaves the control on a role query", () => {

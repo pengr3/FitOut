@@ -1,4 +1,4 @@
-// ConfirmationMoment (BFLOW-08 · D-61, D-62-as-corrected-by-D-90, D-63, D-98) — the full-page first
+// ConfirmationMoment (BFLOW-08 · D-61, D-62-as-corrected-by-D-90, D-63, D-98, D-100) — the full-page first
 // screen a booker lands on when their payment confirms, inside the SAME route as the ordinary detail.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -71,11 +71,12 @@
 // 13-UI-SPEC § Primary CTAs gives this surface the value **none**: *a terminal success screen that
 // immediately asks for another action is selling, not confirming.* Every action — the receipt, the
 // group, the cancel entry, find another space — lives in the detail below, which is one scroll away
-// and permanently there. The only interactive element in here is the reference's copy control, which
-// is not a call to action: it hands the booker the string a person would ask them for.
+// and permanently there. Since D-100 there is no interactive element in here AT ALL: the reference and
+// its copy control moved into the detail's reference panel, so this surface is purely a statement.
 //
 // Asserted as a CLOSED SET rather than as a ban list (`tests/booking/confirmation-moment.test.tsx`
-// cases 13 and 14) — 13-09's finding, that a word list cannot catch the item nobody thought of.
+// cases 14 and 15) — 13-09's finding, that a word list cannot catch the item nobody thought of. The
+// set is EMPTY, which is the strongest form the assertion has ever had.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NO MONEY STATEMENT (D-94), AND THE ABSENCE IS THE DECISION
@@ -83,9 +84,10 @@
 //
 // 13-UI-SPEC § Copywriting Contract specifies a `MoneyStatement` sentence for FOUR statuses — pending,
 // not completed, reversed and cancelled — and for no others. This surface is none of them: it renders
-// only on `confirmed`. The request lede's money answer is contract copy in its OWN row of the table
-// (*"Lede — request"*), not a fifth money statement, and it must not be promoted into one. The same
-// reasoning is written at the confirmed branch of `bookings/[id]/page.tsx`, from the other side.
+// only on `confirmed`. D-99's `PaidStatement` is NOT a fifth member of that set and must not be
+// promoted into one — it is a different sentence with a different job (a payment that is COMPLETE, not
+// one that is unfinished, undone or returned), and it arrives here as the SAME ELEMENT the detail
+// below renders. The same reasoning is written at the confirmed branch of `bookings/[id]/page.tsx`.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MOTION — ONE BEAT, ONE ITERATION, AND REDUCED MOTION THROUGH THE ONE GLOBAL MECHANISM
@@ -118,11 +120,11 @@
 // A SERVER COMPONENT TAKING FINISHED VALUES ONLY (GATE-05 / D-130)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// No client directive, no state, no effect, no date math, no arithmetic, and NO NUMERIC MONEY PROP —
-// `amountPaid` and `paidInFullSentence` arrive already through `formatMoney` in the RSC. The
-// discipline is `cancellation-policy-disclosure.tsx`'s and `trust-block.tsx`'s, applied whole: every
-// prop is REQUIRED rather than optional, because an optional prop is how a call site silently loses a
-// fact, and this surface's whole job is that no fact is lost.
+// No client directive, no state, no effect, no date math, no arithmetic, and NO MONEY VALUE OF ANY
+// KIND: since D-100 this component holds no money prop at all — the figure lives inside the
+// `paidStatement` element the RSC composes and hands down. The discipline is
+// `cancellation-policy-disclosure.tsx`'s, applied whole: every prop is REQUIRED rather than optional,
+// because an optional prop is how a call site silently loses a fact.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOTHING IMPORTANT LIVES ONLY IN HERE — THAT IS WHAT MAKES THE DECAY SAFE
@@ -133,12 +135,42 @@
 // `tests/booking/detail-completeness.test.tsx` renders the confirmed detail with NO query parameter
 // and asserts all of them. The moment adds PROMINENCE, never INFORMATION. Do not add a fact here that
 // exists nowhere else — if one is needed, it belongs on the detail first.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// D-100 — AND THE INVERSE RULE, WHICH IS THE ONE THIS SURFACE KEPT BREAKING
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// "Everything here is repeated below" was read as licence to put everything below in here too. The PM
+// found the result in live UAT: the celebratory header and the Space / Where / When / Host / Total
+// facts card *"says the same thing twice"*. It did — this component carried the venue, the venue-local
+// window, the named timezone, the full address, the reference, the amount AND the cancellation policy,
+// and every one of them renders again in the detail directly beneath. A confirmation that restates the
+// page below it is not a moment; it is a preview of a page the booker is about to scroll to anyway.
+//
+// **THE HEADER CARRIES THE MOMENT AND THE OUTCOME; THE FACTS CARD CARRIES THE DETAIL.** Four things
+// survive, and the arithmetic is worth stating because the next author will want to add a fifth:
+//
+//   1. the success mark          — the moment
+//   2. the `<h1>`                — the outcome, and on `request` the fact that a host said yes
+//   3. the paid statement        — the outcome in money (D-99), the same element the detail renders
+//   4. D-63's email line         — THE ONE FACT THAT EXISTS NOWHERE ELSE ON THE PAGE
+//
+// ⚠ ITEM 4 IS WHY THE COMPACTION IS SAFE, AND IT IS THE THING TO CHECK BEFORE REMOVING ANYTHING ELSE.
+// D-60's decay argument is that nothing important lives ONLY here; the email destination does, so it
+// stays. If a future compaction would drop a fact that lives only in here, that fact moves to the
+// facts card FIRST — it does not simply go.
+//
+// REMOVED, AND WHERE EACH ONE LIVES NOW: the arrival line (facts panel, `Space` + `When` + the
+// timezone note), the address lines (facts panel, `Where`), the reference and its label (the reference
+// panel, with the copy control that surface needs), the amount block labelled `Paid` (the paid
+// statement above it, and the facts panel's `Total` row), and the cancellation policy — which was the
+// starkest case of all, because the moment was handed the IDENTICAL `CancellationPolicyDisclosure`
+// element the detail renders, so one screen carried two of the same disclosure.
 
 import type { ReactNode } from "react";
 import { CheckCircle2Icon } from "lucide-react";
 
 import { CONFIRMATION_MOMENT_MIN_H } from "@/lib/design/measurements";
-import { BookingReference } from "@/components/booking/booking-reference";
 
 /**
  * The two `<h1>` variants, as TS constants rather than JSX text — `trust-block.tsx:96`'s three
@@ -159,68 +191,42 @@ const emailLine = (address: string) => `Confirmation sent to ${address}`;
 
 export type ConfirmationMomentProps = {
   /**
-   * `booking.booking_mode` — the BOOKING's creation-time snapshot (D-61). Selects the `<h1>` and the
-   * lede. See the header for why this is a different column from `listingBookingMode`.
+   * `booking.booking_mode` — the BOOKING's creation-time snapshot (D-61). It selects the `<h1>`, and
+   * that is now its only job: *"your host approved this"* is true only of a booking that actually went
+   * through an approval, and it is a fact about how THIS booking came to exist.
    */
   bookingMode: "instant" | "request";
   /**
-   * The arrival facts as ONE finished line: venue, the venue-local date and time, and the named
-   * timezone — e.g. `Padel Court Makati · Fri, Aug 21, 9:00 AM – 11:00 AM (Makati time)`.
+   * D-99's `PaidStatement`, handed down as a SLOT — the IDENTICAL element the ordinary detail below
+   * renders, never a second one composed here.
    *
-   * Composed in the RSC through `when-label.ts`, which owns four date formats for the whole product.
-   * There is no fifth, and this component invents none: it renders the string it is handed.
-   */
-  arrivalLine: string;
-  /**
-   * The full address, already composed into display lines by `bookedListingAddress()` (D-91).
+   * A SLOT AND NOT A MONEY PROP, for two reasons that both matter. The first is 13-10's slot idiom:
+   * passing the element itself makes *"the moment and the detail state the same paid sentence"* true
+   * by construction rather than by two call sites agreeing, which is exactly what it bought for the
+   * policy disclosure before D-100 removed that one. The second is GATE-05 / D-130: with the amount
+   * inside the slot this component holds NO money value of any kind, not even a formatted one.
    *
-   * An empty array renders no line at all, never an empty one. The lines arrive composed rather than
-   * as columns because that boundary is the ONE route to a booked listing's exact street, and a call
-   * site that named an address column would put a second, weaker rule beside it.
+   * REQUIRED, never optional or nullable. The moment renders only on a booking that has been paid, so
+   * a render without this statement is a confirmation screen that does not say the thing D-99 exists
+   * to say — and an optional prop is how a call site silently loses a fact.
    */
-  addressLines: readonly string[];
-  /**
-   * D-90's honest request lede: *"You've paid {₱X} in full. FitOut holds it until after your
-   * session."* Composed in the RSC through `formatMoney`.
-   *
-   * REQUIRED even though only the `request` branch renders it. An optional prop would let a caller
-   * that switched a booking's mode silently ship the request heading with no money answer under it —
-   * the exact half-truth D-90 exists to prevent.
-   */
-  paidInFullSentence: string;
-  /** The finished `FIT-XXXXXXXX` string (TRUST-02), server-derived. Rendered verbatim. */
-  reference: string;
-  /** The frozen all-in total, already through `formatMoney` — e.g. `₱1,050.00`. */
-  amountPaid: string;
+  paidStatement: ReactNode;
   /**
    * The booker's OWN session address, FULL and unmasked (D-63), or `null`.
    *
    * `null` removes the whole line rather than rendering a fallback: the line is a promise about where
    * a confirmation went, and a promise with no destination reads as a fact being withheld.
+   *
+   * ⚠ THIS IS THE ONE FACT THAT LIVES ONLY IN HERE, and it is what makes D-100's compaction safe under
+   * D-60's decay argument. Do not remove it without moving it into the facts card first.
    */
   email: string | null;
-  /**
-   * TRUST-03 — the SAME `CancellationPolicyDisclosure` element the ordinary detail below renders,
-   * handed down as a slot, or `null` where no policy applies.
-   *
-   * A SLOT AND NOT PROPS, and the distinction is deliberate: the trust block above is a DIFFERENT
-   * element from the detail's (condensed against full), so it is composed here from props; the policy
-   * disclosure is the IDENTICAL element, so passing the element itself makes "the moment and the
-   * detail disclose the same window" true by construction rather than by two call sites agreeing.
-   * 13-10 established the slot idiom on this segment for exactly this reason.
-   */
-  policyDisclosure: ReactNode;
 };
 
 export function ConfirmationMoment({
   bookingMode,
-  arrivalLine,
-  addressLines,
-  paidInFullSentence,
-  reference,
-  amountPaid,
+  paidStatement,
   email,
-  policyDisclosure,
 }: ConfirmationMomentProps) {
   const isRequest = bookingMode === "request";
 
@@ -245,44 +251,19 @@ export function ConfirmationMoment({
           {isRequest ? H1_REQUEST : H1_INSTANT}
         </h1>
 
-        {/* 3 — THE LEDE. On `request` it LEADS with the money answer that is real (D-90), then the
-            arrival facts; on `instant` it leads with arrival, because that is the only question a
-            booker who has just paid at checkout still has. The full address follows on its own
-            line in both modes. */}
-        <div className="mx-auto max-w-prose space-y-1 text-body text-muted-foreground">
-          {isRequest && <p className="text-foreground">{paidInFullSentence}</p>}
-          <p>{arrivalLine}</p>
-          {addressLines.length > 0 && (
-            <p>
-              {addressLines.map((line) => (
-                <span key={line} className="block">
-                  {line}
-                </span>
-              ))}
-            </p>
-          )}
-        </div>
+        {/* 3 — THE OUTCOME IN MONEY (D-99), AND IT IS THE SAME ELEMENT THE DETAIL RENDERS. It reads
+            *"Paid in full — the amount. FitOut holds your payment until after your session."* and it
+            is the whole lede now, on BOTH modes: by the time a booking reaches this screen the two
+            situations are the same situation, because a request booking only gets here after the host
+            approved AND the booker paid (D-90).
+
+            THE ARRIVAL LINE AND THE ADDRESS USED TO SIT HERE AND ARE GONE (D-100). They were the
+            header's restatement of the facts card's `Space`, `When` and `Where` rows, which render in
+            a panel a few hundred pixels below with the named timezone note beside them. */}
+        {paidStatement}
       </div>
 
-      {/* 4 — THE REFERENCE, at `text-heading` and not Display: in here the `<h1>` is the focal point
-          and the reference is second, which is the correction 13-UI-SPEC § Accent & emphasis records
-          against the shipped confirmed branch (where the two used to render at the same size and
-          compete). `BookingReference` owns the mono/tabular treatment and the copy control. */}
-      <div className="space-y-1">
-        <p className="text-label text-muted-foreground">Booking reference</p>
-        <div className="flex justify-center">
-          <BookingReference reference={reference} size="moment" />
-        </div>
-      </div>
-
-      {/* 5 — THE AMOUNT, labelled `Paid`. Not `Total`: on this surface the figure is money that HAS
-          moved, and the word is the one D-90's rule picks for a charge that really happened. */}
-      <div className="space-y-1">
-        <p className="text-label text-muted-foreground">Paid</p>
-        <p className="text-heading font-semibold tabular-nums">{amountPaid}</p>
-      </div>
-
-      {/* 6 — D-63's LINE, WITH THE FULL ADDRESS. Never masked, and the reasoning is recorded here so
+      {/* 4 — D-63's LINE, WITH THE FULL ADDRESS. Never masked, and the reasoning is recorded here so
           nobody "hardens" it later: the page is behind auth and it is the booker's own booking, so
           exposure is nil — and catching a typo is the ONLY reason the line exists, which a mask
           defeats by hiding exactly the characters a typo lives in. */}
@@ -305,14 +286,16 @@ export function ConfirmationMoment({
         <p className="w-full text-label break-words text-muted-foreground">{emailLine(email)}</p>
       )}
 
-      {/* 7 — THE CONDENSED TRUST PANEL USED TO SIT HERE AND IS GONE (D-98). It carried two of the
-          four signals — the platform guarantee and the listing's booking rule — and the PM judged the
-          whole panel filler in live UAT. The guarantee itself was the one sentence worth keeping and
-          it is not lost: it is part of the paid statement, on the branch where it is true. */}
+      {/* THE CONDENSED TRUST PANEL USED TO SIT HERE AND IS GONE (D-98). It carried two of the four
+          signals — the platform guarantee and the listing's booking rule — and the PM judged the whole
+          panel filler in live UAT. The guarantee itself was the one sentence worth keeping and it is
+          not lost: it is inside the paid statement above, on the branch where it is true.
 
-      {/* 8 — TRUST-03. The existing disclosure, whose collapsed `<summary>` already carries the
-          concrete-date statement — so a booker sees the terms without expanding anything (D-81). */}
-      {policyDisclosure !== null && <div className="w-full text-left">{policyDisclosure}</div>}
+          AND TRUST-03's DISCLOSURE USED TO CLOSE THIS SCREEN (D-100). That was the starkest case of
+          all: the moment was handed the IDENTICAL `CancellationPolicyDisclosure` element the detail
+          renders, so one screen carried two of the same disclosure — same summary, same concrete
+          dates, same refund figure, twice. It renders in the detail below on exactly the renders where
+          cancelling is still possible, which is where it was always the more useful of the two. */}
     </section>
   );
 }
