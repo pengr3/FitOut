@@ -24,14 +24,16 @@ STATE-08.
 
 > **Decision-ID namespace — read before citing a number.** These continue the per-phase CONTEXT
 > sequence (Phase 10 = D-01…D-22, Phase 11 = D-23…D-36, Phase 12 = D-37…D-59), so **Phase 13 runs
-> D-60…D-101** (extended from D-97 on 2026-08-21 by the four live-UAT corrections at the end of this
-> section). That range **collides with PROJECT.md's own D-numbered records**, which already occupy
+> D-60…D-103** (extended from D-97 on 2026-08-21 by the four live-UAT corrections, and from D-101 on
+> 2026-08-22 by the two at the end of this section). That range **collides with PROJECT.md's own D-numbered records**, which already occupy
 > **D-62** (demand-first booking-mode default flip, cited in `src/lib/db/schema.ts:199`), **D-66** (no
 > React Email / no new email stack), **D-75** (the all-in rate never goes up) and **D-79** (what
 > actually went back to the booker, cited in `src/app/(app)/bookings/[id]/page.tsx:169`). The collision
 > is pre-existing — Phase 11's D-30/D-31 and Phase 12's D-42…D-50 collide the same way — and is
-> recorded rather than silently inherited. **When citing any number in D-60…D-97, say which
-> namespace**: "13-CONTEXT D-62" or "PROJECT D-62". Never a bare number.
+> recorded rather than silently inherited. It now ALSO collides with the **Phase-7 sequence at D-102
+> and D-103** (the derived `completed`; the DB clock read in the same request), both cited in live
+> code. **When citing any number in D-60…D-103, say which namespace**: "13-CONTEXT D-62" or
+> "PROJECT D-62". Never a bare number.
 
 > **Governing principle carried forward, not re-decided — 12-CONTEXT D-59:** when two options both
 > satisfy a requirement, choose the one that costs the booker less. It decides everything this
@@ -470,6 +472,89 @@ both are places where ambiguity would produce invented copy.
      ⚠ It moved into a named `WayBackLink` component, because the deeper defect was that a real
      requirement had no owner: `e2e/shell.spec.ts` asserted its label, its href, its uniqueness and
      its hold promise, and every one of those was green the whole time it rendered as body text.
+
+### Found in live UAT (2026-08-22) — the fourth unverified money claim, plan 13-20
+
+> Same standing as D-98…D-101: taken by the PM **after using the shipped surface**, and superseding
+> anything above that conflicts. Cite as "13-CONTEXT D-102" / "13-CONTEXT D-103" and never bare.
+> ⚠ **Both numbers collide with an existing namespace, and the collision is recorded rather than
+> silently inherited.** The Phase-7 sequence already occupies **D-102** (`completed` is DERIVED at
+> read time from a `confirmed` row whose `endsAt` has passed, never stored — cited in
+> `booking-status.ts:57`, `bookings/[id]/page.tsx` and six other files) and **D-103** (the DB clock
+> is read in the SAME request that reads the rows — cited in `bookings/page.tsx:10`). Neither is
+> touched here, and in code the two below are cited as **13-CONTEXT D-102 / D-103**, spelled out.
+
+- **D-102: The pending payment surface may not assert a payment FitOut has not verified. It
+  corrects copy inherited from plan 05-03 (`c07c804`) and never re-read since.**
+  The PM, on seeing the state after a real checkout return: *"it said Payment Received, did we
+  really receive the payment??"* The answer was **no — we did not know**. Two sentences claimed it:
+  the `<h1>` *"Payment received"* and the money statement *"Your payment reached us."* Both were
+  four phases old; plan 13-07 rewrote the whole body AROUND them and left them standing.
+  **What is actually known at that paint is one thing: a browser arrived at `/bookings/{id}?paid=1`.**
+  PROJECT D-57 is binding — the parameter is a UX signal and NEVER proof of payment; the
+  `checkout_session.payment.paid` webhook is the sole confirm authority, and the row is still
+  `pending` *precisely because* the webhook has not spoken.
+  ⚠ **THE COMMENT THAT DEFENDED THE CLAIM WAS ITSELF THE DEFECT.** It read: *"'Your payment reached
+  us.' is true from the first paint — the browser only gets here from the hosted checkout's
+  return"*. A redirect is not a payment: the URL is typable, the parameter is forgeable (that is the
+  entire premise of D-57 and of D-89), and a hosted session can redirect and still fail to capture.
+  Reasoning that terminates in a money claim has to terminate at a webhook. It was REWRITTEN rather
+  than deleted, because left in place it would have re-taught the error to the next reader — which
+  is exactly how it survived 13-07.
+  **The copy now describes FitOut's KNOWLEDGE STATE, never the money's state:**
+
+  | | Shipped (05-03) | D-102 |
+  |---|---|---|
+  | `<h1>` | *"Payment received"* | *"Confirming your payment"* |
+  | L1 | *"Your payment reached us."* | *"We're waiting on your payment provider to confirm it."* |
+  | L2 (0–20s) | *"We're waiting on the final confirmation — this page updates on its own."* | *"This page updates on its own — you don't need to refresh it."* |
+  | L2 (cap) | *"…Your payment is safe, your booking is held, and we'll email you at {x}…"* | *"It's taking longer than usual. We'll email you at {x} the moment it's confirmed."* |
+
+  ⚠ **THE SIBLING CLAIMS WENT WITH THE TWO HEADLINE ONES**, and finding them is the transferable
+  part. *"Your payment is safe"* asserts that a payment EXISTS in order to reassure about it — the
+  same presupposition, one clause further down. And **"your booking is held" was dropped even though
+  the plan's own brief sanctioned it**: on the exclusive path it is DB-verified (`pending` sits
+  inside the occupying set of the `booking_no_overlap` EXCLUDE predicate, drizzle/0022), but an OPEN
+  CAPACITY booking holds its seats through `OPEN_OCCUPYING_STATUS_SQL`, which requires
+  `expires_at > now()`. A lease that lapsed while the booker sat on the hosted page holds nothing,
+  and the component is not told which kind of listing it is rendering for. *True for most bookings*
+  is what shipped four times already.
+  ⚠ **AND IT DOES NOT SWING TO DENIAL EITHER.** STATE-05 forbids any error affordance while the
+  webhook is outstanding, and the booker very probably did pay — *"we have no record of your
+  payment"* would be as wrong as the sentence it replaced, and would be read by somebody whose money
+  is fine.
+  ⚠ **D-71 IS STRENGTHENED, NOT WEAKENED.** The reason to offer no retry was never *the money is
+  here*; it is that **nobody knows**, and a retry offered into ignorance is how a booker pays twice.
+  **THE GUARD: `tests/design/pending-copy.test.ts`** — eleven assertion forms banned over the whole
+  surface, comments included, in the two-piece encoding `reversed-copy.test.ts` established. Watched
+  RED against the shipped file (9 hits across lines 3/30/76/190/193/196/197/224/226) and again after
+  the fix, by reintroducing the real heading. `payment-states.test.tsx` case (9) runs the same forms
+  over the RENDERED tree, because a source scan cannot see copy composed from templates and this
+  component composes two of its three lines that way. **Cases (1)–(3) were green for four phases:
+  they asserted the shipped strings were PRESENT, and they were. Presence is not truth** — the same
+  blindness 13-19 measured for the spinner.
+
+- **D-103: `?paid=1` decays on every terminal branch, not only on the confirmation moment. D-89 is
+  unchanged.**
+  The PM: *"i think /?paid appears when the time of booking has already elapsed."* It did.
+  `ConsumePaidParam` mounted inside `showConfirmationMoment`, which also requires `!isCompleted`, so
+  five landings a paid checkout can reach kept the marker indefinitely on a URL a booker may
+  bookmark or paste: a swept hold that ended `cancelled`, a reversal, a lapse, a decline, and the
+  derived `completed` render one session later.
+  **The rule the fix encodes is narrower than "not pending": consume the parameter where it is
+  INERT** — no branch predicate reads it, no poller is running to re-render the RSC for the current
+  url, and no redirect can be re-entered. `confirmed` was simply the first branch that qualified.
+  ⚠ **D-89 IS NOT RELAXED BY ONE INCH, AND IS NOW ASSERTED RATHER THAN ASSERTED-ABOUT.** The element
+  is declared BELOW the pending branch, so no line above it can mount it; and
+  `detail-completeness.test.tsx` carries a `consumesParam` column over all ten renders with `?paid=1`
+  forced onto every one, **including both pending rows at zero**. The CONSEQUENCE stays with
+  `e2e/confirmation-decay.spec.ts` (a real poller, `framenavigated` counted, watched failing with the
+  mount hoisted); the mount POINT is what had no gate.
+  ⚠ **`requested` and `approved` are deliberately left alone.** Neither is terminal, and an approved
+  hold's own next step is the checkout that APPENDS this parameter — a consumer there would strip a
+  marker on the way INTO the flow that sets it. Nothing in the shipped flow can put the parameter on
+  either branch anyway: it is appended by the checkout return, and a row that has been to checkout is
+  `pending` or later, never back at `requested`.
 
 ### Claude's Discretion
 

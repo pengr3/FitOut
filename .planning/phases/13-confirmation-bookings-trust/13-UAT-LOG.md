@@ -81,6 +81,26 @@ is a `--border` colour against `--background`, and Phase 11 measured that class 
 against pixelmatch's ~1408 cutoff. **The visual gate is structurally blind to it.** Only a human can
 confirm the control now reads as a control.
 
+### The pending surface's corrected copy · **NEEDS EYES, NOT CI** — raised 2026-08-22
+
+The PM, on the settling state after a real checkout return: *"it said Payment Received, did we really
+receive the payment??"* We did not know — the webhook had not arrived, which is why the row was still
+`pending`. Plan 13-20 rewrote it (13-CONTEXT **D-102**): the heading is now *"Confirming your payment"*,
+the money statement *"We're waiting on your payment provider to confirm it."*, and the safety and hold
+clauses are gone. They also reported *"i think /?paid appears when the time of booking has already
+elapsed"* — correct, and closed by **D-103**.
+
+**Needs a human on a real hosted-checkout return**, because both halves are only observable there:
+
+1. The new copy reads as CALM rather than as a warning. The whole risk of this correction is
+   over-steering — STATE-05 forbids any error affordance while the webhook is outstanding, and the
+   booker very probably did pay.
+2. `?paid=1` is gone from the address bar on the landing that follows, including on a booking that
+   ends `cancelled` or whose session has already elapsed.
+
+This overlaps Walk A and can be observed in the same pass. CI proves the strings and the mount points;
+it cannot tell you whether the page still feels safe to somebody whose money is in the air.
+
 ### `SUPPORT_EMAIL` · **operator action, one line**
 
 Still `null` at `src/lib/site.ts:70`. Setting it closes **TRUST-01** and **STATE-05** in full and lights
@@ -89,4 +109,4 @@ the booker's only route to their money.
 
 ---
 
-*Last updated: 2026-08-21*
+*Last updated: 2026-08-22*

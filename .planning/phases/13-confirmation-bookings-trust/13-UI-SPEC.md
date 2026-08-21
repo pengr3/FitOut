@@ -367,7 +367,7 @@ change** — DS-10 owns the words; this adds the sentence beside them.
 |---|---|
 | `requested` | *"The host has this request. You'll hear back before {deadline} — nothing is charged until they approve."* |
 | `approved` | *"The host said yes. Pay within {window} to lock in this time."* |
-| `pending` (settling) | *"Your payment reached us. We're waiting on the final confirmation."* |
+| `pending` (settling) | *"We're waiting on your payment provider to confirm it. This page updates on its own — you don't need to refresh it."* ⚠ **superseded by 13-CONTEXT D-102** — the shipped wording asserted receipt of a payment the webhook has not confirmed |
 | `pending` (not completed) | *"This checkout didn't finish. Your slot is still held."* |
 | `confirmed` | *"This time is yours. Show this page (or your email) when you arrive."* |
 | `completed` (derived) | *"This session is finished. This page stays as your record."* |
@@ -501,8 +501,8 @@ icon, different action set, different hook — and no two may co-render.
 |---|---|---|---|
 | Hook | `payment-state-pending` | `payment-state-incomplete` | `payment-state-reversed` |
 | Icon | `Loader2Icon size-8 animate-spin text-muted-foreground` | `RotateCcwIcon size-8 text-muted-foreground` | `Undo2Icon size-8 text-muted-foreground` (shipped) |
-| `<h1>` | **"Payment received"** (shipped) | **"Your payment didn't go through"** | **"We couldn't complete this booking"** (shipped) |
-| Money statement | "Your payment reached us…" | "**You haven't been charged.**" | branches on two money truths — below |
+| `<h1>` | **"Confirming your payment"** (13-CONTEXT D-102; *"Payment received"* shipped from 05-03 and asserted receipt) | **"Your payment didn't go through"** | **"We couldn't complete this booking"** (shipped) |
+| Money statement | "We're waiting on your payment provider to confirm it." (D-102) | "**You haven't been charged.**" | branches on two money truths — below |
 | Actions | none until slow → `Refresh` (`secondary`) | coral **`Try paying again`** (44px) | coral **`Back to availability`** + `secondary` `Search other spaces` (shipped) |
 | Error affordance | **NEVER, at any threshold** (D-71) | none — a failed checkout is not the booker's error | none |
 | Container | `div`, not `<main>` (D-88.1) | `div` | `div` |
@@ -520,8 +520,8 @@ What is added is the thing it lacks — **the booking is safe, and you will be t
 
 | Threshold | Money statement |
 |---|---|
-| 0–20s | L1 *"Your payment reached us."* · L2 *"We're waiting on the final confirmation — this page updates on its own."* |
-| after 8 attempts ("slow") | L1 unchanged · L2 *"It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you at {email} the moment it confirms."* + the shipped `Refresh` control |
+| 0–20s | L1 *"We're waiting on your payment provider to confirm it."* · L2 *"This page updates on its own — you don't need to refresh it."* (both rewritten by D-102) |
+| after 8 attempts ("slow") | L1 unchanged · L2 *"It's taking longer than usual. We'll email you at {email} the moment it's confirmed."* + the shipped `Refresh` control. ⚠ D-102 removed the safety and hold clauses: the first presupposes a payment, the second is not verified for open-capacity listings |
 | after ~2 min on page (recommended; executor's discretion per D-90) | L2 gains the guarded support line carrying the reference (§ The Support Path) |
 
 ⚠ **`Refresh` is not an error affordance** — it triggers the same `router.refresh()` the poller already
@@ -640,7 +640,7 @@ that changes is the constant.
 |---|---|---|
 | Reversed — manual | *"…we've flagged it to be returned by hand. Your reference is {FIT-…} — we've recorded it against this booking."* **No control renders.** | Same L1 and L2, plus: *"Get in touch and quote {FIT-…}."* and the control |
 | Reversed — automatic | *"…It should be back in your GCash within 24 hours."* | + *"Not there after that? Get in touch and quote {FIT-…}."* + the control |
-| Pending — past escalation | *"…Your payment is safe and your booking will appear here on its own."* | + *"If it hasn't appeared within the hour, get in touch and quote {FIT-…}."* + the control |
+| Pending — past escalation | *"Your reference is {FIT-…} — we've recorded it against this booking."* ⚠ **superseded by 13-CONTEXT D-102**: the sketched line asserted a payment nobody has verified | + the guarded control, whose label names this booking |
 | Trust block, every status | Four signals, block ends | Four signals + the support row |
 
 **The design does not leave a hole when closed, because the sentence never depends on the address.** Every
@@ -969,8 +969,8 @@ See § The Booking Detail Page table — ten sentences, one per branch, `text-bo
 
 | State | Line 1 | Line 2 |
 |---|---|---|
-| Pending, 0–20s | **`Your payment reached us.`** | **`We're waiting on the final confirmation — this page updates on its own.`** |
-| Pending, slow | **`Your payment reached us.`** | **`It's taking longer than usual. Your payment is safe, your booking is held, and we'll email you at {jane@example.com} the moment it confirms.`** |
+| Pending, 0–20s | **`We're waiting on your payment provider to confirm it.`** (D-102) | **`This page updates on its own — you don't need to refresh it.`** |
+| Pending, slow | **`We're waiting on your payment provider to confirm it.`** (D-102) | **`It's taking longer than usual. We'll email you at {jane@example.com} the moment it's confirmed.`** |
 | Not completed | **`You haven't been charged.`** | **`Your slot is still held — finish paying and it's yours.`** |
 | Reversed, auto (card) | **`We've refunded {₱1,428.00} in full.`** | **`Card refunds can take up to 30 days to appear, depending on your bank.`** |
 | Reversed, auto (GCash/Maya) | **`We've refunded {₱1,428.00} in full.`** | **`It should be back in your {GCash} within 24 hours.`** |

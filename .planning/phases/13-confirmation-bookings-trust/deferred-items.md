@@ -90,3 +90,39 @@ applies again: `baselines.yml` emits `::warning::These baselines have NOT been v
 output. Dispatch `baselines.yml`, then read the next `ci` run's `gate-visual` job. Until that happens,
 `gate-visual` reports a diff on exactly those four PNGs and on nothing else, and that is the expected
 state rather than a regression.
+
+---
+
+## From 13-20 — the pending state cannot tell whether the booking is actually held (13-CONTEXT D-102)
+
+`PendingPaymentState` used to say *"your booking is held"* past the poll cap, and D-102 removed the
+clause rather than keeping it, because **it is verified on one path and not the other**:
+
+- **Exclusive listings** — `pending` sits inside the occupying set of the `booking_no_overlap` EXCLUDE
+  predicate (`drizzle/0022`: `status NOT IN ('cancelled','declined','completed')`), so the slot really
+  is blocked for that booker for as long as the row exists. The claim is a DB fact.
+- **Open-capacity listings** — seats are held through `OPEN_OCCUPYING_STATUS_SQL`
+  (`src/lib/availability/open-capacity.ts:194`), which requires **`b.expires_at > now()`**. A lease
+  that lapsed while the booker sat on the hosted checkout page holds nothing, even though the row is
+  still `pending` and this state still renders.
+
+The component is a client leaf and is handed neither `expiresAt` nor `occupancyMode`, so it cannot
+distinguish them. **The stronger fix is a server-verified `held: boolean` prop** computed in the RSC
+(the page already has the row, the listing and one hydrated `now`), letting the copy state the hold
+where it is true and stay silent where it is not. That is a props + copy-branch change on a surface
+whose mechanics are frozen, and it was out of scope for a copy correction — the honest interim is to
+say nothing about the hold, which is what shipped.
+
+⚠ **Related, and NOT a bug:** a `pending` row whose hold has lapsed still renders this state under
+`?paid=1` (the parameter short-circuits the hold check above it, by design — a booker who has paid
+must never be bounced to checkout). The sweep flips such a row to `cancelled` shortly after, and D-103
+now consumes the parameter on that landing.
+
+## From 13-20 — `?paid=1` is deliberately NOT consumed on `requested` / `approved` (13-CONTEXT D-103)
+
+Both are non-terminal, and an approved hold's own next step is the checkout that APPENDS the parameter,
+so a consumer there would strip a marker on the way INTO the flow that sets it. Nothing in the shipped
+flow can put the parameter on either branch (it is appended by the checkout return, and a row that has
+been to checkout is `pending` or later). Asserted at zero for both in
+`detail-completeness.test.tsx`'s `consumesParam` column — recorded here so the two `false`s read as a
+decision rather than as branches nobody thought about.
