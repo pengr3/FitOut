@@ -3,9 +3,20 @@
 // ConsumePaidParam (BFLOW-08 · D-60, D-89) — the confirmation moment's DECAY, in one mount effect.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// ⚠️ THIS COMPONENT MAY BE MOUNTED ON THE **CONFIRMED** BRANCH ONLY. IT IS THE PHASE'S MOST
+// ⚠️ THIS COMPONENT MAY NEVER BE MOUNTED ON THE **PENDING** BRANCH. IT IS THE PHASE'S MOST
 //    EXPENSIVE MISTAKE TO MAKE, AND IT ONLY APPEARS UNDER A SLOW WEBHOOK.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ THE RULE WAS WRITTEN AS "CONFIRMED ONLY" UNTIL 13-20 (D-103), AND THAT WAS TOO NARROW BY FIVE
+// RENDERS. The PM watched `?paid=1` sit in the address bar forever on a booking whose time had
+// elapsed: the decay ran on the confirmation moment alone, so a swept hold that ended `cancelled`, a
+// reversal, a lapse, a decline and the derived `completed` render all kept the marker on a URL a
+// booker can bookmark or share. The prohibition below is UNCHANGED and is the reason the widening is
+// safe — it was never really about `confirmed`, it was about the parameter being INERT: no branch
+// predicate reads it, no poller is running, no redirect can be re-entered. `confirmed` was simply the
+// first branch that qualified. See `bookings/[id]/page.tsx`'s `paidParamDecay` for the mount set, and
+// `detail-completeness.test.tsx`'s `consumesParam` column, which asserts it per status in BOTH
+// directions — including the two pending rows at ZERO, which is the paragraph below as a count.
 //
 // `(app)/bookings/[id]/page.tsx` has, and has had since Phase 4, this exact shape:
 //
@@ -30,7 +41,8 @@
 // no-parameter path gets, the poller must not be able to reach this component.
 //
 // The rule is therefore not "be careful near the pending branch". It is: consume the parameter only
-// after the DATABASE says `confirmed`, which is a terminal state the poller cannot re-enter.
+// where the DATABASE has put the booking somewhere the poller cannot re-enter and nothing below reads
+// the marker — `confirmed` (D-60's own landing), and under D-103 the other terminal ones.
 // `e2e/confirmation-decay.spec.ts` drives a seeded `pending` row through all 8 attempts and counts
 // `framenavigated` events; that count is asserted to be zero, and the assertion was watched FAILING
 // with this component hoisted above the status branching. It is the only proof the mount point is

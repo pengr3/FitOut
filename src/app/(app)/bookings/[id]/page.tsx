@@ -751,6 +751,37 @@ export default async function BookingConfirmationPage({
   const RENDERABLE = ["requested", "approved", "declined", "confirmed", "cancelled"];
   if (!RENDERABLE.includes(bk.status)) notFound();
 
+  // ══ 13-20 — 13-CONTEXT D-103: THE CHECKOUT-RETURN PARAMETER'S OTHER END ═════════════════════════
+  //
+  // THE OBSERVATION, FROM THE PM IN LIVE UAT: `?paid=1` was still in the address bar on a booking whose
+  // time had already elapsed. It was. D-60's decay ran on the confirmation moment ALONE, so every other
+  // landing a paid checkout can reach — a hold the sweep retired to `cancelled`, a reversal, the derived
+  // `completed` render one session later — kept the marker indefinitely, on a URL a booker may bookmark
+  // or paste to somebody else.
+  //
+  // ⚠️ D-89 IS NOT WEAKENED BY ONE INCH, AND THE SHAPE OF THIS CONSTANT IS THE ARGUMENT. It is declared
+  // BELOW the pending branch — which returns above, unconditionally, in all three of its shapes — so
+  // there is no line above that branch where this element exists to be mounted. The rule it encodes is
+  // narrower than "not pending": consume the parameter only where it is INERT, meaning no branch
+  // predicate below reads it, no poller is running to re-render this RSC for the current url, and no
+  // redirect can be re-entered. That is true of `declined`, of all three `cancelled` landings and of the
+  // confirmed render (including the derived `completed`, where the moment is suppressed but the marker
+  // used to survive) — and it is false, permanently, of `pending`, where the parameter IS the branch
+  // selector and stripping it drops the next poll into the probe and then into
+  // `redirect(…/book?hold=…)`, navigating a booker who has already paid back to a checkout page.
+  //
+  // NOT MOUNTED ON `requested` OR `approved`, which is a decision rather than an omission. Neither is
+  // terminal, and an approved hold's own next step is the checkout that APPENDS this parameter, so a
+  // consumer there would strip a marker on the way into the flow that sets it. Nothing in the shipped
+  // flow can put the parameter on either branch in the first place: it is appended by the checkout
+  // return, and a row that has been to checkout is `pending` or later, never back at `requested`.
+  //
+  // The mount points are asserted per status, in BOTH directions, by the `consumesParam` column in
+  // `tests/booking/detail-completeness.test.tsx` — including the two pending rows at zero, which is
+  // D-89 as a count rather than as a comment. `e2e/confirmation-decay.spec.ts` still owns the
+  // consequence (a real poller, `framenavigated` events, watched failing with the mount hoisted).
+  const paidParamDecay = paid === "1" ? <ConsumePaidParam /> : null;
+
 
   // ── requested (BOOK-06, D-66): "Request sent — awaiting host". Calm, NO pay CTA, nothing charged. ──
   if (bk.status === "requested") {
@@ -861,6 +892,8 @@ export default async function BookingConfirmationPage({
     const copy = declinedCopy(bk.cancelledBy);
     return (
       <div className={BOOKING_SHELL}>
+        {/* D-103 — terminal, and the parameter is inert here: nothing below reads it. */}
+        {paidParamDecay}
         {/* NO LIVE REGION. This is a fresh, server-rendered page and a screen reader already reads it
             from the top — see this file's header for the rule and 13-UI-SPEC § Live Regions for the
             table it comes from. */}
@@ -973,18 +1006,24 @@ export default async function BookingConfirmationPage({
       // where the provider confirmed the session was paid and a charge is a fact rather than a guess.
       const branch = session === null ? "indeterminate" : isApiRefundable(rail) ? "auto" : "manual";
       return (
-        <PaymentReversedState
-          listingId={bk.listingId}
-          reference={reference}
-          // The server-frozen quote (D-49), formatted HERE — the component receives a finished string and
-          // performs no money arithmetic (D-130 / GATE-05). `refundCents` is deliberately not consulted:
-          // it is NULL on this path, and the return is full by design, so charged and returned are the
-          // same figure. ⚠ The `indeterminate` branch renders it NOWHERE — the prop is still passed
-          // because a component prop cannot be conditional, and the branch is what decides.
-          amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
-          branch={branch}
-          rail={rail}
-        />
+        // D-103 — the fragment exists only to carry the parameter's decay beside a state component
+        // that owns its own shell. A reversal is a terminal landing a PAID checkout reaches, so it is
+        // one of the two branches where the stale marker was most likely to be seen.
+        <>
+          {paidParamDecay}
+          <PaymentReversedState
+            listingId={bk.listingId}
+            reference={reference}
+            // The server-frozen quote (D-49), formatted HERE — the component receives a finished string
+            // and performs no money arithmetic (D-130 / GATE-05). `refundCents` is deliberately not
+            // consulted: it is NULL on this path, and the return is full by design, so charged and
+            // returned are the same figure. ⚠ The `indeterminate` branch renders it NOWHERE — the prop
+            // is still passed because a component prop cannot be conditional, and the branch decides.
+            amountLabel={formatMoney(bk.quotedTotalCents ?? 0, bk.currency ?? DISPLAY_CURRENCY)}
+            branch={branch}
+            rail={rail}
+          />
+        </>
       );
     }
 
@@ -1006,22 +1045,28 @@ export default async function BookingConfirmationPage({
     if (lapsedApproval) {
       const slot = await readSlotState(bk.listingId, bk.startsAt, bk.endsAt, timezone, now);
       return (
-        <ExpiredApprovalState
-          bookingId={bk.id}
-          listingId={bk.listingId}
-          whenLabel={whenLabel}
-          // Usually null: both retirement paths CLEAR expires_at when they flip the hold terminal, so the
-          // instant the window closed is not retained. The component carries a deadline-free copy variant
-          // rather than inventing a deadline we do not have — see its prop doc.
-          deadlineLabel={
-            bk.expiresAt
-              ? `${format(bk.expiresAt, "EEE, MMM d, h:mm a", { in: inTz })}${lst.city ? ` (${lst.city} time)` : ""}`
-              : null
-          }
-          tzNote={tzNote}
-          slot={slot}
-          reference={reference}
-        />
+        // D-103 — same fragment, same reason as the reversal above: a terminal landing whose state
+        // component owns its own shell. A lapse has no checkout session, so the parameter reaches this
+        // branch only on a stale or hand-typed URL — which is exactly the case that used to keep it.
+        <>
+          {paidParamDecay}
+          <ExpiredApprovalState
+            bookingId={bk.id}
+            listingId={bk.listingId}
+            whenLabel={whenLabel}
+            // Usually null: both retirement paths CLEAR expires_at when they flip the hold terminal,
+            // so the instant the window closed is not retained. The component carries a deadline-free
+            // copy variant rather than inventing a deadline we do not have — see its prop doc.
+            deadlineLabel={
+              bk.expiresAt
+                ? `${format(bk.expiresAt, "EEE, MMM d, h:mm a", { in: inTz })}${lst.city ? ` (${lst.city} time)` : ""}`
+                : null
+            }
+            tzNote={tzNote}
+            slot={slot}
+            reference={reference}
+          />
+        </>
       );
     }
 
@@ -1072,6 +1117,10 @@ export default async function BookingConfirmationPage({
 
     return (
       <div className={BOOKING_SHELL}>
+        {/* D-103 — THE LANDING THE PM ACTUALLY WATCHED KEEP THE PARAMETER. A hold that ran out while
+            its booker was on the hosted checkout page is swept to `cancelled`, and this is where it
+            lands: terminal, no poller, nothing below reads the marker. */}
+        {paidParamDecay}
         {/* NO LIVE REGION — see the declined branch and this file's header. */}
         <section data-testid="booking-detail" className="space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
@@ -1224,23 +1273,27 @@ export default async function BookingConfirmationPage({
 
   return (
     <div className={BOOKING_SHELL}>
+      {/* ⚠️ THE PARAMETER'S DECAY, AND ITS POSITION IS LOAD-BEARING (D-89). Every mount of this
+          component in the product sits BELOW the pending branch, which returns above in all three of
+          its shapes — so the pending poller, which calls `router.refresh()` eight times at 2.5s
+          intervals and re-renders this RSC for whatever the address bar currently says, can never
+          reach one. If it could, the first poll after the strip would fall through the pending
+          branch's probe into `redirect(…/book?hold=…)` and navigate a booker who has ALREADY PAID
+          back to a checkout page, mid-webhook. `e2e/confirmation-decay.spec.ts` counts
+          `framenavigated` events over a seeded pending row driven through all eight attempts, and
+          that assertion was watched FAILING with the mount hoisted above the branching — the only
+          proof the position is load-bearing rather than incidental.
+
+          ⚠️ IT IS HOISTED OUT OF THE MOMENT'S FRAGMENT (13-20 / D-103) AND THAT WIDENS IT BY ONE
+          RENDER. `showConfirmationMoment` also requires `!isCompleted`, so a stale link carrying the
+          parameter to a session that has already finished used to render the ordinary detail AND keep
+          the marker forever. Reading `paid` here instead of the moment's own predicate consumes it on
+          both confirmed renders while mounting the moment on neither more than before. Do NOT move
+          this ABOVE the status branching, and do NOT mount it on the pending branch under any
+          circumstance — see the constant's own block for the rule the other branches follow. */}
+      {paidParamDecay}
       {showConfirmationMoment && (
         <>
-          {/* ⚠️ THE ONLY MOUNT OF THIS COMPONENT IN THE PRODUCT, AND ITS POSITION IS LOAD-BEARING
-              (D-89). It sits INSIDE the confirmed branch's return, below every other status branch,
-              so the pending poller — which calls `router.refresh()` eight times at 2.5s intervals and
-              re-renders this RSC for whatever the address bar currently says — can never reach it. If
-              it could, the first poll after the parameter was stripped would fall through the pending
-              branch's probe into `redirect(…/book?hold=…)` and navigate a booker who has ALREADY PAID
-              back to a checkout page, mid-webhook. `e2e/confirmation-decay.spec.ts` counts
-              `framenavigated` events over a seeded pending row driven through all eight attempts, and
-              that assertion was watched FAILING with this line hoisted above the branching — which is
-              the only proof the mount point is load-bearing rather than incidental.
-
-              Do NOT move it, do NOT lift it into a shared header, and do NOT add a second read of the
-              checkout-return parameter to any other branch. After this plan the only two reads on
-              this page are the pending branch's gate and the predicate directly above. */}
-          <ConsumePaidParam />
           <ConfirmationMoment
             // The BOOKING's creation-time snapshot (D-61) — a fact about how THIS booking came to
             // exist, which is what makes *"your host approved this"* true or false. It selects the
