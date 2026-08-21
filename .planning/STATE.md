@@ -4,9 +4,9 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
 status: verifying
-stopped_at: "Phase 13 executed + verified (human_needed). 19 plans (16 planned + 13-17/13-18/13-19 gap-closure). CI green on run 32486109200, all four jobs. Four PM UAT findings fixed (D-98…D-101). Outstanding: 4 manual walks (C PASSED), SUPPORT_EMAIL at src/lib/site.ts:70."
-last_updated: "2026-08-21T05:44:16.354Z"
-last_activity: 2026-08-21
+stopped_at: "Phase 13 executed + verified (human_needed). 20 plans (16 planned + 13-17…13-20 gap-closure). Six PM UAT findings fixed (D-98…D-103); 13-20 removed the FOURTH unverified money claim — the pending surface asserted receipt of a payment the webhook had not confirmed — and stopped ?paid=1 stranding on five terminal landings. Local gates green: npm test 1582, test:design 816, build clean. Outstanding: 4 manual walks (C PASSED) plus a look at the corrected pending copy on a live return, and SUPPORT_EMAIL at src/lib/site.ts:70."
+last_updated: "2026-08-22T03:00:00.000Z"
+last_activity: 2026-08-22
 progress:
   total_phases: 11
   completed_phases: 3
