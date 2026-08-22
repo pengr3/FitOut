@@ -16,6 +16,7 @@ import { inngest } from "@/inngest/client";
 import { payoutSweep } from "@/inngest/functions/payout-sweep";
 import { payoutReconcile } from "@/inngest/functions/payout-reconcile";
 import { paymentReconcile } from "@/inngest/functions/payment-reconcile";
+import { checkoutRetireSweep } from "@/inngest/functions/checkout-retire";
 import { requestExpirySweep } from "@/inngest/functions/request-expiry";
 import { notify } from "@/inngest/functions/notify";
 import { guestEmail } from "@/inngest/functions/guest-email";
@@ -39,12 +40,14 @@ if (
 }
 
 // serve() reads INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY from env automatically; the guard above just makes
-// a missing prod key fatal. Registers all EIGHT functions — the SIX crons on offset minutes so they never
+// a missing prod key fatal. Registers all NINE functions — the SEVEN crons on offset minutes so they never
 // contend (Pitfall 4): the hourly payout sweep (05a, :00), the request-to-book expiry sweep (06-06, :15),
 // the payout reconcile (05b, :30) and the D-85 reminder sweep (07-13, :45), plus the DAILY ops alert digest
 // (quick 260810-j3z, 08:50 Asia/Manila — minute :50, which none of the four hourly crons occupy), plus the
 // 13.1-02 PAYMENT reconcile (`2-59/5`, i.e. :02 and every five minutes after — a start minute none of the
-// five above occupy) — plus
+// five above occupy), plus the 13.1-04 CHECKOUT-RETIRE sweep (`4-59/5`, i.e. :04 and every five minutes
+// after — residue 4 mod 5, where the four hourly crons and the digest are all residue 0 and the payment
+// reconcile is residue 2, so no two of the three sub-hourly families ever land on the same minute) — plus
 // `notify` (07-07), the only EVENT-triggered function here: it listens for `fitout/notify` and fans one
 // event out to the durable in-app notification row and the email (D-83/D-91).
 //
@@ -66,12 +69,20 @@ if (
 // money is captured, the booking sits `pending` until its hold is swept, and because a cron that never
 // ticks raises no error anywhere, the only detector left is the customer's own complaint. That is precisely
 // how the two 2026-08-21 evidence bookings were found, one of them three days late.
+//
+// AND `checkoutRetireSweep` (13.1-04) IS THE SAME ARGUMENT FROM THE OTHER SIDE — it is what stops FitOut
+// taking money it has no booking for. Leave it out of this array and it does not exist: EVERY lapsed hold's
+// checkout session stays payable INDEFINITELY, silently, exactly as it does today — an open tab or an
+// unscanned QR can still charge a booker for a slot FitOut has already given away, and because a cron that
+// never ticks raises no error anywhere, nothing fails to say so. It is the ONE job that makes D-113 true;
+// 13.1-05's inline reclaim wirings only make it faster.
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
     payoutSweep,
     payoutReconcile,
     paymentReconcile,
+    checkoutRetireSweep,
     requestExpirySweep,
     notify,
     guestEmail,
