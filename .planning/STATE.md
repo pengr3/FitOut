@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: "Phase 13.1 (INSERTED, payment reconciliation) — 13.1-02 DONE: the 5-minute reconciliation sweep exists, is registered on the /api/inngest mount at TZ=Asia/Manila 2-59/5 * * * *, confirms only through 13.1-01's one path, and alerts a missed webhook as a needs_attention row proven reachable by the ops digest. D-107's cadence is an inequality over the real HOLD_TTL_MINUTES; four deliberate breaks performed and recorded. Two plan instructions were measured WRONG and corrected: the candidate set is pending+approved (not pending alone) and the D-111 epoch bound was 8h early — the prose value would have swept the fixture it protects. The shipped predicate run against real dev data selects 0 rows and both evidence bookings are still pending/NULL. Gates green: npm test 1616, test:design 816, build clean, tsc 0, drizzle still ends at 0025. Phase 13 remains EXECUTED-not-complete behind it (4 manual walks + SUPPORT_EMAIL at src/lib/site.ts:70)."
-last_updated: "2026-08-22T06:20:00.000Z"
+stopped_at: "Phase 13.1 (INSERTED, payment reconciliation) — 13.1-03 DONE: the settling screen now has a fast path. One authenticated, ownership-checked, rate-limited, EPOCH-BOUNDED server action (reconcilePaymentNow) reuses the sweep's own reconcileOne body and is fired ONCE by a latched effect when the frozen poller gives up — zero new copy strings, no second D-110 alert, and the poller's diff is a single replaced destructure line. Every refusal is proven by the PROVIDER CALL COUNT it did not spend. Three plan instructions could not be honoured as written and were measured instead: the rate-limit constant cannot be exported from a \"use server\" module (watched red), bookingId must be OPTIONAL or a frozen suite stops typechecking, and reconcileOne's row shape in the plan does not exist. A hole the plan did not name was found by querying dev and closed: without D-111's RECONCILE_EPOCH the fast path would have confirmed a protected fixture through a page visit (break returned 'reconciled'). Both evidence bookings still pending/NULL. Gates green: npm test 1635, test:design 816, build clean, tsc 0, drizzle still ends at 0025. Phase 13 remains EXECUTED-not-complete behind it (4 manual walks + SUPPORT_EMAIL at src/lib/site.ts:70)."
+last_updated: "2026-08-22T06:45:00.000Z"
 last_activity: 2026-08-22
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 75
-  completed_plans: 72
+  completed_plans: 73
   percent: 25
 ---
 
@@ -45,10 +45,50 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13.1 (INSERTED — Payment Reconciliation)
-Plan: 2 of 5
-Current Plan: 2
+Plan: 3 of 5
+Current Plan: 3
 Total Plans in Phase: 5
-Status: **13.1-02 executed and committed (`1919f37` · `ac14625` · `acc5eea` · `5417901`). Waves 1-2 done; 13.1-03…05 remain.**
+Status: **13.1-03 executed and committed (`4198528` · `d028882` · `911ad85` · `b1c98ce`). Waves 1-3 done; 13.1-04…05 remain.**
+
+**THE FAST PATH IS IN, AND IT IS PROVABLY NOT THE GUARANTEE.** `src/app/actions/reconcile-payment.ts` is
+an authenticated, ownership-checked, rate-limited (5/60s per user), epoch-bounded server action that owns
+no UPDATE, no probe and no alert policy — it resolves who is asking and delegates to the sweep's
+`reconcileOne`. `PendingPaymentState` fires it ONCE, behind a latch, when the poller gives up at ~20s, then
+refreshes the RSC. Deleting the whole plan costs a booker **up to five minutes of waiting and nothing
+else**: the cron is byte-identical, and the action is bounded by the SAME `RECONCILE_EPOCH` and the same
+payable-status scope, so its reach is a subset of the guarantee's by construction.
+
+**ZERO NEW COPY.** The component's diff contains exactly ONE removed line — the destructure it replaces —
+and no mechanics token. `tests/booking/payment-states.test.tsx`, `tests/design/pending-copy.test.ts` and
+`tests/design/site-contacts.test.ts` are all byte-identical to `origin/dev` and green, which is how D-102's
+no-new-claims and D-109's mechanics-frozen halves are discharged behaviourally rather than by inspection.
+
+⚠ **THREE OF THE PLAN'S INSTRUCTIONS COULD NOT BE HONOURED AS WRITTEN.** (1) `RECONCILE_RATE_LIMIT` cannot
+be EXPORTED — a `"use server"` module may export only async functions, and the export was added on purpose
+and watched redden `tests/use-server-exports.test.ts` (the guard written for the `avatar.ts` defect that
+broke uploads for a whole phase). It is module-private, exactly as `CANCEL_RATE_LIMIT` is, and the spec
+discovers the budget behaviourally. (2) `bookingId` had to be OPTIONAL: required, it fails `tsc` on
+`payment-states.test.tsx`, which the same plan freezes with an empty diff — a case now asserts the real
+call site passes it. (3) The plan's `reconcileOne` row shape (`bookingId`/`createdAt`) does not exist; the
+real type is `{ id, checkoutSessionId, expiresAt, status }`.
+
+⚠ **AND A HOLE THE PLAN DID NOT NAME WAS FOUND BY QUERYING DEV.** Both evidence fixtures are `pending`,
+hold a `checkout_session_id`, carry a real capture at PayMongo and belong to **the seeded UAT booker** — so
+without a D-111 bound, that booker opening either booking's `?paid=1` URL would have confirmed a protected
+fixture twenty seconds later. The action now imports the same `RECONCILE_EPOCH`; with it removed, a row
+carrying the later fixture's exact measured `created_at` came back **`reconciled`**. Both fixtures re-read
+`pending` / NULL / NULL after every gate.
+
+⚠ **ONE PREDICTION IN THE PLAN WAS SIMPLY WRONG AND IS RECORDED AS SUCH.** The latch is not what makes the
+probe fire once: React's double-invoke happens at MOUNT, where `slow` is false and the effect returns
+early. Removing the latch reddened NOTHING. It is kept as defence in depth and the component says so.
+
+⚠ **gsd-sdk's state verbs were again NOT used** (project memory + the 13.1-01 incident note below). STATE.md
+was saved to the scratchpad first and every edit here was hand-applied and diffed.
+
+<details><summary>Previous position (13.1-02, superseded 2026-08-22)</summary>
+
+Status: **13.1-02 executed and committed (`1919f37` · `ac14625` · `acc5eea` · `5417901`).**
 
 **THE GUARANTEE IS IN.** `src/inngest/functions/payment-reconcile.ts` is registered in the `serve()` array
 and runs `TZ=Asia/Manila 2-59/5 * * * *` — minute :02 and every five after, colliding with none of the five
@@ -84,6 +124,8 @@ was saved to the scratchpad first and every edit here was hand-applied and diffe
 complete on the strength of the first one. STATE.md was restored from a saved copy and the four correct
 edits (position, progress, the metric row, the two decisions) were hand-applied. The string-positional
 handlers still no-op; `--phase/--plan/--duration` and `--summary` are the flag names that work.
+
+</details>
 
 <details><summary>Previous position (Phase 13, superseded 2026-08-22 by the 13.1 insertion)</summary>
 
@@ -619,6 +661,11 @@ deferred walk is inconsistent rather than honest.*
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [13.1-03]: **A `"use server"` module may export ONLY async functions — so a plan that asks for an exported constant is asking for a module that will not evaluate.** The 13.1-03 plan required `RECONCILE_RATE_LIMIT` to be exported from the action AND required `tests/use-server-exports.test.ts` to pass; those are not jointly satisfiable. The export was added on purpose and watched redden that guard verbatim, then reverted. It is module-private, exactly as `CANCEL_RATE_LIMIT` is, and the spec discovers the budget BEHAVIOURALLY (call until refused, assert against where the refusal fell) — which cannot drift from a constant it never reads. ⚠ This is the same failure class as the `avatar.ts` defect: upload was dead in every browser for a whole phase behind a green unit test.
+- [13.1-03]: **An ACCELERANT must be bounded by the same constants as the guarantee it accelerates, and measuring the reach is what found the hole.** The 13.1-03 plan never mentions D-111. Queried against real dev data, both evidence bookings are `pending`, hold a `checkout_session_id`, carry a real capture at PayMongo and belong to the seeded UAT booker — so the fast path would have confirmed a protected fixture the first time that booker opened its `?paid=1` URL, through the front door, while the cron was carefully locked out of the same row. The action now imports the SAME `RECONCILE_EPOCH` (never a second literal); with the bound removed, a row carrying the later fixture's exact measured `created_at` came back **`reconciled`**, not merely probed.
+- [13.1-03]: **Assert a refusal by what it did NOT ask the third party, never by what it returned.** Break B on `reconcile-fast-path.test.ts` removed the payable-status gate: the returned value stayed CORRECT (`unchanged`) and the only thing that reddened was the provider CALL COUNT. An action that answers every case correctly and probes anyway is invisible to a spec that asserts values — and that action is a lever an authenticated caller can pull on FitOut's PayMongo budget.
+- [13.1-03]: **React's development double-invoke happens at MOUNT, so a latch on an effect gated behind a later state flip guards nothing yet — say that instead of repeating the plan's rationale.** Removing the latch reddened NOTHING. A follow-up probe (fire on mount, no latch) read 2 non-strict and 3 under `StrictMode` in the same run, which is what proves the harness exercises the double-invoke at all and that the StrictMode case is capable of failing. The latch stays as defence in depth; the component's comment now states the measurement rather than the prediction — a comment asserting something the code does not do is the exact defect 13-20 removed from that same file two days earlier.
+- [13.1-03]: **When two of a plan's own requirements collide, keep the half that leaves the code working and record the other.** `bookingId` is OPTIONAL on `PendingPaymentState` because a required prop fails `npx tsc --noEmit` on `tests/booking/payment-states.test.tsx` — the suite the same plan freezes with an empty `git diff --stat`. It degrades in the only direction this phase permits (losing the accelerant, never the guarantee), and a case asserts the real call site passes `bk.id` so "optional" cannot quietly become "nobody passes it".
 - [13.1-02]: **A plan's own bound can be eight hours wrong, and the cost would have been a fixture with real money in it.** 13.1-CONTEXT's evidence table reports the later stuck booking as paid at "2026-08-21 18:17" and the 13.1-02 plan turned that into a D-111 epoch bound of `2026-08-21T18:17:00+08:00`. The row's actual `created_at`, read from dev, is `18:17:12 **UTC**` — so any epoch satisfying only the plan's bound ADMITS the row, and the sweep's first pass would have probed PayMongo, found the real ₱1,050.00 GCash capture and confirmed `09f32400…` — destroying the exact fixture D-111 was written to preserve. `RECONCILE_EPOCH` is pinned at `2026-08-22T12:00:00+08:00` instead, the cadence spec asserts against the MEASURED instant, and the shipped predicate was run verbatim against the real dev database (0 rows) rather than trusted against seeds alone.
 - [13.1-02]: **The reconciliation candidate set is `pending` OR `approved`, mirroring the confirm's own claim.** The plan specified `pending` alone. `confirmPaidBooking` confirms from both (PAY-05 / D-63), so a `pending`-only sweep would have left the ENTIRE pay-on-approval mode with no reconciliation: the booker pays, the webhook is lost, nothing on any schedule notices. The same scope is what keeps TERMINAL rows out, which is the fix `deferred-items.md` row 1 asked for — `handleGoneSlot` re-alerts a `cancelled` row on every pass, so a 5-minute sweep over one dead booking would have filed a `needs_attention` every five minutes forever and killed D-110 by noise. Proven by a break: widening the scope reddens exactly the case that owns it.
 - [13.1-02]: **A `Date` cannot be bound into drizzle's `sql` template against postgres.js — and only RUNNING it says so.** `created_at >= ${RECONCILE_EPOCH}` tags the parameter timestamptz (OID 1184), whose serializer expects a string, and threw `ERR_INVALID_ARG_TYPE` on every call. `npx tsc --noEmit` was clean; `npm run lint` was clean; six of the eighteen behavioural cases reported `Failed query:` before a single behaviour was measured. Shipped, the module whose entire job is to be the guarantee would have failed its query on every pass forever. Bind `.toISOString()::timestamptz`.
@@ -1091,11 +1138,18 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-22T04:55:00.000Z
-Stopped at: Completed 13.1-01-PLAN.md — phase 13.1 wave 1. D-105's ONE confirm path is extracted and
-PROVEN (two-connection race; deliberate break observed and reverted), and the `pay_...` survives a probe
-read. 13.1-02 (the 5-minute sweep) is next and MUST scope its candidates to `pending`/`approved` — see
-the phase's `deferred-items.md` row 1. Resume file: none.
+Last session: 2026-08-22T06:45:00.000Z
+Stopped at: Completed 13.1-03-PLAN.md — phase 13.1 wave 3. The settling screen's fast path is in: one
+authenticated, epoch-bounded server action reusing the sweep's `reconcileOne`, fired once by a latched
+effect after the poll cap, with ZERO new copy and the frozen poller's diff down to a single replaced
+destructure line. 13.1-04 is next. ⚠ TWO THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) The fast path
+is NOT a guarantee — it is bounded by a browser being open; anything that must happen reliably belongs on
+a schedule. (2) `RECONCILE_RATE_LIMIT` is module-private and cannot be exported from a `"use server"`
+module; if a second call site needs the number, MOVE the constant to a non-`"use server"` module rather
+than duplicating the literal. Resume file: none.
+
+⚠ Session Continuity was STALE when this session started — it still named 13.1-01 after 13.1-02 shipped.
+13.1-02's own close-out updated the frontmatter and Current Position but not this block.
 
 <details><summary>Previous session (13-15, superseded 2026-08-22)</summary>
 

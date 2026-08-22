@@ -22,3 +22,27 @@ times a day, not the defect. The expectation moves to 1 only when the backstop i
 13.1-01 instructed. A second caller reaching `confirmPaidBooking` with a terminal booking id would re-open
 this — which is a live consideration for 13.1-03's fast path.
 
+**Row 1 — STILL CLOSED after 13.1-03, and the "second caller" named above is the one now shipped.**
+`reconcilePaymentNow` is that second caller, and it cannot re-open this: its payable-status gate
+(`pending` / `approved`) sits BEFORE the delegate, so a terminal booking id is never handed to
+`confirmPaidBooking` at all. Proven by `tests/booking/reconcile-fast-path.test.ts` case (5) — a
+`confirmed` row returns `unchanged` with a provider call count of **zero** — and by that spec's break B,
+which removed the gate and reddened exactly that count while the returned value stayed correct.
+`tests/payments/confirm-idempotency.test.ts` case (5) is untouched and still expects 2.
+
+**Row 2 — UNCHANGED by 13.1-03.** The fast path reads `payments[0].id` through the same
+`probeCheckoutSession` → `getCheckoutSession` path the sweep does, so it inherits the same unobserved
+response shape and the same bounded cost (`paymentId: null`). Capturing one real paid-session body is
+still a live-UAT item, and it is now worth doing on the settling screen specifically: that surface is
+where a booker can trigger the probe on demand.
+
+## New residual, recorded by 13.1-03
+
+**A booker sitting on the settling screen can now cause an outbound PayMongo read, and the budget for it
+is module-private.** `RECONCILE_RATE_LIMIT` (`{ window: 60, max: 5 }`) cannot be exported from the
+`"use server"` module without killing it (watched red — see the action's header), so
+`tests/booking/reconcile-fast-path.test.ts` case (7) discovers the limit behaviourally instead. That is
+strictly better as an assertion, but it does mean **no other module can read the budget**: if a future
+plan needs the number at a second call site, move the constant to a non-`"use server"` module rather
+than duplicating the literal.
+
