@@ -715,4 +715,78 @@ describe("getCheckoutSession — the D-84 widening + the opt-in deadline (/v1, G
     expect(initAt(0).signal).toBeUndefined(); // the expire POST
     expect(initAt(1).signal).toBeUndefined(); // the LW-01 re-probe — the line that must never gain one
   });
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────────
+  // 13.1-01 — the CAPTURED PAYMENT ID (`pay_...`) now survives the read.
+  //
+  // WHY THESE THREE CASES EXIST. A confirm driven by a server-side PROBE (13.1's reconciliation sweep)
+  // has no webhook event to read the `pay_...` off, so this response is its only source. If it comes
+  // back null the reconciled booking lands `payment_id = NULL`, `isApiRefundable` fails CLOSED, and
+  // every later cancellation refund on that booking is permanently downgraded to the manual-return
+  // path — the booker's money surfaced to an operator instead of moved. So the id is money-critical,
+  // not metadata.
+  //
+  // THE RECORDED COLLISION. The 13.1-01 plan's prose located the id at `payments[0].attributes.id`.
+  // The fixtures in THIS FILE — which the plan itself calls the contract — and the webhook route both
+  // put it on the resource ENVELOPE at `payments[0].id`, which is PayMongo's `{ id, type, attributes }`
+  // shape. Implementing only the prose path would have returned null for the very fixture that pins
+  // the contract. Both placements are therefore read and both are pinned here; neither can regress
+  // while the shape stays un-live-verified.
+  // ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  it("(8) captures the pay_... off the payment resource ENVELOPE (payments[0].id) — the fixture-pinned shape", async () => {
+    fetchMock.mockResolvedValue(
+      sessionBody("cs_withpay", {
+        status: "paid",
+        paid_at: 1_755_600_000,
+        payments: [
+          { id: "pay_env_1", attributes: { source: { type: "gcash" }, status: "paid" } },
+        ],
+      }),
+    );
+
+    const state = await getCheckoutSession("cs_withpay");
+
+    // Read from the fixture BODY, not a hand-built object: the fixture is the contract here.
+    expect(state.paymentId).toBe("pay_env_1");
+    // …and the pre-existing fields are untouched by the widening (additive only).
+    expect(state.sourceType).toBe("gcash");
+    expect(state.status).toBe("paid");
+  });
+
+  it("(9) also captures it from payments[0].attributes.id — the 13.1-01 prose placement (collision, both read)", async () => {
+    fetchMock.mockResolvedValue(
+      sessionBody("cs_nestedpay", {
+        status: "paid",
+        paid_at: 1_755_600_000,
+        // NO envelope id at all: the ONLY place the pay_... appears is two `attributes` deep.
+        payments: [{ attributes: { id: "pay_nested_1", source: { type: "card" }, status: "paid" } }],
+      }),
+    );
+
+    const state = await getCheckoutSession("cs_nestedpay");
+
+    expect(state.paymentId).toBe("pay_nested_1");
+    expect(state.sourceType).toBe("card");
+  });
+
+  it("(10) a body with NO payments array yields paymentId === null — STRICTLY null, never undefined", async () => {
+    // `undefined` is the dangerous value: `payment_id = undefined` is not a fact, and a caller reading
+    // it as "not asked" would keep polling a session that will never carry one. `?? null` makes the
+    // absence a decided answer, the same discipline sourceType/paidAt already follow.
+    for (const attributes of [
+      {} as Record<string, unknown>,
+      { status: "active" },
+      { status: "active", payments: [] },
+      { status: "active", payments: [{ attributes: {} }] },
+    ]) {
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValue(sessionBody("cs_nopay", attributes));
+
+      const state = await getCheckoutSession("cs_nopay");
+
+      expect(state.paymentId).toBeNull();
+      expect(state.paymentId).not.toBeUndefined();
+    }
+  });
 });

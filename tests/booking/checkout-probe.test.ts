@@ -183,9 +183,15 @@ describe("probeCheckoutSession — the D-84 booker-facing probe", () => {
 });
 
 describe("readPaymentState — 13-RESEARCH Example 3's table, in one place", () => {
-  /** Build just enough of a session state for the reading. */
+  /**
+   * Build just enough of a session state for the reading.
+   *
+   * `paymentId` is null here on purpose: 13.1-01 widened `CheckoutSessionState` with the captured
+   * `pay_...` so a probe-driven confirm can persist it, but `readPaymentState` discriminates on the
+   * BOOKING status + the SESSION status alone. Setting it would suggest the reading consults it.
+   */
   function session(status: string) {
-    return { id: "cs_1", status, sourceType: null, paidAt: null };
+    return { id: "cs_1", status, sourceType: null, paidAt: null, paymentId: null };
   }
 
   const table: Array<[string, string, PaymentStateReading]> = [

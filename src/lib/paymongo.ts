@@ -333,6 +333,22 @@ export type CheckoutSessionState = {
   sourceType: string | null;
   /** The instant PayMongo says it was paid, or null. NEVER a proxy — D-85 forbids inventing one. */
   paidAt: Date | null;
+  /**
+   * The CAPTURED payment id (`pay_...`) for this session, or null when the session carries no payment.
+   *
+   * WHY THIS FIELD EXISTS (13.1-01). A confirm driven by a SERVER-SIDE PROBE rather than by a webhook
+   * event has no other source for the `pay_...`: the webhook carries it on the event resource, the probe
+   * carries it only here. Without it a reconciled booking lands `payment_id = NULL`, and
+   * `isApiRefundable` FAILS CLOSED (src/lib/payments/refund-rail.ts) — so every later cancellation refund
+   * on that booking would be judged unrefundable and permanently routed to the manual-return path, with
+   * the booker's money surfaced to an operator instead of actually moving. That is a silent money bug
+   * this phase would otherwise create, which is why the read is widened rather than the caller patched.
+   *
+   * ADDITIVE ONLY. `status`, `sourceType` and `paidAt` keep their exact semantics, and NO column is added
+   * anywhere — `booking.payment_id` already exists, so 13.1-CONTEXT D-112 stays satisfied (this phase
+   * ships zero migrations and `drizzle/` still ends at 0025_audit_resolved_by.sql).
+   */
+  paymentId: string | null;
 };
 
 /**
@@ -351,6 +367,21 @@ export type CheckoutSessionState = {
  *             payments: [ { id, attributes: { source: { type }, status } } ] } } }
  *
  * `paid_at` is Unix SECONDS (PayMongo's convention for every timestamp it returns), hence the ×1000.
+ *
+ * ── WHERE THE `pay_...` LIVES, AND A RECORDED SPEC-VS-FIXTURE COLLISION (13.1-01) ────────────────────
+ * The captured payment id sits on the payment resource's ENVELOPE (`payments[0].id`) — the `{ id, type,
+ * attributes }` shape every PayMongo resource uses, which is also where the fixtures above put it and
+ * where `src/app/api/paymongo/webhook/route.ts` reads it off the verified event. The 13.1-01 plan's
+ * prose instead specified `payments[0].attributes.id`. Reading ONLY the plan's path would have returned
+ * `null` for the very fixture that pins this contract — i.e. it would have shipped exactly the
+ * `payment_id = NULL` money bug the field was added to prevent. So BOTH are read, envelope first:
+ * the collision is recorded rather than resolved by guessing, and neither reading can regress. Both
+ * placements are pinned by a case in tests/payments/paymongo-calls.test.ts.
+ *
+ * ⚠ Still NOT live-observed (13-03 recorded the same caveat for the rail and `paid_at`): confirming the
+ * `pay_...` against a real paid session is a named UAT item, and the defensive `?? null` below is what
+ * keeps a wrong guess from fabricating an id.
+ *
  * The shape is PayMongo's DOCUMENTED contract, pinned by fixtures in
  * tests/payments/paymongo-calls.test.ts; it is NOT a live-observed body, and confirming it against a
  * real paid session is a named UAT item. Every field defaults defensively (`?? ""` / `?? null`, the
@@ -376,7 +407,7 @@ export async function getCheckoutSession(
       attributes: {
         status?: string;
         paid_at?: unknown;
-        payments?: Array<{ attributes?: { source?: { type?: string } } }>;
+        payments?: Array<{ id?: string; attributes?: { id?: string; source?: { type?: string } } }>;
       };
     };
   }>(
@@ -390,6 +421,10 @@ export async function getCheckoutSession(
     id: json.data.id,
     status: attributes.status ?? "",
     sourceType: attributes.payments?.[0]?.attributes?.source?.type ?? null,
+    // Envelope id first (the fixture-pinned placement the webhook also reads), then the nested one the
+    // 13.1-01 prose named — see the collision note in the header. `?? null` keeps a missing/absent
+    // payments array a STRICT null rather than an `undefined` a caller could read as "not asked".
+    paymentId: attributes.payments?.[0]?.id ?? attributes.payments?.[0]?.attributes?.id ?? null,
     paidAt:
       typeof paidAtSeconds === "number" && Number.isFinite(paidAtSeconds)
         ? new Date(paidAtSeconds * 1000)
