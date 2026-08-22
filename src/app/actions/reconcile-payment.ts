@@ -46,7 +46,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
-import { reconcileOne } from "@/inngest/functions/payment-reconcile";
+import { reconcileOne, RECONCILE_EPOCH } from "@/inngest/functions/payment-reconcile";
 
 /**
  * What the one-shot reconcile did, in four words the caller may branch on — and nothing else, ever.
@@ -134,6 +134,7 @@ export async function reconcilePaymentNow(bookingId: string): Promise<ReconcileN
       status: booking.status,
       checkoutSessionId: booking.checkoutSessionId,
       expiresAt: booking.expiresAt,
+      createdAt: booking.createdAt,
     })
     .from(booking)
     .where(eq(booking.id, bookingId));
@@ -146,6 +147,24 @@ export async function reconcilePaymentNow(bookingId: string): Promise<ReconcileN
   // the guarantee would not. A row with no checkout session has no provider record to read.
   if (row.status !== "pending" && row.status !== "approved") return "unchanged";
   if (row.checkoutSessionId === null) return "unchanged";
+
+  // D-111 — NO BACKFILL, AND THE ACCELERANT MAY NOT REACH FURTHER BACK THAN THE GUARANTEE.
+  //
+  // ⚠ THIS IS NOT IN THE 13.1-03 PLAN. It is here because the reach was MEASURED against the real dev
+  // database and the answer was alarming: both of the evidence bookings this whole phase exists because
+  // of — `09f32400-b636-46e1-973a-b930a073a936` (a real ₱1,050.00 GCash capture) and
+  // `408e054a-cb5a-4dbb-9282-9883e0bfc628` — are `pending`, hold a `checkout_session_id`, and belong to
+  // the seeded UAT booker. PM ruled them OUT of scope and they are deliberately left as fixtures, so
+  // 13.1-02 pinned the sweep past them with `RECONCILE_EPOCH`. Without the same bound here, that booker
+  // opening either booking's checkout-return URL would, twenty seconds later, have this action probe
+  // PayMongo, find the real capture and confirm the row — destroying the fixture through the front door
+  // while the cron was carefully barred from the back one.
+  //
+  // THE SAME CONSTANT, IMPORTED — never a second literal. A forked epoch is a scope guard that drifts,
+  // and the one property worth having is that the fast path's reach and the guarantee's reach are the
+  // same set by construction: this action can only ever accelerate a row the sweep would have reached
+  // anyway, which is also what makes deleting it cost nothing but time.
+  if (new Date(row.createdAt).getTime() < RECONCILE_EPOCH.getTime()) return "unchanged";
 
   // (5) DELEGATE. This is the sweep's body, verbatim, including its fail-closed probe handling, its single
   // road to `confirmed` and its single D-110 alert on a genuine transition. Nothing is added on top: a

@@ -65,6 +65,17 @@
 //   AssertionError: a terminal-for-this-purpose row still cost a provider round trip. There is nothing to
 //   ask about: the confirm has already happened.: expected 1 to be +0
 //
+// ── BREAK C: D-111's epoch bound removed from the action ────────────────────────────────────────────────
+//   if (new Date(row.createdAt).getTime() < RECONCILE_EPOCH.getTime()) …   →   … < 0) …
+//
+//      × (6b) D-111 — a PRE-EPOCH booking is `unchanged` and is never asked about, however it was reached
+//   AssertionError: expected 'reconciled' to be 'unchanged'
+//
+//   READ THAT VALUE. Not "unchanged with an extra probe" — `reconciled`. A row carrying the later
+//   evidence booking's exact measured `created_at` was CONFIRMED by the fast path, which is what would
+//   have happened to a fixture holding a real ₱1,050.00 GCash capture the first time the seeded UAT
+//   booker opened its checkout-return URL. The hole was measured, not imagined.
+//
 //   THE RETURNED VALUE WAS STILL CORRECT. `unchanged` came back exactly as the spec requires, and the only
 //   thing that went red was the CALL COUNT. That is this file's whole thesis in one run: a version of this
 //   action that answers every case correctly and probes the provider anyway is caught here, and would be
@@ -160,6 +171,8 @@ async function seedBooking(opts: {
   bookerId?: string;
   checkoutSessionId?: string | null;
   expiresAt?: Date | null;
+  /** Explicit `created_at` — the column D-111's epoch keys on. Defaults to now, i.e. post-epoch. */
+  createdAt?: Date;
 }): Promise<string> {
   const { startsAt, endsAt } = nextWindow();
   await testDb.db.insert(booking).values({
@@ -175,6 +188,7 @@ async function seedBooking(opts: {
     expiresAt: opts.expiresAt === undefined ? new Date(Date.now() + 10 * MINUTE_MS) : opts.expiresAt,
     checkoutSessionId:
       opts.checkoutSessionId === undefined ? `cs_${opts.id}` : opts.checkoutSessionId,
+    ...(opts.createdAt === undefined ? {} : { createdAt: opts.createdAt }),
   });
   return opts.id;
 }
@@ -430,6 +444,32 @@ describe("every refusal happens BEFORE any provider call", () => {
         "nothing — the same bound the sweep's candidate query holds with `checkout_session_id IS NOT NULL`.",
     ).toBe(0);
     expect((await readBooking(id)).status).toBe("pending");
+  });
+
+  it("(6b) D-111 — a PRE-EPOCH booking is `unchanged` and is never asked about, however it was reached", async () => {
+    // ⚠ NOT A CASE THE PLAN ASKED FOR. The two evidence bookings this phase exists because of are
+    // `pending`, hold a checkout session, carry a real GCash capture at the provider, and belong to the
+    // seeded UAT booker — so without this bound, that booker opening either one's checkout-return URL
+    // would confirm a fixture PM explicitly ruled out of scope. 13.1-02 barred the CRON from those rows
+    // with `RECONCILE_EPOCH`; this asserts the fast path is barred by the SAME constant, so the
+    // accelerant can never reach further back than the guarantee it accelerates.
+    const id = await seedBooking({
+      id: "bk_rfp_preepoch",
+      createdAt: new Date("2026-08-21T18:17:12.839Z"), // the later fixture's MEASURED created_at
+    });
+    mockPayMongo.getCheckoutSession.mockResolvedValueOnce(paidSession(`cs_${id}`));
+
+    const outcome = await reconcilePaymentNow(id);
+
+    expect(outcome).toBe("unchanged");
+    expect(
+      providerCalls(),
+      "a pre-epoch booking was probed. The provider holds a REAL capture for both evidence rows, so a " +
+        "probe here is one step from confirming a fixture D-111 exists to protect.",
+    ).toBe(0);
+    const row = await readBooking(id);
+    expect(row.status).toBe("pending");
+    expect(row.paymentId).toBeNull();
   });
 
   it("(7) past the budget — `rate-limited`, and the provider call count STOPS AT the limit, not after it", async () => {
