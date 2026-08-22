@@ -80,7 +80,7 @@ export type RetirableSession = {
 };
 
 /**
- * WHICH LAPSE PRODUCED THIS RETIRE. A closed union of exactly the four call sites, named here so an audit
+ * WHICH LAPSE PRODUCED THIS RETIRE. A closed union of exactly the five call sites, named here so an audit
  * row says where it came from and so the POLICY stays the one owner rather than a thing each site
  * re-derives.
  *
@@ -88,15 +88,28 @@ export type RetirableSession = {
  *   - `stale-hold-reclaim`    — the exclusive in-tx reclaim inside `createPendingHold` (13.1-05).
  *   - `open-capacity-reclaim` — the SECOND reclaim, inside `createOpenCapacityHold` (13.1-05).
  *   - `request-expiry`        — `expireOne`'s `approved → cancelled` payment-window release (13.1-05).
+ *   - `booker-cancel-hold`    — `cancelUnpaidHold`'s VOLUNTARY withdrawal (13.1-06). See below.
  *
- * Only the first has a caller today. The other three are named now on purpose: 13.1-05 wires them, and a
- * union that already contains them cannot be widened by a call site inventing its own string.
+ * ⚠ THE FIFTH MEMBER IS NOT AN ACCELERANT, AND IT IS THE ONLY ONE THAT IS NOT. The middle three are:
+ * delete them and `retire-sweep` still reaches their rows, because those rows are still `pending`/
+ * `approved` with a lapsed `expires_at` when the sweep looks. `booker-cancel-hold` has NO sweep behind it
+ * — `cancelUnpaidHold` writes `status='cancelled'` (or `'declined'`) AND `expires_at = NULL` in one
+ * statement, and EITHER write on its own removes the row from `queryRetirableSessions`' candidate set
+ * (`status IN ('pending','approved') AND expires_at <= now()`) forever. `queryUnconfirmedPaid` excludes it
+ * too, for the same status reason. So this call site IS the guarantee for the path it serves; nothing else
+ * in the codebase closes those sessions.
+ *
+ * ⚠ IT IS ALSO NOT LAPSE-DRIVEN, which is why 13.1-05 correctly left it out of scope. D-113 is worded
+ * "when a hold EXPIRES"; this is a booker withdrawing a hold that has NOT expired. The PM's own sentence
+ * is the wider rule and the one that governs here: *"we wouldn't handle money that isn't ours."* A booker
+ * who withdrew their own request must not be chargeable for it a minute later.
  */
 export type RetireTrigger =
   | "retire-sweep"
   | "stale-hold-reclaim"
   | "open-capacity-reclaim"
-  | "request-expiry";
+  | "request-expiry"
+  | "booker-cancel-hold";
 
 /**
  * The most sessions ONE booker-facing hold placement will retire before leaving the rest to the sweep.

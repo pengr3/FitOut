@@ -68,6 +68,11 @@ import {
   INSTAPAY_CEILING_CENTS,
 } from "@/lib/paymongo";
 import { recordAudit } from "@/lib/audit";
+// D-113's POLICY, never the provider (13.1-06). This file must not import `expireCheckoutSession` for the
+// unpaid-hold path: probe-first, the never-expire-a-`paid`-session evidence rule, the never-throw contract
+// and the `checkout_expire_failed` audit shape all live in ONE place (13.1-04), and a second
+// implementation here would be a second policy nobody would notice diverging.
+import { retireCheckoutsForBookings } from "@/lib/payments/retire-checkout";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   cancellationSchema,
@@ -873,6 +878,18 @@ export async function cancelUnpaidHold(bookingId: string): Promise<CancelActionR
     return TOO_FAST;
   }
 
+  // ⚠ THE `RETURNING` LIST IS LOAD-BEARING, NOT INFORMATIONAL (13.1-06). `status` and
+  // `checkout_session_id` are read back because the retire below must key off the flip's OWN result:
+  //
+  //   - `checkout_session_id` is NOT one of `loadBookingRow`'s 22 columns, and must not be added to it —
+  //     that loader is shared by all three cancel actions and two of them have no business reading it. It
+  //     would also be a STALE read: a booker can claim the checkout lease (`src/app/actions/booking.ts`,
+  //     `status IN ('pending','approved')`) between the pre-read and this statement, and a retire keyed
+  //     off a stale NULL would leave the live session payable while looking perfectly correct. This is
+  //     `request-expiry.ts`'s finding, and it applies here for the identical reason.
+  //   - `status` is the NEW terminal status. `row.status` is the PRE-flip one and is correct only for the
+  //     audit's `previousStatus`; re-deriving the terminal from it in JS would duplicate the CASE above in
+  //     a second language, which is exactly how the three terminal mappings in this codebase would desync.
   const flipped = (await db.execute(sql`
     UPDATE booking
     SET status = (CASE WHEN status = 'requested' THEN 'declined' ELSE 'cancelled' END)::booking_status,
@@ -882,8 +899,8 @@ export async function cancelUnpaidHold(bookingId: string): Promise<CancelActionR
     WHERE id = ${parsed.data.bookingId}
       AND booker_id = ${userId}
       AND status IN ('requested','approved')
-    RETURNING id
-  `)) as unknown as { id: string }[];
+    RETURNING id, status, checkout_session_id
+  `)) as unknown as { id: string; status: string; checkout_session_id: string | null }[];
 
   if (flipped.length === 0) {
     await recordAudit({
@@ -902,12 +919,81 @@ export async function cancelUnpaidHold(bookingId: string): Promise<CancelActionR
     meta: { bookingId, previousStatus: row.status },
   });
 
+  // 13.1-06 — THE WITHDRAWAL CLOSES THE SESSION IT ORPHANS. See `retireWithdrawnSession` for why this is
+  // the ONE inline retire in the codebase that is a guarantee rather than an accelerant, and why it runs
+  // BEFORE the notice rather than after it.
+  await retireWithdrawnSession(bookingId, flipped[0].checkout_session_id, flipped[0].status);
+
   // `null` refund amount: nothing was charged, so the booker gets no refund notice. The host still does —
   // their slot just became free again, which is the whole reason they need telling.
   await notifyCancellation(row, bookingId, null);
 
   revalidateCancelSurfaces(bookingId);
   return { ok: true, refundCents: 0 };
+}
+
+/**
+ * Retire the checkout session a booker's own withdrawal just orphaned (13.1-CONTEXT D-113's rule, applied
+ * to a path D-113's literal wording does not cover).
+ *
+ * ── WHY THIS EXISTS AT ALL ──────────────────────────────────────────────────────────────────────────────
+ * An `approved` row is BY DEFINITION one whose booker was sent to checkout, so a withdrawal routinely
+ * leaves a live, payable PayMongo session pointing at a slot FitOut has just released to everybody else.
+ * The booker's own open tab or unscanned QR can still charge them for a booking they themselves cancelled.
+ * The PM's rule, verbatim: *"when the hold expires, their ability to pay shall also expire, so we wouldn't
+ * handle money that isn't ours."*
+ *
+ * ⚠ AND WHY IT IS THE ONLY INLINE RETIRE THAT IS NOT AN ACCELERANT. The three 13.1-05 wired can all be
+ * deleted without breaking D-113, because `checkout-retire-sweep` reaches their rows afterwards. This one
+ * cannot. The statement above writes `status='cancelled'`/`'declined'` AND `expires_at = NULL` together,
+ * and EITHER of those writes ALONE removes the row from `queryRetirableSessions`' candidate set
+ * (`status IN ('pending','approved') AND expires_at <= now()`) permanently; `queryUnconfirmedPaid`'s
+ * `status IN ('pending','approved')` excludes it for the same reason. NOTHING else in the codebase reaches
+ * these sessions. Deleting this call re-opens the only known orphaning path with no backstop of any kind.
+ *
+ * ⚠ THIS IS ALSO WHY "just stop nulling `expires_at`" IS NOT THE FIX. It was evaluated and MEASURED
+ * against the sweep's actual predicate: the status clause excludes the row independently, so preserving
+ * `expires_at` would close nothing while leaving a terminal row carrying a live-looking window — see
+ * `13.1-06-SUMMARY.md` for the full comparison.
+ *
+ * ── WHY IT RUNS BEFORE `notifyCancellation` ─────────────────────────────────────────────────────────────
+ * `request-expiry.ts` emits its notice first and retires second, and states there that the order between
+ * the two cannot matter. Here it can, in one direction only: if the process dies between them, a missed
+ * notification is recoverable by any party asking, while a still-payable session is the exact defect this
+ * work exists to close. So the money-closing act goes first. Both are still INDEPENDENT — neither is
+ * inside the other, and `emitNotify` swallows its own transport errors, so neither can suppress the other.
+ *
+ * ⚠ ITS OWN `catch`, AND IT IS NOT DEFENSIVE PROGRAMMING. This action has already COMMITTED the flip by
+ * the time it is called. 13.1-05 measured what an undefended call site costs: with the policy rejecting,
+ * `createPendingHold` threw the provider's outage out to its caller with the slot already freed, refusing
+ * a booker because PayMongo was down. The same shape here would tell a booker their withdrawal FAILED when
+ * it had already succeeded — and the session would stay payable anyway. 13.1-04's structural never-throw
+ * contract makes this catch unreachable today; it is here for the day somebody changes the policy, and its
+ * message names the broken contract rather than hiding it. The empty binding is deliberate: the caught
+ * value may be PayMongo's prose and the discard discipline is absolute (T-05-15 / T-08-44).
+ *
+ * A FAILED retire is not swallowed in the sense that matters: the POLICY writes the operator-visible
+ * `checkout_expire_failed` / `needs_attention` audit row (D-110). This action adds no alerting of its own.
+ */
+async function retireWithdrawnSession(
+  bookingId: string,
+  checkoutSessionId: string | null,
+  terminalStatus: string,
+): Promise<void> {
+  try {
+    await retireCheckoutsForBookings(
+      // `bookingStatus` is the NEW terminal status off the flip's own RETURNING, never the pre-flip one:
+      // the policy stays silent about a `paid` session only while the row is still `pending` (13.1-02's
+      // reconciler owns those). A withdrawn row is the case NO reconciler reaches, so a payment found here
+      // must land in the operator's queue — and this is the only report it will ever produce.
+      [{ bookingId, checkoutSessionId, bookingStatus: terminalStatus }],
+      "booker-cancel-hold",
+    );
+  } catch {
+    console.error("[cancel-unpaid-hold] retire policy THREW — its never-throw contract is broken", {
+      bookingId,
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
