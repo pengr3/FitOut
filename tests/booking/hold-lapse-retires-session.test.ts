@@ -37,13 +37,22 @@
 //     that THIS CALL SITE survives it. Both halves matter — the contract and the site that depends on it.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// WHY THE POLICY IS MOCKED RATHER THAN STUBBED UNDERNEATH
+// TWO MODULE INSTANCES, ON PURPOSE
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// `@/lib/payments/retire-checkout` is replaced wholesale so that the CALL — its arguments, its count, and
-// the database state visible AT CALL TIME — is the observable. The policy's own behaviour (probe-first,
-// never expire a `paid` session, never write a `booking` row, never throw) is 13.1-04's subject and is
-// covered by 15 cases in `tests/payments/retire-checkout.test.ts` plus a live PayMongo proof. Re-asserting
-// it here would duplicate that file and, worse, would let this file pass while the WIRING was wrong.
+// The first two describe blocks import `units.ts` with `@/lib/payments/retire-checkout` MOCKED WHOLESALE,
+// so the CALL — its arguments, its count, and the database state visible AT CALL TIME — is the observable.
+// That is what proves the WIRING, and it proves nothing about what the wiring reaches.
+//
+// The third block imports `units.ts` with the REAL policy and only `@/lib/paymongo` stubbed underneath, so
+// the whole chain runs: reclaim → policy → probe → (expire | NOT). It exists because the D-113 evidence
+// rule — a session the provider reports `paid` is never sent to expire — is a call count of ZERO, and a
+// zero asserted only against a mocked-out policy would be unfalsifiable at this call site. Case (10) is
+// its guard-the-guard: an `active` session must still reach `expireCheckoutSession` exactly once.
+//
+// The policy's own internals (six outcomes, the never-throw contract, the audit meta's D-72 discipline)
+// remain 13.1-04's subject, covered by 15 cases in `tests/payments/retire-checkout.test.ts` plus a live
+// PayMongo proof. Re-asserting them here would duplicate that file and let this one pass while the WIRING
+// was wrong.
 //
 // ⚠ EVERY FIXTURE WINDOW IS CLOCK-RELATIVE (the DEF-IR9-01 rule). `createPendingHold`'s D-96 lead guard is
 // SQL evaluated against POSTGRES's now(), so a pinned calendar window becomes a "too soon" refusal the day
@@ -105,6 +114,7 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
+import { mockPayMongo } from "../helpers/mocks";
 import { VENUE_TZ, venueWindow, assertBookableWindow } from "../helpers/dates";
 import { user, listing, operatingHours, booking } from "@/lib/db/schema";
 import type { RetirableSession, RetireOutcome } from "@/lib/payments/retire-checkout";
@@ -113,6 +123,8 @@ let testDb: TestDb;
 type UnitsModule = typeof import("@/lib/availability/units");
 /** `units.ts` imported with `@/lib/payments/retire-checkout` MOCKED — the call is the observable. */
 let units: UnitsModule;
+/** `units.ts` imported with the REAL policy over a stubbed `@/lib/paymongo` — the CHAIN is the observable. */
+let unitsReal: UnitsModule;
 
 /** THE SECOND, INDEPENDENT CONNECTION. Property (A) is unprovable without it — see the header. */
 let watcher: ReturnType<typeof makeRacingClients>[number];
@@ -143,6 +155,8 @@ async function observeThenRetire(rows: RetirableSession[]): Promise<RetireOutcom
 const retireBatchMock = vi.fn(observeThenRetire);
 /** Never expected to be called from `units.ts` — it calls the BATCH form. Present so the mock is total. */
 const retireOneMock = vi.fn(async (): Promise<RetireOutcome> => "retired");
+/** The audit sink, mocked so the REAL policy's alert is countable and never reaches a database. */
+const recordAuditMock = vi.fn(async (_r: { action: string; outcome: string }) => {});
 
 /** The mock's calls flattened to the two things every case asserts on: the rows, and the trigger. */
 function retireCalls(): Array<{ rows: RetirableSession[]; trigger: string }> {
@@ -319,6 +333,16 @@ beforeAll(async () => {
     closeTime: "23:00:00",
   });
 
+  // ⚠ Without a secret the REAL probe answers `null` with no request at all (D-35's CI secret boundary)
+  // and the probe-first block below would be measuring that short-circuit instead of the policy.
+  vi.stubEnv("PAYMONGO_SECRET_KEY", "declared-by-this-harness-not-a-real-paymongo-credential");
+  vi.doMock("@/lib/audit", () => ({ recordAudit: recordAuditMock }));
+  vi.doMock("@/lib/paymongo", () => ({
+    getCheckoutSession: mockPayMongo.getCheckoutSession,
+    expireCheckoutSession: mockPayMongo.expireCheckoutSession,
+  }));
+
+  // INSTANCE 1 — the policy replaced by a counting/observing mock. Both describe blocks above use this.
   vi.doMock("@/lib/payments/retire-checkout", () => ({
     retireCheckoutsForBookings: retireBatchMock,
     retireCheckoutForBooking: retireOneMock,
@@ -326,20 +350,45 @@ beforeAll(async () => {
   }));
   vi.resetModules();
   units = await import("@/lib/availability/units");
+
+  // INSTANCE 2 — the REAL policy, over the stubbed provider. Imported here rather than inside a case so
+  // neither block depends on describe ordering.
+  vi.doUnmock("@/lib/payments/retire-checkout");
+  vi.resetModules();
+  unitsReal = await import("@/lib/availability/units");
 });
 
 beforeEach(() => {
   retireBatchMock.mockReset();
   retireBatchMock.mockImplementation(observeThenRetire);
   retireOneMock.mockClear();
+  recordAuditMock.mockClear();
   seenAtCallTime.length = 0;
+  mockPayMongo.getCheckoutSession.mockReset();
+  mockPayMongo.expireCheckoutSession.mockReset();
+  mockPayMongo.expireCheckoutSession.mockImplementation(async (id: string = "cs_d") => ({ id }));
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterAll(async () => {
-  vi.doUnmock("@/lib/payments/retire-checkout");
+  vi.doUnmock("@/lib/audit");
+  vi.doUnmock("@/lib/paymongo");
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   await watcher.end();
   await teardownTestDb(testDb);
 });
+
+/** A PayMongo Checkout Session body in the shape `getCheckoutSession` returns. */
+function session(id: string, status: string) {
+  return {
+    id,
+    status,
+    sourceType: status === "paid" ? "gcash" : null,
+    paidAt: status === "paid" ? new Date("2026-08-22T03:00:00Z") : null,
+    paymentId: status === "paid" ? `pay_${id}` : null,
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("the EXCLUSIVE reclaim (createPendingHold) retires the session it orphans", () => {
@@ -585,5 +634,91 @@ describe("the OPEN-CAPACITY reclaim (createOpenCapacityHold) retires the session
     ).toBe(true);
     expect(await statusOf("bk_hlr_oc_reject")).toBe("cancelled");
     expect(retireCalls()).toHaveLength(1);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("PROBE FIRST AT THE CALL SITE — the REAL policy, over a stubbed provider", () => {
+  // The two blocks above replace the policy, so they prove the WIRING and nothing about what the wiring
+  // reaches. This one runs `units.ts` against the REAL `retire-checkout` with only `@/lib/paymongo`
+  // stubbed underneath, so the whole chain is exercised: reclaim → policy → probe → (expire | not).
+  //
+  // ⚠ THE EVIDENCE RULE IS A CALL COUNT OF ZERO, AND IT HAS TO BE A ZERO THAT CAN ACTUALLY FAIL — hence
+  // the guard-the-guard case first. D-113's own words: expiry closes the ABILITY TO PAY; it must not erase
+  // a payment that already happened. If the booker paid in the seconds before the reclaim, that money is
+  // real, and 13.1-02's reconciler is what turns it into a confirmed booking.
+  // ═════════════════════════════════════════════════════════════════════════════════════════════════════
+
+  const W_PROBE_ACTIVE = venueWindow({ hour: 20, weekday: MONDAY });
+  const W_PROBE_PAID = venueWindow({ hour: 22, weekday: MONDAY });
+
+  it("(10) GUARD-THE-GUARD — an `active` session IS expired through the real policy, exactly once", async () => {
+    await seedLapsedHold({
+      id: "bk_hlr_active",
+      listingId: L_EXCL,
+      startsAt: W_PROBE_ACTIVE.start,
+      endsAt: W_PROBE_ACTIVE.end,
+      checkoutSessionId: "cs_active_E",
+    });
+    mockPayMongo.getCheckoutSession.mockImplementation(async (id: string = "cs_d") =>
+      session(id, "active"),
+    );
+
+    const res = await unitsReal.createPendingHold(testDb.db, {
+      listingId: L_EXCL,
+      bookerId: OTHER,
+      startsAt: W_PROBE_ACTIVE.start,
+      endsAt: W_PROBE_ACTIVE.end,
+    });
+
+    expect("ok" in res && res.ok).toBe(true);
+    expect(await statusOf("bk_hlr_active")).toBe("cancelled");
+    // Without this case the ZERO asserted below would be unfalsifiable — it would pass just as happily if
+    // the reclaim never reached the policy at all.
+    expect(mockPayMongo.expireCheckoutSession.mock.calls.map((c) => c[0])).toEqual(["cs_active_E"]);
+  });
+
+  it("(11) A `paid` SESSION IS NEVER SENT TO EXPIRE — a provider call count of ZERO, and the row untouched", async () => {
+    await seedLapsedHold({
+      id: "bk_hlr_paid",
+      listingId: L_EXCL,
+      startsAt: W_PROBE_PAID.start,
+      endsAt: W_PROBE_PAID.end,
+      checkoutSessionId: "cs_paid_D",
+    });
+    mockPayMongo.getCheckoutSession.mockImplementation(async (id: string = "cs_d") =>
+      session(id, "paid"),
+    );
+
+    const res = await unitsReal.createPendingHold(testDb.db, {
+      listingId: L_EXCL,
+      bookerId: OTHER,
+      startsAt: W_PROBE_PAID.start,
+      endsAt: W_PROBE_PAID.end,
+    });
+
+    // The slot is still freed and re-sold — that half never depends on the provider.
+    expect("ok" in res && res.ok).toBe(true);
+
+    // THE EVIDENCE RULE. Not "expire and tolerate the throw" — a provider call that is NEVER MADE.
+    expect(
+      mockPayMongo.expireCheckoutSession,
+      "a session PayMongo reports as PAID was sent to expire from a reclaim. This is the D-113 evidence " +
+        "constraint: the money is real and the session is the only handle on it. Expiry closes the " +
+        "ABILITY to pay; it must never erase a payment that already happened.",
+    ).not.toHaveBeenCalled();
+
+    // …and the row keeps its handle on the money. `checkout_session_id` is NEVER nulled by anything on
+    // this path, so 13.1-02's reconciler and a human operator can both still find the payment.
+    const row = await rowOf("bk_hlr_paid");
+    expect(row!.status).toBe("cancelled");
+    expect(row!.checkout_session_id).toBe("cs_paid_D");
+
+    // A reclaimed row is terminal, so NO reconciler reaches it — which is exactly why the policy alerts
+    // here rather than staying silent as it does for a still-`pending` row (13.1-02 owns those).
+    const actions = recordAuditMock.mock.calls.map((c) => c[0]);
+    expect(actions).toEqual([
+      expect.objectContaining({ action: "checkout_paid_after_lapse", outcome: "needs_attention" }),
+    ]);
   });
 });
