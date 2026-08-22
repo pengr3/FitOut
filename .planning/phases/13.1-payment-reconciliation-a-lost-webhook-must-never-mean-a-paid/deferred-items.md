@@ -46,3 +46,38 @@ strictly better as an assertion, but it does mean **no other module can read the
 plan needs the number at a second call site, move the constant to a non-`"use server"` module rather
 than duplicating the literal.
 
+
+## Status updates from 13.1-04
+
+**Row 1 — STILL CLOSED, and 13.1-04 adds no third caller of `confirmPaidBooking`.** The retire sweep never
+calls the confirm at all: it writes no `booking` row and reaches only `queryRetirableSessions`'s own
+candidate set. A `paid` session on a still-`pending` row is left for `payment-reconcile` **deliberately
+silent** (asserted as ZERO audit calls) precisely so one payment produces one row in the operator's queue
+rather than two. `tests/payments/confirm-idempotency.test.ts` case (5) is untouched and still expects 2.
+
+**Row 2 — PARTIALLY DISCHARGED. The Checkout Session response shape has now been LIVE-OBSERVED for the
+`status` field, though not for `payments[0].id`.** `tests/paymongo/lapsed-hold-not-payable-real.test.ts`
+runs a real `GET /v1/checkout_sessions/<id>` against `sk_test_` twice per run and asserts the raw status
+string on both (`active`, then `expired`). So `getCheckoutSession`'s status read is no longer inferred from
+fixtures. The `pay_...` placement remains unobserved because that needs a **paid** session, which this file
+deliberately never produces — its whole point is a session that was never paid. Capturing one real
+paid-session body is still a live-UAT item, and the settling screen remains the best place to do it.
+
+## New residual, recorded by 13.1-04 — the retire sweep's lookback window
+
+**A hold that lapses while `checkout-retire-sweep` is DOWN for more than ~25 minutes leaves the 30-minute
+lookback window unswept, and its PayMongo session stays payable indefinitely.**
+
+- **Why it exists:** `RETIRE_LOOKBACK_MINUTES = 30` is the no-migration answer to "have we already retired
+  this one" (**D-112**). The alternative — a marker column on `booking` — would remove the window entirely
+  but costs a migration, and would have to be updated in GATE-06's assertion and Phase 17's closing proof in
+  the same change.
+- **Why it is acceptable today:** it is bounded (six ticks of coverage), and **D-108**'s retained gone-slot
+  backstop still governs a payment that lands after the hold is gone — so the failure mode is "a booker can
+  still pay a dead hold during an outage", which is exactly the pre-13.1-04 status quo, not a regression.
+- **What closes it properly:** **13.1-05**'s inline reclaim wirings retire at the moment of reclaim, with no
+  window at all. Between them, the residual shrinks to "a lapse that neither a reclaim nor six cron ticks
+  ever visited".
+- ⚠ **Do NOT close it by widening the lookback.** That is the D-111 no-backfill mechanism as well as the
+  de-duplication bound — `tests/payments/checkout-retire.test.ts` case (7) reddens on it and names both
+  evidence fixtures in its failure message.

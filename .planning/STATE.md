@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: "Phase 13.1 (INSERTED, payment reconciliation) — 13.1-03 DONE: the settling screen now has a fast path. One authenticated, ownership-checked, rate-limited, EPOCH-BOUNDED server action (reconcilePaymentNow) reuses the sweep's own reconcileOne body and is fired ONCE by a latched effect when the frozen poller gives up — zero new copy strings, no second D-110 alert, and the poller's diff is a single replaced destructure line. Every refusal is proven by the PROVIDER CALL COUNT it did not spend. Three plan instructions could not be honoured as written and were measured instead: the rate-limit constant cannot be exported from a \"use server\" module (watched red), bookingId must be OPTIONAL or a frozen suite stops typechecking, and reconcileOne's row shape in the plan does not exist. A hole the plan did not name was found by querying dev and closed: without D-111's RECONCILE_EPOCH the fast path would have confirmed a protected fixture through a page visit (break returned 'reconciled'). Both evidence bookings still pending/NULL. Gates green: npm test 1635, test:design 816, build clean, tsc 0, drizzle still ends at 0025. Phase 13 remains EXECUTED-not-complete behind it (4 manual walks + SUPPORT_EMAIL at src/lib/site.ts:70)."
-last_updated: "2026-08-22T06:45:00.000Z"
+stopped_at: "Phase 13.1 (INSERTED, payment reconciliation) — 13.1-04 DONE: D-113 is closed at the source. A registered 5-minute checkout-retire sweep (TZ=Asia/Manila 4-59/5) retires the PayMongo session of every hold that lapsed inside the last 30 minutes, through ONE probe-first policy that never sends a `paid` session to expire (a call count of ZERO) and structurally cannot throw (asserted three ways with .resolves, including recordAudit rejecting). NO booking row is written anywhere — the lapsed hold stays `pending` on purpose because that is exactly what 13.1-02's queryUnconfirmedPaid selects. Proven live: cs_95208137133e72b0722056fc read `active` before the shipped sweep and `expired` after, and the red was watched (expire call deleted -> step 5 read `active` while no call count moved). Six deliberate breaks, four red, TWO that reddened nothing and are recorded as findings — including one that falsifies the plan's own red_watch. D-111: the shipped predicate returns 0 rows on dev; both fixtures pending/NULL after every gate. Gates green: npm test 1668/5, test:design 816/3, build clean, tsc 0, drizzle still ends at 0025. Only 13.1-05 (the inline reclaim wirings, an ACCELERANT) remains."
+last_updated: "2026-08-22T07:23:56.789Z"
 last_activity: 2026-08-22
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 75
-  completed_plans: 73
+  completed_plans: 74
   percent: 25
 ---
 
@@ -45,39 +45,46 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13.1 (INSERTED — Payment Reconciliation)
-Plan: 3 of 5
-Current Plan: 3
+Plan: 4 of 5
+Current Plan: 4
 Total Plans in Phase: 5
-Status: **13.1-03 executed and committed (`4198528` · `d028882` · `911ad85` · `b1c98ce`). Waves 1-3 done; 13.1-04…05 remain.**
+Status: **13.1-04 executed and committed (`803179e` · `8186fea` · `a625366`). Waves 1-3 done + the D-113 guarantee; only 13.1-05 (the inline reclaim wirings) remains.**
 
-**THE FAST PATH IS IN, AND IT IS PROVABLY NOT THE GUARANTEE.** `src/app/actions/reconcile-payment.ts` is
-an authenticated, ownership-checked, rate-limited (5/60s per user), epoch-bounded server action that owns
-no UPDATE, no probe and no alert policy — it resolves who is asking and delegates to the sweep's
-`reconcileOne`. `PendingPaymentState` fires it ONCE, behind a latch, when the poller gives up at ~20s, then
-refreshes the RSC. Deleting the whole plan costs a booker **up to five minutes of waiting and nothing
-else**: the cron is byte-identical, and the action is bounded by the SAME `RECONCILE_EPOCH` and the same
-payable-status scope, so its reach is a subset of the guarantee's by construction.
+**THE HOLE IS CLOSED AT ITS SOURCE — D-113 IS TRUE, AND WITHOUT 13.1-05.** `checkout-retire-sweep`
+(`TZ=Asia/Manila 4-59/5`, registered) probes every hold that lapsed inside the last 30 minutes and retires
+its PayMongo session, so an open tab or an unscanned QR can no longer charge a booker for a slot FitOut
+has already given away. Plans 01-03 reconcile the aftermath of money we should never have taken; this
+removes the case. `src/lib/payments/retire-checkout.ts` is the ONE policy behind it, and 13.1-05's three
+inline reclaim wirings will call the same function — they are an accelerant, never a second guarantee.
 
-**ZERO NEW COPY.** The component's diff contains exactly ONE removed line — the destructure it replaces —
-and no mechanics token. `tests/booking/payment-states.test.tsx`, `tests/design/pending-copy.test.ts` and
-`tests/design/site-contacts.test.ts` are all byte-identical to `origin/dev` and green, which is how D-102's
-no-new-claims and D-109's mechanics-frozen halves are discharged behaviourally rather than by inspection.
+**IT REACHES THE CASE NOTHING ELSE DOES.** A lapsed `pending` instant-book hold on a slot nobody else wants
+is flipped by NOTHING: `request-expiry.ts` selects only `requested`/`approved`, and the lazy read
+predicates free the slot for *display* while the row sits `pending` and its session stays payable forever.
+A plan that wired only the three enumerated reclaims would have satisfied the enumeration and left the
+dominant case wide open.
 
-⚠ **THREE OF THE PLAN'S INSTRUCTIONS COULD NOT BE HONOURED AS WRITTEN.** (1) `RECONCILE_RATE_LIMIT` cannot
-be EXPORTED — a `"use server"` module may export only async functions, and the export was added on purpose
-and watched redden `tests/use-server-exports.test.ts` (the guard written for the `avatar.ts` defect that
-broke uploads for a whole phase). It is module-private, exactly as `CANCEL_RATE_LIMIT` is, and the spec
-discovers the budget behaviourally. (2) `bookingId` had to be OPTIONAL: required, it fails `tsc` on
-`payment-states.test.tsx`, which the same plan freezes with an empty diff — a case now asserts the real
-call site passes it. (3) The plan's `reconcileOne` row shape (`bookingId`/`createdAt`) does not exist; the
-real type is `{ id, checkoutSessionId, expiresAt, status }`.
+**PROVEN AGAINST PAYMONGO, NOT AGAINST A CALL COUNT.** A real `sk_test_` session
+(`cs_95208137133e72b0722056fc`) read **`active`** before the shipped sweep and **`expired`** after, over a
+fresh request. Its red was watched too: with the expire call deleted, step (5) read **`active`** while
+`retireOne` still resolved `"retired"` and no stub count moved anywhere.
 
-⚠ **AND A HOLE THE PLAN DID NOT NAME WAS FOUND BY QUERYING DEV.** Both evidence fixtures are `pending`,
-hold a `checkout_session_id`, carry a real capture at PayMongo and belong to **the seeded UAT booker** — so
-without a D-111 bound, that booker opening either booking's `?paid=1` URL would have confirmed a protected
-fixture twenty seconds later. The action now imports the same `RECONCILE_EPOCH`; with it removed, a row
-carrying the later fixture's exact measured `created_at` came back **`reconciled`**. Both fixtures re-read
-`pending` / NULL / NULL after every gate.
+**THE TRAP IS HELD FROM BOTH SIDES.** A session the provider reports `paid` is never sent to expire **at
+all** (a call count of ZERO, behind a guard-the-guard proving the stub is reachable), and no `booking` row
+is written by any file in this plan — the lapsed hold stays `pending` **on purpose**, because that is
+precisely and only what 13.1-02's `queryUnconfirmedPaid` selects. Cancelling it would silently delete this
+phase's own guarantee for a booker who paid at the last second.
+
+⚠ **TWO MORE PLAN INSTRUCTIONS DID NOT SURVIVE MEASUREMENT** (the sixth and seventh this phase).
+(1) Break #1's predicted double-red is unsatisfiable — the *identical* derived-cron contradiction 13.1-02
+recorded; case (c3) was proven against the drift it actually detects. (2) The red_watch's
+`expires_at IS NOT NULL` row is wrong on both counts: that clause cannot affect a LIVE hold, and removing
+it alone reddens **nothing** because SQL three-valued logic already excludes NULL twice over. Six breaks
+applied, four red, two recorded as findings. The redundant clause was KEPT, with the reason written down.
+
+⚠ **D-111 verified against the REAL dev database:** the shipped predicate returns **0 rows**. Both evidence
+fixtures re-read `pending` / NULL `payment_id` / session id intact after every gate. Unlike an epoch
+constant, this bound is structural — `expires_at` is fixed while `now()` only grows, so a row that has left
+the 30-minute window can never re-enter it.
 
 ⚠ **ONE PREDICTION IN THE PLAN WAS SIMPLY WRONG AND IS RECORDED AS SUCH.** The latch is not what makes the
 probe fire once: React's double-invoke happens at MOUNT, where `slow` is false and the effect returns
@@ -178,7 +185,6 @@ across all 69 commits of the phase. Invariants held: `drizzle/` still ends at `0
 trigger moved (D-78), `package.json` **and** `package-lock.json` byte-unchanged (zero packages), zero
 `src/components/ui/**` edits, no baseline minted locally. Closing gates all exit 0: `npm test` **1516/4**,
 design **801/3**, `npm run build`, `npx tsc --noEmit`.
-
 
 **13-14 IS DONE (`b00747b` · `81157ee`) — the live-region debt this phase inherited is DISCHARGED BY
 AUDIT, and the numbers in it were all re-measured rather than carried forward.** `LIVE_REGION_EXCLUSIONS`
@@ -647,6 +653,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 13 P14 | 40min | 2 tasks | 7 files |
 | Phase 13.1 P01 | 45min | 3 tasks | 7 files |
 | Phase 13.1 P02 | 40min | 3 tasks | 5 files |
+| Phase 13.1 P04 | 34min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1033,6 +1040,7 @@ Recent decisions affecting current work:
 - [Phase 13.1]: 13.1-01: EXACTLY ONE confirm path now exists — `src/lib/payments/confirm-booking-payment.ts` (`confirmPaidBooking`, dbConn-parameterised). The webhook CALLS it instead of owning it; `grep -rn "status = 'confirmed'" src/` returns one WRITE and everything else is a read predicate. Re-entrancy proven by RUNNING it — two independent Postgres connections under one `Promise.all` yield one `confirmed` + one `already-confirmed`, one email, zero refunds. The status-scoped WHERE was dropped ON PURPOSE, reddened 5 of 7 cases (verbatim in the spec header), and was restored from a saved copy. ⚠ The three UNPREDICTED reds are the finding: without that clause the confirm resurrects a `cancelled` booking and the D-58 gone-slot backstop becomes unreachable — one clause carries both guarantees.
 - [Phase 13.1]: 13.1-01: `CheckoutSessionState.paymentId` reads the `pay_...` ENVELOPE-FIRST (`payments[0].id`) with the plan's `payments[0].attributes.id` as a documented fallback. ⚠ The plan's prose path ALONE returned `null` against this repo's own contract fixture (measured: `expected null to be 'pay_env_1'`) — i.e. it would have shipped the exact `payment_id = NULL` bug the field exists to prevent, permanently downgrading every later cancellation refund on a reconciled booking to manual return. Both placements are pinned by a case; the shape is still NOT live-observed.
 - [Phase 13.1]: 13.1-01 RECORDED DEFECT, deferred to 13.1-02 by D-112/D-108: the gone-slot operator alert is NOT de-duplicated — two passes over one dead row write TWO `needs_attention` records (measured). Money is safe (`createRefund` stays at ZERO across the re-run, T-13.1-06); only the alert repeats. ⚠ The 5-minute sweep's candidate set MUST be `pending`/`approved` only, or D-110's loud-missed-webhook dies of noise. See the phase's `deferred-items.md`.
+- [Phase ?]: 13.1-04: D-113 closed at the source — a 5-minute checkout-retire sweep retires every recently-lapsed hold's PayMongo session, probe-first so a session the provider reports `paid` is NEVER sent to expire (a call count of ZERO), and the lapsed row is deliberately left `pending` because that is exactly what 13.1-02's queryUnconfirmedPaid selects.
 
 ### Pending Todos
 
@@ -1138,8 +1146,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-22T06:45:00.000Z
-Stopped at: Completed 13.1-03-PLAN.md — phase 13.1 wave 3. The settling screen's fast path is in: one
+Last session: 2026-08-22T07:23:56.750Z
+Stopped at: Completed 13.1-04-PLAN.md
 authenticated, epoch-bounded server action reusing the sweep's `reconcileOne`, fired once by a latched
 effect after the poll cap, with ZERO new copy and the frozen poller's diff down to a single replaced
 destructure line. 13.1-04 is next. ⚠ TWO THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) The fast path
