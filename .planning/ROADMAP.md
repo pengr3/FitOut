@@ -361,7 +361,7 @@ Plans:
 
 **Scope note:** this phase owns `/bookings/**` on the booker side plus the group surfaces (`/invite/[token]`, `/bookings/[id]/group`). Research treated group/open-capacity as a fourth parallel track; REQUIREMENTS.md defines **no separate REQ-IDs** for it, so a standalone phase would carry zero requirements. Folded here instead — `/invite/[token]` is a post-booking artifact and the open-capacity picker is a pre-hold listing surface (Phase 12). Stated as a deliberate departure from the research's phase shape, with the reason.
 
-### Phase 13.1: Payment Reconciliation — a lost webhook must never mean a paid booker with no booking (INSERTED)
+### Phase 13.1: Payment Reconciliation — a lost webhook must never mean a paid booker with no booking (INSERTED) ✅ COMPLETE 2026-08-22
 
 **Goal**: A booker who paid always ends up with a booking. A lost webhook becomes a delay, never a silent loss.
 **Depends on**: Phase 13
