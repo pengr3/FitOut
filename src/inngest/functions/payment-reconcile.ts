@@ -118,6 +118,17 @@ export const RECONCILE_MIN_AGE_MINUTES = 2;
  * NOT READ FROM THE ENVIRONMENT, deliberately. An unset variable would either backfill silently (falling
  * back to epoch zero) or disable the sweep silently (falling back to a far-future instant), and both are
  * worse than a constant somebody has to edit on purpose in a reviewed commit.
+ *
+ * ⚠ IT IS BOUND INTO SQL AS `.toISOString()` WITH AN EXPLICIT `::timestamptz`, NEVER AS THIS Date OBJECT.
+ * Measured while running `tests/payments/payment-reconcile.test.ts` for the first time — the Date form
+ * made drizzle tag the parameter as timestamptz (OID 1184), whose postgres.js serializer expects a string,
+ * and every single call threw:
+ *
+ *     TypeError: The "string" argument must be of type string or an instance of Buffer or ArrayBuffer.
+ *     Received an instance of Date          (code ERR_INVALID_ARG_TYPE, types: [1184, 23, 20])
+ *
+ * i.e. the sweep would have failed its query on every pass, in a module whose entire job is to be the
+ * guarantee. It type-checked and it linted; only running it found this.
  */
 export const RECONCILE_EPOCH = new Date("2026-08-22T12:00:00+08:00");
 
@@ -201,7 +212,12 @@ export async function queryUnconfirmedPaid(dbConn: DbConn = db): Promise<Unconfi
     FROM booking
     WHERE status IN ('pending', 'approved')
       AND checkout_session_id IS NOT NULL
-      AND created_at >= ${RECONCILE_EPOCH}
+      -- The epoch is bound as an ISO STRING with an explicit cast, NOT as a Date object. MEASURED, and
+      -- recorded in full at the RECONCILE_EPOCH declaration: handing drizzle a Date here tags the
+      -- parameter timestamptz (OID 1184), whose postgres.js serializer expects a string and throws
+      -- ERR_INVALID_ARG_TYPE, so EVERY pass of the sweep died on its first query. Reading this file could
+      -- not have caught that; running it did.
+      AND created_at >= ${RECONCILE_EPOCH.toISOString()}::timestamptz
       AND created_at <= now() - make_interval(mins => ${RECONCILE_MIN_AGE_MINUTES}::int)
     ORDER BY created_at ASC
     LIMIT ${RECONCILE_BATCH_LIMIT}
