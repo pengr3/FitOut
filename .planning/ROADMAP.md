@@ -410,14 +410,14 @@ have been given.
 server-only, bounded, resolves `null` on any failure, and returns the rail and `paid_at`. It is exactly
 the call that found the two rows above. Nothing queries it on a schedule.
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 13.1-01-PLAN.md — extract D-105's single idempotent confirm path out of the webhook route, carry the `pay_...` off the provider read, and prove the guard by running confirm twice concurrently
 - [x] 13.1-02-PLAN.md — the 5-minute reconciliation sweep (the guarantee): probe recent paid-but-unconfirmed bookings, confirm through the one path, alert on a missed webhook, no backfill
 - [x] 13.1-03-PLAN.md — the fast path: one authenticated, rate-limited reconcile after the settling screen's poll cap, reusing the sweep's own body and adding no copy
 - [x] 13.1-04-PLAN.md — close it at the source (D-113), the guarantee: the retire policy (probe-first, never expires a paid session, cannot throw) plus the 5-minute sweep that reaches every lapsed hold — proven against a real sk_test_ session
-- [ ] 13.1-05-PLAN.md — D-113 accelerant: wire the same policy into the three in-transaction lapse paths (both units.ts reclaims + request-expiry), post-commit, so a lapsed session dies in seconds rather than at the next tick
+- [x] 13.1-05-PLAN.md — D-113 accelerant: wire the same policy into the three in-transaction lapse paths (both units.ts reclaims + request-expiry), post-commit, so a lapsed session dies in seconds rather than at the next tick
 
 ### Phase 14: Host Tooling
 
@@ -575,7 +575,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
-| 13.1 Payment Reconciliation (INSERTED) | v1.1 | 4/5 | In progress (waves 1-3 done + the D-113 guarantee — a lapsed hold's checkout session is now retired on a schedule, proven against a real sk_test_ session) | - |
+| 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
