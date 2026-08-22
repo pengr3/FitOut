@@ -9,20 +9,24 @@
 // NOTE (verified, no code change): src/middleware.ts matches ONLY /login and /signup — it does NOT
 // touch /api/paymongo, so this endpoint is reachable by PayMongo unauthenticated (correct — PayMongo
 // is the caller, and the Paymongo-Signature is the authentication).
+//
+// ⚠ THE CONFIRM NO LONGER LIVES HERE (13.1-CONTEXT D-105, plan 13.1-01). The `pending|approved →
+// confirmed` UPDATE, the BOOK-06 confirmed emission and the D-58 gone-slot backstop were MOVED — not
+// reimplemented — into `src/lib/payments/confirm-booking-payment.ts`, so that a reconciliation sweep and
+// this webhook converge on ONE statement, one slot, one payout-ledger row, one email. This route still
+// owns the trust boundary (signature verification, the `paymongo_event` id ledger, event-shape parsing)
+// and hands the module three already-resolved server-derived facts.
+//
+// ⚠ ADDING A SECOND CONFIRM SITE — here or anywhere — IS EXACTLY WHAT D-105 FORBIDS. Two roads to
+// `confirmed` is how one payment produces two payout rows and two emails. Widen `confirmPaidBooking`
+// instead; never write another `UPDATE booking SET status = 'confirmed'`.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { booking, hostPayout, hostPayoutLedger, listing, paymongoEvent, user } from "@/lib/db/schema";
-import { createRefund } from "@/lib/paymongo";
-// The rail-refundability question is answered in exactly ONE place (07-03). Do not re-inline the set here —
-// if the Plan-16 probe refutes the QRPh premise, that module is the only file that changes.
-import { isApiRefundable } from "@/lib/payments/refund-rail";
+import { booking, hostPayout, hostPayoutLedger, paymongoEvent } from "@/lib/db/schema";
+import { confirmPaidBooking } from "@/lib/payments/confirm-booking-payment";
 import { recordAudit } from "@/lib/audit";
-import { emitNotify } from "@/lib/notifications";
-import { bookingReference } from "@/lib/booking/reference";
-import { composeWhenLabel } from "@/lib/booking/when-label";
-import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 
 // Signature verification needs node crypto + the RAW request body — this MUST be the Node runtime, not edge.
 export const runtime = "nodejs";
@@ -116,10 +120,12 @@ function verifySignature(rawBody: string, sig: SigParts, secret: string): boolea
  * The PAYMENT RAIL used for a checkout session ("card" / "gcash" / "paymaya" / "qrph" / …), read off the
  * VERIFIED event resource — never a client-supplied field. `"unknown"` when the shape does not carry one.
  *
- * ONE resolver, two call sites (the confirm UPDATE below and handleGoneSlot). Both feed `isApiRefundable`,
- * which fails closed, so the two must agree byte-for-byte about what the rail was: a rail resolved one way
- * at confirm and another way at refund time is a silent divergence in which money moves the resolver
- * disagrees about.
+ * ONE resolver for this event shape, feeding BOTH halves of the confirm — the UPDATE's captured rail and
+ * the gone-slot backstop's refund decision, which now live together in
+ * `src/lib/payments/confirm-booking-payment.ts`. Both feed `isApiRefundable`, which fails closed, so they
+ * must agree byte-for-byte about what the rail was: a rail resolved one way at confirm and another way at
+ * refund time is a silent divergence in which money moves the resolver disagrees about. That is exactly
+ * why the resolved STRING crosses into the module and this event-shaped function does not.
  */
 function resolvePaymentMethod(cs: PayMongoResource | undefined): string {
   return cs?.attributes?.payments?.[0]?.source?.type ?? cs?.attributes?.payment_method_used ?? "unknown";
@@ -129,157 +135,6 @@ function resolvePaymentMethod(cs: PayMongoResource | undefined): string {
 function resolveAccountId(event: PayMongoEvent): string | undefined {
   const a = event.data?.attributes;
   return a?.data?.id ?? a?.merchant_id ?? a?.account_id ?? undefined;
-}
-
-/**
- * D-58 auto-refund backstop. A `checkout_session.payment.paid` whose confirm UPDATE claimed 0 rows means
- * one of two things: a BENIGN replay (the booking is already `confirmed` — do NOTHING, never refund a
- * paid+confirmed booking) OR the slot is GENUINELY GONE (the hold was swept and the slot retaken during
- * payment — e.g. the double-book-during-payment loser). For the gone case we must NEVER silently keep the
- * money: refund on a refundable rail, or raise an operator alert on QRPh/UBP (which PayMongo cannot API-
- * refund, Pitfall 1) or a failed refund. In BOTH gone-slot branches we set the booking terminal
- * (`cancelled`) so the booker's `?paid=1` return renders PaymentReversedState (Plan 03) rather than a
- * stuck interstitial.
- */
-async function handleGoneSlot(
-  bookingId: string,
-  paymentId: string | null,
-  cs: PayMongoResource | undefined,
-): Promise<void> {
-  // Re-read to distinguish a benign replay (already confirmed → no-op) from a genuinely gone slot, and to
-  // read the SERVER-FROZEN amount to refund (mismatch-proof full refund — never trust a client body field).
-  const [current] = await db
-    .select({ status: booking.status, quotedTotalCents: booking.quotedTotalCents })
-    .from(booking)
-    .where(eq(booking.id, bookingId));
-  if (!current || current.status === "confirmed") return; // never refund an already-confirmed booking
-
-  const method = resolvePaymentMethod(cs);
-  const amountCents = current.quotedTotalCents ?? 0;
-
-  if (isApiRefundable(method) && paymentId && amountCents > 0) {
-    // Refundable rail (card / GCash / GrabPay / Maya) — auto-refund the full frozen amount (D-60: no % tiers).
-    try {
-      await createRefund({
-        amountCents,
-        paymentId,
-        notes: `Auto-refund: slot unavailable (${bookingId})`,
-      });
-      console.info("[PAYMENT] auto_refund_ok", { bookingId, paymentId, method, amountCents });
-    } catch {
-      // A refund API failure falls through to the operator-alert path — never swallow held money.
-      console.error("[PAYMENT_ALERT] auto_refund_failed", { bookingId, paymentId, method, amountCents });
-      await recordAudit({
-        actorId: "system",
-        action: "auto_refund_failed",
-        outcome: "needs_attention",
-        meta: { bookingId, paymentId, method, amountCents },
-      });
-    }
-  } else {
-    // Unrefundable rail (qrph / dob_ubp / unknown) or no captured payment id → DO NOT call the API (it
-    // would 4xx, Pitfall 1). Raise an operator alert so the held money is surfaced, never silently kept.
-    console.error("[PAYMENT_ALERT] needs_manual_refund", { bookingId, paymentId, method, amountCents });
-    await recordAudit({
-      actorId: "system",
-      action: "auto_refund_manual",
-      outcome: "needs_attention",
-      meta: { bookingId, paymentId, method, amountCents },
-    });
-  }
-
-  // Both gone-slot branches: set the booking terminal (idempotency guard — never clobber a confirmed row)
-  // so the ?paid=1 return renders PaymentReversedState (D-58) rather than a stuck finalizing interstitial.
-  await db.execute(sql`
-    UPDATE booking SET status = 'cancelled' WHERE id = ${bookingId} AND status <> 'confirmed'`);
-}
-
-/**
- * BOOK-06 booking-confirmed notification — emitted on a SUCCESSFUL confirm (≥1 row), covering BOTH an
- * instant pay (confirmed from `pending`) and a pay-on-approval request (confirmed from `approved`). Never
- * fired on a 0-row confirm (replay / gone-slot): only a genuine transition to `confirmed` earns the receipt,
- * and that is what makes a PayMongo REDELIVERY produce no second notification — the status-scoped UPDATE is
- * the dedupe claim, one layer above the `paymongo_event` id ledger.
- *
- * 07-10 / D-83: this was `await sendBookingConfirmed(...)` behind a `void` call. It now emits the
- * `fitout/notify` event, so the send gains retry, backoff and per-run observability, and the durable in-app
- * notification row lands at parity (D-91).
- *
- * WHY THIS IS NOW AWAITED RATHER THAN `void`ed. The old `void` existed to keep a slow Resend call off the
- * 200-ACK path (T-06-15) — a rejected ACK makes PayMongo retry an already-confirmed event forever. Two
- * things changed. First, `emitNotify` is an enqueue, not a delivery: it hands off one small event and
- * returns, and it CANNOT reject (it swallows and logs its own transport errors), so it can never turn into
- * a non-200. Second, `void`ing an enqueue is actively worse than awaiting it here — the handler can return
- * and the runtime can freeze the process before an un-awaited outbound request has flushed, silently losing
- * the notification. The bounded read + enqueue below is the correct trade for that guarantee.
- *
- * The `try/catch` remains for the READ (a DB hiccup on the join): the confirm already succeeded and is
- * durable, so nothing here may affect the ACK.
- */
-async function emitBookingConfirmed(bookingId: string): Promise<void> {
-  try {
-    const [row] = await db
-      .select({
-        bookerId: booking.bookerId,
-        email: user.email,
-        title: listing.title,
-        timezone: listing.timezone,
-        city: listing.city,
-        startsAt: booking.startsAt,
-        endsAt: booking.endsAt,
-        spacePriceCents: booking.spacePriceCents,
-        quotedTotalCents: booking.quotedTotalCents,
-        currency: booking.currency,
-        // WR-06 pricing-mode snapshot + the formatter's pre-0016 positive-match reference (08-15).
-        fullDay: booking.fullDay,
-        // The OC-03 mode SNAPSHOT (drizzle 0021). The payment receipt is the most quoted-back surface in
-        // the app, so a drop-in pass must read as a pass here above all (09-08).
-        openCapacity: booking.openCapacity,
-        dayRateCents: listing.dayRateCents,
-      })
-      .from(booking)
-      .innerJoin(user, eq(booking.bookerId, user.id))
-      .innerJoin(listing, eq(booking.listingId, listing.id))
-      .where(eq(booking.id, bookingId));
-    if (!row) return;
-
-    // The SHARED venue-local formatter (07-02). This replaced a verbatim inline copy that INFERRED the
-    // mode by comparing a frozen price against a rate run-total — an inference that has since been deleted
-    // outright (08-15 / CR-01), because the D-108 per-head surcharge is folded into `spacePriceCents` and
-    // made it true of ordinary surcharged hourly bookings, printing "Full day" on this very receipt. The
-    // mode now comes from the booking's own PERSISTED `full_day` snapshot, and the price is consulted only
-    // by the formatter's pre-0016 positive day-rate match.
-    const whenLabel = composeWhenLabel({
-      startsAt: row.startsAt,
-      endsAt: row.endsAt,
-      timezone: row.timezone,
-      city: row.city,
-      fullDay: row.fullDay,
-      openCapacity: row.openCapacity,
-      spacePriceCents: row.spacePriceCents,
-      quotedTotalCents: row.quotedTotalCents,
-      dayRateCents: row.dayRateCents,
-    });
-    const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-    await emitNotify({
-      type: "booking_confirmed",
-      recipientId: row.bookerId,
-      bookingId,
-      email: row.email,
-      payload: {
-        type: "booking_confirmed",
-        listingTitle: row.title ?? "your space",
-        whenLabel,
-        totalLabel: formatMoney(row.quotedTotalCents ?? 0, row.currency ?? DISPLAY_CURRENCY),
-        referenceLabel: bookingReference(bookingId),
-        href: `${base}/bookings/${bookingId}`,
-      },
-    });
-  } catch (err) {
-    // The confirm already succeeded and the 200 ACK is (or will be) sent regardless. A read failure must
-    // never affect that ACK (T-06-15) — log for operators and move on.
-    console.error("[NOTIFY] booking_confirmed_emit_failed", { bookingId, err });
-  }
 }
 
 /** The refunded payment's id (`pay_...`), derived from the verified refund event (never a client field). */
@@ -418,38 +273,23 @@ export async function POST(req: Request): Promise<Response> {
     const bookingId = cs?.attributes?.reference_number;
     const paymentId = cs?.attributes?.payments?.[0]?.id ?? null;
     if (bookingId) {
-      // Single writer; the GiST EXCLUDE still guards the slot. Confirm on status IN ('pending','approved')
-      // — an instant pay confirms from `pending`, a pay-on-approval request from `approved` (PAY-05 / D-63);
-      // BOTH transition to `confirmed` through this ONE writer (D-57 — WIDEN the WHERE, never add a second
-      // confirm path). Confirm on status ALONE — the payment is the authority (D-57 / Pitfall 4). Do NOT
-      // re-impose the Phase-4 `expires_at > now()` guard: a legitimately-paid-but-lapsed hold must still
-      // confirm (else the booker is charged with no booking); the GiST EXCLUDE, not the TTL, is the
-      // double-confirm authority. Capture the pay_... so a later refund can reference it.
-      //
-      // 07-09: capture the RAIL alongside the payment id, from the same verified resource. A booker
-      // cancellation happens hours or days later with no event in hand, and `isApiRefundable` fails closed —
-      // so if the rail is not persisted HERE, every cancellation refund would be judged unrefundable and
-      // routed to the operator-alert path instead of actually moving money.
+      // 07-09: resolve the RAIL from the same verified resource the payment id came off. The event-shape
+      // resolver stays HERE, on purpose — `confirmPaidBooking`'s second caller (13.1's reconciliation
+      // sweep) holds a PROBE rather than an event, so the module must not know what a PayMongo event looks
+      // like. Each caller resolves the rail its own way and hands over a resolved string; both must resolve
+      // it identically, because the rail feeds `isApiRefundable`, which fails closed.
       const paymentMethod = resolvePaymentMethod(cs);
-      const rows = (await db.execute(sql`
-        UPDATE booking
-        SET status = 'confirmed', expires_at = NULL,
-            payment_id = ${paymentId}, payment_method = ${paymentMethod}
-        WHERE id = ${bookingId} AND status IN ('pending','approved') RETURNING id`)) as unknown as {
-        id: string;
-      }[];
-      if (rows.length === 0) {
-        // 0 rows ⇒ benign replay (already confirmed) OR the slot is genuinely gone. The D-58 backstop
-        // distinguishes them and auto-refunds / operator-alerts — never a silent money retention. UNCHANGED
-        // from Phase 5: it already covers the pay-after-release race for a released/declined request too.
-        await handleGoneSlot(bookingId, paymentId, cs);
-      } else {
-        // ≥1 row ⇒ a GENUINE confirm (instant OR pay-on-approval — never a replay), which is what makes a
-        // redelivery emit NOTHING. Emit the BOOK-06 booking-confirmed notification (D-83). The helper owns
-        // its own error handling and `emitNotify` cannot reject, so awaiting it can never turn the 200 ACK
-        // into a retry storm (T-06-15) — see the rationale on the helper.
-        await emitBookingConfirmed(bookingId);
-      }
+
+      // D-105: the ONE confirm path. The status-scoped UPDATE, the BOOK-06 emission and the D-58 gone-slot
+      // backstop all live in the module — behaviour here is UNCHANGED, the statements simply moved so a
+      // second caller can reuse them instead of writing a second road to `confirmed`.
+      //
+      // The outcome is DISCARDED at this call site, deliberately. The webhook's behaviour is unchanged by
+      // design (it ACKs 200 either way — a rejected ACK makes PayMongo retry an already-handled event
+      // forever, T-06-15), and the outcome exists for the sweep, which must be able to tell "a webhook
+      // never arrived and I just confirmed it" (an operator-visible event, D-110) from "the webhook beat
+      // me to it" (silence).
+      await confirmPaidBooking({ bookingId, paymentId, paymentMethod });
     }
   } else if (type === "payment.refunded" || type === "payment.refund.updated") {
     // D-60 refund mechanism: idempotently mark the booking + payout ledger refunded (state derived from
