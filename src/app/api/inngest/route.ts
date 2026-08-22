@@ -15,6 +15,7 @@ import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import { payoutSweep } from "@/inngest/functions/payout-sweep";
 import { payoutReconcile } from "@/inngest/functions/payout-reconcile";
+import { paymentReconcile } from "@/inngest/functions/payment-reconcile";
 import { requestExpirySweep } from "@/inngest/functions/request-expiry";
 import { notify } from "@/inngest/functions/notify";
 import { guestEmail } from "@/inngest/functions/guest-email";
@@ -38,10 +39,12 @@ if (
 }
 
 // serve() reads INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY from env automatically; the guard above just makes
-// a missing prod key fatal. Registers all SIX functions — the FIVE crons on offset minutes so they never
+// a missing prod key fatal. Registers all EIGHT functions — the SIX crons on offset minutes so they never
 // contend (Pitfall 4): the hourly payout sweep (05a, :00), the request-to-book expiry sweep (06-06, :15),
 // the payout reconcile (05b, :30) and the D-85 reminder sweep (07-13, :45), plus the DAILY ops alert digest
-// (quick 260810-j3z, 08:50 Asia/Manila — minute :50, which none of the four hourly crons occupy) — plus
+// (quick 260810-j3z, 08:50 Asia/Manila — minute :50, which none of the four hourly crons occupy), plus the
+// 13.1-02 PAYMENT reconcile (`2-59/5`, i.e. :02 and every five minutes after — a start minute none of the
+// five above occupy) — plus
 // `notify` (07-07), the only EVENT-triggered function here: it listens for `fitout/notify` and fans one
 // event out to the durable in-app notification row and the email (D-83/D-91).
 //
@@ -56,11 +59,19 @@ if (
 // listens for `fitout/guest-email` and sends the guest-with-email RSVP send email-only, writing NO durable
 // row (a guest has no user.id; RESEARCH Pitfall 2). Unregistered, every guest RSVP email silently drops on
 // the floor.
+//
+// AND THE NEWEST ENTRY IS THE SHARPEST CASE THIS ARGUMENT HAS EVER HAD. `paymentReconcile` is the one job
+// standing between a booker who PAID and nothing at all. Leave it out of this array and it does not exist:
+// every lost `checkout_session.payment.paid` webhook stays lost, silently, exactly as it does today — the
+// money is captured, the booking sits `pending` until its hold is swept, and because a cron that never
+// ticks raises no error anywhere, the only detector left is the customer's own complaint. That is precisely
+// how the two 2026-08-21 evidence bookings were found, one of them three days late.
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
     payoutSweep,
     payoutReconcile,
+    paymentReconcile,
     requestExpirySweep,
     notify,
     guestEmail,
