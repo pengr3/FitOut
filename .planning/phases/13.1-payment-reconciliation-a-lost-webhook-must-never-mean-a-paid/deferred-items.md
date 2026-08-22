@@ -81,3 +81,34 @@ lookback window unswept, and its PayMongo session stays payable indefinitely.**
 - ⚠ **Do NOT close it by widening the lookback.** That is the D-111 no-backfill mechanism as well as the
   de-duplication bound — `tests/payments/checkout-retire.test.ts` case (7) reddens on it and names both
   evidence fixtures in its failure message.
+
+## New residual, found and recorded by 13.1-05 — a FOURTH session-orphaning path, reachable by neither the inline wirings nor the sweep
+
+**`cancelUnpaidHold` (`src/app/actions/cancel-booking.ts:876-885`) releases an `approved` hold without
+retiring its checkout session — and because it sets `expires_at = NULL`, 13.1-04's sweep can never reach it
+either.** Found while verifying 13.1-05's enumeration against the code rather than against the plan.
+
+- **What it is.** A booker withdrawing their own unpaid request:
+  `UPDATE booking SET status = (CASE WHEN status = 'requested' THEN 'declined' ELSE 'cancelled' END),
+  expires_at = NULL … WHERE … AND status IN ('requested','approved')`. There is no `expireCheckoutSession`
+  call anywhere in the function.
+- **Why it can orphan a live session.** An `approved` row is exactly the scope `src/app/actions/booking.ts:840`
+  claims a checkout lease under (`status IN ('pending','approved')`), so a booker who reached checkout, then
+  went back and withdrew, leaves a payable PayMongo session behind. The two `cancel-booking.ts` flips
+  13.1-04's enumeration DID classify (`:654`, `:1074`) are both `AND status = 'confirmed'` — a different
+  family. This third UPDATE in the same file was not classified either way.
+- **Why the sweep cannot cover it.** `queryRetirableSessions` selects `expires_at <= now()`. This statement
+  writes `expires_at = NULL`, and SQL three-valued logic excludes NULL from that comparison. So the row
+  leaves the sweep's candidate set in the same statement that orphans its session.
+- **Why 13.1-05 did not wire it.** It is **not lapse-driven**, so it is outside D-113's scope as written
+  ("WHEN A HOLD EXPIRES, the ability to pay must expire with it") and outside this plan's `files_modified`.
+  More concretely, wiring it would require a FIFTH member on `RetireTrigger`, i.e. editing
+  `src/lib/payments/retire-checkout.ts` — which 13.1-05's own verification requires to have an EMPTY diff.
+  Scope creep with a measurable cost, so: reported, not absorbed.
+- **How bad is it today.** Bounded and low: the person who withdrew is the only one holding that session,
+  and they withdrew on purpose. But it is real money on a released slot, it is the exact shape of the defect
+  this phase exists for, and it is the only known orphaning path with NO backstop at all.
+- **What closes it.** One call, in the same shape as `expireOne`'s: `RETURNING id, checkout_session_id` on
+  the existing flip, then `retireCheckoutsForBookings([...], "<new trigger>")` after it, outside any
+  transaction. Add the trigger to the union in the same change. The user-initiated cancel paths already
+  audit `cancel_unpaid_hold`, so the operator surface needs nothing new.
