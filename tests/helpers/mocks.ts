@@ -210,6 +210,29 @@ export const mockPayMongo = {
    */
   getTransfer: vi.fn(async (transferId: string) => ({ id: transferId, status: "succeeded" })),
   /**
+   * 13.1-02 payment-reconcile stub — the provider read UNDERNEATH `probeCheckoutSession`.
+   *
+   * Deliberately stubbed at `getCheckoutSession` rather than at the probe itself, so a spec exercises the
+   * REAL `checkout-probe.ts`: its 3s bound, its id validation, its no-secret short-circuit and — the one
+   * that matters most — its "resolves `null` on ANY failure" guarantee, which a spec drives by making this
+   * mock REJECT. Stubbing the probe would replace exactly the fail-closed behaviour the sweep depends on
+   * with a hand-written `null`.
+   *
+   * Defaults to a still-payable, unpaid session (the "nothing happened" answer), so a case that forgets to
+   * override gets the inert branch rather than a spurious confirm. Override per-case with
+   * `mockPayMongo.getCheckoutSession.mockResolvedValueOnce({ … status: "paid" … })`.
+   *
+   * ⚠ A caller must also stub `PAYMONGO_SECRET_KEY` (`vi.stubEnv`) — without a secret the probe answers
+   * `null` with NO request at all (D-35's CI secret boundary) and this mock is never reached.
+   */
+  getCheckoutSession: vi.fn(async (id: string = "cs_test_123") => ({
+    id,
+    status: "active",
+    sourceType: null as string | null,
+    paidAt: null as Date | null,
+    paymentId: null as string | null,
+  })),
+  /**
    * Build a VALID `Paymongo-Signature` header for a raw body + webhook secret. Signed payload is
    * `${ts}.${rawBody}` (HMAC-SHA256, hex). The `mode` param reproduces PayMongo's REAL te-XOR-li shape:
    * PayMongo signs ONE mode per delivery — TEST mode fills `te` (empty `li`), LIVE mode fills `li` (empty
@@ -240,6 +263,7 @@ export const mockPayMongo = {
     mockPayMongo.createBatchTransfer.mockClear();
     mockPayMongo.listWalletAccounts.mockClear();
     mockPayMongo.getTransfer.mockClear();
+    mockPayMongo.getCheckoutSession.mockClear();
   },
 };
 
