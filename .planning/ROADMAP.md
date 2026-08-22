@@ -413,7 +413,7 @@ the call that found the two rows above. Nothing queries it on a schedule.
 **Plans:** 5 plans in 4 waves
 
 Plans:
-- [ ] 13.1-01-PLAN.md — extract D-105's single idempotent confirm path out of the webhook route, carry the `pay_...` off the provider read, and prove the guard by running confirm twice concurrently
+- [x] 13.1-01-PLAN.md — extract D-105's single idempotent confirm path out of the webhook route, carry the `pay_...` off the provider read, and prove the guard by running confirm twice concurrently
 - [ ] 13.1-02-PLAN.md — the 5-minute reconciliation sweep (the guarantee): probe recent paid-but-unconfirmed bookings, confirm through the one path, alert on a missed webhook, no backfill
 - [ ] 13.1-03-PLAN.md — the fast path: one authenticated, rate-limited reconcile after the settling screen's poll cap, reusing the sweep's own body and adding no copy
 - [ ] 13.1-04-PLAN.md — close it at the source (D-113), the guarantee: the retire policy (probe-first, never expires a paid session, cannot throw) plus the 5-minute sweep that reaches every lapsed hold — proven against a real sk_test_ session
@@ -575,6 +575,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
+| 13.1 Payment Reconciliation (INSERTED) | v1.1 | 1/5 | In progress (wave 1 done) | - |
 | 14. Host Tooling | v1.1 | 0/? | Not started | - |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |

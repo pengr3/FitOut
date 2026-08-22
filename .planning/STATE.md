@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 16
-status: verifying
-stopped_at: "Phase 13 executed + verified (human_needed). 20 plans (16 planned + 13-17…13-20 gap-closure). Six PM UAT findings fixed (D-98…D-103); 13-20 removed the FOURTH unverified money claim — the pending surface asserted receipt of a payment the webhook had not confirmed — and stopped ?paid=1 stranding on five terminal landings. Local gates green: npm test 1582, test:design 816, build clean. Outstanding: 4 manual walks (C PASSED) plus a look at the corrected pending copy on a live return, and SUPPORT_EMAIL at src/lib/site.ts:70."
-last_updated: "2026-08-22T03:00:00.000Z"
+current_plan: 1
+status: executing
+stopped_at: "Phase 13.1 (INSERTED, payment reconciliation) — 13.1-01 DONE: D-105's single confirm path extracted out of the webhook route and proven re-entrant under two-connection concurrency, with the status-scoped WHERE broken on demand and restored; the pay_... now survives a probe read. Gates green: npm test 1592, test:design 816, build clean, tsc 0, drizzle still ends at 0025. Phase 13 remains EXECUTED-not-complete behind it (4 manual walks + SUPPORT_EMAIL at src/lib/site.ts:70)."
+last_updated: "2026-08-22T04:55:00.000Z"
 last_activity: 2026-08-22
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 3
-  total_plans: 70
-  completed_plans: 70
-  percent: 27
+  total_plans: 75
+  completed_plans: 71
+  percent: 25
 ---
 
 # Project State
@@ -44,11 +44,23 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 13
-Plan: 16 of 16
-Current Plan: 16
-Total Plans in Phase: 16
-Status: **Executed — awaiting human verification.** Not "complete": four manual-only walks are outstanding by operator decision, and phase completion is the verifier's call.
+Phase: 13.1 (INSERTED — Payment Reconciliation)
+Plan: 1 of 5
+Current Plan: 1
+Total Plans in Phase: 5
+Status: **13.1-01 executed and committed (`9577ef7` · `c1a3ecd` · `4d9b961`). Wave 1 done; 13.1-02…05 remain.**
+
+⚠ **gsd-sdk v1.42.3 OVER-REACHED AGAIN, EXACTLY AS THE PROJECT MEMORY PREDICTS — REVERTED BY HAND.**
+`state.record-session` truncated the Phase-13 `stopped_at` sentence mid-thought and regressed
+`last_activity` a day, and the progress block was rewritten to `completed_phases: 4`,
+`total_plans/completed_plans: 75/75` and `percent: 33` — i.e. it counted all FIVE of phase 13.1's plans as
+complete on the strength of the first one. STATE.md was restored from a saved copy and the four correct
+edits (position, progress, the metric row, the two decisions) were hand-applied. The string-positional
+handlers still no-op; `--phase/--plan/--duration` and `--summary` are the flag names that work.
+
+<details><summary>Previous position (Phase 13, superseded 2026-08-22 by the 13.1 insertion)</summary>
+
+Phase: 13 · Plan 16 of 16 · Status: **Executed — awaiting human verification.** Not "complete": four manual-only walks are outstanding by operator decision, and phase completion is the verifier's call.
 
 **13-16 IS DONE (`9243ad1` · the close-out) — PHASE 13 IS EXECUTED, NOT COMPLETE, AND THE LEDGER SAYS SO.**
 The GATE-VRT deliverable is the **COMPARISON** run, never the generation run: `32447241600` (`baselines`,
@@ -378,7 +390,9 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-21
+</details>
+
+Last activity: 2026-08-22
 
 ## Performance Metrics
 
@@ -562,6 +576,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 13 P12 | 47m | 3 tasks | 13 files |
 | Phase 13 P13 | 53min | 4 tasks | 5 files |
 | Phase 13 P14 | 40min | 2 tasks | 7 files |
+| Phase 13.1 P01 | 45min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -936,6 +951,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 13-16: TRUST-05 WAS UN-TICKED FROM `[x]`, and the reason is written into REQUIREMENTS.md so it is not silently reconciled. 13-13 recorded that un-ticking another plan's box is the phase close-out's call and handed the decision forward; the box was ticked by 13-12 BEFORE `e2e/receipt-print.spec.ts` existed. ⚠ One manual walk re-ticks it — NOT the automated spec that made the first tick look safe.
 - [Phase ?]: 13-16: `SUPPORT_EMAIL` remains the phase's one `human_needed` item — `src/lib/site.ts:70`, ONE LINE, and `tests/design/site-contacts.test.ts` is proved green UNMODIFIED (23 passed, zero lines changed across all 69 commits). Setting it to a placeholder is forbidden in three separate sentences of D-64. It also un-skips blocker (1) of two on `overflow-320.spec.ts`'s D-83 ordering case; blocker (2) is walk C's unreachable branch, stated separately for exactly this reason.
 - [Phase ?]: 13-16: ⚠ gsd-sdk v1.42.3 OVER-REACHED on the last plan exactly as the project memory predicts — `state.advance-plan` bumped `completed_phases` 3 -> 4, `completed_plans` 69 -> 71 (above `total_plans: 70`), `percent` 27 -> 36, and truncated `stopped_at` mid-sentence. All four reverted by hand; phase-level completion is the verifier's call. The metric row and these decisions were hand-written because the string-arg handlers still no-op.
+- [Phase 13.1]: 13.1-01: EXACTLY ONE confirm path now exists — `src/lib/payments/confirm-booking-payment.ts` (`confirmPaidBooking`, dbConn-parameterised). The webhook CALLS it instead of owning it; `grep -rn "status = 'confirmed'" src/` returns one WRITE and everything else is a read predicate. Re-entrancy proven by RUNNING it — two independent Postgres connections under one `Promise.all` yield one `confirmed` + one `already-confirmed`, one email, zero refunds. The status-scoped WHERE was dropped ON PURPOSE, reddened 5 of 7 cases (verbatim in the spec header), and was restored from a saved copy. ⚠ The three UNPREDICTED reds are the finding: without that clause the confirm resurrects a `cancelled` booking and the D-58 gone-slot backstop becomes unreachable — one clause carries both guarantees.
+- [Phase 13.1]: 13.1-01: `CheckoutSessionState.paymentId` reads the `pay_...` ENVELOPE-FIRST (`payments[0].id`) with the plan's `payments[0].attributes.id` as a documented fallback. ⚠ The plan's prose path ALONE returned `null` against this repo's own contract fixture (measured: `expected null to be 'pay_env_1'`) — i.e. it would have shipped the exact `payment_id = NULL` bug the field exists to prevent, permanently downgrading every later cancellation refund on a reconciled booking to manual return. Both placements are pinned by a case; the shape is still NOT live-observed.
+- [Phase 13.1]: 13.1-01 RECORDED DEFECT, deferred to 13.1-02 by D-112/D-108: the gone-slot operator alert is NOT de-duplicated — two passes over one dead row write TWO `needs_attention` records (measured). Money is safe (`createRefund` stays at ZERO across the re-run, T-13.1-06); only the alert repeats. ⚠ The 5-minute sweep's candidate set MUST be `pending`/`approved` only, or D-110's loud-missed-webhook dies of noise. See the phase's `deferred-items.md`.
 
 ### Pending Todos
 
@@ -1041,6 +1059,14 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
+Last session: 2026-08-22T04:55:00.000Z
+Stopped at: Completed 13.1-01-PLAN.md — phase 13.1 wave 1. D-105's ONE confirm path is extracted and
+PROVEN (two-connection race; deliberate break observed and reverted), and the `pay_...` survives a probe
+read. 13.1-02 (the 5-minute sweep) is next and MUST scope its candidates to `pending`/`approved` — see
+the phase's `deferred-items.md` row 1. Resume file: none.
+
+<details><summary>Previous session (13-15, superseded 2026-08-22)</summary>
+
 Last session: 2026-08-21T05:20:00.000Z
 Stopped at: Completed 13-15-PLAN.md — the five hard gates. 15/16 plans done; 13-16 (operator-gated) is
 all that remains. ⚠ TWO THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) Three of 13-UI-SPEC's eleven
@@ -1092,6 +1118,8 @@ prerequisites) → 12/13/14/15 surfaces (order-independent; 12 first) → 16 cro
 amended (`dark:` strip scope) or D-133 (two themes) — all three are settled decisions. It MUST re-verify
 the exact corrected `--brand` value with a live colour tool, and it MUST land DS-01 before any baseline
 is captured.
+
+</details>
 
 <details><summary>Previous session (2026-08-11, /gsd-complete-milestone v1.0)</summary>
 
