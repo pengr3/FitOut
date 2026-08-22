@@ -32,6 +32,18 @@
 // A read/emit failure logs `[request-expiry] ...` and NEVER throws out of the step (T-06-17): the status flip
 // is the durable side-effect (and the lazy reads free the slot regardless), so a notification failure must
 // never fail the sweep.
+//
+// ── 13.1-05 / D-113: THE FLIP NOW HAS A SECOND SIDE-EFFECT, AND T-06-17'S RULE COVERS BOTH ──────────────
+// A genuine flip also RETIRES the checkout session it orphans (`retireOrphanedSession`, below). The
+// `approved → cancelled` payment-window release is the sharpest lapse path in the codebase: an `approved`
+// row is by definition one whose booker went to checkout, so releasing it used to leave a live, payable
+// PayMongo session pointing at a slot anybody could now take. The notice and the retire are INDEPENDENT —
+// neither is inside the other, and each is asserted to survive the other failing — which is T-06-17's
+// existing guarantee applied to two side-effects instead of one.
+//
+// ⚠ THIS IS AN ACCELERANT, NOT THE GUARANTEE. `checkout-retire-sweep` (13.1-04) already retires EVERY
+// lapsed hold's session within RETIRE_INTERVAL_MINUTES, including the majority this cron never selects.
+// Delete every line 13.1-05 added here and D-113 still holds; nothing here may be made load-bearing for it.
 
 import { eq, sql } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
@@ -40,6 +52,11 @@ import type { DbConn } from "@/lib/availability/read-model";
 import { booking, listing, user } from "@/lib/db/schema";
 import { emitNotify } from "@/lib/notifications";
 import { composeWhenLabel } from "@/lib/booking/when-label";
+// D-113 (13.1-05) — THE POLICY, never the provider. This file must never import `expireCheckoutSession`
+// directly: probe-first, the never-expire-a-`paid`-session evidence rule, the never-throw contract and the
+// `checkout_expire_failed` audit shape all live in ONE place (13.1-04), and a second implementation here
+// would be a second policy nobody would notice diverging.
+import { retireCheckoutsForBookings } from "@/lib/payments/retire-checkout";
 
 /** How many lapsed holds a single sweep pass claims (coarse hourly cadence — one pass drains the backlog). */
 const EXPIRY_BATCH_SIZE = 100;
@@ -102,14 +119,25 @@ export async function expireOne(dbConn: DbConn, row: ExpiredBooking): Promise<Ex
     const flipped = (await dbConn.execute(sql`
       UPDATE booking SET status = 'declined', expires_at = NULL
       WHERE id = ${row.id} AND status = 'requested'
-      RETURNING id
-    `)) as unknown as { id: string }[];
+      RETURNING id, checkout_session_id
+    `)) as unknown as { id: string; checkout_session_id: string | null }[];
     if (flipped.length === 0) return { status: "noop" }; // already terminal → never re-notify / re-flip
     // Genuine flip ONLY → notify the booker. The status-scoped UPDATE above IS the dedupe claim: a re-run,
     // a retried step, or an overlapping sweep all flip 0 rows and return before reaching this line, so the
     // booker can never be told twice (T-06-16). The notice helper swallows its own read/emit errors so it
     // never throws out of the step (T-06-17).
     const notified = await emitDeclinedNotice(dbConn, row.id);
+    // D-113, ALONGSIDE the notice and never inside it — see `retireOrphanedSession` for why the ORDER of
+    // these two side-effects cannot matter and is asserted in both directions.
+    //
+    // ⚠ WHY THIS CALL IS WRITTEN ON A BRANCH WHERE IT IS A PROVABLE NO-OP. A `requested` row can never
+    // carry a `checkout_session_id`: `src/app/actions/booking.ts:840` claims the checkout lease under
+    // `AND status IN ('pending','approved')`, so nothing can attach a session to a row that is still
+    // awaiting the host. So this retires nothing today — asserted, not assumed, by the SLA case in
+    // `tests/booking/request-expiry-retires-session.test.ts`, which pins the argument at `null`. It is
+    // written anyway so that the day request-to-book grows a pre-approval payment, this path is ALREADY
+    // closed rather than being a hole somebody has to rediscover by finding money in it.
+    await retireOrphanedSession(row.id, flipped[0].checkout_session_id, "declined");
     return { status: "declined", notified };
   }
 
@@ -117,10 +145,62 @@ export async function expireOne(dbConn: DbConn, row: ExpiredBooking): Promise<Ex
   const flipped = (await dbConn.execute(sql`
     UPDATE booking SET status = 'cancelled', expires_at = NULL
     WHERE id = ${row.id} AND status = 'approved'
-    RETURNING id
-  `)) as unknown as { id: string }[];
+    RETURNING id, checkout_session_id
+  `)) as unknown as { id: string; checkout_session_id: string | null }[];
   if (flipped.length === 0) return { status: "noop" }; // already terminal → never re-flip
+  // D-113 — THE SHARPEST OF THE THREE LAPSE PATHS. An `approved` row is BY DEFINITION one whose booker was
+  // sent to checkout, so this branch is the one that routinely orphans a LIVE, PAYABLE session: the slot is
+  // released for anyone to take while the previous booker's tab can still charge them for it.
+  await retireOrphanedSession(row.id, flipped[0].checkout_session_id, "cancelled");
   return { status: "cancelled" };
+}
+
+/**
+ * Retire the checkout session a genuine flip just orphaned (13.1-CONTEXT D-113).
+ *
+ * ⚠ THE SESSION ID COMES FROM THE FLIP'S OWN `RETURNING`, NEVER FROM `row`. This is the one design choice
+ * in this file worth reading twice, and it is not a stylistic preference:
+ *
+ *   `queryExpired` runs in ITS OWN Inngest step, and each `expireOne` runs in another. Between the two, a
+ *   booker can start checkout — `src/app/actions/booking.ts:840` claims the lease under `status IN
+ *   ('pending','approved')`, and an `approved` row's payment window is HOURS wide. So a session id read at
+ *   selection time can be stale-NULL precisely on the sharpest path, and a retire keyed off it would leave
+ *   the live session payable while looking perfectly correct. The RETURNING value is read in the SAME
+ *   statement that frees the slot, so it is the session as of the moment it was orphaned.
+ *   (The 13.1-05 plan's alternative — carrying `checkoutSessionId` on `ExpiredBooking` — was measured and
+ *   rejected: see this file's counterpart spec header for the tsc output and the case that pins the drift.)
+ *
+ * ⚠ ITS OWN `catch`, for the same reason `emitDeclinedNotice` has one (T-06-17): the flip is the durable
+ * side-effect and it has already happened. `retireCheckoutsForBookings` cannot throw (13.1-04 Task 1), so
+ * this is unreachable today; it is here so that if the policy is ever "hardened" into throwing, a PayMongo
+ * outage costs a log line rather than failing every step in the sweep — and the two side-effects on the
+ * declined branch stay independent, which is asserted in BOTH directions rather than assumed symmetric.
+ * FREEING THE SLOT MUST NEVER DEPEND ON THE PROVIDER ANSWERING (D-113, verbatim).
+ *
+ * A FAILED retire is not swallowed in the sense that matters: the POLICY writes the operator-visible
+ * `checkout_expire_failed` / `needs_attention` audit row (D-110). This file adds no alerting of its own.
+ */
+async function retireOrphanedSession(
+  bookingId: string,
+  checkoutSessionId: string | null,
+  terminalStatus: "declined" | "cancelled",
+): Promise<void> {
+  try {
+    await retireCheckoutsForBookings(
+      // `bookingStatus` is the NEW terminal status, never the pre-flip one: 13.1-04's policy stays silent
+      // about a `paid` session only while the row is still `pending` (plan 13.1-02's reconciler owns that
+      // row). A row this sweep has just flipped terminal is the case NO reconciler reaches, and is exactly
+      // the one that must land in the operator's queue.
+      [{ bookingId, checkoutSessionId, bookingStatus: terminalStatus }],
+      "request-expiry",
+    );
+  } catch {
+    // Empty binding on purpose — the caught value may be PayMongo's prose and the discard discipline is
+    // absolute (T-05-15 / T-08-44). The message names the broken contract rather than hiding it.
+    console.error("[request-expiry] retire policy THREW — its never-throw contract is broken", {
+      bookingId,
+    });
+  }
 }
 
 /**
