@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 1
+current_plan: 2
 status: executing
-stopped_at: "Phase 13.1 (INSERTED, payment reconciliation) — 13.1-01 DONE: D-105's single confirm path extracted out of the webhook route and proven re-entrant under two-connection concurrency, with the status-scoped WHERE broken on demand and restored; the pay_... now survives a probe read. Gates green: npm test 1592, test:design 816, build clean, tsc 0, drizzle still ends at 0025. Phase 13 remains EXECUTED-not-complete behind it (4 manual walks + SUPPORT_EMAIL at src/lib/site.ts:70)."
-last_updated: "2026-08-22T04:55:00.000Z"
+stopped_at: "Phase 13.1 (INSERTED, payment reconciliation) — 13.1-02 DONE: the 5-minute reconciliation sweep exists, is registered on the /api/inngest mount at TZ=Asia/Manila 2-59/5 * * * *, confirms only through 13.1-01's one path, and alerts a missed webhook as a needs_attention row proven reachable by the ops digest. D-107's cadence is an inequality over the real HOLD_TTL_MINUTES; four deliberate breaks performed and recorded. Two plan instructions were measured WRONG and corrected: the candidate set is pending+approved (not pending alone) and the D-111 epoch bound was 8h early — the prose value would have swept the fixture it protects. The shipped predicate run against real dev data selects 0 rows and both evidence bookings are still pending/NULL. Gates green: npm test 1616, test:design 816, build clean, tsc 0, drizzle still ends at 0025. Phase 13 remains EXECUTED-not-complete behind it (4 manual walks + SUPPORT_EMAIL at src/lib/site.ts:70)."
+last_updated: "2026-08-22T06:20:00.000Z"
 last_activity: 2026-08-22
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 75
-  completed_plans: 71
+  completed_plans: 72
   percent: 25
 ---
 
@@ -45,10 +45,37 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 13.1 (INSERTED — Payment Reconciliation)
-Plan: 1 of 5
-Current Plan: 1
+Plan: 2 of 5
+Current Plan: 2
 Total Plans in Phase: 5
-Status: **13.1-01 executed and committed (`9577ef7` · `c1a3ecd` · `4d9b961`). Wave 1 done; 13.1-02…05 remain.**
+Status: **13.1-02 executed and committed (`1919f37` · `ac14625` · `acc5eea` · `5417901`). Waves 1-2 done; 13.1-03…05 remain.**
+
+**THE GUARANTEE IS IN.** `src/inngest/functions/payment-reconcile.ts` is registered in the `serve()` array
+and runs `TZ=Asia/Manila 2-59/5 * * * *` — minute :02 and every five after, colliding with none of the five
+occupied slots. It probes only `pending`/`approved` bookings holding a `checkout_session_id`, created at or
+after `RECONCILE_EPOCH` and older than two minutes, capped at 50 a pass; anything PayMongo reports `paid`
+goes through `confirmPaidBooking` and nothing else. `grep -rn "status = 'confirmed'" src/` still shows
+exactly ONE write.
+
+⚠ **TWO OF THE PLAN'S OWN INSTRUCTIONS WERE MEASURED WRONG AND CORRECTED — both money-path.** (1) The plan
+scoped the sweep to `pending` alone; the confirm accepts `pending` OR `approved`, so a pay-on-approval
+request that lost its webhook would never have been reconciled at all. (2) The plan's D-111 epoch bound
+(`2026-08-21T18:17:00+08:00`) was EIGHT HOURS EARLY — the fixture's real `created_at` is `18:17:12 UTC` — so
+honouring the prose would have swept and confirmed the very ₱1,050.00 evidence booking D-111 exists to
+protect. A third bug was found only by RUNNING the sweep: the epoch bound as a `Date` threw
+`ERR_INVALID_ARG_TYPE` at postgres.js on every call, past a clean `tsc` and a clean lint.
+
+⚠ **A PLAN-INTERNAL CONTRADICTION IS RECORDED, NOT PAPERED OVER.** Task 2 required the interval-20 break to
+red cases 2 AND 3, while also requiring the cron to be DERIVED from that constant. Those cannot both hold:
+deriving it makes case 3 move with the constant. Only case 2 reddened; case 3 was then proven against the
+drift it actually detects (a hardcoded cron string). No assertion was edited to fit the prediction.
+
+**D-111 verified against REAL data, not only fixtures:** the shipped predicate run verbatim in `psql`
+against `fitout` returns **0 rows**, and both evidence bookings re-read `pending` with `payment_id` and
+`payment_method` NULL after every gate.
+
+⚠ **gsd-sdk's state verbs were again NOT used** (project memory + the 13.1-01 incident note below). STATE.md
+was saved to the scratchpad first and every edit here was hand-applied and diffed.
 
 ⚠ **gsd-sdk v1.42.3 OVER-REACHED AGAIN, EXACTLY AS THE PROJECT MEMORY PREDICTS — REVERTED BY HAND.**
 `state.record-session` truncated the Phase-13 `stopped_at` sentence mid-thought and regressed
@@ -577,6 +604,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 13 P13 | 53min | 4 tasks | 5 files |
 | Phase 13 P14 | 40min | 2 tasks | 7 files |
 | Phase 13.1 P01 | 45min | 3 tasks | 7 files |
+| Phase 13.1 P02 | 40min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -591,6 +619,10 @@ deferred walk is inconsistent rather than honest.*
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [13.1-02]: **A plan's own bound can be eight hours wrong, and the cost would have been a fixture with real money in it.** 13.1-CONTEXT's evidence table reports the later stuck booking as paid at "2026-08-21 18:17" and the 13.1-02 plan turned that into a D-111 epoch bound of `2026-08-21T18:17:00+08:00`. The row's actual `created_at`, read from dev, is `18:17:12 **UTC**` — so any epoch satisfying only the plan's bound ADMITS the row, and the sweep's first pass would have probed PayMongo, found the real ₱1,050.00 GCash capture and confirmed `09f32400…` — destroying the exact fixture D-111 was written to preserve. `RECONCILE_EPOCH` is pinned at `2026-08-22T12:00:00+08:00` instead, the cadence spec asserts against the MEASURED instant, and the shipped predicate was run verbatim against the real dev database (0 rows) rather than trusted against seeds alone.
+- [13.1-02]: **The reconciliation candidate set is `pending` OR `approved`, mirroring the confirm's own claim.** The plan specified `pending` alone. `confirmPaidBooking` confirms from both (PAY-05 / D-63), so a `pending`-only sweep would have left the ENTIRE pay-on-approval mode with no reconciliation: the booker pays, the webhook is lost, nothing on any schedule notices. The same scope is what keeps TERMINAL rows out, which is the fix `deferred-items.md` row 1 asked for — `handleGoneSlot` re-alerts a `cancelled` row on every pass, so a 5-minute sweep over one dead booking would have filed a `needs_attention` every five minutes forever and killed D-110 by noise. Proven by a break: widening the scope reddens exactly the case that owns it.
+- [13.1-02]: **A `Date` cannot be bound into drizzle's `sql` template against postgres.js — and only RUNNING it says so.** `created_at >= ${RECONCILE_EPOCH}` tags the parameter timestamptz (OID 1184), whose serializer expects a string, and threw `ERR_INVALID_ARG_TYPE` on every call. `npx tsc --noEmit` was clean; `npm run lint` was clean; six of the eighteen behavioural cases reported `Failed query:` before a single behaviour was measured. Shipped, the module whose entire job is to be the guarantee would have failed its query on every pass forever. Bind `.toISOString()::timestamptz`.
+- [13.1-02]: **A derived value cannot be broken by changing the thing it is derived from — say so instead of claiming the red.** The plan required the interval-20 break to redden BOTH the cadence inequality and the schedule-matches-constant case, while also requiring the cron to be DERIVED from that constant. Only the inequality reddened; the derived cron simply shipped `2-59/20` and still matched. The contradiction is recorded in the spec header and the second case was then proven against the drift it ACTUALLY detects (a hand-written cron string), rather than editing an assertion to fit the prediction.
 - [13-01]: **An instruction is not a mechanism, and this is the commit that stopped restating it.** `mx-auto w-full max-w-2xl px-4 py-8 sm:py-12` was hand-typed at **fourteen** sites (13-UI-SPEC said eleven — the number came from a grep, not from the document), and `bookings/[id]/page.tsx`'s own landmark header ended with *"A SIXTH branch must copy the container from `loading.tsx`."* All fourteen now import `BOOKING_SHELL` from `@/lib/design/measurements`; the instruction was DELETED rather than left beside the constant. Zero pixels changed — the rendered string is byte-identical at every site, which is the property that made the collapse safe to do before any Phase-13 rewrite.
 - [13-01]: **`CONFIRMATION_MOMENT_MIN_H` lives beside `HEADER_HEIGHT`, not beside its phase-mate.** Proximity to the SOURCE of a derivation beats proximity to a phase number: its `calc(100svh-3.5rem)` / `calc(100svh-4rem)` terms are `h-14 sm:h-16` restated in the only unit `calc()` takes, so a header-height change has to break in one place. It has ZERO call sites by instruction (13-08 owns the consumer). The unit argument is recorded in the file: `svh` not `vh` (which counts the retracted iOS URL bar and overshoots) and not `dvh` (which re-resolves as the bar retracts, so a `min-height` in `dvh` grows mid-scroll and reflows under the reader's thumb). Phase 11's "`dvh`, never `vh`" rule was written for a `max-height` on a sheet and is not violated — a `min-height` promise needs the SMALLEST viewport.
 - [13-01]: **The 20 Aug nested-`main` fix missed three files, and the spec could not have caught it.** `pending-payment-state.tsx`, `payment-reversed-state.tsx` and `expired-approval-state.tsx` each opened a `<main>` inside `(app)/layout.tsx`'s. All three are `/bookings/[id]` renders, so the defect survived on the exact route `e2e/shell.spec.ts` already covered — invisible because the only booking shape any e2e seed could produce was `confirmed`, and a `confirmed` row reaches none of the three. Fixed to `div` + `BOOKING_SHELL`, and PROVED: reverting one produced a red naming its seeded route at 320px with `Received: 2` and **14 consecutive polls at 2** (the streaming buffer's overlap is ~100ms, so it cannot be a staging artifact).
