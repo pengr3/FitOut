@@ -58,6 +58,11 @@ import {
   MIN_LEAD_INSTANT_MINUTES,
   MIN_LEAD_REQUEST_HOURS,
 } from "@/lib/payments/config";
+// D-113 (13.1-05) — THE POLICY, never the provider. This file must never import `expireCheckoutSession`
+// directly: probe-first, the `paid`-session evidence rule, the never-throw contract and the audit shape
+// all live in ONE place, and a second implementation here would be a second policy nobody would notice
+// diverging. Both reclaims below call it POST-COMMIT; see the two call sites for why that is not optional.
+import { retireCheckoutsForBookings, type RetirableSession } from "@/lib/payments/retire-checkout";
 import { openTakenSql, PAST_DATE_MESSAGE, SOLD_OUT_MESSAGE } from "./open-capacity";
 // CR-02, on a SECOND import statement so the line above stays byte-identical: it is the shared-predicate
 // import the Pitfall-4 diff gates read, and a closed date is a different fact from an occupied one.
@@ -424,8 +429,20 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
   const idArgs = { listingId: input.listingId, bookerId: input.bookerId, startIso, endIso, idempotencyKey };
 
   for (let txAttempt = 0; ; txAttempt++) {
+    // ── D-113 (13.1-05): the sessions step (2)'s reclaim ORPHANS, carried OUT of the transaction. ──────
+    //
+    // ⚠ DECLARED HERE, PER TRANSACTION ATTEMPT, AND **ASSIGNED** INSIDE THE CALLBACK — NEVER PUSHED.
+    // The whole `db.transaction` below can be re-run by the outer 40P01 retry, and a rolled-back attempt
+    // reclaimed NOTHING (its UPDATE went with the rollback). So a later attempt must REPLACE the previous
+    // attempt's list, never accumulate onto it — otherwise a deadlock retry would hand the policy a
+    // session id belonging to a flip that no longer exists in the database. Re-declaring it inside the
+    // loop makes that structural rather than a discipline: a fresh `[]` per attempt cannot accumulate
+    // even if someone later changes the `=` below into a `.push(...)`.
+    let reclaimed: RetirableSession[] = [];
     try {
-      return await db.transaction(async (tx): Promise<HoldResult> => {
+      // The transaction's answer is CAPTURED, not returned directly — the retire below has to happen
+      // after COMMIT and before this function returns. See the post-commit block after the callback.
+      const held = await db.transaction(async (tx): Promise<HoldResult> => {
         // Server-authoritative listing facts (unitCount + rates) — never trust a client-supplied price.
         //
         // The D-93/D-96 lead-time guard rides ALONG on this SAME round trip as a computed column. That is
@@ -482,13 +499,31 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         // in-tx — a Resend call inside this SAVEPOINT/rollback/retry tx is unsafe; the cron is the SOLE
         // booker-email authority, and the email dropped on this rare in-tx-reclaim edge is an accepted
         // bounded race (Assumption A6, 06-RESEARCH).
-        await tx.execute(sql`
+        //
+        // D-113 (13.1-05): the ONLY change to this statement is the RETURNING. The WHERE clause, the CASE
+        // mapping and the `expires_at = NULL` are byte-identical, and no second UPDATE was added — the
+        // reclaim already writes the status, and the retire policy writes no `booking` row at all.
+        const reclaimedRows = (await tx.execute(sql`
           UPDATE booking
           SET status = (CASE WHEN status = 'requested' THEN 'declined' ELSE 'cancelled' END)::booking_status,
               expires_at = NULL
           WHERE listing_id = ${input.listingId}
             AND status IN ('pending','requested','approved') AND expires_at <= now()
-            AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${startIso}, ${endIso}, '[)')`);
+            AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${startIso}, ${endIso}, '[)')
+          RETURNING id, checkout_session_id, status`)) as unknown as {
+          id: string;
+          checkout_session_id: string | null;
+          status: string;
+        }[];
+        // ASSIGN, never push — see the declaration above the `try`. The status handed to the policy is the
+        // row's NEW TERMINAL one straight off the RETURNING (`cancelled` / `declined`), never its
+        // pre-flip `pending`: 13.1-04's policy alerts on a `paid` session unless the booking is `pending`,
+        // and a reclaimed row is exactly the case no reconciler ever reaches — so it must alert.
+        reclaimed = reclaimedRows.map((r) => ({
+          bookingId: r.id,
+          checkoutSessionId: r.checkout_session_id,
+          bookingStatus: r.status,
+        }));
 
         // (3) Server-frozen price quote (D-45/D-46) + the D-74 service fee composed AT THE CALLER. The TTL
         // is NOT computed here any more — `expiresAtSql` (D-94) is evaluated by Postgres inside the insert,
@@ -644,6 +679,56 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         }
         return await exhausted(); // every unit lost — own-hold re-checked before ruling it "just taken"
       });
+
+      // ══ D-113 — POST-COMMIT. THE PROVIDER CALL IS OUTSIDE THE TRANSACTION, AND THAT IS THE POINT. ══
+      //
+      // The `await` above has RESOLVED, which means the transaction has COMMITTED: the reclaimed rows are
+      // durably `cancelled`/`declined` and their slots are free before a single byte goes to PayMongo.
+      // Three independent reasons this call may never move up into the callback:
+      //
+      //   1. Step (2)'s own comment already forbids it — *"a Resend call inside this SAVEPOINT/rollback/
+      //      retry tx is unsafe"*. A PayMongo call is bound by the identical reasoning.
+      //   2. The per-unit SAVEPOINT loop rolls back on 23P01 and the outer loop re-runs the WHOLE tx on
+      //      40P01. An in-tx call would fire once per attempt, against a session whose flip the rollback
+      //      may have undone.
+      //   3. Holding a transaction open across a third-party round trip pins a connection for the
+      //      provider's latency, on the hottest write path in the app.
+      //
+      // ⚠ THE LOCAL CATCH IS NOT DEFENSIVE PROGRAMMING — IT IS THE ONLY THING BETWEEN A PAYMONGO OUTAGE
+      // AND A BOOKER UNABLE TO BOOK, AND IT WAS ADDED BECAUSE ITS ABSENCE WAS MEASURED.
+      //
+      // This call sits inside the outer `try`, whose `catch` runs `mapBookingError`, which RE-THROWS
+      // unknown errors. 13.1-05 was planned to rely on `retireCheckoutsForBookings` never throwing
+      // (13.1-04 Task 1, asserted three ways with `.resolves`) and to leave this site undefended. Written
+      // that way and RUN with the policy rejecting, `createPendingHold` did not return a hold at all — it
+      // threw `Error: PayMongo is down` straight out to its caller
+      // (`tests/booking/hold-lapse-retires-session.test.ts` case (3), verbatim in that file's header).
+      // That is 13.1-CONTEXT D-113 violated in its own words: *"FREEING THE SLOT MUST NEVER DEPEND ON THE
+      // PROVIDER ANSWERING."* The slot was already freed and COMMITTED; the booker was refused anyway.
+      //
+      // So the dependency is now defended at BOTH layers, and both are load-bearing for different days:
+      //   - 13.1-04's structural never-throw contract means this catch is unreachable TODAY;
+      //   - this catch means that if anyone ever "hardens" the policy into throwing, the cost is a log
+      //     line, not a booking outage. It does NOT silently accept such a change — the message says the
+      //     contract has been broken, and the three `.resolves` cases in
+      //     `tests/payments/retire-checkout.test.ts` are what go red when it is.
+      // The empty binding is deliberate: the caught value may be PayMongo's prose, and the discard
+      // discipline is absolute (T-05-15 / T-08-44) — it is not logged, not chained, not surfaced.
+      //
+      // Bounded by `RETIRE_INLINE_LIMIT` (the default). A booker placing a hold must not pay unbounded
+      // provider latency for SOMEONE ELSE's abandoned checkout, and anything past the bound is retired by
+      // `checkout-retire-sweep`, which is D-113's actual guarantee. This wiring is only an ACCELERANT: it
+      // makes the orphaned session die in seconds instead of within RETIRE_INTERVAL_MINUTES. If it were
+      // deleted tomorrow D-113 would still hold.
+      try {
+        await retireCheckoutsForBookings(reclaimed, "stale-hold-reclaim");
+      } catch {
+        console.error("[stale-hold-reclaim] the retire policy THREW — its never-throw contract is broken", {
+          listingId: input.listingId,
+          reclaimed: reclaimed.length,
+        });
+      }
+      return held;
     } catch (e) {
       // 40P01 aborts the whole tx and postgres.js does not auto-retry — re-run the whole booking tx.
       if (isPgError(e, "40P01") && txAttempt < MAX_TX_RETRIES - 1) continue;
@@ -871,8 +956,13 @@ export async function createOpenCapacityHold(
   )`;
 
   for (let txAttempt = 0; ; txAttempt++) {
+    // D-113 (13.1-05) — the same replace-not-accumulate list as `createPendingHold`, for the same reason:
+    // this transaction is re-runnable by the outer 40P01 retry, and a rolled-back attempt reclaimed
+    // nothing. Declared per attempt so accumulation is structurally impossible; ASSIGNED, never pushed.
+    let reclaimed: RetirableSession[] = [];
     try {
-      return await db.transaction(async (tx): Promise<OpenHoldResult> => {
+      // Captured, not returned directly — the retire has to happen after COMMIT (see the block below).
+      const claimed = await db.transaction(async (tx): Promise<OpenHoldResult> => {
         // (1) TAKE THE LOCK — the FIRST statement in the transaction, spanning sweep → SUM → INSERT.
         //
         // Transaction-scoped, so it auto-releases at COMMIT *and* ROLLBACK (09-RESEARCH Pitfall 6): a
@@ -918,12 +1008,30 @@ export async function createOpenCapacityHold(
         // FOREVER, since nothing else ever writes at expiry (D-48a). The terminal status is always
         // `cancelled` — there is no requested→declined branch, because open capacity is instant-only
         // (OC-10). No email crosses this boundary (see the lock's I/O rule).
-        await tx.execute(sql`
+        //
+        // D-113 (13.1-05): the ONLY change here is the RETURNING — the WHERE clause, the terminal status
+        // and the `expires_at = NULL` are byte-identical, and no second UPDATE was added. The retire the
+        // RETURNING feeds runs AFTER COMMIT, below; nothing about the lock's I/O rule is weakened.
+        const reclaimedRows = (await tx.execute(sql`
           UPDATE booking SET status = 'cancelled', expires_at = NULL
           WHERE listing_id = ${input.listingId} AND open_capacity = true
             AND status = 'pending' AND expires_at <= now()
             AND starts_at >= ${dayStartIso}::timestamptz
-            AND starts_at < ${dayEndIso}::timestamptz`);
+            AND starts_at < ${dayEndIso}::timestamptz
+          RETURNING id, checkout_session_id, status`)) as unknown as {
+          id: string;
+          checkout_session_id: string | null;
+          status: string;
+        }[];
+        // ASSIGN, never push (see the declaration above the `try`). `bookingStatus` is the NEW terminal
+        // status off the RETURNING — `cancelled`, never the pre-flip `pending` — because 13.1-04's policy
+        // stays silent on a `paid` session only while the row is still `pending` (plan 02 owns that row);
+        // a reclaimed row is the case no reconciler reaches, and must alert.
+        reclaimed = reclaimedRows.map((r) => ({
+          bookingId: r.id,
+          checkoutSessionId: r.checkout_session_id,
+          bookingStatus: r.status,
+        }));
 
         // (4) Read the cap + per-head rate + cancellation tier and SUM the occupied heads UNDER THE LOCK,
         // in ONE statement. Both date guards are evaluated against the DB clock in the SAME transaction as
@@ -1095,6 +1203,38 @@ export async function createOpenCapacityHold(
           quotedTotalCents: frozen?.quotedTotalCents ?? null,
         };
       });
+
+      // ══ D-113 — POST-COMMIT, AND HERE THERE ARE **TWO** INDEPENDENT REASONS IT MUST BE. ═════════════
+      //
+      //   1. The same one `createPendingHold` carries: this transaction is re-runnable wholesale by the
+      //      outer 40P01 retry, so an in-tx provider call would fire once per attempt against a flip the
+      //      rollback may have undone. And the reclaim is not durable until COMMIT — a call made inside
+      //      would be retiring a session for a slot FitOut had not yet actually freed.
+      //   2. THE ADVISORY LOCK'S OWN RULE, stated at step (1) above and binding on every line between it
+      //      and COMMIT: *"NO EXTERNAL I/O MAY OCCUR BETWEEN THIS LINE AND COMMIT — no fetch, no email,
+      //      no job emit."* The whole admissions cap is serialized by that lock, so a fetch inside it
+      //      would hold every other booker's claim on this (listing, date) for PayMongo's round trip.
+      //      Reason 2 stands even if reason 1 were ever argued away. Both are recorded here so a reader
+      //      of THIS call site gets the whole argument rather than half of it.
+      //
+      // ⚠ THE LOCAL CATCH, for the reason measured at the exclusive site above and restated here because
+      // this site has its own outer catch: `mapBookingError` RE-THROWS unknown errors, so a policy that
+      // threw would refuse a drop-in claim because PayMongo was down — with the pass's slot already freed
+      // and committed. 13.1-04's never-throw contract makes this unreachable today; the catch makes the
+      // day it stops being unreachable cost a log line instead of a booking outage. Empty binding on
+      // purpose (provider prose is discarded, T-05-15 / T-08-44).
+      //
+      // Bounded by `RETIRE_INLINE_LIMIT`; the remainder belongs to `checkout-retire-sweep`, which is the
+      // guarantee. This wiring is an ACCELERANT and must never be made load-bearing for D-113.
+      try {
+        await retireCheckoutsForBookings(reclaimed, "open-capacity-reclaim");
+      } catch {
+        console.error(
+          "[open-capacity-reclaim] the retire policy THREW — its never-throw contract is broken",
+          { listingId: input.listingId, reclaimed: reclaimed.length },
+        );
+      }
+      return claimed;
     } catch (e) {
       // 40P01 aborts the whole tx and postgres.js does not auto-retry — re-run the whole claim.
       if (isPgError(e, "40P01") && txAttempt < MAX_TX_RETRIES - 1) continue;
