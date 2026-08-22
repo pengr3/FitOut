@@ -112,3 +112,33 @@ either.** Found while verifying 13.1-05's enumeration against the code rather th
   the existing flip, then `retireCheckoutsForBookings([...], "<new trigger>")` after it, outside any
   transaction. Add the trigger to the union in the same change. The user-initiated cancel paths already
   audit `cancel_unpaid_hold`, so the operator surface needs nothing new.
+
+**CLOSED by 13.1-06 (2026-08-22), and the prescription above was right except in one detail.** The wiring
+shipped as described — `RETURNING id, status, checkout_session_id`, a fifth `RetireTrigger` member
+(`booker-cancel-hold`), the call outside any transaction, behind its own catch — plus `status`, which the
+prescription did not name and which the retire needs: the policy's alert rule keys on the booking's status,
+and the pre-read `row.status` is the PRE-flip one. Proven by 12 cases in
+`tests/booking/cancel-unpaid-hold-retires-session.test.ts`, including probe-first over the REAL policy at
+this call site (a `paid` session is a provider call count of ZERO, guarded by an `active` case that moves
+it) and four deliberate breaks recorded verbatim in that file's header.
+
+⚠ **THE ROW ABOVE NAMES ONLY ONE OF THE TWO EXCLUSIONS, AND THAT MATTERS.** It says the `expires_at = NULL`
+is what puts the row beyond the sweep. It is *an* exclusion, not *the* exclusion: `queryRetirableSessions`'
+FIRST clause is `status IN ('pending','approved')`, and the same statement writes `cancelled`/`declined`.
+So the simpler-looking fix — stop nulling `expires_at` and let the sweep reach the row — closes **nothing**.
+That was measured, not reasoned: `tests/booking/cancel-unpaid-hold-retires-session.test.ts` case (12) hands
+the row its `expires_at` back after the withdrawal and the sweep still does not select it, and case (11) is
+its guard-the-guard. Widening the sweep's status clause to make option (b) true reddens case (12) **and**
+case (2) of `tests/payments/checkout-retire.test.ts` — "a CONFIRMED booking is never selected — its session
+was paid, and retiring it destroys evidence". Do not re-propose it from this row's partial description.
+
+## Status update from 13.1-06
+
+**Row 2 — STILL OPEN, and now explicitly a PM/live-UAT item.** The 13.1 verification routed it to a human
+(item 3) and 13.1-06 did not close it: capturing `payments[0].id` needs a REAL paid session, which no code
+plan can produce. Both placements are still read defensively, neither is deleted, and the cost of being
+wrong is still bounded to `paymentId: null`. The settling screen remains the best place to capture it.
+⚠ It now has one more consumer: `checkout_paid_after_lapse`'s `meta.paymentId` (§4b of
+`.planning/ops/NEEDS-ATTENTION-RUNBOOK.md`) is the id an operator refunds against. A `null` there is not a
+regression — the runbook's §4b tells them to fall back to the `cs_...` — but it is one more reason to
+capture the real body.
