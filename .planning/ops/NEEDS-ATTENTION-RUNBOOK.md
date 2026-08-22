@@ -2,6 +2,8 @@
 
 **Audience:** whoever holds the ops pager for FitOut. No prior context assumed.
 **Created:** 2026-08-10 (quick task `260810-j3z`).
+**Last revised:** 2026-08-22 (plan `13.1-06`) — two new action names (`checkout_paid_after_lapse`,
+`webhook_missed`) added to §4 with detail sections §4b/§4c, and five stale call-site pointers corrected.
 **Scope:** discovering, triaging, redressing and discharging an unresolved money alert.
 
 ---
@@ -11,11 +13,16 @@
 The obvious name for this file would have been something QRPh-shaped, because the QRPh unrefundable-rail
 overcharge is the sharpest case in it. That name was deliberately rejected (D-J3Z-10).
 
-The daily digest surfaces **every** `needs_attention` seam in the product — 17 `recordAudit` call sites
-across five files, writing **13 distinct action names** (section 4). An operator woken up holding a
+The daily digest surfaces **every** `needs_attention` seam in the product — **19** `recordAudit` call sites
+across **eight** files, writing **15 distinct action names** (section 4). An operator woken up holding a
 `refund_transfer_failed` or a `checkout_expire_failed` row would open a file called "qrph overcharge
-runbook", conclude it did not apply to them, and close it. Every one of these rows means the same thing:
-**FitOut is holding or has mishandled money that belongs to somebody, and no code path can fix it.**
+runbook", conclude it did not apply to them, and close it. Almost every one of these rows means the same
+thing: **FitOut is holding or has mishandled money that belongs to somebody, and no code path can fix it.**
+
+⚠ **One exception, and it is deliberate: `webhook_missed` (§4c) is INFORMATIONAL.** The money is already
+correct by the time that row is written — a lost webhook that the reconciliation sweep already repaired. It
+is in the queue so a failing transport is visible, not because anything is owed. Read §4c before acting on
+one, and do not let it train you to skim the rest of the queue.
 
 The QRPh out-of-band refund procedure is section 5 — the central, explicitly-named section, not the whole
 document.
@@ -107,21 +114,32 @@ a ticket — read the terminal output before forwarding it.
 Every action name below was read off a real call site — none are invented. `actor_id` is `system` for all
 of them except where a real user id drove the action.
 
+> **Line numbers move; action names do not.** Re-derive a pointer that looks wrong with
+> `grep -rn 'action: "<name>"' src/` rather than trusting the column. The 2026-08-22 pass (below) found
+> **five** of these stale, two of them pointing at a file that no longer contained the call at all.
+
 | `action` | Where it is written | What it means / what you must do |
 |---|---|---|
-| **`auto_refund_manual`** | `api/paymongo/webhook/route.ts:185` | **The big one.** A payment landed for a slot that was already gone, on a rail that **cannot be refunded** through the API. Real money is held that is not ours. → **Section 5.** |
-| `auto_refund_failed` | `api/paymongo/webhook/route.ts:174` | Same gone-slot situation on a *refundable* rail, but the refund call itself failed. Retry the refund from the PayMongo dashboard against the payment id in `meta`; if the rail turns out to be unrefundable, treat as section 5. |
-| `refund_after_payout` | `api/paymongo/webhook/route.ts:357` | A refund became due *after* the host payout already moved. The money is with the host, not on the platform wallet. Recover from the host (or net against a future payout) before refunding the booker. |
-| `refund_manual_required` | `cancel-booking.ts:797, 1231` | Money is owed but the API cannot move it: unrefundable rail, no captured payment id, no usable destination, or below PayMongo's ₱1 floor. → **Section 5.** |
-| `refund_dispatch_failed` | `cancel-booking.ts:708, 1219` | The refund dispatch attempt threw. Check the payment id in `meta`, confirm in the PayMongo dashboard whether a refund actually landed, then either retry or treat as section 5. |
-| `refund_transfer_failed` | `cancel-booking.ts:779` | The D-72 InstaPay refund-transfer failed. **Deliberately not auto-retried** — PayMongo requires a NEW `reference_number` per attempt. Re-issue manually with a fresh reference. |
-| `refund_over_instapay_ceiling` | `cancel-booking.ts:735` | The refund exceeds the InstaPay ceiling, so the transfer was never fired (it would be doomed). Split it, or disburse out of band. |
-| `checkout_expire_failed` | `booking.ts:634, 889` | A superseded checkout session could not be expired — **a live payable session is stranded**, so a booker can still pay for something they should not be able to. Expire it in the PayMongo dashboard promptly; if it was already paid, you now have a gone-slot payment (section 5). |
-| `host_cancel_fee_failed` | `cancel-booking.ts:1195` | The D-71 host-cancellation debit was not recorded. The host owes the fee and the ledger does not know. |
-| `host_cancel_autoblock_failed` | `cancel-booking.ts:1158` | After a host cancellation the slot was not auto-blocked — it may be rebookable when it should not be. Block it by hand on the listing's availability. |
-| `group_void_failed` | `cancel-booking.ts:478` | A group booking's void did not fan out. Attendees may still believe a cancelled session is on. |
+| **`auto_refund_manual`** | `lib/payments/confirm-booking-payment.ts:175` | **The big one.** A payment landed for a slot that was already gone, on a rail that **cannot be refunded** through the API. Real money is held that is not ours. → **Section 5.** |
+| `auto_refund_failed` | `lib/payments/confirm-booking-payment.ts:163` | Same gone-slot situation on a *refundable* rail, but the refund call itself failed. Retry the refund from the PayMongo dashboard against the payment id in `meta`; if the rail turns out to be unrefundable, treat as section 5. |
+| `refund_after_payout` | `api/paymongo/webhook/route.ts:212` | A refund became due *after* the host payout already moved. The money is with the host, not on the platform wallet. Recover from the host (or net against a future payout) before refunding the booker. |
+| `refund_manual_required` | `cancel-booking.ts:813, 1329` | Money is owed but the API cannot move it: unrefundable rail, no captured payment id, no usable destination, or below PayMongo's ₱1 floor. → **Section 5.** |
+| `refund_dispatch_failed` | `cancel-booking.ts:728, 1317` | The refund dispatch attempt threw. Check the payment id in `meta`, confirm in the PayMongo dashboard whether a refund actually landed, then either retry or treat as section 5. |
+| `refund_transfer_failed` | `cancel-booking.ts:797` | The D-72 InstaPay refund-transfer failed. **Deliberately not auto-retried** — PayMongo requires a NEW `reference_number` per attempt. Re-issue manually with a fresh reference. |
+| `refund_over_instapay_ceiling` | `cancel-booking.ts:755` | The refund exceeds the InstaPay ceiling, so the transfer was never fired (it would be doomed). Split it, or disburse out of band. |
+| `checkout_expire_failed` | `booking.ts:660, 915` · `lib/payments/retire-checkout.ts:247` | A checkout session could not be expired — **a live payable session is stranded**, so a booker can still pay for something they should not be able to. Expire it in the PayMongo dashboard promptly; if it was already paid, you now have a gone-slot payment (section 5). The `booking.ts` pair is a *superseded* session on the re-price path; the `retire-checkout.ts` one is a *lapsed or withdrawn* hold and carries `meta.trigger` naming which path produced it (§4b). |
+| **`checkout_paid_after_lapse`** | `lib/payments/retire-checkout.ts:208` | **New 2026-08-22, and the sharpest row in this table after `auto_refund_manual`.** → **§4b.** FitOut is holding a real payment for a booking that no longer exists, and **no code path will ever act on it.** |
+| **`webhook_missed`** | `inngest/functions/payment-reconcile.ts:310` | **New 2026-08-22. Informational — the money is already correct.** A payment PayMongo captured whose confirming webhook never arrived; the reconcile sweep confirmed the booking itself. → **§4c** before you touch anything. |
+| `host_cancel_fee_failed` | `cancel-booking.ts:1293` | The D-71 host-cancellation debit was not recorded. The host owes the fee and the ledger does not know. |
+| `host_cancel_autoblock_failed` | `cancel-booking.ts:1256` | After a host cancellation the slot was not auto-blocked — it may be rebookable when it should not be. Block it by hand on the listing's availability. |
+| `group_void_failed` | `cancel-booking.ts:495` | A group booking's void did not fan out. Attendees may still believe a cancelled session is on. |
 | `notify` | `inngest/functions/notify.ts:256` | A notification send failed *permanently* after Inngest exhausted its retries. Someone was not told something. Read `meta` for the recipient and the type, and contact them by hand. **→ read §4a first.** |
 | `guest-email` | `inngest/functions/guest-email.ts:55` | Same, for the guest-with-email RSVP path (guests have no account, so there is no in-app notification fallback). **→ read §4a first.** |
+
+> **One action name deliberately absent: `checkout_retired`.** It is written by the same policy
+> (`lib/payments/retire-checkout.ts:258`) on every *successful* retire, with outcome **`ok`**, not
+> `needs_attention`. It never reaches the digest or `npm run ops:alerts`, and you will only meet it
+> browsing the `audit` table directly. It is the system working. Do not triage it.
 
 ### 4a. `notify` / `guest-email` rows are REAL as of 2026-08-10 — they were not always
 
@@ -166,6 +184,116 @@ touched: the `auto_refund_*` / `refund_*` / `checkout_expire_failed` / `host_can
 The full per-row dump lives in
 `.planning/quick/260810-km4-point-the-vitest-suite-at-its-own-databa/260810-km4-SUMMARY.md`.
 
+
+### 4b. `checkout_paid_after_lapse` — read `meta.bookingStatus` FIRST; it decides everything
+
+**What it means.** FitOut went to close a checkout session belonging to a hold that had just ended, probed
+PayMongo first, and PayMongo answered **`paid`**. Somebody paid for a booking whose hold is over — either
+in the seconds before the hold was reclaimed, or afterwards from a stale tab or an unscanned QR.
+
+**What actually happened to the money, mechanically, in every case.** It is **captured at PayMongo, on the
+platform wallet.** Nothing was refunded and nothing was confirmed *by this alert's own code path*. The
+session was **deliberately NOT expired** — a session the provider reports `paid` is never sent to expire,
+because the session is the only handle on the payment and expiring it would destroy the evidence. **No
+`booking` row was written either**: the retire policy writes none, ever. So `payment_id`, `payment_method`
+and `status` on the booking are exactly what they were before the alert fired.
+
+> ⚠ **`meta.bookingStatus` SPLITS THIS ALERT INTO TWO COMPLETELY DIFFERENT SITUATIONS.** Do not act before
+> you have read it. The alert is written whenever the booking is **not** `pending` — and `approved` and the
+> terminal statuses have opposite consequences.
+
+#### If `bookingStatus` is `approved` — expect the reconciler to fix this itself
+
+The row is still payable-scoped, so **`payment-reconcile` also selects it**
+(`status IN ('pending','approved')`) and will confirm the booking through the normal confirm path within
+about five minutes, writing a `webhook_missed` row (§4c) for the same booking. **This is a duplicate view
+of one payment, not two problems.**
+
+**What to do:** look the booking up. If it has reached `confirmed` with a `payment_id`, the money and the
+booking are both correct — discharge this row and treat the `webhook_missed` one as §4c. If it is **still**
+`approved` after several sweep intervals, the reconciler is not reaching it, and there are exactly two
+known reasons: the sweep is not running at all (**→ `.planning/ops/DEPLOY-CHECKLIST.md`; an unsynced
+Inngest cron raises no error anywhere**), or the booking was created before the reconciler's no-backfill
+epoch (`RECONCILE_EPOCH`, `2026-08-22T12:00+08:00` — D-111). In the second case nothing will ever confirm
+it, and you must treat it as the terminal case below.
+
+#### If `bookingStatus` is `cancelled` or `declined` — this row is the ONLY report you will ever get
+
+> ⚠ **NOTHING ELSE WILL EVER CHASE THIS PAYMENT.** The booking is terminal, so `payment-reconcile` cannot
+> see it (`status IN ('pending','approved')`); `checkout-retire-sweep` cannot see it either; and the D-58
+> gone-slot backstop only runs when a confirming webhook arrives, which in this shape it did not. If nobody
+> works this row, FitOut keeps the money and the person who paid it hears nothing. **Treat it with the same
+> urgency as `auto_refund_manual`.**
+
+**What to check, and where.** Everything you need is on the alert's `meta` (read it with the psql command
+in §3 — the digest email deliberately carries no `meta`):
+
+| `meta` key | What it gives you |
+|---|---|
+| `bookingStatus` | **Read this first** — see the fork above. `approved` = the reconciler is also on it. `cancelled` / `declined` = nothing is. |
+| `bookingId` | The booking. Check its `status` and `payment_id`. A non-NULL `payment_id` means a confirm has since landed — re-read the fork above before doing anything. |
+| `paymentId` | The `pay_...`. **This is what you refund against.** May be `null` if PayMongo's response omitted it — then use `checkoutSessionId` to find the payment in the dashboard. |
+| `paidAt` | When PayMongo says the money was taken. Compare against the booking's `cancelled_at` / `expires_at`. |
+| `checkoutSessionId` | The `cs_...`. Open it in the PayMongo dashboard for the payment, the rail and the amount. **The amount is deliberately not in `meta`** (D-72) — get it from the dashboard. |
+| `trigger` | Which path ended the hold: `retire-sweep` (the 5-min cron — the only trigger that can carry `approved`), `stale-hold-reclaim` / `open-capacity-reclaim` (somebody else took the slot), `request-expiry` (the payment window closed), `booker-cancel-hold` (**the booker withdrew it themselves**). |
+| `probedStatus` | Always `paid` for this action. Present because the same `meta` shape is shared with `checkout_expire_failed`, where it is the useful field. |
+
+**What to do (terminal case).**
+
+1. **Verify the capture in the PayMongo dashboard before moving anything.** A probe reads the provider's
+   record; the dashboard is where you see the amount and the rail.
+2. **Return the money.** If the rail is card/GCash/Maya, refund against the payment id. **If it is QRPh or
+   UBP Online Banking, the API cannot refund it → §5**, the out-of-band procedure.
+3. **Do NOT confirm the booking to "fix" it.** The slot was released and may already have been re-sold; a
+   confirm would either fail on the exclusion constraint or double-book a real customer.
+4. **Do NOT expire the session.** It is already paid — expiring it buys nothing and removes the handle.
+5. If `trigger` is `booker-cancel-hold`, **tell the person**. They withdrew deliberately and were charged
+   anyway; a refund they never asked for, with no explanation, is its own support ticket.
+6. Discharge with §6 once the money is back or the manual return is dispatched.
+
+**One thing this alert does NOT cover, on the record.** A `paid` session on a booking that is still
+`pending` is **deliberately silent** — no row is written at all. That is not an omission: `pending` is
+exactly the status `payment-reconcile` owns, it will confirm the booking, and a row here as well would put
+one payment in your queue twice. If anyone ever narrows the reconciler's status scope, this silence becomes
+a hole; the constraint is stated at the branch itself in `src/lib/payments/retire-checkout.ts`.
+
+### 4c. `webhook_missed` — loud on purpose, and NOT a money problem
+
+**What it means.** PayMongo captured a booker's payment and the confirming webhook **never arrived**. The
+5-minute reconciliation sweep found the paid session on its own and confirmed the booking.
+
+**What actually happened to the customer's money.** **Nothing is wrong with it.** By the time this row is
+written the confirm has already run through the single confirm path the webhook itself uses: the booking is
+`confirmed`, `payment_id` and the rail are persisted on the row, and the booker has been sent the
+booking-confirmed notification. The host payout follows the normal `payout-sweep` route like any other
+confirmed booking. **There is nothing to refund, nothing to re-charge and nothing to re-send.**
+
+The row exists because **a failing transport must be observable rather than absorbed** — the sweep is a
+safety net, and a safety net nobody can see catching things is indistinguishable from one that is not
+needed. It fires only on a **genuine** transition, never on a replay or a later pass, so one row means one
+lost webhook.
+
+**What to check, and where.** On `meta`:
+
+| `meta` key | What it gives you |
+|---|---|
+| `bookingId` | The booking that was rescued. It should read `confirmed`. |
+| `paymentId` / `checkoutSessionId` | The `pay_...` / `cs_...`, for cross-checking against the PayMongo dashboard's webhook delivery log. |
+| `method` | The rail PayMongo reported (`gcash`, `qrph`, `card`, … or `unknown`). |
+| `paidAt` / `expiresAt` | When the money was taken, and when the hold window closed. |
+| `paidWithinHold` | `true` — paid inside their window, the ordinary case. `false` — they paid **after** their hold expired and got the slot anyway because nobody else had taken it. `null` — one of the two instants was unknown, so no claim is made. |
+
+**What to do.**
+
+1. **One row in a quiet week is a blip.** Note it and discharge it (§6).
+2. **A cluster in one window is the real signal.** Open the PayMongo dashboard's webhook delivery log for
+   that period and check whether deliveries were failing, and whether the endpoint was reachable — a deploy,
+   a container recycle or a provider incident will all show up here as several rows minutes apart.
+3. **`paidWithinHold: false` is worth reading but is not an action.** It says the booker paid late and the
+   slot happened to still be free. If you see it often, the payment window is too short for real behaviour —
+   that is a product conversation, not an ops one.
+4. ⚠ **Do NOT re-confirm, re-charge, refund or re-send anything.** Every one of those would create the
+   double-action this alert exists to prove did *not* happen.
 ---
 
 ## 5. The QRPh / UBP out-of-band manual refund procedure
@@ -417,6 +545,14 @@ reads §6a as more than it is:
 - `.planning/quick/260811-dj4-add-resolved-history-review-to-the-ops-a/260811-dj4-SUMMARY.md` — the review
   path in §6a: why history is unscoped by outcome, why there is no ACTOR column, and the single-key
   `meta->>'error'` widening argued in full
+- `src/lib/payments/retire-checkout.ts` — the D-113 retire policy: the ONE owner of what happens to a
+  checkout session, and the writer of §4b's `checkout_paid_after_lapse`. Its header states why a `paid`
+  session is never expired, which is the constraint §4b's "do NOT expire the session" step comes from
+- `src/inngest/functions/payment-reconcile.ts` — the 5-minute reconciliation sweep, the writer of §4c's
+  `webhook_missed`
+- `.planning/ops/DEPLOY-CHECKLIST.md` — **read this before any deploy.** Both crons above are Inngest
+  functions and neither fires until Inngest has re-synced the app; a cron that never fires raises no error
+  anywhere, so a missed sync makes both of the above silently stop being written
 - `.planning/quick/260811-fh6-add-resolved-by-to-the-audit-table-so-a-/260811-fh6-SUMMARY.md` — the
   `resolved_by` column (migration `0025`), the required `--by` with no default, the `BY` column and its
   honest `unrecorded`, and why the identity is asserted rather than authenticated
