@@ -667,11 +667,17 @@ export default async function BookingConfirmationPage({
     // 13-07: the two props D-71's promise needs, both server-supplied. The reference is the string a
     // person would ask the booker to quote; the address is the one the promise is about, and it is the
     // booker's OWN session address, never masked (D-63).
+    // 13.1-03 (D-109): `bookingId` is the third server-derived prop and the only thing this plan adds to
+    // this file. It is `bk.id` — already loaded, already ownership-checked above — handed DOWN, never
+    // read from the browser by the leaf. It buys the settling screen one probe of the provider after its
+    // poll cap, and nothing else: no new branch here, no probe on this render path, and no parameter
+    // consumer at or above this branch (D-89 is untouched).
     if (paid === "1")
       return (
         <PendingPaymentState
           reference={reference}
           email={session?.user?.email ?? null}
+          bookingId={bk.id}
         />
       );
     // ══ 13-07 — D-70's THIRD PAYMENT STATE, AND THE BOUNDARY THAT KEEPS IT OFF SOMEBODY ELSE'S ══════

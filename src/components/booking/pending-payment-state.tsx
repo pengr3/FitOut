@@ -166,6 +166,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ClockIcon, Loader2Icon } from "lucide-react";
 
+import { reconcilePaymentNow } from "@/app/actions/reconcile-payment";
 import { BOOKING_SHELL } from "@/lib/design/measurements";
 import { Button } from "@/components/ui/button";
 import { BookingReference } from "@/components/booking/booking-reference";
@@ -208,9 +209,28 @@ export type PendingPaymentStateProps = {
    * on INVENTING trust signals is untouched — `tests/design/trust-signals.test.ts` still scans this
    * file among the rest of the phase's three roots.
    */
+  /**
+   * 13.1-03 / D-109 — THE BOOKING'S OWN ID, SERVER-DERIVED, and the only new prop this phase adds.
+   *
+   * Same discipline as `reference` (TRUST-02): it is a fact about this booking handed down by the RSC
+   * that rendered it, NEVER read from the browser. This component does not touch `useSearchParams`, and
+   * the action it hands this id to re-checks the booking against the caller's own session before it does
+   * anything with it — so the id crossing the boundary buys the caller nothing they did not already have.
+   *
+   * ⚠ OPTIONAL, AND THE REASON IS WORTH READING BEFORE ANYONE TIGHTENS IT. The 13.1-03 plan asks for
+   * `bookingId: string`. Required, it fails `npx tsc --noEmit` on `tests/booking/payment-states.test.tsx`
+   * — the suite that pins this surface's copy and the poller's behaviour at all three thresholds, and
+   * which the SAME plan requires to pass with an EMPTY `git diff --stat`. Those two instructions cannot
+   * both hold. Optional satisfies both, and it degrades in the only direction this phase permits: a call
+   * site that omits it loses the ACCELERANT and keeps the guarantee, because the 5-minute sweep
+   * (`src/inngest/functions/payment-reconcile.ts`) is what actually promises a paid booker a booking.
+   * `tests/booking/pending-fast-path.test.tsx` asserts that the real call site — the pending branch of
+   * `bookings/[id]/page.tsx` — does pass it, so "optional" cannot quietly become "nobody passes it".
+   */
+  bookingId?: string;
 };
 
-export function PendingPaymentState({ reference, email }: PendingPaymentStateProps) {
+export function PendingPaymentState({ reference, email, bookingId }: PendingPaymentStateProps) {
   const router = useRouter();
   const [slow, setSlow] = React.useState(false);
   const [escalated, setEscalated] = React.useState(false);
@@ -244,6 +264,62 @@ export function PendingPaymentState({ reference, email }: PendingPaymentStatePro
     const id = window.setTimeout(() => setEscalated(true), SUPPORT_ESCALATION_MS);
     return () => window.clearTimeout(id);
   }, []);
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // PLAN 13.1-03 (D-109) — ONE PROBE AFTER THE CAP. IT IS AN ACCELERANT AND MUST STAY ONE.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // 1. WHAT IT IS FOR. When the poller gives up at ~20s, the booker is looking at a page that says we
+  //    are waiting on their provider, and until now the next thing that could possibly happen to them
+  //    was the 5-minute sweep. This asks the provider ONCE, on their behalf, through the server.
+  //
+  // 2. IT IS NOT THE GUARANTEE, AND NOTHING MAY EVER MAKE IT ONE. The sweep is the guarantee. If this
+  //    effect never runs, never resolves, or is deleted outright, a booker who paid still ends up with
+  //    a booking — up to five minutes later. That is the entire cost. No promise anywhere in this
+  //    phase may come to depend on a page render, because a page render depends on somebody watching.
+  //
+  // 3. IT RENDERS NOTHING. The returned value is DISCARDED on purpose. If the probe reconciles, the
+  //    row becomes `confirmed` and the refresh below re-renders the CONFIRMED surface — that is the
+  //    answer, and a sentence about it would be a worse one. If it learns nothing, the `takingLonger`
+  //    copy stands exactly as 13-20 left it. So this plan adds ZERO strings to this file, which is how
+  //    STATE-05's ban on an error affordance while the authority is outstanding is kept BY
+  //    CONSTRUCTION rather than by remembering: there is no branch here to hang one on.
+  //
+  // 4. WHAT ACTUALLY MAKES "ONCE" TRUE — MEASURED, because the obvious answer is wrong. React 19 DOES
+  //    double-invoke effects in this codebase's own test harness: with the `!slow` guard removed the
+  //    call count under `StrictMode` was 3 against 2 without it. But the double-invoke happens at
+  //    MOUNT, and at mount `slow` is false, so the shipped effect returns before it calls anything.
+  //    The thing holding "once" is therefore the early return plus the fact that `slow` transitions
+  //    exactly one time. THE LATCH IS DEFENCE IN DEPTH, and removing it alone did NOT redden the
+  //    StrictMode case (recorded verbatim in the spec's header). It is kept because it is what makes
+  //    "once" survive the edit nobody has made yet — a dependency added to the array, a second state
+  //    that re-enters this branch, a remount — and because a one-line ref is a cheap price for a probe
+  //    that costs real money to fire twice.
+  //
+  // 5. NO CANCELLATION FLAG, DELIBERATELY. The obvious cleanup — flip a local `cancelled` and skip the
+  //    refresh — is WRONG when paired with a mount-lifetime latch: under the development double-invoke
+  //    the first run's cleanup fires before the second run, and the second run is latched out, so the
+  //    flag would cancel the only call there is ever going to be. What is discarded instead is at most
+  //    one best-effort `refresh()` after unmount, which is a no-op on a page nobody is looking at.
+  //
+  // ⚠ AND THE POLLER IS UNTOUCHED, AGAIN. Not one line of the interval, the cap, the ref-held router,
+  // the interval-only state write, the cleanup or the `slow` gate on the indicator moved — this is a
+  // NEW effect alongside them, modelled on the `SUPPORT_ESCALATION_MS` one-shot directly above, which
+  // 13-07 added under exactly this discipline for exactly this reason (a second threshold hung off the
+  // poller's own callback would have meant editing the block D-71 freezes).
+  const probeFired = React.useRef(false);
+  React.useEffect(() => {
+    if (!slow || !bookingId || probeFired.current) return;
+    probeFired.current = true;
+    void reconcilePaymentNow(bookingId)
+      // The action's own failure is not this surface's to render (see 3 above, and STATE-05). It
+      // already returns a closed enum with no provider prose in it; a transport failure calling it is
+      // the same class of event and stops here the way `checkout-probe.ts` stops one.
+      .catch(() => undefined)
+      // Whatever happened, ask the RSC to re-read the database. That is the ONLY thing this effect
+      // does to the page: the surface renders from the row, never from what the action said.
+      .finally(() => routerRef.current.refresh());
+  }, [slow, bookingId]);
 
   // THE THREE THRESHOLDS' COPY, composed here and handed to `MoneyStatement` finished (that component
   // takes completed strings and performs no arithmetic and no interpolation of its own).
