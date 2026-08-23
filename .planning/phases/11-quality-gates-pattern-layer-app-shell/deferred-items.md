@@ -73,6 +73,12 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
 
   **Whoever picks this up — it is a UI-SPEC correction, not a coding task.** Either (a) drop `listing-card.tsx` from ResultCard's *Replaces* list and record that a tile with in-card controls is a different shape from a tile that is one link, or (b) decide at product level that the host tile becomes navigable (whole card → `/host/listings/[id]/edit`) and its controls move OFF the card — which is a Phase 14 host-surface decision, not a container swap. Do **not** resolve it by adding a fourth container: DS-11 says three.
 
+  ### ✅ CLOSED by 14-13 — option (a), and nothing under `src/` moved
+
+  14-CONTEXT § Claude's Discretion took the fork rather than escalating it, and 14-UI-SPEC Open Question 7 records the same decision. Plan 14-13 executed it: `11-UI-SPEC.md`'s `ResultCard` *Replaces* line now names `search/search-result-card.tsx` alone, with the correction and its reason written beside it — a management tile carrying four controls cannot become one whole-card anchor without the nested-interactive defect measured above.
+
+  **`git diff src/components/listing/listing-card.tsx` is empty across that plan**, which is what makes this a spec correction rather than a container swap. **No fourth container was added** (DS-11 still says three), the tile's `ALLOWED_RAW_CARD` row is unchanged with its measured reason, and its `"refused"` row in `tests/design/card-pattern-coverage.test.ts` is unchanged too — so the gate already described the tile correctly in both directions and only the spec sentence was wrong. Its local confirm overlay is **not** converted: it was not named for conversion in Phase 14, and converting an overlay on the strength of a corrected footnote is scope no plan budgeted.
+
 - **[11-11] `notifications/notification-item.tsx` CANNOT render through `RowCard` either, for four independent reasons.** Also listed in the UI-SPEC's *Replaces* line, also not done.
 
   1. **`href` is nullable BY SECURITY DESIGN.** `safeHref()` refuses `javascript:`, `data:` and protocol-relative URLs, and a refused payload deliberately degrades to non-navigable static content (`notification-item.tsx:283-287`). `RowCard` requires an `href`. Satisfying the type would mean fabricating a destination the writer never wrote — the exact failure the render-side guard exists to prevent.

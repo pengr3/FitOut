@@ -700,8 +700,29 @@ Shared, inherited from `ui/card.tsx` and unchanged: `rounded-xl` (= `--radius-xl
 - Container queries, not viewport breakpoints, for the card's **internals**: it renders at ~330px in a 3-up
   grid, full width at 320px, and a third width inside the "You might also like" row. `@container` on the
   card root; author internals with `@max-[20rem]:` / `@sm:`. The *grid* uses viewport breakpoints.
-- Replaces: `search/search-result-card.tsx`, `listing/listing-card.tsx` (presentational core).
+- Replaces: `search/search-result-card.tsx`.
 - Hook: `data-testid="result-card"`.
+
+> **CORRECTION (plan 14-13, 2026-08-23): the host listing tile is DROPPED from the list above.**
+> `listing/listing-card.tsx` was named here as a *"presentational core"* adopter. It is not one: it is a
+> **management** tile whose footer carries four controls (an Edit link, an Availability link and two
+> confirm triggers), and `ResultCard` wraps the whole tile in one anchor. A tile that is one whole-card
+> anchor cannot hold interactive children without nested-interactive accessibility problems — fed that
+> markup, the HTML adoption-agency algorithm shatters the single anchor into six and leaves the
+> whole-card link with zero children, which plan 11-11 measured with a real parser rather than argued.
+>
+> **This is a SPEC CORRECTION, not a container swap.** Nothing in `src/` changes: `listing-card.tsx`
+> keeps its raw container and its own local confirm overlay, and neither was opened by the plan that
+> wrote this paragraph. **No fourth container is added** — DS-11 still says three, and
+> `tests/design/card-pattern-coverage.test.ts` already carries the tile twice over: once as a
+> `"refused"` row with the measurement, and once on `ALLOWED_RAW_CARD` with its reason, so the gate
+> describes the tile correctly in both directions and only this sentence was wrong.
+>
+> **It closes the fork at `11/deferred-items.md` ([11-11], the `listing-card.tsx` item) by option (a).**
+> That item left Phase 14 a choice: (a) drop the tile from this list, or (b) decide at product level
+> that the tile becomes navigable and its controls move off the card. 14-CONTEXT § Claude's Discretion
+> takes (a), and 14-UI-SPEC Open Question 7 records the same decision — so a later phase finds a
+> decision here rather than an open question.
 
 #### `RowCard` — the list row
 
