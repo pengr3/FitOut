@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 14-06-PLAN.md — the requests inbox reads deadline-first and D-146 is a browser measurement. Phase 14 is 6 of 16 plans done
-last_updated: "2026-08-23T10:35:03.860Z"
+stopped_at: Completed 14-07-PLAN.md — /host/bookings wears the design system and its information architecture is proved unmoved block by block. Phase 14 is 7 of 16 plans done
+last_updated: "2026-08-23T10:59:06.012Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 86
+  completed_plans: 87
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 7 of 16
-Current Plan: 7
+Plan: 8 of 16
+Current Plan: 8
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -668,6 +668,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P03 | 20min | 3 tasks | 4 files |
 | Phase 14 P05 | 20min | 3 tasks | 6 files |
 | Phase 14 P06 | 30min | 2 tasks | 5 files |
+| Phase 14 P07 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1073,6 +1074,10 @@ Recent decisions affecting current work:
 - [Phase 14]: D-146 is enforced as a browser measurement: e2e/host-inbox-hierarchy.spec.ts collects every visible text node's computed font size inside a request row at 320/768/1280 and asserts the countdown digits are strictly the largest, printing the full sorted list on failure
 - [Phase 14]: The desktop requests table adopts RequestCountdown's emphasis=lead — the hierarchy is a property of the request row, not of the viewport, and without it D-146 was false at 768px and 1280px
 - [Phase 14]: REQUEST_STATUS_CAP (max-w-28) declared in measurements.ts and applied to request-row's status content: at 320px the D-99 reason sentence drove RowCard's shrink-0 status column to 235.34px and left the space title 8.66px. Discharges deferred item [14-03]
+- [Phase 14]: 14-07: a page's header copy gets ONE owner beside its surface (src/lib/host/bookings-copy.ts) and both the route and its loading.tsx SPREAD it — a spread cannot be half-adopted, so page/plate agreement is a property of the syntax rather than of a reviewer noticing
+- [Phase 14]: 14-07: a restyle under a do-not-touch decision proves it BLOCK BY BLOCK — each protected region extracted from `git show HEAD:<file>` and from the working tree and diffed; all seven regions of /host/bookings reported IDENTICAL
+- [Phase 14]: 14-07: the host tab partition and the host keyset pager had NO host-side assertion (views.test.ts drove queryBookerBookings only). The shared SQL fragment made the property inherited, which is exactly what a no-regression gate must not rest on — both added and both observed failing
+- [Phase 14]: 14-07: /host/bookings' 320px floor was measured with a throwaway Playwright script reusing e2e/helpers/overflow.ts's own evaluate bodies, NOT a seventh DB-seeding spec — scrollWidth 320/clientWidth 320, 0 offenders, smallest control axis 28px, Approve 90x44 and Decline 84.6x44 on both breakpoints
 
 ### Pending Todos
 
