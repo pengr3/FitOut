@@ -1,7 +1,8 @@
 ---
 phase: 14
 slug: host-tooling
-status: draft
+status: approved
+reviewed_at: 2026-08-23
 shadcn_initialized: true
 preset: "radix-nova (components.json; baseColor neutral, cssVariables true, registries {})"
 created: 2026-08-23
@@ -1459,11 +1460,13 @@ PM may reverse without re-planning the phase.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** APPROVED — gsd-ui-checker, 2026-08-23. 6/6 dimensions PASS.
+One non-blocking note: `Approve` / `Decline` are single-word CTAs without an object noun. Kept as-is —
+shipped, row-scoped triage copy whose subject is unambiguous from the row it sits on.
