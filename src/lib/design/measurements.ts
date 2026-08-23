@@ -631,6 +631,14 @@ export const WIZARD_CHECKLIST_GRID = "lg:grid-cols-[minmax(0,1fr)_18rem]";
 //   request row            /host/requests    254.05   83.02*   80
 //   host booking row       /host/bookings    196.00   37.02*   80
 //
+// ⚠ THE THIRD ROW WAS RE-MEASURED BY PLAN `[14-16]` AND IS NOW 176.00 / 36.52. Nothing about the
+//   component changed: 196/37.02 were taken against a geometry fixture that positioned its bookings
+//   relative to `now()`, so the venue-local window label — and therefore the meta line's wrap count
+//   at 320px, at 20px a line — was a different string on a different day. The fixture now names
+//   absolute venue-local days and the numbers are literals. See `HOST_BOOKING_ROW_HEIGHT` below for
+//   the distribution that decided which of the shape's two heights the constant declares. The 14-15
+//   figures are left in place rather than overwritten so the correction is visible.
+//
 //   * ABOVE THE MEDIUM BREAKPOINT THESE TWO ROUTES DO NOT RENDER A ROW CARD AT ALL. Both pages hide
 //     the card stack and render a TABLE in its place. So the starred numbers are the height of the
 //     visible TABLE ROW, which is what a reader at that width is actually waiting for. Measuring the
@@ -661,18 +669,30 @@ export const WIZARD_CHECKLIST_GRID = "lg:grid-cols-[minmax(0,1fr)_18rem]";
  *
  * ⚠ THE NARROW VALUE IS CONTENT-DEPENDENT, AND THAT IS RECORDED RATHER THAN HIDDEN. The meta line is
  * the space title joined to a venue-local window label, and how many lines it wraps to at 320px is a
- * function of how long the space's title is. The measured 132 is an eighteen-character title; a
- * longer one wraps a further line and the row grows by 20px. Every other constant in this module
- * describes a box that CSS fixes; this one describes a box that text decides. The floor (72) is exact
- * at every width where the meta fits one line, and the geometry spec seeds its own title so that the
- * assertion is falsifiable rather than dependent on whatever a real host happened to name a room.
+ * function of BOTH — how long the space's title is, and how wide the composed date happens to render.
+ * One further wrapped line is 20px. Every other constant in this module describes a box that CSS
+ * fixes; this one describes a box that text decides. The floor (72) is exact at every width where the
+ * meta fits one line.
+ *
+ * ⚠⚠ THE DATE HALF OF THAT DEPENDENCE WAS UNDER-STATED UNTIL PLAN `[14-16]` MEASURED IT, and the
+ * measurement matters to anyone reading 132 as a fact about this row. With the geometry spec's
+ * ORIGINAL seventeen-character title, the row rendered 132px (4 meta lines) on only 554 of the 2,604
+ * date tokens `EEE, MMM d` can ever compose, and 112px (3 lines) on the other 2,050 — so the
+ * declared narrow value described 21% of dates. The spec now seeds a twenty-four-character title
+ * chosen from that same sweep, at which all 2,604 tokens — across five window spellings, 13,020
+ * labels — wrap to exactly four lines and the row measures 132px on every one. The constant is
+ * unchanged; what changed is that it is now true of the fixture on every day rather than on some of
+ * them.
  *
  * THE BREAKPOINT IS WHERE THE MEASUREMENT SETTLES, not where somebody drew a line. Measured across
- * the ladder: 132 at 320, 112 at 360 and 375, 92 from 414 to 560, 72 from 639 up. The small
- * breakpoint (640px) is the closest declared step to the width at which the row reaches its floor.
- * The band from 561 to 638 therefore draws the narrow bar against a row that has already shrunk — up
- * to 60px of over-claim, measured, accepted, and pinned in the geometry spec so that a later change
- * to it is a visible failure rather than a silent drift.
+ * the ladder with the 17-character title: 132 at 320, 112 at 360 and 375, 92 from 414 to 560, 72
+ * from 639 up — which is what put the small breakpoint (640px) at the closest declared step to the
+ * width where the row reaches its floor. With the longer title the whole ladder shifts one step
+ * later (132 at 320, 112 at 360-375, 92 from 414 to 640, 72 from ~700 up), which is the same
+ * content-dependence seen from the side: the band just below the settling width draws the narrow bar
+ * against a row that has not shrunk yet. Both directions are measured, accepted, and pinned at the
+ * two widths the geometry spec asserts, so a later change to either is a visible failure rather than
+ * a silent drift.
  */
 export const HOST_AGENDA_ROW_HEIGHT = "h-33 sm:h-18";
 
@@ -701,7 +721,46 @@ export const HOST_AGENDA_ROW_HEIGHT = "h-33 sm:h-18";
 export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
 
 /**
- * The host bookings list's row: 196px below the medium breakpoint, 36px at and above it.
+ * The host bookings list's row: 176px below the medium breakpoint, 36px at and above it.
+ *
+ * ⚠ CORRECTED FROM 196 BY PLAN `[14-16]`, AND THE CORRECTION IS THE INTERESTING PART. The row's card
+ * is 136px of boxes CSS fixes — 16 padding + 20 title + 12 gap + 72 description list + 16 padding —
+ * plus its meta line, which is a `text-sm` paragraph free to wrap at 20px a line. So at the 320px
+ * floor this one shape has exactly TWO heights, and which one it takes is decided by the rendered
+ * WIDTH of the venue-local window label: the weekday name, the month name, whether the day-of-month
+ * is one digit or two, and how many digits the two hours spend.
+ *
+ *     2 meta lines → 176px          3 meta lines → 196px
+ *
+ * MEASURED (Chromium, 320px, 24 August 2026) over the full cross product of every date token
+ * `EEE, MMM d` can compose — 7 weekdays × 12 months × 31 days = 2,604 — against five window
+ * spellings covering both digit-length classes on both bounds. 13,020 labels; two outcomes, never a
+ * third:
+ *
+ *     "8:00 AM – 9:00 AM"     176 ×2,050   196 ×554
+ *     "9:00 AM – 11:00 AM"    176 ×2,072   196 ×532
+ *     "10:00 AM – 12:00 PM"   176 ×1,031   196 ×1,573
+ *     "11:00 AM – 1:00 PM"    176 ×1,761   196 ×843
+ *     "6:00 PM – 8:00 PM"     176 ×2,103   196 ×501
+ *                             ──────────   ──────────
+ *                             9,017 (69%)  4,003 (31%)
+ *
+ * 14-15's 196 was not wrong when it was taken — it was the height of a three-line label, and the
+ * geometry fixture happened to compose one that day because it seeded the booking as "today + 3
+ * days". The next day it composed a two-line one and the gate went red by exactly 20px with nothing
+ * in `src/` having moved. That is deferred item `[14-16]`.
+ *
+ * WHY 176 IS THE RIGHT SINGLE NUMBER, given the shape genuinely has two. It is the more common
+ * outcome (69% of labels) — and, decisively, it is ALSO the height this row takes at 360, 375 and
+ * 414px, where the label always fits two lines whatever it says. So `h-44` is exact from 320 to
+ * ~479 for most rows and over-claims 20px from ~480 to the breakpoint, whereas `h-49` was exact only
+ * at 320 and only for the minority of labels, and over-claimed 20px at 360-414 and 40px above it.
+ * One bar cannot be two boxes; this is the one that is right across more of the ladder.
+ *
+ * BOTH HEIGHTS ARE NOW SEEDED AND PINNED, at absolute venue-local instants, in
+ * `e2e/skeleton-geometry.spec.ts`'s `(wrap)` case — together with the 20px step between them, which
+ * every derived expectation in that block rests on. The number above can no longer move with the
+ * calendar, because nothing that produces it reads a clock.
  *
  * THE SLOT CONFIGURATION IT DESCRIBES, BELOW THE BREAKPOINT: a title, a meta line, a status badge and
  * a three-term description list (guest, guest pays, payout). NO actions and NO trailing line — and
@@ -713,17 +772,19 @@ export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
  * ABOVE THE BREAKPOINT IT DESCRIBES A TABLE ROW, for the same reason the request constant does: the
  * page hides the card stack there and renders a table.
  *
- * MEASURED, NOT DERIVED: 196.00px at 320 and 37.02px for the resting table row at 1280, on
- * `/host/bookings` with one confirmed upcoming booking and two still-pending ones seeded. The
- * declared values are 196 (exact) and 36 (a 1.02px under-claim).
+ * MEASURED, NOT DERIVED: 176.00px at 320 and 36.52px for the resting table row at 1280, on
+ * `/host/bookings` with the fixed-instant confirmed booking and two still-pending ones seeded. The
+ * declared values are 176 (exact) and 36 (a 0.52px under-claim).
  *
  * ⚠ THE ACCEPTED, MEASURED DEVIATION. A row whose booking is still awaiting an answer carries the
- * approve/decline actions and measures 232–252px at 320 and 61px at 1280 — 36 to 56px taller than
- * this bar below the breakpoint, and 24px taller above it. The list mixes both shapes, so no single
- * bar can be right for every row it will hold, and drawing the taller shape instead would over-claim
- * on the confirmed rows that are the ordinary case on this tab. The delta is recorded here and pinned
- * in `e2e/skeleton-geometry.spec.ts` with both numbers, because a delta no test carries is prose. The
- * dishonest fix that was explicitly NOT taken: reducing the plate's row COUNT until the totals happen
- * to line up while every individual row still disagrees.
+ * approve/decline actions, and those cost a FLAT 56px at 320 and 25px at 1280 — so a pending row is
+ * 232px or 252px at 320 (the same two-versus-three-line fork as above, plus 56) and 61px at 1280.
+ * The list mixes both shapes, so no single bar can be right for every row it will hold, and drawing
+ * the taller shape instead would over-claim on the confirmed rows that are the ordinary case on this
+ * tab. The delta is pinned in `e2e/skeleton-geometry.spec.ts` as a DERIVATION — the actions' flat
+ * cost plus that row's own observed wrap count — rather than as a band, because a band wide enough
+ * to absorb a wrapped line is a band wide enough to absorb the defect the plate exists to prevent.
+ * The dishonest fix that was explicitly NOT taken: reducing the plate's row COUNT until the totals
+ * happen to line up while every individual row still disagrees.
  */
-export const HOST_BOOKING_ROW_HEIGHT = "h-49 md:h-9";
+export const HOST_BOOKING_ROW_HEIGHT = "h-44 md:h-9";

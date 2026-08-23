@@ -616,6 +616,11 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
 //   request row            /host/requests    254.05   83.02     80   (+174 / +3)
 //   host booking row       /host/bookings    196.00   37.02     80   (+116 / −43)
 //
+// ⚠ THE HOST BOOKING ROW'S TWO STARRED NUMBERS WERE RE-MEASURED BY `[14-16]` AND ARE NOW 176.00 AND
+// 36.52 — not because the row changed, but because 196/37.02 were taken against a fixture whose
+// window label moved with the wall clock. The block at the foot of this header has the whole story;
+// the row above is left as 14-15 recorded it so the correction is visible rather than overwritten.
+//
 // 174px of under-draw, four rows deep, is roughly 700px of page arriving under the reader after the
 // data lands — on the one host surface whose entire subject is a deadline. That is the layout shift
 // STATE-01 exists to remove, caused by the thing built to prevent it.
@@ -641,21 +646,80 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
 // exactly as "equal" as two that agree at the right one. A plate and a list that both drifted to
 // 300px would satisfy the difference clause perfectly.
 //
-// ── THE FIXTURE, AND THE ONE THING IT CANNOT PIN ─────────────────────────────────────────────────
+// ── THE FIXTURE ──────────────────────────────────────────────────────────────────────────────────
 // One host signed up through the UI (so no password is re-entered and the sign-in rate limiter at
 // `src/lib/auth.ts` is never approached), one published listing with an activated payout wallet, and
-// five bookings: two confirmed today (the agenda), one confirmed in three days (the bookings list's
-// RESTING row), and two still awaiting an answer (the request inbox, and the bookings list's second
-// shape). Torn down in `afterAll`, in the foreign-key order `booker-seed.ts` records.
+// six bookings with ONE BOOKER EACH: two confirmed today (the agenda), two confirmed at fixed
+// far-future venue-local days (the bookings list's RESTING row, in each of its two wrap counts), and
+// two still awaiting an answer (the request inbox, and the bookings list's second shape). Torn down
+// in `afterAll`, in the foreign-key order `booker-seed.ts` records.
 //
-// ⚠ AT THE 320px FLOOR THE AGENDA ROW'S HEIGHT IS DECIDED BY TEXT, NOT BY CSS. Its meta line is the
-// space title joined to a venue-local window label, and at that width the label wraps to four lines.
-// One more wrapped line is 20px. The fixture therefore pins the listing title to a FIXED LENGTH, and
-// if this assertion ever goes red by almost exactly 20px on that shape the honest reading is "the
-// row now wraps a line further, so the declared constant is stale" — re-measure and move the
-// constant in `src/lib/design/measurements.ts`, which is where its content-dependence is written
-// down. Do NOT widen the tolerance to absorb it; that is the number-tuned-to-green failure this file
-// argues against three times above.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// `[14-16]` — WHY THE FIXTURE NAMES ABSOLUTE DAYS, AND WHY THAT IS THE FIX RATHER THAN A NEW NUMBER
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE DEFECT. Every seeded booking used to be positioned RELATIVE to the DB clock —
+// `date_trunc('day', now() …) + make_interval(days => n)`. A booking three days out is therefore a
+// different venue-local DAY every day, `composeWhenLabelShort` renders a different string for it,
+// and at the 320px floor that string's rendered WIDTH decides how many lines the row's meta
+// paragraph wraps to. A wrapped `text-sm` line is 20px. So a tightly-pinned row height at 320 was a
+// pin on the date the measurement was taken, and this file went red overnight with nothing in
+// `src/` having moved:
+//
+//     Error: host booking row · /host/bookings · 320px: the resolved card measures 176px, but this
+//     shape was measured at 196px when its height was declared.   Expected: <= 4   Received: 20
+//
+// 14-15's own decision 3 predicted the mechanism verbatim and then pinned a tight number against it
+// anyway. Re-measuring and re-pinning would have re-armed it for the next date that wraps
+// differently, which is exactly what `[14-16]` refused to do.
+//
+// THE FIX IS A PROPERTY OF THE FIXTURE, NOT A NUMBER. Two knobs, both measured:
+//
+//   1. THE MEASURED CONFIRMED BOOKINGS ARE SEEDED AT ABSOLUTE VENUE-LOCAL DAYS (`HOST_FIXED_DAY_2L`
+//      / `HOST_FIXED_DAY_3L`, both in 2099 so the row stays on the `upcoming` tab for the product's
+//      lifetime). `composeWhenLabelShort` renders no year, so a 2099 row is indistinguishable on
+//      screen from next week's — but its label is now a LITERAL, asserted byte for byte.
+//   2. THE LISTING TITLE IS A MEASURED CONSTANT (`HOST_LISTING_TITLE`). The agenda row genuinely
+//      cannot be moved off the clock — the dashboard shows only the venue's local TODAY (D-140 /
+//      D-141) — so its determinism comes from the other side of the same meta line: the title's
+//      length was chosen by measuring all 13,020 labels the line can compose and taking a value at
+//      which every one of them wraps to exactly four lines.
+//
+// AND WHERE NEITHER KNOB REACHES, THE WRAP COUNT IS READ RATHER THAN ASSUMED. Every card-tree step
+// now asserts the meta paragraph's LINE COUNT (from `Range.getClientRects()`, not from the height)
+// alongside its label, so "the calendar moved" and "the row's composition changed" are two
+// different reds with two different messages. The one row whose date is genuinely unpinnable in
+// both directions — a pending REQUEST, whose D-99 reason line is itself a statement about how far
+// away the session is — derives its expected over-run from its own observed wrap count instead of
+// sitting inside a band wide enough to hide a line. See the deviation case at the foot of this
+// block.
+//
+// ── HOW THE FIX WAS DEMONSTRATED, RATHER THAN ASSERTED ───────────────────────────────────────────
+// Measured in Chromium against the rendered routes on 24 August 2026, with a throwaway harness that
+// swapped each row's meta paragraph in place and re-read the card's box:
+//
+//   • THE BUG, REPRODUCED ON THE ROUTE. Eight copies of the RESTING shape seeded at day offsets 1…8
+//     — i.e. eight different "todays" in one run — measured 176, 196, 176, 176, 176, 196, 196, 176.
+//     Same markup, same CSS, same request: only the composed label differed.
+//   • THE FULL RANGE. Over every date token `EEE, MMM d` can ever produce (7 × 12 × 31 = 2,604)
+//     against five window spellings covering both digit-length classes on both bounds — 13,020
+//     labels — the shape takes exactly TWO heights at 320px, 176 and 196, and never a third.
+//   • THE FIX, WITH THE SAME INSTRUMENT. With `HOST_LISTING_TITLE` in place the agenda row measures
+//     132px / 4 lines on all 13,020, and 72px / 1 line at 1280 on all 13,020. With absolute days in
+//     place the two bookings rows compose one string each, so their heights are literals.
+//   • THE REQUEST ROW NEEDED NO CHANGE, AND THAT WAS MEASURED TOO: 254.05px / 3 meta lines on all
+//     13,020 labels AND on thirteen reason-line spellings from "under an hour" to "999h" — one
+//     distinct value across 13,033 measurements. Its 320px height is set by the status column, the
+//     description list and the actions row, none of which the label touches.
+//
+// ⚠ WHAT THIS STILL CANNOT CATCH, stated so the next reader under-trusts it. The agenda's
+// determinism rests on a MEASURED PLATEAU, not on a proof: `HOST_LISTING_TITLE` sits with about one
+// character of margin below and two above, so a change to the type scale, to the meta column's
+// width or to the `·` separator could move the plateau out from under it. That would surface as the
+// wrap-count clause going red — which is the point — but it would surface on this file's next run,
+// not at the moment the change was made. The five window spellings are also a sample: they cover
+// both digit-length classes on both bounds, which is the property that drives the wrap, but they
+// are not all 288 possible hour pairs.
 //
 // ── WATCHED RED — TWO PROBES, RUN AND REVERTED, 23 August 2026 ───────────────────────────────────
 // Command: `npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --grep "14-15"`
@@ -694,6 +758,53 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
 //
 //       1 failed / 1 passed. That 52px is exactly the defect this plan was written to remove, and it
 //       is now a red rather than a paragraph. Both probes reverted; `git status` clean; 13 passed.
+//
+// ── WATCHED RED — THREE MORE PROBES FOR THE `[14-16]` CLAUSES, run and reverted, 24 August 2026 ───
+// Command: `npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --grep "14-15"`
+//
+//   (f) THE FIXTURE GOES BACK ON THE CLOCK. The resting booking's `localDate: HOST_FIXED_DAY_2L`
+//       replaced by `dayOffset: 3` — i.e. the exact fixture `[14-16]` was filed against. This is the
+//       probe that matters, and its result is stronger than the height clause could have been:
+//
+//         Error: host booking row · /host/bookings · 320px: the window label composed as
+//             "Thu, Aug 27, 9:00 AM – 11:00 AM (Makati time)"
+//         but this fixture seeds this booking at an ABSOLUTE venue-local instant (2099-11-12), so it
+//         must compose
+//             "Thu, Nov 12, 9:00 AM – 11:00 AM (Makati time)"
+//         every day, forever. …
+//         Expected: "Thu, Nov 12, 9:00 AM – 11:00 AM (Makati time)"
+//         Received: "Thu, Aug 27, 9:00 AM – 11:00 AM (Makati time)"
+//
+//       ⚠ NOTE WHAT THAT PROVES. "Thu, Aug 27" happens to wrap to TWO lines, so the row measured
+//       176px and every height clause in this file would have PASSED. The regression was caught
+//       anyway, by name, on a day when the number agreed — which is the difference between a gate
+//       that pins a value and one that pins the reason the value holds. 1 failed / 3 passed;
+//       reverted.
+//
+//   (g) THE TITLE LEAVES THE MEASURED PLATEAU. `HOST_LISTING_TITLE` shortened to `"Geo Courts"`,
+//       which the sweep says wraps to three lines on every date rather than four:
+//
+//         Error: agenda row · /host · 320px: the meta line wraps to 3 lines today; it wrapped to 4
+//         when this shape's height was measured. That is 20px of row height, and it is the defect
+//         `[14-16]` exists to name out loud instead of leaving it to surface as an unexplained 20px
+//         below. The label was "Geo Courts · Mon, Aug 24, 8:00 AM – 10:00 AM (Makati time)". …
+//         Expected: 4   Received: 3
+//
+//       That message is the deferred item's own specification of what a red here should say. 1
+//       failed / 1 passed; reverted.
+//
+//   (h) THE ACTIONS ROW'S COST MOVES. `PENDING_ACTIONS_COST_320` set to 36 — the number the old
+//       band's low end was built on — to prove the derived over-run is live and not `extra === 0`
+//       dead code:
+//
+//         Error: bookings deviation · 320px · Perlita: a still-pending booking's card measures 252px
+//         against the plate's 176px bar — an over-run of 76px where 56px was expected, because this
+//         row's label ("Sat, Aug 29, 9:00 AM – 11:00 AM (Makati time)") wraps to 3 lines, 1 more
+//         than the 2 the 176px bar is declared against, so the expected over-run is 36 + 1 × 20. …
+//         Expected: <= 4   Received: 20
+//
+//       The wrap term was genuinely non-zero on the day it ran, so the derivation was exercised
+//       rather than short-circuited. 1 failed / 5 passed; reverted. `git status` clean; 14 passed.
 
 /** The Playwright process does not load `.env`; fall back to the deterministic dev URL. */
 const HOST_DATABASE_URL =
@@ -702,6 +813,57 @@ const HOST_DATABASE_URL =
 /** The seeded listing's venue timezone. Every window label below is composed in THIS zone. */
 const HOST_VENUE_TZ = "Asia/Manila";
 const HOST_VENUE_CITY = "Makati";
+
+/**
+ * The range separator `when-label.ts` composes with: U+2013 EN DASH, not a hyphen-minus.
+ *
+ * Spelled as an escape rather than as the glyph so that a declared label below cannot silently
+ * become a different string through a copy-paste, an editor's smart-punctuation or a file-encoding
+ * round trip. Read off the rendered DOM (`charCodeAt` → 8211) rather than off the composer's source.
+ */
+const WINDOW_DASH = "–";
+
+/**
+ * A wrapped line of a row's `text-sm` meta paragraph: 20px (Tailwind's `text-sm` line-height,
+ * 1.25rem).
+ *
+ * This is the STEP every number in this block moves by when a label wraps one line further, and it
+ * is the whole mechanism `[14-16]` records. It is named here because two assertions below derive an
+ * expected height from an OBSERVED line count, and a derivation with a magic 20 in it is a
+ * derivation nobody can check.
+ */
+const META_LINE_PX = 20;
+
+/**
+ * The two venue-local calendar days the MEASURED confirmed bookings are seeded on — absolute
+ * literals, not offsets from `now()`.
+ *
+ * ⚠ THIS IS THE `[14-16]` FIX, AND THE DATES ARE LOAD-BEARING. See the block header above for the
+ * defect. In one sentence: a booking positioned as "today + 3 days" composes a DIFFERENT window
+ * label every day, the label's wrap count at 320px moves with it, and a 20px row-height step follows
+ * — so a tight pin here was a pin on the date it was taken. An absolute instant composes ONE label,
+ * forever, and `composeWhenLabelShort` renders no year, so a 2099 date is indistinguishable on
+ * screen from next week's.
+ *
+ * 2099 rather than next month because the row must stay on the `upcoming` tab for the product's
+ * lifetime; a date that expires is the same bug with a longer fuse.
+ *
+ * The two days are chosen to compose the two DIFFERENT wrap counts this shape can take at 320px (see
+ * `HOST_BOOKING_2L_LABEL` / `HOST_BOOKING_3L_LABEL`), so the file pins both of them.
+ */
+const HOST_FIXED_DAY_2L = "2099-11-12";
+const HOST_FIXED_DAY_3L = "2099-01-12";
+
+/**
+ * The two labels those two days compose, byte for byte.
+ *
+ * ASSERTED, NOT DOCUMENTED. Each is compared against the rendered `<p>` on the route, which is what
+ * makes "this fixture is date-independent" a command rather than a claim: if `when-label.ts`'s
+ * format, the tz database, `date-fns` or the venue's city ever changes the composed string, this
+ * fails by NAME — printing both strings — instead of surfacing later as an unexplained 20px.
+ */
+const HOST_BOOKING_2L_LABEL = `Thu, Nov 12, 9:00 AM ${WINDOW_DASH} 11:00 AM (${HOST_VENUE_CITY} time)`;
+const HOST_BOOKING_3L_LABEL = `Mon, Jan 12, 9:00 AM ${WINDOW_DASH} 11:00 AM (${HOST_VENUE_CITY} time)`;
 
 /** The password every UI signup in this repo uses (`shell.spec.ts`, `host-dashboard.spec.ts`). */
 const HOST_PASSWORD = "averylongpassword";
@@ -736,10 +898,23 @@ const HOST_TOLERANCE_PX = 4;
  */
 const HOST_BAR_EXACT_PX = 0.5;
 
-/** The three bookers. Each name is the handle every locator below addresses its row by. */
+/**
+ * The six bookers — ONE PER SEEDED BOOKING, which is a correctness requirement and not a flourish.
+ *
+ * Every locator in this block addresses its row by the guest's first name (`hostRowLocator`), and
+ * `heightOf` asserts `toHaveCount(1)`. Before `[14-16]` the fixture reused three bookers across five
+ * bookings, so `Marisol` named BOTH a confirmed session today and a pending request — two rows on
+ * `/host/bookings`, and therefore a `toHaveCount(1)` that passed only while today's session had
+ * already ended and dropped off the `upcoming` tab. That is a second wall-clock dependency in the
+ * same fixture: the file went green in the evening and would have failed the same morning. One
+ * booker per booking removes it outright.
+ */
 const AGENDA_GUEST = "Marisol";
 const AGENDA_GUEST_2 = "Teodoro";
 const RESTING_GUEST = "Corazon";
+const WRAP_GUEST = "Anselmo";
+const PENDING_GUEST = "Perlita";
+const PENDING_GUEST_2 = "Rogelio";
 
 type HostSeed = {
   readonly hostEmail: string;
@@ -768,12 +943,50 @@ async function signUpGeometryHost(page: Page): Promise<string> {
 }
 
 /**
+ * The seeded listing's title — a FIXED twenty-four-character string, and the second half of the
+ * `[14-16]` fix.
+ *
+ * ⚠ THE TITLE IS A MEASUREMENT, NOT A NAME. The agenda row's meta line is
+ * `${spaceTitle} · ${whenLabel}` (`host-agenda.tsx`), so at 320px its wrap count — and therefore the
+ * row's height, at 20px a line — is decided jointly by this string's rendered width and by the
+ * date the label happens to name. 14-15 already knew half of this and pinned the title's LENGTH; it
+ * pinned the wrong length, and it pinned a length rather than a string.
+ *
+ * BOTH FAULTS ARE FIXED HERE, and both were measured rather than reasoned:
+ *
+ *   • IT IS NO LONGER RANDOM. The old value was `Geo Courts ${runId.slice(0, 6)}` — six hex
+ *     characters of a UUID. Hex glyphs are not the same width in a proportional face, so "seventeen
+ *     characters" was seventeen characters of an unpredictable WIDTH, run to run.
+ *   • THE LENGTH IS CHOSEN SO THE WRAP COUNT CANNOT MOVE. Measured in Chromium at 320px by swapping
+ *     this paragraph's text in place and reading `Range.getClientRects().length`, over the full
+ *     cross product of every date token `EEE, MMM d` can ever compose (7 weekdays x 12 months x 31
+ *     days = 2,604) and five window spellings covering both digit-length classes on both bounds —
+ *     13,020 labels:
+ *
+ *       old title (17 chars)                 3 lines / 112px  ×2,050    4 lines / 132px  ×554
+ *       "Geo Courts Poblacion O"   (22)      3 lines / 112px  ×14       4 lines / 132px  ×2,590
+ *       "Geo Courts Poblacion On"  (23)      —                          4 lines / 132px  ×2,604
+ *       "Geo Courts Poblacion One" (24)      —                          4 lines / 132px  ×2,604  ←
+ *       "Geo Courts Poblacion Ones"(25)      —                          4 lines / 132px  ×2,604
+ *       "Geo Courts Poblacion Onesw"(26)     —                          4 lines / 132px  ×2,604
+ *
+ *     So the shipped 17-character fixture rendered the DECLARED 132px on 21% of dates and 112px on
+ *     the other 79% — `HOST_AGENDA_ROW_HEIGHT`'s narrow value was one date's luck, exactly as the
+ *     bookings row's was. The chosen string sits mid-plateau with at least one character of margin
+ *     below and two above, and produces 4 lines / 132px on every date and every window spelling.
+ *
+ * IT IS ALSO NOT A UNIQUENESS TOKEN. Nothing addresses a row by this string — every locator in this
+ * block uses the guest's first name — and the listing's own id still carries the run's UUID, so two
+ * runs cannot collide on anything that matters.
+ */
+const HOST_LISTING_TITLE = "Geo Courts Poblacion One";
+
+/**
  * One published, bookable listing owned by the signed-up host.
  *
- * ⚠ THE TITLE'S LENGTH IS PART OF THE FIXTURE. It is seventeen characters — ten of prefix, a space,
- * six of run id — because the agenda row's height at 320px is a function of how many lines its meta
- * line wraps to, and that is a function of this string's length. A shorter title is not a cosmetic
- * change to this file; it is a change to one of the numbers it asserts.
+ * ⚠ THE TITLE IS PART OF THE FIXTURE — see `HOST_LISTING_TITLE` above for the measurement that
+ * chose it. Changing it is not a cosmetic edit to this file; it is a change to one of the numbers
+ * this file asserts.
  */
 async function seedGeometryHost(hostEmail: string): Promise<HostSeed> {
   const sql = postgres(HOST_DATABASE_URL, { max: 1, onnotice: () => {} });
@@ -789,7 +1002,7 @@ async function seedGeometryHost(hostEmail: string): Promise<HostSeed> {
   }
 
   const listingId = `e2e_geo_listing_${runId}`;
-  const listingTitle = `Geo Courts ${runId.slice(0, 6)}`;
+  const listingTitle = HOST_LISTING_TITLE;
 
   await sql`
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
@@ -847,23 +1060,47 @@ async function addGeometryBooker(seed: HostSeed, firstName: string): Promise<str
 }
 
 /**
- * One booking, positioned by VENUE-LOCAL day offset and hour.
+ * WHEN a seeded booking happens, in the venue's own local day — and the ONE decision `[14-16]` is
+ * about.
  *
- * The instants are built by Postgres in the venue's own zone — `host-dashboard.spec.ts:263`'s
- * argument, which is that "today at 08:00 in Manila" is a property of a venue's local day and not of
- * any instant this Node process can name.
+ *   • `dayOffset` positions the window RELATIVE to the DB clock. The label it composes is therefore
+ *     a different string every day, and at 320px its wrap count moves with the calendar. Correct —
+ *     necessary — for a row whose SUBJECT is "how far away is this": the dashboard agenda only ever
+ *     shows sessions in the venue's local TODAY (D-140/D-141), and a request's D-99 reason line
+ *     literally reads "Session starts in {n}h".
+ *   • `localDate` positions it at an ABSOLUTE venue-local calendar day. The label is then a literal,
+ *     the wrap count is a property of the fixture, and a height measured against it cannot move with
+ *     the wall clock. This is what every MEASURED, tightly-pinned row uses.
+ *
+ * Either way the instants are built by POSTGRES in the venue's zone — `host-dashboard.spec.ts:263`'s
+ * argument, which is that "08:00 in Manila" is a property of a venue's local day and not of any
+ * instant this Node process can name. The absolute branch is the same statement with the day named
+ * instead of derived: `TIMESTAMP '2099-11-12 09:00' AT TIME ZONE 'Asia/Manila'`.
+ */
+type GeometryWindow =
+  | { readonly dayOffset: number; readonly localDate?: undefined }
+  | { readonly localDate: string; readonly dayOffset?: undefined };
+
+/**
+ * One booking, positioned by VENUE-LOCAL day (absolute or relative) and hour.
  */
 async function addGeometryBooking(
   seed: HostSeed,
-  args: {
+  args: GeometryWindow & {
     bookerId: string;
-    dayOffset: number;
     startHour: number;
     endHour: number;
     status: "confirmed" | "requested";
   },
 ): Promise<void> {
   const id = `e2e_geo_booking_${randomUUID()}`;
+  // One expression per bound, chosen by which branch the caller asked for. Both produce a
+  // `timestamptz` from a venue-local wall time; only the DAY differs in where it comes from.
+  const bound = (hour: number) =>
+    args.localDate != null
+      ? seed.sql`(${args.localDate}::timestamp + make_interval(hours => ${hour})) AT TIME ZONE ${HOST_VENUE_TZ}`
+      : seed.sql`(date_trunc('day', now() AT TIME ZONE ${HOST_VENUE_TZ})
+          + make_interval(days => ${args.dayOffset ?? 0}, hours => ${hour})) AT TIME ZONE ${HOST_VENUE_TZ}`;
   await seed.sql`
     INSERT INTO "booking" (
       id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
@@ -872,10 +1109,7 @@ async function addGeometryBooking(
       refund_cents, cancelled_by, cancelled_at, open_capacity, declared_pax, created_at
     ) VALUES (
       ${id}, ${seed.listingId}, ${1}, ${args.bookerId},
-      (date_trunc('day', now() AT TIME ZONE ${HOST_VENUE_TZ})
-        + make_interval(days => ${args.dayOffset}, hours => ${args.startHour})) AT TIME ZONE ${HOST_VENUE_TZ},
-      (date_trunc('day', now() AT TIME ZONE ${HOST_VENUE_TZ})
-        + make_interval(days => ${args.dayOffset}, hours => ${args.endHour})) AT TIME ZONE ${HOST_VENUE_TZ},
+      ${bound(args.startHour)}, ${bound(args.endHour)},
       ${args.status}::booking_status, ${"request"}::booking_mode,
       ${"standard"}::cancellation_policy,
       ${HOST_SPACE_PRICE_CENTS}, ${HOST_SERVICE_FEE_CENTS}, ${HOST_QUOTED_TOTAL_CENTS}, ${"php"},
@@ -895,10 +1129,18 @@ async function addGeometryBooking(
 /**
  * One shape: the route, the plate's bar, and the row that arrives — at two widths.
  *
- * `row` and `bar` are both MEASURED numbers, taken on 23 August 2026 against the rendered routes with
- * exactly the fixture below. `bar` is additionally what the declared constant in
+ * `row` and `bar` are both MEASURED numbers, RE-TAKEN on 24 August 2026 against the rendered routes
+ * with exactly the fixture below (every earlier number in this table was measured against the
+ * pre-`[14-16]` fixture and is superseded). `bar` is additionally what the declared constant in
  * `src/lib/design/measurements.ts` compiles to, which is why it is a multiple of the 4px step and
- * `row` is not.
+ * `row` need not be.
+ *
+ * `meta` is the `[14-16]` addition and it is what makes the numbers above it CHECKABLE rather than
+ * merely re-pinned. Every card-tree row in this product puts a venue-local window label in a
+ * `text-sm` paragraph that is free to wrap, and one wrapped line is 20px — so a height assertion
+ * with no statement about the wrap count cannot tell "the row's composition changed" from "the
+ * calendar moved". Declaring the count, and (where the fixture pins an absolute instant) the exact
+ * STRING, splits those two into two different reds.
  */
 type HostShape = {
   readonly key: string;
@@ -911,8 +1153,24 @@ type HostShape = {
     readonly bar: number;
     /** Which tree the page renders at this width — the card stack, or the table that replaces it. */
     readonly tree: "card" | "table";
+    /**
+     * The row's meta paragraph, on the `card` steps only (a table row has no such paragraph).
+     *
+     * `lines` is the wrap count the declared `row` height is built on. `text` is the exact composed
+     * label when the fixture seeded this booking at an ABSOLUTE instant; `pattern` is the shape the
+     * label must keep when the fixture must stay relative to the clock, so a content change is
+     * still red even though the date itself cannot be pinned.
+     */
+    readonly meta?: {
+      readonly lines: number;
+      readonly text?: string;
+      readonly pattern?: RegExp;
+    };
   }[];
 };
+
+/** `EEE, MMM d` — the two tokens `when-label.ts` renders a date with, as a matcher. */
+const DATE_TOKEN = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \\d{1,2}";
 
 const HOST_SHAPES: readonly HostShape[] = [
   {
@@ -923,19 +1181,68 @@ const HOST_SHAPES: readonly HostShape[] = [
       // HOST_AGENDA_ROW_HEIGHT. 132 = the 72px unwrapped floor plus three further wrapped meta
       // lines at 20px each; 72 = 16 + 20 + 20 + 16. This row renders as a card at EVERY width — the
       // dashboard has no table tree — so both steps read the card.
-      { width: 320, row: 132.0, bar: 132, tree: "card" },
-      { width: 1280, row: 72.0, bar: 72, tree: "card" },
+      //
+      // ⚠ THE DATE HERE CANNOT BE PINNED AND MUST NOT BE. The dashboard agenda shows only sessions
+      // in the venue's local TODAY (D-140/D-141), so this booking is necessarily seeded against the
+      // DB clock. What IS pinned is the wrap count: `HOST_LISTING_TITLE` was chosen by measuring
+      // all 13,020 labels this meta line can compose and taking a length at which every one of them
+      // wraps to exactly four lines. The pattern below keeps the rest of the string honest.
+      {
+        width: 320,
+        row: 132.0,
+        bar: 132,
+        tree: "card",
+        meta: {
+          lines: 4,
+          pattern: new RegExp(
+            `^${HOST_LISTING_TITLE} · ${DATE_TOKEN}, 8:00 AM ${WINDOW_DASH} 10:00 AM \\(${HOST_VENUE_CITY} time\\)$`,
+          ),
+        },
+      },
+      {
+        width: 1280,
+        row: 72.0,
+        bar: 72,
+        tree: "card",
+        meta: {
+          lines: 1,
+          pattern: new RegExp(
+            `^${HOST_LISTING_TITLE} · ${DATE_TOKEN}, 8:00 AM ${WINDOW_DASH} 10:00 AM \\(${HOST_VENUE_CITY} time\\)$`,
+          ),
+        },
+      },
     ],
   },
   {
     key: "request row · /host/requests",
     route: "/host/requests",
-    guest: AGENDA_GUEST,
+    guest: PENDING_GUEST,
     steps: [
       // HOST_REQUEST_ROW_HEIGHT. The tallest row shape in the product below the breakpoint — lead
       // countdown, reason line, two-term description list, touch-height actions — and a table row
       // above it.
-      { width: 320, row: 254.05, bar: 256, tree: "card" },
+      //
+      // ⚠ THIS ROW IS SEEDED RELATIVE TO THE CLOCK ON PURPOSE, AND ITS TIGHT PIN IS STILL SAFE —
+      // measured, not assumed. Its D-99 reason line reads "Session starts in {n}h", which is a
+      // statement about how far away the session is; at an absolute 2099 instant it renders
+      // "Session starts in 641888h — respond soon.", a row no host will ever see. It does not need
+      // an absolute instant, because its height at 320 is not set by the meta at all: swapping this
+      // paragraph over all 13,020 labels, and the reason line over thirteen spellings from "under
+      // an hour" to "999h", returned 254.05px / 3 meta lines every single time — one distinct
+      // value, 13,033 measurements. The 320px number is decided by the status column, the
+      // description list and the touch-height actions row, all of which are fixed boxes.
+      {
+        width: 320,
+        row: 254.05,
+        bar: 256,
+        tree: "card",
+        meta: {
+          lines: 3,
+          pattern: new RegExp(
+            `^${DATE_TOKEN}, 9:00 AM ${WINDOW_DASH} 11:00 AM \\(${HOST_VENUE_CITY} time\\)$`,
+          ),
+        },
+      },
       { width: 1280, row: 83.02, bar: 84, tree: "table" },
     ],
   },
@@ -945,9 +1252,20 @@ const HOST_SHAPES: readonly HostShape[] = [
     guest: RESTING_GUEST,
     steps: [
       // HOST_BOOKING_ROW_HEIGHT, on the RESTING row: a confirmed booking, which carries no actions
-      // and no trailing line. The still-pending shape on the same list is pinned separately below.
-      { width: 320, row: 196.0, bar: 196, tree: "card" },
-      { width: 1280, row: 37.02, bar: 36, tree: "table" },
+      // and no trailing line. The still-pending shape on the same list is pinned separately below,
+      // and so is this shape's OTHER wrap count.
+      //
+      // ⚠ THE ROW THIS MEASURES IS SEEDED AT AN ABSOLUTE VENUE-LOCAL INSTANT (`HOST_FIXED_DAY_2L`),
+      // which is the whole `[14-16]` repair: 176 is now a property of the fixture and cannot move
+      // with the calendar. The declared label is asserted byte for byte below.
+      {
+        width: 320,
+        row: 176.0,
+        bar: 176,
+        tree: "card",
+        meta: { lines: 2, text: HOST_BOOKING_2L_LABEL },
+      },
+      { width: 1280, row: 36.52, bar: 36, tree: "table" },
     ],
   },
 ];
@@ -967,6 +1285,33 @@ const HOST_SHAPES: readonly HostShape[] = [
 function hostRowLocator(page: Page, tree: "card" | "table", guest: string): Locator {
   const base = tree === "table" ? page.locator("table tbody tr") : page.getByTestId("row-card");
   return base.filter({ hasText: guest });
+}
+
+/**
+ * A row's meta paragraph: its text and the number of LINE BOXES it actually occupies.
+ *
+ * ⚠ THE LINE COUNT IS READ, NOT DERIVED FROM THE HEIGHT. `Range.getClientRects()` returns one rect
+ * per line box, so this is the browser's own answer to "how many lines is this". Dividing the
+ * paragraph's height by an assumed 20px line-height would be the same number computed from the
+ * thing under test, and would go quietly wrong the day the type scale moves — which is one of the
+ * two changes this assertion exists to catch.
+ *
+ * `p.text-muted-foreground` is `row-card.tsx`'s meta slot. The FIRST one is the meta: the request
+ * row also renders the D-99 reason line with the same classes, in the status column, later in
+ * document order.
+ */
+async function metaOf(row: Locator, label: string): Promise<{ text: string; lines: number }> {
+  const meta = row.locator("p.text-muted-foreground").first();
+  await expect(
+    meta,
+    `${label}: the row rendered no meta paragraph. Every height in this block is built on the meta ` +
+      "line's wrap count, so a row without one is a row this file cannot make a claim about.",
+  ).toHaveCount(1);
+  return meta.evaluate((node) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    return { text: node.textContent ?? "", lines: range.getClientRects().length };
+  });
 }
 
 /** One element's height, or a named failure. Never `null` reaching a comparison. */
@@ -1002,7 +1347,10 @@ test.describe("14-15 — every host plate draws the list that is actually coming
     await seed?.teardown();
   });
 
-  test("(0) the fixture: one host, one listing, five bookings", async ({ page, context }) => {
+  test("(0) the fixture: one host, one listing, six bookings, one booker each", async ({
+    page,
+    context,
+  }) => {
     const email = await signUpGeometryHost(page);
     hostCookies = await context.cookies();
     seed = await seedGeometryHost(email);
@@ -1010,8 +1358,14 @@ test.describe("14-15 — every host plate draws the list that is actually coming
     const marisol = await addGeometryBooker(seed, AGENDA_GUEST);
     const teodoro = await addGeometryBooker(seed, AGENDA_GUEST_2);
     const corazon = await addGeometryBooker(seed, RESTING_GUEST);
+    const anselmo = await addGeometryBooker(seed, WRAP_GUEST);
+    const perlita = await addGeometryBooker(seed, PENDING_GUEST);
+    const rogelio = await addGeometryBooker(seed, PENDING_GUEST_2);
 
-    // Today's agenda — two confirmed sessions, which is what `/host` renders as row cards.
+    // ── RELATIVE, because the surface's own subject is "when" ─────────────────────────────────────
+    // Today's agenda — two confirmed sessions, which is what `/host` renders as row cards. The
+    // dashboard shows only the venue's local TODAY (D-140/D-141), so these CANNOT be absolute. The
+    // wrap count is pinned from the other side instead, by `HOST_LISTING_TITLE`.
     await addGeometryBooking(seed, {
       bookerId: marisol,
       dayOffset: 0,
@@ -1026,24 +1380,43 @@ test.describe("14-15 — every host plate draws the list that is actually coming
       endHour: 14,
       status: "confirmed",
     });
-    // The bookings list's RESTING row — a confirmed booking, no actions, no trailing line.
+
+    // ── ABSOLUTE, because these are the rows whose HEIGHT is pinned tight ─────────────────────────
+    // The bookings list's RESTING row — a confirmed booking, no actions, no trailing line. Seeded at
+    // a fixed venue-local day so its label, and therefore its wrap count, is a property of this
+    // file rather than of the day it runs on. This is the `[14-16]` repair.
     await addGeometryBooking(seed, {
       bookerId: corazon,
-      dayOffset: 3,
+      localDate: HOST_FIXED_DAY_2L,
       startHour: 9,
       endHour: 11,
       status: "confirmed",
     });
-    // The request inbox, and the bookings list's second shape.
+    // The SAME shape, one meta line taller. Both wrap counts this shape can take at 320px are
+    // seeded, so the 20px step between them is a measured fact with a test on it rather than the
+    // ambush `[14-16]` records.
     await addGeometryBooking(seed, {
-      bookerId: marisol,
+      bookerId: anselmo,
+      localDate: HOST_FIXED_DAY_3L,
+      startHour: 9,
+      endHour: 11,
+      status: "confirmed",
+    });
+
+    // ── RELATIVE, because a request's D-99 reason line is a statement about how far away it is ────
+    // The request inbox, and the bookings list's second shape. See the request shape's note in
+    // HOST_SHAPES: its 320px height was measured invariant over 13,033 label/reason variants, so it
+    // needs no absolute instant; the bookings-list over-run these two also produce is pinned against
+    // their OBSERVED wrap count instead.
+    await addGeometryBooking(seed, {
+      bookerId: perlita,
       dayOffset: 5,
       startHour: 9,
       endHour: 11,
       status: "requested",
     });
     await addGeometryBooking(seed, {
-      bookerId: teodoro,
+      bookerId: rogelio,
       dayOffset: 6,
       startHour: 15,
       endHour: 17,
@@ -1151,14 +1524,58 @@ test.describe("14-15 — every host plate draws the list that is actually coming
 
         const rendered = await heightOf(row, `${where} · resolved ${step.tree}`);
 
-        // ── THE ABSOLUTE VALUE, ASSERTED FIRST AND SEPARATELY ─────────────────────────────────────
+        // ── THE LABEL AND ITS WRAP COUNT, ASSERTED BEFORE THE HEIGHT ──────────────────────────────
+        //
+        // `[14-16]`. Read the block header for the defect; the mechanism in one line is that a
+        // wrapped meta line costs 20px, so a height assertion on its own reports a CALENDAR change
+        // and a COMPOSITION change with the same number and the same words. These two clauses run
+        // first so the height below can only ever be reporting the second.
+        if (step.meta) {
+          const meta = await metaOf(row, `${where} · meta`);
+
+          if (step.meta.text != null) {
+            expect(
+              meta.text,
+              `${where}: the window label composed as\n    "${meta.text}"\nbut this fixture seeds ` +
+                `this booking at an ABSOLUTE venue-local instant (${HOST_FIXED_DAY_2L}), so it must ` +
+                `compose\n    "${step.meta.text}"\nevery day, forever. A label that changed means ` +
+                "the composer, the tz database or the venue changed — NOT that the calendar moved, " +
+                "which is the whole point of seeding an absolute instant. Nothing below this line " +
+                "is a valid measurement until this string is right again.",
+            ).toBe(step.meta.text);
+          }
+          if (step.meta.pattern != null) {
+            expect(
+              meta.text,
+              `${where}: the window label composed as\n    "${meta.text}"\nwhich does not match the ` +
+                `shape this row is seeded to produce (${step.meta.pattern}). This row's DATE cannot ` +
+                "be pinned — see the shape's note — so its shape is pinned instead: the space " +
+                "title, the separator, the window hours and the city suffix are all fixture, and " +
+                "only the date token may vary.",
+            ).toMatch(step.meta.pattern);
+          }
+
+          expect(
+            meta.lines,
+            `${where}: the meta line wraps to ${meta.lines} lines today; it wrapped to ` +
+              `${step.meta.lines} when this shape's height was measured. That is ` +
+              `${Math.abs(meta.lines - step.meta.lines) * META_LINE_PX}px of row height, and it is ` +
+              "the defect `[14-16]` exists to name out loud instead of leaving it to surface as an " +
+              `unexplained ${META_LINE_PX}px below. The label was "${meta.text}". If the label is ` +
+              "the declared one and the count still moved, the type scale or the row's column " +
+              "widths changed — re-measure the shape; do NOT widen a tolerance to absorb a line.",
+          ).toBe(step.meta.lines);
+        }
+
+        // ── THE ABSOLUTE VALUE, ASSERTED SEPARATELY ───────────────────────────────────────────────
         expect(
           Math.abs(rendered - step.row),
           `${where}: the resolved ${step.tree} measures ${rendered}px, but this shape was measured ` +
             `at ${step.row}px when its height was declared. A bar and a row that agree at the wrong ` +
             'number are as "equal" as two that agree at the right one, which is why this is ' +
-            "asserted separately. If the miss is close to 20px on a row card at 320px, the row now " +
-            "wraps a further line: re-measure and move the constant, never the tolerance.",
+            "asserted separately. The wrap-count clause above ran first and passed, so this is NOT " +
+            "the label wrapping differently: the row's composition changed. Re-measure and move the " +
+            "constant, never the tolerance.",
         ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
 
         // ── THE CLAIM: the placeholder occupies the box the content will ──────────────────────────
@@ -1174,6 +1591,107 @@ test.describe("14-15 — every host plate draws the list that is actually coming
     });
   }
 
+  /** `HOST_BOOKING_ROW_HEIGHT`'s two compiled values, restated here as this block's own bar. */
+  const BOOKINGS_BAR_320 = 176;
+  const BOOKINGS_BAR_1280 = 36;
+
+  /** The wrap count the 320px bar is declared against — `HOST_FIXED_DAY_2L`'s label. */
+  const RESTING_META_LINES_320 = 2;
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // `[14-16]` — THE SHAPE HAS TWO HEIGHTS AT 320px, AND BOTH ARE SEEDED AND PINNED
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  //
+  // This is the case the deferred item was really asking for. The host booking row's card is
+  // 136px of fixed boxes (16 padding + 20 title + 12 gap + 72 description list + 16 padding) plus
+  // its meta line, at 20px a wrapped line — so at the 320px floor the SAME resting row is
+  //
+  //     2 meta lines → 176px      3 meta lines → 196px
+  //
+  // and which one it takes is decided by the window label's rendered WIDTH: the weekday name, the
+  // month name, whether the day-of-month is one digit or two, and how many digits the two hours
+  // spend. Measured by swapping this paragraph over the full cross product of every date token
+  // (2,604) against five window spellings — 13,020 labels, two outcomes, never a third:
+  //
+  //     "8:00 AM – 9:00 AM"     176 ×2,050   196 ×554
+  //     "9:00 AM – 11:00 AM"    176 ×2,072   196 ×532
+  //     "10:00 AM – 12:00 PM"   176 ×1,031   196 ×1,573
+  //     "11:00 AM – 1:00 PM"    176 ×1,761   196 ×843
+  //     "6:00 PM – 8:00 PM"     176 ×2,103   196 ×501
+  //
+  // 14-15 measured 196 because 23 August 2026 + 3 days composed a three-line label, and pinned it.
+  // On 24 August the same fixture composed a two-line one and the file went red by exactly 20px —
+  // which is `[14-16]`. The plate now draws 176 (`measurements.ts` carries the argument for which
+  // of the two a single bar should be), and BOTH are seeded at absolute instants so that neither
+  // number can ever move with the calendar again.
+  //
+  // WHY BOTH RATHER THAN JUST THE DECLARED ONE. A single pin cannot tell you the 20px step is still
+  // 20px. With both seeded, a change to the type scale, to the card's padding or to the meta
+  // column's width reddens them in a pattern that says which: both move together for a padding
+  // change, and their DIFFERENCE moves for a line-height change.
+  test("(wrap) the host booking row has exactly two heights at 320, and both are fixture, not calendar", async ({
+    page,
+    context,
+  }) => {
+    expect(seed, "the host fixture is null — see case (0).").not.toBeNull();
+    await context.clearCookies();
+    await context.addCookies(hostCookies);
+
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto(`${BASE_URL}/host/bookings`, { waitUntil: "networkidle" });
+
+    for (const [guest, label, lines, expected] of [
+      [RESTING_GUEST, HOST_BOOKING_2L_LABEL, 2, 176],
+      [WRAP_GUEST, HOST_BOOKING_3L_LABEL, 3, 196],
+    ] as const) {
+      const where = `bookings wrap · 320px · ${guest}`;
+      const row = hostRowLocator(page, "card", guest);
+      await expect(
+        row,
+        `${where}: the resolved page rendered no card for ${guest}. This case needs both fixed-date ` +
+          "confirmed bookings the fixture seeds; without them it is asserting nothing.",
+      ).toBeVisible({ timeout: 30_000 });
+
+      const meta = await metaOf(row, `${where} · meta`);
+      expect(
+        meta.text,
+        `${where}: the label composed as "${meta.text}" rather than "${label}". This booking is ` +
+          "seeded at an absolute venue-local day precisely so this string is a constant.",
+      ).toBe(label);
+      expect(
+        meta.lines,
+        `${where}: "${meta.text}" wraps to ${meta.lines} lines rather than ${lines}. The label is ` +
+          "the declared one, so the calendar is not the cause — the type scale or the meta " +
+          "column's width moved.",
+      ).toBe(lines);
+
+      const rendered = await heightOf(row, `${where} · card`);
+      expect(
+        Math.abs(rendered - expected),
+        `${where}: a ${lines}-line resting row measures ${rendered}px against the ${expected}px ` +
+          "this shape was measured at. Both wrap counts are seeded here on purpose: if the OTHER " +
+          "one also missed by the same amount the card's fixed boxes changed, and if only this one " +
+          `missed the ${META_LINE_PX}px cost of a wrapped line changed.`,
+      ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
+    }
+
+    // The step itself, stated as its own number so a reader does not have to subtract two failures.
+    const twoLine = await heightOf(
+      hostRowLocator(page, "card", RESTING_GUEST),
+      "bookings wrap · 320px · two-line row",
+    );
+    const threeLine = await heightOf(
+      hostRowLocator(page, "card", WRAP_GUEST),
+      "bookings wrap · 320px · three-line row",
+    );
+    expect(
+      Math.round((threeLine - twoLine) * 100) / 100,
+      `bookings wrap · 320px: one wrapped meta line costs ${threeLine - twoLine}px on this row, not ` +
+        `${META_LINE_PX}px. Every derived expectation in this block — the plate's bar, the pending ` +
+        "row's over-run — is built on that step, so this is the assumption they all rest on.",
+    ).toBe(META_LINE_PX);
+  });
+
   // ───────────────────────────────────────────────────────────────────────────────────────────────
   // THE ACCEPTED, MEASURED DEVIATION — pinned, because a delta no test carries is prose
   // ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -1184,20 +1702,22 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   // would over-claim on the ordinary case. The alternative that was explicitly NOT taken: reducing
   // the plate's row COUNT until the totals happen to line up while every individual row disagrees.
   //
-  // MEASURED 23 August 2026: the pending rows are 232px and 252px at 320 against a 196px bar (36 and
-  // 56 over), and 61px and 60.5px at 1280 against a 36px bar (25 and 24.5 over).
+  // MEASURED 24 August 2026: the actions row costs a FLAT 56px at 320 (232 against a two-line
+  // resting row's 176, 252 against a three-line row's 196 — the same 56 either way) and a flat 25px
+  // at 1280 (61 against 36).
   //
-  // THE TWO WIDTHS ARE PINNED DIFFERENTLY, and the reason is which measurement is stable. At 1280 the
-  // row is a table row, nothing wraps, and the cost of the actions cell is a fixed 24-25px — so that
-  // one is pinned tightly. At 320 the row is a card whose window label ALSO wraps, and the wrap count
-  // moves with the calendar (a one-digit day-of-month, a one-digit hour), so the two seeded rows
-  // genuinely differ from each other by 20px. Pinning a tight number there would be pinning today's
-  // date. The band below is wide enough to survive a wrap and narrow enough that removing the actions
-  // row, or doubling the row, is still red.
-  const BOOKINGS_BAR_320 = 196;
-  const BOOKINGS_BAR_1280 = 36;
-  const PENDING_OVERRUN_320 = { min: 30, max: 70 };
-  const PENDING_OVERRUN_1280 = { min: 23, max: 27 };
+  // ⚠ THE 320px CLAUSE IS THE ONE PLACE IN THIS FILE WHERE `[14-16]`'s PREFERENCE 2 IS USED, AND
+  // THAT IS DELIBERATE. These two rows are the fixture's REQUESTS, and a request is seeded relative
+  // to the clock on purpose (its D-99 reason line reads "Session starts in {n}h"), so their labels —
+  // alone in this block — genuinely cannot be pinned. 14-15 answered that with a 40px-wide band,
+  // which is a band wide enough to swallow the entire content of a wrapped line and therefore wide
+  // enough to swallow the defect this file exists to catch. It is replaced by a DERIVATION: the
+  // row's own wrap count is read, and the expected over-run is the measured 56px cost of the actions
+  // plus 20px for each line the label wraps beyond the resting shape's two. That keeps the
+  // assertion as tight as the pinned ones — ±4px around an exact expectation — while still being
+  // true on every date. What it cannot catch is stated with it, below.
+  const PENDING_ACTIONS_COST_320 = 56;
+  const PENDING_ACTIONS_COST_1280 = 25;
 
   test("(deviation) a still-pending booking over-runs the bookings plate's bar by a measured amount", async ({
     page,
@@ -1207,14 +1727,14 @@ test.describe("14-15 — every host plate draws the list that is actually coming
     await context.clearCookies();
     await context.addCookies(hostCookies);
 
-    for (const [width, bar, band, tree] of [
-      [320, BOOKINGS_BAR_320, PENDING_OVERRUN_320, "card"],
-      [1280, BOOKINGS_BAR_1280, PENDING_OVERRUN_1280, "table"],
+    for (const [width, bar, tree] of [
+      [320, BOOKINGS_BAR_320, "card"],
+      [1280, BOOKINGS_BAR_1280, "table"],
     ] as const) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`${BASE_URL}/host/bookings`, { waitUntil: "networkidle" });
 
-      for (const guest of [AGENDA_GUEST, AGENDA_GUEST_2]) {
+      for (const guest of [PENDING_GUEST, PENDING_GUEST_2]) {
         const where = `bookings deviation · ${width}px · ${guest}`;
         const row = hostRowLocator(page, tree, guest);
         await expect(
@@ -1226,18 +1746,32 @@ test.describe("14-15 — every host plate draws the list that is actually coming
         const rendered = await heightOf(row, `${where} · ${tree}`);
         const overrun = Math.round((rendered - bar) * 100) / 100;
 
-        const detail =
-          `${where}: a still-pending booking's ${tree} measures ${rendered}px against the plate's ` +
-          `${bar}px bar — an over-run of ${overrun}px, outside the measured band ` +
-          `${band.min}…${band.max}px. This delta is ACCEPTED and recorded, not a target: the ` +
-          "bookings tab mixes a confirmed row (which the bar draws) with a pending row (which " +
-          "carries approve/decline actions and is taller). If this moved because the pending row's " +
-          "shape changed, the honest fix is to re-measure and move this band with the change that " +
-          "caused it — not to widen it, and not to shrink the plate's row count until the totals " +
-          "happen to agree.";
+        // At 1280 nothing wraps — a table row is one line — so the expectation is the flat cost.
+        // At 320 it is the flat cost plus whatever this date's label costs in extra wrapped lines,
+        // read off the row itself rather than assumed.
+        let expected = PENDING_ACTIONS_COST_1280;
+        let wrapNote = "a table row wraps nothing, so this cost is flat";
+        if (tree === "card") {
+          const meta = await metaOf(row, `${where} · meta`);
+          const extra = meta.lines - RESTING_META_LINES_320;
+          expected = PENDING_ACTIONS_COST_320 + extra * META_LINE_PX;
+          wrapNote =
+            `this row's label ("${meta.text}") wraps to ${meta.lines} lines, ${extra} more than the ` +
+            `${RESTING_META_LINES_320} the ${bar}px bar is declared against, so the expected ` +
+            `over-run is ${PENDING_ACTIONS_COST_320} + ${extra} × ${META_LINE_PX}`;
+        }
 
-        expect(overrun, detail).toBeGreaterThanOrEqual(band.min);
-        expect(overrun, detail).toBeLessThanOrEqual(band.max);
+        expect(
+          Math.abs(overrun - expected),
+          `${where}: a still-pending booking's ${tree} measures ${rendered}px against the plate's ` +
+            `${bar}px bar — an over-run of ${overrun}px where ${expected}px was expected, because ` +
+            `${wrapNote}. This delta is ACCEPTED and recorded, not a target: the bookings tab mixes ` +
+            "a confirmed row (which the bar draws) with a pending row (which carries approve/" +
+            "decline actions and is taller). The wrap term is read from the row, so a miss here is " +
+            "the ACTIONS row changing shape and nothing else — re-measure and move the cost with " +
+            "the change that caused it; do not widen this, and do not shrink the plate's row count " +
+            "until the totals happen to agree.",
+        ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
       }
     }
   });

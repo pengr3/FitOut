@@ -274,3 +274,134 @@ the FIXTURE, and it belongs with the plan that owns these constants:
 ⚠ **Do not simply raise `HOST_TOLERANCE_PX`.** 4px is 14-UI-SPEC's own falsifiable and 14-15 argued it from
 the fractional pixels the rows land on; widening it to 20 would swallow a whole line of content, which is
 the defect the plate exists to prevent.
+
+### ✅ RESOLVED — 24 August 2026, preference 1 taken on both knobs, and the sweep found a second one
+
+`npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium`, run ALONE: **14 passed**.
+`npx tsc --noEmit` exit 0. `npm run test:design` 50 files / 837 passed / 3 skipped / 0 failed.
+`git diff --stat drizzle/` empty. Two files changed: `e2e/skeleton-geometry.spec.ts` and
+`src/lib/design/measurements.ts`.
+
+**The fixture is the fix. `HOST_TOLERANCE_PX` was not touched and no band was widened.**
+
+#### What was measured, before anything was changed
+
+A throwaway Chromium harness (deleted before the commit, the 14-15 idiom) seeded the shape on the real
+route and then swapped each row's meta paragraph in place, re-reading the card's box and the paragraph's
+line count from `Range.getClientRects()`:
+
+1. **The bug, reproduced on the route rather than argued from the calendar.** Eight copies of the resting
+   shape seeded at day offsets 1…8 — eight different "todays" in one run — measured
+   **176, 196, 176, 176, 176, 196, 196, 176**. Same markup, same CSS, same request; only the composed
+   label differed.
+2. **The full range.** Over every date token `EEE, MMM d` can ever compose (7 × 12 × 31 = **2,604**)
+   against five window spellings covering both digit-length classes on both bounds — **13,020 labels** —
+   the shape takes exactly **two** heights at 320px and never a third:
+
+   | window spelling | 176px (2 meta lines) | 196px (3 meta lines) |
+   |---|---|---|
+   | `8:00 AM – 9:00 AM` | 2,050 | 554 |
+   | `9:00 AM – 11:00 AM` | 2,072 | 532 |
+   | `10:00 AM – 12:00 PM` | 1,031 | 1,573 |
+   | `11:00 AM – 1:00 PM` | 1,761 | 843 |
+   | `6:00 PM – 8:00 PM` | 2,103 | 501 |
+   | **total** | **9,017 (69%)** | **4,003 (31%)** |
+
+3. **⚠ A SECOND SHAPE HAD THE SAME DEFECT AND NOBODY HAD NOTICED.** With the spec's *original*
+   seventeen-character listing title, the **agenda** row rendered the declared 132px on only **554 of
+   2,604** date tokens and 112px on the other **2,050**. `HOST_AGENDA_ROW_HEIGHT`'s narrow value was one
+   date's luck exactly as the booking row's was — it simply had not yet been unlucky. The old title was
+   additionally six characters of a **UUID**, and hex glyphs are not one width in a proportional face, so
+   "seventeen characters" was seventeen characters of an unpredictable *width*, run to run.
+
+#### What was changed
+
+- **The measured confirmed bookings are seeded at ABSOLUTE venue-local days** (`2099-11-12` and
+  `2099-01-12`), not at an offset from `now()`. `composeWhenLabelShort` renders no year, so a 2099 row is
+  indistinguishable on screen from next week's — but its label is now a literal, and the spec **asserts
+  that literal byte for byte**. 2099 rather than next month because the row must stay on the `upcoming`
+  tab for the product's lifetime; a date that expires is the same bug with a longer fuse.
+- **The listing title is a measured constant**, `"Geo Courts Poblacion One"` (24 chars). The agenda
+  genuinely cannot leave the clock — the dashboard shows only the venue's local TODAY (D-140/D-141) — so
+  its determinism comes from the other side of the same meta line. The length was chosen from the sweep:
+  22 chars still splits (14 of 2,604 land on 3 lines), 23/24/25/26 all give **4 lines / 132px on all
+  2,604 tokens × all five window spellings = 13,020 labels**. 24 sits mid-plateau.
+- **`HOST_BOOKING_ROW_HEIGHT`: `h-49 md:h-9` → `h-44 md:h-9`** (196 → 176 below the breakpoint). 14-15's
+  196 was not wrong when taken — it was the height of a three-line label — but 176 is the more common
+  outcome (69%) **and** is the height this row already takes at 360, 375 and 414px, so one bar is right
+  across far more of the ladder. The full distribution and the argument live with the constant.
+- **Every card-tree step now asserts the meta paragraph's LINE COUNT** (read from `getClientRects()`, not
+  divided out of the height) **and its label** — the exact string where the fixture pins an instant, a
+  strict shape-regex where it cannot. "The calendar moved" and "the row's composition changed" are now
+  two different reds with two different messages.
+- **A new `(wrap)` case seeds BOTH of the shape's heights** and pins the 20px step between them, because
+  every derived expectation in the block rests on that step.
+- **One booker per booking (three → six).** The old fixture reused `Marisol` for a confirmed session today
+  *and* a pending request, so `hostRowLocator(...).toHaveCount(1)` matched two rows on `/host/bookings`
+  and passed only while today's session had already ended and dropped off the `upcoming` tab — a second
+  wall-clock dependency in the same fixture, found while fixing the first.
+
+#### Where preference 1 could NOT be taken, and what was done instead
+
+The two **pending requests** stay relative, and the reason is content rather than convenience: a request's
+D-99 reason line reads *"Session starts in {n}h"*, which at an absolute 2099 instant renders
+*"Session starts in 641888h — respond soon."* — a row no host will ever see. So:
+
+- **The request row needed no change, and that is measured, not assumed:** 254.05px / 3 meta lines on all
+  13,020 labels **and** on thirteen reason-line spellings from `under an hour` to `999h` — one distinct
+  value across **13,033** measurements. Its 320px height is set by the status column, the description list
+  and the actions row, none of which the label touches.
+- **The `/host/bookings` over-run these two also produce is the one place preference 2 is used.** 14-15
+  answered it with a 40px-wide band (30…70), which is a band wide enough to swallow a wrapped line and
+  therefore wide enough to swallow the defect the plate exists to catch. It is replaced by a
+  **derivation**: the actions row's measured flat cost (**56px at 320, 25px at 1280**) plus 20px for each
+  line *this row's own observed wrap count* exceeds the resting shape's two — asserted at the same ±4px as
+  every pinned row.
+
+#### The numbers now pinned
+
+| shape | route | 320px | desktop | bar |
+|---|---|---|---|---|
+| agenda row | `/host` | 132.00 (4 meta lines) | 72.00 (1 line) | 132 / 72 |
+| request row | `/host/requests` | 254.05 (3 lines) | 83.02 (table) | 256 / 84 |
+| host booking row, 2-line label | `/host/bookings` | **176.00** | **36.52** (table) | 176 / 36 |
+| host booking row, 3-line label | `/host/bookings` | **196.00** | 37.02 (table) | — (pinned as the step) |
+| still-pending booking | `/host/bookings` | resting + **56** | resting + **25** | — (derived) |
+
+#### Watched red — three probes, run and reverted
+
+- **(f) the fixture goes back on the clock** (`localDate` → `dayOffset: 3`). The label clause fired by
+  name: *"the window label composed as "Thu, Aug 27, …" but this fixture seeds this booking at an ABSOLUTE
+  venue-local instant"*. ⚠ **"Thu, Aug 27" wraps to two lines, so the row measured 176px and every height
+  clause in the file would have PASSED.** The regression was caught anyway, on a day when the number
+  agreed — which is the difference between pinning a value and pinning the reason it holds.
+- **(g) the title leaves the plateau** (`"Geo Courts"`): *"the meta line wraps to 3 lines today; it wrapped
+  to 4 when this shape's height was measured. That is 20px of row height"* — which is this entry's own
+  specification of what a red here should say.
+- **(h) the actions row's cost moves** (`56` → `36`): *"an over-run of 76px where 56px was expected,
+  because this row's label … wraps to 3 lines, 1 more than the 2 the 176px bar is declared against, so the
+  expected over-run is 36 + 1 × 20"*. The wrap term was non-zero on the day it ran, so the derivation was
+  exercised rather than short-circuited.
+
+#### What it can no longer catch — stated so the next reader under-trusts it
+
+- **The agenda's determinism rests on a measured PLATEAU, not a proof.** `HOST_LISTING_TITLE` has about one
+  character of margin below and two above. A change to the type scale, to the meta column's width or to
+  the `·` separator could move the plateau out from under it. That surfaces as the wrap-count clause going
+  red — the intended behaviour — but on this file's next run, not at the moment of the change.
+- **The five window spellings are a sample.** They cover both digit-length classes on both bounds, which is
+  the property that drives the wrap, but they are not all 288 possible hour pairs.
+- **The derived over-run can no longer catch a change that adds a wrapped meta line to the pending row and
+  nothing else** — it would read that as the calendar. It still catches every change to the actions row,
+  which is what that clause is about, at ±4px rather than ±20.
+
+#### One thing observed and NOT fixed (out of scope)
+
+On the first run after a source edit, `D-57 · court` failed once with *"the resolved document still shows
+the skeleton"* — a 15s `toHaveCount(0)` timeout on `/` while four workers competed with a cold Next
+compile (20.6s for the court case against 11s for its grove twin). It passed on every subsequent run
+(three consecutive full-file runs, 14/14). Nothing in this change touches `/`, `RESULT_GRID_GAP` or the
+D-57 block; the file is `fullyParallel` and this change added a fourteenth test, so the contention window
+is marginally wider than it was. **Owner:** whichever plan next opens the D-57 block — the honest fix is
+a warm-up navigation for `/` in that block, the same one the host block already carries and for the same
+measured reason.
