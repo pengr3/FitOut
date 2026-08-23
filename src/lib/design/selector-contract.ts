@@ -208,6 +208,9 @@ export const SELECTOR_IDS = [
   "agenda-rows",
   "agenda-next",
   "agenda-none",
+  // 14-05 — HFLOW-03's signals block: the region the ordering, visibility and accent-count assertions
+  // are all scoped inside. Same commit as its literal, same rule as the four rows above.
+  "host-signals",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -907,6 +910,28 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "counts elements or classes INSIDE a subtree, and a subtree has to be named before it can be " +
       "counted. A negative assertion scoped to the whole document would pass on a page that rendered " +
       "no empty state at all, which is the vacuity this branch's own hook exists to close.",
+    owner: "14-05",
+  },
+  "host-signals": {
+    why:
+      "EVERY ASSERTION ABOUT THIS BLOCK IS SCOPED INSIDE IT, and each of them counts or orders " +
+      "elements rather than naming one. That the three rows render in D-140's order, that the first " +
+      "and third disappear at zero while the second never does, and that the whole /host viewport " +
+      "holds exactly one accent-filled element — all four are questions about a SUBTREE, and a " +
+      "subtree has to be addressed before it can be walked. " +
+      "A ROLE QUERY CANNOT CARRY IT. This `<section>`'s accessible name comes from a heading that is " +
+      "deliberately screen-reader-only, and reaching a region BY that name would make the assertion " +
+      "depend on a string whose whole purpose is that nobody sees it — the first copy edit would take " +
+      "the gate down with it. " +
+      "A CONTAINER QUERY IS WORSE THAN CIRCULAR HERE: two of the three rows are the same advisory " +
+      "panel that the quiet-day agenda branch, the listing rail and the checkout breakdown all render, " +
+      "so `panel-card` resolves on four unrelated boxes across this one page. The third row is an " +
+      "alerting composition that is structurally frozen by D-156 and cannot be given a hook at all " +
+      "without opening a payout file. " +
+      "AND THE ORDERING CLAIM IS THE POINT. D-140 fixes the sequence — requests owed, then payout " +
+      "state, then published-without-hours — and an ordering assertion needs a stable parent to read " +
+      "children out of. Scoped to the document instead, it would resolve against the agenda's rows " +
+      "above and the page header's actions.",
     owner: "14-05",
   },
 };
