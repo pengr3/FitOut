@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 14-04-PLAN.md — the week-strip derivation. Phase 14 is 4 of 16 plans done
-last_updated: "2026-08-23T09:38:06.780Z"
+stopped_at: Completed 14-05-PLAN.md — the agenda's three states and the signals block. Phase 14 is 5 of 16 plans done
+last_updated: "2026-08-23T10:03:25.710Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 84
+  completed_plans: 85
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 5 of 16
-Current Plan: 5
+Plan: 6 of 16
+Current Plan: 6
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -666,6 +666,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P01 | 25min | 3 tasks | 5 files |
 | Phase 14 P02 | 20min | 3 tasks | 3 files |
 | Phase 14 P03 | 20min | 3 tasks | 4 files |
+| Phase 14 P05 | 20min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1065,6 +1066,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 14-01: earnings-freeze excludes styling positions and module specifiers STRUCTURALLY, not textually — so the HFLOW-05 token pass is permitted while a class name migrating into copy still trips the gate
 - [Phase 14]: 14-02: queryHostAgenda resolves 'today' per-row in each listing's own timezone from a bound DB clock instant (D-141); the wrong UTC rule was observed truncating an ordinary UTC+8 host's morning, not just a two-zone edge case
 - [Phase 14]: 14-02: the agenda's 'next' row (D-142) is returned ONLY when today is empty, so D-142's fallback cannot be double-counted against an agenda row
+- [Phase ?]: 14-05: the agenda row renders NO money — 14-UI-SPEC § The agenda row and D-140 both enumerate four fields and none is a total; the dashboard is a view and the frozen quote lives on the inbox row and the booking detail
+- [Phase ?]: 14-05: a multi-state region renders its CONTAINER unconditionally and is told apart by which child it holds, and the container-presence case is asserted first and alone — 'the agenda renders' is a claim an absent section satisfies
+- [Phase ?]: 14-05: a selector-contract row lands in the SAME commit as its literal (the contract is bidirectional), which moved the five rows out of the plan's test task and into the two component commits
 
 ### Pending Todos
 
@@ -1171,16 +1175,26 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T09:40:00.000Z
-Stopped at: Completed 14-04-PLAN.md — the week-at-a-glance derivation. Phase 14 is 4 of 16 plans done
-(14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the request row,
-14-04 the week strip's pure half); **14-05 is next**, and it is the RENDER half that consumes this.
-`src/lib/availability/week-strip.ts` is one pure, directive-free function returning seven entries for
-every input — Sunday-first, a closed day being a row with zero segments — each carrying the `segments`
-to draw and the one `sentence` to announce, so what a host sees and what a screen reader hears cannot
-drift (D-153). It also becomes the owner of `HOUR_OPTIONS`, the weekday names and the closed word.
-`tests/availability/week-strip.test.ts` holds it with 48 cases and a generic drawn-vs-announced
-invariant, and was watched failing against two different wrong implementations. Resume file: none.
+Last session: 2026-08-23T10:03:03.911Z
+Stopped at: Completed 14-05-PLAN.md — the agenda's three states and the signals block. Phase 14 is 5
+of 16 plans done (14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the
+request row, 14-04 the week strip's pure half, 14-05 the dashboard's two new blocks); **14-06 is next**.
+`src/components/host/host-agenda.tsx` renders D-140/D-142's three states inside ONE section that mounts
+in all three — the container is unconditional and the states are told apart by which child they hold,
+because "the agenda renders" is a claim an ABSENT section satisfies and this repo has recorded that
+vacuity a dozen times. The row's title is the booker's first name, not the space (D-140's whole
+argument); it has an href and no actions; it renders no money, because 14-UI-SPEC § The agenda row and
+D-140 both enumerate four fields and none is a total. `src/components/host/host-signals.tsx` renders the
+three signal rows in D-140's order with `PayoutBanner` passed through UNCHANGED (D-156 freezes it
+structurally — converting it to a panel has misread HFLOW-05), and `src/lib/host/requests-signal.ts`
+gives signal 1's sentences an owner beside the count's authority, with `APPROVAL_SLA_HOURS`
+interpolated and no digit typed. Five selector-contract rows landed in the SAME commits as their
+literals rather than in the test task, because the contract is bidirectional. `tests/host/agenda-states.test.tsx`
+walks all three states in 29 cases and was observed red (13/29) against a section rendered only in
+state A. Design suite unmoved at 49/827; `drizzle/` empty; `payout-banner.tsx` never opened. The page
+that MOUNTS these two components is downstream — read `readDbNow(db)` once and thread it, import
+`WITHHELD_BOOKER_LABEL` rather than typing a seventh literal, and do not invent the agenda row's
+resting height for the loading plate.
 
 ⚠ THREE THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **A per-file design-gate inventory reads
 SOURCE, not the render** — a second `role=` element in an unused layout arm is a second declared region.
