@@ -5,8 +5,8 @@ milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 5
 status: verifying
 stopped_at: "Phase 13.1 (payment reconciliation) COMPLETE — 6 plans, verified 6/6 must-haves, all 3 residuals closed and re-verified, last open item settled against a live paid PayMongo session. Phase 13 executed+verified; its 2 UAT walks and SUPPORT_EMAIL (src/lib/site.ts:70) remain outstanding by PM scheduling."
-last_updated: "2026-08-22T08:27:47.264Z"
-last_activity: 2026-08-22
+last_updated: "2026-08-23T03:21:15.834Z"
+last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 3
@@ -467,7 +467,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-22
+Last activity: 2026-08-23 - Completed quick task 260823-frp: Lock coral (court) as the single product theme; demote grove to token-contract probe
 
 ## Performance Metrics
 
@@ -1122,6 +1122,7 @@ means the task predates that flag being used here, not that it failed.
 | 260813-0h2 | Fix G-01: constrain the Radix ScrollArea wrapper so panel children cannot lay out wider than the panel (closes the phase 10 UAT gap) | 2026-08-13 | af71b62 | | [260813-0h2-fix-g01-scrollarea-row-overflow](./quick/260813-0h2-fix-g01-scrollarea-row-overflow/) |
 | 260819-vrt | Serve baselined photos from committed local assets (`public/vrt/photo-{0..7}.svg`) — the fixture seeded an RFC 2606 `.invalid` URL, so the 27 baselines minted 2026-08-19 encode broken-image glyphs. **Invalidates every photo-bearing baseline by design; the operator must re-mint via the human-gated `baselines` workflow (D-27).** | 2026-08-19 | cb34581 | | [260819-vrt-local-photo-placeholders](./quick/260819-vrt-local-photo-placeholders/) |
 | 260820-nested-main-landmarks | Fix two nested `main` landmarks under `(app)/bookings/[id]`: nine return branches across the detail, cancel and group pages opened their own `main` inside the one `(app)/layout.tsx:96` already provides. Downgraded to `div` with identical classNames, and pinned with a new buffer-immune `getByRole("main")` assertion in `e2e/shell.spec.ts` (watched red at Expected 1 / Received 2). | 2026-08-20 | d800ccd | | [260820-nested-main-landmarks](./quick/260820-nested-main-landmarks/) |
+| 260823-frp | Lock coral (court) as the single product theme; demote grove to token-contract probe. D-138 supersedes the two-theme posture (D-133 / the two-theme half of D-135): court is the only theme a user can reach, grove survives ONLY as the fixed four-surface token-contract probe. Drops 44 grove rows from `VISUAL_BASELINES` (95 -> 51) and deletes 24 grove PNGs; Phase 17 loses its dual-theme axe pass and dual baseline sweep. **Accepted trade, stated at the gate: 23 document surfaces now have no two-theme check at all.** | 2026-08-23 | b17265b | | [260823-frp-lock-coral-court-as-the-single-product-t](./quick/260823-frp-lock-coral-court-as-the-single-product-t/) |
 
 ## Deferred Items
 
