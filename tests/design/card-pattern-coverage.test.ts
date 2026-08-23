@@ -342,6 +342,42 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "exemption, which a stale allow-list row would have made it permanently (13-08's finding — an " +
       "allow-list row exempts a file in BOTH directions, forever).",
   },
+
+  // ─── Phase 14 — HFLOW-04 / D-155, the exemptions 11-13 held open for this phase ────────────────────
+  {
+    file: "src/components/availability/weekly-hours-editor.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE WEEKLY-HOURS EDITOR'S TWO BOXES, AND THIS ROW ARRIVES FROM THE ALLOW-LIST RATHER THAN FROM " +
+      "THE 11-UI-SPEC — the second instance of the transition `bookings/[id]/page.tsx` made above, and " +
+      "for the same recorded reason. Its exemption said HFLOW-04 was structural and that Phase 14 would " +
+      "decide the container; D-155 is that decision and plan 14-12 spent it. The advisory box is now " +
+      "`tone=\"muted\"` and the seven-day editor is the default tone, with the dividing rule kept on the " +
+      "LIST inside the panel rather than on the panel — the pattern takes no class name, and the rule " +
+      "between day rows is a property of the rows. Its ALLOWED_RAW_CARD row was DELETED in the same " +
+      "commit, so the inverse half polices this file now: a raw `<Card>` reappearing here is a failure " +
+      "rather than an exemption, which a stale row would have made it permanently (13-08's finding). " +
+      "The advisory is NOT an `EmptyState` and that is a considered call rather than an oversight: the " +
+      "seven day rows always render, so it is an advisory about a form that is fully present, not the " +
+      "absence of a list. `blocks-editor.tsx` beside it keeps its exemption until the plan that owns it.",
+  },
+  {
+    file: "src/components/availability/week-strip.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE WEEK-AT-A-GLANCE PREVIEW (HFLOW-04 · D-152), AND IT IS A ROW BECAUSE THE BOX MOVED — the " +
+      "same bookkeeping `invite-card.tsx`'s row records from 11-19 and `host-signals.tsx`'s from 14-08. " +
+      "14-UI-SPEC puts this panel on the hours editor's own site list, but the strip is a component of " +
+      "its own, so the file that actually renders the box is this one and this inventory declares files. " +
+      "It carries the strip's title and gives the muted track a card ground to be visible against, which " +
+      "is why it is the default tone and not the muted one the advisory above uses — a muted fill on a " +
+      "muted panel is an empty column nobody can see. Declared rather than left to the inverse half " +
+      "alone: the inverse half only notices a raw box, so a strip that quietly stopped composing the " +
+      "pattern and hand-rolled its own container would pass it, and the forward half is what catches " +
+      "that.",
+  },
 ];
 
 /**
@@ -356,8 +392,15 @@ const CARD_SURFACES: readonly CardSurface[] = [
  * moved OFF `ALLOWED_RAW_CARD` and ONTO the inventory in one commit, which is the transition the
  * allow-list's own preamble describes ("a list of files whose boxes have not been pattern-ised YET,
  * each with the phase whose scope note claims the surface"). Phase 13 claimed it and pattern-ised it.
+ *
+ * FIFTEEN since plan 14-12, and the two rows arrive by the two different routes this inventory has:
+ * `weekly-hours-editor.tsx` made the same allow-list → inventory move (D-155 spent the exemption
+ * `11-13-SUMMARY.md:234-235` held open for HFLOW-04), and `week-strip.tsx` is a surface that did not
+ * exist when the 11-UI-SPEC's three `Replaces` lists were written. The header's "SAYS NOTHING ABOUT
+ * SURFACES PHASES 12–15 ADD" note is the standing instruction for the second kind: a new panel EXTENDS
+ * this inventory in its own commit.
  */
-const EXPECTED_SURFACES = 13;
+const EXPECTED_SURFACES = 15;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -407,8 +450,17 @@ const ALLOWED_RAW_CARD: Readonly<Record<string, string>> = {
     "Same family, but reached from CHECKOUT (`listings/[id]/book`) as well as from the reversed state — so it straddles Phase 12 and Phase 13. Deliberately not swapped by plan 11-13, which was scoped to container-only edits on surfaces the spec names.",
 
   // ── Phase 14 — Host Tooling (HFLOW-04 names the availability editor) ──────────────────────────
-  "src/components/availability/weekly-hours-editor.tsx":
-    "The weekly-hours editor's two boxes. HFLOW-04 says the editor must read as the same product as the booker side AND gain a week-at-a-glance preview — a structural change, so Phase 14 decides the container.",
+  //
+  // ONE ROW LEFT THIS BLOCK IN PLAN 14-12, AND THE DELETION IS THE POINT RATHER THAN THE TIDY-UP.
+  // `weekly-hours-editor.tsx` (now a declared `panel-card` surface above) renders no raw `<Card>` at
+  // all any more: D-155 spent the exemption `11-13-SUMMARY.md:234-235` held open for exactly that
+  // structural pass. Leaving the row would not have been harmless — 13-08's finding is that a row
+  // exempts a file in BOTH directions, permanently, so it would have gone on licensing the next box
+  // somebody added to a file that had just been pattern-ised.
+  //
+  // `blocks-editor.tsx` STAYS, and deliberately: 14-12 does not open that file, and deleting an
+  // exemption for a surface you have not read is how a gate acquires a hole nobody meant (the same
+  // rule that left three stale Phase-13 rows above in place). The plan that converts it takes it.
   "src/components/availability/blocks-editor.tsx":
     "The date-block editor beside it, same surface and same phase.",
 
@@ -679,9 +731,10 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // cards satisfies both perfectly.
     const adopted = CARD_SURFACES.filter((s) => s.status === "adopted");
     const refused = CARD_SURFACES.filter((s) => s.status === "refused");
-    // 11 adopted since 13-10 (+1: the booking detail page). `refused` is unchanged — both refusals
-    // were MEASURED by plan 11-11 and neither has been overturned.
-    expect(adopted).toHaveLength(11);
+    // 13 adopted since 14-12 (+2: the weekly-hours editor and the week strip it now mounts; 11 since
+    // 13-10's booking detail page). `refused` is unchanged — both refusals were MEASURED by plan
+    // 11-11 and neither has been overturned.
+    expect(adopted).toHaveLength(13);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {

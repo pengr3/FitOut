@@ -11,6 +11,39 @@
 // The page (Task 3) passes openTime/closeTime already normalized to "HH:mm" (Postgres `time` round-trips
 // as "HH:mm:ss") so the seeded values line up with the on-the-hour Select options and the shared schema —
 // an untouched, DB-origin window re-saves cleanly after a reload (the 03-04 round-trip seam).
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WHAT PLAN 14-12 CHANGED: THE CONTAINER, AND THE PREVIEW ABOVE IT (HFLOW-04 · D-152, D-153, D-155)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE CONTAINER CHANGED, AND NOTHING ELSE ABOUT THIS FILE MOVED. Both hand-rolled boxes — the
+// "no hours yet" advisory and the seven-day editor — compose the declared panel pattern now, at the
+// muted advisory tone and the default tone. The copy is byte-identical, the dividing rule on the day
+// list is preserved, and the seven rows render in the same order with the same controls. The advisory
+// is deliberately NOT an empty state: the seven day rows always render, so it is an advisory about a
+// form that is fully present rather than the absence of a list.
+//
+// D-155 — THIS FILE LEFT `ALLOWED_RAW_CARD`, IN THE SAME COMMIT. `11-13-SUMMARY.md:234-235` held that
+// exemption open for exactly this structural pass. A row for a file with no raw box left is not
+// harmless: 13-08's finding is that such a row exempts a file in BOTH directions, permanently, so it
+// would go on quietly licensing the next box somebody adds here.
+//
+// UNTOUCHED, AND DELIBERATELY SO (D-130 / GATE-NOREG 6): the save path, the client-side overlap math,
+// the validation message and `weeklyHoursSchema`. The client form is still never the authority, and
+// nothing above or below is allowed to become a second opinion about what may be saved.
+//
+// THE PREVIEW IS NEW, AND IT IS FED FROM LIVE FORM STATE. `WeekStrip` draws the week the host is
+// currently typing from the SAME watched value the overlap math already reads — not `initialWindows`,
+// and not a re-read after a save. That is D-152's whole point: a window typed at the wrong end of the
+// day is visible before the round-trip. The strip derives and announces; it validates nothing.
+//
+// THE WEEKDAY NAMES, THE ON-THE-HOUR OPTIONS AND THE HOUR PARSER NOW HAVE ONE OWNER. All three used to
+// be declared here and again in `lib/availability/week-strip.ts`; the selects and the strip's sentences
+// read from the same map now, so what a host picks and what a screen reader announces are the same
+// string by construction rather than by two lists happening to agree. The parser came across in its
+// STRICTER form — it refuses a one-character hour fragment — because 14-04 found the loose spelling
+// drawing a bar for a value the shared schema would refuse, and a second parser here is how that
+// returns. Nothing about the option values, their order or their rendered labels changed.
 
 import { useState } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
@@ -35,34 +68,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelCard } from "@/components/patterns/panel-card";
+import { WeekStrip } from "@/components/availability/week-strip";
+// The three values this file used to declare for itself, from their one owner. The weekday names keep
+// their local name through an alias so the seven-row render below is textually unchanged — a container
+// swap that also renamed an identifier in the body would make "nothing else moved" unverifiable by diff.
+import {
+  HOUR_OPTIONS,
+  WEEKDAY_NAMES as WEEKDAYS,
+  toHour,
+} from "@/lib/availability/week-strip";
 
 export type WeeklyHoursWindow = {
   dayOfWeek: number;
   openTime: string; // "HH:mm" (page normalizes the DB "HH:mm:ss" via .slice(0, 5))
   closeTime: string; // "HH:mm"
 };
-
-const WEEKDAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
-
-/** On-the-hour "HH:mm" options (00:00..23:00) — values line up with the shared schema's on-the-hour rule. */
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
-  const value = `${String(h).padStart(2, "0")}:00`;
-  const period = h < 12 ? "AM" : "PM";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return { value, label: `${hour12}:00 ${period}` };
-});
-
-/** "HH:mm" (or "HH:mm:ss") → integer hour 0..23, for the client-side overlap math. */
-const toHour = (t: string) => parseInt(t.slice(0, 2), 10);
 
 /** RHF stores an array-root custom issue (the overlap message) on `windows` — read it defensively. */
 type WindowsRootError = { message?: string; root?: { message?: string } } | undefined;
@@ -158,21 +179,27 @@ export function WeeklyHoursEditor({
       </p>
 
       {hasNoWindows && (
-        <Card>
-          <CardContent className="space-y-1">
-            <h3 className="text-base font-semibold">Set your weekly hours</h3>
-            <p className="text-sm text-muted-foreground">
-              Tell bookers when your space is open. Add open and close times for each day — you can
-              add more than one block per day.
-            </p>
-          </CardContent>
-        </Card>
+        // The advisory, at the muted tone. `title` and `description` land in the pattern's own
+        // `space-y-1` pair, which is the spacing this box already had — the words are unchanged.
+        <PanelCard
+          tone="muted"
+          title="Set your weekly hours"
+          description="Tell bookers when your space is open. Add open and close times for each day — you can add more than one block per day."
+        />
       )}
+
+      {/* THE PREVIEW, ABOVE THE DAY EDITOR AND FED FROM THE LIVE VALUE (D-152). `liveWindows` is the
+          same watched array the overlap math below reads, so the drawn week is what the host is
+          typing rather than what was last saved. The strip's input type already accepts this sparse
+          mid-edit shape, so it passes straight in with no cast and no pre-filter. */}
+      <WeekStrip windows={liveWindows} cityLabel={cityLabel} />
 
       <Form {...form}>
         <form onSubmit={onSubmit} className="space-y-4">
-          <Card>
-            <CardContent className="divide-y">
+          <PanelCard>
+            {/* The dividing rule stays on the LIST rather than on the panel: the pattern owns the
+                box and takes no class name, and the rule between day rows is a property of the rows. */}
+            <div className="divide-y">
               {WEEKDAYS.map((label, day) => {
                 const dayEntries = fields
                   .map((field, index) => ({ field, index }))
@@ -269,8 +296,8 @@ export function WeeklyHoursEditor({
                   </div>
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          </PanelCard>
 
           {overlapMessage && (
             <p className="text-sm text-destructive" role="alert">

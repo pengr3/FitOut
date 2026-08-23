@@ -48,8 +48,9 @@
 // `HOUR_OPTIONS` and the weekday names are exported from here so the editor's selects and the strip's
 // sentences read from ONE source: D-153 requires the announced string to match what the host picked glyph
 // for glyph, which is only true by construction if the select's label and the sentence's label are the same
-// string. `weekly-hours-editor.tsx:45-62` still declares its own copies today; re-pointing it at these is a
-// later plan's edit, and until then the values are byte-identical by inspection, not by import.
+// string. PLAN 14-12 RE-POINTED THE EDITOR AT THESE, so "one owner" is now true by import rather than by
+// inspection: the weekday names, the on-the-hour options and the hour parser are declared here and nowhere
+// else, and the selects the host picks from are the same map the sentences are built out of.
 //
 // Days are `0=Sun … 6=Sat` — the `operating_hours.day_of_week` convention that `hours-lock.ts:32-42`
 // records as agreed by three independent authorities (the column, `venueDayOfWeek`, and Postgres's own
@@ -140,13 +141,19 @@ export function hourLabel(hour: number): string | null {
 /**
  * "HH:mm" (or "HH:mm:ss") → integer hour 0..23. NaN for anything else — the caller skips those.
  *
- * The two-digit prefix is REQUIRED, which the editor's own bare `parseInt(t.slice(0, 2))` does not check:
+ * The two-digit prefix is REQUIRED, which the bare `parseInt(t.slice(0, 2))` this replaced did not check:
  * a one-character `"9"` mid-keystroke parses as nine o'clock there, and the strip would draw a bar for a
  * string the shared schema's regex (`^([01]\d|2[0-3]):[0-5]\d…`) would refuse. That is not a second
  * validation — nothing here judges the value or emits a message — it is refusing to PARSE a fragment into
  * an hour the host has not finished typing.
+ *
+ * EXPORTED SINCE PLAN 14-12, WHICH IS WHEN THE SECOND COPY DIED. `weekly-hours-editor.tsx` declared the
+ * loose spelling of this function for its own overlap math until that plan re-pointed the editor here.
+ * 14-04's summary named the duplicate and asked the re-point to take the STRICTER parser with it, for the
+ * reason that applies to `HOUR_OPTIONS` beside it: two functions that answer the same question in two
+ * files are two answers waiting to disagree, and this pair had already disagreed once.
  */
-function toHour(time: string): number {
+export function toHour(time: string): number {
   return /^\d{2}/.test(time) ? parseInt(time.slice(0, 2), 10) : NaN;
 }
 
