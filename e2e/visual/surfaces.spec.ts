@@ -199,17 +199,47 @@ const EXPECTED_BLOCKED = [
   "receipt-print",
   "booking-group",
   "invite-active",
+  // --- 14-16 - ALL NINE of Phase 14's host surfaces -------------------------------------------
+  // Nine entries arriving at once, for the second time in this list's history, and the argument is
+  // the one the Phase-13 block already made: a surface joining here must do so deliberately, and
+  // that does not weaken because nine join together.
+  //
+  // They share ONE structural blocker before any of their own: `visual-drive.ts`'s `DRIVES` map has
+  // no host entry, so a host row falls through to the default plain `goto` with no session — and
+  // every host route redirects an unauthenticated visitor. Nine baselines of `/login`, permanent,
+  // silent and green, is the worst outcome available here. Each row's own `blocked` string in
+  // `visual-baselines.ts` names what it needs ON TOP of that: seeded bookings at fixed literal
+  // instants, a fixed booker first name, a `requested` row at a fixed remaining duration, a payout
+  // ledger with literal dates, an uneven week of operating hours, and a drive that WALKS the wizard.
+  //
+  // ⚠ NONE OF THE NINE WAS GENERATED. `playwright.config.ts:39` builds this project only on Linux;
+  // plan 14-16 ran on win32, where the project does not exist. The declaration is an inventory to
+  // work from, never a claim of coverage.
+  "host-dashboard-agenda",
+  "host-dashboard-quiet",
+  "host-dashboard-none",
+  "host-requests-triage",
+  "host-requests-zero",
+  "host-bookings-upcoming",
+  "host-wizard-rail",
+  "host-availability-strip",
+  "host-earnings",
 ] as const;
 
 /**
- * All three UI-SPECs' totals, COURT ONLY since D-138: 17 + 13 + 21 (13-UI-SPEC's table adds to 19;
- * the extra two are the reversed state's third branch, which that table predates). It was 95 while
- * every surface carried a second-theme row; `court` is now FitOut's single product theme and the
- * 44 `grove` rows are gone from the inventory. No surface lost its last row. Compile-checked too —
- * see `BaselineCountIsFiftyOne` in the module, which is what catches it off Linux where this file
+ * All four UI-SPECs' totals, COURT ONLY since D-138: 17 + 13 + 21 + 15 (13-UI-SPEC's table adds to
+ * 19; the extra two are the reversed state's third branch, which that table predates). It was 95
+ * while every surface carried a second-theme row; `court` is now FitOut's single product theme and
+ * the 44 `grove` rows are gone from the inventory. No surface lost its last row. Compile-checked too
+ * — see `BaselineCountIsSixtySix` in the module, which is what catches it off Linux where this file
  * never runs.
+ *
+ * ⚠ 66 DECLARED, 36 BLOCKED, 30 SHOT — and the 30 has not moved since Phase 12. Phase 14's fifteen
+ * rows are declarations and not pictures: all nine of its surfaces are blocked, nothing under
+ * `surfaces.spec.ts-snapshots/` was added or re-minted, and the plan that declared them could not
+ * have shot one if it had wanted to (this project is not constructed off Linux).
  */
-const EXPECTED_BASELINE_COUNT = 51;
+const EXPECTED_BASELINE_COUNT = 66;
 
 /**
  * Trap 1. Assert the surface rendered its subject before any pixel is read.
@@ -229,14 +259,15 @@ async function expectReachable(page: Page, row: BaselineRow): Promise<void> {
 }
 
 test.describe("GATE-01 — the declared baseline inventory", () => {
-  test("the inventory is the 51 rows the three UI-SPECs declare, and the blocked set is the declared one", () => {
+  test("the inventory is the 66 rows the four UI-SPECs declare, and the blocked set is the declared one", () => {
     expect(
       VISUAL_BASELINES.length,
-      "the three UI-SPECs declare 51 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
-        "12-UI-SPEC § Visual Baselines and 21 from 13-UI-SPEC § Visual Baselines. D-138 makes " +
-        "`court` the single product theme, so the second theme's rows are no longer declared here. " +
-        "This is the runtime half of the compile gate in `visual-baselines.ts`; the type-level one " +
-        "is what catches it off Linux, where this file never runs.",
+      "the four UI-SPECs declare 66 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
+        "12-UI-SPEC § Visual Baselines, 21 from 13-UI-SPEC § Visual Baselines and 15 from " +
+        "14-UI-SPEC § Visual Baselines. D-138 makes `court` the single product theme, so the second " +
+        "theme's rows are no longer declared here. This is the runtime half of the compile gate in " +
+        "`visual-baselines.ts`; the type-level one is what catches it off Linux, where this file " +
+        "never runs.",
     ).toBe(EXPECTED_BASELINE_COUNT);
 
     const blocked = blockedSurfaces();

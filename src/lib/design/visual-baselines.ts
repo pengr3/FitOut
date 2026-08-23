@@ -48,7 +48,7 @@
 // all of which are Windows or macOS — NOTHING would check the three counts this file's acceptance
 // rests on. A criterion checked only in an environment nobody runs is not a criterion.
 //
-// `BaselineCountIsFiftyOne`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
+// `BaselineCountIsSixtySix`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
 // below are therefore type-level
 // assertions, enforced by `npx tsc --noEmit` and by `next build`'s own type check — which runs inside
 // `npm run build`, which is CI job 1. They fail on EVERY machine, in the build, before a browser is
@@ -189,6 +189,30 @@ export const SURFACE_IDS = [
   "booking-group",
   "invite-active",
   "booking-not-found",
+  // ─── 14-16 — the five host surfaces, in 14-UI-SPEC § Visual Baselines' table order ───────────────
+  //
+  // ⚠ ALL NINE ARE BLOCKED, AND NOT ONE OF THEM WAS GENERATED. `playwright.config.ts:39` constructs
+  // the `visual` project ONLY on Linux, so on the machine this phase ran on the command does not
+  // exist — there is no `--project=visual` to select and no screenshot assertion reachable by
+  // accident. That is stated at the top of the block rather than left to nine `blocked` strings,
+  // because the honest summary of this addition is *an inventory somebody can work from*, not
+  // coverage. Nothing in `e2e/visual/surfaces.spec.ts-snapshots/` moved and nothing was added.
+  //
+  // ⚠ EVERY ONE OF THE NINE SHARES ONE STRUCTURAL BLOCKER BEFORE ITS OWN: `e2e/helpers/visual-drive
+  // .ts`'s `DRIVES` map has NO HOST ENTRY, so a host row falls through to the default — a plain
+  // `goto` of its declared URL with no session. Every host route redirects an unauthenticated
+  // visitor, so the default drive would photograph `/login` NINE TIMES, and nine identical baselines
+  // of the sign-in page is the single worst outcome available here: it is permanent, silent, and
+  // green. The per-surface reasons below name what each row needs ON TOP of that.
+  "host-dashboard-agenda",
+  "host-dashboard-quiet",
+  "host-dashboard-none",
+  "host-requests-triage",
+  "host-requests-zero",
+  "host-bookings-upcoming",
+  "host-wizard-rail",
+  "host-availability-strip",
+  "host-earnings",
 ] as const;
 
 /** The closed union every baseline row and every exclusion is typed against. */
@@ -701,6 +725,221 @@ export const VISUAL_SURFACES = {
       "can otherwise produce: the route's `loading.tsx` plate carries no `empty-state`, and an " +
       "unauthenticated visit is redirected to `/login`, which carries none either.",
     blocked: null,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  // 14-16 — THE FIVE HOST SURFACES. NINE ROWS, ALL NINE BLOCKED, NINE DIFFERENT REASONS.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // COURT ONLY (PROJECT D-138). No Phase-14 surface owes a second-theme pair: grove's proof is the
+  // 24-name key-set parity check, the declared contrast table and the FIXED four-surface contract set
+  // in `theme-swap.spec.ts`. None of the nine joins that four, and a fifth member is an amendment to
+  // D-138 rather than a row to append.
+  //
+  // WHAT THE FIXTURE ALREADY GIVES THIS BLOCK, so the reasons below can name what is MISSING rather
+  // than restating what is absent (`scripts/seed-baseline-fixtures.ts`, read):
+  //   • `VRT_HOST_ID` = "vrt_host_1", first name "Vera", `can_host`, `email_verified`
+  //   • an ACTIVATED `host_payout` row — `activation_status='activated'`, `payouts_enabled=true`
+  //   • FIVE published listings owned by that host, with photos, operating hours and activity tags
+  //   • `VRT_CLOCK_ISO` = "2026-09-15T04:00:00Z" — noon Asia/Manila — which the spec installs
+  //   • fixed literal ids throughout, and a `reset()` that deletes every `vrt_%` row FK-safely
+  //
+  // WHAT IT DOES NOT GIVE, and this is the whole of the shared work:
+  //   • THE SIGNED-IN USER IS NOT `vrt_host_1`. The 13-15 recipe, mirrored: sign a host up through the
+  //     UI, then `UPDATE listing SET host_id = <new id> WHERE id LIKE 'vrt_%'` and repoint the
+  //     `host_payout` row, restoring both in `cleanup()`. Cheaper than the booker case, because no
+  //     FK-restricted `booking.booker_id` is involved on the listing side.
+  //   • NO `booking` ROWS AT ALL. Six of the nine are about bookings.
+  //   • NO BOOKER IDENTITY with a fixed `first_name`, which D-140 puts in the agenda row's TITLE.
+  //   • NO LISTING WITHOUT HOURS, which is what the published-without-hours signal is about.
+  //
+  // 14-RESEARCH's verdict on the whole item, quoted rather than paraphrased: **"Buildable, but not
+  // inside a single plan, and not verifiable on this machine."** This plan took the declaration and
+  // did not take the fixture, and says so here rather than implying otherwise.
+  //
+  // ⚠ THE CLOCK ARITHMETIC IS 5 AND 4, NOT 6 AND 3. Plan 14-16's own text says "the six clock-
+  // dependent rows" and "the three that need no clock". Counted against 14-UI-SPEC § Visual
+  // Baselines' Determinism column, which is the measurement: FIVE carry a clock-freeze mark
+  // (`agenda`, `quiet`, `triage`, `upcoming`, `earnings`) and FOUR do not (`none`, `zero`,
+  // `wizard-rail`, `availability-strip`). The recommendation in 14-RESEARCH names three of those four
+  // and is silent on `host-wizard-rail`, which is where the missing one went. Recorded rather than
+  // rounded, because the next reader will count them too.
+
+  "host-dashboard-agenda": {
+    kind: "document",
+    url: "/host",
+    hook: '[data-testid="agenda-rows"]',
+    hookWhy:
+      "the agenda's POPULATED branch. The container and its heading render in all three booking " +
+      "states by design, so an `h1`, the section or a `page-header` hook would each be satisfied by " +
+      "the quiet day and by the empty one — three different pictures under one row's name. This id " +
+      "exists on exactly one of the three.",
+    blocked:
+      "BLOCKED ON SEEDED BOOKINGS AT FIXED LITERAL INSTANTS, AND ON A FIXED BOOKER NAME. " +
+      "`scripts/seed-baseline-fixtures.ts` contains no `booking` block at all — it seeds a host, a " +
+      "payout wallet and five listings and stops. This surface needs at least two CONFIRMED bookings " +
+      "whose `starts_at` falls inside `VRT_CLOCK_ISO`'s venue-local day (noon Asia/Manila on " +
+      "2026-09-15), written as LITERALS: a `now()`-relative seed puts a different window in frame on " +
+      "every dispatch, and the row prints that window. It also needs a booker row with a FIXED " +
+      "`first_name`, because D-140 makes the booker's first name the row's TITLE and the shipped " +
+      "sign-up helpers mint a random identity per run. Neither exists.",
+  },
+  "host-dashboard-quiet": {
+    kind: "document",
+    url: "/host",
+    hook: '[data-testid="agenda-next"]',
+    hookWhy:
+      "D-142's quiet-day branch, which is the ONE of the three that renders a sentence about a FUTURE " +
+      "session. It cannot be satisfied by the row above (that branch renders a list) nor by the one " +
+      "below (that branch renders an empty state).",
+    blocked:
+      "BLOCKED ON A SECOND FIXTURE STATE OF ONE SURFACE, which is a different problem from the row " +
+      "above rather than the same one twice. This branch renders IFF today has zero sessions and " +
+      "something later exists — so it and `host-dashboard-agenda` are mutually exclusive states of " +
+      "the same route, and `scripts/seed-baseline-fixtures.ts` has one all-or-nothing `seed()` with " +
+      "no per-surface variant. Reaching both in one dispatch needs either a second host or a " +
+      "per-surface seed step, and that shape does not exist in the file today. On top of that, D-142's " +
+      "sentence prints the next session's venue-local weekday, date and time, so its `starts_at` must " +
+      "be a literal keyed to `VRT_CLOCK_ISO` rather than an offset from `now()`.",
+  },
+  "host-dashboard-none": {
+    kind: "document",
+    url: "/host",
+    hook: '[data-testid="agenda-none"]',
+    hookWhy:
+      "the absence branch. It is an `EmptyState`, so a bare `empty-state` hook would ALSO match the " +
+      "no-listings state this route renders instead of the agenda for a host with none — two " +
+      "different pictures, one of which is not this surface. The agenda-specific id separates them.",
+    blocked:
+      "NO CLOCK IS NEEDED AND NO BOOKING IS NEEDED — this row is blocked on the HOST FIXTURE RE-POINT " +
+      "alone, which makes it the cheapest of the nine and the right one to unblock first. It requires " +
+      "only that the signed-in browser session BE `vrt_host_1`, whose five published listings the " +
+      "fixture already writes and against which no booking exists. The re-point is 13-15's recipe " +
+      "mirrored into `scripts/seed-baseline-fixtures.ts` plus a `hostDrive` factory in " +
+      "`e2e/helpers/visual-drive.ts` — real work this phase did not take, and work that cannot be " +
+      "verified on this machine at all, because the `visual` project is not constructed off Linux.",
+  },
+  "host-requests-triage": {
+    kind: "document",
+    url: "/host/requests",
+    hook: '[data-testid="row-card"]',
+    hookWhy:
+      "a request row in the MOBILE tree. ⚠ WEAKER THAN IT LOOKS AT 1280, and said so rather than left " +
+      "to be discovered: this route renders a `hidden md:block` table beside a `md:hidden` card " +
+      "stack, so at the desktop width the card subtree exists in the DOM but is not visible. " +
+      "`expectReachable` asserts VISIBILITY, so the 1280 row would fail on this hook and the drive " +
+      "must address the table instead. Revisit this hook when the fixture lands.",
+    blocked:
+      "BLOCKED ON A `requested` BOOKING WITH A FIXED `expires_at`, and this is the row where the clock " +
+      "is not a nicety. The SLA countdown is the loudest element on the surface by design (D-146) and " +
+      "it TICKS: a deadline seeded as `now() + 20 hours` renders different digits in the capture and " +
+      "in every later dispatch, so the picture disagrees with itself by construction. What is owed is " +
+      "an `expires_at` LITERAL placed at a chosen remaining duration under the Playwright clock pinned " +
+      "to `VRT_CLOCK_ISO`, plus a decision about whether the seeded row is the D-99 cap-shortened one " +
+      "— that variant renders the reason sentence, which `[14-03]`/`[14-06]` measured as the widest " +
+      "thing the status column can hold at 320px, and it is the row worth photographing.",
+  },
+  "host-requests-zero": {
+    kind: "document",
+    url: "/host/requests",
+    hook: '[data-testid="empty-state"]',
+    hookWhy:
+      "inbox-zero's own container. The route's `loading.tsx` plate composes the same `PageHeader` with " +
+      "the same two strings and carries no empty state, and the populated branch carries row cards " +
+      "instead — so this id separates the surface from both of its neighbours.",
+    blocked:
+      "IT NEEDS NO CLOCK, NO BOOKING AND NO ROW — WHICH IS EXACTLY WHY IT IS BLOCKED ON SOMETHING THE " +
+      "OTHERS ARE NOT: an inbox that is genuinely empty ON THE SAME HOST that `host-requests-triage` " +
+      "needs a live request for. One host cannot be in both states in one dispatch, and " +
+      "`scripts/seed-baseline-fixtures.ts` seeds exactly one host. Unblocking this row means either a " +
+      "SECOND fixture host with no requests, or a per-surface seed step — the same shape the quiet-day " +
+      "row needs, arriving from the opposite direction. The missing host drive applies here too.",
+  },
+  "host-bookings-upcoming": {
+    kind: "document",
+    url: "/host/bookings?tab=upcoming",
+    hook: '[data-testid="row-card"]',
+    hookWhy:
+      "a booking row in the MOBILE tree, with the same desktop caveat as the triage row above: this " +
+      "route also renders two trees and hides one per width. The `?tab=upcoming` in the URL is not " +
+      "decoration — `parseTab` resolves anything else to this default, so the query is what makes the " +
+      "row name the tab it claims rather than inheriting it.",
+    blocked:
+      "BLOCKED ON THE BADGE, WHICH IS `now`-DERIVED IN SQL. D-102 computes the displayed status as " +
+      "`CASE WHEN status='confirmed' AND ends_at <= now() THEN 'completed' ELSE status END`, evaluated " +
+      "against the DATABASE clock — which the Playwright clock does not control. So a booking seeded " +
+      "relative to `now()` can photograph as `Upcoming` today and `Completed` on the dispatch that " +
+      "compares, with no code change. What is owed in `scripts/seed-baseline-fixtures.ts` is a " +
+      "`starts_at`/`ends_at` pair as fixed literals bracketing `VRT_CLOCK_ISO`, and — 14-RESEARCH asks " +
+      "for this specifically — a Manila-vs-other-zone PAIR straddling midnight, so the venue-local day " +
+      "boundary has a falsifying case rather than a coincidence.",
+  },
+  "host-wizard-rail": {
+    kind: "document",
+    // The fixture's own exclusive listing, by its literal id — `scripts/seed-baseline-fixtures.ts`'s
+    // `VRT_IDS.exclusive`. Named directly for the reason that file's header gives: `visual-baselines.ts`
+    // lives in `src/` and cannot import the seed script (it pulls in `postgres`, and `src/` is inside
+    // `next build`'s graph), so the two spellings are kept in agreement by hand and by the URL-contract
+    // test in `e2e/visual/surfaces.spec.ts`. ⚠ That test currently filters on `/listings/`, so it does
+    // NOT see this row or the availability one; widening it is a job for the plan that unblocks them.
+    url: "/host/listings/vrt_listing_exclusive/edit",
+    hook: '[data-testid="wizard-step-rail"]',
+    hookWhy:
+      "the rail itself, which only the resolved wizard renders. An `h1` would be the trap here: every " +
+      "step of the wizard renders one, and so does every other host route — so a heading hook would be " +
+      "satisfied by any of them, including the route this drive would land on unauthenticated.",
+    blocked:
+      "BLOCKED ON A DRIVE THAT WALKS, not on data — which makes it the odd one of the nine. The wizard " +
+      "holds its position in React state (`useState(0)`), there is no `?step=` and the rail moves " +
+      "strictly backward (D-148), so a plain navigation photographs step one: ONE current marker and " +
+      "eight future ones, which is the least informative frame this surface has and shows none of the " +
+      "three marker states the row exists to pin. What is owed is a `hostDrive` in " +
+      "`e2e/helpers/visual-drive.ts` that presses the advance control to a DECLARED step so the frame " +
+      "carries done, current and future markers at once — on top of the host re-point every row here " +
+      "needs.",
+  },
+  "host-availability-strip": {
+    kind: "document",
+    // The same fixture listing, by the same literal id — see the wizard row's note above.
+    url: "/host/listings/vrt_listing_exclusive/availability",
+    hook: '[data-testid="week-strip"]',
+    hookWhy:
+      "D-152's week-at-a-glance preview, which exists on no other route. ⚠ It carries " +
+      "`aria-hidden=\"true\"` by design (the bars are decoration; the seven sentences beside them are " +
+      "the meaning), so this hook is reachable by a CSS locator and is NOT reachable by a role query — " +
+      "which is correct for a pixel comparison and worth knowing before somebody 'improves' it into an " +
+      "accessible-name query and finds nothing.",
+    blocked:
+      "BLOCKED ON THE HOURS BEING A DECLARED FIXTURE VALUE RATHER THAN AN INCIDENTAL ONE. The strip is " +
+      "a pure function of saved hours, so it needs no clock — but `scripts/seed-baseline-fixtures.ts` " +
+      "writes `operating_hours` as a uniform 06:00-21:00 across all five listings, chosen so the " +
+      "BOOKER'S hour grid is populated. A seven-identical-bar week photographs as a solid block and " +
+      "would pin nothing about segment placement, the touching-endpoint case D-153 cares about, or the " +
+      "closed-day sentence. What is owed is a deliberately UNEVEN week on the addressed listing, plus " +
+      "14-RESEARCH's `photos:0 / hours:none` listing variant so the published-without-hours signal has " +
+      "a subject at all.",
+  },
+  "host-earnings": {
+    kind: "document",
+    url: "/host/earnings",
+    hook: '[data-testid="panel-card"]',
+    hookWhy:
+      "⚠ THE WEAKEST HOOK IN THIS BLOCK, AND STATED AS SUCH RATHER THAN LEFT TO BE DISCOVERED. " +
+      "`panel-card` is the declared pattern's own id and it resolves on EVERY panel on the page — and " +
+      "on panels on four other host routes. It proves a panel rendered, not that this surface did. " +
+      "14-UI-SPEC § Visual Baselines names it, so it is recorded as given; the plan that unblocks this " +
+      "row should replace it with a hook only the earnings page produces.",
+    blocked:
+      "BLOCKED ON A PAYOUT LEDGER WITH FIXED DATES — and this row carries a second, unusual constraint " +
+      "the other eight do not. On determinism: the surface prints payout dates that are `now`-relative, " +
+      "and the fixture seeds an ACTIVATED wallet with NO ledger rows behind it, so the page has nothing " +
+      "to photograph until `scripts/seed-baseline-fixtures.ts` grows a `host_payout`-ledger block with " +
+      "literal instants. On scope: this row's whole job is to prove HFLOW-05 changed NOTHING — and " +
+      "there is no pre-phase baseline to compare it against, because this surface was never baselined, " +
+      "so a picture taken now would establish the reference rather than check it. D-156 and plan " +
+      "14-01's string-literal freeze are what actually carry that proof today. This declaration was " +
+      "written from 14-UI-SPEC's table and the seed script's contents WITHOUT opening the route or any " +
+      "`payout-*` file, which the earnings freeze forbids this plan to touch.",
   },
 } as const satisfies Record<SurfaceId, SurfaceRow>;
 
@@ -1336,6 +1575,195 @@ export const VISUAL_BASELINES = [
       "money, no date and no identity, so it is the one surface in this block a per-run seed " +
       "cannot destabilise.",
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  // 14-16 — THE FIVE HOST SURFACES. FIFTEEN ROWS, ALL FIFTEEN BLOCKED, ZERO PICTURES ADDED.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // Court only (D-138). The widths are 14-UI-SPEC § Visual Baselines' own, and every one of them is
+  // there for a stated reason rather than because it is a familiar number — a row whose width is
+  // plausible but wrong compiles, which is this file's own recorded blind spot.
+  //
+  // ⚠ NOT ONE OF THESE WAS GENERATED, AND THE INVENTORY SAYS SO WHERE A READER WILL SEE IT. The
+  // `visual` project is not constructed off Linux (`playwright.config.ts:39`), and the machine plan
+  // 14-16 ran on is win32 — so `--project=visual` does not exist there, `updateSnapshots` is `"none"`
+  // unconditionally anyway (`:78`), and the thirty committed pictures under
+  // `e2e/visual/surfaces.spec.ts-snapshots/` are byte-for-byte untouched. A complete run still commits
+  // THIRTY files after this addition, not forty-five. Anyone reading "66 baselines" as "66 files" will
+  // be wrong by thirty-six.
+
+  // ─── /host — the dashboard's three agenda states — 4 ────────────────────────────────────────────
+  {
+    surface: "host-dashboard-agenda",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, where the agenda row is at its tallest: the meta line — space title, venue-local " +
+      "day, window and city suffix — wraps to four lines and the row measures 132px against the 72px " +
+      "it settles at by the small breakpoint (plan 14-15 measured both). This is the width where the " +
+      "row's wrap behaviour is the layout rather than a detail of it.",
+  },
+  {
+    surface: "host-dashboard-agenda",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, where the same row is 72px and the heading row lays out its route-out beside the " +
+      "second-level heading rather than beneath it. Two widths and not three: the agenda has no " +
+      "tablet-specific composition, and the row height is already at its floor by 639px.",
+  },
+  {
+    surface: "host-dashboard-quiet",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "one width. D-142's fallback is a single muted advisory carrying one sentence; it has no layout " +
+      "change between the floor and desktop that the agenda rows above do not already pin, and a 320 " +
+      "row would be a second picture of a wrapped sentence.",
+  },
+  {
+    surface: "host-dashboard-none",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "one width, and the row that pins the ABSENCE tone: an `EmptyState` with no retry affordance, " +
+      "no alerting role and no alarm colour. It is the cheapest of the nine to unblock and the one " +
+      "whose regression — a normal state dressed as a failure — a screenshot catches better than any " +
+      "source scan can.",
+  },
+
+  // ─── /host/requests — the inbox's two states — 3 ────────────────────────────────────────────────
+  {
+    surface: "host-requests-triage",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, and the most load-bearing of the fifteen. D-146's whole claim is a HIERARCHY — the " +
+      "SLA countdown reading louder than the money and the guest name — and 320 is where the card " +
+      "tree renders, where the D-99 reason line fills the status column and where the two 44px " +
+      "actions and the truncating title compete for 288px. `e2e/host-inbox-hierarchy.spec.ts` " +
+      "measures the type scale; only a picture shows the result.",
+  },
+  {
+    surface: "host-requests-triage",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, where the route swaps trees entirely: the card stack is hidden and a six-column table " +
+      "renders, with the deadline as its FIRST column. It is not a wider version of the row above — " +
+      "it is a different composition of the same facts, which is exactly the pair a baseline is for.",
+  },
+  {
+    surface: "host-requests-zero",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "one width. Inbox-zero reads as DONE rather than as empty (D-147) — the positive tone, one " +
+      "`aria-hidden` success glyph, zero actions — and that reading is a colour-and-spacing decision " +
+      "no source scan can check. It has no per-width composition.",
+  },
+
+  // ─── /host/bookings — 2 ────────────────────────────────────────────────────────────────────────
+  {
+    surface: "host-bookings-upcoming",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, where the list is a card stack and a resting row measures 196px against the 37px " +
+      "its desktop table row occupies (plan 14-15's numbers). The tab strip, the row's description " +
+      "list and its status badge all stack here.",
+  },
+  {
+    surface: "host-bookings-upcoming",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, the table tree — the second of the two routes that swap composition at the medium " +
+      "breakpoint. The pair is what makes the swap visible; either alone photographs half a surface.",
+  },
+
+  // ─── the wizard's step rail — 3 ─────────────────────────────────────────────────────────────────
+  // ⚠ THE ONLY SURFACE IN THE INVENTORY WITH THREE WIDTHS, and the middle one is the reason. See the
+  // 768 row: `lg` is 1024, so 768 and 1280 photograph two DIFFERENT placements of the publish
+  // checklist, and a pair at 320/1280 would miss the collapsed one entirely.
+  {
+    surface: "host-wizard-rail",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, where the rail's nine markers must lay out without wrapping past the declared " +
+      "marker box and the checklist is a closed disclosure. `measurements.ts` carries the arithmetic " +
+      "for why nine markers fit at this width; this is the picture of it holding.",
+  },
+  {
+    surface: "host-wizard-rail",
+    width: 768,
+    height: 1024,
+    theme: "court",
+    why:
+      "LOAD-BEARING, AND NOT A THIRD COPY OF EITHER NEIGHBOUR. The publish checklist's placement " +
+      "changes at `lg` (1024px), so 768 is the widest width at which it is still the COLLAPSED " +
+      "disclosure beneath the form rather than a persistent side panel. A 320/1280 pair photographs " +
+      "the two ends of that fork and never the fork itself.",
+  },
+  {
+    surface: "host-wizard-rail",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "above `lg`, where D-149's checklist takes its own column beside the step's form and the rail " +
+      "spans the top. This is the composition the persistent-checklist decision is about: the " +
+      "checklist stops being an end-of-flow surprise precisely because it is readable here at every " +
+      "step.",
+  },
+
+  // ─── the availability week strip — 2 ────────────────────────────────────────────────────────────
+  {
+    surface: "host-availability-strip",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, where seven day columns share 288px — the width at which the strip's bars are " +
+      "narrowest and its day captions closest to colliding. The strip is a pure function of saved " +
+      "hours, so this row pins geometry and nothing else, which is what makes it cheap and stable.",
+  },
+  {
+    surface: "host-availability-strip",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, where the strip sits above the day editor with room to breathe and the segment " +
+      "placement is legible enough for a reader to check it against the hours beneath. Two widths, " +
+      "not three: nothing about this component changes at the tablet width.",
+  },
+
+  // ─── /host/earnings — 1 ────────────────────────────────────────────────────────────────────────
+  {
+    surface: "host-earnings",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "one width, and its job is to prove HFLOW-05 changed NOTHING. ⚠ That job is not yet doable and " +
+      "the row says so at the surface: there is no pre-phase picture to compare against, so a first " +
+      "capture would establish a reference rather than check one. The claim is carried today by " +
+      "D-156's freeze and plan 14-01's AST scan over every string literal in the earnings and payout " +
+      "files — which is a stronger check of 'nothing changed' than a screenshot, and is the reason " +
+      "this row is the least urgent of the fifteen.",
+  },
 ] as const satisfies readonly BaselineRow[];
 
 // ---------------------------------------------------------------------------
@@ -1431,7 +1859,9 @@ type Assert<T extends true> = T;
  *   12-UI-SPEC § Visual Baselines (12-14)      3 + 2 + 3 + 1 + 1 + 2 + 1       = 13
  *   13-UI-SPEC § Visual Baselines (13-15)      3 + 2 + 1 + 2 + 1 + 2 + 2
  *                                              + 2 + 1 + 2 + 2 + 1             = 21
- *                                                                        TOTAL = 51
+ *   14-UI-SPEC § Visual Baselines (14-16)      2 + 1 + 1 + 2 + 1 + 2 + 3
+ *                                              + 2 + 1                         = 15
+ *                                                                        TOTAL = 66
  *
  * ⚠ THIS NUMBER WAS 95 AND IS NOW 51 BECAUSE OF D-138, NOT BECAUSE 44 BASELINES WERE LOST. `court`
  * (coral) is FitOut's SINGLE product theme and `grove` is demoted to a token-contract PROBE, so the
@@ -1451,14 +1881,23 @@ type Assert<T extends true> = T;
  * See `SURFACE_IDS` for the argument and each surface's `blocked` field for what stands in the way.
  *
  * ⚠ ELEVEN OF THE TWELVE PHASE-13 SURFACES ARE BLOCKED, SO 20 OF THESE 21 ROWS SHOOT NOTHING TODAY.
- * That is stated here as well as at the rows because a reader who takes 51 for a file count will be
- * wrong by 21 (the 20 plus `global-error`). A complete run commits 30 PNGs.
+ * That is stated here as well as at the rows because a reader who takes 66 for a file count will be
+ * wrong by 36.
+ *
+ * ⚠ AND ALL NINE PHASE-14 SURFACES ARE BLOCKED, SO ALL 15 OF ITS ROWS SHOOT NOTHING EITHER. The
+ * arithmetic, spelled out because it is the honest headline of this file: 66 declared, 36 blocked
+ * (1 structural + 20 Phase-13 + 15 Phase-14), 30 shot. **A COMPLETE RUN COMMITS THIRTY PNGs — THE
+ * SAME THIRTY AS BEFORE PHASE 14.** The host block added declarations and not one picture, and it did
+ * not generate any: `playwright.config.ts:39` constructs the `visual` project only on Linux, and the
+ * machine that wrote these rows is win32, so the command to shoot them does not exist there. Every
+ * host row's `blocked` string names the fixture file and the specific missing piece, so the inventory
+ * is something a later plan can work FROM rather than an absence somebody has to rediscover.
  *
  * THE NAME CARRIES THE NUMBER ON PURPOSE, AND IT IS RENAMED IN THE SAME COMMIT AS THE ROWS. The alias
- * was `BaselineCountIsTwentySeven`, then `BaselineCountIsFiftyThree`, then `BaselineCountIsNinetyFive`.
- * A gate whose name says 95 while its constraint says 51 is a gate that reads correct and is not, and
- * this file's whole argument is that a count nobody restates is a count nobody checks. `tsc` cannot
- * catch a stale NAME, which is exactly why it has to move by hand.
+ * was `BaselineCountIsTwentySeven`, then `BaselineCountIsFiftyThree`, then `BaselineCountIsNinetyFive`,
+ * then `BaselineCountIsFiftyOne`. A gate whose name says 51 while its constraint says 66 is a gate that
+ * reads correct and is not, and this file's whole argument is that a count nobody restates is a count
+ * nobody checks. `tsc` cannot catch a stale NAME, which is exactly why it has to move by hand.
  *
  * OBSERVED RED — 21 August 2026, plan 13-15, UNFORCED: inserting the 42 rows with the alias still
  * reading 53 produced exactly one error, `npx tsc --noEmit` exit 2:
@@ -1468,9 +1907,21 @@ type Assert<T extends true> = T;
  *
  * — the same shape probe (a) recorded in 2026, arriving on its own rather than being staged. Renaming
  * to 95 in this same commit returned it to exit 0.
+ *
+ * OBSERVED RED AGAIN — 24 August 2026, plan 14-16, FORCED (and said to be forced, because 13-15's
+ * entry above was not and the difference is the evidence): with the fifteen host rows in place the
+ * constraint was set back to `51` — the exact state the file would have been left in had the rows been
+ * added and the number not moved. `npx tsc --noEmit`, EXIT=2, and the whole of stdout was one line:
+ *
+ *   src/lib/design/visual-baselines.ts(1917,3): error TS2344: Type 'false' does not satisfy the
+ *   constraint 'true'.
+ *
+ * RESTORED to 66 → exit 0. Note again what it did NOT do, which is this gate's standing weakness: the
+ * error names the alias's own line and not the fifteen rows, which is why the arithmetic is spelled
+ * out in prose above rather than left implicit in the literal.
  */
-export type BaselineCountIsFiftyOne = Assert<
-  (typeof VISUAL_BASELINES)["length"] extends 51 ? true : false
+export type BaselineCountIsSixtySix = Assert<
+  (typeof VISUAL_BASELINES)["length"] extends 66 ? true : false
 >;
 
 /** D-135 / AC#30: exactly one exclusion. Probe (b) above. */
