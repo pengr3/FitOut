@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 14-07-PLAN.md — /host/bookings wears the design system and its information architecture is proved unmoved block by block. Phase 14 is 7 of 16 plans done
-last_updated: "2026-08-23T10:59:06.012Z"
+stopped_at: Completed 14-08-PLAN.md — /host is a today view: today's real sessions first, one database-clock read threaded into every badge, both accent call sites intact. Phase 14 is 8 of 16 plans done
+last_updated: "2026-08-23T11:43:59.725Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 87
+  completed_plans: 88
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 8 of 16
-Current Plan: 8
+Plan: 9 of 16
+Current Plan: 9
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -669,6 +669,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P05 | 20min | 3 tasks | 6 files |
 | Phase 14 P06 | 30min | 2 tasks | 5 files |
 | Phase 14 P07 | 20min | 2 tasks | 4 files |
+| Phase 14 P08 | 35min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1078,6 +1079,10 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-07: a restyle under a do-not-touch decision proves it BLOCK BY BLOCK — each protected region extracted from `git show HEAD:<file>` and from the working tree and diffed; all seven regions of /host/bookings reported IDENTICAL
 - [Phase 14]: 14-07: the host tab partition and the host keyset pager had NO host-side assertion (views.test.ts drove queryBookerBookings only). The shared SQL fragment made the property inherited, which is exactly what a no-regression gate must not rest on — both added and both observed failing
 - [Phase 14]: 14-07: /host/bookings' 320px floor was measured with a throwaway Playwright script reusing e2e/helpers/overflow.ts's own evaluate bodies, NOT a seventh DB-seeding spec — scrollWidth 320/clientWidth 320, 0 offenders, smallest control axis 28px, Approve 90x44 and Decline 84.6x44 on both breakpoints
+- [Phase 14]: 14-08: /host's loading plate announces ONCE — two skeleton patterns in one fallback is two live regions for one wait (AC#18), so the row list stands in for the agenda and the trailing signals block is deliberately undrawn
+- [Phase 14]: 14-08: the dashboard's two accent call sites are the ARMS OF ONE runtime conditional — the header cluster renders only when the host has listings, so both survive in source (brand-recipe's host total stays 5) and exactly one renders at 320/768/1280
+- [Phase 14]: 14-08: composeStartTokens joins when-label.ts rather than the dashboard formatting its own quiet-day date — the module's own rule is that every new time surface imports from it, and the extraction was proved output-identical by re-running its test file unedited
+- [Phase 14]: 14-08: an e2e suite REPLAYS the session its signup drive created instead of re-driving the login form per case — six serial logins plus two signups hit auth.ts's 5-per-60s sign-in limiter and surfaced as a waitForURL timeout that read like a product bug
 
 ### Pending Todos
 
@@ -1184,8 +1189,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T10:34:54.406Z
-Stopped at: Completed 14-06-PLAN.md — the requests inbox reads deadline-first and D-146 is a browser measurement. Phase 14 is 6 of 16 plans done
+Last session: 2026-08-23T11:43:21.858Z
+Stopped at: Completed 14-08-PLAN.md — /host is a today view: today's real sessions first, one database-clock read threaded into every badge, both accent call sites intact. Phase 14 is 8 of 16 plans done
 of 16 plans done (14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the
 request row, 14-04 the week strip's pure half, 14-05 the dashboard's two new blocks); **14-06 is next**.
 `src/components/host/host-agenda.tsx` renders D-140/D-142's three states inside ONE section that mounts
