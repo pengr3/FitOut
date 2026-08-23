@@ -58,3 +58,46 @@ status column **112px**, space title **132px** — the title now fits entirely.
 
 The cap is pinned in BOTH directions: case 3 also fails if `REQUEST_STATUS_CAP` is ever tightened past
 the countdown's own max-content width, because the reason line may wrap and the deadline may not.
+
+---
+
+## `[14-09]` The index-keyed visited set is not observably wrong TODAY, and the day it becomes wrong is the day D-148 is widened
+
+**Found during:** 14-09 Task 2, running the falsification probe the plan asked for.
+**Owner:** whichever plan widens **D-148** from *backward-to-visited-only* to free jumping
+(14-UI-SPEC § The step rail flags it as "a reading the PM may want to widen").
+
+The plan required case 6 of `tests/listing/wizard-rail.test.tsx` to be observed FAILING against a
+deliberate regression: key the wizard's visited-step set by numeric index instead of by step key. The
+probe was applied — `Set<number>` seeded with `0`, `goToStep` adding `i`,
+`canReturn = state === "done" && visited.has(i)` — and the file stayed **green, 7 passed**.
+
+**Why.** The two implementations can only differ where `i < currentIndex` and
+`visitedKeys.has(steps[i].key) ≠ visitedIndexes.has(i)`. The wizard has **no forward jump**:
+`saveAndContinue` moves exactly one step, the rail moves strictly backward, and the review checklist's
+links move strictly backward. So `visited ⊇ {0…current}` is an invariant under BOTH keyings and the
+predicate collapses to `i < current` either way. The occupancy fork does not rescue it: the mode can
+only be changed **on the occupancy step** (position 5), the two walked lists are identical below that
+point, and every position past it is reached by walking through it.
+
+**Why the by-KEY rule was still implemented, and must stay.** It is `wizard.tsx`'s own law — three
+separate docblocks in that file state that nothing there is addressed by index, and the publish
+checklist's numeric-literal rot is the recorded reason. More concretely: **the moment a forward jump
+exists, the index-keyed set is wrong and silently so.** A host who walks whole-space past the
+booking-mode step, returns to the occupancy step, switches to drop-in and then jumps forward would find
+position 7 — cancellation in drop-in, booking mode in whole-space — marked visited on the strength of a
+step they have never seen. That is the "passes every single-mode test" failure, arriving one plan later
+than the probe could reach it.
+
+**What 14-09 shipped instead, so the case is not toothless.** Case 6 rejects the **observable** half of
+the same rule: a marker whose step is resolved by numeric position against the UNFILTERED step list.
+Observed red, with the marker-name drift D-148 names verbatim:
+
+```
+-   "Go back to step 7: What happens if a guest cancels?"
++   "Go back to step 7: How do you want to accept bookings?"
+```
+
+**What the widening plan should do:** before adding a forward affordance, re-run the index-keyed probe
+against the widened rail. It should go red at case 6 — and if it does not, the new affordance has not
+actually created a jump and the widening is incomplete.

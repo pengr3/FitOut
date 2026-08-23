@@ -218,7 +218,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | TRUST-04 | Phase 13 | Complete |
 | TRUST-05 | Phase 13 | Partial |
 | HFLOW-01 | Phase 14 | Complete |
-| HFLOW-02 | Phase 14 | Pending |
+| HFLOW-02 | Phase 14 | Partial |
 | HFLOW-03 | Phase 14 | Pending |
 | HFLOW-04 | Phase 14 | Pending |
 | HFLOW-05 | Phase 14 | Complete |

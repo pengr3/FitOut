@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 9
+current_plan: 10
 status: executing
-stopped_at: Completed 14-08-PLAN.md — /host is a today view: today's real sessions first, one database-clock read threaded into every badge, both accent call sites intact. Phase 14 is 8 of 16 plans done
-last_updated: "2026-08-23T11:43:59.725Z"
+stopped_at: "Completed 14-09-PLAN.md — the wizard step rail navigates backward by KEY; the accent narrowed to the current step with brand-recipe.test.ts byte-unedited; D-151 re-asserted from two independent readings"
+last_updated: "2026-08-23T12:09:01.909Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 88
+  completed_plans: 89
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 9 of 16
-Current Plan: 9
+Plan: 10 of 16
+Current Plan: 10
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -670,6 +670,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P06 | 30min | 2 tasks | 5 files |
 | Phase 14 P07 | 20min | 2 tasks | 4 files |
 | Phase 14 P08 | 35min | 3 tasks | 5 files |
+| Phase 14 P09 | 22min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1083,6 +1084,8 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-08: the dashboard's two accent call sites are the ARMS OF ONE runtime conditional — the header cluster renders only when the host has listings, so both survive in source (brand-recipe's host total stays 5) and exactly one renders at 320/768/1280
 - [Phase 14]: 14-08: composeStartTokens joins when-label.ts rather than the dashboard formatting its own quiet-day date — the module's own rule is that every new time surface imports from it, and the extraction was proved output-identical by re-running its test file unedited
 - [Phase 14]: 14-08: an e2e suite REPLAYS the session its signup drive created instead of re-driving the login form per case — six serial logins plus two signups hit auth.ts's 5-per-60s sign-in limiter and surfaced as a waitForURL timeout that read like a product bug
+- [Phase 14]: 14-09: the wizard rail's visited markers are bare <button>s with token classes and the canonical focus recipe, never the shared Button primitive — its smallest box exceeds the declared 24px marker box and a variant-driven marker takes the pinned per-file accent count to zero
+- [Phase 14]: 14-09 FINDING: an index-keyed visited set is observationally equivalent to a key-keyed one in today's wizard because there is no forward jump; the by-KEY rule was still implemented (it is the file's own law and becomes load-bearing the day D-148 is widened) and case 6 rejects the observable half of the same defect. Logged as deferred item [14-09]
 
 ### Pending Todos
 
@@ -1189,8 +1192,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T11:43:21.858Z
-Stopped at: Completed 14-08-PLAN.md — /host is a today view: today's real sessions first, one database-clock read threaded into every badge, both accent call sites intact. Phase 14 is 8 of 16 plans done
+Last session: 2026-08-23T12:08:44.419Z
+Stopped at: Completed 14-09-PLAN.md — the wizard's step rail navigates backward by KEY: visited markers are named 24px buttons with the canonical focus ring, the accent narrowed from two rail states to one with brand-recipe.test.ts byte-unedited (wizard 1, host total 5), the step title moved onto PageHeader, and D-151's 8/8 and 9/9 counts are re-asserted from two independent readings with wizard-occupancy.test.tsx unedited. Phase 14 is 9 of 16 plans done
 of 16 plans done (14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the
 request row, 14-04 the week strip's pure half, 14-05 the dashboard's two new blocks); **14-06 is next**.
 `src/components/host/host-agenda.tsx` renders D-140/D-142's three states inside ONE section that mounts
