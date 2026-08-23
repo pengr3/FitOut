@@ -4,15 +4,15 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 5
 status: verifying
-stopped_at: "Phase 13.1 (payment reconciliation) COMPLETE — 6 plans, verified 6/6 must-haves, all 3 residuals closed and re-verified, last open item settled against a live paid PayMongo session. Phase 13 executed+verified; its 2 UAT walks and SUPPORT_EMAIL (src/lib/site.ts:70) remain outstanding by PM scheduling."
-last_updated: "2026-08-23T03:21:15.834Z"
-last_activity: 2026-08-23
+stopped_at: Phase 14 context gathered
+last_updated: "2026-08-23T06:19:27.754Z"
+last_activity: "2026-08-23 - Completed quick task 260823-frp: Lock coral (court) as the single product theme; demote grove to token-contract probe"
 progress:
   total_phases: 12
-  completed_phases: 3
+  completed_phases: 5
   total_plans: 75
-  completed_plans: 75
-  percent: 25
+  completed_plans: 80
+  percent: 42
 ---
 
 # Project State
@@ -1149,8 +1149,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-22T08:27:47.225Z
-Stopped at: Completed 13.1-05-PLAN.md — all 5 plans executed; phase 13.1 ready for verification
+Last session: 2026-08-23T06:19:27.732Z
+Stopped at: Phase 14 context gathered
 authenticated, epoch-bounded server action reusing the sweep's `reconcileOne`, fired once by a latched
 effect after the poll cap, with ZERO new copy and the frozen poller's diff down to a single replaced
 destructure line. 13.1-04 is next. ⚠ TWO THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) The fast path
@@ -1175,7 +1175,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/14-host-tooling/14-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
