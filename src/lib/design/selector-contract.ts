@@ -218,6 +218,10 @@ export const SELECTOR_IDS = [
   // 14-10 — HFLOW-02 / D-149's publish checklist: the container the one-instance-per-document
   // assertion counts. Same commit as its literal, same rule as the rows above.
   "publish-checklist",
+  // 14-12 — HFLOW-04 / D-152, D-153's week-at-a-glance strip: the decorative grid and the text
+  // equivalent that carries its meaning. Same commit as their literals, same rule as the rows above.
+  "week-strip",
+  "week-strip-text",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -981,5 +985,43 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "labels, the fix affordances and the trigger are all reached by role and accessible name, " +
       "which is what keeps the copy assertions honest about what a host can actually perceive.",
     owner: "14-10",
+  },
+  "week-strip": {
+    why:
+      "THE CLEAREST CASE IN THIS FILE, AND IT IS CLEAR FOR A STRUCTURAL REASON RATHER THAN A " +
+      "STYLISTIC ONE: every geometric assertion the strip owes targets a subtree that is " +
+      "DELIBERATELY ABSENT FROM THE ACCESSIBILITY TREE. D-153 makes the seven-column grid " +
+      "decoration and hides the whole of it, so there is no role, no name and no accessible text " +
+      "anywhere inside it for a query to reach — not as a matter of the markup being awkward, but " +
+      "because the assertion that the grid computes as hidden is the same assertion that makes " +
+      "every role query against it return nothing. A hook is the ONLY way to address a subtree " +
+      "whose defining property is that assistive technology cannot see it. " +
+      "AND THE ASSERTIONS ARE COUNTS AND GEOMETRY INSIDE IT: seven tracks at every input, one " +
+      "positioned element per drawn window, two windows touching at an endpoint drawn with no gap " +
+      "between them, and — the sharpest one — ZERO of the bars appearing in the accessibility tree " +
+      "beside the seven sentences. Every one of those walks children of a named parent. Scoped to " +
+      "the document instead, the bar count would resolve against the day editor's own rows " +
+      "directly beneath it on the same screen.",
+    owner: "14-12",
+  },
+  "week-strip-text": {
+    why:
+      "THE TEXT EQUIVALENT, AND ITS ASSERTION IS AN EXACT COUNT OF ITS CHILDREN — exactly seven " +
+      "items, one per weekday, in the same order as the hidden columns. `list` as a role cannot " +
+      "carry that: the availability route renders the day editor's own lists on the same document, " +
+      "and the app shell's navigation is a list too, so a role query counts the wrong parent as " +
+      "readily as the right one. Giving this list an accessible name to disambiguate it would be " +
+      "worse — the name would be a string invented for the gate, announced to every screen-reader " +
+      "user, on a surface whose entire design is that it says exactly seven things and nothing else. " +
+      "IT IS ALSO THE OTHER HALF OF A PAIRED ASSERTION. The strip's contract is that the drawn week " +
+      "and the announced week come from ONE derivation, which is only checkable by reading both " +
+      "subtrees in one render and comparing them — the bars inside `week-strip` against the " +
+      "sentences inside this hook. Two independently-addressed regions are what makes that " +
+      "comparison expressible at all. " +
+      "AND ONE OF ITS ASSERTIONS IS NEGATIVE: this region must never become a live region. A " +
+      "count of alerting and status roles scoped to a named subtree is the form that survives a " +
+      "later well-meant addition; scoped to the document it would pass on any page whose regions " +
+      "live elsewhere.",
+    owner: "14-12",
   },
 };
