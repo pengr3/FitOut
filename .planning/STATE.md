@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 14
+current_plan: 15
 status: executing
 stopped_at: Completed 14-13-PLAN.md — the availability route's design-system pass. 13 of 16 plans done; **14-14 is next**
-last_updated: "2026-08-23T14:09:07.398Z"
+last_updated: "2026-08-23T14:41:41.439Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 93
+  completed_plans: 94
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 14 of 16
-Current Plan: 14
+Plan: 15 of 16
+Current Plan: 15
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -682,6 +682,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P10 | 38min | 3 tasks | 11 files |
 | Phase 14 P11 | 22min | 2 tasks | 2 files |
 | Phase 14 P13 | 15min | 3 tasks | 7 files |
+| Phase 14 P14 | 35min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1104,6 +1105,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 14-13: D-155 spent in full — both availability editors left ALLOWED_RAW_CARD and its Phase-14 block is now empty (11 -> 10 -> 9 rows)
 - [Phase ?]: 14-13: the 11-UI-SPEC ResultCard replaces-list is CORRECTED (host listing tile dropped) rather than obeyed — a management tile carrying four controls cannot be one whole-card anchor; no fourth container, tile unchanged
 - [Phase ?]: 14-13: both blocks-editor overlays moved to ResponsiveDialog and close through the SAME handler, so the add-block form still resets on Cancel
+- [Phase ?]: 14-14: LIVE_REGION_EXCLUSIONS reaches ZERO. The last exclusion (address-autocomplete.tsx) is discharged by moving its static hint out of the region; photo-uploader.tsx's unnamed region is FIXED here rather than excluded to Phase 16, because an exclusion there would trade one row for another.
+- [Phase ?]: 14-14: the committed non-empty-exclusions guard is REWRITTEN, not deleted — it asserts the empty state AND keeps the reason-shape rule exercised against a fixture via exclusionReasonIsThin, now exported from live-regions.ts. Watched failing in both directions.
+- [Phase ?]: 14-14: BOOKER_PATH_LIVE_REGION_FILES renamed to LIVE_REGION_FILES (21 files, DeclaredFileCountIsTwentyOne). AUTHOR_NAMED_REGIONS 5 to 9 with the all-wrappers reading retired for a two-case split; the two implicitly-assertive validation regions are pinned as a per-file map, not converted.
 
 ### Pending Todos
 
@@ -1210,7 +1214,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T14:09:07.362Z
+Last session: 2026-08-23T14:41:15.992Z
 Stopped at: Completed 14-13-PLAN.md — the availability route's design-system pass. 13 of 16 plans done; **14-14 is next**
 The availability route is DONE as a design-system surface. `blocks-editor.tsx` renders no raw box and no
 vendored overlay: the no-blocked-dates absence is `EmptyState` (a genuine empty LIST — `actions={null}`,
