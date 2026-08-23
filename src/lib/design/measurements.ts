@@ -59,6 +59,32 @@ export const RESULT_CARD_MEDIA = "aspect-[4/3]";
  */
 export const ROW_CARD_HEIGHT = "h-20";
 
+/**
+ * The set of declared heights a stacked-row skeleton may be TOLD to draw — the type of
+ * `RowListSkeleton`'s optional `height`.
+ *
+ * WHY A UNION OF DECLARED VALUES AND NOT `string`. `RowListSkeleton` stands in for three different
+ * row shapes across the app, and the phase that measures the host rows will find they are not all
+ * 80px. The moment the pattern accepts a height at all, the obvious call site writes the number it
+ * wants inline — and a placeholder that invents its own box is precisely the drift this whole module
+ * exists to prevent. Typing the prop as the declared set makes an undeclared value a COMPILE error
+ * at the call site, which is the cheapest possible place to catch it.
+ *
+ * ONE MEMBER TODAY, AND THAT IS THE HONEST STATE. Exactly one row height has been derived and
+ * written down, so exactly one value is legal. Widening this is a two-line edit IN THIS FILE — add
+ * the constant with its derivation, add it to this union — which is the point: the set of legal row
+ * heights is decided where the heights are derived, not at whichever `loading.tsx` needed a taller
+ * bar that afternoon.
+ *
+ * THE HOLE THE TYPE CANNOT CLOSE, stated so the next reader under-trusts it. These are string
+ * LITERAL types, so a hand-typed value that happens to equal a declared one still typechecks: the
+ * compiler cannot tell a constant from its own text. That residual case is closed by two source
+ * gates rather than by the type — `tests/design/skeleton-measurements.test.ts` inside the pattern
+ * files, and `tests/design/loading-coverage.test.ts` at every route's loading plate. The type stops
+ * the wrong number; the gates stop the right number written the wrong way.
+ */
+export type RowSkeletonHeight = typeof ROW_CARD_HEIGHT;
+
 /** The 48px thumbnail inside a row card — the term that makes `ROW_CARD_HEIGHT` 80px and not 64px. */
 export const ROW_CARD_THUMB = "size-12";
 
@@ -367,3 +393,151 @@ export const MOSAIC_ASPECT = "aspect-[16/9]";
  * document (D-88.1).
  */
 export const BOOKING_SHELL = "mx-auto w-full max-w-2xl px-4 py-8 sm:py-12";
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 14 — the two host containers and the three box exceptions, declared before the phase's first
+// restyle opens a host surface
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE SAME ARGUMENT AS THE PHASE 13 BLOCK ABOVE, ONE FLOOR HIGHER. `BOOKING_SHELL` collapsed fourteen
+// hand-typed copies of the booker container. The two shells below collapse six and eight on the host
+// side, and they land FIRST — before any Phase 14 plan rewrites a host surface — for the reason
+// `BOOKING_SHELL`'s own docblock gives: a zero-pixel collapse that ships on its own cannot be
+// confused with the restyles that follow it.
+//
+// A PAGE AND ITS OWN `loading.tsx` ARE THE POINT. All twelve host routes already ship a loading plate,
+// and today a plate agrees with its page about the container only because somebody typed the same
+// string twice. Nothing checks the two against each other, so the first edit that changes one page's
+// container hands that route a plate drawing a different box than the page it stands in for — which
+// is the layout shift this module was created to make impossible, applied to the container instead of
+// to the row.
+//
+// THE THREE BOX EXCEPTIONS BELOW ARE NOT SPACING STEPS. Same distinction `SLOT_CHIP_BOX`,
+// `CALENDAR_CELL` and `PANEL_MIN_HEIGHT` already make: a box dimension is derived from the thing it
+// has to contain, and the derivation is the comment beside it.
+
+/**
+ * The host LIST routes' page container: centred, the wide list measure, 16px of horizontal padding,
+ * 40px of vertical.
+ *
+ * SIX HAND-TYPED COPIES OF ONE STRING, AND HALF OF THEM ARE LOADING PLATES. It is written on
+ * `/host/requests`, `/host/bookings` and `/host/earnings`, and again on each of those three routes'
+ * `loading.tsx`. Six copies is three chances for a page and its own plate to disagree, and the
+ * disagreement is invisible in review because no single file contains both halves of it.
+ *
+ * NOTHING ABOUT THE RENDERING CHANGES. The string is byte-identical to what it replaces at all six
+ * sites, so adopting it is a provably zero-pixel edit — the property that lets it be verified by
+ * `git diff` alone rather than by a screenshot on a machine that cannot take one.
+ *
+ * IT IS A CONTAINER, NOT A LANDMARK. `(host)/layout.tsx` owns the one `main` per document (D-88.1);
+ * adopting this constant does not make an element a landmark, exactly as `BOOKING_SHELL` records for
+ * the booker side.
+ */
+export const HOST_LIST_SHELL = "mx-auto w-full max-w-4xl px-4 py-10";
+
+/**
+ * The host PANEL routes' page container: centred, the narrower form measure, 16px of horizontal
+ * padding, 32px of vertical.
+ *
+ * THREE NEAR-TWINS RATHER THAN SIX TWINS, which is the harder case and the reason this docblock has
+ * to say something `HOST_LIST_SHELL` does not. Across eight sites there are three spellings: the
+ * dashboard and its plate use a 48px vertical rhythm; the availability route and its plate use 32px
+ * plus a child-spacing utility; the wizard's `edit` and `new` routes and their plates use 32px. One
+ * intent, three strings, and no two of them can be told apart by reading any single file.
+ *
+ * ONE SURFACE RENDERS DIFFERENTLY, AND IT IS `/host`. The dashboard moves from the 48px vertical
+ * rhythm to the 32px one the other three panel routes already share. `BOOKING_SHELL` is able to claim
+ * that nothing about the rendering changes; this constant cannot, so it does not claim it. Ending a
+ * duplication honestly means naming which side moved, and the side that moved is the one that was
+ * alone.
+ *
+ * THE AVAILABILITY ROUTE'S CHILD-SPACING UTILITY IS NOT FOLDED IN. Vertical rhythm BETWEEN a
+ * container's children is not a measurement of the container, and folding it in would hand a rhythm
+ * to four routes because one of them wanted it. It stays at that call site, beside this constant.
+ */
+export const HOST_PANEL_SHELL = "mx-auto w-full max-w-3xl px-4 py-8";
+
+/**
+ * The week-at-a-glance track: 160px tall, one per weekday column.
+ *
+ * DERIVED FROM ARITHMETIC, NOT FROM TASTE. The track carries a whole 24-hour day, so the per-hour
+ * advance is 160 ÷ 24 = 6.67px, and a one-hour open window — the smallest thing the strip can be
+ * asked to draw — renders as a bar 6.67px tall. The two shorter steps on the ladder fail on the same
+ * arithmetic rather than on preference: a 64px track gives 2.67px per hour and a 48px track gives 2px
+ * per hour, at which a one-hour window is a hairline. The strip's only job is to make a mistyped
+ * window visible before the host saves it, and a hairline does not do that job.
+ *
+ * THE TRACK IS NEVER FULL. The hours editor's option list stops at 23:00, so no window can close at
+ * midnight and the tallest bar the strip can draw is 23/24 of the track. Nothing about the height
+ * depends on that; it is recorded so a reader measuring a rendered column against 160px knows why
+ * the remainder is there and does not go looking for a rounding bug.
+ *
+ * IT IS A FIXED HEIGHT AND NOT A FLOOR, which is the one way it differs from `PANEL_MIN_HEIGHT` at
+ * the same 160px. Every column has to share one scale or two weekdays' bars are not comparable, and
+ * comparing them across the week is the entire reading of the strip.
+ */
+export const HOURS_STRIP_TRACK = "h-40";
+
+/**
+ * The wizard step rail's marker box: 24px square.
+ *
+ * THE SHIPPED VALUE, RETAINED — AND NOW LOAD-BEARING. The markers are inert elements inside an
+ * ordered list today, so 24px was a visual choice with nothing resting on it. Phase 14 turns the
+ * visited markers into real controls, at which point 24px stops being a preference and becomes the
+ * WCAG 2.5.8 AA target-size bar that `e2e/overflow-320.spec.ts` asserts as its `TARGET_FLOOR_PX`. It
+ * is written down here so the number cannot be tuned by somebody who does not know that a
+ * conformance test now depends on it.
+ *
+ * THE SPACING EXCEPTION IS NOT NEEDED, WHICH IS WHY THIS VALUE AND NOT A LARGER ONE. The rail's
+ * existing 8px gap puts adjacent marker centres 32px apart, so the AA bar is met directly rather than
+ * through the undersized-target-with-clearance allowance. Measured at the 320px floor: nine markers
+ * at 24px plus eight gaps at 8px is 280px against 288px of available content width, so the rail fits
+ * on one line and the wrapping contingency does not arise.
+ */
+export const STEP_MARKER_BOX = "size-6";
+
+/**
+ * The publish checklist's side column, from the large breakpoint up: 288px.
+ *
+ * DERIVED FROM THE GRID TRACK BELOW, WHICH IS THE AUTHORITY. `WIZARD_CHECKLIST_GRID` names that track
+ * in root-relative units; 18rem is 288px, which is the `w-72` step on the ladder. The width and the
+ * track are ONE NUMBER WRITTEN TWICE — a column that does not fill its own track leaves a gap nobody
+ * chose, with no visible cause — so the two are declared beside each other here rather than in the
+ * two files that render them. This is the argument `HEADER_HEIGHT` and `CONFIRMATION_MOMENT_MIN_H`
+ * already make about a value a future edit has to be able to break in exactly one place.
+ *
+ * WHY 288 AND NOT MORE. At the large breakpoint itself the shell is 1024px wide: 1024 − 32 of
+ * horizontal container padding − 288 of column − 32 of grid gap leaves 672px of form column, against
+ * the 736px the wizard has today. Measured at exactly 1024px rather than estimated, because that
+ * boundary is where the two-column grid engages and therefore where the form column is narrowest.
+ *
+ * VARIANT-PREFIXED ON PURPOSE. Below that breakpoint the checklist is not a column at all — it is a
+ * collapsible summary above the form — so an unprefixed width would pin a box that does not exist at
+ * that viewport.
+ */
+export const WIZARD_CHECKLIST_COL = "lg:w-72";
+
+/**
+ * The wizard's two-column grid template from the large breakpoint up: a form column that is free to
+ * shrink, and a fixed 18rem track for the checklist column above.
+ *
+ * THE OWNER OF THE 288px NUMBER. `WIZARD_CHECKLIST_COL` is derived from this track and not the other
+ * way round: the track is what positions the column, and a column whose width disagrees with its
+ * track is a defect whose cause is nowhere on screen. It is a separate export rather than folded into
+ * the width because the two strings are rendered by two DIFFERENT elements — the grid parent and the
+ * side column — and a constant only one element uses is not a constant that keeps two in agreement.
+ *
+ * THE DISPLAY AND GAP UTILITIES ARE DELIBERATELY NOT IN HERE. Turning the container into a grid, and
+ * the 32px gutter between the two columns, are ordinary ladder steps that belong at the call site.
+ * Only the track carries a derived value that must not drift.
+ *
+ * ⚠ THIS STRING CANNOT BE ASSERTED AGAINST THE COMPILED STYLESHEET, and the reason is mechanical
+ * rather than stylistic. `tests/design/helpers/compile-css.ts` validates every safelist entry against
+ * a character allow-list that does not admit a comma, and the track's minimum/maximum function takes
+ * its two arguments comma-separated — so `compileGlobalsCssWith` THROWS on this class instead of
+ * emitting it. Verified by running the helper on it. Any gate that wants to check this value must
+ * therefore assert the class string IN SOURCE — that this constant is the one imported and rendered —
+ * and must not report itself as having verified the CSS. Widening that allow-list is a change to a
+ * security boundary and needs the argument its own docstring demands; it is not a Phase 14 edit.
+ */
+export const WIZARD_CHECKLIST_GRID = "lg:grid-cols-[minmax(0,1fr)_18rem]";
