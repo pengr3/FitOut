@@ -46,6 +46,27 @@
 // at exactly the moment the gate measures for a change — a node that disappears is indistinguishable,
 // to a text-change counter, from a node that was rewritten.
 //
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// TWO LAYOUTS, ONE DIGITS NODE (plan 14-03 · D-146)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `emphasis` is the second opt-in prop this component has taken, added exactly the way
+// `finalHourEmphasis` was: it DEFAULTS to today's rendering, so the two shipped booker call sites (the
+// `approved` payment window and `not-completed-state.tsx`'s hold) are byte-identical after this change.
+// Only the host request inbox asks for `"lead"`, where HFLOW-01 requires the deadline to be the loudest
+// element on the row and the largest type in it — a hierarchy instruction, not a colour one.
+//
+// ⚠ THE BRANCH IS ON THE LAYOUT CONTAINER, AND THE DIGITS ELEMENT IS HOISTED SO BOTH ARMS RENDER THE
+// SAME ONE. That is a hard constraint rather than a tidiness preference:
+// `tests/design/phase13-surface-gates.test.ts` pins this file at ONE line carrying an alarm-hue
+// spelling and counts LINES, so a second digits node with its own conditional emphasis expression
+// takes the count to two and turns a design gate red for a reason with nothing to do with the design.
+// The glyph is hoisted for a smaller reason: one element means one place where it is hidden from
+// assistive technology, in both arms, by construction.
+//
+// The `lead` arm adds NO emphasis expression of its own — the final-hour treatment it renders is the
+// hoisted node's, which D-146 explicitly RETAINS on this hours-scale surface.
+//
 // A COUNTDOWN THAT ARRIVES ALREADY INSIDE ITS FINAL HOUR SAYS NOTHING, and that is this file's one
 // departure from the model rather than a gap in it. A fifteen-minute hold NEVER mounts inside its
 // threshold, so `hold-countdown.tsx` never had to answer the question; an hours-scale window mounts
@@ -74,6 +95,14 @@ const TICK_MS = 60_000;
  */
 const FINAL_HOUR_ANNOUNCEMENT = "Under one hour left.";
 
+/**
+ * The `lead` arm's first line — the prefix, muted, at the label role, with the glyph beside it.
+ *
+ * Hoisted because the expired render and the ticking render both draw it and they sit in different
+ * branches; one constant is what keeps the two lines the same line.
+ */
+const LEAD_LABEL_CLASS = "flex items-center gap-1.5 text-label text-muted-foreground";
+
 /** "{N}h {M}m" from a remaining-ms count; under 1h drop the hours → "{M}m". Ceil so 1..59s still shows 1m. */
 function formatRemaining(ms: number): string {
   const totalMinutes = Math.max(0, Math.ceil(ms / MINUTE_MS));
@@ -87,6 +116,7 @@ export function RequestCountdown({
   label,
   expiredLabel = "Expired",
   finalHourEmphasis = true,
+  emphasis = "inline",
   onExpire,
 }: {
   expiresAt: string | Date;
@@ -107,6 +137,27 @@ export function RequestCountdown({
    * `not-completed-state.tsx` is the one call site that opts out, and it says so at the line.
    */
   finalHourEmphasis?: boolean;
+  /**
+   * Which LAYOUT the countdown draws. DEFAULTS TO TODAY'S BEHAVIOUR, so both shipped booker call
+   * sites (the `approved` payment window and the not-completed hold) render byte-identically.
+   *
+   *   `"inline"` — one line: the glyph, the prefix and the digits, all at the shipped muted label
+   *                scale. What every call site got before this prop existed.
+   *   `"lead"`   — two lines: the prefix above at the label role in muted ink with the glyph beside
+   *                it, the digits beneath at the heading role with tabular figures.
+   *
+   * ⚠ WHY IT EXISTS (plan 14-03 · D-146). HFLOW-01 asks the host request inbox to be a triage queue
+   * whose SLA deadline is the LOUDEST element on the row — outranking the money and the guest name.
+   * "Loudest" is a comparison, so it is carried by scale and reading order rather than by a hue: the
+   * digits become the largest type in the row and the first thing in it. That is a claim about ONE
+   * surface, and the booker's two surfaces would be wrong to make it — a payment window inside a
+   * payment page is not competing with anything — so it is opt-in and the host inbox is its only
+   * caller.
+   *
+   * See the header for the one implementation constraint this prop carries: the digits element is
+   * hoisted and shared, and only the layout container branches.
+   */
+  emphasis?: "inline" | "lead";
   onExpire?: () => void;
 }) {
   const target = React.useMemo(() => new Date(expiresAt).getTime(), [expiresAt]);
@@ -151,32 +202,77 @@ export function RequestCountdown({
 
   const expired = remaining <= 0;
   const finalHour = remaining > 0 && remaining <= HOUR_MS;
+  const lead = emphasis === "lead";
+
+  // THE ONE DIGITS NODE. Hoisted rather than written once per layout arm — see the header: the design
+  // gate counts LINES carrying an alarm-hue spelling in this file and pins it at one, so a second
+  // conditional emphasis expression is a red gate, and two nodes drifting apart is the defect under
+  // that. `suppressHydrationWarning`: the server-render minute can differ from the hydration minute.
+  const digits = (
+    <span
+      className={cn(
+        lead ? "text-heading tabular-nums" : "tabular-nums",
+        finalHour && finalHourEmphasis && "text-destructive",
+      )}
+      suppressHydrationWarning
+    >
+      {formatRemaining(remaining)}
+    </span>
+  );
+
+  // Hoisted for the same reason in miniature: ONE element, so it is hidden from assistive technology
+  // in both arms by construction rather than by two authors remembering.
+  const glyph = <ClockIcon className="size-4 shrink-0" aria-hidden="true" />;
+
+  // THE ONE REGION. Its text changes at most once — at the threshold, and only for a countdown that
+  // was above it when it mounted — and the expiry drops the `aria-live` attribute while leaving the
+  // text alone. See the header for all three halves. Hoisted so that both layout arms render exactly
+  // one of it; `tests/booking/request-countdown.test.tsx`'s `regionOf` fails loudly on two.
+  const announcement = (
+    <span className="sr-only" aria-live={expired ? undefined : "polite"}>
+      {announced ? FINAL_HOUR_ANNOUNCEMENT : ""}
+    </span>
+  );
+
+  if (lead) {
+    // The host inbox's two-line block (D-146). The prefix and the glyph on the first line at the
+    // label role, the digits beneath at the heading role — the largest type in the row, and first in
+    // its reading order. The expired/ticking split below is the SAME split the inline arm makes, for
+    // the same rule-3 reason: an expired window counts nothing, so there is no timer to identify.
+    return (
+      <span className="block">
+        {expired ? (
+          <span className={LEAD_LABEL_CLASS}>
+            {glyph}
+            {expiredLabel}
+          </span>
+        ) : (
+          <span role="timer" aria-live="off" className="block">
+            <span className={LEAD_LABEL_CLASS}>
+              {glyph}
+              {label}
+            </span>
+            {digits}
+          </span>
+        )}
+        {announcement}
+      </span>
+    );
+  }
 
   return (
     <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-      <ClockIcon className="size-4 shrink-0" aria-hidden="true" />
+      {glyph}
       {expired ? (
         // No role and no live region — just the fact. An expired window counts nothing, so there is
         // no timer here to identify (rule 3, and hold-countdown.tsx's expired branch does the same).
         <span>{expiredLabel}</span>
       ) : (
         <span role="timer" aria-live="off">
-          {label}{" "}
-          {/* suppressHydrationWarning: the server-render minute can differ from the hydration minute. */}
-          <span
-            className={cn("tabular-nums", finalHour && finalHourEmphasis && "text-destructive")}
-            suppressHydrationWarning
-          >
-            {formatRemaining(remaining)}
-          </span>
+          {label} {digits}
         </span>
       )}
-      {/* THE ONE REGION. Its text changes at most once — at the threshold, and only for a countdown
-          that was above it when it mounted — and the expiry drops the `aria-live` attribute while
-          leaving the text alone. See the header for all three halves. */}
-      <span className="sr-only" aria-live={expired ? undefined : "polite"}>
-        {announced ? FINAL_HOUR_ANNOUNCEMENT : ""}
-      </span>
+      {announcement}
     </span>
   );
 }
