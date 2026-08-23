@@ -21,6 +21,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking, hostPayout, hostPayoutLedger, listing } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
+import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import { CancellationFeeNotice } from "@/components/host/cancellation-fee-notice";
@@ -30,6 +31,7 @@ import { PayoutSummary } from "@/components/host/payout-summary";
 import { PayoutRow, type PayoutRowData } from "@/components/host/payout-row";
 import { PayoutStateBadge } from "@/components/host/payout-state-badge";
 import { EmptyState } from "@/components/patterns/empty-state";
+import { PageHeader } from "@/components/patterns/page-header";
 import {
   derivePayoutLedgerView,
   summarizePayouts,
@@ -147,8 +149,14 @@ export default async function HostEarningsPage() {
   const payoutStatus = derivePayoutStatus(payoutRow);
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <h1 className="text-xl font-semibold tracking-tight">Earnings</h1>
+    // HFLOW-05 IS A TOKEN PASS AND THIS IS THE WHOLE OF IT (14-CONTEXT D-156). The container is now
+    // the declared host-list shell — the same constant `/host/earnings/loading.tsx` imports, so the
+    // page and its own plate can no longer drift — and the hand-rolled title is now the shared header
+    // pattern, which emits the identical heading element this file used to write itself. Both edits
+    // are zero-pixel. Nothing else on this surface moved: `tests/design/earnings-freeze.test.ts`
+    // walks the AST and proves not one string a host reads has changed.
+    <div className={HOST_LIST_SHELL}>
+      <PageHeader title="Earnings" />
 
       {payoutStatus !== "enabled" ? (
         <div className="mt-6">
@@ -172,7 +180,7 @@ export default async function HostEarningsPage() {
       ) : null}
 
       {/* C8 — "service fee" is D-73's BOOKER-facing 5% line. The host-side 10% is a commission. */}
-      <p className="mt-3 max-w-prose text-sm text-muted-foreground">
+      <p className="mt-3 max-w-prose text-label text-muted-foreground">
         FitOut keeps a 10% commission. You always receive the listed price minus 10% — we cover the
         payment processing costs. Payout dates are shown in each space&apos;s local time.
       </p>
