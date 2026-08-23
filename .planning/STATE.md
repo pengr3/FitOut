@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 13
+current_plan: 14
 status: executing
-stopped_at: Completed 14-12-PLAN.md
-last_updated: "2026-08-23T13:45:00.000Z"
+stopped_at: Completed 14-13-PLAN.md — the availability route's design-system pass. 13 of 16 plans done; **14-14 is next**
+last_updated: "2026-08-23T14:09:07.398Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 92
+  completed_plans: 93
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 13 of 16
-Current Plan: 13
+Plan: 14 of 16
+Current Plan: 14
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -473,7 +473,7 @@ Last activity: 2026-08-23
 
 **Velocity:**
 
-- Total plans completed: 63
+- Total plans completed: 64
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -489,7 +489,7 @@ Last activity: 2026-08-23
 | 11 | 22 | - | - |
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
-| 14 | 12 | - | - |
+| 14 | 13 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -681,6 +681,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P09 | 22min | 2 tasks | 4 files |
 | Phase 14 P10 | 38min | 3 tasks | 11 files |
 | Phase 14 P11 | 22min | 2 tasks | 2 files |
+| Phase 14 P13 | 15min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1100,6 +1101,9 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-10: the four inventories that pinned the filled-success marker by the string wizard.tsx were amended in the same commit as the move, each with its reason and each observed red first; a fifth prose site was found by sweep
 - [Phase 14]: D-150 shipped: the wizard's save state reads saveListingStep's returned result, never a timer and never an optimistic string — persist() had to change from boolean to ListingResult — it fired the refusal toast itself, so the server's sentence was discarded before any caller could render it. One persistent, author-named status region in the nav row replaces the two autosave toasts; the two that precede a navigation survive. HFLOW-02 flips to Complete.
 - [Phase 14]: saved -> idle is driven by the form's change subscription, not by formState.isDirty — The wizard never re-baselines the form after an autosave, so isDirty latches true on the first keystroke of the session and never 'next becomes true' again — a region keyed on it would clear once and then read Saved forever, which is the optimistic string D-150 forbids arriving through the clause meant to prevent it.
+- [Phase ?]: 14-13: D-155 spent in full — both availability editors left ALLOWED_RAW_CARD and its Phase-14 block is now empty (11 -> 10 -> 9 rows)
+- [Phase ?]: 14-13: the 11-UI-SPEC ResultCard replaces-list is CORRECTED (host listing tile dropped) rather than obeyed — a management tile carrying four controls cannot be one whole-card anchor; no fourth container, tile unchanged
+- [Phase ?]: 14-13: both blocks-editor overlays moved to ResponsiveDialog and close through the SAME handler, so the add-block form still resets on Cancel
 
 ### Pending Todos
 
@@ -1206,41 +1210,43 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T13:45:00.000Z
-Stopped at: Completed 14-12-PLAN.md — the week-at-a-glance strip. 12 of 16 plans done; **14-13 is next**
-(the availability PAGE and `blocks-editor.tsx`, which 14-12 deliberately did not open).
-`src/components/availability/week-strip.tsx` draws seven columns from ONE `deriveWeekStrip` call and
-announces the same call's seven sentences: the whole grid is `aria-hidden` and the meaning is an
-`sr-only` list, so the seen week and the heard week cannot drift (D-153). Bar geometry is two computed
-percentages in an inline `style` — the five leak patterns are hex, colour functions, bracketed pixel
-type sizes, numbered palette classes and the two absolute colour words, and two numbers match none of
-them, so the geometry is gate-safe by construction rather than by exemption. The strip renders ZERO
-live regions: the select the host just changed already announces its own new value.
-`weekly-hours-editor.tsx` mounts it above the day editor fed by `liveWindows` (never `initialWindows` —
-that wiring was watched failing), composes `PanelCard` for both of its boxes, and LEFT
-`ALLOWED_RAW_CARD` in the same commit (D-155). Inventories moved: `EXPECTED_SURFACES` 13 → 15, `adopted`
-11 → 13, allow-list 11 → 10, `SELECTOR_IDS` 48 → 50, and two contrast-exclusion REASONS amended with no
-new row and no measured value touched. Design suite unmoved at 49 files / 827 passed / 3 skipped;
-`tests/availability` 21 files / 229 passed; `tsc` 0; `drizzle/` empty.
+Last session: 2026-08-23T14:09:07.362Z
+Stopped at: Completed 14-13-PLAN.md — the availability route's design-system pass. 13 of 16 plans done; **14-14 is next**
+The availability route is DONE as a design-system surface. `blocks-editor.tsx` renders no raw box and no
+vendored overlay: the no-blocked-dates absence is `EmptyState` (a genuine empty LIST — `actions={null}`,
+`titleAs="h3"`, neutral tone, copy byte-identical), the date list is one `PanelCard` with the dividing
+rule on the list inside it, and BOTH confirms — add-block and remove-block — compose `ResponsiveDialog`.
+The page and its plate read `HOST_PANEL_SHELL` and `PageHeader` with the two shipped strings, and the two
+bare advisories (the drop-in note, the CR-03 hours-lock notice) now sit on `PanelCard tone="muted"` with
+`HOURS_LOCKED_MESSAGE` still composed, never retyped. Inventories moved: `EXPECTED_SURFACES` 15 → 16,
+`adopted` 13 → 14, `ALLOWED_RAW_CARD` 10 → 9, `ADOPTERS` 14 → 15 files / 17 → 18 sites — every one of the
+four counts and the deleted allow-list row observed failing before being trusted. Design suite unmoved at
+49 files / 827 passed / 3 skipped; `tests/availability` 21/229; `tests/availability tests/listing`
+39/414; `tsc` 0; `drizzle/`, `components.json` and both package files empty.
 
-⚠ FOUR THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **The re-point of the editor at
-`lib/availability/week-strip.ts` is DONE** — weekday names, the on-the-hour options and the hour parser
-now have one owner, and `toHour` is exported in its strict form. Do not reintroduce a local copy of any
-of the three. (2) **`blocks-editor.tsx` still holds its allow-list row on purpose**; the plan that
-converts it deletes the row in the same commit and re-measures `EXPECTED_SURFACES` 15 → 16 (plus
-`empty-state-adoption.test.ts`'s `ADOPTERS` 13 → 14 for the "No blocked dates" empty state). (3) **A
-Radix `Select` is drivable in jsdom through the hidden native `<select>` it mirrors into** —
-`fireEvent.change` on it runs the same `onValueChange` as the trigger and needs none of the pointer
-APIs jsdom lacks (`tests/availability/week-strip.test.tsx` case 3 is the worked example). (4) **The
-strip's legibility at the 320px floor is a HUMAN call, not a number** — 14-RESEARCH § M4 measured
-33.14px per column and a 6.66px one-hour bar, and the UI-SPEC's predicted 37.7px is wrong because the
-panel pays its own horizontal padding. If it fails manual verification the fix is the declared track
-height re-derived, not a gridline, not a colour and not a re-orientation.
+⚠ FOUR THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **D-155 IS SPENT IN FULL** — the allow-list's
+Phase-14 block is now EMPTY and kept as a comment saying why. Neither availability editor is exempt any
+more, so a raw box reappearing in either is a failure rather than a permanent licence (13-08's finding).
+Do not re-open the block for a new Phase-14 surface without the argument the two spent rows had. (2) **The
+host listing tile is CLOSED, not pending** — `11-UI-SPEC.md`'s `ResultCard` replaces-list drops it, the
+`11/deferred-items.md` fork is marked closed by option (a), and `git diff` on `listing-card.tsx` is empty.
+It keeps BOTH of its gate rows (the `"refused"` row and the allow-list row) with their measured reasons;
+neither is spent. Do not "finish" this by swapping the tile or adding a fourth container. (3)
+**`blocks-editor.tsx:319`'s `role="alert"` validation message is 14-14's** — it was read and left exactly
+as it is; its census and its pin belong to that plan. (4) **The add-block overlay now renders at the
+primitive's width**, having lost its own max-width class: `ResponsiveDialog` takes no `className` by
+contract. If the 320px sweep finds the calendar cramped, the fix is a declared measurement or a change to
+the primitive — never a class reached in at the call site.
 
-⚠ The SDK's `state.record-session` / `record-metric` / `add-decision` verbs are no-ops on this
-toolchain version (see the `fitout-gsd-toolchain-gotchas` memory); every one of those three sections is
-hand-written. `HFLOW-04` is deliberately still unticked in `REQUIREMENTS.md` — 14-12 closed the preview
-and the editor's container, and the requirement also covers the availability page and the blocks editor.
+⚠ The SDK's tracking verbs take `--flag` argv on this toolchain, NOT positionals: `state.record-metric
+--phase --plan --duration --tasks --files`, `state.add-decision --summary`, `state.record-session
+--stopped-at --resume-file`. Positional args return `"error": "... required"`, and `--help` HANGS past
+120s. `record-metric` still under-updates — it reports `recorded: true` while leaving the by-phase Plans
+column and the velocity total alone, so both were hand-corrected (14 → 13 plans, total → 64), and
+`state.update-progress` reports `"Progress field not found in STATE.md"` and writes nothing. See the
+`fitout-gsd-toolchain-gotchas` memory. `HFLOW-04` is STILL deliberately unticked in `REQUIREMENTS.md`: it
+is shared across six plans and **14-15 and 14-16 still carry it**, so the plan that closes its last clause
+is the one that ticks it.
 
 <details><summary>Previous session (13-15, superseded 2026-08-22)</summary>
 
