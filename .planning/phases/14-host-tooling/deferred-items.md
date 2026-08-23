@@ -152,3 +152,47 @@ discrepancy, not a violation.
 role (one class, one file, now that there is only one copy of the markup) or amend the UI-SPEC's table
 to say Label — the checklist is a dense nine-row list beside a form, and 14px is a defensible reading
 of it. Whichever way it goes, the two should agree.
+
+**14-11 did NOT take it, and the reason narrows the ownership rather than passing it on.** That entry
+names 14-11 as the likely owner on the grounds that it is *"the next plan in this file"* — but the rows
+are no longer IN this file: 14-10 lifted them into `src/components/host/publish-checklist.tsx`, and
+14-11's plan text says in as many words *"do not touch the rail, the checklist or the step fork"*.
+14-11 also has an acceptance criterion pinning its own diff to two files, so a third would have made
+that criterion unverifiable by `git diff` alone — the same argument 14-10 used to leave the accent note
+above unmoved.
+
+**What the owning plan should do:** unchanged from the entry above. The owner should now be read as
+**whichever plan next opens `publish-checklist.tsx`** — 14-16 touches the wizard's baselines and is the
+first candidate.
+
+---
+
+## `[14-11]` `LIVE_REGIONS` owes a `wizard-save-state` row, and it will be the FIRST author-named region whose text is its own message
+
+**Found during:** 14-11 Task 1, rendering the save-state region.
+**Owner:** **14-14** — 14-UI-SPEC § Live Regions assigns it that row explicitly, and 14-11's own plan
+says the row *"is declared in the live-region inventory in plan 14-14"*.
+
+Nothing is red today, and the reason is worth stating because it is the thing that makes this easy to
+miss: `tests/design/live-regions.test.tsx`'s scan opens `BOOKER_PATH_LIVE_REGION_FILES` and nothing
+else, and `wizard.tsx` is not in it. So a `role="status"` can be added to the wizard with the whole
+design suite green — which is exactly the *"a file nobody ever looked at scans identically to a file
+deliberately left to a later phase"* problem `live-regions.ts`'s own header is written about.
+
+**Three edits, and they are one commit, not three:**
+1. `wizard.tsx` joins `BOOKER_PATH_LIVE_REGION_FILES` (which the UI-SPEC already says must be renamed —
+   a closed union containing host files cannot keep a name asserting it contains none), and
+   `DECLARED_FILE_COUNT` in the test moves with it. The count is type-level pinned; it will not drift
+   quietly.
+2. A `LIVE_REGIONS` row: id `wizard-save-state`, kind `status`, `at: 1`, announcing *`Saving…` → `Saved`,
+   or the server's refusal sentence, at most one announcement per press*.
+3. ⚠ **An `AUTHOR_NAMED_REGIONS` row, and its `why` cannot be borrowed from any of the four already
+   there.** All four existing exceptions are wrappers with NO TEXT OF THEIR OWN — a wrapper around
+   `MoneyStatement`, two around `PanelCard`, one around an icon-heading-paragraph group. This region has
+   text, and the inventory's kind→naming table says a `status` region takes its name from its own text.
+   The argument that actually applies is different and specific to D-150: **the region PERSISTS and is
+   EMPTY at idle**, deliberately, so that its text can change in place rather than the element mounting
+   and unmounting. An empty region named by its own text has no name at all, for most of the session —
+   so this is a region that is decorative-by-construction *some of the time*, which none of the four
+   precedents is. The label shipped is `"Save state"`: two words, a LABEL and not a second copy of the
+   sentence, per the VoiceOver hazard `share-link-box.tsx:109-121` records.

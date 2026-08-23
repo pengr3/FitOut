@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 11
+current_plan: 12
 status: executing
-stopped_at: Completed 14-10-PLAN.md
-last_updated: "2026-08-23T12:53:47.914Z"
+stopped_at: Completed 14-11-PLAN.md
+last_updated: "2026-08-23T13:17:40.568Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 90
+  completed_plans: 91
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 11 of 16
-Current Plan: 11
+Plan: 12 of 16
+Current Plan: 12
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -672,6 +672,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P08 | 35min | 3 tasks | 5 files |
 | Phase 14 P09 | 22min | 2 tasks | 4 files |
 | Phase 14 P10 | 38min | 3 tasks | 11 files |
+| Phase 14 P11 | 22min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1089,6 +1090,8 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-09 FINDING: an index-keyed visited set is observationally equivalent to a key-keyed one in today's wizard because there is no forward jump; the by-KEY rule was still implemented (it is the file's own law and becomes load-bearing the day D-148 is widened) and case 6 rejects the observable half of the same defect. Logged as deferred item [14-09]
 - [Phase 14]: 14-10: the persistent publish checklist is ONE node chosen by a media query, not two toggled by a CSS variant pair — a count over the document resolves against display-none nodes, so responsive twins are two instances at every width
 - [Phase 14]: 14-10: the four inventories that pinned the filled-success marker by the string wizard.tsx were amended in the same commit as the move, each with its reason and each observed red first; a fifth prose site was found by sweep
+- [Phase 14]: D-150 shipped: the wizard's save state reads saveListingStep's returned result, never a timer and never an optimistic string — persist() had to change from boolean to ListingResult — it fired the refusal toast itself, so the server's sentence was discarded before any caller could render it. One persistent, author-named status region in the nav row replaces the two autosave toasts; the two that precede a navigation survive. HFLOW-02 flips to Complete.
+- [Phase 14]: saved -> idle is driven by the form's change subscription, not by formState.isDirty — The wizard never re-baselines the form after an autosave, so isDirty latches true on the first keystroke of the session and never 'next becomes true' again — a region keyed on it would clear once and then read Saved forever, which is the optimistic string D-150 forbids arriving through the clause meant to prevent it.
 
 ### Pending Todos
 
@@ -1195,8 +1198,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T12:53:42.707Z
-Stopped at: Completed 14-10-PLAN.md
+Last session: 2026-08-23T13:17:40.541Z
+Stopped at: Completed 14-11-PLAN.md
 of 16 plans done (14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the
 request row, 14-04 the week strip's pure half, 14-05 the dashboard's two new blocks); **14-06 is next**.
 `src/components/host/host-agenda.tsx` renders D-140/D-142's three states inside ONE section that mounts
