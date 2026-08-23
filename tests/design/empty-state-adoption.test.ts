@@ -438,6 +438,14 @@ const ADOPTERS: readonly Adopter[] = [
     why: "The /host dashboard agenda's third state — a host with nothing booked at all (14-CONTEXT D-142). THE FIRST ROW IN THIS INVENTORY THAT IS A COMPONENT RATHER THAN A ROUTE, because the agenda's three states are one component the dashboard composes; the surface is where the shell is rendered, not where the URL is. `tone` is left NEUTRAL deliberately and that is the AC#24 boundary restated: an emptied work queue is an achievement, but a host who has not been booked yet has achieved nothing, so the positive set stays at the request inbox. `actions={null}` on purpose — every setup step genuinely outstanding is named by the signal rows beneath this block, and the host's spaces may already be live, so there is no next step this panel can honestly name.",
   },
 
+  // ─── NOT PLAN 11-16'S EITHER. Landed by plan 14-13, the second Phase-14 extension and the same
+  //     NOT COVERED note's prediction holding twice. ───────────────────────────────────────────────
+  {
+    file: "src/components/availability/blocks-editor.tsx",
+    sites: 1,
+    why: "The blocked-dates list at zero, on `/host/listings/{id}/availability` (HFLOW-04 · D-155). A GENUINE EMPTY LIST, and that is the distinction the editor beside it does NOT satisfy: `weekly-hours-editor.tsx`'s guidance box stayed a muted panel because its seven day rows always render, so it is an advisory about a form that is fully present rather than an absence — `card-pattern-coverage.test.ts` carries that argument from the other side. Copy is the shipped sentence word for word; `titleAs=\"h3\"` under the page's own `<h2>Blocked dates</h2>`; `tone` neutral, because an unblocked calendar is the normal state of a working listing and dressing it as an achievement would be as wrong as dressing it as a failure. `actions={null}` on purpose — the `Add block` control is already adjacent and above, and a second copy inside the panel is one affordance rendered twice.",
+  },
+
   // ─── NOT A PRODUCT SURFACE. The design-review preview, landed by plan 11-21. ──────────────────────
   {
     file: "src/app/dev/theme/page.tsx",
@@ -457,9 +465,15 @@ const ADOPTERS: readonly Adopter[] = [
  * file's NOT COVERED section predicted in writing: HFLOW-01/HFLOW-03 ADOPT this component rather than
  * re-deciding it, so a Phase-14 host surface extends the inventory instead of authoring a shell. The
  * count was observed moving first — `expected 17 to be 16` — and the row was added to answer it.
+ *
+ * 14 → 15 files and 17 → 18 sites in plan 14-13's own commit, the SECOND Phase-14 extension and the
+ * same rule a third time: `blocks-editor.tsx`'s no-blocked-dates box is a genuine empty list, so the
+ * surface adopts the shell in the commit that converts it rather than authoring a second one. It is
+ * the second row in this inventory that is a COMPONENT rather than a route, for `host-agenda.tsx`'s
+ * reason — the shell is rendered by the editor the availability page composes, not by the page.
  */
-const EXPECTED_ADOPTER_FILES = 14;
-const EXPECTED_EMPTY_STATE_SITES = 17;
+const EXPECTED_ADOPTER_FILES = 15;
+const EXPECTED_EMPTY_STATE_SITES = 18;
 
 /**
  * THE ONE LEGAL `bg-success` IN THE TREE, pinned by name.

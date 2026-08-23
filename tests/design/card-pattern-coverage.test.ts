@@ -360,7 +360,10 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "rather than an exemption, which a stale row would have made it permanently (13-08's finding). " +
       "The advisory is NOT an `EmptyState` and that is a considered call rather than an oversight: the " +
       "seven day rows always render, so it is an advisory about a form that is fully present, not the " +
-      "absence of a list. `blocks-editor.tsx` beside it keeps its exemption until the plan that owns it.",
+      "absence of a list. `blocks-editor.tsx` beside it kept its exemption until plan 14-13, the plan " +
+      "that owns it, took the row and declared the file below — the sentence that used to stand here " +
+      "said the exemption was still open, and leaving it would have been this inventory describing a " +
+      "list it no longer has.",
   },
   {
     file: "src/components/availability/week-strip.tsx",
@@ -377,6 +380,23 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "alone: the inverse half only notices a raw box, so a strip that quietly stopped composing the " +
       "pattern and hand-rolled its own container would pass it, and the forward half is what catches " +
       "that.",
+  },
+  {
+    file: "src/components/availability/blocks-editor.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE BLOCKED-DATES LIST, AND THIS ROW COMPLETES THE PAIR — the second and last of the two " +
+      "exemptions `11-13-SUMMARY.md:234-235` held open for HFLOW-04, spent by plan 14-13 exactly as " +
+      "14-12 spent the first. The dense date list is ONE panel's contents rather than N row cards: a " +
+      "row card is a card per item, and twenty ringed boxes for twenty blocked dates is the shape the " +
+      "`divide-y` list already refused. The dividing rule stays on the LIST inside the panel — the " +
+      "pattern takes no class name, and the rule between date rows is a property of the rows. Its " +
+      "ALLOWED_RAW_CARD row was DELETED in the same commit, so the inverse half polices this file now: " +
+      "a raw `<Card>` reappearing here is a failure rather than an exemption, which a stale row would " +
+      "have made it permanently (13-08's finding). The file's OTHER box went the other way and is not " +
+      "this row's business: the no-blocked-dates absence is a genuine empty LIST and took " +
+      "`EmptyState`, which `empty-state-adoption.test.ts` declares in the same commit.",
   },
 ];
 
@@ -399,8 +419,16 @@ const CARD_SURFACES: readonly CardSurface[] = [
  * exist when the 11-UI-SPEC's three `Replaces` lists were written. The header's "SAYS NOTHING ABOUT
  * SURFACES PHASES 12–15 ADD" note is the standing instruction for the second kind: a new panel EXTENDS
  * this inventory in its own commit.
+ *
+ * SIXTEEN SINCE PLAN 14-13, and the sixteenth is the allow-list → inventory move again:
+ * `blocks-editor.tsx` was the SECOND of the two rows `11-13-SUMMARY.md:234-235` held open for this
+ * phase, and D-155 is now spent in full — neither availability editor is on the allow-list any more.
+ * Both halves of that transition landed in one commit, which is the rule 13-08's finding makes
+ * necessary rather than tidy: an allow-list row exempts a file in BOTH directions, permanently, so a
+ * row left behind after a conversion licenses the next box somebody adds to a file that was just
+ * pattern-ised.
  */
-const EXPECTED_SURFACES = 15;
+const EXPECTED_SURFACES = 16;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -449,20 +477,23 @@ const ALLOWED_RAW_CARD: Readonly<Record<string, string>> = {
   "src/components/booking/hold-expired-state.tsx":
     "Same family, but reached from CHECKOUT (`listings/[id]/book`) as well as from the reversed state — so it straddles Phase 12 and Phase 13. Deliberately not swapped by plan 11-13, which was scoped to container-only edits on surfaces the spec names.",
 
-  // ── Phase 14 — Host Tooling (HFLOW-04 names the availability editor) ──────────────────────────
+  // ── Phase 14 — Host Tooling: THIS BLOCK IS EMPTY, AND THAT IS THE RECORD OF D-155 BEING SPENT ──
   //
-  // ONE ROW LEFT THIS BLOCK IN PLAN 14-12, AND THE DELETION IS THE POINT RATHER THAN THE TIDY-UP.
-  // `weekly-hours-editor.tsx` (now a declared `panel-card` surface above) renders no raw `<Card>` at
-  // all any more: D-155 spent the exemption `11-13-SUMMARY.md:234-235` held open for exactly that
-  // structural pass. Leaving the row would not have been harmless — 13-08's finding is that a row
-  // exempts a file in BOTH directions, permanently, so it would have gone on licensing the next box
-  // somebody added to a file that had just been pattern-ised.
+  // TWO ROWS LEFT THIS BLOCK, ONE PER PLAN, EACH IN THE COMMIT THAT CONVERTED ITS FILE.
+  // `weekly-hours-editor.tsx` left in plan 14-12 and `blocks-editor.tsx` left in plan 14-13; both are
+  // declared `panel-card` surfaces above and neither renders a raw `<Card>` any more. Those were the
+  // two exemptions `11-13-SUMMARY.md:234-235` held open for exactly this phase, because HFLOW-04 is
+  // structural — D-155 is the decision that spends them and it is now spent in full.
   //
-  // `blocks-editor.tsx` STAYS, and deliberately: 14-12 does not open that file, and deleting an
-  // exemption for a surface you have not read is how a gate acquires a hole nobody meant (the same
-  // rule that left three stale Phase-13 rows above in place). The plan that converts it takes it.
-  "src/components/availability/blocks-editor.tsx":
-    "The date-block editor beside it, same surface and same phase.",
+  // NEITHER DELETION WAS A TIDY-UP. 13-08's finding is that an allow-list row exempts a file in BOTH
+  // directions, permanently: a row surviving its own conversion would go on licensing the next box
+  // somebody hand-rolls in a file that had just been pattern-ised, and the inverse half would stay
+  // green over it forever. The rule this block leaves behind is the pairing — a conversion and its
+  // row deletion are ONE commit, and 14-12 recorded the deletion being watched go red against a
+  // reintroduced raw box rather than trusting that it would.
+  //
+  // The block is kept as a comment rather than removed with its rows: an empty section that says why
+  // it is empty is what stops the next Phase-14 surface quietly re-opening it.
 
   // ── Phase 11's own measured refusal ───────────────────────────────────────────────────────────
   "src/components/listing/listing-card.tsx":
@@ -731,10 +762,12 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // cards satisfies both perfectly.
     const adopted = CARD_SURFACES.filter((s) => s.status === "adopted");
     const refused = CARD_SURFACES.filter((s) => s.status === "refused");
-    // 13 adopted since 14-12 (+2: the weekly-hours editor and the week strip it now mounts; 11 since
-    // 13-10's booking detail page). `refused` is unchanged — both refusals were MEASURED by plan
-    // 11-11 and neither has been overturned.
-    expect(adopted).toHaveLength(13);
+    // 14 adopted since 14-13 (+1: the blocked-dates list, the second and last of the two Phase-14
+    // exemptions; 13 since 14-12's weekly-hours editor and the week strip it mounts; 11 since 13-10's
+    // booking detail page). `refused` is unchanged — both refusals were MEASURED by plan 11-11 and
+    // neither has been overturned, and the host listing tile's refusal is REAFFIRMED by 14-13 rather
+    // than revisited: that plan corrects the 11-UI-SPEC's replaces-list instead of swapping the tile.
+    expect(adopted).toHaveLength(14);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {
