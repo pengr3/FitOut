@@ -167,6 +167,23 @@ function clampLimit(limit: number): number {
 }
 
 /**
+ * The STATUS half of the Upcoming predicate, extracted so it has exactly ONE owner (14-CONTEXT D-140).
+ *
+ * It was inlined twice below until the agenda read needed the same set a third and fourth time (its two
+ * UNION-ALL buckets). Minting a third spelling is the defect this module's header exists to prevent: the
+ * two agenda buckets MUST carry the identical status set or a row can fall through both, and "identical"
+ * because both splice one fragment is a different claim from "identical" because two people typed
+ * carefully. The emitted SQL text is exactly what `tabPredicate` produced before the extraction —
+ * `tests/booking/views.test.ts` (the tab-partition disjoint/exhaustive set property) and
+ * `tests/booking/booking-status.test.ts` are re-run UNEDITED as the proof of that.
+ *
+ * Cancelled and declined are the only INERT states. A `pending` hold, a `requested` ask and an `approved`
+ * booking are each something a host may find a person standing in their doorway for, so all three belong on
+ * an agenda of today. (14-RESEARCH § The "Today" Query, A3.)
+ */
+const ACTIVE_STATUS_SQL = sql`b.status NOT IN ('cancelled','declined')`;
+
+/**
  * D-103 tab partition, expressed against the DB clock. The Past predicate is the exact logical COMPLEMENT
  * of the Upcoming one — written as `NOT (…)` rather than re-derived — so the two sets are disjoint and
  * exhaustive BY CONSTRUCTION and cannot drift apart under a later edit. Cancelled and declined bookings
@@ -174,8 +191,8 @@ function clampLimit(limit: number): number {
  */
 function tabPredicate(tab: BookingsTab) {
   return tab === "upcoming"
-    ? sql`b.ends_at > now() AND b.status NOT IN ('cancelled','declined')`
-    : sql`NOT (b.ends_at > now() AND b.status NOT IN ('cancelled','declined'))`;
+    ? sql`b.ends_at > now() AND ${ACTIVE_STATUS_SQL}`
+    : sql`NOT (b.ends_at > now() AND ${ACTIVE_STATUS_SQL})`;
 }
 
 /**
@@ -202,6 +219,23 @@ function orderBy(tab: BookingsTab) {
 }
 
 /**
+ * THE hydration boundary — the one place a driver row becomes a `BookingListRow` (see `RawBookingRow`).
+ *
+ * Extracted from `toPage` when the agenda read arrived, because the agenda does not page and so cannot go
+ * through `toPage` at all; a second `new Date(r.startsAtIso)` mapping is a second place to forget the
+ * conversion, and forgetting it fails at RUNTIME with data present while passing every compile-time check.
+ * The `startsAtIso`/`endsAtIso` keys ride along on the spread exactly as they always did — `toPage` needs
+ * `startsAtIso` afterwards to emit the cursor.
+ */
+function hydrateRow(r: RawBookingRow): BookingListRow {
+  return {
+    ...r,
+    startsAt: new Date(r.startsAtIso),
+    endsAt: new Date(r.endsAtIso),
+  };
+}
+
+/**
  * Trim the sentinel row, convert the boundary types, and emit the cursor. We read `limit + 1` rows: if the
  * extra one came back there IS a next page, and the cursor is the LAST KEPT row's key — never the
  * sentinel's, which would skip it.
@@ -210,11 +244,7 @@ function toPage(raw: RawBookingRow[], limit: number): BookingsPage {
   const hasMore = raw.length > limit;
   const kept = hasMore ? raw.slice(0, limit) : raw;
   const last = kept[kept.length - 1];
-  const rows: BookingListRow[] = kept.map((r) => ({
-    ...r,
-    startsAt: new Date(r.startsAtIso),
-    endsAt: new Date(r.endsAtIso),
-  }));
+  const rows: BookingListRow[] = kept.map(hydrateRow);
   return {
     rows,
     nextCursor: hasMore && last ? `${last.startsAtIso}|${last.id}` : null,
@@ -336,4 +366,205 @@ export async function queryHostBookings(
   `)) as unknown as RawBookingRow[];
 
   return toPage(rows, limit);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// HFLOW-03 — the host dashboard agenda (14-CONTEXT D-140 / D-141 / D-142).
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * How many of today's sessions the agenda reads. A named constant, never a literal at a call site
+ * (Phase-7 config discipline). It is a SAFETY BOUND, not a page size: the agenda does not page, and a
+ * single host with more than this many sessions in one venue-local day is not a v1 shape. It exists so a
+ * pathological row set can never make `/host` an unbounded read.
+ */
+export const HOST_AGENDA_TODAY_LIMIT = 20;
+
+/** Which half of the agenda statement a row came from. Assigned in SQL, never re-derived in TS. */
+export type HostAgendaBucket = "today" | "next";
+
+/** The driver row shape, plus the discriminator the UNION ALL stamps on it. */
+type RawAgendaRow = RawBookingRow & { bucket: HostAgendaBucket };
+
+export type HostAgenda = {
+  /** Today's sessions in each venue's OWN local day, soonest first (D-141). */
+  today: BookingListRow[];
+  /**
+   * D-142's quiet-day affordance: the soonest STRICTLY-FUTURE session, and `null` when there is none.
+   *
+   * It is ALSO null whenever `today` is non-empty. That is deliberate and structural rather than a rule a
+   * caller has to remember: the `next` bucket's predicate is `starts_at > now`, which a later-today session
+   * satisfies, so on a busy day the soonest future row is usually ALSO a `today` row. Returning it anyway
+   * would hand every consumer the same footgun — render both and one session is announced twice, once as an
+   * agenda row and once as "next". D-142 asks for this row in exactly one situation ("with nothing
+   * today…"), so it is returned in exactly that situation and the double-count cannot be written.
+   */
+  next: BookingListRow | null;
+};
+
+/**
+ * The host agenda projection — `queryHostBookings`'s, verbatim, spliced into BOTH buckets so the two halves
+ * of the UNION ALL are type-compatible by construction rather than by inspection.
+ *
+ * DO NOT TRIM IT. `composeWhenLabelShort` takes `fullDay` and `openCapacity` as REQUIRED fields precisely so
+ * the compiler enumerates every projection (`when-label.ts:60-76`); a trimmed projection here would not fail
+ * until an agenda row announced a sixteen-hour window for a drop-in pass.
+ *
+ * The payout LEFT JOIN keeps its `kind = 'payout'` scope (D-71 / T-07-33). That scope is MANDATORY even
+ * though today's agenda row does not render the payout state: a `host_cancel_fee` row is a signed DEBIT
+ * sharing the same booking_id, and an unscoped join would make it look like this booking's payout. Carrying
+ * the shipped, correctly-scoped join costs nothing and removes the chance that a later plan adds the column
+ * back without the predicate.
+ */
+const hostAgendaProjection = sql`
+      b.id,
+      ${isoUtc("b.starts_at")} AS "startsAtIso",
+      ${isoUtc("b.ends_at")} AS "endsAtIso",
+      b.status::text AS "status",
+      ${displayStatusExpr} AS "displayStatus",
+      b.cancelled_by::text AS "cancelledBy",
+      b.quoted_total_cents AS "quotedTotalCents",
+      b.full_day AS "fullDay",
+      b.open_capacity AS "openCapacity",
+      b.space_price_cents AS "spacePriceCents",
+      b.refund_cents AS "refundCents",
+      b.currency,
+      l.id AS "listingId",
+      l.title AS "listingTitle",
+      NULL::text AS "listingPhotoUrl",
+      l.timezone,
+      l.city,
+      l.day_rate_cents AS "dayRateCents",
+      u.first_name AS "bookerFirstName",
+      p.state::text AS "payoutState"`;
+
+/**
+ * The JOIN set, also `queryHostBookings`'s verbatim. `listing l` is what makes the owner predicate and the
+ * per-row venue timezone both expressible in the same statement — the join is load-bearing twice over.
+ */
+const hostAgendaFrom = sql`
+    FROM booking b
+    INNER JOIN listing l ON l.id = b.listing_id
+    INNER JOIN "user" u ON u.id = b.booker_id
+    LEFT JOIN host_payout_ledger p ON p.booking_id = b.id AND p.kind = 'payout'`;
+
+/**
+ * HFLOW-03 — today's sessions across the signed-in host's spaces, plus D-142's next-upcoming fallback, in
+ * ONE statement driven by ONE clock instant.
+ *
+ * ── D-141: WHAT "TODAY" MEANS, WRITTEN DOWN ──────────────────────────────────────────────────────
+ *
+ *   A session is today **iff its start instant, projected into ITS OWN listing's timezone, falls on the
+ *   same calendar date as the bound clock instant projected into THAT SAME per-row timezone.**
+ *
+ *     (b.starts_at AT TIME ZONE l.timezone)::date = ($now::timestamptz AT TIME ZONE l.timezone)::date
+ *
+ * Three things about that line are decisions, not syntax:
+ *
+ *   1. **The zone is a per-row COLUMN, never a bound string and never the server's locale.** A host with
+ *      venues in two zones has two "todays" from one instant, and only a per-row projection gives each
+ *      venue its own. This is `hours-lock.ts:85-97`'s shape, which ships and is tested; the falsifying case
+ *      is measured in 14-RESEARCH § The "Today" Query — at one instant a far-east venue's local day has
+ *      already rolled over while a far-west venue's has not. A comparison done in UTC gets that wrong
+ *      SILENTLY, for SOME hosts, for PART of the day. `tests/booking/agenda-query.test.ts` carries it as a
+ *      committed fixture and has been observed rejecting the UTC rule.
+ *   2. **`starts_at`, not `ends_at`, decides the day** — `hours-lock.ts:60-63` settled this for drop-in
+ *      passes ("a pass belongs to the day it was BOUGHT for") and a second convention for "which day is
+ *      this session on" is the defect. A session that begins at 23:00 venue-local and ends after midnight
+ *      is on the day it begins.
+ *   3. **The clock is a BOUND PARAMETER, not SQL `now()` called inside the statement.** The caller reads
+ *      `readDbNow(db)` ONCE per request and threads it here, into the badge and into the countdown, exactly
+ *      as `keysetPredicate` already binds a cursor instant. Two readings of the transaction clock
+ *      microseconds apart is a tolerance `/bookings` accepts; a surface whose entire subject is "what is
+ *      happening today" is not allowed to need it. `now` must come from the DATABASE — never from a browser
+ *      and never from the server's wall clock — which is why this is a parameter rather than a read here.
+ *
+ * ── ONE ROUND TRIP, TWO BUCKETS (D-142) ──────────────────────────────────────────────────────────
+ *
+ * A UNION ALL of two bounded subqueries over the same projection, JOIN set and owner predicate; measured as
+ * an `Append` over two `Limit`s. Both buckets splice the IDENTICAL `ACTIVE_STATUS_SQL`, because two status
+ * sets that drift let a row fall through both halves. The `next` bucket then needs only
+ * `starts_at > $now`: when the today bucket is empty, any strictly-future row is necessarily not today.
+ *
+ * ── OWNER SCOPING (T-06-23 / T-07-29 / Security V4) ──────────────────────────────────────────────
+ *
+ * `WHERE l.host_id = $1`, in the statement, on both buckets. The `(host)` route group is a LAYOUT and a
+ * layout cannot scope a row set; a foreign host's rows must be UNSELECTABLE, not merely unrendered.
+ * `tests/security/bookings-owner-scope.test.ts` proves it on the crossed two-host fixture, in both
+ * directions, and has been observed failing against a widened predicate.
+ *
+ * ── NO INDEX, AND NONE IS POSSIBLE OR NEEDED (PROJECT D-136) ─────────────────────────────────────
+ *
+ * The day expression spans TWO tables (`booking.starts_at` and `listing.timezone`), and a Postgres
+ * expression index on `booking` cannot reference a column of `listing` — measured, the predicate lands as a
+ * post-join `Join Filter`, never an `Index Cond`. (Volatility is NOT the reason: the `timezone(text,
+ * timestamptz)` overload is IMMUTABLE.) It does not matter, because the row set is already bounded by
+ * `l.host_id = $1`, which `listing_host_idx` covers, and by the `LIMIT`s. **A proposed index here is a
+ * migration and a scope alarm to be raised, not absorbed.**
+ *
+ * There IS a correctness-preserving narrowing available if a host back-catalogue ever grows enough to
+ * matter: bracket `b.starts_at` to `$now ± 26 hours`. It is provably safe — the clock instant and every
+ * instant in any zone's local "today" lie inside the same half-open local day, so their difference is
+ * strictly less than that day's length (24h normally, 25h across a fall-back transition), and the largest
+ * one-sided excursion measured across the extreme zones was 23.00h. With it present, Postgres will take an
+ * index range on `starts_at`. **It is deliberately NOT taken here**: at v1 row counts (a single-city host,
+ * tens of rows) it buys nothing measurable, and an unexercised bracket around a day boundary is exactly the
+ * kind of clever narrowing that is wrong for one hour a year with nothing watching. Recorded so the next
+ * reader reaches for it rather than for a migration.
+ */
+export async function queryHostAgenda(
+  dbConn: DbConn,
+  args: {
+    hostId: string;
+    /** The DB clock, read ONCE per request via `readDbNow(dbConn)` and threaded (D-141). */
+    now: Date;
+  },
+): Promise<HostAgenda> {
+  // Bound as a parameter and cast in SQL — the `keysetPredicate` idiom. Nothing caller-supplied goes
+  // anywhere near `sql.raw`, which in this module takes a COLUMN NAME and never a value; `hostId` and this
+  // instant are both bound parameters.
+  const nowIso = args.now.toISOString();
+
+  const rows = (await dbConn.execute(sql`
+    SELECT * FROM (
+      SELECT * FROM (
+        SELECT ${hostAgendaProjection},
+          'today' AS "bucket"
+        ${hostAgendaFrom}
+        WHERE l.host_id = ${args.hostId}
+          AND ${ACTIVE_STATUS_SQL}
+          AND (b.starts_at AT TIME ZONE l.timezone)::date
+              = (${nowIso}::timestamptz AT TIME ZONE l.timezone)::date
+        ORDER BY b.starts_at ASC, b.id ASC
+        LIMIT ${HOST_AGENDA_TODAY_LIMIT}
+      ) today_bucket
+      UNION ALL
+      SELECT * FROM (
+        SELECT ${hostAgendaProjection},
+          'next' AS "bucket"
+        ${hostAgendaFrom}
+        WHERE l.host_id = ${args.hostId}
+          AND ${ACTIVE_STATUS_SQL}
+          AND b.starts_at > ${nowIso}::timestamptz
+        ORDER BY b.starts_at ASC, b.id ASC
+        LIMIT 1
+      ) next_bucket
+    ) agenda
+    ORDER BY CASE agenda."bucket" WHEN 'today' THEN 0 ELSE 1 END,
+             agenda."startsAtIso" ASC,
+             agenda."id" ASC
+  `)) as unknown as RawAgendaRow[];
+
+  // Partition on the discriminator the STATEMENT assigned. Nothing here re-compares a date, re-reads a
+  // clock or re-derives a status — doing any of those in TS would be a second answer to a question the
+  // statement already answered, about a zone this process has no business knowing.
+  const today: BookingListRow[] = [];
+  let soonest: BookingListRow | null = null;
+  for (const raw of rows) {
+    const { bucket, ...row } = raw;
+    if (bucket === "today") today.push(hydrateRow(row));
+    else soonest = hydrateRow(row);
+  }
+
+  return { today, next: today.length > 0 ? null : soonest };
 }
