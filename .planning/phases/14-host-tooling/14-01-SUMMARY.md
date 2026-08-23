@@ -222,3 +222,8 @@ None — no external service configuration, no environment variable, no package 
 ---
 *Phase: 14-host-tooling*
 *Completed: 2026-08-23*
+
+## Self-Check: PASSED
+
+All four claimed commits resolve in `git log` (`2a02a0a`, `c03600b`, `34e6c0b`, `dff1f77`), and all
+six claimed files exist on disk. No missing items.

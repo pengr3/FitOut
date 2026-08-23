@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 5
+current_plan: 2
 status: executing
 stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-08-23T08:08:52.394Z"
-last_activity: 2026-08-23 -- Phase 14 planning complete
+last_updated: "2026-08-23T08:34:45.383Z"
+last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 80
+  completed_plans: 81
   percent: 42
 ---
 
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **Phase 13 — Confirmation, Bookings & Trust.** Planned 2026-08-20: 16 plans in 10 waves, committed `af2ebd2`. Plan-checker: 0 blockers, 5 warnings all closed (`0b0d01c`). Coverage independently verified: 9/9 requirements, 36/36 decisions (D-60…D-95) cited in `must_haves` frontmatter, 0 same-wave `files_modified` collisions, 16/16 `<threat_model>` blocks, 48/48 tasks carrying `<read_first>` + `<acceptance_criteria>`. ⚠ Phase 999.1 is BACKLOG and was never the active phase — STATE had drifted to it; corrected here. ⚠ TRUST-01 and STATE-05 will close **PARTIAL** (code-complete, address-pending) because `SUPPORT_EMAIL` is null — `src/lib/site.ts:70` is the only line that changes (D-64, a `human_needed` item).
+**Current focus:** Phase 14 — Host Tooling
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 13.1 (INSERTED — Payment Reconciliation)
-Plan: 5 of 5
-Current Plan: 5
+Phase: 14 (Host Tooling) — EXECUTING
+Plan: 2 of 16
+Current Plan: 2
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -467,7 +467,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-23 -- Phase 14 planning complete
+Last activity: 2026-08-23
 
 ## Performance Metrics
 
@@ -655,6 +655,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 13.1 P02 | 40min | 3 tasks | 5 files |
 | Phase 13.1 P04 | 34min | 3 tasks | 6 files |
 | Phase 13.1 P05 | 71min | 2 tasks | 5 files |
+| Phase 14 P01 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1043,6 +1044,9 @@ Recent decisions affecting current work:
 - [Phase 13.1]: 13.1-01: `CheckoutSessionState.paymentId` reads the `pay_...` ENVELOPE-FIRST (`payments[0].id`) with the plan's `payments[0].attributes.id` as a documented fallback. ⚠ The plan's prose path ALONE returned `null` against this repo's own contract fixture (measured: `expected null to be 'pay_env_1'`) — i.e. it would have shipped the exact `payment_id = NULL` bug the field exists to prevent, permanently downgrading every later cancellation refund on a reconciled booking to manual return. Both placements are pinned by a case; the shape is still NOT live-observed.
 - [Phase 13.1]: 13.1-01 RECORDED DEFECT, deferred to 13.1-02 by D-112/D-108: the gone-slot operator alert is NOT de-duplicated — two passes over one dead row write TWO `needs_attention` records (measured). Money is safe (`createRefund` stays at ZERO across the re-run, T-13.1-06); only the alert repeats. ⚠ The 5-minute sweep's candidate set MUST be `pending`/`approved` only, or D-110's loud-missed-webhook dies of noise. See the phase's `deferred-items.md`.
 - [Phase ?]: 13.1-04: D-113 closed at the source — a 5-minute checkout-retire sweep retires every recently-lapsed hold's PayMongo session, probe-first so a session the provider reports `paid` is NEVER sent to expire (a call count of ZERO), and the lapsed row is deliberately left `pending` because that is exactly what 13.1-02's queryUnconfirmedPaid selects.
+- [Phase ?]: 14-01: RowListSkeleton's height prop is typed to the declared set (RowSkeletonHeight), one member today; widening happens in measurements.ts where the heights are derived
+- [Phase ?]: 14-01: WIZARD_CHECKLIST_GRID owns the 288px number and WIZARD_CHECKLIST_COL derives from it; the grid class cannot be safelisted (compile-css rejects a comma) so any gate over it is a SOURCE assertion
+- [Phase ?]: 14-01: earnings-freeze excludes styling positions and module specifiers STRUCTURALLY, not textually — so the HFLOW-05 token pass is permitted while a class name migrating into copy still trips the gate
 
 ### Pending Todos
 
@@ -1149,7 +1153,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T06:45:13.084Z
+Last session: 2026-08-23T08:34:21.941Z
 Stopped at: Phase 14 UI-SPEC approved
 authenticated, epoch-bounded server action reusing the sweep's `reconcileOne`, fired once by a latched
 effect after the poll cap, with ZERO new copy and the frozen poller's diff down to a single replaced
@@ -1175,7 +1179,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/14-host-tooling/14-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
