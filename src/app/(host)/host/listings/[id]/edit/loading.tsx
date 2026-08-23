@@ -9,11 +9,17 @@
 // `PANEL_MIN_HEIGHT` is a floor rather than a height for.
 
 import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
+import { HOST_PANEL_SHELL } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 
 export default function ListingEditLoading() {
   return (
-    // Container is `(host)/host/listings/[id]/edit/page.tsx`'s own, verbatim.
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
+    // Container is `(host)/host/listings/[id]/edit/page.tsx`'s own — and that sentence is now
+    // MECHANICAL rather than a promise, because both sides read the same constant. It stopped being
+    // free the moment D-149 widened the wizard at the large breakpoint (14-10): a plate pinned at the
+    // narrow width would have handed the arriving wizard a 256px width jump on every desktop load,
+    // which is precisely the shift a skeleton exists to prevent.
+    <div className={cn(HOST_PANEL_SHELL, "lg:max-w-5xl")}>
       <PanelSkeleton label="Loading your listing" />
     </div>
   );

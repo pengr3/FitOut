@@ -16,6 +16,8 @@ import {
 } from "@/lib/db/schema";
 import { getModeLockState } from "@/lib/listing/mode-lock";
 import { composeDeadlineLabel } from "@/lib/booking/when-label";
+import { HOST_PANEL_SHELL, WIZARD_CHECKLIST_GRID } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 import { ListingWizard, type ModeLockDisplay, type WizardListing } from "./wizard";
 
 export default async function EditListingPage({
@@ -119,13 +121,30 @@ export default async function EditListingPage({
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
-      <ListingWizard
-        listing={wizardListing}
-        hostEmail={u.email ?? session.user.email ?? ""}
-        emailVerified={Boolean(u.emailVerified ?? session.user.emailVerified)}
-        modeLock={modeLock}
-      />
+    // THE SHELL WIDENS AT THE LARGE BREAKPOINT AND ONLY THERE (D-149). Below it nothing about this
+    // page's width changes: the shared host panel container is byte-identical to the string this file
+    // used to type by hand, so the small-screen diff is a constant swap and nothing else.
+    <div className={cn(HOST_PANEL_SHELL, "lg:max-w-5xl")}>
+      {/*
+        THE TWO-COLUMN GRID, FROM THE DECLARED TRACK. `WIZARD_CHECKLIST_GRID` owns the 288px number
+        and `WIZARD_CHECKLIST_COL` — the width the checklist column itself carries, over in the wizard
+        — is derived from it. They are ONE NUMBER WRITTEN TWICE and the derivation lives in
+        `measurements.ts`; a column that does not fill its own track leaves a gap nobody chose, with
+        no visible cause. Neither value is typed here.
+
+        THE DISPLAY AND GAP UTILITIES ARE THE CALL SITE'S, which is what the track's own docstring
+        asks for: only the track carries a derived value. `grid` is unprefixed on purpose — below the
+        large breakpoint this is a ONE-column grid, and its 32px row gap is exactly the vertical
+        rhythm the wizard's own root used to supply, so the small-screen layout is unmoved.
+      */}
+      <div className={cn("grid gap-8", WIZARD_CHECKLIST_GRID)}>
+        <ListingWizard
+          listing={wizardListing}
+          hostEmail={u.email ?? session.user.email ?? ""}
+          emailVerified={Boolean(u.emailVerified ?? session.user.emailVerified)}
+          modeLock={modeLock}
+        />
+      </div>
     </div>
   );
 }

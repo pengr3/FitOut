@@ -46,6 +46,7 @@ import {
 } from "@/components/host/mode-lock-notice";
 import {
   PublishChecklist,
+  usePublishChecklistPlacement,
   type PublishChecklistRow,
 } from "@/components/host/publish-checklist";
 import {
@@ -102,7 +103,7 @@ import {
 } from "@/components/ui/command";
 import { Toaster } from "@/components/ui/sonner";
 import { PageHeader } from "@/components/patterns/page-header";
-import { STEP_MARKER_BOX } from "@/lib/design/measurements";
+import { STEP_MARKER_BOX, WIZARD_CHECKLIST_COL } from "@/lib/design/measurements";
 import { cn } from "@/lib/utils";
 
 export type WizardListing = {
@@ -635,9 +636,33 @@ export function ListingWizard({
   const progress = ((stepInList + 1) / steps.length) * 100;
   const advanceLabel = step === 0 ? "Get started" : "Save and continue";
 
+  /**
+   * Which of the two PERSISTENT checklist placements this viewport gets (D-149).
+   *
+   * Read UNCONDITIONALLY, above the review-step guard, because it is a hook: calling it inside the
+   * branch that renders the checklist would change the hook order the first time a host reached the
+   * review step. The value is simply unused there.
+   */
+  const checklistPlacement = usePublishChecklistPlacement();
+
   return (
-    <div className="space-y-8">
-      <Toaster />
+    /*
+      THREE GRID ITEMS, NOT ONE CONTAINER (D-149). The grid itself is the ROUTE's — `page.tsx` owns the
+      shell and the declared track — so this component returns siblings rather than a wrapper: a wrapper
+      would make the whole wizard ONE grid item and there would be no second column for the checklist to
+      sit in.
+
+      THE ORDER IS THE POINT, AND IT DIFFERS BY BREAKPOINT WITHOUT MOVING A NODE. Below the large
+      breakpoint the grid is one column and the three items stack in source order — rail and question,
+      then the collapsed checklist, then the form, which is 14-UI-SPEC's "above the form, under the
+      <h1>". At the large breakpoint the first item spans both columns and the checklist takes the
+      second column of the row beneath it, because it is ordered last there and grid placement follows
+      the order property. One node, two layouts; see `publish-checklist.tsx` for why one node rather
+      than a variant pair is not a stylistic preference here.
+    */
+    <>
+      <div className="space-y-8 lg:col-span-2">
+        <Toaster />
 
       {/* --- Stepper + progress --------------------------------------------------------------- */}
       <div className="space-y-3">
@@ -743,11 +768,50 @@ export function ListingWizard({
         and rule 4 wants exactly one per document: the listing's name is deliberately NOT added here,
         because the question IS the title.
       */}
-      <PageHeader title={steps[stepInList].title} />
+        <PageHeader title={steps[stepInList].title} />
+      </div>
 
+      {/*
+        THE PERSISTENT PLACEMENT (D-149) — the checklist stops being an end-of-flow surprise and is
+        readable from the FIRST step.
+
+        SUPPRESSED ON THE REVIEW STEP, and that suppression is the whole one-instance rule. The review
+        step renders its own inline placement below; rendering this one as well would put two answers
+        to "am I ready to publish" on one document, which is the defect
+        `tests/listing/publish-checklist.test.tsx` exists to reject.
+
+        THE ROWS ARE THE SAME ARRAY THE REVIEW STEP IS HANDED, so the two label sets cannot differ —
+        not "are kept in sync", cannot differ, because there is one array.
+
+        `lg:order-last` is what puts this in the SECOND column at the large breakpoint while leaving it
+        above the form below it. The width comes from the declared constant, which is derived from the
+        grid track `page.tsx` renders; neither number is typed here.
+      */}
+      {currentKey !== "review" && (
+        <aside className={cn(WIZARD_CHECKLIST_COL, "lg:order-last")}>
+          <PublishChecklist
+            placement={checklistPlacement}
+            rows={checklist}
+            onFix={goToStep}
+          />
+        </aside>
+      )}
+
+      {/*
+        THE FORM COLUMN, and the <form> element IS the grid item — `Form` is RHF's provider and renders
+        no DOM, so wrapping the two in a <div> would add a node for nothing.
+
+        `min-w-0` so a long field cannot push the column past its own track. The track is already a
+        zero-minimum one; the half that overflows is the ITEM's automatic minimum, and both have to say
+        so. On the review step there is no aside beside it, so it takes the whole width rather than
+        leaving a 288px gutter with nothing in it and the content sitting off centre.
+      */}
       <Form {...form}>
         {/* We intentionally do NOT use handleSubmit here — advancing autosaves via saveListingStep. */}
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-8">
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          className={cn("min-w-0 space-y-8", currentKey === "review" && "lg:col-span-2")}
+        >
           {/* --- Step "type": Type + activity tags -------------------------------------------- */}
           {currentKey === "type" && (
             <div className="space-y-6">
@@ -1525,6 +1589,6 @@ export function ListingWizard({
           </div>
         </form>
       </Form>
-    </div>
+    </>
   );
 }
