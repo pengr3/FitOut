@@ -241,7 +241,16 @@ export default async function HostDashboardPage() {
         // THE PAGE'S SUBJECT (D-140). Three states, one always-present container: today's sessions, the
         // quiet day's next-up sentence, or the nothing-booked absence. The clock is threaded in so the
         // rows, their badges and the query that selected them cannot disagree about the time.
-        <HostAgenda rows={agendaRows} next={agendaNext} now={now} />
+        // `todayTruncated` is threaded straight through rather than re-derived from `agendaRows.length`
+        // against the cap: the read is the only thing that knows whether a twenty-first row existed, and
+        // a page comparing a length to an imported constant would be a second answer to a question the
+        // statement already answered (WR-01).
+        <HostAgenda
+          rows={agendaRows}
+          truncated={agenda.todayTruncated}
+          next={agendaNext}
+          now={now}
+        />
       ) : (
         // The shipped no-listings empty state, unchanged — same icon, same two strings, same create
         // action, and the copy is byte-identical to `/host/listings`' own because the two are one

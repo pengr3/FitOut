@@ -92,6 +92,34 @@ export const AGENDA_NONE_BODY =
 /** State B's lead clause. Assembled into one string below — never interleaved with JSX text. */
 const AGENDA_NEXT_LEAD = "Nothing today — next:";
 
+/**
+ * STATE A's OVERFLOW LINE (WR-01). The sentence a capped agenda owes the host.
+ *
+ * WHY IT EXISTS. `HOST_AGENDA_TODAY_LIMIT` bounds the read at twenty rows, and the shipped surface
+ * rendered those twenty under a heading reading **Today** with no signal of any kind that a
+ * twenty-first existed. That cap is reachable by an ordinary listing — a drop-in day pass mints one
+ * booking row PER BOOKER and the wizard offers a daily head cap of thirty — so a gym selling passes
+ * would read a list that quietly omitted people who are coming. Silent omission on the one surface
+ * whose subject is *who is arriving today* is the failure D-140 exists to prevent.
+ *
+ * THE COUNT IS THE RENDERED ONE, not the cap. This file imports no query constant and must not: it is
+ * a server component that also renders in jsdom, and the module holding the cap reaches for a database.
+ * Counting the rows it just drew is a fact about what is on screen, which is the stronger claim anyway
+ * — if the page ever hands over fewer rows than the cap while still reporting a truncation, this
+ * sentence stays true.
+ *
+ * THE WAY OUT IS THE SECTION'S OWN ROUTE-OUT, three inches above and present in every state. It is
+ * named in words rather than repeated as a second link: two controls with one accessible name going to
+ * one place is an affordance rendered twice, which is the trade this file already makes for the empty
+ * state's absent `actions`.
+ *
+ * EXPORTED so `tests/host/agenda-states.test.tsx` asserts these characters instead of retyping them —
+ * the same reason the four constants above it are exported.
+ */
+export function agendaTruncatedNote(shown: number): string {
+  return `Showing the first ${shown} of today's sessions — the rest are on your bookings list.`;
+}
+
 /** One session on today's agenda. Every field is a value the SERVER already resolved. */
 export type HostAgendaRowData = {
   bookingId: string;
@@ -136,6 +164,14 @@ export type HostAgendaProps = {
   /** Today's sessions in each venue's OWN local day, soonest first. Empty selects state B or C. */
   rows: readonly HostAgendaRowData[];
   /**
+   * `queryHostAgenda`'s `todayTruncated` — true when the day held more sessions than the read's cap.
+   *
+   * REQUIRED, and deliberately not defaulted. A prop with a default of `false` is one a caller can
+   * forget, and forgetting it silently restores the exact defect this exists to remove: a list headed
+   * **Today** that is short and says nothing. Required, the compiler names every call site.
+   */
+  truncated: boolean;
+  /**
    * The soonest strictly-future session, or null.
    *
    * `queryHostAgenda` already returns null here whenever `today` is non-empty (14-02), so "both at once"
@@ -150,7 +186,7 @@ export type HostAgendaProps = {
   now: Date;
 };
 
-export function HostAgenda({ rows, next, now }: HostAgendaProps) {
+export function HostAgenda({ rows, truncated, next, now }: HostAgendaProps) {
   return (
     <section aria-labelledby="host-agenda-heading" data-testid="host-agenda" className="space-y-3">
       <div className="flex items-baseline justify-between gap-4">
@@ -193,13 +229,32 @@ export function HostAgenda({ rows, next, now }: HostAgendaProps) {
       </div>
 
       {rows.length > 0 ? (
-        <ul className="space-y-3" data-testid="agenda-rows">
-          {rows.map((row) => (
-            <li key={row.bookingId}>
-              <AgendaRow row={row} now={now} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-3" data-testid="agenda-rows">
+            {rows.map((row) => (
+              <li key={row.bookingId}>
+                <AgendaRow row={row} now={now} />
+              </li>
+            ))}
+          </ul>
+          {/*
+            THE OVERFLOW LINE (WR-01), BENEATH THE LIST AND ONLY WHEN THE CAP BIT.
+
+            It sits AFTER the rows rather than above them because it is a statement about the list that
+            was just read, and a host scanning for who is coming should meet the sessions first. It
+            carries no alerting role and no alarm ink: nothing has gone wrong — the day is busy — and
+            dressing a full calendar as a failure is the same mistake in the other direction as
+            dressing an empty one as a failure (T-14-05-FALSEALARM, the state-C rule, applied here).
+
+            NO SECOND ROUTE-OUT. See the note on the constant: the section's own link is already in the
+            heading row, in every state.
+          */}
+          {truncated ? (
+            <p className="text-label text-muted-foreground">
+              {agendaTruncatedNote(rows.length)}
+            </p>
+          ) : null}
+        </>
       ) : next ? (
         <div data-testid="agenda-next">
           {/*

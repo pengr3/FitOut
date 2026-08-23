@@ -63,6 +63,7 @@ import {
   AGENDA_NONE_TITLE,
   AGENDA_ROUTE_OUT_LABEL,
   WITHHELD_BOOKER_LABEL,
+  agendaTruncatedNote,
   type HostAgendaProps,
   type HostAgendaRowData,
 } from "@/components/host/host-agenda";
@@ -91,9 +92,19 @@ function makeRow(overrides: Partial<HostAgendaRowData> = {}): HostAgendaRowData 
   };
 }
 
-/** State A — at least one session in the venue's own local day. */
-const stateA = (rows: HostAgendaRowData[] = [makeRow()]): HostAgendaProps => ({
+/**
+ * State A — at least one session in the venue's own local day.
+ *
+ * `truncated` defaults to FALSE here and is passed explicitly by the WR-01 cases below. It is a
+ * REQUIRED prop on the component precisely so a caller cannot forget it; this helper supplies the
+ * ordinary value so the twenty-odd cases that are not about the cap say nothing about it.
+ */
+const stateA = (
+  rows: HostAgendaRowData[] = [makeRow()],
+  truncated = false,
+): HostAgendaProps => ({
   rows,
+  truncated,
   next: null,
   now: NOW,
 });
@@ -101,12 +112,13 @@ const stateA = (rows: HostAgendaRowData[] = [makeRow()]): HostAgendaProps => ({
 /** State B — nothing today, something upcoming. */
 const stateB = (): HostAgendaProps => ({
   rows: [],
+  truncated: false,
   next: { dateLabel: "Sat, Aug 29", timeLabel: "10:00 AM", spaceTitle: "Court A" },
   now: NOW,
 });
 
 /** State C — nothing today and nothing upcoming. */
-const stateC = (): HostAgendaProps => ({ rows: [], next: null, now: NOW });
+const stateC = (): HostAgendaProps => ({ rows: [], truncated: false, next: null, now: NOW });
 
 /**
  * The token every alarm surface in this app paints with, named ONCE here.
@@ -269,6 +281,82 @@ describe("state A — today's sessions, with the booker as the row title (D-140)
     // D-144: approve and decline live on the inbox and nowhere else. Two places carrying an
     // irreversible action is two places that must be kept in agreement.
     expect(within(list).queryAllByRole("button")).toHaveLength(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// STATE A, CAPPED — the truncation says so (WR-01)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `queryHostAgenda` bounds the today bucket. Until this fix the surface rendered the bounded list under
+// a heading reading "Today" and gave no signal that a session had been dropped — and the bound is
+// reachable by an ordinary drop-in listing, which mints one booking row per booker. A host would read a
+// list that quietly omitted people who are coming.
+//
+// THE ABSENCE IS ASSERTED AS WELL AS THE PRESENCE. A note that renders unconditionally would tell every
+// host their list is short, which is the same lie pointing the other way, and it is the shape the
+// presence assertion alone cannot tell apart from a correct one.
+
+describe("state A, capped — a truncated agenda says so (WR-01)", () => {
+  const rows = [
+    makeRow({ bookingId: "bk_1", bookerLabel: "Jamie" }),
+    makeRow({ bookingId: "bk_2", bookerLabel: "Priya" }),
+  ];
+
+  it("renders the overflow sentence inside the agenda section when the read was capped", () => {
+    render(<HostAgenda {...stateA(rows, true)} />);
+    const section = screen.getByTestId("host-agenda");
+
+    expect(
+      within(section).getByText(agendaTruncatedNote(rows.length)),
+      "a capped agenda that says nothing is a list headed Today with people missing from it",
+    ).toBeTruthy();
+  });
+
+  it("counts the rows it actually RENDERED, so the sentence cannot outlive the list", () => {
+    // Five rows, still capped. A sentence built from an imported cap constant would say twenty here and
+    // be wrong on screen; this one is a fact about the list beneath it.
+    const five = [0, 1, 2, 3, 4].map((i) =>
+      makeRow({ bookingId: `bk_${i}`, bookerLabel: `Booker ${i}` }),
+    );
+    render(<HostAgenda {...stateA(five, true)} />);
+
+    expect(screen.getByTestId("host-agenda").textContent).toContain(agendaTruncatedNote(5));
+  });
+
+  it("says NOTHING when the read was not capped — the flag is read, not assumed", () => {
+    render(<HostAgenda {...stateA(rows, false)} />);
+    const section = screen.getByTestId("host-agenda");
+
+    expect(within(section).queryByText(agendaTruncatedNote(rows.length))).toBeNull();
+    // Independent of the exact sentence, so a re-wording cannot make this pass by missing its own
+    // string: nothing anywhere in the section claims the list is partial.
+    expect(section.textContent).not.toMatch(/Showing the first/i);
+  });
+
+  it("is calm — the overflow is a busy day, not a failure (T-14-05-FALSEALARM)", () => {
+    render(<HostAgenda {...stateA(rows, true)} />);
+    const section = screen.getByTestId("host-agenda");
+    const note = within(section).getByText(agendaTruncatedNote(rows.length));
+
+    // SCOPED TO THE NOTE, deliberately, and not to the whole container the state-C case scans. The row
+    // card's badge carries the alarm token inside an `aria-invalid:` conditional — shipped markup this
+    // finding does not touch — so a container-wide scan here would be measuring `ui/badge.tsx` and
+    // reporting it as this sentence's ink. What is being claimed is about the line that was ADDED.
+    expect(note.className).not.toContain(ALARM_TOKEN);
+    expect(note.getAttribute("role")).toBeNull();
+    expect(note.textContent ?? "").not.toMatch(RETRY_AFFORDANCE);
+    // And nothing in the section interrupts: a busy day is not an announcement.
+    expect(within(section).queryAllByRole("alert")).toHaveLength(0);
+    expect(within(section).queryAllByRole("status")).toHaveLength(0);
+  });
+
+  it("keeps the rows themselves untouched — the note is an addition, not a replacement", () => {
+    render(<HostAgenda {...stateA(rows, true)} />);
+    const list = screen.getByTestId("agenda-rows");
+
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getByRole("link", { name: "Jamie" })).toBeTruthy();
   });
 });
 

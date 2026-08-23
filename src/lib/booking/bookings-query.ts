@@ -374,9 +374,25 @@ export async function queryHostBookings(
 
 /**
  * How many of today's sessions the agenda reads. A named constant, never a literal at a call site
- * (Phase-7 config discipline). It is a SAFETY BOUND, not a page size: the agenda does not page, and a
- * single host with more than this many sessions in one venue-local day is not a v1 shape. It exists so a
- * pathological row set can never make `/host` an unbounded read.
+ * (Phase-7 config discipline). It is a SAFETY BOUND, not a page size: the agenda does not page, and it
+ * exists so a pathological row set can never make `/host` an unbounded read.
+ *
+ * ⚠ IT IS REACHABLE BY AN ORDINARY LISTING, and this note replaces the one that said otherwise. The
+ * shipped docblock defended the cap as *"a single host with more than this many sessions in one
+ * venue-local day is not a v1 shape"*. That is false for the occupancy mode this codebase already
+ * ships: `createOpenCapacityHold` mints ONE `booking` row PER BOOKER for a drop-in day pass, and
+ * `maxOccupancy` on a drop-in listing is the DAILY HEAD CAP — the wizard's own copy offers a cap of
+ * thirty people a day. Twenty-one distinct bookers on one day is a good Tuesday for a gym selling
+ * passes, not a pathological row set.
+ *
+ * SO THE BOUND STAYS AND THE SILENCE GOES. `queryHostAgenda` reads `LIMIT + 1` — the sentinel idiom
+ * `toPage` already uses in this module — and reports `todayTruncated`, so a surface can say the list is
+ * short instead of lying by omission. An unbounded read would be the worse cure; an unannounced
+ * truncation on the one surface whose subject is *who is coming today* is the defect D-140 exists to
+ * prevent, reached through the cap instead of through the day boundary.
+ *
+ * The boundary is pinned from BOTH sides in `tests/booking/agenda-query.test.ts` case 7 — at the cap
+ * and one past it — because a fixture on one side of it cannot tell a `>` from a `>=`.
  */
 export const HOST_AGENDA_TODAY_LIMIT = 20;
 
@@ -389,6 +405,20 @@ type RawAgendaRow = RawBookingRow & { bucket: HostAgendaBucket };
 export type HostAgenda = {
   /** Today's sessions in each venue's OWN local day, soonest first (D-141). */
   today: BookingListRow[];
+  /**
+   * True when `HOST_AGENDA_TODAY_LIMIT` bit — there are sessions today that `today` does not hold.
+   *
+   * REQUIRED, not optional, and that is the point of the field. An optional flag is one a consumer can
+   * forget, and forgetting it reproduces exactly the shipped defect: a list headed *Today* that is
+   * quietly short. Required, the compiler enumerates every surface that renders this agenda and each
+   * one has to decide what to say — which is the same reason `composeWhenLabelShort` takes `fullDay`
+   * and `openCapacity` as required fields.
+   *
+   * It says only that the list is short. It deliberately does NOT carry a total: a count would need a
+   * second aggregate over the same join, and the number a host needs in order to act is not "how many
+   * more" but "there are more, and here is where they all are".
+   */
+  todayTruncated: boolean;
   /**
    * D-142's quiet-day affordance: the soonest STRICTLY-FUTURE session, and `null` when there is none.
    *
@@ -543,7 +573,11 @@ export async function queryHostAgenda(
           AND (b.starts_at AT TIME ZONE l.timezone)::date
               = (${nowIso}::timestamptz AT TIME ZONE l.timezone)::date
         ORDER BY b.starts_at ASC, b.id ASC
-        LIMIT ${HOST_AGENDA_TODAY_LIMIT}
+        -- THE SENTINEL, not a wider page: one row past the cap, read so the partition below can tell
+        -- "twenty sessions" from "twenty of more than twenty". The keyset pager in this module uses the
+        -- identical idiom on the bookings list. It costs one row and no second statement, which is what
+        -- keeps D-142's one-round-trip claim true (case 7e counts it).
+        LIMIT ${HOST_AGENDA_TODAY_LIMIT + 1}
       ) today_bucket
       UNION ALL
       SELECT * FROM (
@@ -573,5 +607,14 @@ export async function queryHostAgenda(
     else soonest = hydrateRow(row);
   }
 
-  return { today, next: today.length > 0 ? null : soonest };
+  // The sentinel is DISCARDED here rather than rendered: it was read to answer a question, not to be
+  // shown. `>` and not `>=` — a day holding exactly the cap is a full page, not a short one, and
+  // reporting a truncation there would tell a host sessions are missing on the day they are all present.
+  const todayTruncated = today.length > HOST_AGENDA_TODAY_LIMIT;
+
+  return {
+    today: todayTruncated ? today.slice(0, HOST_AGENDA_TODAY_LIMIT) : today,
+    todayTruncated,
+    next: today.length > 0 ? null : soonest,
+  };
 }

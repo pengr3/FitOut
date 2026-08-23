@@ -92,6 +92,7 @@ import {
   queryHostAgenda,
   readDbNow,
   isoUtc,
+  HOST_AGENDA_TODAY_LIMIT,
   type BookingListRow,
 } from "@/lib/booking/bookings-query";
 
@@ -114,6 +115,8 @@ const HOST_STATUS = "ag_host_status"; // case 4 — the status set
 const HOST_INERT = "ag_host_inert"; // case 4 — a future session that is only cancelled
 const HOST_NEXT = "ag_host_next"; // case 5 — D-142's next bucket
 const HOST_EMPTY = "ag_host_empty"; // case 5 — a host with a listing and no bookings
+const HOST_OVER_CAP = "ag_host_overcap"; // case 7 — one session PAST the today cap
+const HOST_AT_CAP = "ag_host_atcap"; // case 7 — exactly the cap, which must NOT report a truncation
 
 const L_EAST = "ag_l_east";
 const L_WEST = "ag_l_west";
@@ -123,6 +126,8 @@ const L_STATUS = "ag_l_status";
 const L_INERT = "ag_l_inert";
 const L_NEXT = "ag_l_next";
 const L_EMPTY = "ag_l_empty";
+const L_OVER_CAP = "ag_l_overcap";
+const L_AT_CAP = "ag_l_atcap";
 
 const B_EAST = "ag_bk_east";
 const B_WEST = "ag_bk_west";
@@ -224,6 +229,35 @@ async function hourSession(zone: string, offsetFromLocalMidnight: string, hours 
   return { startsAt, endsAt };
 }
 
+/** The id a case-7 session is seeded under. ZERO-PADDED so lexical order is chronological order. */
+const capBookingId = (hostId: string, hour: number) =>
+  `ag_bk_cap_${hostId.slice("ag_host_".length)}_${String(hour).padStart(2, "0")}`;
+
+/**
+ * `count` one-hour sessions on ONE venue-local day, starting at local 00:00 and stepping an hour each.
+ *
+ * One hour apart because `booking_no_overlap` is real: the exclusion constraint would reject a second
+ * occupying row on the same listing, unit and instant, and the fixture would fail to build rather than
+ * fail to assert. That also bounds this helper at a day's worth of rows — asserted rather than assumed,
+ * because the cap is a constant somebody may raise, and the failure that raise would otherwise produce
+ * is a constraint violation inside `beforeAll` with nothing naming the reason.
+ */
+async function seedDayFull(hostId: string, listingId: string, count: number): Promise<void> {
+  expect(
+    count,
+    "a case-7 fixture seeds one session per venue-local hour, so it cannot exceed a day. " +
+      "HOST_AGENDA_TODAY_LIMIT has outgrown this fixture — seed a second listing for the same host " +
+      "(the agenda is owner-scoped, not listing-scoped) rather than shortening the sessions.",
+  ).toBeLessThanOrEqual(24);
+  for (let hour = 0; hour < count; hour += 1) {
+    await seedBooking({
+      id: capBookingId(hostId, hour),
+      listingId,
+      ...(await hourSession(EAST_ZONE, `${hour} hours`)),
+    });
+  }
+}
+
 beforeAll(async () => {
   testDb = await setupTestDb();
 
@@ -236,6 +270,8 @@ beforeAll(async () => {
     { id: HOST_INERT, name: "Inert Host", email: "ag_inert@example.com", firstName: "Ivy", emailVerified: true },
     { id: HOST_NEXT, name: "Next Host", email: "ag_next@example.com", firstName: "Noa", emailVerified: true },
     { id: HOST_EMPTY, name: "Empty Host", email: "ag_empty@example.com", firstName: "Eli", emailVerified: true },
+    { id: HOST_OVER_CAP, name: "Over Cap Host", email: "ag_overcap@example.com", firstName: "Ora", emailVerified: true },
+    { id: HOST_AT_CAP, name: "At Cap Host", email: "ag_atcap@example.com", firstName: "Ada", emailVerified: true },
   ]);
 
   const space = (id: string, hostId: string, timezone: string, city: string) => ({
@@ -259,6 +295,8 @@ beforeAll(async () => {
     space(L_INERT, HOST_INERT, EAST_ZONE, "Taguig"),
     space(L_NEXT, HOST_NEXT, EAST_ZONE, "Quezon City"),
     space(L_EMPTY, HOST_EMPTY, EAST_ZONE, "Iloilo"),
+    space(L_OVER_CAP, HOST_OVER_CAP, EAST_ZONE, "Bacolod"),
+    space(L_AT_CAP, HOST_AT_CAP, EAST_ZONE, "Dumaguete"),
   ]);
 
   // ── Case 1 · the two-zone straddling-midnight fixture ────────────────────────────────────────────
@@ -325,6 +363,20 @@ beforeAll(async () => {
   // ── Case 5 · D-142's next bucket ─────────────────────────────────────────────────────────────────
   await seedBooking({ id: B_SOON, listingId: L_NEXT, ...(await hourSession(EAST_ZONE, "3 days 9 hours")) });
   await seedBooking({ id: B_LATER, listingId: L_NEXT, ...(await hourSession(EAST_ZONE, "5 days 9 hours")) });
+
+  // ── Case 7 · the today cap, from BOTH sides of it ────────────────────────────────────────────────
+  //
+  // ⚠ THIS FIXTURE IS AN ORDINARY DAY, NOT A PATHOLOGICAL ONE, and that is the finding it encodes.
+  // `createOpenCapacityHold` mints ONE booking row PER BOOKER for a drop-in day pass, and the wizard's
+  // own copy offers a daily head cap of thirty, so a gym selling passes reaches the cap on a good
+  // Tuesday. A cap defended as "not a v1 shape" therefore has to say when it bites, because it does.
+  //
+  // BOTH SIDES, because only the pair pins the boundary. A host seeded one PAST the cap cannot tell a
+  // `>` from a `>=`: both report the same truncated page. The at-cap host is what makes the off-by-one
+  // observable, and the two are seeded on distinct hours of the SAME venue-local day so nothing but the
+  // row count separates them.
+  await seedDayFull(HOST_OVER_CAP, L_OVER_CAP, HOST_AGENDA_TODAY_LIMIT + 1);
+  await seedDayFull(HOST_AT_CAP, L_AT_CAP, HOST_AGENDA_TODAY_LIMIT);
 });
 
 afterAll(async () => {
@@ -525,5 +577,96 @@ describe("D-142 — both buckets arrive in ONE round trip", () => {
 
     expect(executeCalls).toBe(1);
     expect(ids(agenda.today)).toEqual([B_EARLY, B_LATE]);
+  });
+});
+
+describe("WR-01 — the today cap is a TRUNCATION, and the caller is told when it bit", () => {
+  it("7a · the over-cap fixture really does hold one more session than the cap, on ONE venue-local day", async () => {
+    // THE FIXTURE IS ASSERTED FIRST, the discipline case 1b sets. If these rows had not all landed on
+    // the same venue-local day, the cap would never be reached and 7b would pass by vacuum — a page
+    // that returned everything it was asked for would be indistinguishable from one that truncated.
+    const [row] = (await testDb.db.execute(sql`
+      SELECT count(*)::int AS "n"
+      FROM booking b
+      INNER JOIN listing l ON l.id = b.listing_id
+      WHERE l.host_id = ${HOST_OVER_CAP}
+        AND (b.starts_at AT TIME ZONE l.timezone)::date
+            = (${CLOCK_EAST_MIDDAY.toISOString()}::timestamptz AT TIME ZONE l.timezone)::date
+    `)) as unknown as { n: number }[];
+
+    expect(row.n).toBe(HOST_AGENDA_TODAY_LIMIT + 1);
+  });
+
+  it("7b · a host one session past the cap gets the cap's worth of rows AND is told the list is short", async () => {
+    const agenda = await queryHostAgenda(testDb.db, {
+      hostId: HOST_OVER_CAP,
+      now: CLOCK_EAST_MIDDAY,
+    });
+
+    // The bound still holds — this is a safety bound and stays one. What changes is that the caller
+    // can now tell "twenty sessions" from "twenty of twenty-one", which the shipped shape could not.
+    expect(agenda.today).toHaveLength(HOST_AGENDA_TODAY_LIMIT);
+    expect(
+      agenda.todayTruncated,
+      "the agenda dropped a session and reported nothing. A host reading a list headed Today has no " +
+        "way to know someone is coming who is not on it — which is the silent failure D-140 exists " +
+        "to prevent, arriving through the cap instead of through the day boundary.",
+    ).toBe(true);
+
+    // The SOONEST ones survive, not an arbitrary twenty: the cap reads off the statement's own ORDER
+    // BY, so the row that falls off the end is the last of the day and never the next one to arrive.
+    expect(ids(agenda.today)).toEqual(
+      Array.from({ length: HOST_AGENDA_TODAY_LIMIT }, (_, hour) =>
+        capBookingId(HOST_OVER_CAP, hour),
+      ),
+    );
+    // The sentinel row is READ and DISCARDED, never rendered — it must not leak out as a 21st row.
+    expect(ids(agenda.today)).not.toContain(
+      capBookingId(HOST_OVER_CAP, HOST_AGENDA_TODAY_LIMIT),
+    );
+  });
+
+  it("7c · a host at EXACTLY the cap is not truncated — the off-by-one this pair exists to pin", async () => {
+    const agenda = await queryHostAgenda(testDb.db, { hostId: HOST_AT_CAP, now: CLOCK_EAST_MIDDAY });
+
+    expect(agenda.today).toHaveLength(HOST_AGENDA_TODAY_LIMIT);
+    expect(
+      agenda.todayTruncated,
+      "a full page is not a short one. Reported here, the surface would tell a host sessions are " +
+        "missing on the day it is showing them all — the same lie in the other direction.",
+    ).toBe(false);
+  });
+
+  it("7d · an ordinary day reports no truncation, so the flag is not simply always set", async () => {
+    const agenda = await queryHostAgenda(testDb.db, { hostId: HOST_DAY, now: CLOCK_EAST_MIDDAY });
+
+    expect(agenda.today.length).toBeLessThan(HOST_AGENDA_TODAY_LIMIT);
+    expect(agenda.todayTruncated).toBe(false);
+  });
+
+  it("7e · the cap costs no extra round trip — the sentinel rides the same statement", async () => {
+    // The `LIMIT + 1` idiom is chosen over a second COUNT(*) precisely so D-142's one-statement claim
+    // survives the fix. Counted the same way case 6 counts it.
+    let executeCalls = 0;
+    type ExecuteFn = TestDb["db"]["execute"];
+    const countingDb = new Proxy(testDb.db, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver);
+        if (prop !== "execute") return value;
+        const execute = value as ExecuteFn;
+        return ((...args: Parameters<ExecuteFn>) => {
+          executeCalls += 1;
+          return execute.apply(target, args);
+        }) as ExecuteFn;
+      },
+    });
+
+    const agenda = await queryHostAgenda(countingDb, {
+      hostId: HOST_OVER_CAP,
+      now: CLOCK_EAST_MIDDAY,
+    });
+
+    expect(executeCalls).toBe(1);
+    expect(agenda.todayTruncated).toBe(true);
   });
 });
