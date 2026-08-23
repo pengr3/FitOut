@@ -9,6 +9,26 @@
 //
 // NOTE: in dev the geocoder env may be a placeholder; this component degrades gracefully (it simply
 // shows no suggestions) and never blocks the wizard. Automated tests do not depend on a live call.
+//
+// ── THE ANNOUNCEMENT BELOW THE FIELD (plan 14-14 · GATE-03) ───────────────────────────────────────
+// This file was the LAST entry in `LIVE_REGION_EXCLUSIONS` (`src/lib/design/live-regions.ts`), and its
+// stated reason named this phase: auditing a host surface early would have frozen markup this phase was
+// about to rewrite. The audit is now done and the exclusion list is empty.
+//
+// What was wrong: ONE announcing element with no role and no accessible name, whose first-paint content
+// was a STATIC HINT. That is a region announcing the empty string on arrival and then a hint nobody
+// asked for — the same defect the availability calendar's busy plate was corrected for. The rule, in one
+// sentence: a live region announces a CHANGE, and a freshly rendered page is not a change, it is a page.
+//
+// What it is now: the hint is a plain paragraph outside any region, read in document order like every
+// other hint on the step; and ONE named region holds only the RESOLVED OUTCOME — located or failed,
+// which are the two outcomes of one lookup and therefore share one region. It is declared as
+// `address-lookup-result` in `live-regions.ts` and its name is declared beside it.
+//
+// ⚠ NAMING DISCIPLINE, inherited from `wizard.tsx`'s rail comment. Nothing in this file's prose quotes
+// the announcing attributes by their literal spelling; the gate that reads this tree counts regions per
+// file off the markup, and a comment is textually indistinguishable from a call site to a text scan.
+// Every such token below is named descriptively. Keep it that way when you edit this.
 
 import { useEffect, useRef, useState } from "react";
 import { MapPinIcon } from "lucide-react";
@@ -58,6 +78,26 @@ type PhotonFeature = {
 };
 
 type Suggestion = ResolvedAddress & { id: string; label: string };
+
+/**
+ * THE LOOKUP REGION'S NAME, which is a different mechanism from its CONTENT.
+ *
+ * The status role is `nameFrom: author` in ARIA — an element carrying it takes NO name from its own
+ * text — so without this attribute the region's accessible name is the empty string. That matters more
+ * here than on a region that is always full: this one is EMPTY until a lookup resolves, and a region
+ * named by text it does not yet have has no name at all for most of the step.
+ *
+ * ⚠ IT IS A LABEL, NOT A SECOND COPY OF THE SENTENCE, following `src/components/group/share-link-box.tsx`
+ * and for the measured reason recorded there: on the VoiceOver/Safari pairing a NAMED live region can be
+ * announced by its NAME INSTEAD OF ITS CONTENT, so a name that duplicated the sentence would read it
+ * twice and a name that paraphrased it would replace it with a worse version. Two words that say which
+ * region this is; the outcome stays the content.
+ *
+ * Hoisted to a module-level constant rather than inlined so that
+ * `tests/design/live-regions.test.tsx` can resolve it to a string and check it against the value
+ * recorded in the inventory — a name nothing can read is a name nothing can check.
+ */
+const LOOKUP_REGION_NAME = "Address lookup";
 
 /** Map a Photon GeoJSON feature to a structured suggestion, or null if it has no coordinates. */
 function toSuggestion(f: PhotonFeature, i: number): Suggestion | null {
@@ -235,19 +275,43 @@ export function AddressAutocomplete({
         </PopoverContent>
       </Popover>
 
-      {/* Accessibility (UI-SPEC): announce resolution + errors via aria-live. */}
-      <p aria-live="polite" className="text-xs">
-        {error ? (
+      {/* THE STATIC HINT, OUTSIDE ANY REGION — this is the discharge. It is present from first paint,
+          so a screen reader reads it in document order like every other hint on the step. Inside a
+          region it announced nothing useful on arrival and then a hint nobody had asked for. It is
+          rendered only while nothing has resolved, so it is never on screen beside the outcome that
+          supersedes it, and its appearance and disappearance announce nothing because it is not a
+          region and is not inside one. */}
+      {!located && error === null ? (
+        <p className="text-label text-muted-foreground">
+          Pick a suggestion so we can place you on the map.
+        </p>
+      ) : null}
+
+      {/* ONE REGION FOR ONE ACTION, holding only the RESOLVED OUTCOME. The located outcome and the
+          failure outcome are the two outcomes of a single lookup, so they share a single region — two
+          regions for one outcome is the defect, not the thoroughness.
+
+          ALWAYS MOUNTED, TEXT EMPTY UNTIL A LOOKUP RESOLVES: an element that comes and goes is a
+          different region to assistive technology each time, and its text changing in place is what
+          makes one lookup one announcement. The politeness attribute is redundant beside the role,
+          which is already implicitly polite, and is kept for the reason `slot-picker.tsx`'s gap hint
+          keeps its own — rewriting shipped, correct markup to remove a harmless attribute is churn.
+
+          The failure branch keeps the declared alarm ink it already carried; that occurrence is
+          pre-existing and is deliberately unchanged. */}
+      <p
+        role="status"
+        aria-live="polite"
+        aria-label={LOOKUP_REGION_NAME}
+        className="text-label"
+      >
+        {error !== null ? (
           <span className="text-destructive">{error}</span>
         ) : located ? (
           <span className="text-muted-foreground">
             Location set. Guests see an approximate area until you choose to show the exact address.
           </span>
-        ) : (
-          <span className="text-muted-foreground">
-            Pick a suggestion so we can place you on the map.
-          </span>
-        )}
+        ) : null}
       </p>
     </div>
   );

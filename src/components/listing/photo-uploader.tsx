@@ -60,6 +60,26 @@ import { cn } from "@/lib/utils";
 
 const MIN_PHOTOS = 3; // D-02/D-04 — minimum to publish.
 
+/**
+ * THE PHOTO-REQUIREMENT REGION'S NAME, which is a different mechanism from its CONTENT.
+ *
+ * The status role is `nameFrom: author` in ARIA — an element carrying it takes NO name from its own
+ * text — so before plan 14-14 this region's accessible name was the empty string. That is what
+ * `src/lib/design/live-regions.ts`'s rule 5 forbids, and it is why the region is declared there as
+ * `photo-uploader-requirement` rather than excluded to a later phase: an exclusion here would simply
+ * have traded one row for another and the exclusion list would not have reached zero.
+ *
+ * ⚠ IT IS A LABEL, NOT A SECOND COPY OF THE COUNT, following `src/components/group/share-link-box.tsx`:
+ * on the VoiceOver/Safari pairing a NAMED live region can be announced by its NAME INSTEAD OF ITS
+ * CONTENT. This region DOES have text of its own, which makes it the one entry in the inventory's
+ * author-named list in that shape — the full argument, what the trade costs and the second place the
+ * same count is carried are all recorded on its row in `live-regions.ts` rather than restated here.
+ *
+ * Hoisted to a module-level constant rather than inlined so the gate can resolve it to a string and
+ * check it against the value recorded in the inventory.
+ */
+const PHOTO_REQUIREMENT_REGION_NAME = "Photo requirement";
+
 /** Re-pack a photo list so positions are contiguous 0..n-1 after a client-side add/remove/reorder. */
 function repack(photos: ListingPhotoRow[]): ListingPhotoRow[] {
   return photos.map((p, i) => ({ ...p, position: i }));
@@ -223,7 +243,11 @@ export function PhotoUploader({
         </DndContext>
 
         {photos.length < MIN_PHOTOS && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p
+            role="status"
+            aria-label={PHOTO_REQUIREMENT_REGION_NAME}
+            className="text-sm text-muted-foreground"
+          >
             Add {need} more photo{need === 1 ? "" : "s"} to publish (minimum {MIN_PHOTOS}).
           </p>
         )}
