@@ -96,9 +96,15 @@ import {
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-//   • ONE OF THE 53 DECLARED ROWS IS BLOCKED and is skipped with its reason (`global-error`). A
-//     complete run therefore compares 52 baselines. The blocked SET is pinned by the first test
-//     below, so a second one joining it is a failure rather than a quieter run.
+//   • TWENTY-ONE OF THE 51 DECLARED ROWS ARE BLOCKED and are skipped with their reasons
+//     (`global-error`, plus twenty Phase-13 rows across eleven surfaces). A complete run therefore
+//     compares 30 baselines. The blocked SET is pinned by the first test below, so a surface joining
+//     it is a failure rather than a quieter run.
+//   • THE INVENTORY IS COURT ONLY (D-138). Until 23 August 2026 every surface here was shot in both
+//     themes and the diff between the two was a standing check that the surface read its tokens.
+//     `court` is now the single product theme, the 44 grove rows and 24 grove PNGs are gone, and
+//     that check survives for FOUR surfaces only, in `e2e/visual/theme-swap.spec.ts`. Nothing in
+//     THIS file compares two themes any more.
 //   • A baseline pins WHAT WAS SHOT, including a defect present on the day it was shot. Nothing here
 //     knows what a surface should look like. The surfaces chosen are ones whose correctness is
 //     separately asserted (contrast, type scale, skeleton geometry, the 320px floor).
@@ -196,12 +202,14 @@ const EXPECTED_BLOCKED = [
 ] as const;
 
 /**
- * All three UI-SPECs' totals: 27 + 26 + 42 (13-UI-SPEC's table adds to 38; the extra four are the
- * reversed state's third branch, which that table predates). Compile-checked too —
- * see `BaselineCountIsNinetyFive` in the module, which is what catches it off Linux where this file
+ * All three UI-SPECs' totals, COURT ONLY since D-138: 17 + 13 + 21 (13-UI-SPEC's table adds to 19;
+ * the extra two are the reversed state's third branch, which that table predates). It was 95 while
+ * every surface carried a second-theme row; `court` is now FitOut's single product theme and the
+ * 44 `grove` rows are gone from the inventory. No surface lost its last row. Compile-checked too —
+ * see `BaselineCountIsFiftyOne` in the module, which is what catches it off Linux where this file
  * never runs.
  */
-const EXPECTED_BASELINE_COUNT = 95;
+const EXPECTED_BASELINE_COUNT = 51;
 
 /**
  * Trap 1. Assert the surface rendered its subject before any pixel is read.
@@ -221,13 +229,14 @@ async function expectReachable(page: Page, row: BaselineRow): Promise<void> {
 }
 
 test.describe("GATE-01 — the declared baseline inventory", () => {
-  test("the inventory is the 95 rows the three UI-SPECs declare, and the blocked set is the declared one", () => {
+  test("the inventory is the 51 rows the three UI-SPECs declare, and the blocked set is the declared one", () => {
     expect(
       VISUAL_BASELINES.length,
-      "the three UI-SPECs declare 95 baselines — 27 from 11-UI-SPEC § GATE-01 and 26 from " +
-        "12-UI-SPEC § Visual Baselines. This is the runtime half of the compile gate in " +
-        "`visual-baselines.ts`; the type-level one is what catches it off Linux, where this file " +
-        "never runs.",
+      "the three UI-SPECs declare 51 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
+        "12-UI-SPEC § Visual Baselines and 21 from 13-UI-SPEC § Visual Baselines. D-138 makes " +
+        "`court` the single product theme, so the second theme's rows are no longer declared here. " +
+        "This is the runtime half of the compile gate in `visual-baselines.ts`; the type-level one " +
+        "is what catches it off Linux, where this file never runs.",
     ).toBe(EXPECTED_BASELINE_COUNT);
 
     const blocked = blockedSurfaces();
@@ -344,15 +353,18 @@ function registerDocumentBaseline(row: BaselineRow): void {
 
       await expectReachable(page, row);
 
-      // The theme really is the one this row names. Without it a seeding regression (a renamed
-      // storage key, a `forcedTheme` prop, a provider that stopped mounting) would re-shoot every
-      // grove baseline in court and nothing would notice — the pair would still differ from each
-      // other on the previous run's files and then agree forever after the next regeneration.
+      // The theme really is the one this row names, and this assertion is MORE load-bearing since
+      // D-138, not less. While every surface carried a court/grove pair, a seeding regression (a
+      // renamed storage key, a `forcedTheme` prop, a provider that stopped mounting) at least had a
+      // second theme to disagree with. Now every row names `court`, so a document that silently
+      // stopped carrying `data-theme` at all — or carries a default nobody chose — would re-shoot
+      // the entire inventory under the wrong document with NOTHING left to notice. Do not weaken,
+      // condition or delete this.
       await expect(
         page.locator("html"),
-        `the seeded theme did not reach <html>. Every "grove" baseline in this file is a claim ` +
-          "about a document that carries that attribute; without it they are court screenshots " +
-          "under grove filenames.",
+        "the seeded theme did not reach <html>. Every baseline in this file is a claim about a " +
+          "document that carries `data-theme=\"court\"`; without it they are screenshots of " +
+          "whatever theme the provider fell back to, filed under court filenames.",
       ).toHaveAttribute("data-theme", row.theme);
 
       await expect(page).toHaveScreenshot(baselineArg(row), {
@@ -369,10 +381,15 @@ function registerDocumentBaseline(row: BaselineRow): void {
         caret: "hide",
       });
     } finally {
-      // IN A `finally`, and that is the whole point. `collision-notice`'s two rows share one window
-      // that must be FREE when the page loads, so court's inserted conflict has to be gone before
-      // grove's drive runs — including when court FAILED. A cleanup that only runs on the happy path
-      // turns one real failure into a cascade of unrelated ones.
+      // IN A `finally`, and that is the whole point — INCLUDING NOW THAT `collision-notice` HAS ONE
+      // ROW RATHER THAN TWO (D-138). The old reason was that court's inserted conflict had to be gone
+      // before grove's drive loaded the same window; there is no second drive to protect any more,
+      // but the conflict row is written into the COMMITTED FIXTURE's window and outlives the test
+      // process. Left behind by a failed drive it makes that window permanently busy, so the next
+      // run — or a re-dispatch, or any other spec that reads the fixture — loads a surface whose
+      // hours are already struck through and fails for a reason that has nothing to do with it. A
+      // cleanup that only runs on the happy path turns one real failure into a cascade of
+      // unrelated ones.
       await drive.cleanup?.({ page, theme: row.theme, width: row.width, where });
     }
   });
@@ -392,10 +409,16 @@ for (const row of DOCUMENT_ROWS) {
 // …and the ones that must not overlap. `SERIAL_SURFACES` holds the argument; it is not a performance
 // setting. Registering them inside a `serial` describe is the only way Playwright expresses "these
 // share a resource", and the describe's title says so on the report where somebody will read it.
+//
+// ITS ONE ENTRY NOW HAS ONE ROW RATHER THAN TWO (D-138 dropped the grove half), and the registration
+// is deliberately unchanged: the claim was never "two rows of this surface race each other", it was
+// "this surface mutates a booking window the fixture owns". One row makes the describe a formality
+// on today's inventory and a live guard the moment a second width is declared — which is cheaper
+// than removing it and re-deriving the argument then.
 for (const surfaceId of SERIAL_SURFACES) {
   const rows = DOCUMENT_ROWS.filter((row) => row.surface === surfaceId);
   if (rows.length === 0) continue;
-  test.describe(`${surfaceId} — SERIAL (its two rows share one booking window)`, () => {
+  test.describe(`${surfaceId} — SERIAL (its rows mutate one shared booking window)`, () => {
     test.describe.configure({ mode: "serial" });
     for (const row of rows) registerDocumentBaseline(row);
   });

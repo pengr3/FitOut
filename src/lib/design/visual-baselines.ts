@@ -34,9 +34,10 @@
 // REAL credential has left GATE-01's scope, and the fix is this inventory, not a secret in the one job
 // with `contents: write`.
 //
-// ONE OF THE 53 ROWS IS STILL BLOCKED (`global-error`, for a structural reason that has nothing to do
-// with data), so a complete run commits 52 PNGs; anyone reading "53 baselines" as "53 files" is wrong
-// by exactly that one, which is why the count is stated here and pinned in `surfaces.spec.ts`.
+// TWENTY-ONE OF THE 51 ROWS ARE BLOCKED (`global-error` for a structural reason that has nothing to
+// do with data, and twenty Phase-13 rows on a credential boundary and a missing fixture), so a
+// complete run commits 30 PNGs; anyone reading "51 baselines" as "51 files" is wrong by exactly
+// those twenty-one, which is why the count is stated here and pinned in `surfaces.spec.ts`.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE COMPILE GATES, AND WHY THEY ARE HERE RATHER THAN IN A TEST
@@ -47,7 +48,7 @@
 // all of which are Windows or macOS — NOTHING would check the two counts this file's acceptance
 // rests on. A criterion checked only in an environment nobody runs is not a criterion.
 //
-// `BaselineCountIsFiftyThree` and `ThemeSwapExclusionCountIsOne` below are therefore type-level
+// `BaselineCountIsFiftyOne` and `ThemeSwapExclusionCountIsOne` below are therefore type-level
 // assertions, enforced by `npx tsc --noEmit` and by `next build`'s own type check — which runs inside
 // `npm run build`, which is CI job 1. They fail on EVERY machine, in the build, before a browser is
 // involved. Watched failing rather than assumed — three mutations, three distinct errors, recorded
@@ -751,10 +752,13 @@ export type DocumentSurfaceId = {
  */
 export const VISUAL_BASELINES = [
   // ─── /dev/theme — 3 ─────────────────────────────────────────────────────────────────────────────
-  // ONE shot per width rather than two. The page renders court and grove SIDE BY SIDE in nested
-  // `[data-theme]` panes, so both themes are already in every frame; the seeded theme paints only the
-  // header strip and the page background, which is what the theme-swap smoke reads. Shooting it twice
-  // would double the largest baselines in the set to pin the same two panes again.
+  // ONE shot per width — which is now the rule everywhere (D-138), but was this surface's own
+  // exception first, and the reason is why `/dev/theme` is NOT in the D-138 contract set. The page
+  // renders court and grove SIDE BY SIDE in nested `[data-theme]` panes, so both themes are already
+  // in every frame and the seeded theme paints only the header strip and the page background. A
+  // hard-coded colour inside a pattern component would therefore appear IDENTICALLY in both panes
+  // under either seed — the surface with the most components in the repository is the wrong
+  // instrument for the swap question, not the obvious right one.
   {
     surface: "dev-theme",
     width: 320,
@@ -786,20 +790,13 @@ export const VISUAL_BASELINES = [
       "shapes and the auth-slot fallback in one image.",
   },
 
-  // ─── /terms and /privacy — 12 ───────────────────────────────────────────────────────────────────
+  // ─── /terms and /privacy — 6 ────────────────────────────────────────────────────────────────────
   {
     surface: "terms",
     width: 320,
     height: 720,
     theme: "court",
     why: "long-form prose at the floor: the measure, the type ladder and the notice must survive 320px.",
-  },
-  {
-    surface: "terms",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "the same layout in the second brand direction — prose colour is where a token miss is most visible.",
   },
   {
     surface: "terms",
@@ -810,24 +807,10 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "terms",
-    width: 768,
-    height: 1024,
-    theme: "grove",
-    why: "second theme at the measure-constrained width.",
-  },
-  {
-    surface: "terms",
     width: 1280,
     height: 800,
     theme: "court",
     why: "the desktop reading view — the measure, the header and the footer in one frame.",
-  },
-  {
-    surface: "terms",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop; the pair is what proves the group re-skins at all.",
   },
   {
     surface: "privacy",
@@ -838,24 +821,10 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "privacy",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "second theme at the floor.",
-  },
-  {
-    surface: "privacy",
     width: 768,
     height: 1024,
     theme: "court",
     why: "the measure-constrained width.",
-  },
-  {
-    surface: "privacy",
-    width: 768,
-    height: 1024,
-    theme: "grove",
-    why: "second theme at the measure-constrained width.",
   },
   {
     surface: "privacy",
@@ -864,15 +833,8 @@ export const VISUAL_BASELINES = [
     theme: "court",
     why: "desktop reading view.",
   },
-  {
-    surface: "privacy",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop.",
-  },
 
-  // ─── root not-found — 4 ─────────────────────────────────────────────────────────────────────────
+  // ─── root not-found — 2 ─────────────────────────────────────────────────────────────────────────
   {
     surface: "root-not-found",
     width: 320,
@@ -885,24 +847,10 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "root-not-found",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "second theme at the floor.",
-  },
-  {
-    surface: "root-not-found",
     width: 1280,
     height: 800,
     theme: "court",
     why: "desktop. The 768 width is deliberately absent — the UI-SPEC asks for two widths here, and this page has no layout change between them.",
-  },
-  {
-    surface: "root-not-found",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop.",
   },
 
   // ─── global-error — 1 ───────────────────────────────────────────────────────────────────────────
@@ -918,7 +866,7 @@ export const VISUAL_BASELINES = [
       "reflows. Currently BLOCKED — see the surface's `blocked` reason.",
   },
 
-  // ─── (auth) login — 4 ───────────────────────────────────────────────────────────────────────────
+  // ─── (auth) login — 2 ───────────────────────────────────────────────────────────────────────────
   {
     surface: "auth-login",
     width: 320,
@@ -928,24 +876,10 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "auth-login",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "second theme at the floor.",
-  },
-  {
-    surface: "auth-login",
     width: 1280,
     height: 800,
     theme: "court",
     why: "desktop: the header's auth slot resolved to the anonymous cluster, which is the state every visitor first sees.",
-  },
-  {
-    surface: "auth-login",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop.",
   },
 
   // ─── the three share cards — 3 ──────────────────────────────────────────────────────────────────
@@ -985,17 +919,23 @@ export const VISUAL_BASELINES = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-  // PHASE 12 — 26 ROWS (plan 12-14). Every one reads the committed fixture; four are driven to a state.
+  // PHASE 12 — 13 ROWS (plan 12-14, halved by D-138). Every one reads the committed fixture; four
+  // are driven to a state.
   //
-  // THE PAIRS ARE THE POINT, AND THEY ONLY WORK IF THE CONTENT IS IDENTICAL. D-135's smoke is
-  // `court.png !== grove.png`, and Task 3 asks a human to confirm the pair diverged byte-wise for
-  // every surface. That assertion is VACUOUS if the two captures also differ in CONTENT — two
-  // different booking windows, two different bookers, two different days would diverge without the
-  // tokens moving a pixel. So every drive below is keyed to the SAME fixed window per surface, and the
-  // drivers serialize the rows that share one (`e2e/helpers/visual-drive.ts` § slot allocation).
+  // THIS BLOCK WAS WRITTEN AS PAIRS AND IS NO LONGER ONE. Under D-135 each surface was shot in both
+  // themes and the smoke was `court.png !== grove.png`; D-138 makes `court` the single product theme
+  // and moves that proof to a fixed four-surface contract spec, so what remains here is one theme per
+  // surface per width. The identical-content argument the pairs rested on has NOT gone away, it has
+  // moved: `e2e/visual/theme-swap.spec.ts` renders its four surfaces twice, and two captures that
+  // differ in CONTENT — two different booking windows, two different bookers, two different days —
+  // would diverge without the tokens moving a pixel. That is why the contract set is four PLAIN
+  // NAVIGATIONS with no drive and no minted row. The drives below are still keyed to the SAME fixed
+  // window per surface and the drivers still serialize the rows that share one
+  // (`e2e/helpers/visual-drive.ts` § slot allocation) — that machinery is about two runs of the same
+  // row agreeing across time, which one theme needs exactly as much as two did.
   // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
-  // ─── `/` with results — 6 ───────────────────────────────────────────────────────────────────────
+  // ─── `/` with results — 3 ───────────────────────────────────────────────────────────────────────
   {
     surface: "search-results",
     width: 320,
@@ -1004,14 +944,10 @@ export const VISUAL_BASELINES = [
     why:
       "the demand-side front door at the floor, where BFLOW-01's grid is single-column and each " +
       "tile's price line — two rate parts plus `Service fee included` — has the least room to stay " +
-      "on one line. This is the width a wrap regression reaches first.",
-  },
-  {
-    surface: "search-results",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "second theme at the floor; the tile is the most re-skinned component in the product (radius, elevation, display type all move).",
+      "on one line. This is the width a wrap regression reaches first. The tile is also the most " +
+      "re-skinned component in the product — radius, elevation and display type all move with the " +
+      "theme — which is why `search-results` is one of the four surfaces the D-138 contract set " +
+      "renders in both themes.",
   },
   {
     surface: "search-results",
@@ -1022,13 +958,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "search-results",
-    width: 768,
-    height: 1024,
-    theme: "grove",
-    why: "second theme at the two-column width.",
-  },
-  {
-    surface: "search-results",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1036,15 +965,8 @@ export const VISUAL_BASELINES = [
       "desktop: the search bar's five controls on one row, the sort control, and the full grid. The " +
       "one baseline in this phase that pins the bar's resolved layout rather than its stacked one.",
   },
-  {
-    surface: "search-results",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop.",
-  },
 
-  // ─── `/` zero-result WITH the band — 4 ──────────────────────────────────────────────────────────
+  // ─── `/` zero-result WITH the band — 2 ──────────────────────────────────────────────────────────
   // TWO WIDTHS, not three, exactly as 12-UI-SPEC's table asks. The band is a sentence plus an Undo
   // control; it has no layout change between 768 and 1280, and the grid beneath it is already pinned
   // at all three widths by `search-results`.
@@ -1060,13 +982,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "search-relax-band",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "second theme at the floor.",
-  },
-  {
-    surface: "search-relax-band",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1075,15 +990,8 @@ export const VISUAL_BASELINES = [
       "`data-relaxed`. This is the frame that shows the whole mechanism at once — what gave, what it " +
       "found, and how to undo it.",
   },
-  {
-    surface: "search-relax-band",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop.",
-  },
 
-  // ─── `/listings/[id]` — 6 ───────────────────────────────────────────────────────────────────────
+  // ─── `/listings/[id]` — 3 ───────────────────────────────────────────────────────────────────────
   {
     surface: "listing-detail",
     width: 320,
@@ -1093,13 +1001,6 @@ export const VISUAL_BASELINES = [
       "the listing at the floor: the mosaic collapses to its single-column template, the rail is " +
       "`max-lg:hidden` and the booking action is the sticky bottom bar. The whole of RESP-02's " +
       "below-`lg:` composition, in one frame.",
-  },
-  {
-    surface: "listing-detail",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "second theme at the floor.",
   },
   {
     surface: "listing-detail",
@@ -1113,13 +1014,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "listing-detail",
-    width: 768,
-    height: 1024,
-    theme: "grove",
-    why: "second theme at the mosaic's `sm:` template.",
-  },
-  {
-    surface: "listing-detail",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1128,15 +1022,8 @@ export const VISUAL_BASELINES = [
       "`<h2>` sections in their required order, the sticky rail with its own total, the availability " +
       "grid showing the seeded conflict's struck-through hours, and the map panel — all pinned at once.",
   },
-  {
-    surface: "listing-detail",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop.",
-  },
 
-  // ─── `/listings/[id]` lightbox open — 2 ─────────────────────────────────────────────────────────
+  // ─── `/listings/[id]` lightbox open — 1 ─────────────────────────────────────────────────────────
   // ONE WIDTH, and captured as the VIEWPORT rather than `fullPage` — see the spec's `captureMode`. A
   // full-page stitch of a scroll-locked document is a picture of a scrolling artefact, not of an
   // overlay anchored to the viewport.
@@ -1148,20 +1035,14 @@ export const VISUAL_BASELINES = [
     why:
       "the ONE surface in the whole inventory with a scrim, which makes it the only baseline that can " +
       "see a `--z-*` regression or a scrim opacity change at all. D-45 makes it a raw full-screen " +
-      "dialog rather than the RESP-01 pattern, so nothing else in the set pins that composition.",
-  },
-  {
-    surface: "listing-lightbox",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme, and the pair is the only standing check that the scrim and the lightbox chrome " +
-      "read the tokens — a full-screen overlay is exactly where a vendored component's own palette " +
-      "survives longest, because there is no themed page around it to look wrong against.",
+      "dialog rather than the RESP-01 pattern, so nothing else in the set pins that composition. " +
+      "Carried over from the grove row D-138 dropped, because it is the observation that made the " +
+      "pair worth shooting and it is still true of the surface: a full-screen overlay is where a " +
+      "vendored component's own palette survives longest, since there is no themed page around it " +
+      "to look wrong against. This baseline pins the scrim; it cannot prove the scrim reads a token.",
   },
 
-  // ─── `/listings/[id]` sheet open — 2 ────────────────────────────────────────────────────────────
+  // ─── `/listings/[id]` sheet open — 1 ────────────────────────────────────────────────────────────
   // 375, and ONLY 375: the sticky bar that opens the sheet is `lg:hidden`, so at 1280 there is no
   // trigger and no sheet. 812 is `e2e/mobile-booker-path.spec.ts`'s `PHONE` height, reused rather
   // than invented so the two specs describe the same device.
@@ -1175,15 +1056,8 @@ export const VISUAL_BASELINES = [
       "component the desktop rail renders, presented in the one overlay primitive, above the sticky " +
       "bar that opened it. A baseline of the rail can never show that the duplicate is the same thing.",
   },
-  {
-    surface: "listing-sheet",
-    width: 375,
-    height: 812,
-    theme: "grove",
-    why: "second theme in the sheet presentation.",
-  },
 
-  // ─── `/listings/[id]/book` — 4 ──────────────────────────────────────────────────────────────────
+  // ─── `/listings/[id]/book` — 2 ──────────────────────────────────────────────────────────────────
   // ⚠ EVERY ONE OF THESE FOUR REQUIRES THE FROZEN CLOCK. Phase 11 recorded in advance that the first
   // baselined surface rendering a clock must install one in the same change (`e2e/visual/freeze.css`'s
   // header names this phase's countdown), and a checkout baseline without one is a guaranteed flake —
@@ -1202,13 +1076,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "checkout",
-    width: 320,
-    height: 720,
-    theme: "grove",
-    why: "second theme at the floor. Money type is where grove's 34/700 display ladder is most visible.",
-  },
-  {
-    surface: "checkout",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1217,15 +1084,8 @@ export const VISUAL_BASELINES = [
       "the disclosure and the frozen quote. The only baseline in the set that pins a money surface, " +
       "and the only one that pins a rendered clock.",
   },
-  {
-    surface: "checkout",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why: "second theme at desktop.",
-  },
 
-  // ─── collision notice — 2 ───────────────────────────────────────────────────────────────────────
+  // ─── collision notice — 1 ───────────────────────────────────────────────────────────────────────
   {
     surface: "collision-notice",
     width: 1280,
@@ -1235,23 +1095,20 @@ export const VISUAL_BASELINES = [
       "STATE-07 / D-55: the window that went, named in the venue's own zone, above a refreshed picker " +
       "in which those hours are already struck through. It is baselined because the requirement is a " +
       "LOOK as much as a behaviour — the sketch's own `What it must never become` section is about " +
-      "whether this reads as a normal outcome or as a failure, and nothing but a picture can hold that.",
-  },
-  {
-    surface: "collision-notice",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. The notice is the phase's one status surface with a tone, so the pair is also the " +
-      "standing check that its tone comes from `status-tones.ts` rather than from a literal.",
+      "whether this reads as a normal outcome or as a failure, and nothing but a picture can hold " +
+      "that. Carried over from the grove row D-138 dropped: this is the phase's one status surface " +
+      "with a tone, and that tone comes from `status-tones.ts` rather than from a literal.",
   },
 
   // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-  // PHASE 13 — 42 ROWS ACROSS 12 SURFACES (plan 13-15). ELEVEN OF THE TWELVE ARE BLOCKED.
+  // PHASE 13 — 21 ROWS ACROSS 12 SURFACES (plan 13-15, halved by D-138). ELEVEN OF THE TWELVE ARE
+  // BLOCKED.
   //
-  // 13-UI-SPEC § Visual Baselines' table, row for row, at the widths and themes it names — plus the
-  // reversed state's THIRD branch, which the table predates (see `SURFACE_IDS`). The blocked rows are
+  // 13-UI-SPEC § Visual Baselines' table, row for row, at the widths it names — in `court` only,
+  // because D-138 makes court the single product theme and the table's second-theme column is gone —
+  // plus the reversed state's THIRD branch, which the table predates (see `SURFACE_IDS`). A reader
+  // comparing this block against that table will find half the rows and no theme column; that is the
+  // decision, not a transcription error. The blocked rows are
   // declared rather than omitted for this module's founding reason, and each surface's `blocked`
   // field carries which of the two blockers applies and why.
   //
@@ -1260,7 +1117,7 @@ export const VISUAL_BASELINES = [
   // and `CONFIRMATION_MOMENT_MIN_H` is `calc(100svh - header)`, so on the moment the viewport HEIGHT
   // is part of the composition rather than merely the initial scroll position of a full-page stitch.
   // A 720px capture would pin a taller moment than any phone renders.
-  // ─── booking-moment — 6 ────────────────────────────────────────────────────────────────
+  // ─── booking-moment — 3 ────────────────────────────────────────────────────────────────
   {
     surface: "booking-moment",
     width: 320,
@@ -1270,16 +1127,6 @@ export const VISUAL_BASELINES = [
       "the 320x568 floor — AC#22's own viewport, and the one the moment is most constrained at: " +
       "`CONFIRMATION_MOMENT_MIN_H` is `calc(100svh - header)`, so the height is not decoration " +
       "here, it decides the composition.",
-  },
-  {
-    surface: "booking-moment",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the 320x568 floor — AC#22's own viewport, and the one the moment is most " +
-      "constrained at: `CONFIRMATION_MOMENT_MIN_H` is `calc(100svh - header)`, so the height is " +
-      "not decoration here, it decides the composition.",
   },
   {
     surface: "booking-moment",
@@ -1296,15 +1143,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "booking-moment",
-    width: 768,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. the tablet step, where the heading takes its wider Display step and " +
-      "the single-column stack stops being the only option.",
-  },
-  {
-    surface: "booking-moment",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1312,17 +1150,7 @@ export const VISUAL_BASELINES = [
       "desktop. The before-picture of the decay: this frame and `booking-confirmed` at the same " +
       "width are the pair that shows what the moment adds and what it gives back.",
   },
-  {
-    surface: "booking-moment",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. desktop. The before-picture of the decay: this frame and " +
-      "`booking-confirmed` at the same width are the pair that shows what the moment adds and " +
-      "what it gives back.",
-  },
-  // ─── booking-confirmed — 4 ────────────────────────────────────────────────────────────────
+  // ─── booking-confirmed — 2 ────────────────────────────────────────────────────────────────
   {
     surface: "booking-confirmed",
     width: 320,
@@ -1335,31 +1163,13 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "booking-confirmed",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the floor. The after-picture, and the frame that catches the moment " +
-      "failing to decay — a confirmed detail that still carried the moment's chrome would be " +
-      "visible here as a diff against nothing else changing.",
-  },
-  {
-    surface: "booking-confirmed",
     width: 1280,
     height: 800,
     theme: "court",
     why:
       "desktop, paired with the moment's own 1280 frame.",
   },
-  {
-    surface: "booking-confirmed",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. desktop, paired with the moment's own 1280 frame.",
-  },
-  // ─── payment-pending — 2 ────────────────────────────────────────────────────────────────
+  // ─── payment-pending — 1 ────────────────────────────────────────────────────────────────
   {
     surface: "payment-pending",
     width: 1280,
@@ -1370,17 +1180,7 @@ export const VISUAL_BASELINES = [
       "own, and the reason it is baselined at all is D-71 — no error-shaped affordance at ANY " +
       "threshold, which is a thing a picture can hold and a predicate cannot.",
   },
-  {
-    surface: "payment-pending",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. one width only: the surface is a settling interstitial with no responsive " +
-      "claim of its own, and the reason it is baselined at all is D-71 — no error-shaped " +
-      "affordance at ANY threshold, which is a thing a picture can hold and a predicate cannot.",
-  },
-  // ─── payment-not-completed — 4 ────────────────────────────────────────────────────────────────
+  // ─── payment-not-completed — 2 ────────────────────────────────────────────────────────────────
   {
     surface: "payment-not-completed",
     width: 320,
@@ -1388,15 +1188,6 @@ export const VISUAL_BASELINES = [
     theme: "court",
     why:
       "the floor, where the retry action and the hold display share a 288px column.",
-  },
-  {
-    surface: "payment-not-completed",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the floor, where the retry action and the hold display share a 288px " +
-      "column.",
   },
   {
     surface: "payment-not-completed",
@@ -1409,16 +1200,7 @@ export const VISUAL_BASELINES = [
       "takes its wider column, the group page's share row goes inline, and the invite card stops " +
       "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
   },
-  {
-    surface: "payment-not-completed",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
-      "what the D-135 smoke reads when this surface is unblocked.",
-  },
-  // ─── payment-reversed-auto — 2 ────────────────────────────────────────────────────────────────
+  // ─── payment-reversed-auto — 1 ────────────────────────────────────────────────────────────────
   {
     surface: "payment-reversed-auto",
     width: 1280,
@@ -1429,17 +1211,7 @@ export const VISUAL_BASELINES = [
       "a verified window), and the layout is the manual branch's, which is baselined at both " +
       "widths.",
   },
-  {
-    surface: "payment-reversed-auto",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. one width: the automatic branch's claim is its COPY (a refund was issued, " +
-      "on a rail with a verified window), and the layout is the manual branch's, which is " +
-      "baselined at both widths.",
-  },
-  // ─── payment-reversed-manual — 4 ────────────────────────────────────────────────────────────────
+  // ─── payment-reversed-manual — 2 ────────────────────────────────────────────────────────────────
   {
     surface: "payment-reversed-manual",
     width: 320,
@@ -1451,31 +1223,13 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "payment-reversed-manual",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the phase's sharpest frame — 13-UI-SPEC names this exact capture as where " +
-      "the support control's above-the-fold claim is proved.",
-  },
-  {
-    surface: "payment-reversed-manual",
     width: 1280,
     height: 800,
     theme: "court",
     why:
       "desktop, so the pair shows that the layout does not reshuffle between branches.",
   },
-  {
-    surface: "payment-reversed-manual",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. desktop, so the pair shows that the layout does not reshuffle between " +
-      "branches.",
-  },
-  // ─── payment-reversed-indeterminate — 4 ────────────────────────────────────────────────────────────────
+  // ─── payment-reversed-indeterminate — 2 ────────────────────────────────────────────────────────────────
   {
     surface: "payment-reversed-indeterminate",
     width: 320,
@@ -1488,16 +1242,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "payment-reversed-indeterminate",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the floor. This is the branch a seeded row and a CI run actually render, " +
-      "and 320x568 is where its money panel was measured at 570.94px in grove before plan " +
-      "13-15's fix — the frame most worth pinning in the whole block.",
-  },
-  {
-    surface: "payment-reversed-indeterminate",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1507,16 +1251,7 @@ export const VISUAL_BASELINES = [
       "takes its wider column, the group page's share row goes inline, and the invite card stops " +
       "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
   },
-  {
-    surface: "payment-reversed-indeterminate",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
-      "what the D-135 smoke reads when this surface is unblocked.",
-  },
-  // ─── receipt-screen — 4 ────────────────────────────────────────────────────────────────
+  // ─── receipt-screen — 2 ────────────────────────────────────────────────────────────────
   {
     surface: "receipt-screen",
     width: 320,
@@ -1528,15 +1263,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "receipt-screen",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the floor. A receipt is a table of figures in a 288px column, which is " +
-      "where a money surface wraps badly first.",
-  },
-  {
-    surface: "receipt-screen",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1544,37 +1270,20 @@ export const VISUAL_BASELINES = [
       "desktop, and the control frame for the print capture below: the two differ only by " +
       "media, so a diff between them is the print contract itself.",
   },
-  {
-    surface: "receipt-screen",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. desktop, and the control frame for the print capture below: the two differ " +
-      "only by media, so a diff between them is the print contract itself.",
-  },
-  // ─── receipt-print — 2 ────────────────────────────────────────────────────────────────
+  // ─── receipt-print — 1 ────────────────────────────────────────────────────────────────
   {
     surface: "receipt-print",
     width: 1280,
     height: 800,
     theme: "court",
     why:
-      "print media via `emulateMedia`. The theme-swap smoke still applies (D-135): the two " +
-      "themes differ by type scale and radius even with every fill dropped, which is the " +
-      "property the print contract is built on.",
+      "print media via `emulateMedia`. Print is where a fill-based theme signal disappears and " +
+      "only type scale and radius are left to carry it, which is the property the print contract " +
+      "is built on. This surface is NOT in the D-138 contract set — under D-135 the swap smoke " +
+      "compared every document surface and therefore this one; it now compares a fixed four, and " +
+      "print is not among them.",
   },
-  {
-    surface: "receipt-print",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. print media via `emulateMedia`. The theme-swap smoke still applies " +
-      "(D-135): the two themes differ by type scale and radius even with every fill dropped, " +
-      "which is the property the print contract is built on.",
-  },
-  // ─── booking-group — 4 ────────────────────────────────────────────────────────────────
+  // ─── booking-group — 2 ────────────────────────────────────────────────────────────────
   {
     surface: "booking-group",
     width: 320,
@@ -1582,14 +1291,6 @@ export const VISUAL_BASELINES = [
     theme: "court",
     why:
       "the floor, where the share field, its copy control and the roster stack.",
-  },
-  {
-    surface: "booking-group",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the floor, where the share field, its copy control and the roster stack.",
   },
   {
     surface: "booking-group",
@@ -1602,16 +1303,7 @@ export const VISUAL_BASELINES = [
       "takes its wider column, the group page's share row goes inline, and the invite card stops " +
       "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
   },
-  {
-    surface: "booking-group",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
-      "what the D-135 smoke reads when this surface is unblocked.",
-  },
-  // ─── invite-active — 4 ────────────────────────────────────────────────────────────────
+  // ─── invite-active — 2 ────────────────────────────────────────────────────────────────
   {
     surface: "invite-active",
     width: 320,
@@ -1623,15 +1315,6 @@ export const VISUAL_BASELINES = [
   },
   {
     surface: "invite-active",
-    width: 320,
-    height: 568,
-    theme: "grove",
-    why:
-      "second theme. the floor. The app's most-shared public surface, and the one whose two " +
-      "controls shipped as 22px pointer targets until plan 13-15 measured them.",
-  },
-  {
-    surface: "invite-active",
     width: 1280,
     height: 800,
     theme: "court",
@@ -1641,16 +1324,7 @@ export const VISUAL_BASELINES = [
       "takes its wider column, the group page's share row goes inline, and the invite card stops " +
       "stacking. The 320 row is where they are constrained; this one is where they are laid out.",
   },
-  {
-    surface: "invite-active",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme, desktop. Same pairing argument as the court row above; the two together are " +
-      "what the D-135 smoke reads when this surface is unblocked.",
-  },
-  // ─── booking-not-found — 2 ────────────────────────────────────────────────────────────────
+  // ─── booking-not-found — 1 ────────────────────────────────────────────────────────────────
   {
     surface: "booking-not-found",
     width: 1280,
@@ -1660,16 +1334,6 @@ export const VISUAL_BASELINES = [
       "one width, and the ONLY Phase-13 row that is shot today: it renders no booking, no " +
       "money, no date and no identity, so it is the one surface in this block a per-run seed " +
       "cannot destabilise.",
-  },
-  {
-    surface: "booking-not-found",
-    width: 1280,
-    height: 800,
-    theme: "grove",
-    why:
-      "second theme. one width, and the ONLY Phase-13 row that is shot today: it renders no " +
-      "booking, no money, no date and no identity, so it is the one surface in this block a " +
-      "per-run seed cannot destabilise.",
   },
 ] as const satisfies readonly BaselineRow[];
 
@@ -1747,30 +1411,40 @@ type Assert<T extends true> = T;
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /**
- * The three UI-SPECs' totals, as a type.
+ * The three UI-SPECs' totals, as a type — COURT ONLY, since D-138.
  *
- *   11-UI-SPEC § GATE-01 (plan 11-22)          3 + 12 + 4 + 1 + 4 + 3          = 27
- *   12-UI-SPEC § Visual Baselines (12-14)      6 + 4 + 6 + 2 + 2 + 4 + 2       = 26
- *   13-UI-SPEC § Visual Baselines (13-15)      6 + 4 + 2 + 4 + 2 + 4 + 4
- *                                              + 4 + 2 + 4 + 4 + 2             = 42
- *                                                                        TOTAL = 95
+ *   11-UI-SPEC § GATE-01 (plan 11-22)          3 + 6 + 2 + 1 + 2 + 3           = 17
+ *   12-UI-SPEC § Visual Baselines (12-14)      3 + 2 + 3 + 1 + 1 + 2 + 1       = 13
+ *   13-UI-SPEC § Visual Baselines (13-15)      3 + 2 + 1 + 2 + 1 + 2 + 2
+ *                                              + 2 + 1 + 2 + 2 + 1             = 21
+ *                                                                        TOTAL = 51
  *
- * THE PHASE-13 SUBTOTAL IS 42 AGAINST A TABLE THAT ADDS TO 38, AND THE FOUR ARE THE REVERSED STATE'S
+ * ⚠ THIS NUMBER WAS 95 AND IS NOW 51 BECAUSE OF D-138, NOT BECAUSE 44 BASELINES WERE LOST. `court`
+ * (coral) is FitOut's SINGLE product theme and `grove` is demoted to a token-contract PROBE, so the
+ * second theme's 44 rows are gone from this inventory and 24 grove PNGs were deleted from
+ * `surfaces.spec.ts-snapshots/`. NO SURFACE LOST ITS LAST ROW — every one of the 28 is still
+ * baselined, at every width it was baselined at. What grove still proves it proves in three cheap
+ * places instead: `tests/design/theme-tokens.test.ts` (24-name key-set parity),
+ * `contrast-pairs.ts` + `tests/design/contrast.test.ts` (both themes' declared pairs), and
+ * `e2e/visual/theme-swap.spec.ts`, which renders a FIXED FOUR surfaces in both themes and requires
+ * the frames to differ. The reason is stated at the number so a reader meeting a 51 that used to be
+ * a 95 finds it here rather than in a commit message.
+ *
+ * THE PHASE-13 SUBTOTAL IS 21 AGAINST A TABLE THAT ADDS TO 19, AND THE TWO ARE THE REVERSED STATE'S
  * THIRD BRANCH. 13-UI-SPEC's table was written before plan 13-10 added D-96's `indeterminate` arm —
  * the one a probe that learns nothing lands on, which is every environment GATE-01 can produce. Its
- * four rows carry the widths the table gave the manual branch, because it is the branch that renders.
+ * two rows carry the widths the table gave the manual branch, because it is the branch that renders.
  * See `SURFACE_IDS` for the argument and each surface's `blocked` field for what stands in the way.
  *
- * ⚠ ELEVEN OF THE TWELVE PHASE-13 SURFACES ARE BLOCKED, SO 40 OF THESE 42 ROWS SHOOT NOTHING TODAY.
- * That is stated here as well as at the rows because a reader who takes 95 for a file count will be
- * wrong by 41 (the 40 plus `global-error`), which is a much bigger error than the one this note used
- * to warn about. A complete run commits 54 PNGs.
+ * ⚠ ELEVEN OF THE TWELVE PHASE-13 SURFACES ARE BLOCKED, SO 20 OF THESE 21 ROWS SHOOT NOTHING TODAY.
+ * That is stated here as well as at the rows because a reader who takes 51 for a file count will be
+ * wrong by 21 (the 20 plus `global-error`). A complete run commits 30 PNGs.
  *
  * THE NAME CARRIES THE NUMBER ON PURPOSE, AND IT IS RENAMED IN THE SAME COMMIT AS THE ROWS. The alias
- * was `BaselineCountIsTwentySeven`, then `BaselineCountIsFiftyThree`. A gate whose name says 53 while
- * its constraint says 95 is a gate that reads correct and is not, and this file's whole argument is
- * that a count nobody restates is a count nobody checks. `tsc` cannot catch a stale NAME, which is
- * exactly why it has to move by hand.
+ * was `BaselineCountIsTwentySeven`, then `BaselineCountIsFiftyThree`, then `BaselineCountIsNinetyFive`.
+ * A gate whose name says 95 while its constraint says 51 is a gate that reads correct and is not, and
+ * this file's whole argument is that a count nobody restates is a count nobody checks. `tsc` cannot
+ * catch a stale NAME, which is exactly why it has to move by hand.
  *
  * OBSERVED RED — 21 August 2026, plan 13-15, UNFORCED: inserting the 42 rows with the alias still
  * reading 53 produced exactly one error, `npx tsc --noEmit` exit 2:
@@ -1781,8 +1455,8 @@ type Assert<T extends true> = T;
  * — the same shape probe (a) recorded in 2026, arriving on its own rather than being staged. Renaming
  * to 95 in this same commit returned it to exit 0.
  */
-export type BaselineCountIsNinetyFive = Assert<
-  (typeof VISUAL_BASELINES)["length"] extends 95 ? true : false
+export type BaselineCountIsFiftyOne = Assert<
+  (typeof VISUAL_BASELINES)["length"] extends 51 ? true : false
 >;
 
 /** D-135 / AC#30: exactly one exclusion. Probe (b) above. */
@@ -1835,11 +1509,18 @@ export function blockedSurfaces(): readonly { id: SurfaceId; reason: string }[] 
 //   • THIS IS A DECLARATION. It proves nothing about what is on disk. `e2e/visual/surfaces.spec.ts`
 //     is what turns a row into a comparison, and `tests/design/gitignore-baselines.test.ts` is what
 //     stops a platform baseline being committed. Neither of them notices a row nobody reads.
-//   • FORTY-ONE OF THE 95 ARE BLOCKED, so a complete run commits 54 PNGs, not 95. One is structural
-//     (`global-error`); forty are Phase 13's and are blocked on a credential boundary and a missing
-//     committed fixture, both argued at the rows. Anyone reading "95 baselines" as "95 files" will
-//     be wrong by forty-one. THE PHASE-13 BLOCK IS THE LARGEST DECLARED GAP IN THIS FILE'S HISTORY
+//   • TWENTY-ONE OF THE 51 ARE BLOCKED, so a complete run commits 30 PNGs, not 51. One is structural
+//     (`global-error`); twenty are Phase 13's and are blocked on a credential boundary and a missing
+//     committed fixture, both argued at the rows. Anyone reading "51 baselines" as "51 files" will
+//     be wrong by twenty-one. THE PHASE-13 BLOCK IS THE LARGEST DECLARED GAP IN THIS FILE'S HISTORY
 //     and is deliberately visible rather than deferred to a plan nobody reads.
+//   • THE SECOND THEME IS NO LONGER BASELINED AT ALL (D-138). Until 23 August 2026 every surface
+//     here carried a `grove` row beside its `court` one, and the diff between the two was a standing
+//     check that the surface read the tokens. That check now exists for FOUR surfaces only, in
+//     `e2e/visual/theme-swap.spec.ts`, and for no other. A hard-coded colour on a surface outside
+//     that four is caught by the DS-13 leak gate if it is inside the scanned tree and by nothing at
+//     all if it is not — which is the cost D-138 accepted, stated here rather than left to be
+//     discovered.
 //   • THE COUNTS ARE COMPILE-CHECKED; THE CONTENTS ARE NOT. Nothing here can tell a correct width
 //     from a plausible one, and a row whose `why` is true but whose `width` is wrong compiles.
 //   • ⚠ THE FIXTURE HAS A SHELF LIFE, AND SO THEREFORE DO SEVEN OF THESE SURFACES. Every Phase-12

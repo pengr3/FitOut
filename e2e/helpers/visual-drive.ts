@@ -914,10 +914,13 @@ export function newDrive(
 /**
  * The surfaces whose rows must run SEQUENTIALLY, in one worker.
  *
- * ONE ENTRY, AND IT IS NOT A PERFORMANCE CHOICE. `collision-notice`'s two rows share one window that
- * must be free at load and full at click, so court's conflict has to be gone before grove's drive
- * loads. Run in parallel they would delete each other's conflict mid-flight and the failure would look
- * like an intermittent product defect. Everything else in the inventory is parallel-safe by
+ * ONE ENTRY, AND IT IS NOT A PERFORMANCE CHOICE. `collision-notice` needs one window that must be
+ * free at load and full at click, and its drive MUTATES that window — so two rows of it running in
+ * parallel would delete each other's conflict mid-flight and the failure would look like an
+ * intermittent product defect. It has one row rather than two since D-138 dropped the second theme,
+ * which makes the describe a formality on today's inventory; the entry stays because the claim was
+ * never "these two rows race", it was "this surface mutates a window the fixture owns", and that is
+ * true of one row and of any width added later. Everything else in the inventory is parallel-safe by
  * construction — see the slot-allocation table.
  */
 export const SERIAL_SURFACES: readonly SurfaceId[] = ["collision-notice"];
