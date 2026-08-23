@@ -45,10 +45,11 @@
 //
 // The specs that read this file live in the `visual` Playwright project, and `playwright.config.ts`
 // does not construct that project off Linux (D-29). So on every developer machine in this project —
-// all of which are Windows or macOS — NOTHING would check the two counts this file's acceptance
+// all of which are Windows or macOS — NOTHING would check the three counts this file's acceptance
 // rests on. A criterion checked only in an environment nobody runs is not a criterion.
 //
-// `BaselineCountIsFiftyOne` and `ThemeSwapExclusionCountIsOne` below are therefore type-level
+// `BaselineCountIsFiftyOne`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
+// below are therefore type-level
 // assertions, enforced by `npx tsc --noEmit` and by `next build`'s own type check — which runs inside
 // `npm run build`, which is CI job 1. They fail on EVERY machine, in the build, before a browser is
 // involved. Watched failing rather than assumed — three mutations, three distinct errors, recorded
@@ -1342,17 +1343,30 @@ export const VISUAL_BASELINES = [
 // ---------------------------------------------------------------------------
 
 /**
- * D-135's smoke: for every baselined DOCUMENT surface, `court.png !== grove.png` byte-wise, because
- * two identical two-theme screenshots mean that surface ignored the tokens.
+ * ⚠ THIS IS NO LONGER THE MEMBERSHIP MECHANISM, AND SAYING SO IS THE POINT OF THIS PARAGRAPH.
  *
- * EXACTLY ONE exclusion, and it is carried here as data with its argument rather than as a baseline
- * that is quietly absent — `contrast-pairs.ts`'s `EXCLUDED_PAIRS` idiom, for the same reason: an
- * inventory that silently omits a failing case is the exact shape of the defect the gate exists to
- * remove. A zero that is asserted is a contract; a zero that is merely true is an invitation.
+ * Under D-135 the compared set was DERIVED — every document surface MINUS these — so an entry here
+ * was the only way to keep a surface out, and this list decided what the smoke looked at. Under
+ * D-138 the compared set is an explicit allow-list of four (`THEME_SWAP_SURFACES` below), so
+ * twenty-three document surfaces are outside the smoke without appearing here at all. Leaving the
+ * old claim standing would be the stale-reason failure this repository keeps recording.
  *
- * A SECOND ENTRY MUST BE ARGUED FOR, NOT APPENDED. `ThemeSwapExclusionCountIsOne` below makes adding
- * one a compile error on every machine, so the argument has to be made in the same change that
- * bumps the number — which is the only moment anybody will ever read it.
+ * WHAT IT IS NOW, and both halves are worth keeping:
+ *
+ *   1. THE RECORDED ARGUMENT. `global-error` renders its own document and receives no global styles,
+ *      so an app-level `data-theme` never reaches it and an identical court/grove pair is CORRECT
+ *      there. That was true when it was written and it is true now. Deleting an argument is not the
+ *      same as it becoming false, and a reader who later asks "why isn't `global-error` in the
+ *      contract set?" should meet the answer rather than a silence — `contrast-pairs.ts`'s
+ *      `EXCLUDED_PAIRS` idiom, for the same reason.
+ *   2. BELT AND BRACES. `theme-swap.spec.ts` asserts at runtime that no entry here appears in the
+ *      compared set. That assertion is trivially satisfied today because the four are written out by
+ *      hand — which is exactly when a guard is cheap and worth keeping, rather than a reason to drop
+ *      it.
+ *
+ * A SECOND ENTRY MUST STILL BE ARGUED FOR, NOT APPENDED. `ThemeSwapExclusionCountIsOne` below makes
+ * adding one a compile error on every machine, so the argument has to be made in the same change
+ * that bumps the number — which is the only moment anybody will ever read it.
  */
 export const THEME_SWAP_EXCLUSIONS = [
   {
@@ -1367,7 +1381,7 @@ export const THEME_SWAP_EXCLUSIONS = [
 ] as const satisfies readonly ThemeSwapExclusion[];
 
 // ---------------------------------------------------------------------------
-// Compile gates — the two counts, checked on every machine by tsc and by `next build`
+// Compile gates — the three counts, checked on every machine by tsc and by `next build`
 // ---------------------------------------------------------------------------
 
 /** `T` must be exactly `true`; anything else is a compile error at the alias that uses it. */
@@ -1464,6 +1478,42 @@ export type ThemeSwapExclusionCountIsOne = Assert<
   (typeof THEME_SWAP_EXCLUSIONS)["length"] extends 1 ? true : false
 >;
 
+/**
+ * D-138: the token-contract set is a FIXED FOUR, and this is the half of that claim that runs on a
+ * developer machine.
+ *
+ * `theme-swap.spec.ts` pins the same number and the same members at runtime, and those pins are the
+ * ones with the good failure messages — but they live in the `visual` Playwright project, which
+ * `playwright.config.ts` does not construct off Linux, so on every machine in this project they
+ * never execute. The same argument the two aliases above rest on, for a set whose whole purpose is
+ * to stop growing: a count checked only where nobody runs it is not a count.
+ *
+ * This fires on `THEME_SWAP_SURFACES` above, which is why that list is `as const satisfies` rather
+ * than annotated — an annotation widens `.length` to `number` and `4 extends number` is not what
+ * this asks, so the alias would compile forever and check nothing.
+ *
+ * OBSERVED RED — 23 August 2026, quick task 260823-frp, FORCED. A fifth id appended to
+ * `THEME_SWAP_SURFACES`: `privacy`, which is the PLAUSIBLE version of the mistake rather than a
+ * nonsense one — a real document surface, unblocked, that genuinely re-skins, and one that was in
+ * the derived set until this change. Command `npx tsc --noEmit`, EXIT=2, and the whole of stdout was
+ * one line:
+ *
+ *   src/lib/design/visual-baselines.ts(1514,3): error TS2344: Type 'false' does not satisfy the
+ *   constraint 'true'.
+ *
+ * RESTORED (fifth id removed) → `npx tsc --noEmit` exit 0.
+ *
+ * Note what it did NOT do, which is this gate's honest weakness and the same one probes (a) and (b)
+ * above record: the error names the ALIAS's own line, not the id that was appended. That is why the
+ * membership argument is spelled out in prose at `THEME_SWAP_SURFACES` rather than left implicit in
+ * the literal `4`, and why `theme-swap.spec.ts` pins the MEMBERS as well as the count. Recorded
+ * verbatim because a type-level gate is the easiest kind to write in a shape that can never fail,
+ * and this file already carries three OBSERVED RED entries saying so.
+ */
+export type ThemeContractSurfaceCountIsFour = Assert<
+  (typeof THEME_SWAP_SURFACES)["length"] extends 4 ? true : false
+>;
+
 // ---------------------------------------------------------------------------
 // Derivations the specs read
 // ---------------------------------------------------------------------------
@@ -1481,12 +1531,52 @@ export function baselineArg(row: BaselineRow): string {
   return `${row.surface}-${row.width}-${row.theme}.png`;
 }
 
-/** Every surface the D-135 smoke compares: documents, minus the declared exclusions. */
-export const THEME_SWAP_SURFACES: readonly DocumentSurfaceId[] = SURFACE_IDS.filter(
-  (id): id is DocumentSurfaceId =>
-    VISUAL_SURFACES[id].kind === "document" &&
-    !THEME_SWAP_EXCLUSIONS.some((exclusion) => exclusion.surface === id),
-);
+/**
+ * THE TOKEN-CONTRACT SET — the four surfaces `e2e/visual/theme-swap.spec.ts` renders in BOTH themes
+ * and requires to differ byte-wise. An ALLOW-LIST since D-138, and it is fixed.
+ *
+ * IT USED TO BE DERIVED — documents minus exclusions — and that is precisely the property D-138
+ * removed. A derived set grows with the inventory: it was 5, then 12, then 24, and each growth
+ * re-charged every future phase for a proof a fixed sample already gives. The four below are chosen
+ * to move all four token families between them, and A FIFTH IS NOT A ROW TO APPEND. It is a claim
+ * that these four cannot reach a token family, which amends D-138 and is argued in prose.
+ *
+ *   `search-results`   colour (badges, price, brand chrome), type scale (title + price), radius
+ *                      (cards, badges), elevation (the result grid). The result tile is the most
+ *                      re-skinned component in the product.
+ *   `auth-login`       colour (brand button + link), type scale (heading, labels), radius (inputs,
+ *                      buttons), elevation (the auth card, the header).
+ *   `terms`            the long-form type ladder — the widest type range on any surface — plus the
+ *                      legal notice panel's radius, elevation and tone.
+ *   `root-not-found`   the empty/error tone family, the brand link and the chrome: the state
+ *                      patterns no other surface in this set renders.
+ *
+ * ALL FOUR ARE PLAIN NAVIGATIONS. No drive, no interaction, no minted database row, no fixture date.
+ * That is a membership rule, not a coincidence: the smoke renders each surface TWICE, so a surface
+ * whose two passes could claim different content (a different booking window, a different booker, a
+ * different day) can pass this gate on a content difference with the tokens untouched.
+ *
+ * WHY NOT THE OBVIOUS CANDIDATES:
+ *   • `/dev/theme` — the surface with the most components, and the WRONG instrument. It renders court
+ *     and grove side by side in nested `[data-theme]` panes regardless of what is seeded, so the
+ *     seeded theme paints only the header strip and the page background. A hard-coded colour inside
+ *     a pattern component would appear IDENTICALLY in both panes and this probe would never see it.
+ *   • `listing-detail` / `listing-lightbox` / `listing-sheet` — their URLs embed the fixture's
+ *     `2026-09-16` collision day, which the NOT COVERED section below records as having a shelf
+ *     life. A permanent fixed set must not carry a dated time bomb.
+ *   • `checkout` / `collision-notice` — they mint database rows, and the probe runs each surface
+ *     twice.
+ *
+ * `as const satisfies` AND NOT AN ANNOTATION. A `: readonly DocumentSurfaceId[]` annotation widens
+ * `.length` to `number` and `ThemeContractSurfaceCountIsFour` silently stops working; the `satisfies`
+ * clause is what keeps an image id from compiling.
+ */
+export const THEME_SWAP_SURFACES = [
+  "search-results",
+  "auth-login",
+  "terms",
+  "root-not-found",
+] as const satisfies readonly DocumentSurfaceId[];
 
 /**
  * Every surface that cannot currently be shot, with its reason. ONE today, argued above.

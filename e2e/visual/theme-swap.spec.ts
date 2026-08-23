@@ -11,9 +11,30 @@ import {
   type DocumentSurfaceId,
 } from "../../src/lib/design/visual-baselines";
 
-// D-135 / AC#30 — the theme-swap smoke. For every baselined DOCUMENT surface, `court.png` and
-// `grove.png` must differ BYTE-WISE, because two identical two-theme screenshots mean that surface
-// ignored the tokens.
+// D-135 / AC#30, scoped by D-138 — the theme-swap smoke, and since 23 August 2026 THE token
+// contract. For each of FOUR fixed surfaces, `court.png` and `grove.png` must differ BYTE-WISE,
+// because two identical two-theme screenshots mean that surface ignored the tokens.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE SET IS DELIBERATELY FIXED AT FOUR, AND THIS FILE IS THE WHOLE OF WHAT SURVIVED
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-138 makes `court` (coral) FitOut's SINGLE product theme and demotes `grove` from a candidate
+// brand direction to a TOKEN-CONTRACT PROBE: it is never shippable, is never presented as a brand
+// option, and exists only so that a hard-coded colour fails a test. What that costs is now three
+// cheap things — `tests/design/theme-tokens.test.ts` (24-name key-set parity),
+// `contrast-pairs.ts` + `tests/design/contrast.test.ts` (both themes' declared pairs), and THIS
+// FILE, which renders four representative surfaces in both themes and requires the frames to differ.
+//
+// The set does NOT grow per phase. It was derived until now (documents minus exclusions) and it grew
+// 5 → 12 → 24 as the inventory grew, which is exactly the recurring tax D-138 ended. A FIFTH SURFACE
+// IS NOT A ROW TO APPEND: it is a claim that these four cannot reach a token family, which is an
+// amendment to D-138 and is argued in prose. The four and the argument for each live in
+// `THEME_SWAP_SURFACES` in `src/lib/design/visual-baselines.ts`.
+//
+// This file also costs nothing per UI change: it takes NO STORED BASELINE (see below), so unlike
+// `surfaces.spec.ts` it does not have to be re-shot when a surface legitimately changes. That is
+// what made it the half worth keeping.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WHAT THIS CATCHES THAT NO OTHER GATE IN THE REPOSITORY DOES
@@ -62,9 +83,16 @@ import {
 // no global styles, so an app-level `data-theme` attribute never reaches it and an identical
 // court/grove pair is CORRECT there. Carried as data with its reason in
 // `src/lib/design/visual-baselines.ts`, in `contrast-pairs.ts`'s `EXCLUDED_PAIRS` idiom. It is also
-// currently BLOCKED for a second and independent reason — nothing in this repository can render a
-// root-layout failure — so it is skipped here twice over, which is stated rather than left to be
-// discovered.
+// BLOCKED for a second and independent reason — nothing in this repository can render a root-layout
+// failure.
+//
+// ⚠ IT IS NO LONGER WHAT KEEPS `global-error` OUT, and that matters to how you read the list. Under
+// D-135 membership was documents-MINUS-exclusions, so this entry was load-bearing; under D-138 the
+// compared set is an allow-list of four and `global-error` is simply not in it, along with
+// twenty-two other document surfaces that carry no exclusion entry at all. The entry survives as the
+// recorded ARGUMENT (deleting an argument is not the same as it becoming false) and as a
+// belt-and-braces guarantee, asserted below, that nothing excluded is in the compared set — a check
+// that is trivially satisfied today precisely because the four are written out by hand.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // AND THE INHERITED TRAP — STALE CSS FROM A REUSED DEV SERVER
@@ -88,24 +116,39 @@ import {
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //   • "The bytes differ" is the WEAKEST possible statement of "this surface honours the tokens". One
 //     changed pixel satisfies it. A surface whose body re-skins but whose cards do not would pass.
-//     The strong version is the committed baseline pair in `surfaces.spec.ts`, which a human read
-//     once; this is the cheap standing check that the pair is still two different things.
-//   • ONE WIDTH PER SURFACE, and it is 1280 for all but one. A surface that re-skins at desktop
-//     and not at the 320px floor passes here. `listing-sheet` is compared at 375 instead, because
-//     the sticky bar that opens the sheet is `lg:hidden` — at 1280 there is no trigger, no overlay
-//     and nothing to compare, so a 1280 capture would silently compare the page BEHIND a sheet that
-//     cannot exist and would report two different frames while proving nothing about the sheet.
+//     ⚠ AND THERE IS NO LONGER A STRONG VERSION BEHIND IT. Until D-138 this bullet pointed at the
+//     committed court/grove baseline PAIR in `surfaces.spec.ts` that a human had read once, and
+//     called this the cheap standing check that the pair was still two different things. That pair
+//     no longer exists — the inventory is court only — so this weak statement is now the whole of
+//     the automated claim. The four surfaces were chosen to make it as strong as one pixel can be:
+//     between them they move colour, type scale, radius and elevation.
+//   • ONE WIDTH PER SURFACE, and it is 1280 for all four. A surface that re-skins at desktop and not
+//     at the 320px floor passes here. `swapWidthFor` still carries a 375 branch for `listing-sheet`
+//     (whose trigger is `lg:hidden`, so a 1280 capture would compare the page BEHIND a sheet that
+//     cannot exist); that surface is not in D-138's four, so the branch is currently unreached. It
+//     is kept because it is generic and correct, not because it runs.
 //   • It says nothing about the three OG cards or about `global-error`, by construction — see above.
 //   • It cannot distinguish "ignores the tokens" from "renders nothing at all"; the reachability
 //     hook is what rejects the second, and it runs first.
-//   • ⚠ AND AS OF PLAN 12-14 IT CANNOT DISTINGUISH "IGNORES THE TOKENS" FROM "TWO DIFFERENT
-//     PAGES", which is a new way to pass vacuously. Four of the twelve compared surfaces are STATES
-//     driven through `e2e/helpers/visual-drive.ts`, and two of those mint database rows: a checkout
-//     hold and a collision conflict. If the court pass and the grove pass ever claimed DIFFERENT
-//     booking windows, the two buffers would differ because the CONTENT differs and this smoke would
-//     be green with the tokens untouched. What closes it is not an assertion here — it is the drive
-//     helper's slot-allocation table, which hands both passes of one surface the SAME fixed window.
-//     That is also why this file may not "fix" a red by giving a pass its own window.
+//   • THE "TWO DIFFERENT PAGES" VACUITY IS GONE, AND THAT IS SAID HERE RATHER THAN DELETED. Plan
+//     12-14 added a warning to this list: four of the then-twelve compared surfaces were STATES
+//     driven through `e2e/helpers/visual-drive.ts` and two of those minted database rows (a checkout
+//     hold, a collision conflict), so if the court pass and the grove pass ever claimed DIFFERENT
+//     booking windows the buffers would differ on CONTENT and this smoke would be green with the
+//     tokens untouched. D-138's four are ALL PLAIN NAVIGATIONS — no drive, no interaction, no minted
+//     row, no fixture date — which is a membership rule rather than a coincidence, and it removes
+//     that failure mode instead of guarding it. The slot-allocation table that used to close it is
+//     still correct and still binds this file's `"swap"` lane; it simply has nothing left to do here.
+//   • THE CAVEAT THAT REPLACES IT: `search-results` DEPENDS ON THE SEEDED FIXTURE LISTINGS. Its URL
+//     is the fixture's `VRT_ORIGIN` and its hook is a result TILE, so an unseeded database gives it
+//     nothing to render. That fails LOUDLY at the reachability assertion rather than comparing two
+//     empty grids — which would be the same vacuity in a new place, since two empty grids of a page
+//     that never rendered differ or agree for reasons that have nothing to do with the tokens.
+//   • ONLY FOUR SURFACES ARE CHECKED AT ALL. Twenty-three document surfaces are outside this smoke
+//     without appearing in `THEME_SWAP_EXCLUSIONS`, because membership is now an allow-list rather
+//     than documents-minus-exclusions. A hard-coded colour on one of those twenty-three is caught by
+//     the DS-13 leak gate if the file is inside its scanned tree and BY NOTHING AT ALL if it is not.
+//     That is the cost D-138 accepted, stated here rather than left to be discovered.
 
 /**
  * The height every comparison is taken at. The WIDTH is per-surface: 1280 for all but `listing-sheet`,
@@ -115,57 +158,34 @@ import {
 const SWAP_HEIGHT = 800;
 
 /**
- * The number of surfaces this smoke compares: thirteen document surfaces minus the one exclusion.
+ * The number of surfaces this smoke compares: a FIXED FOUR, fixed by D-138.
  *
  * PINNED, not derived from the same expression the loop uses. A count computed by the code under
  * test agrees with itself no matter what it is — that is trap 2 above, and it is how a loop over an
- * empty list reports a green run.
+ * empty list reports a green run. This pin is NOT that trap: `THEME_SWAP_SURFACES` is a literal in
+ * `visual-baselines.ts` and this is a SECOND literal in a SECOND file, so an edit to one without the
+ * matching edit here fails loudly. That is the whole reason both exist.
  *
- * FIVE BECAME TWELVE IN PLAN 12-14 AND TWELVE BECAME TWENTY-FOUR IN 13-15, and this pin is why each
- * had to be deliberate. Adding seven
- * product surfaces to the inventory adds them to THIS smoke automatically (the set is documents minus
- * exclusions, derived rather than restated), so the only alternative to moving this literal was
- * EXCLUDING them — which would have meant claiming seven surfaces cannot be themed, in a file whose
- * whole argument is that such a claim has to be made in prose. They can be themed: grove moves their
- * geometry, type and elevation. So the number moves instead, in the same commit as the rows.
+ * ⚠ THIS NUMBER USED TO GROW, AND NOT GROWING IS NOW THE REQUIREMENT. It was 5, then 12 in plan
+ * 12-14, then 24 in 13-15, because the compared set was DERIVED — documents minus exclusions — so
+ * every product surface added to the inventory joined this smoke automatically. An earlier draft of
+ * this docstring described that as the mechanism working. It was the cost: a proof that a fixed
+ * sample already gives, re-charged in full every phase, in a dispatch job on a pinned Linux image.
+ *
+ * D-138 makes the set an allow-list of four chosen to move colour, type scale, radius and elevation
+ * between them, and IT DOES NOT GROW PER PHASE. A FIFTH IS NOT A ROW TO APPEND: it is a claim that
+ * these four cannot reach a token family, which amends D-138 and is argued in prose. The membership
+ * argument surface by surface — and why `/dev/theme`, the three listing surfaces, `checkout` and
+ * `collision-notice` are deliberately NOT in it — lives at `THEME_SWAP_SURFACES`.
  */
-const EXPECTED_COMPARED_SURFACES = 24;
+const EXPECTED_COMPARED_SURFACES = 4;
 
-/** The members, not just the count. A swap of one surface for another keeps the count at 12. */
+/** The members, not just the count. A swap of one surface for another keeps the count at 4. */
 const EXPECTED_COMPARED: readonly DocumentSurfaceId[] = [
-  "dev-theme",
-  "terms",
-  "privacy",
-  "root-not-found",
-  "auth-login",
   "search-results",
-  "search-relax-band",
-  "listing-detail",
-  "listing-lightbox",
-  "listing-sheet",
-  "checkout",
-  "collision-notice",
-  // --- 13-15 - Phase 13's twelve, ELEVEN OF WHICH SKIP AT RUNTIME -----------------------------
-  //
-  // They are in the COMPARED set because the set is documents-minus-exclusions and none of them is
-  // theme-swap-EXCLUDED: every one of them re-skins, and claiming otherwise would be the prose
-  // argument this file's header says an exclusion has to make. What stops eleven of them being
-  // compared today is that they are BLOCKED - a different property, on a different field, for
-  // reasons argued at the rows in `visual-baselines.ts` - and the loop below skips a blocked surface
-  // with `surface.blocked` as the message. Membership and blocking are deliberately separate: the
-  // day the fixture lands, unblocking a row puts it into this smoke with no edit here at all.
-  "booking-moment",
-  "booking-confirmed",
-  "payment-pending",
-  "payment-not-completed",
-  "payment-reversed-auto",
-  "payment-reversed-manual",
-  "payment-reversed-indeterminate",
-  "receipt-screen",
-  "receipt-print",
-  "booking-group",
-  "invite-active",
-  "booking-not-found",
+  "auth-login",
+  "terms",
+  "root-not-found",
 ];
 
 type Capture = {
@@ -192,10 +212,14 @@ async function capture(
   const surface = VISUAL_SURFACES[surfaceId];
   const width = swapWidthFor(surfaceId);
   const where = `${surfaceId} @ ${width}px · ${theme} (theme-swap)`;
-  // `"swap"` IS NOT A LABEL — it selects this spec's OWN booking windows. `surfaces.spec.ts` runs
-  // concurrently and needs the same two driven surfaces; two passes claiming one window produce a
-  // REFUSED hold, and a refused checkout drive photographs the collision surface instead. The
-  // slot-allocation table in `visual-drive.ts` is the whole argument.
+  // `"swap"` IS NOT A LABEL — it selects this spec's OWN booking windows, so that a driven surface
+  // running here concurrently with `surfaces.spec.ts` does not claim the window that spec's copy
+  // needs (two passes claiming one window produce a REFUSED hold, and a refused checkout drive
+  // photographs the collision surface instead). The slot-allocation table in `visual-drive.ts` is
+  // the whole argument. NOTE that D-138's four surfaces are all plain navigations, so today this
+  // argument selects nothing: `newDrive` returns the default drive for all four and the purpose is
+  // inert. It is passed anyway because the alternative is dropping the lane and re-deriving it the
+  // day a driven surface is ever argued into the contract set.
   const drive = newDrive(surfaceId, surface.url, "swap");
   const context = await browser.newContext({ baseURL, viewport: { width, height: SWAP_HEIGHT } });
   try {
@@ -221,9 +245,11 @@ async function capture(
 
       const resolvedTheme = await page.locator("html").getAttribute("data-theme");
       const buffer = await page.screenshot({
-        // The two overlay surfaces are captured as the VIEWPORT, for the reason `surfaces.spec.ts`
-        // gives: they are `position: fixed` over a scroll-locked document, so a full-page stitch
-        // scrolls a body that cannot scroll and pins a stitching artefact instead of the overlay.
+        // All four of D-138's surfaces are `fullPage`, which is what the default drive returns. The
+        // branch stays because the drive decides, not this file: the two overlay surfaces (not in
+        // the contract set) are captured as the VIEWPORT for the reason `surfaces.spec.ts` gives —
+        // they are `position: fixed` over a scroll-locked document, so a full-page stitch scrolls a
+        // body that cannot scroll and pins a stitching artefact instead of the overlay.
         fullPage: drive.captureMode === "fullPage",
         animations: "disabled",
         caret: "hide",
@@ -231,8 +257,11 @@ async function capture(
       return { buffer, resolvedTheme };
     } finally {
       // BEFORE the context closes and therefore before the second theme's pass, and in a `finally`
-      // because a failed court pass must not leave a conflict row that makes grove's pass fail for an
-      // unrelated reason: the collision drive's window has to be FREE when the page loads.
+      // because a failed court pass must not leave a mutated fixture behind that makes grove's pass
+      // fail for an unrelated reason. NONE of D-138's four surfaces has a `cleanup` — they are plain
+      // navigations that mutate nothing — so this is currently a no-op, kept as the correct shape
+      // rather than removed: the day a driven surface is argued into the contract set, this file
+      // runs its drive TWICE and the ordering requirement is immediate.
       await drive.cleanup?.({ page, theme, width, where });
     }
   } finally {
@@ -240,7 +269,7 @@ async function capture(
   }
 }
 
-test.describe("AC#30 — every baselined surface re-skins, except the one that cannot", () => {
+test.describe("AC#30 / D-138 — the four contract surfaces re-skin, and the set has not grown", () => {
   test("the compared set and the single exclusion are what this gate claims", () => {
     // Trap 2. The count AND the members, both pinned against literals rather than against the
     // expression that produced them.
@@ -248,7 +277,9 @@ test.describe("AC#30 — every baselined surface re-skins, except the one that c
       [...THEME_SWAP_SURFACES],
       "the set of surfaces this smoke compares changed. A surface leaving it is coverage lost " +
         "silently — the loop below would still report green, because a loop over a shorter list is " +
-        "a loop that passes.",
+        "a loop that passes. A surface JOINING it is D-138 being amended by append rather than by " +
+        "argument: the set is a FIXED FOUR, and a fifth is a claim that those four cannot reach a " +
+        "token family.",
     ).toEqual([...EXPECTED_COMPARED]);
     expect(THEME_SWAP_SURFACES.length).toBe(EXPECTED_COMPARED_SURFACES);
 
@@ -286,8 +317,10 @@ test.describe("AC#30 — every baselined surface re-skins, except the one that c
       // TWICE the drive's own ceiling, because this test performs the whole drive twice — once per
       // theme, in two fresh contexts. A ceiling, never a wait: raising it cannot turn a failing
       // comparison green, it only decides how long a genuine hang is allowed to look like progress.
-      // The driven surfaces sign a booker up through the UI and place a real hold, which is why the
-      // number is large; the Phase-11 surfaces keep a modest one.
+      // D-138's four all take the default drive's modest ceiling (one navigation and one hook, with
+      // headroom for the dev server compiling a route on demand). It is still computed from the
+      // drive rather than written as a literal here, so a driven surface argued into the contract
+      // set later gets its own ceiling without an edit.
       test.setTimeout(newDrive(surfaceId, surface.url, "swap").timeoutMs * 2);
 
       const court = await capture(browser, baseURL as string, surfaceId, "court");
