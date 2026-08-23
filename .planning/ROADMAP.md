@@ -432,7 +432,26 @@ Plans:
   4. The host bookings table and the availability editor read as the same product as the booker side, and the editor shows a week-at-a-glance preview of the hours just set.
   5. Earnings and payouts carry the new tokens with their structure untouched — HFLOW-05 is deliberately a token pass only, because those numbers have never been real (PayMongo `/v2` is sales-gated).
 
-**Plans**: TBD
+**Plans**: 16 plans in 9 waves
+
+Plans:
+- [ ] 14-01-PLAN.md — the shared host shell constants, a skeleton that can carry a second declared height, and HFLOW-05's token pass behind an AST string-literal freeze
+- [ ] 14-02-PLAN.md — `queryHostAgenda`: the venue-local "today" predicate and D-142's next session from one owner-scoped statement, proved against a two-timezone straddling-midnight fixture
+- [ ] 14-03-PLAN.md — the countdown gains an opt-in lead emphasis and the request row goes terminal: money into the description list, decline onto the one overlay primitive, refusal into a named in-row region
+- [ ] 14-04-PLAN.md — `deriveWeekStrip`: the pure derivation the bars and the sentences both read from, seven entries for every input
+- [ ] 14-05-PLAN.md — the agenda and signals components with their five declared hooks, and signal 1's copy given an owner beside the count's authority
+- [ ] 14-06-PLAN.md — the inbox becomes a triage queue: deadline-first columns, the shared shell and header, and "loudest" as a computed font-size comparison at three widths
+- [ ] 14-07-PLAN.md — `/host/bookings` gets the design system and not a new information architecture; the one raised element and every GATE-NOREG behaviour proved unmoved
+- [ ] 14-08-PLAN.md — `/host` becomes a today view: one clock read and threaded, both accent call sites kept, a plate shaped like the page, and the three-consumer count as an e2e spec
+- [ ] 14-09-PLAN.md — the wizard's step rail becomes controls, visited by KEY across a mid-flow mode switch, with the accent narrowed to the current step and no pinned count moved
+- [ ] 14-10-PLAN.md — the publish checklist becomes persistent, and the four inventories that pinned its done marker by file path move in the same commit
+- [ ] 14-11-PLAN.md — the wizard's save state reads the actual server result, carries its sentence, and has no timer anywhere on the save path
+- [ ] 14-12-PLAN.md — the seven-column week strip, live from form state, and the hours editor that mounts it leaving the raw-card allow-list
+- [ ] 14-13-PLAN.md — the blocks editor and the availability page finish the route, and the pattern layer's replaces-list is corrected rather than obeyed
+- [ ] 14-14-PLAN.md — the live-region inventory renamed, widened to the host, taken to zero exclusions, and its non-empty guard rewritten so it still guards
+- [ ] 14-15-PLAN.md — the three host row shapes measured against the rendered routes, declared, and committed to the skeleton geometry gate
+- [ ] 14-16-PLAN.md — one heading per document, the 320px floor on all five surfaces, the alarm-token census as a pinned per-file map, and nine court-only baselines declared and honestly blocked
+
 **UI hint**: yes
 
 ### Phase 15: Auth, Profile & Transactional Email
