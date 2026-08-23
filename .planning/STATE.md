@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 12
+current_plan: 13
 status: executing
-stopped_at: Completed 14-11-PLAN.md
-last_updated: "2026-08-23T13:17:40.568Z"
+stopped_at: Completed 14-12-PLAN.md
+last_updated: "2026-08-23T13:45:00.000Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 91
+  completed_plans: 92
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 12 of 16
-Current Plan: 12
+Plan: 13 of 16
+Current Plan: 13
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -489,7 +489,7 @@ Last activity: 2026-08-23
 | 11 | 22 | - | - |
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
-| 14 | 4 | - | - |
+| 14 | 12 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -497,6 +497,14 @@ derivation (caught by the PINNED strings, NOT by the generic invariant, which on
 satisfies) and a separately-derived sentence (caught by the invariant, which no pin would generalise).
 One unplanned red found a real defect: the mid-edit case failed first run because the editor's shipped
 `parseInt(t.slice(0, 2))` reads a half-typed "9" as nine o'clock.*
+
+*14-12: ~15 min wall-clock, 3 tasks (all auto), 2 files created + 5 modified, 3 commits + 1 metadata.
+Four watched reds, all reverted: the preview fed the SAVED value (the sentence stays on the nine
+o'clock the host is replacing — D-152 as a failure message), the decorative grid un-hidden, the
+surface count put back to 13, and a raw box reintroduced into a file whose allow-list row had just
+been deleted. That last one is the point of D-155: the deletion is what makes the box's return a
+failure rather than a permanent exemption. Two deviations, both ending duplicates 14-04 had named —
+the editor's looser second hour parser and its third copy of the weekday names.*
 
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 *11-22: ~93 min wall-clock, 5 tasks (3 auto + 2 blocking checkpoints) plus one unplanned CI fix, 9 source/config files + 25 baseline PNGs, 8 commits. Four observed CI runs driven by the coordinator; three OBSERVED REDs recorded.*
@@ -1198,41 +1206,41 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T13:17:40.541Z
-Stopped at: Completed 14-11-PLAN.md
-of 16 plans done (14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the
-request row, 14-04 the week strip's pure half, 14-05 the dashboard's two new blocks); **14-06 is next**.
-`src/components/host/host-agenda.tsx` renders D-140/D-142's three states inside ONE section that mounts
-in all three — the container is unconditional and the states are told apart by which child they hold,
-because "the agenda renders" is a claim an ABSENT section satisfies and this repo has recorded that
-vacuity a dozen times. The row's title is the booker's first name, not the space (D-140's whole
-argument); it has an href and no actions; it renders no money, because 14-UI-SPEC § The agenda row and
-D-140 both enumerate four fields and none is a total. `src/components/host/host-signals.tsx` renders the
-three signal rows in D-140's order with `PayoutBanner` passed through UNCHANGED (D-156 freezes it
-structurally — converting it to a panel has misread HFLOW-05), and `src/lib/host/requests-signal.ts`
-gives signal 1's sentences an owner beside the count's authority, with `APPROVAL_SLA_HOURS`
-interpolated and no digit typed. Five selector-contract rows landed in the SAME commits as their
-literals rather than in the test task, because the contract is bidirectional. `tests/host/agenda-states.test.tsx`
-walks all three states in 29 cases and was observed red (13/29) against a section rendered only in
-state A. Design suite unmoved at 49/827; `drizzle/` empty; `payout-banner.tsx` never opened. The page
-that MOUNTS these two components is downstream — read `readDbNow(db)` once and thread it, import
-`WITHHELD_BOOKER_LABEL` rather than typing a seventh literal, and do not invent the agenda row's
-resting height for the loading plate.
+Last session: 2026-08-23T13:45:00.000Z
+Stopped at: Completed 14-12-PLAN.md — the week-at-a-glance strip. 12 of 16 plans done; **14-13 is next**
+(the availability PAGE and `blocks-editor.tsx`, which 14-12 deliberately did not open).
+`src/components/availability/week-strip.tsx` draws seven columns from ONE `deriveWeekStrip` call and
+announces the same call's seven sentences: the whole grid is `aria-hidden` and the meaning is an
+`sr-only` list, so the seen week and the heard week cannot drift (D-153). Bar geometry is two computed
+percentages in an inline `style` — the five leak patterns are hex, colour functions, bracketed pixel
+type sizes, numbered palette classes and the two absolute colour words, and two numbers match none of
+them, so the geometry is gate-safe by construction rather than by exemption. The strip renders ZERO
+live regions: the select the host just changed already announces its own new value.
+`weekly-hours-editor.tsx` mounts it above the day editor fed by `liveWindows` (never `initialWindows` —
+that wiring was watched failing), composes `PanelCard` for both of its boxes, and LEFT
+`ALLOWED_RAW_CARD` in the same commit (D-155). Inventories moved: `EXPECTED_SURFACES` 13 → 15, `adopted`
+11 → 13, allow-list 11 → 10, `SELECTOR_IDS` 48 → 50, and two contrast-exclusion REASONS amended with no
+new row and no measured value touched. Design suite unmoved at 49 files / 827 passed / 3 skipped;
+`tests/availability` 21 files / 229 passed; `tsc` 0; `drizzle/` empty.
 
-⚠ THREE THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **A per-file design-gate inventory reads
-SOURCE, not the render** — a second `role=` element in an unused layout arm is a second declared region.
-Hoist what the gate counts (`live-regions.test.tsx` went red on exactly this and the fix is in
-`request-countdown.tsx`'s header). (2) **`RowCard` renders its title column BEFORE its `status` column**
-for all four adopters, so "the countdown precedes the title in DOM order" is not achievable with the
-countdown in `status`; 14-UI-SPEC's falsifiable is `boundingBox().y <=` on that pair for that reason.
-(3) **`RowCard`'s status column is `shrink-0`** and the D-99 reason line now lives in it — see
-`.planning/phases/14-host-tooling/deferred-items.md` `[14-03]`, addressed to 14-06, which owns the 320px
-measurement.
+⚠ FOUR THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **The re-point of the editor at
+`lib/availability/week-strip.ts` is DONE** — weekday names, the on-the-hour options and the hour parser
+now have one owner, and `toHour` is exported in its strict form. Do not reintroduce a local copy of any
+of the three. (2) **`blocks-editor.tsx` still holds its allow-list row on purpose**; the plan that
+converts it deletes the row in the same commit and re-measures `EXPECTED_SURFACES` 15 → 16 (plus
+`empty-state-adoption.test.ts`'s `ADOPTERS` 13 → 14 for the "No blocked dates" empty state). (3) **A
+Radix `Select` is drivable in jsdom through the hidden native `<select>` it mirrors into** —
+`fireEvent.change` on it runs the same `onValueChange` as the trigger and needs none of the pointer
+APIs jsdom lacks (`tests/availability/week-strip.test.tsx` case 3 is the worked example). (4) **The
+strip's legibility at the 320px floor is a HUMAN call, not a number** — 14-RESEARCH § M4 measured
+33.14px per column and a 6.66px one-hour bar, and the UI-SPEC's predicted 37.7px is wrong because the
+panel pays its own horizontal padding. If it fails manual verification the fix is the declared track
+height re-derived, not a gridline, not a colour and not a re-orientation.
 
-⚠ This block was STALE for three plans — it still said "Phase 14 UI-SPEC approved" after 14-01 and 14-02
-had both shipped, and carried 13.1-03's paragraph underneath. Corrected here. The SDK's
-`state.record-session` / `record-metric` / `add-decision` verbs are no-ops on this toolchain version
-(see the `fitout-gsd-toolchain-gotchas` memory); every one of those three sections is hand-written.
+⚠ The SDK's `state.record-session` / `record-metric` / `add-decision` verbs are no-ops on this
+toolchain version (see the `fitout-gsd-toolchain-gotchas` memory); every one of those three sections is
+hand-written. `HFLOW-04` is deliberately still unticked in `REQUIREMENTS.md` — 14-12 closed the preview
+and the editor's container, and the requirement also covers the availability page and the blocks editor.
 
 <details><summary>Previous session (13-15, superseded 2026-08-22)</summary>
 
