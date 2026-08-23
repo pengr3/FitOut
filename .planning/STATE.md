@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 5
-status: verifying
-stopped_at: Phase 14 context gathered
-last_updated: "2026-08-23T06:19:27.754Z"
-last_activity: "2026-08-23 - Completed quick task 260823-frp: Lock coral (court) as the single product theme; demote grove to token-contract probe"
+status: executing
+stopped_at: Phase 14 UI-SPEC approved
+last_updated: "2026-08-23T08:08:52.394Z"
+last_activity: 2026-08-23 -- Phase 14 planning complete
 progress:
   total_phases: 12
   completed_phases: 5
-  total_plans: 75
+  total_plans: 91
   completed_plans: 80
   percent: 42
 ---
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 13.1 (INSERTED — Payment Reconciliation)
 Plan: 5 of 5
 Current Plan: 5
-Total Plans in Phase: 5
-Status: **13.1-05 executed and committed (`7cb34c1` · `93f98de` · `775b8b2` · `d938ce8`). ALL 5 PLANS EXECUTED — the phase is ready for VERIFICATION, which is where phase closure is decided, not here.**
+Total Plans in Phase: 16
+Status: Ready to execute
 
 **THE HOLE IS CLOSED AT ITS SOURCE — D-113 IS TRUE, AND WITHOUT 13.1-05.** `checkout-retire-sweep`
 (`TZ=Asia/Manila 4-59/5`, registered) probes every hold that lapsed inside the last 30 minutes and retires
@@ -467,7 +467,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-23 - Completed quick task 260823-frp: Lock coral (court) as the single product theme; demote grove to token-contract probe
+Last activity: 2026-08-23 -- Phase 14 planning complete
 
 ## Performance Metrics
 
@@ -1149,8 +1149,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T06:19:27.732Z
-Stopped at: Phase 14 context gathered
+Last session: 2026-08-23T06:45:13.084Z
+Stopped at: Phase 14 UI-SPEC approved
 authenticated, epoch-bounded server action reusing the sweep's `reconcileOne`, fired once by a latched
 effect after the poll cap, with ZERO new copy and the frozen poller's diff down to a single replaced
 destructure line. 13.1-04 is next. ⚠ TWO THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) The fast path
@@ -1175,7 +1175,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/14-host-tooling/14-CONTEXT.md
+Resume file: .planning/phases/14-host-tooling/14-UI-SPEC.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

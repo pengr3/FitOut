@@ -395,14 +395,18 @@ have been given.
 
   1. A booking that PayMongo records as paid **always** reaches `confirmed`, even if its webhook never
      arrives — reconciled on a schedule, not only when a human happens to be looking at the page.
+
   2. Reconciliation routes through the **same idempotent confirm path the webhook uses** — never a second
      one. A replayed webhook and a reconciliation of the same payment converge on one booking, one slot,
      one payout ledger row, one email.
+
   3. A missed webhook is **loud**: an operator alert records that a payment was taken without its webhook,
      so the transport failing is visible rather than absorbed.
+
   4. PROJECT D-57 is **unweakened** — the browser is still never trusted. A server-side probe of PayMongo's
      own API is as authoritative as the webhook (same source of truth, different transport); a URL
      parameter is not, and still confirms nothing.
+
   5. Reconciliation cannot double-charge, double-confirm, or resurrect a booking whose slot has since been
      taken — the D-58 gone-slot backstop still governs that case.
 
@@ -413,6 +417,7 @@ the call that found the two rows above. Nothing queries it on a schedule.
 **Plans:** 5/5 plans complete
 
 Plans:
+
 - [x] 13.1-01-PLAN.md — extract D-105's single idempotent confirm path out of the webhook route, carry the `pay_...` off the provider read, and prove the guard by running confirm twice concurrently
 - [x] 13.1-02-PLAN.md — the 5-minute reconciliation sweep (the guarantee): probe recent paid-but-unconfirmed bookings, confirm through the one path, alert on a missed webhook, no backfill
 - [x] 13.1-03-PLAN.md — the fast path: one authenticated, rate-limited reconcile after the settling screen's poll cap, reusing the sweep's own body and adding no copy
@@ -435,21 +440,47 @@ Plans:
 **Plans**: 16 plans in 9 waves
 
 Plans:
+**Wave 1**
+
 - [ ] 14-01-PLAN.md — the shared host shell constants, a skeleton that can carry a second declared height, and HFLOW-05's token pass behind an AST string-literal freeze
 - [ ] 14-02-PLAN.md — `queryHostAgenda`: the venue-local "today" predicate and D-142's next session from one owner-scoped statement, proved against a two-timezone straddling-midnight fixture
 - [ ] 14-03-PLAN.md — the countdown gains an opt-in lead emphasis and the request row goes terminal: money into the description list, decline onto the one overlay primitive, refusal into a named in-row region
 - [ ] 14-04-PLAN.md — `deriveWeekStrip`: the pure derivation the bars and the sentences both read from, seven entries for every input
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 14-05-PLAN.md — the agenda and signals components with their five declared hooks, and signal 1's copy given an owner beside the count's authority
 - [ ] 14-06-PLAN.md — the inbox becomes a triage queue: deadline-first columns, the shared shell and header, and "loudest" as a computed font-size comparison at three widths
 - [ ] 14-07-PLAN.md — `/host/bookings` gets the design system and not a new information architecture; the one raised element and every GATE-NOREG behaviour proved unmoved
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 14-08-PLAN.md — `/host` becomes a today view: one clock read and threaded, both accent call sites kept, a plate shaped like the page, and the three-consumer count as an e2e spec
 - [ ] 14-09-PLAN.md — the wizard's step rail becomes controls, visited by KEY across a mid-flow mode switch, with the accent narrowed to the current step and no pinned count moved
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 14-10-PLAN.md — the publish checklist becomes persistent, and the four inventories that pinned its done marker by file path move in the same commit
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 14-11-PLAN.md — the wizard's save state reads the actual server result, carries its sentence, and has no timer anywhere on the save path
 - [ ] 14-12-PLAN.md — the seven-column week strip, live from form state, and the hours editor that mounts it leaving the raw-card allow-list
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 14-13-PLAN.md — the blocks editor and the availability page finish the route, and the pattern layer's replaces-list is corrected rather than obeyed
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 14-14-PLAN.md — the live-region inventory renamed, widened to the host, taken to zero exclusions, and its non-empty guard rewritten so it still guards
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 14-15-PLAN.md — the three host row shapes measured against the rendered routes, declared, and committed to the skeleton geometry gate
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 14-16-PLAN.md — one heading per document, the 320px floor on all five surfaces, the alarm-token census as a pinned per-file map, and nine court-only baselines declared and honestly blocked
 
 **UI hint**: yes
