@@ -307,14 +307,21 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "now instead of declaring it.",
   },
   {
-    file: "src/app/(host)/host/page.tsx",
+    file: "src/components/host/host-signals.tsx",
     pattern: "panel-card",
     status: "adopted",
     why:
       "The hours-missing notice, as `tone=\"muted\"`. The spec says \"the hours-missing notices\", plural; " +
       "an AST scan for the three HOURS_MISSING_* constants finds exactly two sites and only this one is a " +
       "PANEL. The other, `listing/listing-card.tsx:210`, is an inline meta line inside a tile's " +
-      "CardContent — a card inside a card is not what the clause means.",
+      "CardContent — a card inside a card is not what the clause means. " +
+      "THE ROW MOVED IN PLAN 14-08, WITH THE NOTICE, exactly as `invite-card.tsx`'s did in 11-19 and " +
+      "for the same reason: the notice was declared inline in `src/app/(host)/host/page.tsx` until " +
+      "D-140 turned that page into a today view, at which point the three signal rows — requests owed, " +
+      "payout state, published-without-hours — became one component rendered below the agenda. The " +
+      "dashboard still renders this panel; it composes `HostSignals` now instead of assembling it. The " +
+      "second `PanelCard` in that component is the requests-owed advisory, which is the SAME declared " +
+      "surface at the same tone and therefore adds no row — this inventory declares files, not sites.",
   },
 
   // ─── Phase 13 — the surface the 11-UI-SPEC could not name, because it did not exist in this shape ──

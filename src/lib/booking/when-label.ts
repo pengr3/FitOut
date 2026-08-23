@@ -96,6 +96,35 @@ export type WhenLabelInput = {
  * long and short variants — keeping one implementation means the time range, the fullDay resolution, the
  * open-capacity fork and the city suffix can never diverge.
  */
+/**
+ * The two MODE tokens, each named once.
+ *
+ * They were spelled inline until plan 14-08 needed the same two words in a second export below, and a
+ * second spelling of either is the fourth-copy defect this whole module exists to prevent — at word
+ * scale rather than at derivation scale. Naming them changes no rendered byte (`when-label.test.ts` was
+ * re-run UNEDITED as the proof) and it keeps this file's occurrence count of each honest: one, at its
+ * declaration. See the header's grep-tripwire note for why a count in this file is load-bearing.
+ */
+const OPEN_ENTRY_TOKEN = "Drop-in pass";
+const WHOLE_DAY_TOKEN = "Full day";
+
+/**
+ * Which of the two exclusive-booking shapes this row is — the persisted snapshot, with the pre-0016
+ * positive day-rate match as the ONLY fallback.
+ *
+ * Extracted (14-08) rather than copied, because `composeStartTokens` below has to answer exactly the
+ * same question and an inequality against a price must never be written a second time (CR-01,
+ * 08-RESEARCH Pitfall 3 — see the header). Callers must resolve the open-entry fork FIRST; this helper
+ * says nothing true about a per-head day pass.
+ */
+function resolveWholeDay(input: WhenLabelInput): boolean {
+  // The listing-priced portion. Falls back to the all-in total only for a pre-Phase-7 row whose split was
+  // never frozen — for those rows the fee was 0, so the two are the same number.
+  const spaceCents = input.spacePriceCents ?? input.quotedTotalCents ?? 0;
+  // The persisted snapshot wins outright. The positive day-rate match is the pre-0016 legacy path ONLY.
+  return input.fullDay ?? (input.dayRateCents != null && spaceCents === input.dayRateCents);
+}
+
 function compose(input: WhenLabelInput, dateFormat: string, short = false): string {
   const inTz = tz(input.timezone);
   const dateLabel = format(input.startsAt, dateFormat, { in: inTz });
@@ -106,19 +135,14 @@ function compose(input: WhenLabelInput, dateFormat: string, short = false): stri
   // can ever run for an open row (their inputs describe an exclusive booking's pricing shape, and are
   // meaningless — actively misleading — for a per-head day pass).
   if (input.openCapacity) {
-    if (short) return `${dateLabel} · Drop-in pass`;
+    if (short) return `${dateLabel} · ${OPEN_ENTRY_TOKEN}`;
     const openLabel = format(input.startsAt, "h:mm a", { in: inTz });
     const closeLabel = format(input.endsAt, "h:mm a", { in: inTz });
-    return `${dateLabel} · Drop-in pass, any time ${openLabel} – ${closeLabel}${citySuffix}`;
+    return `${dateLabel} · ${OPEN_ENTRY_TOKEN}, any time ${openLabel} – ${closeLabel}${citySuffix}`;
   }
 
-  // The listing-priced portion. Falls back to the all-in total only for a pre-Phase-7 row whose split was
-  // never frozen — for those rows the fee was 0, so the two are the same number.
-  const spaceCents = input.spacePriceCents ?? input.quotedTotalCents ?? 0;
-  // The persisted snapshot wins outright. The positive day-rate match is the pre-0016 legacy path ONLY.
-  const fullDay = input.fullDay ?? (input.dayRateCents != null && spaceCents === input.dayRateCents);
-  const timeLabel = fullDay
-    ? "Full day"
+  const timeLabel = resolveWholeDay(input)
+    ? WHOLE_DAY_TOKEN
     : `${format(input.startsAt, "h:mm a", { in: inTz })} – ${format(input.endsAt, "h:mm a", { in: inTz })}`;
   return `${dateLabel}, ${timeLabel}${citySuffix}`;
 }
@@ -140,6 +164,53 @@ export const composeWhenLabel = (input: WhenLabelInput): string => compose(input
  */
 export const composeWhenLabelShort = (input: WhenLabelInput): string =>
   compose(input, SHORT_DATE, true);
+
+/** The start of a window, split into the two venue-local tokens a sentence can be built from. */
+export type StartTokens = {
+  /** The SHORT weekday-and-date form — the same token `composeWhenLabelShort` opens with. */
+  dateLabel: string;
+  /** The venue-local start time, or the row's mode word when the window is not an hour range. */
+  timeLabel: string;
+};
+
+/**
+ * `{ dateLabel: "Sat, Aug 29", timeLabel: "10:00 AM" }` — the same instant `composeWhenLabelShort`
+ * renders, handed over as TWO tokens instead of one finished string.
+ *
+ * WHY THIS EXISTS, AND WHY IT LIVES HERE (14-08 / HFLOW-03 · 14-CONTEXT D-142). The host dashboard's
+ * quiet-day sentence is the surface's own — *"Nothing today — next: {date} · {time} · {space}"* — and
+ * the copy contract separates those tokens with a middot rather than with this module's comma. So the
+ * SENTENCE belongs to the component that says it and the venue-local RENDERING belongs here, which is
+ * the same division `host-agenda.tsx` already states in its own props docblock. The alternative was a
+ * bare `format()` call on the dashboard page, and that is precisely the fourth copy this file's header
+ * forbids: it would be the only host surface whose window text was not produced by this module, and it
+ * would keep rendering happily in the server's zone the day somebody forgot the `{ in: tz }` option.
+ *
+ * IT IS NOT A SECOND FORMATTER. The date token is `SHORT_DATE`, the time token is the same `h:mm a` the
+ * range above is built from, and the mode fork is `compose`'s own — the open-entry branch first (a
+ * per-head day pass has no meaningful start time, so it names the pass), then `resolveWholeDay`. Change
+ * any of those in `compose` and this moves with it, because both read the same three names.
+ *
+ * NO CITY SUFFIX. The dashboard's quiet-day row is three tokens joined by middots and the copy contract
+ * spells it without a zone; the AGENDA rows a busy host sees still name the city, because they come
+ * through `composeWhenLabelShort` unchanged.
+ */
+export function composeStartTokens(input: WhenLabelInput): StartTokens {
+  const inTz = tz(input.timezone);
+  const dateLabel = format(input.startsAt, SHORT_DATE, { in: inTz });
+
+  // The open-entry fork FIRST, exactly as `compose` resolves it: the stored bounds of a per-head day
+  // pass are the venue's opening and closing instants (OC-03), so naming the opening instant as "when
+  // it starts" would announce a reservation nobody bought.
+  if (input.openCapacity) return { dateLabel, timeLabel: OPEN_ENTRY_TOKEN };
+
+  return {
+    dateLabel,
+    timeLabel: resolveWholeDay(input)
+      ? WHOLE_DAY_TOKEN
+      : format(input.startsAt, "h:mm a", { in: inTz }),
+  };
+}
 
 /**
  * Just the DATE, venue-local — "Friday, Aug 8", or "Friday, Aug 8 (Makati time)" when a city is supplied.
