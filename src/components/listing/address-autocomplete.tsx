@@ -25,6 +25,26 @@
 // which are the two outcomes of one lookup and therefore share one region. It is declared as
 // `address-lookup-result` in `live-regions.ts` and its name is declared beside it.
 //
+// ── AND THE SAME DEFECT CAME BACK THROUGH THE PROPS (code review WR-04, 24 August 2026) ───────────
+// The discharge above was filed under the rationale *"EMPTY until a lookup resolves"*, and for a
+// FRESH DRAFT it was. On an EDIT it was not: the region's located branch read `located`, which is
+// `hasCoordinates || selectedLabel.length > 0`, and the wizard seeds BOTH from the stored listing. So
+// on any edit of a listing that already had an address — most edits — the region mounted already
+// carrying its sentence. Content at mount, from a prop: the announce-on-arrival shape this file was
+// rewritten to remove, arriving a second time by a different route.
+//
+// The property was made TRUE rather than the reason edited to match it. The region's located branch
+// now reads `outcome`, a value ONLY a resolution on this screen writes and no prop can seed; the
+// already-located fact is a plain paragraph beside the hint, because it is a fact and not an
+// announcement. The failure branch needed nothing: `error` was already written only by a lookup
+// failing. Both branches are resolutions now; neither is a seed.
+//
+// It was also UNVERIFIED, which is why it survived a plan whose whole subject was this file: this
+// component is `vi.mock`'d to `() => null` in all four wizard render tests, and
+// `tests/design/live-regions.test.tsx` reads SOURCE through an AST walk and structurally cannot see a
+// runtime value. `tests/listing/address-autocomplete.test.tsx` now mounts it for real and reads the
+// region's text at mount with `hasCoordinates` both true and false.
+//
 // ⚠ NAMING DISCIPLINE, inherited from `wizard.tsx`'s rail comment. Nothing in this file's prose quotes
 // the announcing attributes by their literal spelling; the gate that reads this tree counts regions per
 // file off the markup, and a comment is textually indistinguishable from a call site to a text scan.
@@ -99,6 +119,19 @@ type Suggestion = ResolvedAddress & { id: string; label: string };
  */
 const LOOKUP_REGION_NAME = "Address lookup";
 
+/**
+ * The located OUTCOME's sentence, spelled once and rendered from two places.
+ *
+ * TWO PLACES, AND THE DIFFERENCE BETWEEN THEM IS THE WHOLE OF WR-04. The same words are either the
+ * RESULT of a lookup this host just performed — in which case they belong in the region, because a
+ * resolution is a change and a change is what a region is for — or they are a FACT about a listing
+ * that was already located before this screen was opened, in which case they are a hint like any other
+ * and belong in document order outside any region. One constant, so the two can never say it
+ * differently; two elements, because they are two different claims.
+ */
+const LOCATED_SENTENCE =
+  "Location set. Guests see an approximate area until you choose to show the exact address.";
+
 /** Map a Photon GeoJSON feature to a structured suggestion, or null if it has no coordinates. */
 function toSuggestion(f: PhotonFeature, i: number): Suggestion | null {
   const coords = f.geometry?.coordinates;
@@ -141,6 +174,26 @@ export function AddressAutocomplete({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLabel, setSelectedLabel] = useState(initialLabel ?? "");
+  /**
+   * WHAT A LOOKUP RESOLVED TO ON THIS SCREEN, and `null` until one has (WR-04).
+   *
+   * ⚠ IT IS SEEDED FROM NOTHING, ON PURPOSE, AND THAT IS THE ENTIRE POINT OF ITS EXISTENCE. Every
+   * other piece of state in this component can arrive pre-filled from the listing being edited —
+   * `selectedLabel` takes `initialLabel`, and the caller also passes `hasCoordinates` off the stored
+   * lat/lng. `located` below is therefore TRUE at first paint on any edit of a listing that already
+   * has an address, which is most edits.
+   *
+   * The region's discharge (plan 14-14) is filed under the rationale *"empty until a lookup
+   * resolves"*, and while the region's content was driven by `located` that sentence was FALSE on
+   * exactly that path: the region mounted already carrying the located outcome — content present at
+   * mount, which is the announce-on-arrival shape the discharge says it removed. A declared reason the
+   * code does not keep is the failure this phase's whole live-region pass exists to end, so the code
+   * was changed to keep it rather than the reason edited to match.
+   *
+   * `error` is the other half and needed no change: it is already written only by a lookup failing,
+   * never by a prop. So both of the region's branches are now resolutions and neither is a seed.
+   */
+  const [outcome, setOutcome] = useState<"located" | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // A query under 3 chars has nothing to look up. This is DERIVED at render (see `visibleResults` /
@@ -206,6 +259,9 @@ export function AddressAutocomplete({
     }
     setSelectedLabel(s.label);
     setError(null);
+    // THE ONLY WRITER (WR-04). A resolution happened on this screen, so the region has something to
+    // announce; nothing else in this file may set this, and no prop may seed it.
+    setOutcome("located");
     onResolved({
       addressLine1: s.addressLine1,
       city: s.city,
@@ -287,6 +343,22 @@ export function AddressAutocomplete({
         </p>
       ) : null}
 
+      {/* THE ALREADY-LOCATED FACT, OUTSIDE ANY REGION (WR-04) — the second half of the same rule the
+          hint above is the first half of.
+
+          A listing being edited may already have an address, and saying so is useful. But it is not
+          an ANNOUNCEMENT: nothing happened, the host simply opened the step. Rendered inside the
+          region it was content present at first paint, which is the announce-on-arrival shape the
+          discharge above claims to have removed — the defect arriving a second time through the props
+          instead of through a static hint.
+
+          It is therefore a plain paragraph, read in document order like every other hint on the step,
+          and it stands down the moment a lookup on THIS screen resolves, so the sentence is never on
+          screen twice. The words are the same constant either way. */}
+      {located && outcome === null && error === null ? (
+        <p className="text-label text-muted-foreground">{LOCATED_SENTENCE}</p>
+      ) : null}
+
       {/* ONE REGION FOR ONE ACTION, holding only the RESOLVED OUTCOME. The located outcome and the
           failure outcome are the two outcomes of a single lookup, so they share a single region — two
           regions for one outcome is the defect, not the thoroughness.
@@ -296,6 +368,13 @@ export function AddressAutocomplete({
           makes one lookup one announcement. The politeness attribute is redundant beside the role,
           which is already implicitly polite, and is kept for the reason `slot-picker.tsx`'s gap hint
           keeps its own — rewriting shipped, correct markup to remove a harmless attribute is churn.
+
+          ⚠ BOTH BRANCHES ARE RESOLUTIONS, AND NEITHER IS A SEED (WR-04). The located branch reads
+          `outcome`, which only `handleSelect` writes, and NOT `located`, which is true at first paint
+          on any edit of a listing that already has an address. Driven by `located` this region opened
+          with its text already in it on most edits — content at mount, from a prop, which is the one
+          shape the discharge above says it removed. Do not re-point either branch at a value a prop
+          can seed; the already-located fact has its own paragraph above.
 
           The failure branch keeps the declared alarm ink it already carried; that occurrence is
           pre-existing and is deliberately unchanged. */}
@@ -307,10 +386,8 @@ export function AddressAutocomplete({
       >
         {error !== null ? (
           <span className="text-destructive">{error}</span>
-        ) : located ? (
-          <span className="text-muted-foreground">
-            Location set. Guests see an approximate area until you choose to show the exact address.
-          </span>
+        ) : outcome === "located" ? (
+          <span className="text-muted-foreground">{LOCATED_SENTENCE}</span>
         ) : null}
       </p>
     </div>

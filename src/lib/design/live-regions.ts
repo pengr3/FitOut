@@ -1154,7 +1154,10 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       '"Location set. Guests see an approximate area until you choose to show the exact address." — ' +
       "or, when the geocoder cannot be reached or a picked suggestion arrives with no coordinates, " +
       "the failure sentence instead. ONCE per resolved lookup, at the moment a suggestion resolves or " +
-      "a lookup fails. NOTHING on arrival: the region is mounted and EMPTY until something resolves.",
+      "a lookup fails. NOTHING on arrival: the region is mounted and EMPTY until something resolves — " +
+      "including on an EDIT of a listing that already has an address, which is the case that used to " +
+      "be the exception and is not one any more (see WR-04 in the `why` below). On that path the " +
+      "located sentence still appears, as a plain paragraph outside any region.",
     why:
       "RULE 1, RULE 5 and RULE 6, and this row IS the discharge of the last exclusion this module " +
       "carried — whose own stated reason named Phase 14 as its owner, on the grounds that auditing " +
@@ -1177,7 +1180,28 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "an `aria-label` and is declared in `AUTHOR_NAMED_REGIONS`. The redundant polite attribute " +
       "beside the role is KEPT for the reason `slot-picker-gap-hint` keeps its own: the role is " +
       "already implicitly polite, so rewriting shipped, correct markup to remove a harmless attribute " +
-      "costs a review and buys nothing.",
+      "costs a review and buys nothing.\n" +
+      "\n" +
+      "⚠ RULE 1 AGAIN, AND THIS ROW WAS WRONG ABOUT IT FOR ONE PHASE (code review WR-04, 24 Aug 2026). " +
+      "The 'EMPTY until a lookup resolves' clause above was TRUE of a fresh draft and FALSE of an " +
+      "edit. The region's located branch read the component's `located`, which is " +
+      "`hasCoordinates || selectedLabel.length > 0`, and `wizard.tsx` seeds BOTH off the stored " +
+      "listing — so on any edit of a listing that already had an address, which is most edits, the " +
+      "region mounted with its sentence already in it. That is content at first paint, from a prop: " +
+      "the same rule-1 defect this row is the discharge of, arriving a second time by a different " +
+      "route. THE CODE WAS CHANGED, NOT THIS REASON: the located branch now reads an `outcome` value " +
+      "that only a resolution on the screen writes and no prop can seed, and the already-located fact " +
+      "renders as a plain paragraph beside the static hint — a fact about the listing, read in " +
+      "document order, rather than an announcement of something that did not happen. The failure " +
+      "branch needed nothing; `error` was never seeded.\n" +
+      "\n" +
+      "AND IT WAS UNFALSIFIABLE, WHICH IS WHY IT LASTED. This module's gate reads SOURCE through an " +
+      "AST walk: it can see that the region exists and that it is named, and it structurally cannot " +
+      "see what the element CONTAINS at mount, because that is a runtime value. The component was " +
+      "also `vi.mock`'d to a null render in all four wizard tests, so nothing in the repository had " +
+      "ever mounted it. `tests/listing/address-autocomplete.test.tsx` now does, and reads this " +
+      "region's text at mount with `hasCoordinates` both true and false. A future row claiming " +
+      "anything about what a region HOLDS needs a render behind it; this gate cannot supply one.",
   },
 
   // ─── photo-uploader.tsx ─────────────────────────────────────────────────────────────────────────
@@ -1324,7 +1348,16 @@ export const AUTHOR_NAMED_REGIONS = [
       "EMPTY until a lookup resolves, which on the address step is most of the time a host spends " +
       "there. It persists rather than mounting per outcome so its text changes in place, which is what " +
       "makes one lookup one announcement. Two words that name the region and paraphrase neither the " +
-      "located sentence nor the failure sentence it can hold.",
+      "located sentence nor the failure sentence it can hold.\n" +
+      "\n" +
+      "⚠ THE EMPTINESS THIS CASE RESTS ON WAS FALSE ON THE EDIT PATH FOR ONE PHASE, and case (a) is " +
+      "the ONLY thing holding this row out of case (b) — so it is worth saying where the emptiness " +
+      "now comes from rather than assuming it. The region's located branch used to read a value the " +
+      "wizard SEEDS from the stored listing, so on an edit it mounted full; it now reads an outcome " +
+      "only a resolution writes. Case (a) is therefore earned by the state's shape, not by the step " +
+      "usually being quiet. Verified by a render — `tests/listing/address-autocomplete.test.tsx` — " +
+      "because this module's own gate reads source and cannot see a mounted element's text. Full " +
+      "argument in the `LIVE_REGIONS` row (code review WR-04).",
   },
   {
     id: "photo-uploader-requirement",
