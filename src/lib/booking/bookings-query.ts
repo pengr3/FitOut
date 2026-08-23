@@ -479,6 +479,13 @@ const hostAgendaFrom = sql`
  *      happening today" is not allowed to need it. `now` must come from the DATABASE — never from a browser
  *      and never from the server's wall clock — which is why this is a parameter rather than a read here.
  *
+ * ONE CAVEAT, STATED RATHER THAN GLOSSED: `displayStatusExpr` is spliced in VERBATIM and still derives
+ * `completed` against SQL `now()`, not against `$now`. That is deliberate — it is the shipped D-102 rule and
+ * re-parameterising it would change `queryHostBookings` too — and it is harmless, because the caller reads
+ * `readDbNow` microseconds before this statement runs, so the two agree to well inside the `ends_at <= now()`
+ * boundary they compare. What the bound instant governs is the DAY BOUNDARY, which is the only comparison on
+ * this surface where a microsecond of drift can move a whole row.
+ *
  * ── ONE ROUND TRIP, TWO BUCKETS (D-142) ──────────────────────────────────────────────────────────
  *
  * A UNION ALL of two bounded subqueries over the same projection, JOIN set and owner predicate; measured as
