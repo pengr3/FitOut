@@ -138,9 +138,9 @@ Plans:
 **Ordering invariants this phase carries (non-negotiable, each a researcher finding):**
 
 - **DS-01 lands before ANY visual-regression baseline is captured.** Fixing the font cycle changes the rendered typeface of every screen; every baseline shot before it is invalid. Three of four researchers stated this independently.
-- **THEME-02/03 ship HERE, not in the audit.** The second theme is D-128's enforcement test, not a feature (D-133; 4-of-4 researcher convergence). Every surface built before a second theme exists is unverified, and deferring it turns Phase 17 into a rewrite phase.
+- **THEME-02/03 ship HERE, not in the audit.** The second theme is D-128's enforcement test, not a feature (D-133; 4-of-4 researcher convergence). Every surface built before a second theme exists is unverified, and deferring it turns Phase 17 into a rewrite phase. *The invariant **held**: grove shipped in Phase 10, and that is what made the token contract checkable at all. D-138 (2026-08-23) changes grove's STATUS — from candidate brand direction to token-contract probe — **after** that, and changes nothing about what this completed phase did or was right to do.*
 - **DS-05/DS-06 land HERE**, before fifty surfaces are built on values that fail the gate.
-- Three research decision items are **already settled** and must not be reopened at planning: the focus ring is a darkened neutral (D-132, *not* `--ring = --brand`); the `dark:` strip is the 10 app-code occurrences rewritten into tokens with the 56 vendored ones left inert (D-129 as amended, = THEME-05); the theme count is two (D-133).
+- Three research decision items are **already settled** and must not be reopened at planning: the focus ring is a darkened neutral (D-132, *not* `--ring = --brand`); the `dark:` strip is the 10 app-code occurrences rewritten into tokens with the 56 vendored ones left inert (D-129 as amended, = THEME-05); the theme count is two (D-133). *D-133's count still stands at two — **D-138 changes what the second one IS (a token-contract probe, never a shippable brand direction), not how many there are.***
 - Still genuinely open and flagged by research: the **exact** corrected `--brand` value (STACK's `#da2d34` vs PITFALLS' `#d33a3c`) needs a live-tool re-verification during this phase rather than an average of the two. The `culori`-based contrast test, once it exists, is the authority — not either document's hand-picked table.
 
 ### Phase 11: Quality Gates, Pattern Layer & App Shell
@@ -480,13 +480,15 @@ Plans:
 
   1. Every surface holds from 320px up, with the sticky bar present, and no price, countdown or label wraps or overflows.
   2. Search, listing detail, calendar, wizard, checkout and every list surface hold their defined structure at mobile, tablet and desktop from **one** component tree — no forked mobile/desktop variants.
-  3. Every surface is operable end to end by keyboard alone with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets — with an automated axe pass green in **both** themes, the full baseline set regenerated in the pinned image, and the leak tests flipped from advisory to blocking.
+  3. Every surface is operable end to end by keyboard alone with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets — with an automated axe pass green in **the product theme (`court`)**, the **court** baseline set regenerated in the pinned image, and the leak tests flipped from advisory to blocking. *(D-138 — single-theme axe pass, single-theme baselines; the token contract is proved by the fixed four-surface probe in `e2e/visual/theme-swap.spec.ts`, not by a second full sweep.)*
   4. v1.1 closes having shipped **zero schema migrations** — `drizzle/` is unchanged from its v1.0 state at `0025`.
 
 **Plans**: TBD
 **UI hint**: yes
 
-**Size note:** this phase's size is a direct function of how well Phases 10 and 11 were done. If the second theme really did ship with the first and the gates really could fail from Phase 11 onward, this is an audit. If either slipped, this becomes a rewrite phase — which is the entire argument for the ordering invariants above.
+**Size note:** this phase's size is a direct function of how well Phases 10 and 11 were done, and **both halves are now settled: this is an AUDIT, not a rewrite.** The second theme did ship with the first (grove, Phase 10), and the gates really could fail from Phase 11 onward — the ordering invariants above are the reason, and they are why the question is closed rather than open. The audit-vs-rewrite argument is kept, not deleted, because it is what those invariants exist for and what a future milestone should re-read before deferring an enforcement mechanism.
+
+*D-138 (2026-08-23) halves it again:* a **court-only** axe pass, a **court-only** baseline sweep, and a **fixed four-surface contract spec** (`e2e/visual/theme-swap.spec.ts`) in place of a second full sweep. What was 24 grove baselines and a two-theme axe pass is now one spec that renders four surfaces twice and requires the frames to differ.
 
 ### Phase 18: Search-Results Map
 
@@ -531,9 +533,9 @@ D-131 declares four; D-134 adds the fifth. A phase is not done until all five ho
 | Gate | What it demands | Source |
 |------|-----------------|--------|
 | **GATE-RESP** | 320px-up responsive, sticky bar present, nothing wraps or overflows | D-131 |
-| **GATE-A11Y** | Keyboard operability + visible focus + WCAG AA contrast, in **both** themes | D-131 |
+| **GATE-A11Y** | Keyboard operability + visible focus + WCAG AA contrast **in the single product theme (`court`)**. Grove's declared pairs REMAIN in `tests/design/contrast.test.ts` as part of the token contract — the axe *pass* is court-only, the contrast *table* is not, and dropping grove's rows from it would remove the check that stops a token being declared legible in one block only | D-131 + D-138 |
 | **GATE-STATES** | Designed loading, empty **and** error states on every async surface — as a *rendering* assertion (in the a11y tree with a non-zero bounding box in a real browser), not a design deliverable. jsdom cannot catch this class of bug at all. | D-131 |
-| **GATE-VRT** | Playwright visual-regression baselines, generated only in the pinned Linux image, plus a theme-swap smoke: two-theme screenshots of a surface that are **identical** mean that surface ignored the tokens | D-131 + D-135 |
+| **GATE-VRT** | Playwright visual-regression baselines — **court only**, still generated only in the pinned Linux image — plus **the fixed contract spec**: `e2e/visual/theme-swap.spec.ts` renders a **fixed set of four** representative surfaces in both themes and requires the frames to differ; frames that are **identical** mean that surface ignored the tokens. **The set is fixed by D-138 and does not grow per phase** — a fifth surface is a claim that the four cannot reach a token family, argued in prose as an amendment, never a row appended | D-131 + D-135 + D-138 |
 | **GATE-NOREG** | Proof the *previously working* thing still works: the selector inventory checked, the AST client/server-boundary test green, and the DB-vs-DOM price-equality e2e green | D-134 |
 
 ### Roadmap-level invariants
@@ -543,12 +545,13 @@ D-131 declares four; D-134 adds the fifth. A phase is not done until all five ho
 - **D-127 — the visual layer is an explicit PLACEHOLDER.** No brand asset (logo, wordmark, custom typeface, photography treatment) is commissioned or committed in v1.1.
 - **D-129 as amended — light-only.** The 10 app-code `dark:` occurrences across 5 files are rewritten into tokens; the 56 across 14 vendored `src/components/ui/*` files are left in place as provably-inert dead code, and the `.dark` block stays dormant as a cheap future theme. Stripping the vendored 56 would permanently fork 14 shadcn components from upstream and every future `npx shadcn add` would re-violate the rule.
 - **Do not rebuild what shadcn already provides.** The 30 vendored primitives are the baseline; they are re-skinned through tokens, never hand-edited into a fork.
+- **`/dev/theme` is frozen at its 14 sections (D-138).** It is a comparison harness, not a documentation surface, and **no phase adds a new section to it.** Its three court baselines pin the pattern layer; the four-surface contract set in `e2e/visual/theme-swap.spec.ts` is likewise fixed. A phase that believes it needs a fifth contract surface is making a claim that the four cannot reach a token family — that is an amendment to D-138 argued in prose, never a row appended.
 - **The net-new test, applied to every proposal:** *if I build this, does a REQUIREMENTS ID change?* If yes, it is not polish. Filter drawers with new filters, saved searches, favourites, listing comparison and earnings charts all fail it and stay out.
 
 ### Ordering invariants (each a researcher finding, not a preference)
 
 1. **DS-01 (the `--font-sans` cycle) lands before ANY visual-regression baseline is captured.** — 3 of 4 researchers, independently.
-2. **THEME-02/03 (the second theme) ship in the SAME phase as the first.** — 4 of 4 researchers; the strongest convergence in the set. It is D-128's enforcement test, not a feature.
+2. **THEME-02/03 (the second theme) ship in the SAME phase as the first.** — 4 of 4 researchers; the strongest convergence in the set. It is D-128's enforcement test, not a feature. **It HELD, and it is now SPENT.** Grove shipped in Phase 10, which is what made the contract checkable at all; under **D-138** no later phase owes grove a baseline, an axe pass or a surface. The invariant and its provenance stay on the record because they are why the enforcement test exists — a future milestone adding a theme inherits the finding, not the exemption.
 3. **GATE-01 (the VR fail-open fix) and GATE-04/05 (GATE-NOREG prerequisites) exist before the first surface-polish phase.** Every later phase inherits whatever config exists when it starts.
 4. **DS-06/DS-05 (the AA-failing token corrections) land in the foundation phase**, before fifty surfaces are built on values that fail the gate.
 5. **MAP and HOURS never fold into a surface-polish phase** (D-136) — a polish phase that absorbs net-new capability stops being verifiable as polish.
