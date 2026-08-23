@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-08-23T08:59:04.062Z"
+stopped_at: Completed 14-03-PLAN.md — the request-row triage plan (HFLOW-01 advanced, not closed — 14-06 owns the inbox-zero and the desktop reorder)
+last_updated: "2026-08-23T09:23:51.221Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 82
+  completed_plans: 83
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 3 of 16
-Current Plan: 3
+Plan: 4 of 16
+Current Plan: 4
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -657,6 +657,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 13.1 P05 | 71min | 2 tasks | 5 files |
 | Phase 14 P01 | 25min | 3 tasks | 5 files |
 | Phase 14 P02 | 20min | 3 tasks | 3 files |
+| Phase 14 P03 | 20min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -670,6 +671,10 @@ deferred walk is inconsistent rather than honest.*
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [14-03]: **A per-file design-gate inventory reads SOURCE, so "only one arm ever renders" is not a defence — hoist what the gate counts.** Giving `request-countdown.tsx` a second layout added a second `role="timer"` element and `tests/design/live-regions.test.tsx` reported it as an undeclared region (`request-countdown.tsx:271 — timer#2 on <span>`), even though the two arms can never mount together. The remedy was to hoist the timer element into a shared const — as the digits already were for `phase13-surface-gates`' alarm-token line count — rather than to declare a second inventory row for the same region drawn twice. The glyph and the sr-only threshold region were hoisted in the same edit. ⚠ Any later plan giving that component a third layout inherits this rule.
+- [14-03]: **The host request row is TERMINAL, its deadline leads from `RowCard`'s `status` slot, and its money sits in the `<dl>` at the guest name's own type role.** D-144 closes Phase 11's open row-navigability question (`11-11-SUMMARY.md:283`) as a *decision*, held by `tests/host/request-row.test.tsx` — zero anchors, zero link roles, exactly two interactive descendants. ⚠ D-146's DOM-order half is asserted as *"the deadline shares the row's first line with the title, and both precede the money"*, NOT as "the deadline precedes the title": `row-card.tsx:178-210` renders the title column before the status column for all four adopters, and 14-UI-SPEC's own falsifiable is `boundingBox().y <=` on that pair for exactly that reason. The strict computed-size comparison is `e2e/host-inbox-hierarchy.spec.ts`'s, owned by 14-06.
+- [14-03]: **A refusal reports where it can still be read; a success reports in the only place left.** Both `toast.error` calls on approve/decline are deleted for ONE named in-row `role="status"` carrying the server action's own sentence verbatim; both `toast.success` calls stay, because only the success path revalidates the row away. The decision is per PATH, not per component. `request-row.tsx` is also the FIRST host-side `ResponsiveDialog` adopter — 14-CONTEXT D-145's claim that the pattern is "already used by the host cancel dialog" is measurably false (`host-cancel-dialog.tsx:30-37` imports the vendored dialog directly) and `host-cancel-dialog.tsx` was deliberately NOT converted.
 
 - [13.1-03]: **A `"use server"` module may export ONLY async functions — so a plan that asks for an exported constant is asking for a module that will not evaluate.** The 13.1-03 plan required `RECONCILE_RATE_LIMIT` to be exported from the action AND required `tests/use-server-exports.test.ts` to pass; those are not jointly satisfiable. The export was added on purpose and watched redden that guard verbatim, then reverted. It is module-private, exactly as `CANCEL_RATE_LIMIT` is, and the spec discovers the budget BEHAVIOURALLY (call until refused, assert against where the refusal fell) — which cannot drift from a constant it never reads. ⚠ This is the same failure class as the `avatar.ts` defect: upload was dead in every browser for a whole phase behind a green unit test.
 - [13.1-03]: **An ACCELERANT must be bounded by the same constants as the guarantee it accelerates, and measuring the reach is what found the hole.** The 13.1-03 plan never mentions D-111. Queried against real dev data, both evidence bookings are `pending`, hold a `checkout_session_id`, carry a real capture at PayMongo and belong to the seeded UAT booker — so the fast path would have confirmed a protected fixture the first time that booker opened its `?paid=1` URL, through the front door, while the cron was carefully locked out of the same row. The action now imports the SAME `RECONCILE_EPOCH` (never a second literal); with the bound removed, a row carrying the later fixture's exact measured `created_at` came back **`reconciled`**, not merely probed.
@@ -1156,18 +1161,32 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T08:58:47.805Z
-Stopped at: Phase 14 UI-SPEC approved
-authenticated, epoch-bounded server action reusing the sweep's `reconcileOne`, fired once by a latched
-effect after the poll cap, with ZERO new copy and the frozen poller's diff down to a single replaced
-destructure line. 13.1-04 is next. ⚠ TWO THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) The fast path
-is NOT a guarantee — it is bounded by a browser being open; anything that must happen reliably belongs on
-a schedule. (2) `RECONCILE_RATE_LIMIT` is module-private and cannot be exported from a `"use server"`
-module; if a second call site needs the number, MOVE the constant to a non-`"use server"` module rather
-than duplicating the literal. Resume file: none.
+Last session: 2026-08-23T09:25:00.000Z
+Stopped at: Completed 14-03-PLAN.md — the request-row triage plan. Phase 14 is 3 of 16 plans done
+(14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the request row);
+**14-04 is next**. 14-03 advanced HFLOW-01's ROW half (the requirement is NOT closed — 14-06 owns the
+designed inbox-zero and the desktop table's column order, so its checkbox stays unticked): `RequestCountdown` gained an opt-in `emphasis="lead"`
+layout with both booker call sites byte-identical, and `request-row.tsx` became terminal (D-144), moved
+its deadline into `RowCard`'s `status` slot and its money into the `<dl>` (D-146), ported its decline
+confirm onto `ResponsiveDialog` (D-145 — the FIRST host-side adopter), and replaced two `toast.error`
+calls with one named in-row `role="status"` region carrying the server's own sentence. Two new jsdom
+tests (`tests/host/request-row.test.tsx`, `tests/host/request-refusal.test.tsx`) hold all of it, and both
+were watched failing against the shapes they forbid. Resume file: none.
 
-⚠ Session Continuity was STALE when this session started — it still named 13.1-01 after 13.1-02 shipped.
-13.1-02's own close-out updated the frontmatter and Current Position but not this block.
+⚠ THREE THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **A per-file design-gate inventory reads
+SOURCE, not the render** — a second `role=` element in an unused layout arm is a second declared region.
+Hoist what the gate counts (`live-regions.test.tsx` went red on exactly this and the fix is in
+`request-countdown.tsx`'s header). (2) **`RowCard` renders its title column BEFORE its `status` column**
+for all four adopters, so "the countdown precedes the title in DOM order" is not achievable with the
+countdown in `status`; 14-UI-SPEC's falsifiable is `boundingBox().y <=` on that pair for that reason.
+(3) **`RowCard`'s status column is `shrink-0`** and the D-99 reason line now lives in it — see
+`.planning/phases/14-host-tooling/deferred-items.md` `[14-03]`, addressed to 14-06, which owns the 320px
+measurement.
+
+⚠ This block was STALE for three plans — it still said "Phase 14 UI-SPEC approved" after 14-01 and 14-02
+had both shipped, and carried 13.1-03's paragraph underneath. Corrected here. The SDK's
+`state.record-session` / `record-metric` / `add-decision` verbs are no-ops on this toolchain version
+(see the `fitout-gsd-toolchain-gotchas` memory); every one of those three sections is hand-written.
 
 <details><summary>Previous session (13-15, superseded 2026-08-22)</summary>
 

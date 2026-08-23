@@ -51,7 +51,8 @@ patterns-established:
   - "A per-path report decision: the same server result reports differently depending on whether the surface survives the outcome"
   - "A new gate is not trusted until it has been watched rejecting the shape it forbids — both new files were driven red by a deliberate regression and the messages recorded"
 
-requirements-completed: [HFLOW-01]
+requirements-completed: []  # HFLOW-01 is SHARED with 14-06 and is NOT ticked here — see the note below
+requirements-advanced: [HFLOW-01]  # the row half only: the countdown hierarchy and the two-actions rule
 
 # Metrics
 duration: 20min
@@ -314,6 +315,22 @@ migration, no server-side edit, no third surface opened.
 No new threat surface: no network endpoint, no auth path, no file access pattern, no schema change. No
 `## Threat Flags` section is owed.
 
+## Requirement Status — HFLOW-01 is ADVANCED, not COMPLETE
+
+This plan's frontmatter names `HFLOW-01`, and so does **14-06**'s. The requirement reads: *"The host
+requests inbox is scannable with the SLA countdown as the loudest element, approve/decline as the only
+actions, and a designed inbox-zero."*
+
+| Clause | Owner | Status after 14-03 |
+|---|---|---|
+| SLA countdown as the loudest element | 14-03 (the row) + **14-06** (the desktop table's column order, and `e2e/host-inbox-hierarchy.spec.ts`'s computed-`font-size` measurement at 320/768/1280) | row done; page and measurement outstanding |
+| Approve/decline as the only actions | **14-03** | done, and asserted — zero anchors, zero link roles, exactly two interactive descendants |
+| A designed inbox-zero (D-147) | **14-06** (`src/app/(host)/host/requests/page.tsx`) | not this plan's file |
+
+`.planning/REQUIREMENTS.md`'s checkbox for HFLOW-01 is therefore **left unticked** and its traceability row
+left `Pending`. Ticking it here would say the inbox-zero and the desktop reorder had shipped, which they
+have not. **14-06 is the plan that closes it.**
+
 ## Known Stubs
 
 None. Every element this plan renders is wired to real data or to a server result:
@@ -373,3 +390,8 @@ None — no external service configuration, no environment variable, no package 
 ---
 *Phase: 14-host-tooling*
 *Completed: 2026-08-23*
+
+## Self-Check: PASSED
+
+All five claimed commits resolve in `git log` (`f5b0fab`, `83b52a9`, `93b543c`, `3b1d943`, `d890c8e`), and
+all six claimed files exist on disk. No missing items.
