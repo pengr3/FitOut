@@ -71,6 +71,7 @@ import { ResponsiveDialog } from "@/components/patterns/responsive-dialog";
 import { RequestCountdown } from "@/components/booking/request-countdown";
 import { approveRequest, declineRequest } from "@/app/actions/host-requests";
 import { APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
+import { REQUEST_STATUS_CAP } from "@/lib/design/measurements";
 
 export type RequestRowData = {
   requestId: string;
@@ -111,6 +112,25 @@ const ROW_VALUE_CLASS = "text-label";
 
 /** The money value — the same role as the guest name, plus the figure treatment. Derived, never retyped. */
 const ROW_MONEY_CLASS = `${ROW_VALUE_CLASS} tabular-nums`;
+
+/**
+ * The status slot's content class — the row rhythm, plus the DECLARED ceiling on how wide that column
+ * may grow.
+ *
+ * ⚠ THE CEILING IS NOT COSMETIC, AND IT WAS MEASURED RATHER THAN PREDICTED (deferred item `[14-03]`,
+ * discharged by plan `14-06`). `RowCard` renders the status column `shrink-0`, so it keeps its
+ * max-content width at every viewport and the title column beside it absorbs the whole squeeze. That is
+ * fine for `Expires in` over `23h 45m`; it is not fine once the D-99 cap-shortened reason SENTENCE
+ * shares the slot. At the 320px floor, before this cap: the column measured 235.34px, the countdown
+ * inside it needed 84.20px, and the space title was left **8.66px** — an ellipsis where the name of the
+ * space being requested should be.
+ *
+ * The number, its derivation and what it deliberately does not do live on `REQUEST_STATUS_CAP` in
+ * `measurements.ts`. It is applied to this CONTENT div rather than to the pattern's column because a
+ * definite max-width on the child is what caps the flex item's intrinsic size, and because relaxing
+ * `shrink-0` on `row-card.tsx` would change all four adopters to fix one.
+ */
+const ROW_STATUS_CLASS = `space-y-0.5 ${REQUEST_STATUS_CAP}`;
 
 /**
  * RequestActions — the Approve (inline, direct) + Decline (confirm-overlay) control. Both call the 06-07
@@ -285,7 +305,7 @@ export function RequestRow({
          NO `trailing`: the money moved into the description list below, precisely so it cannot read as
          this row's headline figure. */
       status={
-        <div className="space-y-0.5">
+        <div className={ROW_STATUS_CLASS}>
           <RequestCountdown expiresAt={row.expiresAt} label="Expires in" emphasis="lead" />
           {countdownReason}
         </div>

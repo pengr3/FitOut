@@ -497,6 +497,53 @@ export const HOURS_STRIP_TRACK = "h-40";
 export const STEP_MARKER_BOX = "size-6";
 
 /**
+ * A request row's status column: 112px, and it is a CEILING rather than a size.
+ *
+ * ⚠ THE FOURTH BOX EXCEPTION, AND IT IS NOT IN 14-UI-SPEC'S LIST OF THREE — recorded here rather than
+ * quietly added, exactly as `TEXT_BAR_HEIGHT` and `AUTH_SLOT_CONTROL` were before it. It exists because
+ * plan `14-06` MEASURED the consequence deferred item `[14-03]` predicted, and the measurement was
+ * worse than the prediction.
+ *
+ * WHAT WAS MEASURED (Chromium, 320px, court, plan 14-06 — the numbers are in
+ * `e2e/host-inbox-hierarchy.spec.ts`'s own report):
+ *
+ *     status column  235.34px   ← driven entirely by the D-99 reason line
+ *     the countdown   84.20px   ← what the column actually exists to hold
+ *     space title      8.66px   ← what was left
+ *
+ * `row-card.tsx` renders the status/trailing column as `flex shrink-0 …`, so it keeps its max-content
+ * width at every viewport and the `min-w-0 flex-1` title column beside it absorbs the whole squeeze.
+ * That is unremarkable while the slot holds `Expires in` over `23h 45m`. Plan `14-03` also moved the
+ * D-99 cap-shortened reason line into it — *"Session starts in 3h — respond soon."*, a full SENTENCE —
+ * and a sentence in a column that cannot shrink is a sizing authority. 8.66px is not a title
+ * "truncating hard": it is an ellipsis, and a row whose space cannot be identified is not a row a host
+ * can triage. The venue-local window beneath it wraps in the same 8.66px, one word per line.
+ *
+ * THE DERIVATION. At the declared 320px floor (D-131): 320 − 32 (the list shell's horizontal padding)
+ * − 32 (`CardContent`'s) = 256px of card content, − 12 (the header row's gutter) = **244px** shared by
+ * the title column and this one. 112px is the smallest step on the ladder that clears the measured
+ * 84.20px countdown with enough headroom for the grove theme — whose heading step is 24/700 against
+ * court's 20/600, so its digits line is materially wider — and 244 − 112 = **132px** leaves the title
+ * the LARGER share. That split is the rule this constant encodes: the deadline is the row's headline
+ * and outranks the money and the guest name (D-146), but it does not outrank knowing WHICH space is
+ * being asked for.
+ *
+ * WHAT IT DELIBERATELY DOES NOT DO. It does not stop the reason line wrapping — it makes it wrap, which
+ * is correct: the reason is supporting text and three short lines of it cost nothing, whereas a
+ * deadline broken across two lines is harder to read at a glance than the money it is supposed to
+ * outrank. The countdown itself must therefore always fit, and that is asserted rather than assumed —
+ * `e2e/host-inbox-hierarchy.spec.ts` case 3 fails if this value is ever tightened past the countdown's
+ * own max-content width.
+ *
+ * WHY NOT RELAX `shrink-0` ON THE PATTERN INSTEAD. That is a change to all four `RowCard` adopters to
+ * fix one of them, and the other three put a badge or an amount in that slot — content that should keep
+ * its max-content width and would start truncating for no reason. `[14-03]`'s own note reaches the same
+ * conclusion and asks for exactly this: the cap declared here, with its derivation, applied to the
+ * status CONTENT at the one call site that needs it.
+ */
+export const REQUEST_STATUS_CAP = "max-w-28";
+
+/**
  * The publish checklist's side column, from the large breakpoint up: 288px.
  *
  * DERIVED FROM THE GRID TRACK BELOW, WHICH IS THE AUTHORITY. `WIZARD_CHECKLIST_GRID` names that track
