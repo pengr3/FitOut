@@ -137,9 +137,17 @@ export function hourLabel(hour: number): string | null {
   return HOUR_OPTIONS[hour]?.label ?? null;
 }
 
-/** "HH:mm" (or "HH:mm:ss") → integer hour 0..23. NaN for anything else — the caller skips those. */
+/**
+ * "HH:mm" (or "HH:mm:ss") → integer hour 0..23. NaN for anything else — the caller skips those.
+ *
+ * The two-digit prefix is REQUIRED, which the editor's own bare `parseInt(t.slice(0, 2))` does not check:
+ * a one-character `"9"` mid-keystroke parses as nine o'clock there, and the strip would draw a bar for a
+ * string the shared schema's regex (`^([01]\d|2[0-3]):[0-5]\d…`) would refuse. That is not a second
+ * validation — nothing here judges the value or emits a message — it is refusing to PARSE a fragment into
+ * an hour the host has not finished typing.
+ */
 function toHour(time: string): number {
-  return parseInt(time.slice(0, 2), 10);
+  return /^\d{2}/.test(time) ? parseInt(time.slice(0, 2), 10) : NaN;
 }
 
 /**
