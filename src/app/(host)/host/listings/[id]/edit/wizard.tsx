@@ -569,18 +569,38 @@ export function ListingWizard({
   const CANCELLATION_STEP = stepIndex("cancellation");
 
   /**
-   * Move to a position in the WALKED list and record the arrival by KEY (D-148).
+   * Move to a POSITION in the walked list (D-148).
    *
    * The index is clamped here rather than trusted, for the same reason the render clamp below exists:
    * the walked list can shrink, and a position past its end must resolve to a real step instead of
-   * reading `undefined.key`. The key is read from the walked list AFTER clamping, so what gets marked
-   * visited is always the step the host actually lands on.
+   * reading `undefined.key`.
+   *
+   * ⚠ IT NO LONGER RECORDS THE ARRIVAL, and that moved deliberately — see the arrival effect below.
+   * Recording here meant every transition had to name its own destination, so a caller that resolved
+   * that destination against a STALE walked list (one captured before an occupancy switch) marked a
+   * step visited that the host never stood on. Arrival is now a fact about where the host IS, observed
+   * once, rather than a claim each mover makes about where it is sending them.
    */
   function goToStep(next: number) {
-    const i = Math.min(Math.max(next, 0), steps.length - 1);
-    const key = steps[i].key;
-    setVisitedKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-    setStep(i);
+    setStep(Math.min(Math.max(next, 0), steps.length - 1));
+  }
+
+  /**
+   * Move ONE step along the walked list, FROM WHEREVER THE HOST ACTUALLY IS (WR-02).
+   *
+   * The functional updater is the whole point. `saveAndContinue` below resolves this AFTER an await, so
+   * a version reading the render-closure `step` advances from the position as of the CLICK — and the
+   * position can have moved in between. Every navigation control in this wizard is now gated on the
+   * in-flight lock, so today nothing can move it; that is a property of five `disabled` attributes
+   * staying correct, and this is the same property held by the shape of the code instead.
+   */
+  function stepForward() {
+    setStep((s) => Math.min(s + 1, steps.length - 1));
+  }
+
+  /** The same, one step back — the shipped pre-14-09 form, restored for the reason above (IN-03). */
+  function stepBack() {
+    setStep((s) => Math.max(s - 1, 0));
   }
 
   /**
@@ -612,7 +632,10 @@ export function ListingWizard({
     // navigate, so the region is on screen to carry the outcome — and a toast beside it would be two
     // announcements for one save, which is the defect a status region is usually added to fix.
     setSaveState(saveStateFor(res));
-    if (res.ok && step < steps.length - 1) goToStep(step + 1);
+    // OFF THE LIVE POSITION, not the captured one (WR-02). `stepForward` clamps at the end of the
+    // walked list, so the old `step < steps.length - 1` guard is now inside the move rather than a
+    // second reading of the same two values beside it.
+    if (res.ok) stepForward();
   }
 
   async function saveAsDraft() {
@@ -800,6 +823,29 @@ export function ListingWizard({
   const advanceLabel = step === 0 ? "Get started" : "Save and continue";
 
   /**
+   * THE ARRIVAL RECORD (D-148), taken from WHERE THE HOST IS rather than from whoever moved them.
+   *
+   * Visited-ness is still a set of step KEYS and is still the rail's only authority — none of that
+   * moved. What moved is WHO writes it. Every mover used to name its own destination and record that
+   * key, which made "visited" a claim about an intention: a mover holding a stale walked list (one
+   * captured before an occupancy switch) recorded a key for a step that does not exist in the mode the
+   * host ended up in, and the marker for the step they were actually standing on stayed inert. Read
+   * here, off the CURRENT key, "visited" means what the word means — the host has stood on this step —
+   * and no transition can be wrong about it, including one that resolves after an await (WR-02).
+   *
+   * NOTHING VISIBLE CHANGES ORDER. The step a host has just arrived at renders as `current`, and the
+   * `current` marker never consults this set; by the time a marker becomes `done` and does consult it,
+   * the effect that recorded that key ran several commits ago.
+   *
+   * Keyed on `currentKey` and NOT on `steps`, which is a fresh array on every render and would make
+   * this an every-render effect. The seed in `useState` above stays: it is what makes the first step
+   * recorded during the very first render rather than one commit later.
+   */
+  useEffect(() => {
+    setVisitedKeys((prev) => (prev.has(currentKey) ? prev : new Set(prev).add(currentKey)));
+  }, [currentKey]);
+
+  /**
    * Which of the two PERSISTENT checklist placements this viewport gets (D-149).
    *
    * Read UNCONDITIONALLY, above the review-step guard, because it is a hook: calling it inside the
@@ -893,6 +939,13 @@ export function ListingWizard({
                   <button
                     type="button"
                     onClick={() => goToStep(i)}
+                    // THE IN-FLIGHT LOCK, the same one Back and the advance carry (WR-02). Until this
+                    // attribute existed the rail was the ONLY reachable navigation in the wizard that
+                    // could be pressed while an autosave was out — and a press that races the save is
+                    // silently overridden the moment it resolves, dropping the host on a step they did
+                    // not choose with nothing reporting it. 14-09 made these markers controls; a
+                    // control that navigates belongs behind the lock every other one is behind.
+                    disabled={saving}
                     aria-label={`Go back to step ${i + 1}: ${s.title}`}
                     className={cn(
                       STEP_MARKER_BOX,
@@ -956,6 +1009,7 @@ export function ListingWizard({
             placement={checklistPlacement}
             rows={checklist}
             onFix={goToStep}
+            disabled={saving}
           />
         </aside>
       )}
@@ -1713,6 +1767,7 @@ export function ListingWizard({
                 placement="review"
                 rows={checklist}
                 onFix={goToStep}
+                disabled={saving}
                 eligible={publishEligible}
                 emailVerified={emailVerified}
                 hostEmail={hostEmail}
@@ -1725,7 +1780,7 @@ export function ListingWizard({
             <Button
               type="button"
               variant="ghost"
-              onClick={() => goToStep(step - 1)}
+              onClick={stepBack}
               disabled={step === 0 || saving}
             >
               <ChevronLeftIcon className="size-4" /> Back

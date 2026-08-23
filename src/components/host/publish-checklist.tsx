@@ -166,9 +166,11 @@ export function usePublishChecklistPlacement(): "panel" | "collapsible" {
 function ChecklistRows({
   rows,
   onFix,
+  disabled,
 }: {
   rows: readonly PublishChecklistRow[];
   onFix: (step: number) => void;
+  disabled: boolean;
 }) {
   return (
     <ul className="space-y-1.5">
@@ -201,12 +203,27 @@ function ChecklistRows({
             )}
           </span>
           <span className={cn(c.done && "text-muted-foreground line-through")}>{c.label}</span>
+          {/*
+            THE IN-FLIGHT LOCK ON BOTH CONTROLS (WR-02). `Fix` is NAVIGATION — 14-10 made it reachable
+            from the first step, so it can jump forward as well as back — and the wizard's autosave
+            advances when it resolves. A jump pressed while a save is out is therefore overridden the
+            moment the save lands, dropping the host on a step they did not choose. Every navigation
+            affordance in the wizard's own nav row is behind this lock; these two were reachable and
+            were not.
+
+            `Resend verification email` takes it for a different reason and it is worth stating rather
+            than folding in: it does not navigate, so it cannot lose a host's place. What it can do is
+            fire a second request while a save is out — a host pressing it because the wizard looks
+            stuck gets an email they did not need and no report either way. The lock is the same lock
+            the nav row uses for the same in-flight window.
+          */}
           {!c.done && c.step !== null && (
             <Button
               type="button"
               variant="link"
               size="sm"
               className="h-auto p-0"
+              disabled={disabled}
               onClick={() => onFix(c.step as number)}
             >
               Fix
@@ -218,6 +235,7 @@ function ChecklistRows({
               variant="link"
               size="sm"
               className="h-auto p-0"
+              disabled={disabled}
               onClick={c.action}
             >
               Resend verification email
@@ -237,13 +255,27 @@ function ChecklistRows({
  * assert the markup of both without a viewport to simulate. `review` is the terminal step's inline
  * placement, and the persistent one is suppressed there.
  */
+/**
+ * The wizard's in-flight save lock, threaded in (WR-02).
+ *
+ * REQUIRED at every call site, and deliberately not defaulted. This component is rendered from three
+ * placements in one file; a default of `false` is one a placement can silently miss, and the missed
+ * placement is then the one reachable control in the wizard that races the autosave — which is exactly
+ * the shape this fix exists to remove. Required, the compiler names all three.
+ *
+ * It is NOT derived here from anything. The lock belongs to the wizard's save cycle and this component
+ * owns no part of that cycle; deriving a second answer to "is a save out" would be a second thing to
+ * keep in agreement with the nav row's own `disabled`.
+ */
+type ChecklistLock = { disabled: boolean };
+
 export type PublishChecklistProps =
-  | {
+  | ({
       placement: "panel" | "collapsible";
       rows: readonly PublishChecklistRow[];
       onFix: (step: number) => void;
-    }
-  | {
+    } & ChecklistLock)
+  | ({
       placement: "review";
       rows: readonly PublishChecklistRow[];
       onFix: (step: number) => void;
@@ -251,10 +283,10 @@ export type PublishChecklistProps =
       eligible: boolean;
       emailVerified: boolean;
       hostEmail: string;
-    };
+    } & ChecklistLock);
 
 export function PublishChecklist(props: PublishChecklistProps) {
-  const { placement, rows, onFix } = props;
+  const { placement, rows, onFix, disabled } = props;
 
   if (placement === "review") {
     // BOTH BRANCHES LIVE INSIDE THE CONTAINER, and that is a deliberate change from the shipped
@@ -273,7 +305,7 @@ export function PublishChecklist(props: PublishChecklistProps) {
         ) : (
           <>
             <p className="text-sm font-medium">{PUBLISH_CHECKLIST_UNMET_LEAD}</p>
-            <ChecklistRows rows={rows} onFix={onFix} />
+            <ChecklistRows rows={rows} onFix={onFix} disabled={disabled} />
             {!props.emailVerified && (
               <p className="text-xs text-muted-foreground">
                 Verify your email to publish. We sent a link to {props.hostEmail}.
@@ -294,7 +326,7 @@ export function PublishChecklist(props: PublishChecklistProps) {
     return (
       <ChecklistContainer>
         <PanelCard sticky title={PUBLISH_CHECKLIST_TITLE}>
-          <ChecklistRows rows={rows} onFix={onFix} />
+          <ChecklistRows rows={rows} onFix={onFix} disabled={disabled} />
         </PanelCard>
       </ChecklistContainer>
     );
@@ -338,7 +370,7 @@ export function PublishChecklist(props: PublishChecklistProps) {
               animation: the region's height depends on how many rows the occupancy fork produces,
               and an unmeasured height transition above a form is motion nobody asked for. */}
           <CollapsibleContent className="pt-2">
-            <ChecklistRows rows={rows} onFix={onFix} />
+            <ChecklistRows rows={rows} onFix={onFix} disabled={disabled} />
           </CollapsibleContent>
         </Collapsible>
       </PanelCard>

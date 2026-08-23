@@ -534,7 +534,11 @@ describe("the persistent publish checklist (HFLOW-02 / D-149)", () => {
       { label: "Title", done: true, step: 1 },
       { label: "3+ photos", done: false, step: 3 },
     ];
-    render(<PublishChecklist placement="panel" rows={rows} onFix={() => {}} />);
+    // `disabled` is REQUIRED (WR-02): the wizard's in-flight save lock is threaded into every
+    // placement, so a `Fix` control cannot be pressed while an autosave is out. Passed `false` here
+    // because this case is about the done marker's markup and nothing about the lock — the lock's own
+    // three cases live in `tests/listing/wizard-save-race.test.tsx`.
+    render(<PublishChecklist placement="panel" rows={rows} onFix={() => {}} disabled={false} />);
     expect(containers()).toHaveLength(1);
     expect(screen.getByRole("heading", { name: "Ready to publish?" })).toBeTruthy();
     // The panel is NOT a disclosure: it has no trigger and its rows are readable with no interaction.
