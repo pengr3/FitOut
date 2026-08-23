@@ -224,6 +224,30 @@ export function RequestCountdown({
   // in both arms by construction rather than by two authors remembering.
   const glyph = <ClockIcon className="size-4 shrink-0" aria-hidden="true" />;
 
+  // THE ONE TIMER ELEMENT, hoisted for a reason the design system enforces rather than for symmetry.
+  // `live-regions.ts` declares exactly ONE timer region in this file (`request-countdown-digits`,
+  // `kind: "timer", at: 1`) and `tests/design/live-regions.test.tsx` reads the SOURCE, not the render —
+  // so a second `role="timer"` written into the other layout arm is an UNDECLARED live region even
+  // though the two can never be on screen together. Watched failing on this plan's first draft:
+  //
+  //   PRESENT BUT UNDECLARED (a live region shipped with no stated reason):
+  //   src/components/booking/request-countdown.tsx:271 — timer#2 on <span> (role="timer")
+  //
+  // Only the layout branches; the role, its politeness and its contents are written once.
+  const ticking = (
+    <span role="timer" aria-live="off" className={lead ? "block" : undefined}>
+      {lead ? (
+        <span className={LEAD_LABEL_CLASS}>
+          {glyph}
+          {label}
+        </span>
+      ) : (
+        <>{label} </>
+      )}
+      {digits}
+    </span>
+  );
+
   // THE ONE REGION. Its text changes at most once — at the threshold, and only for a countdown that
   // was above it when it mounted — and the expiry drops the `aria-live` attribute while leaving the
   // text alone. See the header for all three halves. Hoisted so that both layout arms render exactly
@@ -247,13 +271,7 @@ export function RequestCountdown({
             {expiredLabel}
           </span>
         ) : (
-          <span role="timer" aria-live="off" className="block">
-            <span className={LEAD_LABEL_CLASS}>
-              {glyph}
-              {label}
-            </span>
-            {digits}
-          </span>
+          ticking
         )}
         {announcement}
       </span>
@@ -268,9 +286,7 @@ export function RequestCountdown({
         // no timer here to identify (rule 3, and hold-countdown.tsx's expired branch does the same).
         <span>{expiredLabel}</span>
       ) : (
-        <span role="timer" aria-live="off">
-          {label} {digits}
-        </span>
+        ticking
       )}
       {announcement}
     </span>
