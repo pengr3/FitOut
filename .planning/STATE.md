@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 14-05-PLAN.md — the agenda's three states and the signals block. Phase 14 is 5 of 16 plans done
-last_updated: "2026-08-23T10:03:25.710Z"
+stopped_at: Completed 14-06-PLAN.md — the requests inbox reads deadline-first and D-146 is a browser measurement. Phase 14 is 6 of 16 plans done
+last_updated: "2026-08-23T10:35:03.860Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 85
+  completed_plans: 86
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 6 of 16
-Current Plan: 6
+Plan: 7 of 16
+Current Plan: 7
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -667,6 +667,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P02 | 20min | 3 tasks | 3 files |
 | Phase 14 P03 | 20min | 3 tasks | 4 files |
 | Phase 14 P05 | 20min | 3 tasks | 6 files |
+| Phase 14 P06 | 30min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1069,6 +1070,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 14-05: the agenda row renders NO money — 14-UI-SPEC § The agenda row and D-140 both enumerate four fields and none is a total; the dashboard is a view and the frozen quote lives on the inbox row and the booking detail
 - [Phase ?]: 14-05: a multi-state region renders its CONTAINER unconditionally and is told apart by which child it holds, and the container-presence case is asserted first and alone — 'the agenda renders' is a claim an absent section satisfies
 - [Phase ?]: 14-05: a selector-contract row lands in the SAME commit as its literal (the contract is bidirectional), which moved the five rows out of the plan's test task and into the two component commits
+- [Phase 14]: D-146 is enforced as a browser measurement: e2e/host-inbox-hierarchy.spec.ts collects every visible text node's computed font size inside a request row at 320/768/1280 and asserts the countdown digits are strictly the largest, printing the full sorted list on failure
+- [Phase 14]: The desktop requests table adopts RequestCountdown's emphasis=lead — the hierarchy is a property of the request row, not of the viewport, and without it D-146 was false at 768px and 1280px
+- [Phase 14]: REQUEST_STATUS_CAP (max-w-28) declared in measurements.ts and applied to request-row's status content: at 320px the D-99 reason sentence drove RowCard's shrink-0 status column to 235.34px and left the space title 8.66px. Discharges deferred item [14-03]
 
 ### Pending Todos
 
@@ -1175,8 +1179,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T10:03:03.911Z
-Stopped at: Completed 14-05-PLAN.md — the agenda's three states and the signals block. Phase 14 is 5
+Last session: 2026-08-23T10:34:54.406Z
+Stopped at: Completed 14-06-PLAN.md — the requests inbox reads deadline-first and D-146 is a browser measurement. Phase 14 is 6 of 16 plans done
 of 16 plans done (14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the
 request row, 14-04 the week strip's pure half, 14-05 the dashboard's two new blocks); **14-06 is next**.
 `src/components/host/host-agenda.tsx` renders D-140/D-142's three states inside ONE section that mounts

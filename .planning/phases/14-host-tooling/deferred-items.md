@@ -33,3 +33,28 @@ not.
 
 **Not a regression this plan introduced:** the reason line rendered beneath the countdown before 14-03 too.
 What changed is which column it renders in, and therefore which neighbour pays for its width.
+
+### ✅ DISCHARGED by 14-06 — option (a), and the measurement was worse than the prediction
+
+Measured in Chromium at 320px (court) by `e2e/host-inbox-hierarchy.spec.ts` case 3, on a deliberately
+cap-shortened seeded request so the reason line really renders:
+
+```
+status column  235.34px   ← driven entirely by the D-99 reason sentence
+the countdown   84.20px   ← what that column actually exists to hold
+space title      8.66px   ← what was left  (it wanted 129px)
+```
+
+8.66px is not "truncating hard" — it is an ellipsis where the name of the space should be, and the
+venue-local window beneath it wrapped in the same 8.66px, roughly one word per line. Option (b) was
+therefore not defensible: the deadline being the thing under triage does not make *which space* optional.
+
+**Option (a) taken.** `REQUEST_STATUS_CAP` (`max-w-28`, 112px) is declared in `measurements.ts` with its
+full derivation — at the 320px floor the two columns share 244px, 112px clears the measured 84.20px
+countdown with headroom for the grove theme's wider heading step, and 244 − 112 = 132px leaves the title
+the LARGER share. It is applied to the status CONTENT in `request-row.tsx`, **not** to `row-card.tsx`'s
+`shrink-0` column, so the other three adopters are untouched. After the fix, measured on the same row:
+status column **112px**, space title **132px** — the title now fits entirely.
+
+The cap is pinned in BOTH directions: case 3 also fails if `REQUEST_STATUS_CAP` is ever tightened past
+the countdown's own max-content width, because the reason line may wrap and the deadline may not.

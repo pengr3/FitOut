@@ -75,7 +75,7 @@
 
 ### Host tooling (HFLOW)
 
-- [ ] **HFLOW-01**: The host requests inbox is scannable with the SLA countdown as the loudest element, approve/decline as the only actions, and a designed inbox-zero
+- [x] **HFLOW-01**: The host requests inbox is scannable with the SLA countdown as the loudest element, approve/decline as the only actions, and a designed inbox-zero
 - [ ] **HFLOW-02**: The listing wizard shows a truthful step count across the occupancy fork, allows back-navigation from a clickable step rail, shows its save state, and surfaces the publish checklist as a persistent panel rather than an end-of-flow surprise
 - [ ] **HFLOW-03**: The host dashboard is a "today" view — today's bookings, requests owed, payout state, and any published-without-hours signal — rather than a greeting and a CTA
 - [ ] **HFLOW-04**: The host bookings table and availability editor carry the design system, and the editor shows a week-at-a-glance preview of what was set
@@ -217,7 +217,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | TRUST-03 | Phase 13 + 15 | Partial |
 | TRUST-04 | Phase 13 | Complete |
 | TRUST-05 | Phase 13 | Partial |
-| HFLOW-01 | Phase 14 | Pending |
+| HFLOW-01 | Phase 14 | Complete |
 | HFLOW-02 | Phase 14 | Pending |
 | HFLOW-03 | Phase 14 | Pending |
 | HFLOW-04 | Phase 14 | Pending |
