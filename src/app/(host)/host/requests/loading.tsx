@@ -8,13 +8,18 @@
 // A ROW LIST: the resolved page is a stack of request rows, each a guest waiting on a yes.
 
 import { APPROVAL_SLA_HOURS } from "@/lib/payments/config";
+import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { PageHeader } from "@/components/patterns/page-header";
 import { RowListSkeleton } from "@/components/patterns/row-list-skeleton";
 
 export default function HostRequestsLoading() {
   return (
-    // Container, title, lede and the `mt-8` offset are `(host)/host/requests/page.tsx`'s own.
-    <div className="mx-auto w-full max-w-4xl px-4 py-10">
+    // The container is the DECLARED host-list shell, and the `mt-8` data-region offset is
+    // `(host)/host/requests/page.tsx`'s own. As of plan 14-06 the PAGE composes the same constant and
+    // the same `PageHeader` with the same two strings, so this plate is no longer a fallback imitating
+    // a hand-rolled heading inside a hand-typed box — it is the same component in the same container,
+    // rendered twice. Neither half can move without the other going with it.
+    <div className={HOST_LIST_SHELL}>
       <PageHeader
         title="Requests"
         lede={

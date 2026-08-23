@@ -13,6 +13,51 @@
 // All money is the SERVER-FROZEN quote (booking.quotedTotalCents, D-49) rendered via formatMoney — the page
 // does ZERO price arithmetic. Every time names the venue timezone (SC#2). NO coral — this is a calm host
 // workflow surface, not a conversion funnel (mirrors /host/earnings).
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WHAT PLAN 14-06 CHANGED, AND WHAT IT DELIBERATELY DID NOT (HFLOW-01 · D-146, D-147)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+//   1. THE BOX AND THE HEADING ARE NO LONGER THIS FILE'S OWN. The container is the declared host-list
+//      shell from `@/lib/design/measurements` and the title block is `PageHeader`, so this page and
+//      `requests/loading.tsx` render the SAME constant and the SAME component with the SAME two strings.
+//      Before this they agreed about the container only because somebody had typed the same five layout
+//      utilities — and the lede — twice, in two files, neither of which contains both halves of the
+//      agreement. The class string itself is deliberately NOT repeated in this comment: it lives in the
+//      constant's own docblock, which is the one place it may be spelled. The lede still INTERPOLATES
+//      `APPROVAL_SLA_HOURS` and never types the number — the plate's own header records why that matters
+//      on the one surface whose whole subject is that deadline.
+//
+//   2. THE DESKTOP TABLE LEADS WITH THE DEADLINE. The shipped order was
+//      `Space · When · Guest · Guest pays · Expires · Actions` — the deadline FIFTH of six, which is the
+//      opposite of what HFLOW-01 asks for. It is now `Expires · Guest · Space · When · Guest pays ·
+//      Actions`: when, then who, then what, then when it is, then how much. That is the order a triage
+//      queue is read in. No header string was renamed, none was added, none was removed, and `Actions`
+//      stays a VISIBLE `<th scope="col">` — the shipped page renders it visibly and D-154's
+//      "no new information architecture" rule is scoped to `/host/bookings`, not to this inbox.
+//
+//   3. THE COUNTDOWN TAKES ITS `lead` LAYOUT ON THE TABLE TOO, AND THAT IS WHAT MAKES D-146 TRUE AT
+//      768px AND 1280px. `emphasis="lead"` (14-03) puts the digits at the heading role — the largest
+//      type in the row. The mobile card already asked for it; the table did not, so above the `md:`
+//      breakpoint the deadline rendered at the same 14px as everything beside it and "the countdown is
+//      the loudest element" was false on two of the three widths the phase measures. The table row is a
+//      request row; the hierarchy is a property of the row, not of the viewport.
+//
+//   4. THE MONEY AND THE GUEST NAME WERE NOT PROMOTED. Both cells carry the LABEL role and nothing else —
+//      same size, same weight — because D-146's third falsifiable is an EQUALITY between them. The
+//      hierarchy is carried entirely by the countdown; anything else enlarged here is the defect
+//      `e2e/host-inbox-hierarchy.spec.ts` exists to catch.
+//
+// ⚠ THE READ BELOW WAS NOT TOUCHED. Not the predicate, not the ordering, not the join set, not the
+// display map, not the single `readDbNow` and not its threading. This was a restyle: it changed the box,
+// the order of the columns and the type roles, and it changed no query. The 06-07 owner-scope READ
+// isolation test asserts the EXACT predicate in the `where` clause below, so a restyle that drifts it
+// silently uncovers the read-path IDOR test.
+//
+// ⚠ INBOX-ZERO IS BYTE-FOR-BYTE WHAT IT WAS. D-147 asks for an `EmptyState` that reads as DONE rather
+// than as an absence, and plan 11-16 already shipped exactly that.
+// `tests/design/empty-state-adoption.test.ts` passes with zero edits, which is the proof that nothing
+// here was re-decided.
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -33,6 +78,8 @@ import {
 import { RequestCountdown } from "@/components/booking/request-countdown";
 import { RequestCountdownReason } from "@/components/host/request-countdown-reason";
 import { EmptyState } from "@/components/patterns/empty-state";
+import { PageHeader } from "@/components/patterns/page-header";
+import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import {
   Table,
   TableBody,
@@ -129,12 +176,22 @@ export default async function HostRequestsPage() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <h1 className="text-xl font-semibold tracking-tight">Requests</h1>
-      <p className="mt-2 max-w-prose text-sm text-muted-foreground">
-        Guests waiting on your yes. Approve or decline within {APPROVAL_SLA_HOURS} hours — after that a request
-        expires and the slot frees automatically.
-      </p>
+    // The container is the DECLARED host-list shell and the title block is the DECLARED pattern, which
+    // is what stops `requests/loading.tsx` drawing a different box or a different heading than the page
+    // it stands in for. The `mt-8` data-region offset is this page's own and the plate copies it, exactly
+    // as `/host/earnings` and its plate do.
+    <div className={HOST_LIST_SHELL}>
+      <PageHeader
+        title="Requests"
+        // The SAME expression the plate carries, character for character — see
+        // `requests/loading.tsx`. `APPROVAL_SLA_HOURS` is INTERPOLATED on both sides: a hardcoded "24"
+        // would be a second declaration of a payments constant on the one surface whose entire subject
+        // is that deadline, and it would start lying the first time the SLA moved.
+        lede={
+          `Guests waiting on your yes. Approve or decline within ${APPROVAL_SLA_HOURS} hours — ` +
+          `after that a request expires and the slot frees automatically.`
+        }
+      />
 
       <div className="mt-8">
         {displayRows.length === 0 ? (
@@ -171,33 +228,57 @@ export default async function HostRequestsPage() {
           />
         ) : (
           <>
-            {/* Desktop: the shadcn table with real <th scope="col"> headers. */}
+            {/* Desktop: the shadcn table with real <th scope="col"> headers.
+
+                THE DEADLINE IS THE FIRST COLUMN (D-146 · HFLOW-01). Six headers, six cells, no string
+                renamed and none added or removed — the CELLS MOVED WITH THEIR HEADERS. `Actions` stays a
+                real, VISIBLE column header: the shipped page renders it visibly, an `sr-only` header
+                would be a copy change nobody asked for, and a triage queue whose action column has no
+                name in the header row is harder to read, not tidier. */}
             <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead scope="col">Expires</TableHead>
+                    <TableHead scope="col">Guest</TableHead>
                     <TableHead scope="col">Space</TableHead>
                     <TableHead scope="col">When</TableHead>
-                    <TableHead scope="col">Guest</TableHead>
                     <TableHead scope="col" className="text-right">
                       Guest pays
                     </TableHead>
-                    <TableHead scope="col">Expires</TableHead>
                     <TableHead scope="col">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {displayRows.map((data) => (
                     <TableRow key={data.requestId}>
-                      <TableCell className="font-medium">{data.spaceTitle}</TableCell>
-                      <TableCell className="text-muted-foreground">{data.whenLabel}</TableCell>
-                      <TableCell>{data.bookerLabel}</TableCell>
-                      <TableCell className="text-right tabular-nums">{data.totalLabel}</TableCell>
                       <TableCell>
-                        {/* The countdown itself is UNCHANGED (D-99 adds a line, not a component); the reason
-                            is its sibling, muted and never an alarm colour. */}
-                        <RequestCountdown expiresAt={data.expiresAt} label="Expires in" />
+                        {/* The countdown COMPONENT is unchanged (D-99 adds a line, not a component);
+                            what changed is the LAYOUT it is asked for. `emphasis="lead"` renders the
+                            prefix at the label role above the digits at the heading role — the largest
+                            type in the row — which is how D-146's "loudest" is carried by scale rather
+                            than by a hue. The mobile card has asked for this since 14-03; the table had
+                            not, and above `md:` that made the claim false. The reason line is its
+                            sibling, muted, and never an alarm colour. */}
+                        <RequestCountdown
+                          expiresAt={data.expiresAt}
+                          label="Expires in"
+                          emphasis="lead"
+                        />
                         {data.reason}
+                      </TableCell>
+                      {/* THE GUEST NAME AND THE MONEY FIGURE CARRY THE SAME ROLE AND NOTHING MORE.
+                          `text-label` on both, so they compute an identical size and weight and neither
+                          is promoted to compete with the deadline — D-146's third falsifiable is an
+                          EQUALITY between these two cells, and two bare utilities that happen to agree
+                          today are two chances to break it in a diff that reads as formatting. */}
+                      <TableCell className="text-label">{data.bookerLabel}</TableCell>
+                      <TableCell className="font-medium">{data.spaceTitle}</TableCell>
+                      <TableCell className="text-label text-muted-foreground">
+                        {data.whenLabel}
+                      </TableCell>
+                      <TableCell className="text-label text-right tabular-nums">
+                        {data.totalLabel}
                       </TableCell>
                       <TableCell>
                         <RequestActions
