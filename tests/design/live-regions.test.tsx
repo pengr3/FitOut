@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
-// GATE-03 — THE BOOKER PATH'S LIVE REGIONS, AUDITED OVER A SET THAT SAYS WHAT IT IS.
+// GATE-03 — THE DECLARED LIVE REGIONS, AUDITED OVER A SET THAT SAYS WHAT IT IS.
+//
+// ⚠ IT WAS "THE BOOKER PATH'S" UNTIL PLAN 14-14, WHICH ADDED FOUR HOST FILES AND RENAMED THE SET THEY
+// LIVE IN (`LIVE_REGION_FILES`). A title claiming the demand side would now be a comment disagreeing
+// with the constant three lines below it.
 //
 // Three source scans plus one render fixture. `src/lib/design/live-regions.ts` is the declaration; this
 // file is what makes it binding, and the render half is what makes SCAN 3 an argument rather than a
@@ -31,15 +35,26 @@
 // WATCHED RED — FIVE PROBES, ALL RUN, ALL REVERTED (18 August 2026). GREEN WAS 20 PASSED.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// ⚠ GREEN IS 21 PASSED as of plan 13-14, which widened the set from eleven files to seventeen and added
-// one case ("every declared name is the string the markup actually renders"). FOUR MORE PROBES were run
-// and reverted on 21 August 2026; they are recorded in `13-14-SUMMARY.md` rather than transcribed here,
-// because this header is already the longest thing in the file and the five below are the ones that
-// explain the DESIGN. In one line each: a declared author-name row deleted → SCAN 3 names the region
-// that lost its exemption; the row list padded with an unnamed region → SCAN 3 names the hollow row;
-// the `full` advisory in `rsvp-form.tsx` made a region again → SCAN 2's ordinal displacement report
-// (probe (b)'s shape, on a real edit); a resolved name emptied → the new case reports BOTH the empty
-// name and the drift from the recorded string.
+// ⚠ GREEN WAS 21 PASSED as of plan 13-14, which widened the set from eleven files to seventeen and
+// added one case ("every declared name is the string the markup actually renders"). FOUR MORE PROBES
+// were run and reverted on 21 August 2026; they are recorded in `13-14-SUMMARY.md` rather than
+// transcribed here, because this header is already the longest thing in the file and the five below are
+// the ones that explain the DESIGN. In one line each: a declared author-name row deleted → SCAN 3 names
+// the region that lost its exemption; the row list padded with an unnamed region → SCAN 3 names the
+// hollow row; the `full` advisory in `rsvp-form.tsx` made a region again → SCAN 2's ordinal displacement
+// report (probe (b)'s shape, on a real edit); a resolved name emptied → the new case reports BOTH the
+// empty name and the drift from the recorded string.
+//
+// ⚠ PLAN 14-14 REWROTE THE EXCLUSION GUARD, AND THE REWRITE WAS WATCHED FAILING IN BOTH DIRECTIONS
+// BEFORE IT WAS TRUSTED. A guard that becomes unsatisfiable when the code is right has to be rewritten,
+// never deleted, and a rewrite that cannot fail is not a guard. Two probes on 23 August 2026, both run,
+// both reverted, both 1 failed / 20 passed; the full messages are in `14-14-SUMMARY.md`:
+//   (e) THE FIXTURE'S REASON BLANKED. The passing fixture row's `why` set to `""` →
+//       `exclusionReasonIsThin` returns true where the case expects false, and the message says a rule
+//       that rejects the only legal shape rejects everything and the list can never be re-opened.
+//   (f) AN EXCLUSION COMES BACK. One row re-added to `LIVE_REGION_EXCLUSIONS` → the empty assertion
+//       prints the whole row and tells the reader to restore the pre-14-14 shape (a non-empty floor
+//       plus the filter over the REAL list) so the vacuity guard returns with the rows.
 //
 // Command for all five:
 // `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.tsx`
@@ -145,15 +160,22 @@
 //   • THE RENDER HALF IS SYNTHETIC ON PURPOSE. It proves what `role="status"` does with a name and
 //     without one. It does NOT prove that any product component renders that shape — SCAN 3 is what
 //     says that, and this is what says SCAN 3 is asking for the right attribute.
-//   • THE EXCLUSION IS NOT AUDITED. ONE file carries `aria-live` outside the declared set —
-//     `address-autocomplete.tsx`, Phase 14's host wizard — and this file makes no claim about it. It
-//     was NINE until plan 13-14 discharged Phase 13's ten; the paragraph is kept because this is the
-//     file whose green run is most likely to be read as coverage, and a list of one is still a list.
-//   • THE FIVE AUTHOR-NAMED EXCEPTIONS ARE CHECKED FOR EXISTENCE, NOT FOR QUALITY. SCAN 3 asserts that
-//     every named non-`loading` region is declared and that every declaration is really named. Whether
-//     a given `aria-label` is a LABEL or a paraphrase that would REPLACE the sentence it sits on —
-//     the property the whole exception turns on — is a reading, and `live-regions.ts` records the exact
-//     string per row so that reading is possible without opening five files.
+//   • THERE ARE NO EXCLUSIONS LEFT, AND THAT IS NOT THE SAME AS FULL COVERAGE. It was NINE files, then
+//     ONE (`address-autocomplete.tsx`, deferred to Phase 14 by name), and plan 14-14 discharged it. The
+//     paragraph is kept because this is the file whose green run is most likely to be read as coverage:
+//     zero exclusions means every file the declaration KNOWS about is audited, over a set bounded by
+//     `live-regions.ts`'s membership rule. The auth/profile forms and the `patterns/` skeletons are
+//     outside that set entirely — the skeletons are gated by `tests/design/skeleton-a11y.test.tsx`
+//     instead — and nothing here says a word about them.
+//   • THE NINE AUTHOR-NAMED EXCEPTIONS ARE CHECKED FOR EXISTENCE AND FOR THEIR EXACT STRING, NOT FOR
+//     QUALITY. SCAN 3 asserts that every named non-`loading` region is declared, that every declaration
+//     is really named, and that each recorded name is the string the markup renders. Whether a given
+//     `aria-label` is a LABEL or a paraphrase that would REPLACE the sentence it sits on — the property
+//     the whole exception turns on — is a reading, and `live-regions.ts` records the exact string per
+//     row so that reading is possible without opening nine files. ⚠ SINCE 14-14 TWO OF THE NINE HAVE
+//     TEXT OF THEIR OWN (`request-action-refusal`, `photo-uploader-requirement`), so for those two the
+//     reading is load-bearing rather than tidy: a name announced instead of the content costs a real
+//     sentence. Both rows state that trade and what bounds it.
 //   • `announces` AND `why` ARE PROSE. Nothing can tell a true sentence from a plausible one. The
 //     assertions below check that the columns are non-trivially populated, which is a floor, not a
 //     verification.
@@ -167,14 +189,17 @@ import ts from "typescript";
 
 import { stripComments } from "./helpers/strip-comments";
 import {
-  BOOKER_PATH_LIVE_REGION_FILES,
+  LIVE_REGION_FILES,
   LIVE_REGION_EXCLUSIONS,
   LIVE_REGION_IDS,
   LIVE_REGIONS,
   LIVE_REGION_KEYS,
   AUTHOR_NAMED_KINDS,
   AUTHOR_NAMED_REGIONS,
+  MIN_EXCLUSION_REASON_CHARS,
+  exclusionReasonIsThin,
   liveRegionKey,
+  type LiveRegionExclusion,
   type LiveRegionKind,
 } from "@/lib/design/live-regions";
 
@@ -183,14 +208,15 @@ import {
 // self-tests below run the same code path the real assertions run (`leak.test.ts:208-212`'s rule).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-const SCAN_FILES: readonly string[] = BOOKER_PATH_LIVE_REGION_FILES;
+const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsSeventeen`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentyOne`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
- * message. Plans 12-12, 12-13 and 13-14 each moved BOTH, in the commit that added their component — a
- * set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT names.
+ * message. Plans 12-12, 12-13, 13-14 and 14-14 each moved BOTH, in the commit that added their
+ * component — a set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT
+ * names.
  *
  * TEN as of plan 12-12, which added `src/components/search/relax-band.tsx` (STATE-03's relaxation band,
  * `role="status"`, one announcement on arrival). ELEVEN as of plan 12-13, which added
@@ -203,8 +229,16 @@ const SCAN_FILES: readonly string[] = BOOKER_PATH_LIVE_REGION_FILES;
  * threshold), `attendee-roster.tsx`, `rsvp-confirmation.tsx`, `rsvp-form.tsx`, `share-link-box.tsx`.
  * The membership was MEASURED off an AST walk of the tree, not taken from 13-UI-SPEC's table, which
  * named two files that turned out not to hold the regions it assigned them.
+ *
+ * TWENTY-ONE as of plan 14-14, which discharged the LAST exclusion and took the list to zero. Four host
+ * files joined carrying one region each — `wizard.tsx` (the save state), `request-row.tsx` (the action
+ * refusal), `address-autocomplete.tsx` (the lookup result, which is the discharge itself) and
+ * `photo-uploader.tsx` (the photos-step requirement). 14-UI-SPEC's table budgeted THREE and twenty; the
+ * fourth is the photo uploader, whose unnamed region was FIXED here rather than excluded to Phase 16,
+ * because an exclusion there would have traded one row for another and left the list at one. The number
+ * was measured off the tree, not taken from the document — the same discipline, for the same reason.
  */
-const DECLARED_FILE_COUNT = 17;
+const DECLARED_FILE_COUNT = 21;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -457,10 +491,10 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsSeventeen` in `src/lib/design/live-regions.ts` " +
-        "fails the build, and this fails the gate with a message. Plans 12-12, 12-13 and 13-14 each " +
-        "moved BOTH, in the same commit as the components they add. A set that widened in one place " +
-        "and not the other is exactly the drift T-12-06-SETDRIFT names.",
+        "pinned in TWO places — `DeclaredFileCountIsTwentyOne` in `src/lib/design/live-regions.ts` " +
+        "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14 and 14-14 " +
+        "each moved BOTH, in the same commit as the components they add. A set that widened in one " +
+        "place and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);
   });
 
@@ -485,19 +519,98 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(empty.assertiveText, "…and a perfectly clean SCAN 1").toEqual([]);
   });
 
-  it("declares an exclusion list, and every exclusion names its owning phase", () => {
-    // The exclusions are the half of the declaration that cannot be reconstructed from the tree: a
-    // file deliberately left to Phase 13 and a file nobody ever looked at scan identically.
-    expect(LIVE_REGION_EXCLUSIONS.length).toBeGreaterThan(0);
-    const unreasoned = LIVE_REGION_EXCLUSIONS.filter(
-      (row) => !/Phase\s+1[34]/.test(row.why) || row.why.length < 40,
-    ).map((row) => row.file);
+  it("declares ZERO exclusions — and the reason-shape rule that guarded them is still exercised", () => {
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    // ⚠ THIS ASSERTION READ `expect(LIVE_REGION_EXCLUSIONS.length).toBeGreaterThan(0)` UNTIL PLAN
+    //   14-14, AND THE REWRITE — NOT THE DELETION — IS THE WHOLE POINT OF THIS BLOCK.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // WHY THE OLD LINE EXISTED. The `why`-shape filter below it is an ABSENCE assertion: it collects
+    // the rows whose reason is too thin and asserts that collection is empty. Over an empty list it
+    // collects nothing and passes — so an exclusion list that had been quietly gutted would have made
+    // its own quality gate trivially green, and nothing in the run would have distinguished "every
+    // reason is good" from "there are no reasons". The floor was the vacuity guard.
+    //
+    // WHY IT CANNOT SURVIVE THE CORRECT ANSWER. 14-UI-SPEC's falsifiable #1 is
+    // `LIVE_REGION_EXCLUSIONS.length === 0`, and plan 14-14 discharged the last row by rewriting the
+    // markup its reason was about. Empty is now the RIGHT state, and a non-empty floor asserts the
+    // opposite of the specification. The two cannot both hold, so one of them had to be rewritten, and
+    // it was not going to be the specification.
+    //
+    // WHY THE REPLACEMENT STILL GUARDS. Deleting the floor would leave the vacuity it was written
+    // against — the filter would still be a filter over nothing. So the replacement asserts BOTH
+    // halves: the list is empty (the state the spec requires), AND the reason-shape rule is run
+    // against a LOCAL FIXTURE that exercises it in both directions. The rule itself is
+    // `exclusionReasonIsThin`, exported from `live-regions.ts` rather than restated here, so the
+    // fixture and any future real row are judged by one predicate and not by two spellings of it.
+    //
+    // ⚠ THE OLD FILTER'S `/Phase\s+1[34]/` HAS NOTHING LEFT TO MATCH and was not carried over. It had
+    // been narrowed to the two phases that happened to own rows; with the list at zero, a pattern
+    // scoped to two dead phases is a pattern nobody can satisfy without editing it, and an edit made
+    // by the same person who has to pass it is not a check. The predicate now matches any `Phase <n>`,
+    // and the fixture below is what proves it still rejects a reason that names no phase at all.
     expect(
-      unreasoned,
-      "an excluded file's `why` does not name the phase that owns it. \"Phase 13 owns these\" is the " +
-        "whole content of an exclusion; without it the list is a set of files somebody chose not to " +
-        "check.",
+      LIVE_REGION_EXCLUSIONS,
+      "an exclusion is back. That is not forbidden — the mechanism exists precisely so a file can be " +
+        "deliberately deferred WITH A REASON — but it is a decision, and this message is where it " +
+        "gets announced. Plan 14-14 took the list to zero by discharging the last row rather than by " +
+        "deleting it. If you are adding one: give it a sentence that names the owning phase, and move " +
+        "this assertion to the shape it had before 14-14 (a floor plus the filter over the real list) " +
+        "so the vacuity guard comes back with the rows.",
     ).toEqual([]);
+
+    // ── THE RULE, STILL EXERCISED — against a fixture, because a filter over an empty list has never
+    //    been run. Three rows: one that should pass, and one for each way a reason can fail.
+    const GOOD: LiveRegionExclusion = {
+      file: "src/components/example/fixture-only.tsx",
+      why:
+        "Phase 99 owns this surface and is about to rewrite the markup this region lives in, so an " +
+        "audit taken here would be re-done rather than reused.",
+    };
+    /** Too short to be a sentence — probe (0)'s shape, the 33-character TAG that fired on a real row. */
+    const A_TAG_NOT_A_REASON: LiveRegionExclusion = {
+      file: "src/components/example/fixture-only.tsx",
+      why: "Phase 99's listing form (LIST-02).",
+    };
+    /** Long enough, but owned by nobody — which is the half that makes an exclusion reconstructable. */
+    const UNOWNED: LiveRegionExclusion = {
+      file: "src/components/example/fixture-only.tsx",
+      why:
+        "This one is left alone for now because the surface is being reworked and nobody wants to " +
+        "audit markup twice.",
+    };
+
+    expect(
+      exclusionReasonIsThin(GOOD),
+      "the reason-shape rule rejected a reason that names its owning phase AND is a sentence. It is " +
+        "the only shape an exclusion is allowed to have, so a rule that rejects it rejects everything " +
+        "and the list can never be re-opened.",
+    ).toBe(false);
+    expect(
+      exclusionReasonIsThin(A_TAG_NOT_A_REASON),
+      `the rule accepted a ${A_TAG_NOT_A_REASON.why.length}-character TAG as a reason. Probe (0) in ` +
+        "this file's header fired on exactly that shape against a real row: it named a phase and a " +
+        "requirement id and said nothing a reader could check. The floor is " +
+        `MIN_EXCLUSION_REASON_CHARS (${MIN_EXCLUSION_REASON_CHARS}).`,
+    ).toBe(true);
+    expect(
+      exclusionReasonIsThin(UNOWNED),
+      "the rule accepted a reason that names no owning phase. \"Somebody chose not to check this\" " +
+        "and \"this file was looked at and deliberately left to phase N\" produce byte-identical scan " +
+        "results, and only the second one is a decision. Naming the owner is what makes an exclusion " +
+        "dischargeable — which is how this list reached zero.",
+    ).toBe(true);
+
+    // ── …and the REAL list goes through the SAME predicate, so the fixture is not a second code path
+    //    that happens to be the one under test. Vacuous today, by construction; not vacuous the moment
+    //    a row comes back, which is the only moment it needs to bite.
+    expect(
+      LIVE_REGION_EXCLUSIONS.filter(exclusionReasonIsThin).map((row) => row.file),
+      "an excluded file's `why` does not name the phase that owns it, or is too short to be a " +
+        "sentence. That reason is the whole content of an exclusion; without it the list is a set of " +
+        "files somebody chose not to check.",
+    ).toEqual([]);
+
     // No path may be both declared and excluded — the two lists are a partition, not two opinions.
     const overlap = LIVE_REGION_EXCLUSIONS.map((row) => row.file).filter((file) =>
       (SCAN_FILES as readonly string[]).includes(file),
@@ -700,7 +813,7 @@ describe("SCAN 3 — the naming mechanism, per kind", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("and no OTHER kind mixes the two naming mechanisms, except the five that DECLARE it", () => {
+  it("and no OTHER kind mixes the two naming mechanisms, except the nine that DECLARE it", () => {
     // The other direction, and it is not symmetry for its own sake. Most non-`loading` regions on
     // this path carry their own sentence, and that sentence IS what a screen reader speaks when the
     // region updates. An `aria-label` on such a region names it with a second string nobody wrote for
@@ -719,6 +832,15 @@ describe("SCAN 3 — the naming mechanism, per kind", () => {
     // is a reading no scan can perform — so the list is closed, each entry carries a `why` and the
     // exact string, and this assertion runs in BOTH directions so the list can neither be padded nor
     // bypassed.
+    //
+    // ⚠ PLAN 14-14 TOOK IT FROM FIVE TO NINE AND RETIRED THE "ALL OF THEM ARE WRAPPERS" READING. Two
+    // of its four additions are wrapper-equivalent by a different route (mounted at all times with
+    // their text EMPTY at idle, so there is nothing to be named by for most of a session); two are
+    // regions with text of their own, named because 14-UI-SPEC requires every `status` region on the
+    // Phase-14 host surfaces to resolve to a non-empty name. Those two are the ones to be sceptical
+    // about, which is why their rows state what the trade costs and where the same fact is carried a
+    // second time. NOTHING ABOUT THE BOOKER PATH MOVED: its content-named regions still carry no label
+    // and this assertion still fails if one acquires an undeclared name.
     const declared = new Set<string>(
       AUTHOR_NAMED_REGIONS.map((row) => liveRegionKey(LIVE_REGIONS[row.id])),
     );
