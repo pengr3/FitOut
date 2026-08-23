@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 2
+current_plan: 3
 status: executing
 stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-08-23T08:34:45.383Z"
+last_updated: "2026-08-23T08:59:04.062Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 81
+  completed_plans: 82
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 2 of 16
-Current Plan: 2
+Plan: 3 of 16
+Current Plan: 3
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -656,6 +656,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 13.1 P04 | 34min | 3 tasks | 6 files |
 | Phase 13.1 P05 | 71min | 2 tasks | 5 files |
 | Phase 14 P01 | 25min | 3 tasks | 5 files |
+| Phase 14 P02 | 20min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1047,6 +1048,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 14-01: RowListSkeleton's height prop is typed to the declared set (RowSkeletonHeight), one member today; widening happens in measurements.ts where the heights are derived
 - [Phase ?]: 14-01: WIZARD_CHECKLIST_GRID owns the 288px number and WIZARD_CHECKLIST_COL derives from it; the grid class cannot be safelisted (compile-css rejects a comma) so any gate over it is a SOURCE assertion
 - [Phase ?]: 14-01: earnings-freeze excludes styling positions and module specifiers STRUCTURALLY, not textually — so the HFLOW-05 token pass is permitted while a class name migrating into copy still trips the gate
+- [Phase 14]: 14-02: queryHostAgenda resolves 'today' per-row in each listing's own timezone from a bound DB clock instant (D-141); the wrong UTC rule was observed truncating an ordinary UTC+8 host's morning, not just a two-zone edge case
+- [Phase 14]: 14-02: the agenda's 'next' row (D-142) is returned ONLY when today is empty, so D-142's fallback cannot be double-counted against an agenda row
 
 ### Pending Todos
 
@@ -1153,7 +1156,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T08:34:21.941Z
+Last session: 2026-08-23T08:58:47.805Z
 Stopped at: Phase 14 UI-SPEC approved
 authenticated, epoch-bounded server action reusing the sweep's `reconcileOne`, fired once by a latched
 effect after the poll cap, with ZERO new copy and the frozen poller's diff down to a single replaced
