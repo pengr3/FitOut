@@ -405,3 +405,51 @@ D-57 block; the file is `fullyParallel` and this change added a fourteenth test,
 is marginally wider than it was. **Owner:** whichever plan next opens the D-57 block — the honest fix is
 a warm-up navigation for `/` in that block, the same one the host block already carries and for the same
 measured reason.
+
+---
+
+## `[14-REVIEW WR-03]` `e2e/host-headings.spec.ts` still says nothing about `<h2>` and below, and that blindness is what let the outline flatten unobserved
+
+**Found during:** the WR-03 fix (code review, 24 August 2026).
+**Owner:** **Phase 17** — it owns the full axe pass, and a skipped-level rule is an axe rule
+(`heading-order`) rather than a bespoke assertion somebody should hand-roll here.
+
+The spec documents its own blind spot at line 93, in as many words:
+
+> IT SAYS NOTHING ABOUT `<h2>` AND BELOW. A surface whose sections skip from level one to level three
+> has a broken outline and passes this file completely.
+
+That note was accurate when written and is still accurate. It is also the reason nothing caught 14-12
+and 14-13 promoting two `<h3>`-level advisories to `<h2>` on `/host/listings/{id}/availability`: the
+file measures the level-ONE heading on 28 states and compares their computed sizes, and every one of
+those assertions stayed green while the route's outline became three peers where one is the parent of
+the other two.
+
+**What WR-03 did instead, and why it is not a substitute.** Four cases were added to
+`tests/availability/week-strip.test.tsx` (7–10) that render `WeeklyHoursEditor` INSIDE the section
+heading the route actually gives it and assert the property — the editor contributes no sibling `<h2>`,
+and both of its panels are real level-three headings. Observed red against the pre-fix call sites: 3
+failed / 7 passed. That covers the two panels this finding is about and any future panel added to that
+editor, and it costs no browser.
+
+**What it cannot cover, and why the e2e file is still the right owner:**
+
+- It mounts the editor, not the ROUTE. The page's own two `<section>`s, `BlocksEditor` and the lock
+  notice are not in the tree, so "the availability page's outline is well-formed" is asserted only as
+  far as one component contributes to it.
+- It is one route. The other four Phase-14 surfaces have the same exposure and nothing reads them.
+- A skipped level (`h1` → `h3`) is invisible to it entirely: a section that never renders an `<h2>` at
+  all passes case 7 trivially.
+
+**Why it was not closed here.** The honest fix is a per-state outline walk — collect every heading on
+the resolved document in document order and assert no level is skipped — across all 28 states the file
+already visits. That is a real addition to a spec that SEEDS A DATABASE and must be run alone, on a
+route table this change has no other business touching, and it belongs beside the axe pass rather than
+in front of it. Doing it half-way (one route, one state) would produce a green that reads like coverage
+and is not.
+
+**What Phase 17 should do:** add the outline walk to the existing per-state loop rather than a second
+file — the states, the tells and the seeding are already there — and watch it red against a deliberately
+skipped level, not merely against a duplicated one. ⚠ Run it ALONE
+(`npx playwright test e2e/host-headings.spec.ts --project=chromium`), and note
+`e2e/availability.spec.ts:261` remains the pre-existing standing red.

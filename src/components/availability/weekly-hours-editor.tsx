@@ -181,8 +181,14 @@ export function WeeklyHoursEditor({
       {hasNoWindows && (
         // The advisory, at the muted tone. `title` and `description` land in the pattern's own
         // `space-y-1` pair, which is the spacing this box already had — the words are unchanged.
+        //
+        // `titleAs="h3"` because this advisory sits INSIDE the route's own `<h2>Weekly hours</h2>`
+        // section and is subordinate to it (WR-03). It shipped as a real `<h3>` before 14-12 moved it
+        // onto the pattern, and the pattern's fixed `<h2>` silently promoted it — the same reasoning
+        // `blocks-editor.tsx` writes out beside its own `titleAs="h3"` one file over.
         <PanelCard
           tone="muted"
+          titleAs="h3"
           title="Set your weekly hours"
           description="Tell bookers when your space is open. Add open and close times for each day — you can add more than one block per day."
         />

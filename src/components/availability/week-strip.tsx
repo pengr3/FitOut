@@ -106,7 +106,12 @@ export function WeekStrip({
   const hasNoHoursAtAll = days.every((day) => day.segments.length === 0);
 
   return (
-    <PanelCard title="Your week at a glance">
+    // `titleAs="h3"` (WR-03). The only place this strip is mounted is inside the availability route's
+    // `<h2>Weekly hours</h2>` section, above the day editor — it is a PREVIEW of the pattern that
+    // section is about, so it is subordinate to that heading and not a sibling of it. The pattern's
+    // fixed `<h2>` made it a third top-level sibling on a route with one `<h1>`, which is an outline
+    // that says the preview, the editor and the section are three peers.
+    <PanelCard titleAs="h3" title="Your week at a glance">
       {/*
         THE BARS ARE DECORATION. The whole grid is hidden from assistive technology, which is what
         leaves the muted track carrying no information at all — the compensating condition the two

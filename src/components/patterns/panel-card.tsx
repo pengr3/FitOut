@@ -56,6 +56,26 @@ export type PanelCardProps = {
    * is nothing semantic to select even in principle.
    */
   title?: string;
+  /**
+   * WHICH HEADING ELEMENT the title renders as. Always a heading; never a `<p>`.
+   *
+   * ⚠ THIS PROP IS `EmptyState`'s, ADOPTED RATHER THAN INVENTED (WR-03), and the defect it repairs is
+   * the one that pattern's own docblock predicted: *"a fixed level would push every adopter into
+   * either a skipped level or a wrong one."* This component hard-coded `<h2>`, and the availability
+   * route paid for it — plan 14-12 moved a shipped `<h3>Set your weekly hours</h3>` onto a panel and
+   * plan 14-13 mounted `WeekStrip`'s own panel beside it, so a route whose section is already headed
+   * `<h2>Weekly hours</h2>` grew two more sibling `<h2>`s for content SUBORDINATE to it. Three
+   * siblings at one level where two are children of the third is not an outline; it is a list.
+   *
+   * The inconsistency was internal to one plan's own work: `blocks-editor.tsx` passes `titleAs="h3"`
+   * to `EmptyState` in that same commit, with the identical reasoning written out beside it.
+   *
+   * THE LEVEL IS THE SURFACE'S DECISION, for `EmptyState`'s reason word for word: a panel that is the
+   * only content under the page `<h1>` wants `h2`, and one inside an already-headed section wants
+   * `h3`. Nothing here can know which it is, so nothing here decides — the default stays `h2` so
+   * every shipped call site keeps the element it already rendered.
+   */
+  titleAs?: "h2" | "h3";
   /** The lede beneath the title. */
   description?: string;
   /**
@@ -84,12 +104,18 @@ export type PanelCardProps = {
 
 export function PanelCard({
   title,
+  titleAs = "h2",
   description,
   footer,
   sticky = false,
   tone = "default",
   children,
 }: PanelCardProps) {
+  // The heading ELEMENT, chosen by the surface. Capitalised so JSX reads it as a component rather than
+  // as the literal tag, and typed by the union above so it can only ever be one of the two levels —
+  // `empty-state.tsx`'s idiom, followed rather than re-derived.
+  const Title = titleAs;
+
   return (
     <Card
       data-testid="panel-card"
@@ -166,7 +192,7 @@ export function PanelCard({
       <CardContent className="space-y-4 p-4 sm:p-6">
         {title || description ? (
           <div className="space-y-1">
-            {title ? <h2 className="text-heading">{title}</h2> : null}
+            {title ? <Title className="text-heading">{title}</Title> : null}
             {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
           </div>
         ) : null}

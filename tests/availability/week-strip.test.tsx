@@ -285,3 +285,90 @@ describe("WeekStrip inside the editor — the preview is LIVE, not post-save (D-
     expect(fetchSpy).toHaveBeenCalledTimes(0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WR-03 — THE HEADING OUTLINE THE AVAILABILITY ROUTE PUTS THESE TWO PANELS INSIDE
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `PanelCard` rendered its `title` as an unconditional `<h2>` and had no level prop. Plan 14-12 moved a
+// shipped `<h3>Set your weekly hours</h3>` onto it and plan 14-13 mounted this strip's own panel beside
+// it, so a route whose section is ALREADY headed `<h2>Weekly hours</h2>` grew two more sibling `<h2>`s
+// for content subordinate to it. The commit message said *"every word is byte-identical; only the box
+// is new"* — the box was not the only thing that changed; the heading LEVEL did.
+//
+// WHY IT IS SILENT. Nothing looks wrong: `text-heading` sizes an `<h2>` and an `<h3>` identically, so a
+// sighted reviewer sees a title. What breaks is the only structural answer a screen-reader user has to
+// "what is inside what" — three peers where one is the parent of the other two.
+//
+// ⚠ WHAT IS ASSERTED IS THE PROPERTY, NOT THE SPELLING. A case reading `titleAs="h3"` off the source
+// would pass on a prop that is accepted and ignored. These render the editor INSIDE the section heading
+// the route actually gives it and count what comes out — so any future panel added to this editor is
+// covered without an edit here, and the claim is the one the outline makes.
+//
+// WHAT THIS CANNOT SEE: the route's own two `<section>`s and `BlocksEditor` are not mounted here, so
+// this is the availability page's outline only as far as the editor contributes to it. The whole-route
+// reading is `e2e/host-headings.spec.ts`, which documents at its line 93 that it says nothing about
+// `<h2>` and below — see this phase's `deferred-items.md` for why that was left standing.
+
+describe("WR-03 — the weekly-hours panels are SUBORDINATE to the section that heads them", () => {
+  /** The route's own shape: a section with its second-level heading, and the editor inside it. */
+  function renderInsideTheSection(initialWindows: Parameters<typeof WeeklyHoursEditor>[0]["initialWindows"]) {
+    return render(
+      <section>
+        <h2>Weekly hours</h2>
+        <WeeklyHoursEditor
+          listingId="listing-under-test"
+          cityLabel={CITY}
+          gmtLabel="GMT+8"
+          initialWindows={initialWindows}
+        />
+      </section>,
+    );
+  }
+
+  it("(7) contributes NO second-level heading to a section that already has one", () => {
+    // No windows, so BOTH panels render: the advisory and the strip.
+    const { container } = renderInsideTheSection([]);
+
+    const levelTwo = [...container.querySelectorAll("h2")].map((h) => h.textContent);
+    expect(
+      levelTwo,
+      "the editor added a sibling <h2> to the section that heads it. Both of its panels are content " +
+        "BELOW `Weekly hours`, not peers of it, and a reader with three peers has no outline — only " +
+        "a list. This is the level `blocks-editor.tsx` preserves next door for the same reason.",
+    ).toEqual(["Weekly hours"]);
+  });
+
+  it("(8) heads both of its panels at level three, by name", () => {
+    renderInsideTheSection([]);
+
+    for (const title of ["Set your weekly hours", "Your week at a glance"]) {
+      expect(
+        screen.getByRole("heading", { name: title, level: 3 }),
+        `"${title}" is not a third-level heading`,
+      ).toBeTruthy();
+      expect(screen.queryByRole("heading", { name: title, level: 2 })).toBeNull();
+    }
+  });
+
+  it("(9) still heads them — the fix is a LEVEL change, never a demotion to a paragraph", () => {
+    // The failure mode a `<p>` would produce is the one `EmptyState`'s own `titleAs` docblock names:
+    // an outline repaired by deleting the entry from it. Both titles must remain real headings.
+    renderInsideTheSection([]);
+
+    const headings = screen
+      .getAllByRole("heading")
+      .map((h) => h.textContent?.trim())
+      .filter(Boolean);
+    expect(headings).toContain("Set your weekly hours");
+    expect(headings).toContain("Your week at a glance");
+  });
+
+  it("(10) the strip's own panel is level three wherever it is mounted, not only inside the editor", () => {
+    // Mounted directly, because the level is the STRIP's decision and not an accident of its parent —
+    // the editor is its only call site today and that is exactly the assumption worth pinning.
+    render(<WeekStrip cityLabel={CITY} windows={[]} />);
+
+    expect(screen.getByRole("heading", { name: "Your week at a glance", level: 3 })).toBeTruthy();
+  });
+});
