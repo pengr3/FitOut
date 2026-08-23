@@ -477,7 +477,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 14-15-PLAN.md — the three host row shapes measured against the rendered routes, declared, and committed to the skeleton geometry gate
+- [x] 14-15-PLAN.md — the three host row shapes measured against the rendered routes, declared, and committed to the skeleton geometry gate
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
@@ -629,7 +629,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
-| 14. Host Tooling | v1.1 | 14/16 | In Progress|  |
+| 14. Host Tooling | v1.1 | 15/16 | In Progress|  |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |

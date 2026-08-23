@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 15
+current_plan: 16
 status: executing
-stopped_at: Completed 14-13-PLAN.md — the availability route's design-system pass. 13 of 16 plans done; **14-14 is next**
-last_updated: "2026-08-23T14:41:41.439Z"
+stopped_at: Completed 14-15-PLAN.md — the three host row heights, measured. 15 of 16 plans done; **14-16 is next**
+last_updated: "2026-08-23T15:20:00.000Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 94
+  completed_plans: 95
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 15 of 16
-Current Plan: 15
+Plan: 16 of 16
+Current Plan: 16
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -473,7 +473,7 @@ Last activity: 2026-08-23
 
 **Velocity:**
 
-- Total plans completed: 64
+- Total plans completed: 65
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -489,7 +489,7 @@ Last activity: 2026-08-23
 | 11 | 22 | - | - |
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
-| 14 | 13 | - | - |
+| 14 | 14 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -683,6 +683,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P11 | 22min | 2 tasks | 2 files |
 | Phase 14 P13 | 15min | 3 tasks | 7 files |
 | Phase 14 P14 | 35min | 3 tasks | 4 files |
+| Phase 14 P15 | 40min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -697,6 +698,9 @@ deferred walk is inconsistent rather than honest.*
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [14-15]: **A responsive surface that renders TWO TREES gets a RESPONSIVE declared measurement, and the breakpoint in the constant is a fact about the route.** `/host/requests` and `/host/bookings` each render a row-card stack below the medium breakpoint and a TABLE at and above it, showing exactly one per width — so the three host row heights are `h-33 sm:h-18` (agenda), `h-64 md:h-21` (request) and `h-49 md:h-9` (booking), and the desktop halves describe TABLE ROWS. Measured on the rendered routes 2026-08-23: 132.00 / 72.00, 254.05 / 83.02, 196.00 / 37.02, against the single 80px bar all three plates drew. Worst delta after the fix: 1.95px, inside 14-UI-SPEC's 4px falsifiable. ⚠ Measuring the CARD above the breakpoint measures a `display:none` subtree, whose box is zero — every comparison would then be 0-against-0 and pass while measuring nothing.
+- [14-15]: **A delta that cannot be closed is a pinned assertion with both measured numbers, never a paragraph.** `/host/bookings` mixes a confirmed row (196 / 37.02, what the bar draws) with one still awaiting an answer (232–252 / 60.5–61, because it grows an approve/decline actions row). No single bar is right for both, and drawing the taller shape would over-claim on the ordinary case. The over-run is asserted as a band in `e2e/skeleton-geometry.spec.ts` — tight at 1280 where nothing wraps, deliberately wider at 320 where the window label's wrap count moves with the calendar. ⚠ The dishonest fix the plan names — shrinking the plate's row COUNT until the totals agree while every individual row still disagrees — was explicitly refused.
+- [14-15]: **14-RESEARCH's reconstructed row heights were outside their own ±8px bar, and one was wrong about the SHAPE.** Its case (b′) predicted 206/186 against a measured 254.05; case (c) predicted 190/174 and described the host booking row as carrying a trailing line and an actions row — the RESTING row on the upcoming tab has neither (actions render only while a booking awaits an answer, the trailing line only for a cancelled booking with a refund). A plan that trusted those figures would have declared three heights each wrong at at least one width, with the gate green over them. ⚠ `[11-08]` is discharged for the three HOST rows only; `(app)/bookings` and `notification-item.tsx` are still on the 80px assumption and were not measured.
 - [14-04]: **An accessibility equivalence is guaranteed by CONSTRUCTION, not by discipline — the decoration and its text equivalent are two fields of ONE return value.** `deriveWeekStrip` returns `segments` and `sentence` from one sorted array in one `.map`, so there is no arrangement of the code in which a caller can draw from one derivation and announce from another (D-153). The proof is an invariant asserted GENERICALLY with `it.each` over the whole case table — segments count equals ranges named, and the closed word appears iff there are no segments — so every future case buys the contract for free. ⚠ It took TWO falsifications to establish that both halves of the test are load-bearing: a coalescing derivation is caught only by the pinned strings (one segment named by one range is self-consistent, and the invariant is blind to it), and a separately-derived sentence is caught only by the invariant (no per-case pin generalises). Neither alone is sufficient.
 - [14-04]: **A preview must never draw something the schema would refuse — the strip's parse is TIGHTER than the editor's, and that gap was a real defect.** `weekly-hours-editor.tsx:65`'s `toHour` is a bare `parseInt(t.slice(0, 2), 10)`, so a half-typed `"9"` parses as nine o'clock; the strip would have drawn a 9 AM bar for a string `hoursWindowSchema`'s own regex rejects. `week-strip.ts` requires the two-digit hour prefix and skips anything else, alongside undefined rows, missing times, zero-height and reversed runs. It is a PARSE guard, not a second validation — nothing there judges a value or emits a message, because the form owns the error and the shared schema owns the refusal (GATE-NOREG 6). ⚠ The editor still carries the loose copy; the plan that re-points it at this module's exports must take the tightened parser with it rather than keep two.
 - [14-03]: **A per-file design-gate inventory reads SOURCE, so "only one arm ever renders" is not a defence — hoist what the gate counts.** Giving `request-countdown.tsx` a second layout added a second `role="timer"` element and `tests/design/live-regions.test.tsx` reported it as an undeclared region (`request-countdown.tsx:271 — timer#2 on <span>`), even though the two arms can never mount together. The remedy was to hoist the timer element into a shared const — as the digits already were for `phase13-surface-gates`' alarm-token line count — rather than to declare a second inventory row for the same region drawn twice. The glyph and the sr-only threshold region were hoisted in the same edit. ⚠ Any later plan giving that component a third layout inherits this rule.
@@ -1214,8 +1218,42 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
+Last session: 2026-08-23T15:20:00.000Z
+Stopped at: Completed 14-15-PLAN.md — the three host row heights, measured. 15 of 16 plans done; **14-16 is next**
+Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
+with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
+row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
+— at 320 and 1280, against the single **80px** bar all three plates drew. `HOST_AGENDA_ROW_HEIGHT`
+(`h-33 sm:h-18`), `HOST_REQUEST_ROW_HEIGHT` (`h-64 md:h-21`) and `HOST_BOOKING_ROW_HEIGHT`
+(`h-49 md:h-9`) are declared in `measurements.ts` with their measurements; `RowSkeletonHeight` went
+from one member to four, in the file where the heights are derived. Worst residual delta **1.95px**,
+inside 14-UI-SPEC's 4px falsifiable. `e2e/skeleton-geometry.spec.ts` grew a third block carrying the
+numbers — **13 passed**, run alone — and was watched failing twice, once per clause. Design suite
+unmoved at 49 files / 832 passed / 3 skipped; `tsc` 0; `drizzle/` empty; `loading-coverage.test.ts`
+unedited.
+
+⚠ FOUR THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **`/host/requests` and `/host/bookings` render
+TWO TREES** — a row-card stack below the medium breakpoint, a TABLE at and above it — and show exactly
+one per width. Anything measuring those routes must pick the tree by the ROUTE's declared behaviour,
+not by the viewport, and must assert visibility before reading a box: the hidden tree's box is zero and
+every comparison over it passes while measuring nothing. That was this spec's first red. (2)
+**14-RESEARCH's M1 reconstructions are not trustworthy for these three rows** — two were outside its
+own ±8px bar and one was wrong about the SHAPE (the resting host booking row has neither actions nor a
+trailing line). (3) **`e2e/skeleton-geometry.spec.ts` now seeds a database.** It used to need no
+fixture; it now signs a host up and writes five bookings, tearing them down in `afterAll`. Run it
+ALONE. (4) **`next dev` does not stream on the request that COMPILES a route**, so the completion
+marker `served-document.ts` cuts at is absent exactly once — on whichever route nothing has visited
+yet. The spec warms each route before its pending pass; do not delete that navigation as noise.
+
+⚠ `[11-08]` is discharged for the three HOST rows only. `(app)/bookings` and `notification-item.tsx`
+were NOT measured and are still on the 80px assumption — recorded in phase 11's `deferred-items.md`.
+`HFLOW-04` stays deliberately unticked in `REQUIREMENTS.md`: **14-16 still carries it**, so the plan
+that closes its last clause is the one that ticks it.
+
+<details><summary>Previous session (14-13, superseded 2026-08-23)</summary>
+
 Last session: 2026-08-23T14:41:15.992Z
-Stopped at: Completed 14-13-PLAN.md — the availability route's design-system pass. 13 of 16 plans done; **14-14 is next**
+Stopped at: Completed 14-13-PLAN.md — the availability route's design-system pass. 13 of 16 plans done.
 The availability route is DONE as a design-system surface. `blocks-editor.tsx` renders no raw box and no
 vendored overlay: the no-blocked-dates absence is `EmptyState` (a genuine empty LIST — `actions={null}`,
 `titleAs="h3"`, neutral tone, copy byte-identical), the date list is one `PanelCard` with the dividing
@@ -1251,6 +1289,8 @@ column and the velocity total alone, so both were hand-corrected (14 → 13 plan
 `fitout-gsd-toolchain-gotchas` memory. `HFLOW-04` is STILL deliberately unticked in `REQUIREMENTS.md`: it
 is shared across six plans and **14-15 and 14-16 still carry it**, so the plan that closes its last clause
 is the one that ticks it.
+
+</details>
 
 <details><summary>Previous session (13-15, superseded 2026-08-22)</summary>
 

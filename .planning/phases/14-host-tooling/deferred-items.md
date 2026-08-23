@@ -196,3 +196,31 @@ deliberately left to a later phase"* problem `live-regions.ts`'s own header is w
    so this is a region that is decorative-by-construction *some of the time*, which none of the four
    precedents is. The label shipped is `"Save state"`: two words, a LABEL and not a second copy of the
    sentence, per the VoiceOver hazard `share-link-box.tsx:109-121` records.
+
+---
+
+## `[14-15]` Two `RowCard` adopters outside the host tree were never measured against the 80px skeleton
+
+**Found during:** 14-15 Task 1, measuring the three host row shapes against the rendered routes.
+**Owner:** unassigned — a later phase that opens `(app)/bookings` or the notification list.
+
+`[11-08]` recorded that every shipped row card rendered 112px against an 80px skeleton and predicted the
+fix would be "a pure win at adoption". 14-15 discharged that for the three HOST rows and found the live
+mismatch was the OPPOSITE one and up to five times larger — a shipped host row with a description list
+and actions measures 254.05px at the 320px floor against a plate promising 80.
+
+**Not measured here, and not guessed at:** `src/app/(app)/bookings` and `src/components/.../notification-item.tsx`
+are the two remaining `RowCard`/row-shaped adopters. Neither route is in this plan's `files_modified`, and
+neither is a host surface, so neither was opened. Both still draw `ROW_CARD_HEIGHT` (80px) from
+`RowListSkeleton`'s default, and **nobody has checked whether that is still true of the rows they render.**
+The booker bookings row carries a 48px thumbnail, which is the one configuration `ROW_CARD_HEIGHT` was
+derived for — so it may well be correct. That is a prediction, not a measurement, and the whole lesson of
+this plan is the difference.
+
+**What a later plan should do:** measure both at 320 and at the desktop width on the rendered route, and
+either reuse `ROW_CARD_HEIGHT` (recording that it was checked) or declare the shape's own height in
+`src/lib/design/measurements.ts` beside the three host ones and add a case to
+`e2e/skeleton-geometry.spec.ts`'s host block, which already owns the pending-shell-against-resolved-list
+idiom and a fixture. ⚠ Check first whether the route renders more than one tree: the two host list routes
+hide their card stack above the medium breakpoint and render a table, and measuring the hidden tree
+returns a zero box that makes every comparison pass while measuring nothing.
