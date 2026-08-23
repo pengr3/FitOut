@@ -1519,7 +1519,13 @@ browser in this session, or `[CITED]` to a committed planning artifact.**
 
 ---
 
-## Open Questions
+## Open Questions (ALL RESOLVED — see the resolving plan/task on each)
+
+> Resolved during planning on 2026-08-23. Q1 status set -> **14-02 T2**. Q2 the exclusion-list guard
+> rewrite -> **14-14 T2**. Q3 the skeleton height prop -> **14-01 T1**. Q4 bar legibility at 320px ->
+> **manual UAT**, recorded in `14-VALIDATION.md` § Manual-Only Verifications. Q5 the 672px form column
+> -> **14-10 T2**'s M5 measurement obligation. Q6 `photo-uploader.tsx`'s unnamed region -> **14-14 T1**
+> (fixed in this phase, which is what takes the exclusion list to zero). Q7 confirmed unchanged.
 
 1. **Which booking statuses belong on the agenda?**
    - *What we know:* the row renders `BookingStatusBadge side="host"`, which implies more than `confirmed`.

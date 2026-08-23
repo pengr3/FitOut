@@ -982,7 +982,12 @@ that the header's arithmetic already drifted once), and re-run `tests/design/liv
 
 ## Inventories this phase extends
 
-### `measurements.ts` — five constants
+### `measurements.ts` — six constants
+
+> **Corrected 2026-08-23, after planning.** This table listed five. Plan 14-01 adds a sixth,
+> `WIZARD_CHECKLIST_GRID`, because the checklist column's width is otherwise written twice — once as the
+> column and once as the grid template that positions it — and a number written twice is a number that
+> drifts. Disclosed here rather than absorbed silently.
 
 | Constant | Value | Derivation |
 |---|---|---|
@@ -991,6 +996,7 @@ that the header's arithmetic already drifted once), and re-run `tests/design/liv
 | `HOURS_STRIP_TRACK` | `"h-40"` | § Spacing — 6.67px per hour, the smallest height at which a one-hour window is a bar rather than a hairline |
 | `STEP_MARKER_BOX` | `"size-6"` | § Spacing — the shipped value, now load-bearing as the WCAG 2.5.8 AA target-size bar |
 | `WIZARD_CHECKLIST_COL` | `"lg:w-72"` | § Spacing — leaves 672px of form column at `lg` against the 736px shipped today |
+| `WIZARD_CHECKLIST_GRID` | derived from `WIZARD_CHECKLIST_COL` | § Spacing — the grid template that positions the column, so the width is declared once rather than twice (added by plan 14-01) |
 
 ### `selector-contract.ts` — nine rows, each with the reason a role query cannot carry it
 
