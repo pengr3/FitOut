@@ -303,14 +303,20 @@ const SAVE_STATE_SAVED: SaveState = { kind: "saved" };
  * so a name that duplicated the sentence would read it twice and a name that paraphrased it would
  * replace it with a worse version. Two words that say which region this is; the sentence stays content.
  */
-const SAVE_STATE_REGION_NAME = "Save state";
+export const SAVE_STATE_REGION_NAME = "Save state";
 
-/** The copy contract (14-UI-SPEC § The save state is visible and truthful), hoisted so the surface and
- *  the test that asserts it read the same characters. */
-const SAVE_STATE_SAVING_LABEL = "Saving…";
-const SAVE_STATE_SAVED_LABEL = "Saved";
+/**
+ * The copy contract (14-UI-SPEC § The save state is visible and truthful).
+ *
+ * EXPORTED for the same reason `STEPS` is (plan 14-09): `tests/listing/wizard-save-state.test.tsx`
+ * asserts these characters, and a test that RETYPES locked copy passes at exactly the moment the copy
+ * and the assertion drift apart in one edit — while also making every wording change a two-file edit.
+ * Read-only by construction; nothing outside this module assigns to them.
+ */
+export const SAVE_STATE_SAVING_LABEL = "Saving…";
+export const SAVE_STATE_SAVED_LABEL = "Saved";
 /** The prefix, and ONLY the prefix. What follows it is the server's sentence, rendered verbatim. */
-const SAVE_STATE_FAILED_PREFIX = "Couldn't save — ";
+export const SAVE_STATE_FAILED_PREFIX = "Couldn't save — ";
 
 /**
  * What a server result MEANS, in one place.
