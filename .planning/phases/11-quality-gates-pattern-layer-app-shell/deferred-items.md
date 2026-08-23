@@ -31,6 +31,20 @@ Out-of-scope discoveries logged during execution. Not fixed by the plan that fou
 
   **Not fixed here, deliberately.** Plan 11-08 ships the pattern layer and adopts nothing; editing `booking-row.tsx` / `host-booking-row.tsx` / `request-row.tsx` / `payout-row.tsx` / `notification-item.tsx` is the adoption plans' scope, and changing a shipped row's height is a visible change that belongs in the commit that swaps the route. `patterns/row-card.tsx` carries `py-0` so the PATTERN measures the constant it claims, and the discrepancy dies as each route adopts it. Whoever picks up the adoption: the height is a **pure win at adoption** (rows shrink to the number the skeleton already draws), so no skeleton change is needed — but re-measure, because `RowCard`'s `actions` slot adds a `space-y-3` row when present and the 80px figure is the resting height only.
 
+  ### ✅ DISCHARGED by 14-15 on the host side — and the closing caveat was the whole story
+
+  The 112-against-80 half is gone: all three host rows adopted the pattern, the pattern carries `py-0`, and no shipped host row measures 112px any more. But **"a pure win at adoption" was true only of the resting media configuration**, exactly as this item's own last sentence warns. Measured 23 August 2026 in Chromium against the RENDERED routes, with a real host, a real listing and five real bookings:
+
+  | shape | route | 320px | 1280px | the 80px bar |
+  |---|---|---|---|---|
+  | agenda row (status, no actions) | `/host` | **132.00** | **72.00** | +52 / −8 |
+  | request row (lead countdown + `<dl>` + touch actions) | `/host/requests` | **254.05** | **83.02** (table row) | +174 / +3 |
+  | host booking row (status + `<dl>`, resting) | `/host/bookings` | **196.00** | **37.02** (table row) | +116 / −43 |
+
+  So the live mismatch was the OPPOSITE one and up to five times larger: the skeleton under-drew by 174px per row on the inbox, not over-drew by 32px. Two further facts the original item could not have known: `/host/requests` and `/host/bookings` render a TABLE above the medium breakpoint and hide the card stack entirely, so no single box serves either route; and the host booking row's resting shape has **neither** an actions row nor a trailing line, which is why the reconstructed estimate for it was wrong about the shape and not merely about the number.
+
+  Fixed by declaring `HOST_AGENDA_ROW_HEIGHT`, `HOST_REQUEST_ROW_HEIGHT` and `HOST_BOOKING_ROW_HEIGHT` in `src/lib/design/measurements.ts` with their measurements, and passing each from its own plate. Pinned at both widths by `e2e/skeleton-geometry.spec.ts`, which has been watched failing on both a wrong constant and a wrong number. **Still open elsewhere:** `(app)/bookings` and `notification-item.tsx` were not measured by 14-15 and are not covered by these three constants.
+
 - **[11-09] `.planning/STATE.md`'s `<details>` tags have been unbalanced by two since before this plan — an out-of-scope pre-existing defect, recorded rather than fixed.** Measured at `HEAD` (`bde4d23`, plan 11-08's close) **before** any edit from this plan: **18 `<details` opens, 16 `</details>` closes.** After 11-09's status paragraph (one open + one close, added together) the file is at 19/17 — the same delta of two, so this plan neither caused it nor made it worse.
 
   **Why it matters at all:** every "Previous status" block in `## Current Position` is a collapsed `<details>`, and two unclosed opens mean two of those blocks are nested inside an earlier one rather than being siblings. On a GitHub render that hides a stale status paragraph behind *two* clicks instead of one, and — the sharper consequence — a reader who expands the newest block gets an older one expanded with it, which reads as if both are current. Nothing mechanical checks this: `STATE.md` is prose and no gate parses it.
