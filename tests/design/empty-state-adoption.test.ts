@@ -429,6 +429,15 @@ const ADOPTERS: readonly Adopter[] = [
     why: "The booking-detail boundary, which 11-UI-SPEC explicitly deferred to Phase 13 (13-CONTEXT D-93 accepted it). Same argument as the two not-found rows above — a stale link is a normal thing to have — plus one this inventory has no other instance of: this page is what the OWNER GATE returns for BOTH a missing booking and a booking that belongs to somebody else (T-04-CONFIRMIDOR), so its copy is a security property. `ErrorState` was refused on two independent grounds: it paints the alarm token, which 13-UI-SPEC § Color bans across this whole phase, and it requires an `onRetry` for a page where there is nothing to retry.",
   },
 
+  // ─── NOT PLAN 11-16'S EITHER. Landed by plan 14-05, and predicted by this file's own NOT COVERED
+  //     note: "a Phase-14 host-tooling surface is expected to EXTEND `ADOPTERS` in its own commit.
+  //     That is the gate working, not the gate being wrong." This is that commit. ───────────────────
+  {
+    file: "src/components/host/host-agenda.tsx",
+    sites: 1,
+    why: "The /host dashboard agenda's third state — a host with nothing booked at all (14-CONTEXT D-142). THE FIRST ROW IN THIS INVENTORY THAT IS A COMPONENT RATHER THAN A ROUTE, because the agenda's three states are one component the dashboard composes; the surface is where the shell is rendered, not where the URL is. `tone` is left NEUTRAL deliberately and that is the AC#24 boundary restated: an emptied work queue is an achievement, but a host who has not been booked yet has achieved nothing, so the positive set stays at the request inbox. `actions={null}` on purpose — every setup step genuinely outstanding is named by the signal rows beneath this block, and the host's spaces may already be live, so there is no next step this panel can honestly name.",
+  },
+
   // ─── NOT A PRODUCT SURFACE. The design-review preview, landed by plan 11-21. ──────────────────────
   {
     file: "src/app/dev/theme/page.tsx",
@@ -443,9 +452,14 @@ const ADOPTERS: readonly Adopter[] = [
  * 12 → 13 files and 15 → 16 sites in plan 13-10's own commit, which is the only way these numbers are
  * ever allowed to move: `bookings/[id]/not-found.tsx` arrived with a row above it. A count that moved
  * without a row would mean the scan found a surface nobody wrote down.
+ *
+ * 13 → 14 files and 16 → 17 sites in plan 14-05's own commit, by the same rule and for the reason this
+ * file's NOT COVERED section predicted in writing: HFLOW-01/HFLOW-03 ADOPT this component rather than
+ * re-deciding it, so a Phase-14 host surface extends the inventory instead of authoring a shell. The
+ * count was observed moving first — `expected 17 to be 16` — and the row was added to answer it.
  */
-const EXPECTED_ADOPTER_FILES = 13;
-const EXPECTED_EMPTY_STATE_SITES = 16;
+const EXPECTED_ADOPTER_FILES = 14;
+const EXPECTED_EMPTY_STATE_SITES = 17;
 
 /**
  * THE ONE LEGAL `bg-success` IN THE TREE, pinned by name.

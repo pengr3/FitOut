@@ -201,6 +201,13 @@ export const SELECTOR_IDS = [
   // `Rendered-but-undeclared: [receipt]`, observed and then closed by the row below.
   "receipt-total",
   "receipt",
+  // 14-05 — HFLOW-03's agenda: ONE container that is present in all three booking states, plus the
+  // three branches that are what actually distinguishes them. The four land in the same commit as the
+  // component that renders them, for the reason the three rows above record in three different ways.
+  "host-agenda",
+  "agenda-rows",
+  "agenda-next",
+  "agenda-none",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -833,5 +840,73 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "hook has nothing to say about. The hook and the shell are the SAME element here — the receipt's " +
       "measure is what opens up on paper — so the id is what distinguishes it, not the class.",
     owner: "13-12",
+  },
+
+  // ─── 14-05 ─────────────────────────────────────────────────────────────────────────────────────────
+  "host-agenda": {
+    why:
+      "THE THREE-STATE ASSERTIONS MEASURE WHICH CHILD THIS ELEMENT CONTAINS, so the container has to " +
+      "be addressed before any of them can be walked. That is the same subtree argument `receipt` and " +
+      "`week-strip` make, and here it carries a second load: the headline claim is that the agenda " +
+      "section is present in ALL THREE booking states, which is precisely the claim an ABSENT section " +
+      "satisfies under a query of the form 'the agenda renders'. An element COUNT is the only shape " +
+      "that expresses presence-in-every-state, and a count needs a name. " +
+      "A ROLE QUERY CANNOT CARRY IT. A `<section>` exposes the `region` role ONLY once it is named, " +
+      "and the name would be its own `<h2>` — the single word this surface is titled with, which is " +
+      "also an ordinary English word appearing in the row labels, the quiet-day sentence and the " +
+      "status vocabulary beneath it. " +
+      "A TEXT QUERY WOULD BE CIRCULAR in this contract's established sense: the text inside is exactly " +
+      "what varies BETWEEN the three states, so matching on it would require knowing the state in " +
+      "order to find the element that proves the state. " +
+      "AND IT IS NOT ADDRESSABLE BY ITS SHELL: the dashboard's page container is a declared constant " +
+      "shared with the route's own loading plate and with three other host surfaces.",
+    owner: "14-05",
+  },
+  "agenda-rows": {
+    why:
+      "THE POPULATED BRANCH. Distinguishing 'the agenda rendered a LIST of sessions' from 'the agenda " +
+      "rendered a SENTENCE about the next one' is a STRUCTURAL fact about which child mounted, and " +
+      "structure is the one thing the accessibility tree deliberately does not expose here — a " +
+      "`<ul>` exposes the `list` role, which is the same role every other list on the page exposes " +
+      "and says nothing about which list this is. " +
+      "NAMING IT WOULD BE WORSE THAN USELESS: an `aria-label` on this list would announce a second " +
+      "title two lines under the `<h2>` that already titles the region, for the benefit of an " +
+      "assertion rather than of a screen-reader user — which is the exact trade GATE-04 exists to " +
+      "make fail. " +
+      "AND A TEXT QUERY IS CIRCULAR AND UNSTABLE at once: the only text inside is booker first names " +
+      "and venue-local windows, both of which are fixture values the assertion supplies, so matching " +
+      "on them would encode the answer.",
+    owner: "14-05",
+  },
+  "agenda-next": {
+    why:
+      "THE QUIET-DAY BRANCH, AND A SENTENCE HAS NO ROLE. It is one paragraph inside the advisory " +
+      "panel — `paragraph` is not an ARIA role at all, and the panel around it carries the shared " +
+      "`panel-card` hook that every advisory in the app carries, so a container query resolves on " +
+      "the two signal rows below this block as readily as on this one. " +
+      "A TEXT QUERY WOULD BE CIRCULAR in the way every copy-adjacent row in this contract describes: " +
+      "the sentence names a weekday, a date, a time and a space title, all four of which are the " +
+      "fixture values the assertion is trying to prove were rendered. Matching on them to find the " +
+      "element would be asserting that the string this query already contains is the string on screen. " +
+      "AND THE ASSERTION IS ALSO AN ABSENCE — this branch must render ZERO rows — which only an " +
+      "element count inside a named subtree can express.",
+    owner: "14-05",
+  },
+  "agenda-none": {
+    why:
+      "THE NOTHING-BOOKED BRANCH, AND THE SHARED HOOK IS THE PROBLEM RATHER THAN THE ANSWER. " +
+      "`patterns/empty-state.tsx` already carries `empty-state` on its own root, and that hook is on " +
+      "every one of the fourteen surfaces composing the shell — so it identifies the PATTERN and not " +
+      "this state. Three branches of one container cannot be told apart by a hook two of them do not " +
+      "have and the third shares with the rest of the app. " +
+      "A ROLE QUERY CANNOT CARRY IT EITHER: the panel is a plain box whose only semantic child is a " +
+      "third-level heading, and headings are how the OTHER branches would be found too if this were " +
+      "role-addressable. " +
+      "AND THE SHARPEST ASSERTIONS HERE ARE NEGATIVE — zero retry affordances, zero alerting roles, " +
+      "zero alarm-token classes, and a body that claims nothing about bookability. Every one of those " +
+      "counts elements or classes INSIDE a subtree, and a subtree has to be named before it can be " +
+      "counted. A negative assertion scoped to the whole document would pass on a page that rendered " +
+      "no empty state at all, which is the vacuity this branch's own hook exists to close.",
+    owner: "14-05",
   },
 };
