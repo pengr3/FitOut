@@ -56,6 +56,23 @@
 //       prints the whole row and tells the reader to restore the pre-14-14 shape (a non-empty floor
 //       plus the filter over the REAL list) so the vacuity guard returns with the rows.
 //
+// ⚠ SCAN 4 WAS WATCHED RED TOO, and its two probes are the reason it is trusted. GREEN IS 26 PASSED as
+// of plan 14-14 (21 before it: five new cases, one of which is SCAN 4's own guard-the-guard). Both run
+// and reverted on 23 August 2026; the full messages are in `14-14-SUMMARY.md`:
+//   (g) A NAMED REGION LOSES ITS NAME. `aria-label` removed from `photo-uploader.tsx`'s requirement
+//       region. 3 failed / 23 passed — SCAN 3's hollow-row check, SCAN 3's recorded-string check AND
+//       SCAN 4's naming assertion, which is what three independent readings of one defect looks like.
+//       SCAN 4's message names the file, the line, the tag and the fix:
+//         "src/components/listing/photo-uploader.tsx:246 — the <p> carrying role=\"status\" has NO
+//          aria-label. That role is nameFrom:author, so its accessible name is the empty string and the
+//          region is unreachable by name. …"
+//   (h) A NEW INTERRUPTING REGION SHIPS. `<p role="alert">Probe</p>` added to `host-signals.tsx` — a
+//       file on a Phase-14 surface and deliberately NOT in the declared set, so this is the hole SCAN 4
+//       exists to close. 1 failed / 25 passed, and the diff is the census itself:
+//         + "src/components/host/host-signals.tsx × 1"
+//       Note what did NOT fire: SCAN 1 stayed green, because that role carries no attribute to find.
+//
+
 // Command for all five:
 // `npx vitest run --config vitest.design.config.ts tests/design/live-regions.test.tsx`
 //
@@ -1026,6 +1043,270 @@ describe("SCAN 3 — the naming mechanism, per kind", () => {
       "src/components/booking/hold-countdown.tsx",
       "src/components/booking/request-countdown.tsx",
     ]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// SCAN 4 — THE PHASE-14 HOST SURFACES, as a set derived from the tree rather than typed out.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// The three scans above audit a DECLARED set: a file joins it by being written into
+// `LIVE_REGION_FILES`, which is the friction that makes the inventory a contract. That mechanism has
+// one hole, and `live-regions.ts`'s own header is written about it: a file nobody ever looked at scans
+// identically to a file somebody audited. Adding a `role="status"` to a host component that is not in
+// the declared set costs nothing and shows up nowhere — which is exactly what happened between plans
+// 14-03 and 14-11, twice, with the whole design suite green.
+//
+// So this block audits a set DERIVED from the tree instead. It starts at the five surfaces 14-UI-SPEC
+// names, walks their `@/…` imports transitively, and keeps whatever lands inside the four trees this
+// phase owns. A new host component reached from any of the five is in scope the moment it is imported,
+// with no inventory edit — which is the property the declared set deliberately does not have, and the
+// reason both mechanisms are here rather than one.
+//
+// ⚠ WHAT THE WALK DELIBERATELY DOES NOT KEEP, because the rules below are not written for it:
+//   • `src/components/booking/**` — `request-countdown.tsx`, `booking-status-badge.tsx` and
+//     `bookings-tabs.tsx` are reached from the host inbox and the host bookings table, and their
+//     regions are the BOOKER's contract. The countdown's `timer` and `threshold` rows are declared and
+//     audited above; re-judging them under this phase's naming rule would be two owners for one region.
+//   • `src/components/patterns/**` and `src/components/ui/**` — the pattern layer's busy regions are
+//     `tests/design/skeleton-a11y.test.tsx`'s, and the vendored primitives are byte-unchanged by
+//     contract.
+// Neither is an exclusion in `live-regions.ts`'s sense: nothing here is unaudited, it is audited
+// somewhere else, and the somewhere else is named.
+
+/** The five surfaces 14-UI-SPEC names, as the roots of the walk. */
+const PHASE_14_SURFACE_ROOTS: readonly string[] = [
+  "src/app/(host)/host/page.tsx",
+  "src/app/(host)/host/requests/page.tsx",
+  "src/app/(host)/host/bookings/page.tsx",
+  "src/app/(host)/host/listings/[id]/edit/wizard.tsx",
+  "src/app/(host)/host/listings/[id]/availability/page.tsx",
+];
+
+/** The trees this phase owns. A reached file outside all four is another gate's, by name above. */
+const PHASE_14_OWNED_TREES: readonly string[] = [
+  "src/app/(host)/",
+  "src/components/host/",
+  "src/components/availability/",
+  "src/components/listing/",
+];
+
+/**
+ * The size of the derived closure, MEASURED in this commit (23 August 2026) and pinned so that a
+ * change in REACH is visible even when it brings no new region with it.
+ *
+ * It is not a ban. A host component added to one of the five surfaces moves this number, and moving it
+ * is a one-line edit with the new file named in the diff — which is the whole point: the reach changed
+ * and somebody said so. Eighteen is the five roots plus three availability components (the two editors
+ * and the week strip, which the hours editor mounts), eight host components and the two listing
+ * components the wizard renders.
+ */
+const PHASE_14_SURFACE_FILE_COUNT = 18;
+
+/** `from "@/x/y"` — the only import spelling this repository uses for its own modules. */
+const ALIAS_IMPORT = /from\s+["']@\/([^"']+)["']/g;
+
+/** The five roots plus every `.tsx` reachable from them, transitively, inside the owned trees. */
+function phase14SurfaceClosure(): { files: string[]; outside: string[]; missingRoots: string[] } {
+  const kept = new Set<string>();
+  const outside = new Set<string>();
+  const missingRoots: string[] = [];
+  const queue = [...PHASE_14_SURFACE_ROOTS];
+
+  for (const root of PHASE_14_SURFACE_ROOTS) {
+    if (!existsSync(resolve(process.cwd(), root))) missingRoots.push(root);
+  }
+
+  while (queue.length > 0) {
+    const file = queue.shift() as string;
+    if (kept.has(file)) continue;
+    const abs = resolve(process.cwd(), file);
+    if (!existsSync(abs)) continue;
+    kept.add(file);
+
+    for (const match of readFileSync(abs, "utf8").matchAll(ALIAS_IMPORT)) {
+      const base = `src/${match[1]}`;
+      const candidate = [`${base}.tsx`, `${base}/index.tsx`].find((p) =>
+        existsSync(resolve(process.cwd(), p)),
+      );
+      if (candidate === undefined) continue;
+      if (!PHASE_14_OWNED_TREES.some((tree) => candidate.startsWith(tree))) {
+        outside.add(candidate);
+        continue;
+      }
+      if (!kept.has(candidate)) queue.push(candidate);
+    }
+  }
+
+  return { files: [...kept].sort(), outside: [...outside].sort(), missingRoots };
+}
+
+const phase14 = phase14SurfaceClosure();
+const phase14Scan = scan(phase14.files);
+
+/**
+ * THE IMPLICITLY-ASSERTIVE ROLE, PINNED PER FILE WITH ITS REASON — not scanned to zero.
+ *
+ * ⚠ `role="alert"` IS `aria-live="assertive"` WITH A DIFFERENT SPELLING. A gate that bans the banned
+ * politeness level by looking for the ATTRIBUTE reports a clean zero over a tree that interrupts the
+ * host twice, and reads exactly like a tree that does not. 14-RESEARCH § G9 flagged both of these as
+ * unbudgeted; this is the deliberate take on that, and the take is NOT to convert them.
+ *
+ * WHY THEY STAY. Both are native form-field validation messages — the overlap error on the weekly
+ * hours editor, the date-field error on the blocks editor — and that is the one canonical use the
+ * assertive level has: a message the user's own submit produced, about the field they are standing in,
+ * where being told immediately is the point. Neither fires on page load. Changing a validation
+ * message's role is an accessibility BEHAVIOUR change, and there is no decision behind one; the
+ * defensible act is to make them VISIBLE to the gate rather than invisible to it.
+ *
+ * The map is by FILE and by COUNT rather than by line, because 14-12 and 14-13 both moved these lines
+ * without touching the elements — a line-number pin would have gone red on a reformat and green on a
+ * third region added anywhere else in the file.
+ *
+ * MEASURED in this commit: two occurrences, one per file, zero anywhere else in the closure.
+ */
+const PHASE_14_ALERT_ROLE_SITES: ReadonlyMap<string, number> = new Map([
+  ["src/components/availability/blocks-editor.tsx", 1],
+  ["src/components/availability/weekly-hours-editor.tsx", 1],
+]);
+
+/** D-152: the week-at-a-glance strip announces NOTHING, and that is a decision with a reason. */
+const WEEK_STRIP = "src/components/availability/week-strip.tsx";
+
+describe("SCAN 4 — the Phase-14 host surfaces", () => {
+  it("walked the five surfaces and reached the measured set — nothing below is over nothing", () => {
+    // GUARD-THE-GUARD FIRST, for probe (d)'s reason: every assertion in this block is an ABSENCE
+    // assertion, and over a closure that collapsed to five roots (a renamed component, a changed
+    // import spelling) they would all report a perfectly clean result forever.
+    expect(
+      phase14.missingRoots,
+      "a Phase-14 surface path does not exist. The walk starts here, so a stale root silently removes " +
+        "a whole surface and everything reached only through it.",
+    ).toEqual([]);
+    expect(
+      phase14Scan.unreadable,
+      "a file in the derived closure could not be read or is below the stub floor",
+    ).toEqual([]);
+    expect(
+      phase14.files.length,
+      `the walk reached ${phase14.files.length} files inside the owned trees, not ` +
+        `${PHASE_14_SURFACE_FILE_COUNT}. That is not a failure by itself — adding a component to one ` +
+        "of the five surfaces is supposed to move this number — but the reach of every assertion " +
+        "below just changed, so move the constant in the same commit and name the file in the diff.",
+    ).toBe(PHASE_14_SURFACE_FILE_COUNT);
+    // …and the walk really followed imports rather than stopping at the roots.
+    expect(
+      phase14.outside.length,
+      "the walk resolved no import outside the owned trees at all, which means it resolved no " +
+        "imports: every one of the five surfaces reaches the pattern layer or the vendored primitives.",
+    ).toBeGreaterThan(0);
+    expect(phase14Scan.regions.length).toBeGreaterThan(0);
+  });
+
+  it("every status-role element on the five surfaces resolves to a NON-EMPTY accessible name", () => {
+    // 14-UI-SPEC § Live Regions, falsifiable #2. The role is `nameFrom: author` in ARIA — it takes no
+    // name from its own text — so an unnamed one is silent to any query that asks for it by name, and
+    // a `loading`-shaped one, whose children are `aria-hidden` by construction, announces the empty
+    // string outright.
+    //
+    // ⚠ THIS RULE IS SCOPED TO THIS PHASE'S SURFACES ON PURPOSE AND MUST NOT BE WIDENED CASUALLY. On
+    // the BOOKER path the opposite rule holds: `collision-notice.tsx`, `book-cta.tsx`,
+    // `reserve-actions.tsx`, `relax-band.tsx`, `spots-left-chip.tsx` and both `slot-picker.tsx` hints
+    // carry NO author name, because their own sentence IS the message and a named live region can be
+    // announced BY ITS NAME INSTEAD OF ITS CONTENT on the VoiceOver/Safari pairing. Naming those to
+    // make a wider version of this assertion green would degrade the thing it guards. The four regions
+    // this rule covers are all declared in `AUTHOR_NAMED_REGIONS`, and the two of them that DO have
+    // text of their own state what the trade costs on their rows.
+    const offenders = phase14Scan.regions
+      .filter((region) => region.role !== null && region.role.literal && region.role.raw === "status")
+      .filter((region) => region.label === null || region.label.trim().length === 0)
+      .map(
+        (region) =>
+          `${region.file}:${region.line} — the <${region.tag}> carrying role="status" ` +
+          (region.named
+            ? "has a name this scan cannot resolve to a string. Hoist it to a module-level " +
+              '`const NAME = "…"` the way the four named regions on these surfaces do.'
+            : "has NO aria-label. That role is nameFrom:author, so its accessible name is the empty " +
+              "string and the region is unreachable by name. Add a name from a hoisted constant, and " +
+              "a row in `AUTHOR_NAMED_REGIONS` saying why it needs one."),
+      );
+    expect(offenders).toEqual([]);
+
+    // Guard the guard: this passes trivially if the closure holds no status region at all.
+    const named = phase14Scan.regions.filter(
+      (region) => region.role?.raw === "status" && region.label !== null,
+    );
+    expect(
+      named.length,
+      "the closure contains no resolvable status region, so the assertion above compared nothing",
+    ).toBeGreaterThan(0);
+  });
+
+  it("renders the interrupting politeness level ZERO times on the five surfaces", () => {
+    // 14-UI-SPEC falsifiable #3, and GATE-03 rule 7 applied to the supply side. It talks over whatever
+    // is being read — on the wizard, plausibly the field the host is filling in. Where an event must
+    // be noticed the mechanism is a POLITE region plus MOVED FOCUS.
+    //
+    // Asserted from BOTH sides, the same way SCAN 1 is: the text scan (comments stripped) catches the
+    // literal, and the collected regions catch it inside a computed value such as a ternary.
+    expect(phase14Scan.assertiveText).toEqual([]);
+    const computed = phase14Scan.regions
+      .filter((region) => region.ariaLive !== null && region.ariaLive.raw.includes("assertive"))
+      .map((region) => `${region.file}:${region.line} (${region.kind}#${region.at})`);
+    expect(computed).toEqual([]);
+  });
+
+  it("pins the implicitly-assertive alert role per file — TWO validation messages, no more", () => {
+    // See `PHASE_14_ALERT_ROLE_SITES` above for why this is a pinned map rather than a zero-count
+    // scan, and why the two shipped regions are NOT converted.
+    const measured = new Map<string, number>();
+    for (const region of phase14Scan.regions) {
+      if (region.role?.raw !== "alert") continue;
+      measured.set(region.file, (measured.get(region.file) ?? 0) + 1);
+    }
+
+    const asRows = (m: ReadonlyMap<string, number>): string[] =>
+      [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([f, n]) => `${f} × ${n}`);
+
+    expect(
+      asRows(measured),
+      "the alert-role census on the Phase-14 surfaces has moved. That role is IMPLICITLY ASSERTIVE — " +
+        "it interrupts whatever a screen reader is speaking — so a new one is a new interruption, and " +
+        "an attribute-only scan for the banned politeness level would not have seen it.\n" +
+        "  If you ADDED one: the two pinned occurrences are native form-field validation messages, " +
+        "user-initiated, about the field the host is standing in. That is the one canonical use. A " +
+        "region reporting an outcome, a load failure or a page state is not it — use the status role " +
+        "and declare it in `src/lib/design/live-regions.ts`.\n" +
+        "  If you REMOVED one: converting a validation message's role is an accessibility behaviour " +
+        "change and 14-14 deliberately did not make it. Move the pin and say why in the same commit.",
+    ).toEqual(asRows(PHASE_14_ALERT_ROLE_SITES));
+
+    // …and the pin is not a guess: the total is stated as a number too, so a file swapping one
+    // occurrence for another somewhere else cannot net out to the same map.
+    const total = [...measured.values()].reduce((a, b) => a + b, 0);
+    expect(total, "the measured alert-role total on the five surfaces").toBe(2);
+  });
+
+  it("the week strip renders ZERO live regions of any kind", () => {
+    // D-152, asserted here rather than left to review. The strip is a seven-column glance at the week
+    // whose grid is `aria-hidden` and whose accessible equivalent is seven plain sentences. It updates
+    // as the host edits the hours BELOW it — which is precisely why a "helpful" region added to it
+    // would speak on every keystroke, and why the select the host just changed already announces its
+    // own new value (GATE-03 rule 6: one outcome, one announcement).
+    const onStrip = phase14Scan.regions.map((region) => region.file).filter((f) => f === WEEK_STRIP);
+    expect(
+      onStrip,
+      `${WEEK_STRIP} has grown a live region. The strip is a derived VIEW of the editor beneath it: ` +
+        "every change it shows was made by a control that reports itself, so a region here is a " +
+        "second announcement of an outcome that already had one — and it would fire on every " +
+        "keystroke, because the strip re-derives from the live form array rather than from a save.",
+    ).toEqual([]);
+
+    // Guard the guard: the file has to be IN the closure for that zero to mean anything.
+    expect(
+      phase14.files,
+      "the week strip is not in the derived closure, so the zero above is over a file nobody opened",
+    ).toContain(WEEK_STRIP);
   });
 });
 
