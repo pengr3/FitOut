@@ -19,6 +19,52 @@
 // the SQL tab partition agree (D-102 / T-07-32).
 //
 // NO CORAL ANYWHERE — a calm host workflow surface, mirroring /host/earnings and /host/requests.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WHAT PLAN 14-07 CHANGED, AND WHAT D-154 FORBIDS IT FROM CHANGING (HFLOW-04 · D-154)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-154 is unusually explicit, because this is the one host surface where a polish pass has the most
+// opportunity to turn into a feature. THIS WAS A DESIGN-SYSTEM PASS AND NOT A NEW INFORMATION
+// ARCHITECTURE. Three things changed:
+//
+//   1. THE BOX IS NO LONGER THIS FILE'S OWN. The container is the declared host-list shell from
+//      `@/lib/design/measurements`, which `bookings/loading.tsx` also reads — so the page and the plate
+//      that stands in for it can no longer draw different boxes. The class string is deliberately not
+//      repeated in this comment: it lives in the constant's own docblock, the one place it may be
+//      spelled.
+//
+//   2. THE HEADING IS THE DECLARED PATTERN, READING ONE COPY CONSTANT. The hand-rolled `<h1>`/`<p>` is
+//      `PageHeader` spread from `HOST_BOOKINGS_HEADER` (`@/lib/host/bookings-copy`). Both sentences were
+//      previously typed TWICE — here and in the plate — and agreed only by coincidence. Neither file
+//      spells either string now, so the two cannot drift.
+//
+//   3. THE TABLE CELLS NAME THEIR TYPE ROLE. Where a bare `text-sm` (or the table's inherited `text-sm`)
+//      stood in for the LABEL role, the role is named: the guest cell, the venue-local window cell and
+//      the D-79 refund sibling. Every one of those computes 14px before and after — this is a naming
+//      change, not a resize. The Space cell keeps `font-medium`, mirroring `/host/requests`.
+//
+// ⚠ WHAT WAS NOT TOUCHED, because D-154 says each is correctness rather than layout, and a diff that
+// moves any of them is a scope alarm:
+//
+//   • `parseTab` and the tab partition — the parameter is attacker-controlled and fails to a boring
+//     default. A restyle has no business inside it.
+//   • THE `?listing=` FILTER. Still a plain GET form with no client script; its `<select>` keeps the
+//     exact class it had, INCLUDING its raised elevation. `tests/design/elevation-z.test.ts` pins this
+//     route at exactly ONE raised element and that select is it — swapping it for a component, or
+//     adding any raised surface here, moves a number this plan is not allowed to move.
+//   • `BOOKINGS_PAGE_SIZE`, the keyset cursor and the `Load more` control.
+//   • The owner-scoped read and the display map beneath it.
+//   • THE STATUS VOCABULARY. `deriveBookingStatusView` is the single authority for the words and this
+//     page already consumes it through `BookingStatusBadge`. D-154's "the status vocabulary" clause
+//     reads ADOPT, NOT EXTEND; minting a host-side word here has misread it.
+//   • The D-79 refund SENTENCES — `refundLabelFor`'s two strings are unchanged, and the figure is still
+//     a sibling of the badge rather than interpolated into it.
+//   • Both empty states, byte-for-byte. They are already the shared pattern.
+//   • `HostBookingRow`, the mobile card. Already the shared row pattern; not opened.
+//
+// ⚠ NO HOST-SIDE FILTER, SORT, COLUMN OR DATE RANGE WAS ADDED. Each is a new capability and D-154
+// defers every one of them by name.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -29,6 +75,8 @@ import { CalendarIcon, HistoryIcon } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
+import { HOST_LIST_SHELL } from "@/lib/design/measurements";
+import { HOST_BOOKINGS_HEADER } from "@/lib/host/bookings-copy";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { composeWhenLabelShort } from "@/lib/booking/when-label";
 import {
@@ -47,6 +95,7 @@ import {
 } from "@/components/host/host-booking-row";
 import { RequestActions } from "@/components/host/request-row";
 import { EmptyState } from "@/components/patterns/empty-state";
+import { PageHeader } from "@/components/patterns/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -151,11 +200,14 @@ export default async function HostBookingsPage({
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <h1 className="text-xl font-semibold tracking-tight">Bookings</h1>
-      <p className="mt-2 max-w-prose text-sm text-muted-foreground">
-        Every booking across your spaces, upcoming and past.
-      </p>
+    // The container is the DECLARED host-list shell and the title block is the DECLARED pattern reading
+    // the ONE copy constant — which is what stops `bookings/loading.tsx` drawing a different box or
+    // announcing different words than the page it stands in for. The `mt-8` region offsets below are
+    // this page's own and the plate copies them, exactly as `/host/requests` and its plate do.
+    <div className={HOST_LIST_SHELL}>
+      {/* SPREAD, not two props. The pair cannot be half-adopted, so "the page and the plate render an
+          identical title and lede" is a property of the syntax rather than of a reviewer noticing. */}
+      <PageHeader {...HOST_BOOKINGS_HEADER} />
 
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <BookingsTabs basePath="/host/bookings" active={tab} extraParams={carriedParams} />
@@ -229,7 +281,11 @@ export default async function HostBookingsPage({
                 <TableBody>
                   {rows.map((row) => (
                     <TableRow key={row.bookingId}>
-                      <TableCell>{row.bookerLabel}</TableCell>
+                      {/* THE LABEL ROLE, NAMED. The table's own inherited small-text step already
+                          computes 14px here; saying `text-label` changes no pixel and makes the cell's
+                          role legible, so a later type edit moves a declared role rather than a bare
+                          utility that happened to agree with one. Mirrors `/host/requests`' guest cell. */}
+                      <TableCell className="text-label">{row.bookerLabel}</TableCell>
                       <TableCell className="font-medium">
                         {/* T6 (load-bearing half) — the DEFAULT desktop viewport. Mirrors the booker page's
                             Space-cell link so the host cancel flow (SC#3) is reachable without typing a UUID. */}
@@ -240,7 +296,11 @@ export default async function HostBookingsPage({
                           {row.spaceTitle}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{row.whenLabel}</TableCell>
+                      {/* The venue-local window label — § Typography files every one of those on the
+                          label role. Muted stays muted; only the size step is now named. */}
+                      <TableCell className="text-label text-muted-foreground">
+                        {row.whenLabel}
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col items-start gap-1">
                           <BookingStatusBadge
@@ -250,9 +310,17 @@ export default async function HostBookingsPage({
                             side="host"
                             cancelledBy={row.cancelledBy}
                           />
-                          {/* D-79: the refund figure is a sibling of the badge, never inside it. */}
+                          {/* D-79: the refund figure is a sibling of the badge, never inside it. The
+                              SENTENCE is `refundLabelFor`'s and is unchanged; what moved is the bare
+                              small-text utility, which now names the label role it was standing in for.
+                              `tabular-nums` stays because this is money.
+
+                              ⚠ `HostBookingRow`'s own refund line still spells the utility rather than
+                              the role. That file is the shared row pattern's adopter and D-154 puts it
+                              out of this plan's reach, so the two are NAMED differently and COMPUTE
+                              identically (both 14px). Recorded rather than silently unified. */}
                           {row.refundLabel ? (
-                            <span className="text-sm tabular-nums text-muted-foreground">
+                            <span className="text-label tabular-nums text-muted-foreground">
                               {row.refundLabel}
                             </span>
                           ) : null}

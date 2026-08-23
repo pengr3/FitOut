@@ -15,15 +15,23 @@
 // appears only for a host with two or more spaces. It is a `<select>` populated from a query — the
 // exact case where a placeholder would be asserting a shape that half of all hosts never see.
 
+import { HOST_LIST_SHELL } from "@/lib/design/measurements";
+import { HOST_BOOKINGS_HEADER } from "@/lib/host/bookings-copy";
 import { PageHeader } from "@/components/patterns/page-header";
 import { RowListSkeleton } from "@/components/patterns/row-list-skeleton";
 import { BookingsTabs } from "@/components/booking/bookings-tabs";
 
 export default function HostBookingsLoading() {
   return (
-    // Container, title, lede and both `mt-8` offsets are `(host)/host/bookings/page.tsx`'s own.
-    <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <PageHeader title="Bookings" lede="Every booking across your spaces, upcoming and past." />
+    // ⚠ THE CONTAINER AND THE HEADER ARE NO LONGER COPIED — THEY ARE IMPORTED (plan 14-07 · D-154).
+    // This file used to type the page's container string and both of the page's sentences a second
+    // time, and the two agreed only because somebody had typed them identically. Both halves now come
+    // from ONE owner each — the declared host-list shell and the one bookings header pair — so the
+    // plate cannot draw a different box or announce different words than the page it stands in for,
+    // which is the entire job of a loading plate. Both `mt-8` region offsets below are still
+    // `(host)/host/bookings/page.tsx`'s own.
+    <div className={HOST_LIST_SHELL}>
+      <PageHeader {...HOST_BOOKINGS_HEADER} />
 
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <BookingsTabs basePath="/host/bookings" active="upcoming" />
