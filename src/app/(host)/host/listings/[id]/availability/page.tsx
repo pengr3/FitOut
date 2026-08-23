@@ -20,6 +20,9 @@ import { composeDateLabel } from "@/lib/booking/when-label";
 import { HOURS_LOCKED_MESSAGE } from "@/lib/validation/availability";
 import { WeeklyHoursEditor } from "@/components/availability/weekly-hours-editor";
 import { BlocksEditor } from "@/components/availability/blocks-editor";
+import { PageHeader } from "@/components/patterns/page-header";
+import { PanelCard } from "@/components/patterns/panel-card";
+import { HOST_PANEL_SHELL } from "@/lib/design/measurements";
 import { Toaster } from "@/components/ui/sonner";
 
 /** 0=Sun..6=Sat — the `operating_hours.day_of_week` convention the lock state below reports its weekdays in.
@@ -134,46 +137,65 @@ export default async function HostAvailabilityPage({
       : null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
+    // The container is the DECLARED host-panel shell; the section rhythm stays at this call site,
+    // because vertical rhythm BETWEEN a container's children is not a measurement of the container
+    // (the constant's own docblock says so, and folding it in would hand this route's rhythm to three
+    // others). Same composition as `/host` and its plate.
+    <div className={`${HOST_PANEL_SHELL} space-y-8`}>
       {/* WR-04: mount Toaster exactly once at the shared ancestor so a toast from either editor
           (WeeklyHoursEditor / BlocksEditor) renders a single time, not once per mounted region. */}
       <Toaster />
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Availability</h1>
-        <p className="text-sm text-muted-foreground">
-          Set when your space is open and block off any dates you can&apos;t host.
-        </p>
-        {/*
-          09-UI-SPEC § 1g — ONE line, no redesign. This editor is UNCHANGED for a drop-in listing: the same
-          weekly hours still define when the space is open. What changes is what those hours MEAN. For a
-          whole-space listing they are the bookable slots; for a drop-in listing they are the entry window
-          a pass is good for (OC-03), and the booker never picks an hour at all. A host who reads this
-          screen as "the times people can book" would be quietly wrong about their own calendar, which is
-          why the line is here and not left to be inferred.
-        */}
-        {row.occupancyMode === "open_capacity" && (
-          <p className="text-sm text-muted-foreground">
-            These are the hours your drop-in passes are good for. A pass covers the whole day
-            you&apos;re open.
-          </p>
-        )}
-        {/*
-          CR-03 layer 2 / 09-UI-SPEC O7 — WHY those weekdays are frozen, WHEN the freeze lifts, and the WAY
-          OUT. Calm muted information, never an alarm (§ Color — this phase ships no alert variant on any
-          host surface): nothing has gone wrong, the host simply cannot move hours that passes are already
-          sold against. It names weekdays and a date only — never a booker — and renders inside the
-          already owner-gated (host) page from the same `row` that page loaded.
-        */}
-        {lockNotice && (
+      {/* The title block is the DECLARED pattern with the two SHIPPED strings. The `<h1>` moves one
+          step down the type scale in doing so — the pattern's contract is the heading step every other
+          host page's title already renders at, and this route was the outlier. */}
+      <PageHeader
+        title="Availability"
+        lede="Set when your space is open and block off any dates you can't host."
+      />
+
+      {/* THE TWO ADVISORIES, EACH ON THE DECLARED ADVISORY SURFACE at the muted tone. Both were bare
+          paragraphs stacked under the heading, which is the one place on this route where an advisory
+          had no surface of its own. Every word is byte-identical; only the box is new.
+
+          They compose the pattern through DIFFERENT slots, and the split is forced rather than a
+          preference: the drop-in note is one sentence and rides the `description` prop, which renders
+          exactly the muted paragraph element it had. The lock notice ends in a LINK, and `description`
+          is typed as a string — so it renders through `children`, keeping its own paragraph and its
+          own way out. */}
+      {/*
+        09-UI-SPEC § 1g — ONE line, no redesign. This editor is UNCHANGED for a drop-in listing: the same
+        weekly hours still define when the space is open. What changes is what those hours MEAN. For a
+        whole-space listing they are the bookable slots; for a drop-in listing they are the entry window
+        a pass is good for (OC-03), and the booker never picks an hour at all. A host who reads this
+        screen as "the times people can book" would be quietly wrong about their own calendar, which is
+        why the line is here and not left to be inferred.
+      */}
+      {row.occupancyMode === "open_capacity" && (
+        <PanelCard
+          tone="muted"
+          description="These are the hours your drop-in passes are good for. A pass covers the whole day you're open."
+        />
+      )}
+      {/*
+        CR-03 layer 2 / 09-UI-SPEC O7 — WHY those weekdays are frozen, WHEN the freeze lifts, and the WAY
+        OUT. Calm muted information, never an alarm (§ Color — this phase ships no alert variant on any
+        host surface): nothing has gone wrong, the host simply cannot move hours that passes are already
+        sold against. It names weekdays and a date only — never a booker — and renders inside the
+        already owner-gated (host) page from the same `row` that page loaded. The sentence is still
+        ASSEMBLED above from the shared constant and this listing's own lock state; nothing about it is
+        retyped here, and no weekday, date or duration appears in this element.
+      */}
+      {lockNotice && (
+        <PanelCard tone="muted">
           <p className="text-sm text-muted-foreground">
             {lockNotice}
             <Link href="/host/bookings" className="underline underline-offset-4">
               View your bookings
             </Link>
           </p>
-        )}
-      </div>
+        </PanelCard>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Weekly hours</h2>
