@@ -16,8 +16,10 @@
 //
 // `--success-foreground` SURVIVES WITH EXACTLY ONE LEGAL PAIRING: a NON-TEXT GLYPH on a filled
 // `--success` surface (3.83 court / 3.84 grove, against a 3.05 bar — see contrast-pairs.ts). That
-// pairing ships in exactly one place, the listing wizard's completed-step progress marker, which is a
-// progress indicator and not a status badge. `--success-foreground` is ILLEGAL AS TEXT, and no tone
+// pairing ships in exactly one place, the done marker in the listing wizard's PUBLISH CHECKLIST
+// (`components/host/publish-checklist.tsx`), which is a progress indicator and not a status badge. It
+// lived inside the wizard route file until plan 14-10 made the checklist persistent and lifted it into
+// a component; the pairing and its measurement did not move, only the address did. `--success-foreground` is ILLEGAL AS TEXT, and no tone
 // below names it. If you are reaching for it on a status chip, you want `positive`.
 //
 // THE BINDING COPY RULE (sketch manifest, restated in 10-UI-SPEC § Status Vocabulary): occupancy and

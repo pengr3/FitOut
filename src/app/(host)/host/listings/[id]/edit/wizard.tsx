@@ -45,6 +45,10 @@ import {
   MODE_LOCK_NOTICE_ID,
 } from "@/components/host/mode-lock-notice";
 import {
+  PublishChecklist,
+  type PublishChecklistRow,
+} from "@/components/host/publish-checklist";
+import {
   SPACE_TYPES,
   ACTIVITY_TAGS,
   ACTIVITY_TAG_LABELS,
@@ -527,7 +531,11 @@ export function ListingWizard({
 
   // The live D-02 publish checklist (drives the review step). Each row links back to its step.
   const hasCoords = typeof values.lat === "number" && typeof values.lng === "number";
-  const checklist: { label: string; done: boolean; step: number | null; action?: () => void }[] = [
+  // The row SHAPE is the shared component's exported type rather than an inline one, so a row that
+  // gains a field here cannot quietly stop being renderable there. The array itself, its mode fork
+  // and every `stepIndex` call below stay in this file: they read form state, and this is where the
+  // form is.
+  const checklist: PublishChecklistRow[] = [
     { label: "Title", done: Boolean(values.title), step: stepIndex("details") },
     { label: "Description", done: Boolean(values.description), step: stepIndex("details") },
     { label: "Space type", done: Boolean(values.primarySpaceType), step: stepIndex("type") },
@@ -1457,76 +1465,31 @@ export function ListingWizard({
                   <p className="text-sm text-muted-foreground">{DROP_IN_INSTANT_ONLY_MESSAGE}</p>
                 </div>
               )}
-              {publishEligible ? (
-                <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-                  Everything looks ready. Publishing makes your listing public. It becomes bookable
-                  once your payouts are set up (that step comes next).
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Almost there — finish these to publish:</p>
-                  <ul className="space-y-1.5">
-                    {checklist.map((c) => (
-                      <li key={c.label} className="flex items-center gap-2 text-sm">
-                        {/*
-                          DS-10 — THE ONE SURVIVING FILLED --success SURFACE IN THE REPO, and it survives
-                          on purpose. This is a PROGRESS INDICATOR, not a status badge: the marker holds a
-                          GLYPH and nothing else (no text node is possible in this span — both branches
-                          render an icon), which makes it the single legal pairing of --success-foreground,
-                          measured as a non-text glyph on the filled surface at 3.83 court / 3.84 grove
-                          against a 3.05 bar. Every OTHER filled-green chip in the app was a status badge
-                          whose LABEL sat on the fill at 3.24:1, and all four are retired by this plan.
-                          --success-foreground remains illegal as text. Both glyphs are aria-hidden so the
-                          decorative claim is provable rather than assumed — the done/not-done meaning is
-                          carried by the checklist copy and the strike-through beside it.
-                        */}
-                        <span
-                          className={cn(
-                            "flex size-5 items-center justify-center rounded-full",
-                            c.done ? "bg-success text-success-foreground" : "bg-muted",
-                          )}
-                        >
-                          {c.done ? (
-                            <CheckIcon className="size-3" aria-hidden="true" />
-                          ) : (
-                            <MinusIcon className="size-3 text-muted-foreground" aria-hidden="true" />
-                          )}
-                        </span>
-                        <span className={cn(c.done && "text-muted-foreground line-through")}>
-                          {c.label}
-                        </span>
-                        {!c.done && c.step !== null && (
-                          <Button
-                            type="button"
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0"
-                            onClick={() => setStep(c.step as number)}
-                          >
-                            Fix
-                          </Button>
-                        )}
-                        {!c.done && c.action && (
-                          <Button
-                            type="button"
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0"
-                            onClick={c.action}
-                          >
-                            Resend verification email
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  {!emailVerified && (
-                    <p className="text-xs text-muted-foreground">
-                      Verify your email to publish. We sent a link to {hostEmail}.
-                    </p>
-                  )}
-                </div>
-              )}
+              {/*
+                THE REVIEW STEP'S INLINE PLACEMENT (D-149). The markup that used to stand here now
+                lives in `components/host/publish-checklist.tsx`, and the move was not a tidy-up: the
+                done marker inside it is the one filled success surface DS-10 left standing, and four
+                committed inventories addressed it by THIS FILE'S PATH. All four moved with it, in the
+                same commit, each with its reason — see that component's header.
+
+                The row array, its occupancy fork and the key-to-index resolution all stayed HERE,
+                because this is where the form state is. The component derives nothing; it is handed
+                the same array the persistent placement above is handed, which is what makes the two
+                incapable of naming different things.
+
+                `goToStep`, not `setStep`: a fix link is now reachable from the FIRST step (14-10),
+                so it can jump FORWARD — and a forward jump that does not record its arrival leaves
+                the rail marker for the step the host is standing on permanently inert. 14-09 left
+                these links on the bare setter and named this plan as the one that would fold them in.
+              */}
+              <PublishChecklist
+                placement="review"
+                rows={checklist}
+                onFix={goToStep}
+                eligible={publishEligible}
+                emailVerified={emailVerified}
+                hostEmail={hostEmail}
+              />
             </div>
           )}
 

@@ -215,6 +215,9 @@ export const SELECTOR_IDS = [
   // assertion about the wizard is scoped inside. Same commit as its literal, same rule as the rows
   // above.
   "wizard-step-rail",
+  // 14-10 — HFLOW-02 / D-149's publish checklist: the container the one-instance-per-document
+  // assertion counts. Same commit as its literal, same rule as the rows above.
+  "publish-checklist",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -957,5 +960,26 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "the region's children. Scoped to the document instead it would resolve against the review step's " +
       "publish action, which is the OTHER accent on this surface and is legitimately a control.",
     owner: "14-09",
+  },
+  "publish-checklist": {
+    why:
+      "THE ASSERTION THIS HOOK EXISTS FOR IS A COUNT OVER THE WHOLE DOCUMENT — exactly one checklist " +
+      "renders at every step, at every width, in both occupancy modes — and a count needs a thing to " +
+      "count that is the CONTAINER rather than any element inside it. D-149 gives the checklist three " +
+      "placements (a side panel from the large breakpoint up, a collapsible summary below it, and the " +
+      "review step's inline one), and two of them on one document is two places a host can read a " +
+      "different answer to \"am I ready to publish\". " +
+      "A ROLE QUERY CANNOT CARRY IT, for three separate reasons and any one of them is enough. The " +
+      "panel placement's only semantic handle is `PanelCard`'s heading, which the collapsible " +
+      "placement deliberately does not render — its trigger carries the label instead — so a heading " +
+      "query counts one placement and misses the other, which is precisely backwards for a gate " +
+      "whose failure mode is finding TWO. `list` as a role resolves on the step rail's own list on " +
+      "the same screen, and on the amenity and activity-tag lists inside the form. And the review " +
+      "placement renders NO list at all when every row is done — the region is then a single " +
+      "sentence — so a list-based count would read zero on exactly the listings that are finished. " +
+      "THE ROWS THEMSELVES STAY ROLE QUERIES. This hook scopes the container assertion only; the " +
+      "labels, the fix affordances and the trigger are all reached by role and accessible name, " +
+      "which is what keeps the copy assertions honest about what a host can actually perceive.",
+    owner: "14-10",
   },
 };

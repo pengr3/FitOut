@@ -127,14 +127,30 @@ const RETIRED_INK = "text-success-foreground";
 /**
  * The ONE file allowed to keep it, and why.
  *
- * D-14 draws the line at "is this a status, or is it progress?". The wizard's completed-step marker
+ * D-14 draws the line at "is this a status, or is it progress?". The publish checklist's done marker
  * is a `<span>` whose only child is a glyph — there is no text node in it and no branch that could
  * add one — so the pairing it carries is the NON-TEXT one, measured at 3.83 court / 3.84 grove
  * against a 3.05 bar. That is a declared pairing in `contrast-pairs.ts` and the single legal use of
  * `--success-foreground` in the product. The count below is the RECORD of that decision, not an
  * oversight waiting to be tidied: a second filled green surface anywhere goes red here.
+ *
+ * ── AMENDED BY PLAN 14-10, IN THE SAME COMMIT AS THE MOVE, AND THE REASON MATTERS ────────────────
+ * The marker lived inside the listing wizard's review step and this constant named that route file.
+ * D-149 makes the checklist PERSISTENT — a side panel from the large breakpoint up and a collapsible
+ * summary below it — which means one set of rows rendered from three placements, which means the
+ * markup had to become a component. It is now `src/components/host/publish-checklist.tsx`.
+ *
+ * Nothing about the DECISION changed: same span, same glyph, same absence of a text node, same
+ * measured pairing. What changed is the file the span lives in, and this line is the inventory
+ * following it rather than a gate loosened to let a refactor past. Three sibling inventories moved in
+ * the same commit for the same reason — `POSITIVE_CALL_SITES` below (which needed no edit, and the
+ * check that proves it is at the bottom of this docblock's sibling), `ALLOWED_BG_SUCCESS` in
+ * `empty-state-adoption.test.ts`, and the declaring note in `contrast-pairs.ts`. The alternative was
+ * to keep the markup in the route file and pass the rendered node into the component as a prop; it
+ * would have avoided all four edits and made the one legal green surface in the product harder to
+ * find, which is the opposite of what an inventory is for.
  */
-const LEGAL_FILLED_PAIRING_SITE = "src/app/(host)/host/listings/[id]/edit/wizard.tsx";
+const LEGAL_FILLED_PAIRING_SITE = "src/components/host/publish-checklist.tsx";
 
 /**
  * The four call sites that took the `positive` recipe, pinned per file rather than as a bare total.
@@ -145,6 +161,21 @@ const LEGAL_FILLED_PAIRING_SITE = "src/app/(host)/host/listings/[id]/edit/wizard
  * `availability/spots-left-chip.tsx`, the shipped soft accent), and asserted here BY VALUE against
  * `STATUS_TONE_RECIPES.positive`, so a change to the vocabulary that does not reach the call sites
  * fails at the file that did not move.
+ *
+ * ── EXAMINED BY PLAN 14-10 AND DELIBERATELY UNCHANGED, WHICH IS ITSELF THE AMENDMENT ─────────────
+ * 14-RESEARCH § G5 budgeted this list as one of four inventories that would move when the publish
+ * checklist's done marker left the wizard route file, on the reading that the marker is a `positive`
+ * call site. It is not, and the distinction is mechanical rather than a judgement call: this list and
+ * the set assertion over it are keyed on the recipe's ICON hue, and `scanSrc` collects a file into
+ * `positiveIconSites` only when the stripped source uses that exact class. The marker carries the
+ * FILLED pairing — a background token and its own foreground — and neither is the icon hue, so the
+ * wizard was never a member of this set and the component it moved into is not one either. The
+ * five-file union below therefore stands unmoved across the move, and it was RUN rather than reasoned
+ * about: the assertion at the bottom of this file ("names the success hue in exactly the five
+ * declared files") was green before the move and green after it.
+ *
+ * Recorded here, in the inventory itself, because "we checked and it does not move" is a finding a
+ * later reader cannot reconstruct from a diff that shows nothing.
  */
 const POSITIVE_CALL_SITES = [
   "src/components/booking/booking-status-badge.tsx",
@@ -647,7 +678,7 @@ describe("DS-10 — every status badge recipe declares an icon", () => {
 });
 
 describe("DS-10 — the filled green badge is retired, and the one survivor is a glyph", () => {
-  it("keeps exactly ONE filled --success surface in the app, the wizard's glyph-only step marker (D-14)", () => {
+  it("keeps exactly ONE filled --success surface in the app, the publish checklist's glyph-only done marker (D-14)", () => {
     // The number is the record of a decision. Every OTHER filled green chip put its LABEL on the
     // fill at 3.24:1; this one puts a CheckIcon on it at 3.83 / 3.84, which is the single legal
     // pairing of --success-foreground and a progress indicator rather than a status.

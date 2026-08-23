@@ -247,7 +247,7 @@ export const CONTRAST_PAIRS = [
     fg: "success-foreground",
     bg: "success",
     bar: NON_TEXT_BAR,
-    note: "The ONE legal use of --success-foreground: a non-text glyph on a filled --success surface (the wizard's completed-step marker, a progress indicator rather than a status badge). It is ILLEGAL as text — the filled bg-success/text-success-foreground badge measured 3.24 and is retired by DS-10.",
+    note: "The ONE legal use of --success-foreground: a non-text glyph on a filled --success surface (the listing wizard's publish-checklist done marker, a progress indicator rather than a status badge). It is ILLEGAL as text — the filled bg-success/text-success-foreground badge measured 3.24 and is retired by DS-10. The marker lived in the wizard route file until plan 14-10 made the checklist persistent and lifted it into components/host/publish-checklist.tsx; the pairing, the measurement and the glyph-only rule are unchanged, only the address is.",
   },
   {
     fg: "destructive",

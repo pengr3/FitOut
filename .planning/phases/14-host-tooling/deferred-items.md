@@ -101,3 +101,54 @@ Observed red, with the marker-name drift D-148 names verbatim:
 **What the widening plan should do:** before adding a forward affordance, re-run the index-keyed probe
 against the widened rail. It should go red at case 6 — and if it does not, the new affordance has not
 actually created a jump and the widening is incomplete.
+
+---
+
+## `[14-10]` `contrast-pairs.ts:214`'s accent note still says the rail's COMPLETED markers paint the accent, which 14-09 stopped being true
+
+**Found during:** 14-10 Task 1, sweeping every prose site that addresses a wizard marker by its role.
+**Owner:** whichever plan next edits the accent inventory — **14-16** touches the rail's baselines and
+`accent-uses.ts` entry 7 is the twin of this line.
+
+```ts
+{ fg: "brand", bg: "background", bar: NON_TEXT_BAR,
+  note: "The unread-notification dot and the wizard's completed-step markers, on the page." }
+```
+
+14-09 narrowed the rail's accent condition from *current-or-done* to *current only* and amended
+`accent-uses.ts` entry 7 (*"the completed-step markers"* → *"the current-step marker"*) in the same
+commit. This second note, in a different module and on a different pairing, was not amended and now
+names a state that no longer paints the accent: a visited marker carries the secondary surface, and
+the only accent-filled marker is the CURRENT one.
+
+**Why it was not fixed here:** it is a different pairing (accent on the page ground) from the one this
+plan's four amendments are about (the success foreground on its filled surface), it was made stale by
+14-09 rather than by this plan, and this plan's acceptance criterion pins its own diff to
+`contrast-pairs.ts` at *"only the note's prose"* — singular, the success note. Editing a second,
+unrelated note in the same commit would make that criterion unverifiable by `git diff` alone.
+
+**What the owning plan should do:** change *"completed-step markers"* to *"current-step marker"*, the
+same one-string edit 14-09 made in `accent-uses.ts`. Nothing mechanical is wrong — no gate reads this
+string — which is exactly why it needs a plan to notice it rather than a test.
+
+---
+
+## `[14-10]` The publish checklist's row labels are `text-sm`, and 14-UI-SPEC assigns them the BODY role
+
+**Found during:** 14-10 Task 1, lifting the row markup verbatim.
+**Owner:** whichever plan takes the wizard's remaining type migration — **14-11** is the next plan in
+this file, and 14-UI-SPEC § Typography rule 1 (the step title) was already discharged by 14-09.
+
+14-UI-SPEC's Typography table lists *"checklist row labels"* under the **Body** role (16px), and the
+shipped rows carry `text-sm` (14px, which is the LABEL role's size). The rows were lifted BYTE-FOR-BYTE
+into `components/host/publish-checklist.tsx` because this plan's own instruction is *"LIFT the row
+markup — do not rewrite it"*, and a size change is a rewrite.
+
+**Nothing is red.** `type-scale.test.ts` treats the framework's re-declared `text-xs…2xl` ladder as
+legal and not a fifth role, so `text-sm` passes today and will keep passing. This is a spec/reality
+discrepancy, not a violation.
+
+**What the owning plan should do:** decide it rather than inherit it. Either move the rows to the Body
+role (one class, one file, now that there is only one copy of the markup) or amend the UI-SPEC's table
+to say Label — the checklist is a dense nine-row list beside a form, and 14px is a defensible reading
+of it. Whichever way it goes, the two should agree.

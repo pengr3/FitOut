@@ -465,13 +465,21 @@ const EXPECTED_EMPTY_STATE_SITES = 17;
  * THE ONE LEGAL `bg-success` IN THE TREE, pinned by name.
  *
  * `contrast-pairs.ts:250` states the rule: a non-text GLYPH on a filled `--success` surface (the
- * wizard's completed-step marker, a progress indicator rather than a status badge). It is ILLEGAL as
+ * publish checklist's done marker, a progress indicator rather than a status badge). It is ILLEGAL as
  * text — the filled `bg-success`/`text-success-foreground` badge measured 3.24 and is retired by
  * DS-10. AC#24 asserts the count has not grown.
+ *
+ * ── RE-POINTED BY PLAN 14-10, IN THE SAME COMMIT AS THE MOVE ─────────────────────────────────────
+ * The key was `src/app/(host)/host/listings/[id]/edit/wizard.tsx` until D-149 made the checklist
+ * PERSISTENT rather than an end-of-flow reveal. Three placements over one row array means the markup
+ * is a component, and the marker went with it. The count did not grow and the RULE did not change —
+ * one entry before, one entry after — so this is the inventory following its subject, not an
+ * exemption bought to make a refactor pass. If a SECOND key ever appears here, that is the growth
+ * AC#24 is watching for and it needs the measured argument the original had.
  */
 const ALLOWED_BG_SUCCESS: Readonly<Record<string, string>> = {
-  "src/app/(host)/host/listings/[id]/edit/wizard.tsx":
-    "The completed-step marker in the listing wizard's progress rail — a checkmark GLYPH on a filled success surface, which is the one pairing contrast-pairs.ts declares legal for --success-foreground. Phase 10 pinned it by name; nothing about STATE-04 changes it.",
+  "src/components/host/publish-checklist.tsx":
+    "The done marker in the listing wizard's publish checklist — a checkmark GLYPH on a filled success surface, which is the one pairing contrast-pairs.ts declares legal for --success-foreground. Phase 10 pinned it by name at its old address inside the wizard route file; plan 14-10 lifted the checklist into this component so the same rows can render from a side panel, a collapsible summary and the review step without three copies of the marker, and moved this row with it. The span still holds a glyph and nothing else, which is the entire reason the pairing is legal.",
 };
 
 /**
