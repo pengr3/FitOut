@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 14-03-PLAN.md — the request-row triage plan (HFLOW-01 advanced, not closed — 14-06 owns the inbox-zero and the desktop reorder)
-last_updated: "2026-08-23T09:23:51.221Z"
+stopped_at: Completed 14-04-PLAN.md — the week-strip derivation. Phase 14 is 4 of 16 plans done
+last_updated: "2026-08-23T09:38:06.780Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 83
+  completed_plans: 84
   percent: 42
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 14 (Host Tooling) — EXECUTING
-Plan: 4 of 16
-Current Plan: 4
+Plan: 5 of 16
+Current Plan: 5
 Total Plans in Phase: 16
 Status: Ready to execute
 
@@ -489,6 +489,14 @@ Last activity: 2026-08-23
 | 11 | 22 | - | - |
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
+| 14 | 4 | - | - |
+
+*14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
+Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
+derivation (caught by the PINNED strings, NOT by the generic invariant, which one-segment-one-range
+satisfies) and a separately-derived sentence (caught by the invariant, which no pin would generalise).
+One unplanned red found a real defect: the mid-edit case failed first run because the editor's shipped
+`parseInt(t.slice(0, 2))` reads a half-typed "9" as nine o'clock.*
 
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 *11-22: ~93 min wall-clock, 5 tasks (3 auto + 2 blocking checkpoints) plus one unplanned CI fix, 9 source/config files + 25 baseline PNGs, 8 commits. Four observed CI runs driven by the coordinator; three OBSERVED REDs recorded.*
@@ -672,6 +680,8 @@ deferred walk is inconsistent rather than honest.*
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [14-04]: **An accessibility equivalence is guaranteed by CONSTRUCTION, not by discipline — the decoration and its text equivalent are two fields of ONE return value.** `deriveWeekStrip` returns `segments` and `sentence` from one sorted array in one `.map`, so there is no arrangement of the code in which a caller can draw from one derivation and announce from another (D-153). The proof is an invariant asserted GENERICALLY with `it.each` over the whole case table — segments count equals ranges named, and the closed word appears iff there are no segments — so every future case buys the contract for free. ⚠ It took TWO falsifications to establish that both halves of the test are load-bearing: a coalescing derivation is caught only by the pinned strings (one segment named by one range is self-consistent, and the invariant is blind to it), and a separately-derived sentence is caught only by the invariant (no per-case pin generalises). Neither alone is sufficient.
+- [14-04]: **A preview must never draw something the schema would refuse — the strip's parse is TIGHTER than the editor's, and that gap was a real defect.** `weekly-hours-editor.tsx:65`'s `toHour` is a bare `parseInt(t.slice(0, 2), 10)`, so a half-typed `"9"` parses as nine o'clock; the strip would have drawn a 9 AM bar for a string `hoursWindowSchema`'s own regex rejects. `week-strip.ts` requires the two-digit hour prefix and skips anything else, alongside undefined rows, missing times, zero-height and reversed runs. It is a PARSE guard, not a second validation — nothing there judges a value or emits a message, because the form owns the error and the shared schema owns the refusal (GATE-NOREG 6). ⚠ The editor still carries the loose copy; the plan that re-points it at this module's exports must take the tightened parser with it rather than keep two.
 - [14-03]: **A per-file design-gate inventory reads SOURCE, so "only one arm ever renders" is not a defence — hoist what the gate counts.** Giving `request-countdown.tsx` a second layout added a second `role="timer"` element and `tests/design/live-regions.test.tsx` reported it as an undeclared region (`request-countdown.tsx:271 — timer#2 on <span>`), even though the two arms can never mount together. The remedy was to hoist the timer element into a shared const — as the digits already were for `phase13-surface-gates`' alarm-token line count — rather than to declare a second inventory row for the same region drawn twice. The glyph and the sr-only threshold region were hoisted in the same edit. ⚠ Any later plan giving that component a third layout inherits this rule.
 - [14-03]: **The host request row is TERMINAL, its deadline leads from `RowCard`'s `status` slot, and its money sits in the `<dl>` at the guest name's own type role.** D-144 closes Phase 11's open row-navigability question (`11-11-SUMMARY.md:283`) as a *decision*, held by `tests/host/request-row.test.tsx` — zero anchors, zero link roles, exactly two interactive descendants. ⚠ D-146's DOM-order half is asserted as *"the deadline shares the row's first line with the title, and both precede the money"*, NOT as "the deadline precedes the title": `row-card.tsx:178-210` renders the title column before the status column for all four adopters, and 14-UI-SPEC's own falsifiable is `boundingBox().y <=` on that pair for exactly that reason. The strict computed-size comparison is `e2e/host-inbox-hierarchy.spec.ts`'s, owned by 14-06.
 - [14-03]: **A refusal reports where it can still be read; a success reports in the only place left.** Both `toast.error` calls on approve/decline are deleted for ONE named in-row `role="status"` carrying the server action's own sentence verbatim; both `toast.success` calls stay, because only the success path revalidates the row away. The decision is per PATH, not per component. `request-row.tsx` is also the FIRST host-side `ResponsiveDialog` adopter — 14-CONTEXT D-145's claim that the pattern is "already used by the host cancel dialog" is measurably false (`host-cancel-dialog.tsx:30-37` imports the vendored dialog directly) and `host-cancel-dialog.tsx` was deliberately NOT converted.
@@ -1161,17 +1171,16 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T09:25:00.000Z
-Stopped at: Completed 14-03-PLAN.md — the request-row triage plan. Phase 14 is 3 of 16 plans done
-(14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the request row);
-**14-04 is next**. 14-03 advanced HFLOW-01's ROW half (the requirement is NOT closed — 14-06 owns the
-designed inbox-zero and the desktop table's column order, so its checkbox stays unticked): `RequestCountdown` gained an opt-in `emphasis="lead"`
-layout with both booker call sites byte-identical, and `request-row.tsx` became terminal (D-144), moved
-its deadline into `RowCard`'s `status` slot and its money into the `<dl>` (D-146), ported its decline
-confirm onto `ResponsiveDialog` (D-145 — the FIRST host-side adopter), and replaced two `toast.error`
-calls with one named in-row `role="status"` region carrying the server's own sentence. Two new jsdom
-tests (`tests/host/request-row.test.tsx`, `tests/host/request-refusal.test.tsx`) hold all of it, and both
-were watched failing against the shapes they forbid. Resume file: none.
+Last session: 2026-08-23T09:40:00.000Z
+Stopped at: Completed 14-04-PLAN.md — the week-at-a-glance derivation. Phase 14 is 4 of 16 plans done
+(14-01 measurements + the earnings freeze, 14-02 the venue-local today read, 14-03 the request row,
+14-04 the week strip's pure half); **14-05 is next**, and it is the RENDER half that consumes this.
+`src/lib/availability/week-strip.ts` is one pure, directive-free function returning seven entries for
+every input — Sunday-first, a closed day being a row with zero segments — each carrying the `segments`
+to draw and the one `sentence` to announce, so what a host sees and what a screen reader hears cannot
+drift (D-153). It also becomes the owner of `HOUR_OPTIONS`, the weekday names and the closed word.
+`tests/availability/week-strip.test.ts` holds it with 48 cases and a generic drawn-vs-announced
+invariant, and was watched failing against two different wrong implementations. Resume file: none.
 
 ⚠ THREE THINGS THE NEXT SESSION MUST NOT REDISCOVER. (1) **A per-file design-gate inventory reads
 SOURCE, not the render** — a second `role=` element in an unused layout arm is a second declared region.
