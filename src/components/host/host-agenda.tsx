@@ -172,9 +172,21 @@ export function HostAgenda({ rows, next, now }: HostAgendaProps) {
           two host destinations that are NOT permanent nav slots; the first keeps its header button and the
           second is reached from here.
         */}
+        {/*
+          ⚠ THE VERTICAL PADDING IS A HIT AREA, NOT SPACING, AND IT WAS MEASURED (plan 14-16 · AC#36).
+          Without it this link is a 111.6 x 20 box: a flex item is blockified, so it is NOT covered by
+          WCAG 2.5.8's own exception for a target laid out INSIDE A SENTENCE — and this one is not in a
+          sentence, it is a standalone control in a heading row. 20px is four under the AA bar, on the
+          dashboard's only route to the bookings list. `e2e/overflow-320.spec.ts`'s Phase-14 block found
+          it on its first run and named it: `a[View all bookings] 111.6x20`.
+
+          `py-1` rather than a min-height: the parent aligns on the BASELINE, so padding grows the box
+          around the text and leaves the label sitting on the same line as `Today` — a min-height with
+          centred content would have moved it off that baseline to buy the same four pixels.
+        */}
         <Link
           href="/host/bookings"
-          className="shrink-0 text-label underline underline-offset-4"
+          className="shrink-0 py-1 text-label underline underline-offset-4"
         >
           {AGENDA_ROUTE_OUT_LABEL}
         </Link>

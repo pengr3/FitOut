@@ -224,3 +224,53 @@ either reuse `ROW_CARD_HEIGHT` (recording that it was checked) or declare the sh
 idiom and a fixture. ⚠ Check first whether the route renders more than one tree: the two host list routes
 hide their card stack above the medium breakpoint and render a table, and measuring the hidden tree
 returns a zero box that makes every comparison pass while measuring nothing.
+
+---
+
+## `[14-16]` `HOST_BOOKING_ROW_HEIGHT` moved 20px overnight, and 14-15 predicted the mechanism in its own docblock
+
+**Found during:** 14-16 Task 1, re-running `e2e/skeleton-geometry.spec.ts` after touching `host-agenda.tsx`.
+**Owner:** whichever plan next opens `src/lib/design/measurements.ts` or `e2e/skeleton-geometry.spec.ts`.
+**Neither is in 14-16's `files_modified`, and the fix as the failure message states it is the same bug
+one day later** — see below.
+
+`npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium`, **24 August 2026**, run ALONE:
+
+```
+Error: host booking row · /host/bookings · 320px: the resolved card measures 176px, but this shape was
+measured at 196px when its height was declared.
+Expected: <= 4
+Received:    20
+1 failed / 3 passed   (--grep "14-15"; 12 passed / 1 failed on the whole file)
+```
+
+**It is NOT caused by this plan, and that was verified rather than argued.** Both of 14-16's Task-1 edits
+were copied aside, `git checkout -- src/components/host/host-agenda.tsx e2e/overflow-320.spec.ts` returned
+the tree to HEAD, `git status` showed no modified file, and the case failed **identically**. The two edits
+were then restored. (The mechanism also rules it out independently: `host-agenda.tsx` is imported by
+`(host)/host/page.tsx` and by nothing else, and the failing case measures `/host/bookings`.)
+
+**What actually moved.** Nothing in the source. 14-15 measured 196px on **23 August**; this is **24 August**.
+That plan's own decision 3 names the mechanism verbatim: *"At 320 the row is a card whose window label also
+wraps, and the wrap count moves with the calendar — a one-digit day-of-month or hour changes it — which is
+why the two seeded pending rows genuinely differ from each other by 20px. Pinning a tight number there would
+be pinning today's date."* The constant was pinned tight on the RESTING row anyway, and 20px is exactly the
+one-line step that docblock predicts.
+
+**Why 14-16 did not fix it.** The failure message's own instruction — *"re-measure and move the constant,
+never the tolerance"* — produces a constant that is right on 24 August and wrong again on the next date
+whose label wraps differently. That is not a fix, it is a re-arming. The real repair is a decision about
+the FIXTURE, and it belongs with the plan that owns these constants:
+
+**What the owning plan should do**, in preference order:
+1. **Make the label's wrap count a property of the fixture, not of the wall clock.** `skeleton-geometry.spec.ts`
+   already seeds a fixed-length listing TITLE for exactly this reason (14-15 decision 4 states it). Do the
+   same for the window: seed `starts_at` at a venue-local instant whose composed label has a fixed
+   character count in every month — or assert the label's rendered LINE COUNT alongside the height, so a
+   red says "the row wraps three lines today and two when this was measured" instead of naming a number.
+2. **Or pin the host booking row at 320 as a BAND**, the way the same file already pins the still-pending
+   row's over-run, with both measured numbers and the wrap reason in the message.
+
+⚠ **Do not simply raise `HOST_TOLERANCE_PX`.** 4px is 14-UI-SPEC's own falsifiable and 14-15 argued it from
+the fractional pixels the rows land on; widening it to 20 would swallow a whole line of content, which is
+the defect the plate exists to prevent.

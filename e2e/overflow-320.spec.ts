@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import postgres from "postgres";
 
 import {
   openBookingSheet,
@@ -537,6 +539,30 @@ const SHORT_VIEWPORT = { width: FLOOR_PX, height: 568 } as const;
 const DESKTOP_VIEWPORT = { width: 1280, height: 800 } as const;
 
 /**
+ * How far AHEAD of the runner's own clock the two ticking Phase-13 surfaces are frozen — and this
+ * used to be a DATE LITERAL, which is the finding rather than the fix.
+ *
+ * `page.clock.pauseAt` fast-forwards, so it can only ever move time FORWARD. The literal here read
+ * `2026-08-21T09:00:00Z`, which was two days in the future when plan 13-15 wrote it and is in the past
+ * on every run after 21 August 2026. MEASURED 23 August 2026, running this case ALONE (plan 14-16):
+ *
+ *   Error: clock.pauseAt: Error: Cannot fast-forward to the past
+ *
+ * — with nothing wrong with the surface. It is the same shelf-life trade `visual-baselines.ts`'s NOT
+ * COVERED section records for the Phase-12 fixture dates, arriving in a spec instead of a baseline,
+ * and it fails LOUDLY, which is why it was worth taking there and is worth removing here.
+ *
+ * WHAT THE PIN IS ACTUALLY FOR, and why a relative instant serves it exactly as well: the two rows
+ * marked `ticks` render a 2.5s `router.refresh()` poller (D-71) and the confirmation moment's decay
+ * (D-60), and a sweep that measured either mid-frame is a flake. The claim is that time STOPS, not
+ * that it stops on a particular date — and the fixture's own rows are `now()`-relative anyway, so the
+ * literal never anchored the DATA. A one-second lead is enough for `pauseAt` to have somewhere to
+ * fast-forward to and small enough that the moment is still fresh, which is the state `?paid=1` is
+ * about.
+ */
+const CLOCK_PAUSE_LEAD_MS = 1_000;
+
+/**
  * The target-size floor, and it is 24 rather than 44 BECAUSE 44 WOULD BE RED ON CORRECT CODE.
  *
  * `e2e/calendar-hit-area.spec.ts:153-156` already carries both numbers and the distinction between them:
@@ -580,6 +606,21 @@ type Control = { readonly label: string; readonly w: number; readonly h: number 
  * have made twenty-two Phase-13 cases red for one Phase-11 element; silently dropping the assertion would
  * have hidden it. So the scan is scoped to the surface's OWN content, the finding is written up in
  * `deferred-items.md` with this plan named as the finder, and this comment is the pointer.
+ *
+ * ⚠ A SECOND EXCLUSION ARRIVED WITH THE PHASE-14 BLOCK, AND IT IS THE `sr-only` ONE UNDER A DIFFERENT
+ * SPELLING (plan 14-16). Radix's `Select` renders a NATIVE `<select>` beside its trigger — its
+ * `SelectBubbleInput` — carrying `aria-hidden={true}`, `tabIndex={-1}` and the library's
+ * visually-hidden inline styles, so that a form submit carries the value. MEASURED on
+ * `/host/listings/[id]/edit` at the floor, on this block's first run: `select[?] 1x1`.
+ *
+ * It is excluded on the SAME grounds the `sr-only` clause states — "1x1 by construction and not a
+ * pointer target at all" — and the condition is written as the CONJUNCTION rather than either half,
+ * which is what keeps it from swallowing a real control: an element removed from the accessibility
+ * tree AND removed from the tab order is reachable by no user, with a pointer or otherwise. Either
+ * half alone would be too wide (a visible `aria-hidden` decoration is still clickable; a `tabindex=-1`
+ * control is still a pointer target), and that is exactly why both are required. The `.sr-only` clause
+ * is kept beside it rather than folded in: it catches the app's OWN spelling, which carries neither
+ * attribute.
  */
 async function collectControls(page: Page): Promise<Control[]> {
   return page.evaluate(() => {
@@ -592,6 +633,9 @@ async function collectControls(page: Page): Promise<Control[]> {
       if (style.display === "none" || style.visibility === "hidden") continue;
       if (style.display === "inline") continue;
       if (el.closest(".sr-only") !== null) continue;
+      // Out of the accessibility tree AND out of the tab order — see the docstring's second
+      // exclusion. Both halves are required; either alone would exclude a real control.
+      if (el.closest('[aria-hidden="true"]') !== null && el.tabIndex < 0) continue;
       // The app shell, excluded with a measurement and a reason — see the docstring above.
       if (
         el.closest('[data-testid="site-header"]') !== null ||
@@ -1027,7 +1071,7 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
         // the shape that gets a threshold widened instead of a clock installed.
         if (row.ticks) {
           await page.clock.install();
-          await page.clock.pauseAt(new Date("2026-08-21T09:00:00Z"));
+          await page.clock.pauseAt(new Date(Date.now() + CLOCK_PAUSE_LEAD_MS));
         }
 
         await page.setViewportSize({ ...SHORT_VIEWPORT });
@@ -1162,4 +1206,443 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
         "order is the requirement, not a layout preference.",
     ).toBeLessThan(p.y);
   });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 14 — THE FIVE HOST SURFACES (plan 14-16)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ROADMAP § Cross-Cutting Constraints makes GATE-RESP and GATE-A11Y exit criteria on every
+// surface-touching phase. 14-UI-SPEC states them as AC#36: `scrollWidth <= clientWidth` at 320px on
+// every Phase-14 surface, every control at or above the target floor, every PRIMARY action at or above
+// the 44px touch floor, and visible focus through the one DS-05 recipe.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THIS IS A THIRD BLOCK IN THIS FILE, NOT A SECOND SWEEP IN A SECOND FILE, AND THE DISTINCTION IS THE
+// ONE THAT MATTERS
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// Every assertion below is the SAME function the twelve-route table and the Phase-13 block call:
+// `expectNoOverflow`, `expectTargets`, `expectVisibleFocus`. That is the property worth protecting — a
+// second copy of the overflow scan would be free to disagree with the first about what "clipped"
+// means, and `helpers/overflow.ts`'s header records that being the whole reason the measurement was
+// extracted in the first place. What is new here is a route table and ONE assertion (the touch floor),
+// and a sixth host surface is a ROW in that table rather than a sixth file.
+//
+// It is a separate `describe` rather than five more rows in `ROUTES` for the reason the Phase-13 block
+// gives at length: that table is deliberately SEED-FREE, which is what lets its 26 cases run with no
+// database fixture at all. Every surface below needs a signed-in HOST, a listing they own and — for
+// three of the five — rows on it. So the seed arrives as ONE fixture for the whole block, exactly as
+// Phase 13's did. NO NEW SPEC FILE SEEDS A DATABASE as a result of this plan, which is the count
+// `deferred-items.md` warns about by name.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE TOUCH FLOOR IS DECLARED PER ROW, AND AN EMPTY DECLARATION CARRIES A REASON
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// `TARGET_FLOOR_PX` above is 24 — WCAG 2.5.8 AA — and its docstring records the measurement behind
+// that: this app ships deliberate sub-44 controls, so a blanket 44 would report a dozen reviewed boxes
+// as defects on its first run. AC#36's second clause is narrower and is about PRIMARY actions, so it
+// is asserted narrowly: each row NAMES the controls 14-UI-SPEC § Primary CTAs declares at 44px, by
+// accessible name, and each named control must be PRESENT and at least 44px tall.
+//
+// ⚠ TWO OF THE FIVE SURFACES DECLARE NONE, AND THAT IS RECORDED RATHER THAN QUIETLY OMITTED.
+// `/host`'s `Create listing` is the page's one accent-filled control and it renders at the Button's
+// DEFAULT height, not the touch one — D-22 makes 44px an EXPLICIT OPT-IN and never a responsive
+// default, and this surface did not take it. Asserting 44 there would be red against shipped,
+// reviewed, deliberate code, which is the failure mode this file already refused once. So those rows
+// declare an empty list WITH the argument, and the day somebody opts that control in, the row gains an
+// entry.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// NOT COVERED — stated so the next reader under-trusts this block
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//   • THE WIZARD IS MEASURED AT ITS FIRST STEP ONLY. Nine questions in two occupancy modes is a WALK,
+//     and this file is a sweep; `e2e/host-headings.spec.ts` walks both lists. What the first step does
+//     carry — and what makes it the right single frame for this block — is the step rail, the
+//     persistent publish checklist in its collapsed 320px placement, and the footer's save-state line.
+//   • `/host/bookings` IS MEASURED ON THE UPCOMING TAB ONLY. The past tab renders the same row shape
+//     with a refund line; the tab partition is `bookings-query.ts`'s subject, not this file's.
+//   • THE DASHBOARD'S QUIET, EMPTY AND NO-LISTINGS STATES ARE NOT SWEPT. This block measures the state
+//     with the most in it, because that is the one that can overflow; the other three are strictly
+//     less content in the same containers.
+//   • THE SHELL CHROME IS STILL EXCLUDED from the target-size scan, and it still fails — the 16x16
+//     `ProfileLink` below `sm:` is a Phase-11 finding carried in `deferred-items.md`. Host routes
+//     render that same header, so the exclusion is doing exactly as much work here as it does for the
+//     Phase-13 block above.
+//   • Like the rest of this file, none of it runs in CI (D-24).
+
+/** AC#36's second clause. DS-09 / D-22's declared control height, in pixels. */
+const TOUCH_FLOOR_PX = 44;
+
+/** The Playwright process doesn't load .env; fall back to the deterministic dev URL (booker-seed.ts). */
+const HOST_DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
+
+/** The seeded listing's venue timezone. "Today" is resolved in THIS zone, never in the runner's (D-141). */
+const HOST_VENUE_TZ = "Asia/Manila";
+const HOST_VENUE_CITY = "Makati";
+const HOST_PASSWORD = "averylongpassword";
+
+type HostFixture = {
+  readonly listingId: string;
+  readonly bookerId: string;
+  readonly hostEmail: string;
+  readonly sql: ReturnType<typeof postgres>;
+  readonly cookies: Awaited<ReturnType<BrowserContext["cookies"]>>;
+};
+
+/**
+ * One published listing owned by a UI-signed-up host, with today's session, a live request and a
+ * future confirmed booking on it.
+ *
+ * The seeding is written here rather than imported, and that is this repository's own pattern rather
+ * than a shortcut: `host-dashboard.spec.ts` and `host-inbox-hierarchy.spec.ts` each carry their own,
+ * because each needs a DIFFERENT shape and a shared factory taking six flags is harder to read than
+ * two explicit fixtures. What is shared — and what must stay shared — is the ASSERTION, which is why
+ * this block calls `expectNoOverflow` rather than re-scanning.
+ *
+ * The sign-up drive itself is the shipped idiom (`e2e/mode-switch.spec.ts:20-37`,
+ * `e2e/shell.spec.ts:168-182`): email/password needs no external credentials and a unique address per
+ * run never collides on the unique-email constraint.
+ */
+async function seedHostSurfaces(page: Page): Promise<Omit<HostFixture, "cookies">> {
+  const email = `e2e.of320.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
+  await page.goto(`${BASE}/signup`);
+  await page.getByRole("radio", { name: "Host a space" }).click();
+  await page.getByLabel("First name").fill("Ovie");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(HOST_PASSWORD);
+  await page.getByRole("button", { name: /sign up to host/i }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
+
+  const sql = postgres(HOST_DATABASE_URL, { max: 1, onnotice: () => {} });
+  const runId = randomUUID();
+
+  const [host] = await sql<{ id: string }[]>`SELECT id FROM "user" WHERE email = ${email}`;
+  if (!host) {
+    await sql.end();
+    throw new Error(
+      `the host signed up as ${email} is not in the database, so there is no owner to hang a listing ` +
+        "on. The signup drive above did not persist a user.",
+    );
+  }
+
+  const listingId = `e2e_of320_listing_${runId}`;
+  const bookerId = `e2e_of320_booker_${runId}`;
+
+  // An ACTIVATED payout wallet is what makes a listing bookable (the `payouts_enabled` gate). Seeded
+  // directly, exactly as `booker-seed.ts` does — the `merchant.activated` webhook is a Phase 2 concern.
+  await sql`
+    INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
+    VALUES (${host.id}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
+  `;
+
+  await sql`
+    INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
+    VALUES (
+      ${bookerId}, ${"E2E Overflow Booker"}, ${`${bookerId}@example.com`}, ${true},
+      ${"Bernardita"}, ${false}, ${true}, now(), now()
+    )
+  `;
+
+  // ⚠ THE TITLE IS DELIBERATELY LONG, AND IT IS THE ONE FIXTURE CHOICE THAT IS ABOUT THIS BLOCK'S OWN
+  // SUBJECT. A 320px sweep against a six-character space name measures a page nothing is pushing on:
+  // the row titles, the table cells, the wizard's review rows and the agenda's meta line all take
+  // their width from this string. A long name is what makes "nothing scrolls sideways" a claim about
+  // the layout rather than about the fixture.
+  const listingTitle = `Bernardita Memorial Multi-Sport Court ${runId.slice(0, 6)}`;
+
+  await sql`
+    INSERT INTO "listing" (
+      id, host_id, title, description, primary_space_type,
+      address_line1, city, region, postal_code, country, neighborhood,
+      location, show_exact_address, max_occupancy, unit_count, timezone,
+      hourly_rate_cents, day_rate_cents, per_head_price_cents, occupancy_mode,
+      currency, booking_mode, status, cancellation_policy, published_at, created_at, updated_at
+    ) VALUES (
+      ${listingId}, ${host.id}, ${listingTitle},
+      ${"A covered court with two hoops, a scoreboard and a water station."},
+      ${"multi_sport_court"}::space_type,
+      ${"7 Real Street"}, ${HOST_VENUE_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"},
+      ${"Poblacion"},
+      ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326), ${false}, ${10}, ${1}, ${HOST_VENUE_TZ},
+      ${47333}, ${288888}, ${25000}, ${"exclusive"}::occupancy_mode,
+      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      ${"standard"}::cancellation_policy,
+      now(), now(), now()
+    )
+  `;
+
+  /** One booking, positioned by VENUE-LOCAL day offset — `host-dashboard.spec.ts:263-280`'s idiom. */
+  const addBooking = async (
+    dayOffset: number,
+    startHour: number,
+    endHour: number,
+    status: "confirmed" | "requested",
+  ): Promise<void> => {
+    const id = `e2e_of320_booking_${randomUUID()}`;
+    await sql`
+      INSERT INTO "booking" (
+        id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
+        cancellation_policy, space_price_cents, service_fee_cents, quoted_total_cents,
+        currency, payment_id, payment_method, expires_at, checkout_session_id,
+        refund_cents, cancelled_by, cancelled_at, open_capacity, declared_pax, created_at
+      ) VALUES (
+        ${id}, ${listingId}, ${1}, ${bookerId},
+        (date_trunc('day', now() AT TIME ZONE ${HOST_VENUE_TZ})
+          + make_interval(days => ${dayOffset}, hours => ${startHour})) AT TIME ZONE ${HOST_VENUE_TZ},
+        (date_trunc('day', now() AT TIME ZONE ${HOST_VENUE_TZ})
+          + make_interval(days => ${dayOffset}, hours => ${endHour})) AT TIME ZONE ${HOST_VENUE_TZ},
+        ${status}::booking_status, ${"request"}::booking_mode,
+        ${"standard"}::cancellation_policy,
+        ${100_000}, ${5_000}, ${105_000}, ${"php"},
+        ${null}, ${null}, ${null}, ${null},
+        ${null}, ${null}::cancelled_by, ${null},
+        ${false}, ${null},
+        now()
+      )
+    `;
+    if (status === "requested") {
+      // A live approval deadline, clear of the one-hour alarm threshold so the row renders its
+      // ordinary shape — the widest one, since the D-99 reason line is what fills the status column.
+      await sql`UPDATE "booking" SET expires_at = now() + make_interval(hours => ${20}) WHERE id = ${id}`;
+    }
+  };
+
+  // Today's session (the agenda's busiest state), a live request (the inbox's row state, and the
+  // requested row on the bookings list that carries the two 44px controls), and a future confirmed
+  // booking (the bookings list's resting row).
+  await addBooking(0, 8, 10, "confirmed");
+  await addBooking(2, 9, 11, "requested");
+  await addBooking(3, 14, 16, "confirmed");
+
+  return { listingId, bookerId, hostEmail: email, sql };
+}
+
+/** One control 14-UI-SPEC § Primary CTAs declares at the touch height, named the way a user reaches it. */
+type TouchTarget = { readonly name: RegExp; readonly why: string };
+
+type Phase14Row = {
+  readonly name: string;
+  readonly path: (f: HostFixture) => string;
+  /** The declared selector proving this route rendered ITS OWN surface, not a redirect or its plate. */
+  readonly tell: string;
+  /** Why that selector cannot be satisfied by `/login`, a 404 or the route's own `loading.tsx`. */
+  readonly tellWhy: string;
+  /** The 44px controls this surface declares. AN EMPTY LIST IS A DECLARATION — `touchWhy` says why. */
+  readonly touch: readonly TouchTarget[];
+  readonly touchWhy: string;
+};
+
+const PHASE_14_ROWS: readonly Phase14Row[] = [
+  {
+    name: "/host",
+    path: () => "/host",
+    tell: '[data-testid="agenda-rows"]',
+    tellWhy:
+      "the agenda's BUSY state, which is the widest thing this route renders — a booker's first name " +
+      "over a meta line carrying the space title, the venue-local day and the window with its city " +
+      "suffix. The route's `loading.tsx` plate composes the same `PageHeader` and carries none of the " +
+      "three agenda hooks, and the quiet and empty states carry the other two, so this id pins both " +
+      "the surface and the state.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED, and this is the row where that is most worth stating. `Create listing` is this " +
+      "page's one accent-filled control (AC#5) and it renders at the Button's DEFAULT height: D-22 " +
+      "makes the 44px size an explicit OPT-IN and never a responsive default, and 14-UI-SPEC § " +
+      "Primary CTAs lists it as `(brand)` with no height note. Asserting 44 here would be red against " +
+      "shipped, reviewed, deliberate code — the exact false-positive failure `TARGET_FLOOR_PX`'s " +
+      "docstring records this file refusing once already. The 24px AA bar still applies to it.",
+  },
+  {
+    name: "/host/requests",
+    path: () => "/host/requests",
+    tell: '[data-testid="row-card"]',
+    tellWhy:
+      "a request row in the MOBILE tree — which is the only tree that exists at this width, because " +
+      "the route renders a `hidden md:block` table beside a `md:hidden` card stack. Inbox-zero " +
+      "renders `empty-state` and no row card, and the plate renders neither, so this id pins the " +
+      "surface AND the state that has something to overflow with.",
+    touch: [
+      {
+        name: /^Approve request from /,
+        why:
+          "14-UI-SPEC § Primary CTAs: `Approve` (neutral solid, 44px). It is the action the whole " +
+          "surface exists for.",
+      },
+      {
+        name: /^Decline request from /,
+        why:
+          "14-UI-SPEC § Primary CTAs: `Decline` (outline, 44px, opens the dialog). Declared at the " +
+          "same height as its pair, because a 44px yes beside a smaller no is a thumb-sized bias.",
+      },
+    ],
+    touchWhy: "the two row actions, declared at the touch height by the spec and by the component.",
+  },
+  {
+    name: "/host/bookings",
+    path: () => "/host/bookings?tab=upcoming",
+    tell: '[data-testid="row-card"]',
+    tellWhy:
+      "a booking row in the MOBILE tree — same two-tree structure as the inbox. The empty state for " +
+      "either tab renders `empty-state` instead, and `bookings/loading.tsx` draws a skeleton list " +
+      "carrying no row card at all.",
+    touch: [
+      {
+        name: /^Approve request from /,
+        why:
+          "the SAME cluster as the inbox, rendered on this surface's `requested` rows. " +
+          "`request-row.tsx` states in as many words that both controls are touch-sized on BOTH " +
+          "surfaces, because a floor that only holds where somebody remembered is not a floor. The " +
+          "fixture seeds a live request so this row is present rather than assumed.",
+      },
+      { name: /^Decline request from /, why: "its pair, for the same reason." },
+    ],
+    touchWhy:
+      "the approve/decline cluster, which this list renders on any row still awaiting an answer.",
+  },
+  {
+    name: "/host/listings/[id]/edit",
+    path: (f) => `/host/listings/${f.listingId}/edit`,
+    tell: '[data-testid="wizard-step-rail"]',
+    tellWhy:
+      "the step rail, which only the resolved wizard renders. An `h1` would have been the trap here: " +
+      "every step of the wizard renders one, and so does every other host route, so a heading hook " +
+      "would be satisfied by any of them.",
+    touch: [
+      {
+        name: / ready to publish$/,
+        why:
+          "the publish checklist's disclosure trigger, which opts into the touch size at " +
+          "`publish-checklist.tsx:317`. It is the 320px placement's ONLY route into the checklist — " +
+          "D-149 defaults it closed at this width precisely because vertical space is the constraint " +
+          "here — so a smaller trigger would put the whole persistent checklist behind a target too " +
+          "small to hit.",
+      },
+    ],
+    touchWhy:
+      "one control, and it is the disclosure rather than an advance button: `Get started` and `Save " +
+      "and continue` are listed by 14-UI-SPEC as `(neutral solid)` with no height note and ship at " +
+      "the Button's default, the same opt-in argument `/host` records above.",
+  },
+  {
+    name: "/host/listings/[id]/availability",
+    path: (f) => `/host/listings/${f.listingId}/availability`,
+    tell: '[data-testid="week-strip"]',
+    tellWhy:
+      "the week-at-a-glance preview, which is D-152's own element and exists on no other route. The " +
+      "route's plate renders the same `PageHeader` and no strip.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED. 14-UI-SPEC § Primary CTAs lists this surface's three controls — `Add hours` " +
+      "(outline), `Save hours` (neutral solid) and `Add block` (neutral solid) — as SHIPPED, " +
+      "UNCHANGED, with no height note on any of them. The 24px AA bar still applies, and it is the " +
+      "bar that matters on a surface whose densest control is a row of hour selects.",
+  },
+];
+
+/**
+ * AC#36's touch clause, asserted on the controls the spec actually declares.
+ *
+ * ⚠ PRESENCE IS ASSERTED BEFORE HEIGHT, and that is not belt-and-braces: a `for` loop over zero
+ * matches passes silently, having measured nothing. This block's whole subject is a floor, and a floor
+ * that reports green over an absent control is the vacuity failure this file has now recorded three
+ * times.
+ */
+async function expectTouchTargets(page: Page, where: string, row: Phase14Row): Promise<void> {
+  for (const target of row.touch) {
+    const control = page.getByRole("button", { name: target.name });
+    const count = await control.count();
+    expect(
+      count,
+      `${where}: this row declares a ${TOUCH_FLOOR_PX}px control matching ${String(target.name)} and ` +
+        `the surface rendered NONE. ${target.why} An absent control satisfies a height assertion ` +
+        "perfectly, so this is a failure — either the fixture no longer reaches the state that " +
+        "renders it, or the control moved and this row must move with it.",
+    ).toBeGreaterThan(0);
+
+    for (let i = 0; i < count; i += 1) {
+      const box = await control.nth(i).boundingBox();
+      expect(box, `${where}: ${String(target.name)} #${i} has no layout box`).not.toBeNull();
+      const { height, width } = box as { height: number; width: number };
+      expect(
+        Math.round(height * 10) / 10,
+        `${where}: the primary action matching ${String(target.name)} measures ` +
+          `${Math.round(width)}x${Math.round(height)} — under the ${TOUCH_FLOOR_PX}px height DS-09 ` +
+          `declares and 14-UI-SPEC § Primary CTAs assigns it. ${target.why} This is the app's own ` +
+          "bar, higher than the AA one every control clears, and it is opt-in — so a control that " +
+          "falls below it has usually lost its size prop rather than shrunk.",
+      ).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+    }
+  }
+}
+
+test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both themes`, () => {
+  // SERIAL for the Phase-13 block's reason: the whole block shares ONE seeded fixture built in
+  // `beforeAll`, and `beforeAll` runs once per WORKER — so a parallel block would sign one host up per
+  // worker and tear down another worker's rows from under it.
+  test.describe.configure({ mode: "serial", timeout: 120_000 });
+
+  let fixture: HostFixture;
+
+  test.beforeAll(async ({ browser }) => {
+    // The signup happens in its own context, ONCE. Its cookies are what every case below reuses —
+    // `host-dashboard.spec.ts:142-155` records the measurement: a login per case drives
+    // `POST /api/auth/sign-in/email` past `src/lib/auth.ts:167`'s five-per-sixty-seconds limiter, and
+    // the refusal reads exactly like a product bug on the page under test.
+    const context = await browser.newContext({ baseURL: BASE });
+    const page = await context.newPage();
+    const seeded = await seedHostSurfaces(page);
+    const cookies = await context.cookies();
+    await context.close();
+
+    fixture = { ...seeded, cookies };
+  });
+
+  test.afterAll(async () => {
+    if (fixture === undefined) return;
+    // ORDER IS THE FK'S (`booker-seed.ts`'s header): `booking.booker_id` is ON DELETE RESTRICT, so the
+    // notifications and bookings go first, then the booker, then the host — whose deletion cascades to
+    // the listing. `sql.end()` is unconditionally last.
+    await fixture.sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ${fixture.listingId})`;
+    await fixture.sql`DELETE FROM booking WHERE listing_id = ${fixture.listingId}`;
+    await fixture.sql`DELETE FROM "user" WHERE id = ${fixture.bookerId}`;
+    await fixture.sql`DELETE FROM "user" WHERE email = ${fixture.hostEmail}`;
+    await fixture.sql.end();
+  });
+
+  for (const row of PHASE_14_ROWS) {
+    for (const theme of THEMES) {
+      const title = `${row.name} · ${theme}`;
+
+      test(title, async ({ page }) => {
+        await page.context().addCookies([...fixture.cookies]);
+        await seedTheme(page.context(), theme);
+        await page.setViewportSize({ width: FLOOR_PX, height: 800 });
+
+        await page.goto(`${BASE}${row.path(fixture)}`);
+        await page.evaluate(() => document.fonts.ready);
+
+        const where = `${title} · ${FLOOR_PX}px`;
+        await expect(
+          page.locator(row.tell),
+          `${where}: the route rendered no \`${row.tell}\` — ${row.tellWhy} Every assertion in this ` +
+            "case passes against a page with nothing on it, which is why this runs first and is a " +
+            "failure rather than a skip. ⚠ If this is the first run since a dev-server restart, the " +
+            "route may still be compiling: these five are among the heaviest in the app and the " +
+            "timeout is sized for a cold one.",
+          // 60s rather than the twelve-route table's 15s, and it is measured rather than hedged: on
+          // the run that COMPILED the availability route, its tell did not resolve inside 20s on a
+          // page with nothing wrong with it, and the next invocation against the warm route resolved
+          // in under four seconds. `e2e/host-headings.spec.ts` carries the same allowance and note.
+        ).not.toHaveCount(0, { timeout: 60_000 });
+
+        await expectNoOverflow(page, where);
+        await expectTargets(page, where);
+        await expectTouchTargets(page, where, row);
+        await expectVisibleFocus(page, where);
+      });
+    }
+  }
 });
