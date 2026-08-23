@@ -1,9 +1,32 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import postgres from "postgres";
 
 import { BASE_URL, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
 
 // STATE-01 / AC#17 / GATE-STATES — the RENDERED half of "the skeleton does not shift".
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WHAT THIS FILE COVERS, AS OF PLAN 14-15
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+//   1. The three PATTERN shapes, on the `/dev/theme` preview at one width — card grid, row list,
+//      panel. The original block, unchanged.
+//   2. The results grid's GUTTER on `/` at three widths, in both the pending and the resolved state
+//      (D-57 / `[11-17]`).
+//   3. ⟵ NEW ⟶ The three HOST ROW shapes, on their own product routes, at the 320px floor and at the
+//      desktop width: the dashboard's agenda row, the request inbox's row and the host bookings
+//      row. Each is compared against the bar its own `loading.tsx` draws, in the pending shell of
+//      the same route, produced by the same server from the same request.
+//
+// THE HOST NUMBERS IN BLOCK 3 WERE MEASURED IN THIS PHASE AGAINST THE RENDERED ROUTES — not carried
+// forward from 14-RESEARCH, whose § Measurements table publishes a ±8px error bar and reconstructs
+// those three cases from class recipes rather than from the components. Its own instruction was to
+// re-measure before writing a number into a test. Two of its three reconstructions turned out to be
+// wrong by more than its error bar, and one of them was wrong about the SHAPE: it described the host
+// booking row as carrying a trailing line and an actions row, and the resting row on that list has
+// neither. The numbers below are what the browser reported.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // WHY THERE ARE TWO LAYERS, AND WHY EITHER ONE ALONE IS A RUBBER STAMP
@@ -577,4 +600,645 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
       }
     });
   }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// 14-15 — THE THREE HOST ROW SHAPES, EACH AGAINST THE BAR ITS OWN PLATE DRAWS
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHAT WAS WRONG BEFORE THIS BLOCK EXISTED. All three host loading plates drew the shipped 80px row
+// bar, and not one of the three lists arrives at 80px. Measured on 23 August 2026, on the rendered
+// routes, with real seeded data:
+//
+//   shape                  route             320px    desktop   the bar all three plates drew
+//   ────────────────────── ───────────────── ──────── ───────── ────────────────────────────────
+//   agenda row             /host             132.00   72.00     80   (+52 / −8)
+//   request row            /host/requests    254.05   83.02     80   (+174 / +3)
+//   host booking row       /host/bookings    196.00   37.02     80   (+116 / −43)
+//
+// 174px of under-draw, four rows deep, is roughly 700px of page arriving under the reader after the
+// data lands — on the one host surface whose entire subject is a deadline. That is the layout shift
+// STATE-01 exists to remove, caused by the thing built to prevent it.
+//
+// ⚠ ABOVE THE MEDIUM BREAKPOINT TWO OF THESE ROUTES DO NOT RENDER A ROW CARD AT ALL. `/host/requests`
+// and `/host/bookings` each render two trees and show exactly one per width: a card stack below the
+// breakpoint, a TABLE at and above it. So the desktop numbers are TABLE ROW heights, and the row
+// under test is chosen by width. Measuring the card at 1280 would measure a `display:none` subtree —
+// whose box is zero — and every comparison here would then be 0-against-0 and pass while measuring
+// nothing. `e2e/host-inbox-hierarchy.spec.ts` recorded that trap from the other side; this block
+// asserts the row is VISIBLE before it reads a box.
+//
+// WHY THE TOLERANCE IS 4px HERE AND 2px ABOVE. 14-UI-SPEC § Measurements Owed states the falsifiable
+// for exactly these shapes as `|rendered row height − skeleton row height| <= 4px` at 320 and 1280.
+// The pattern shapes above are compared against a constant that describes the same box in the same
+// units, so 2px is the sub-pixel budget there. Here the rendered rows land on fractional pixels
+// (254.05, 83.02, 37.02) while a declared height must land on the 4px spacing ladder, so the nearest
+// legal step is up to 2px away before anything has drifted at all. 4 is the spec's number, and every
+// shape below clears it with room: the worst measured delta is 1.95px.
+//
+// WHY THE ABSOLUTE VALUES ARE ASSERTED SEPARATELY FROM THE DIFFERENCE — the same argument the row-list
+// case and the D-57 gutter case above both make: a bar and a row that agree at the wrong number are
+// exactly as "equal" as two that agree at the right one. A plate and a list that both drifted to
+// 300px would satisfy the difference clause perfectly.
+//
+// ── THE FIXTURE, AND THE ONE THING IT CANNOT PIN ─────────────────────────────────────────────────
+// One host signed up through the UI (so no password is re-entered and the sign-in rate limiter at
+// `src/lib/auth.ts` is never approached), one published listing with an activated payout wallet, and
+// five bookings: two confirmed today (the agenda), one confirmed in three days (the bookings list's
+// RESTING row), and two still awaiting an answer (the request inbox, and the bookings list's second
+// shape). Torn down in `afterAll`, in the foreign-key order `booker-seed.ts` records.
+//
+// ⚠ AT THE 320px FLOOR THE AGENDA ROW'S HEIGHT IS DECIDED BY TEXT, NOT BY CSS. Its meta line is the
+// space title joined to a venue-local window label, and at that width the label wraps to four lines.
+// One more wrapped line is 20px. The fixture therefore pins the listing title to a FIXED LENGTH, and
+// if this assertion ever goes red by almost exactly 20px on that shape the honest reading is "the
+// row now wraps a line further, so the declared constant is stale" — re-measure and move the
+// constant in `src/lib/design/measurements.ts`, which is where its content-dependence is written
+// down. Do NOT widen the tolerance to absorb it; that is the number-tuned-to-green failure this file
+// argues against three times above.
+//
+// ── WATCHED RED — TWO PROBES, RUN AND REVERTED, 23 August 2026 ───────────────────────────────────
+// Command: `npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --grep "14-15"`
+//
+//   (d) A PLATE DRAWS ANOTHER SHAPE'S HEIGHT. `requests/loading.tsx` was changed to pass
+//       `HOST_BOOKING_ROW_HEIGHT` instead of its own constant — the realistic shape of this
+//       regression, since both are legal values of the prop's type and the compiler cannot tell one
+//       declared height from another. The DECLARED-VALUE clause fired first, which is the right
+//       order: "the plate is drawing the wrong constant" and "the row changed" are different bugs
+//       and deserve different reds. Verbatim:
+//
+//         Error: request row · /host/requests · 320px: the plate drew a 196px bar, but this shape's
+//         declared height in src/lib/design/measurements.ts is 256px. Either the plate is passing a
+//         different constant than the one this shape's row was measured against, or the constant
+//         itself moved without this table moving with it.
+//         expect(received).toBeLessThanOrEqual(expected)
+//         Expected: <= 0.5
+//         Received:    60
+//
+//       1 failed / 2 passed. The AGENDA case stayed green — a mutation to one plate reddens one
+//       shape, which is the blast radius that says this block measures what it claims to. Reverted.
+//
+//   (e) THE CONSTANT RETURNS TO THE SHIPPED BAR, WITH THE TABLE MOVED TO MATCH IT. This is the probe
+//       that proves the DIFFERENCE clause is not dead code sitting behind the declared-value clause:
+//       `HOST_AGENDA_ROW_HEIGHT` was set back to the shipped 80px row constant AND this file's agenda
+//       row was given `bar: 80` at both widths, so the plate and the table agree perfectly — at the
+//       number that was wrong before this plan. Verbatim:
+//
+//         Error: agenda row · /host · 320px: the plate's bar (80px) and the card that arrives
+//         (132px) differ by more than 4px — the page moves by 52px per row when the data lands,
+//         which is the layout shift the loading plate exists to remove. Fix the DECLARED height for
+//         this shape, not this number.
+//         expect(received).toBeLessThanOrEqual(expected)
+//         Expected: <= 4
+//         Received:    52
+//
+//       1 failed / 1 passed. That 52px is exactly the defect this plan was written to remove, and it
+//       is now a red rather than a paragraph. Both probes reverted; `git status` clean; 13 passed.
+
+/** The Playwright process does not load `.env`; fall back to the deterministic dev URL. */
+const HOST_DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
+
+/** The seeded listing's venue timezone. Every window label below is composed in THIS zone. */
+const HOST_VENUE_TZ = "Asia/Manila";
+const HOST_VENUE_CITY = "Makati";
+
+/** The password every UI signup in this repo uses (`shell.spec.ts`, `host-dashboard.spec.ts`). */
+const HOST_PASSWORD = "averylongpassword";
+
+/** Frozen money on every seeded booking. Only the bookings row renders any of it. */
+const HOST_SPACE_PRICE_CENTS = 100_000;
+const HOST_SERVICE_FEE_CENTS = 5_000;
+const HOST_QUOTED_TOTAL_CENTS = HOST_SPACE_PRICE_CENTS + HOST_SERVICE_FEE_CENTS;
+
+/**
+ * Tailwind's medium breakpoint, where both list routes swap a card stack for a table.
+ *
+ * Named rather than inlined, because it is the reason the row locator below is a function of width
+ * and not a constant — and a reader who does not know that reads every desktop number as a card.
+ */
+const HOST_MD_BREAKPOINT_PX = 768;
+
+/**
+ * 14-UI-SPEC § Measurements Owed' falsifiable, verbatim: `|rendered − skeleton| <= 4px`.
+ *
+ * Deliberately NOT the file's `TOLERANCE_PX` — see the header for why these shapes get a different
+ * budget than the pattern shapes on `/dev/theme`.
+ */
+const HOST_TOLERANCE_PX = 4;
+
+/**
+ * How far a rendered BAR may sit from the pixel value its declared class compiles to.
+ *
+ * A height utility resolves to an exact multiple of the 4px spacing step, so this is rounding and
+ * nothing else. It is separate from the tolerance above on purpose: that one is about a placeholder
+ * describing content, this one is about a class compiling to the number the plan says it does.
+ */
+const HOST_BAR_EXACT_PX = 0.5;
+
+/** The three bookers. Each name is the handle every locator below addresses its row by. */
+const AGENDA_GUEST = "Marisol";
+const AGENDA_GUEST_2 = "Teodoro";
+const RESTING_GUEST = "Corazon";
+
+type HostSeed = {
+  readonly hostEmail: string;
+  readonly listingId: string;
+  readonly listingTitle: string;
+  readonly sql: ReturnType<typeof postgres>;
+  readonly bookerIds: string[];
+  teardown(): Promise<void>;
+};
+
+/**
+ * Sign a host up through the UI — `host-dashboard.spec.ts:127`'s idiom, not re-derived.
+ *
+ * The signup IS the sign-in, so this block issues zero requests to the rate-limited sign-in route.
+ */
+async function signUpGeometryHost(page: Page): Promise<string> {
+  const email = `e2e.geo.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
+  await page.goto(`${BASE_URL}/signup`);
+  await page.getByRole("radio", { name: "Host a space" }).click();
+  await page.getByLabel("First name").fill("Hosty");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(HOST_PASSWORD);
+  await page.getByRole("button", { name: /sign up to host/i }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
+  return email;
+}
+
+/**
+ * One published, bookable listing owned by the signed-up host.
+ *
+ * ⚠ THE TITLE'S LENGTH IS PART OF THE FIXTURE. It is seventeen characters — ten of prefix, a space,
+ * six of run id — because the agenda row's height at 320px is a function of how many lines its meta
+ * line wraps to, and that is a function of this string's length. A shorter title is not a cosmetic
+ * change to this file; it is a change to one of the numbers it asserts.
+ */
+async function seedGeometryHost(hostEmail: string): Promise<HostSeed> {
+  const sql = postgres(HOST_DATABASE_URL, { max: 1, onnotice: () => {} });
+  const runId = randomUUID();
+
+  const [host] = await sql<{ id: string }[]>`SELECT id FROM "user" WHERE email = ${hostEmail}`;
+  if (!host) {
+    await sql.end();
+    throw new Error(
+      `the host signed up as ${hostEmail} is not in the database, so there is no owner to hang a ` +
+        "listing on. The signup drive above did not persist a user.",
+    );
+  }
+
+  const listingId = `e2e_geo_listing_${runId}`;
+  const listingTitle = `Geo Courts ${runId.slice(0, 6)}`;
+
+  await sql`
+    INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
+    VALUES (${host.id}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
+  `;
+
+  await sql`
+    INSERT INTO "listing" (
+      id, host_id, title, description, primary_space_type,
+      address_line1, city, region, postal_code, country, neighborhood,
+      location, show_exact_address, max_occupancy, unit_count, timezone,
+      hourly_rate_cents, day_rate_cents, occupancy_mode,
+      currency, booking_mode, status, published_at, created_at, updated_at
+    ) VALUES (
+      ${listingId}, ${host.id}, ${listingTitle},
+      ${"A covered court with two hoops and a scoreboard."}, ${"multi_sport_court"}::space_type,
+      ${"3 Real Street"}, ${HOST_VENUE_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
+      ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326), ${false}, ${10}, ${1}, ${HOST_VENUE_TZ},
+      ${47333}, ${288888}, ${"exclusive"}::occupancy_mode,
+      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      now(), now(), now()
+    )
+  `;
+
+  const bookerIds: string[] = [];
+
+  return {
+    hostEmail,
+    listingId,
+    listingTitle,
+    sql,
+    bookerIds,
+    async teardown() {
+      // ORDER IS LOAD-BEARING (`booker-seed.ts`): `booking.booker_id` is ON DELETE RESTRICT, so the
+      // bookings and their notifications go first, then the bookers, then the host — whose deletion
+      // cascades to the listing.
+      await sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ${listingId})`;
+      await sql`DELETE FROM booking WHERE listing_id = ${listingId}`;
+      for (const id of bookerIds) await sql`DELETE FROM "user" WHERE id = ${id}`;
+      await sql`DELETE FROM "user" WHERE email = ${hostEmail}`;
+      await sql.end();
+    },
+  };
+}
+
+/** A booker with a known first name — the string every row locator below addresses its row by. */
+async function addGeometryBooker(seed: HostSeed, firstName: string): Promise<string> {
+  const id = `e2e_geo_booker_${randomUUID()}`;
+  await seed.sql`
+    INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
+    VALUES (${id}, ${`E2E ${firstName}`}, ${`${id}@example.com`}, ${true}, ${firstName}, ${false}, ${true}, now(), now())
+  `;
+  seed.bookerIds.push(id);
+  return id;
+}
+
+/**
+ * One booking, positioned by VENUE-LOCAL day offset and hour.
+ *
+ * The instants are built by Postgres in the venue's own zone — `host-dashboard.spec.ts:263`'s
+ * argument, which is that "today at 08:00 in Manila" is a property of a venue's local day and not of
+ * any instant this Node process can name.
+ */
+async function addGeometryBooking(
+  seed: HostSeed,
+  args: {
+    bookerId: string;
+    dayOffset: number;
+    startHour: number;
+    endHour: number;
+    status: "confirmed" | "requested";
+  },
+): Promise<void> {
+  const id = `e2e_geo_booking_${randomUUID()}`;
+  await seed.sql`
+    INSERT INTO "booking" (
+      id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
+      cancellation_policy, space_price_cents, service_fee_cents, quoted_total_cents,
+      currency, payment_id, payment_method, expires_at, checkout_session_id,
+      refund_cents, cancelled_by, cancelled_at, open_capacity, declared_pax, created_at
+    ) VALUES (
+      ${id}, ${seed.listingId}, ${1}, ${args.bookerId},
+      (date_trunc('day', now() AT TIME ZONE ${HOST_VENUE_TZ})
+        + make_interval(days => ${args.dayOffset}, hours => ${args.startHour})) AT TIME ZONE ${HOST_VENUE_TZ},
+      (date_trunc('day', now() AT TIME ZONE ${HOST_VENUE_TZ})
+        + make_interval(days => ${args.dayOffset}, hours => ${args.endHour})) AT TIME ZONE ${HOST_VENUE_TZ},
+      ${args.status}::booking_status, ${"request"}::booking_mode,
+      ${"standard"}::cancellation_policy,
+      ${HOST_SPACE_PRICE_CENTS}, ${HOST_SERVICE_FEE_CENTS}, ${HOST_QUOTED_TOTAL_CENTS}, ${"php"},
+      ${null}, ${null}, ${null}, ${null},
+      ${null}, ${null}::cancelled_by, ${null},
+      ${false}, ${null},
+      now()
+    )
+  `;
+  if (args.status === "requested") {
+    // A live approval deadline, comfortably clear of the one-hour alarm threshold, so the row renders
+    // its ordinary shape rather than its escalated one.
+    await seed.sql`UPDATE "booking" SET expires_at = now() + make_interval(hours => ${20}) WHERE id = ${id}`;
+  }
+}
+
+/**
+ * One shape: the route, the plate's bar, and the row that arrives — at two widths.
+ *
+ * `row` and `bar` are both MEASURED numbers, taken on 23 August 2026 against the rendered routes with
+ * exactly the fixture below. `bar` is additionally what the declared constant in
+ * `src/lib/design/measurements.ts` compiles to, which is why it is a multiple of the 4px step and
+ * `row` is not.
+ */
+type HostShape = {
+  readonly key: string;
+  readonly route: string;
+  /** The guest whose row is the RESTING shape this constant describes. */
+  readonly guest: string;
+  readonly steps: readonly {
+    readonly width: number;
+    readonly row: number;
+    readonly bar: number;
+    /** Which tree the page renders at this width — the card stack, or the table that replaces it. */
+    readonly tree: "card" | "table";
+  }[];
+};
+
+const HOST_SHAPES: readonly HostShape[] = [
+  {
+    key: "agenda row · /host",
+    route: "/host",
+    guest: AGENDA_GUEST,
+    steps: [
+      // HOST_AGENDA_ROW_HEIGHT. 132 = the 72px unwrapped floor plus three further wrapped meta
+      // lines at 20px each; 72 = 16 + 20 + 20 + 16. This row renders as a card at EVERY width — the
+      // dashboard has no table tree — so both steps read the card.
+      { width: 320, row: 132.0, bar: 132, tree: "card" },
+      { width: 1280, row: 72.0, bar: 72, tree: "card" },
+    ],
+  },
+  {
+    key: "request row · /host/requests",
+    route: "/host/requests",
+    guest: AGENDA_GUEST,
+    steps: [
+      // HOST_REQUEST_ROW_HEIGHT. The tallest row shape in the product below the breakpoint — lead
+      // countdown, reason line, two-term description list, touch-height actions — and a table row
+      // above it.
+      { width: 320, row: 254.05, bar: 256, tree: "card" },
+      { width: 1280, row: 83.02, bar: 84, tree: "table" },
+    ],
+  },
+  {
+    key: "host booking row · /host/bookings",
+    route: "/host/bookings",
+    guest: RESTING_GUEST,
+    steps: [
+      // HOST_BOOKING_ROW_HEIGHT, on the RESTING row: a confirmed booking, which carries no actions
+      // and no trailing line. The still-pending shape on the same list is pinned separately below.
+      { width: 320, row: 196.0, bar: 196, tree: "card" },
+      { width: 1280, row: 37.02, bar: 36, tree: "table" },
+    ],
+  },
+];
+
+/**
+ * The row a host can actually SEE on this route at this width.
+ *
+ * ⚠ THE TREE IS DECLARED PER STEP, NOT INFERRED FROM THE WIDTH, and the difference is a real defect
+ * this file caught on its first run: only the two LIST routes swap a card stack for a table at the
+ * medium breakpoint. `/host` has no table tree at all — its agenda is a card stack at every width —
+ * so a width-driven rule looked for a table row on the dashboard at 1280 and found nothing. The
+ * shape table above says which tree each step reads, because that is a property of the route.
+ *
+ * Addressed by the guest's first name rather than by position, so a change to the list's ordering is
+ * not silently a change to which row is measured.
+ */
+function hostRowLocator(page: Page, tree: "card" | "table", guest: string): Locator {
+  const base = tree === "table" ? page.locator("table tbody tr") : page.getByTestId("row-card");
+  return base.filter({ hasText: guest });
+}
+
+/** One element's height, or a named failure. Never `null` reaching a comparison. */
+async function heightOf(target: Locator, label: string): Promise<number> {
+  await expect(target, `${label}: matched no element`).toHaveCount(1);
+  const box = await target.boundingBox();
+  expect(
+    box,
+    `${label}: the element matched but has no layout box. Above the medium breakpoint the card stack ` +
+      "is `display:none` and its box is zero — if this fires, the wrong tree is being read and every " +
+      "comparison here would be 0-against-0.",
+  ).not.toBeNull();
+  return Math.round(box!.height * 100) / 100;
+}
+
+test.describe("14-15 — every host plate draws the list that is actually coming", () => {
+  // Serial, and generously timed: this block drives twelve navigations against a dev server that
+  // compiles host routes on demand, plus a signup.
+  test.describe.configure({ mode: "serial", timeout: 300_000 });
+
+  let seed: HostSeed | null = null;
+  /**
+   * The session, captured once at signup and replayed for every case after it.
+   *
+   * ⚠ NOT a `logInAs` per case, and that is a measurement rather than a style choice —
+   * `host-dashboard.spec.ts:158` recorded it: `src/lib/auth.ts` rate-limits the sign-in route to five
+   * attempts a minute, and a file that drives the form once per case silently trips it and fails in
+   * `waitForURL` with nothing in the message naming a limiter.
+   */
+  let hostCookies: Awaited<ReturnType<BrowserContext["cookies"]>> = [];
+
+  test.afterAll(async () => {
+    await seed?.teardown();
+  });
+
+  test("(0) the fixture: one host, one listing, five bookings", async ({ page, context }) => {
+    const email = await signUpGeometryHost(page);
+    hostCookies = await context.cookies();
+    seed = await seedGeometryHost(email);
+
+    const marisol = await addGeometryBooker(seed, AGENDA_GUEST);
+    const teodoro = await addGeometryBooker(seed, AGENDA_GUEST_2);
+    const corazon = await addGeometryBooker(seed, RESTING_GUEST);
+
+    // Today's agenda — two confirmed sessions, which is what `/host` renders as row cards.
+    await addGeometryBooking(seed, {
+      bookerId: marisol,
+      dayOffset: 0,
+      startHour: 8,
+      endHour: 10,
+      status: "confirmed",
+    });
+    await addGeometryBooking(seed, {
+      bookerId: teodoro,
+      dayOffset: 0,
+      startHour: 12,
+      endHour: 14,
+      status: "confirmed",
+    });
+    // The bookings list's RESTING row — a confirmed booking, no actions, no trailing line.
+    await addGeometryBooking(seed, {
+      bookerId: corazon,
+      dayOffset: 3,
+      startHour: 9,
+      endHour: 11,
+      status: "confirmed",
+    });
+    // The request inbox, and the bookings list's second shape.
+    await addGeometryBooking(seed, {
+      bookerId: marisol,
+      dayOffset: 5,
+      startHour: 9,
+      endHour: 11,
+      status: "requested",
+    });
+    await addGeometryBooking(seed, {
+      bookerId: teodoro,
+      dayOffset: 6,
+      startHour: 15,
+      endHour: 17,
+      status: "requested",
+    });
+
+    expect(seed, "the host fixture is null — nothing below has anything to measure").not.toBeNull();
+    expect(
+      hostCookies.length,
+      "the signup produced no cookies, so every navigation below would be an unauthenticated " +
+        "redirect and the routes under test would never render.",
+    ).toBeGreaterThan(0);
+  });
+
+  for (const shape of HOST_SHAPES) {
+    test(`(${shape.key}) the plate's bar and the arriving row are the same box at 320 and 1280`, async ({
+      page,
+      context,
+    }) => {
+      expect(seed, "the host fixture is null — see case (0).").not.toBeNull();
+      await context.clearCookies();
+      await context.addCookies(hostCookies);
+
+      // Install BEFORE the first navigation — `served-document.ts`'s stated ordering.
+      const truncator = installTruncator(page);
+      await truncator.ready;
+
+      // ⚠ WARM THE ROUTE BEFORE ASKING IT TO STREAM, and this is a MEASURED requirement rather than
+      // superstition — it cost this file a red on its first run. `next dev` compiles a route on its
+      // first request; on that request the compile finishes and everything the page awaits is
+      // already resolved by the time the shell flushes, so React emits NO out-of-order completion
+      // segment and `served-document.ts` finds no marker to cut at. Observed exactly once, on
+      // `/host/requests`, in a 37,952-byte untruncated document — while `/host` streamed perfectly
+      // in the same run, because the signup drive in case (0) had already compiled it by redirecting
+      // there. One throwaway navigation removes the asymmetry.
+      truncator.set(false);
+      await page.goto(`${BASE_URL}${shape.route}`);
+
+      for (const step of shape.steps) {
+        const where = `${shape.key} · ${step.width}px`;
+        await page.setViewportSize({ width: step.width, height: 900 });
+
+        // ── PENDING: the route's own `loading.tsx`, every boundary still in its fallback ──────────
+        //
+        // Retried, and bounded. Whether a boundary resolves before or after the shell flush is a
+        // race against a local database, and a spec that reports "vacuous" on the one navigation
+        // that happened to win it is a spec somebody re-runs rather than reads. Three attempts, then
+        // a named failure — never a silent pass, which is the direction that actually matters.
+        truncator.set(true);
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          await page.goto(`${BASE_URL}${shape.route}`);
+          if (truncator.state.cut > 0) break;
+        }
+        await page.evaluate(() => document.fonts.ready);
+
+        // VACUITY GUARD 1: the truncation actually happened. Without it the helper serves the whole
+        // document in both modes and the two "states" below are the same page compared with itself.
+        expect(
+          truncator.state.cut,
+          `${where}: the pending pass served an untruncated document (${truncator.state.length} ` +
+            "bytes, no completion marker found) on three attempts. Both states would then be the " +
+            "same page and every comparison below would be vacuous.",
+        ).toBeGreaterThan(0);
+
+        // VACUITY GUARD 2: it is genuinely the PENDING state — the plate is on screen and the real
+        // row is not.
+        const bars = page.locator('[data-testid="skeleton-row-list"] [data-slot="skeleton"]');
+        await expect(
+          bars,
+          `${where}: the pending shell rendered no row-list placeholder. Either the session is not ` +
+            "host-capable and the route redirected, or this plate no longer composes the row " +
+            "skeleton — in which case there is no bar to compare and this file is measuring nothing.",
+        ).not.toHaveCount(0, { timeout: 20_000 });
+        await expect(
+          page.getByTestId("row-card"),
+          `${where}: the pending shell already contains real rows, so the truncation did not hold ` +
+            "the page in its loading state and both measurements below are the resolved list.",
+        ).toHaveCount(0);
+
+        const bar = await heightOf(bars.first(), `${where} · plate bar`);
+
+        // The bar is what the DECLARED constant compiles to. Asserted before anything is compared,
+        // so "the plate changed" and "the row changed" are two different reds.
+        expect(
+          Math.abs(bar - step.bar),
+          `${where}: the plate drew a ${bar}px bar, but this shape's declared height in ` +
+            `src/lib/design/measurements.ts is ${step.bar}px. Either the plate is passing a ` +
+            "different constant than the one this shape's row was measured against, or the constant " +
+            "itself moved without this table moving with it.",
+        ).toBeLessThanOrEqual(HOST_BAR_EXACT_PX);
+
+        // ── RESOLVED: the whole document, the real list ───────────────────────────────────────────
+        truncator.set(false);
+        await page.goto(`${BASE_URL}${shape.route}`);
+        await page.evaluate(() => document.fonts.ready);
+
+        const row = hostRowLocator(page, step.tree, shape.guest);
+        await expect(
+          row,
+          `${where}: the resolved page rendered no ${step.tree} for ${shape.guest}. Expected the ` +
+            `${step.tree} tree at this width (the card stack and the table swap at ` +
+            `${HOST_MD_BREAKPOINT_PX}px); the owner-scoped read may have returned nothing, or the ` +
+            "plate may still be up.",
+        ).toBeVisible({ timeout: 30_000 });
+
+        const rendered = await heightOf(row, `${where} · resolved ${step.tree}`);
+
+        // ── THE ABSOLUTE VALUE, ASSERTED FIRST AND SEPARATELY ─────────────────────────────────────
+        expect(
+          Math.abs(rendered - step.row),
+          `${where}: the resolved ${step.tree} measures ${rendered}px, but this shape was measured ` +
+            `at ${step.row}px when its height was declared. A bar and a row that agree at the wrong ` +
+            'number are as "equal" as two that agree at the right one, which is why this is ' +
+            "asserted separately. If the miss is close to 20px on a row card at 320px, the row now " +
+            "wraps a further line: re-measure and move the constant, never the tolerance.",
+        ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
+
+        // ── THE CLAIM: the placeholder occupies the box the content will ──────────────────────────
+        expect(
+          Math.abs(bar - rendered),
+          `${where}: the plate's bar (${bar}px) and the ${step.tree} that arrives (${rendered}px) ` +
+            `differ by more than ${HOST_TOLERANCE_PX}px — the page moves by ` +
+            `${Math.round(Math.abs(bar - rendered))}px per row when the data lands, which is the ` +
+            "layout shift the loading plate exists to remove. Fix the DECLARED height for this " +
+            "shape, not this number.",
+        ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
+      }
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // THE ACCEPTED, MEASURED DEVIATION — pinned, because a delta no test carries is prose
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  //
+  // `/host/bookings` mixes two row shapes on one tab. The RESTING one is a confirmed booking and it
+  // is what the plate draws. A booking still awaiting the host's answer grows an approve/decline
+  // actions row and is taller. No single bar can be right for both, and drawing the taller shape
+  // would over-claim on the ordinary case. The alternative that was explicitly NOT taken: reducing
+  // the plate's row COUNT until the totals happen to line up while every individual row disagrees.
+  //
+  // MEASURED 23 August 2026: the pending rows are 232px and 252px at 320 against a 196px bar (36 and
+  // 56 over), and 61px and 60.5px at 1280 against a 36px bar (25 and 24.5 over).
+  //
+  // THE TWO WIDTHS ARE PINNED DIFFERENTLY, and the reason is which measurement is stable. At 1280 the
+  // row is a table row, nothing wraps, and the cost of the actions cell is a fixed 24-25px — so that
+  // one is pinned tightly. At 320 the row is a card whose window label ALSO wraps, and the wrap count
+  // moves with the calendar (a one-digit day-of-month, a one-digit hour), so the two seeded rows
+  // genuinely differ from each other by 20px. Pinning a tight number there would be pinning today's
+  // date. The band below is wide enough to survive a wrap and narrow enough that removing the actions
+  // row, or doubling the row, is still red.
+  const BOOKINGS_BAR_320 = 196;
+  const BOOKINGS_BAR_1280 = 36;
+  const PENDING_OVERRUN_320 = { min: 30, max: 70 };
+  const PENDING_OVERRUN_1280 = { min: 23, max: 27 };
+
+  test("(deviation) a still-pending booking over-runs the bookings plate's bar by a measured amount", async ({
+    page,
+    context,
+  }) => {
+    expect(seed, "the host fixture is null — see case (0).").not.toBeNull();
+    await context.clearCookies();
+    await context.addCookies(hostCookies);
+
+    for (const [width, bar, band, tree] of [
+      [320, BOOKINGS_BAR_320, PENDING_OVERRUN_320, "card"],
+      [1280, BOOKINGS_BAR_1280, PENDING_OVERRUN_1280, "table"],
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE_URL}/host/bookings`, { waitUntil: "networkidle" });
+
+      for (const guest of [AGENDA_GUEST, AGENDA_GUEST_2]) {
+        const where = `bookings deviation · ${width}px · ${guest}`;
+        const row = hostRowLocator(page, tree, guest);
+        await expect(
+          row,
+          `${where}: the resolved page rendered no ${tree} for ${guest}. This case needs the two ` +
+            "still-pending bookings the fixture seeds; without them it is asserting nothing.",
+        ).toBeVisible({ timeout: 30_000 });
+
+        const rendered = await heightOf(row, `${where} · ${tree}`);
+        const overrun = Math.round((rendered - bar) * 100) / 100;
+
+        const detail =
+          `${where}: a still-pending booking's ${tree} measures ${rendered}px against the plate's ` +
+          `${bar}px bar — an over-run of ${overrun}px, outside the measured band ` +
+          `${band.min}…${band.max}px. This delta is ACCEPTED and recorded, not a target: the ` +
+          "bookings tab mixes a confirmed row (which the bar draws) with a pending row (which " +
+          "carries approve/decline actions and is taller). If this moved because the pending row's " +
+          "shape changed, the honest fix is to re-measure and move this band with the change that " +
+          "caused it — not to widen it, and not to shrink the plate's row count until the totals " +
+          "happen to agree.";
+
+        expect(overrun, detail).toBeGreaterThanOrEqual(band.min);
+        expect(overrun, detail).toBeLessThanOrEqual(band.max);
+      }
+    }
+  });
 });
