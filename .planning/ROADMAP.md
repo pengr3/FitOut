@@ -460,7 +460,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 14-10-PLAN.md — the publish checklist becomes persistent, and the four inventories that pinned its done marker by file path move in the same commit
+- [x] 14-10-PLAN.md — the publish checklist becomes persistent, and the four inventories that pinned its done marker by file path move in the same commit
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -629,7 +629,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
-| 14. Host Tooling | v1.1 | 9/16 | In Progress|  |
+| 14. Host Tooling | v1.1 | 10/16 | In Progress|  |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
