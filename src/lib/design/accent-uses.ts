@@ -148,7 +148,7 @@ export const ACCENT_USES = [
   {
     id: 7,
     declaredIn: 10,
-    device: "the completed-step markers in the listing wizard",
+    device: "the current-step marker in the listing wizard",
     site: "src/app/(host)/host/listings/[id]/edit/wizard.tsx",
     why:
       "progress through a multi-step host form. The one HOST-side entry on the list, and the only one " +

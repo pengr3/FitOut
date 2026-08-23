@@ -97,6 +97,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Toaster } from "@/components/ui/sonner";
+import { PageHeader } from "@/components/patterns/page-header";
+import { STEP_MARKER_BOX } from "@/lib/design/measurements";
 import { cn } from "@/lib/utils";
 
 export type WizardListing = {
@@ -140,7 +142,17 @@ export type WizardListing = {
   photos: ListingPhotoRow[];
 };
 
-const STEPS = [
+/**
+ * The nine steps, in order, with the question each one asks.
+ *
+ * EXPORTED (D-148, plan 14-09) so `tests/listing/wizard-rail.test.tsx` can assert the rail's accessible
+ * names and the rendered step title AGAINST THIS LIST rather than against retyped copies of these
+ * strings. A test that retypes a title passes when the title and the marker drift apart in the same
+ * edit — which is exactly the drift the rail's keying rule exists to prevent — and it also makes every
+ * copy change a two-file edit. Read-only by construction (`as const`); nothing outside this module
+ * mutates it, and the WALKED list is derived per-render below because it is mode-dependent.
+ */
+export const STEPS = [
   { key: "type", title: "What kind of space is it?" },
   { key: "details", title: "Tell guests about your space" },
   { key: "location", title: "Where is it?" },
@@ -161,7 +173,7 @@ const STEPS = [
   { key: "review", title: "Review and publish" },
 ] as const;
 
-type StepKey = (typeof STEPS)[number]["key"];
+export type StepKey = (typeof STEPS)[number]["key"];
 
 /**
  * The three D-67 tiers, host-facing (07-UI-SPEC § 6). Plain language, no dates — there is no booking yet;
@@ -319,6 +331,25 @@ export function ListingWizard({
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  /**
+   * The steps this host has ARRIVED AT, BY KEY (D-148).
+   *
+   * A SET OF KEYS, NEVER A SET OF INDEXES, and this is the same rule the walked list and the render
+   * guards already obey for the same reason one step further along. The walked list is MODE-DEPENDENT
+   * — the booking-mode step is filtered out in drop-in mode — so position 6 is `booking` in one mode
+   * and `cancellation` in the other. An index-keyed set therefore survives every single-mode test and
+   * fails only for a host who changes occupancy mode mid-flow: every marker after the occupancy step
+   * silently repoints, and the failure a host sees is a marker that takes them to a different
+   * question than the one it is named for. `tests/listing/wizard-rail.test.tsx` walks exactly that
+   * path.
+   *
+   * Seeded with the first step's key because the host is standing on it at mount, and added to on
+   * every arrival — see `goToStep`, which is the only place `step` moves except the review
+   * checklist's existing links (which can only target steps already walked through).
+   */
+  const [visitedKeys, setVisitedKeys] = useState<ReadonlySet<StepKey>>(
+    () => new Set<StepKey>([STEPS[0].key]),
+  );
   const [saving, setSaving] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   // Live photo count — seeded from the server, kept current by the PhotoUploader as photos are
@@ -395,6 +426,21 @@ export function ListingWizard({
   /** Index of the D-77 tier step, so the publish-checklist row links back to it without a magic number. */
   const CANCELLATION_STEP = stepIndex("cancellation");
 
+  /**
+   * Move to a position in the WALKED list and record the arrival by KEY (D-148).
+   *
+   * The index is clamped here rather than trusted, for the same reason the render clamp below exists:
+   * the walked list can shrink, and a position past its end must resolve to a real step instead of
+   * reading `undefined.key`. The key is read from the walked list AFTER clamping, so what gets marked
+   * visited is always the step the host actually lands on.
+   */
+  function goToStep(next: number) {
+    const i = Math.min(Math.max(next, 0), steps.length - 1);
+    const key = steps[i].key;
+    setVisitedKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+    setStep(i);
+  }
+
   /** Autosave the current form state. Returns true on success. */
   async function persist(): Promise<boolean> {
     const res = await saveListingStep(listing.id, toPayload(form.getValues()));
@@ -411,7 +457,7 @@ export function ListingWizard({
     setSaving(false);
     if (ok) {
       toast.success("Saved");
-      if (step < steps.length - 1) setStep((s) => s + 1);
+      if (step < steps.length - 1) goToStep(step + 1);
     }
   }
 
@@ -591,56 +637,105 @@ export function ListingWizard({
           Step {stepInList + 1} of {steps.length}
         </p>
         <Progress value={progress} />
-        <ol className="flex flex-wrap gap-2" aria-label="Listing steps">
+        {/*
+          THE RAIL (D-148). Three states, and EXACTLY ONE of them is a control.
+
+          ⚠ NAMING DISCIPLINE, INHERITED AND RE-EARNED. Nothing in this comment quotes a class name or a
+          prop VALUE that a committed gate counts. `brand-recipe.test.ts` counts occurrences of the
+          accent background utility and of the accent variant spelling in this file's SOURCE, and a
+          comment is textually indistinguishable from a call site to a text scan — this repo has burned
+          plans on exactly that. So the accent utility is named descriptively everywhere below, and so is
+          the variant prop. Keep it that way when you edit this.
+
+          1. VISITED (below the current step, and its KEY is in the arrival set) — a real <button>.
+             It carries the check glyph, hidden from assistive technology because the button's own
+             accessible name already says which step it returns to, and that name is composed FROM THE
+             STEP LIST rather than retyped, so a title edit cannot leave the marker announcing the old
+             question. The secondary surface pairing, not the accent: a rail whose "where you are" and
+             "where you can go back to" were the same solid fill would have spent its strongest signal
+             on nothing.
+
+          2. CURRENT — the shipped non-control element, and it STAYS a non-control deliberately.
+             Navigating to where you already are is not an action, and making it one would put a second
+             reachable accent fill in the viewport. It is the ONLY state that paints the accent now
+             (accent-inventory entry 7, narrowed in this same commit from current-or-done to
+             current-only). The narrowing happens ON THE EXISTING CONDITION, on one line: converting
+             this marker to a variant-driven control takes the pinned per-file count to zero, and
+             splitting the fill across two branches takes it to two. Both are red for reasons that have
+             nothing to do with the design contract.
+
+          3. FUTURE — the shipped non-control element with the muted pairing. Inert, and therefore out
+             of the tab order by construction: a <span> with no tabindex is not focusable, so there is
+             nothing to remove.
+
+          THE ALPHA BAN STILL BINDS, and the reason survives the narrowing: a tint of the accent over a
+          light surface LIGHTENS, dragging the fill toward its own ink, and the accent's own foreground
+          token measured 4.04:1 in court and 3.87:1 in grove against a 4.5 bar that way. That is a
+          property of the alpha, not of which element carries it (T-10-25). The solid token is also
+          required rather than the darkening mix the button variant uses, because the per-file inventory
+          counts this exact utility.
+
+          GEOMETRY IS READ, NOT TYPED. All three states share the declared marker box, which is the WCAG
+          2.5.8 AA target-size bar now that one of them is a control — see its docblock in
+          `measurements.ts` for the arithmetic, including why the rail's shipped gap means the spacing
+          exception is not needed and why nine markers do not wrap at the 320px floor.
+        */}
+        <ol
+          className="flex flex-wrap gap-2"
+          aria-label="Listing steps"
+          data-testid="wizard-step-rail"
+        >
           {steps.map((s, i) => {
             const state = i < stepInList ? "done" : i === stepInList ? "current" : "future";
+            // Visited-ness is asked BY KEY and position is asked separately. Forward markers stay
+            // inert even once visited (D-148's literal reading): the path to a later step is the
+            // advance control, which is the path that re-validates and autosaves.
+            const canReturn = state === "done" && visitedKeys.has(s.key);
             return (
               <li key={s.key} aria-current={state === "current" ? "step" : undefined}>
-                <span
-                  className={cn(
-                    "flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                    // These two markers are a <span> inside an <ol>, NOT a Button — they stay
-                    // token classes and must never be converted to the accent VARIANT prop
-                    // (10-UI-SPEC § the 29 / 20 / 9 split). The prop is named descriptively here
-                    // rather than quoted because a committed gate counts its occurrences and a
-                    // comment is textually indistinguishable from a call site — this phase's
-                    // recurring collision, which STATE.md records the resolution for.
-                    // Both markers now paint the SOLID accent token, deliberately:
-                    //
-                    // 1. `done` used to carry a 90%-ALPHA tint of the accent. Under
-                    //    `text-brand-foreground` that measures 4.04:1 in court and 3.87:1 in
-                    //    grove against a 4.5 bar, because an alpha tint over a light surface
-                    //    LIGHTENS — it drags the fill toward its own text colour. That failure
-                    //    is a property of the alpha, not of the <Button> element, so the ban
-                    //    applies here too (T-10-25). Nothing is lost: done-vs-current is already
-                    //    carried by the CheckIcon-vs-number below and by `aria-current="step"`
-                    //    on the <li>, not by a 10% tint nobody can perceive.
-                    // 2. The fix is the solid token rather than the darkening `color-mix` used
-                    //    by the Button variant, because `tests/design/brand-recipe.test.ts` pins
-                    //    the surviving non-Button accent backgrounds across 6 named files
-                    //    (T-10-41). A `color-mix` here would silently drop that count and the
-                    //    gate would fail for the wrong reason.
-                    //
-                    // The two states are now ONE branch (WR-15). They were kept apart with
-                    // byte-identical output solely because that gate counted LINES containing the
-                    // token, so merging them turned a committed gate red for a reason with nothing
-                    // to do with the design contract — a test's convenience dictating the shape of
-                    // production code. The gate counts occurrences now, so the obvious form is
-                    // also the passing one.
-                    (state === "current" || state === "done") &&
-                      "bg-brand text-brand-foreground",
-                    state === "future" && "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {state === "done" ? <CheckIcon className="size-3.5" /> : i + 1}
-                </span>
+                {canReturn ? (
+                  <button
+                    type="button"
+                    onClick={() => goToStep(i)}
+                    aria-label={`Go back to step ${i + 1}: ${s.title}`}
+                    className={cn(
+                      STEP_MARKER_BOX,
+                      // The canonical DS-05 focus recipe, in ONE class string because it describes ONE
+                      // element. The offset COLOUR is load-bearing and not decoration: the framework's
+                      // default offset is a literal white, which is visibly wrong on a tinted ground.
+                      "flex items-center justify-center rounded-full text-xs font-medium outline-none",
+                      "bg-secondary text-secondary-foreground",
+                      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    )}
+                  >
+                    <CheckIcon className="size-3.5" aria-hidden="true" />
+                  </button>
+                ) : (
+                  <span
+                    className={cn(
+                      STEP_MARKER_BOX,
+                      "flex items-center justify-center rounded-full text-xs font-medium",
+                      state === "current" && "bg-brand text-brand-foreground",
+                      state !== "current" && "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {i + 1}
+                  </span>
+                )}
               </li>
             );
           })}
         </ol>
       </div>
 
-      <h1 className="text-2xl font-semibold tracking-tight">{steps[stepInList].title}</h1>
+      {/*
+        THE STEP QUESTION IS THE PAGE TITLE (14-UI-SPEC § Typography rule 1). It used to render one
+        ladder step larger than every other host page's title — two <h1> scales in one product is drift,
+        and this was the outlier. `PageHeader` supplies the single level-one heading at the shared size,
+        and rule 4 wants exactly one per document: the listing's name is deliberately NOT added here,
+        because the question IS the title.
+      */}
+      <PageHeader title={steps[stepInList].title} />
 
       <Form {...form}>
         {/* We intentionally do NOT use handleSubmit here — advancing autosaves via saveListingStep. */}
@@ -1440,7 +1535,7 @@ export function ListingWizard({
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              onClick={() => goToStep(step - 1)}
               disabled={step === 0 || saving}
             >
               <ChevronLeftIcon className="size-4" /> Back

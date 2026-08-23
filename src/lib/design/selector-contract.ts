@@ -211,6 +211,10 @@ export const SELECTOR_IDS = [
   // 14-05 — HFLOW-03's signals block: the region the ordering, visibility and accent-count assertions
   // are all scoped inside. Same commit as its literal, same rule as the four rows above.
   "host-signals",
+  // 14-09 — HFLOW-02 / D-148's step rail: the subtree every accent-count, tab-order and hit-area
+  // assertion about the wizard is scoped inside. Same commit as its literal, same rule as the rows
+  // above.
+  "wizard-step-rail",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -933,5 +937,25 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "children out of. Scoped to the document instead, it would resolve against the agenda's rows " +
       "above and the page header's actions.",
     owner: "14-05",
+  },
+  "wizard-step-rail": {
+    why:
+      "EVERY ASSERTION THE RAIL OWES IS A COUNT OR AN ORDER INSIDE IT, and none of them names a single " +
+      "element. That exactly ONE marker paints the accent, that ZERO future markers are in the tab " +
+      "order, that every visited marker clears the target-size floor, and that the rail renders EIGHT " +
+      "markers in drop-in mode and NINE in whole-space (D-151) — all four are questions about a " +
+      "SUBTREE, and a subtree has to be addressed before it can be walked. " +
+      "A ROLE QUERY CANNOT CARRY IT, and the reason is the rail's own design rather than an oversight: " +
+      "D-148 makes only the VISITED markers controls, so `getByRole(\"button\")` scoped to this region " +
+      "returns a strict subset of the markers and can never count the ones it is supposed to prove are " +
+      "NOT controls. The list itself is reachable by its accessible name, but that name is product copy " +
+      "on a surface this phase is actively rewriting, and it is also the string a marker-count assertion " +
+      "would then depend on — the first copy edit takes the gate down with it. `list` as a role resolves " +
+      "on the publish checklist's own list on the same screen. " +
+      "AND THE SHARPEST ASSERTION IS NEGATIVE — the accent-filled marker must never be a button — which " +
+      "is a claim about which element inside this region carries a class, expressible only by walking " +
+      "the region's children. Scoped to the document instead it would resolve against the review step's " +
+      "publish action, which is the OTHER accent on this surface and is legitimately a control.",
+    owner: "14-09",
   },
 };
