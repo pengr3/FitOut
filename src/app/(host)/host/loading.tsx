@@ -41,14 +41,15 @@
 // move. Drawing it with the raw skeleton primitive would additionally make this the first `loading.tsx`
 // in the tree to re-author a pattern's body, which is exactly the drift the pattern layer removed.
 //
-// ⚠ NO HEIGHT IS PASSED TO THE ROW SKELETON, AND THAT IS A DECISION RATHER THAN AN OMISSION.
-// `RowListSkeleton` takes an OPTIONAL height whose type is the declared set in `@/lib/design/measurements`,
-// and it defaults to the shipped row constant. The agenda row's real resting height has not been measured
-// yet — it carries a status badge and NO actions, which is a different shape from every other host row in
-// this phase — and 14-UI-SPEC § Measurements Owed (M1/M2) puts that measurement in the row-height plan, in
-// a browser, at 320 and 1280. Inventing a number here is exactly what that task exists to prevent. When it
-// lands it arrives as a NAMED constant from the declared inventory and is passed by name; it is never a
-// literal in this file, which the loading gate's box clause also enforces.
+// ✅ THE HEIGHT THIS FILE OWED IS NOW MEASURED AND PASSED (plan 14-15). The old header said no height
+// was passed and that the omission was a decision, not a lapse: the agenda row carries a status badge
+// and NO actions, which is a different shape from every other host row in this phase, and 14-UI-SPEC
+// § Measurements Owed (M1/M2) put the measurement in the row-height plan — in a browser, on the real
+// route, at 320 and 1280. That plan ran. The agenda row measures 132px at the 320px floor and 72px at
+// the desktop width, against the 80px bar this plate used to draw at both. So the row skeleton is now
+// TOLD its height, by name, from the declared inventory — never as a number typed here, which the
+// loading gate's box clause also forbids. The derivation, the widths and the content-dependence of
+// the narrow value all live with the constant, and `e2e/skeleton-geometry.spec.ts` re-measures it.
 //
 // THIS FILE IS ALSO THE SEGMENT DEFAULT for every `/host/**` route with no `loading.tsx` of its own,
 // which today is none of them: measured on 23 August 2026 there are ELEVEN page files and ELEVEN plates
@@ -56,7 +57,7 @@
 // routes", which had drifted by two — the count is measured here rather than remembered, and
 // `tests/design/loading-coverage.test.ts` is what keeps the property true.)
 
-import { HOST_PANEL_SHELL } from "@/lib/design/measurements";
+import { HOST_AGENDA_ROW_HEIGHT, HOST_PANEL_SHELL } from "@/lib/design/measurements";
 import { PageHeader } from "@/components/patterns/page-header";
 import { RowListSkeleton } from "@/components/patterns/row-list-skeleton";
 
@@ -72,8 +73,11 @@ export default function HostDashboardLoading() {
       <PageHeader title="Your hosting" />
 
       {/* The agenda, and the fallback's one announcement. The sentence is the new one from the copy
-          contract: it names what is loading rather than the route it is on. */}
-      <RowListSkeleton label="Loading today's sessions" />
+          contract: it names what is loading rather than the route it is on.
+
+          The height is the agenda row's OWN measured shape — not the shipped default, which describes
+          a row built around a 48px thumbnail this row has never had. */}
+      <RowListSkeleton label="Loading today's sessions" height={HOST_AGENDA_ROW_HEIGHT} />
     </div>
   );
 }

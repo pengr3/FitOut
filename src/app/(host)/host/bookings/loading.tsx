@@ -14,8 +14,21 @@
 // NOT RENDERED, and recorded rather than faked: the multi-listing filter form beside the tabs, which
 // appears only for a host with two or more spaces. It is a `<select>` populated from a query — the
 // exact case where a placeholder would be asserting a shape that half of all hosts never see.
+//
+// ⚠ THE ROW HEIGHT IS RESPONSIVE BECAUSE THE PAGE RENDERS TWO TREES (plan 14-15). Below the medium
+// breakpoint the resolved page is a stack of cards; at and above it the card stack is hidden and a
+// table takes its place. Measured on this route: the resting row — a CONFIRMED booking, with a status
+// badge and a three-term description list and no actions — is 196px at the 320px floor and 37px as a
+// table row at the desktop width, against the 80px bar this plate drew at both. The declared constant
+// carries both numbers and their derivation.
+//
+// AND IT CARRIES A DELTA THIS PLATE CANNOT CLOSE, recorded rather than smoothed over: a row whose
+// booking is still awaiting the host's answer grows an approve/decline actions row and measures
+// 232–252px at the floor and 61px at the desktop width. This tab mixes both shapes, so no single bar
+// is right for every row it will hold. The bar draws the ordinary case; the geometry spec pins the
+// deviation with both measured numbers so a later change to it fails visibly.
 
-import { HOST_LIST_SHELL } from "@/lib/design/measurements";
+import { HOST_BOOKING_ROW_HEIGHT, HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { HOST_BOOKINGS_HEADER } from "@/lib/host/bookings-copy";
 import { PageHeader } from "@/components/patterns/page-header";
 import { RowListSkeleton } from "@/components/patterns/row-list-skeleton";
@@ -38,7 +51,7 @@ export default function HostBookingsLoading() {
       </div>
 
       <div className="mt-8">
-        <RowListSkeleton label="Loading your bookings" />
+        <RowListSkeleton label="Loading your bookings" height={HOST_BOOKING_ROW_HEIGHT} />
       </div>
     </div>
   );

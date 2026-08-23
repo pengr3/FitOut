@@ -70,11 +70,14 @@ export const ROW_CARD_HEIGHT = "h-20";
  * exists to prevent. Typing the prop as the declared set makes an undeclared value a COMPILE error
  * at the call site, which is the cheapest possible place to catch it.
  *
- * ONE MEMBER TODAY, AND THAT IS THE HONEST STATE. Exactly one row height has been derived and
- * written down, so exactly one value is legal. Widening this is a two-line edit IN THIS FILE — add
- * the constant with its derivation, add it to this union — which is the point: the set of legal row
- * heights is decided where the heights are derived, not at whichever `loading.tsx` needed a taller
- * bar that afternoon.
+ * FOUR MEMBERS NOW, AND THE WIDENING HAPPENED EXACTLY WHERE IT WAS SUPPOSED TO. When plan 14-01
+ * declared this type it had one member and said so, and said that widening it would be an edit IN
+ * THIS FILE — add the constant with its derivation, add it to this union — because the set of legal
+ * row heights is decided where the heights are derived, not at whichever `loading.tsx` needed a
+ * taller bar that afternoon. Plan 14-15 measured the three host row shapes against the rendered
+ * routes and added them at the bottom of this file with their measurements. That is the whole
+ * mechanism working: three plates now draw three different boxes and not one of the three numbers
+ * was typed at a call site.
  *
  * THE HOLE THE TYPE CANNOT CLOSE, stated so the next reader under-trusts it. These are string
  * LITERAL types, so a hand-typed value that happens to equal a declared one still typechecks: the
@@ -83,7 +86,11 @@ export const ROW_CARD_HEIGHT = "h-20";
  * files, and `tests/design/loading-coverage.test.ts` at every route's loading plate. The type stops
  * the wrong number; the gates stop the right number written the wrong way.
  */
-export type RowSkeletonHeight = typeof ROW_CARD_HEIGHT;
+export type RowSkeletonHeight =
+  | typeof ROW_CARD_HEIGHT
+  | typeof HOST_AGENDA_ROW_HEIGHT
+  | typeof HOST_REQUEST_ROW_HEIGHT
+  | typeof HOST_BOOKING_ROW_HEIGHT;
 
 /** The 48px thumbnail inside a row card — the term that makes `ROW_CARD_HEIGHT` 80px and not 64px. */
 export const ROW_CARD_THUMB = "size-12";
@@ -588,3 +595,135 @@ export const WIZARD_CHECKLIST_COL = "lg:w-72";
  * security boundary and needs the argument its own docstring demands; it is not a Phase 14 edit.
  */
 export const WIZARD_CHECKLIST_GRID = "lg:grid-cols-[minmax(0,1fr)_18rem]";
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 14 · plan 14-15 — THE THREE HOST ROW HEIGHTS, MEASURED AGAINST THE RENDERED ROUTES
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHY THREE CONSTANTS AND NOT ONE. `ROW_CARD_HEIGHT` above is 80px and it is CORRECT — for the shape
+// it describes, which is a row whose tallest element is a 48px thumbnail. None of the three host row
+// shapes is that row. Two of them have no thumbnail at all, all three carry a status column, two
+// carry a description list, and two can carry an actions row. Measured on the real routes with real
+// seeded data (table below), the three resting shapes are 132px, 254px and 196px at the declared
+// 320px floor. One bar cannot be three boxes that differ by 122px, and a plate drawing 80px against
+// a list that arrives at 254px IS the layout shift the loading-state family exists to remove — it is
+// simply pointing the other way from the defect `[11-08]` recorded.
+//
+// ⚠ `[11-08]`'s "pure win at adoption" DOES NOT APPLY HERE, and its own closing note says so: that
+// figure is scoped to the RESTING MEDIA configuration (a 48px thumbnail, no body, no actions). All
+// three host rows have already adopted the shared row pattern and that pattern already zeroes the
+// card's own block padding, so the 112-against-80 defect is discharged on the host side. What is
+// left is the opposite mismatch, and it is much larger.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE MEASUREMENT, SO A LATER READER CAN REPRODUCE IT RATHER THAN TRUST IT
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// Instrument: Playwright Chromium driving the dev server; one signed-up host with an activated payout
+// wallet, one published listing and five bookings (two confirmed today, one confirmed in three days,
+// two pending requests). Each row's box read with `getBoundingClientRect()` after `networkidle`.
+// Date: 23 August 2026. The harness was a throwaway spec; the numbers it produced are now pinned by
+// `e2e/skeleton-geometry.spec.ts`, which re-seeds and re-measures them on every run.
+//
+//   shape                  route             320px    1280px   the bar every plate drew before this
+//   ────────────────────── ───────────────── ──────── ──────── ───────────────────────────────────
+//   agenda row             /host             132.00   72.00    80
+//   request row            /host/requests    254.05   83.02*   80
+//   host booking row       /host/bookings    196.00   37.02*   80
+//
+//   * ABOVE THE MEDIUM BREAKPOINT THESE TWO ROUTES DO NOT RENDER A ROW CARD AT ALL. Both pages hide
+//     the card stack and render a TABLE in its place. So the starred numbers are the height of the
+//     visible TABLE ROW, which is what a reader at that width is actually waiting for. Measuring the
+//     card there would have measured a `display:none` subtree — whose box is zero, which would have
+//     made every comparison 0-against-0. That is the trap `e2e/host-inbox-hierarchy.spec.ts` recorded
+//     from the other side and the reason the visible tree is the one measured.
+//
+// THAT IS WHY TWO OF THE THREE CONSTANTS BELOW CARRY A BREAKPOINT. `HEADER_HEIGHT` is the shipped
+// precedent for a declared measurement with a variant in it; here the variant is not a taste choice
+// but the exact width at which the page swaps one tree for another.
+//
+// WHAT NO CONSTANT HERE CLAIMS. The plate stacks its bars on a 12px rhythm and a table row has no gap
+// beneath it, so making the ROW heights agree does not make the two TOTALS agree. The contract these
+// constants carry — and the one the geometry spec asserts — is per-row, at 320 and at 1280, which is
+// what 14-UI-SPEC's falsifiable asks for. The totals are not claimed and must not be read in.
+
+/**
+ * The host dashboard's agenda row: 132px below the small breakpoint, 72px at and above it.
+ *
+ * THE SLOT CONFIGURATION IT DESCRIBES: a title, a meta line and a status badge. No thumbnail, no
+ * description list and no actions — the one host row in this phase whose actions slot is empty,
+ * because the dashboard's agenda answers "who is coming" and offers no decision to take on the row.
+ *
+ * MEASURED, NOT DERIVED: 132.00px at 320 and 72.00px at 1280, on `/host` with two confirmed sessions
+ * seeded for today. 72 is the unwrapped floor and it is arithmetic anyone can check — the card's own
+ * 16px top and bottom padding around a 20px title line and a 20px meta line. 132 is that floor plus
+ * three further wrapped meta lines at 20px each.
+ *
+ * ⚠ THE NARROW VALUE IS CONTENT-DEPENDENT, AND THAT IS RECORDED RATHER THAN HIDDEN. The meta line is
+ * the space title joined to a venue-local window label, and how many lines it wraps to at 320px is a
+ * function of how long the space's title is. The measured 132 is an eighteen-character title; a
+ * longer one wraps a further line and the row grows by 20px. Every other constant in this module
+ * describes a box that CSS fixes; this one describes a box that text decides. The floor (72) is exact
+ * at every width where the meta fits one line, and the geometry spec seeds its own title so that the
+ * assertion is falsifiable rather than dependent on whatever a real host happened to name a room.
+ *
+ * THE BREAKPOINT IS WHERE THE MEASUREMENT SETTLES, not where somebody drew a line. Measured across
+ * the ladder: 132 at 320, 112 at 360 and 375, 92 from 414 to 560, 72 from 639 up. The small
+ * breakpoint (640px) is the closest declared step to the width at which the row reaches its floor.
+ * The band from 561 to 638 therefore draws the narrow bar against a row that has already shrunk — up
+ * to 60px of over-claim, measured, accepted, and pinned in the geometry spec so that a later change
+ * to it is a visible failure rather than a silent drift.
+ */
+export const HOST_AGENDA_ROW_HEIGHT = "h-33 sm:h-18";
+
+/**
+ * The request inbox's row: 256px below the medium breakpoint, 84px at and above it.
+ *
+ * THE SLOT CONFIGURATION IT DESCRIBES, BELOW THE BREAKPOINT: a title, a meta line, a status column
+ * holding the lead-emphasis countdown and its reason line, a two-term description list (guest, guest
+ * pays) and a full-width actions row of touch-height approve/decline buttons. It is the tallest row
+ * shape in the product.
+ *
+ * ABOVE THE BREAKPOINT IT DESCRIBES A TABLE ROW, because a table is what the page renders there. The
+ * card stack is hidden and a six-column table takes its place; the reader is waiting for a table row,
+ * so a table row is what the placeholder claims.
+ *
+ * MEASURED, NOT DERIVED: 254.05px at 320 — and, unusually, at every width below the breakpoint, since
+ * neither the description list nor the actions row reflows as the viewport grows — and 83.02px for
+ * the taller of the two table rows at 1280. The declared values are the two nearest steps on the
+ * spacing ladder: 256 (a 1.95px over-claim) and 84 (a 0.98px over-claim). Both are inside the 4px
+ * 14-UI-SPEC makes falsifiable.
+ *
+ * WHY THIS SHAPE MOVED UNDER THE PHASE, and why an older number would be stale: 14-03 gave the row
+ * its terminal, deadline-led form, and 14-06 capped its status column and moved the desktop table
+ * onto the same lead emphasis. This measurement was taken after both, and dated.
+ */
+export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
+
+/**
+ * The host bookings list's row: 196px below the medium breakpoint, 36px at and above it.
+ *
+ * THE SLOT CONFIGURATION IT DESCRIBES, BELOW THE BREAKPOINT: a title, a meta line, a status badge and
+ * a three-term description list (guest, guest pays, payout). NO actions and NO trailing line — and
+ * that is the correction this measurement makes to 14-UI-SPEC's own sketch of case (c), which
+ * described this shape as carrying both. It does not. The row's actions render only while a booking
+ * is still awaiting the host's answer, and its trailing line only when a cancelled booking has a
+ * refund to state. The RESTING row on the upcoming tab — a confirmed booking — has neither.
+ *
+ * ABOVE THE BREAKPOINT IT DESCRIBES A TABLE ROW, for the same reason the request constant does: the
+ * page hides the card stack there and renders a table.
+ *
+ * MEASURED, NOT DERIVED: 196.00px at 320 and 37.02px for the resting table row at 1280, on
+ * `/host/bookings` with one confirmed upcoming booking and two still-pending ones seeded. The
+ * declared values are 196 (exact) and 36 (a 1.02px under-claim).
+ *
+ * ⚠ THE ACCEPTED, MEASURED DEVIATION. A row whose booking is still awaiting an answer carries the
+ * approve/decline actions and measures 232–252px at 320 and 61px at 1280 — 36 to 56px taller than
+ * this bar below the breakpoint, and 24px taller above it. The list mixes both shapes, so no single
+ * bar can be right for every row it will hold, and drawing the taller shape instead would over-claim
+ * on the confirmed rows that are the ordinary case on this tab. The delta is recorded here and pinned
+ * in `e2e/skeleton-geometry.spec.ts` with both numbers, because a delta no test carries is prose. The
+ * dishonest fix that was explicitly NOT taken: reducing the plate's row COUNT until the totals happen
+ * to line up while every individual row still disagrees.
+ */
+export const HOST_BOOKING_ROW_HEIGHT = "h-49 md:h-9";
