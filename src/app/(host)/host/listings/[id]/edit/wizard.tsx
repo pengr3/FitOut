@@ -17,7 +17,7 @@
 // Plan 04 (Wave 3). Until then the review checklist's "3+ photos" row stays unmet (photoCount comes
 // from the server), so publish is correctly blocked on photos this phase.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -61,6 +61,7 @@ import {
 import {
   saveListingStep,
   publishListing,
+  type ListingResult,
 } from "@/app/actions/listing";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -245,6 +246,98 @@ export type ModeLockDisplay =
   | { locked: false }
   | { locked: true; lockedByCount: number; unlocksAtLabel: string };
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE SAVE STATE (D-150) — WHAT THE SERVER SAID, AND NOTHING ELSE
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Every advance in this wizard autosaves, and until plan 14-11 the host was told about it in a toast
+// that is gone on the next paint and gone for good on a refresh. The failure half was worse: the
+// server's own refusal sentence went into the failure toast inside the save helper and was DISCARDED
+// there, so the caller saw a bare `false` and had nothing left to render even if it had wanted to.
+//
+// ⚠ THE TOAST SPELLINGS ARE NAMED DESCRIPTIVELY THROUGHOUT THIS FILE'S PROSE, NOT QUOTED. The
+// verification of this decision is a per-file COUNT of the two toast call spellings, and a comment
+// quoting one is indistinguishable from a call site to a grep — this repo has burned plans on exactly
+// that. The same rule applies to the status role's literal spelling below.
+//
+// D-150 replaces both with ONE region beside the control that triggers the save, and forbids by name
+// the two shortcuts that would make it a lie:
+//
+//   1. AN OPTIMISTIC STRING — rendering "Saved" because a request was sent rather than because a
+//      response said so. The host then finds out at publish time that their listing has no price.
+//   2. A TIMER. A scheduled callback that clears or sets this state is an optimistic string wearing a
+//      delay: it reports the passage of time, which the server has no opinion about. There is ZERO
+//      scheduled-callback machinery on this path, it is asserted as a source fact AND as a rendered
+//      behaviour under a fake clock in `tests/listing/wizard-save-state.test.tsx`, and both readings
+//      exist because either one alone can be satisfied by a shape that fails the other.
+//
+// The analog is `src/app/(app)/profile/profile-form.tsx:45-63, 248-265` — the same RHF + zodResolver +
+// server-action-returning-a-result stack, which already reaches these conclusions (no timer, no
+// optimistic string, secondary ink rather than a filled surface, because a sentence that renders only
+// after a real save IS the signal and the colour was decoration). This region differs in two ways
+// only: it PERSISTS at idle rather than unmounting, so its text can change in place; and it carries
+// the server's own sentence on failure instead of a re-authored one.
+
+/** The four states, as a union so `failed` cannot exist without the sentence that explains it. */
+type SaveState =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved" }
+  | { kind: "failed"; message: string };
+
+const SAVE_STATE_IDLE: SaveState = { kind: "idle" };
+const SAVE_STATE_SAVING: SaveState = { kind: "saving" };
+const SAVE_STATE_SAVED: SaveState = { kind: "saved" };
+
+/**
+ * The region's NAME, which is a different mechanism from its CONTENT.
+ *
+ * The status role is `nameFrom: author` in ARIA — it takes NO name from its own text — so without
+ * this attribute the region's accessible name is the empty string. The rule and its reasoning are
+ * `src/components/group/share-link-box.tsx:109-171`'s, followed here rather than reinvented. (The
+ * role's literal spelling appears once in this file, at the element itself, and nowhere in prose: the
+ * check that there is exactly ONE such region here is a count over the file.)
+ *
+ * ⚠ IT IS A LABEL, NOT A SECOND COPY OF THE SENTENCE. `live-regions.ts` records the measured hazard: on
+ * the VoiceOver/Safari pairing a NAMED live region can be announced by its NAME INSTEAD of its content,
+ * so a name that duplicated the sentence would read it twice and a name that paraphrased it would
+ * replace it with a worse version. Two words that say which region this is; the sentence stays content.
+ */
+const SAVE_STATE_REGION_NAME = "Save state";
+
+/** The copy contract (14-UI-SPEC § The save state is visible and truthful), hoisted so the surface and
+ *  the test that asserts it read the same characters. */
+const SAVE_STATE_SAVING_LABEL = "Saving…";
+const SAVE_STATE_SAVED_LABEL = "Saved";
+/** The prefix, and ONLY the prefix. What follows it is the server's sentence, rendered verbatim. */
+const SAVE_STATE_FAILED_PREFIX = "Couldn't save — ";
+
+/**
+ * What a server result MEANS, in one place.
+ *
+ * Three call sites set this state and a fourth reads it. A mapping written three times is three
+ * places for "failed but with an empty sentence" to appear; written once, the three cannot disagree
+ * about what a refusal looks like. Deliberately total over `ListingResult` — there is no third arm
+ * for the caller to forget.
+ */
+function saveStateFor(res: ListingResult): SaveState {
+  return res.ok ? SAVE_STATE_SAVED : { kind: "failed", message: res.error };
+}
+
+/**
+ * The region's text, which is EMPTY at idle rather than absent.
+ *
+ * The element persists across all four states (see the render site), so this returns the empty string
+ * instead of the caller branching on whether to mount anything. A region that unmounts and remounts is
+ * a new region to assistive technology every time, and it cannot be found by a test between presses.
+ */
+function saveStateText(state: SaveState): string {
+  if (state.kind === "saving") return SAVE_STATE_SAVING_LABEL;
+  if (state.kind === "saved") return SAVE_STATE_SAVED_LABEL;
+  if (state.kind === "failed") return SAVE_STATE_FAILED_PREFIX + state.message;
+  return "";
+}
+
 /**
  * Has a HUMAN ever chosen how this space is sold?
  *
@@ -355,7 +448,18 @@ export function ListingWizard({
   const [visitedKeys, setVisitedKeys] = useState<ReadonlySet<StepKey>>(
     () => new Set<StepKey>([STEPS[0].key]),
   );
+  /**
+   * IN-FLIGHT LOCK, not a report. This is what disables the controls and swaps their labels while a
+   * request is out, and it is deliberately NOT the same value as `saveState` below: on the publish
+   * path it stays true through `publishListing` long after the SAVE has already resolved, so a single
+   * flag would have to lie to one of its two readers. They are set together and mean different things.
+   */
   const [saving, setSaving] = useState(false);
+  /**
+   * D-150 — what the server last said about this draft. Set ONLY from a returned result; see the
+   * module header for the two shortcuts this must never take.
+   */
+  const [saveState, setSaveState] = useState<SaveState>(SAVE_STATE_IDLE);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   // Live photo count — seeded from the server, kept current by the PhotoUploader as photos are
   // added/removed, so the D-02 publish checklist ("3+ photos") reflects real rows without a reload.
@@ -399,6 +503,33 @@ export function ListingWizard({
   });
 
   const values = form.watch();
+
+  /**
+   * `saved → idle` ON THE NEXT FIELD EDIT (D-150). NOT on a delay — see the module header.
+   *
+   * "Saved" is a claim about the draft the server holds. The moment the host changes a field it stops
+   * being true, so the region goes back to the empty string and says nothing rather than saying
+   * something stale. Only the `saved` arm is cleared: `failed` stays until another save answers it,
+   * because a refusal the host has not yet fixed is still the last thing the server said.
+   *
+   * ⚠ THE MECHANISM IS THE CHANGE SUBSCRIPTION, NOT `formState.isDirty`, and the difference is not
+   * cosmetic. This wizard never re-baselines the form after an autosave, so `isDirty` LATCHES: it goes
+   * true on the host's first keystroke of the session and stays true through every subsequent save.
+   * A region keyed on "isDirty next becomes true" would therefore clear exactly once, on the first
+   * edit, and then read "Saved" forever — the optimistic string this decision exists to forbid,
+   * arriving through the clause meant to prevent it. Re-baselining with a form reset would make the
+   * flag honest, at the cost of clearing validation and touched state on every advance in a nine-step
+   * form. Subscribing to the change stream buys the same observable rule for neither price.
+   *
+   * The updater returns the SAME object when there is nothing to clear, so React bails out and a
+   * keystroke costs no render.
+   */
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      setSaveState((prev) => (prev.kind === "saved" ? SAVE_STATE_IDLE : prev));
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // ── The mode fork (OPEN-01). `undefined` — nobody has chosen yet — reads as the whole-space flow, which
   // is both the column's default and the shape every pre-Phase-9 listing already has.
@@ -446,31 +577,48 @@ export function ListingWizard({
     setStep(i);
   }
 
-  /** Autosave the current form state. Returns true on success. */
-  async function persist(): Promise<boolean> {
-    const res = await saveListingStep(listing.id, toPayload(form.getValues()));
-    if (!res.ok) {
-      toast.error(res.error);
-      return false;
-    }
-    return true;
+  /**
+   * Autosave the current form state and RETURN WHAT THE SERVER SAID (D-150).
+   *
+   * ⚠ THE RETURN TYPE IS THE POINT OF THIS FUNCTION'S EXISTING SHAPE HAVING CHANGED. It used to answer
+   * `boolean` and fire the refusal toast itself, which meant `res.error` — the only sentence that can
+   * tell a host WHY their draft did not save — was consumed and dropped one frame before any caller
+   * could see it. Every caller was then forced to render a generic "couldn't save", or nothing.
+   *
+   * It now reports and decides nothing. The three callers below own both, because they do not want the
+   * same thing: two of them end in a navigation and one does not, and that difference is exactly what
+   * decides whether a toast is the right surface (see `saveAsDraft`).
+   *
+   * This adds NO second write path. `saveListingStep` is still the one autosave authority and still
+   * re-validates the payload server-side with the same shared schema; nothing about what it accepts,
+   * writes or refuses moved in this plan.
+   */
+  async function persist(): Promise<ListingResult> {
+    return saveListingStep(listing.id, toPayload(form.getValues()));
   }
 
   async function saveAndContinue() {
     setSaving(true);
-    const ok = await persist();
+    setSaveState(SAVE_STATE_SAVING);
+    const res = await persist();
     setSaving(false);
-    if (ok) {
-      toast.success("Saved");
-      if (step < steps.length - 1) goToStep(step + 1);
-    }
+    // THE ONLY TRANSITION, and it reads the result. No success toast here any more: this path does not
+    // navigate, so the region is on screen to carry the outcome — and a toast beside it would be two
+    // announcements for one save, which is the defect a status region is usually added to fix.
+    setSaveState(saveStateFor(res));
+    if (res.ok && step < steps.length - 1) goToStep(step + 1);
   }
 
   async function saveAsDraft() {
     setSaving(true);
-    const ok = await persist();
+    setSaveState(SAVE_STATE_SAVING);
+    const res = await persist();
     setSaving(false);
-    if (ok) {
+    setSaveState(saveStateFor(res));
+    if (res.ok) {
+      // THIS TOAST SURVIVES, and the reason is the `router.push` on the next line: the surface holding
+      // the region is about to be replaced, so a toast is the only report that can outlive the report.
+      // The FAILURE arm has no toast, because a failure does not navigate — the region keeps it.
       toast.success("Draft saved");
       router.push("/host/listings");
     }
@@ -478,17 +626,26 @@ export function ListingWizard({
 
   async function handlePublish() {
     setSaving(true);
+    setSaveState(SAVE_STATE_SAVING);
     const saved = await persist();
-    if (!saved) {
+    setSaveState(saveStateFor(saved));
+    if (!saved.ok) {
       setSaving(false);
       return;
     }
     const res = await publishListing(listing.id);
     setSaving(false);
     if (!res.ok) {
+      // THE PUBLISH GATE'S REFUSAL, WHICH IS NOT A SAVE REFUSAL AND DELIBERATELY DOES NOT GO TO THE
+      // REGION. The draft above this line SAVED — the region says so, truthfully — and what failed is
+      // the separate D-02 gate. Routing this sentence into a region named for the save state would
+      // make it report an outcome it is not about, and would overwrite a true "Saved" with a
+      // "couldn't save" that never happened. D-150 removes the two AUTOSAVE toasts; this is a third
+      // outcome with its own action behind it, and it keeps the one announcement it has always had.
       toast.error(res.error);
       return;
     }
+    // SURVIVES for the same reason `Draft saved` does — the next line replaces this whole surface.
     toast.success("Your listing is live!");
     router.push("/host/listings");
   }
@@ -1558,7 +1715,7 @@ export function ListingWizard({
           )}
 
           {/* --- Nav ------------------------------------------------------------------------- */}
-          <div className="flex items-center justify-between border-t pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-6">
             <Button
               type="button"
               variant="ghost"
@@ -1568,24 +1725,62 @@ export function ListingWizard({
               <ChevronLeftIcon className="size-4" /> Back
             </Button>
 
-            {stepInList < steps.length - 1 ? (
-              <Button type="button" onClick={saveAndContinue} disabled={saving}>
-                {saving ? "Saving…" : advanceLabel}
-              </Button>
-            ) : publishEligible ? (
-              <Button
-                type="button"
-                variant="brand"
-                onClick={handlePublish}
-                disabled={saving}
+            {/* THE SAVE STATE AND THE CONTROL THAT CAUSES IT, GROUPED (D-150).
+
+                Grouped rather than dropped in as a third `justify-between` child, because that would
+                float the region into the middle of the row — equidistant from the control it is
+                reporting on and the one it is not. It belongs IMMEDIATELY LEFT OF THE ADVANCE
+                CONTROL, which is where the press happens: this is the bottom of a nine-step form and
+                an indicator at the top of the page is off-screen at the exact moment it changes.
+
+                `flex-1` + `justify-end` keeps the group hard right at every width; `min-w-0` lets a
+                long refusal sentence WRAP inside the row rather than pushing the button off a 320px
+                screen, and the row's own `flex-wrap` is the second half of that. */}
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+              {/* ONE ELEMENT, ALWAYS MOUNTED, TEXT EMPTY AT IDLE. It does not mount and unmount: a
+                  region that comes and goes is a different region to assistive technology each time,
+                  and a test cannot hold on to it between presses.
+
+                  INK: secondary on failure's sibling states and the declared destructive pairing on
+                  failure. No filled surface in any state — `Saved` is a sentence, and a fill would be
+                  decoration on top of it (the same argument profile-form.tsx:252-258 makes in prose).
+                  The check glyph is hidden from the accessible tree for the same reason: it repeats a
+                  word that is already there. */}
+              <p
+                role="status"
+                aria-label={SAVE_STATE_REGION_NAME}
+                className={cn(
+                  "inline-flex min-w-0 items-center gap-1 text-label",
+                  saveState.kind === "failed"
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
               >
-                {saving ? "Publishing…" : "Publish listing"}
-              </Button>
-            ) : (
-              <Button type="button" variant="secondary" onClick={saveAsDraft} disabled={saving}>
-                {saving ? "Saving…" : "Save as draft"}
-              </Button>
-            )}
+                {saveState.kind === "saved" ? (
+                  <CheckIcon aria-hidden className="size-3.5 shrink-0" />
+                ) : null}
+                {saveStateText(saveState)}
+              </p>
+
+              {stepInList < steps.length - 1 ? (
+                <Button type="button" onClick={saveAndContinue} disabled={saving}>
+                  {saving ? "Saving…" : advanceLabel}
+                </Button>
+              ) : publishEligible ? (
+                <Button
+                  type="button"
+                  variant="brand"
+                  onClick={handlePublish}
+                  disabled={saving}
+                >
+                  {saving ? "Publishing…" : "Publish listing"}
+                </Button>
+              ) : (
+                <Button type="button" variant="secondary" onClick={saveAsDraft} disabled={saving}>
+                  {saving ? "Saving…" : "Save as draft"}
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </Form>
