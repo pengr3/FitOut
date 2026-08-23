@@ -49,7 +49,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
  (completed 2026-08-19)
 
 - [ ] **Phase 13: Confirmation, Bookings & Trust** - After paying, a booker sees exactly what they bought, where their money is, and what happens next
-- [ ] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees
+- [x] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees (completed 2026-08-23)
 - [ ] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity
 - [ ] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
 - [ ] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof
@@ -481,7 +481,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 14-16-PLAN.md — one heading per document, the 320px floor on all five surfaces, the alarm-token census as a pinned per-file map, and nine court-only baselines declared and honestly blocked
+- [x] 14-16-PLAN.md — one heading per document, the 320px floor on all five surfaces, the alarm-token census as a pinned per-file map, and nine court-only baselines declared and honestly blocked
 
 **UI hint**: yes
 
@@ -629,7 +629,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
-| 14. Host Tooling | v1.1 | 15/16 | In Progress|  |
+| 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |

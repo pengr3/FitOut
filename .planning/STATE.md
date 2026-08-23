@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
-status: executing
-stopped_at: Completed 14-15-PLAN.md — the three host row heights, measured. 15 of 16 plans done; **14-16 is next**
-last_updated: "2026-08-23T15:20:00.000Z"
+status: verifying
+stopped_at: Completed 14-16-PLAN.md — the phase's five hard gates are commands. 16 of 16 plans done; phase 14 is READY FOR VERIFICATION.
+last_updated: "2026-08-23T16:36:46.479Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 91
-  completed_plans: 95
+  completed_plans: 96
   percent: 42
 ---
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 14 (Host Tooling) — EXECUTING
+Phase: 14 (Host Tooling) — ALL 16 PLANS EXECUTED; READY FOR VERIFICATION
 Plan: 16 of 16
 Current Plan: 16
 Total Plans in Phase: 16
-Status: Ready to execute
+Status: Phase complete — ready for verification
 
 **THE HOLE IS CLOSED AT ITS SOURCE — D-113 IS TRUE, AND WITHOUT 13.1-05.** `checkout-retire-sweep`
 (`TZ=Asia/Manila 4-59/5`, registered) probes every hold that lapsed inside the last 30 minutes and retires
@@ -684,6 +684,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P13 | 15min | 3 tasks | 7 files |
 | Phase 14 P14 | 35min | 3 tasks | 4 files |
 | Phase 14 P15 | 40min | 2 tasks | 5 files |
+| Phase 14 P16 | 3h20m | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1112,6 +1113,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 14-14: LIVE_REGION_EXCLUSIONS reaches ZERO. The last exclusion (address-autocomplete.tsx) is discharged by moving its static hint out of the region; photo-uploader.tsx's unnamed region is FIXED here rather than excluded to Phase 16, because an exclusion there would trade one row for another.
 - [Phase ?]: 14-14: the committed non-empty-exclusions guard is REWRITTEN, not deleted — it asserts the empty state AND keeps the reason-shape rule exercised against a fixture via exclusionReasonIsThin, now exported from live-regions.ts. Watched failing in both directions.
 - [Phase ?]: 14-14: BOOKER_PATH_LIVE_REGION_FILES renamed to LIVE_REGION_FILES (21 files, DeclaredFileCountIsTwentyOne). AUTHOR_NAMED_REGIONS 5 to 9 with the all-wrappers reading retired for a two-case split; the two implicitly-assertive validation regions are pinned as a per-file map, not converted.
+- [Phase ?]: 14-16: AC#39's literal 'zero new' alarm tokens is NOT met — the host and availability trees ship NINE occurrences across five files where 14-RESEARCH measured EIGHT across four. The extra one is wizard.tsx's D-150 save-state failure ink (plan 14-11); it sits inside the role's own reservation (a form refusal on a control the host just pressed) and is pinned with that reason rather than averaged away.
+- [Phase ?]: 14-16: all NINE Phase-14 visual baselines are DECLARED AND BLOCKED and none was generated — 'visual' is a Linux-only Playwright project and this box is win32. 66 declared / 36 blocked / 30 shot, and the 30 is the same thirty PNGs as before the phase.
 
 ### Pending Todos
 
@@ -1218,8 +1221,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T15:20:00.000Z
-Stopped at: Completed 14-15-PLAN.md — the three host row heights, measured. 15 of 16 plans done; **14-16 is next**
+Last session: 2026-08-23T16:36:46.454Z
+Stopped at: Completed 14-16-PLAN.md — the phase's five hard gates are commands. 16 of 16 plans done; phase 14 is READY FOR VERIFICATION.
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
