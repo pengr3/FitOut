@@ -75,8 +75,23 @@
 //        a copy failure. Read (3) first when both fire; (6) is the echo, not a second defect.
 //        ⚠ AND THE "exactly one PanelCard" LOOP INSIDE (3) NEVER RAN, because the raw-container
 //        assertion above it threw first. Two assertions in one `it()` are ordered, not independent.
-//   (M2) PENDING — `titleAs="h1"` deleted from `(auth)/signup/page.tsx`. The prop DEFAULTS to `"h2"`,
-//        so the defect is silent in review and in the browser.
+//   (M2) RUN AND REVERTED. A document loses its level-1 heading: the `titleAs="h1"` line deleted from
+//        `(auth)/signup/page.tsx`'s call site. The prop DEFAULTS to `"h2"`, so this defect is silent
+//        in review, silent in the browser and invisible to every other gate in the suite — the exact
+//        failure `panel-card.tsx`'s `titleAs` docblock predicts. 1 failed / 12 passed:
+//
+//          AssertionError: an auth page does not pass titleAs="h1", so its PanelCard title renders as
+//          the component'''s DEFAULT h2 and that document has no level-1 heading at all. The prop
+//          defaults, so this failure is SILENT in review and in the browser — nothing looks wrong.
+//          `panel-card.tsx`'''s titleAs docblock predicts this exact defect and 15-06 widened the union
+//          for exactly this case: on these four routes the panel is not content under a page heading,
+//          it IS the document.: expected [ '''src/app/(auth)/signup/page.tsx''' ] to deeply equal []
+//          + "src/app/(auth)/signup/page.tsx"
+//
+//        ⚠ NOTHING ELSE FIRED, and that is the finding rather than a footnote. Case (10) renders
+//        `PanelCard` with `titleAs="h1"` and still found its level-1 heading, because a render fixture
+//        proves what the PATTERN can do, never what a page ASKED it to do. The two halves of the chain
+//        are genuinely independent and this probe is what shows it.
 //   (M3) PENDING — a second accent-filled control: `variant="outline"` → `variant="brand"` on the
 //        login page's secondary button.
 //   (M4) PENDING — a heading's copy drifts: `title="Welcome back"` → `title="Welcome back!"`.
