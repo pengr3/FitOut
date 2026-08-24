@@ -224,6 +224,21 @@ const EXPECTED_BLOCKED = [
   "host-wizard-rail",
   "host-availability-strip",
   "host-earnings",
+  // --- 15-11 - the profile, and ONLY the profile ----------------------------------------------
+  // The first block since Phase 12 that adds MORE unblocked rows than blocked ones, which is why
+  // this is one entry and not four. `auth-signup`, `auth-forgot` and `auth-reset` are anonymous
+  // static forms — no session, no seed, no drive, no clock, no fixture date — so they arrive
+  // shootable, and a surface LEAVING this list (or never joining it) is coverage won.
+  //
+  // `profile` joins for the SAME structural reason as the nine above and with one extra sting: it
+  // is behind the session gate, `DRIVES` has no entry for it, and the default drive's plain `goto`
+  // would land on `/login` — which renders a `panel-card` and therefore SATISFIES this surface's
+  // hook. So the usual protection does not apply here: an undriven capture would not fail
+  // reachability, it would mint two baselines of the sign-in page and pass forever. Its `blocked`
+  // string in `visual-baselines.ts` names both what it needs (a `DRIVES` entry, a `vrt_%` user with
+  // a literal `createdAt` and no avatar) and what it does NOT (a clock — the member-since line is
+  // derived from `createdAt`, never from `now`).
+  "profile",
 ] as const;
 
 /**
@@ -234,12 +249,28 @@ const EXPECTED_BLOCKED = [
  * — see `BaselineCountIsSixtySix` in the module, which is what catches it off Linux where this file
  * never runs.
  *
- * ⚠ 66 DECLARED, 36 BLOCKED, 30 SHOT — and the 30 has not moved since Phase 12. Phase 14's fifteen
- * rows are declarations and not pictures: all nine of its surfaces are blocked, nothing under
- * `surfaces.spec.ts-snapshots/` was added or re-minted, and the plan that declared them could not
- * have shot one if it had wanted to (this project is not constructed off Linux).
+ * ⚠ 74 DECLARED, 38 BLOCKED, 36 SHOT as of plan 15-11 — and this is the first time since Phase 12
+ * that the third number moved. It was 66/36/30 through Phases 13 and 14, whose rows were
+ * declarations and not pictures: all of their surfaces are blocked, nothing under
+ * `surfaces.spec.ts-snapshots/` was added or re-minted, and the plans that declared them could not
+ * have shot one if they had wanted to (this project is not constructed off Linux). Phase 15 adds
+ * eight rows of which SIX are shootable — three anonymous static auth documents at two widths each —
+ * plus two blocked `profile` rows.
+ *
+ * ⚠ AND 36 SHOT IS NOT 36 NEW FILES: two of them REPLACE the `auth-login` pair, which has pinned a
+ * header that left `(auth)/layout.tsx` in plan 15-06 and is stale on disk. A dispatch that adds six
+ * files and leaves those two standing means the hook edit did not take.
+ *
+ * ⚠ THIS LITERAL IS WHY THE PHASE-15 EDIT NEEDED TWO COMMITS, AND THE REASON IS WORTH KNOWING BEFORE
+ * YOU ADD A ROW. It is the deliberate SECOND spelling of a number whose FIRST spelling is a compile
+ * gate (`BaselineCountIsSeventyFour`), so that an edit to one without the other fails loudly — but it
+ * is a `const`, not a type, so `tsc` reads it as a number and says nothing at all when it goes stale.
+ * What a stale value here produces is worse than a compile error and arrives much later: the
+ * `baselines` dispatch runs this spec, the test below fails on the count, the Playwright step exits
+ * non-zero, and the stage/commit steps never run — a dispatch that renders every surface and commits
+ * NOTHING, reported as a test failure rather than as a stale literal.
  */
-const EXPECTED_BASELINE_COUNT = 66;
+const EXPECTED_BASELINE_COUNT = 74;
 
 /**
  * Trap 1. Assert the surface rendered its subject before any pixel is read.
@@ -259,15 +290,17 @@ async function expectReachable(page: Page, row: BaselineRow): Promise<void> {
 }
 
 test.describe("GATE-01 — the declared baseline inventory", () => {
-  test("the inventory is the 66 rows the four UI-SPECs declare, and the blocked set is the declared one", () => {
+  test("the inventory is the 74 rows the five UI-SPECs declare, and the blocked set is the declared one", () => {
     expect(
       VISUAL_BASELINES.length,
-      "the four UI-SPECs declare 66 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
-        "12-UI-SPEC § Visual Baselines, 21 from 13-UI-SPEC § Visual Baselines and 15 from " +
-        "14-UI-SPEC § Visual Baselines. D-138 makes `court` the single product theme, so the second " +
-        "theme's rows are no longer declared here. This is the runtime half of the compile gate in " +
-        "`visual-baselines.ts`; the type-level one is what catches it off Linux, where this file " +
-        "never runs.",
+      "the five UI-SPECs declare 74 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
+        "12-UI-SPEC § Visual Baselines, 21 from 13-UI-SPEC § Visual Baselines, 15 from " +
+        "14-UI-SPEC § Visual Baselines and 8 from 15-UI-SPEC § Visual Baselines. D-138 makes " +
+        "`court` the single product theme, so the second theme's rows are no longer declared here. " +
+        "15-UI-SPEC's table has FIVE rows and contributes FOUR surfaces: the fifth is `auth-login`, " +
+        "which Phase 11 already declared and plan 15-11 EDITED rather than added twice. This is the " +
+        "runtime half of the compile gate in `visual-baselines.ts`; the type-level one is what " +
+        "catches it off Linux, where this file never runs.",
     ).toBe(EXPECTED_BASELINE_COUNT);
 
     const blocked = blockedSurfaces();
