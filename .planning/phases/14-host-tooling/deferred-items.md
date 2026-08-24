@@ -520,6 +520,13 @@ decision of the same size as the one just made, and none of them is what was rul
 primary action is whole, and the destructive one is not. That is a better place to stand than before
 and it is not "no overflow".
 
+**RESOLVED — quick `260824-ght`, 2026-08-24.** The PM ruled: wrap the Space column. Implemented on both
+routes (`cbedf46`), pinned as a split rather than a pixel (`98851a3`): `/host/bookings` overflow 46px → 0
+with Approve AND Decline whole at rest; `/host/requests` (which measured 227px over — worse than the filed
+finding) improves to 94px with Approve inside the clip edge. The When cell stays non-wrapping by committed
+assertion, so the calendar coupling this entry warned about cannot return through this door. Final numbers
+and the full argument: `14-UAT-LOG.md` § F-2 FINAL DISPOSITION.
+
 ---
 
 ## [260824-ej2] The dev server leaks Postgres connections until every host route renders an empty list

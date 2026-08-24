@@ -407,4 +407,33 @@ Stated plainly so the next reader under-trusts it correctly.
 
 ---
 
-*Last updated: 2026-08-24 (F-1 and F-2 dispositioned by quick `260824-dbc`; F-2's PM ruling implemented and re-measured by quick `260824-ej2`).*
+### F-2 · FINAL DISPOSITION — CLOSED by quick `260824-ght`, 2026-08-24
+
+The PM's second ruling — **"wrap the space column"** — is implemented and measured. The Space cell on
+`/host/bookings` (and, measured over, on `/host/requests`) may wrap; **every other cell on both routes
+still may not**, and the When cell's non-wrapping is now a pinned assertion, because wrapping a label
+that changes with the calendar is the exact trap `260824-dbc` reverted and `[14-16]` closed.
+
+Measured at 1280px against the seeded catalogue's five real titles and cities:
+
+| Route | | `clientWidth` | `scrollWidth` | overflow | Approve | Decline |
+|---|---|---|---|---|---|---|
+| `/host/bookings` | before | 864 | 910 | 46px | inside | 38 of 85px past the edge |
+| `/host/bookings` | **after** | 864 | **864** | **0** | **whole at rest** | **whole at rest** |
+| `/host/requests` | before | 864 | 1091 | **227px** | past the edge | — |
+| `/host/requests` | **after** | 864 | 958 | 94px | **inside, 6px clear** | — |
+
+`/host/bookings` — the route F-2 was filed on — meets the bar exactly: zero overflow, both actions whole
+at rest, nothing to scroll. `/host/requests` was in scope only because it measured WORSE than the filed
+finding (227px); the same single-cell wrap brings its primary action inside the clip edge but does not
+reach zero — its remaining width is the countdown-led triage structure HFLOW-01 mandates, and narrowing
+that is a product question nobody has asked. Recorded honestly: better, not perfect, and the split (not
+today's pixel geometry) is what the committed spec pins.
+
+Commits: `cbedf46` (the wrap, both routes) · `98851a3` (the pinned split + three new geometry cases,
+16/16 alone). `HOST_BOOKING_ROW_HEIGHT` and `HOST_REQUEST_ROW_HEIGHT` both survive unmoved, each with a
+docblock recording why and the one condition under which each can legitimately move.
+
+---
+
+*Last updated: 2026-08-24 (F-1 and F-2 dispositioned by quick `260824-dbc`; F-2's PM ruling implemented and re-measured by quick `260824-ej2`; F-2 CLOSED by quick `260824-ght` — the Space cell wraps, overflow 0 on the filed route).*
