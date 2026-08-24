@@ -48,6 +48,14 @@
 //   • `EMAIL_FROM` is absent from the environment, so the sender address falls back to the sandbox
 //     literal in `src/lib/email.ts`. That is what D-160 intends; do not set it for this walk.
 //
+//   • `BETTER_AUTH_URL` IS REQUIRED ON BOTH PATHS (WR-05). `src/lib/email.ts` reads it at import time
+//     into its `APP_URL` constant, and `sendRequestDeclined` — the one sender whose CTA has no
+//     caller-supplied link — composes `href="${APP_URL}/"`. Unset, that renders as the bare href "/",
+//     which is dead in an email: a message has no document base URL to resolve a root-relative link
+//     against. So the harness hydrates it from `.env.local` on BOTH the preview and the `--send`
+//     path, and refuses to run without it rather than shipping 2 of 23 messages with a dead CTA the
+//     EMAIL-03 walk would grade against the product.
+//
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // (3) THE FIXTURES ARE SHARED WITH `tests/auth/email-injection.test.ts`
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -222,8 +230,14 @@ function loadFromEnvLocal(keys: readonly string[]): void {
   }
 }
 
+// Hydrated on BOTH paths — not only under `--send` (WR-05). Preview mode imports the very same
+// `@/lib/email`, and that module reads `BETTER_AUTH_URL` at evaluation time (TRAP A), so a loader
+// that ran only on the live path left preview output composing a DIFFERENT link than the one a real
+// send would carry — which defeats the point of a preview. The allow-list stays deliberately narrow:
+// these three keys are the only environment this harness's one imported module can observe.
+loadFromEnvLocal(["RESEND_API_KEY", "EMAIL_FROM", "BETTER_AUTH_URL"]);
+
 if (live) {
-  loadFromEnvLocal(["RESEND_API_KEY", "EMAIL_FROM"]);
   if (!process.env.RESEND_API_KEY) {
     fail(
       "--send was given but RESEND_API_KEY is not set and was not found in .env.local. " +
@@ -233,6 +247,30 @@ if (live) {
 } else {
   // Preview mode composes through the same client and intercepts every request; see TRAP B.
   process.env.RESEND_API_KEY = PREVIEW_MODE_KEY;
+}
+
+// WR-05 — refuse to compose a walk that contains a dead link.
+//
+// `src/lib/email.ts` resolves `const APP_URL = process.env.BETTER_AUTH_URL ?? ""`, and
+// `sendRequestDeclined` is the ONE sender whose CTA has no caller-supplied href: it composes
+// `${APP_URL}/`. With `BETTER_AUTH_URL` absent that is the bare string "/", and an email has no
+// document base URL — so the link resolves against nothing, or against the webmail client's own
+// origin. The plain-text part renders it as the literal, uncopyable line `Find another space: /`.
+//
+// Two of the 23 messages carry that CTA (`sendRequestDeclined`, both variants — expired and
+// unavailable). Left silent, the EMAIL-03 operator would tap a dead link and record it against the
+// PRODUCT when it is an artefact of THIS FILE's environment. A silent empty-string fallback is
+// precisely the shape of check this phase has spent a wave removing: one that cannot report the thing
+// it exists to protect. This one reports.
+if (!process.env.BETTER_AUTH_URL) {
+  fail(
+    "BETTER_AUTH_URL is not set and was not found in .env.local. Without it src/lib/email.ts " +
+      'resolves APP_URL to the empty string and sendRequestDeclined composes href="/" — a dead ' +
+      "link in an email, which has no document base URL to resolve it against. 2 of the 23 " +
+      "messages carry that CTA (declined / expired), and the EMAIL-03 walk would record them as a " +
+      "product defect when the fault is this harness. Uncomment or export BETTER_AUTH_URL " +
+      "(e.g. http://localhost:3000), then re-run.",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
