@@ -648,11 +648,13 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
 //
 // ── THE FIXTURE ──────────────────────────────────────────────────────────────────────────────────
 // One host signed up through the UI (so no password is re-entered and the sign-in rate limiter at
-// `src/lib/auth.ts` is never approached), one published listing with an activated payout wallet, and
-// six bookings with ONE BOOKER EACH: two confirmed today (the agenda), two confirmed at fixed
-// far-future venue-local days (the bookings list's RESTING row, in each of its two wrap counts), and
-// two still awaiting an answer (the request inbox, and the bookings list's second shape). Torn down
-// in `afterAll`, in the foreign-key order `booker-seed.ts` records.
+// `src/lib/auth.ts` is never approached), TWO published listings with an activated payout wallet, and
+// seven bookings with ONE BOOKER EACH: two confirmed today (the agenda), two confirmed at fixed
+// far-future venue-local days (the bookings list's RESTING row, in each of its two wrap counts), two
+// still awaiting an answer (the request inbox, and the bookings list's second shape), and — since
+// `260824-ght` — one confirmed at a third fixed day on the LONG-TITLED listing, which is the
+// bookings table's other desktop height. Torn down in `afterAll`, in the foreign-key order
+// `booker-seed.ts` records.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // `[14-16]` — WHY THE FIXTURE NAMES ABSOLUTE DAYS, AND WHY THAT IS THE FIX RATHER THAN A NEW NUMBER
@@ -877,6 +879,115 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
 //         Expected: <= 0.5   Received: 20
 //
 //       1 failed / 1 passed; reverted. Both probes reverted; the block runs 7/7.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// `260824-ght` — THE SPACE COLUMN WRAPS NOW, WHICH MOVES THE FIXTURE RATHER THAN A CONSTANT
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHAT CHANGED IN THE PRODUCT. F-2's second and final ruling: *"wrap the space column"*. The Space
+// cell on `/host/bookings` (and on `/host/requests`) may now wrap; every other cell on both routes
+// still may not. That takes `/host/bookings`' overflow at 1280px from 45-51px to ZERO and puts both
+// Approve and Decline wholly inside the container at rest, which is what F-2 was filed about.
+//
+// WHY IT LANDS HERE, AND IT IS NOT THE SAME MECHANISM AS THE THREE BLOCKS ABOVE. Those were about a
+// meta paragraph's wrap count at 320px. This one is about a TABLE at 1280px, where the container is a
+// fixed 864px and every other column is non-wrapping — so the SPACE column is the residual:
+//
+//     Space = 864 − Guest − When − Status − Payout − Actions
+//
+// A title wraps exactly when its rendered width plus the cell's 16px of padding exceeds that
+// residual. Two consequences, both measured before anything was pinned:
+//
+//   1. THE SHAPE NOW HAS TWO DESKTOP HEIGHTS — 36.52px on one line and 57px on two. The declared
+//      constant states the FLOOR and the argument for that choice lives in `HOST_BOOKING_ROW_HEIGHT`'s
+//      docblock, not here. `HOST_BOOKING_ROW_HEIGHT` DID NOT MOVE.
+//   2. THE RESIDUAL MOVES WITH THE CALENDAR, because the WHEN column is in it. Swept over the same
+//      13,020 labels the blocks above use, the residual runs 174.03…218.92px — a 44.89px band. So a
+//      title whose width lands inside that band has a wrap count, and therefore a row height, that is
+//      a function of the DATE. The shipped 24-character `HOST_LISTING_TITLE` was such a title: one
+//      line on 9,634 of the 13,020 labels and two on the other 3,386. That is `[14-16]`'s defect, one
+//      breakpoint up, re-armed by a source change rather than a fixture one — and it was found by
+//      sweeping rather than by waiting for the overnight red.
+//
+// SO THE FIXTURE MOVED AND NO NUMBER DID. `HOST_LISTING_TITLE` goes 24 → 20 characters (one line on
+// all 13,020, 12.86px of margin) and a SECOND listing carries the seeded catalogue's own longest
+// title, 30 characters (two lines on all 13,020, 15.03px of margin). Each constant's docblock holds
+// its own sweep. The agenda row was re-swept under the shortened title BEFORE it was changed —
+// 3 lines / 112px ×13,020 at 320 and 1 line / 72px ×13,020 at 1280 — so `HOST_AGENDA_ROW_HEIGHT` is
+// untouched too.
+//
+// ── WATCHED RED — THREE PROBES, RUN AND REVERTED, 24 August 2026 ──────────────────────────────────
+//
+// ⚠ TWO OF THE THREE WERE RUN UNDER A NARROWER GREP, AND THE REASON IS MECHANICAL RATHER THAN
+// CONVENIENT: this describe is `mode: "serial"`, so the first failure SKIPS every case after it. A
+// probe whose defect reddens an EARLIER case therefore never reaches the clause it was written for.
+// `--grep "the fixture: one host|title\) the Space cell"` runs the seeding case and the one under
+// test and nothing between them.
+//
+//   (k) THE WRAP REMOVED — the tree exactly as F-2 found it. `whitespace-normal` deleted from the
+//       Space cell in `src/app/(host)/host/bookings/page.tsx`. The `(title)` case's FIRST clause
+//       fires, which is the right order: "the route still clips" is the product defect and it names
+//       itself before any height does. Verbatim, `--grep "14-15"`:
+//
+//         Error: bookings title · 1280px: the table's scrollWidth is 914 against a container
+//         clientWidth of 864, so 50px of it is past the clip edge at rest. That is UAT finding F-2:
+//         the Approve and Decline controls are the last two things in the row, so the overflow lands
+//         on them. …
+//         Expected: 0   Received: 50
+//
+//       1 failed / 6 passed. ⚠ NOTE THE NUMBER: 50px, where the same fixture measured 45px on the
+//       day the ruling was implemented. The overflow is itself a function of the composed date,
+//       which is precisely why the clause asserts ZERO rather than a measured delta.
+//
+//   (l) THE WRAP EXTENDED TO THE WHEN CELL — `260824-dbc`'s reverted fix, put back. This is the
+//       regression the whole split exists to prevent, and the one a later reader is most likely to
+//       write while "finishing the job". Under `--grep "14-15"` it reddens the SHAPE case first —
+//
+//         Error: host booking row · /host/bookings · 1280px: the resolved table measures 56.53px,
+//         but this shape was measured at 36.52px when its height was declared.
+//         Expected: <= 4   Received: 20.009999999999997
+//
+//       — which is the same red `260824-dbc` was reverted on, and is worth having twice. Under the
+//       narrow grep the clause written for it fires by name, 1 failed / 1 passed:
+//
+//         Error: bookings title · 1280px · Corazon: the When cell wraps to 2 lines. It must be
+//         exactly ONE. This is the half of F-2's second ruling that was NOT taken: a window label is
+//         a different string every day, so a wrapping When cell makes this row's height a function
+//         of the calendar … If `whitespace-normal` was just added to the When cell, remove it; the
+//         Space cell is the one that may wrap.
+//         Expected: 1   Received: 2
+//
+//   (m) THE TITLE PUT BACK TO 24 CHARACTERS — the value this task had to move, with everything else
+//       left alone. 1 failed / 1 passed under the narrow grep; the LONG row stayed green and the
+//       short one reddened, which is the blast radius that says the two titles pin two different
+//       things:
+//
+//         Error: bookings title · 1280px · Corazon: "Geo Courts Poblacion One" wraps to 2 lines in
+//         the Space cell, not 1. Both of this shape's desktop outcomes are seeded … Do NOT widen a
+//         tolerance to absorb a line.
+//         Expected: 1   Received: 2
+//
+//       ⚠ IT WRAPPED ON THE DAY IT RAN. 24 August 2026 is one of the 3,386 labels of 13,020 on which
+//       the twenty-four-character title takes the second outcome — so this probe is not a projection
+//       from the sweep, it is the sweep's minority branch observed live.
+//
+//   (n) THE SECOND ROUTE'S WRAP REMOVED. `whitespace-normal` deleted from `/host/requests`' Space
+//       cell. 1 failed / 1 passed:
+//
+//         Error: requests title · 1280px · Perlita: the Space cell renders on 1 line(s). This inbox's
+//         table overflows even with the cell wrapping, so its Space column is at min-content and a
+//         two-word title MUST break — one line here means the cell stopped being allowed to wrap, and
+//         133px of column width just went back into an overflow that lands on the Approve control.
+//         Expected: > 1   Received: 1
+//
+//   (o) THE SECOND ROUTE'S WHEN CELL WRAPPED TOO — the same "finish the job" mistake, on the surface
+//       where it is easiest to make because that table is still overflowing. 1 failed / 1 passed:
+//
+//         Error: requests title · 1280px · Perlita: the When cell wraps to 2 lines. It must be
+//         exactly ONE, here for the same reason as on /host/bookings …
+//         Expected: 1   Received: 2
+//
+// All five probes reverted; `git status` clean; the block runs 16/16.
 
 /** The Playwright process does not load `.env`; fall back to the deterministic dev URL. */
 const HOST_DATABASE_URL =
@@ -890,7 +1001,7 @@ const HOST_VENUE_TZ = "Asia/Manila";
  *
  * It used to appear in every declared label and pattern in this file. Since the 24 August 2026 F-2
  * ruling a host list row names its city only when the rendered rows span more than one venue clock,
- * and this fixture's host owns exactly one listing — so the city is stored, is available to the
+ * and this fixture's two listings share this one — so the city is stored, is available to the
  * composer, and is correctly omitted. Keeping it seeded rather than nulling the column is what makes
  * the omission an assertion about the RULE rather than an accident of a missing value: a listing with
  * no city would compose no suffix either way, and this file would then be pinning nothing.
@@ -944,6 +1055,14 @@ const HOST_FIXED_DAY_NOV = "2099-11-12";
 const HOST_FIXED_DAY_JAN = "2099-01-12";
 
 /**
+ * The third absolute venue-local day — the LONG-TITLED listing's one booking (`260824-ght`).
+ *
+ * Absolute for the same reason as its two siblings, and a third distinct day rather than a reuse of
+ * either so that the row this case measures is addressable by its label as well as by its guest.
+ */
+const HOST_FIXED_DAY_MAY = "2099-05-20";
+
+/**
  * The two labels those two days compose, byte for byte.
  *
  * ASSERTED, NOT DOCUMENTED. Each is compared against the rendered `<p>` on the route, which is what
@@ -960,6 +1079,7 @@ const HOST_FIXED_DAY_JAN = "2099-01-12";
  */
 const HOST_BOOKING_NOV_LABEL = `Thu, Nov 12, 9:00 AM ${WINDOW_DASH} 11:00 AM`;
 const HOST_BOOKING_JAN_LABEL = `Mon, Jan 12, 9:00 AM ${WINDOW_DASH} 11:00 AM`;
+const HOST_BOOKING_MAY_LABEL = `Wed, May 20, 9:00 AM ${WINDOW_DASH} 11:00 AM`;
 
 /** The password every UI signup in this repo uses (`shell.spec.ts`, `host-dashboard.spec.ts`). */
 const HOST_PASSWORD = "averylongpassword";
@@ -1011,10 +1131,20 @@ const RESTING_GUEST = "Corazon";
 const WRAP_GUEST = "Anselmo";
 const PENDING_GUEST = "Perlita";
 const PENDING_GUEST_2 = "Rogelio";
+/**
+ * The seventh booker (`260824-ght`) — the ONE row on the long-titled listing.
+ *
+ * Six characters, like every other name here, and that is load-bearing rather than tidy: the Guest
+ * column is non-wrapping, so its width is the widest name in the list, and every pixel it takes comes
+ * out of the residual Space column this file now pins two outcomes of.
+ */
+const LONG_TITLE_GUEST = "Nenita";
 
 type HostSeed = {
   readonly hostEmail: string;
   readonly listingId: string;
+  /** The second, LONG-titled listing (`260824-ght`) — see `HOST_LONG_LISTING_TITLE`. */
+  readonly longListingId: string;
   readonly listingTitle: string;
   readonly sql: ReturnType<typeof postgres>;
   readonly bookerIds: string[];
@@ -1074,8 +1204,82 @@ async function signUpGeometryHost(page: Page): Promise<string> {
  * IT IS ALSO NOT A UNIQUENESS TOKEN. Nothing addresses a row by this string — every locator in this
  * block uses the guest's first name — and the listing's own id still carries the run's UUID, so two
  * runs cannot collide on anything that matters.
+ *
+ * ⚠⚠⚠⚠ 24 → 20 CHARACTERS ON 24 AUGUST 2026 (quick `260824-ght`), AND THE REASON IS THAT THE
+ * TWENTY-FOUR-CHARACTER STRING STOPPED BEING DETERMINISTIC THE MOMENT THE SPACE CELL WAS ALLOWED TO
+ * WRAP. F-2's second ruling lets `/host/bookings`' Space cell wrap so the table stops overflowing its
+ * container. A table shares column widths, every other column on that route is still non-wrapping,
+ * and the container is a fixed 864px — so the SPACE column is now the residual, and its width is
+ *
+ *     864 − Guest − When − Status − Payout − Actions
+ *
+ * which moves with the WHEN column, which moves with the composed date. Swept at 1280px over the same
+ * 13,020 labels (2,604 date tokens × five window spellings) with this fixture's own rows:
+ *
+ *     title (chars)   rendered width   1 line / 36.52px   2 lines / 57px
+ *     ─────────────   ──────────────   ────────────────   ──────────────
+ *     19              136.89           13,020             —
+ *     20              145.17           13,020             —            ← the value chosen here
+ *     22              159.16           13,009             11
+ *     23              167.58           12,203             817
+ *     24              175.67            9,634             3,386        ← the shipped value: 26% red
+ *     25              183.27            4,323             8,697
+ *     26              194.63              241             12,779
+ *     27              198.25               44             12,976
+ *
+ * So the shipped twenty-four-character title would have rendered one height on 74% of dates and
+ * another on 26% — `[14-16]`'s defect exactly, one breakpoint up, re-armed by a source change rather
+ * than by a fixture one. NO PLATEAU IN THE AGENDA ROW'S LEGAL RANGE (19-27) WRAPS UNCONDITIONALLY,
+ * so the deterministic side of the fork is the SHORT one, and this string is taken to 20.
+ *
+ * WHY 20 AND NOT 19. Against the final fixture — which now also carries a long-titled listing, so the
+ * Space column is the residual on EVERY date — the swept column runs 174.03…218.92px. This title
+ * renders 145.17px and needs 161.17px with the cell's own 16px of padding, which is 12.86px clear of
+ * the NARROWEST column the calendar can produce. 19 characters would buy 8px more margin at the cost
+ * of sitting on the agenda plateau's floor; 20 is one character inside it on both sides.
+ *
+ * ⚠ THE AGENDA ROW WAS RE-SWEPT BEFORE THIS WAS CHANGED, NOT AFTER IT WENT RED. The agenda's meta
+ * line is `${spaceTitle} · ${whenLabel}`, so shortening the title is a change to the number
+ * `HOST_AGENDA_ROW_HEIGHT` declares. Same instrument, same 13,020 labels, this exact string:
+ *
+ *     /host · 320px    3 lines / 112px  ×13,020        /host · 1280px   1 line / 72px  ×13,020
+ *
+ * One outcome at each width. `HOST_AGENDA_ROW_HEIGHT` does NOT move, and the title is still on the
+ * 19-27 plateau `260824-ej2` measured — one character above its floor rather than mid-plateau.
  */
-const HOST_LISTING_TITLE = "Geo Courts Poblacion One";
+const HOST_LISTING_TITLE = "Geo Courts Poblacion";
+
+/**
+ * The SECOND listing's title — thirty characters, and the whole reason it exists is that
+ * `HOST_LISTING_TITLE` can no longer state the shape's other height.
+ *
+ * ⚠ THIS IS A MEASUREMENT, LIKE THE ONE ABOVE, AND IT IS THE `260824-ght` OBLIGATION. Letting the
+ * Space cell wrap makes `/host/bookings`' desktop row a TWO-valued shape: 36.52px when the title fits
+ * the residual column on one line and 57px when it does not. A fixture that only ever seeds the first
+ * outcome leaves the second one to be discovered as an unexplained 20px by whoever next lengthens a
+ * space name. So the second outcome is SEEDED and PINNED, on its own listing, in its own case.
+ *
+ * THE STRING IS THE SEEDED CATALOGUE'S OWN LONGEST TITLE (`scripts/seed.ts:52`), not an invented one.
+ * That is deliberate: the row height this pins is the one a host with a realistic space name actually
+ * gets, and F-2 was reproduced against exactly this catalogue.
+ *
+ * IT WRAPS ON EVERY DATE, WHICH IS WHAT MAKES IT PINNABLE. It renders 217.95px and needs 233.95px with
+ * the cell's padding — 15.03px MORE than the WIDEST residual column the calendar can produce (218.92).
+ * Swept over the same 13,020 labels at 1280px: `2 lines / 57px` ×13,020, never a third outcome and
+ * never a first. Between the two titles the fixture therefore holds both of the shape's heights, each
+ * unconditional, with ~13px and ~15px of margin on opposite sides of the same boundary.
+ *
+ * ⚠ IT CANNOT DISTURB THE OTHER SHAPES, AND EACH REASON WAS CHECKED RATHER THAN ASSUMED:
+ *   • `/host`'s agenda shows only the venue's local TODAY, and this listing's one booking is seeded at
+ *     an absolute 2099 day — so it never appears there.
+ *   • `/host/requests` lists `requested` rows only, and that booking is confirmed.
+ *   • At 320px `/host/bookings` renders CARDS, whose title is `truncate` (`row-card.tsx:190`) — a
+ *     longer title cannot wrap or grow a card.
+ *   • It is in the SAME city and the SAME timezone as the first listing, so `resolveListCity` still
+ *     resolves to null and no row gains a city suffix. The two-listing host does gain the `?listing=`
+ *     filter control, which sits above the table and is not part of any box measured here.
+ */
+const HOST_LONG_LISTING_TITLE = "QC Strength & Conditioning Gym";
 
 /**
  * One published, bookable listing owned by the signed-up host.
@@ -1098,6 +1302,7 @@ async function seedGeometryHost(hostEmail: string): Promise<HostSeed> {
   }
 
   const listingId = `e2e_geo_listing_${runId}`;
+  const longListingId = `e2e_geo_listing_long_${runId}`;
   const listingTitle = HOST_LISTING_TITLE;
 
   await sql`
@@ -1105,29 +1310,37 @@ async function seedGeometryHost(hostEmail: string): Promise<HostSeed> {
     VALUES (${host.id}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
   `;
 
-  await sql`
-    INSERT INTO "listing" (
-      id, host_id, title, description, primary_space_type,
-      address_line1, city, region, postal_code, country, neighborhood,
-      location, show_exact_address, max_occupancy, unit_count, timezone,
-      hourly_rate_cents, day_rate_cents, occupancy_mode,
-      currency, booking_mode, status, published_at, created_at, updated_at
-    ) VALUES (
-      ${listingId}, ${host.id}, ${listingTitle},
-      ${"A covered court with two hoops and a scoreboard."}, ${"multi_sport_court"}::space_type,
-      ${"3 Real Street"}, ${HOST_VENUE_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
-      ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326), ${false}, ${10}, ${1}, ${HOST_VENUE_TZ},
-      ${47333}, ${288888}, ${"exclusive"}::occupancy_mode,
-      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
-      now(), now(), now()
-    )
-  `;
+  // TWO listings since `260824-ght`, differing ONLY in their title — same city, same timezone, same
+  // rates, same everything else — because the one thing under test is the title's rendered width.
+  for (const [id, title] of [
+    [listingId, listingTitle],
+    [longListingId, HOST_LONG_LISTING_TITLE],
+  ] as const) {
+    await sql`
+      INSERT INTO "listing" (
+        id, host_id, title, description, primary_space_type,
+        address_line1, city, region, postal_code, country, neighborhood,
+        location, show_exact_address, max_occupancy, unit_count, timezone,
+        hourly_rate_cents, day_rate_cents, occupancy_mode,
+        currency, booking_mode, status, published_at, created_at, updated_at
+      ) VALUES (
+        ${id}, ${host.id}, ${title},
+        ${"A covered court with two hoops and a scoreboard."}, ${"multi_sport_court"}::space_type,
+        ${"3 Real Street"}, ${HOST_VENUE_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
+        ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326), ${false}, ${10}, ${1}, ${HOST_VENUE_TZ},
+        ${47333}, ${288888}, ${"exclusive"}::occupancy_mode,
+        ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+        now(), now(), now()
+      )
+    `;
+  }
 
   const bookerIds: string[] = [];
 
   return {
     hostEmail,
     listingId,
+    longListingId,
     listingTitle,
     sql,
     bookerIds,
@@ -1135,8 +1348,11 @@ async function seedGeometryHost(hostEmail: string): Promise<HostSeed> {
       // ORDER IS LOAD-BEARING (`booker-seed.ts`): `booking.booker_id` is ON DELETE RESTRICT, so the
       // bookings and their notifications go first, then the bookers, then the host — whose deletion
       // cascades to the listing.
-      await sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ${listingId})`;
-      await sql`DELETE FROM booking WHERE listing_id = ${listingId}`;
+      //
+      // ⚠ BOTH LISTINGS, and the sweep is by HOST rather than by a listing id list, so a listing this
+      // fixture grows later cannot be left behind by a teardown nobody remembered to extend.
+      await sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id IN (SELECT id FROM listing WHERE host_id = ${host.id}))`;
+      await sql`DELETE FROM booking WHERE listing_id IN (SELECT id FROM listing WHERE host_id = ${host.id})`;
       for (const id of bookerIds) await sql`DELETE FROM "user" WHERE id = ${id}`;
       await sql`DELETE FROM "user" WHERE email = ${hostEmail}`;
       await sql.end();
@@ -1187,9 +1403,12 @@ async function addGeometryBooking(
     startHour: number;
     endHour: number;
     status: "confirmed" | "requested";
+    /** Defaults to the fixture's FIRST listing; `260824-ght`'s one row names the second. */
+    listingId?: string;
   },
 ): Promise<void> {
   const id = `e2e_geo_booking_${randomUUID()}`;
+  const listingId = args.listingId ?? seed.listingId;
   // One expression per bound, chosen by which branch the caller asked for. Both produce a
   // `timestamptz` from a venue-local wall time; only the DAY differs in where it comes from.
   const bound = (hour: number) =>
@@ -1204,7 +1423,7 @@ async function addGeometryBooking(
       currency, payment_id, payment_method, expires_at, checkout_session_id,
       refund_cents, cancelled_by, cancelled_at, open_capacity, declared_pax, created_at
     ) VALUES (
-      ${id}, ${seed.listingId}, ${1}, ${args.bookerId},
+      ${id}, ${listingId}, ${1}, ${args.bookerId},
       ${bound(args.startHour)}, ${bound(args.endHour)},
       ${args.status}::booking_status, ${"request"}::booking_mode,
       ${"standard"}::cancellation_policy,
@@ -1379,6 +1598,15 @@ const HOST_SHAPES: readonly HostShape[] = [
         tree: "card",
         meta: { lines: 2, text: HOST_BOOKING_NOV_LABEL },
       },
+      // ⚠⚠ THE 1280 NUMBER BECAME CONDITIONAL ON 24 AUGUST 2026, AND THE CONDITION IS SEEDED
+      // (quick `260824-ght`). F-2's second ruling lets this route's SPACE cell wrap so the table
+      // stops overflowing its container, which makes the desktop row a two-valued shape: 36.52px
+      // when the title fits the residual column on one line, 57px when it does not. 36.52 is the
+      // row's FLOOR and it is what `HOST_BOOKING_ROW_HEIGHT` declares — the argument for declaring
+      // the floor rather than the wrapped value is in that constant's own docblock. The row measured
+      // HERE is `RESTING_GUEST`'s, on the SHORT-titled listing, which the sweep says is one line on
+      // all 13,020 labels. The other outcome is not left implicit: `(title)` pins it, on its own
+      // long-titled listing, in the same table on the same page.
       { width: 1280, row: 36.52, bar: 36, tree: "table" },
     ],
   },
@@ -1461,7 +1689,7 @@ test.describe("14-15 — every host plate draws the list that is actually coming
     await seed?.teardown();
   });
 
-  test("(0) the fixture: one host, one listing, six bookings, one booker each", async ({
+  test("(0) the fixture: one host, two listings, seven bookings, one booker each", async ({
     page,
     context,
   }) => {
@@ -1475,6 +1703,7 @@ test.describe("14-15 — every host plate draws the list that is actually coming
     const anselmo = await addGeometryBooker(seed, WRAP_GUEST);
     const perlita = await addGeometryBooker(seed, PENDING_GUEST);
     const rogelio = await addGeometryBooker(seed, PENDING_GUEST_2);
+    const nenita = await addGeometryBooker(seed, LONG_TITLE_GUEST);
 
     // ── RELATIVE, because the surface's own subject is "when" ─────────────────────────────────────
     // Today's agenda — two confirmed sessions, which is what `/host` renders as row cards. The
@@ -1535,6 +1764,19 @@ test.describe("14-15 — every host plate draws the list that is actually coming
       startHour: 15,
       endHour: 17,
       status: "requested",
+    });
+
+    // ── ABSOLUTE, and on the SECOND listing — the shape's OTHER desktop height (`260824-ght`) ─────
+    // The only row in this fixture whose space title does not fit the residual Space column on one
+    // line. It exists so `/host/bookings`' wrapped desktop row is a seeded, pinned outcome rather
+    // than something a future catalogue discovers as an unexplained 20px. See the `(title)` case.
+    await addGeometryBooking(seed, {
+      bookerId: nenita,
+      listingId: seed!.longListingId,
+      localDate: HOST_FIXED_DAY_MAY,
+      startHour: 9,
+      endHour: 11,
+      status: "confirmed",
     });
 
     expect(seed, "the host fixture is null — nothing below has anything to measure").not.toBeNull();
@@ -1716,6 +1958,17 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   const AGENDA_320 = { lines: 3, height: 112 } as const;
   const AGENDA_1280 = { lines: 1, height: 72 } as const;
 
+  /**
+   * `/host/bookings`' desktop row is a TWO-VALUED shape since `260824-ght`, and both values are here.
+   *
+   * The floor is what `HOST_BOOKING_ROW_HEIGHT` declares and what the shape table above measures; the
+   * wrapped value is what a title too long for the residual Space column produces. Naming them
+   * together, as one line count and one height each, is what makes the `(title)` case below a
+   * statement about the RULE rather than two unrelated pins.
+   */
+  const BOOKINGS_1280_ONE_LINE = { lines: 1, height: 36.52 } as const;
+  const BOOKINGS_1280_TWO_LINES = { lines: 2, height: 57 } as const;
+
   // ───────────────────────────────────────────────────────────────────────────────────────────────
   // `[14-16]`, AS AMENDED BY `260824-ej2` — THE SHAPE NOW HAS EXACTLY ONE HEIGHT AT 320px
   // ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -1877,6 +2130,211 @@ test.describe("14-15 — every host plate draws the list that is actually coming
         "that unit. If this is not a whole multiple, the card's vertical padding has become " +
         "width-dependent and the subtraction itself is no longer legitimate.",
     ).toBe(META_LINE_PX);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // `260824-ght` — THE SPACE COLUMN WRAPS, THE WHEN COLUMN DOES NOT, AND BOTH HALVES ARE PINNED
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  //
+  // WHAT SHIPPED. Phase 14's UAT finding F-2 measured `/host/bookings`' table 169px past its
+  // container's clip edge at 1280px with the Approve control sitting in the overflow. The PM's first
+  // ruling (`260824-ej2`) took 119px off the WHEN column and freed Approve; the second — *"wrap the
+  // space column"* — closes the remaining 45-51px by letting THIS ONE CELL wrap. Measured against the
+  // seeded catalogue's own five titles: `scrollWidth` 909 → 864 against a `clientWidth` of 864, so the
+  // overflow is ZERO and both Approve and Decline are whole at rest.
+  //
+  // WHY THE SPLIT IS THE WHOLE POINT, AND WHY THIS CASE ASSERTS BOTH SIDES OF IT. Quick `260824-dbc`
+  // let the space title AND the venue-local window label wrap, measured it clean, and reverted it: a
+  // table shares column widths across its rows, so the resting row's height became a function of the
+  // widest label anywhere in the list — and a window label is a different string every day. Wrapping
+  // the SPACE cell alone does not have that property, because a space title is a stable string the
+  // host chose. So this case pins the Space cell's wrap count AND that the When cell is still exactly
+  // one line: a future reader who "finishes the job" by adding the class to the When cell reddens the
+  // second clause by name rather than reopening a calendar coupling nobody notices for a day.
+  //
+  // WHY THE SHAPE NOW HAS TWO HEIGHTS AND BOTH ARE SEEDED. The Space column is the residual —
+  // 864 minus every other (non-wrapping) column — so a title wraps or not depending on its own
+  // rendered width against that residual. Swept over all 13,020 labels at 1280px with the fixture's
+  // two titles:
+  //
+  //     `HOST_LISTING_TITLE`      (20 ch, 145.17px)   1 line  / 36.52px  ×13,020
+  //     `HOST_LONG_LISTING_TITLE` (30 ch, 217.95px)   2 lines / 57px     ×13,020
+  //
+  // with the residual column running 174.03…218.92px across those same labels. Each title clears its
+  // boundary by ~13px and ~15px respectively, on opposite sides — so neither outcome is one date's
+  // luck, which is the standard `[14-16]` set for this file and the one a wrap is easiest to fail.
+  test("(title) the Space cell wraps and the When cell does not — both heights, both seeded", async ({
+    page,
+    context,
+  }) => {
+    expect(seed, "the host fixture is null — see case (0).").not.toBeNull();
+    await context.clearCookies();
+    await context.addCookies(hostCookies);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${BASE_URL}/host/bookings`, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+
+    // ── THE PRODUCT CLAIM THE RULING WAS MADE FOR, ASSERTED FIRST ────────────────────────────────
+    // Everything below is about the COST of the wrap; this is the thing it bought. Removing
+    // `whitespace-normal` from the Space cell reddens here, in the units F-2 was filed in.
+    const box = await page
+      .locator('[data-slot="table-container"]')
+      .evaluate((node) => ({
+        client: node.clientWidth,
+        scroll: node.scrollWidth,
+      }));
+    expect(
+      box.scroll - box.client,
+      `bookings title · 1280px: the table's scrollWidth is ${box.scroll} against a container ` +
+        `clientWidth of ${box.client}, so ${box.scroll - box.client}px of it is past the clip edge ` +
+        "at rest. That is UAT finding F-2: the Approve and Decline controls are the last two things " +
+        "in the row, so the overflow lands on them. The Space cell is the one cell on this route " +
+        "allowed to wrap, and it is what absorbs this — see the cell's own comment in " +
+        "src/app/(host)/host/bookings/page.tsx.",
+    ).toBe(0);
+
+    for (const [guest, title, label, declared] of [
+      [RESTING_GUEST, HOST_LISTING_TITLE, HOST_BOOKING_NOV_LABEL, BOOKINGS_1280_ONE_LINE],
+      [
+        LONG_TITLE_GUEST,
+        HOST_LONG_LISTING_TITLE,
+        HOST_BOOKING_MAY_LABEL,
+        BOOKINGS_1280_TWO_LINES,
+      ],
+    ] as const) {
+      const where = `bookings title · 1280px · ${guest}`;
+      const row = hostRowLocator(page, "table", guest);
+      await expect(
+        row,
+        `${where}: the resolved page rendered no table row for ${guest}. This case needs both ` +
+          "fixed-date confirmed bookings — the short-titled one and the long-titled one — and " +
+          "without them it is asserting nothing.",
+      ).toBeVisible({ timeout: 30_000 });
+
+      const cells = await row.evaluate((tr) => {
+        const linesOf = (node: Node) => {
+          const r = document.createRange();
+          r.selectNodeContents(node);
+          return r.getClientRects().length;
+        };
+        const tds = Array.from(tr.querySelectorAll("td"));
+        const spaceLink = tds[1].querySelector("a") ?? tds[1];
+        return {
+          title: (spaceLink.textContent ?? "").trim(),
+          titleLines: linesOf(spaceLink),
+          when: (tds[2].textContent ?? "").trim(),
+          whenLines: linesOf(tds[2]),
+          height: Math.round(tr.getBoundingClientRect().height * 100) / 100,
+        };
+      });
+
+      expect(
+        cells.title,
+        `${where}: the Space cell reads "${cells.title}" rather than "${title}". This row is seeded ` +
+          "on a listing whose title is a MEASURED constant — the wrap count below, and therefore " +
+          "this row's height, is a property of that string's rendered width.",
+      ).toBe(title);
+
+      // The label, byte for byte — the fixture's absolute venue-local day, and no city suffix.
+      expect(
+        cells.when,
+        `${where}: the window label composed as\n    "${cells.when}"\nrather than\n    "${label}"\n` +
+          "This booking is seeded at an absolute venue-local day so the string is a constant, and " +
+          "since the 24 August 2026 ruling it names no zone — this fixture's two listings share one " +
+          "venue clock.",
+      ).toBe(label);
+
+      // ── THE SPLIT. One clause per cell, so the two are two different reds. ──────────────────────
+      expect(
+        cells.whenLines,
+        `${where}: the When cell wraps to ${cells.whenLines} lines. It must be exactly ONE. This is ` +
+          "the half of F-2's second ruling that was NOT taken: a window label is a different string " +
+          "every day, so a wrapping When cell makes this row's height a function of the calendar — " +
+          "which is the coupling `[14-16]` closed at 320px and `260824-dbc` reverted a fix for at " +
+          "1280. If `whitespace-normal` was just added to the When cell, remove it; the Space cell " +
+          "is the one that may wrap.",
+      ).toBe(1);
+
+      expect(
+        cells.titleLines,
+        `${where}: "${title}" wraps to ${cells.titleLines} lines in the Space cell, not ` +
+          `${declared.lines}. Both of this shape's desktop outcomes are seeded — a 20-character ` +
+          "title on one line and a 30-character one on two — and each was measured with ~13px and " +
+          "~15px of margin against the residual column over all 13,020 labels. A move here is the " +
+          "type scale, another column's width, or the container: re-measure the shape and move the " +
+          "titles with their measurement. Do NOT widen a tolerance to absorb a line.",
+      ).toBe(declared.lines);
+
+      expect(
+        Math.abs(cells.height - declared.height),
+        `${where}: the row measures ${cells.height}px against the ${declared.height}px this ` +
+          `${declared.lines}-line outcome was measured at. The wrap-count clause above ran first ` +
+          "and passed, so this is not the title wrapping differently — the row's composition " +
+          "changed. Re-measure and move the number, never the tolerance.",
+      ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
+    }
+
+    // ── THE STEP BETWEEN THEM IS ONE LINE, STATED AS ITS OWN NUMBER ───────────────────────────────
+    // Two heights that are each individually right but do not differ by one line would mean the cell
+    // grew for some reason other than the wrap, which no clause above can tell apart.
+    expect(
+      Math.abs(BOOKINGS_1280_TWO_LINES.height - BOOKINGS_1280_ONE_LINE.height - META_LINE_PX),
+      "bookings title · 1280px: the two declared desktop heights differ by " +
+        `${BOOKINGS_1280_TWO_LINES.height - BOOKINGS_1280_ONE_LINE.height}px, which is not one ` +
+        `wrapped line (${META_LINE_PX}px, measured by the (step) case). If the gap is bigger than a ` +
+        "line, this cell is growing for a reason the wrap count does not explain.",
+    ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
+
+    // ── THE SAME SPLIT ON THE SECOND ROUTE, AS A RULE RATHER THAN A PIXEL ─────────────────────────
+    //
+    // `/host/requests` measured 227px past its container at 1280px — worse than the finding that
+    // started this — so it got the same single-cell wrap, which takes it to 94px and brings Approve
+    // inside the clip edge. WHAT IS PINNED HERE IS THE SPLIT AND NOT THE GEOMETRY, deliberately:
+    //
+    //   • That inbox's table still overflows after the wrap, so its Space column sits at its
+    //     MIN-CONTENT — the width of the longest word. A height pinned there is a pin on where the
+    //     browser happens to break a title between two words, which moves with the type scale rather
+    //     than with anything this file is about. The declared `HOST_REQUEST_ROW_HEIGHT` is already
+    //     asserted by the shape case above, on the row that constant describes, and it did not move.
+    //   • Approve's clearance after the wrap is 6px. That is a real improvement over "wholly past the
+    //     edge" and it is NOT a number to gate on — the Expires column's width moves with the
+    //     countdown's own text. Recorded in the deferred item, not asserted.
+    //
+    // What IS stable, and what the cell's comment on that route claims, is the split itself.
+    await page.goto(`${BASE_URL}/host/requests`, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    const inbox = hostRowLocator(page, "table", PENDING_GUEST);
+    await expect(
+      inbox,
+      `requests title · 1280px: the inbox rendered no table row for ${PENDING_GUEST}. The fixture ` +
+        "seeds two still-pending bookings; without them this clause asserts nothing.",
+    ).toBeVisible({ timeout: 30_000 });
+    const inboxCells = await inbox.evaluate((tr) => {
+      const linesOf = (node: Node) => {
+        const r = document.createRange();
+        r.selectNodeContents(node);
+        return r.getClientRects().length;
+      };
+      const tds = Array.from(tr.querySelectorAll("td"));
+      // Expires · Guest · Space · When · Guest pays · Actions (14-06's order).
+      return { spaceLines: linesOf(tds[2]), whenLines: linesOf(tds[3]) };
+    });
+    expect(
+      inboxCells.spaceLines,
+      `requests title · 1280px · ${PENDING_GUEST}: the Space cell renders on ` +
+        `${inboxCells.spaceLines} line(s). This inbox's table overflows even with the cell wrapping, ` +
+        "so its Space column is at min-content and a two-word title MUST break — one line here means " +
+        "the cell stopped being allowed to wrap, and 133px of column width just went back into an " +
+        "overflow that lands on the Approve control.",
+    ).toBeGreaterThan(1);
+    expect(
+      inboxCells.whenLines,
+      `requests title · 1280px · ${PENDING_GUEST}: the When cell wraps to ` +
+        `${inboxCells.whenLines} lines. It must be exactly ONE, here for the same reason as on ` +
+        "/host/bookings: a venue-local window label is a different string every day, so a wrapping " +
+        "When cell makes this row's height a function of the calendar.",
+    ).toBe(1);
   });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────

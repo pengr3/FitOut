@@ -759,6 +759,24 @@ export const HOST_AGENDA_ROW_HEIGHT = "h-28 sm:h-18";
  * WHY THIS SHAPE MOVED UNDER THE PHASE, and why an older number would be stale: 14-03 gave the row
  * its terminal, deadline-led form, and 14-06 capped its status column and moved the desktop table
  * onto the same lead emphasis. This measurement was taken after both, and dated.
+ *
+ * ⚠ THIS SHAPE DID NOT MOVE UNDER THE 24 AUGUST 2026 *"WRAP THE SPACE COLUMN"* RULING EITHER
+ * (quick `260824-ght`), AND IT IS THE SECOND TIME THIS ROW HAS ABSORBED A LABEL CHANGE WITHOUT
+ * MOVING. That ruling was applied to this inbox as well, because it measured 227px past its
+ * container at 1280px — worse than the finding that prompted it. The wrap takes that to 94px and
+ * brings the Approve control inside the clip edge; the declared 84px table row is unchanged at
+ * 83.02px, for the same structural reason as above: the row's height is the lead countdown and its
+ * D-99 reason line, not the cells beside them.
+ *
+ * ⚠⚠ THE ONE PLACE IT CAN MOVE, RECORDED RATHER THAN PINNED. This table still overflows after the
+ * wrap, so its Space column sits at MIN-CONTENT — the width of the longest word in any title on
+ * screen. A title long enough to break into FOUR lines there exceeds the countdown's own height:
+ * measured against the seeded catalogue, `QC Strength & Conditioning Gym` renders a 97px row against
+ * this 84px bar while the other four titles stay at 83.02px. That outcome is deliberately NOT
+ * asserted anywhere — a min-content pin is a pin on where a browser happens to break a title between
+ * two words, which the type scale moves and this file's subject does not. What IS asserted is the
+ * SPLIT that produced it: `e2e/skeleton-geometry.spec.ts`'s `(title)` case pins that the Space cell
+ * on this route wraps and the When cell beside it does not.
  */
 export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
 
@@ -840,5 +858,60 @@ export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
  * to absorb a wrapped line is a band wide enough to absorb the defect the plate exists to prevent.
  * The dishonest fix that was explicitly NOT taken: reducing the plate's row COUNT until the totals
  * happen to line up while every individual row still disagrees.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * ⚠ 24 AUGUST 2026 — THE DESKTOP VALUE IS NOW A FLOOR RATHER THAN A FLAT NUMBER (quick `260824-ght`)
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * F-2's second and final ruling — *"wrap the space column"* — lets this route's Space cell wrap so
+ * the table stops running past its container. THE CONSTANT DID NOT MOVE and the reasoning for that
+ * is the point of this block, because the obvious reading of the change is that it should have.
+ *
+ * WHAT THE WRAP DOES TO THE SHAPE. The container is a fixed 864px (`HOST_LIST_SHELL`) and every
+ * other column on the route is still non-wrapping, so the Space column became the RESIDUAL:
+ *
+ *     Space = 864 − Guest − When − Status − Payout − Actions
+ *
+ * A title wraps exactly when its rendered width plus the cell's 16px of padding exceeds that. So the
+ * desktop row is TWO-VALUED — 36.52px on one line, 57px on two — and which one a host sees is a
+ * property of THEIR OWN space names, not of this row. Measured at 1280px against the seeded
+ * catalogue's five real titles: `Sunlit Yoga Studio` renders one line, the other four render two.
+ *
+ * WHY 36 IS STILL THE DECLARED VALUE, and it is the same argument the 320px fork above settles with:
+ *
+ *   • IT IS EXACT IN MOST OF THE STATES THIS PLATE COVERS. The `Actions` column only exists while a
+ *     row is still awaiting the host's answer, and it is 199px wide. Remove it — the PAST tab, or an
+ *     upcoming tab with nothing pending — and the residual column grows to 271.6px, at which NONE of
+ *     the catalogue's titles wrap, including the 30-character one. Measured across the desktop
+ *     ladder: with no pending row the resting row is 36.52-37.02px at every width from 800 up.
+ *   • IT NEVER OVER-CLAIMS. Declaring 56 would reserve a box the content does not fill on the past
+ *     tab, on a short-titled catalogue, and on any list with no request in it — and a plate that
+ *     draws MORE than arrives makes the page jump upwards, which is the same defect pointing the
+ *     other way. `[14-15]`'s own rule for this shape was to take the value that is right across more
+ *     of the ladder.
+ *   • THE TALLER VALUE IS NOT A PROPERTY OF THE ROW AT ALL. It depends on the longest title in the
+ *     list AND on whether some other row is pending. A single constant cannot state that; a pinned
+ *     case can, and `e2e/skeleton-geometry.spec.ts`'s `(title)` case does — seeding both outcomes on
+ *     two listings and asserting each, with the sweep that says neither is one date's luck.
+ *
+ * ⚠ THE MEASURED, ACCEPTED DEVIATION THIS ADDS, stated rather than discovered. On the upcoming tab,
+ * with a pending row present and a long space name, the resting row is 57px against this 36px bar —
+ * a 21px per-row under-draw. It is the same class as the pending-actions deviation already recorded
+ * above, and it is pinned the same way rather than absorbed into a tolerance.
+ *
+ * ⚠⚠ AND ONE BAND WHERE THE WRAP IS UNAVOIDABLE. Between the `md:` breakpoint (768) and 928px the
+ * shell is narrower than its 864px cap, so the residual column falls to its min-content (~101px) and
+ * titles wrap two, three or four lines — 56.5px to 97px per row, against this 36px bar. Measured, not
+ * modelled, and the trade is measured from both sides on the same fixture (one long title, one
+ * pending row), which is what makes it a trade rather than a regression:
+ *
+ *     container overflow    768px    800px    864px    928px and up
+ *     ──────────────────    ─────    ─────    ─────    ────────────
+ *     before the ruling      193      161       97          65
+ *     after                   60       28        0           0
+ *
+ * So the wrap strictly reduces the horizontal clip at every desktop width — it can only ever shrink
+ * one column — and it converts what is left of it into vertical growth, which a page can scroll and a
+ * clipped control cannot.
  */
 export const HOST_BOOKING_ROW_HEIGHT = "h-44 md:h-9";
