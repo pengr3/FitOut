@@ -239,6 +239,18 @@ let providerDetail = "";
 
 const realFetch = globalThis.fetch;
 
+/**
+ * The three observations, read through functions ON PURPOSE.
+ *
+ * TypeScript's control-flow analysis does not know that awaiting a sender runs the wrapper above, so
+ * reading these module-level bindings directly leaves them narrowed to the `null` they were reset to
+ * a line earlier — and every field access on the result becomes an error against `never`. Reading
+ * through a function returns the DECLARED type, which is the truth here. Do not inline these.
+ */
+const readCaptured = (): CapturedMessage | null => captured;
+const readStatus = (): number | null => providerStatus;
+const readDetail = (): string => providerDetail;
+
 globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -367,10 +379,11 @@ async function main(): Promise<void> {
       thrown = error instanceof Error ? error.message : String(error);
     }
 
-    const message: CapturedMessage | null = captured;
+    const message = readCaptured();
+    const status = readStatus();
     const outcome: Dispatch["outcome"] = !message
       ? "not-dispatched"
-      : providerStatus !== null && providerStatus >= 400
+      : status !== null && status >= 400
         ? "rejected"
         : live
           ? "delivered"
@@ -385,7 +398,7 @@ async function main(): Promise<void> {
       htmlBytes: message ? bytes(message.html) : 0,
       textBytes: message ? bytes(message.text) : 0,
       outcome,
-      detail: thrown !== "" ? `threw: ${thrown}` : providerDetail,
+      detail: thrown !== "" ? `threw: ${thrown}` : readDetail(),
     };
     dispatches.push(dispatch);
 
