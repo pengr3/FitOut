@@ -518,7 +518,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 15-04-PLAN.md — the ops digest wears the shell without losing either of its two contracts, one payload through every string parameter of all nineteen senders, and the footer's guarded site declared
+- [x] 15-04-PLAN.md — the ops digest wears the shell without losing either of its two contracts, one payload through every string parameter of all nineteen senders, and the footer's guarded site declared
 - [ ] 15-09-PLAN.md — seven live regions declared and the file count moved 21 → 26, plus the gate that makes "one composition, four screens" a command
 - [ ] 15-10-PLAN.md — the AUTHUI-02 design-pass gate, and the four auth routes and their two extra branches under the 320px floor
 
@@ -658,7 +658,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
-| 15. Auth, Profile & Transactional Email | v1.1 | 6/11 | In Progress|  |
+| 15. Auth, Profile & Transactional Email | v1.1 | 7/11 | In Progress|  |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: "Phase 15 EXECUTING — Wave 3 opened: 15-08 complete (c8d89f5 shell+header, 8ac4823 the AC#18 one-skeleton fix, 0b8bad9 two panels, c22e506 the inventory). /profile reads BOOKING_SHELL on page AND plate, renders its h1 through PageHeader, and draws two PanelCards around an untouched save-state machine. EXPECTED_SURFACES 20 -> 21, adopted half 18 -> 19; ALLOWED_RAW_CARD still 5. Wave 1 was 15-01 + 15-06; 15-02, 15-07 and 15-03 done. REMAINING: 15-04, 15-05 (wave 2) and waves 3-4. NOTE: AUTHUI-02 NOT marked complete — its last clause is 'avatar removal is possible', which REQUIREMENTS.md assigns to Phase 16 CROP-03. AUTHUI-01/AUTHUI-03 (15-11) and EMAIL-01/EMAIL-02 (15-04) also still open. DEVIATION TO READ: the plate draws ONE skeleton, not the two the plan asked for — loading-coverage AC#18 permits exactly one per fallback and the plan requires that file unedited."
-last_updated: "2026-08-24T13:05:18.174Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-08 executed (the profile page adopts the design system)
+stopped_at: "Phase 15 EXECUTING — 15-04 COMPLETE (9ae38da the guarded-site inventory, a916e0c its watched reds, f908a21 the injection probe's M1/M2 walk finished, a7f8b95 the final summary; Tasks 1-2 were 57d0ee7 / bd015f0 / b9fe3bb from the executor that died mid-walk). NINETEEN of nineteen senders compose the shell; 141-case all-sender injection probe green; the contacts gate audits TWO guarded sites (app footer + email-shell) at 28 passed | 3 skipped of 31. EMAIL-01 and EMAIL-02 are now COMPLETE (checkbox + traceability row). EMAIL-03 stays open — it is 15-05's real-client inbox walk. REMAINING in phase 15: 15-05 (wave 5), 15-09, 15-10 (wave 4), 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed."
+last_updated: "2026-08-24T14:29:16.337Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-04 executed (the nineteenth sender, the all-sender injection probe, and a two-site contacts gate; EMAIL-01 + EMAIL-02 closed)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 102
+  completed_plans: 103
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 7 of 11
-Current Plan: 7
+Plan: 8 of 11
+Current Plan: 8
 Total Plans in Phase: 11
-Status: Executing — Wave 3 opened: 15-08 complete (/profile on BOOKING_SHELL + PageHeader + two PanelCards); 15-04 and 15-05 still remain from Wave 2
+Status: Executing — 15-04 complete (19/19 senders on the shell; EMAIL-01 + EMAIL-02 closed). Wave 4 still owes 15-09 and 15-10; wave 5 owes 15-05 and 15-11
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 plan 15-08 executed (the profile page adopts the design system)
+Last activity: 2026-08-24 -- Phase 15 plan 15-04 executed (the nineteenth sender, the all-sender injection probe, and a two-site contacts gate; EMAIL-01 + EMAIL-02 closed)
 
 ## Performance Metrics
 
@@ -696,6 +696,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P07 | 38min | 2 tasks | 6 files |
 | Phase 15 P03 | 24min | 3 tasks | 2 files |
 | Phase 15 P08 | 19min | 2 tasks | 4 files |
+| Phase 15 P04 | 78min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1153,6 +1154,10 @@ Recent decisions affecting current work:
 - [Phase 15]: 15-08: The avatar block moved INSIDE the <form> element so one panel can hold it with the public fields; they were siblings in different subtrees before, which is why the public group could not be one box. Safe by construction: the file input carries no name and is not registered with RHF, so updateProfile receives the same five values, and tests/profile/ (which drives the real server actions) passes untouched.
 - [Phase 15]: 15-08: AUTHUI-02 NOT ticked. Its text is "The profile page carries the design system, and avatar removal is possible" — REQUIREMENTS.md's own conflict note assigns that second clause to Phase 16 CROP-03. The design-system half is closed by 15-08; recorded as requirements-advanced.
 - [Phase 15]: 15-08: grep -c 'BOOKING_SHELL' cannot return 1 on a file that reads the constant: an import plus a use is two lines, and the shipped adopters (bookings/[id]/cancel page + plate) both measure 3. The plan's criterion misdescribes its own key_links edge, which asks for one IMPORT each. Both profile files report 2.
+- [Phase 15]: 15-04: the ops digest's table enters the shell through the ONE pre-escaped tableHtml slot and keeps its per-field escapeHtml calls — that slot is the one place renderEmail deliberately does not escape, so those calls are all that stands between ~20 recordAudit call sites and an operator's inbox (watched red: dropping one renders a live <script> into the digest table). It types no colour value: reading the rule token in email.ts would put a second palette reader outside the shell and resolve it against a theme the function is never told.
+- [Phase 15]: 15-04: OpsDigestRow still has NO meta field, and the absence is the contract — re-exporting booking ids, transfer ids or masked last-4s across the email trust boundary is a type error at the renderer rather than something a reviewer has to notice (D-72). Its PII guarantee is now read DIRECTLY off the built string as well as through the transport; before this plan zero test files imported renderOpsAlertDigest and the docblock's claim about a direct read was false.
+- [Phase 15]: 15-04: a source-scanning gate audits a DECLARED INVENTORY of sites with a reason per row, never one hardcoded file, and asserts the walker REACHED every row before any absence assertion runs. tests/design/site-contacts.test.ts GUARDED_SITES now carries the app footer AND src/lib/email-shell.ts; probe (f) records the other two thirds of the structural trio passing cleanly over a file the walker never opened, which is the vacuity the reach assertion closes.
+- [Phase 15]: 15-04: the digest's runbook paragraphs dropped their <code> wrappers. Under the shell, paragraphs are escaped at the choke point, so a <code> element inside one renders as visible tag text. Command strings are byte-identical and carried as plain text — the same house style as the — AGING marker. Stated, not slipped in.
 
 ### Pending Todos
 
@@ -1262,8 +1267,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-24T09:56:19.239Z
-Stopped at: Phase 15 EXECUTING — Wave 2 in progress: 15-02 complete (51dc925 EMAIL-01 gate, 9ad10dd EMAIL-02 gate). Wave 1 was 15-01 + 15-06. NOTE: EMAIL-01/EMAIL-02 still NOT marked complete — 15-02 makes the shell's claims falsifiable but zero sends compose through it; 15-04 lands the nineteen adopters and closes both.
+Last session: 2026-08-24T14:28:47.618Z
+Stopped at: Phase 15 EXECUTING — 15-04 COMPLETE (9ae38da the guarded-site inventory, a916e0c its watched reds, f908a21 the injection probe's M1/M2 walk finished, a7f8b95 the final summary; Tasks 1-2 were 57d0ee7 / bd015f0 / b9fe3bb from the executor that died mid-walk). NINETEEN of nineteen senders compose the shell; 141-case all-sender injection probe green; the contacts gate audits TWO guarded sites (app footer + email-shell) at 28 passed | 3 skipped of 31. EMAIL-01 and EMAIL-02 are now COMPLETE (checkbox + traceability row). EMAIL-03 stays open — it is 15-05's real-client inbox walk. REMAINING in phase 15: 15-05 (wave 5), 15-09, 15-10 (wave 4), 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed.
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**

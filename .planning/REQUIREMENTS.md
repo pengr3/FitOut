@@ -89,8 +89,8 @@
 
 ### Transactional email (EMAIL)
 
-- [ ] **EMAIL-01**: All existing sends render through one shared branded shell (600px, single column, table-based, inline hex styles from the generated token module, a preheader, a text wordmark, a plain-text part) **without any send trigger moving**
-- [ ] **EMAIL-02**: Email colour values are generated from the same token contract as the app, so a theme swap cannot leave the emails behind
+- [x] **EMAIL-01**: All existing sends render through one shared branded shell (600px, single column, table-based, inline hex styles from the generated token module, a preheader, a text wordmark, a plain-text part) **without any send trigger moving**
+- [x] **EMAIL-02**: Email colour values are generated from the same token contract as the app, so a theme swap cannot leave the emails behind
 - [ ] **EMAIL-03**: The shell is verified by opening at least one of each send in real Gmail (web and Android), real Outlook desktop, and Apple Mail — at least one in dark mode
 
 ### Image framing (CROP) — promoted from backlog 999.2
@@ -225,8 +225,8 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | AUTHUI-01 | Phase 15 | Pending |
 | AUTHUI-02 | Phase 15 | Pending |
 | AUTHUI-03 | Phase 15 | Pending |
-| EMAIL-01 | Phase 15 | Pending |
-| EMAIL-02 | Phase 15 | Pending |
+| EMAIL-01 | Phase 15 | Complete |
+| EMAIL-02 | Phase 15 | Complete |
 | EMAIL-03 | Phase 15 | Pending |
 | CROP-01 | Phase 16 | Pending |
 | CROP-02 | Phase 16 | Pending |
