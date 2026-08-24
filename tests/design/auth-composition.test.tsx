@@ -39,14 +39,18 @@
 // which a comment cannot be.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// THE MUTATION WALK — ⚠ NOT YET RUN. SIX PROBES PLANNED; ZERO OBSERVED.
+// THE MUTATION WALK — SIX PROBES, ALL RUN, ALL REVERTED (24 August 2026)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// ⚠ READ THIS BEFORE TRUSTING ANY ASSERTION BELOW. The file is GREEN at 13 passed against the
-// unmutated tree, which proves only that it agrees with today's source. Not one of its assertions has
-// been watched FAILING, and an assertion nobody has seen fail is an assertion nobody has tested. This
-// block is written in the state the walk is actually in, rather than left blank or — worse — filled
-// in from what the failures are expected to look like.
+// Six probes, each applied alone, each run, each reverted, with `git diff --exit-code src/` confirmed
+// clean before the next one started. Every red below is TRANSCRIBED from the run rather than written
+// from what the failure was expected to look like — and M3's note records the one place where the
+// first draft did guess, guessed wrong, and had to be corrected in its own commit.
+//
+// ⚠ THIS BLOCK READ "NOT YET RUN — ZERO OBSERVED" IN COMMIT `e9d0155`, AND THAT IS DELIBERATE HISTORY
+// RATHER THAN AN ARTEFACT. The file was committed green-but-unprobed with the walk's state stated in
+// its own header, so that a run that died between writing the gate and testing it could not leave
+// behind a header claiming reds nobody had watched.
 //
 // Command for all six:
 // `npx vitest run tests/design/auth-composition.test.tsx --config vitest.design.config.ts`
@@ -142,8 +146,33 @@
 //        same line — a refactor that moved the landmark back into each page would leave the layout at
 //        0 and redden here, with the second half of the same `it()` catching the four pages that grew
 //        one each.
-//   (M6) PENDING — a removed region comes back: `role="status"` restored on the login page's
-//        post-reset notice, i.e. plan 15-07's `ResetNotice` demotion undone.
+//   (M6) RUN AND REVERTED. A removed region comes back: `role="status"` restored on `ResetNotice`'s
+//        paragraph in `(auth)/login/page.tsx` — plan 15-07's demotion, undone. 1 failed / 12 passed:
+//
+//          AssertionError: the login page declares a result region again. Plan 15-07 REMOVED it: the
+//          post-reset notice is present on the FIRST paint of /login?reset=1, so it announces either
+//          nothing or a duplicate of what a screen reader was about to read anyway.: expected
+//          [ Array(1) ] to deeply equal []
+//          + "src/app/(auth)/login/page.tsx:89 — role=status"
+//
+//        ⚠ AND `tests/design/live-regions.test.tsx` WENT RED ON THE SAME MUTATION, WHICH IS THE ONE
+//        RESULT IN THIS WALK THAT WAS WORTH MEASURING TWICE. That gate was BLIND to this file until
+//        plan 15-09's Task 1 put it in `LIVE_REGION_FILES`; with it declared, SCAN 2 reports the same
+//        defect from the other direction — 1 failed / 25 passed:
+//
+//          AssertionError: GATE-03's inventory disagrees with the tree.
+//            PRESENT BUT UNDECLARED (a live region shipped with no stated reason):
+//            src/app/(auth)/login/page.tsx:89 — status#1 on <p> (role="status")
+//            src/app/(auth)/login/page.tsx renders, in source order:
+//              :89 status#1 <p> → NO ROW
+//              :203 alert#1 <p> → login-form-error
+//
+//        THE TWO READINGS ARE NOT REDUNDANT AND THE DIFFERENCE IS WHY BOTH EXIST. The inventory can
+//        only ever say "this region has no row" — it is a statement about regions that EXIST, so a
+//        region correctly removed leaves nothing behind for it to check and it would be equally happy
+//        if a row were added for the restored one. This file says something the inventory structurally
+//        cannot: that this particular element must have NO region, whatever anybody is willing to
+//        write a row for.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
