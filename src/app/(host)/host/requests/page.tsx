@@ -11,8 +11,17 @@
 // test no longer covers the real page. A host can never see another host's requests.
 //
 // All money is the SERVER-FROZEN quote (booking.quotedTotalCents, D-49) rendered via formatMoney — the page
-// does ZERO price arithmetic. Every time names the venue timezone (SC#2). NO coral — this is a calm host
-// workflow surface, not a conversion funnel (mirrors /host/earnings).
+// does ZERO price arithmetic. NO coral — this is a calm host workflow surface, not a conversion funnel
+// (mirrors /host/earnings).
+//
+// ⚠ SC#2 IS AMENDED ON THIS SURFACE AS OF 2026-08-24, AND THE OLD SENTENCE IS GONE RATHER THAN LEFT
+// STANDING. This header used to read "Every time names the venue timezone (SC#2)". After Phase 14's UAT
+// finding F-2 the PM ruled *"show the timezone only when it varies"* on the host LIST surfaces that
+// repeat the label once per row — so a row here names its city only when the rendered rows span more
+// than one venue clock. The rule, and the reasoning that a rule which has been overridden must not stay
+// on the books as if it were still true, live in `@/lib/booking/venue-clock-scope`. Every surface that
+// renders ONE booking — `/host/bookings/[id]`, the emails, the whole booker path — still names the zone
+// unconditionally, and `when-label.ts` is unchanged.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // WHAT PLAN 14-06 CHANGED, AND WHAT IT DELIBERATELY DID NOT (HFLOW-01 · D-146, D-147)
@@ -68,6 +77,7 @@ import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { composeWhenLabelShort } from "@/lib/booking/when-label";
+import { resolveListCity } from "@/lib/booking/venue-clock-scope";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { APPROVAL_SLA_HOURS } from "@/lib/payments/config";
 import {
@@ -144,6 +154,11 @@ export default async function HostRequestsPage() {
   // so "Session starts in Xh" and the row's own countdown deadline can never disagree about what time it is.
   const now = await readDbNow(db);
 
+  // The zone decision, taken ONCE over the whole rendered inbox and never inside the map — a
+  // `venueClocksVary` call against a single row is always false, and this projector shape is what makes
+  // that mistake unwritable. See `venue-clock-scope.ts` for the rule and the ruling behind it.
+  const listCity = resolveListCity(rows);
+
   const displayRows: (RequestRowData & { reason: React.ReactNode })[] = rows.map((r) => ({
     requestId: r.id,
     spaceTitle: r.title ?? "Your space",
@@ -151,7 +166,7 @@ export default async function HostRequestsPage() {
       startsAt: r.startsAt,
       endsAt: r.endsAt,
       timezone: r.timezone,
-      city: r.city,
+      city: listCity(r),
       fullDay: r.fullDay,
       // This list is `status = 'requested'` only, and only `placeOpenHold` mints an open row, so nothing
       // on this page can be a drop-in pass — open capacity is instant-only (OC-10).

@@ -67,42 +67,37 @@
 // defers every one of them by name.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// F-2 — THE DESKTOP TABLE OVERFLOWS ITS CONTAINER AT 1280px. MEASURED, DIAGNOSED, NOT FIXED HERE.
+// F-2 — THE DESKTOP TABLE OVERFLOWED ITS CONTAINER AT 1280px. FIXED BY THE PM'S RULING (260824-ej2).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// Recorded on the file that has the defect so the next reader finds it before re-deriving it. The full
-// write-up, both dispositions and the numbers are in `.planning/phases/14-host-tooling/14-UAT-LOG.md`
-// § F-2; quick task `260824-dbc` measured it and escalated the fix as a product decision.
+// THE DEFECT, measured in Chromium at 1280px against the SEEDED CATALOGUE's own five titles and cities
+// (`scripts/seed.ts:48-52`), five upcoming bookings, three confirmed and two requested:
 //
-// WHAT IS TRUE, MEASURED IN CHROMIUM AT 1280px AGAINST THE SEEDED CATALOGUE'S OWN FIVE TITLES AND
-// CITIES (`scripts/seed.ts:48-52`), with five upcoming bookings, three confirmed and two requested:
+//     container clientWidth 864 · scrollWidth 1033 · overflow 169px
+//     Approve box x=1051→1141 against a clip edge at x=1072 — 69 of its 90px past the edge
+//     columns: Guest 69 · Space 234 · When 357 · Status 112 · Payout 63 · Actions 199
 //
-//     container clientWidth 864 · scrollWidth 1043 · overflow 179px
-//     Approve box x=1060→1150 against a clip edge at x=1072 — 78 of its 90px past the edge
-//     columns: Guest 69 · Space 234 · When 366 · Status 112 · Payout 63 · Actions 199
+// The widest column was **When**, because every row repeated ` ({City} time)`. Quick task `260824-dbc`
+// measured that, implemented the other candidate fix — letting the two sentence-bearing cells wrap —
+// and BACKED IT OUT when `e2e/skeleton-geometry.spec.ts` showed it turns every desktop row into two
+// lines and re-couples this route's row height to the calendar. So the fork went to the PM, who ruled:
 //
-// The UAT pass filed a caveat that this might be an artefact of its fixture's long titles. THE CAVEAT
-// IS WRONG, and wrong in the direction that matters: the seeded catalogue is the WORSE case, because
-// `QC Strength & Conditioning Gym` is longer than either fixture title. The content stays reachable —
-// the container scrolls sideways — but at rest the primary action on a pending row reads as cut off.
+//     "Show the timezone only when it varies."
 //
-// WHY NOTHING WAS CHANGED HERE, AND WHAT THE ACTUAL FORK IS. The shared table cell forbids wrapping on
-// every cell it renders, so the two cells holding a SENTENCE rather than a token — the space title and
-// the venue-local window label — each contribute their full unbroken length to the table's minimum
-// width. 600 of those 1043 pixels are those two. Letting them wrap DOES remove the clip completely
-// (measured: 864 against 864, and 101px of clearance on the Approve box) — but it makes the desktop
-// row two lines instead of one, which:
+// WHAT THAT MEANS HERE, AND WHERE THE RULE LIVES. The `city` handed to the shared formatter is now
+// projected by `resolveListCity` (`@/lib/booking/venue-clock-scope`), which returns the row's own city
+// when the RENDERED rows span more than one venue clock and null when they do not — and the formatter
+// has always omitted the suffix for a null city. Nothing in `when-label.ts` changed, this route's
+// markup is byte-identical, and the WHEN column simply stops carrying a phrase that disambiguated
+// nothing: the seeded catalogue is five different CITIES on ONE clock. Measured after the change, same
+// fixture, same instrument: clientWidth 864 · scrollWidth 864 · overflow 0 · Approve x=881→971, 101px
+// clear of the edge.
 //
-//   • moves `HOST_BOOKING_ROW_HEIGHT`'s desktop value, and with it `bookings/loading.tsx`'s plate,
-//     which exists to draw the box the arriving content will occupy; and
-//   • makes that row's height depend on the WIDEST label in the whole list, because a table shares
-//     column widths across its rows. Two of this route's rows are seeded relative to the clock, so the
-//     resting row's height would start moving with the calendar again — which is exactly the ambush
-//     `[14-16]` closed, re-opened one breakpoint up.
-//
-// That is a Phase-14 measurement decision with a host-visible consequence, not a two-class polish, so
-// it was escalated rather than taken inside a quick task. `e2e/skeleton-geometry.spec.ts` is what fails
-// on it, and it failed on it — see the UAT log for the observed red.
+// ⚠ THE COST, ACCEPTED BY THE PM AND RECORDED SO IT IS NOT READ AS A BUG. A single-zone host no longer
+// sees a timezone named on this list. That walks back SC#2 / D-105 for host LIST surfaces only; every
+// surface that renders ONE booking still names it unconditionally. The rule, its two definitional
+// choices and the Walk A case it must never break are documented once, in the module above — not here,
+// so there is no second statement of it to drift.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -117,6 +112,7 @@ import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { HOST_BOOKINGS_HEADER } from "@/lib/host/bookings-copy";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { composeWhenLabelShort } from "@/lib/booking/when-label";
+import { resolveListCity } from "@/lib/booking/venue-clock-scope";
 import {
   queryHostBookings,
   readDbNow,
@@ -201,6 +197,12 @@ export default async function HostBookingsPage({
 
   // Server-side display mapping — venue-local labels from the SHARED formatter (07-02), money via
   // formatMoney. Nothing below this line computes a price or a date.
+  //
+  // THE ZONE DECISION IS TAKEN ONCE, HERE, OVER THE WHOLE RENDERED PAGE — never inside the map. It is
+  // a property of the rows on screen together (see the F-2 block above), and a `venueClocksVary` call
+  // against a single row is always false, which would silently drop the suffix from a two-zone list.
+  // The projector shape is what makes that mistake unwritable.
+  const listCity = resolveListCity(page.rows);
   const rows: HostBookingRowData[] = page.rows.map((r) => ({
     bookingId: r.id,
     spaceTitle: r.listingTitle ?? "Your space",
@@ -209,7 +211,7 @@ export default async function HostBookingsPage({
       startsAt: r.startsAt,
       endsAt: r.endsAt,
       timezone: r.timezone,
-      city: r.city,
+      city: listCity(r),
       fullDay: r.fullDay,
       // OC-03: the persisted mode snapshot. A host scanning their day must see "· Drop-in pass", not a row
       // claiming someone booked the whole space from opening to closing (09-08).

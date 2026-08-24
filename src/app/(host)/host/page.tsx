@@ -65,6 +65,7 @@ import { PageHeader } from "@/components/patterns/page-header";
 import { HOST_PANEL_SHELL } from "@/lib/design/measurements";
 import { queryHostAgenda, readDbNow } from "@/lib/booking/bookings-query";
 import { composeStartTokens, composeWhenLabelShort } from "@/lib/booking/when-label";
+import { resolveListCity } from "@/lib/booking/venue-clock-scope";
 import {
   HostAgenda,
   WITHHELD_BOOKER_LABEL,
@@ -161,6 +162,15 @@ export default async function HostDashboardPage() {
   // NO MONEY REACHES THIS SURFACE, and that is the design contract rather than an omission: the agenda
   // row's slots are title / meta / status / href, and the frozen quote is rendered on the inbox row —
   // where a host is deciding — and on the booking detail this row links to.
+  //
+  // ─── THE ZONE DECISION (quick 260824-ej2 · PM ruling 2026-08-24), AND THIS IS THE SURFACE IT MATTERS
+  // MOST ON. `resolveListCity` names each row's city only when TODAY'S RENDERED ROWS span more than one
+  // venue clock. Walk A of the Phase 14 UAT is exactly that case — a Makati court and a Venice Beach
+  // studio, two sessions, two calendar dates running BACKWARDS down one list headed *Today* — and the
+  // PM's PASS verdict rested on the city name on each line doing the work. Two rows, two zones, so both
+  // suffixes survive here by construction. Computed ONCE over the whole set, before the map: the same
+  // call inside the map would be asking whether ONE row varies, which it never does.
+  const agendaCity = resolveListCity(agenda.today);
   const agendaRows: HostAgendaRowData[] = agenda.today.map((r) => ({
     bookingId: r.id,
     // THE BOOKER'S FIRST NAME IS THE ROW TITLE (D-140). First name only: no surname, no email, no phone.
@@ -170,7 +180,7 @@ export default async function HostDashboardPage() {
       startsAt: r.startsAt,
       endsAt: r.endsAt,
       timezone: r.timezone,
-      city: r.city,
+      city: agendaCity(r),
       // The persisted creation-time snapshots, both REQUIRED by the composer so the compiler enumerates
       // every projection that must supply them. Never re-derived from a price (CR-01).
       fullDay: r.fullDay,
