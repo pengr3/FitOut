@@ -69,6 +69,77 @@
 //              Tests  1 failed | 7 passed (8)
 //      i.e. without the delete the digest finds a recipient and SENDS, so the no-recipient branch is never
 //      entered. The delete is load-bearing. If this file is ever refactored, keep it.
+//
+// M5 — WR-04 (15-14), THE THIRD INSTANCE OF THIS PHASE'S UNFAILABLE-ASSERTION PATTERN. Re-add to
+//      `renderOpsAlertDigest`'s runbook paragraph in src/lib/email.ts the exact wrapper 15-04 removed:
+//        `Look a row up with <code>npm run ops:alerts</code>; discharge it with ` +
+//      BOTH HALVES BELOW ARE THE FINDING, and the first half is the one that condemns the old line.
+//
+//      (a) THE OLD ASSERTION PASSES UNDER THE MUTATION. With this file at HEAD — case 11 carrying only
+//          `expect(html).not.toContain("<code>")` — `npx vitest run tests/ops/alert-digest.test.ts`
+//          → VERBATIM:
+//            Test Files  1 passed (1)
+//                 Tests  12 passed (12)
+//          A `<code>` inside a paragraph is escaped STRUCTURALLY at the choke point, so it arrives as
+//          `&lt;code&gt;` and the literal string that line named cannot exist in that projection. The
+//          guard was green while the regression its own comment names was live in the tree.
+//
+//      (b) THE NEW HTML ASSERTION FAILS. Same command, same mutation, this file as it now stands
+//          → VERBATIM:
+//            × case 11 — the runbook commands survive the shell byte-identical, and a re-added wrapper reddens this case 9ms
+//            AssertionError: a <code> wrapper is back in a runbook paragraph — the operator reads it as visible tag text: expected '<!DOCTYPE html><html lang="en"><head>…' not to contain '&lt;code&gt;'
+//                  Tests  1 failed | 11 passed (12)
+//          and the document the failure quotes back carries it in exactly the form an operator would
+//          read: `Look a row up with &lt;code&gt;npm run ops:alerts&lt;/code&gt;`.
+//
+//      (b′) THE TWIN, ISOLATED. (b) short-circuits at the html line, so the text one was measured on its
+//          own by neutralising the line above it for a single run — same mutation, same command
+//          → VERBATIM:
+//            × case 11 — the runbook commands survive the shell byte-identical, and a re-added wrapper reddens this case 8ms
+//            AssertionError: a <code> wrapper is back in a runbook paragraph — the text/plain twin carries it literally: expected 'FitOut ops — unresolved money alerts\…' not to contain '<code>'
+//            + 1 unresolved needs_attention audit row(s), newest first. Look a row up with <code>npm run ops:alerts</code>; discharge it with npm run ops:alerts:resolve -- <audit-id>. …
+//                  Tests  1 failed | 11 passed (12)
+//          ONE mutation, TWO projections, TWO independent failures. That is the whole point of writing
+//          the absence check twice rather than once in the wrong spelling.
+//
+//      MUTATION REVERTED — `git diff --exit-code src/lib/email.ts` exit 0, `git diff --name-only src/`
+//      empty, re-run `Tests  12 passed (12)`: the same case count this file carried before 15-14.
+//
+// M6 — THE REST OF THE RAW-TAG SET, CLASSIFIED BY MEASUREMENT (15-14 Part C). Grepping `tests/` for a
+//      `not.toContain` whose argument opens with an angle bracket returns 8 assertions in 5 files — a
+//      listable set, re-counted rather than trusted. Two more mutations decide the other seven, and both
+//      were reverted (`git diff --exit-code src/` exit 0).
+//
+//      C1 — `escapeHtml` in src/lib/email-shell.ts made the IDENTITY function: the escape-regression
+//           class every injected-data assertion is written against. `npx vitest run
+//           tests/auth/email-escaping.test.ts tests/auth/email-injection.test.ts
+//           tests/notifications/guest-email.test.ts tests/notifications/notify.test.ts
+//           tests/ops/alert-digest.test.ts` → VERBATIM:
+//                 Tests  94 failed | 91 passed (185)
+//           including `× case 6b — HTML-escapes every interpolated field (WR-01)` reporting at
+//           alert-digest's own `expect(html).not.toContain("<script>")`. The four outside this file each
+//           report one line EARLIER, on their sibling positive control — so reachability was read off the
+//           document the failure quotes back, and in every one the raw payload
+//           (`<script>alert(1)</script>` / `<script>alert('x15')</script>`) is present LITERALLY.
+//           All five html-projection assertions are therefore FAILABLE.
+//           THE CONTROL INSIDE THIS MUTATION: the two `text`-projection assertions (`<td>`, `<table`)
+//           stayed GREEN under C1. They are about a different regression, and C1 says so.
+//
+//      C3 — `tableText` pointed at `tableHtml`: the twin silently taking the markup.
+//           `npx vitest run tests/ops/alert-digest.test.ts` → VERBATIM:
+//            × case 9 — the plain-text twin is the real table, not the subject line restated
+//            AssertionError: expected 'FitOut ops — unresolved money alerts\…' not to contain '<td>'
+//                  Tests  1 failed | 11 passed (12)
+//           and the text quoted back carries `<table border="1" cellpadding="4" …`, so line 403's string
+//           is reachable in that projection too (402 fires first). A NARROWER first variant — only the
+//           per-row `cells.map((c) => c.text)` swapped to `c.html` — reddened 402 and left 403 GREEN,
+//           because `<table` lives on the wrapper rather than in a row. Both are failable; they are not
+//           failable for the SAME regression, and that is worth knowing before either is ever deleted.
+//
+//      VERDICT: 8 of 8 now failable. Seven already were; case 11's was the single exception, and M5 is
+//      the record of fixing it. `tests/auth/email-escaping.test.ts` is named in the ROADMAP's carried
+//      constraint from backlog 999.1 and was NOT edited — it was classified and left alone.
+//
 // ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
@@ -414,10 +485,20 @@ describe("renderOpsAlertDigest — read directly, not through the transport", ()
     expect(whole.text).not.toContain("200+ unresolved");
   });
 
-  it("case 11 — the runbook commands survive the shell byte-identical", () => {
+  it("case 11 — the runbook commands survive the shell byte-identical, and a re-added wrapper reddens this case", () => {
     // The `<code>` wrappers were dropped in 15-04 (paragraphs are escaped at the choke point now, so a
     // `<code>` element inside one would reach the operator as visible tag text). The COMMANDS are the
     // part an operator copies, and they are unchanged — asserted on the twin, where they are raw.
+    //
+    // WR-04 — THE RULE THIS PHASE HAS NOW EARNED THREE TIMES OVER (see M5 in this file's header).
+    // `renderOpsAlertDigest` hands its runbook sentence to `renderEmail` as a `paragraphs` entry, and
+    // paragraphs are escaped STRUCTURALLY at the choke point. So an absence check about AUTHORED markup
+    // must be written in the ESCAPED form for the HTML part, or it names a string the regression it is
+    // written against cannot produce — which is what the single `not.toContain("<code>")` that used to
+    // stand here alone was doing.
+    //
+    // ONE regression, TWO projections, TWO independent failures: `renderEmail` builds both parts from the
+    // SAME `paragraphs` array — escaped on the way into `html`, taken RAW into the `text/plain` twin.
     const { html, text } = renderOpsAlertDigest(DIRECT_ROWS, {
       truncated: false,
       limit: DEFAULT_ALERT_LIMIT,
@@ -426,8 +507,28 @@ describe("renderOpsAlertDigest — read directly, not through the transport", ()
     expect(text).toContain("npm run ops:alerts:resolve -- <audit-id>");
     expect(text).toContain("needs_attention");
     expect(text).toContain(".planning/ops/NEEDS-ATTENTION-RUNBOOK.md");
-    // The placeholder is written raw and escaped on the way into HTML — never a visible `<code>` tag.
+    // THE CONTROL for the two assertions below it. The placeholder is written RAW in the source and
+    // arrives here entity-escaped, which is the proof that the ENTITY form is REACHABLE in this
+    // projection. Without it, an entity-form absence check would be nothing but a differently-spelled
+    // unfailable string.
     expect(html).toContain("&lt;audit-id&gt;");
-    expect(html).not.toContain("<code>");
+    // THE LINE THAT CATCHES A RE-ADDED WRAPPER (html projection). Escaped at the choke point, a `<code>`
+    // inside a paragraph reaches the operator as visible tag text — this is the form it actually takes.
+    expect(
+      html,
+      "a <code> wrapper is back in a runbook paragraph — the operator reads it as visible tag text",
+    ).not.toContain("&lt;code&gt;");
+    // THE SAME REGRESSION IN THE TWIN (text projection). The plain-text part takes the paragraph raw, so
+    // here the LITERAL open-tag is reachable and this assertion can fail for the same one mutation.
+    expect(
+      text,
+      "a <code> wrapper is back in a runbook paragraph — the text/plain twin carries it literally",
+    ).not.toContain("<code>");
+    // KEPT, WITH ITS CLAIM CORRECTED. This is NOT the line that catches a re-added wrapper: paragraphs are
+    // escaped before they reach the HTML part, so the literal string cannot appear by that route. What it
+    // still legitimately forbids is raw markup entering the HTML part by SOME OTHER route — a future
+    // `tableHtml`-style pre-escaped slot carrying a `<code>`. Harmless to keep; dishonest to leave
+    // described as the wrapper guard.
+    expect(html, "raw markup entered the HTML part through a pre-escaped slot").not.toContain("<code>");
   });
 });
