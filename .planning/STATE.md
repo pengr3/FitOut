@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: "Phase 15 EXECUTING — Wave 2 in progress: 15-03 complete (cb26f72 transport+auth sends, 85ceeda rows 3-10, 008ced0 rows 11-18; 4e25bea + 74e539c the copy-assertion auto-fix). 18 of 19 senders compose renderEmail; <p><strong> 18 -> 1 and the survivor is the ops digest's. send() is now (to, subject, html, text). Wave 1 was 15-01 + 15-06; 15-02 and 15-07 done. REMAINING IN WAVE 2: 15-04, 15-05. NOTE: EMAIL-01/EMAIL-02 still NOT marked complete — 18/19 is not 'all existing sends'; 15-04 lands the nineteenth (sendOpsAlertDigest) and closes both. AUTHUI-01/AUTHUI-03 also still open (15-08 / 15-11)."
-last_updated: "2026-08-24T12:37:51.495Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-03 executed (eighteen senders adopt the email shell)
+stopped_at: "Phase 15 EXECUTING — Wave 3 opened: 15-08 complete (c8d89f5 shell+header, 8ac4823 the AC#18 one-skeleton fix, 0b8bad9 two panels, c22e506 the inventory). /profile reads BOOKING_SHELL on page AND plate, renders its h1 through PageHeader, and draws two PanelCards around an untouched save-state machine. EXPECTED_SURFACES 20 -> 21, adopted half 18 -> 19; ALLOWED_RAW_CARD still 5. Wave 1 was 15-01 + 15-06; 15-02, 15-07 and 15-03 done. REMAINING: 15-04, 15-05 (wave 2) and waves 3-4. NOTE: AUTHUI-02 NOT marked complete — its last clause is 'avatar removal is possible', which REQUIREMENTS.md assigns to Phase 16 CROP-03. AUTHUI-01/AUTHUI-03 (15-11) and EMAIL-01/EMAIL-02 (15-04) also still open. DEVIATION TO READ: the plate draws ONE skeleton, not the two the plan asked for — loading-coverage AC#18 permits exactly one per fallback and the plan requires that file unedited."
+last_updated: "2026-08-24T13:05:18.174Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-08 executed (the profile page adopts the design system)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 101
+  completed_plans: 102
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 6 of 11
-Current Plan: 6
+Plan: 7 of 11
+Current Plan: 7
 Total Plans in Phase: 11
-Status: Executing — Wave 2 in progress: 15-03 complete (18 of 19 sends on the shell); 15-04 and 15-05 remain
+Status: Executing — Wave 3 opened: 15-08 complete (/profile on BOOKING_SHELL + PageHeader + two PanelCards); 15-04 and 15-05 still remain from Wave 2
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 plan 15-03 executed (eighteen senders adopt the email shell)
+Last activity: 2026-08-24 -- Phase 15 plan 15-08 executed (the profile page adopts the design system)
 
 ## Performance Metrics
 
@@ -494,7 +494,7 @@ Last activity: 2026-08-24 -- Phase 15 plan 15-03 executed (eighteen senders adop
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
-| 15 | 5 | - | - |
+| 15 | 6 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -695,6 +695,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P02 | 16min | 2 tasks | 2 files |
 | Phase 15 P07 | 38min | 2 tasks | 6 files |
 | Phase 15 P03 | 24min | 3 tasks | 2 files |
+| Phase 15 P08 | 19min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1147,6 +1148,11 @@ Recent decisions affecting current work:
 - [Phase 15]: 15-03: The verification and reset emails are paragraphs: [] on purpose — the AUTHFB-01 boundary written in code. The one copy change the phase permits is the labelled CTA replacing a bare token URL used as its own link text. NO roadmap amendment is proposed even though the shell makes an expiry / "if you didn't request this" line near-free: cheapness was never why AUTHFB-01 was deferred.
 - [Phase 15]: 15-03: Two of the plan's grep acceptance criteria ('sent: true' → 1, 'email:dev' → 1) misdescribed the BASELINE, not the target — the shipped file already had 2 and 4. Every count that matters was verified equal to `git show`'s: sent: true, email:dev, onboarding@resend.dev, ALL_RAILS_REFUND_WINDOW and resend.emails.send are all unchanged.
 - [Phase 15]: 15-03: Task 1's "tsc exits 0" could not hold at Task 1 — with text required the file only typechecks once all nineteen call sites pass four arguments, which is Task 3. Runtime verification (vitest transpiles without typechecking) was run per-task instead; tsc is exit 0 at plan end.
+- [Phase 15]: 15-08: THE PROFILE PLATE DRAWS ONE SKELETON, NOT TWO, AND THE PLAN ASKED FOR TWO. loading-coverage.test.ts AC#18 permits exactly one skeleton pattern per fallback — each carries its own role="status", so a second call site is a second live region announcing one navigation. Its other legal shape (zero patterns + one hand-written named region) is closed by a PINNED two-file list of routes that deliberately get no skeleton. The same plan requires that file to pass with zero edits, so the two instructions are mutually exclusive and the zero-edit requirement is the plan's own precedence signal. Observed red quoted verbatim in loading.tsx. Anyone re-opening this: the fix is not a second <PanelSkeleton>.
+- [Phase 15]: 15-08: The profile form joins CARD_SURFACES by NEITHER usual route — it was never on ALLOWED_RAW_CARD (it had no card to exempt) and it is not a post-11-UI-SPEC surface (it shipped in Phase 4). It is the third kind: a surface that drew NO box at all, which this gate is structurally blind to, because both of its real assertions are absences and a page with no card satisfies the inverse half perfectly. EXPECTED_SURFACES 20 -> 21 and the adopted half 18 -> 19, both reds watched first.
+- [Phase 15]: 15-08: The avatar block moved INSIDE the <form> element so one panel can hold it with the public fields; they were siblings in different subtrees before, which is why the public group could not be one box. Safe by construction: the file input carries no name and is not registered with RHF, so updateProfile receives the same five values, and tests/profile/ (which drives the real server actions) passes untouched.
+- [Phase 15]: 15-08: AUTHUI-02 NOT ticked. Its text is "The profile page carries the design system, and avatar removal is possible" — REQUIREMENTS.md's own conflict note assigns that second clause to Phase 16 CROP-03. The design-system half is closed by 15-08; recorded as requirements-advanced.
+- [Phase 15]: 15-08: grep -c 'BOOKING_SHELL' cannot return 1 on a file that reads the constant: an import plus a use is two lines, and the shipped adopters (bookings/[id]/cancel page + plate) both measure 3. The plan's criterion misdescribes its own key_links edge, which asks for one IMPORT each. Both profile files report 2.
 
 ### Pending Todos
 
