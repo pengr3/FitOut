@@ -177,3 +177,7 @@ None - no external service configuration required.
 ---
 *Phase: 15-auth-profile-transactional-email*
 *Completed: 2026-08-24*
+
+## Self-Check: PASSED
+
+All four modified source files and this summary exist on disk; all three commits (`b6fb568`, `9c184bd`, `ac06e3f`) are reachable in `git log`.
