@@ -57,7 +57,62 @@
 // was re-run, the RED was recorded VERBATIM below, and the mutation was reverted —
 // `git diff --exit-code src/` clean afterwards.
 //
-// M1 — PENDING (filled in by the walk immediately after this file first went green).
+// GREEN, before any mutation: **141 passed (141)**.
+// `npx vitest run tests/auth/email-injection.test.ts`
+//
+// M1 — THE PREHEADER LOSES ITS ESCAPE. `escapeHtml(content.preheader ?? content.heading)` in
+//      `src/lib/email-shell.ts` reduced to `(content.preheader ?? content.heading)` — the fifth escape
+//      site, the one 15-UI-SPEC's escaping sentence does not name. **3 failed | 138 passed (141):**
+//
+//        FAIL … > the derived preheader — the escape site 15-UI-SPEC's sentence does not name
+//             > a payload in the HEADING is escaped on its way into the preheader div
+//        AssertionError: the raw payload reached the hidden preview line: expected
+//        '<!DOCTYPE html><html lang="en"><head>…' not to contain
+//        '<script>alert('x15')</script>" onmo…'
+//          Received: …mso-hide:all;color:#ffffff"><script>alert('x15')</script>" onmouseover="y" & 'z
+//          &zwnj;&nbsp;… — the payload sitting RAW inside the hidden div, with the escaped form
+//          visible in the <title> three tags earlier, which is what makes the diff readable.
+//
+//        FAIL … > a payload in an explicit PREHEADER override is escaped the same way
+//        AssertionError: expected '<!DOCTYPE html><html lang="en"><head>…' not to contain
+//        '<script>alert('x15')</script>" onmo…'   → the override path is a SECOND route into the
+//        same sink, and it fails independently of the derived one.
+//
+//        FAIL … > guard-the-guard — the probe has teeth
+//             > the preheader region really is the preheader, and it starts past the 300th character
+//        AssertionError: the escaped payload is outside the derived region: expected 1437 to be less
+//        than 845
+//
+//      THE THIRD FAILURE IS THE ONE WORTH READING. It is the guard-the-guard, and it went red for a
+//      reason the other two did not: with the preheader unescaped, the FIRST escaped occurrence in the
+//      document moves out of the preview line entirely and lands 1437 characters in, in the body. A
+//      probe that only asserted "the payload is absent" would have been satisfied by a region that had
+//      quietly stopped being the preheader. Reverted; `git diff --exit-code src/` clean → 141 passed.
+//
+// M2 — THE DIGEST'S FREE-TEXT COLUMN LOSES ITS ESCAPE. `${escapeHtml(r.action)}` in
+//      `renderOpsAlertDigest` (`src/lib/email.ts:680`) reduced to `${r.action}` — the PRE-ESCAPED
+//      `tableHtml` slot, which the renderer deliberately does not escape, so the per-field call is the
+//      only thing standing between ~20 `recordAudit` call sites and an operator's inbox (T-15-03).
+//      **2 failed | 139 passed (141):**
+//
+//        FAIL … > sendOpsAlertDigest — the payload never appears raw in any rendered HTML
+//             > ops alert digest — two rows, one aging, truncated: payload at "1.0.action"
+//        AssertionError: sendOpsAlertDigest rendered "1.0.action" into the HTML unescaped. Since 15-03
+//        a sender hands renderEmail RAW strings and the shell escapes every sink — a raw payload here
+//        means either a sender started building markup again or a sink lost its escape call.: expected
+//        '<!DOCTYPE html><html lang="en"><head>…' not to contain
+//        '<script>alert('x15')</script>" onmo…'
+//          Received: …<tr><td>audit_fixture_1</td><td><script>alert('x15')</script>" onmouseover="y" &
+//          'z</td><td>system</td>… — a live <script> element inside the digest table, in the one send
+//          that goes to a human who acts on it.
+//
+//        FAIL … > payload at "1.1.action"  → the SECOND row fails independently, so the probe is
+//        walking the rows rather than sampling the first one.
+//
+//      This mutation is recorded here rather than only in the plan summary because it is the mutation
+//      that was found UNCOMMITTED in the working tree when this plan resumed after its first executor
+//      died mid-walk. It was re-applied deliberately, watched red, and reverted; `git diff
+//      --exit-code src/` clean → 141 passed.
 // ---------------------------------------------------------------------------------------------------
 
 import { describe, it, expect } from "vitest";
