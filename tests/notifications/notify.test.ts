@@ -40,6 +40,28 @@ let testDb: TestDb;
 let seq = 0;
 const uid = (p: string) => `${p}_${seq++}`;
 
+/**
+ * The COPY a recipient reads, as one searchable string — use this for any assertion about a SENTENCE.
+ *
+ * Since 15-03 every send composes `renderEmail`, which escapes the five HTML-significant characters on
+ * the way into the HTML part. An apostrophe in the copy ("You're", "haven't", "can't") therefore reaches
+ * `email.html` as `&#39;`, and a raw-string assertion over the HTML goes red for a RENDERING detail
+ * rather than for a copy change. The plain-text twin is projected from the SAME `EmailContent` with the
+ * RAW strings, which makes it the honest place to assert a sentence.
+ *
+ * It is the honest place to assert an ABSENCE for a sharper reason: `email.html` could no longer contain
+ * the literal `You're getting` under ANY circumstances, so the guard below that the canceller never
+ * receives the booker's sentence had quietly become unfailable. A guard that cannot fail is not a guard.
+ *
+ * Throws rather than returning "" when the twin is missing, so a send that stopped carrying a text part
+ * fails loudly here instead of making every absence assertion vacuously true.
+ */
+function copy(email: { text?: string } | undefined): string {
+  const text = email?.text;
+  if (!text) throw new Error("captured email has no plain-text part — the twin IS the copy under test");
+  return text;
+}
+
 /** A well-formed booking_confirmed payload — the default subject of most cases. */
 function confirmedPayload(overrides: Partial<NotificationPayload> = {}): NotificationPayload {
   return {
@@ -429,7 +451,7 @@ describe("CR-02 — lifecycle emails state the row's real deadline, not the conf
     const [email] = mockResend.sent().filter((e) => e.to === "cr02-received@example.com");
     expect(email).toBeDefined();
     expect(email.html).not.toMatch(/\d+\s+hours/i);
-    expect(email.html).toContain("You haven't been charged");
+    expect(copy(email)).toContain("You haven't been charged");
   });
 });
 
@@ -472,9 +494,10 @@ describe("WR-04 — host-cancellation emails address each recipient's own situat
     expect(email.html).toContain("₱1,050.00"); // the guest's refund, named for the host's records
     expect(email.html).toContain("₱300.00"); // the D-71 fee, finally in writing (WR-04's complaint)
     expect(email.html).toMatch(/fee.*deducted|deducted.*fee/i);
-    // The canceller must never receive the booker's sentences about themselves.
-    expect(email.html).not.toContain("You're getting");
-    expect(email.html).not.toContain("the host cancelled your booking");
+    // The canceller must never receive the booker's sentences about themselves. Asserted over the copy
+    // rather than the markup — see `copy()`: the entity-encoded apostrophe made the HTML form unfailable.
+    expect(copy(email)).not.toContain("You're getting");
+    expect(copy(email)).not.toContain("the host cancelled your booking");
   });
 
   it("(host side, no fee) the fee sentence is absent when no fee was charged", async () => {
@@ -506,7 +529,7 @@ describe("WR-04 — host-cancellation emails address each recipient's own situat
     const [email] = mockResend.sent().filter((e) => e.to === "wr04-booker@example.com");
     expect(email).toBeDefined();
     expect(email.html).toContain("The host cancelled this booking");
-    expect(email.html).toContain("You're getting a full refund of ₱1,050.00");
+    expect(copy(email)).toContain("You're getting a full refund of ₱1,050.00");
   });
 });
 
