@@ -498,7 +498,7 @@ Plans:
   4. Swapping the app's theme changes the emails' colours too, because both read the same generated token contract; an email cannot be left behind by a theme swap.
   5. At least one of each send has been opened in **real** Gmail (web and Android), real Outlook desktop and Apple Mail — at least one in dark mode — and renders correctly.
 
-**Plans**: 11 plans in 5 waves
+**Plans**: 14 plans in 7 waves (three added 2026-08-25 by gap closure after verification returned `gaps_found` — see Waves 6-7)
 
 Plans:
 **Wave 1**
@@ -526,6 +526,15 @@ Plans:
 
 - [ ] 15-05-PLAN.md — the preview harness, the walk checklist, and EMAIL-03 handed to the operator with Outlook recorded as blocked rather than covered
 - [ ] 15-11-PLAN.md — two baseline rows edited, eight added, the alias moved 66 → 74, and the capture routed to the only workflow allowed to write a PNG
+
+**Wave 6** *(gap closure — AUTHUI-03's two unsampled clauses)*
+
+- [ ] 15-12-PLAN.md — a recorded tab-order walk over all four auth screens and both form-replacing branches: the focus sequence written out, an indicator measured on every stop, and T-15-25 re-asserted with a mutation proving it can fail
+- [ ] 15-13-PLAN.md — the auth composition's ink-on-ground pairs measured in both themes as a build-blocking gate, closing pair-drift's documented cross-element blind spot for the D-162 wordmark-on-`bg-muted` surface
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 15-14-PLAN.md — the unfailable ops-digest assertion made failable in both projections (WR-04), AUTHUI-01 claimed by citing re-checked evidence, and the two validation rows AUTHUI-03's conjunctive text was never given
 
 **UI hint**: yes
 
