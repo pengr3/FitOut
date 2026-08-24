@@ -67,7 +67,7 @@
 // defers every one of them by name.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// F-2 — THE DESKTOP TABLE OVERFLOWED ITS CONTAINER AT 1280px. FIXED BY THE PM'S RULING (260824-ej2).
+// F-2 — THE DESKTOP TABLE OVERFLOWED ITS CONTAINER AT 1280px. CLOSED BY TWO PM RULINGS, IN ORDER.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // THE DEFECT, measured in Chromium at 1280px against the SEEDED CATALOGUE's own five titles and cities
@@ -89,15 +89,52 @@
 // when the RENDERED rows span more than one venue clock and null when they do not — and the formatter
 // has always omitted the suffix for a null city. Nothing in `when-label.ts` changed, this route's
 // markup is byte-identical, and the WHEN column simply stops carrying a phrase that disambiguated
-// nothing: the seeded catalogue is five different CITIES on ONE clock. Measured after the change, same
-// fixture, same instrument: clientWidth 864 · scrollWidth 864 · overflow 0 · Approve x=881→971, 101px
-// clear of the edge.
+// nothing: the seeded catalogue is five different CITIES on ONE clock. Measured after that change,
+// same fixture, same instrument: scrollWidth 1033 → 915 against a clientWidth of 864 — the When column
+// lost 119px, Approve came inside the clip edge with 50px to spare, and 51px still overflowed.
 //
 // ⚠ THE COST, ACCEPTED BY THE PM AND RECORDED SO IT IS NOT READ AS A BUG. A single-zone host no longer
 // sees a timezone named on this list. That walks back SC#2 / D-105 for host LIST surfaces only; every
 // surface that renders ONE booking still names it unconditionally. The rule, its two definitional
 // choices and the Walk A case it must never break are documented once, in the module above — not here,
 // so there is no second statement of it to drift.
+//
+// ───────────────────────────────────────────────────────────────────────────────────────────────────
+// RULING TWO — *"WRAP THE SPACE COLUMN"* (quick `260824-ght`, 24 August 2026). THIS ONE CLOSES IT.
+// ───────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// The first ruling freed Approve and left the DECLINE control in 51px of residual overflow, which
+// `260824-dbc`'s diagnosis had already named: TWO cells on this route hold a sentence rather than a
+// token, the ruling addressed the window label, and the space title was the other one. The PM's second
+// and final answer on F-2 is to let that cell wrap. It is one class on one cell — the cell's own
+// comment below carries the argument for why the SPACE title may wrap where the WHEN label may not,
+// and that argument is the whole reason this half is safe when `260824-dbc`'s two-cell version was not.
+//
+// MEASURED, same instrument, same throwaway fixture carrying the seeded catalogue's own five titles
+// and cities, five upcoming bookings — three confirmed, two requested — at 1280px:
+//
+//                   clientWidth  scrollWidth  overflow  Approve          Decline
+//     before             864         910         46px   x=928→1018       x=1026→1110, 38 of 85px out
+//     after              864         864          0px   x=881→971        x=979→1064, 8px CLEAR
+//
+//     columns before: Guest 69 · Space 234 · When 234 · Status 112 · Payout 63 · Actions 199
+//     columns after:  Guest 69 · Space 188 · When 234 · Status 112 · Payout 63 · Actions 199
+//
+// The clip edge is x=1072 in both rows. Overflow is ZERO and both controls are whole at rest, which is
+// the bar F-2 was filed against. Only the Space column moved.
+//
+// ⚠ WHY THE "BEFORE" IS 46px HERE AND 51px IN THE FIRST RULING'S WRITE-UP, stated so the two are not
+// read as a contradiction: this fixture seeds its bookings RELATIVE to today, so the When column's
+// width — and therefore the overflow — is a function of the composed dates on the day the harness
+// runs. It measured 45, 46 and 50px on three runs a few hours apart. That is exactly why the gate in
+// `e2e/skeleton-geometry.spec.ts` asserts the overflow is ZERO rather than any measured delta.
+//
+// ⚠⚠ WHAT THE WRAP COSTS, MEASURED AND NOT ROUNDED. The desktop row is now two-valued: 36.52px when a
+// title fits the residual Space column on one line and 57px when it does not. `HOST_BOOKING_ROW_HEIGHT`
+// still declares the floor and its docblock carries the argument for that choice, the ladder it was
+// checked against, and the band between 768 and 928px where the column falls to its min-content. Both
+// heights are seeded and pinned in the geometry spec's `(title)` case; neither is left to be
+// discovered as an unexplained 20px.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -326,7 +363,25 @@ export default async function HostBookingsPage({
                           role legible, so a later type edit moves a declared role rather than a bare
                           utility that happened to agree with one. Mirrors `/host/requests`' guest cell. */}
                       <TableCell className="text-label">{row.bookerLabel}</TableCell>
-                      <TableCell className="font-medium">
+                      {/* ⚠ THE ONE CELL ON THIS ROUTE THAT IS ALLOWED TO WRAP, AND THE WHOLE REASON
+                          IT IS SAFE IS THAT ITS NEIGHBOUR IS NOT (F-2's second ruling, `260824-ght`).
+                          The shared table cell forbids wrapping on every cell it renders, so a cell
+                          holding a SENTENCE contributes its full unbroken length to the table's
+                          minimum width. Two cells here hold one: this space title and the venue-local
+                          window label. Quick `260824-dbc` let BOTH wrap, measured it clean, and
+                          reverted it — a table shares column widths across its rows, so the resting
+                          row's height became a function of the widest label anywhere in the list, and
+                          a window label is a different string every day. That is the calendar
+                          coupling `[14-16]` closed at 320px, re-opened one breakpoint up.
+
+                          A SPACE TITLE DOES NOT HAVE THAT PROPERTY. It is a stable string the host
+                          chose; it does not move with the wall clock. So the resting row height here
+                          is a function of the longest TITLE in the rendered set — stable, measurable
+                          and seedable — which is why this cell wraps and the When cell beside it must
+                          not. Do not "finish the job" by adding this class to the When cell: that
+                          re-arms the exact trap, and `e2e/skeleton-geometry.spec.ts` pins both the
+                          height and the wrap count that catch it. */}
+                      <TableCell className="whitespace-normal font-medium">
                         {/* T6 (load-bearing half) — the DEFAULT desktop viewport. Mirrors the booker page's
                             Space-cell link so the host cancel flow (SC#3) is reachable without typing a UUID. */}
                         <Link

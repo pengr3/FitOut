@@ -288,7 +288,22 @@ export default async function HostRequestsPage() {
                           EQUALITY between these two cells, and two bare utilities that happen to agree
                           today are two chances to break it in a diff that reads as formatting. */}
                       <TableCell className="text-label">{data.bookerLabel}</TableCell>
-                      <TableCell className="font-medium">{data.spaceTitle}</TableCell>
+                      {/* THE SPACE CELL WRAPS HERE TOO, FOR THE SAME REASON AND UNDER THE SAME LIMIT
+                          (F-2's second ruling, `260824-ght`). The argument — why a space TITLE may
+                          wrap where a venue-local window LABEL may not — is written once, at the
+                          matching cell in `/host/bookings`' page, and is deliberately not restated
+                          here: two statements of one rule are two things to drift.
+
+                          ⚠ THE WHEN CELL BESIDE IT STAYS NON-WRAPPING, and so does the Expires cell.
+                          This inbox measured 227px past its container at 1280px — worse than the
+                          finding that started this — and the wrap takes back only the Space column's
+                          share of it. The dominant term here is the EXPIRES column, which is wide
+                          because D-146 puts the countdown at the heading role on purpose. Narrowing
+                          that is a product decision about the loudest element on the surface, not a
+                          polish, so it is measured and logged rather than taken here. */}
+                      <TableCell className="whitespace-normal font-medium">
+                        {data.spaceTitle}
+                      </TableCell>
                       <TableCell className="text-label text-muted-foreground">
                         {data.whenLabel}
                       </TableCell>
