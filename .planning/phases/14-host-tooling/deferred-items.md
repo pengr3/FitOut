@@ -453,3 +453,37 @@ file — the states, the tells and the seeding are already there — and watch i
 skipped level, not merely against a duplicated one. ⚠ Run it ALONE
 (`npx playwright test e2e/host-headings.spec.ts --project=chromium`), and note
 `e2e/availability.spec.ts:261` remains the pre-existing standing red.
+
+---
+
+## [260824-dbc] `e2e/availability.spec.ts` has THREE more standing reds than the one that was declared
+
+**Found in passing** while verifying quick task `260824-dbc`. Out of scope for it, not acted on, and
+recorded here rather than fixed.
+
+The phase has been carrying `e2e/availability.spec.ts:261` as "the pre-existing standing red". Run alone
+on 2026-08-24 (`npx playwright test e2e/availability.spec.ts --project=chromium`), the file reports
+**four** failures, not one:
+
+| Line | Case |
+|------|------|
+| 160 | bookable listing: venue-tz note, unselectable booked/blocked hours, adjacent range fill + full-day clear |
+| 203 | range-fill: non-adjacent clean fill selects the whole run, then a 3rd click re-anchors |
+| 236 | range-fill: a gap truncates the run to before the booked hour with a soft hint |
+| 261 | published-but-not-payable listing: calendar renders read-only *(the declared one)* |
+
+**They are not caused by this quick task, and that was checked rather than assumed.** The only source
+file it touches is `src/components/availability/weekly-hours-editor.tsx` — the HOST editor, which none
+of these booker-side cases mount. Backing that one file out to its pre-task content and re-running the
+spec reproduced **the same three** (160, 203, 236) — so they predate the task. Note that 261, the
+declared one, PASSED in that same run: the set is not stable run to run, which is its own signal.
+
+**The first symptom**, for whoever picks it up: `/listings/[id]` renders no heading matching
+`/availability/i` at `availability.spec.ts:268`, followed by click timeouts in the two range-fill cases.
+The spec seeds its own fixture in `beforeAll`, so this is not a missing dev seed.
+
+**Why it was not fixed here.** Three failing booker-calendar cases on a route this task never opened is
+a debugging job with its own reproduction, not a deviation to auto-fix inside a two-finding quick task.
+
+**What the next reader should do:** stop quoting "`:261` is the standing red" as if it were the whole
+picture — it is one of four, and the count is what makes the file untrustworthy as a gate today.
