@@ -98,7 +98,7 @@
 // its 21st row; this file owns the per-surface shape that inventory cannot see.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// THE MUTATION WALK — NOT YET RUN, ZERO OBSERVED
+// THE MUTATION WALK — IN PROGRESS (1 OF 6 RUN)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // ⚠ THIS BLOCK IS DELIBERATE HISTORY RATHER THAN AN OMISSION, and it is `auth-composition.test.tsx`'s
@@ -110,6 +110,38 @@
 // Command for every probe:
 // `npx vitest run tests/design/profile-pass.test.tsx --config vitest.design.config.ts`
 // GREEN IS 13 PASSED. `git diff --exit-code src/` must exit 0 after each probe is reverted.
+//
+//   (M1) RUN AND REVERTED. The pattern swapped back for the raw primitive UNDER AN ALIAS, on
+//        `profile-form.tsx`: `import { PanelCard } from "@/components/patterns/panel-card"` replaced
+//        by `import { Card as PanelCard } from "@/components/ui/card"`. This is the laundering the
+//        `propertyName ?? name` resolution exists for — the TAG spelling never changes, at either
+//        call site, so a scan keyed on tag names reports a perfectly clean file. 3 failed / 10 passed:
+//
+//          AssertionError: the profile form renders a container from the vendored card primitive. …
+//          Aliasing the import does not help: the scan resolves the EXPORTED name.: expected [ …(2) ]
+//          to deeply equal []
+//          + "src/app/(app)/profile/profile-form.tsx:114 — <PanelCard> (imported from @/components/ui/card)"
+//          + "src/app/(app)/profile/profile-form.tsx:219 — <PanelCard> (imported from @/components/ui/card)"
+//
+//          AssertionError: the profile panels' titles are not the pinned pair, in order.: expected []
+//          to deeply equal [ 'Public profile', …(1) ]
+//
+//          TestingLibraryElementError: Unable to find an element by: [data-testid="panel-card"]
+//
+//        THREE THINGS IN THAT RUN ARE WORTH THE TRANSCRIPTION.
+//        ① The COPY failure is an ABSENCE presenting as a drift — `panelTitles` is read off PATTERN
+//          containers only, so when the binding stops being one the pinned literals stop being FOUND
+//          rather than stopping being EQUAL. `auth-composition.test.tsx`'s M1 found the identical
+//          shape one plan earlier; read (7) first when both fire, (11) is the echo.
+//        ② THE DOM HALF FIRED ON ITS OWN, which is the whole argument for case (12) existing. The
+//          render produced a `data-slot="card"` div with `title`, `description` and `titleas` sitting
+//          on it as unrecognised DOM attributes — a box that looks approximately right on screen and
+//          emits no declared hook at all. A source-only gate would have caught this one, but a source-
+//          only gate catches NOTHING the day the pattern itself stops emitting the attribute, and this
+//          is the case that would.
+//        ③ THE `titleAs` LOOP INSIDE (7) NEVER RAN. The raw-container assertion above it threw first.
+//          Two assertions in one `it()` are ORDERED, not independent — 15-09 arrived at this reading
+//          twice in one walk and it is worth stating rather than re-deriving.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
