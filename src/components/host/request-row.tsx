@@ -76,7 +76,14 @@ import { REQUEST_STATUS_CAP } from "@/lib/design/measurements";
 export type RequestRowData = {
   requestId: string;
   spaceTitle: string;
-  /** Pre-formatted, venue-tz-safe window label "{date}, {time} ({City} time)". */
+  /**
+   * Pre-formatted, venue-tz-safe window label — "{date}, {time}", and " ({City} time)" appended ONLY
+   * when the rendered inbox spans more than one venue clock.
+   *
+   * The suffix became conditional on 2026-08-24 (the PM's ruling on UAT finding F-2). The decision is
+   * the PAGE's, taken once over the whole rendered set by `@/lib/booking/venue-clock-scope`, and this
+   * component is unchanged by it: the string arrives finished, exactly as it always did.
+   */
   whenLabel: string;
   /** Booker first name, or "A guest" when withheld. */
   bookerLabel: string;

@@ -487,3 +487,74 @@ a debugging job with its own reproduction, not a deviation to auto-fix inside a 
 
 **What the next reader should do:** stop quoting "`:261` is the standing red" as if it were the whole
 picture — it is one of four, and the count is what makes the file untrustworthy as a gate today.
+
+---
+
+## [260824-ej2] F-2's residue: the DECLINE control is still half past the clip edge on `/host/bookings`
+
+**Found while verifying the F-2 ruling**, measured rather than noticed, and deliberately not fixed.
+
+The PM's *"show the timezone only when it varies"* ruling removed 119px from the **When** column and
+that is enough to bring **Approve** wholly inside its container with 50px to spare — F-2 as filed is
+fixed. It is not enough to stop the table overflowing. Measured at 1280px against the seeded
+catalogue's own five titles and cities:
+
+| | `clientWidth` | `scrollWidth` | overflow | Approve past the edge | Decline past the edge |
+|---|---|---|---|---|---|
+| Before | 864 | 1033 | 169px | 69 of its 90px | **161px — wholly past it** |
+| After | 864 | 915 | **51px** | none — 50px clear | **43 of its 85px** |
+
+**What the residue is.** `260824-dbc`'s diagnosis named TWO cells that hold a sentence rather than a
+token: the venue-local window label and the **space title**. The ruling addressed the first. The Space
+column is unchanged at 234px, and 51px of it is what still runs past the clip edge — with the Decline
+button sitting in it.
+
+**Why it is not fixed here.** The only remaining levers are the ones `260824-dbc` escalated and the PM
+did not rule on: let the Space cell wrap (which turns every desktop row into two lines and moves
+`HOST_BOOKING_ROW_HEIGHT`'s desktop value), widen the container (which means moving `HOST_LIST_SHELL`,
+which the frozen `/host/earnings` also reads), or a sticky actions column (which touches the elevation
+inventory `tests/design/elevation-z.test.ts:306` pins this route on). Each is a product/measurement
+decision of the same size as the one just made, and none of them is what was ruled on.
+
+**What the next reader should know:** the shorter label removed 119 of the 169 overflowed pixels, the
+primary action is whole, and the destructive one is not. That is a better place to stand than before
+and it is not "no overflow".
+
+---
+
+## [260824-ej2] The dev server leaks Postgres connections until every host route renders an empty list
+
+**Found in passing** while running the Playwright gates for `260824-ej2`. Not caused by it, not fixed
+by it, and it is the most expensive false signal in this repository right now — it looks exactly like a
+product defect on whichever surface happens to be measured when the ceiling is hit.
+
+**The symptom, in the order it appears.** After a few source edits and a handful of spec runs against
+the same `next dev` process, seeded routes start rendering **no rows** — the list's empty state or a
+plate that never resolves — while the fixture rows are demonstrably in the database. Observed on three
+different specs in one session:
+
+| Spec | Case | What it printed |
+|------|------|-----------------|
+| `e2e/skeleton-geometry.spec.ts` | D-57 grid gutter, 768px | *"the resolved document still shows the skeleton"* — on `court` in one run and `grove` in the next |
+| `e2e/host-headings.spec.ts` | `bookings · upcoming · rows` | *"the route rendered no `[data-testid="row-card"]`"*, `120 × locator resolved to 0 elements` |
+| `e2e/host-headings.spec.ts` | `dashboard · today's sessions` | the same shape, one case earlier, on the very next run |
+
+**The cause is not the spec.** `docker exec fitout-db-1 psql …` refuses with
+`FATAL: sorry, too many clients already` at the same moment — the ceiling is reached by the DEV SERVER,
+not by the specs' own `postgres({ max: 1 })` clients. The likely mechanism is the module-level pool in
+`src/lib/db/index.ts`: every HMR recompile that touches its module graph mints a NEW pool and the old
+one is never ended, so connection count climbs with the number of edits, not the number of runs.
+Measured: 19 connections immediately after a container restart, 27 after one spec file.
+
+**The tell that it is this and not a defect:** the failure MOVES between runs — a different theme, a
+different case, a different spec — and the same file passes when a single case is run alone. A
+deterministic product defect does not relocate.
+
+**The workaround that was used, and it is a workaround:** `docker restart fitout-db-1`, wait for the
+socket, warm the routes with `curl`, then run the gate WITHOUT editing source in between. Every gate in
+this task went green on that recipe — `skeleton-geometry` 15/15, `host-headings` 14/14,
+`host-dashboard` 7/7 — after failing intermittently before it.
+
+**What the next reader should do:** treat a "no rows on a seeded route" failure as this until proven
+otherwise, and if it is worth fixing at source, the fix is to make the `db` singleton survive HMR
+(`globalThis` caching, the standard Next dev idiom) rather than to raise `max_connections`.

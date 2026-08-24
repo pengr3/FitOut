@@ -31,7 +31,7 @@ is green — the automated half is precisely the part that could not answer thes
 
 | Walk | Requirement | PM verdict | What changes |
 |------|-------------|-----------|--------------|
-| A — the two-timezone dashboard | HFLOW-03 / D-141 | **Reads correctly — pass** | Nothing. The city name on each line does the work; backwards dates under one *Today* heading read as two real sessions, not as a bug. D-141's no-date decision stands as shipped. |
+| A — the two-timezone dashboard | HFLOW-03 / D-141 | **Reads correctly — pass** | Nothing. The city name on each line does the work; backwards dates under one *Today* heading read as two real sessions, not as a bug. D-141's no-date decision stands as shipped. **⚠ 2026-08-24: the city name became CONDITIONAL under F-2's ruling — see F-2's disposition. This verdict is unchanged and is now asserted by `e2e/host-dashboard.spec.ts` case (7) and `tests/booking/venue-clock-scope.test.ts` case (1) rather than resting on the screenshot alone.** |
 | B — the mistyped window, before saving | HFLOW-04 / D-152 | **Yes — the blank column is obvious** | Nothing about the strip. The mistake is visible at a glance, before saving, without reading anything — which is D-152's whole stated purpose. |
 
 **One change WAS requested, and it is finding F-1's disposition rather than a walk failure:** with an
@@ -175,6 +175,11 @@ write-ups below are preserved exactly as they were filed. **F-1 and F-2 each now
 appended underneath it, added by quick task `260824-dbc` on 2026-08-24. F-3 carries none because it names
 no product defect — it records what was suppressed in the screenshots and why.
 
+**F-2 carries a SECOND disposition below its first.** `260824-dbc` measured it, implemented a fix,
+backed it out and escalated the trade-off as a product fork; the PM ruled on that fork the same day and
+quick `260824-ej2` implemented the ruling. Both are kept, in order, because the first one is the
+argument the ruling was made on.
+
 ### F-1 · A mistyped window's only pre-save signal is the strip going blank
 
 Described in full as fact 3 of Walk B. The shared schema's `Close time must be after open time.` message
@@ -281,6 +286,101 @@ was added, and `tests/design/elevation-z.test.ts:306` never moved.
 The throwaway fixture used for the measurement was torn down in the foreign-key order `booker-seed.ts`
 records, and verified gone (0 listings, 0 bookings, 0 users, 0 notifications).
 
+---
+
+#### F-2 · PM RULING AND DISPOSITION — **FIXED**, quick `260824-ej2`, 2026-08-24
+
+**The ruling, in the PM's own framing:**
+
+> **"Show the timezone only when it varies."** Drop the suffix when all the host's spaces share one
+> timezone; keep it when they don't. Attacks the widest column directly — no wrapping, no row-height
+> change from wrapping, no re-pinned measurements from a second line.
+
+The PM was told, and accepted, the cost: **this walks back the shipped rule that every time on a host
+surface names its venue's timezone (SC#2 / D-105)**, so a single-zone host stops seeing it. See
+*"the standing contract, amended"* below for where that rule was written down and what it says now.
+
+**Where "varies" is defined — once, in `src/lib/booking/venue-clock-scope.ts`.** Two choices were open
+and both are recorded there in full, with the arguments:
+
+1. **Keyed on the TIMEZONE, never on the city name.** The suffix disambiguates a *clock*; a city is
+   only a readable proxy for one. The seeded catalogue is five listings in **five different cities and
+   one timezone** — a city-keyed rule would have kept all five suffixes and fixed nothing.
+2. **Computed over the RENDERED set, not over the host's listings.** Truthful by construction (the
+   suffix is present exactly when two rows on screen together could be read as one clock while being
+   two) and it needs no new query — all three call sites already project `timezone` and `city`. The
+   accepted consequence: under the `?listing=` filter, or across a `Load more` page boundary, the
+   suffix can appear or disappear. Never wrong at the moment it is read, which is what was ranked
+   above never-changing.
+
+**`src/lib/booking/when-label.ts` was NOT touched.** It already omits the suffix for a null city, and
+the booker path renders through it — a rule added there would have restyled surfaces this ruling says
+nothing about. The three host LIST call sites pass `city: null` instead.
+
+**Measured before and after, same instrument, same throwaway fixture** — Chromium at 1280px, the
+seeded catalogue's own five titles and cities (`scripts/seed.ts:48-52`), five upcoming bookings, three
+confirmed and two requested, each on a different listing. "Before" was measured on the *fixed* tree
+with the rule forced on, so both rows are real measurements rather than one measurement and one memory:
+
+| | `clientWidth` | `scrollWidth` | overflow | Approve box | past the clip edge | Decline box | past the clip edge |
+|---|---|---|---|---|---|---|---|
+| **Before** | 864 | 1033 | 169px | x=1051→1141 | **69 of its 90px** | x=1149→1233 | **161px — wholly past it** |
+| **After** | 864 | 915 | 51px | x=932→1022 | **none — 50px clear** | x=1030→1115 | 43 of its 85px |
+
+Column widths before: Guest 69 · Space 234 · **When 357** · Status 112 · Payout 63 · Actions 199.
+After: Guest 69 · Space 234 · **When 238** · Status 112 · Payout 63 · Actions 199. The When column lost
+**119px** and nothing else moved.
+
+**⚠ THE FINDING IS FIXED AND THE ROUTE IS NOT YET WHOLE — stated plainly rather than rounded up.**
+F-2 names the **Approve** control, and Approve is now entirely inside the clip edge with 50px to
+spare. But 51px of the container still overflows, and what sits in it is the **Decline** button, which
+goes from *entirely invisible at rest* to *about half visible*. That residue is the **Space column**
+(234px, unchanged by this ruling) — the other half of the two-sentence-cells diagnosis above, which
+this ruling did not address. Logged to `deferred-items.md`; it is not fixed here because the only
+remaining lever is the wrap decision the PM did not rule on.
+
+**What the shorter label moved, and what it did not.** Fourteen characters is a wrap count, and one
+wrapped line is 20px, so every declared Phase-14 row height was **re-measured with `[14-16]`'s own
+instrument** — the meta paragraph swapped in place over all 2,604 date tokens × five window spellings,
+13,020 labels per shape — before any of them was trusted:
+
+| shape | 320px | 1280px | what the sweep said |
+|---|---|---|---|
+| agenda row · `/host` | **132 → 112** (4 → 3 meta lines) | 72 | 3 lines on **all 13,020**, with the fixture's title unchanged and on a *wider* plateau than before |
+| request row · `/host/requests` | 254.05 (3 → 2 meta lines) | 83.02 | the meta really did lose a line and the height did not move — that box is the status column, the description list and the actions row |
+| host booking row · `/host/bookings` | 176 (still 2 meta lines) | 36.52 | 2 lines on **all 13,020** — **one** outcome where there used to be two, so 176 is unconditional now |
+
+So exactly one declared constant moved, and it moved **with its argument** in
+`src/lib/design/measurements.ts`. No tolerance was widened and no fixture was put back on the clock.
+The `[14-16]` calendar coupling on `/host/bookings` is now closed a second time, at the source: there
+is no longer a date this row can be seeded on that changes its height.
+
+**Walk A is a gate now, not a memory.** Walk A passed *because* the city name on each line did the
+work, and this ruling makes that name conditional — so the verdict was one boolean away from being
+false, held up by a screenshot from earlier the same day. It is now asserted in two places, each
+watched failing in both directions:
+
+- `tests/booking/venue-clock-scope.test.ts` case (1) reproduces Walk A's own fixture and asserts the
+  two labels **this log records verbatim**, composed through the real formatter.
+- `e2e/host-dashboard.spec.ts` case (7) gives the *same* single-zone host from case (4) a second
+  listing in `America/Los_Angeles` with a session on that venue's own local today, and asserts the
+  suffix comes back **on every row** — which is the rule's actual claim: it depends on the set, not on
+  the row.
+
+**The standing contract, amended.** A rule that has been overridden must not stay on the books as if
+it were still true, so every place that stated it unconditionally now states the ruling and its date:
+`src/app/(host)/host/requests/page.tsx`'s header (which read *"Every time names the venue timezone
+(SC#2)"*), the `whenLabel` prop docblocks on `host-booking-row.tsx` and `request-row.tsx`, and the
+venue-city constants in `e2e/host-dashboard.spec.ts`, `e2e/host-headings.spec.ts` and
+`e2e/skeleton-geometry.spec.ts`. The rule still holds **unconditionally** on every surface that renders
+ONE booking — `/host/bookings/[id]`, the cancel review, the emails, the whole booker path — and
+`when-label.ts` itself is unchanged.
+
+**D-154 was not touched.** No filter, sort, column or date range was added; the tab partition, the
+`?listing=` filter, the page size, the cursor and the owner-scoped WHERE were never opened;
+`tests/design/elevation-z.test.ts:306` never moved; zero schema migrations. Both throwaway fixtures
+were torn down in the foreign-key order `booker-seed.ts` records and verified gone.
+
 ### F-3 · The `1 Issue` pill in the screenshots is dev tooling, and was hidden
 
 Next.js's dev-tools overlay paints a floating red *"N · 1 Issue"* pill over the bottom-left of every page a
@@ -307,4 +407,4 @@ Stated plainly so the next reader under-trusts it correctly.
 
 ---
 
-*Last updated: 2026-08-24 (findings F-1 and F-2 dispositioned by quick `260824-dbc`).*
+*Last updated: 2026-08-24 (F-1 and F-2 dispositioned by quick `260824-dbc`; F-2's PM ruling implemented and re-measured by quick `260824-ej2`).*

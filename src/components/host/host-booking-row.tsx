@@ -37,7 +37,14 @@ export type HostBookingRowData = {
   spaceTitle: string;
   /** Booker first name, or "A guest" when withheld — matches RequestRow. */
   bookerLabel: string;
-  /** Pre-formatted, venue-tz-safe window label "{date}, {time} ({City} time)". */
+  /**
+   * Pre-formatted, venue-tz-safe window label — "{date}, {time}", and " ({City} time)" appended ONLY
+   * when the rendered list spans more than one venue clock.
+   *
+   * The suffix became conditional on 2026-08-24 (the PM's ruling on UAT finding F-2). The decision is
+   * the PAGE's, taken once over the whole rendered set by `@/lib/booking/venue-clock-scope`, and this
+   * component is unchanged by it: the string arrives finished, exactly as it always did.
+   */
   whenLabel: string;
   /** Pre-formatted server-frozen total (formatMoney) — the UI does ZERO price arithmetic. */
   amountLabel: string;
