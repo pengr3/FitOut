@@ -63,8 +63,8 @@ created: 2026-08-24
 | 15-09-02 | 09 | 4 | AUTHUI-01/03 | — | N/A (auth-composition gate) | design (tdd) | `npx vitest run tests/design/auth-composition.test.tsx --config vitest.design.config.ts && npm run test:design` | ❌ W0 | ⬜ pending |
 | 15-10-01 | 10 | 4 | AUTHUI-02/03 | — | N/A (profile-pass gate) | design (tdd) | `npx vitest run tests/design/profile-pass.test.tsx --config vitest.design.config.ts && npm run test:design` | ❌ W0 | ⬜ pending |
 | 15-10-02 | 10 | 4 | AUTHUI-03 | — | N/A (320px floor) | e2e | `npx playwright test e2e/overflow-320.spec.ts` | ✅ | ⬜ pending |
-| 15-11-01 | 11 | 5 | AUTHUI-03 | — | N/A (baseline inventory 66→74, `auth-login` rows edited) | design | `npx tsc --noEmit && npm run test:design` | ✅ | ⬜ pending |
-| 15-11-02 | 11 | 5 | AUTHUI-03 | — | — | **manual checkpoint (blocking)** — CI `baselines.yml` dispatch; deliverable is the follow-up comparison run's id | `git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' \| wc -l` | — | ⬜ pending |
+| 15-11-01 | 11 | 5 | AUTHUI-03 | — | N/A (baseline inventory 66→74, `auth-login` rows edited) | design | `npx tsc --noEmit && npm run test:design` | ✅ | ✅ green — tsc 0, 54 files / 908 passed / 3 skipped |
+| 15-11-02 | 11 | 5 | AUTHUI-03 | — | — | **manual checkpoint (blocking)** — CI `baselines.yml` dispatch; deliverable is the follow-up comparison run's id | `git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' \| wc -l` | ✅ **36** | ✅ **DISCHARGED 2026-08-25** — gen `32751407382`, cmp **`32752143309` SUCCESS** (`gate-visual` ✓) |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -90,7 +90,7 @@ New files the plans themselves create before/with their gates (❌ W0 rows above
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
 | Real-client email rendering (Gmail web + Android, Apple Mail, ≥1 dark mode; Outlook recorded `BLOCKED — client access` per D-163) | EMAIL-03 | Real mail clients cannot be driven from CI | 15-05-03 checkpoint: send one of each via `scripts/send-email-previews.ts` with live `RESEND_API_KEY`; open in each client; record per-client results in 15-UAT-EMAIL.md |
-| Visual-baseline regeneration (2 edited `auth-login` rows + 8 new rows) | AUTHUI-03 | `baselines.yml` is `workflow_dispatch`-only; Playwright `visual` project not constructed off Linux | 15-11-02 checkpoint: operator dispatches CI generation run, then records the follow-up comparison run's id |
+| Visual-baseline regeneration (2 edited `auth-login` rows + 8 new rows) | AUTHUI-03 | `baselines.yml` is `workflow_dispatch`-only; Playwright `visual` project not constructed off Linux | 15-11-02 checkpoint: operator dispatches CI generation run, then records the follow-up comparison run's id — **DONE 2026-08-25**, comparison run `32752143309` |
 
 ---
 
@@ -104,3 +104,18 @@ New files the plans themselves create before/with their gates (❌ W0 rows above
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** approved 2026-08-24 (gsd-plan-checker verified 8a–8d directly against the 11 plans; this file backfilled from that pass)
+
+---
+
+## Post-execution note (2026-08-25) — AUTHUI-03's sampling gap
+
+This table maps **AUTHUI-03** to exactly three rows — `15-10-02` (320px), `15-11-01` (inventory) and
+`15-11-02` (the dispatch) — and **all three are now green**. The requirement was still left UNTICKED.
+
+Its text is conjunctive across five gates: *"320px, keyboard, AA, designed states, and a baseline"*.
+Three hold (320px, designed states, baseline). **Keyboard and AA are unevidenced across the whole
+phase**, and this table never mapped a row to either — so two of the requirement's five clauses were
+never sampled. Ticking on "every mapped row is green" would have been a gate that reads correct
+because nothing asked the harder question.
+
+Both gaps, and what closing each looks like, are in `deferred-items.md`.
