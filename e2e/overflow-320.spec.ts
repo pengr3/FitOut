@@ -8,6 +8,7 @@ import {
   signUpBooker,
   type SeededListing,
 } from "./helpers/booker-seed";
+import { expectRing, readFocus, type FocusReading } from "./helpers/focus";
 import { FLOOR_PX, expectNoOverflow } from "./helpers/overflow";
 import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
@@ -879,34 +880,12 @@ async function expectTargets(page: Page, where: string): Promise<void> {
   ).toEqual([]);
 }
 
-type FocusReading = {
-  readonly tag: string;
-  readonly label: string;
-  readonly inHeader: boolean;
-  readonly outlineStyle: string;
-  readonly outlineWidth: string;
-  readonly boxShadow: string;
-};
-
-/** What the document element currently has focus on, and whether anything is drawn around it. */
-async function readFocus(page: Page): Promise<FocusReading | null> {
-  return page.evaluate(() => {
-    const el = document.activeElement as HTMLElement | null;
-    if (el === null || el === document.body || el === document.documentElement) return null;
-    const s = getComputedStyle(el);
-    return {
-      tag: el.tagName.toLowerCase(),
-      label: (el.getAttribute("aria-label") ?? el.textContent ?? "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 40),
-      inHeader: el.closest('[data-testid="site-header"]') !== null,
-      outlineStyle: s.outlineStyle,
-      outlineWidth: s.outlineWidth,
-      boxShadow: s.boxShadow,
-    };
-  });
-}
+// `FocusReading` and `readFocus` MOVED to the shared focus helper under `e2e/helpers/` (plan 15-12),
+// unchanged, because `e2e/auth-keyboard.spec.ts` needs the same reading and two copies of a focus
+// criterion drift apart silently. Imported at the top of this file — the module path is named
+// descriptively here rather than quoted, following `booking-row.tsx:112`, because plan 15-12's
+// acceptance scan counts that string in this file and expects to find exactly the import.
+// `expectVisibleFocus` below stayed put; that helper's own header says why.
 
 /**
  * GATE-A11Y's focus half, and it is a RENDERED check rather than "focus moved".
@@ -955,17 +934,8 @@ async function expectVisibleFocus(page: Page, where: string): Promise<void> {
   expectRing(inSurface as FocusReading, `${where} (first in-surface control)`);
 }
 
-function expectRing(reading: FocusReading, where: string): void {
-  const hasOutline = reading.outlineStyle !== "none" && parseFloat(reading.outlineWidth) > 0;
-  const hasRing = reading.boxShadow !== "none" && reading.boxShadow.trim() !== "";
-  expect(
-    hasOutline || hasRing,
-    `${where}: \`${reading.tag}\` ("${reading.label}") has keyboard focus and draws NOTHING — ` +
-      `outline: ${reading.outlineStyle} ${reading.outlineWidth}, box-shadow: ${reading.boxShadow}. ` +
-      "DS-05 is the one focus mechanism in this app and it paints a `ring-*`, which Chromium reports " +
-      "as a box-shadow. A control with no visible focus is a defect, not a variant.",
-  ).toBe(true);
-}
+// `expectRing` MOVED to the same shared focus helper (plan 15-12), unchanged. The paragraph above
+// `expectVisibleFocus` still explains its criterion; the function it explains now lives next door.
 
 /**
  * AC#22 / STATE-06 — the money statement is fully inside the INITIAL viewport, with nothing scrolled.

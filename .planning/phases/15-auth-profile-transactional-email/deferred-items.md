@@ -113,3 +113,93 @@ reading `gate-visual` green as evidence about those ten surfaces.
 confirm the re-minted references are correct rather than merely current. Eight of the ten moved by
 5–32 bytes (antialiasing noise); `search-results-1280` (+2098 B) and `search-relax-band-1280`
 (+1666 B) moved meaningfully and are the two worth looking at first.
+
+---
+
+## [15-12] The `/signup` intent pair is TWO tab stops, not one — WAI-ARIA would prefer one plus arrow keys
+
+**Evidence:** the tab-order walk plan 15-12 added (`e2e/auth-keyboard.spec.ts`) records `/signup` as
+14 stops, and stops 2 and 3 are both members of the intent radio group:
+
+```
+a:FitOut@main → button[radio]:Book a space → button[radio]:Host a space → input[text]:First name → …
+```
+
+`src/app/(auth)/signup/page.tsx` renders the pair as two native `<button type="button" role="radio">`
+elements inside a `role="radiogroup"`, with **no roving tabindex** — so each is independently
+focusable and a keyboard user tabs *through* the group rather than into it and along it with arrows.
+
+**Why it is an observation and not a defect:** WCAG **2.1.1 (Keyboard) is satisfied either way** —
+every control is reachable and operable from the keyboard, which is the conformance bar AUTHUI-03's
+keyboard clause is written against. What differs is the **authoring practice** in the WAI-ARIA
+Authoring Practices radiogroup pattern (one tab stop, arrow keys to move the selection), which is a
+usability convention rather than a success criterion.
+
+**Why 15-12 did not fix it:** adding roving tabindex plus arrow-key handling is a **behaviour
+change** to a shipped control, on a plan whose contract is that it moves zero rendered pixels and
+modifies nothing under `src/` (`git diff --exit-code src/` is one of its verification gates). Plan
+15-07 also froze that pair's markup byte-identical while restyling everything around it, with its own
+reasoning written beside it. Changing the interaction contract inside a test-only gap-closure plan
+would be exactly the scope creep the phase's gap-closure pass exists to avoid.
+
+**What closing it looks like:** a small plan that gives the group a roving tabindex (selected member
+`tabIndex={0}`, the other `tabIndex={-1}`), adds ArrowLeft/ArrowRight/ArrowUp/ArrowDown handling that
+moves focus AND selection, and updates `/signup`'s declared sequence in `e2e/auth-keyboard.spec.ts`
+from 14 stops to 13 — the walk is already the gate that would catch a half-done version.
+
+---
+
+## [15-12] `overflow-320.spec.ts`'s AC#30 target-size scan races the surface it measures
+
+**Evidence, measured 25 August 2026 across five runs of
+`npx playwright test e2e/overflow-320.spec.ts --project=chromium`:**
+
+| run | tree | result |
+|---|---|---|
+| 1 (pre-task baseline) | `HEAD`, unmodified | **60 passed / 15 skipped**, exit 0 |
+| 2 | 15-12's helper extraction applied | 1 failed — `the confirmed detail, no query · grove` |
+| 3 | 15-12's helper extraction applied | 1 failed — `the confirmed detail, no query · court` |
+| 4 | **`git checkout --` reverted to HEAD**, `--grep "AC#30"` | 1 failed — **`the receipt · court`** |
+| 5 | 15-12's extraction applied, `--retries=2` (the CI policy) | **59 passed / 1 flaky / 15 skipped, exit 0** |
+
+Every failure is the same assertion, `expectTargets` at `overflow-320.spec.ts:1266`:
+
+```
+Error: the confirmed detail, no query · court · 320px: the target-size scan found ZERO
+interactive controls INSIDE the surface. … An empty list is a page that did not render or a
+selector that stopped matching, never a clean result.
+expect(received).toBeGreaterThan(expected)   Expected: > 0   Received: 0
+```
+
+**It is not plan 15-12's:** run 4 is the decisive one — the file **reverted to `HEAD`** fails the same
+assertion in the same block, on a different row. The row that fails varies run to run (`the receipt`,
+`the confirmed detail` in either theme), and run 5 shows it **passes on retry**, which is the
+signature of a race rather than a regression. 15-12 moved three focus declarations into
+`e2e/helpers/focus.ts`; `expectTargets` neither calls nor is called by any of them, and it runs
+*before* `expectVisibleFocus` in the case body.
+
+**Not accumulated fixture state, checked rather than assumed.** The suspicion was that an aborted
+serial block leaves rows behind — `booking_group.booking_id` is `ON DELETE RESTRICT`, so an orphan
+group row would block `states.teardown()` from deleting a booking whose id (`e2e_p13sweep_confirmed`)
+is a FIXED literal. Queried directly against the dev database after a failing run:
+
+```
+SELECT … FROM booking       WHERE id LIKE 'e2e_p13sweep%'  -> 0 rows
+SELECT … FROM booking_group WHERE booking_id LIKE 'e2e_p13sweep%' -> 0 rows
+SELECT count(*) FROM listing WHERE title LIKE 'E2E Phase13 Sweep%' -> 0
+```
+
+Teardown works. The database is clean between runs, so the cause is in-page timing.
+
+**The likely mechanism:** the case's reachability `tell` (`booking-detail`) is satisfied by the
+server-rendered detail shell, and `expectTargets` runs immediately after `expectNoOverflow` with no
+wait for the surface's *actions* to paint. On a loaded box the scan can land after the shell and
+before the buttons, and a zero-control read is exactly what the assertion's own message says it must
+never treat as clean — so the assertion is behaving correctly and the instrument is under-synchronised.
+
+**What closing it looks like:** give `expectTargets` its own precondition on the surface's first
+action — a `expect(page.locator(SEL-inside-main)).not.toHaveCount(0, { timeout: 15_000 })` before the
+`evaluate`, the same measured 15s allowance `expectReachable` already carries for the dev server's
+on-demand compiles. That keeps the "zero is never clean" claim while removing the race that makes it
+fire on a correct tree. Out of scope for 15-12, whose contract is that it changes no assertion, row
+or count in that file.
