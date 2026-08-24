@@ -217,8 +217,8 @@ rest the primary action on a pending row reads as cut in half. Visible in
 table past its container. A host with short space names may not see this. It is a width-and-content
 interaction, not an unconditional defect.
 
-**DISPOSITION — REPRODUCED AGAINST THE SEEDED CATALOGUE, AND FIXED. `aff2941` (quick `260824-dbc`,
-2026-08-24).**
+**DISPOSITION — REPRODUCED AGAINST THE SEEDED CATALOGUE, MEASURED, AND ESCALATED. NOT FIXED.**
+*(quick `260824-dbc`, 2026-08-24. Fix attempted in `aff2941`, reverted in `6a8e577` — see below.)*
 
 **The caveat above is wrong, and it was wrong in the direction that matters.** The seeded catalogue is the
 WORSE case, not the milder one: `QC Strength & Conditioning Gym` (30 characters) is longer than either
@@ -234,20 +234,52 @@ shape — five upcoming bookings, three confirmed and two requested:
 Column widths before: Guest 69 · Space 234 · **When 366** · Status 112 · Payout 63 · Actions 199.
 After: Guest 69 · Space 174 · When 248 · Status 112 · Payout 63 · Actions 199.
 
-So it is a real defect on a primary action, and worse than this pass measured (78px past the edge rather
-than ~26px). **The mechanism is not the Space column alone** — the shared table cell forbids wrapping on
-every cell it renders, and TWO of this route's cells hold a sentence rather than a token: the space title
-and the venue-local window label. The window label was the wider offender at 366px. Both are now allowed
-to wrap, at those two call sites only; the shared cell's default is untouched, so no other table in the
-tree moved.
+So it is a real defect on a primary action, and **worse than this pass measured** — 78px past the edge
+rather than ~26px. **The mechanism is not the Space column alone.** The shared table cell forbids
+wrapping on every cell it renders, and TWO of this route's cells hold a SENTENCE rather than a token: the
+space title and the venue-local window label. The window label is the wider offender, at 366px. Between
+them they are 600 of those 1043 pixels.
 
-D-154 stands: the tab partition, the `?listing=` filter, the page size, the cursor and the owner-scoped
-WHERE are untouched, no host-side filter/sort/column/date-range was added, and the route still carries
-exactly one raised elevation (`tests/design/elevation-z.test.ts:306` did not move).
+**THE FIX WORKS, AND IT IS NOT SMALL. THAT IS WHY IT WAS BACKED OUT.**
 
-Held by `tests/design/host-bookings-wrap.test.tsx`, which records the measurement above and states
-plainly that it re-measures no geometry — jsdom computes no layout, so what it holds is the mechanism.
-The throwaway fixture was torn down in the foreign-key order `booker-seed.ts` records, and verified gone.
+Letting exactly those two cells wrap removes the clip completely — the "After" row above is a real
+measurement of that change, not a projection. It was implemented, measured, committed (`aff2941`), and
+then **reverted (`6a8e577`)** when the phase's own gates were run against it. `e2e/skeleton-geometry.spec.ts`
+went red, and its red is the argument:
+
+```
+host booking row · /host/bookings · 1280px: the resolved table measures 56.53px, but this shape
+was measured at 36.52px when its height was declared.
+Expected: <= 4   Received: 20.009999999999998
+```
+
+Twenty pixels is one line. Wrapping makes the desktop row two lines instead of one, and that has three
+consequences that are decisions rather than mechanics:
+
+1. **`HOST_BOOKING_ROW_HEIGHT`'s desktop value moves**, and `bookings/loading.tsx`'s plate redraws with
+   it — a Phase-14 declared measurement that `[14-15]` pinned and `[14-16]` re-pinned, days ago.
+2. **The row's height stops being a property of the row.** A table shares column widths across all its
+   rows, so the resting row would wrap or not depending on the WIDEST label anywhere in the list. Two of
+   this route's rows are seeded relative to the clock, so the number starts moving with the calendar
+   again — which is precisely the ambush `[14-16]` closed, re-opened one breakpoint up.
+3. **Two further pinned cases in that file state "at 1280 nothing wraps" as a standing assumption**,
+   which the fix falsifies.
+
+**So this is a product decision, and F-2 carries no PM ruling.** The fork, stated plainly:
+
+| | What the host gets | What it costs |
+|---|---|---|
+| **Leave it** (today) | The table scrolls sideways; nothing is unreachable | At rest, the Approve control on a pending row is 87% hidden |
+| **Let the two cells wrap** | Approve always whole, 101px clear; nothing to scroll | Every desktop row becomes two lines; a declared Phase-14 measurement and its loading plate move; the row's height becomes calendar-coupled again unless both wrap counts are seeded and pinned the way 320px already is |
+| **Something else** | — | Widening this route's container means moving `HOST_LIST_SHELL`, which `/host/earnings` also reads and which is frozen. A sticky actions column touches the elevation inventory this route is pinned on. Neither is cheaper. |
+
+Nothing about the source changed in the end. What this task leaves behind is the measurement, the
+diagnosis, and a note recording both at the top of `src/app/(host)/host/bookings/page.tsx` so the next
+reader finds them before re-deriving them. D-154 was not touched: no filter, sort, column or date range
+was added, and `tests/design/elevation-z.test.ts:306` never moved.
+
+The throwaway fixture used for the measurement was torn down in the foreign-key order `booker-seed.ts`
+records, and verified gone (0 listings, 0 bookings, 0 users, 0 notifications).
 
 ### F-3 · The `1 Issue` pill in the screenshots is dev tooling, and was hidden
 
