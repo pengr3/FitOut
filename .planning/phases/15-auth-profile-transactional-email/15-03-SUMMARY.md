@@ -292,6 +292,13 @@ None — no external service configuration required.
 *Phase: 15-auth-profile-transactional-email*
 *Completed: 2026-08-24*
 
+## Self-Check: PASSED
+
+Both claimed files exist on disk; all six task/deviation commits (`cb26f72`, `40e7811`, `85ceeda`,
+`4e25bea`, `008ced0`, `74e539c`) plus the summary commit (`59b348b`) are present in the git history.
+Both `key_links` patterns resolve: `src/lib/email.ts` matches `renderEmail\(` 19 times, and
+`resend\.emails\.send\(\{[^}]*text` matches the one transport call.
+
 ## Requirements Status — EMAIL-01 / EMAIL-02 advanced, deliberately NOT ticked
 
 Third plan in a row to record this, and for the first time there is real inbox evidence behind it.
