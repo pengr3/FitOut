@@ -48,7 +48,7 @@
 // all of which are Windows or macOS — NOTHING would check the three counts this file's acceptance
 // rests on. A criterion checked only in an environment nobody runs is not a criterion.
 //
-// `BaselineCountIsSixtySix`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
+// `BaselineCountIsSeventyFour`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
 // below are therefore type-level
 // assertions, enforced by `npx tsc --noEmit` and by `next build`'s own type check — which runs inside
 // `npm run build`, which is CI job 1. They fail on EVERY machine, in the build, before a browser is
@@ -213,6 +213,32 @@ export const SURFACE_IDS = [
   "host-wizard-rail",
   "host-availability-strip",
   "host-earnings",
+  // ─── 15-11 — three more auth documents and the profile, in 15-UI-SPEC § Visual Baselines' order ──
+  //
+  // ⚠ FOUR IDS FOR A FIVE-ROW TABLE, AND THE FIFTH IS `auth-login`, WHICH IS ALREADY ABOVE. Phase 11
+  // declared it, so 15-UI-SPEC's five-row table is four ADDITIONS and one EDIT — its own inventory
+  // note hedges "measure the file's real counts before moving the aliases", and the measured truth is
+  // 37 → 41 rather than the 37 → 42 the prose arithmetic guessed. Adding a fifth id here would not
+  // even compile (`auth-login` twice is a duplicate key on `VISUAL_SURFACES`), which is the one place
+  // this file's totality gate catches the mistake for free.
+  //
+  // ⚠ THREE OF THE FOUR ARE SHOT AND THE FOURTH IS NOT, and the split is the honest headline of this
+  // block rather than something to infer from two `blocked` strings. `auth-signup`, `auth-forgot` and
+  // `auth-reset` are anonymous static forms — no session, no seed, no clock, no fixture date — which
+  // is the cheapest a baseline row gets and is why they arrive `blocked: null`. `profile` is behind
+  // the session gate and needs TWO things this phase does not ship, both named at its row.
+  //
+  // ⚠ AND `auth-login`'S TWO COMMITTED PNGs ARE STALE AS OF PLAN 15-06, NOT AS OF THIS BLOCK. D-162
+  // took the public header composition out of `(auth)/layout.tsx` and put a wordmark above one card
+  // on the quiet ground; the surface row's hook named the header, so from that commit forward the
+  // shot would have TIMED OUT rather than drifted. The hook and all three of its prose claims are
+  // rewritten below. The two files are deliberately NOT deleted here — deleting a reference by hand
+  // is the second half of the same authority problem `baselines.yml` exists to solve, and the
+  // `workflow_dispatch` run that replaces them is the only thing permitted to write one.
+  "auth-signup",
+  "auth-forgot",
+  "auth-reset",
+  "profile",
 ] as const;
 
 /** The closed union every baseline row and every exclusion is typed against. */
@@ -303,11 +329,27 @@ export const VISUAL_SURFACES = {
   "auth-login": {
     kind: "document",
     url: "/login",
-    hook: '[data-testid="site-header"]',
+    // ⚠ EDITED BY PLAN 15-11, NOT ADDED BY IT. This hook was the public header's selector until
+    // D-162 (plan 15-06) took that composition out of `(auth)/layout.tsx`. A hook naming an element
+    // the page no longer renders does not drift — the reachability assertion TIMES OUT and the whole
+    // surface goes red — so this row was a scheduled failure from 15-06's commit forward. The
+    // replacement is the pattern container's declared id, which is what the layout now wraps every
+    // one of these four documents in.
+    hook: '[data-testid="panel-card"]',
     hookWhy:
-      "`(auth)/layout.tsx` renders `PublicHeader` + `SiteFooter`; the header is the composition this " +
-      "baseline exists to pin. It also fails loudly if the anonymous session read ever starts " +
-      "reaching the database, which would take this surface out of the DB-free scope silently.",
+      "`(auth)/layout.tsx` now renders a wordmark above ONE `PanelCard` on a quiet ground (D-162), " +
+      "and that card IS the composition this baseline exists to pin — the header it used to name " +
+      "left this layout in the same change. ⚠ THE SECOND CLAIM THIS ROW USED TO MAKE IS DELIBERATELY " +
+      "NOT RE-MADE, and that is a decision rather than an omission: the old hook said it would fail " +
+      "loudly if the anonymous session read ever started reaching the database, keeping this surface " +
+      "inside GATE-01's DB-free scope. A card the page renders unconditionally cannot fail that way, " +
+      "so carrying the sentence forward would have left a guarantee nothing checks — the exact shape " +
+      "this file's header calls worse than no gate at all. THE PROPERTY DID NOT GO AWAY, IT MOVED: " +
+      "all four `(auth)` routes now build `○ Static`, a request-time database read is precisely what " +
+      "would flip one to `ƒ Dynamic`, and that marker is asserted per route in " +
+      "`tests/design/loading-coverage.test.ts`. That is the stronger instrument of the two anyway — " +
+      "it fails inside `npm run build` on every machine, rather than only inside the one Linux job " +
+      "that shoots baselines.",
     blocked: null,
   },
 
@@ -941,6 +983,89 @@ export const VISUAL_SURFACES = {
       "written from 14-UI-SPEC's table and the seed script's contents WITHOUT opening the route or any " +
       "`payout-*` file, which the earnings freeze forbids this plan to touch.",
   },
+
+  // ─── 15-11 — the three remaining auth documents, and the profile ─────────────────────────────────
+  //
+  // All four share ONE hook, and it is the same one `auth-login` moved to above: D-162 gives every
+  // `(auth)` document one card on the quiet ground, and `/profile` renders the pattern container too.
+  // ⚠ THAT MAKES IT A WEAK HOOK ON ITS OWN — `panel-card` resolves on advisories and panels across
+  // most of the product, so it proves A PANEL RENDERED, not that THIS surface did (the same caveat
+  // `host-earnings` above states about itself). What makes it sufficient HERE and not there: each of
+  // these URLs is a distinct static document with no redirect and no data dependency, so the only two
+  // outcomes are "this page, with its card" and "a 404/500 with no card at all", and the second is
+  // what the hook rejects. `/profile` is the one where that argument does NOT hold, because an
+  // unauthenticated visit redirects to `/login` — which renders a `panel-card` and would satisfy this
+  // hook. That is the whole of why its row is blocked below rather than merely undriven.
+  "auth-signup": {
+    kind: "document",
+    url: "/signup",
+    hook: '[data-testid="panel-card"]',
+    hookWhy:
+      "the signup card, and the reason to pin this surface at all: it is the tallest of the four " +
+      "auth documents (name, email, password, confirm, the terms sentence and the brand-filled " +
+      "submit), so it is the one whose column geometry the 320px floor can actually break. A 404 or " +
+      "a boot failure renders no card and is rejected before a pixel is compared.",
+    blocked: null,
+  },
+  "auth-forgot": {
+    kind: "document",
+    url: "/forgot-password",
+    hook: '[data-testid="panel-card"]',
+    hookWhy:
+      "the request-a-link card in its FIRST state — one field and one button. This is the surface " +
+      "whose success state is deliberately identical for a known and an unknown address (the " +
+      "enumeration rule), so the row pins the state a visitor arrives on rather than the state they " +
+      "leave on; a driven second capture is a different row and a different plan.",
+    blocked: null,
+  },
+  "auth-reset": {
+    kind: "document",
+    // ⚠ THE TOKEN IN THIS PATH IS A FIXTURE LITERAL AND NOT A CREDENTIAL, which is the one thing to
+    // read before copying it. The page reads `?token=` and seeds the shared reset schema with it; the
+    // schema requires only NON-EMPTINESS client-side, so any literal renders the FORM. A tokenless
+    // visit renders the "this reset link is missing its token" notice instead — a different document,
+    // and the one this row would silently photograph if the query string were dropped. The literal is
+    // therefore load-bearing, and it is spelled here rather than derived because nothing in `src/`
+    // may import a seed script (see the Phase-12 rows' note). It authenticates nothing: no row in any
+    // database matches it, and the surface never submits.
+    url: "/reset-password?token=vrt-reset-token-fixture",
+    hook: '[data-testid="panel-card"]',
+    hookWhy:
+      "the set-a-new-password card, which only the WITH-token branch renders — the tokenless branch " +
+      "renders a notice paragraph instead. So this hook does a second job here that it does not do " +
+      "on the other three: it distinguishes the two documents this one URL can produce, and the " +
+      "wrong one is exactly what a dropped query string would give.",
+    blocked: null,
+  },
+  profile: {
+    kind: "document",
+    url: "/profile",
+    hook: '[data-testid="panel-card"]',
+    hookWhy:
+      "the public/private pair of panels this surface splits into (D-09/D-10). ⚠ AND ON THIS ROW THE " +
+      "HOOK IS NOT A REACHABILITY PROOF, which is why the row is blocked rather than merely undriven: " +
+      "`/login` renders a `panel-card` too, so an unauthenticated capture would satisfy this hook " +
+      "while photographing the sign-in page. The hook is declared now so the row is complete when the " +
+      "drive lands; it is not what makes the row safe.",
+    blocked:
+      "BLOCKED ON TWO THINGS, AND NEITHER IS DATA CORRECTNESS — this row is complete apart from them, " +
+      "and both are named so the next plan can work FROM this rather than rediscover it. (1) A DRIVE. " +
+      "`e2e/helpers/visual-drive.ts`'s `DRIVES` map keys six surfaces and has no entry for this one, " +
+      "so it falls through to the default: a plain `goto` with no session. `/profile` redirects an " +
+      "unauthenticated visitor to `/login`, and `/login` renders a `panel-card` — so the default " +
+      "drive would mint two baselines of the SIGN-IN PAGE, they would satisfy the hook, and every run " +
+      "afterwards would compare against them and pass. Permanent, silent and green, which is the " +
+      "identical failure the Phase-14 host block records for all nine of its rows and the reason this " +
+      "one is not declared shootable on the strength of its data being easy. (2) A SEEDED USER WITH " +
+      "LITERAL FIELDS. `scripts/seed-baseline-fixtures.ts` creates listings and windows, not an " +
+      "account this surface can be viewed as. What is owed is a `vrt_%` user with a FIXED literal " +
+      "`createdAt`, a fixed first and last name, and NO avatar so the fallback initials are a function " +
+      "of the fixed name. ⚠ NOTE WHAT IS *NOT* OWED, because it is the trap on this surface and the " +
+      "answer is counter-intuitive: NO CLOCK CONTROL. The member-since line is derived from " +
+      "`createdAt` and never from `now`, so a fixed literal in the seed makes the frame " +
+      "date-independent by construction — the `[14-16]` rule is satisfied by the fixture, and " +
+      "installing a clock here would be ceremony that pins nothing.",
+  },
 } as const satisfies Record<SurfaceId, SurfaceRow>;
 
 /**
@@ -1106,20 +1231,43 @@ export const VISUAL_BASELINES = [
       "reflows. Currently BLOCKED — see the surface's `blocked` reason.",
   },
 
-  // ─── (auth) login — 2 ───────────────────────────────────────────────────────────────────────────
+  // ─── (auth) login — 2, BOTH `why` STRINGS REWRITTEN BY PLAN 15-11 ───────────────────────────────
+  //
+  // The COUNT is unchanged and that is deliberate: 15-UI-SPEC's table lists this surface at the same
+  // two widths it has had since Phase 11, so 15-11 is an edit here and an addition elsewhere. What
+  // changed is what the two rows are pictures OF — both `why` strings described a header-led
+  // composition that D-162 removed (plan 15-06), and a `why` that is false is worse than a missing
+  // one, because the next reader takes it as the record of a decision.
+  //
+  // ⚠ AND THE TWO COMMITTED PNGs ARE STALE RIGHT NOW — `auth-login-320-court-visual-linux.png` and
+  // `auth-login-1280-court-visual-linux.png`, both pinning a header this layout no longer renders.
+  // They are neither deleted nor regenerated here. `.github/workflows/baselines.yml` is
+  // `workflow_dispatch`-only and is the only thing in this repository permitted to write a baseline,
+  // and `playwright.config.ts` constructs the `visual` project only on Linux, so no developer machine
+  // in this project can produce a replacement. The dispatch must REPLACE these two rather than merely
+  // add siblings; a run that leaves them untouched means the hook edit above did not take.
   {
     surface: "auth-login",
     width: 320,
     height: 720,
     theme: "court",
-    why: "the `(auth)` shell at the floor: `PublicHeader` + the form card + `SiteFooter`.",
+    why:
+      "the 320px floor, and since D-162 that is a picture of the whole composition rather than of a " +
+      "shell around it: the wordmark, ONE card on the quiet ground, the footer. This is the width at " +
+      "which the column's `max-w-sm` stops constraining anything and the card's own padding is the " +
+      "only gutter left, so it is where the form's labels and the brand-filled submit are closest to " +
+      "the viewport edge.",
   },
   {
     surface: "auth-login",
     width: 1280,
     height: 800,
     theme: "court",
-    why: "desktop: the header's auth slot resolved to the anonymous cluster, which is the state every visitor first sees.",
+    why:
+      "desktop: the same three elements, with the card centred in a viewport four times its column's " +
+      "width. The ground is most of the frame here and the card is a small object on it, which makes " +
+      "this the row where the quiet surface's own token and the card's elevation are visible at all — " +
+      "at the floor they are almost entirely covered by the card.",
   },
 
   // ─── the three share cards — 3 ──────────────────────────────────────────────────────────────────
@@ -1764,6 +1912,115 @@ export const VISUAL_BASELINES = [
       "files — which is a stronger check of 'nothing changed' than a screenshot, and is the reason " +
       "this row is the least urgent of the fifteen.",
   },
+
+  // ═══ 15-11 — EIGHT ROWS, SIX OF WHICH ARE SHOOTABLE TODAY ═══════════════════════════════════════
+  //
+  // Stated at the top rather than left to two `blocked` strings, because the Phase-13 and Phase-14
+  // blocks above both had to learn that lesson: `auth-signup`, `auth-forgot` and `auth-reset` need
+  // NOTHING — no session, no seed, no drive, no clock, no fixture date — and are the cheapest rows in
+  // this file. `profile` needs a drive and a seeded user, and is blocked at its surface with both
+  // named. So this block is +6 pictures on the next dispatch, not +8, and the two `auth-login`
+  // replacements bring that dispatch to 36 committed PNGs against 74 declared rows.
+  //
+  // COURT ONLY (D-138), like everything below Phase 12. Two widths each, and the reason is the same
+  // for all four surfaces: the 320px floor is where the shared `max-w-sm` column stops constraining
+  // and the desktop width is where the ground around the card is most of the frame. Nothing in this
+  // group reflows at the tablet width, so a third row would be a duplicate with a different filename.
+
+  // ─── (auth) signup — 2 ──────────────────────────────────────────────────────────────────────────
+  {
+    surface: "auth-signup",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor on the TALLEST of the four auth documents — four fields, the terms sentence and the " +
+      "submit — so it is the one where the card's vertical rhythm and the label/control spacing have " +
+      "the least room to be wrong in. If the 320px column breaks anywhere in this group it breaks " +
+      "here first, which is why this row is worth more than the login pair it resembles.",
+  },
+  {
+    surface: "auth-signup",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, and the pair's purpose is the COMPARISON with the login row at the same width: the " +
+      "two documents share a layout, a wordmark and a card, and D-162's claim is that they read as " +
+      "one composition. Two baselines at one width is how a drift between them becomes visible.",
+  },
+
+  // ─── (auth) forgot-password — 2 ─────────────────────────────────────────────────────────────────
+  {
+    surface: "auth-forgot",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor on the SHORTEST of the four — one field, one button — which makes it the opposite " +
+      "end of the same column from signup. A card this short is where the layout's vertical centring " +
+      "is actually exercised: it is the only one of the four with meaningful empty ground above and " +
+      "below it at this height.",
+  },
+  {
+    surface: "auth-forgot",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop. The row pins the FIRST state deliberately — after submission this surface shows a " +
+      "sent-confirmation that is identical for a known and an unknown address, and photographing that " +
+      "state needs an interaction, which would make this the only driven row in the group for no " +
+      "gain the enumeration tests do not already give.",
+  },
+
+  // ─── (auth) reset-password — 2 ──────────────────────────────────────────────────────────────────
+  {
+    surface: "auth-reset",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, on the WITH-token branch — the fixture literal in the surface's URL is what selects " +
+      "it, and the tokenless branch is a different document (a notice paragraph, no form). Worth " +
+      "pinning at this width because the password field carries a reveal control inside its own box, " +
+      "which is the one control in this group whose hit area competes with its input at 320px.",
+  },
+  {
+    surface: "auth-reset",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop. ⚠ THIS ROW IS THE GROUP'S ONE STANDING RISK AND IT IS NOT A DATE: the URL carries a " +
+      "literal token string, so if the page ever starts VALIDATING that token before rendering the " +
+      "form, this row silently becomes a picture of the missing-token notice instead. That would not " +
+      "fail the hook — the notice renders inside the same card — so nothing here would catch it. The " +
+      "check that would is a `why`-level fact stated once: the form, not the notice, is the subject.",
+  },
+
+  // ─── /profile — 2, BLOCKED ──────────────────────────────────────────────────────────────────────
+  {
+    surface: "profile",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, where the public and private panels stack and the avatar/initials block sits above " +
+      "the name fields. Currently BLOCKED — see the surface's `blocked` reason, which names a drive " +
+      "and a seeded user and explicitly says no clock is owed.",
+  },
+  {
+    surface: "profile",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, where the booker shell's declared container width is what holds the two panels rather " +
+      "than the viewport, so this row is the one that would pin `BOOKING_SHELL` on this surface. " +
+      "Currently BLOCKED for the same two reasons as its pair — and blocked is the honest state: an " +
+      "undriven capture here photographs `/login`, which renders a card and satisfies the hook.",
+  },
 ] as const satisfies readonly BaselineRow[];
 
 // ---------------------------------------------------------------------------
@@ -1861,7 +2118,15 @@ type Assert<T extends true> = T;
  *                                              + 2 + 1 + 2 + 2 + 1             = 21
  *   14-UI-SPEC § Visual Baselines (14-16)      2 + 1 + 1 + 2 + 1 + 2 + 3
  *                                              + 2 + 1                         = 15
- *                                                                        TOTAL = 66
+ *   15-UI-SPEC § Visual Baselines (15-11)      2 + 2 + 2 + 2                   =  8
+ *                                                                        TOTAL = 74
+ *
+ * ⚠ 15-UI-SPEC's TABLE HAS FIVE ROWS AND THIS SUBTOTAL IS FOUR SURFACES, AND THE DIFFERENCE IS AN
+ * EDIT RATHER THAN A LOSS. The fifth is `auth-login`, declared in Phase 11 and still carrying its
+ * original two rows above — plan 15-11 rewrote that surface's hook and all three of its prose claims
+ * for D-162's composition instead of adding it twice. 15-UI-SPEC's own inventory note says 37 → 42
+ * and 66 → 76 and then hedges "measure the file's real counts before moving the aliases"; the
+ * measured truth is 37 → 41 and 66 → 74 plus one edited row pair, and the hedge is what saved it.
  *
  * ⚠ THIS NUMBER WAS 95 AND IS NOW 51 BECAUSE OF D-138, NOT BECAUSE 44 BASELINES WERE LOST. `court`
  * (coral) is FitOut's SINGLE product theme and `grove` is demoted to a token-contract PROBE, so the
@@ -1893,6 +2158,25 @@ type Assert<T extends true> = T;
  * host row's `blocked` string names the fixture file and the specific missing piece, so the inventory
  * is something a later plan can work FROM rather than an absence somebody has to rediscover.
  *
+ * PHASE 15 IS THE FIRST BLOCK SINCE PHASE 12 THAT MOVES THE PICTURE COUNT, AND IT MOVES IT BY SIX.
+ * Re-stated in full rather than amended, because the two paragraphs above are now the history and
+ * this is the current number: **74 declared, 38 blocked (1 structural + 20 Phase-13 + 15 Phase-14 +
+ * 2 Phase-15), 36 shot.** The six are `auth-signup`, `auth-forgot` and `auth-reset` at two widths
+ * each — anonymous static forms needing no session, no seed, no drive and no clock, which is why
+ * they are `blocked: null` where nineteen of the last twenty-four additions were not. The two
+ * `profile` rows are blocked on a drive and a seeded user, both named at the surface.
+ *
+ * ⚠ 36 SHOT IS NOT 36 NEW FILES: two of them REPLACE `auth-login-{320,1280}-court-visual-linux.png`,
+ * which have pinned a departed header since plan 15-06 and are stale on disk as this is written. A
+ * dispatch that adds six files and leaves those two untouched has not done the job — it means the
+ * hook edit on `auth-login` did not take, and the surface is still being shot against a selector the
+ * page does not render.
+ *
+ * ⚠ AND THIS BLOCK WAS ALSO WRITTEN ON win32, so like Phase 14's it generated nothing. The rows are
+ * a declaration; `.github/workflows/baselines.yml` under `workflow_dispatch` is the only thing that
+ * can turn six of them into pictures, and until that runs the honest reading of this file is still
+ * "an inventory somebody can work from".
+ *
  * THE NAME CARRIES THE NUMBER ON PURPOSE, AND IT IS RENAMED IN THE SAME COMMIT AS THE ROWS. The alias
  * was `BaselineCountIsTwentySeven`, then `BaselineCountIsFiftyThree`, then `BaselineCountIsNinetyFive`,
  * then `BaselineCountIsFiftyOne`. A gate whose name says 51 while its constraint says 66 is a gate that
@@ -1919,9 +2203,34 @@ type Assert<T extends true> = T;
  * RESTORED to 66 → exit 0. Note again what it did NOT do, which is this gate's standing weakness: the
  * error names the alias's own line and not the fifteen rows, which is why the arithmetic is spelled
  * out in prose above rather than left implicit in the literal.
+ *
+ * OBSERVED RED A THIRD TIME — 25 August 2026, plan 15-11, UNFORCED. The eight Phase-15 rows were
+ * inserted with the constraint still reading `66`, `npx tsc --noEmit` run bare (not through a pipe —
+ * `| tail` reports tail's status, not tsc's), EXIT=2, and the whole of stdout was one line:
+ *
+ *   src/lib/design/visual-baselines.ts(2181,3): error TS2344: Type 'false' does not satisfy the
+ *   constraint 'true'.
+ *
+ * Renamed to `…IsSeventyFour` and moved to 74 in the same commit → exit 0. UNFORCED like 13-15's and
+ * unlike 14-16's, which matters to how much the entry is worth: this is the gate arriving on its own
+ * in the ordinary course of adding rows, which is the only evidence that it fires when nobody is
+ * staging it.
+ *
+ * ⚠ AND THE THIRD SIGHTING OF THE SAME STANDING WEAKNESS, plus one NEW one worth more than it. The
+ * old weakness: the error names the alias's own line (2181) and not one of the eight rows, which is
+ * why the arithmetic is spelled out in prose above. The NEW one, measured in the same run: this gate
+ * did NOT see the RUNTIME twin of itself go stale. `e2e/visual/surfaces.spec.ts` carries its own
+ * `EXPECTED_BASELINE_COUNT` literal — deliberately a SECOND literal in a SECOND file, so that an edit
+ * to one without the other fails loudly — but it is a `const`, not a type, so `tsc` reads it as a
+ * number and says nothing. The failure it produces is worse than a compile error and arrives later:
+ * the `baselines` dispatch runs `surfaces.spec.ts`, the inventory test fails on the stale count, the
+ * Playwright step exits non-zero, and the stage/commit steps never run — a dispatch that shoots every
+ * surface and commits NOTHING, reported as a test failure rather than as a stale literal. Plan 15-11
+ * moved that literal in a separate commit for exactly this reason; if you add rows here, that file is
+ * the second place to look and nothing will remind you.
  */
-export type BaselineCountIsSixtySix = Assert<
-  (typeof VISUAL_BASELINES)["length"] extends 66 ? true : false
+export type BaselineCountIsSeventyFour = Assert<
+  (typeof VISUAL_BASELINES)["length"] extends 74 ? true : false
 >;
 
 /** D-135 / AC#30: exactly one exclusion. Probe (b) above. */
@@ -1996,7 +2305,26 @@ export function baselineArg(row: BaselineRow): string {
  *                      (cards, badges), elevation (the result grid). The result tile is the most
  *                      re-skinned component in the product.
  *   `auth-login`       colour (brand button + link), type scale (heading, labels), radius (inputs,
- *                      buttons), elevation (the auth card, the header).
+ *                      buttons), elevation (the card against the quiet ground).
+ *
+ *                      ⚠ RE-ARGUED AND KEPT BY PLAN 15-11, DELIBERATELY RATHER THAN BY DEFAULT — it
+ *                      is the one member of the four whose composition CHANGED under it. D-162 took
+ *                      the public header out of `(auth)/layout.tsx` and left a wordmark above one
+ *                      card on `bg-muted`, so the "elevation (…the header)" clause above was false
+ *                      and is rewritten. The membership is better after the change than before: the
+ *                      surface is now a small brand-filled control and foreground ink on a card, on
+ *                      a large expanse of a semantic ground token — four token families with almost
+ *                      no chrome in the way, and the ground alone is most of the 1280 frame, which
+ *                      is exactly what a byte-difference probe wants. It also still satisfies the
+ *                      membership RULE below (a plain navigation, no drive, no minted row, no
+ *                      fixture date), which is the property a re-argument could have broken.
+ *
+ *                      AND REMOVING IT WOULD HAVE COST MORE THAN THE REVIEW. A surface leaving this
+ *                      set needs a `THEME_SWAP_EXCLUSIONS` row to be a decision rather than a
+ *                      deletion, and `ThemeSwapExclusionCountIsOne` pins that list at exactly one —
+ *                      so the cheap-looking edit is a second exclusion, a moved alias, an amended
+ *                      AC#30 and a fourth member to argue in. `ThemeContractSurfaceCountIsFour` and
+ *                      the members list in `e2e/visual/theme-swap.spec.ts` are both unchanged.
  *   `terms`            the long-form type ladder — the widest type range on any surface — plus the
  *                      legal notice panel's radius, elevation and tone.
  *   `root-not-found`   the empty/error tone family, the brand link and the chrome: the state
