@@ -33,20 +33,23 @@
 //     differently is part of what the 0.05 epsilon exists to absorb.
 
 import { describe, it, expect } from "vitest";
-import { converter, formatHex, inGamut, parse } from "culori";
+import { inGamut } from "culori";
 
 import { readThemeTokens, THEME_NAMES } from "./helpers/compile-css";
 import {
+  composite,
+  contrast,
+  hexOf,
+  resolveToken,
+} from "./helpers/contrast-math";
+import {
   AA_EPSILON,
   CONTRAST_PAIRS,
-  DERIVED_SURFACES,
   EXCLUDED_PAIRS,
   NON_TEXT_BAR,
   type ContrastPair,
 } from "../../src/lib/design/contrast-pairs";
 
-const toRgb = converter("rgb");
-const toOklch = converter("oklch");
 const srgbInGamut = inGamut("rgb");
 
 /** The court `--brand` value the derivation lands on. Pinned so a silent edit cannot slide past. */
@@ -58,85 +61,18 @@ const OUT_OF_GAMUT_CONTROL = "oklch(0.577 0.245 27.325)";
 const themes = readThemeTokens();
 
 // ---------------------------------------------------------------------------
-// Colour maths — deliberately hand-rolled, so the assertion does not depend on
-// the same library being right about both the conversion and the ratio.
+// Colour maths — MOVED OUT, plan 15-13. The seven hand-rolled functions that used to live here now
+// live in the shared maths helper imported above, because `auth-contrast.test.ts` measures the auth
+// COMPOSITION with the same arithmetic and two gates that measure must not be able to disagree about
+// a ratio (D-16's one-import-site rule, applied to the maths instead of the token data). Nothing
+// about them changed on the way out except the name of the resolver, which collided with
+// `node:path`'s. The two positive controls at the bottom of this file exercise the imported
+// functions, so a broken extraction is red here rather than silent.
 // ---------------------------------------------------------------------------
 
-function hexOf(cssValue: string): string {
-  const rgb = toRgb(parse(cssValue));
-  if (rgb === undefined) throw new Error(`unparseable colour: ${cssValue}`);
-  return formatHex(rgb);
-}
-
-function channelsOf(hex: string): [number, number, number] {
-  const n = Number.parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-/** WCAG 2.x relative luminance, from 8-bit sRGB channels. */
-function luminance(hex: string): number {
-  const [r, g, b] = channelsOf(hex).map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrast(aHex: string, bHex: string): number {
-  const [hi, lo] = [luminance(aHex), luminance(bHex)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** `fg` at `alpha` opacity over the opaque `bg`, composited in gamma space on 8-bit channels. */
-function composite(fgHex: string, alpha: number, bgHex: string): string {
-  const f = channelsOf(fgHex);
-  const b = channelsOf(bgHex);
-  const mixed = f.map((c, i) => Math.round(c * alpha + b[i] * (1 - alpha)));
-  return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
-}
-
-/** `color-mix(in oklch, aValue, bValue <pct>%)` — the shipped hover idiom. */
-function mixInOklch(aValue: string, bValue: string, pct: number): string {
-  const a = toOklch(parse(aValue));
-  const b = toOklch(parse(bValue));
-  if (a === undefined || b === undefined) {
-    throw new Error(`unparseable colour in mix: ${aValue} / ${bValue}`);
-  }
-  const hueA = a.h ?? 0;
-  const hueB = b.h ?? 0;
-  let dh = hueB - hueA;
-  if (dh > 180) dh -= 360;
-  if (dh < -180) dh += 360;
-  return formatHex({
-    mode: "oklch",
-    l: a.l * (1 - pct) + b.l * pct,
-    c: (a.c ?? 0) * (1 - pct) + (b.c ?? 0) * pct,
-    h: hueA + dh * pct,
-  });
-}
-
-/**
- * Resolve a `CONTRAST_PAIRS` name to a hex: a real token, or a `DERIVED_SURFACES` mix.
- * Throws on an unknown name — an inventory row naming a token that does not exist must fail loudly,
- * never resolve to a default that quietly passes.
- */
-function resolve(theme: string, name: string): string {
-  const tokens = themes[theme];
-  const derived = DERIVED_SURFACES[name as keyof typeof DERIVED_SURFACES];
-  if (derived !== undefined) {
-    const base = tokens[`--${derived.base}`];
-    const mixWith = tokens[`--${derived.mixWith}`];
-    if (base === undefined || mixWith === undefined) {
-      throw new Error(`[${theme}] derived surface "${name}" has a missing base token`);
-    }
-    return mixInOklch(base, mixWith, derived.pct);
-  }
-  const value = tokens[`--${name}`];
-  if (value === undefined) {
-    throw new Error(`[${theme}] the inventory names --${name}, which no theme block declares`);
-  }
-  return hexOf(value);
-}
+/** The imported resolver, bound to this file's one token map. Signature unchanged for every caller. */
+const resolve = (theme: string, name: string): string =>
+  resolveToken(themes[theme], name, theme);
 
 // ---------------------------------------------------------------------------
 // The proof, run identically for both themes
