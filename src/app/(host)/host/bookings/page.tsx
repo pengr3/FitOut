@@ -67,33 +67,42 @@
 // defers every one of them by name.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// F-2 (QUICK 260824-dbc) — TWO CELLS MAY WRAP, SO THE PRIMARY ACTION IS WHOLE AT REST
+// F-2 — THE DESKTOP TABLE OVERFLOWS ITS CONTAINER AT 1280px. MEASURED, DIAGNOSED, NOT FIXED HERE.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// PHASE 14's UAT PASS REPORTED THE APPROVE CONTROL RUNNING PAST THE TABLE'S CLIP EDGE AT 1280px, and
-// filed its own caveat: the fixture's space titles were longer than the seeded catalogue's, so it might
-// be an artefact of the fixture rather than a defect. THE CAVEAT WAS TESTED AND IT IS WRONG. The seeded
-// catalogue is the WORSE case — `QC Strength & Conditioning Gym` is longer than anything the fixture
-// used — and driven at 1280px against the catalogue's own five titles and cities the table measured a
-// 1043px scroll width inside an 864px container, putting 78 of the Approve button's 90 pixels past the
-// edge. Reachable by scrolling sideways, but at rest the primary action on a pending row read as cut in
-// half. Afterwards: 864 inside 864, nothing to scroll, and 101px of clearance.
+// Recorded on the file that has the defect so the next reader finds it before re-deriving it. The full
+// write-up, both dispositions and the numbers are in `.planning/phases/14-host-tooling/14-UAT-LOG.md`
+// § F-2; quick task `260824-dbc` measured it and escalated the fix as a product decision.
 //
-// THE MECHANISM, AND WHY THE FIX IS TWO CLASS NAMES. The shared table cell forbids its content from
-// breaking across lines, on every cell it renders. Two of the cells below hold a SENTENCE rather than a
-// token — the space title and the venue-local window label — so each contributed its full unbroken
-// length to the table's minimum width; between them they were 600 of those 1043 pixels. They are now
-// allowed to wrap, AT THESE TWO CALL SITES ONLY. `components/ui/table.tsx` is untouched, so no other
-// table in the tree moved and no cell holding a badge, a figure or a control cluster gained permission
-// it has no use for.
+// WHAT IS TRUE, MEASURED IN CHROMIUM AT 1280px AGAINST THE SEEDED CATALOGUE'S OWN FIVE TITLES AND
+// CITIES (`scripts/seed.ts:48-52`), with five upcoming bookings, three confirmed and two requested:
 //
-// ⚠ THIS IS D-154-LEGAL AND THE BOUNDARY MATTERS. D-154 permits widening or reordering columns and
-// forbids new capability; letting two columns wrap is the smallest member of the permitted family. The
-// tab partition, the `?listing=` filter, `BOOKINGS_PAGE_SIZE`, the cursor and the owner-scoped WHERE
-// are untouched, and the `?listing=` select still carries this route's ONE raised elevation.
-// `tests/design/host-bookings-wrap.test.tsx` holds the two overrides in place and records the full
-// before/after measurement; it also states plainly that it re-measures no geometry, because jsdom
-// cannot.
+//     container clientWidth 864 · scrollWidth 1043 · overflow 179px
+//     Approve box x=1060→1150 against a clip edge at x=1072 — 78 of its 90px past the edge
+//     columns: Guest 69 · Space 234 · When 366 · Status 112 · Payout 63 · Actions 199
+//
+// The UAT pass filed a caveat that this might be an artefact of its fixture's long titles. THE CAVEAT
+// IS WRONG, and wrong in the direction that matters: the seeded catalogue is the WORSE case, because
+// `QC Strength & Conditioning Gym` is longer than either fixture title. The content stays reachable —
+// the container scrolls sideways — but at rest the primary action on a pending row reads as cut off.
+//
+// WHY NOTHING WAS CHANGED HERE, AND WHAT THE ACTUAL FORK IS. The shared table cell forbids wrapping on
+// every cell it renders, so the two cells holding a SENTENCE rather than a token — the space title and
+// the venue-local window label — each contribute their full unbroken length to the table's minimum
+// width. 600 of those 1043 pixels are those two. Letting them wrap DOES remove the clip completely
+// (measured: 864 against 864, and 101px of clearance on the Approve box) — but it makes the desktop
+// row two lines instead of one, which:
+//
+//   • moves `HOST_BOOKING_ROW_HEIGHT`'s desktop value, and with it `bookings/loading.tsx`'s plate,
+//     which exists to draw the box the arriving content will occupy; and
+//   • makes that row's height depend on the WIDEST label in the whole list, because a table shares
+//     column widths across its rows. Two of this route's rows are seeded relative to the clock, so the
+//     resting row's height would start moving with the calendar again — which is exactly the ambush
+//     `[14-16]` closed, re-opened one breakpoint up.
+//
+// That is a Phase-14 measurement decision with a host-visible consequence, not a two-class polish, so
+// it was escalated rather than taken inside a quick task. `e2e/skeleton-geometry.spec.ts` is what fails
+// on it, and it failed on it — see the UAT log for the observed red.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -315,14 +324,9 @@ export default async function HostBookingsPage({
                           role legible, so a later type edit moves a declared role rather than a bare
                           utility that happened to agree with one. Mirrors `/host/requests`' guest cell. */}
                       <TableCell className="text-label">{row.bookerLabel}</TableCell>
-                      <TableCell className="font-medium whitespace-normal">
+                      <TableCell className="font-medium">
                         {/* T6 (load-bearing half) — the DEFAULT desktop viewport. Mirrors the booker page's
-                            Space-cell link so the host cancel flow (SC#3) is reachable without typing a UUID.
-
-                            F-2: THIS CELL MAY WRAP. See the F-2 block at the top of this file — the
-                            shared table cell forbids wrapping on every cell it renders, and this is one
-                            of the two whose content is a sentence rather than a token. Nothing else
-                            about the cell moved; the type role and the link are untouched. */}
+                            Space-cell link so the host cancel flow (SC#3) is reachable without typing a UUID. */}
                         <Link
                           href={`/host/bookings/${row.bookingId}`}
                           className="underline-offset-4 hover:underline"
@@ -331,12 +335,8 @@ export default async function HostBookingsPage({
                         </Link>
                       </TableCell>
                       {/* The venue-local window label — § Typography files every one of those on the
-                          label role. Muted stays muted; only the size step is now named.
-
-                          F-2: AND THIS CELL MAY WRAP — it is the WIDER of the two offenders, measured
-                          at 366px of one unbreakable line. Same note as the Space cell above; the role
-                          and the tone are untouched. */}
-                      <TableCell className="text-label whitespace-normal text-muted-foreground">
+                          label role. Muted stays muted; only the size step is now named. */}
+                      <TableCell className="text-label text-muted-foreground">
                         {row.whenLabel}
                       </TableCell>
                       <TableCell>
