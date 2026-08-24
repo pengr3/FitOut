@@ -4,9 +4,9 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
 status: verifying
-stopped_at: "Phase 15: CONTEXT committed (D-160..D-163 locked); 15-UI-SPEC.md written and committed (8ca9b61) at status: draft — checker NOT yet run. Next: gsd-ui-checker on 15-UI-SPEC.md (scrutinize its 4 open questions, esp. PublicHeader leaving the (auth) layout and the ops digest wearing the shell), stamp approved, then /gsd:plan-phase 15."
-last_updated: "2026-08-24T06:54:59.856Z"
-last_activity: 2026-08-23
+stopped_at: "Phase 15: 15-UI-SPEC.md APPROVED (711b2b7) — gsd-ui-checker 6/6 PASS, zero blockers; checker's two wording corrections folded into Open Questions 1+4 (signed-in (auth) nav gap is an accepted tradeoff; ops-digest carve-out is >1 row). All 5 open questions PM-deferrable, none changes plan structure. Next: /gsd:plan-phase 15."
+last_updated: "2026-08-24T07:30:00.000Z"
+last_activity: 2026-08-24
 progress:
   total_phases: 12
   completed_phases: 6
