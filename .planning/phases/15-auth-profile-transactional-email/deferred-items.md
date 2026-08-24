@@ -39,3 +39,77 @@ still correct and still load-bearing — only its count is stale.
 
 **Why deferred:** pre-existing, a comment, and the block-level notes that 13-15, 14-16 and 15-11
 each added directly above their own entries already state the real per-phase counts.
+
+---
+
+## [15-11] AUTHUI-03's keyboard and AA clauses are not evidenced — the requirement stays unticked
+
+**Requirement:** *"The auth screens hold the same five gates as every other surface — 320px,
+keyboard, AA, designed states, and a baseline."*
+
+Three of five hold: **320px** (15-07's measurements + 15-10's standing 40-case
+`overflow-320.spec.ts` harness), **designed states** (`(auth)/error.tsx`, the two form-replacing
+branches measured in 15-07, and `loading-coverage.test.ts` affirmatively refusing a `loading.tsx`
+for these routes), and **baseline** (plan 15-11, comparison run `32752143309`).
+
+**KEYBOARD — the gap.** The phase's only keyboard evidence is 15-07's ten-press tab walk on
+`/reset-password?token=abc123`, and 15-07 states plainly that it exists to discharge **T-15-25**
+(the hidden token input must never receive focus). That is a threat mitigation about one input.
+`/login`, `/signup` and `/forgot-password` have **no recorded keyboard walk**, and grepping `e2e/`
+for a Tab press returns only `overflow-320.spec.ts`, a geometry harness.
+
+**What closing it looks like:** a tab-order walk over all four screens, recorded as 15-07 recorded
+its one — the focus sequence written out, not asserted. The wordmark is the first tabbable element
+on all four and keeps the browser-default indicator (`(auth)/layout.tsx` argues why), so the walk
+should confirm that too.
+
+**AA — the gap.** `tests/design/contrast.test.ts` is a **token-layer** gate: ≥39 declared pairings
+and ≥24 tokens per theme, both themes. It proves the palette clears AA; it cannot see a surface
+composing two legal tokens in a combination no pairing row covers. Phase 15's only contrast-adjacent
+line is 15-07's `git diff --exit-code src/lib/design/contrast-pairs.ts` → exit 0, which asserts *no
+new pairing was declared* — a negative check, not a measurement.
+
+This matters specifically because **D-162 changed the composition under it**: the wordmark now sits
+directly on `bg-muted` where the public header previously supplied its own surface.
+`(auth)/layout.tsx` cites `foreground` on `muted` at 18.16 court / 16.89 grove, but that pairing was
+declared and measured in an earlier phase against a different composition.
+
+**What closing it looks like:** measure the ink-on-ground pairs the four auth screens actually
+render, and declare any that are not already rows in `contrast-pairs.ts`.
+
+**Why this is a planning gap rather than an execution failure:** `15-VALIDATION.md` maps AUTHUI-03
+to exactly three rows — `15-10-02`, `15-11-01`, `15-11-02` — **all three now discharged**. It never
+maps a keyboard row or an AA row to the requirement at all, so two of its five clauses were never
+sampled.
+
+---
+
+## [15-11] `gate-visual` was RED on `dev` for days, and the 15-11 dispatch cleared it as a side effect
+
+**Evidence:** CI run **`32566576437`** (2026-08-22, two days before Phase 15 began) already failed
+`gate-visual` on a broad set — `auth-login`, `booking-confirmed`, `booking-group`, `booking-moment`,
+`booking-not-found`, `checkout`, `collision-notice`, `dev-theme`, `global-error`, … including
+`grove` variants. Run **`32751395157`** (immediately before the 15-11 regeneration) still failed on
+ten of them plus `auth-login`.
+
+The 15-11 generation run `32751407382` re-minted **ten surfaces this plan never touched**:
+`collision-notice-1280`, `listing-detail-{320,768,1280}`, `listing-sheet-375`,
+`search-relax-band-{320,1280}`, `search-results-{320,768,1280}`. `gate-visual` is now green for the
+first time since at least 2026-08-22.
+
+**The finding:** `--update-snapshots` accepts whatever was on screen that day. Ten references were
+replaced without anyone reading the diff, so **whatever product change drifted those surfaces
+between 2026-08-22 and now is baked into the new baselines as "correct"**. `baselines.yml`'s own
+header states the principle — *writing is not comparing* — and its warning step says so out loud on
+every run.
+
+**Not this plan's to fix:** the drift predates the phase, and plan 15-11 changed no rendered pixel
+(`visual-baselines.ts` is imported by nothing in `src/` — only by three files under `e2e/`). But the
+green gate is now younger than the drift it accepted, and the verifier should know that before
+reading `gate-visual` green as evidence about those ten surfaces.
+
+**What closing it looks like:** identify what changed those ten between 2026-08-22 and 2026-08-25
+(git log over `src/app/(public)`, `src/app/listings`, the search and collision components), and
+confirm the re-minted references are correct rather than merely current. Eight of the ten moved by
+5–32 bytes (antialiasing noise); `search-results-1280` (+2098 B) and `search-relax-band-1280`
+(+1666 B) moved meaningfully and are the two worth looking at first.
