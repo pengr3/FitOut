@@ -168,9 +168,12 @@ them is outstanding and nothing is being asked.
 
 ---
 
-## Findings raised by this pass — reported, NOT fixed
+## Findings raised by this pass
 
-These were observed while gathering evidence. None was acted on: this pass changed no product source.
+These were observed while gathering evidence. **The pass itself changed no product source** — the
+write-ups below are preserved exactly as they were filed. **F-1 and F-2 each now carry a DISPOSITION**
+appended underneath it, added by quick task `260824-dbc` on 2026-08-24. F-3 carries none because it names
+no product defect — it records what was suppressed in the screenshots and why.
 
 ### F-1 · A mistyped window's only pre-save signal is the strip going blank
 
@@ -181,6 +184,25 @@ The likely mechanism: the form validates `onChange`, and the last field the host
 surfaced for the field that was changed. **Unverified as a root cause; stated as a hypothesis, not a
 diagnosis.** The server still refuses the save (`weeklyHoursSchema` re-validates every write), so this is a
 feedback gap and not a correctness hole. It is, however, directly load-bearing on the question Walk B asks.
+
+**DISPOSITION — FIXED. `6de5b5a` (quick `260824-dbc`, 2026-08-24).**
+
+**The hypothesis was verified before anything was built on it, and it holds exactly.** The schema hangs
+its refusal on the `closeTime` path; react-hook-form's onChange path looks an error up at the path of the
+field that CHANGED, walking `windows.N.openTime` → `windows.N`, finding nothing there, and writing only
+that empty result into form state. The sibling's issue was computed by the resolver on every keystroke
+and then discarded. **The proof it was computed:** pressing *Save hours* in that same state DID render
+the sentence and did NOT call the server action — so the message and its wiring were already correct, and
+only the onChange path failed to populate it.
+
+**The fix adds no rule and no sentence.** The open select now re-asks the resolver about its own row's
+close field after a change, so the answer lands at the path the existing message already reads.
+`weeklyHoursSchema` remains the one authority for both the rule and its wording, on the client and on the
+server. **Save is untouched and stays pressable** — the PM's second clause, and D-130's requirement.
+
+Covered by `tests/availability/week-strip.test.tsx` cases (11) and (12), each watched failing against the
+defect it names: with the fix removed both went red on the missing sentence; with Save gated on client
+validity, (12) alone went red on its own clause.
 
 ### F-2 · The Approve control on `/host/bookings` is clipped at 1280px
 
@@ -194,6 +216,38 @@ rest the primary action on a pending row reads as cut in half. Visible in
 "Venice Beach Yoga Studio") are longer than the seeded catalogue's, and the Space column is what pushes the
 table past its container. A host with short space names may not see this. It is a width-and-content
 interaction, not an unconditional defect.
+
+**DISPOSITION — REPRODUCED AGAINST THE SEEDED CATALOGUE, AND FIXED. `aff2941` (quick `260824-dbc`,
+2026-08-24).**
+
+**The caveat above is wrong, and it was wrong in the direction that matters.** The seeded catalogue is the
+WORSE case, not the milder one: `QC Strength & Conditioning Gym` (30 characters) is longer than either
+fixture title, and `Quezon City` is as long as `Los Angeles`. Driven at 1280px through a throwaway fixture
+carrying the catalogue's own five titles and cities (`scripts/seed.ts:48-52`), with the UAT's own row
+shape — five upcoming bookings, three confirmed and two requested:
+
+| | `clientWidth` | `scrollWidth` | overflow | Approve box | past the clip edge |
+|---|---|---|---|---|---|
+| **Before** | 864 | 1043 | 179px | x=1060→1150 | **78 of its 90px** |
+| **After** | 864 | 864 | 0 | x=881→971 | none — 101px clear |
+
+Column widths before: Guest 69 · Space 234 · **When 366** · Status 112 · Payout 63 · Actions 199.
+After: Guest 69 · Space 174 · When 248 · Status 112 · Payout 63 · Actions 199.
+
+So it is a real defect on a primary action, and worse than this pass measured (78px past the edge rather
+than ~26px). **The mechanism is not the Space column alone** — the shared table cell forbids wrapping on
+every cell it renders, and TWO of this route's cells hold a sentence rather than a token: the space title
+and the venue-local window label. The window label was the wider offender at 366px. Both are now allowed
+to wrap, at those two call sites only; the shared cell's default is untouched, so no other table in the
+tree moved.
+
+D-154 stands: the tab partition, the `?listing=` filter, the page size, the cursor and the owner-scoped
+WHERE are untouched, no host-side filter/sort/column/date-range was added, and the route still carries
+exactly one raised elevation (`tests/design/elevation-z.test.ts:306` did not move).
+
+Held by `tests/design/host-bookings-wrap.test.tsx`, which records the measurement above and states
+plainly that it re-measures no geometry — jsdom computes no layout, so what it holds is the mechanism.
+The throwaway fixture was torn down in the foreign-key order `booker-seed.ts` records, and verified gone.
 
 ### F-3 · The `1 Issue` pill in the screenshots is dev tooling, and was hidden
 
@@ -221,4 +275,4 @@ Stated plainly so the next reader under-trusts it correctly.
 
 ---
 
-*Last updated: 2026-08-24*
+*Last updated: 2026-08-24 (findings F-1 and F-2 dispositioned by quick `260824-dbc`).*
