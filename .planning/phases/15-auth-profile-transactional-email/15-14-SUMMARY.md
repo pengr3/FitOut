@@ -396,3 +396,29 @@ at plan end.
 None. No network endpoint, auth path, file-access pattern or schema touched. The four mutations lived
 inside `src/` for one run each and are proven reverted by `git diff --exit-code src/lib/email.ts` and
 an empty `git diff --name-only src/`.
+
+---
+
+## Self-Check: PASSED
+
+**Files claimed, checked on disk:**
+
+```
+FOUND: tests/ops/alert-digest.test.ts
+FOUND: .planning/phases/15-auth-profile-transactional-email/15-VALIDATION.md
+FOUND: .planning/phases/15-auth-profile-transactional-email/deferred-items.md
+FOUND: .planning/phases/15-auth-profile-transactional-email/15-14-SUMMARY.md
+```
+
+**Commits claimed, checked in `git log --oneline --all`:**
+
+```
+FOUND: 667f925   FOUND: 2c42c87   FOUND: 5134862
+```
+
+**Deletion check:** `git diff --diff-filter=D --name-only` over each of the three commits returns
+**nothing** — no tracked file was removed by this plan.
+
+**Tracking state, verified by hand after the gsd-sdk revert:** 15-05 still `[ ]`, the Phase-15
+checkbox still `[ ]`, `completed_plans` 104 → **105**, `total_plans` **105**, ROADMAP diff exactly
+2 lines, `git diff --exit-code .planning/REQUIREMENTS.md` exit 0.
