@@ -17,13 +17,26 @@ import { seedTheme } from "./helpers/theme";
 // branches on it, so a spec carrying its own copy would go green the day the real one changed.
 import { SUPPORT_EMAIL } from "../src/lib/site";
 
-// RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on twelve named routes plus
-// one route STATE, in both themes. Measured in real pixels in real Chromium.
+// RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on seventeen named routes
+// plus three route STATES, in both themes. Measured in real pixels in real Chromium.
 //
-// THE THIRTEENTH ROW IS `/listings/[id]` WITH THE BOOKING SHEET OPEN (plan 12-10), and it is a state
+// ONE OF THOSE STATES IS `/listings/[id]` WITH THE BOOKING SHEET OPEN (plan 12-10), and it is a state
 // rather than a route on purpose: RESP-02's sheet is a portal holding a second month grid inside a
 // full-bleed overlay, so at this width it is the widest subtree on the route — and it does not exist in
 // the document at all until a booker taps the sticky bar. See that row for the whole argument.
+//
+// THE OTHER TWO ARRIVED WITH PLAN 15-10, alongside the five account routes AUTHUI-03 gate 1 names —
+// `/login`, `/signup`, `/forgot-password`, `/reset-password` and `/profile`. Both extra states are
+// FORM-REPLACING branches: `/forgot-password` after its submit (the form gone, the enumeration-safe
+// sentence in its place) and `/reset-password` with no token in the URL (the form gone, a notice and
+// one link out). Each is a genuinely different document from the row above it, and neither can be
+// reached by the plain row — the first needs an interaction, the second needs the query string
+// omitted. See the Phase-15 block in `ROUTES`.
+//
+// ⚠ TWO PRE-EXISTING ROW COMMENTS BELOW STILL SAY "twelve-route table", and they are LEFT
+// BYTE-IDENTICAL on purpose: plan 15-10's own acceptance criteria forbid editing any pre-existing
+// row, so the phrase is left standing and flagged HERE as history rather than silently corrected in
+// a place the criteria protect. The current figure is in the `ROUTES` docblock and nowhere else.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // THIS HARNESS IS NET-NEW, AND THAT IS A CORRECTION TO THE PHASE'S OWN INPUTS
@@ -131,7 +144,7 @@ import { SUPPORT_EMAIL } from "../src/lib/site";
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file:
-//   • FOUR OF THE TWELVE ROUTES ARE SKIPPED, EACH WITH A NAMED REASON (see `ROUTES`). They are four
+//   • FOUR OF THE SEVENTEEN ROUTES ARE SKIPPED, EACH WITH A NAMED REASON (see `ROUTES`). They are four
 //     of the five error boundaries, and they are unreachable because plan 11-18 added exactly ONE
 //     dev throw affordance and `src/app/dev/**` sits under no route group, so it can only ever reach
 //     the ROOT boundary. Skipping is deliberate and loud; it is never silent.
@@ -153,7 +166,9 @@ import { SUPPORT_EMAIL } from "../src/lib/site";
 // to 320px and calls the SAME function. Two fixtures, one definition of the assertion.
 //
 // Nothing about this file's 26 cases changed in that move: the constants, the scan and the three
-// expectations are byte-identical, and their reasons travelled with them.
+// expectations are byte-identical, and their reasons travelled with them. (26 was the figure AT THAT
+// MOVE and is left as the historical claim it is; plan 15-10 took the table to 40. The current count
+// lives in the `ROUTES` docblock and is derived from the array there.)
 
 const THEMES = ["court", "grove"] as const;
 
@@ -178,6 +193,49 @@ async function firstListingPath(page: Page): Promise<string | null> {
     .first()
     .getAttribute("href", { timeout: 20_000 });
   return cachedListingPath;
+}
+
+/**
+ * `/profile`, reached by signing a booker up THROUGH THE UI (plan 15-10).
+ *
+ * A resolver rather than a literal path, because `/profile` is the one route in this table behind a
+ * session: `(app)/profile/page.tsx` reads the session itself and `redirect("/login")`s without one.
+ * The `RouteRow` type already supports a resolver (`firstListingPath` is one), so this is the shape
+ * the table was built for rather than a new mechanism.
+ *
+ * ⚠ IT IS NOT MEMOISED, AND THAT IS THE OPPOSITE DECISION FROM `firstListingPath` ABOVE, FOR A
+ * STRUCTURAL REASON. What that one caches is a STRING discovered from the app, which is the same for
+ * every context. What this one produces is a SESSION COOKIE, and Playwright's `page` fixture is
+ * per-test — a fresh context and a fresh cookie jar each time — so a cached "/profile" handed to a
+ * second test would navigate an anonymous browser to a route that redirects, and every assertion in
+ * this file is true of the page it would land on. Two themes therefore cost two signups, which is the
+ * honest price of the row.
+ *
+ * NO SEED AND NO DATABASE FIXTURE. This drives the shipped signup form exactly as
+ * `e2e/login-persistence.spec.ts:31-42` and `helpers/booker-seed.ts:327-338` do, so the table stays
+ * seed-free in the sense its own header means: no `postgres()` client, no seeded rows, nothing that
+ * stops running the first time a fixture changes.
+ *
+ * ⚠ THE CLOCK IS IN THE EMAIL AND NOWHERE ELSE. `Date.now()` here buys uniqueness against the email
+ * unique constraint across repeated runs; it never reaches a measured string. The one clock-derived
+ * sentence on the rendered surface is `PageHeader`'s `Member since …` lede, which lives in a wrapping
+ * `<p className="max-w-prose">` with no fixed width — a paragraph that wraps cannot widen the
+ * document, which is the only thing this row asserts. Stated because this repository has shipped two
+ * time-bomb pixel assertions seeded from `now()`, and the reason this is not a third is a property of
+ * the assertion rather than good luck.
+ */
+async function signUpAndReachProfile(page: Page): Promise<string | null> {
+  const email = `e2e.overflow.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
+  await page.goto(`${BASE}/signup`);
+  // The intent defaults to "book"; clicked explicitly to be deterministic, which is the same reason
+  // `login-persistence.spec.ts` gives.
+  await page.getByRole("radio", { name: "Book a space" }).click();
+  await page.getByLabel("First name").fill("Overflow");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByRole("button", { name: /sign up to book/i }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
+  return "/profile";
 }
 
 type RouteRow = {
@@ -212,11 +270,27 @@ type RouteRow = {
 };
 
 /**
- * THE TWELVE ROUTES `11-UI-SPEC § Responsive Baseline` names, in its order.
+ * SEVENTEEN ROUTES AND THREE ROUTE STATES — 20 rows, 40 cases at two themes each.
  *
- * Eight are reachable and are measured in both themes; four are not, and each says why in the string
- * a skipped run prints. That asymmetry is the finding rather than a shortfall — see the note on the
- * first skipped row.
+ * RE-MEASURED AGAINST THE ARRAY BELOW BY PLAN 15-10, which added five routes and two states. The
+ * previous figure ("the twelve routes `11-UI-SPEC § Responsive Baseline` names, in its order — eight
+ * reachable, four not") was written when this table was the Phase-11 baseline and nothing but the
+ * two Phase-12 states had joined it; it is replaced rather than annotated, because a stale measured
+ * count in a gate's own header is the defect class Phase 15 exists to repair.
+ *
+ * THE SPLIT, counted from the rows below:
+ *
+ *   • 13 of the 17 routes are REACHABLE — the 8 `11-UI-SPEC` names plus the 5 account routes
+ *     AUTHUI-03 gate 1 adds (`/login`, `/signup`, `/forgot-password`, `/reset-password`, `/profile`).
+ *   • 4 are NOT, and each says why in the string a skipped run prints. All four are error boundaries;
+ *     that asymmetry is the finding rather than a shortfall — see the note on the first skipped row.
+ *   • 3 STATES ride alongside their routes: the booking sheet open (12-10), forgot-password after
+ *     submit and reset-password with no token (both 15-10).
+ *   • 8 of the 40 cases are the four unreachable rows × two themes.
+ *
+ * THE ORDER IS BY OWNING PLAN, not by URL, for `selector-contract.ts`'s stated reason: the reading
+ * question this table gets asked is "has the phase that owns this surface run yet", not "where is /x
+ * alphabetically".
  */
 const ROUTES: readonly RouteRow[] = [
   {
@@ -324,6 +398,110 @@ const ROUTES: readonly RouteRow[] = [
     // driving the route and reading the rendered copy, not inferred from the file tree.
     path: "/dev/throw",
     tell: '[data-testid="error-state"]',
+  },
+
+  // ─── PHASE 15 — THE FIVE ACCOUNT SURFACES AND THE TWO FORM-REPLACING BRANCHES (plan 15-10) ───────
+  //
+  // AUTHUI-03's first gate is `scrollWidth <= clientWidth` at 320px on all four auth routes in every
+  // state, and until this block existed this table measured twelve routes, none of which was a form.
+  //
+  // THESE ARE THE CHEAPEST ROWS IN THE TABLE AND THAT IS WORTH SAYING OUT LOUD. Four of them are
+  // literal paths on static routes: no seed, no catalogue discovery, no clock, no interception, no
+  // determinism work of any kind. The two that are not — the post-submit branch and the signed-in
+  // profile — each cost exactly one mechanism the table already had (`open` and a resolver `path`).
+  //
+  // ⚠ ON `tell` AND WHAT THESE FOUR CAN AND CANNOT PROVE, stated rather than left to be discovered.
+  // Plan 15-07 put all four auth screens on ONE composition, so `[data-testid="panel-card"]` proves
+  // "an auth screen rendered" and NOT "this particular auth screen rendered" — a `/signup` row would
+  // stay green if it somehow served `/login`. That hole is closed by construction rather than by the
+  // selector: all four are literal paths to routes that exist and that redirect nowhere, so the
+  // failure the `tell` is really guarding (a 404, a blank page, a redirect) is covered — the root
+  // not-found renders `empty-state` and no panel, and neither auth route redirects to the other. The
+  // ONE row where the redirect is real is `/profile`, and its `tell` is narrowed accordingly; see it.
+  {
+    name: "/login",
+    path: "/login",
+    tell: '[data-testid="panel-card"]',
+  },
+  {
+    name: "/signup",
+    // THE TALLEST OF THE FOUR — the intent radio pair, four fields and two submits. Plan 15-07
+    // measured its geometry at this width with a ruler rather than reasoning about it: the
+    // `Book a space` / `Host a space` pair is 124px × 38px per button inside a 256px inner box, one
+    // line at 14px/600, so `grid-cols-2` shipped and the spec's `sm:`-stacking contingency was never
+    // needed. This row is what stops that measurement being a one-afternoon fact.
+    path: "/signup",
+    tell: '[data-testid="panel-card"]',
+  },
+  {
+    name: "/forgot-password",
+    path: "/forgot-password",
+    tell: '[data-testid="panel-card"]',
+  },
+  {
+    name: "/forgot-password · post-submit",
+    // ⚠ THE SAME ROUTE, IN A STATE THE ROW ABOVE STRUCTURALLY CANNOT REACH. The post-submit branch
+    // REPLACES the form rather than sitting beside it: the fields, the one coral submit and the whole
+    // `<Form>` subtree are gone, and what remains is the enumeration-safe sentence plus one
+    // cross-link. That is a different document with a different widest element, and the row above
+    // measures a page this branch is not on.
+    //
+    // THE `tell` IS THE BRANCH'S OWN ACCESSIBLE NAME, not the panel — the panel is present in BOTH
+    // branches, so the plainer selector would be satisfied by a submit that did nothing at all.
+    // `Reset request result` is the name plan 15-07 gave this region and plan 15-09 declared in
+    // `live-regions.ts`, so the selector is a declared string rather than one invented here.
+    path: "/forgot-password",
+    open: async (page) => {
+      // A FIXED literal address with no account behind it, and both halves are deliberate. Fixed,
+      // because nothing here may be seeded from the clock. Account-less, because the branch is
+      // reached IDENTICALLY either way — that uniformity is T-03-02's whole point — and an address
+      // with no user attached means no email is even attempted, so this row cannot depend on the
+      // dev environment's mail configuration.
+      await page.getByLabel("Email").fill("overflow.320.no-account@example.com");
+      await page.getByRole("button", { name: /send reset link/i }).click();
+    },
+    tell: '[aria-label="Reset request result"]',
+  },
+  {
+    name: "/reset-password",
+    // THE TOKEN IS IN THE URL BECAUSE THE PAGE BRANCHES ON ITS PRESENCE, and a fixed literal is a
+    // deterministic fixture rather than a shortcut: the form does not validate the token client-side
+    // beyond non-emptiness (the shared `resetSchema` requires a non-empty string and nothing more),
+    // so any non-empty value renders the same form the real link renders. Nothing is submitted here,
+    // so the token is never checked against the database and no seed is needed.
+    path: "/reset-password?token=e2e-overflow-320-fixed-token",
+    tell: '[data-testid="panel-card"]',
+  },
+  {
+    name: "/reset-password · missing token",
+    // THE SECOND FORM-REPLACING BRANCH, reached by OMITTING the query string rather than by an
+    // interaction. This is the page a malformed or truncated reset link produces, and like the forgot
+    // branch it replaces the form entirely: one destructive-ink sentence and one link out, zero
+    // buttons and therefore zero coral (plan 15-07 verified both counts at 0 rather than assuming
+    // them).
+    //
+    // THE `tell` IS THE ROUTE OUT, which only this branch renders — the token branch's only link is
+    // `Back to log in`. Scoped through the panel so it cannot be satisfied by a link somewhere else
+    // in the shell.
+    path: "/reset-password",
+    tell: '[data-testid="panel-card"] a[href="/forgot-password"]',
+  },
+  {
+    name: "/profile",
+    // THE ONE ROW BEHIND A SESSION, and the resolver drives the shipped signup form to get one — see
+    // `signUpAndReachProfile` for why it is not memoised and why it needs no seed.
+    //
+    // ⚠ THE `tell` IS NARROWED, AND THIS IS THE ROW WHERE THAT MATTERS. `(app)/profile/page.tsx`
+    // redirects an anonymous visitor to `/login`, and since plan 15-07 `/login` RENDERS
+    // `[data-testid="panel-card"]` — so the plain hook would be satisfied by the exact failure the
+    // `tell` mechanism exists to catch, and this row would have measured the login page twice and
+    // reported `/profile` as covered. That is byte-for-byte the vacuity probe this file's own header
+    // records for `/terms`, arriving on a new row a phase later. Narrowing it to the panel that
+    // carries the PRIVATE group's sentence makes the selector true of `/profile` and of nothing else
+    // in the app: the string is one of the two D-09/D-10 promises, pinned byte-for-byte by
+    // `tests/design/profile-pass.test.tsx`, so the two gates move together or one of them goes red.
+    path: signUpAndReachProfile,
+    tell: '[data-testid="panel-card"]:has-text("Private account info")',
   },
 
   // ─── THE FOUR THIS HARNESS CANNOT REACH ──────────────────────────────────────────────────────────
