@@ -98,7 +98,7 @@
 // its 21st row; this file owns the per-surface shape that inventory cannot see.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// THE MUTATION WALK — IN PROGRESS (5 OF 6 RUN)
+// THE MUTATION WALK — SIX PROBES PLUS A NEGATIVE CONTROL, ALL RUN, ALL REVERTED (24 Aug 2026)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // ⚠ THIS BLOCK IS DELIBERATE HISTORY RATHER THAN AN OMISSION, and it is `auth-composition.test.tsx`'s
@@ -233,6 +233,45 @@
 //        brand budget — and `tests/profile/` cannot see it either, because it drives the server action
 //        rather than the component. 14-CONTEXT D-150 cites this file as the reference truthful-save
 //        model; this is the assertion that makes the citation checkable.
+//   (M6) RUN AND REVERTED. A REMOVAL CONTROL SHIPPED AHEAD OF ITS BEHAVIOUR: a
+//        `<Button variant="destructive" size="sm">Remove photo</Button>` added to the avatar block,
+//        wired to `setAvatarUrl(null)` — i.e. a button that clears the preview and persists nothing.
+//        This is not a strawman; it is the single most likely edit anybody makes to this block before
+//        Phase 16's CROP-03 exists, and `profile-form.tsx:120-122` was written to argue against it.
+//        3 failed / 10 passed:
+//
+//          AssertionError: the profile form ships a destructive control. There is no destructive
+//          ACTION on this surface — avatar teardown is Phase 16's CROP-03 — so a filled destructive
+//          button here is an affordance shipped ahead of the behaviour behind it, which is a button
+//          that lies. …: expected [ Array(1) ] to deeply equal []
+//          + "src/app/(app)/profile/profile-form.tsx:148 — variant=destructive"
+//
+//          AssertionError: the profile form ships a control whose name reads as a removal. …:
+//          expected [ 'Remove photo' ] to deeply equal []
+//          + "Remove photo"
+//
+//          AssertionError: a rendered control on the profile form is named as a removal.: expected
+//          [ 'Remove photo' ] to deeply equal []
+//
+//        THE THIRD FAILURE IS THE INDEPENDENT ONE. Cases (8) and (10) read SOURCE; case (12) read the
+//        RENDERED accessible name off the document, and it would still fire against a control whose
+//        label arrived from a variable, a constant or a translation lookup — the exact direction this
+//        file's NOT COVERED footer admits the AST walk is blind in. Two of the three would go quiet on
+//        `{REMOVE_LABEL}`; the DOM one would not.
+//   (M7) RUN AND REVERTED — THE NEGATIVE CONTROL, and the only probe here whose PASS is the result.
+//        The sentence `// A future plan may add a Remove photo control here (CROP-03).` inserted as a
+//        COMMENT beside the avatar block, with no markup change at all. GREEN, 13 passed.
+//
+//        A `grep -i remove` over this file would have reported that line as the violation — the same
+//        grep-versus-prose collision this phase has now paid ten times, and the specific reason
+//        `profile-form.tsx` can carry a header explaining WHY there is no removal control without
+//        that header becoming the removal control. A ban that cannot be written down beside its own
+//        explanation is a ban somebody eventually deletes.
+//
+// WALK CLOSED. Six positive probes, each applied alone, each run, each reverted with
+// `git diff --exit-code src/` confirmed clean before the next started, plus one negative control.
+// Every red above is TRANSCRIBED from the run rather than written from what the failure was expected
+// to look like.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
