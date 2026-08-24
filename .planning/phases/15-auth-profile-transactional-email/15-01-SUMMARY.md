@@ -159,3 +159,7 @@ None - no external service configuration required.
 ---
 *Phase: 15-auth-profile-transactional-email*
 *Completed: 2026-08-24*
+
+## Self-Check: PASSED
+
+All 6 claimed files exist on disk; all 3 claimed commits (`b344ce2`, `4045859`, `9d46e16`) are present in the git history.
