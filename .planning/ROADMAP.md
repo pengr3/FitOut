@@ -508,7 +508,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 15-02-PLAN.md — the two build-blocking shell gates: structure, html/text parity, no-URL-before-the-CTA, and the seven-hex set that a theme flip moves with the rendering
+- [x] 15-02-PLAN.md — the two build-blocking shell gates: structure, html/text parity, no-URL-before-the-CTA, and the seven-hex set that a theme flip moves with the rendering
 - [ ] 15-07-PLAN.md — the four auth cards adopt the pattern and the document's h1, one coral each, two live regions demoted, and both pinned counts moved with their rows
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -658,7 +658,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
-| 15. Auth, Profile & Transactional Email | v1.1 | 2/11 | In Progress|  |
+| 15. Auth, Profile & Transactional Email | v1.1 | 3/11 | In Progress|  |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: "Phase 15 EXECUTING — Wave 1 complete: 15-01 (b344ce2, 4045859, b5e9ce1) and 15-06 (b6fb568 enablers, 9c184bd auth composition, ac06e3f+ba95beb summary). NOTE: AUTHUI-01/AUTHUI-03 deliberately NOT marked complete — 15-06 advances them; the four auth pages (15-07) and the five gates (15-11) close them. EMAIL-01/EMAIL-02 still open per 15-01."
-last_updated: "2026-08-24T09:29:11.011Z"
-last_activity: 2026-08-24 -- Phase 15 Wave 1 complete (15-01 email shell foundations, 15-06 auth composition enablers)
+stopped_at: "Phase 15 EXECUTING — Wave 2 in progress: 15-02 complete (51dc925 EMAIL-01 gate, 9ad10dd EMAIL-02 gate). Wave 1 was 15-01 + 15-06. NOTE: EMAIL-01/EMAIL-02 still NOT marked complete — 15-02 makes the shell's claims falsifiable but zero sends compose through it; 15-04 lands the nineteen adopters and closes both."
+last_updated: "2026-08-24T09:56:19.265Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-02 executed (the two build-blocking EMAIL gates)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 98
+  completed_plans: 99
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 3 of 11
-Current Plan: 3
+Plan: 4 of 11
+Current Plan: 4
 Total Plans in Phase: 11
-Status: Executing — Wave 1 complete (15-01, 15-06); Wave 2 (15-02..05, 15-07) is next
+Status: Executing — Wave 2 in progress: 15-02 complete (both EMAIL gates); 15-03, 15-04, 15-05 and 15-07 remain
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 Wave 1 complete (15-01 email shell foundations, 15-06 auth composition enablers)
+Last activity: 2026-08-24 -- Phase 15 plan 15-02 executed (the two build-blocking EMAIL gates)
 
 ## Performance Metrics
 
@@ -691,6 +691,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P16 | 3h20m | 3 tasks | 6 files |
 | Phase 15 P01 | 18min | 2 tasks | 5 files |
 | Phase 15 P06 | 22min | 2 tasks | 4 files |
+| Phase 15 P02 | 16min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1126,6 +1127,8 @@ Recent decisions affecting current work:
 - [Phase 15]: pair-drift.test.ts pins the THEMES declaration at its new owner, not at the provider — The gate reads source text to prove the app declares exactly two theme names and neither is dark — the premise licensing its dark:-utility narrowing. After the move, reading it from the provider would only match the re-export line. A companion assertion pins that the provider imports from that owner, so the check cannot become an assertion about an unread file.
 - [Phase ?]: 15-06: (auth)/layout.tsx is now D-162's composition — PublicHeader removed, wordmark above the card reading the newly-exported BRAND_CLASS, <main> owned by the layout so it is present in every state including the error boundary. The four auth routes flipped f Dynamic -> o Static; the loading-coverage gate header was re-measured (counts still 29/21/8).
 - [Phase ?]: 15-06: PanelCard.titleAs widened to "h1" | "h2" | "h3" with the default unchanged at "h2" — an auth card IS the document, so its title is that document's h1. Zero shipped call sites move.
+- [Phase 15]: 15-02: The two EMAIL gates assert on the pure exported renderEmail STRING, not on a captured send — vitest.design.config.ts declares no setupFiles and no globalSetup by contract, so the Resend mock does not exist there and a send-capturing gate could not run inside npm run build at all. This is the repo's first assert-on-a-pure-exported-renderer test (15-RESEARCH cited a precedent that does not exist: zero files import renderOpsAlertDigest).
+- [Phase 15]: 15-02: The EMAIL-02 hex gate iterates THEMES and reads THEME_TOKENS at test time rather than pinning literals — measured during the mutation walk: a hand-typed hex EQUAL to the court token left the default-theme set equality GREEN and was caught only by the grove flip plus a source scan for hex literals in the shell. Either mechanism alone would have shipped it.
 
 ### Pending Todos
 
@@ -1235,8 +1238,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-24T09:29:10.985Z
-Stopped at: Phase 15 EXECUTING — Wave 1 complete: 15-01 (b344ce2, 4045859, b5e9ce1) and 15-06 (b6fb568 enablers, 9c184bd auth composition, ac06e3f+ba95beb summary). NOTE: AUTHUI-01/AUTHUI-03 deliberately NOT marked complete — 15-06 advances them; the four auth pages (15-07) and the five gates (15-11) close them. EMAIL-01/EMAIL-02 still open per 15-01.
+Last session: 2026-08-24T09:56:19.239Z
+Stopped at: Phase 15 EXECUTING — Wave 2 in progress: 15-02 complete (51dc925 EMAIL-01 gate, 9ad10dd EMAIL-02 gate). Wave 1 was 15-01 + 15-06. NOTE: EMAIL-01/EMAIL-02 still NOT marked complete — 15-02 makes the shell's claims falsifiable but zero sends compose through it; 15-04 lands the nineteen adopters and closes both.
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
