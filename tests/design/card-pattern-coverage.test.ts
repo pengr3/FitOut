@@ -475,6 +475,31 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "unchanged. Its ALLOWED_RAW_CARD row was DELETED in the same commit, which EMPTIES the Phase-15 " +
       "block below — the second block in this file to be kept as a comment that says why it is empty.",
   },
+
+  // ─── Phase 15 — the profile form (AUTHUI-02 · 15-UI-SPEC § The Profile Surface) ───────────────────
+  //
+  // THE ONE ROW IN THIS FILE THAT ARRIVES BY NEITHER OF THE TWO USUAL ROUTES. It is not an
+  // allow-list → inventory move, because `profile-form.tsx` was never on `ALLOWED_RAW_CARD`: it had no
+  // card to exempt. And it is not a surface that did not exist when the 11-UI-SPEC was written, because
+  // it shipped in Phase 4. It is the third kind — a surface that drew NO box at all and should have,
+  // which is a gap this inventory could not see: both real assertions here are absences, and a page
+  // with no card satisfies the inverse half perfectly while adopting nothing.
+  {
+    file: "src/app/(app)/profile/profile-form.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE PROFILE FORM'S TWO GROUPS (plan 15-08). It rendered two bare `<section>`s with hand-sized " +
+      "headings and no container, while this route's own `loading.tsx` drew a panel skeleton — a " +
+      "fallback claiming a box its page never had. Both groups are `PanelCard` call sites now at " +
+      "`titleAs=\"h2\"`, under the `<h1>` `page.tsx` renders through `PageHeader`. TWO call sites, ONE " +
+      "row: the row names the file that owns the boxes, which is this inventory's stated convention " +
+      "where the spec describes a surface and a module owns its container. GATE-NOREG: the save-state " +
+      "machine is untouched — `saved` is set from the actual `updateProfile` result and cleared on the " +
+      "next submit, with no timer on the save path — and the two groups keep exactly their shipped " +
+      "field membership, because the D-09/D-10 split is a server-side boundary this surface only " +
+      "describes. This row asserts a container, never a state machine and never a projection.",
+  },
 ];
 
 /**
@@ -531,11 +556,20 @@ const CARD_SURFACES: readonly CardSurface[] = [
  *
  * and beside it `expected [ … ] to have a length of 16 but got 18`.
  *
- * IT REACHES 21 IN PLAN 15-08, when `profile-form.tsx` joins. It is deliberately left at 20 here:
- * moving a count ahead of the rows that justify it is the one thing this file's procedure forbids,
- * and 15-08's own commit is where that row and that number belong together.
+ * TWENTY-ONE SINCE PLAN 15-08, and the twenty-first arrives by NEITHER of the two routes above —
+ * `profile-form.tsx` was never on the allow-list (it had no card to exempt) and it is not a surface
+ * that postdates the 11-UI-SPEC (it shipped in Phase 4). It is the third kind: a surface that drew no
+ * box at all, which is the gap this inventory is structurally blind to, because a page with no card
+ * satisfies the inverse half perfectly. Its red was watched with the row in and this constant still
+ * reading 20:
+ *
+ *   AssertionError: the declared card-surface inventory is not the size the UI-SPEC's three
+ *   `Replaces` lists describe. A coverage gate whose inventory silently emptied passes every one of
+ *   its own assertions.: expected 21 to be 20 // Object.is equality
+ *
+ * and beside it `expected [ … ] to have a length of 18 but got 19`.
  */
-const EXPECTED_SURFACES = 20;
+const EXPECTED_SURFACES = 21;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -903,7 +937,13 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // 18 SINCE THAT PLAN'S SECOND COMMIT (+2: the account-creation and token-bearing cards), red
     // watched again — `expected [ … ] to have a length of 16 but got 18`. All four auth pages are
     // adopters now and the Phase-15 allow-list block is empty.
-    expect(adopted).toHaveLength(18);
+    //
+    // 19 SINCE PLAN 15-08 (+1: the profile form's two groups, ONE row because one module owns both
+    // boxes). This pin is the one that MATTERS for that row rather than the size beside it: the
+    // profile form is a surface that adopted a container it never had, and a conversion mis-recorded
+    // as a `"refused"` row would satisfy `EXPECTED_SURFACES` at 21 and fail only here. Red watched
+    // with the row in and this number still at 18 — `expected [ … ] to have a length of 18 but got 19`.
+    expect(adopted).toHaveLength(19);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {
