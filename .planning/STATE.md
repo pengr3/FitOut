@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 10
+current_plan: 11
 status: executing
-stopped_at: "Phase 15 EXECUTING — 15-09 COMPLETE (ba392e9 the seven account-surface live regions, e9d0155 the AUTHUI-01/03 composition gate committed green-but-unprobed, 45e2228 / 44695fd / 78f4f33 / 1a8e7f0 / d13fec2 / ba1e50b / e8ab7f5 the six-probe mutation walk with every red watched and one predicted-wrong note corrected, 07c6f19 the final summary). LIVE_REGION_FILES 21 -> 26 with the tsc red observed BEFORE the count moved; seven declared rows; AUTHOR_NAMED_REGIONS 9 -> 11; LIVE_REGION_EXCLUSIONS still empty. npm run test:design 53 files / 895 passed / 3 skipped (was 52 / 882); tsc 0; npm run build 0. AUTHUI-01 and AUTHUI-03 ADVANCED, NOT ticked — both span 15-11's baselines and 320px measurements. REMAINING in phase 15: 15-10 (wave 4), 15-05 and 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed."
-last_updated: "2026-08-24T15:39:17.742Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-10 executed (AUTHUI-02 becomes 13 build-blocking commands with a real-component DOM link and a seven-probe walk; the five account routes and two form-replacing branches join the 320px table at 40 cases)
+stopped_at: "Phase 15 EXECUTING — 15-11 TASK 1 COMPLETE, TASK 2 AT A BLOCKING OPERATOR CHECKPOINT (1a65faf the inventory edit, 46b491d the runtime twin, e329d76 the summary, f8af1bf the deferred log). visual-baselines.ts: SURFACE_IDS 37 -> 41 (auth-signup, auth-forgot, auth-reset, profile), VISUAL_BASELINES 66 -> 74, BaselineCountIsSixtySix -> BaselineCountIsSeventyFour with its red observed UNFORCED at (2181,3) and quoted verbatim. auth-login was EDITED not re-added: hook site-header -> panel-card (15-06 removed the header), both row `why` strings rewritten, and its DB-free claim RETIRED rather than re-made because the four (auth) routes' `○ Static` marker now carries it. auth-login re-argued and KEPT in the four THEME_SWAP_SURFACES; theme-swap.spec.ts byte-identical. profile's two rows are BLOCKED on a DRIVES entry + a seeded user (an undriven /profile photographs /login, which renders a panel-card and SATISFIES the hook). Arithmetic now 74 declared / 38 blocked / 36 shootable, of which TWO REPLACE the stale auth-login PNGs. tsc 0; npm run test:design 54 files / 908 passed / 3 skipped. ZERO PNGs generated and none could be — baselines.yml is workflow_dispatch-only and playwright.config.ts builds the visual project only on Linux; the 8 awaited files are inventoried in the summary. AUTHUI-03 ADVANCED, NOT ticked (its text ends '...and a baseline'). REMAINING in phase 15: 15-05 Task 3 and 15-11 Task 2, both operator checkpoints. Phase completion is the verifier's call and was NOT claimed."
+last_updated: "2026-08-24T16:25:00.000Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-11 executed to its checkpoint (the visual-baseline inventory learns D-162's composition: 41 surfaces, 74 rows, auth-login's dead hook replaced, profile honestly blocked, and the capture routed to the one workflow_dispatch that may write a PNG)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 105
+  completed_plans: 106
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 10 of 11
-Current Plan: 10
+Plan: 11 of 11
+Current Plan: 11
 Total Plans in Phase: 11
-Status: Executing — 15-10 complete (the AUTHUI-02 gate is build-blocking at 13 cases; the 320px table is at 40). Wave 4 is CLOSED; wave 5 owes 15-05 and 15-11
+Status: Executing — 15-11 Task 1 complete and green (41 surfaces, 74 rows, `auth-login` edited for D-162, `profile` blocked with both needs named). **TWO OPERATOR CHECKPOINTS ARE OPEN AND BOTH BLOCK THE PHASE:** 15-05 Task 3 (the EMAIL-03 walk) and 15-11 Task 2 (dispatch the `baselines` workflow, then push an empty commit so a `ci` run actually COMPARES — the deliverable is the FOLLOW-UP run's id, not the generation run's). Every autonomous plan in phase 15 is now done
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -477,7 +477,7 @@ Last activity: 2026-08-24 -- Phase 15 plan 15-10 executed (AUTHUI-02 becomes 13 
 
 **Velocity:**
 
-- Total plans completed: 65
+- Total plans completed: 66
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -494,7 +494,7 @@ Last activity: 2026-08-24 -- Phase 15 plan 15-10 executed (AUTHUI-02 becomes 13 
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
-| 15 | 9 | - | - |
+| 15 | 10 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -1294,8 +1294,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-24T14:57:08.255Z
-Stopped at: Phase 15 EXECUTING — 15-09 COMPLETE (ba392e9 the seven account-surface live regions, e9d0155 the AUTHUI-01/03 composition gate committed green-but-unprobed, 45e2228 / 44695fd / 78f4f33 / 1a8e7f0 / d13fec2 / ba1e50b / e8ab7f5 the six-probe mutation walk with every red watched and one predicted-wrong note corrected, 07c6f19 the final summary). LIVE_REGION_FILES 21 -> 26 with the tsc red observed BEFORE the count moved; seven declared rows; AUTHOR_NAMED_REGIONS 9 -> 11; LIVE_REGION_EXCLUSIONS still empty. npm run test:design 53 files / 895 passed / 3 skipped (was 52 / 882); tsc 0; npm run build 0. AUTHUI-01 and AUTHUI-03 ADVANCED, NOT ticked — both span 15-11's baselines and 320px measurements. REMAINING in phase 15: 15-10 (wave 4), 15-05 and 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed.
+Last session: 2026-08-24T16:25:00.000Z
+Stopped at: Phase 15 EXECUTING — 15-11 TASK 1 COMPLETE, TASK 2 AT A BLOCKING OPERATOR CHECKPOINT (1a65faf the inventory edit, 46b491d the runtime twin, e329d76 the summary, f8af1bf the deferred log). `visual-baselines.ts`: SURFACE_IDS 37 -> 41, VISUAL_BASELINES 66 -> 74, `BaselineCountIsSixtySix` -> `BaselineCountIsSeventyFour` with its red observed UNFORCED at (2181,3) and quoted verbatim in the alias docblock. `auth-login` was EDITED and not re-added: its hook moved `site-header` -> `panel-card` because plan 15-06 removed the header from `(auth)/layout.tsx`, both baseline rows' `why` strings were rewritten, and its DB-free claim was RETIRED rather than carried forward — the four `(auth)` routes' `○ Static` build marker is what holds that property now, and it fails in `npm run build` on every machine. `auth-login` re-argued and KEPT in the four `THEME_SWAP_SURFACES` with the reason written beside the set; `theme-swap.spec.ts` byte-identical. `profile`'s two rows are BLOCKED on a `DRIVES` entry AND a seeded user with a literal `createdAt` — an undriven `/profile` redirects to `/login`, which renders a `panel-card` and therefore SATISFIES the hook, so this is the one row where reachability offers no protection. NO clock is owed (member-since derives from `createdAt`, never `now`). Arithmetic now 74 declared / 38 blocked / 36 shootable, and 36 is not 36 new files: TWO must REPLACE the stale `auth-login-{320,1280}-court-visual-linux.png`. RULE-3 DEVIATION, in its own commit: `e2e/visual/surfaces.spec.ts`'s `EXPECTED_BASELINE_COUNT` (66 -> 74) and `EXPECTED_BLOCKED` (+`profile`) are `const`s, invisible to `tsc`, and a stale value there makes the dispatch render everything and commit NOTHING (the stage/commit steps carry no `if: always()`). tsc 0; `npm run test:design` 54 files / 908 passed / 3 skipped. ZERO PNGs generated and none could be — `baselines.yml` is `workflow_dispatch`-only and `playwright.config.ts` builds the `visual` project only on Linux; the 8 awaited files are inventoried in the summary in the Phase-14 convention. AUTHUI-03 ADVANCED, NOT ticked, because its text ends "...and a baseline" and no baseline exists. REMAINING in phase 15: 15-05 Task 3 and 15-11 Task 2 — both operator checkpoints, no autonomous work left. Phase completion is the verifier's call and was NOT claimed.
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
@@ -1583,6 +1583,29 @@ Completed 04-05-PLAN.md — search home UI at / (D-29): SearchResultCard (extend
 Resume file: None
 
 ## Operator Next Steps
+
+- **PHASE 15 — 15-11 TASK 2, THE BASELINE DISPATCH. Same procedure as the Phase-12 entry below,
+  including the follow-up-run trap; the differences are what to check.** Push `dev`, dispatch
+  `baselines`, then:
+  1. Confirm the resulting commit added or replaced **only** `*-visual-linux.png` files.
+  2. ⚠ **Confirm the two `auth-login` PNGs were REPLACED, not merely joined by new siblings.** Their
+     blob hashes must differ from their pre-dispatch values. A run that adds six files and leaves
+     those two standing means the `auth-login` hook edit did not take and the surface is still being
+     shot against a selector `(auth)/layout.tsx` does not render.
+  3. Expect **eight files total: six new + two replacements**, not ten. `visual-baselines.ts` declares
+     74 rows of which 38 are blocked; the six new ones are `auth-signup`, `auth-forgot` and
+     `auth-reset` at 320 and 1280. ⚠ The plan's own checklist says "eight new plus the two
+     replacements" — that was written before the `profile` rows were declared **blocked**, which the
+     plan's action explicitly permits. **Both `profile` rows correctly produce NOTHING**, and that is
+     the expected result rather than a failure.
+  4. **Then push an empty commit or re-dispatch so a `ci` run actually COMPARES.** A `GITHUB_TOKEN`
+     push triggers no workflow run, so the deliverable is the FOLLOW-UP comparison run's id, not the
+     generation run's. The comparison happens in `gate-visual`.
+  5. Report the comparison run's id and its result. **If any `blocked: null` row came back without a
+     PNG, say which and what the run reported** — that is a finding about the row, not about the
+     dispatch, and it belongs in 15-11-SUMMARY.md rather than being retried silently.
+  **AUTHUI-03 stays UNMARKED until step 5 lands** — its text ends "…and a baseline", and until then
+  the phase has a declaration and two stale pictures.
 
 - **PHASE 12 — 12-14 TASK 3, AND IT IS NOW UNBLOCKED (12-15 closed the finding).** Push `dev`, then:
   (A) dispatch `baselines`; confirm the resulting commit added **only** `*-visual-linux.png`; confirm
