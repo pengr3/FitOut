@@ -789,7 +789,7 @@ describe("DS-08 — the repo-wide scan reaches the trees it now claims to police
 });
 
 describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked for it", () => {
-  it("adopts the brand variant at exactly 26 call sites across src/app and src/components", () => {
+  it("adopts the brand variant at exactly 28 call sites across src/app and src/components", () => {
     // 15 from plan 10-08 (bookings, booking, group, search) + 5 from plan 10-09 (the host surface) +
     // 1 from plan 12-10 (RESP-02's sticky bottom bar, the mobile listing page's single focal action) +
     // 1 from plan 12-11 (BFLOW-06's checkout bar, the mobile checkout's single focal action). The
@@ -836,9 +836,23 @@ describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked
     //   src/app and src/components
     //   AssertionError: expected 26 to be 24 // Object.is equality
     //
-    // It reaches 28 in this plan's second task (signup and reset). Do not move it ahead of the rows.
+    // 26 → 28 IN THAT PLAN'S SECOND COMMIT, for the identical reason and with the identical shape:
+    // `(auth)/signup/page.tsx` and `(auth)/reset-password/page.tsx` each gained ONE brand submit. All
+    // four auth screens now carry exactly one accent-filled element apiece, and the two conditional
+    // branches on those screens carry zero — the forgot page's post-submit sentence and the reset
+    // page's missing-token notice both REPLACE the form rather than sitting beside it, so neither has
+    // a primary action for coral to be on. The signup intent pair is NOT one of these 4: it keeps the
+    // neutral control fill (D-21), which is why this number moved by exactly 4 across the two commits
+    // and not by 5.
+    //
+    // Its red was watched the same way, with both submits converted and the assertion still at 26:
+    //
+    //   AssertionError: expected 28 to be 26 // Object.is equality
+    //
+    // THE SCOPED 19 ABOVE IS UNMOVED ACROSS BOTH COMMITS, which is the cross-check that all four
+    // conversions really landed in `(auth)` and nowhere else.
     const total = Object.values(scan.adoption).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(26);
+    expect(total).toBe(28);
   });
 
   it("lands the 5 host conversions on the host surface, not somewhere convenient", () => {

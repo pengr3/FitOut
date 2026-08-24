@@ -446,6 +446,35 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "swap; this row asserts a container, never a state machine. Its ALLOWED_RAW_CARD row was DELETED in " +
       "the same commit (13-08's finding, as above).",
   },
+  {
+    file: "src/app/(auth)/signup/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE ACCOUNT-CREATION CARD (plan 15-07). Its exemption said pattern-ising the four auth cards " +
+      "together was Phase 15's call rather than plan 11-13's, and this row is that call recorded: the " +
+      "container is the pattern, the heading is the pattern's title at `titleAs=\"h1\"`, and the " +
+      "book/host intent radio group its exemption named as the complication is UNTOUCHED — it keeps the " +
+      "neutral control fill (D-21) rather than gaining the accent, because a selected intent is a choice " +
+      "already made and not the action the page is asking for. GATE-NOREG #5: `intent` still posts to the " +
+      "`signup` server action and the capability flags stay server-assigned; this row asserts a " +
+      "container, never a trust boundary. Its ALLOWED_RAW_CARD row was DELETED in the same commit " +
+      "(13-08's finding — an allow-list row exempts a file in BOTH directions, permanently).",
+  },
+  {
+    file: "src/app/(auth)/reset-password/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE TOKEN-BEARING CARD, AND THE FOURTH AND LAST OF THE AUTH EXEMPTIONS (plan 15-07). Its row said " +
+      "\"its box changes when the set does\"; the set changed in two commits and this is the second. The " +
+      "panel sits OUTSIDE the Suspense boundary on purpose, which is what makes the `<h1>` present in " +
+      "all three of that document's states — the token-read fallback, the missing-token notice and the " +
+      "form — rather than appearing and disappearing as the token resolves. GATE-NOREG #4: the hidden " +
+      "token input, `resetSchema`, the `newPassword` mapping and the `/login?reset=1` redirect are " +
+      "unchanged. Its ALLOWED_RAW_CARD row was DELETED in the same commit, which EMPTIES the Phase-15 " +
+      "block below — the second block in this file to be kept as a comment that says why it is empty.",
+  },
 ];
 
 /**
@@ -491,11 +520,22 @@ const CARD_SURFACES: readonly CardSurface[] = [
  * and the positive half beside it said `expected [ … ] to have a length of 14 but got 16`. Both are
  * the pin doing its job. A number moved first would have made the conversion unfalsifiable.
  *
- * IT REACHES 20 IN THIS PLAN'S SECOND TASK (signup and reset) AND 21 IN PLAN 15-08, when
- * `profile-form.tsx` joins. Do not move it ahead of either — a count that anticipates rows is the
- * exact thing this file's procedure forbids.
+ * TWENTY SINCE THAT PLAN'S SECOND TASK, which converted `signup/page.tsx` and
+ * `reset-password/page.tsx` and EMPTIED the Phase-15 allow-list block — all four auth pages are
+ * declared surfaces now and none of them is exempt from the inverse half any more. Its red was
+ * watched the same way, with the two rows in and this constant still reading 18:
+ *
+ *   AssertionError: the declared card-surface inventory is not the size the UI-SPEC's three
+ *   `Replaces` lists describe. A coverage gate whose inventory silently emptied passes every one of
+ *   its own assertions.: expected 20 to be 18 // Object.is equality
+ *
+ * and beside it `expected [ … ] to have a length of 16 but got 18`.
+ *
+ * IT REACHES 21 IN PLAN 15-08, when `profile-form.tsx` joins. It is deliberately left at 20 here:
+ * moving a count ahead of the rows that justify it is the one thing this file's procedure forbids,
+ * and 15-08's own commit is where that row and that number belong together.
  */
-const EXPECTED_SURFACES = 18;
+const EXPECTED_SURFACES = 20;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -527,12 +567,16 @@ const ALLOWED_RAW_CARD: Readonly<Record<string, string>> = {
   // 14 block below leaves behind is the pairing — a conversion and its row deletion are ONE commit —
   // and it was watched go red here before the count moved.
   //
-  // TWO ROWS REMAIN, and they remain deliberately: plan 15-07's second task owns signup and reset,
-  // and deleting an exemption for a surface a commit has not converted is the inverse mistake.
-  "src/app/(auth)/signup/page.tsx":
-    "Same shell as login, plus the book/host intent radio group. Phase 15. Pattern-ising the four auth cards together is that phase's call, not this one's.",
-  "src/app/(auth)/reset-password/page.tsx":
-    "The fourth auth shell, and the one carrying the token-bearing URL. Phase 15; its box changes when the set does.",
+  // THE OTHER TWO LEFT IN THE SECOND COMMIT OF THE SAME PLAN. `signup/page.tsx` and
+  // `reset-password/page.tsx` are declared `panel-card` surfaces above too, so THIS BLOCK IS NOW
+  // EMPTY — the second block in this file that is, after Phase 14's. It is kept as a comment rather
+  // than removed with its rows for the reason that one gives: an empty section that says why it is
+  // empty is what stops the next Phase-15 surface quietly re-opening it. The profile page's box is
+  // plan 15-08's and joins the inventory above in its own commit; it does not come back here.
+  //
+  // WHAT THE FOUR DELETIONS BUY, stated once: the inverse half now polices all four auth pages. A
+  // raw `<Card>` reappearing in any of them is a failure rather than an exemption — which is exactly
+  // what a surviving row would have made it, permanently and in both directions.
 
   // ── Phase 13 — Confirmation, Bookings & Trust (owns /bookings/** and the group surfaces) ───────
   //
@@ -855,7 +899,11 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // would satisfy the first and fail here. It was watched go red with the rows in and the number
     // still at 14 — `expected [ … ] to have a length of 14 but got 16` — before it was moved.
     // `refused` stays 2: no measured refusal was revisited by this phase.
-    expect(adopted).toHaveLength(16);
+    //
+    // 18 SINCE THAT PLAN'S SECOND COMMIT (+2: the account-creation and token-bearing cards), red
+    // watched again — `expected [ … ] to have a length of 16 but got 18`. All four auth pages are
+    // adopters now and the Phase-15 allow-list block is empty.
+    expect(adopted).toHaveLength(18);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {
