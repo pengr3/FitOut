@@ -28,6 +28,30 @@
 //   async default export  ⇒  ƒ Dynamic   (20/20, still true)
 //   ƒ Dynamic             ⇏  async default export   (4 counter-examples today)
 //
+// ── 24 AUGUST 2026, PLAN 15-06 — THOSE FOUR COUNTER-EXAMPLES ARE GONE, AND NOTHING HERE MOVES ─────
+//
+// The paragraph above names its own cause, and D-162 removed it. `(auth)/layout.tsx` is now a
+// dedicated auth composition: `PublicHeader` is deleted from it, the wordmark it used to supply
+// moves into the layout above the card, and no ancestor of the four auth pages reads the session any
+// more. RE-MEASURED RATHER THAN PREDICTED — `npm run build` on this tree, verbatim rows:
+//
+//   ○ /forgot-password    ○ /login    ○ /reset-password    ○ /signup
+//
+// All four flipped ƒ → ○, and the three ○ rows quoted above are unmoved. So the one-directional
+// falsity recorded for 17 August has no counter-examples in today's tree — and it would be very easy
+// to read that as the manifest finally becoming a usable oracle for this gate. IT IS NOT, AND
+// NOTHING BELOW CHANGES. The counter-examples vanished because a LAYOUT stopped reading the session,
+// which is a fact about ancestors, and an ancestor's await is exactly what a `loading.tsx` boundary
+// does not cover. The next layout that reads a cookie brings all four back without one page
+// changing, and a gate keyed to the manifest would then demand four dead files again. The
+// correlation was never the reason the async rule is right; the Suspense argument in the next
+// paragraph is, and it is untouched by this measurement in either direction.
+//
+// NO ROUTE WAS ADDED OR REMOVED BY PLAN 15-06. The gate is still 29 / 21 / 8, the qualifying and
+// non-qualifying sets are the same members they were, and every assertion in this file is
+// byte-identical across this correction. A ƒ → ○ flip is not a route change; it is the same
+// twenty-nine pages rendered differently.
+//
 // The async rule survives the correction with a BETTER reason than the one that was offered for it.
 // `loading.tsx` is a `<Suspense>` boundary around the PAGE. It renders only if the page component
 // itself suspends, which only an async default export can do — an ancestor layout's await happens
