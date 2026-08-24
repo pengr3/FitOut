@@ -66,6 +66,35 @@
 // ⚠ NO HOST-SIDE FILTER, SORT, COLUMN OR DATE RANGE WAS ADDED. Each is a new capability and D-154
 // defers every one of them by name.
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// F-2 (QUICK 260824-dbc) — TWO CELLS MAY WRAP, SO THE PRIMARY ACTION IS WHOLE AT REST
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// PHASE 14's UAT PASS REPORTED THE APPROVE CONTROL RUNNING PAST THE TABLE'S CLIP EDGE AT 1280px, and
+// filed its own caveat: the fixture's space titles were longer than the seeded catalogue's, so it might
+// be an artefact of the fixture rather than a defect. THE CAVEAT WAS TESTED AND IT IS WRONG. The seeded
+// catalogue is the WORSE case — `QC Strength & Conditioning Gym` is longer than anything the fixture
+// used — and driven at 1280px against the catalogue's own five titles and cities the table measured a
+// 1043px scroll width inside an 864px container, putting 78 of the Approve button's 90 pixels past the
+// edge. Reachable by scrolling sideways, but at rest the primary action on a pending row read as cut in
+// half. Afterwards: 864 inside 864, nothing to scroll, and 101px of clearance.
+//
+// THE MECHANISM, AND WHY THE FIX IS TWO CLASS NAMES. The shared table cell forbids its content from
+// breaking across lines, on every cell it renders. Two of the cells below hold a SENTENCE rather than a
+// token — the space title and the venue-local window label — so each contributed its full unbroken
+// length to the table's minimum width; between them they were 600 of those 1043 pixels. They are now
+// allowed to wrap, AT THESE TWO CALL SITES ONLY. `components/ui/table.tsx` is untouched, so no other
+// table in the tree moved and no cell holding a badge, a figure or a control cluster gained permission
+// it has no use for.
+//
+// ⚠ THIS IS D-154-LEGAL AND THE BOUNDARY MATTERS. D-154 permits widening or reordering columns and
+// forbids new capability; letting two columns wrap is the smallest member of the permitted family. The
+// tab partition, the `?listing=` filter, `BOOKINGS_PAGE_SIZE`, the cursor and the owner-scoped WHERE
+// are untouched, and the `?listing=` select still carries this route's ONE raised elevation.
+// `tests/design/host-bookings-wrap.test.tsx` holds the two overrides in place and records the full
+// before/after measurement; it also states plainly that it re-measures no geometry, because jsdom
+// cannot.
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -286,9 +315,14 @@ export default async function HostBookingsPage({
                           role legible, so a later type edit moves a declared role rather than a bare
                           utility that happened to agree with one. Mirrors `/host/requests`' guest cell. */}
                       <TableCell className="text-label">{row.bookerLabel}</TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium whitespace-normal">
                         {/* T6 (load-bearing half) — the DEFAULT desktop viewport. Mirrors the booker page's
-                            Space-cell link so the host cancel flow (SC#3) is reachable without typing a UUID. */}
+                            Space-cell link so the host cancel flow (SC#3) is reachable without typing a UUID.
+
+                            F-2: THIS CELL MAY WRAP. See the F-2 block at the top of this file — the
+                            shared table cell forbids wrapping on every cell it renders, and this is one
+                            of the two whose content is a sentence rather than a token. Nothing else
+                            about the cell moved; the type role and the link are untouched. */}
                         <Link
                           href={`/host/bookings/${row.bookingId}`}
                           className="underline-offset-4 hover:underline"
@@ -297,8 +331,12 @@ export default async function HostBookingsPage({
                         </Link>
                       </TableCell>
                       {/* The venue-local window label — § Typography files every one of those on the
-                          label role. Muted stays muted; only the size step is now named. */}
-                      <TableCell className="text-label text-muted-foreground">
+                          label role. Muted stays muted; only the size step is now named.
+
+                          F-2: AND THIS CELL MAY WRAP — it is the WIDER of the two offenders, measured
+                          at 366px of one unbreakable line. Same note as the Space cell above; the role
+                          and the tone are untouched. */}
+                      <TableCell className="text-label whitespace-normal text-muted-foreground">
                         {row.whenLabel}
                       </TableCell>
                       <TableCell>
