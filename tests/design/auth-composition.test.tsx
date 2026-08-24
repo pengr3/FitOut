@@ -113,7 +113,20 @@
 //        `it()` are ORDERED, not independent, and the second says nothing at all when the first fails.
 //        This is the same reading M1 forced about case (3)'s loop, arrived at twice in one walk —
 //        which is the argument for watching a red rather than predicting one.
-//   (M4) PENDING — a heading's copy drifts: `title="Welcome back"` → `title="Welcome back!"`.
+//   (M4) RUN AND REVERTED. A heading's copy drifts by one character: `title="Welcome back"` →
+//        `title="Welcome back!"` on the login page. T-15-31's threat, mutated at its smallest possible
+//        size — a punctuation mark, the change least likely to be noticed in a diff of a 250-line
+//        file. 1 failed / 12 passed:
+//
+//          AssertionError: src/app/(auth)/login/page.tsx's PanelCard title is not the byte-for-byte
+//          string 15-UI-SPEC's copy table pins.: expected [ 'Welcome back!' ] to deeply equal
+//          [ 'Welcome back' ]
+//
+//        THE POINT IS NOT THAT PUNCTUATION MATTERS. It is that the mechanism which catches a stray
+//        exclamation mark is the same one that catches an edit to the anti-enumeration sentence on
+//        `/forgot-password` — where the wording is a security property rather than a tone, and where
+//        a well-meaning "helpful" rewrite ("We couldn't find that email") is a real and attractive
+//        change. A gate that only fired on big edits would not be on that path at all.
 //   (M5) PENDING — the single landmark doubles: a second one opened inside `(auth)/layout.tsx`.
 //   (M6) PENDING — a removed region comes back: `role="status"` restored on the login page's
 //        post-reset notice, i.e. plan 15-07's `ResetNotice` demotion undone.
