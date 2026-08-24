@@ -878,13 +878,15 @@ test reads only `.html`.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED — both closed by the plans, 2026-08-24)
 
 15-UI-SPEC § Open Questions carries five PM-deferrable items (PublicHeader leaving `(auth)`; the
 verify/reset CTA labels; `BOOKING_SHELL` on `/profile`; the ops digest wearing the shell; forgot/reset
 having no Google button). Those are **not** re-opened here. Research adds two.
 
 1. **Does `auth-login` stay in `THEME_SWAP_SURFACES` after the rewrite?**
+   **RESOLVED:** yes — 15-11 states the theme-contract decision deliberately (`auth-login` stays one
+   of the four), exactly per the recommendation below.
    - What we know: it is one of the fixed four today, pinned by count *and* by members in
      `theme-swap.spec.ts`. Its new composition (muted ground, card, `--foreground` ink, one `--brand`
      button, `SiteFooter`) is if anything a **better** theme-contract subject than the header-led
@@ -896,6 +898,8 @@ having no Google button). Those are **not** re-opened here. Research adds two.
      exclusion) — larger and worse.
 
 2. **Where does the all-sender injection probe live, given it needs 19 fixture argument lists?**
+   **RESOLVED:** sender-level in the main config with a shared fixture module, per the recommendation
+   below — implemented by 15-04 Task 2.
    - What we know: it needs `mockResend` (main config, Docker) if it drives the senders, but it could
      be pure if it drives `renderEmail` with adversarial `EmailContent` instead.
    - What's unclear: AC#16 says "through **every string parameter of all 19 senders**", which argues

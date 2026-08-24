@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 16
-status: verifying
-stopped_at: "Phase 15: 15-UI-SPEC.md APPROVED (711b2b7) — gsd-ui-checker 6/6 PASS, zero blockers; checker's two wording corrections folded into Open Questions 1+4 (signed-in (auth) nav gap is an accepted tradeoff; ops-digest carve-out is >1 row). All 5 open questions PM-deferrable, none changes plan structure. Next: /gsd:plan-phase 15."
-last_updated: "2026-08-24T07:30:00.000Z"
-last_activity: 2026-08-24
+current_plan: 0
+status: executing
+stopped_at: "Phase 15 PLANNED — UI-SPEC approved (711b2b7), RESEARCH (654cacd) + PATTERNS + VALIDATION (approved, per-task map backfilled), 11 plans in 5 waves (7684ea4) VERIFIED by gsd-plan-checker (zero blockers; its 2 doc warnings fixed). Coverage hand-verified: 6/6 req IDs, D-160..D-163 all cited in must_haves (SDK gate again vacuous 'no trackable decisions'). Next: /gsd:execute-phase 15. NOTE: Phase 14 verification is still outstanding (all 16 plans executed, no 14-VERIFICATION.md yet)."
+last_updated: "2026-08-24T08:20:26.652Z"
+last_activity: 2026-08-24 -- Phase 15 planning complete
 progress:
   total_phases: 12
   completed_phases: 6
-  total_plans: 91
+  total_plans: 102
   completed_plans: 96
   percent: 50
 ---
@@ -44,11 +44,15 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 14 (Host Tooling) — ALL 16 PLANS EXECUTED; READY FOR VERIFICATION
-Plan: 16 of 16
-Current Plan: 16
-Total Plans in Phase: 16
-Status: Phase complete — ready for verification
+Phase: 15 (Auth, Profile & Transactional Email) — PLANNED; 11 plans in 5 waves, checker-verified
+Plan: 0 of 11
+Current Plan: none (execution not started)
+Total Plans in Phase: 11
+Status: Ready to execute
+
+**Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
+14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
+count it incomplete on purpose.
 
 **THE HOLE IS CLOSED AT ITS SOURCE — D-113 IS TRUE, AND WITHOUT 13.1-05.** `checkout-retire-sweep`
 (`TZ=Asia/Manila 4-59/5`, registered) probes every hold that lapsed inside the last 30 minutes and retires
@@ -467,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-23
+Last activity: 2026-08-24 -- Phase 15 planning complete
 
 ## Performance Metrics
 
