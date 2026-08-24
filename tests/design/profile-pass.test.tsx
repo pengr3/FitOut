@@ -98,7 +98,7 @@
 // its 21st row; this file owns the per-surface shape that inventory cannot see.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// THE MUTATION WALK — IN PROGRESS (1 OF 6 RUN)
+// THE MUTATION WALK — IN PROGRESS (2 OF 6 RUN)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // ⚠ THIS BLOCK IS DELIBERATE HISTORY RATHER THAN AN OMISSION, and it is `auth-composition.test.tsx`'s
@@ -142,6 +142,27 @@
 //        ③ THE `titleAs` LOOP INSIDE (7) NEVER RAN. The raw-container assertion above it threw first.
 //          Two assertions in one `it()` are ORDERED, not independent — 15-09 arrived at this reading
 //          twice in one walk and it is worth stating rather than re-deriving.
+//   (M2) RUN AND REVERTED. The plate re-types the container while KEEPING its import:
+//        `className={BOOKING_SHELL}` on `loading.tsx` replaced by the literal
+//        `"mx-auto w-full max-w-2xl px-4 py-8 sm:py-12"`, which is byte-identical to the constant's
+//        current value. 1 failed / 12 passed:
+//
+//          AssertionError: src/app/(app)/profile/loading.tsx writes the booker container's width out
+//          as a class again. That is the duplication the import above removed, arriving back one file
+//          at a time — and the second copy is invisible in review because no single file contains
+//          both halves of the disagreement.: expected [ Array(1) ] to deeply equal []
+//          + "src/app/(app)/profile/loading.tsx:49 — className=\"mx-auto w-full max-w-2xl px-4 py-8 sm:py-12\""
+//
+//        THE MUTATION WAS CHOSEN TO KEEP THE IMPORT, and that is the finding rather than a detail.
+//        The obvious probe — delete the import and use a literal — would have thrown on the FIRST
+//        assertion in this `it()`'s loop and said nothing at all about the second, exactly as M1 left
+//        (7)'s `titleAs` loop unrun. Leaving the import in place is what proves the hand-typed check
+//        is a live assertion rather than dead code behind the import check.
+//        ⚠ AND IT IS A ZERO-PIXEL DEFECT. The literal renders identically to the constant today, so
+//        nothing visual would ever notice it — not a screenshot, not a baseline, not review. It only
+//        becomes a defect on the day somebody changes `BOOKING_SHELL` and this one file silently does
+//        not move, which is the failure `measurements.ts:385-400` exists to make impossible and the
+//        precise reason this assertion reads the IMPORT rather than the value.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
