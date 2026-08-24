@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: "Phase 15 EXECUTING — plan 15-01 complete (b344ce2 theme owner, 4045859 renderEmail shell, b5e9ce1 summary). Wave 1 remaining: 15-06. NOTE: EMAIL-01/EMAIL-02 deliberately NOT marked complete — they are shared with plans 02/03/04 and no send renders through the shell yet."
-last_updated: "2026-08-24T09:10:50.967Z"
-last_activity: 2026-08-24 -- Phase 15 plan 01 executed (email shell foundations)
+stopped_at: "Phase 15 EXECUTING — Wave 1 complete: 15-01 (b344ce2, 4045859, b5e9ce1) and 15-06 (b6fb568 enablers, 9c184bd auth composition, ac06e3f+ba95beb summary). NOTE: AUTHUI-01/AUTHUI-03 deliberately NOT marked complete — 15-06 advances them; the four auth pages (15-07) and the five gates (15-11) close them. EMAIL-01/EMAIL-02 still open per 15-01."
+last_updated: "2026-08-24T09:29:11.011Z"
+last_activity: 2026-08-24 -- Phase 15 Wave 1 complete (15-01 email shell foundations, 15-06 auth composition enablers)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 97
+  completed_plans: 98
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 2 of 11
-Current Plan: 2
+Plan: 3 of 11
+Current Plan: 3
 Total Plans in Phase: 11
-Status: Executing — 15-01 complete (Wave 1); 15-06 is the other Wave-1 plan
+Status: Executing — Wave 1 complete (15-01, 15-06); Wave 2 (15-02..05, 15-07) is next
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 plan 01 executed (email shell foundations)
+Last activity: 2026-08-24 -- Phase 15 Wave 1 complete (15-01 email shell foundations, 15-06 auth composition enablers)
 
 ## Performance Metrics
 
@@ -690,6 +690,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P15 | 40min | 2 tasks | 5 files |
 | Phase 14 P16 | 3h20m | 3 tasks | 6 files |
 | Phase 15 P01 | 18min | 2 tasks | 5 files |
+| Phase 15 P06 | 22min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1123,6 +1124,8 @@ Recent decisions affecting current work:
 - [Phase 15]: Email <title> carries the escaped heading, not the subject — renderEmail is not handed a subject; threading one through would add an argument to all nineteen composition sites for a string no mail client displays prominently. Deliberate, recorded departure from 15-UI-SPEC.
 - [Phase 15]: THEMES/ThemeName/DEFAULT_THEME/THEME_STORAGE_KEY own their own pure module (src/lib/design/theme.ts); theme-provider.tsx re-exports them — EMAIL-02 needs the email tier to read the product theme. The provider is client-scoped and pulls next-themes at top level with zero server readers, so importing from it would drag a React-context library into every Inngest function and the DB-free design-test graph. The re-export keeps all eight existing importers compiling with zero edits.
 - [Phase 15]: pair-drift.test.ts pins the THEMES declaration at its new owner, not at the provider — The gate reads source text to prove the app declares exactly two theme names and neither is dark — the premise licensing its dark:-utility narrowing. After the move, reading it from the provider would only match the re-export line. A companion assertion pins that the provider imports from that owner, so the check cannot become an assertion about an unread file.
+- [Phase ?]: 15-06: (auth)/layout.tsx is now D-162's composition — PublicHeader removed, wordmark above the card reading the newly-exported BRAND_CLASS, <main> owned by the layout so it is present in every state including the error boundary. The four auth routes flipped f Dynamic -> o Static; the loading-coverage gate header was re-measured (counts still 29/21/8).
+- [Phase ?]: 15-06: PanelCard.titleAs widened to "h1" | "h2" | "h3" with the default unchanged at "h2" — an auth card IS the document, so its title is that document's h1. Zero shipped call sites move.
 
 ### Pending Todos
 
@@ -1232,8 +1235,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-24T09:10:50.939Z
-Stopped at: Phase 15 EXECUTING — plan 15-01 complete (b344ce2 theme owner, 4045859 renderEmail shell, b5e9ce1 summary). Wave 1 remaining: 15-06. NOTE: EMAIL-01/EMAIL-02 deliberately NOT marked complete — they are shared with plans 02/03/04 and no send renders through the shell yet.
+Last session: 2026-08-24T09:29:10.985Z
+Stopped at: Phase 15 EXECUTING — Wave 1 complete: 15-01 (b344ce2, 4045859, b5e9ce1) and 15-06 (b6fb568 enablers, 9c184bd auth composition, ac06e3f+ba95beb summary). NOTE: AUTHUI-01/AUTHUI-03 deliberately NOT marked complete — 15-06 advances them; the four auth pages (15-07) and the five gates (15-11) close them. EMAIL-01/EMAIL-02 still open per 15-01.
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
@@ -1319,7 +1322,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/15-auth-profile-transactional-email/15-02-PLAN.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
