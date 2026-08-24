@@ -87,15 +87,18 @@ export const sendResetPassword = (to: string, url: string) => {
 // ---------------------------------------------------------------------------
 // Lifecycle emails (D-66 — the first non-auth emails in the repo).
 // ---------------------------------------------------------------------------
-// The sole email transport for BOOK-06 and the request lifecycle: five thin plain-HTML sends,
-// each mirroring the sendVerificationEmail shape (a heading line + one body line + a single anchor
-// CTA) over the SAME send()/escapeHtml() helpers above — never a new email stack (D-66; React Email
-// stays uninstalled, branding/retry hardening is Phase 7, WR-04).
+// The sole email transport for BOOK-06 and the request lifecycle: five thin sends, each mirroring the
+// sendVerificationEmail shape (a heading + one body sentence + a single CTA) over the SAME send()
+// helper above and the SAME shell — never a new email stack (D-66; React Email stays uninstalled,
+// branding/retry hardening is Phase 7, WR-04).
 //
 // Contract discipline (06-UI-SPEC "Lifecycle email contract"):
 //  - EVERY interpolated field — space title, booker label, quoted total, reference, CTA url — is
-//    escapeHtml'd before it enters the markup (WR-01 / T-06-06 tampering sink: a raw url in an href
-//    or a raw title in HTML text is the injection vector).
+//    escaped before it enters the markup (WR-01 / T-06-06 tampering sink: a raw url in an href or a
+//    raw title in HTML text is the injection vector). Since 15-03 that happens at the shell's ONE
+//    choke point rather than in a local per sender: a sender hands `renderEmail` RAW strings and the
+//    renderer escapes every sink. The rule is unchanged; what changed is that it can no longer be
+//    forgotten at a composition site. Do NOT escape here as well — it would double-encode.
 //  - Time labels ALREADY name the venue timezone — the caller composes `{date}, {time} ({City} time)`
 //    and passes it as whenLabel; these sends never format a time themselves.
 //  - Deadline claims render the ROW's pre-composed capped label (payByLabel / respondByLabel — D-96/D-99,
@@ -347,9 +350,16 @@ export const sendHostCancellationRecord = (
  * sentence in the inbox, that is a change to the notify payload and it belongs to the phase that owns
  * the shell.
  *
- * NOT run through `escapeHtml`, deliberately. WR-01's rule is about interpolated FIELDS — caller-supplied
- * values that reach an `href` or HTML text. This is a compile-time constant from this repository, in the
- * same category as the literal prose sitting beside it in the same template, which is likewise unescaped.
+ * THE CONSTANT NOW PASSES THROUGH THE SHELL'S ESCAPER, AND THAT WAS MEASURED RATHER THAN ASSUMED (15-03).
+ * It used to be interpolated unescaped, deliberately: WR-01's rule is about caller-supplied FIELDS, and
+ * this is a compile-time constant from this repository, in the same category as the literal prose beside
+ * it. Under the shell the whole sentence is a `paragraphs` entry, which the renderer escapes — so the
+ * question stopped being one of principle and became one of fact. The fact: the constant's literal value
+ * is "Refunds to GCash and Maya are usually back within 24 hours; a card can take up to 30 days,
+ * depending on your bank." It contains NONE of the five HTML-significant characters (`&`, `<`, `>`, `"`,
+ * `'`), so `escapeHtml(value) === value` and the rendered sentence is byte-identical to the one that
+ * shipped. If a future edit to that constant introduces one of those characters, the booker-facing
+ * disclosure changes silently — a money-path disclosure contract is not a copy nit, so measure again.
  */
 export const sendRefundIssued = (
   to: string,
@@ -358,17 +368,14 @@ export const sendRefundIssued = (
   refundLabel: string,
   bookingUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const refund = escapeHtml(refundLabel);
-  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Refund on its way — ${spaceTitle}`,
-    `<p><strong>Your refund is on its way</strong></p>` +
-      `<p>We've issued a refund of ${refund} for your booking at ${space} on ${when}. ${ALL_RAILS_REFUND_WINDOW}</p>` +
-      `<p><a href="${url}">View the booking</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "Your refund is on its way",
+    paragraphs: [
+      `We've issued a refund of ${refundLabel} for your booking at ${spaceTitle} on ${whenLabel}. ${ALL_RAILS_REFUND_WINDOW}`,
+    ],
+    cta: { label: "View the booking", href: bookingUrl },
+  });
+  return send(to, `Refund on its way — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -389,18 +396,14 @@ export const sendReminderPreExpiry = (
   payByLabel: string,
   payUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const total = escapeHtml(totalLabel);
-  const payBy = escapeHtml(payByLabel);
-  const url = escapeHtml(payUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Still holding your spot — ${spaceTitle}`,
-    `<p><strong>Your approved booking is waiting</strong></p>` +
-      `<p>The host approved ${space} on ${when}, and we're holding it until ${payBy}. Pay ${total} whenever you're ready to confirm it. You haven't been charged anything yet.</p>` +
-      `<p><a href="${url}">Pay now</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "Your approved booking is waiting",
+    paragraphs: [
+      `The host approved ${spaceTitle} on ${whenLabel}, and we're holding it until ${payByLabel}. Pay ${totalLabel} whenever you're ready to confirm it. You haven't been charged anything yet.`,
+    ],
+    cta: { label: "Pay now", href: payUrl },
+  });
+  return send(to, `Still holding your spot — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -415,16 +418,12 @@ export const sendReminderPreSession = (
   whenLabel: string,
   bookingUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Coming up — ${spaceTitle}`,
-    `<p><strong>Your session is coming up</strong></p>` +
-      `<p>A reminder that ${space} is booked for ${when}.</p>` +
-      `<p><a href="${url}">View the booking</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "Your session is coming up",
+    paragraphs: [`A reminder that ${spaceTitle} is booked for ${whenLabel}.`],
+    cta: { label: "View the booking", href: bookingUrl },
+  });
+  return send(to, `Coming up — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -441,26 +440,23 @@ export const sendReminderPreSla = (
   respondByLabel: string,
   requestsUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const booker = escapeHtml(bookerLabel);
-  const respondBy = escapeHtml(respondByLabel);
-  const url = escapeHtml(requestsUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Still waiting on you — ${spaceTitle}`,
-    `<p><strong>A request is waiting for your answer</strong></p>` +
-      `<p>${booker} asked to book ${space} on ${when}. Let them know by ${respondBy} — if you don't, we'll decline it for you and free the slot.</p>` +
-      `<p><a href="${url}">Review request</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "A request is waiting for your answer",
+    paragraphs: [
+      `${bookerLabel} asked to book ${spaceTitle} on ${whenLabel}. Let them know by ${respondByLabel} — if you don't, we'll decline it for you and free the slot.`,
+    ],
+    cta: { label: "Review request", href: requestsUrl },
+  });
+  return send(to, `Still waiting on you — ${spaceTitle}`, html, text);
 };
 
 // ---------------------------------------------------------------------------
-// Phase-8 group-RSVP sends (D-122). Same contract header as above — thin plain-HTML sends over the SAME
-// send()/escapeHtml() helpers. Dispatched EXCLUSIVELY by `sendForType` in notify.ts (D-83). These reach
+// Phase-8 group-RSVP sends (D-122). Same contract header as above — thin sends over the SAME send()
+// helper and the SAME shell. Dispatched EXCLUSIVELY by `sendForType` in notify.ts (D-83). These reach
 // ACCOUNT recipients only; the guest-with-email path is the separate `sendGuestRsvpEmail` (email-only fn,
-// RESEARCH Pitfall 2). EVERY interpolated field — including the guest-typed attendee name — is escapeHtml'd
-// (G6 / T-08-08); `groupUrl` is the caller's ABSOLUTE ${BETTER_AUTH_URL}/... link.
+// RESEARCH Pitfall 2). EVERY interpolated field — including the guest-typed attendee name — is escaped
+// (G6 / T-08-08), at the shell's one choke point since 15-03 rather than in a local here; `groupUrl` is
+// the caller's ABSOLUTE ${BETTER_AUTH_URL}/... link.
 
 /**
  * A group attendee RSVP'd → notifies the ORGANIZER. `attendeeLabel` is the attendee's display name
@@ -475,18 +471,14 @@ export const sendGroupRsvpReceived = (
   answer: "yes" | "no",
   groupUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const attendee = escapeHtml(attendeeLabel); // T-08-08 — guest-typed name; escape like every field.
-  const url = escapeHtml(groupUrl); // WR-01 — never interpolate the raw url into an href.
   const verdict = answer === "yes" ? "is coming" : "can't make it";
-  return send(
-    to,
-    `New RSVP — ${spaceTitle}`,
-    `<p><strong>New RSVP for your group booking</strong></p>` +
-      `<p>${attendee} ${verdict} to ${space} on ${when}.</p>` +
-      `<p><a href="${url}">View your group</a></p>`,
-  );
+  // T-08-08 — `attendeeLabel` is guest-typed and goes in RAW; the shell escapes it with every other sink.
+  const { html, text } = renderEmail({
+    heading: "New RSVP for your group booking",
+    paragraphs: [`${attendeeLabel} ${verdict} to ${spaceTitle} on ${whenLabel}.`],
+    cta: { label: "View your group", href: groupUrl },
+  });
+  return send(to, `New RSVP — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -499,16 +491,14 @@ export const sendGroupRsvpConfirmed = (
   whenLabel: string,
   groupUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const url = escapeHtml(groupUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `You're on the list — ${spaceTitle}`,
-    `<p><strong>You're confirmed for the group</strong></p>` +
-      `<p>You're set for ${space} on ${when}. The organizer has the booking covered — just show up.</p>` +
-      `<p><a href="${url}">View the details</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "You're confirmed for the group",
+    paragraphs: [
+      `You're set for ${spaceTitle} on ${whenLabel}. The organizer has the booking covered — just show up.`,
+    ],
+    cta: { label: "View the details", href: groupUrl },
+  });
+  return send(to, `You're on the list — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -521,16 +511,14 @@ export const sendGroupCancelled = (
   whenLabel: string,
   groupUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const url = escapeHtml(groupUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Group booking cancelled — ${spaceTitle}`,
-    `<p><strong>This group booking was cancelled</strong></p>` +
-      `<p>The booking at ${space} on ${when} is no longer happening — you don't need to go.</p>` +
-      `<p><a href="${url}">View the details</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "This group booking was cancelled",
+    paragraphs: [
+      `The booking at ${spaceTitle} on ${whenLabel} is no longer happening — you don't need to go.`,
+    ],
+    cta: { label: "View the details", href: groupUrl },
+  });
+  return send(to, `Group booking cancelled — ${spaceTitle}`, html, text);
 };
 
 // ---------------------------------------------------------------------------
@@ -539,8 +527,8 @@ export const sendGroupCancelled = (
 // A guest attendee RSVP'd via the invite link but has NO account — so NO durable `notification` row is ever
 // written for them (notification.recipientId is a NOT NULL FK to user.id). This send is therefore dispatched
 // by the SEPARATE email-only Inngest fn `fitout/guest-email` (src/inngest/functions/guest-email.ts), never
-// by fitout/notify. It uses the SAME private send()/escapeHtml() helpers as every other send — the guest
-// path needs no new integration, and the [email:dev] fallback logs locally when RESEND_API_KEY is unset.
+// by fitout/notify. It uses the SAME private send() helper and the SAME shell as every other send — the
+// guest path needs no new integration, and the [email:dev] fallback logs locally when RESEND_API_KEY is unset.
 
 /** The whole input to the email-only guest send. No user.id → no durable row (RESEARCH Pitfall 2). `kind`
  *  is a copy variant, not a rendered label. `href` is the caller's ABSOLUTE invite/details link. */
@@ -554,30 +542,33 @@ export type GuestRsvpEmail = {
 
 /**
  * The guest-with-email RSVP send. EVERY interpolated field — the guest-facing title, the venue-local when
- * label, and the invite href — is escapeHtml'd (G6 / T-08-08). Returns a JSON-serializable result so it can
+ * label, and the invite href — is escaped (G6 / T-08-08), at the shell's one choke point since 15-03
+ * rather than in a local here; the values below go in RAW. Returns a JSON-serializable result so it can
  * be the body of an Inngest `step.run`. Does NOT throw when RESEND_API_KEY is unset: `send` falls back to the
  * [email:dev] console log, so the guest path works in dev/test with no Resend key.
  */
 export const sendGuestRsvpEmail = async (d: GuestRsvpEmail): Promise<{ sent: true }> => {
-  const space = escapeHtml(d.listingTitle);
-  const when = escapeHtml(d.whenLabel);
-  const url = escapeHtml(d.href); // WR-01 — never interpolate the raw url into an href.
+  // TWO `EmailContent` values, not one parameterised value. The cancelled variant is not a variant of
+  // the confirmed one at the string level — different heading, different sentence, different subject —
+  // and flattening them into one shape would quietly merge copy the spec pins separately.
   if (d.kind === "rsvp_confirmed") {
-    await send(
-      d.to,
-      `You're on the list — ${d.listingTitle}`,
-      `<p><strong>Your RSVP is confirmed</strong></p>` +
-        `<p>You're set for ${space} on ${when}. The organizer has the booking covered — just show up.</p>` +
-        `<p><a href="${url}">View the details</a></p>`,
-    );
+    const { html, text } = renderEmail({
+      heading: "Your RSVP is confirmed",
+      paragraphs: [
+        `You're set for ${d.listingTitle} on ${d.whenLabel}. The organizer has the booking covered — just show up.`,
+      ],
+      cta: { label: "View the details", href: d.href },
+    });
+    await send(d.to, `You're on the list — ${d.listingTitle}`, html, text);
   } else {
-    await send(
-      d.to,
-      `Group booking cancelled — ${d.listingTitle}`,
-      `<p><strong>This group booking was cancelled</strong></p>` +
-        `<p>The booking at ${space} on ${when} is no longer happening — you don't need to go.</p>` +
-        `<p><a href="${url}">View the details</a></p>`,
-    );
+    const { html, text } = renderEmail({
+      heading: "This group booking was cancelled",
+      paragraphs: [
+        `The booking at ${d.listingTitle} on ${d.whenLabel} is no longer happening — you don't need to go.`,
+      ],
+      cta: { label: "View the details", href: d.href },
+    });
+    await send(d.to, `Group booking cancelled — ${d.listingTitle}`, html, text);
   }
   return { sent: true };
 };
@@ -672,14 +663,19 @@ export function renderOpsAlertDigest(
  * Send the digest to the single operator address. Never called with an empty `rows` — the caller returns
  * before reaching here on a zero-row day (D-J3Z-05), because a daily "all clear" is how an alert channel
  * gets filtered to trash.
+ *
+ * ⚠ THE ONE SENDER NOT YET ON THE SHELL — PLAN 15-04 OWNS IT. Its two contracts (the `meta`-absent row
+ * type above, and the fact that its table is the shell's one PRE-ESCAPED slot) need their own reasoning,
+ * so 15-03 left `renderOpsAlertDigest` byte-identical and did the ONE thing the transport change forced:
+ * `send` now requires a plain-text part, so this call site passes one. The subject is that part —
+ * DERIVED, never new prose, because inventing operator copy here would be doing 15-04's work badly. When
+ * 15-04 composes `renderEmail` with `tableHtml`/`tableText`, this local goes with it.
  */
 export const sendOpsAlertDigest = (
   to: string,
   rows: OpsDigestRow[],
   opts: { truncated: boolean; limit: number },
-) =>
-  send(
-    to,
-    `FitOut ops — ${rows.length} unresolved money alert(s)`,
-    renderOpsAlertDigest(rows, opts),
-  );
+) => {
+  const subject = `FitOut ops — ${rows.length} unresolved money alert(s)`;
+  return send(to, subject, renderOpsAlertDigest(rows, opts), subject);
+};
