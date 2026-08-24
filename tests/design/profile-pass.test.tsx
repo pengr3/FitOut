@@ -98,7 +98,7 @@
 // its 21st row; this file owns the per-surface shape that inventory cannot see.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// THE MUTATION WALK — IN PROGRESS (4 OF 6 RUN)
+// THE MUTATION WALK — IN PROGRESS (5 OF 6 RUN)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // ⚠ THIS BLOCK IS DELIBERATE HISTORY RATHER THAN AN OMISSION, and it is `auth-composition.test.tsx`'s
@@ -209,6 +209,30 @@
 //        defect from the other side. Both are kept because the presence half reports the MISSING
 //        sentence by name, which is the actionable half, while the list half is what catches an ADDED
 //        panel that satisfies every presence check.
+//   (M5) RUN AND REVERTED. THE OPTIMISTIC SAVE. `onSubmit`'s awaited result and its refusal branch
+//        replaced by `void updateProfile(values); setTimeout(() => setSaved(true), 800);` — the exact
+//        shape T-15-29 names, and the shape somebody reaches for when the save "feels slow".
+//        1 failed / 12 passed:
+//
+//          AssertionError: the profile form contains a timer. A save reported on a schedule rather
+//          than on a result is a false money-adjacent claim: the sentence appears whether or not the
+//          server agreed, and the person closes the tab believing their details changed.: expected
+//          [ Array(1) ] to deeply equal []
+//          + "src/app/(app)/profile/profile-form.tsx:70 — setTimeout"
+//
+//        ⚠ THE WHOLE DESIGN SUITE WAS RUN AGAINST THIS MUTATION, and that measurement is the reason
+//        this assertion is worth more than the other twelve put together:
+//
+//          Test Files  1 failed | 53 passed (54)
+//               Tests  1 failed | 907 passed | 3 skipped (911)
+//
+//        FIFTY-THREE OTHER FILES SAW NOTHING. This is a mutation that leaves the markup, the copy,
+//        the containers, the counts, the tokens, the live regions and every pixel byte-identical, and
+//        changes only WHETHER THE SENTENCE IS TRUE. Nothing else in the repository is looking at that
+//        question on this surface — not the card inventory, not the live-region inventory, not the
+//        brand budget — and `tests/profile/` cannot see it either, because it drives the server action
+//        rather than the component. 14-CONTEXT D-150 cites this file as the reference truthful-save
+//        model; this is the assertion that makes the citation checkable.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
