@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: "Phase 15 EXECUTING — Wave 2 in progress: 15-02 complete (51dc925 EMAIL-01 gate, 9ad10dd EMAIL-02 gate). Wave 1 was 15-01 + 15-06. NOTE: EMAIL-01/EMAIL-02 still NOT marked complete — 15-02 makes the shell's claims falsifiable but zero sends compose through it; 15-04 lands the nineteen adopters and closes both."
-last_updated: "2026-08-24T09:56:19.265Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-02 executed (the two build-blocking EMAIL gates)
+stopped_at: "Phase 15 EXECUTING — Wave 2 in progress: 15-07 complete (e237267 login+forgot, 0fe5e4d signup+reset, ac0941c de-quote). All four (auth) pages compose PanelCard; ALLOWED_RAW_CARD 9 -> 5; EXPECTED_SURFACES 16 -> 20; repo-wide brand total 24 -> 28. Wave 1 was 15-01 + 15-06; 15-02 done. REMAINING IN WAVE 2: 15-03, 15-04, 15-05. NOTE: AUTHUI-01/AUTHUI-03 still NOT marked complete — AUTHUI-03's last clause is the baseline (15-11) and AUTHUI-01 also spans the profile page (15-08). EMAIL-01/EMAIL-02 still NOT complete either; 15-04 closes both."
+last_updated: "2026-08-24T12:02:14.521Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-07 executed (the four auth cards adopt PanelCard)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 99
+  completed_plans: 100
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 4 of 11
-Current Plan: 4
+Plan: 5 of 11
+Current Plan: 5
 Total Plans in Phase: 11
-Status: Executing — Wave 2 in progress: 15-02 complete (both EMAIL gates); 15-03, 15-04, 15-05 and 15-07 remain
+Status: Executing — Wave 2 in progress: 15-07 complete (all four auth pages on PanelCard); 15-03, 15-04 and 15-05 remain
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 plan 15-02 executed (the two build-blocking EMAIL gates)
+Last activity: 2026-08-24 -- Phase 15 plan 15-07 executed (the four auth cards adopt PanelCard)
 
 ## Performance Metrics
 
@@ -494,6 +494,7 @@ Last activity: 2026-08-24 -- Phase 15 plan 15-02 executed (the two build-blockin
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
+| 15 | 4 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -692,6 +693,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P01 | 18min | 2 tasks | 5 files |
 | Phase 15 P06 | 22min | 2 tasks | 4 files |
 | Phase 15 P02 | 16min | 2 tasks | 2 files |
+| Phase 15 P07 | 38min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1129,6 +1131,14 @@ Recent decisions affecting current work:
 - [Phase ?]: 15-06: PanelCard.titleAs widened to "h1" | "h2" | "h3" with the default unchanged at "h2" — an auth card IS the document, so its title is that document's h1. Zero shipped call sites move.
 - [Phase 15]: 15-02: The two EMAIL gates assert on the pure exported renderEmail STRING, not on a captured send — vitest.design.config.ts declares no setupFiles and no globalSetup by contract, so the Resend mock does not exist there and a send-capturing gate could not run inside npm run build at all. This is the repo's first assert-on-a-pure-exported-renderer test (15-RESEARCH cited a precedent that does not exist: zero files import renderOpsAlertDigest).
 - [Phase 15]: 15-02: The EMAIL-02 hex gate iterates THEMES and reads THEME_TOKENS at test time rather than pinning literals — measured during the mutation walk: a hand-typed hex EQUAL to the court token left the default-theme set equality GREEN and was caught only by the grove flip plus a source scan for hex literals in the shell. Either mechanism alone would have shipped it.
+
+- [Phase 15]: 15-07: All four (auth) pages compose PanelCard with the top heading level — the four documents rendered NO heading element at all before (CardTitle is a div). No AuthCard pattern was extracted: DS-11 says three containers, and what makes the four screens one composition is four call sites sharing ONE layout. ALLOWED_RAW_CARD 9 -> 5 (the Phase-15 block is now empty and kept as a comment saying why), EXPECTED_SURFACES 16 -> 20, its adopted-half 14 -> 18, repo-wide brand total 24 -> 28.
+- [Phase 15]: 15-07: card-pattern-coverage.test.ts has a THIRD pin over the same list the plan did not name — expect(adopted).toHaveLength(N), which counts the ADOPTED half. It is not redundant with EXPECTED_SURFACES: a conversion mis-recorded as a "refused" row satisfies the size pin and fails this one. Moved 14 -> 16 -> 18 with its own red quoted each time.
+- [Phase 15]: 15-07: M1 SETTLED BY MEASUREMENT — the signup intent pair at 320px is 124px x 38px per button (the 15-UI-SPEC estimated ~136px), one line at 14px/600, so the sm:-stacking contingency was NOT needed and the shipped grid-cols-2 stands. All four screens: scrollWidth == clientWidth == 320, submit height exactly 44px, exactly one h1 and one <main>, exactly one brand-filled element resolved against the token. The forgot post-submit and reset missing-token branches render ZERO buttons, hence zero coral.
+- [Phase 15]: 15-07: The reset page's PanelCard sits OUTSIDE the Suspense boundary on purpose — inside, the h1 would appear and disappear under a screen reader as the token resolves. Same argument 15-06 used for putting <main> in the layout, one level down.
+- [Phase 15]: 15-07: The scoped brand total (19) staying still while the repo-wide one moved is the cross-check that all four conversions landed in (auth) and nowhere else — (auth) is inside ADOPTION_TREES and outside all four SCOPED_TREES. If both moved, something landed in the booking/group/search trees.
+- [Phase 15]: 15-07: Three prose mentions had to be de-quoted (booking-row.tsx:112's precedent) because the plan's own greps count those strings in those files — the same collision 15-06 hit four times. ⚠ RECURRING: a comment that quotes the mechanism it explains fails the gate that documents it.
+- [Phase 15]: 15-07: (auth)/error.tsx STILL claims the group's layout renders PublicHeader and no <main>; both went false in 15-06. 15-07 does not own that file either (its verification pins the touched-file list at six). Two plans' provenance, still no owner — whichever plan next edits it should take it.
 
 ### Pending Todos
 
