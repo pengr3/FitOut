@@ -4,9 +4,9 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 11
 status: executing
-stopped_at: "Phase 15 EXECUTING — 15-11 TASK 1 COMPLETE, TASK 2 AT A BLOCKING OPERATOR CHECKPOINT (1a65faf the inventory edit, 46b491d the runtime twin, e329d76 the summary, f8af1bf the deferred log). visual-baselines.ts: SURFACE_IDS 37 -> 41 (auth-signup, auth-forgot, auth-reset, profile), VISUAL_BASELINES 66 -> 74, BaselineCountIsSixtySix -> BaselineCountIsSeventyFour with its red observed UNFORCED at (2181,3) and quoted verbatim. auth-login was EDITED not re-added: hook site-header -> panel-card (15-06 removed the header), both row `why` strings rewritten, and its DB-free claim RETIRED rather than re-made because the four (auth) routes' `○ Static` marker now carries it. auth-login re-argued and KEPT in the four THEME_SWAP_SURFACES; theme-swap.spec.ts byte-identical. profile's two rows are BLOCKED on a DRIVES entry + a seeded user (an undriven /profile photographs /login, which renders a panel-card and SATISFIES the hook). Arithmetic now 74 declared / 38 blocked / 36 shootable, of which TWO REPLACE the stale auth-login PNGs. tsc 0; npm run test:design 54 files / 908 passed / 3 skipped. ZERO PNGs generated and none could be — baselines.yml is workflow_dispatch-only and playwright.config.ts builds the visual project only on Linux; the 8 awaited files are inventoried in the summary. AUTHUI-03 ADVANCED, NOT ticked (its text ends '...and a baseline'). REMAINING in phase 15: 15-05 Task 3 and 15-11 Task 2, both operator checkpoints. Phase completion is the verifier's call and was NOT claimed."
-last_updated: "2026-08-24T16:25:00.000Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-11 executed to its checkpoint (the visual-baseline inventory learns D-162's composition: 41 surfaces, 74 rows, auth-login's dead hook replaced, profile honestly blocked, and the capture routed to the one workflow_dispatch that may write a PNG)
+stopped_at: "Phase 15 EXECUTING - 15-11 COMPLETE, BOTH TASKS DISCHARGED (1a65faf the inventory edit, 46b491d the runtime twin, 7541999 the CI baseline regeneration, 2f36376 the comparison trigger, 603af93 / 40a934e / 1fb4df3 / 6ee0c82 / ec6809e the record). visual-baselines.ts: SURFACE_IDS 37 -> 41, VISUAL_BASELINES 66 -> 74, BaselineCountIsSixtySix -> BaselineCountIsSeventyFour with its red observed UNFORCED at (2181,3) and quoted verbatim. auth-login was EDITED not re-added: hook site-header -> panel-card (15-06 removed the header), both row `why` strings rewritten, and its DB-free claim RETIRED because the four (auth) routes' `Static` build marker now carries it. auth-login re-argued and KEPT in the four THEME_SWAP_SURFACES; theme-swap.spec.ts byte-identical. profile's two rows BLOCKED on a DRIVES entry + a seeded user, and they correctly produced no PNG. DISPATCH DISCHARGED by the PM/orchestrator: generation run 32751407382 (success, commit 7541999, 18 files, ALL *-visual-linux.png) then FOLLOW-UP COMPARISON run 32752143309 (SUCCESS, gate-visual green 3m59s) - the comparison run is the deliverable, not the generation run. 36 baselines on disk = the 36 shootable rows predicted. 6 added + auth-login REPLACED (blob hashes differ, so the hook edit took). PREDICTION WRONG ON ONE POINT, recorded rather than smoothed: ten further surfaces were re-minted (collision-notice, listing-detail x3, listing-sheet, search-relax-band x2, search-results x3). They are PRE-EXISTING DRIFT - run 32751395157 (pre-regeneration) already failed gate-visual on those ten plus auth-login, and run 32566576437 of 2026-08-22 failed on a broader set two days before this phase began; independently, visual-baselines.ts is imported by NOTHING in src/, so this plan moved no pixel. gate-visual had been RED on dev for days and this dispatch incidentally cleared it - the ten references were accepted without anyone reading the diff. Logged in deferred-items.md for the verifier. AUTHUI-03 STILL NOT TICKED, and the reason CHANGED: its baseline clause is now genuinely closed, but its text is conjunctive across five gates and TWO are unevidenced - KEYBOARD (the only walk is 15-07's ten-press tab walk on /reset-password, which 15-07 states is there to discharge T-15-25; /login, /signup and /forgot-password have none) and AA (contrast.test.ts is a TOKEN-layer gate over declared pairings; the phase's only contrast line is a negative `git diff --exit-code contrast-pairs.ts` = 0, and D-162 newly put the wordmark on bg-muted unmeasured). 15-VALIDATION maps AUTHUI-03 to three rows (15-10-02, 15-11-01, 15-11-02) and ALL THREE ARE NOW DISCHARGED - it never mapped a keyboard or AA row, so two of five clauses were never sampled. That is a planning gap, logged. REMAINING in phase 15: 15-05 Task 3 only (the EMAIL-03 real-client walk, deferred by the PM). EMAIL-03 NOT ticked. AUTHUI-01/02 NOT ticked. Phase completion is the verifier's call and was NOT claimed."
+last_updated: "2026-08-25T00:45:00.000Z"
+last_activity: 2026-08-25 -- Phase 15 plan 15-11 COMPLETE (41 surfaces, 74 rows, auth-login's dead hook replaced; baselines generated in the pinned Linux image and COMPARED green in run 32752143309; AUTHUI-03 left unticked on the evidence - keyboard and AA are unevidenced across the whole phase)
 progress:
   total_phases: 12
   completed_phases: 6
@@ -48,7 +48,7 @@ Phase: 15 (auth-profile-transactional-email) — EXECUTING
 Plan: 11 of 11
 Current Plan: 11
 Total Plans in Phase: 11
-Status: Executing — 15-11 Task 1 complete and green (41 surfaces, 74 rows, `auth-login` edited for D-162, `profile` blocked with both needs named). **TWO OPERATOR CHECKPOINTS ARE OPEN AND BOTH BLOCK THE PHASE:** 15-05 Task 3 (the EMAIL-03 walk) and 15-11 Task 2 (dispatch the `baselines` workflow, then push an empty commit so a `ci` run actually COMPARES — the deliverable is the FOLLOW-UP run's id, not the generation run's). Every autonomous plan in phase 15 is now done
+Status: Executing — **15-11 is COMPLETE, both tasks discharged.** The inventory landed (41 surfaces, 74 rows, `auth-login` edited for D-162, `profile` blocked with both needs named) and the baselines were generated in the pinned Linux image and **compared green in run `32752143309`** — `gate-visual` ✓, and its first green since at least 2026-08-22. **ONE OPERATOR CHECKPOINT REMAINS:** 15-05 Task 3, the EMAIL-03 real-client walk, deferred by the PM. Two findings are waiting for the verifier in `deferred-items.md`: AUTHUI-03's keyboard and AA clauses are unevidenced phase-wide, and the dispatch re-minted ten pre-existing-drift surfaces without anyone reading the diff
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -1584,28 +1584,23 @@ Resume file: None
 
 ## Operator Next Steps
 
-- **PHASE 15 — 15-11 TASK 2, THE BASELINE DISPATCH. Same procedure as the Phase-12 entry below,
-  including the follow-up-run trap; the differences are what to check.** Push `dev`, dispatch
-  `baselines`, then:
-  1. Confirm the resulting commit added or replaced **only** `*-visual-linux.png` files.
-  2. ⚠ **Confirm the two `auth-login` PNGs were REPLACED, not merely joined by new siblings.** Their
-     blob hashes must differ from their pre-dispatch values. A run that adds six files and leaves
-     those two standing means the `auth-login` hook edit did not take and the surface is still being
-     shot against a selector `(auth)/layout.tsx` does not render.
-  3. Expect **eight files total: six new + two replacements**, not ten. `visual-baselines.ts` declares
-     74 rows of which 38 are blocked; the six new ones are `auth-signup`, `auth-forgot` and
-     `auth-reset` at 320 and 1280. ⚠ The plan's own checklist says "eight new plus the two
-     replacements" — that was written before the `profile` rows were declared **blocked**, which the
-     plan's action explicitly permits. **Both `profile` rows correctly produce NOTHING**, and that is
-     the expected result rather than a failure.
-  4. **Then push an empty commit or re-dispatch so a `ci` run actually COMPARES.** A `GITHUB_TOKEN`
-     push triggers no workflow run, so the deliverable is the FOLLOW-UP comparison run's id, not the
-     generation run's. The comparison happens in `gate-visual`.
-  5. Report the comparison run's id and its result. **If any `blocked: null` row came back without a
-     PNG, say which and what the run reported** — that is a finding about the row, not about the
-     dispatch, and it belongs in 15-11-SUMMARY.md rather than being retried silently.
-  **AUTHUI-03 stays UNMARKED until step 5 lands** — its text ends "…and a baseline", and until then
-  the phase has a declaration and two stale pictures.
+- **PHASE 15 — 15-11 TASK 2 IS DONE (2026-08-25).** Generation run `32751407382` (commit `7541999`,
+  18 files, all `*-visual-linux.png`), then follow-up comparison run **`32752143309` SUCCESS** with
+  `gate-visual` green — the comparison run is the deliverable and it exists. 36 baselines on disk;
+  the `auth-login` pair was REPLACED; both `profile` rows correctly produced nothing. Nothing further
+  is owed here. **Two things to hand the verifier rather than let them discover:**
+  1. **AUTHUI-03 is deliberately UNTICKED even though every validation row mapped to it is green.**
+     Its baseline clause is closed; its **keyboard** and **AA** clauses are unevidenced across the
+     whole phase, and `15-VALIDATION.md` never mapped a row to either. Full argument and what closing
+     each looks like: `phases/15-…/deferred-items.md`.
+  2. **`gate-visual` had been RED on `dev` since at least 2026-08-22** (run `32566576437`) and this
+     dispatch cleared it as a side effect, re-minting ten surfaces plan 15-11 never touched. Those
+     references were accepted without anyone reading the diff. `search-results-1280` (+2098 B) and
+     `search-relax-band-1280` (+1666 B) are the two worth looking at first.
+
+- **PHASE 15 — 15-05 TASK 3 IS THE ONLY OPERATOR ITEM LEFT IN THIS PHASE:** the EMAIL-03 real-client
+  walk (Gmail web + Android, Outlook desktop, Apple Mail, at least one in dark mode). Deferred by the
+  PM. **EMAIL-03 stays UNMARKED until it lands.**
 
 - **PHASE 12 — 12-14 TASK 3, AND IT IS NOW UNBLOCKED (12-15 closed the finding).** Push `dev`, then:
   (A) dispatch `baselines`; confirm the resulting commit added **only** `*-visual-linux.png`; confirm
