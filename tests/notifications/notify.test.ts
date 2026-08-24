@@ -585,7 +585,8 @@ describe("D-122 — group RSVP notifications dispatch to their templates", () =>
     );
     const [email] = mockResend.sent().filter((e) => e.to === "organizer-no@example.com");
     expect(email).toBeDefined();
-    expect(email.html).toContain("Dev can't make it");
+    // The copy, not the markup — see `copy()`: the apostrophe reaches email.html as `&#39;`.
+    expect(copy(email)).toContain("Dev can't make it");
   });
 
   it("(C, G6) a guest-typed attendee name is HTML-escaped in the organizer email — never live markup", async () => {
