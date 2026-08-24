@@ -57,15 +57,15 @@ completed: 2026-08-25
 
 **The inventory now describes the composition that actually ships — `auth-login`'s hook moved off a header that left the layout in 15-06, four surfaces and eight rows arrived court-only, and `BaselineCountIsSixtySix` became `BaselineCountIsSeventyFour` after its red was watched — and the one row that cannot be shot honestly says what it needs.**
 
-## Status: CHECKPOINT — Task 2 awaits the operator
+## Status: COMPLETE — both tasks discharged
 
-Task 1 is complete, committed and green. Task 2 is a `checkpoint:human-action` that was **not attempted and not faked**: baseline regeneration is structurally impossible on this machine, and the plan says so in advance.
+Task 1 was executed here. Task 2 was a `checkpoint:human-action` that was **not attempted and not faked** on this machine — baseline regeneration is structurally impossible here — and was **authorised by the PM and executed by the orchestrator on 2026-08-25**. Both halves are now recorded with run ids.
 
-| Task | Name | Type | Status | Commit |
-| ---- | ---- | ---- | ------ | ------ |
+| Task | Name | Type | Status | Commit / Run |
+| ---- | ---- | ---- | ------ | ------------ |
 | 1 | Edit two rows, add eight, move one alias | auto | ✅ complete | `1a65faf` |
 | — | (Rule 3 deviation: the runtime twin) | auto | ✅ complete | `46b491d` |
-| 2 | Dispatch the baseline generation in CI | checkpoint:human-action | ⏸ **awaiting operator** | — |
+| 2 | Dispatch the baseline generation in CI | checkpoint:human-action | ✅ **discharged** | gen `32751407382` → cmp `32752143309` |
 
 ## Performance
 
@@ -198,7 +198,51 @@ None. No package installs (the phase's threat register records T-15-SC as not ap
 
 `grep -c 'ThemeContractSurfaceCountIsFour' src/lib/design/visual-baselines.ts` is specified to return **1**. It returns **4** — and it returned **3** before this plan touched the file, so the criterion was already wrong when it was written. `grep -c` counts *lines*, and on a file that argues for its own invariants at length the identifier necessarily appears in the prose that explains it. This is precisely the measurement error `.github/workflows/baselines.yml`'s header records against itself (*"MEASURED: it shows 6 … the criterion's 1 is not"*, with the standing instruction **"Do not 'fix' the 6 by deleting the explanation"**). The load-bearing half of the criterion — that the alias still exists, that its constraint is still `4`, and that `auth-login` is still a member — holds and is asserted three ways: the compile alias, the members list in `theme-swap.spec.ts`, and `git diff` showing the array byte-identical. No prose was deleted to make a line count agree.
 
-## Ungenerated Baselines — an inventory, never coverage
+## The Dispatch — Discharged, and one prediction was wrong
+
+**Generation run `32751407382`** (`baselines`, `workflow_dispatch` on `dev`) — conclusion **success**, 4m4s. Commit `7541999 chore(11-22): regenerate visual baselines in the pinned Linux image`, **18 files, all `*-visual-linux.png`** (nothing else staged — the workflow's own tripwire held).
+
+**Comparison run `32752143309`** — conclusion **SUCCESS**, triggered by empty commit `2f36376` because a `GITHUB_TOKEN` push creates no workflow run. All four jobs green, including **`gate-visual` (GATE-01 visual regression) 3m59s**. **This, and not the generation run, is the deliverable.**
+
+### Predicted 6 added + 2 replaced. Reality: 6 added + 12 modified.
+
+| Prediction | Reality | Verdict |
+| --- | --- | --- |
+| 6 added: `auth-signup`, `auth-forgot`, `auth-reset` × {320, 1280} | **exactly those 6** | ✅ right |
+| `auth-login` {320, 1280} REPLACED, blob hashes differ | both `M` — 37384→36155 B and 34472→33363 B | ✅ right, and it is the proof the hook edit took |
+| both `profile` rows produce nothing | **nothing** | ✅ right |
+| nothing else modified | **ten more surfaces modified** | ❌ **wrong** |
+
+The ten: `collision-notice-1280`, `listing-detail-{320,768,1280}`, `listing-sheet-375`, `search-relax-band-{320,1280}`, `search-results-{320,768,1280}`. Stated plainly rather than smoothed over — the summary predicted a clean 8-file diff and got an 18-file one.
+
+### The ten are pre-existing drift, and here is the evidence rather than the assertion
+
+Two run ids, both gathered by the orchestrator *before* telling me:
+
+- **Run `32751395157`** — the `ci` run triggered by pushing `61b739c`, i.e. **before** the regeneration. It failed `gate-visual` on precisely those ten **plus `auth-login`**. So the drift was already on `dev` with my commits present and no baseline yet regenerated.
+- **Run `32566576437`, 2026-08-22** — **two days before Phase 15 began**. Already failing `gate-visual` on a broader set still (`auth-login`, `booking-confirmed`, `booking-group`, `booking-moment`, `booking-not-found`, `checkout`, `collision-notice`, `dev-theme`, `global-error`, … including `grove` variants).
+
+And the structural argument, which is independent of both runs: **this plan changed no rendered pixel anywhere.** Its two source commits touched exactly two files — `src/lib/design/visual-baselines.ts` and `e2e/visual/surfaces.spec.ts` — and `visual-baselines.ts` is imported by **nothing in `src/`**:
+
+```
+e2e/helpers/visual-drive.ts:137   import type { BaselineTheme, SurfaceId } from ".../visual-baselines"
+e2e/visual/surfaces.spec.ts:16    import { … } from ".../visual-baselines"
+e2e/visual/theme-swap.spec.ts:12  import { … } from ".../visual-baselines"
+```
+
+Three importers, all under `e2e/`. Nothing in `next build`'s render graph reads this module, so no edit to it can move a pixel on `/search`, `/listings/…` or the collision notice. The byte deltas corroborate it: eight of the ten moved by 5–32 bytes (antialiasing-scale noise), and only `search-results-1280` (+2098 B) and `search-relax-band-1280` (+1666 B) moved meaningfully — none of them surfaces this plan touched.
+
+**`gate-visual` has been RED on `dev` since at least 2026-08-22, and this dispatch incidentally cleared it.** It is green now for the first time in days. That is a real finding for the verifier: the ten surfaces' references were silently re-minted as a side effect of a Phase-15 dispatch, so **whatever changed those ten between 2026-08-22 and now has been baked into the new references without anyone reading the diff.** The `baselines.yml` header's own warning applies exactly — writing is not comparing, and a re-mint accepts whatever was on screen that day. Logged in `deferred-items.md`.
+
+### Final state on disk
+
+```
+git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' | wc -l   →  36
+```
+
+36 = the 36 shootable rows this plan's arithmetic predicted (74 declared − 38 blocked). All eight `auth-*` files present; **zero `profile-*` files**, which is the correct result for two blocked rows.
+
+## Superseded: the pre-dispatch inventory (kept as the record of what was predicted)
 
 Following the Phase-14 convention (nine ungenerated baselines recorded as an explicit inventory) and 15-05's use of it for the blocked Outlook client. **This plan generated zero PNGs, and could not have generated one.**
 
