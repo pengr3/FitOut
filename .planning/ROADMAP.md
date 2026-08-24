@@ -503,7 +503,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 15-01-PLAN.md — the product-theme name gets a pure owner, and `renderEmail` becomes the one choke point: one derivation, two projections, five escape sites, zero typed hex
+- [x] 15-01-PLAN.md — the product-theme name gets a pure owner, and `renderEmail` becomes the one choke point: one derivation, two projections, five escape sites, zero typed hex
 - [ ] 15-06-PLAN.md — `BRAND_CLASS` exported, `PanelCard.titleAs` widened by one member, and the `(auth)` layout rewritten into D-162's composition with the landmark in every state
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -658,7 +658,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
-| 15. Auth, Profile & Transactional Email | v1.1 | 0/? | Not started | - |
+| 15. Auth, Profile & Transactional Email | v1.1 | 1/11 | In Progress|  |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |

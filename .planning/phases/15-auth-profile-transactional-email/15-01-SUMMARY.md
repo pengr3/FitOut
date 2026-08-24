@@ -163,3 +163,22 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 All 6 claimed files exist on disk; all 3 claimed commits (`b344ce2`, `4045859`, `9d46e16`) are present in the git history.
+
+## Requirements Status — EMAIL-01 / EMAIL-02 deliberately NOT ticked
+
+This plan's frontmatter claims `requirements: [EMAIL-01, EMAIL-02]`, but **neither was marked complete
+in `REQUIREMENTS.md`**, and that is a deliberate call rather than an oversight.
+
+- **EMAIL-01** reads *"**All existing sends** render through one shared branded shell … without any
+  send trigger moving."* After this plan, **zero** sends render through the shell. `renderEmail` has no
+  callers at all — by design, since this plan's `files_modified` scoped `email.ts` to the `escapeHtml`
+  import.
+- **EMAIL-02** reads *"Email colour values are generated from the same token contract as the app."* The
+  shell reads them correctly, but no email a person receives does yet.
+
+Both IDs are shared with plans **15-02, 15-03 and 15-04**, which land the nineteen adopters. Ticking
+them here would put a claim in `REQUIREMENTS.md` that the tree does not support for another three
+plans — the "gate quietly reduced to nothing" failure this repo's own gates are written against.
+**Whoever executes 15-04 should mark EMAIL-01 and EMAIL-02 complete**, and 15-03 should mark neither.
+
+The traceability table rows for EMAIL-01 and EMAIL-02 remain `Pending`, which is accurate.

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 0
+current_plan: 2
 status: executing
-stopped_at: "Phase 15 PLANNED — UI-SPEC approved (711b2b7), RESEARCH (654cacd) + PATTERNS + VALIDATION (approved, per-task map backfilled), 11 plans in 5 waves (7684ea4) VERIFIED by gsd-plan-checker (zero blockers; its 2 doc warnings fixed). Coverage hand-verified: 6/6 req IDs, D-160..D-163 all cited in must_haves (SDK gate again vacuous 'no trackable decisions'). Next: /gsd:execute-phase 15. NOTE: Phase 14 verification is still outstanding (all 16 plans executed, no 14-VERIFICATION.md yet)."
-last_updated: "2026-08-24T08:20:26.652Z"
-last_activity: 2026-08-24 -- Phase 15 planning complete
+stopped_at: "Phase 15 EXECUTING — plan 15-01 complete (b344ce2 theme owner, 4045859 renderEmail shell, b5e9ce1 summary). Wave 1 remaining: 15-06. NOTE: EMAIL-01/EMAIL-02 deliberately NOT marked complete — they are shared with plans 02/03/04 and no send renders through the shell yet."
+last_updated: "2026-08-24T09:10:50.967Z"
+last_activity: 2026-08-24 -- Phase 15 plan 01 executed (email shell foundations)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 96
+  completed_plans: 97
   percent: 50
 ---
 
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 14 — Host Tooling
+**Current focus:** Phase 15 — auth-profile-transactional-email
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 15 (Auth, Profile & Transactional Email) — PLANNED; 11 plans in 5 waves, checker-verified
-Plan: 0 of 11
-Current Plan: none (execution not started)
+Phase: 15 (auth-profile-transactional-email) — EXECUTING
+Plan: 2 of 11
+Current Plan: 2
 Total Plans in Phase: 11
-Status: Ready to execute
+Status: Executing — 15-01 complete (Wave 1); 15-06 is the other Wave-1 plan
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 planning complete
+Last activity: 2026-08-24 -- Phase 15 plan 01 executed (email shell foundations)
 
 ## Performance Metrics
 
@@ -689,6 +689,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 14 P14 | 35min | 3 tasks | 4 files |
 | Phase 14 P15 | 40min | 2 tasks | 5 files |
 | Phase 14 P16 | 3h20m | 3 tasks | 6 files |
+| Phase 15 P01 | 18min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1119,6 +1120,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 14-14: BOOKER_PATH_LIVE_REGION_FILES renamed to LIVE_REGION_FILES (21 files, DeclaredFileCountIsTwentyOne). AUTHOR_NAMED_REGIONS 5 to 9 with the all-wrappers reading retired for a two-case split; the two implicitly-assertive validation regions are pinned as a per-file map, not converted.
 - [Phase ?]: 14-16: AC#39's literal 'zero new' alarm tokens is NOT met — the host and availability trees ship NINE occurrences across five files where 14-RESEARCH measured EIGHT across four. The extra one is wizard.tsx's D-150 save-state failure ink (plan 14-11); it sits inside the role's own reservation (a form refusal on a control the host just pressed) and is pinned with that reason rather than averaged away.
 - [Phase ?]: 14-16: all NINE Phase-14 visual baselines are DECLARED AND BLOCKED and none was generated — 'visual' is a Linux-only Playwright project and this box is win32. 66 declared / 36 blocked / 30 shot, and the 30 is the same thirty PNGs as before the phase.
+- [Phase 15]: Email <title> carries the escaped heading, not the subject — renderEmail is not handed a subject; threading one through would add an argument to all nineteen composition sites for a string no mail client displays prominently. Deliberate, recorded departure from 15-UI-SPEC.
+- [Phase 15]: THEMES/ThemeName/DEFAULT_THEME/THEME_STORAGE_KEY own their own pure module (src/lib/design/theme.ts); theme-provider.tsx re-exports them — EMAIL-02 needs the email tier to read the product theme. The provider is client-scoped and pulls next-themes at top level with zero server readers, so importing from it would drag a React-context library into every Inngest function and the DB-free design-test graph. The re-export keeps all eight existing importers compiling with zero edits.
+- [Phase 15]: pair-drift.test.ts pins the THEMES declaration at its new owner, not at the provider — The gate reads source text to prove the app declares exactly two theme names and neither is dark — the premise licensing its dark:-utility narrowing. After the move, reading it from the provider would only match the re-export line. A companion assertion pins that the provider imports from that owner, so the check cannot become an assertion about an unread file.
 
 ### Pending Todos
 
@@ -1228,8 +1232,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-24T06:54:59.832Z
-Stopped at: Phase 15: CONTEXT committed (D-160..D-163 locked); 15-UI-SPEC.md written and committed (8ca9b61) at status: draft — checker NOT yet run. Next: gsd-ui-checker on 15-UI-SPEC.md (scrutinize its 4 open questions, esp. PublicHeader leaving the (auth) layout and the ops digest wearing the shell), stamp approved, then /gsd:plan-phase 15.
+Last session: 2026-08-24T09:10:50.939Z
+Stopped at: Phase 15 EXECUTING — plan 15-01 complete (b344ce2 theme owner, 4045859 renderEmail shell, b5e9ce1 summary). Wave 1 remaining: 15-06. NOTE: EMAIL-01/EMAIL-02 deliberately NOT marked complete — they are shared with plans 02/03/04 and no send renders through the shell yet.
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
@@ -1315,7 +1319,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/15-auth-profile-transactional-email/15-UI-SPEC.md
+Resume file: .planning/phases/15-auth-profile-transactional-email/15-02-PLAN.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
