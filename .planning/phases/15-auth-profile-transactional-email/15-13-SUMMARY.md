@@ -264,3 +264,10 @@ a command's output rather than a report's sentence; T-15-36 by the single maths 
 designed states, a baseline. Plan 15-12 closed the **keyboard** clause; this closes the **AA** clause.
 Whether the requirement is satisfied is 15-14's bookkeeping and the re-verification pass's call, not
 this plan's.
+
+## Self-Check: PASSED
+
+All created and modified files exist on disk (`tests/design/helpers/contrast-math.ts`,
+`tests/design/auth-contrast.test.ts`, `tests/design/contrast.test.ts`, this summary,
+`deferred-items.md`); all three commits (`e8636c1`, `0d8ce0d`, `6c06403`) resolve in `git log`;
+`git diff --diff-filter=D --name-only HEAD~3 HEAD` is empty — nothing was deleted.
