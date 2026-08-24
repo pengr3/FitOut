@@ -15,25 +15,18 @@ import { Resend } from "resend";
 // inside this phase's boundary and what it is asserted not to have moved.
 import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 
+// WR-01 — ONE escaper, two readers. `escapeHtml` was declared here; it now lives beside `renderEmail`
+// in the shell, because both this module and the shell must escape with the SAME function or the
+// guarantee is only as strong as whichever copy a given send happened to reach. A second
+// implementation is the drift the move prevents; do not reintroduce one here.
+//
+// `renderOpsAlertDigest` below keeps its per-field calls exactly where they are: its output enters
+// the shell through the one PRE-ESCAPED slot, which the renderer deliberately does not escape.
+import { escapeHtml } from "@/lib/email-shell";
+
 const key = process.env.RESEND_API_KEY;
 const resend = key ? new Resend(key) : null;
 const FROM = process.env.EMAIL_FROM ?? "FitOut <onboarding@resend.dev>";
-
-/**
- * HTML-escape a string before it is interpolated into email markup (WR-01). The verify/reset `url`
- * is library- and (for reset, via `redirectTo`) client-influenced; dropping it raw into an
- * `href="..."` attribute and into HTML text is an injection sink. We escape the five HTML-significant
- * characters so a value containing `"`, `<`, `>`, `&`, or `'` can never break out of the attribute
- * or inject markup — rather than trusting an upstream library to pre-escape content we concatenate.
- */
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 async function send(to: string, subject: string, html: string) {
   if (!resend) {
