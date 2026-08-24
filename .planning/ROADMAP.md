@@ -498,7 +498,35 @@ Plans:
   4. Swapping the app's theme changes the emails' colours too, because both read the same generated token contract; an email cannot be left behind by a theme swap.
   5. At least one of each send has been opened in **real** Gmail (web and Android), real Outlook desktop and Apple Mail — at least one in dark mode — and renders correctly.
 
-**Plans**: TBD
+**Plans**: 11 plans in 5 waves
+
+Plans:
+**Wave 1**
+
+- [ ] 15-01-PLAN.md — the product-theme name gets a pure owner, and `renderEmail` becomes the one choke point: one derivation, two projections, five escape sites, zero typed hex
+- [ ] 15-06-PLAN.md — `BRAND_CLASS` exported, `PanelCard.titleAs` widened by one member, and the `(auth)` layout rewritten into D-162's composition with the landmark in every state
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 15-02-PLAN.md — the two build-blocking shell gates: structure, html/text parity, no-URL-before-the-CTA, and the seven-hex set that a theme flip moves with the rendering
+- [ ] 15-07-PLAN.md — the four auth cards adopt the pattern and the document's h1, one coral each, two live regions demoted, and both pinned counts moved with their rows
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 15-03-PLAN.md — the transport gains a plain-text part and eighteen senders compose the shell, with the WR-02 guard and the trigger graph provably unmoved
+- [ ] 15-08-PLAN.md — `/profile` adopts `BOOKING_SHELL` and `PageHeader`, two panels around a save-state machine that does not move, and a plate that draws the same boxes as the page
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 15-04-PLAN.md — the ops digest wears the shell without losing either of its two contracts, one payload through every string parameter of all nineteen senders, and the footer's guarded site declared
+- [ ] 15-09-PLAN.md — seven live regions declared and the file count moved 21 → 26, plus the gate that makes "one composition, four screens" a command
+- [ ] 15-10-PLAN.md — the AUTHUI-02 design-pass gate, and the four auth routes and their two extra branches under the 320px floor
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 15-05-PLAN.md — the preview harness, the walk checklist, and EMAIL-03 handed to the operator with Outlook recorded as blocked rather than covered
+- [ ] 15-11-PLAN.md — two baseline rows edited, eight added, the alias moved 66 → 74, and the capture routed to the only workflow allowed to write a PNG
+
 **UI hint**: yes
 
 **Departure from the research shape, with reason:** research listed the email shell as its own phase (G), parallel with everything from the moment the foundation lands. It is merged into the auth phase here because PITFALLS' own phase taxonomy already places the email shell inside **P-AUTH** (its risk table maps rows 14 and 15 — `escapeHtml` breakage and real-client rendering — to P-AUTH), and because three requirements do not justify a standalone phase at `standard` granularity. EMAIL-02's only dependency (DS-12) still lands in Phase 10, so nothing about the merge delays it. Execution is sequential on `dev` anyway (`use_worktrees: false`), so the "parallel set" is really an order-independent set.
