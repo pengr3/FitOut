@@ -52,9 +52,29 @@
 // `npx vitest run tests/design/auth-composition.test.tsx --config vitest.design.config.ts`
 // GREEN IS 13 PASSED. `git diff --exit-code src/` must exit 0 after each probe is reverted.
 //
-//   (M1) PENDING — the pattern swapped back for the raw primitive UNDER AN ALIAS, on
-//        `(auth)/forgot-password/page.tsx`: `import { Card as PanelCard } from "@/components/ui/card"`.
-//        The laundering the `propertyName ?? name` resolution exists for.
+//   (M1) RUN AND REVERTED. The pattern swapped back for the raw primitive UNDER AN ALIAS, on
+//        `(auth)/forgot-password/page.tsx`: `import { PanelCard } from "@/components/patterns/panel-card"`
+//        replaced by `import { Card as PanelCard } from "@/components/ui/card"`. This is the laundering
+//        the `propertyName ?? name` resolution exists for — the TAG spelling never changes, so a scan
+//        keyed on tag names reports a perfectly clean file. 2 failed / 11 passed:
+//
+//          AssertionError: an auth page renders a container from the vendored card primitive. 15-UI-SPEC
+//          § "One composition, four screens" puts all four screens on PanelCard, and plan 15-07 spent
+//          all four ALLOWED_RAW_CARD rows to get there — a raw container here is one of those rows
+//          coming back without the allow-list entry that used to declare it. Aliasing the import does
+//          not help: the scan resolves the EXPORTED name.: expected [ Array(1) ] to deeply equal []
+//          + "src/app/(auth)/forgot-password/page.tsx:72 — <PanelCard> (imported from @/components/ui/card)"
+//
+//          AssertionError: src/app/(auth)/forgot-password/page.tsx's PanelCard title is not the
+//          byte-for-byte string 15-UI-SPEC's copy table pins.: expected [] to deeply equal
+//          [ 'Reset your password' ]
+//
+//        ⚠ THE SECOND FAILURE IS THE INTERESTING ONE AND IT WAS NOT PREDICTED. The copy check reads
+//        `title` off PATTERN containers only, so when the pattern binding stops being one the eight
+//        pinned literals stop being FOUND rather than stopping being EQUAL — an absence presenting as
+//        a copy failure. Read (3) first when both fire; (6) is the echo, not a second defect.
+//        ⚠ AND THE "exactly one PanelCard" LOOP INSIDE (3) NEVER RAN, because the raw-container
+//        assertion above it threw first. Two assertions in one `it()` are ordered, not independent.
 //   (M2) PENDING — `titleAs="h1"` deleted from `(auth)/signup/page.tsx`. The prop DEFAULTS to `"h2"`,
 //        so the defect is silent in review and in the browser.
 //   (M3) PENDING — a second accent-filled control: `variant="outline"` → `variant="brand"` on the
