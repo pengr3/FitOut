@@ -107,7 +107,15 @@ const DATABASE_URL =
 /** The seeded listing's venue timezone. "Today" is resolved in THIS zone, never in the runner's (D-141). */
 const VENUE_TZ = "Asia/Manila";
 
-/** The venue city — `composeWhenLabelShort` renders it as the window label's ` ({City} time)` suffix. */
+/**
+ * The venue city — stored on the listing, and NOT rendered in this fixture's window labels.
+ *
+ * `composeWhenLabelShort` renders a ` ({City} time)` suffix from it, but since the PM's ruling on UAT
+ * finding F-2 (2026-08-24) the host LIST surfaces only pass the city through when the rendered rows
+ * span more than one venue clock — see `src/lib/booking/venue-clock-scope.ts`. This fixture's host
+ * owns one listing, so the suffix is correctly absent everywhere in this file. Nothing here asserts
+ * on it either way; the note is here so the next reader does not go looking for it.
+ */
 const VENUE_CITY = "Makati";
 
 /** The password every UI signup in this repo uses (`shell.spec.ts`, `mode-switch.spec.ts`). */

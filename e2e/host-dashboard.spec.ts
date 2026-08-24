@@ -74,8 +74,21 @@ const DATABASE_URL =
 /** The seeded listing's venue timezone. "Today" is resolved in THIS zone, never in the runner's (D-141). */
 const VENUE_TZ = "Asia/Manila";
 
-/** The venue city — `composeWhenLabelShort` renders it as the window label's ` ({City} time)` suffix. */
+/**
+ * The venue city — `composeWhenLabelShort` renders it as the window label's ` ({City} time)` suffix
+ * ONLY when the rendered rows span more than one venue clock (PM ruling on UAT finding F-2,
+ * 2026-08-24; the rule is `src/lib/booking/venue-clock-scope.ts`).
+ *
+ * This host owns ONE listing for cases (1)-(6), so the suffix is correctly absent there and case (4)
+ * asserts that absence. Case (7) gives the host a SECOND listing in a second zone and asserts the
+ * suffix comes back on every row — which is Walk A of the Phase 14 UAT, the walk the PM passed
+ * precisely because the city name on each line did the work.
+ */
 const VENUE_CITY = "Makati";
+
+/** Walk A's second venue: a genuinely different clock, so the rendered set VARIES. */
+const SECOND_VENUE_TZ = "America/Los_Angeles";
+const SECOND_VENUE_CITY = "Los Angeles";
 
 /** The three widths 14-UI-SPEC names: the declared 320px floor (D-131), the tablet, the desktop. */
 const WIDTHS = [320, 768, 1280] as const;
@@ -112,6 +125,15 @@ type Seeded = {
   readonly listingTitle: string;
   readonly sql: ReturnType<typeof postgres>;
   readonly bookerIds: string[];
+  /**
+   * EVERY listing this fixture creates, `listingId` included.
+   *
+   * Teardown deletes bookings by listing, and `booking.booker_id` is ON DELETE RESTRICT — so a second
+   * listing whose bookings were not swept first makes the BOOKER delete fail with a foreign-key
+   * error that says nothing about ordering. The array exists so the order stays load-bearing rather
+   * than accidentally correct for one listing.
+   */
+  readonly listingIds: string[];
   teardown(): Promise<void>;
 };
 
@@ -211,6 +233,7 @@ async function seedHostWithListing(hostEmail: string): Promise<Seeded> {
   `;
 
   const bookerIds: string[] = [];
+  const listingIds: string[] = [listingId];
 
   return {
     hostEmail,
@@ -219,13 +242,14 @@ async function seedHostWithListing(hostEmail: string): Promise<Seeded> {
     listingTitle,
     sql,
     bookerIds,
+    listingIds,
     async teardown() {
       // ORDER IS LOAD-BEARING (`booker-seed.ts`'s header): `booking.booker_id` is ON DELETE RESTRICT,
       // so the booking rows and their notifications go first, then the bookers, then the host — whose
       // deletion cascades to the listing. Deleting a user first fails with a foreign-key error that
-      // says nothing about ordering.
-      await sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ${listingId})`;
-      await sql`DELETE FROM booking WHERE listing_id = ${listingId}`;
+      // says nothing about ordering. EVERY listing, not just the first: case (7) adds a second one.
+      await sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ANY(${listingIds}))`;
+      await sql`DELETE FROM booking WHERE listing_id = ANY(${listingIds})`;
       for (const id of bookerIds) {
         await sql`DELETE FROM "user" WHERE id = ${id}`;
       }
@@ -268,9 +292,15 @@ async function addBooking(
     startHour: number;
     endHour: number;
     status: "confirmed" | "requested";
+    /** Defaults to the fixture's first listing; case (7) passes the second-zone one. */
+    listingId?: string;
+    /** MUST be the listing's own zone — the venue-local day is resolved in it. Defaults to Makati's. */
+    timezone?: string;
   },
 ): Promise<string> {
   const id = `e2e_dash_booking_${randomUUID()}`;
+  const listingId = args.listingId ?? seed.listingId;
+  const tz = args.timezone ?? VENUE_TZ;
   await seed.sql`
     INSERT INTO "booking" (
       id, listing_id, unit, booker_id, starts_at, ends_at, status, booking_mode,
@@ -278,11 +308,11 @@ async function addBooking(
       currency, payment_id, payment_method, expires_at, checkout_session_id,
       refund_cents, cancelled_by, cancelled_at, open_capacity, declared_pax, created_at
     ) VALUES (
-      ${id}, ${seed.listingId}, ${1}, ${args.bookerId},
-      (date_trunc('day', now() AT TIME ZONE ${VENUE_TZ})
-        + make_interval(days => ${args.dayOffset}, hours => ${args.startHour})) AT TIME ZONE ${VENUE_TZ},
-      (date_trunc('day', now() AT TIME ZONE ${VENUE_TZ})
-        + make_interval(days => ${args.dayOffset}, hours => ${args.endHour})) AT TIME ZONE ${VENUE_TZ},
+      ${id}, ${listingId}, ${1}, ${args.bookerId},
+      (date_trunc('day', now() AT TIME ZONE ${tz})
+        + make_interval(days => ${args.dayOffset}, hours => ${args.startHour})) AT TIME ZONE ${tz},
+      (date_trunc('day', now() AT TIME ZONE ${tz})
+        + make_interval(days => ${args.dayOffset}, hours => ${args.endHour})) AT TIME ZONE ${tz},
       ${args.status}::booking_status, ${"request"}::booking_mode,
       ${"standard"}::cancellation_policy,
       ${SPACE_PRICE_CENTS}, ${SERVICE_FEE_CENTS}, ${QUOTED_TOTAL_CENTS}, ${"php"},
@@ -301,6 +331,42 @@ async function addBooking(
     `;
   }
   return id;
+}
+
+/**
+ * A SECOND published listing for the same host, in a genuinely different timezone — Walk A's shape.
+ *
+ * The Phase 14 UAT set exactly this up: one host owning a Makati court and a Venice Beach studio,
+ * with a session on each venue's own local today. At the hours it ran the two venues were on
+ * different CALENDAR DATES, so the two rows ran backwards down one list headed *Today*, and the PM
+ * passed the walk because each line named its city.
+ *
+ * It exists here so that verdict is a GATE rather than a memory. Since the 24 August 2026 F-2 ruling
+ * the suffix is conditional, and the condition is exactly this fixture: two rendered rows, two venue
+ * clocks. The listing is published with an activated wallet like the first one — the host's payout
+ * row is already seeded and is per-user, not per-listing.
+ */
+async function addSecondZoneListing(seed: Seeded): Promise<string> {
+  const listingId = `e2e_dash_listing2_${randomUUID()}`;
+  await seed.sql`
+    INSERT INTO "listing" (
+      id, host_id, title, description, primary_space_type,
+      address_line1, city, region, postal_code, country, neighborhood,
+      location, show_exact_address, max_occupancy, unit_count, timezone,
+      hourly_rate_cents, day_rate_cents, occupancy_mode,
+      currency, booking_mode, status, published_at, created_at, updated_at
+    ) VALUES (
+      ${listingId}, ${seed.hostId}, ${"Venice Beach Yoga Studio"},
+      ${"A studio two blocks from the boardwalk."}, ${"yoga_studio"}::space_type,
+      ${"11 Ocean Front Walk"}, ${SECOND_VENUE_CITY}, ${"California"}, ${"90291"}, ${"United States"}, ${"Venice"},
+      ST_SetSRID(ST_MakePoint(${-118.4695}, ${33.985}), 4326), ${false}, ${10}, ${1}, ${SECOND_VENUE_TZ},
+      ${47333}, ${288888}, ${"exclusive"}::occupancy_mode,
+      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      now(), now(), now()
+    )
+  `;
+  seed.listingIds.push(listingId);
+  return listingId;
 }
 
 /**
@@ -610,9 +676,26 @@ test.describe.serial("HFLOW-03 — the host dashboard is a today view", () => {
       ).toBeVisible();
     }
 
-    // The city suffix, once — proof the labels came through the venue-local composer rather than from
-    // the runner's clock. `composeWhenLabelShort` is the only thing on this surface that renders it.
-    await expect(rows.getByText(new RegExp(`\\(${VENUE_CITY} time\\)`)).first()).toBeVisible();
+    // ─── NO CITY SUFFIX HERE, AND ITS ABSENCE IS THE ASSERTION (PM ruling on F-2, 2026-08-24).
+    //
+    // This used to read the other way: *the city suffix, once* — proof the labels came through the
+    // venue-local composer. That proof was retired with the rule it rested on. This host owns ONE
+    // listing, so every row on this agenda sits on one venue clock, and naming a city on each of them
+    // disambiguated nothing while costing the widest column on `/host/bookings` (finding F-2). The
+    // suffix now appears only when the rendered rows VARY — asserted from the other side in case (7),
+    // which gives this same host a second listing in a second zone and watches it come back.
+    //
+    // ⚠ WHAT REPLACES THE RETIRED PROOF. "The labels are venue-local" is still checked, and by
+    // something stronger than a city name: the three window labels above are seeded at three distinct
+    // VENUE-LOCAL hours and are asserted verbatim. A page rendering in the runner's zone would show
+    // three different hours and fail there, by name.
+    await expect(
+      rows.getByText(new RegExp(`\\(${VENUE_CITY} time\\)`)),
+      "an agenda row named its venue's city on a single-zone host's dashboard. Since 2026-08-24 the " +
+        "suffix appears only when the rendered rows span more than one venue clock — see " +
+        "`src/lib/booking/venue-clock-scope.ts`. If this is red because the rule was reverted, the " +
+        "F-2 clip on /host/bookings is back with it.",
+    ).toHaveCount(0);
 
     page.off("framenavigated", onNavigated);
     expect(
@@ -716,5 +799,97 @@ test.describe.serial("HFLOW-03 — the host dashboard is a today view", () => {
         "paragraph that happens to also render in the empty state.",
     ).toHaveCount(0);
     await expect(page.getByTestId("host-agenda")).toBeVisible();
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // (7) WALK A, AS A GATE — the two-timezone dashboard the PM passed on 2026-08-24
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // WHAT THE WALK WAS. A host owning a Makati court and a Venice Beach studio, with a session on each
+  // venue's own local today. At the hour it ran the two venues were on different calendar dates, so
+  // the two rows ran BACKWARDS down one list headed *Today* — Mon, Aug 24 above Sun, Aug 23. The PM
+  // was asked whether that reads as two real sessions or as a page that has got its dates confused,
+  // and passed it: *"the city name on each line does the work."* D-141's no-date heading stands
+  // because of that sentence.
+  //
+  // WHY IT NEEDS A GATE NOW AND DID NOT BEFORE. Until 2026-08-24 every host time named its venue's
+  // zone unconditionally, so the walk's verdict could not be broken by a change to a rule that did
+  // not exist. The F-2 ruling makes the suffix CONDITIONAL, and this fixture is exactly the condition
+  // — so the walk's verdict is now one boolean away from being false, and a human passed it once,
+  // months ago, in a screenshot. This case is that verdict, restated as something that fails.
+  //
+  // ⚠ IT ASSERTS THE CHANGE, NOT JUST THE STATE. Case (4) has already established that these same
+  // Makati rows carry NO suffix while this host has one listing. Here the ONLY thing that changes is
+  // that a second listing in a second zone gains a session — no row is edited, no label recomposed by
+  // hand — and the suffix appears on the Makati rows too. That is the rule's actual claim: it depends
+  // on the SET, not on the row.
+  //
+  // ── WATCHED RED — BOTH DIRECTIONS, run and reverted, 24 August 2026 ────────────────────────────
+  // `resolveListCity`'s projector was forced to each of its two constant answers, and each direction
+  // reddens exactly one of the two cases while leaving the other green — which is what says the pair
+  // measures the RULE rather than a state:
+  //
+  //   • ALWAYS OMIT (`varies && false`) — 1 failed / 6 passed, this case:
+  //       Error: no agenda row names Los Angeles. Two rendered rows on two venue clocks is precisely
+  //       the case the suffix exists for, and Walk A of the Phase 14 UAT passed BECAUSE of it.
+  //       Expected: 1   Received: 0
+  //     Case (4) stayed green — an always-omit rule keeps a single-zone list correct and quietly
+  //     breaks the walk the PM passed, which is the failure mode this case exists for.
+  //
+  //   • ALWAYS SHOW (`varies || true`) — case (4) red, this one green:
+  //       Error: an agenda row named its venue's city on a single-zone host's dashboard. …
+  //       Expected: 0   Received: 3
+  test("(7) WALK A: a second venue in a second timezone brings the city suffix back — on every row", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    const s = seed!;
+
+    const secondListing = await addSecondZoneListing(s);
+    const booker = await addBooker(s, "Rosalinda");
+    await addBooking(s, {
+      bookerId: booker,
+      listingId: secondListing,
+      timezone: SECOND_VENUE_TZ,
+      // Venue-local, in the STUDIO's own zone — the whole point of D-141 and of this walk. Built by
+      // Postgres in that zone, so "today in Venice Beach" is a property of the venue's local day and
+      // not of the runner's clock. Mid-afternoon, so it is an ordinary hour a human reads without
+      // effort whatever time the suite runs at.
+      dayOffset: 0,
+      startHour: 14,
+      endHour: 16,
+      status: "confirmed",
+    });
+
+    await resumeSession(page, hostSession);
+    await openDashboard(page, 1280);
+
+    const rows = page.getByTestId("agenda-rows");
+    await expect(
+      rows,
+      "the agenda rendered no row list for a host with sessions in two zones today.",
+    ).toBeVisible();
+
+    // The new row is on the page at all — otherwise the two assertions below are about one zone.
+    await expect(
+      rows.getByRole("link", { name: "Rosalinda" }),
+      "the second venue's session is not on the agenda, so this case is not testing two zones. The " +
+        "booking is seeded at the STUDIO's own venue-local today; if it is missing, the day-boundary " +
+        "predicate resolved it in the wrong zone.",
+    ).toBeVisible();
+
+    // ─── THE WALK'S OWN CLAIM. Both cities named, each on its own line.
+    await expect(
+      rows.getByText(new RegExp(`\\(${SECOND_VENUE_CITY} time\\)`)),
+      `no agenda row names ${SECOND_VENUE_CITY}. Two rendered rows on two venue clocks is precisely ` +
+        "the case the suffix exists for, and Walk A of the Phase 14 UAT passed BECAUSE of it.",
+    ).toHaveCount(1);
+    await expect(
+      rows.getByText(new RegExp(`\\(${VENUE_CITY} time\\)`)).first(),
+      `the ${SECOND_VENUE_CITY} row names its city but the ${VENUE_CITY} rows do not. A rule that ` +
+        "suffixes only the odd one out is worse than either alternative: the reader is told which " +
+        "row is different rather than what each row's clock is. The decision is a property of the " +
+        "rendered SET and must reach every row in it.",
+    ).toBeVisible();
   });
 });

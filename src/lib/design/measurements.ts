@@ -639,6 +639,23 @@ export const WIZARD_CHECKLIST_GRID = "lg:grid-cols-[minmax(0,1fr)_18rem]";
 //   the distribution that decided which of the shape's two heights the constant declares. The 14-15
 //   figures are left in place rather than overwritten so the correction is visible.
 //
+// ⚠⚠ THE FIRST ROW MOVED ON 24 AUGUST 2026, AND FOR A PRODUCT REASON RATHER THAN A MEASUREMENT ONE
+//   (quick `260824-ej2`). The PM's ruling on UAT finding F-2 — *"show the timezone only when it
+//   varies"* — drops the ` ({City} time)` suffix from a host LIST row whenever the rendered rows all
+//   sit on one venue clock. That is fourteen fewer characters in the one paragraph on these cards
+//   that is free to wrap, so the wrap counts had to be re-measured with `[14-16]`'s own instrument
+//   before any number here could be trusted. Re-measured 24 August 2026, same routes, same fixture:
+//
+//     shape                  route             320px            1280px   what moved
+//     ────────────────────── ───────────────── ──────────────── ──────── ─────────────────────────
+//     agenda row             /host             112.00 (was 132) 72.00    one meta line fewer
+//     request row            /host/requests    254.05           83.02    nothing — see below
+//     host booking row       /host/bookings    176.00           36.52    nothing — see below
+//
+//   Only the agenda row's narrow value moved, and the two that did not each did not move for a
+//   REASON that is now measured rather than assumed — both arguments are in the constants' own
+//   docblocks. Nothing here was widened to absorb the change.
+//
 //   * ABOVE THE MEDIUM BREAKPOINT THESE TWO ROUTES DO NOT RENDER A ROW CARD AT ALL. Both pages hide
 //     the card stack and render a TABLE in its place. So the starred numbers are the height of the
 //     visible TABLE ROW, which is what a reader at that width is actually waiting for. Measuring the
@@ -656,16 +673,16 @@ export const WIZARD_CHECKLIST_GRID = "lg:grid-cols-[minmax(0,1fr)_18rem]";
 // what 14-UI-SPEC's falsifiable asks for. The totals are not claimed and must not be read in.
 
 /**
- * The host dashboard's agenda row: 132px below the small breakpoint, 72px at and above it.
+ * The host dashboard's agenda row: 112px below the small breakpoint, 72px at and above it.
  *
  * THE SLOT CONFIGURATION IT DESCRIBES: a title, a meta line and a status badge. No thumbnail, no
  * description list and no actions — the one host row in this phase whose actions slot is empty,
  * because the dashboard's agenda answers "who is coming" and offers no decision to take on the row.
  *
- * MEASURED, NOT DERIVED: 132.00px at 320 and 72.00px at 1280, on `/host` with two confirmed sessions
+ * MEASURED, NOT DERIVED: 112.00px at 320 and 72.00px at 1280, on `/host` with confirmed sessions
  * seeded for today. 72 is the unwrapped floor and it is arithmetic anyone can check — the card's own
- * 16px top and bottom padding around a 20px title line and a 20px meta line. 132 is that floor plus
- * three further wrapped meta lines at 20px each.
+ * 16px top and bottom padding around a 20px title line and a 20px meta line. 112 is that floor plus
+ * two further wrapped meta lines at 20px each.
  *
  * ⚠ THE NARROW VALUE IS CONTENT-DEPENDENT, AND THAT IS RECORDED RATHER THAN HIDDEN. The meta line is
  * the space title joined to a venue-local window label, and how many lines it wraps to at 320px is a
@@ -674,27 +691,42 @@ export const WIZARD_CHECKLIST_GRID = "lg:grid-cols-[minmax(0,1fr)_18rem]";
  * fixes; this one describes a box that text decides. The floor (72) is exact at every width where the
  * meta fits one line.
  *
- * ⚠⚠ THE DATE HALF OF THAT DEPENDENCE WAS UNDER-STATED UNTIL PLAN `[14-16]` MEASURED IT, and the
- * measurement matters to anyone reading 132 as a fact about this row. With the geometry spec's
- * ORIGINAL seventeen-character title, the row rendered 132px (4 meta lines) on only 554 of the 2,604
- * date tokens `EEE, MMM d` can ever compose, and 112px (3 lines) on the other 2,050 — so the
- * declared narrow value described 21% of dates. The spec now seeds a twenty-four-character title
- * chosen from that same sweep, at which all 2,604 tokens — across five window spellings, 13,020
- * labels — wrap to exactly four lines and the row measures 132px on every one. The constant is
- * unchanged; what changed is that it is now true of the fixture on every day rather than on some of
- * them.
+ * ⚠⚠ THE DATE HALF OF THAT DEPENDENCE WAS UNDER-STATED UNTIL PLAN `[14-16]` MEASURED IT. With the
+ * geometry spec's ORIGINAL seventeen-character title the row rendered its declared height on only
+ * 554 of the 2,604 date tokens `EEE, MMM d` can ever compose and 20px less on the other 2,050 — a
+ * constant that described 21% of dates. `[14-16]` replaced the title with a twenty-four-character
+ * one chosen from that same sweep, at which every date token lands on ONE wrap count. That title is
+ * still the fixture's, and it is still on a plateau — see below.
  *
- * THE BREAKPOINT IS WHERE THE MEASUREMENT SETTLES, not where somebody drew a line. Measured across
- * the ladder with the 17-character title: 132 at 320, 112 at 360 and 375, 92 from 414 to 560, 72
- * from 639 up — which is what put the small breakpoint (640px) at the closest declared step to the
- * width where the row reaches its floor. With the longer title the whole ladder shifts one step
- * later (132 at 320, 112 at 360-375, 92 from 414 to 640, 72 from ~700 up), which is the same
- * content-dependence seen from the side: the band just below the settling width draws the narrow bar
- * against a row that has not shrunk yet. Both directions are measured, accepted, and pinned at the
- * two widths the geometry spec asserts, so a later change to either is a visible failure rather than
- * a silent drift.
+ * ⚠⚠⚠ 132 → 112 ON 24 AUGUST 2026 (quick `260824-ej2`), AND THE CAUSE IS A PRODUCT RULING, NOT A
+ * DRIFT. The PM's answer to UAT finding F-2 — *"show the timezone only when it varies"* — drops the
+ * ` ({City} time)` suffix from a host list row when the rendered rows all share one venue clock. The
+ * dashboard's fixture is a single-zone host, so its meta line lost fourteen characters and now wraps
+ * to THREE lines where it wrapped to four. RE-MEASURED WITH `[14-16]`'s OWN INSTRUMENT rather than
+ * re-declared from the one label on screen: the paragraph was swapped in place over the full cross
+ * product of every date token (2,604) against five window spellings — 13,020 labels — for nine
+ * candidate title lengths.
+ *
+ *     "Geo Courts Poblacio"      (19)   3 lines / 112px  ×13,020
+ *     "Geo Courts Poblacion On"  (23)   3 lines / 112px  ×13,020
+ *     "Geo Courts Poblacion One" (24)   3 lines / 112px  ×13,020   ← the fixture's title, unchanged
+ *     "…Poblacion Oneswi"        (27)   3 lines / 112px  ×13,020
+ *     "…Poblacion Oneswit"       (28)   3 lines / 112px  ×12,885 · 4 lines / 132px ×135
+ *
+ * So 112 is a property of the fixture on every date, exactly as 132 was, and the fixture's title did
+ * NOT have to move to keep that true — it sits mid-plateau with at least five characters of margin
+ * below and three above, which is MORE headroom than the longer label left it.
+ *
+ * THE BREAKPOINT IS WHERE THE MEASUREMENT SETTLES, not where somebody drew a line. Re-measured across
+ * the ladder with the shorter label: 112 at 320, 360 and 375; 92 from 414 to 560; 72 at 639 and every
+ * width above. The row therefore reaches its floor BELOW the small breakpoint (640px) rather than at
+ * ~700 as it did with the suffix, so `sm:h-18` is now exact from 640 up instead of over-claiming
+ * 20px in the 640-700 band. The narrow bar over-claims 20px from 414 to 639, where the row has
+ * already shrunk to 92 — the same band-below-the-settling-width trade the longer label made, one
+ * step shallower. Both directions are measured, accepted, and pinned at the two widths the geometry
+ * spec asserts, so a later change to either is a visible failure rather than a silent drift.
  */
-export const HOST_AGENDA_ROW_HEIGHT = "h-33 sm:h-18";
+export const HOST_AGENDA_ROW_HEIGHT = "h-28 sm:h-18";
 
 /**
  * The request inbox's row: 256px below the medium breakpoint, 84px at and above it.
@@ -713,6 +745,16 @@ export const HOST_AGENDA_ROW_HEIGHT = "h-33 sm:h-18";
  * the taller of the two table rows at 1280. The declared values are the two nearest steps on the
  * spacing ladder: 256 (a 1.95px over-claim) and 84 (a 0.98px over-claim). Both are inside the 4px
  * 14-UI-SPEC makes falsifiable.
+ *
+ * ⚠ THIS SHAPE DID NOT MOVE UNDER THE 24 AUGUST 2026 "SHOW THE TIMEZONE ONLY WHEN IT VARIES" RULING
+ * (quick `260824-ej2`), AND THAT IS MEASURED RATHER THAN ASSUMED. The shortened label wraps to TWO
+ * meta lines here where it wrapped to three — so the meta paragraph genuinely got 20px shorter — and
+ * the row still measures 254.05px, because its 320px height is set by the status column, the
+ * two-term description list and the touch-height actions row, none of which the label touches. That
+ * is the same insensitivity `[14-16]` measured from the other side (254.05px on all 13,020 labels
+ * and thirteen reason-line spellings); re-swept against the shortened label it is 254.05px on all
+ * 13,020 again, one distinct value. The geometry spec's declared WRAP COUNT for this shape moved
+ * from 3 to 2 with the ruling; the height did not.
  *
  * WHY THIS SHAPE MOVED UNDER THE PHASE, and why an older number would be stale: 14-03 gave the row
  * its terminal, deadline-led form, and 14-06 capped its status column and moved the desktop table
@@ -750,17 +792,29 @@ export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
  * days". The next day it composed a two-line one and the gate went red by exactly 20px with nothing
  * in `src/` having moved. That is deferred item `[14-16]`.
  *
- * WHY 176 IS THE RIGHT SINGLE NUMBER, given the shape genuinely has two. It is the more common
- * outcome (69% of labels) — and, decisively, it is ALSO the height this row takes at 360, 375 and
- * 414px, where the label always fits two lines whatever it says. So `h-44` is exact from 320 to
- * ~479 for most rows and over-claims 20px from ~480 to the breakpoint, whereas `h-49` was exact only
- * at 320 and only for the minority of labels, and over-claimed 20px at 360-414 and 40px above it.
- * One bar cannot be two boxes; this is the one that is right across more of the ladder.
+ * WHY 176 WAS THE RIGHT SINGLE NUMBER, given the shape then genuinely had two. It was the more
+ * common outcome (69% of labels) — and, decisively, it is ALSO the height this row takes at 360, 375
+ * and 414px, where the label always fits two lines whatever it says. So `h-44` was exact from 320 to
+ * ~479 for most rows and over-claimed 20px from ~480 to the breakpoint, whereas `h-49` was exact only
+ * at 320 and only for the minority of labels. One bar cannot be two boxes; this was the one that was
+ * right across more of the ladder.
  *
- * BOTH HEIGHTS ARE NOW SEEDED AND PINNED, at absolute venue-local instants, in
- * `e2e/skeleton-geometry.spec.ts`'s `(wrap)` case — together with the 20px step between them, which
- * every derived expectation in that block rests on. The number above can no longer move with the
- * calendar, because nothing that produces it reads a clock.
+ * ⚠ AND AS OF 24 AUGUST 2026 THE SHAPE HAS EXACTLY ONE HEIGHT AT 320, SO THAT ARGUMENT IS NOW MOOT
+ * AND THE NUMBER IS UNCONDITIONAL (quick `260824-ej2`). The PM's F-2 ruling — *"show the timezone
+ * only when it varies"* — drops the ` ({City} time)` suffix on a single-zone list, and this route's
+ * card renders the window label ALONE in its meta paragraph (the space title is the card's TITLE
+ * here, not part of the meta). Re-swept with the same instrument, the same 2,604 date tokens and the
+ * same five window spellings — 13,020 labels — against the shortened label:
+ *
+ *     every one of the five window spellings, every date token   2 lines / 176px  ×13,020
+ *
+ * ONE outcome, never a second. So the 31% of dates that used to render 196px no longer exist, the
+ * declared value did not have to move, and the calendar-coupling `[14-16]` closed by seeding
+ * absolute instants is now closed a second time at the source: there is no longer a date this row
+ * can be seeded on that changes its height. The two absolute-instant rows in
+ * `e2e/skeleton-geometry.spec.ts`'s `(wrap)` case are retained — they now assert that ONE height
+ * from two different absolute days rather than two heights from two — and the 20px step every
+ * derived expectation in that block rests on is measured there in its own case.
  *
  * THE SLOT CONFIGURATION IT DESCRIBES, BELOW THE BREAKPOINT: a title, a meta line, a status badge and
  * a three-term description list (guest, guest pays, payout). NO actions and NO trailing line — and
