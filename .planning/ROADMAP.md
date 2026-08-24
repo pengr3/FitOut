@@ -513,7 +513,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 15-03-PLAN.md — the transport gains a plain-text part and eighteen senders compose the shell, with the WR-02 guard and the trigger graph provably unmoved
+- [x] 15-03-PLAN.md — the transport gains a plain-text part and eighteen senders compose the shell, with the WR-02 guard and the trigger graph provably unmoved
 - [ ] 15-08-PLAN.md — `/profile` adopts `BOOKING_SHELL` and `PageHeader`, two panels around a save-state machine that does not move, and a plate that draws the same boxes as the page
 
 **Wave 4** *(blocked on Wave 3 completion)*
@@ -658,7 +658,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
-| 15. Auth, Profile & Transactional Email | v1.1 | 4/11 | In Progress|  |
+| 15. Auth, Profile & Transactional Email | v1.1 | 5/11 | In Progress|  |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |

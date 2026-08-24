@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: "Phase 15 EXECUTING — Wave 2 in progress: 15-07 complete (e237267 login+forgot, 0fe5e4d signup+reset, ac0941c de-quote). All four (auth) pages compose PanelCard; ALLOWED_RAW_CARD 9 -> 5; EXPECTED_SURFACES 16 -> 20; repo-wide brand total 24 -> 28. Wave 1 was 15-01 + 15-06; 15-02 done. REMAINING IN WAVE 2: 15-03, 15-04, 15-05. NOTE: AUTHUI-01/AUTHUI-03 still NOT marked complete — AUTHUI-03's last clause is the baseline (15-11) and AUTHUI-01 also spans the profile page (15-08). EMAIL-01/EMAIL-02 still NOT complete either; 15-04 closes both."
-last_updated: "2026-08-24T12:02:14.521Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-07 executed (the four auth cards adopt PanelCard)
+stopped_at: "Phase 15 EXECUTING — Wave 2 in progress: 15-03 complete (cb26f72 transport+auth sends, 85ceeda rows 3-10, 008ced0 rows 11-18; 4e25bea + 74e539c the copy-assertion auto-fix). 18 of 19 senders compose renderEmail; <p><strong> 18 -> 1 and the survivor is the ops digest's. send() is now (to, subject, html, text). Wave 1 was 15-01 + 15-06; 15-02 and 15-07 done. REMAINING IN WAVE 2: 15-04, 15-05. NOTE: EMAIL-01/EMAIL-02 still NOT marked complete — 18/19 is not 'all existing sends'; 15-04 lands the nineteenth (sendOpsAlertDigest) and closes both. AUTHUI-01/AUTHUI-03 also still open (15-08 / 15-11)."
+last_updated: "2026-08-24T12:37:51.495Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-03 executed (eighteen senders adopt the email shell)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 100
+  completed_plans: 101
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 5 of 11
-Current Plan: 5
+Plan: 6 of 11
+Current Plan: 6
 Total Plans in Phase: 11
-Status: Executing — Wave 2 in progress: 15-07 complete (all four auth pages on PanelCard); 15-03, 15-04 and 15-05 remain
+Status: Executing — Wave 2 in progress: 15-03 complete (18 of 19 sends on the shell); 15-04 and 15-05 remain
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 plan 15-07 executed (the four auth cards adopt PanelCard)
+Last activity: 2026-08-24 -- Phase 15 plan 15-03 executed (eighteen senders adopt the email shell)
 
 ## Performance Metrics
 
@@ -494,7 +494,7 @@ Last activity: 2026-08-24 -- Phase 15 plan 15-07 executed (the four auth cards a
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
-| 15 | 4 | - | - |
+| 15 | 5 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -694,6 +694,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P06 | 22min | 2 tasks | 4 files |
 | Phase 15 P02 | 16min | 2 tasks | 2 files |
 | Phase 15 P07 | 38min | 2 tasks | 6 files |
+| Phase 15 P03 | 24min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1139,6 +1140,13 @@ Recent decisions affecting current work:
 - [Phase 15]: 15-07: The scoped brand total (19) staying still while the repo-wide one moved is the cross-check that all four conversions landed in (auth) and nowhere else — (auth) is inside ADOPTION_TREES and outside all four SCOPED_TREES. If both moved, something landed in the booking/group/search trees.
 - [Phase 15]: 15-07: Three prose mentions had to be de-quoted (booking-row.tsx:112's precedent) because the plan's own greps count those strings in those files — the same collision 15-06 hit four times. ⚠ RECURRING: a comment that quotes the mechanism it explains fails the gate that documents it.
 - [Phase 15]: 15-07: (auth)/error.tsx STILL claims the group's layout renders PublicHeader and no <main>; both went false in 15-06. 15-07 does not own that file either (its verification pins the touched-file list at six). Two plans' provenance, still no owner — whichever plan next edits it should take it.
+
+- [Phase 15]: 15-03: ⚠ EMAIL COPY IS NOW ASSERTED ON email.text, NOT email.html. The shell escapes each paragraph at the choke point, so every apostrophe in shipped copy ("You're", "haven't", "can't") reaches the HTML part as &#39;. Two notify.test.ts assertions went red for that alone — and one ABSENCE guard (the WR-04 rule that the canceller never receives the booker's "You're getting a full refund" sentence) had become literally unfailable, because that literal can no longer appear in any HTML part. A copy() reader now returns the plain-text twin and THROWS when it is missing, so an absence assertion cannot be vacuous. Anyone writing a new email test: sentences → email.text, structure → email.html.
+- [Phase 15]: 15-03: ALL_RAILS_REFUND_WINDOW was MEASURED before sendRefundIssued was routed through the escaper, not assumed — "Refunds to GCash and Maya are usually back within 24 hours; a card can take up to 30 days, depending on your bank." contains NONE of the five HTML-significant characters, so escapeHtml(v) === v and the money-path disclosure renders byte-identical. Recorded on the sender's docblock with an instruction to measure again if that constant ever gains one.
+- [Phase 15]: 15-03: send() gained a REQUIRED fourth parameter (text), which is a contract change at all nineteen call sites — including row 19, whose shell adoption is 15-04's. sendOpsAlertDigest therefore passes its SUBJECT as an interim text part: derived from a string that already exists, so no operator copy was invented and renderOpsAlertDigest stays byte-identical. 15-04 replaces it with the real tableText twin.
+- [Phase 15]: 15-03: The verification and reset emails are paragraphs: [] on purpose — the AUTHFB-01 boundary written in code. The one copy change the phase permits is the labelled CTA replacing a bare token URL used as its own link text. NO roadmap amendment is proposed even though the shell makes an expiry / "if you didn't request this" line near-free: cheapness was never why AUTHFB-01 was deferred.
+- [Phase 15]: 15-03: Two of the plan's grep acceptance criteria ('sent: true' → 1, 'email:dev' → 1) misdescribed the BASELINE, not the target — the shipped file already had 2 and 4. Every count that matters was verified equal to `git show`'s: sent: true, email:dev, onboarding@resend.dev, ALL_RAILS_REFUND_WINDOW and resend.emails.send are all unchanged.
+- [Phase 15]: 15-03: Task 1's "tsc exits 0" could not hold at Task 1 — with text required the file only typechecks once all nineteen call sites pass four arguments, which is Task 3. Runtime verification (vitest transpiles without typechecking) was run per-task instead; tsc is exit 0 at plan end.
 
 ### Pending Todos
 
