@@ -127,7 +127,21 @@
 //        `/forgot-password` — where the wording is a security property rather than a tone, and where
 //        a well-meaning "helpful" rewrite ("We couldn't find that email") is a real and attractive
 //        change. A gate that only fired on big edits would not be on that path at all.
-//   (M5) PENDING — the single landmark doubles: a second one opened inside `(auth)/layout.tsx`.
+//   (M5) RUN AND REVERTED. The single landmark doubles: the column `<div>` inside `(auth)/layout.tsx`
+//        promoted to a second landmark element (and its closing tag with it). This is how the defect
+//        would really arrive — not as a stray element, but as somebody "promoting" the wrapper that
+//        already holds the content. 1 failed / 12 passed:
+//
+//          AssertionError: the (auth) layout does not open exactly ONE document landmark. D-88.1: one
+//          per document. This element is in the LAYOUT rather than in each page because four pages plus
+//          one error boundary is five places to forget it, and the boundary is where forgetting it is
+//          least visible — so a second one here is the duplication that arrangement exists to make
+//          impossible.: expected 2 to be 1 // Object.is equality
+//
+//        THE ASSERTION IS `toBe(1)` RATHER THAN "no extras", so the ZERO direction is covered by the
+//        same line — a refactor that moved the landmark back into each page would leave the layout at
+//        0 and redden here, with the second half of the same `it()` catching the four pages that grew
+//        one each.
 //   (M6) PENDING — a removed region comes back: `role="status"` restored on the login page's
 //        post-reset notice, i.e. plan 15-07's `ResetNotice` demotion undone.
 //
