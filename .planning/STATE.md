@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 9
+current_plan: 10
 status: executing
 stopped_at: "Phase 15 EXECUTING — 15-09 COMPLETE (ba392e9 the seven account-surface live regions, e9d0155 the AUTHUI-01/03 composition gate committed green-but-unprobed, 45e2228 / 44695fd / 78f4f33 / 1a8e7f0 / d13fec2 / ba1e50b / e8ab7f5 the six-probe mutation walk with every red watched and one predicted-wrong note corrected, 07c6f19 the final summary). LIVE_REGION_FILES 21 -> 26 with the tsc red observed BEFORE the count moved; seven declared rows; AUTHOR_NAMED_REGIONS 9 -> 11; LIVE_REGION_EXCLUSIONS still empty. npm run test:design 53 files / 895 passed / 3 skipped (was 52 / 882); tsc 0; npm run build 0. AUTHUI-01 and AUTHUI-03 ADVANCED, NOT ticked — both span 15-11's baselines and 320px measurements. REMAINING in phase 15: 15-10 (wave 4), 15-05 and 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed."
-last_updated: "2026-08-24T14:57:49.164Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-09 executed (the account surfaces join the live-region inventory at 26 files / 7 rows, and the one-composition-four-screens gate lands build-blocking with six watched reds)
+last_updated: "2026-08-24T15:39:17.742Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-10 executed (AUTHUI-02 becomes 13 build-blocking commands with a real-component DOM link and a seven-probe walk; the five account routes and two form-replacing branches join the 320px table at 40 cases)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 104
+  completed_plans: 105
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 9 of 11
-Current Plan: 9
+Plan: 10 of 11
+Current Plan: 10
 Total Plans in Phase: 11
-Status: Executing — 15-09 complete (inventory at 26 files, the AUTHUI-01/03 composition gate build-blocking). Wave 4 still owes 15-10; wave 5 owes 15-05 and 15-11
+Status: Executing — 15-10 complete (the AUTHUI-02 gate is build-blocking at 13 cases; the 320px table is at 40). Wave 4 is CLOSED; wave 5 owes 15-05 and 15-11
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 plan 15-09 executed (the account surfaces join the live-region inventory at 26 files / 7 rows, and the one-composition-four-screens gate lands build-blocking with six watched reds)
+Last activity: 2026-08-24 -- Phase 15 plan 15-10 executed (AUTHUI-02 becomes 13 build-blocking commands with a real-component DOM link and a seven-probe walk; the five account routes and two form-replacing branches join the 320px table at 40 cases)
 
 ## Performance Metrics
 
@@ -494,7 +494,7 @@ Last activity: 2026-08-24 -- Phase 15 plan 15-09 executed (the account surfaces 
 | 12 | 15 | - | - |
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
-| 15 | 6 | - | - |
+| 15 | 9 | - | - |
 
 *14-04: ~10 min wall-clock, 2 tasks (both auto), 2 files created + 0 modified, 3 commits + 1 metadata.
 Zero product surface: a pure derivation and its table. Two watched reds, both reverted — a coalescing
@@ -510,6 +510,22 @@ surface count put back to 13, and a raw box reintroduced into a file whose allow
 been deleted. That last one is the point of D-155: the deletion is what makes the box's return a
 failure rather than a permanent exemption. Two deviations, both ending duplicates 14-04 had named —
 the editor's looser second hour parser and its third copy of the weekday names.*
+
+*15-10: ~37 min wall-clock, 2 tasks (both auto), 1 file created + 1 modified, 11 commits, ZERO
+`src/` changes. Six mutation probes plus one negative control, each applied alone, run, and reverted
+with `git diff --exit-code src/` clean before the next. M5 (the optimistic save — the awaited result
+replaced by a `setTimeout`) was seen by exactly ONE of 54 design files: it leaves every pixel, count,
+container, token and sentence byte-identical and changes only whether the sentence is TRUE. The plan
+predicted the design config could not import `profile-form.tsx`'s server actions and offered a weaker
+fallback; probing found the import fine and `useRouter()` the real blocker, so one `next/navigation`
+stub bought a DOM link stronger than the fallback. One process fault recorded rather than hidden: M7's
+note was committed one commit before M7 was run, and is corrected in its own commit even though the
+probe agreed.*
+
+*⚠ THE PHASE-15 ROW WAS AT 6 AND NINE `15-XX-SUMMARY.md` FILES EXIST ON DISK (01-04, 06-10). Set to 9
+by hand at 15-10, measured by counting the files rather than by incrementing. The row had drifted at
+some point before this plan; `gsd-sdk v1.42.3`'s `state.record-metric` reports `recorded: true` and
+writes nothing, which is the likeliest cause and is worth knowing before the next plan trusts it.*
 
 *08-09: ~43 min wall-clock, 2 tasks (1 auto + 1 blocking human-verify), 0 product files.*
 *11-22: ~93 min wall-clock, 5 tasks (3 auto + 2 blocking checkpoints) plus one unplanned CI fix, 9 source/config files + 25 baseline PNGs, 8 commits. Four observed CI runs driven by the coordinator; three OBSERVED REDs recorded.*
@@ -698,6 +714,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P08 | 19min | 2 tasks | 4 files |
 | Phase 15 P04 | 78min | 3 tasks | 5 files |
 | Phase 15 P09 | 21min | 2 tasks | 3 files |
+| Phase 15 P10 | 37 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -711,6 +728,11 @@ deferred walk is inconsistent rather than honest.*
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [15-10]: **When a plan predicts a blocker and offers a weaker fallback, PROBE the prediction — it can be wrong in the direction that makes the gate stronger.** 15-10-PLAN warned that `profile-form.tsx`'s server actions "may not resolve under the design config" and instructed a `PanelCard` stand-in with the weaker link named honestly. Measured: the import throws NOTHING (a `"use server"` file is a plain module under that config, and the `server-only` alias is what makes it so); the real blocker is `useRouter()` — *"invariant expected app router to be mounted"* — and ONE `vi.mock` of `next/navigation` renders the real component, making "two panels" a DOM fact rather than an AST count. The stub is declared in the file's header along with everything that is NOT stubbed. ⚠ The fallback would have shipped a permanently weaker gate on the strength of an untested guess.
+- [15-10]: **The mutation that earns a gate is the one no other gate can see, and that has to be MEASURED across the whole suite rather than asserted.** The optimistic save — `await updateProfile(...)`'s result replaced by `setTimeout(() => setSaved(true), 800)` — was run against all 54 design files: **1 failed | 53 passed**. It leaves the markup, copy, containers, counts, tokens, live regions and every pixel byte-identical and changes only whether the sentence *"Profile saved."* is TRUE. `tests/profile/` cannot see it either (it drives the server action, not the component). By contrast M3 (an accent fill) reddened here AND in `brand-recipe.test.ts` — and the two are still not redundant, because a repo-wide total is a BUDGET that a one-character edit satisfies, while a per-surface ban is not.
+- [15-10]: **A 320px row's `tell` must be narrowed the moment the redirect target starts rendering the same hook.** `overflow-320.spec.ts`'s `/profile` row was specified with `tell: '[data-testid="panel-card"]'`; `(app)/profile/page.tsx` redirects an anonymous visitor to `/login`, and plan 15-07 put `/login` on `PanelCard` — so the row would have measured the login page twice and reported `/profile` as covered, which is the plan's own T-15-32 shipping inside the mitigation written for it. Narrowed to `[data-testid="panel-card"]:has-text("Private account info")` — still the declared hook, scoped by a sentence `tests/design/profile-pass.test.tsx` pins byte-for-byte, so the reachability guard and the copy pin move together. ⚠ The four auth rows keep the plain hook and the file states what that CANNOT prove: they share one composition, so a `/signup` row would stay green if it served `/login`; what closes that is their literal paths, not their selectors.
+- [15-10]: **`gsd-sdk v1.42.3`'s state verbs are still not to be trusted without a diff.** `state.advance-plan` clobbered `last_activity` to a bare date and `Status` to "Ready to execute" while leaving `stopped_at` pointing at 15-09; `state.update-progress` returned `"Progress field not found"`; `state.record-metric` with positional args errored, and with named args returned `recorded: true` **and wrote nothing**. The phase-15 metrics row was found at 6 with nine `15-XX-SUMMARY.md` files on disk and was set by counting files rather than incrementing. All four repaired by hand at 15-10.
 
 - [14-15]: **A responsive surface that renders TWO TREES gets a RESPONSIVE declared measurement, and the breakpoint in the constant is a fact about the route.** `/host/requests` and `/host/bookings` each render a row-card stack below the medium breakpoint and a TABLE at and above it, showing exactly one per width — so the three host row heights are `h-33 sm:h-18` (agenda), `h-64 md:h-21` (request) and `h-49 md:h-9` (booking), and the desktop halves describe TABLE ROWS. Measured on the rendered routes 2026-08-23: 132.00 / 72.00, 254.05 / 83.02, 196.00 / 37.02, against the single 80px bar all three plates drew. Worst delta after the fix: 1.95px, inside 14-UI-SPEC's 4px falsifiable. ⚠ Measuring the CARD above the breakpoint measures a `display:none` subtree, whose box is zero — every comparison would then be 0-against-0 and pass while measuring nothing.
 - [14-15]: **A delta that cannot be closed is a pinned assertion with both measured numbers, never a paragraph.** `/host/bookings` mixes a confirmed row (196 / 37.02, what the bar draws) with one still awaiting an answer (232–252 / 60.5–61, because it grows an approve/decline actions row). No single bar is right for both, and drawing the taller shape would over-claim on the ordinary case. The over-run is asserted as a band in `e2e/skeleton-geometry.spec.ts` — tight at 1280 where nothing wraps, deliberately wider at 320 where the window label's wrap count moves with the calendar. ⚠ The dishonest fix the plan names — shrinking the plate's row COUNT until the totals agree while every individual row still disagrees — was explicitly refused.
