@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: "Phase 15 EXECUTING — 15-04 COMPLETE (9ae38da the guarded-site inventory, a916e0c its watched reds, f908a21 the injection probe's M1/M2 walk finished, a7f8b95 the final summary; Tasks 1-2 were 57d0ee7 / bd015f0 / b9fe3bb from the executor that died mid-walk). NINETEEN of nineteen senders compose the shell; 141-case all-sender injection probe green; the contacts gate audits TWO guarded sites (app footer + email-shell) at 28 passed | 3 skipped of 31. EMAIL-01 and EMAIL-02 are now COMPLETE (checkbox + traceability row). EMAIL-03 stays open — it is 15-05's real-client inbox walk. REMAINING in phase 15: 15-05 (wave 5), 15-09, 15-10 (wave 4), 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed."
-last_updated: "2026-08-24T14:29:16.337Z"
-last_activity: 2026-08-24 -- Phase 15 plan 15-04 executed (the nineteenth sender, the all-sender injection probe, and a two-site contacts gate; EMAIL-01 + EMAIL-02 closed)
+stopped_at: "Phase 15 EXECUTING — 15-09 COMPLETE (ba392e9 the seven account-surface live regions, e9d0155 the AUTHUI-01/03 composition gate committed green-but-unprobed, 45e2228 / 44695fd / 78f4f33 / 1a8e7f0 / d13fec2 / ba1e50b / e8ab7f5 the six-probe mutation walk with every red watched and one predicted-wrong note corrected, 07c6f19 the final summary). LIVE_REGION_FILES 21 -> 26 with the tsc red observed BEFORE the count moved; seven declared rows; AUTHOR_NAMED_REGIONS 9 -> 11; LIVE_REGION_EXCLUSIONS still empty. npm run test:design 53 files / 895 passed / 3 skipped (was 52 / 882); tsc 0; npm run build 0. AUTHUI-01 and AUTHUI-03 ADVANCED, NOT ticked — both span 15-11's baselines and 320px measurements. REMAINING in phase 15: 15-10 (wave 4), 15-05 and 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed."
+last_updated: "2026-08-24T14:57:49.164Z"
+last_activity: 2026-08-24 -- Phase 15 plan 15-09 executed (the account surfaces join the live-region inventory at 26 files / 7 rows, and the one-composition-four-screens gate lands build-blocking with six watched reds)
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 102
-  completed_plans: 103
+  completed_plans: 104
   percent: 50
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 15 (auth-profile-transactional-email) — EXECUTING
-Plan: 8 of 11
-Current Plan: 8
+Plan: 9 of 11
+Current Plan: 9
 Total Plans in Phase: 11
-Status: Executing — 15-04 complete (19/19 senders on the shell; EMAIL-01 + EMAIL-02 closed). Wave 4 still owes 15-09 and 15-10; wave 5 owes 15-05 and 15-11
+Status: Executing — 15-09 complete (inventory at 26 files, the AUTHUI-01/03 composition gate build-blocking). Wave 4 still owes 15-10; wave 5 owes 15-05 and 15-11
 
 **Phase 14 (Host Tooling) remains READY FOR VERIFICATION** — all 16 plans executed, but no
 14-VERIFICATION.md exists yet; phase-level completion is the verifier's call, so ROADMAP/STATE still
@@ -471,7 +471,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-24 -- Phase 15 plan 15-04 executed (the nineteenth sender, the all-sender injection probe, and a two-site contacts gate; EMAIL-01 + EMAIL-02 closed)
+Last activity: 2026-08-24 -- Phase 15 plan 15-09 executed (the account surfaces join the live-region inventory at 26 files / 7 rows, and the one-composition-four-screens gate lands build-blocking with six watched reds)
 
 ## Performance Metrics
 
@@ -697,6 +697,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P03 | 24min | 3 tasks | 2 files |
 | Phase 15 P08 | 19min | 2 tasks | 4 files |
 | Phase 15 P04 | 78min | 3 tasks | 5 files |
+| Phase 15 P09 | 21min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1158,6 +1159,10 @@ Recent decisions affecting current work:
 - [Phase 15]: 15-04: OpsDigestRow still has NO meta field, and the absence is the contract — re-exporting booking ids, transfer ids or masked last-4s across the email trust boundary is a type error at the renderer rather than something a reviewer has to notice (D-72). Its PII guarantee is now read DIRECTLY off the built string as well as through the transport; before this plan zero test files imported renderOpsAlertDigest and the docblock's claim about a direct read was false.
 - [Phase 15]: 15-04: a source-scanning gate audits a DECLARED INVENTORY of sites with a reason per row, never one hardcoded file, and asserts the walker REACHED every row before any absence assertion runs. tests/design/site-contacts.test.ts GUARDED_SITES now carries the app footer AND src/lib/email-shell.ts; probe (f) records the other two thirds of the structural trio passing cleanly over a file the walker never opened, which is the vacuity the reach assertion closes.
 - [Phase 15]: 15-04: the digest's runbook paragraphs dropped their <code> wrappers. Under the shell, paragraphs are escaped at the choke point, so a <code> element inside one renders as visible tag text. Command strings are byte-identical and carried as plain text — the same house style as the — AGING marker. Stated, not slipped in.
+- [Phase 15]: D-15-09a: the account surfaces join live-regions.ts by WIDENING the membership rule, not by discharging an exclusion — they were out of scope, never excluded, so LIVE_REGION_EXCLUSIONS stays empty at 26 files
+- [Phase 15]: D-15-09b: five of the seven new live regions stay content-named — each carries a SERVER refusal sentence, and on VoiceOver a named region can be announced by its name INSTEAD of its content, which would trade the reason for a label
+- [Phase 15]: D-15-09c: the composition gate bans SiteChrome, not the plan's PublicHeader — no component by that name is exported anywhere in src/, and a gate banning a name nothing exports is green forever
+- [Phase 15]: D-15-09d: a green-but-unprobed gate is committed with its mutation walk marked NOT YET RUN in its own header, so an executor that dies mid-walk cannot leave behind a header claiming reds nobody watched
 
 ### Pending Todos
 
@@ -1267,8 +1272,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-24T14:28:47.618Z
-Stopped at: Phase 15 EXECUTING — 15-04 COMPLETE (9ae38da the guarded-site inventory, a916e0c its watched reds, f908a21 the injection probe's M1/M2 walk finished, a7f8b95 the final summary; Tasks 1-2 were 57d0ee7 / bd015f0 / b9fe3bb from the executor that died mid-walk). NINETEEN of nineteen senders compose the shell; 141-case all-sender injection probe green; the contacts gate audits TWO guarded sites (app footer + email-shell) at 28 passed | 3 skipped of 31. EMAIL-01 and EMAIL-02 are now COMPLETE (checkbox + traceability row). EMAIL-03 stays open — it is 15-05's real-client inbox walk. REMAINING in phase 15: 15-05 (wave 5), 15-09, 15-10 (wave 4), 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed.
+Last session: 2026-08-24T14:57:08.255Z
+Stopped at: Phase 15 EXECUTING — 15-09 COMPLETE (ba392e9 the seven account-surface live regions, e9d0155 the AUTHUI-01/03 composition gate committed green-but-unprobed, 45e2228 / 44695fd / 78f4f33 / 1a8e7f0 / d13fec2 / ba1e50b / e8ab7f5 the six-probe mutation walk with every red watched and one predicted-wrong note corrected, 07c6f19 the final summary). LIVE_REGION_FILES 21 -> 26 with the tsc red observed BEFORE the count moved; seven declared rows; AUTHOR_NAMED_REGIONS 9 -> 11; LIVE_REGION_EXCLUSIONS still empty. npm run test:design 53 files / 895 passed / 3 skipped (was 52 / 882); tsc 0; npm run build 0. AUTHUI-01 and AUTHUI-03 ADVANCED, NOT ticked — both span 15-11's baselines and 320px measurements. REMAINING in phase 15: 15-10 (wave 4), 15-05 and 15-11 (wave 5). Phase completion is the verifier's call and was NOT claimed.
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
