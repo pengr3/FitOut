@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
 status: verifying
-stopped_at: "Phase 14 (Host Tooling) COMPLETE — 16 plans, verified 5/5 must-haves, code review 0 Critical / 4 Warning all fixed. 3 manual items owed: nine court-only visual baselines (blocked: --project=visual is Linux-only), the two-timezone dashboard UAT walk, and the week-strip mistyped-window UAT."
-last_updated: "2026-08-23T18:48:30.079Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-08-24T06:15:06.191Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 12
@@ -1224,8 +1224,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-23T18:48:30.055Z
-Stopped at: Phase 14 (Host Tooling) COMPLETE — 16 plans, verified 5/5 must-haves, code review 0 Critical / 4 Warning all fixed. 3 manual items owed: nine court-only visual baselines (blocked: --project=visual is Linux-only), the two-timezone dashboard UAT walk, and the week-strip mistyped-window UAT.
+Last session: 2026-08-24T06:15:06.150Z
+Stopped at: Phase 15 context gathered
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
@@ -1311,7 +1311,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/14-host-tooling/14-VERIFICATION.md
+Resume file: .planning/phases/15-auth-profile-transactional-email/15-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
