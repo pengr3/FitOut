@@ -22,13 +22,20 @@ import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 //
 // `renderOpsAlertDigest` below keeps its per-field calls exactly where they are: its output enters
 // the shell through the one PRE-ESCAPED slot, which the renderer deliberately does not escape.
-import { escapeHtml } from "@/lib/email-shell";
+//
+// EMAIL-01 — `renderEmail` is the ONE shell every send below composes. A sender states its message as
+// an `EmailContent` (heading, paragraphs, one CTA) with RAW interpolations, and the renderer escapes
+// every sink on the way into the HTML part while the plain-text twin keeps the raw strings. That is
+// why the per-field `escapeHtml` locals that used to sit at the top of each sender are gone: escaping
+// is now STRUCTURAL rather than remembered nineteen times. Do not reintroduce a local escape before
+// handing a value to `renderEmail` — it would double-encode.
+import { renderEmail, escapeHtml } from "@/lib/email-shell";
 
 const key = process.env.RESEND_API_KEY;
 const resend = key ? new Resend(key) : null;
 const FROM = process.env.EMAIL_FROM ?? "FitOut <onboarding@resend.dev>";
 
-async function send(to: string, subject: string, html: string) {
+async function send(to: string, subject: string, html: string, text: string) {
   if (!resend) {
     // WR-02 — the dev fallback logs the FULL email body, which includes the single-use
     // reset/verification link and its live token. That is acceptable locally but a credential
@@ -44,18 +51,37 @@ async function send(to: string, subject: string, html: string) {
     console.log(`[email:dev] to=${to} ${subject}\n${html}`);
     return;
   }
-  const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+  const { error } = await resend.emails.send({ from: FROM, to, subject, html, text });
   if (error) console.error("resend error", error);
 }
 
+/**
+ * `paragraphs: []` HERE AND IN `sendResetPassword` IS DELIBERATE, AND IT IS THE AUTHFB-01 BOUNDARY
+ * WRITTEN IN CODE. The body that shipped was `Verify: <a href="…">…</a>` — a raw URL used as its own
+ * visible label, which a shell button cannot carry. Replacing that with a labelled CTA is this
+ * phase's ONE email copy change. Adding a sentence of explanation, an expiry line, or an "if you
+ * didn't request this" line would be AUTHFB-01, which stays in the backlog by standing choice — the
+ * shell making that work look near-free is not a licence to absorb it.
+ *
+ * The `url` goes in RAW. WR-01 still holds and holds more strictly: the shell escapes the href at the
+ * one choke point, so no composition site can forget it. Escaping here as well would double-encode.
+ */
 export const sendVerificationEmail = (to: string, url: string) => {
-  const safe = escapeHtml(url); // WR-01 — never interpolate the raw url into HTML.
-  return send(to, "Verify your FitOut email", `Verify: <a href="${safe}">${safe}</a>`);
+  const { html, text } = renderEmail({
+    heading: "Verify your email",
+    paragraphs: [],
+    cta: { label: "Verify email", href: url },
+  });
+  return send(to, "Verify your FitOut email", html, text);
 };
 
 export const sendResetPassword = (to: string, url: string) => {
-  const safe = escapeHtml(url); // WR-01 — never interpolate the raw url into HTML.
-  return send(to, "Reset your FitOut password", `Reset: <a href="${safe}">${safe}</a>`);
+  const { html, text } = renderEmail({
+    heading: "Reset your password",
+    paragraphs: [],
+    cta: { label: "Reset password", href: url },
+  });
+  return send(to, "Reset your FitOut password", html, text);
 };
 
 // ---------------------------------------------------------------------------
