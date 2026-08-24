@@ -1,7 +1,7 @@
 ---
 phase: 15
 slug: auth-profile-transactional-email
-status: draft
+status: approved
 shadcn_initialized: true
 preset: "radix-nova (components.json; baseColor neutral, cssVariables true, registries {})"
 created: 2026-08-24
@@ -888,9 +888,13 @@ inventory somebody can work from, never a baseline captured against a live accou
 ## Open Questions — flagged for the PM, not blocking
 
 1. **`PublicHeader` leaves the `(auth)` layout.** D-162's "wordmark above the card" plus SHELL-01's
-   no-two-wordmarks rule force the choice, and every navigation the header offered survives on the
-   cards. Reversible by re-adding the header and demoting the centered wordmark — one layout edit;
-   nothing else depends on it.
+   no-two-wordmarks rule force the choice, and every navigation the header offered a **signed-out
+   visitor** survives on the cards. A signed-in visitor on `/forgot-password`/`/reset-password` — an
+   intentionally reachable path (`src/middleware.ts:68-69`, "a user resetting from a verified-but-stale
+   device") — loses the header's mode switch, notification bell and profile link and must route
+   wordmark → home to reach them; accepted tradeoff (checker-verified 2026-08-24), no route is
+   orphaned and tab order stays sound. Reversible by re-adding the header and demoting the centered
+   wordmark — one layout edit; nothing else depends on it.
 2. **The verification and reset emails' CTA labels** (`Verify email` / `Reset password`) replace a
    raw URL rendered as anchor text — the one copy change in the email half, taken because a shell
    button cannot carry a URL as its label and the raw URL survives in the plain-text part. If the PM
@@ -900,8 +904,10 @@ inventory somebody can work from, never a baseline captured against a live accou
    other booker page. If the PM prefers the shipped rhythm, the alternative is a one-line
    `PROFILE_SHELL` constant — the duplication still ends either way.
 4. **The ops digest wears the branded shell.** EMAIL-01 says all 19 sends and this spec obeys it; an
-   operator-only email arguably wants density over identity. Excluding it is one row's reversal and a
-   noted EMAIL-01 carve-out if the PM prefers.
+   operator-only email arguably wants density over identity. Excluding it later is bounded but larger
+   than one row — the adopters, visual-hierarchy and accent-budget rows plus acceptance criteria
+   #13/#16 all say "all 19", and an 18/19 split reintroduces the special case the shell exists to end
+   — a noted EMAIL-01 carve-out if the PM prefers.
 5. **Forgot/reset drop the Google button and divider** — they never had them; recorded so nobody
    "completes" the composition by adding them. A recovery flow offering an OAuth sign-in is a flow
    change, not a restyle.
@@ -910,11 +916,14 @@ inventory somebody can work from, never a baseline captured against a live accou
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** APPROVED — gsd-ui-checker, 2026-08-24. 6/6 dimensions PASS, zero blockers.
+Two non-blocking wording corrections from the checker folded into Open Questions 1 and 4 above
+(signed-in `(auth)` navigation gap named as an accepted tradeoff; ops-digest carve-out cost restated
+honestly). Open Questions remain PM-deferrable; none changes plan structure.
