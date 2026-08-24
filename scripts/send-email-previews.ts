@@ -93,6 +93,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+// TYPE-ONLY, and load-bearing rather than decorative: it is erased at runtime (so it cannot trip
+// TRAP A by evaluating the module before the environment is settled), and it is what makes the
+// sender lookup below a TYPED index into the email module's real exports. A fixture naming a sender
+// this module does not export stops being a runtime surprise and becomes a `tsc` error here.
+import type * as EmailSenders from "@/lib/email";
+
 import {
   SENDER_COUNT,
   SENDER_FIXTURES,
@@ -327,8 +333,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // TRAP A: dynamic, and only now that the environment is settled.
-  const senders = (await import("@/lib/email")) as unknown as Record<string, unknown>;
+  // TRAP A: dynamic, and only now that the environment is settled. Typed against the static
+  // type-only import above, so the lookup inside the loop is checked rather than stringly-guessed.
+  const senders = (await import("@/lib/email")) as typeof EmailSenders;
 
   const plan: Array<{ sender: SenderName; call: SenderCall }> = [];
   for (const sender of SENDER_NAMES) {
@@ -356,7 +363,7 @@ async function main(): Promise<void> {
     providerStatus = null;
     providerDetail = "";
 
-    const fn = senders[sender];
+    const fn: unknown = senders[sender];
     if (typeof fn !== "function") {
       dispatches.push({
         index,
