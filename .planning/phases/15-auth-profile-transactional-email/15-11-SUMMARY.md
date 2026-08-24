@@ -46,7 +46,7 @@ patterns-established:
   - "When a second literal in a second file guards a count, say in both files that it is a `const` and therefore invisible to `tsc`"
 
 requirements-completed: []
-requirements-advanced: [AUTHUI-03]
+requirements-advanced: [AUTHUI-03]  # baseline clause CLOSED; keyboard + AA clauses unevidenced — see Requirements
 
 # Metrics
 duration: 10min
@@ -314,10 +314,10 @@ All five mitigations this plan owns are discharged in Task 1; the sixth is the c
 | Threat | Disposition | Where discharged |
 | --- | --- | --- |
 | T-15-34 — a surface silently photographed as `/login` | ✅ mitigated | `profile` declared **blocked** with the drive need named, and with the specific sting that its hook would be *satisfied* by `/login` |
-| T-15-35 — a stale baseline pinning a departed composition | ✅ mitigated in the declaration | hook + three prose claims rewritten; the PNG replacement is Task 2's, and the checkpoint requires blob-hash proof |
+| T-15-35 — a stale baseline pinning a departed composition | ✅ **fully mitigated** | hook + three prose claims rewritten in Task 1; both PNGs came back `M` in `7541999` (37384→36155 B, 34472→33363 B), so they were REPLACED rather than joined — which is the positive proof the hook edit took |
 | T-15-36 — a pinned count moved ahead of its rows | ✅ mitigated | red observed UNFORCED, quoted verbatim at (2181,3), alias renamed in the same commit |
 | T-15-37 — a baseline captured outside the pinned image | ✅ mitigated | nothing generated, nothing deleted, no screenshot hand-committed; routed to `workflow_dispatch` |
-| T-15-38 — a generation run mistaken for a comparison run | ⏸ Task 2's | the checkpoint below demands the FOLLOW-UP run's id, not the generation run's |
+| T-15-38 — a generation run mistaken for a comparison run | ✅ **mitigated** | the deliverable recorded is comparison run `32752143309` (`gate-visual` ✓ 3m59s), reached via empty commit `2f36376`; generation run `32751407382` is recorded as the *input*, not the evidence |
 | T-15-SC — package installs | n/a | zero installs |
 
 ## Threat Flags
@@ -334,7 +334,16 @@ git diff --exit-code e2e/visual/theme-swap.spec.ts                   EXIT=0
 
 `npm test` and `npm run build` were **not** re-run: this plan changed two declaration modules and no runtime code path, `tsc` covers both files, and this box's measured back-to-back build/test interference (22 bogus failures) makes an unnecessary full run a source of noise rather than evidence. The 15-10 close recorded `npm test` at 181 files / 2037 passed and `npm run build` at 0; nothing here can move either.
 
-⚠ **Treat the local green as silence, not evidence.** The Playwright `visual` project is not constructed on this machine, so nothing local can report a baseline mismatch in either direction.
+⚠ **Treat the LOCAL green as silence, not evidence.** The Playwright `visual` project is not constructed on this machine, so nothing local can report a baseline mismatch in either direction. That caveat is now discharged by CI rather than standing:
+
+```
+baselines  workflow_dispatch  run 32751407382   success  4m04s   18 files, all *-visual-linux.png
+ci         run 32752143309    SUCCESS
+             gate-db-free ✓   gate-db ✓   gate-visual ✓ 3m59s   gate-price-parity ✓
+git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' | wc -l   →  36
+```
+
+**The comparison run is the evidence; the generation run is not.** A `GITHUB_TOKEN` push triggers no workflow, so `7541999` was never compared against anything until empty commit `2f36376` forced run `32752143309`.
 
 ## Commits
 
@@ -345,6 +354,12 @@ git diff --exit-code e2e/visual/theme-swap.spec.ts                   EXIT=0
 | `e329d76` | docs(15-11): the inventory summary, at the Task 2 dispatch checkpoint |
 | `f8af1bf` | docs(15-11): log the two pre-existing stale count paragraphs as deferred |
 | `362fb89` | docs(15-11): record the inventory plan and its open dispatch checkpoint |
+| `61b739c` | docs(15-11): complete the summary's commit table and self-check |
+| `7541999` | chore(11-22): regenerate visual baselines in the pinned Linux image *(github-actions[bot], run `32751407382`)* |
+| `2f36376` | chore(15-11): trigger the baseline comparison run *(orchestrator; forced run `32752143309`)* |
+| `603af93` | docs(15-11): record the dispatch discharge, including the prediction that was wrong |
+| `40a934e` | docs(15-11): decide AUTHUI-03 on the evidence — NOT ticked, two gates unevidenced |
+| `1fb4df3` | docs(15-11): log the two AUTHUI-03 gate gaps and the pre-existing gate-visual drift |
 
 ## Self-Check: PASSED
 
@@ -352,7 +367,10 @@ git diff --exit-code e2e/visual/theme-swap.spec.ts                   EXIT=0
 - `e2e/visual/surfaces.spec.ts` — FOUND (modified, committed in `46b491d`)
 - `.planning/phases/15-auth-profile-transactional-email/15-11-SUMMARY.md` — FOUND (`e329d76`)
 - `.planning/phases/15-auth-profile-transactional-email/deferred-items.md` — FOUND (`f8af1bf`)
-- commits `1a65faf`, `46b491d`, `e329d76`, `f8af1bf`, `362fb89` — all FOUND
+- all 8 local commits FOUND: `1a65faf`, `46b491d`, `e329d76`, `f8af1bf`, `362fb89`, `61b739c`, `603af93`, `40a934e`, `1fb4df3`
+- the two CI/orchestrator commits FOUND on `dev`: `7541999` (18 baseline files) and `2f36376` (empty, forced the comparison)
+- `git ls-files '…-snapshots/*-visual-linux.png' | wc -l` → **36**, matching the declared 36 shootable rows
+- `git ls-files '…-snapshots/profile-*'` → **0 files**, the correct result for two blocked rows
 
 Working tree carries only the three pre-existing entries this plan was told to leave alone
 (` M .planning/config.json`, `?? .claude/`, `?? .planning/phases/13.1-…/.gitkeep`).
