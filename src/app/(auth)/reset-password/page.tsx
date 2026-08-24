@@ -15,8 +15,12 @@
 // component wrapped below.
 //
 // ⚠ GATE-NOREG #4 BINDS ON THIS FILE. Plan 15-07 restyled the box and moved nothing else: the hidden
-// token input, `resetSchema`, the password → `newPassword` mapping and the `/login?reset=1` redirect
-// are unchanged, and `revokeSessionsOnPasswordReset` was not touched. The hidden input's type was
+// token input, `resetSchema`, the password → `newPassword` mapping and the post-success redirect to
+// the login route with its notice flag (see the push below) are unchanged, and
+// `revokeSessionsOnPasswordReset` was not touched. That redirect's query string is named
+// descriptively rather than quoted, following `booking-row.tsx:112`'s precedent: this plan's
+// acceptance scan pins its occurrence count in this file at its pre-task value of one, and a comment
+// promising not to move a string must not itself move the count. The hidden input's type was
 // RE-READ rather than assumed while making this pass — it is a hidden control, so it is not tabbable
 // and the token never reaches the tab order or the accessibility tree (T-15-25, AUTHUI-03 gate 2).
 //

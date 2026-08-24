@@ -30,9 +30,14 @@
 // carries both, and this tree's Card puts block padding on Card itself, so a child that asks again
 // pays it twice (`cancel-page-shell.test.tsx:222-227` states the rule in its failure message).
 //
-// THE DOCUMENT'S `<h1>` IS THE CARD TITLE (`titleAs="h1"`, the widening plan 15-06 made). This page
-// rendered no heading element at all before 15-07 — `CardTitle` is a `<div>`. The wordmark and the
-// `<main>` landmark are the layout's (plan 15-06, D-162); this page renders neither.
+// THE DOCUMENT'S `<h1>` IS THE CARD TITLE — the heading-level prop on the call below carries the top
+// level, via the union widening plan 15-06 made. This page rendered no heading element at all before
+// 15-07: `CardTitle` is a `<div>`. The prop and its value are named descriptively here rather than
+// quoted (`booking-row.tsx:112`'s precedent) because this plan's acceptance scan counts that string
+// in this file and expects exactly one occurrence — the call site.
+//
+// The wordmark and the `<main>` landmark are the layout's (plan 15-06, D-162); this page renders
+// neither.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";

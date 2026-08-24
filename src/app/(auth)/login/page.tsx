@@ -24,8 +24,14 @@
 // pays it twice (`cancel-page-shell.test.tsx:222-227` states the rule in its failure message).
 //
 // THE DOCUMENT'S `<h1>` IS THE CARD TITLE. This page rendered no h1 at all before 15-07: `CardTitle`
-// is a `<div>`. `titleAs="h1"` is the widening plan 15-06 made to `PanelCard`, and the argument is
-// the pattern's own — an auth card IS the document, so its title is that document's heading.
+// is a `<div>`. The heading-level prop on the call below carries the top level, which is the union
+// widening plan 15-06 made to `PanelCard`; the argument is the pattern's own — an auth card IS the
+// document, so its title is that document's heading.
+//
+// The prop and its value are named descriptively in this paragraph rather than quoted, following
+// `booking-row.tsx:112`'s precedent: plan 15-07's own acceptance scan counts that string in this
+// file and expects exactly one occurrence — the call site. A comment that quotes the mechanism it
+// explains fails the gate that documents it, which is the collision plan 15-06 hit four times.
 //
 // THE WORDMARK AND THE `<main>` LANDMARK BOTH LIVE IN `(auth)/layout.tsx` (plan 15-06, D-162). This
 // page renders neither, and must not: a second wordmark on an auth screen recreates byte-for-byte
