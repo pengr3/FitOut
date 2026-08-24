@@ -268,6 +268,16 @@
 //        that header becoming the removal control. A ban that cannot be written down beside its own
 //        explanation is a ban somebody eventually deletes.
 //
+//        ⚠ PROCESS FAULT, RECORDED RATHER THAN QUIETLY FIXED. M7's paragraph above was written and
+//        COMMITTED (`93f1b42`) one commit BEFORE the probe was run — the exact thing this walk's
+//        green-but-unprobed discipline exists to prevent, committed by the person enforcing it. The
+//        probe was then run and the result MATCHED what had been written: 13 passed, with
+//        `grep -ci remove` over the mutated file reporting 1. So the paragraph is accurate and is
+//        left standing; this note is here because "it turned out to be right" is not the same claim
+//        as "it was watched", and a reader deciding how far to trust the rest of this walk should be
+//        able to tell which paragraph was which. 15-09's M3 note was corrected in its own commit for
+//        the same reason and this follows that precedent.
+//
 // WALK CLOSED. Six positive probes, each applied alone, each run, each reverted with
 // `git diff --exit-code src/` confirmed clean before the next started, plus one negative control.
 // Every red above is TRANSCRIBED from the run rather than written from what the failure was expected
