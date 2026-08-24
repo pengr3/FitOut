@@ -184,6 +184,40 @@ const SITE_MODULE = "src/lib/site.ts";
 const FOOTER = "src/components/patterns/site-footer.tsx";
 /** The exclusion list's own site. If the walker never reaches it, the list below is decorative. */
 const EMAIL_MODULE = "src/lib/email.ts";
+/** The SECOND surface that implements D-26's support slot — the transactional email shell's footer. */
+const EMAIL_SHELL = "src/lib/email-shell.ts";
+
+/**
+ * EVERY FILE THAT IMPLEMENTS THE `SUPPORT_EMAIL` SLOT, WITH THE REASON IT IS ONE OF THEM.
+ *
+ * The structural trio below — exactly one conditional, no else-branch, no address-shaped literal —
+ * used to be scoped to `FOOTER` alone, from the phase where the app footer was the only surface that
+ * could offer a way to contact anybody. It is not any more. A declared INVENTORY rather than a bare
+ * constant is the difference between "the gate audits the guard" and "the gate audits the guard we
+ * happened to write first": a third surface added without a row here is a surface nobody audits, and
+ * the row is the thing a reviewer can see is missing.
+ *
+ * Keyed by file with the reason it is a guarded site, the `EXCLUDED_ADDRESSES` shape below and
+ * `src/lib/design/contrast-pairs.ts:34-36`'s rule — a row without a reason is not a row. Every row is
+ * run through ALL THREE assertions; none of them is scoped to one file any more.
+ *
+ * Adding a row is how you EXTEND this gate. Deleting one is how you weaken it, and the row's reason
+ * is what makes the deletion visible in a diff.
+ */
+const GUARDED_SITES: Readonly<Record<string, string>> = {
+  [FOOTER]:
+    "The app footer — D-26's original site and the one the branch selector's non-null assertions " +
+    "are still scoped to. It renders the support entry to a person looking at a page, from a single " +
+    "`SUPPORT_EMAIL !== null` conditional with a bare `null` else, and its own header says so.",
+  [EMAIL_SHELL]:
+    "The transactional email shell's footer — the SAME D-26/D-64 slot on the other surface a person " +
+    "meets FitOut on. One line in `src/lib/site.ts` lights both of them up together, so a guard that " +
+    "drifted here would ship the exact affordance the app footer is forbidden to ship, to an inbox " +
+    "rather than a page, and the app-footer-scoped assertions would stay green through all of it. " +
+    "15-CONTEXT D-161 re-confirmed the null state for this phase: the shell renders NOTHING about " +
+    "support — no placeholder, no dead `mailto:`, no \"coming soon\" — in both the HTML and the " +
+    "text/plain projection, from one conditional whose else-branch is the `null` keyword.",
+};
 
 /**
  * The scanner must walk at least this many files before any zero means anything. 100 is well under
@@ -443,9 +477,19 @@ function mailtoUsages(file: string, text: string): Literal[] {
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 const scan = scanTree(SRC_DIR);
-const footerSource = existsSync(resolve(process.cwd(), FOOTER))
-  ? readFileSync(resolve(process.cwd(), FOOTER), "utf8")
-  : "";
+
+/** One declared site's authored source, or `""` if it is not there — a missing file must READ as
+ *  missing rather than throw, so the guard-the-guard assertion below is what reports it. */
+function sourceOf(file: string): string {
+  const full = resolve(process.cwd(), file);
+  return existsSync(full) ? readFileSync(full, "utf8") : "";
+}
+
+const footerSource = sourceOf(FOOTER);
+/** Every declared guarded site's source, read once, keyed exactly as `GUARDED_SITES` is. */
+const guardedSiteSources: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.keys(GUARDED_SITES).map((file) => [file, sourceOf(file)]),
+);
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // GUARD-THE-GUARD FIRST, on purpose: every zero below is worthless if the scan opened nothing.
@@ -518,6 +562,35 @@ describe("guard-the-guard — the scanner read the tree it is asserting about", 
     expect(footerSource.length, `${FOOTER} read as empty or missing`).toBeGreaterThan(500);
     expect(footerSource).toContain("data-testid=\"site-footer\"");
   });
+
+  it("REACHED every declared guarded site, and read a real source for each", () => {
+    // The same hole as (d) in the header, one level in: the structural trio below asserts over
+    // `scan.guards.filter(g => g.file === site)`, and a file the walker never opened contributes no
+    // guards at all. "Exactly one conditional" would then be red — which is the safe direction — but
+    // "no else-branch" and "no address-shaped literal" would both be perfectly green over the empty
+    // list, forever, and indistinguishably from a real clean run. So the reach is asserted FIRST and
+    // by name, for every row rather than for the row that happened to be there first.
+    for (const [file, why] of Object.entries(GUARDED_SITES)) {
+      expect(
+        why.length,
+        `GUARDED_SITES["${file}"] has no reason. A row without one is not a row — it is a file ` +
+          `somebody added to a list, and the next reader cannot tell whether it belongs.`,
+      ).toBeGreaterThan(40);
+      expect(
+        scan.walked,
+        `the walker never reached the declared guarded site ${file}, so its structural assertions ` +
+          `below are green over a file nobody opened.`,
+      ).toContain(file);
+      expect(
+        guardedSiteSources[file].length,
+        `${file} read as empty or missing`,
+      ).toBeGreaterThan(500);
+      expect(
+        guardedSiteSources[file],
+        `${file} is declared as a SUPPORT_EMAIL guarded site but never names the constant.`,
+      ).toContain("SUPPORT_EMAIL");
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -526,41 +599,59 @@ describe("guard-the-guard — the scanner read the tree it is asserting about", 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 describe("the guard itself — one conditional, no else-branch, in either state", () => {
-  const footerGuards = scan.guards.filter((g) => g.file === FOOTER);
-
-  it("the footer declares EXACTLY ONE SUPPORT_EMAIL conditional", () => {
-    // A zero here would mean the guard was deleted — after which the null branch's "no unguarded
-    // affordance" assertions stay green forever over a footer that simply has no support entry and
-    // no way to grow one. The count is the positive half of the absence.
+  it("audits a DECLARED inventory of guarded sites, not one hardcoded file", () => {
+    // The list itself is an assertion. If a surface grows a support slot and nobody adds its row,
+    // the trio below simply never runs over it — silently, and with every existing test still green.
     expect(
-      footerGuards.length,
-      `${FOOTER} declares ${footerGuards.length} SUPPORT_EMAIL conditionals; exactly one is the ` +
-        `contract. Zero means the guard was removed and the constant no longer controls anything.`,
-    ).toBe(1);
+      Object.keys(GUARDED_SITES).sort(),
+      `the guarded-site inventory changed. Adding a row EXTENDS this gate and is the intended ` +
+        `edit; removing one silently stops auditing a surface that can still render a contact.`,
+    ).toEqual([FOOTER, EMAIL_SHELL].sort());
   });
 
-  it("the guard has NO ELSE-BRANCH — the entry is absent, never disabled (D-26)", () => {
-    for (const g of footerGuards) {
-      expect(
-        g.hasElseBranch,
-        `${g.file}:${g.line} renders something when SUPPORT_EMAIL is null. D-26 forbids every ` +
-          `version of that — a greyed link, a "coming soon", a disabled control, a tooltip. An ` +
-          `affordance that looks present and does nothing is a worse lie than an absence.`,
-      ).toBe(false);
-    }
-  });
+  // THE SAME THREE ASSERTIONS OVER EVERY DECLARED SITE. Nothing here is scoped to one file any more:
+  // the app footer and the email shell implement one decision on two surfaces, and a contract that
+  // only one of them is held to is a contract the other can drift out of unobserved.
+  for (const site of Object.keys(GUARDED_SITES)) {
+    describe(site, () => {
+      const siteGuards = scan.guards.filter((g) => g.file === site);
 
-  it("the footer carries NO address-shaped literal — not even inside the guard", () => {
-    // THE ASSERTION THAT MAKES THE GUARDED BRANCH SAFE. The guard means nothing rendered today; this
-    // means nothing FALSE can be rendered tomorrow either, because the only address the file can
-    // emit is the one interpolated from the constant.
-    expect(
-      addressesIn(FOOTER, footerSource),
-      `${FOOTER} contains an address-shaped literal. A fabricated contact address is a real-world ` +
-        `claim shipped to users (11-UI-SPEC § Anti-Patterns); the only address this file may ever ` +
-        `emit is SUPPORT_EMAIL, interpolated.`,
-    ).toEqual([]);
-  });
+      it(`${site} declares EXACTLY ONE SUPPORT_EMAIL conditional`, () => {
+        // A zero here would mean the guard was deleted — after which the null branch's "no unguarded
+        // affordance" assertions stay green forever over a file that simply has no support entry and
+        // no way to grow one. The count is the positive half of the absence.
+        expect(
+          siteGuards.length,
+          `${site} declares ${siteGuards.length} SUPPORT_EMAIL conditionals; exactly one is the ` +
+            `contract. Zero means the guard was removed and the constant no longer controls ` +
+            `anything. Its declared reason: ${GUARDED_SITES[site]}`,
+        ).toBe(1);
+      });
+
+      it("the guard has NO ELSE-BRANCH — the entry is absent, never disabled (D-26)", () => {
+        for (const g of siteGuards) {
+          expect(
+            g.hasElseBranch,
+            `${g.file}:${g.line} renders something when SUPPORT_EMAIL is null. D-26 forbids every ` +
+              `version of that — a greyed link, a "coming soon", a disabled control, a tooltip. An ` +
+              `affordance that looks present and does nothing is a worse lie than an absence.`,
+          ).toBe(false);
+        }
+      });
+
+      it("carries NO address-shaped literal — not even inside the guard", () => {
+        // THE ASSERTION THAT MAKES THE GUARDED BRANCH SAFE. The guard means nothing rendered today;
+        // this means nothing FALSE can be rendered tomorrow either, because the only address the
+        // file can emit is the one interpolated from the constant.
+        expect(
+          addressesIn(site, guardedSiteSources[site]),
+          `${site} contains an address-shaped literal. A fabricated contact address is a ` +
+            `real-world claim shipped to users (11-UI-SPEC § Anti-Patterns); the only address this ` +
+            `file may ever emit is SUPPORT_EMAIL, interpolated.`,
+        ).toEqual([]);
+      });
+    });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
