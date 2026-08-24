@@ -92,8 +92,23 @@
 //        `PanelCard` with `titleAs="h1"` and still found its level-1 heading, because a render fixture
 //        proves what the PATTERN can do, never what a page ASKED it to do. The two halves of the chain
 //        are genuinely independent and this probe is what shows it.
-//   (M3) PENDING — a second accent-filled control: `variant="outline"` → `variant="brand"` on the
-//        login page's secondary button.
+//   (M3) RUN AND REVERTED. A second accent-filled control ships: `variant="outline"` → `variant="brand"`
+//        on `(auth)/login/page.tsx`'s `Continue with Google` button. D-162 is "coral on the primary
+//        action only", broken in the single most plausible way — by promoting the control right beside
+//        it. 1 failed / 12 passed:
+//
+//          AssertionError: an auth screen carries a number of accent-filled controls other than one.
+//          D-162 puts coral on the PRIMARY action only; a second one makes one screen ask twice and
+//          there is then no primary action, only two. Zero is the other failure and it is not the safe
+//          one — a screen with no accent has no primary action at all.: expected [ Array(1) ] to deeply
+//          equal []
+//          + "src/app/(auth)/login/page.tsx — 2 (lines 213, 230)"
+//
+//        BOTH LINE NUMBERS ARE IN THE REPORT ON PURPOSE. "This screen has two" is not actionable; a
+//        developer has to know WHICH two before deciding which one was never meant to be accented.
+//        ⚠ THE TOUCH-SIZE HALF OF THE SAME `it()` STAYED GREEN, because the mutated button already
+//        carried `size="touch"`. The two assertions are independent and only one of them is about
+//        count — which is why the 44px floor gets its own array rather than riding on this one.
 //   (M4) PENDING — a heading's copy drifts: `title="Welcome back"` → `title="Welcome back!"`.
 //   (M5) PENDING — the single landmark doubles: a second one opened inside `(auth)/layout.tsx`.
 //   (M6) PENDING — a removed region comes back: `role="status"` restored on the login page's
