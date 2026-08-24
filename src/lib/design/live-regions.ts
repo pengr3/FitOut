@@ -18,8 +18,11 @@
 //
 // The set was ELEVEN booker-path files with TEN deferred to Phase 13 and one to Phase 14. Plan 13-14
 // discharged the ten (see the DISCHARGE section below), taking the set to SEVENTEEN with exactly one
-// exclusion left. Plan 14-14 discharged that one: the set is TWENTY-ONE files and the exclusion list is
-// EMPTY.
+// exclusion left. Plan 14-14 discharged that one: the set is TWENTY-SIX files and the exclusion list is
+// EMPTY. It was TWENTY-ONE until plan 15-09 widened the membership rule past the host tooling to the
+// ACCOUNT surfaces — the four `(auth)` screens and the profile form — which THE RENAME's rule had named
+// as out of scope rather than excluded. Nothing was discharged to get there and nothing was excluded to
+// pay for it: five files joined, seven rows landed, and the exclusion list is still empty.
 //
 // So the set is a const tuple, its exclusions are a sibling const with a `why` per entry, and the file
 // count is pinned by a type-level assertion. Narrowing the gate's reach then costs a compile error and an
@@ -321,10 +324,10 @@
 // ---------------------------------------------------------------------------
 
 /**
- * THE TWENTY-ONE FILES GATE-03 IS A CLAIM ABOUT.
+ * THE TWENTY-SIX FILES GATE-03 IS A CLAIM ABOUT.
  *
  * Ordered by surface — availability, then booking, then search, then the group lifecycle, then the host
- * tooling — rather than alphabetically, because the reading question this list gets asked is "does the
+ * tooling, then the account surfaces plan 15-09 added — rather than alphabetically, because the reading question this list gets asked is "does the
  * gate cover the checkout", not "where is X in the alphabet".
  *
  * ⚠ RENAMED FROM ITS BOOKER-PATH SPELLING BY PLAN 14-14, in the same commit as the four host files at
@@ -364,6 +367,32 @@ export const LIVE_REGION_FILES = [
   "src/components/host/request-row.tsx",
   "src/components/listing/address-autocomplete.tsx",
   "src/components/listing/photo-uploader.tsx",
+  // ─── the auth surfaces + profile (plan 15-09) ───────────────────────────────────────────────────
+  //
+  // TWO REGIONS WERE REMOVED RATHER THAN DECLARED, and a reader who comes here looking for them
+  // should find out why instead of concluding the inventory missed them. Plan 15-07 deleted the
+  // `ResetNotice` region on the login page and the reset page's missing-token notice. Both were
+  // static-on-arrival content wrapped in a region, and the rule is the one the header's DISCHARGE
+  // section states once for the whole module:
+  //
+  //     A LIVE REGION ANNOUNCES A CHANGE. A FRESHLY NAVIGATED PAGE IS NOT A CHANGE — IT IS A PAGE.
+  //
+  // A screen reader already reads a fresh render from the top, so a region around server-rendered
+  // arrival content announces either nothing or a duplicate of what was about to be read anyway.
+  // That is the third and fourth time this repository has found the same defect (13-14 removed six,
+  // 14-14 found a seventh), which is why the rule is stated rather than re-derived per surface.
+  //
+  // Note what these five files are NOT: they were named as OUT OF SCOPE by THE RENAME's membership
+  // rule ("what is left outside it is the auth/profile forms…"), not excluded. Plan 15-09 widens
+  // the rule rather than discharging an exclusion — `LIVE_REGION_EXCLUSIONS` was empty before this
+  // block and is empty after it. The membership rule now reads: *every file in `src/` that renders
+  // a live region on a journey this repository has audited — the demand-side journey, the
+  // supply-side host tooling, and the account surfaces a person passes through to reach either.*
+  "src/app/(auth)/login/page.tsx",
+  "src/app/(auth)/signup/page.tsx",
+  "src/app/(auth)/forgot-password/page.tsx",
+  "src/app/(auth)/reset-password/page.tsx",
+  "src/app/(app)/profile/profile-form.tsx",
 ] as const;
 
 /** The closed union every row's `file` is typed against. */
@@ -449,12 +478,19 @@ export function exclusionReasonIsThin(row: LiveRegionExclusion): boolean {
  *     `tests/design/live-regions.test.tsx` strips comments before its own text scan and why this module
  *     lives outside the DS-13 leak gate's scanned tree.
  *
- * The declared SET is twenty-one files, which is larger than either count because a `role="status"`,
+ * The declared SET is twenty-six files, which is larger than either count because a `role="status"`,
  * `role="alert"` or `role="timer"` IS a live region without carrying the attribute at all —
  * `book-cta.tsx`, `reserve-actions.tsx`, `relax-band.tsx`, `collision-notice.tsx`,
  * `pending-payment-state.tsx`, `attendee-roster.tsx`, `share-link-box.tsx`, `wizard.tsx`,
  * `request-row.tsx` and `photo-uploader.tsx` are all in that shape. THREE OF THE FOUR FILES PLAN 14-14
  * ADDED ARE IN IT, which is why widening the set moved neither measured number.
+ *
+ * ⚠ ALL FIVE FILES PLAN 15-09 ADDED ARE IN IT TOO, so neither measured number moved a second time.
+ * Every one of the seven account-surface regions is a bare `role="alert"` or `role="status"` on a `<p>`
+ * — not one of them carries the attribute — so an AST walk for `aria-live` still finds seven files and
+ * ten elements, and the text grep still finds thirteen. The two counts above are therefore CARRIED
+ * rather than re-measured for this widening, which is the one case where carrying a number forward is
+ * honest: the reason they did not move is stated, and it is checkable in five files.
  */
 export const LIVE_REGION_EXCLUSIONS: readonly LiveRegionExclusion[] = [];
 
@@ -528,8 +564,8 @@ export type LiveRegionRow = {
  * Every region on the declared set, one id per REGION (not per file). Ordered by file, matching
  * `LIVE_REGION_FILES`, then by source order within the file.
  *
- * Twenty-seven today (sixteen until plan 13-14's discharge added seven, then twenty-three until plan
- * 14-14's added four). The number is deliberately NOT pinned by a type-level assertion, unlike the file
+ * Thirty-four today (sixteen until plan 13-14's discharge added seven, twenty-three until plan 14-14's
+ * added four, then twenty-seven until plan 15-09's five account surfaces added seven). The number is deliberately NOT pinned by a type-level assertion, unlike the file
  * count: `tests/design/live-regions.test.tsx`'s SCAN 2 asserts this set equals the set of regions
  * actually present in the tree, which is strictly stronger than agreeing with a literal. A count
  * assertion beside a set assertion would only ever fail at the same moment, one line earlier and with
@@ -584,6 +620,19 @@ export const LIVE_REGION_IDS = [
   "address-lookup-result",
   // photo-uploader.tsx
   "photo-uploader-requirement",
+  // (auth)/login/page.tsx
+  "login-form-error",
+  // (auth)/signup/page.tsx
+  "signup-form-error",
+  // (auth)/forgot-password/page.tsx
+  "forgot-request-result",
+  // (auth)/reset-password/page.tsx
+  "reset-form-error",
+  // (app)/profile/profile-form.tsx — the two alerts are ordinals 1 and 2 in SOURCE order, and the
+  // avatar refusal is the one that comes first in the file.
+  "profile-avatar-error",
+  "profile-form-error",
+  "profile-save-result",
 ] as const;
 
 /** The closed union every row is typed against. */
@@ -1231,11 +1280,166 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "wrapper argument the four Phase-13 rows make — it does not apply here and pretending it did " +
       "would widen the exception for the next reader.",
   },
+
+  // ─── (auth)/login/page.tsx ──────────────────────────────────────────────────────────────────────
+  "login-form-error": {
+    file: "src/app/(auth)/login/page.tsx",
+    kind: "alert",
+    at: 1,
+    announces:
+      '"Invalid email or password." — once, at the moment a submit comes back refused. It is the ' +
+      "same sentence for a wrong password, an unknown address and a disabled account, so what a " +
+      "screen-reader user hears is byte-identical to what a sighted one reads, which is the whole " +
+      "point of the sentence. It says nothing again until the next submit is refused.",
+    why:
+      "RULE 2, and it is the one shape on this surface that earns `alert`. A credential the person " +
+      "just typed came back rejected: the next action is theirs and the form they are standing in is " +
+      "the thing that failed. RULE 7 is satisfied WITHOUT the banned politeness level — the role is " +
+      "the whole mechanism, and the value this module names once in its own header appears nowhere " +
+      "in the file.\n" +
+      "\n" +
+      "⚠ IT IS NAMED BY ITS CONTENT AND MUST STAY THAT WAY. The sentence IS the message, so an " +
+      "`aria-label` here would give a reader a label where a reason belongs — the VoiceOver hazard " +
+      "the header's naming section describes. There is no `AUTHOR_NAMED_REGIONS` row for it and " +
+      "adding one would be a regression, not a widening.\n" +
+      "\n" +
+      "⚠ THIS FILE USED TO CARRY A SECOND REGION AND PLAN 15-07 REMOVED IT. `ResetNotice` — the " +
+      "post-reset confirmation shown when the login page is reached with `?reset=1` — was wrapped in " +
+      "a region although it is present on the FIRST paint of that URL. See the note at the file " +
+      "block above: a freshly navigated page is not a change.",
+  },
+
+  // ─── (auth)/signup/page.tsx ─────────────────────────────────────────────────────────────────────
+  "signup-form-error": {
+    file: "src/app/(auth)/signup/page.tsx",
+    kind: "alert",
+    at: 1,
+    announces:
+      "The `signup` server action's own refusal sentence, verbatim and once, at the moment the submit " +
+      "comes back with `ok: false` — the duplicate-account sentence, the weak-password sentence or " +
+      "the provider's failure, whichever the action returned. The region is absent from the DOM until " +
+      "then and is cleared again at the top of the next submit, so one refusal is one announcement.",
+    why:
+      "RULE 2, for the login refusal's reason: a form the person just submitted came back rejected " +
+      "and the next action is theirs. RULE 5 is satisfied by its own text — the sentence is the " +
+      "SERVER's and is rendered verbatim, which is exactly why it must not be named: a label " +
+      "announced instead of the content would replace a specific reason with three generic words, " +
+      "and the reason is the only thing that tells the person what to change.\n" +
+      "\n" +
+      "⚠ THE INTENT PAIR ABOVE IT IS A `radiogroup`, NOT A REGION, and that is worth stating because " +
+      "a scan looking for `role=` finds three roles in this file and only one of them is a live " +
+      "region. `radiogroup` and `radio` are widget roles with no implicit politeness; picking an " +
+      "intent announces nothing, and should not.",
+  },
+
+  // ─── (auth)/forgot-password/page.tsx ────────────────────────────────────────────────────────────
+  "forgot-request-result": {
+    file: "src/app/(auth)/forgot-password/page.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      '"If an account exists for that email, a reset link is on its way." — once, at the moment the ' +
+      "form is REPLACED by it. The same sentence lands whether the address is registered or not, " +
+      "which is the anti-enumeration property: a listener can no more tell the two apart than a " +
+      "reader can. It never updates in place, because the branch is mounted once per submit.",
+    why:
+      "RULE 1 — the RESULT of something the person just did, so `status` and implicitly polite, never " +
+      "`alert`: a reset request that was accepted is not a failure, and interrupting for it would say " +
+      "otherwise. RULE 6 holds structurally rather than by inspection: the ternary REPLACES the form " +
+      "instead of sitting beside it, so at no point are a form-level refusal and this sentence both " +
+      "mounted.\n" +
+      "\n" +
+      'IT IS THE ONE `status` ON THE FOUR AUTH PAGES AND IT IS AUTHOR-NAMED ("Reset request result"), ' +
+      "which is a declared exception with its own `AUTHOR_NAMED_REGIONS` row rather than a default. " +
+      "Read that row before copying the shape onto a refusal region — the alerts on these surfaces " +
+      "are named by their content and must stay that way.",
+  },
+
+  // ─── (auth)/reset-password/page.tsx ─────────────────────────────────────────────────────────────
+  "reset-form-error": {
+    file: "src/app/(auth)/reset-password/page.tsx",
+    kind: "alert",
+    at: 1,
+    announces:
+      '"That reset link is invalid or has expired. Request a new one." — once, when a submit carrying ' +
+      "a token the server will not accept comes back refused. The second half is the recovery, in the " +
+      "same sentence, because a listener who hears only the first half has been told they are stuck " +
+      "rather than what to do about it.",
+    why:
+      "RULE 2. It is also the contrast this file was converted to make legible, and the file says so " +
+      "at the line: this sentence appears in response to a submit the person just made, which is a " +
+      "CHANGE, so it keeps its role — while the missing-token notice higher up the same file is " +
+      "present on the first paint of a malformed URL, which is a PAGE, so plan 15-07 removed its " +
+      "region. Two paragraphs that look alike, one rule, opposite answers.",
+  },
+
+  // ─── (app)/profile/profile-form.tsx ─────────────────────────────────────────────────────────────
+  //
+  // THREE REGIONS, TWO KINDS, SO TWO ORDINAL SEQUENCES. The two alerts are keyed 1 and 2 in SOURCE
+  // order and the avatar refusal is the earlier of them — it sits in the public panel, above the
+  // fields — while the save result is the file's only `status`. Ordering the rows the way the file
+  // orders the elements is what makes `at` checkable by eye.
+  "profile-avatar-error": {
+    file: "src/app/(app)/profile/profile-form.tsx",
+    kind: "alert",
+    at: 1,
+    announces:
+      "The upload refusal the avatar action returned, verbatim and once — the wrong-file-type " +
+      "sentence, the over-5-MB sentence or the storage failure, whichever came back. It lands beside " +
+      "the `Upload photo` control the person just used, and it is cleared at the top of the next " +
+      "attempt, so a second failure is a second announcement rather than a silent no-op.",
+    why:
+      "RULE 2. An upload the person started came back rejected and the file they chose is the thing " +
+      "that has to change, so it is a genuine failure needing a human rather than a state. RULE 5 by " +
+      "its own text: the sentence names WHICH constraint was missed, and a label announced in its " +
+      "place would leave a person re-picking the same file.\n" +
+      "\n" +
+      "⚠ ITS ORDINAL IS 1 BECAUSE OF WHERE IT SITS, NOT BECAUSE IT MATTERS MORE. Plan 15-08 moved the " +
+      "avatar block INSIDE the form element so one panel could hold it with the public fields; the " +
+      "element did not move relative to the form-level refusal below it, so this ordinal is the one " +
+      "it has always had. If a later plan reorders the two, `at` is what goes red first.",
+  },
+  "profile-form-error": {
+    file: "src/app/(app)/profile/profile-form.tsx",
+    kind: "alert",
+    at: 2,
+    announces:
+      "The `updateProfile` server action's refusal sentence, verbatim and once, when a save comes " +
+      "back with `ok: false`. It is cleared at the top of the next submit, so the person hears the " +
+      "refusal that belongs to the attempt they just made and never a stale one.",
+    why:
+      "RULE 2, and it is the SAVE's failure rather than a field's — the per-field messages are " +
+      "`FormMessage`'s and carry no region at all, which is RULE 6 held by construction: one save " +
+      "produces one announcement from one element. Named by its own content, for the reason every " +
+      "server sentence on these surfaces is: the refusal is the actionable half.",
+  },
+  "profile-save-result": {
+    file: "src/app/(app)/profile/profile-form.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      '"Profile saved." — once per SUCCESSFUL save, at the moment the action returns. It is set from ' +
+      "the real result rather than from a timer, and cleared at the top of the next submit, so it " +
+      "cannot announce a save that did not happen and cannot go on claiming an old one.",
+    why:
+      "RULE 1 — the RESULT of the person's own submit, so `status` and implicitly polite. RULE 6 with " +
+      "the refusal above it: the two are mutually exclusive at runtime because `saved` is cleared " +
+      "before every attempt, so one save is announced by exactly one region.\n" +
+      "\n" +
+      'IT IS AUTHOR-NAMED ("Save state") and has an `AUTHOR_NAMED_REGIONS` row saying why. The short ' +
+      "version: the string is the wizard's precedent reused verbatim, two words that say WHICH line " +
+      "moved rather than a paraphrase of the sentence inside it.",
+  },
 };
 
 /**
- * THE NINE REGIONS WHOSE NAME COMES FROM AN `aria-label` DESPITE NOT BEING `loading`, EACH WITH THE
+ * THE ELEVEN REGIONS WHOSE NAME COMES FROM AN `aria-label` DESPITE NOT BEING `loading`, EACH WITH THE
  * REASON IT CARRIES ONE.
+ *
+ * ⚠ NINE UNTIL PLAN 15-09, which added the two account-surface rows at the bottom: the reset-request
+ * result and the profile save line. Both are case (a) and neither widens the exception's shape — the
+ * five alerts the same plan declared carry their server sentences and are named by their content, as
+ * every refusal on those surfaces must be.
  *
  * See the header's naming section for why this exists at all instead of the blanket ban it replaced.
  *
@@ -1247,7 +1451,7 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
  * 13 happened to ship. The rows now split into two kinds, and each row says in its first clause which
  * kind it is:
  *
- *   (a) NOTHING TO BE NAMED BY. Seven rows. Either the role sits on a wrapper whose announceable
+ *   (a) NOTHING TO BE NAMED BY. Nine rows. Either the role sits on a wrapper whose announceable
  *       content is composed by a child (`MoneyStatement`, `PanelCard`, `AlertDescription`), or the
  *       element is mounted at all times and its TEXT IS EMPTY until an outcome lands. Both are the same
  *       defect `loading` carries and the same fix: a region named by text it does not have has no name.
@@ -1373,6 +1577,30 @@ export const AUTHOR_NAMED_REGIONS = [
       "same step, so a reader who hears the label instead of the sentence has not lost the only copy " +
       "of the fact. Two words that name the line without restating the number.",
   },
+  {
+    id: "forgot-request-result",
+    name: "Reset request result",
+    why:
+      "(a) NOTHING TO BE NAMED BY — by the wrapper route rather than the empty-at-idle one, and the " +
+      "wrapper here is the CARD. The region is the paragraph the reset form is REPLACED by, so it is " +
+      "absent from the document until a submit lands and there is nothing on the page to take a name " +
+      "from before then. `status` is nameFrom:author, so without a label it resolves to the empty " +
+      "string and is announced as an unlabelled region. Three words that say which result this is; " +
+      "the anti-enumeration sentence stays the content, unparaphrased, because the whole property of " +
+      "that sentence is that it is the SAME one either way and a name that hinted otherwise would " +
+      "undo it.",
+  },
+  {
+    id: "profile-save-result",
+    name: "Save state",
+    why:
+      "(a) NOTHING TO BE NAMED BY — the wizard's precedent reused verbatim, and deliberately the same " +
+      "STRING as `wizard-save-state` because it is the same job on the other side of the account: two " +
+      "words that say WHICH line moved. The region is mounted only while `saved` is true, so for " +
+      "every other moment of a profile session there is no element to be named by its text; and when " +
+      "it is mounted its text is two words of its own, which a name must therefore not paraphrase. " +
+      "\"Profile saved.\" stays the content.",
+  },
 ] as const satisfies readonly AuthorNamedRegion[];
 
 // ---------------------------------------------------------------------------
@@ -1383,7 +1611,7 @@ export const AUTHOR_NAMED_REGIONS = [
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS TWENTY-ONE FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
+ * THE DECLARED SET IS TWENTY-SIX FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
  * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
@@ -1393,8 +1621,10 @@ type Assert<T extends true> = T;
  * (`pending-payment-state.tsx`, `request-countdown.tsx`, `attendee-roster.tsx`,
  * `rsvp-confirmation.tsx`, `rsvp-form.tsx`, `share-link-box.tsx`), and `…IsSeventeen` until plan
  * 14-14's discharge added four (`wizard.tsx`, `request-row.tsx`, `address-autocomplete.tsx`,
- * `photo-uploader.tsx`). A `length extends number` assertion would compile forever and read exactly
- * like this one; that is the failure mode a type-level gate is easiest to write. The friction IS the
+ * `photo-uploader.tsx`), and `…IsTwentyOne` until plan 15-09 added five account surfaces — the four
+ * route-group auth pages and the profile form, spelled out at the set itself because a glob written
+ * inside a block comment closes it. A `length extends number` assertion would compile forever and
+ * read exactly like this one; that is the failure mode a type-level gate is easiest to write. The friction IS the
  * mechanism: adding a live region to the audited set costs a rename, a row and a second literal in
  * `tests/design/live-regions.test.tsx`, and none of those can be done by accident.
  *
@@ -1404,9 +1634,32 @@ type Assert<T extends true> = T;
  * old number on 21 August 2026 — see `13-14-SUMMARY.md` for the verbatim `tsc` output. 14-UI-SPEC
  * predicted THREE additions and twenty; the fourth is `photo-uploader.tsx`, whose unnamed region was
  * fixed rather than excluded, so the measured number is twenty-one and the document was one short.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * OBSERVED RED (c) — PLAN 15-09'S FIVE, WATCHED BEFORE THE NUMBER MOVED. 24 August 2026.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * The procedure this docblock records from plan 14-14, run again rather than assumed: the five account
+ * surfaces were written into `LIVE_REGION_FILES` and their seven rows into `LIVE_REGIONS`, the alias was
+ * left reading `extends 21`, and `npx tsc --noEmit` was run bare (never piped — a pipe reports the LAST
+ * command's exit code, which is this repository's standing trap). Exit code 2, ONE error, verbatim and
+ * complete — this is the whole of stdout:
+ *
+ *   src/lib/design/live-regions.ts(1627,3): error TS2344: Type 'false' does not satisfy the constraint
+ *   'true'.
+ *
+ * Then `21` → `26` and the alias renamed → exit 0.
+ *
+ * ⚠ IT IS ONE ERROR, NOT TWO, AND THE DIFFERENCE FROM OBSERVED RED (b) IN THE HEADER IS THE WHOLE
+ * READING. Red (b) — a path DELETED from the set — produced a TS2820 at the orphaned row as well,
+ * because a row naming a file the union no longer contains cannot type. WIDENING produces no such
+ * companion: every new row names a path that is now in the union, so the ONLY thing that fails is the
+ * count. That is the assertion doing exactly the job it was written for. Without it, adding five files
+ * and seven rows to this module would have compiled silently, and the audited set would have grown by
+ * a quarter with nothing in the diff saying so out loud.
  */
-export type DeclaredFileCountIsTwentyOne = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 21 ? true : false
+export type DeclaredFileCountIsTwentySix = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 26 ? true : false
 >;
 
 // ---------------------------------------------------------------------------
@@ -1471,7 +1724,7 @@ export const LIVE_REGION_KEYS: ReadonlyMap<string, LiveRegionId> = new Map(
 //     nothing to look at. What zero means is bounded by the header's membership rule and by the two
 //     bullets above and below this one — the auth/profile forms and the `patterns/` skeletons are
 //     outside the set entirely, and a region composed at runtime is invisible to the scan either way.
-//   • THE NINE `AUTHOR_NAMED_REGIONS` NAMES ARE PROSE THE GATE CANNOT JUDGE. It checks THAT each of
+//   • THE ELEVEN `AUTHOR_NAMED_REGIONS` NAMES ARE PROSE THE GATE CANNOT JUDGE. It checks THAT each of
 //     those regions carries an author name, that no undeclared region does, and that each recorded
 //     string is the one the markup renders. Whether a given name is a LABEL or a paraphrase of the
 //     sentence it sits on — the property the whole exception turns on — is a reading, not a

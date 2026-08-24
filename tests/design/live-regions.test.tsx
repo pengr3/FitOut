@@ -228,10 +228,10 @@ import {
 const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentyOne`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentySix`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
- * message. Plans 12-12, 12-13, 13-14 and 14-14 each moved BOTH, in the commit that added their
+ * message. Plans 12-12, 12-13, 13-14, 14-14 and 15-09 each moved BOTH, in the commit that added their
  * component — a set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT
  * names.
  *
@@ -254,8 +254,22 @@ const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
  * fourth is the photo uploader, whose unnamed region was FIXED here rather than excluded to Phase 16,
  * because an exclusion there would have traded one row for another and left the list at one. The number
  * was measured off the tree, not taken from the document — the same discipline, for the same reason.
+ *
+ * TWENTY-SIX as of plan 15-09, which widened the MEMBERSHIP RULE rather than discharging anything. The
+ * four `(auth)` screens and `(app)/profile/profile-form.tsx` were named as OUT OF SCOPE by
+ * `live-regions.ts`'s rename note — "what is left outside it is the auth/profile forms…" — which is a
+ * different thing from an exclusion: nobody had ever decided about them, so nothing could be
+ * discharged. Five files joined carrying seven regions (two alerts on the auth screens' submit
+ * failures, the reset page's third, the forgot page's uniform result, and the profile form's three:
+ * two alerts and one save line). `LIVE_REGION_EXCLUSIONS` was empty before and is empty after.
+ *
+ * ⚠ THIS LITERAL MOVING IS WHY TASK 1 OF PLAN 15-09 TOUCHED THIS FILE AT ALL. Its plan named
+ * `src/lib/design/live-regions.ts` as its only file; the docblock above is the standing instruction
+ * that says both pins move together, and a widened set with a stale literal here fails this gate with
+ * the message three lines below. The instruction beat the file list, which is the same precedence call
+ * plan 15-08 recorded when a gate and a plan disagreed.
  */
-const DECLARED_FILE_COUNT = 21;
+const DECLARED_FILE_COUNT = 26;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -508,8 +522,9 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsTwentyOne` in `src/lib/design/live-regions.ts` " +
-        "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14 and 14-14 " +
+        "pinned in TWO places — `DeclaredFileCountIsTwentySix` in `src/lib/design/live-regions.ts` " +
+        "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14 and " +
+        "15-09 " +
         "each moved BOTH, in the same commit as the components they add. A set that widened in one " +
         "place and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);
