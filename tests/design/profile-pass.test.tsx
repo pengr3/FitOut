@@ -98,7 +98,7 @@
 // its 21st row; this file owns the per-surface shape that inventory cannot see.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// THE MUTATION WALK — IN PROGRESS (2 OF 6 RUN)
+// THE MUTATION WALK — IN PROGRESS (3 OF 6 RUN)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // ⚠ THIS BLOCK IS DELIBERATE HISTORY RATHER THAN AN OMISSION, and it is `auth-composition.test.tsx`'s
@@ -163,6 +163,31 @@
 //        becomes a defect on the day somebody changes `BOOKING_SHELL` and this one file silently does
 //        not move, which is the failure `measurements.ts:385-400` exists to make impossible and the
 //        precise reason this assertion reads the IMPORT rather than the value.
+//   (M3) RUN AND REVERTED. The save submit takes the accent fill: `variant="brand"` added to
+//        `profile-form.tsx`'s submit. D-162 is "one coral per viewport, on the primary action of a
+//        conversion", broken in the single most plausible way — by promoting the one button on the
+//        page that IS the primary action of the form. 1 failed / 12 passed:
+//
+//          AssertionError: the profile form ships an accent-filled control. D-162 gives each viewport
+//          ONE coral and gives it to the primary action of a CONVERSION; a profile edit is a form
+//          somebody is finishing, so its submit is the neutral solid. profile-form.tsx:268-271 argues
+//          it at length.: expected [ Array(1) ] to deeply equal []
+//          + "src/app/(app)/profile/profile-form.tsx:298 — variant=brand"
+//
+//        ⚠ AND `tests/design/brand-recipe.test.ts` WENT RED ON THE SAME MUTATION, measured rather
+//        than assumed, which is the one result in this walk worth measuring twice — 1 failed /
+//        24 passed:
+//
+//          FAIL … > adopts the brand variant at exactly 28 call sites across src/app and
+//          src/components
+//          AssertionError: expected 29 to be 28 // Object.is equality
+//
+//        THE TWO READINGS ARE NOT REDUNDANT AND THE DIFFERENCE IS WHY BOTH EXIST. The repo-wide total
+//        is a BUDGET: it says the tree has one more coral than the last plan declared, and it would be
+//        equally satisfied by moving the number to 29 — which is a one-character edit somebody makes
+//        while chasing a green run. This file says something a budget structurally cannot: that THIS
+//        surface may have none, whatever the repo-wide count is willing to absorb. A coral traded away
+//        somewhere else and re-spent here would leave the budget at 28 and never redden there at all.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
