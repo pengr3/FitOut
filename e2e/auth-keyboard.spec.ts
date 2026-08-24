@@ -3,9 +3,16 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   DEV_OVERLAY_TAG,
   WALK_BOUND,
+  expectRing,
+  indicatorOf,
   partitionDevOverlay,
+  probeCandidateStops,
   resetFocusToTop,
+  sameIndicator,
+  walkBackward,
   walkForward,
+  type Indicator,
+  type StopProbe,
 } from "./helpers/focus";
 import { BASE_URL as BASE } from "./helpers/served-document";
 
@@ -91,6 +98,89 @@ import { BASE_URL as BASE } from "./helpers/served-document";
 //    sequence a fact about the DOCUMENT rather than about how the document was reached.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THREE WATCHED REDS — 25 August 2026, each applied, run, transcribed VERBATIM, and REVERTED
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// This phase has already shipped three assertions that could not fail. A new gate with no red-proof
+// is how a fourth lands, so every non-trivial claim below was watched failing before it was believed.
+// Command for all three: `npx playwright test e2e/auth-keyboard.spec.ts --project=chromium`.
+//
+// ── M-A · THE SEQUENCE ASSERTION IS REAL ─────────────────────────────────────────────────────────
+// MUTATION: `tabIndex={-1}` added to the wordmark `<Link>` in `src/app/(auth)/layout.tsx`.
+// RESULT: **7 failed / 0 passed** — every case, which is the correct blast radius: the wordmark is
+// stop 1 on all six documents and the seventh case is `/signup` repeated at 320. Anything smaller
+// than "all seven" would have meant the walk was not seeing the layout at all.
+//
+//     Error: /login: the recorded tab order is not the one this file declares. If the page is
+//     right and the declaration is stale, fix the declaration and say why in the summary — never
+//     edit the page to make the sequence come true.
+//
+//     expect(received).toEqual(expected) // deep equality
+//
+//     - Expected  - 1
+//     + Received  + 0
+//
+//     @@ -1,7 +1,6 @@
+//       Array [
+//     -   "a:FitOut@main",
+//         "input[email]:Email",
+//         "a:Forgot password?@main",
+//         "input[password]:Password",
+//         "button[submit]:Log in",
+//         "button[button]:Continue with Google",
+//
+// REVERTED. `git diff --exit-code src/app/(auth)/layout.tsx` exits 0.
+//
+// ── M-B · T-15-25 IS NOT VACUOUS ─────────────────────────────────────────────────────────────────
+// MUTATION: the reset token input changed from `type="hidden"` to `type="text"` in
+// `src/app/(auth)/reset-password/page.tsx`.
+// RESULT: **1 failed / 6 passed** — exactly the one document that renders the input. The
+// missing-token branch does not render it at all and no other auth document has one.
+//
+//     Error: /reset-password · with token (T-15-25): the token input is no longer `type="hidden"`.
+//
+//     expect(received).toBe(expected) // Object.is equality
+//
+//     Expected: "hidden"
+//     Received: "text"
+//
+// ⚠ THE FIRST RUN OF M-B FOUND A DEFECT IN THIS FILE, which is the second reason to watch a red.
+// With the T-15-25 block placed AFTER the sequence assertion — its natural reading order — the
+// mutation failed on the tab-order `toEqual` instead: right case, right count, and a message that
+// said only that an array differed. A token-exposure leak reported as "the recorded tab order is not
+// the one this file declares" is a leak somebody triages as a stale declaration and closes by editing
+// the declaration. The block was moved BEFORE the sequence assertion and the mutation re-run to get
+// the transcript above. REVERTED; `git diff --exit-code src/app/(auth)/reset-password/page.tsx`
+// exits 0.
+//
+// ── M-B′ · THE *WALK* HALF OF T-15-25 IS NOT VACUOUS EITHER ──────────────────────────────────────
+// M-B proves the re-measurement of `type="hidden"` can fail. It does NOT prove the assertion that
+// carries the threat — "no stop in either walk is the token input" — can fail, because the type
+// check short-circuits first. So it was isolated: M-B still applied, `expectTokenNeverFocused`
+// temporarily hoisted above `expectTokenInputInert`, one run, then both restored.
+// RESULT: **1 failed / 6 passed**, and the walk itself caught it.
+//
+//     Error: /reset-password · with token (T-15-25 — INFORMATION DISCLOSURE): the reset token
+//     input RECEIVED FOCUS while walking forward. That token is a single-use credential for
+//     changing a password; an input that can be focused can be tabbed to, captured in a
+//     screenshot, announced by a screen reader and copied. 1 token input(s) were reached walking
+//     forward, and the only acceptable number is zero.
+//
+//     expect(received).toEqual(expected) // deep equality
+//
+//     - Expected  - 1
+//     + Received  + 3
+//
+//     - Array []
+//     + Array [
+//     +   "input[text]:",
+//     + ]
+//
+// The recorded descriptor is the token input itself — matched on its registered field NAME, which is
+// why an input that stopped being hidden is still caught. Order restored, mutation reverted, seven
+// cases green.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // THE RULE BEING ASSERTED (15-UI-SPEC § "The five hard gates, per screen", gate 2)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
@@ -150,6 +240,8 @@ type AuthDocument = {
   readonly tell: string;
   /** The expected focus sequence, as data. Stop descriptors, in order, first press to last. */
   readonly stops: readonly string[];
+  /** Set on the ONE document that renders the reset token input. Turns on the T-15-25 block. */
+  readonly hasResetToken?: true;
 };
 
 /**
@@ -251,6 +343,7 @@ const EXPECTED_SEQUENCES: readonly AuthDocument[] = [
     // the fallback and report a short sequence, intermittently. The password field is the resolved
     // branch and nothing else.
     tell: `${PANEL} input[type="password"]`,
+    hasResetToken: true,
     // THIS IS 15-07's WALK, RE-RECORDED — nine stops, same order. If it ever stops reproducing them,
     // something regressed between that plan and this one and THAT is the finding.
     stops: [
@@ -330,10 +423,35 @@ async function arm(page: Page, row: WalkCase): Promise<void> {
 }
 
 /**
- * Walk the document forward and return the product stops, with the dev-server overlay partitioned off
- * and the partition asserted.
+ * Partition the dev overlay off a raw walk, ASSERTING that it can only ever have taken the far edge.
+ *
+ * `edge` is where the overlay is allowed to sit: `"end"` for a forward walk (the portal is appended
+ * to `<body>`, so it is last), `"start"` for the reverse walk (the same element, reached first). If a
+ * dropped element ever turns up anywhere else, the filter would be hiding a product control and this
+ * fails instead — which is the difference between excluding the dev server's furniture and narrowing
+ * a check until a number matches.
  */
-async function recordForwardWalk(page: Page, where: string) {
+function partitionAsserted(raw: StopProbe[], where: string, edge: "start" | "end") {
+  const { stops, overlay } = partitionDevOverlay(raw);
+  expect(
+    overlay.map((s) => s.tag),
+    `${where}: something other than the \`${DEV_OVERLAY_TAG}\` dev-tools host was dropped from the ` +
+      "walk. Only the dev server's own furniture may be excluded.",
+  ).toEqual(overlay.map(() => DEV_OVERLAY_TAG));
+
+  const withoutEdge =
+    edge === "end" ? raw.slice(0, stops.length) : raw.slice(overlay.length);
+  expect(
+    withoutEdge.map((s) => s.descriptor),
+    `${where}: a dropped \`${DEV_OVERLAY_TAG}\` stop was not at the ${edge} of the sequence, so the ` +
+      "filter would be hiding part of the real tab order rather than the dev overlay.",
+  ).toEqual(stops.map((s) => s.descriptor));
+
+  return stops;
+}
+
+/** Walk the document forward and return the product stops, the overlay partitioned off under assertion. */
+async function recordForwardWalk(page: Page, where: string): Promise<StopProbe[]> {
   await resetFocusToTop(page);
   const raw = await walkForward(page);
 
@@ -344,19 +462,100 @@ async function recordForwardWalk(page: Page, where: string) {
       "assertion instead of a hang.",
   ).toBeLessThan(WALK_BOUND);
 
-  const { stops, overlay } = partitionDevOverlay(raw);
-  expect(
-    overlay.map((s) => s.tag),
-    `${where}: something other than the \`${DEV_OVERLAY_TAG}\` dev-tools host was dropped from the ` +
-      "walk. Only the dev server's own furniture may be excluded.",
-  ).toEqual(overlay.map(() => DEV_OVERLAY_TAG));
-  expect(
-    raw.slice(0, stops.length).map((s) => s.descriptor),
-    `${where}: a dropped \`${DEV_OVERLAY_TAG}\` stop appeared BEFORE a product control, so the ` +
-      "filter would be hiding part of the real tab order rather than the dev overlay's tail.",
-  ).toEqual(stops.map((s) => s.descriptor));
+  return partitionAsserted(raw, `${where} (forward)`, "end");
+}
 
-  return { stops, raw };
+/**
+ * THE INDICATOR IS ACTUALLY PAINTED — a strictly stronger claim than `expectRing`, and it is here
+ * because `expectRing` alone has a hole this walk would otherwise report green through.
+ *
+ * `expectRing` accepts any `box-shadow` that is not the string `none`. Tailwind's `ring-*` compiles
+ * to a FIVE-LAYER shadow of which three layers are fully transparent placeholders, so a tree whose
+ * ring COLOUR had gone transparent would still hand `expectRing` a long, non-`none` string and pass
+ * — and the focused-vs-unfocused difference check below would pass too, because the unfocused
+ * reading is `none`. Two assertions agreeing about a surface that draws nothing is exactly the
+ * unfailable-gate shape this phase has already shipped three of.
+ *
+ * MEASURED, so the check is calibrated against the real value rather than an imagined one. A focused
+ * `<Input>` on `/login`, 25 August 2026:
+ *
+ *   rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+ *   lab(100 0 0) 0px 0px 0px 2px, lab(36.2 0 0.00000596046) 0px 0px 0px 4px,
+ *   rgba(0, 0, 0, 0) 0px 0px 0px 0px
+ *
+ * The 2px `lab(100 0 0)` is DS-05's ring OFFSET against the background and the 4px
+ * `lab(36.2 …)` is the ring itself. Strip every fully-transparent layer and something with a colour
+ * must remain. A bare link satisfies the claim the other way — a real UA outline, `auto 1px`, with no
+ * shadow at all — which is `(auth)/layout.tsx`'s deliberate choice and not a gap.
+ */
+const FULLY_TRANSPARENT = /rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)/g;
+const A_COLOUR = /(rgb|rgba|hsl|hsla|lab|lch|oklab|oklch|color)\(|#[0-9a-f]{3}/i;
+
+/**
+ * T-15-25's two halves, factored out so the SECURITY claim can be asserted before the sequence
+ * equality and again after the reverse walk.
+ *
+ * ⚠ THE ORDER IS THE FINDING, and it was found by running the mutation rather than by reasoning.
+ * With `type="text"` on the token input, the first draft of this file failed on the tab-order
+ * `toEqual` — correct, one case, right blast radius, and a failure message that said only that an
+ * array differed. A token-exposure leak reported as "the recorded tab order is not the one this file
+ * declares" is a leak somebody triages as a stale declaration and fixes by editing the declaration.
+ * The forward half therefore runs FIRST, before the sequence assertion, so the threat is what the
+ * reader sees.
+ */
+function expectTokenInputInert(candidates: StopProbe[], where: string): void {
+  // MATCHED ON THE REGISTERED FIELD NAME, NOT ON `type`. An input that stopped being hidden would
+  // still be the token input and still needs to be caught; matching on `type="hidden"` would make
+  // the assertion true BY the very property whose loss it exists to detect.
+  const tokenInputs = candidates.filter((c) => c.fieldName === "token");
+  expect(
+    tokenInputs.length,
+    `${where} (T-15-25): the reset form rendered no input named \`token\` at all, so every ` +
+      "assertion about it would be vacuously true. Either the form did not render or the field was " +
+      "renamed — in both cases this gate is measuring nothing.",
+  ).toBe(1);
+
+  // 15-07's two measured facts, RE-MEASURED here rather than cited. A hidden input has no layout
+  // box, and an element with no layout box is not rendered and therefore not focusable.
+  expect(
+    tokenInputs[0].typeAttr,
+    `${where} (T-15-25): the token input is no longer \`type="hidden"\`.`,
+  ).toBe("hidden");
+  expect(
+    tokenInputs[0].noLayoutBox,
+    `${where} (T-15-25): the token input has a layout box (\`offsetParent\` is not null), which ` +
+      "means it is rendered — and a rendered input is a focusable one.",
+  ).toBe(true);
+}
+
+function expectTokenNeverFocused(
+  walked: StopProbe[],
+  where: string,
+  direction: "forward" | "backward",
+): void {
+  const reached = walked.filter((s) => s.fieldName === "token");
+  expect(
+    reached.map((s) => s.descriptor),
+    `${where} (T-15-25 — INFORMATION DISCLOSURE): the reset token input RECEIVED FOCUS while ` +
+      `walking ${direction}. That token is a single-use credential for changing a password; an ` +
+      "input that can be focused can be tabbed to, captured in a screenshot, announced by a screen " +
+      `reader and copied. ${reached.length} token input(s) were reached walking ${direction}, and ` +
+      "the only acceptable number is zero.",
+  ).toEqual([]);
+}
+
+function expectIndicatorPaints(stop: StopProbe, where: string): void {
+  const hasOutline = stop.outlineStyle !== "none" && parseFloat(stop.outlineWidth) > 0;
+  const opaqueShadow =
+    stop.boxShadow !== "none" && A_COLOUR.test(stop.boxShadow.replace(FULLY_TRANSPARENT, ""));
+  expect(
+    hasOutline || opaqueShadow,
+    `${where}: focus is here and NOTHING WITH A COLOUR is drawn. outline: ${stop.outlineStyle} ` +
+      `${stop.outlineWidth}; box-shadow: ${stop.boxShadow}. A ring whose every layer is fully ` +
+      "transparent is a `box-shadow` that is not the string `none` and paints nothing — it would " +
+      "satisfy `expectRing` and the focused-vs-unfocused difference check while a keyboard user saw " +
+      "no indicator at all.",
+  ).toBe(true);
 }
 
 test.describe("AUTHUI-03 keyboard — the auth surface's tab order, recorded", () => {
@@ -369,7 +568,35 @@ test.describe("AUTHUI-03 keyboard — the auth surface's tab order, recorded", (
       if (row.viewport !== undefined) await page.setViewportSize(row.viewport);
       await arm(page, row);
 
-      const { stops } = await recordForwardWalk(page, row.caseName);
+      // ── THE UNFOCUSED BASELINE, taken BEFORE a key is pressed ─────────────────────────────────
+      // Keyed by the SAME descriptor the walk produces, which is why both readings come out of one
+      // projection in the shared helper: a descriptor computed one way here and another way there
+      // would miss on every lookup and the difference check below would silently measure nothing.
+      const candidates = await probeCandidateStops(page);
+      const unfocused = new Map<string, Indicator>();
+      for (const candidate of candidates) {
+        if (!unfocused.has(candidate.descriptor)) {
+          unfocused.set(candidate.descriptor, indicatorOf(candidate));
+        }
+      }
+
+      const stops = await recordForwardWalk(page, row.caseName);
+
+      // ── PART C (i) — T-15-25, ASSERTED BEFORE THE SEQUENCE ────────────────────────────────────
+      // FIRST, deliberately. A token input that has become tabbable also changes the sequence, so
+      // whichever assertion runs first is the one the reader sees — and "an array differs" is a
+      // report that gets triaged as a stale declaration. See `expectTokenInputInert`'s header: this
+      // ordering is the finding from mutation M-B, not a preference.
+      //
+      // ⚠ A NOTE 15-07 LEFT AND THIS FILE MUST KEEP, because without it the next reader re-opens a
+      // closed question: the input's `tabIndex` IDL property reads `0`, which looks alarming and
+      // means nothing. `0` is the default value on every `<input>` in the DOM; it is not an
+      // author-supplied attribute and it does not put a hidden input into the tab order. What
+      // settles the question is the WALK, not the property.
+      if (row.hasResetToken === true) {
+        expectTokenInputInert(candidates, row.caseName);
+        expectTokenNeverFocused(stops, row.caseName, "forward");
+      }
 
       // ONE `toEqual` OVER THE WHOLE ARRAY, not a per-stop loop. A loop reports "stop 4 differs" and
       // sends the reader counting; the array form prints both sequences side by side and shows an
@@ -380,6 +607,109 @@ test.describe("AUTHUI-03 keyboard — the auth surface's tab order, recorded", (
           "right and the declaration is stale, fix the declaration and say why in the summary — " +
           "never edit the page to make the sequence come true.",
       ).toEqual([...row.stops]);
+
+      // ── PART A — AN INDICATOR ON EVERY STOP, not two per route ────────────────────────────────
+      // `overflow-320.spec.ts` measures the first tab stop and the first in-surface control. That
+      // answers "does this route have focus styles". This answers the question AUTHUI-03 actually
+      // asks: does EVERY control a keyboard user can reach on this document draw something.
+      stops.forEach((stop, i) => {
+        const where = `${row.caseName} stop ${i + 1}/${stops.length} \`${stop.descriptor}\``;
+
+        expect(
+          stop.focusVisible,
+          `${where}: the element has focus after a REAL Tab press but does not match ` +
+            "`:focus-visible`, so DS-05's `focus-visible:*` recipe cannot apply to it. Every " +
+            "indicator assertion below would be measuring the resting style.",
+        ).toBe(true);
+
+        expectRing(stop, where);
+        expectIndicatorPaints(stop, where);
+
+        const before = unfocused.get(stop.descriptor);
+        expect(
+          before,
+          `${where}: this stop has no entry in the unfocused baseline, so the difference check has ` +
+            "nothing to compare against. The stop projection and the candidate scan disagree about " +
+            "the same element, which is a defect in the instrument, not in the page.",
+        ).toBeDefined();
+        expect(
+          sameIndicator(indicatorOf(stop), before as Indicator),
+          `${where}: the focused and unfocused readings are IDENTICAL — outline ` +
+            `${stop.outlineStyle} ${stop.outlineWidth}, box-shadow ${stop.boxShadow}. Whatever is ` +
+            "drawn here is drawn all the time, so it is decoration rather than an indicator: a " +
+            "keyboard user cannot tell from it where focus is.",
+        ).toBe(false);
+      });
+
+      // ── PART B — THE WORDMARK IS FIRST, AND KEEPS THE BROWSER DEFAULT ─────────────────────────
+      // `(auth)/layout.tsx` makes this claim in prose: "The wordmark is the first tabbable element
+      // on these documents and keeps the BROWSER-DEFAULT focus indicator. The DS-05 ring recipe is
+      // for controls that override their own outline … this link overrides nothing, so adding a ring
+      // here would be a new inconsistency dressed as a fix." These three assertions are that
+      // paragraph, turned into something that can fail.
+      const wordmark = stops[0];
+      const wm = `${row.caseName} stop 1 (the wordmark)`;
+      expect(
+        wordmark.descriptor,
+        `${wm}: the first tab stop on an auth document is not the layout's wordmark.`,
+      ).toBe("a:FitOut@main");
+      expect(
+        wordmark.outlineStyle !== "none" && parseFloat(wordmark.outlineWidth) > 0,
+        `${wm}: the browser-default focus ring is not being drawn — outline ` +
+          `${wordmark.outlineStyle} ${wordmark.outlineWidth}. This link carries no DS-05 ring by ` +
+          "design, so the UA outline is the ONLY indicator it has; suppressing it (an `outline-none` " +
+          "in a later layer, a `cn()` precedence accident) leaves the first stop on every auth " +
+          "document with nothing at all.",
+      ).toBe(true);
+      expect(
+        /(^|\s)ring-/.test(wordmark.classes),
+        `${wm}: the wordmark has grown a \`ring-\` utility (class="${wordmark.classes}"). This is ` +
+          "deliberate absence, not an oversight — quoting `(auth)/layout.tsx`: \"The DS-05 ring " +
+          "recipe is for controls that override their own outline … this link overrides nothing, so " +
+          'adding a ring here would be a new inconsistency dressed as a fix." If the wordmark should ' +
+          "get a ring, change the layout's argument first and this assertion second.",
+      ).toBe(false);
+
+      // ── PART D (i) — NO POSITIVE `tabindex` ANYWHERE ON THE DOCUMENT ──────────────────────────
+      // A positive tabindex is the one construct that makes a written-down sequence unmaintainable:
+      // it reorders the document without appearing anywhere IN the document's order, so the file
+      // above would be wrong in a way reading the markup could not reveal. Zero of them is what
+      // makes the declared sequences a fact about DOM order.
+      expect(
+        candidates
+          .filter((c) => c.tabindex !== null && (c.tabindex as number) > 0)
+          .map((c) => `${c.descriptor} tabindex=${c.tabindex}`),
+        `${row.caseName}: an element carries a POSITIVE tabindex. It jumps the sequential order ` +
+          "ahead of everything with tabindex 0, which is both a WCAG 2.4.3 focus-order smell and " +
+          "the thing that would make every sequence declared in this file quietly wrong.",
+      ).toEqual([]);
+
+      // ── PART D (ii) — THE REVERSE WALK: no trap, and the order is symmetric ───────────────────
+      // Run straight on from the forward walk: focus is now past the END of the document, so the
+      // first Shift+Tab lands on the last stop. MEASURED across all seven cases before it was relied
+      // on. A focus trap shows up here and nowhere else — forward, a trap looks like a walk that
+      // ends; backward, it looks like a sequence that is not the mirror of the forward one.
+      const rawReverse = await walkBackward(page);
+      expect(
+        rawReverse.length,
+        `${row.caseName}: the reverse walk hit its ${WALK_BOUND}-press bound. Bounded so a focus ` +
+          "trap reports as an assertion rather than a hang.",
+      ).toBeLessThan(WALK_BOUND);
+      const reverse = partitionAsserted(rawReverse, `${row.caseName} (reverse)`, "start");
+      expect(
+        reverse.map((s) => s.descriptor),
+        `${row.caseName}: Shift+Tab does not retrace Tab. An asymmetric order is a focus trap, a ` +
+          "positive tabindex, or a control that is reachable one way only — all three are defects " +
+          "a forward-only walk cannot see.",
+      ).toEqual([...stops.map((s) => s.descriptor)].reverse());
+
+      // ── PART C (ii) — T-15-25 GOING BACKWARD, which is strictly more than 15-07 asserted ──────
+      // 15-07 walked forward, once, ten presses. A control can be reachable one way only — that is
+      // what a positive tabindex and a mis-ordered `tabindex=0` island both look like — so the
+      // reverse pass is not a restatement of the forward one.
+      if (row.hasResetToken === true) {
+        expectTokenNeverFocused(reverse, row.caseName, "backward");
+      }
     });
   }
 });
