@@ -245,9 +245,12 @@ for (const name of SENDER_NAMES) {
       });
 
       for (const path of stringPathsIn(call.args)) {
-        const isUrl = call.urls.includes(path);
-        const isRecipient = path === call.recipient;
-        const isVariant = call.variants.includes(path);
+        // Widened deliberately: `as const` narrows an EMPTY declaration to `readonly []`, whose
+        // `.includes` parameter is `never`. The widening is the reader's, never the fixture's — the
+        // literal types are what make the fixture module's own error messages worth reading.
+        const isUrl = (call.urls as readonly string[]).includes(path);
+        const isRecipient = path === (call.recipient as string);
+        const isVariant = (call.variants as readonly string[]).includes(path);
 
         it(`${call.label}: payload at "${path}"${isUrl ? " (appended, stays URL-shaped)" : ""}`, async () => {
           const original = readAt(call.args, path);
