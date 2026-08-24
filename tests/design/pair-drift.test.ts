@@ -116,6 +116,22 @@ const THEME_PROVIDER_SOURCE = readFileSync(
   "utf8",
 );
 
+/**
+ * The theme NAMES are pinned separately from the provider's props, because since phase 15 they are
+ * declared in a different module: `THEMES` / `ThemeName` / `DEFAULT_THEME` / `THEME_STORAGE_KEY`
+ * moved to this pure, directive-free owner so the email tier could read the product theme without
+ * dragging `next-themes` across a client boundary (EMAIL-02 / 15-RESEARCH § Pitfall 3). The provider
+ * re-exports them, so its own importers were untouched — but the DECLARATION this gate pins is here
+ * now, and reading it from the provider would only ever match the re-export line.
+ *
+ * The property being pinned has not changed: the app declares exactly two theme names and neither of
+ * them is `dark`, which is what makes narrowing B below legitimate.
+ */
+const THEME_NAMES_SOURCE = readFileSync(
+  resolve(process.cwd(), "src/lib/design/theme.ts"),
+  "utf8",
+);
+
 const SRC_DIR = resolve(process.cwd(), "src");
 
 // ---------------------------------------------------------------------------------------------
@@ -714,7 +730,11 @@ describe("the declared pair inventory matches what components render", () => {
     // the drift check must grow a third theme rather than keep skipping.
     expect(THEME_PROVIDER_SOURCE).toContain('attribute="data-theme"');
     expect(THEME_PROVIDER_SOURCE).toContain("enableSystem={false}");
-    expect(THEME_PROVIDER_SOURCE).toContain('export const THEMES = ["court", "grove"] as const;');
+    // Read from the names' own module (see THEME_NAMES_SOURCE) — the provider re-exports them.
+    expect(THEME_NAMES_SOURCE).toContain('export const THEMES = ["court", "grove"] as const;');
+    // …and the provider really does still get them from that owner, so the pin above is about the
+    // names the app mounts rather than about an unread file.
+    expect(THEME_PROVIDER_SOURCE).toContain('from "@/lib/design/theme"');
     // The variant's own selector, from the stylesheet: it matches a descendant of `.dark`, and
     // nothing in the app is `.dark`.
     expect(

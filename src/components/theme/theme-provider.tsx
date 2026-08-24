@@ -29,20 +29,17 @@
 
 import { ThemeProvider as NextThemes } from "next-themes";
 
-/** The complete set of theme names. Anything not in here must never reach the DOM attribute. */
-export const THEMES = ["court", "grove"] as const;
+// THE FOUR NAMES BELOW ARE NO LONGER DECLARED HERE — they moved to `@/lib/design/theme`, a pure
+// module with no directive and no `next-themes` import, because the email tier became their first
+// server-side reader (EMAIL-02 / 15-RESEARCH § Pitfall 3). Importing them from THIS file would have
+// pulled a React-context library across a client boundary into the Inngest and design-test graphs.
+//
+// The re-export below is the MECHANISM, not a courtesy: every existing importer names these symbols
+// from `@/components/theme/theme-provider`, and a re-export keeps all of them compiling unchanged.
+import { DEFAULT_THEME, THEMES, THEME_STORAGE_KEY } from "@/lib/design/theme";
 
-export type ThemeName = (typeof THEMES)[number];
-
-/** D-06: the app always renders court. */
-export const DEFAULT_THEME: ThemeName = "court";
-
-/**
- * next-themes' OWN default storage key. Exported rather than duplicated as a literal in
- * e2e/helpers/theme.ts, because a Playwright helper seeding a key the provider does not read is a
- * silent no-op — the smoke test would pass while asserting nothing (D-08).
- */
-export const THEME_STORAGE_KEY = "theme";
+export { THEMES, DEFAULT_THEME, THEME_STORAGE_KEY } from "@/lib/design/theme";
+export type { ThemeName } from "@/lib/design/theme";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
