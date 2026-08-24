@@ -293,3 +293,10 @@ None — no external service configuration required.
 ---
 *Phase: 15-auth-profile-transactional-email*
 *Completed: 2026-08-24*
+
+## Self-Check: PASSED
+
+All four modified files and this summary exist on disk; all six commits (`c8d89f5`, `8ac4823`,
+`f65e532`, `0b8bad9`, `c22e506`, `7b90a8c`) are reachable in `git log`. `git diff --name-only
+e393d93..HEAD` lists exactly the four files in `files_modified` plus this summary — nothing else was
+touched.
