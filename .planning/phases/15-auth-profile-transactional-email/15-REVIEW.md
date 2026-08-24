@@ -587,6 +587,21 @@ whether a reset link can be made to carry a victim's token to an attacker-contro
 `src/lib/auth.ts` was not in scope and I did not read it. Flagging as a **verify-separately** item,
 not as a finding — I have no evidence either way.
 
+**DISCHARGED by the orchestrator, 2026-08-24 — not exploitable.** Read `src/lib/auth.ts:52-63`:
+
+```
+const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  baseURL: BETTER_AUTH_URL,
+  trustedOrigins: [BETTER_AUTH_URL],
+```
+
+Two independent reasons the token cannot reach an attacker domain:
+
+1. **The link's origin is config, not input.** Better Auth builds the reset URL from `baseURL`, which is `BETTER_AUTH_URL` — a server env var. No client value contributes to the origin the token is minted against.
+2. **`trustedOrigins` is a single origin.** A client-supplied `redirectTo` / `callbackURL` pointing anywhere else fails Better Auth's origin validation, and `redirectTo` is consumed only *after* the token has been redeemed on the trusted origin — so it never travels with the token.
+
+**Residual, out of scope for this phase and NOT a finding:** `BETTER_AUTH_URL` falls back to `http://localhost:3000` when unset, and unlike `BETTER_AUTH_SECRET` (which has a WR-03 production boot-guard at `auth.ts:34-48`) there is no guard on it. Unset in production, both `baseURL` and `trustedOrigins` become localhost — reset links would be **unusable rather than leaky**, and OAuth would break loudly. That fails visibly, not silently-insecurely, so it is a hardening opportunity for a later phase, not a token-leak vector.
+
 ---
 
 _Reviewed: 2026-08-24T17:15:00Z_
