@@ -789,7 +789,7 @@ describe("DS-08 — the repo-wide scan reaches the trees it now claims to police
 });
 
 describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked for it", () => {
-  it("adopts the brand variant at exactly 24 call sites across src/app and src/components", () => {
+  it("adopts the brand variant at exactly 26 call sites across src/app and src/components", () => {
     // 15 from plan 10-08 (bookings, booking, group, search) + 5 from plan 10-09 (the host surface) +
     // 1 from plan 12-10 (RESP-02's sticky bottom bar, the mobile listing page's single focal action) +
     // 1 from plan 12-11 (BFLOW-06's checkout bar, the mobile checkout's single focal action). The
@@ -813,8 +813,32 @@ describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked
     // conditional, so only one of them is ever an element in the document. They are counted because
     // this scan reads source, and the honest place to assert what a booker actually sees is a render —
     // `tests/booking/payment-states.test.tsx` does exactly that, and asserts ONE.
+    //
+    // ⚠ AND PLAN 15-07's TWO ADD FOR A FOURTH REASON, which is the simplest one this comment has had
+    // to record: `(auth)/login/page.tsx` and `(auth)/forgot-password/page.tsx` each gained ONE brand
+    // submit where they had an un-varianted one, so 24 → 26 is two files, two sites, one apiece. No
+    // fork, no duplication, no runtime conditional — 15-CONTEXT D-162 puts coral on the primary
+    // action and nowhere else, so `Continue with Google` stays outline and every link stays neutral.
+    // The screens each render exactly one accent-filled element, and the forgot page's post-submit
+    // branch renders ZERO because the ternary replaces the form rather than sitting beside it.
+    //
+    // WHY THIS NUMBER MOVES WHILE THE SCOPED 19 ABOVE DOES NOT — it is `ADOPTION_TREES` vs
+    // `SCOPED_TREES`, and the pairing is the check that this is a real conversion rather than an
+    // accounting slip. `(auth)` pages live under `src/app/`, which is inside the repo-wide trees and
+    // outside all four scoped ones, so a change here with no change there is exactly what a Phase-15
+    // auth conversion looks like. If BOTH moved, something landed in the booking/group/search trees.
+    //
+    // THE RED WAS WATCHED BEFORE THIS NUMBER MOVED. With both submits converted and the assertion
+    // still reading 24, this gate said, verbatim:
+    //
+    //   FAIL  tests/design/brand-recipe.test.ts > DS-08 / D-21 — coral appears on exactly the 22
+    //   buttons someone asked for it > adopts the brand variant at exactly 24 call sites across
+    //   src/app and src/components
+    //   AssertionError: expected 26 to be 24 // Object.is equality
+    //
+    // It reaches 28 in this plan's second task (signup and reset). Do not move it ahead of the rows.
     const total = Object.values(scan.adoption).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(24);
+    expect(total).toBe(26);
   });
 
   it("lands the 5 host conversions on the host surface, not somewhere convenient", () => {

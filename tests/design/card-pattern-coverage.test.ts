@@ -398,6 +398,54 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "this row's business: the no-blocked-dates absence is a genuine empty LIST and took " +
       "`EmptyState`, which `empty-state-adoption.test.ts` declares in the same commit.",
   },
+
+  // ─── Phase 15 — the four auth screens (AUTHUI-01 · AUTHUI-03 · 15-CONTEXT D-162) ──────────────────
+  //
+  // FOUR ROWS ARRIVE HERE FROM THE ALLOW-LIST, which is the third and largest instance of the
+  // transition `bookings/[id]/page.tsx` made in 13-10 and the two availability editors made in
+  // 14-12/14-13. All four exemptions said the same thing in four different sentences — *Phase 15 owns
+  // login/signup/forgot/reset as one designed set, so its box changes when the set does* — and 15-UI-SPEC
+  // § The Auth Composition is that decision, taken with the whole surface in front of it.
+  //
+  // NO `AuthCard` PATTERN WAS EXTRACTED, and the refusal is the allow-list rows' own argument honoured
+  // rather than overruled. Their warning was that satisfying this gate by inventing a fourth boxed shape
+  // would be worse than the exemption; DS-11 says three containers. What makes the four screens one
+  // composition is four `PanelCard` call sites sharing ONE layout (`(auth)/layout.tsx`, plan 15-06) —
+  // same ground, same column width, same wordmark, same heading role, one coral each.
+  //
+  // ONE ROW PER FILE, FOUR FILES, and each carries the two facts a reader needs: that the card is now
+  // the pattern, and that the `<h1>` these documents previously did not have at all is the pattern's
+  // own title at `titleAs="h1"` (`CardTitle` is a `<div>`; before plan 15-07 no auth document had a
+  // heading element anywhere in it).
+  {
+    file: "src/app/(auth)/login/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE LOGIN CARD, ARRIVING FROM THE ALLOW-LIST (plan 15-07). Its exemption said the 11-UI-SPEC lists " +
+      "none of the four auth screens under a `Replaces` line and that extracting an auth-card pattern from " +
+      "Phase 11 would be inventing a fourth shape to satisfy a gate — both halves still true, and neither " +
+      "is what happened: the page composes the THIRD declared container, and the composition lives in the " +
+      "route group's layout rather than in a new component. The pattern supplies the document's `<h1>` via " +
+      "`titleAs=\"h1\"`, the widening plan 15-06 made for exactly this call. Its ALLOWED_RAW_CARD row was " +
+      "DELETED in the same commit, so the inverse half polices this file now — a raw `<Card>` reappearing " +
+      "here is a failure rather than an exemption, which a stale row would have made it permanently " +
+      "(13-08's finding).",
+  },
+  {
+    file: "src/app/(auth)/forgot-password/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE RESET-REQUEST CARD (plan 15-07), converted in the same commit as login for the reason its own " +
+      "exemption gave: AUTHUI-03 requires all four auth screens to hold the same five gates, which is an " +
+      "argument for designing them together rather than swapping one container at a time. Both of its " +
+      "branches — the form and the post-submit uniform sentence that REPLACES it — render inside this one " +
+      "panel, so the `<h1>` is present in both, which is the property that made the conversion worth doing " +
+      "on a one-field screen. GATE-NOREG #2: the branching and the sentence are byte-identical across the " +
+      "swap; this row asserts a container, never a state machine. Its ALLOWED_RAW_CARD row was DELETED in " +
+      "the same commit (13-08's finding, as above).",
+  },
 ];
 
 /**
@@ -427,8 +475,27 @@ const CARD_SURFACES: readonly CardSurface[] = [
  * necessary rather than tidy: an allow-list row exempts a file in BOTH directions, permanently, so a
  * row left behind after a conversion licenses the next box somebody adds to a file that was just
  * pattern-ised.
+ *
+ * EIGHTEEN SINCE PLAN 15-07, and the pair is the allow-list → inventory move a third time — the
+ * transition this list has now made five times in three phases (13-10, 14-12, 14-13, and the two
+ * here). `login/page.tsx` and `forgot-password/page.tsx` compose `PanelCard` and their exemptions are
+ * gone from the block below, in the same commit as the conversions.
+ *
+ * THE RED WAS WATCHED BEFORE THIS NUMBER MOVED, which is the procedure the whole pairing depends on.
+ * With the two rows added and this constant still reading 16, the gate said, verbatim:
+ *
+ *   AssertionError: the declared card-surface inventory is not the size the UI-SPEC's three
+ *   `Replaces` lists describe. A coverage gate whose inventory silently emptied passes every one of
+ *   its own assertions.: expected 18 to be 16 // Object.is equality
+ *
+ * and the positive half beside it said `expected [ … ] to have a length of 14 but got 16`. Both are
+ * the pin doing its job. A number moved first would have made the conversion unfalsifiable.
+ *
+ * IT REACHES 20 IN THIS PLAN'S SECOND TASK (signup and reset) AND 21 IN PLAN 15-08, when
+ * `profile-form.tsx` joins. Do not move it ahead of either — a count that anticipates rows is the
+ * exact thing this file's procedure forbids.
  */
-const EXPECTED_SURFACES = 16;
+const EXPECTED_SURFACES = 18;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -444,12 +511,26 @@ const EXPECTED_SURFACES = 16;
  */
 const ALLOWED_RAW_CARD: Readonly<Record<string, string>> = {
   // ── Phase 15 — Auth, Profile & Transactional Email (AUTHUI-01..03) ────────────────────────────
-  "src/app/(auth)/login/page.tsx":
-    "The auth form shell. Phase 15 owns login/signup/forgot/reset as one designed set, and the 11-UI-SPEC does not list any of the four under a `Replaces` line — extracting an auth-card pattern from Phase 11 would be inventing a fourth shape to satisfy a gate.",
+  //
+  // TWO ROWS LEFT THIS BLOCK IN PLAN 15-07, IN THE COMMIT THAT CONVERTED THEIR FILES.
+  // `login/page.tsx` and `forgot-password/page.tsx` are declared `panel-card` surfaces above and
+  // neither renders a raw `<Card>` any more. Their exemptions were the two whose sentences said the
+  // 11-UI-SPEC names no auth screen under a `Replaces` line, and that AUTHUI-03's five-gates
+  // criterion is an argument for designing the four screens together rather than swapping one
+  // container at a time. 15-UI-SPEC § The Auth Composition is that design, and the two rows above
+  // record what it decided — the pattern, not a fourth shape.
+  //
+  // THE DELETIONS ARE NOT A TIDY-UP, and this block is now the third place that sentence is written.
+  // 13-08's finding is that an allow-list row exempts a file in BOTH directions, permanently: a row
+  // surviving its own conversion goes on licensing the next box somebody hand-rolls in a file that
+  // had just been pattern-ised, and the inverse half stays green over it forever. The rule the Phase
+  // 14 block below leaves behind is the pairing — a conversion and its row deletion are ONE commit —
+  // and it was watched go red here before the count moved.
+  //
+  // TWO ROWS REMAIN, and they remain deliberately: plan 15-07's second task owns signup and reset,
+  // and deleting an exemption for a surface a commit has not converted is the inverse mistake.
   "src/app/(auth)/signup/page.tsx":
     "Same shell as login, plus the book/host intent radio group. Phase 15. Pattern-ising the four auth cards together is that phase's call, not this one's.",
-  "src/app/(auth)/forgot-password/page.tsx":
-    "The same auth shell again, one field wide. Phase 15 criterion 1 requires all four auth screens to hold the same five gates, which is an argument for designing them together rather than swapping one container now.",
   "src/app/(auth)/reset-password/page.tsx":
     "The fourth auth shell, and the one carrying the token-bearing URL. Phase 15; its box changes when the set does.",
 
@@ -767,7 +848,14 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // booking detail page). `refused` is unchanged — both refusals were MEASURED by plan 11-11 and
     // neither has been overturned, and the host listing tile's refusal is REAFFIRMED by 14-13 rather
     // than revisited: that plan corrects the 11-UI-SPEC's replaces-list instead of swapping the tile.
-    expect(adopted).toHaveLength(14);
+    //
+    // 16 SINCE PLAN 15-07 (+2: the login and reset-request cards). This is the SECOND pin the two
+    // rows moved, and the fact that it moved separately is the reason it exists: `EXPECTED_SURFACES`
+    // counts the inventory and this counts its adopted half, so a conversion recorded as a REFUSAL
+    // would satisfy the first and fail here. It was watched go red with the rows in and the number
+    // still at 14 — `expected [ … ] to have a length of 14 but got 16` — before it was moved.
+    // `refused` stays 2: no measured refusal was revisited by this phase.
+    expect(adopted).toHaveLength(16);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {
