@@ -267,11 +267,37 @@ Following the Phase-14 convention (nine ungenerated baselines recorded as an exp
 
 ## Requirements
 
-**AUTHUI-03 is NOT ticked, and that is the honest reading.** Its text ends *"…and a baseline"*. Every prior plan in this phase recorded it as `requirements-advanced` and deferred the tick to this one on the assumption this plan would close it. It does not: this plan closes the *declaration* half and routes the *capture* half to a `workflow_dispatch` run that has not happened. A requirement whose last clause is "and a baseline" cannot be complete while the baseline is an absent file and two stale ones.
+**AUTHUI-03 is still NOT ticked — but the reason changed, and the new reason is worth more than the old one.**
 
-AUTHUI-01 is outside this plan's `requirements:` frontmatter and is untouched here.
+Before the dispatch it was unticked because the baseline clause was open. **That clause is now genuinely satisfied**: eight files exist, the two stale ones were replaced, and a comparison run — not a generation run — went green. If the requirement's text were "…and a baseline" alone, this plan would close it.
 
-EMAIL-03 remains untouched and unticked — it belongs to 15-05's open checkpoint.
+It is not. The text is conjunctive across five gates: *"the auth screens hold the same five gates as every other surface — 320px, keyboard, AA, designed states, and a baseline"*. I checked all five against what this phase actually shipped rather than against what it was expected to ship.
+
+| Gate | Held? | Evidence |
+| --- | --- | --- |
+| **320px** | ✅ | 15-07 measured all four screens at 320×800 (`scrollWidth == clientWidth == 320`, 44px submits); 15-10 added 320×568 with card heights and put the four routes **plus the two form-replacing branches** into `e2e/overflow-320.spec.ts` — a standing gate, 40 cases, 60 passed / 15 skipped |
+| **designed states** | ✅ | `(auth)/error.tsx` ships and 15-06 dissolved its landmark caveat by moving `<main>` into the layout; the two form-replacing branches (forgot post-submit, reset missing-token) were measured in 15-07; and `loading-coverage.test.ts` **affirmatively asserts no `loading.tsx` is owed** — probed with a dead `login/loading.tsx`, which produced 5 failures |
+| **baseline** | ✅ **new** | 8 `auth-*` PNGs from the pinned Linux image, `auth-login` pair replaced, compared green in run `32752143309` |
+| **keyboard** | ❌ **not evidenced** | see below |
+| **AA** | ❌ **not evidenced** | see below |
+
+### The keyboard gap
+
+The only keyboard evidence in the entire phase is 15-07's ten-press tab walk on `/reset-password?token=abc123`. That walk is real and well recorded — but 15-07 is explicit that it exists to discharge **T-15-25** (prove the hidden token input never receives focus), which is a threat mitigation about one input, not a keyboard gate over a surface. **`/login`, `/signup` and `/forgot-password` have no recorded keyboard walk at all**, and no standing spec walks tab order over any of the four. Grepping `e2e/` for a Tab-press returns only `overflow-320.spec.ts`, which is a geometry harness.
+
+### The AA gap
+
+`tests/design/contrast.test.ts` is a **token-layer** gate: it measures ≥39 *declared pairings* and ≥24 tokens per theme, in both themes. It proves the palette clears AA. It cannot prove that a given surface composes only pairs that were declared — a surface can put two perfectly legal tokens together in a combination no pairing row covers, and nothing fails.
+
+The one contrast-adjacent line in Phase 15 is 15-07's `git diff --exit-code src/lib/design/contrast-pairs.ts` → exit 0, which asserts **no new pairing was declared**. That is a negative check, not a measurement. And it matters here specifically because **D-162 changed the composition under it**: the wordmark now sits directly on `bg-muted` where the header previously supplied its own surface. `(auth)/layout.tsx` cites `foreground` on `muted` at 18.16 court / 16.89 grove — a pairing declared and measured in an *earlier* phase — but nobody measured the ink-on-ground pairs D-162 newly created on these four screens.
+
+### Why this is a planning gap and not an execution failure
+
+`15-VALIDATION.md` maps AUTHUI-03 to exactly three rows — `15-10-02` (320px), `15-11-01` (inventory) and `15-11-02` (the dispatch). **All three are now discharged.** It never maps a keyboard row or an AA row to AUTHUI-03 at all. So the phase's validation plan sampled two of the requirement's five clauses and the other three were carried by work done for other reasons. Two of those three (designed states, and 320px's second half) happen to be genuinely covered; two are not.
+
+Ticking on the strength of "all its mapped validation rows are green" would be exactly the vacuity this phase has spent eleven plans recording: a gate that reads correct because nothing asked the harder question. **Left unticked, with both gaps named.** Logged in `deferred-items.md` for the verifier.
+
+AUTHUI-01 is outside this plan's `requirements:` frontmatter and is untouched here. AUTHUI-02 untouched. EMAIL-03 remains unticked — 15-05's checkpoint is still open and the PM deferred the real-client walk. The phase checkbox was not ticked and no phase row moved to Complete; that is the verifier's call.
 
 ## Deferred Issues
 
