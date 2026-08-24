@@ -45,6 +45,34 @@
 // drawing a bar for a value the shared schema would refuse, and a second parser here is how that
 // returns. Nothing about the option values, their order or their rendered labels changed.
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// F-1 (QUICK 260824-dbc) — AN IMPOSSIBLE WINDOW NOW NAMES ITS REASON ON ITS OWN ROW
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// PHASE 14's UAT PASS FOUND THE STRIP'S EMPTY COLUMN WAS THE ONLY PRE-SAVE SIGNAL. A host whose Monday
+// read 5 AM – 6 AM and who dragged the OPEN time to the evening landed on 6 PM → 6 AM, and the product
+// said nothing else at all: no message under the row, no alert, Save still enabled. The PM ruled
+// "explain on the row and leave the button pressable" — the host learns what is wrong without the UI
+// second-guessing them, and the server stays the authority on what may be stored.
+//
+// THE MECHANISM WAS MEASURED, NOT ASSUMED. The UAT log offered a hypothesis and said in as many words
+// that it was not a diagnosis. Probed before anything was built on it, and it holds: `hoursWindowSchema`
+// hangs its refusal on the CLOSE field's path, while react-hook-form's onChange path looks an error up
+// at the path of the field that CHANGED — walking `windows.N.openTime` → `windows.N`, finding nothing,
+// and writing only that empty result into form state. The sibling's issue was computed by the resolver
+// on every keystroke and then discarded. The proof it was computed: pressing Save in that same state
+// rendered the sentence and did NOT call the server action.
+//
+// SO THE FIX ADDS NO RULE AND NO SENTENCE. The `<FormMessage />` under the close select was already
+// correct and already wired; the open select simply asks the resolver about its own row's close field
+// after a change, so the answer lands at the path the message reads. `weeklyHoursSchema` remains the
+// ONE authority for both the rule and its wording, on the client and on the server.
+//
+// ⚠ SAVE IS NOT GATED ON CLIENT VALIDITY, AND MUST NOT BECOME SO (D-130). It is disabled only while a
+// save is in flight. `saveOperatingHours` re-validates every write with this same schema and refuses
+// what the schema refuses; a client that greys the button has quietly appointed itself a second
+// authority on what can be stored. `tests/availability/week-strip.test.tsx` case (12) fails on it.
+
 import { useState } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -224,7 +252,24 @@ export function WeeklyHoursEditor({
                             name={`windows.${index}.openTime` as const}
                             render={({ field }) => (
                               <FormItem className="flex-1">
-                                <Select value={field.value} onValueChange={field.onChange}>
+                                {/* F-1 — THE OPEN SELECT RE-ASKS ABOUT ITS OWN ROW'S CLOSE TIME, AND
+                                    THAT IS THE WHOLE FIX. See this file's F-1 block above for the
+                                    measured mechanism; in one line: the schema hangs its close-after-
+                                    open refusal on `closeTime`, and RHF's onChange path only writes
+                                    the error it finds at the path of the field that changed — so
+                                    changing `openTime` computed the sibling's issue and threw it
+                                    away. `trigger` re-runs the SAME resolver and writes the result at
+                                    the named path, which is where the `<FormMessage />` below has
+                                    been waiting all along. The sentence is deliberately NOT quoted
+                                    here: it is `weeklyHoursSchema`'s to own, and a copy in a comment
+                                    is the first step to a copy in the markup. */}
+                                <Select
+                                  value={field.value}
+                                  onValueChange={(v) => {
+                                    field.onChange(v);
+                                    void form.trigger(`windows.${index}.closeTime` as const);
+                                  }}
+                                >
                                   <FormControl>
                                     <SelectTrigger className="h-11 w-full" aria-label="Open time">
                                       <SelectValue />

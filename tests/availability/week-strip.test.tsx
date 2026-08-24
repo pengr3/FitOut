@@ -70,6 +70,9 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { saveOperatingHours } from "@/app/actions/operating-hours";
 import { WeekStrip } from "@/components/availability/week-strip";
 import { WeeklyHoursEditor } from "@/components/availability/weekly-hours-editor";
+// F-1 reads its expected sentence OUT OF THE SCHEMA rather than spelling it. A literal here would be a
+// second copy of the one authority, and the fix's whole claim is that there is only ever one.
+import { hoursWindowSchema } from "@/lib/validation/availability";
 
 // Radix's select measures itself with a ResizeObserver jsdom does not implement. Stubbed here rather
 // than in the shared setup so the blast radius is this file; nothing asserted below is a measurement.
@@ -370,5 +373,143 @@ describe("WR-03 — the weekly-hours panels are SUBORDINATE to the section that 
     render(<WeekStrip cityLabel={CITY} windows={[]} />);
 
     expect(screen.getByRole("heading", { name: "Your week at a glance", level: 3 })).toBeTruthy();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// F-1 — THE IMPOSSIBLE WINDOW NAMES ITS REASON ON ITS OWN ROW, AND SAVE STAYS PRESSABLE
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Walk B's fact 3, made a gate. A host whose Monday window was 5 AM – 6 AM and who drags the OPEN time
+// to the evening lands on 6 PM → 6 AM, and before this the product said nothing: the strip's column
+// emptied and that was the entire pre-save signal. The PM's ruling was "explain on the row, keep Save
+// live" — so both halves are asserted together, because either one alone is satisfiable by the wrong fix
+// (a disabled Save "explains" nothing, and a message that also greys the button is not what was ruled).
+//
+// ⚠ THE MECHANISM, MEASURED RATHER THAN ASSUMED (24 August 2026). The UAT log offered a hypothesis and
+// said plainly it was not a diagnosis. It was probed before anything was built on it, and it holds
+// exactly: the schema attaches `Close time must be after open time.` to the `closeTime` path, and
+// react-hook-form's onChange path looks an error up at the path of the field that CHANGED. Changing
+// `openTime` makes that lookup walk `windows.0.openTime` → `windows.0`, find nothing, and write only
+// that empty result into form state — so the sibling's issue is computed by the resolver and then
+// discarded. The proof it was computed: pressing Save in the same state DID render the sentence and DID
+// NOT call the server action. The message and its wiring were already correct; only the onChange path
+// never populated it.
+//
+// WATCHED RED — TWO PROBES, BOTH RUN AND BOTH REVERTED (24 August 2026). GREEN IS 12 PASSED. Command
+// for both: `npx vitest run tests/availability/week-strip.test.tsx`.
+//
+//   (a) THE FIX REMOVED — the open select back to a bare `onValueChange={field.onChange}`, i.e. the
+//       tree exactly as the UAT pass found it. **2 failed / 10 passed**, both on the same clause:
+//
+//         Unable to find an element with the text: Close time must be after open time.
+//
+//       That IS F-1: the sentence the schema computed on that keystroke never reached the row. Both
+//       cases fail here because (12) must first find the message before it can ask about the button.
+//       Restored → 12 passed.
+//
+//   (b) SAVE GATED ON CLIENT VALIDITY — the fix in place and the submit button changed to
+//       `disabled={saving || !form.formState.isValid}`, which is the "improvement" the ruling
+//       forbids and the one a later reader is most likely to reach for. **1 failed / 11 passed**, on
+//       case (12) alone and on its own clause:
+//
+//         expected true to be false
+//
+//       (11) stayed green throughout, which is the point of splitting them: the two halves of the PM's
+//       ruling fail independently. Reverted → 12 passed.
+//
+// WHAT THIS CANNOT SEE: jsdom computes no layout, so "the sentence sits next to the offending day" is
+// asserted STRUCTURALLY — the message is inside Monday's row and inside no other day's — rather than as
+// a position. The `<select>` indices are Radix's hidden native mirrors, in document order, which is the
+// same idiom case (3) above already relies on.
+
+describe("F-1 — a window whose close is not after its open explains itself on that day's row", () => {
+  /** The sentence the SHARED schema attaches to this exact mistake. Never spelled here. */
+  const REASON = (() => {
+    const parsed = hoursWindowSchema.safeParse({
+      dayOfWeek: 1,
+      openTime: "18:00",
+      closeTime: "06:00",
+    });
+    if (parsed.success) {
+      throw new Error(
+        "`hoursWindowSchema` now ACCEPTS 18:00–06:00. This case exists because it refuses it; if the " +
+          "rule moved, the two cases below are asserting against a mistake the product no longer makes.",
+      );
+    }
+    return parsed.error.issues[0].message;
+  })();
+
+  /** Walk B's realistic path: an early-morning window whose OPEN is later dragged to the evening. */
+  function dragMondayOpenToTheEvening() {
+    const view = render(
+      <WeeklyHoursEditor
+        listingId="listing-under-test"
+        cityLabel={CITY}
+        gmtLabel="GMT+8"
+        initialWindows={[
+          { dayOfWeek: 1, openTime: "05:00", closeTime: "06:00" },
+          // A second, perfectly ordinary day. Without it "the message is on the offending row" is
+          // indistinguishable from "the message is somewhere on the page".
+          { dayOfWeek: 3, openTime: "09:00", closeTime: "17:00" },
+        ]}
+      />,
+    );
+    const mondayOpen = view.container.querySelectorAll("select")[0];
+    act(() => {
+      fireEvent.change(mondayOpen, { target: { value: "18:00" } });
+    });
+    return view;
+  }
+
+  it("(11) renders the SCHEMA's own sentence on the offending day, and on no other", async () => {
+    const { container } = dragMondayOpenToTheEvening();
+
+    // The strip already empties Monday's column — that is the shipped D-152 signal and it is the ONLY
+    // one F-1 says is not enough. Asserted first so a regression that broke the strip instead of
+    // fixing the message cannot read as a pass.
+    expect(screen.getAllByRole("listitem")[1].textContent).toBe("Monday: closed");
+
+    const message = await screen.findByText(REASON);
+
+    // ON THE ROW — located by the weekday's own label rather than by a container class, so the claim is
+    // "inside the row headed Monday" and not "inside whichever box happens to wrap it". Each weekday
+    // row opens with a `<span>` holding exactly that day's name; the strip's sentences are `<li>`s
+    // reading `Monday: …`, so an exact span match cannot resolve to one of those instead.
+    const rowHeaded = (day: string) => {
+      const label = screen.getByText(day, { selector: "span", exact: true });
+      return label.parentElement as HTMLElement;
+    };
+    expect(
+      rowHeaded("Monday").contains(message),
+      "the reason rendered somewhere other than the row of the day it is about",
+    ).toBe(true);
+    expect(
+      rowHeaded("Wednesday").contains(message),
+      "the reason landed on an ordinary day's row as well as the offending one",
+    ).toBe(false);
+
+    // …and exactly once. A message repeated under every window on the page is not "next to the
+    // offending day", it is noise that happens to include the right row.
+    expect(screen.getAllByText(REASON)).toHaveLength(1);
+  });
+
+  it("(12) leaves Save pressable, and sends nothing while the host is still typing", async () => {
+    dragMondayOpenToTheEvening();
+    await screen.findByText(REASON);
+
+    // THE OTHER HALF OF THE PM'S RULING, AND THE HALF A LATER "improvement" WILL REACH FOR FIRST. The
+    // server re-validates every write with this same schema and stays the authority on what may be
+    // stored (D-130); a client that greys the button has made itself a second authority on it.
+    const save = screen.getByRole("button", { name: /save hours/i }) as HTMLButtonElement;
+    expect(
+      save.disabled,
+      "`Save hours` was disabled while the form was invalid. The PM ruled the opposite — explain on " +
+        "the row and leave the button pressable — and D-130 is why: the server re-validates with the " +
+        "same schema, so the client must not become a second opinion about what can be saved.",
+    ).toBe(false);
+
+    // Surfacing a message is a RENDER, not a round trip.
+    expect(vi.mocked(saveOperatingHours)).toHaveBeenCalledTimes(0);
   });
 });
