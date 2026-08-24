@@ -53,15 +53,36 @@
 // **the footer contains no address-shaped literal at all**, guarded or not. A fabricated address
 // cannot hide in the dead branch, and the live branch can only ever emit the constant.
 //
-// ═════════════════════════════════════════════════════════════════════════════════════════════════
-// WATCHED RED — FOUR RUNS, ALL REAL (14 August 2026)
-// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// ── TWO GUARDED SITES, DECLARED ── (added 24 August 2026, plan 15-04) ──────────────────────
+//
+// The structural trio — exactly one `SUPPORT_EMAIL` conditional, no else-branch, no address-shaped
+// literal — was written when the app footer was the ONLY surface that could offer a way to contact
+// anybody. Phase 15 gave the transactional email shell a footer implementing the same D-26/D-64 slot,
+// lit by the same one line in `src/lib/site.ts`. So the trio now runs over a DECLARED INVENTORY
+// (`GUARDED_SITES`) rather than the bare `FOOTER` constant, one row per surface with the reason it is
+// one. Extended, never weakened: every previously existing assertion still runs, unchanged in
+// behaviour, and the non-null branch's exactly-one-`mailto:` count stays scoped to the APP footer —
+// the shell's guarded `mailto:` is a second SITE, not a second footer entry.
+//
+// A structural assertion over a file the walker never opened reports a clean result forever — (d)
+// below is that measurement — so the inventory carries its own reach assertion: every declared row
+// must appear in `scan.walked`, read as a non-trivial source, and name the constant. Probe (f)
+// records it firing.
+//
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// WATCHED RED — SIX RUNS, ALL REAL (a)–(d) 14 August 2026 · (e)–(f) 24 August 2026
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // GREEN, in BOTH states, because a two-state gate has two greens and only recording one of them
 // would hide exactly the branch that has never run:
 //
-//   • `SUPPORT_EMAIL === null` (today)              → **23 passed | 3 skipped (26)**
-//   • `SUPPORT_EMAIL` set + the link rendered       → **20 passed | 6 skipped (26)**
+//   • `SUPPORT_EMAIL === null` (today)              → **28 passed | 3 skipped (31)**
+//   • `SUPPORT_EMAIL` set + the link rendered       → **25 passed | 6 skipped (31)**
+//
+// Both re-measured 24 August 2026 after the inventory landed; they read 23|3 (26) and 20|6 (26)
+// before it. The five new tests are the inventory-shape row, the reach assertion, and the trio
+// running a second time over `src/lib/email-shell.ts`. The counts moving TOGETHER is the visible
+// proof the additions run in both states rather than only in the one that happens to execute today.
 //
 // The skip counts are the branch selector working: `describe.runIf` stands the other state's block
 // down, and the numbers moving in opposite directions is the visible proof that BOTH blocks exist.
@@ -146,7 +167,54 @@
 //       satisfied by a scan of nothing, permanently, and indistinguishably from a real clean run.
 //       That is the entire argument for the file floor, the by-name reach assertions and the positive
 //       control below, and it is why this file puts its walked-file count in the failure message
-//       rather than only its verdict. Reverted → 23 passed | 3 skipped.
+//       rather than only its verdict. Reverted → 23 passed | 3 skipped (26 at the time; 28 | 3 now).
+//
+//   (e) THE NEW SITE, DRIFTED — AN ELSE-BRANCH IN THE EMAIL SHELL (24 August 2026). The shell's
+//       support guard's `: null` replaced with a rendered "coming soon" object, the same disabled
+//       affordance D-26 forbids on the app footer, arriving on the surface the trio did NOT audit
+//       until this plan. **2 failed | 26 passed | 3 skipped:**
+//
+//         FAIL … > the guard itself — one conditional, no else-branch, in either state
+//              > src/lib/email-shell.ts
+//              > the guard has NO ELSE-BRANCH — the entry is absent, never disabled (D-26)
+//         AssertionError: src/lib/email-shell.ts:160 renders something when SUPPORT_EMAIL is null.
+//         D-26 forbids every version of that — a greyed link, a "coming soon", a disabled control,
+//         a tooltip. An affordance that looks present and does nothing is a worse lie than an
+//         absence.: expected true to be false // Object.is equality
+//
+//         FAIL … > D-26 (SUPPORT_EMAIL === null) — zero support affordances render anywhere
+//              > every `Support` label in src/ sits inside a verified SUPPORT_EMAIL guard
+//         AssertionError: expected [ …(2) ] to deeply equal []
+//         + [
+//         +   "src/lib/email-shell.ts:170 — \"\\\">Support (coming soon)</div>\"",
+//         +   "src/lib/email-shell.ts:171 — \"Support (coming soon)\"",
+//         + ]
+//
+//       THE FIRST FAILURE IS THE ONE THIS PLAN BOUGHT. The second is the whole-tree null-branch
+//       assertion, which already reached the shell before this plan and would have caught the LABEL
+//       — but only because the drift happened to carry the word `Support`. A greyed entry reading
+//       "Contact us shortly", or an empty `<a href="#">`, produces no label and no `mailto:` and
+//       would have been invisible; the structural assertion catches the SHAPE regardless of the copy.
+//       Reverted, `git diff --exit-code src/` clean → 28 passed | 3 skipped.
+//
+//   (f) GUARD-THE-GUARD FOR THE NEW ROW (24 August 2026). `EMAIL_SHELL` re-pointed at
+//       `src/lib/email-shell-nope.ts` — a declared site the walker cannot reach.
+//       **2 failed | 26 passed | 3 skipped:**
+//
+//         FAIL … > guard-the-guard — the scanner read the tree it is asserting about
+//              > REACHED every declared guarded site, and read a real source for each
+//         AssertionError: the walker never reached the declared guarded site
+//         src/lib/email-shell-nope.ts, so its structural assertions below are green over a file
+//         nobody opened.: expected [ …(337) ] to include 'src/lib/email-shell-nope.ts'
+//
+//         FAIL … > src/lib/email-shell-nope.ts declares EXACTLY ONE SUPPORT_EMAIL conditional
+//         AssertionError: src/lib/email-shell-nope.ts declares 0 SUPPORT_EMAIL conditionals;
+//         exactly one is the contract. … expected +0 to be 1
+//
+//       AND THE OTHER TWO ROWS OF THE TRIO PASSED OVER THE UNREACHED FILE — no else-branch and no
+//       address-shaped literal are both perfectly satisfied by an empty guard list and an empty
+//       source string. Only the COUNT assertion and the reach assertion can tell the difference,
+//       which is why both exist. Reverted → 28 passed | 3 skipped.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file
