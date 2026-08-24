@@ -128,17 +128,14 @@ export const sendBookingConfirmed = (
   reference: string,
   bookingUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const ref = escapeHtml(reference);
-  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Your FitOut booking is confirmed — ${spaceTitle}`,
-    `<p><strong>Booking confirmed</strong></p>` +
-      `<p>You're booked at ${space} on ${when}. Booking reference ${ref}.</p>` +
-      `<p><a href="${url}">View your booking</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "Booking confirmed",
+    paragraphs: [
+      `You're booked at ${spaceTitle} on ${whenLabel}. Booking reference ${reference}.`,
+    ],
+    cta: { label: "View your booking", href: bookingUrl },
+  });
+  return send(to, `Your FitOut booking is confirmed — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -155,16 +152,14 @@ export const sendRequestReceived = (
   whenLabel: string,
   bookingUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `We sent your request — ${spaceTitle}`,
-    `<p><strong>Request sent</strong></p>` +
-      `<p>Your request to book ${space} on ${when} is with the host. We'll let you know as soon as they respond. You haven't been charged — you'll only pay if the host approves.</p>` +
-      `<p><a href="${url}">View your request</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "Request sent",
+    paragraphs: [
+      `Your request to book ${spaceTitle} on ${whenLabel} is with the host. We'll let you know as soon as they respond. You haven't been charged — you'll only pay if the host approves.`,
+    ],
+    cta: { label: "View your request", href: bookingUrl },
+  });
+  return send(to, `We sent your request — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -181,18 +176,14 @@ export const sendRequestApproved = (
   payByLabel: string,
   payUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const total = escapeHtml(totalLabel);
-  const payBy = escapeHtml(payByLabel); // WR-01 — carries a venue city string; escape like every field.
-  const url = escapeHtml(payUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Approved — pay to confirm ${spaceTitle}`,
-    `<p><strong>Your request was approved</strong></p>` +
-      `<p>Good news — the host approved your booking for ${space} on ${when}. Pay ${total} by ${payBy} to lock it in.</p>` +
-      `<p><a href="${url}">Pay now</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "Your request was approved",
+    paragraphs: [
+      `Good news — the host approved your booking for ${spaceTitle} on ${whenLabel}. Pay ${totalLabel} by ${payByLabel} to lock it in.`,
+    ],
+    cta: { label: "Pay now", href: payUrl },
+  });
+  return send(to, `Approved — pay to confirm ${spaceTitle}`, html, text);
 };
 
 /**
@@ -206,18 +197,19 @@ export const sendRequestDeclined = (
   whenLabel: string,
   opts?: { expired?: boolean },
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const url = escapeHtml(`${APP_URL}/`); // WR-01 — escape even the app-root href.
+  // The branch chooses the heading and the sentence, never two whole documents: the two wordings
+  // differ by a heading and a paragraph, and building the shell twice would let them drift apart.
   const heading = opts?.expired ? "This request expired" : "This request wasn't available";
   const body = opts?.expired
-    ? `Your request to book ${space} for ${when} expired before the host responded. You haven't been charged.`
-    : `Unfortunately the host couldn't take your booking for ${space} on ${when}. You haven't been charged.`;
-  return send(
-    to,
-    `Your request for ${spaceTitle} wasn't available`,
-    `<p><strong>${heading}</strong></p>` + `<p>${body}</p>` + `<p><a href="${url}">Find another space</a></p>`,
-  );
+    ? `Your request to book ${spaceTitle} for ${whenLabel} expired before the host responded. You haven't been charged.`
+    : `Unfortunately the host couldn't take your booking for ${spaceTitle} on ${whenLabel}. You haven't been charged.`;
+  const { html, text } = renderEmail({
+    heading,
+    paragraphs: [body],
+    // The one CTA without a caller-supplied link — the APP_URL constant and its fallback are unmoved.
+    cta: { label: "Find another space", href: `${APP_URL}/` },
+  });
+  return send(to, `Your request for ${spaceTitle} wasn't available`, html, text);
 };
 
 /**
@@ -236,19 +228,14 @@ export const sendNewRequestToHost = (
   respondByLabel: string,
   requestsUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const booker = escapeHtml(bookerLabel);
-  const total = escapeHtml(totalLabel);
-  const respondBy = escapeHtml(respondByLabel); // WR-01 — carries a venue city string; escape it.
-  const url = escapeHtml(requestsUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `New booking request — ${spaceTitle}`,
-    `<p><strong>New booking request</strong></p>` +
-      `<p>${booker} requested ${space} on ${when} for ${total}. Respond by ${respondBy} to approve or decline.</p>` +
-      `<p><a href="${url}">Review request</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "New booking request",
+    paragraphs: [
+      `${bookerLabel} requested ${spaceTitle} on ${whenLabel} for ${totalLabel}. Respond by ${respondByLabel} to approve or decline.`,
+    ],
+    cta: { label: "Review request", href: requestsUrl },
+  });
+  return send(to, `New booking request — ${spaceTitle}`, html, text);
 };
 
 // ---------------------------------------------------------------------------
@@ -271,17 +258,14 @@ export const sendBookingCancelledByBooker = (
   bookerLabel: string,
   bookingUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const booker = escapeHtml(bookerLabel);
-  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Booking cancelled — ${spaceTitle}`,
-    `<p><strong>A booking was cancelled</strong></p>` +
-      `<p>${booker} cancelled their booking at ${space} on ${when}. That window is open for other guests again — nothing else is needed from you.</p>` +
-      `<p><a href="${url}">View the booking</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "A booking was cancelled",
+    paragraphs: [
+      `${bookerLabel} cancelled their booking at ${spaceTitle} on ${whenLabel}. That window is open for other guests again — nothing else is needed from you.`,
+    ],
+    cta: { label: "View the booking", href: bookingUrl },
+  });
+  return send(to, `Booking cancelled — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -296,17 +280,14 @@ export const sendBookingCancelledByHost = (
   refundLabel: string,
   bookingUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const refund = escapeHtml(refundLabel);
-  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
-  return send(
-    to,
-    `Your booking was cancelled — ${spaceTitle}`,
-    `<p><strong>The host cancelled this booking</strong></p>` +
-      `<p>We're sorry — the host cancelled your booking at ${space} on ${when}. You're getting a full refund of ${refund}, including the service fee.</p>` +
-      `<p><a href="${url}">View the booking</a></p>`,
-  );
+  const { html, text } = renderEmail({
+    heading: "The host cancelled this booking",
+    paragraphs: [
+      `We're sorry — the host cancelled your booking at ${spaceTitle} on ${whenLabel}. You're getting a full refund of ${refundLabel}, including the service fee.`,
+    ],
+    cta: { label: "View the booking", href: bookingUrl },
+  });
+  return send(to, `Your booking was cancelled — ${spaceTitle}`, html, text);
 };
 
 /**
@@ -324,20 +305,17 @@ export const sendHostCancellationRecord = (
   feeLabel: string | null,
   bookingUrl: string,
 ) => {
-  const space = escapeHtml(spaceTitle);
-  const when = escapeHtml(whenLabel);
-  const refund = escapeHtml(refundLabel);
-  const fee = feeLabel === null ? null : escapeHtml(feeLabel); // WR-01 — every interpolated field.
-  const url = escapeHtml(bookingUrl); // WR-01 — never interpolate the raw url into an href.
+  // CR-01 — a null fee omits the sentence entirely rather than rendering a zero.
   const feeSentence =
-    fee === null ? "" : ` A ${fee} cancellation fee will be deducted from your next payout.`;
-  return send(
-    to,
-    `You cancelled a booking — ${spaceTitle}`,
-    `<p><strong>You cancelled this booking</strong></p>` +
-      `<p>You cancelled the booking at ${space} on ${when}. Your guest is being refunded ${refund} in full, including the service fee.${feeSentence}</p>` +
-      `<p><a href="${url}">View your bookings</a></p>`,
-  );
+    feeLabel === null ? "" : ` A ${feeLabel} cancellation fee will be deducted from your next payout.`;
+  const { html, text } = renderEmail({
+    heading: "You cancelled this booking",
+    paragraphs: [
+      `You cancelled the booking at ${spaceTitle} on ${whenLabel}. Your guest is being refunded ${refundLabel} in full, including the service fee.${feeSentence}`,
+    ],
+    cta: { label: "View your bookings", href: bookingUrl },
+  });
+  return send(to, `You cancelled a booking — ${spaceTitle}`, html, text);
 };
 
 /**
