@@ -17,7 +17,8 @@ provides:
   - "`VISUAL_BASELINES` 66 → 74, of which 38 blocked and 36 shootable — the first time the shootable count has moved since Phase 12"
   - "`auth-login` rewritten for D-162: hook, `hookWhy` and both rows' `why` strings"
   - "`BaselineCountIsSeventyFour`, with its red observed UNFORCED and quoted verbatim"
-  - "an inventory two committed PNGs are now provably stale against, and a dispatch that must REPLACE them"
+  - "an inventory two committed PNGs were provably stale against — both REPLACED by the dispatch, proving the hook edit took"
+  - "36 committed baselines from the pinned Linux image, compared green in run 32752143309 — gate-visual's first green since at least 2026-08-22"
 affects: [visual-regression, ci, 15-verification]
 
 # Tech tracking
@@ -39,7 +40,8 @@ key-decisions:
   - "`auth-login`'s DB-free claim is retired rather than re-made — the property moved to the four routes' `○ Static` build marker, which fails in `npm run build` on every machine"
   - "`auth-login` re-argued and KEPT in the four `THEME_SWAP_SURFACES`, with the reason written next to the set; removing it would have cost a second `THEME_SWAP_EXCLUSIONS` row against a gate pinning that list at one"
   - "15-UI-SPEC's 37 → 42 / 66 → 76 is wrong and its own hedge said to measure; the truth is 37 → 41 and 66 → 74 plus one edited row pair"
-  - "AUTHUI-03 NOT ticked — its text ends '…and a baseline', and no baseline exists until the Task 2 dispatch runs"
+  - "AUTHUI-03 NOT ticked, on the evidence rather than on the schedule: its baseline clause is now genuinely CLOSED, but its keyboard and AA clauses are unevidenced across the whole phase — 15-VALIDATION never mapped a row to either"
+  - "The ten unpredicted surfaces the dispatch re-minted are pre-existing drift, proved two ways: two prior CI runs, and the fact that visual-baselines.ts is imported by nothing in src/"
 
 patterns-established:
   - "State a block's shot/blocked split at the TOP of the block rather than leaving it to be summed from `blocked` strings (the Phase-14 honesty convention, applied to a block that is mostly NOT blocked)"
@@ -55,7 +57,7 @@ completed: 2026-08-25
 
 # Phase 15 Plan 11: The Visual-Baseline Inventory Summary
 
-**The inventory now describes the composition that actually ships — `auth-login`'s hook moved off a header that left the layout in 15-06, four surfaces and eight rows arrived court-only, and `BaselineCountIsSixtySix` became `BaselineCountIsSeventyFour` after its red was watched — and the one row that cannot be shot honestly says what it needs.**
+**The inventory now describes the composition that actually ships — `auth-login`'s hook moved off a header that left the layout in 15-06, four surfaces and eight rows arrived court-only, and `BaselineCountIsSixtySix` became `BaselineCountIsSeventyFour` after its red was watched — the one row that cannot be shot honestly says what it needs, and the pictures were taken in the pinned Linux image and compared green in run `32752143309`.**
 
 ## Status: COMPLETE — both tasks discharged
 
@@ -69,9 +71,9 @@ Task 1 was executed here. Task 2 was a `checkpoint:human-action` that was **not 
 
 ## Performance
 
-- **Duration:** ~10 min (00:09 → 00:19, 2026-08-25 local)
-- **Tasks:** 1 of 2 (the second is a blocking checkpoint)
-- **Commits:** 2
+- **Duration:** ~10 min of execution (00:09 → 00:19, 2026-08-25 local), plus the operator dispatch and its two CI runs (~8 min of CI)
+- **Tasks:** 2 of 2 — Task 1 executed here, Task 2 discharged by the orchestrator
+- **Commits:** 9 local + 2 from CI/orchestrator (`7541999`, `2f36376`)
 
 ## What Changed
 
