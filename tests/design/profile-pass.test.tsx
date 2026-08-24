@@ -98,7 +98,7 @@
 // its 21st row; this file owns the per-surface shape that inventory cannot see.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// THE MUTATION WALK — IN PROGRESS (3 OF 6 RUN)
+// THE MUTATION WALK — IN PROGRESS (4 OF 6 RUN)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // ⚠ THIS BLOCK IS DELIBERATE HISTORY RATHER THAN AN OMISSION, and it is `auth-composition.test.tsx`'s
@@ -188,6 +188,27 @@
 //        while chasing a green run. This file says something a budget structurally cannot: that THIS
 //        surface may have none, whatever the repo-wide count is willing to absorb. A coral traded away
 //        somewhere else and re-spent here would leave the budget at 28 and never redden there at all.
+//   (M4) RUN AND REVERTED. The D-10 promise drifts by ONE CHARACTER: the private panel's
+//        `description` loses its full stop — `"Only you can see this. Never shown to other people."`
+//        → `"…other people"`. T-15-28's threat, mutated at its smallest possible size: the change
+//        least likely to be noticed in a diff of a 300-line file. 1 failed / 12 passed:
+//
+//          AssertionError: src/app/(app)/profile/profile-form.tsx no longer carries a sentence
+//          15-UI-SPEC pins byte-for-byte. … A copy change is fine — it just has to move this file and
+//          be seen.: expected [ Array(1) ] to deeply equal []
+//          + "Only you can see this. Never shown to other people."
+//
+//        THE POINT IS NOT THAT PUNCTUATION MATTERS. It is that the mechanism which catches a dropped
+//        full stop is the same one that catches a well-meaning rewrite of this exact sentence — and
+//        THIS sentence is the private half of the D-09/D-10 split stated to the person typing into
+//        the box. A softened version ("Only visible to you") reads better and promises less
+//        precisely, and the surface would look identical afterwards. A gate that only fired on large
+//        edits would not be on that path at all.
+//        ⚠ ONLY THE PRESENCE HALF OF (11) FIRED. The whole-list assertion further down the same
+//        `it()` never ran — the ordered-assertion reading again — and it would have caught the same
+//        defect from the other side. Both are kept because the presence half reports the MISSING
+//        sentence by name, which is the actionable half, while the list half is what catches an ADDED
+//        panel that satisfies every presence check.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — stated so the next reader under-trusts this file
