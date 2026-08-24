@@ -430,6 +430,25 @@ const ROUTES: readonly RouteRow[] = [
     // `Book a space` / `Host a space` pair is 124px × 38px per button inside a 256px inner box, one
     // line at 14px/600, so `grid-cols-2` shipped and the spec's `sm:`-stacking contingency was never
     // needed. This row is what stops that measurement being a one-afternoon fact.
+    //
+    // ⚠ M2 — DOES THE TALL CARD CLIP AT 320×568 INSIDE THE LAYOUT'S `main`? MEASURED 24 Aug 2026, in
+    // real Chromium at the iPhone-SE viewport, and the answer is NO. Stated as a measurement rather
+    // than a prediction, with the numbers, because "it probably scrolls" is exactly the reasoning
+    // that produced the clipping bugs this gate exists for:
+    //
+    //   card 544px tall, top 100 → bottom 644 · main 692px · document scrollHeight 1041 against a
+    //   clientHeight of 568 · scrollWidth 320 = clientWidth 320
+    //
+    // So 76px of the card sits BELOW THE FOLD at rest, and the document scrolls to reveal it:
+    // scrolling to the bottom lands at scrollY 473 and puts the card's bottom edge at y=171, well
+    // inside the viewport. Below the fold is not clipped.
+    //
+    // THE ONE `overflow: hidden` ANCESTOR IS THE CARD'S OWN ROOT (`ui/card.tsx`'s `overflow-hidden`,
+    // which is there to clip a first-child image to the radius), and it cuts nothing: its
+    // clientHeight and scrollHeight are BOTH 544. The layout's `main` does not constrain it either —
+    // 692 > 544. Walked ancestor by ancestor rather than inferred from the class list. The other
+    // three auth cards at the same viewport: login 404px, forgot 268px, reset 268px, all with the
+    // same single non-clipping hidden ancestor and all reporting 320 = 320.
     path: "/signup",
     tell: '[data-testid="panel-card"]',
   },
