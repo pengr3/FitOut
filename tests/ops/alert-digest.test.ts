@@ -76,6 +76,10 @@ import { sql } from "drizzle-orm";
 
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockResend } from "../helpers/mocks";
+// The DIRECT read (case 8/9). Until 15-04 no test file imported this renderer at all, which made its own
+// docblock's claim — "the PII assertion reads this body DIRECTLY" — false: the sentinel was only ever
+// recovered off a captured send. Both readings are kept, because they fail for different reasons.
+import { renderOpsAlertDigest, type OpsDigestRow } from "@/lib/email";
 import { DEFAULT_ALERT_LIMIT, resolveAlert } from "@/lib/ops/alerts";
 import { buildAndSendDigest, agingHours, AGING_HOURS_DEFAULT } from "@/inngest/functions/ops-alert-digest";
 
@@ -215,8 +219,15 @@ describe("buildAndSendDigest", () => {
     // The aging flag DECORATES the digest; it never filters it. Both rows must be present.
     expect(haystack).toContain(old);
     expect(haystack).toContain(fresh);
-    // Marked in plain text, never by colour alone.
-    expect(haystack.match(/AGING/g) ?? []).toHaveLength(1);
+    // Marked in plain text, never by colour alone — and counted PER PROJECTION rather than over the
+    // concatenation (15-04). The old `match(/AGING/g)` over subject+html+text totalled 1 only because
+    // the text part was 15-03's interim restatement of the subject and carried no rows at all; once the
+    // real `tableText` twin landed, the same true property counted 2. Per-part is the stronger claim
+    // anyway: EXACTLY ONE of the two rows is marked in the HTML, and exactly one in the plain text, so
+    // a twin that lost the marker (or gained a second) is caught in the projection that lost it.
+    const digest = mockResend.sent()[0];
+    expect((digest?.html ?? "").match(/AGING/g) ?? [], "the HTML marks one aging row").toHaveLength(1);
+    expect((digest?.text ?? "").match(/AGING/g) ?? [], "the twin marks one aging row").toHaveLength(1);
   });
 
   it("case 5 — no recipient: a loud no-op that RESOLVES, never a throw", async () => {
@@ -285,5 +296,138 @@ describe("buildAndSendDigest", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("a&amp;b&quot;c");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE DIRECT READ (15-04). Everything above recovers the body from a captured send; everything below
+// reads the string the renderer BUILDS. The two are complementary and neither replaces the other:
+//
+//   • the transport read proves the send carries what was built (it would catch a sender that composed
+//     a correct body and then mailed something else, which no direct read can see);
+//   • the direct read pins the guarantee at the point the string exists (it would catch a renderer that
+//     started carrying `meta` on a path the daily job does not currently take, and it survives the day
+//     someone adds a second caller).
+//
+// ⚠ EVERY fixture instant here is an ABSOLUTE literal, never `new Date()` — a fixture that seeds from
+// the clock makes a failure depend on the hour it ran.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The audit row as the DATABASE holds it, jsonb `meta` column included — booking id, transfer id and a
+ * masked last-4, the three things D-72 forbids leaving the database ("not in this audit meta, not in any
+ * log line, NOT IN ANY COLUMN").
+ *
+ * The forbidden strings are declared HERE, in the fixture, rather than typed into the assertion, so the
+ * absence below has a real source: something in this file genuinely holds them, and the claim is that the
+ * renderer's output does not.
+ */
+const AUDIT_ROW_AS_STORED = {
+  id: "audit_direct_7Q2",
+  action: "auto_refund_manual",
+  actorId: "system",
+  createdAt: new Date("2026-08-01T02:30:00.000Z"),
+  ageHours: 30,
+  aging: true,
+  meta: { bookingId: "bk_DIRECT_7Q2", transferId: "tr_DIRECT_7Q2", last4: "9107" },
+} as const;
+
+/**
+ * The projection the email is allowed to see. `OpsDigestRow` HAS NO `meta` FIELD, so adding one to the
+ * object below does not fail a test — it fails `tsc`, at this line. That is the whole of D-J3Z-02: the
+ * column rule is enforced by the type rather than by a reviewer noticing.
+ */
+const DIRECT_ROWS: OpsDigestRow[] = [
+  {
+    id: AUDIT_ROW_AS_STORED.id,
+    action: AUDIT_ROW_AS_STORED.action,
+    actorId: AUDIT_ROW_AS_STORED.actorId,
+    createdAt: AUDIT_ROW_AS_STORED.createdAt,
+    ageHours: AUDIT_ROW_AS_STORED.ageHours,
+    aging: AUDIT_ROW_AS_STORED.aging,
+  },
+];
+
+describe("renderOpsAlertDigest — read directly, not through the transport", () => {
+  it("case 8 — PII: no meta sentinel is in the string the renderer builds, in EITHER projection", () => {
+    const { html, text } = renderOpsAlertDigest(DIRECT_ROWS, {
+      truncated: false,
+      limit: DEFAULT_ALERT_LIMIT,
+    });
+    const body = `${html}\n${text}`;
+
+    // POSITIVE CONTROL FIRST. Every absence below is satisfied by a renderer that returned two empty
+    // strings, and an absence assertion cannot notice it was handed nothing.
+    expect(body, "the audit id must be carried — it is the whole point of the digest").toContain(
+      AUDIT_ROW_AS_STORED.id,
+    );
+    expect(body).toContain(AUDIT_ROW_AS_STORED.action);
+    expect(html.length, "the HTML part rendered as empty or near-empty").toBeGreaterThan(500);
+    expect(text.length, "the plain-text twin rendered as empty or near-empty").toBeGreaterThan(80);
+
+    // …and nothing from `meta` is anywhere in either part.
+    for (const sentinel of Object.values(AUDIT_ROW_AS_STORED.meta)) {
+      expect(
+        body,
+        `${JSON.stringify(sentinel)} came out of the audit row's meta column and reached the email ` +
+          `body. D-72 binds this at the COLUMN level; email is an external service that forwards, ` +
+          `archives and indexes, so content that enters it does not come back out of anyone's control.`,
+      ).not.toContain(sentinel);
+    }
+  });
+
+  it("case 9 — the plain-text twin is the real table, not the subject line restated", () => {
+    // 15-03 had to pass a fourth argument to `send` the moment it became required, and passed the
+    // SUBJECT as the text part rather than invent operator copy that belonged to 15-04. This is the
+    // assertion that the interim is gone: the twin carries the row's five fields and the marker.
+    const { html, text } = renderOpsAlertDigest(DIRECT_ROWS, {
+      truncated: false,
+      limit: DEFAULT_ALERT_LIMIT,
+    });
+
+    for (const field of [
+      AUDIT_ROW_AS_STORED.id,
+      AUDIT_ROW_AS_STORED.action,
+      AUDIT_ROW_AS_STORED.actorId,
+      AUDIT_ROW_AS_STORED.createdAt.toISOString(),
+      `${AUDIT_ROW_AS_STORED.ageHours}h`,
+    ]) {
+      expect(text, `the plain-text twin lost ${JSON.stringify(field)}`).toContain(field);
+      expect(html, `the HTML part lost ${JSON.stringify(field)}`).toContain(field);
+    }
+    // The marker is plain text in BOTH, never colour alone.
+    expect(text).toContain("— AGING");
+    expect(html).toContain("— AGING");
+    // And the twin is text/plain: no markup, and no HTML entity where a raw character belongs.
+    expect(text).not.toContain("<td>");
+    expect(text).not.toContain("<table");
+    expect(text).not.toContain("&lt;");
+  });
+
+  it("case 10 — the truncation line is honest in both projections, and absent when it is not true", () => {
+    const truncated = renderOpsAlertDigest(DIRECT_ROWS, { truncated: true, limit: 200 });
+    expect(truncated.html).toContain("200+ unresolved");
+    expect(truncated.text).toContain("200+ unresolved");
+
+    const whole = renderOpsAlertDigest(DIRECT_ROWS, { truncated: false, limit: 200 });
+    expect(whole.html).not.toContain("200+ unresolved");
+    expect(whole.text).not.toContain("200+ unresolved");
+  });
+
+  it("case 11 — the runbook commands survive the shell byte-identical", () => {
+    // The `<code>` wrappers were dropped in 15-04 (paragraphs are escaped at the choke point now, so a
+    // `<code>` element inside one would reach the operator as visible tag text). The COMMANDS are the
+    // part an operator copies, and they are unchanged — asserted on the twin, where they are raw.
+    const { html, text } = renderOpsAlertDigest(DIRECT_ROWS, {
+      truncated: false,
+      limit: DEFAULT_ALERT_LIMIT,
+    });
+    expect(text).toContain("npm run ops:alerts");
+    expect(text).toContain("npm run ops:alerts:resolve -- <audit-id>");
+    expect(text).toContain("needs_attention");
+    expect(text).toContain(".planning/ops/NEEDS-ATTENTION-RUNBOOK.md");
+    // The placeholder is written raw and escaped on the way into HTML — never a visible `<code>` tag.
+    expect(html).toContain("&lt;audit-id&gt;");
+    expect(html).not.toContain("<code>");
   });
 });

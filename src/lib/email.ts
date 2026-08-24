@@ -601,6 +601,12 @@ export const sendGuestRsvpEmail = async (d: GuestRsvpEmail): Promise<{ sent: tru
 // from ~20 `recordAudit` call sites, so they are untrusted for HTML purposes exactly like every other field
 // in this file — not because a call site is expected to be hostile, but because "trusted because we wrote
 // it" is the assumption that makes an injection sink.
+//
+// AND HERE — UNIQUELY IN THIS FILE — THE ESCAPING IS LOCAL RATHER THAN AT THE CHOKE POINT. Every other
+// sender hands `renderEmail` raw strings and the shell escapes them. This one's body is a data TABLE, so it
+// enters through `EmailContent.tableHtml`, the single slot the renderer inserts RAW because its producer
+// owns its own escaping. That is why the per-field `escapeHtml` calls below are the last ones left in this
+// module, and why deleting one is not a tidy-up: it re-opens the sink the choke point exists to close.
 
 /**
  * One row as the digest renders it: the four columns `listUnresolvedAlerts` returns, plus the two DERIVED
@@ -618,45 +624,92 @@ export type OpsDigestRow = {
 /**
  * PURE renderer, exported on purpose: the PII assertion reads this body DIRECTLY rather than only through
  * the transport, so the guarantee is pinned at the point the string is built, not merely at the point it is
- * handed to Resend. Aging rows carry a plain-text `— AGING` marker; never colour alone.
+ * handed to Resend.
+ *
+ * ⚠ THAT SENTENCE WAS ASPIRATIONAL UNTIL 15-04 — zero test files imported this function, and the sentinel
+ * was only ever read off a captured send. `tests/ops/alert-digest.test.ts` now carries a direct-read case
+ * BESIDE its transport-level one, and the two are complementary rather than redundant: the direct read pins
+ * the string where it is built, the transport read proves the send actually carries what was built.
+ *
+ * Aging rows carry a plain-text `— AGING` marker; never colour alone. It is carried in BOTH projections,
+ * because the operator most likely to be reading this at 08:50 is reading it on a phone.
  *
  * `opts.truncated` states an honest "N+ unresolved — showing the N newest" line (D-J3Z-09) instead of
  * silently rendering a partial list as though it were the whole queue.
+ *
+ * ── UNDER THE SHELL SINCE 15-04, AND THE TABLE IS THE ONE PRE-ESCAPED SLOT ───────────────────────────
+ *
+ * Returns `{ html, text }` from `renderEmail`, like the other eighteen sends. What differs is the body:
+ * this one is a DATA TABLE, so it enters through `EmailContent.tableHtml` — the single field the renderer
+ * inserts RAW — with a matching `tableText` so the plain-text twin does not silently lose the content.
+ * Both projections come out of ONE map over `rows`, so a column added to the HTML cannot go missing from
+ * the text. The per-field `escapeHtml` calls stay exactly where they are; see the block header above.
+ *
+ * Renders NO CTA. The focal point of an operator digest is the table, and a button here would put an
+ * absolute URL in a document whose whole job is to be looked up locally.
+ *
+ * ── ONE STATED FORMATTING CHANGE (15-04), RECORDED RATHER THAN SLIPPED IN ────────────────────────────
+ *
+ * The runbook paragraph used to wrap its command strings in `<code>` elements and pre-escape the
+ * angle-bracketed placeholder by hand. Paragraphs are escaped at the choke point now, so a `<code>`
+ * element inside one would reach the operator as visible tag text. The wrappers are gone and the commands
+ * are carried as plain text, with the placeholder written in its RAW angle-bracketed form (the renderer
+ * escapes it back for the HTML part, and `text/plain` shows it correctly). Every command string is
+ * byte-identical. An operator email that reads its commands as plain text is the same house style as the
+ * `— AGING` marker.
+ *
+ * ── THE TABLE'S BORDER IS AN ATTRIBUTE, NOT A COLOUR (15-04) ─────────────────────────────────────────
+ *
+ * `border="1"` is unchanged from the shipped table, and no colour value is typed here. The alternative —
+ * reading the rule token out of the generated token module in THIS file — would put a second palette
+ * reader outside the shell and resolve it against a theme this function is never told, which is precisely
+ * the drift EMAIL-02 exists to end. If this table ever wants a coloured rule, the honest change is on the
+ * shell side: the renderer knows the theme, this function does not.
  */
 export function renderOpsAlertDigest(
   rows: OpsDigestRow[],
   opts: { truncated: boolean; limit: number },
-): string {
-  const body = rows
-    .map((r) => {
-      const id = escapeHtml(r.id);
-      const action = escapeHtml(r.action); // free-text column — WR-01.
-      const actor = escapeHtml(r.actorId); // free-text column — WR-01.
-      const created = escapeHtml(r.createdAt.toISOString());
-      const age = `${r.ageHours}h${r.aging ? " — AGING" : ""}`;
-      return (
-        `<tr><td>${id}</td><td>${action}</td><td>${actor}</td>` +
-        `<td>${created}</td><td>${escapeHtml(age)}</td></tr>`
-      );
-    })
-    .join("");
+): { html: string; text: string } {
+  // ONE map, two projections. A field added to the row below lands in both or in neither.
+  const cells = rows.map((r) => {
+    const age = `${r.ageHours}h${r.aging ? " — AGING" : ""}`;
+    const created = r.createdAt.toISOString();
+    return {
+      html:
+        `<tr><td>${escapeHtml(r.id)}</td>` +
+        `<td>${escapeHtml(r.action)}</td>` + // free-text column — WR-01.
+        `<td>${escapeHtml(r.actorId)}</td>` + // free-text column — WR-01.
+        `<td>${escapeHtml(created)}</td><td>${escapeHtml(age)}</td></tr>`,
+      // The plain-text twin takes the RAW strings — escaping `text/plain` would be the defect, not the fix.
+      text: `${r.id} | ${r.action} | ${r.actorId} | ${created} | ${age}`,
+    };
+  });
 
-  const note = opts.truncated
-    ? `<p>${opts.limit}+ unresolved — showing the ${opts.limit} newest.</p>`
-    : "";
-
-  return (
-    `<p><strong>FitOut ops — unresolved money alerts</strong></p>` +
-    `<p>${rows.length} unresolved <code>needs_attention</code> audit row(s), newest first. ` +
-    `Look a row up with <code>npm run ops:alerts</code>; discharge it with ` +
-    `<code>npm run ops:alerts:resolve -- &lt;audit-id&gt;</code>. Procedure: ` +
-    `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md</p>` +
-    note +
+  const tableHtml =
     `<table border="1" cellpadding="4" cellspacing="0">` +
     `<tr><th>Audit id</th><th>Action</th><th>Actor</th><th>Created (UTC)</th><th>Age</th></tr>` +
-    body +
-    `</table>`
+    cells.map((c) => c.html).join("") +
+    `</table>`;
+
+  const tableText = ["Audit id | Action | Actor | Created (UTC) | Age", ...cells.map((c) => c.text)].join(
+    "\n",
   );
+
+  const paragraphs = [
+    `${rows.length} unresolved needs_attention audit row(s), newest first. ` +
+      `Look a row up with npm run ops:alerts; discharge it with ` +
+      `npm run ops:alerts:resolve -- <audit-id>. Procedure: .planning/ops/NEEDS-ATTENTION-RUNBOOK.md`,
+  ];
+  if (opts.truncated) {
+    paragraphs.push(`${opts.limit}+ unresolved — showing the ${opts.limit} newest.`);
+  }
+
+  return renderEmail({
+    heading: "FitOut ops — unresolved money alerts",
+    paragraphs,
+    tableHtml,
+    tableText,
+  });
 }
 
 /**
@@ -664,18 +717,17 @@ export function renderOpsAlertDigest(
  * before reaching here on a zero-row day (D-J3Z-05), because a daily "all clear" is how an alert channel
  * gets filtered to trash.
  *
- * ⚠ THE ONE SENDER NOT YET ON THE SHELL — PLAN 15-04 OWNS IT. Its two contracts (the `meta`-absent row
- * type above, and the fact that its table is the shell's one PRE-ESCAPED slot) need their own reasoning,
- * so 15-03 left `renderOpsAlertDigest` byte-identical and did the ONE thing the transport change forced:
- * `send` now requires a plain-text part, so this call site passes one. The subject is that part —
- * DERIVED, never new prose, because inventing operator copy here would be doing 15-04's work badly. When
- * 15-04 composes `renderEmail` with `tableHtml`/`tableText`, this local goes with it.
+ * THE NINETEENTH AND LAST SENDER TO ADOPT THE SHELL (15-04). Its signature, its subject template literal,
+ * its single call site and the conditions under which it fires are byte-identical. What changed is that
+ * the plain-text part is now the REAL twin of the table: 15-03 had to pass a fourth argument the moment
+ * `send` required one, and it passed the subject line restated rather than invent operator copy that
+ * belonged to this plan. That interim is gone.
  */
 export const sendOpsAlertDigest = (
   to: string,
   rows: OpsDigestRow[],
   opts: { truncated: boolean; limit: number },
 ) => {
-  const subject = `FitOut ops — ${rows.length} unresolved money alert(s)`;
-  return send(to, subject, renderOpsAlertDigest(rows, opts), subject);
+  const { html, text } = renderOpsAlertDigest(rows, opts);
+  return send(to, `FitOut ops — ${rows.length} unresolved money alert(s)`, html, text);
 };
