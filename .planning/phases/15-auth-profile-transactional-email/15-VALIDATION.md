@@ -65,6 +65,12 @@ created: 2026-08-24
 | 15-10-02 | 10 | 4 | AUTHUI-03 | — | N/A (320px floor) | e2e | `npx playwright test e2e/overflow-320.spec.ts` | ✅ | ⬜ pending |
 | 15-11-01 | 11 | 5 | AUTHUI-03 | — | N/A (baseline inventory 66→74, `auth-login` rows edited) | design | `npx tsc --noEmit && npm run test:design` | ✅ | ✅ green — tsc 0, 54 files / 908 passed / 3 skipped |
 | 15-11-02 | 11 | 5 | AUTHUI-03 | — | — | **manual checkpoint (blocking)** — CI `baselines.yml` dispatch; deliverable is the follow-up comparison run's id | `git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' \| wc -l` | ✅ **36** | ✅ **DISCHARGED 2026-08-25** — gen `32751407382`, cmp **`32752143309` SUCCESS** (`gate-visual` ✓) |
+| 15-12-01 | 12 | 6 | AUTHUI-03 (keyboard) | — | the wordmark-first focus sequence over six auth documents, written out as data and re-checked by a command | e2e | `npx playwright test e2e/auth-keyboard.spec.ts --project=chromium` | ✅ | ✅ green — exit 0, **7 passed** (re-run 2026-08-25; 59 declared stops reproduced exactly) |
+| 15-12-02 | 12 | 6 | AUTHUI-03 (keyboard) | T-15-25 | the reset token input is unreachable forward AND backward, and every stop paints a visible indicator | e2e | `npx playwright test e2e/auth-keyboard.spec.ts --project=chromium` | ✅ | ✅ green — exit 0, **7 passed** (same run; M-B/M-B′ transcribed in 15-12) |
+| 15-13-01 | 13 | 6 | AUTHUI-03 (AA) | — | every rendered ink-on-ground pair measured in BOTH themes (23 rows × 2 themes = 46 measurements) | design | `npx vitest run tests/design/auth-contrast.test.ts --config vitest.design.config.ts` | ✅ | ✅ green — **170 passed** (re-run 2026-08-25) |
+| 15-13-02 | 13 | 6 | AUTHUI-03 (AA) | T-15-29 | an undeclared auth pairing turns the build red (the completeness census, not the token-layer gate) | design | `npm run build` | ✅ | ✅ green — exit 0; `test:design` 55 files / **1078 passed / 3 skipped** |
+| 15-14-01 | 14 | 7 | EMAIL-01 | — | the digest's authored-markup check can fail in both projections — entity-escaped in `html`, literal in `text` | unit | `npx vitest run tests/ops/alert-digest.test.ts` | ✅ | ✅ green — exit 0, **12 passed** (count unchanged; the WR-04 mutation was watched red first) |
+| 15-14-02 | 14 | 7 | AUTHUI-01 | — | the composition gate is build-blocking and the eight auth baselines are committed | design + CLI | `npm run build` | ✅ | ✅ green — exit 0; `auth-composition.test.tsx` **13 passed**; `git ls-files …'auth-*'` = **8**; `gh run view 32752143309` 4/4 jobs ✓ |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -119,3 +125,42 @@ never sampled. Ticking on "every mapped row is green" would have been a gate tha
 because nothing asked the harder question.
 
 Both gaps, and what closing each looks like, are in `deferred-items.md`.
+
+---
+
+## Closure of the note above (2026-08-25, plan 15-14) — the map now covers all five clauses
+
+The note above stays exactly as written. It is the phase's own honest self-assessment and it was
+right; this block records what answered it, not a revision of it.
+
+**The two clauses that were never sampled:** **keyboard** and **AA**. Not failed — *unmapped*. Every
+row the table pointed at AUTHUI-03 was green while two of the requirement's five conjunctive clauses
+had no row at all.
+
+**The rows that now sample them, and the plans that produced them:**
+
+| Clause | Row(s) | Plan | Artifact | The measured fact |
+|--------|--------|------|----------|-------------------|
+| keyboard | `15-12-01`, `15-12-02` | 15-12 (wave 6) | `e2e/auth-keyboard.spec.ts` + `e2e/helpers/focus.ts` | six auth documents, **59 stops** declared as data and reproduced exactly (12/14/9/7/9/8); the wordmark is stop 1 on all six and keeps the browser default; an indicator measured on every stop; T-15-25 asserted forward AND backward and mutation-proven twice |
+| AA | `15-13-01`, `15-13-02` | 15-13 (wave 6) | `tests/design/auth-contrast.test.ts` + `tests/design/helpers/contrast-math.ts` | 23 ink-on-ground rows × 2 themes = **46 measurements**, each anchored by AST parse to an exact class string in an exact file; D-162's cited **18.16 court / 16.89 grove** re-measured and CONFIRMED; **zero** new `CONTRAST_PAIRS` rows needed, which is the result rather than a shortcut |
+
+**The sentence that matters for the next phase.** Ticking a requirement because *every mapped row is
+green* is only sound when the map covers **every clause** of a conjunctive requirement. AUTHUI-03's
+map covered three of five, so "all green" was true and meaningless at the same time. That is why this
+table gained ROWS and the requirement did not gain a TICK: closing a sampling hole is a validation
+act; closing the requirement is the re-verification pass's call, on the evidence 15-12 and 15-13
+produced.
+
+**Sign-off, re-checked rather than re-asserted:** the sampling-continuity line above is **unchanged**.
+All six new rows carry an `<automated>` command, so "no 3 consecutive tasks without automated verify"
+still holds at 100% of auto tasks. No other sign-off line was touched.
+
+**Provenance of the statuses above.** Every green in the six new rows was watched exit 0 in this
+session (2026-08-25), not copied from the producing plan's summary: `auth-keyboard.spec.ts` 7 passed,
+`auth-contrast.test.ts` 170 passed, `alert-digest.test.ts` 12 passed, `npm run build` exit 0,
+`auth-composition.test.tsx` 13 passed, `git ls-files` 8 baselines, `gh run view 32752143309` 4/4 jobs
+green including `gate-visual`.
+
+**Still open after this block:** `15-05-03` — the EMAIL-03 real-client walk, a blocking manual
+checkpoint deferred by the PM. It is the phase's one remaining human item and nothing here discharges
+it.

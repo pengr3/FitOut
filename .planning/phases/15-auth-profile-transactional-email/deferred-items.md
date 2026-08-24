@@ -42,7 +42,34 @@ each added directly above their own entries already state the real per-phase cou
 
 ---
 
-## [15-11] AUTHUI-03's keyboard and AA clauses are not evidenced — the requirement stays unticked
+## [15-11] AUTHUI-03's keyboard and AA clauses are not evidenced — the requirement stays unticked — **CLOSED 2026-08-25**
+
+> **CLOSED 2026-08-25 — by plans 15-12 (keyboard) and 15-13 (AA), recorded in `15-VALIDATION.md`
+> rows `15-12-01`/`15-12-02` and `15-13-01`/`15-13-02`.** The two artifacts that closed it are
+> **`e2e/auth-keyboard.spec.ts`** (with `e2e/helpers/focus.ts`) and
+> **`tests/design/auth-contrast.test.ts`** (with `tests/design/helpers/contrast-math.ts`).
+>
+> **What each measured, not merely that it ran.** KEYBOARD: six auth documents walked, **59 stops**
+> declared as data and reproduced exactly (12 / 14 / 9 / 7 / 9 / 8), `/signup` reporting the identical
+> 14 at 320×568; the wordmark is stop 1 on all six and keeps the browser-default indicator, which is
+> the layout's own prose turned into assertions; a visible indicator measured on **every** stop; and
+> T-15-25 widened from 15-07's one forward walk to forward AND backward, matched on the field name,
+> mutation-proven twice (`tabIndex={-1}` on the wordmark → 7 failed; the token input flipped
+> `hidden`→`text` → 1 failed). `npx playwright test e2e/auth-keyboard.spec.ts --project=chromium`
+> exit 0, **7 passed** — re-run 2026-08-25 for this closure, not quoted.
+> AA: **23** ink-on-ground rows measured in **both** themes (46 measurement assertions), every row
+> anchored by TypeScript-AST parse to an exact class string in an exact file, plus a completeness
+> census over the eight auth composition files that turns `npm run build` red on an undeclared
+> pairing. **D-162's cited 18.16 court / 16.89 grove was re-measured and CONFIRMED**, and **zero** new
+> `CONTRAST_PAIRS` rows were needed — that null result IS the measurement, not a shortcut.
+> `npx vitest run tests/design/auth-contrast.test.ts --config vitest.design.config.ts` **170 passed**
+> — also re-run 2026-08-25.
+>
+> **What is NOT closed by this.** AUTHUI-03's own checkbox. All five clauses are now sampled; ticking
+> the requirement is the re-verification pass's act, on this evidence. The planning-gap diagnosis in
+> the last paragraph below — that `15-VALIDATION.md` never mapped a keyboard row or an AA row — was
+> correct, and plan 15-14 fixed the map rather than editing the diagnosis.
+
 
 **Requirement:** *"The auth screens hold the same five gates as every other surface — 320px,
 keyboard, AA, designed states, and a baseline."*
@@ -252,3 +279,42 @@ plan's verification asserts `git diff --exit-code 'src/app/(auth)'` exits 0 — 
 there would still have to be justified against a visual-baseline dispatch policy it cannot trigger but
 also cannot be shown not to trigger without re-running CI. Correcting the sentence is a one-line
 `docs(...)` change for whichever plan next has that file open.
+
+---
+
+## [15-14] The raw-tag audit's own instrument is grep-shaped — `not.toMatch` forms are invisible to it
+
+**File:** `tests/design/scaffold-residue.test.ts:227` (the instance), and the audit definition in
+`15-14-PLAN.md` § interfaces (the instrument)
+
+Plan 15-14 Task 1 Part C classified "the entire audit surface" of raw-tag absence assertions, defined
+as *a `not.toContain` whose argument opens with an angle bracket*. Re-running that grep returned the
+same **8 assertions in 5 files** the plan listed — count unchanged, so the classification stands.
+
+But the definition is the instrument, and the instrument has a blind spot. A sweep for the
+regex-matcher form found one assertion the audit's grep can never see:
+
+```ts
+const markup = svg.replace(/<!--[\s\S]*?-->/g, "");
+expect(markup).toMatch(/<svg[\s>]/);
+expect(markup).not.toMatch(/<text[\s>]/);
+```
+
+**It is not a defect — it is the best-constructed one of the set.** It carries its own positive
+control on the line above (`toMatch(/<svg[\s>]/)` proves the markup was read and is SVG), it strips
+comments before asserting so the file's own explanatory prose cannot satisfy or defeat it, and the
+string it forbids is genuinely reachable: adding a `<text>` element to the icon would redden it. It
+needed no fix.
+
+**Why it is logged anyway:** this phase has now produced three unfailable assertions and one
+self-counting grep criterion, and the lesson each time was about the INSTRUMENT rather than the
+finding. An audit that defines its surface by one matcher name will keep reporting "the whole set" on
+a subset. The next audit of this kind should sweep `not.toMatch`, `not.toContain`, and the negated
+`expect(...).toEqual` forms together, or state plainly which it did not.
+
+**Why deferred:** widening the sweep is a re-audit, not a fix — nothing in the tree is currently
+wrong, and `tests/design/scaffold-residue.test.ts` is outside plan 15-14's `files_modified`.
+
+**What closing it looks like:** one pass over `tests/` for negated regex matchers whose pattern opens
+with an angle bracket, classified by the same reachable-in-that-projection rule, appended to
+`tests/ops/alert-digest.test.ts`'s M6 block or wherever the next such audit lands.
