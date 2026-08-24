@@ -23,6 +23,8 @@ nothing. The destination is a required argument with no default — under D-160 
 test mode and will only deliver to the account owner's inbox anyway, but the address is named on the
 command line every time rather than hard-coded anywhere (T-15-16).
 
+**Preview-mode dry run — 2026-08-24, PM's call.** Before committing to a real-inbox walk the PM asked for a preview-only pass. `npm run email:previews -- preview@example.invalid` (no `--send`) composed and captured **23/23 messages from 19 senders, exit 0**, nothing dispatched; largest HTML part 2532 B (`sendOpsAlertDigest`). Parts and an `index.md` were written to `%TEMP%itout-email-previews6-08-24T16-32-34-198Z\`, and the coordinator rendered them into a single browsable gallery for inspection. **This proves composition, not delivery, and discharges nothing in the tables below** — no inbox rendered anything, so every observation cell stays empty. The PM then deferred the real-client walk to a later UAT session; **EMAIL-03 remains open**.
+
 **Evidence prepared:** 2026-08-24 (UTC) by the coordinator, via `scripts/send-email-previews.ts` — a harness,
 not a dispatcher: it lives outside `src/app`, moves no product call site and reinstates no
 fire-and-forget dispatch (D-83). No product source was touched to produce this walk.
