@@ -203,3 +203,52 @@ action — a `expect(page.locator(SEL-inside-main)).not.toHaveCount(0, { timeout
 on-demand compiles. That keeps the "zero is never clean" claim while removing the race that makes it
 fire on a correct tree. Out of scope for 15-12, whose contract is that it changes no assertion, row
 or count in that file.
+
+---
+
+## The colour-class classifier now has two implementations (plan 15-13, not a regression)
+
+**Found:** while writing `tests/design/auth-contrast.test.ts`'s completeness census.
+
+**What it is.** The rules for turning a class string into colour uses — split the variant chain at
+bracket depth zero, then treat `text-<x>` / `bg-<x>` as a colour only when `<x>` is a declared colour
+token — now exist twice in the repository: in `tests/design/pair-drift.test.ts` (`splitVariants`,
+`classifyUtility`, `colourUsesIn`) and again in `tests/design/auth-contrast.test.ts`. The second copy
+is faithful, and both files pin the same behaviours (`text-sm` / `text-center` / `text-balance` /
+`text-heading` are not colours; `data-[state=on]:` splits at depth zero), so a drift in the direction
+that matters is caught in both places. But it is still two implementations of one rule.
+
+**Why it was not fixed in 15-13.** Plan 15-13 extracted the WCAG *maths* to
+`tests/design/helpers/contrast-math.ts` precisely because two gates measuring one pairing must not be
+able to disagree about a NUMBER. Classification is a weaker case — two classifiers disagreeing produce
+two different *reports*, not two different ratios — and the fix is a different shape: it means lifting
+a ~300-line scanner out of `pair-drift.test.ts`, a file 15-13's own verification requires to be left
+byte-unchanged and re-run green. Doing it inside a gap-closure plan would have put an untouchable
+gate's internals into a commit whose contract is "move no pixel and change no neighbouring gate".
+
+**What closing it looks like.** A `tests/design/helpers/class-analysis.ts` beside `compile-css.ts` and
+`contrast-math.ts`, exporting `splitVariants`, `classifyUtility` and `colourUsesIn`, imported by both
+files — the same one-import-site rule (D-16) applied a third time, to the parsing. The move is
+mechanical; the cost is that `pair-drift.test.ts`'s test count must be proven identical before and
+after, exactly as `contrast.test.ts`'s 89 was for the maths extraction.
+
+**Not urgent.** Nothing is currently wrong: the two copies agree, both are pinned, and the auth census
+is the only consumer of the second one.
+
+---
+
+## `(auth)/error.tsx`'s header still describes the pre-D-162 composition (plan 15-13, cosmetic)
+
+**Found:** while assembling the auth composition file set for the census.
+
+`src/app/(auth)/error.tsx`'s opening comment says *"`(auth)/layout.tsx` renders `PublicHeader` and no
+session gate"*. D-162 (plan 15-06) deleted the header from that layout and moved the wordmark into it;
+`(auth)/layout.tsx` itself records the change at length. The boundary's own ARGUMENT is unaffected —
+the route out is still `/login` because the visitor is still anonymous — and the file renders no
+colour utility, so nothing measured in 15-13 depends on it.
+
+**Why it was not fixed in 15-13.** Editing it would modify a file under `src/app/(auth)`, and that
+plan's verification asserts `git diff --exit-code 'src/app/(auth)'` exits 0 — a comment-only edit
+there would still have to be justified against a visual-baseline dispatch policy it cannot trigger but
+also cannot be shown not to trigger without re-running CI. Correcting the sentence is a one-line
+`docs(...)` change for whichever plan next has that file open.

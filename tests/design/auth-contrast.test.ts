@@ -86,6 +86,72 @@
 // one-directional and would never have caught it.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
+// TWO WATCHED REDS — 25 August 2026, plan 15-13. Both applied, run, transcribed and REVERTED.
+//
+// A gate nobody has seen fail is a gate nobody has seen. This phase has already shipped three
+// unfailable assertions — two caught mid-phase, one caught by the verifier — so a new gate arriving
+// with no red-proof is exactly how the fourth would land.
+//
+// ── RED R-A: THE CENSUS IS REAL ─────────────────────────────────────────────────────────────────
+//
+//   MUTATION: one accent ink appended to the existing class string on
+//   `src/app/(auth)/forgot-password/page.tsx:96` — the post-submit notice's
+//   `text-sm text-muted-foreground`, given a third utility naming the semantic positive token.
+//   COMMAND: `npx vitest run tests/design/auth-contrast.test.ts --config vitest.design.config.ts`
+//
+//   **1 failed / 169 passed**, and BOTH numbers are the finding.
+//
+//     FAIL  the auth composition writes no colour this file has not declared >
+//           declares a row for every ink and every ground the eight files paint
+//     AssertionError: THE CLAIM THIS GATE MAKES, IN ONE ASSERTION: a colour utility added to an
+//     auth surface without a declared pairing turns `npm run build` red. […]
+//     expected [ Array(1) ] to deeply equal []
+//
+//     - []
+//     + [
+//     +   "src/app/(auth)/forgot-password/page.tsx:96 `text-success` — no declared row uses
+//     +    `success` as an ink.",
+//     + ]
+//
+//   THE BLAST RADIUS IS THE RIGHT ONE, AND IT IS THE WHOLE POINT. Exactly ONE assertion moved: the
+//   COMPLETENESS census. All 46 measurement assertions — 23 rows × 2 themes — stayed GREEN, because
+//   nothing about the tokens changed; what changed was that a surface started painting a pairing
+//   nobody declared. That separation is the gap this file exists to close, and it was confirmed
+//   from the other side too: with the mutation still applied,
+//   `npx vitest run tests/design/contrast.test.ts tests/design/pair-drift.test.ts tests/design/leak.test.ts`
+//   returned **131 passed, 0 failed**. The token-layer gate cannot see it (it measures only what the
+//   inventory declares); the drift check cannot see it (the ink's ground is on an ancestor, so no
+//   string comparison pairs them); the leak gate cannot see it (a semantic token is not a leak).
+//   Three green gates and one red one, over a real defect, is the measurement this plan owed.
+//
+//   REVERTED. `git checkout -- src/app/(auth)/forgot-password/page.tsx`; `git diff --exit-code src/`
+//   exits 0; re-run 170 passed.
+//
+// ── RED R-B: THE ANCHOR IS REAL ─────────────────────────────────────────────────────────────────
+//
+//   MUTATION: the wordmark row's `groundFrom.classString` in THIS file, with the layout's surface
+//   utility replaced by a numbered one the layout does not contain. No `src/` file is touched.
+//   COMMAND: `npx vitest run tests/design/auth-contrast.test.ts --config vitest.design.config.ts`
+//
+//   **1 failed / 169 passed.**
+//
+//     FAIL  every declared row is anchored to markup that still exists >
+//           'ground of "the wordmark above the car…' — 'src/app/(auth)/layout.tsx'
+//     AssertionError: the row for ground of "the wordmark above the card" says
+//     src/app/(auth)/layout.tsx writes `flex flex-1 flex-col items-center justify-center
+//     bg-slate-100 px-4 py-12`, and no string literal or template chunk in that file contains it.
+//     THE ROW DESCRIBES MARKUP THAT IS NO LONGER THERE […]
+//     expected false to be true
+//
+//   BLAST RADIUS: one anchor, named by row and by file, with the string it could not find quoted
+//   back. The MEASUREMENT for that row stayed green — correctly, because the tokens are still
+//   legal; what became false is that anything renders them together. That is the T-15-30 direction:
+//   a row kept alive past its markup is a gate reading green about a surface it cannot see, and it
+//   is the failure this assertion exists to make loud rather than silent.
+//
+//   REVERTED; re-run 170 passed.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
 // WHAT THIS FILE DOES NOT COVER — real blind spots, listed so the next reader under-trusts it.
 //
 //   • SAME-STRING pairings on these screens are `pair-drift.test.ts`'s, not this file's, and are
@@ -108,6 +174,10 @@
 //     surface that ships a tint needs the opacity in this file's key BEFORE it gets a row.
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve as resolvePath } from "node:path";
+import ts from "typescript";
+import postcss from "postcss";
 
 import { readThemeTokens, THEME_NAMES } from "./helpers/compile-css";
 import { composite, contrast, resolveToken } from "./helpers/contrast-math";
@@ -129,6 +199,8 @@ const LOGIN = "src/app/(auth)/login/page.tsx";
 const SIGNUP = "src/app/(auth)/signup/page.tsx";
 const FORGOT = "src/app/(auth)/forgot-password/page.tsx";
 const RESET = "src/app/(auth)/reset-password/page.tsx";
+const AUTH_ERROR = "src/app/(auth)/error.tsx";
+const GLOBALS = "src/app/globals.css";
 const PANEL = "src/components/patterns/panel-card.tsx";
 const FOOTER = "src/components/patterns/site-footer.tsx";
 const CHROME = "src/components/patterns/site-chrome.tsx";
@@ -960,5 +1032,621 @@ describe("guard-the-guard", () => {
     expect(() => resolveToken(themes[THEME_NAMES[0]], "not-a-token", "court")).toThrow(
       /--not-a-token/,
     );
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE SOURCE SCANNER — parsed, never grepped
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// STRING LITERALS AND TEMPLATE CHUNKS ONLY, via the TypeScript compiler API. `pair-drift.test.ts`
+// gives the reason and this repository has twelve recorded cases of it: a grep lands on a COMMENT
+// that NAMES a class rather than a call site that USES one — and this file's own header, with its
+// measured table full of token names, would be one of them. A raw-text anchor check here would be
+// satisfied by the very table it is supposed to be keeping honest.
+//
+// THE CLASSIFICATION RULES ARE `pair-drift.test.ts`'s, RE-STATED RATHER THAN IMPORTED, and that is a
+// deliberate, recorded compromise rather than an oversight. Importing them would mean importing from
+// a `.test.ts` file, which is the shape this plan just finished removing from the maths; extracting
+// that file's 300-line scanner into a shared helper is a larger move than this plan's blast radius
+// allows, and it would touch a gate this plan is required to leave untouched. So the rules are
+// written out again — bracket-depth-zero variant splitting, and a `text-*`/`bg-*` utility is a
+// colour only when the name after the prefix is a declared colour token — and the assertions below
+// pin the specific behaviours that file pins, so the two cannot drift silently in the direction that
+// matters. The residual risk (two classifiers, one repository) is logged in the phase's
+// `deferred-items.md` rather than absorbed here.
+//
+// EDGES ARE NOT CENSUSED. `border-*` and `ring-*` are the `edge` role, and `pair-drift.test.ts`
+// deliberately mints no pairing from them (IN-10) because consuming them is a design pass rather
+// than a gate fix — ten undeclared pairings tree-wide, measured. This file follows that decision and
+// names the four edges the auth surface actually ships in `AUTH_EXEMPT` instead, each with its
+// measurement, so the auth half of that deferral is at least written down.
+
+const sourceCache = new Map<string, string>();
+
+function sourceOf(path: string): string {
+  let text = sourceCache.get(path);
+  if (text === undefined) {
+    text = readFileSync(resolvePath(process.cwd(), path), "utf8");
+    sourceCache.set(path, text);
+  }
+  return text;
+}
+
+type Chunk = { readonly text: string; readonly line: number };
+
+/**
+ * `(path, text)` rather than `(path)` — `leak.test.ts:208-212`'s rule, and the reason the positive
+ * control below can feed a fixture that is never written to disk through EXACTLY the code path the
+ * real assertions run.
+ */
+function stringChunksOfText(path: string, text: string): Chunk[] {
+  const sf = ts.createSourceFile(
+    path,
+    text,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const chunks: Chunk[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      chunks.push({
+        text: node.text,
+        line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return chunks;
+}
+
+const chunkCache = new Map<string, readonly Chunk[]>();
+
+function stringChunksOf(path: string): readonly Chunk[] {
+  let chunks = chunkCache.get(path);
+  if (chunks === undefined) {
+    chunks = stringChunksOfText(path, sourceOf(path));
+    chunkCache.set(path, chunks);
+  }
+  return chunks;
+}
+
+/** Split one class token into its variant chain and its utility, at bracket depth zero. */
+function splitVariants(token: string): { chain: string[]; utility: string } {
+  const text = token.replace(/^!+/, "");
+  const chain: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "[" || ch === "(") depth++;
+    else if (ch === "]" || ch === ")") depth--;
+    else if (ch === ":" && depth === 0) {
+      chain.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  return { chain, utility: text.slice(start) };
+}
+
+const ROLE_PREFIXES = [
+  ["ink", "text-"],
+  ["ground", "bg-"],
+] as const;
+
+/**
+ * A `text-*` or `bg-*` utility is a COLOUR only when the name after the prefix is a declared colour
+ * token. That condition is the whole of what keeps `text-sm`, `text-center`, `text-balance` and the
+ * four named type roles out of the ink set — a `text-*` utility is a colour only when the thing
+ * after the dash is one.
+ *
+ * The opacity modifier is SPLIT OFF AND KEPT rather than discarded (WR-05). Every row in this file
+ * is a solid pairing, so a tinted utility must be REPORTED rather than matched against a solid row:
+ * letting `bg-muted/40` pass on the strength of a measurement taken at 100% is the exact shape of
+ * the defect that let a passing row vouch for a failing one.
+ */
+function classifyUtility(
+  utility: string,
+): { role: "ink" | "ground"; token: string; alpha: string | null } | null {
+  let text = utility.replace(/^-/, "");
+  const slash = text.indexOf("/");
+  let alpha: string | null = null;
+  if (slash !== -1) {
+    alpha = text.slice(slash + 1);
+    text = text.slice(0, slash);
+  }
+  for (const [role, prefix] of ROLE_PREFIXES) {
+    if (!text.startsWith(prefix)) continue;
+    const token = text.slice(prefix.length);
+    if (COLOUR_TOKENS.includes(token)) return { role, token, alpha };
+  }
+  return null;
+}
+
+/**
+ * The variant chain, reduced to the row-identity state. `group-hover/card` counts as a hover because
+ * it renders under a pointer; `disabled` is the in-flight submit; anything unconditional, and every
+ * responsive or print variant, is the resting pairing.
+ */
+function stateOf(chain: readonly string[]): PairState {
+  if (chain.some((v) => v.startsWith("disabled"))) return "in-flight";
+  if (chain.some((v) => v.includes("focus-visible"))) return "focus-visible";
+  if (chain.some((v) => v.includes("hover"))) return "hover";
+  return "rest";
+}
+
+type ColourUse = {
+  readonly role: "ink" | "ground";
+  readonly token: string;
+  readonly alpha: string | null;
+  readonly chain: readonly string[];
+  readonly state: PairState;
+  readonly raw: string;
+  readonly file: string;
+  readonly line: number;
+};
+
+function colourUsesInText(text: string, file: string, line: number): ColourUse[] {
+  const out: ColourUse[] = [];
+  for (const raw of text.split(/\s+/).filter(Boolean)) {
+    const { chain, utility } = splitVariants(raw);
+    const classified = classifyUtility(utility);
+    if (classified === null) continue;
+    out.push({ ...classified, chain, state: stateOf(chain), raw, file, line });
+  }
+  return out;
+}
+
+function colourUsesInSource(path: string, text: string): ColourUse[] {
+  return stringChunksOfText(path, text).flatMap((chunk) =>
+    colourUsesInText(chunk.text, path, chunk.line),
+  );
+}
+
+/**
+ * THE AUTH COMPOSITION FILE SET — the six documents plus the two patterns they are assembled from.
+ *
+ * `(auth)/error.tsx` is in it although it writes no colour utility at all, and that is the point of
+ * a census: a file that contributes zero today is a file whose first colour utility gets reported.
+ * The vendored primitives are deliberately NOT here — see the note on the scanner above.
+ */
+const AUTH_COMPOSITION_FILES: readonly string[] = [
+  LAYOUT,
+  LOGIN,
+  SIGNUP,
+  FORGOT,
+  RESET,
+  AUTH_ERROR,
+  PANEL,
+  FOOTER,
+];
+
+const CENSUS: readonly ColourUse[] = AUTH_COMPOSITION_FILES.flatMap((file) =>
+  colourUsesInSource(file, sourceOf(file)),
+);
+
+/**
+ * Every colour utility in `uses` that no row in `rows` accounts for, deduplicated and sorted.
+ *
+ * THIS FUNCTION IS THE WHOLE CLAIM OF THIS FILE: *a colour utility added to an auth surface without
+ * a declared pairing turns `npm run build` red.* It is a pure function of its three arguments
+ * specifically so the positive control below can run it against a fixture and against a widened
+ * exemption list, and prove BOTH directions of the escape hatch rather than only the one the real
+ * tree happens to exercise.
+ */
+function uncovered(
+  uses: readonly ColourUse[],
+  rows: readonly InkOnGround[],
+  exemptUtilities: readonly string[],
+): string[] {
+  const inks = new Map<string, Set<PairState>>();
+  const grounds = new Map<string, Set<PairState>>();
+  for (const row of rows) {
+    const inkStates = inks.get(canonical(row.ink)) ?? new Set<PairState>();
+    inkStates.add(row.state);
+    inks.set(canonical(row.ink), inkStates);
+    const groundStates = grounds.get(canonical(row.ground)) ?? new Set<PairState>();
+    groundStates.add(row.state);
+    grounds.set(canonical(row.ground), groundStates);
+  }
+  const exempt = new Set(exemptUtilities);
+  const found: string[] = [];
+  for (const use of uses) {
+    const bare = `${use.role === "ink" ? "text-" : "bg-"}${use.token}`;
+    if (exempt.has(use.raw) || exempt.has(bare)) continue;
+    const at = `${use.file}:${use.line} \`${use.raw}\``;
+    if (use.alpha !== null) {
+      found.push(
+        `${at} — a TINTED surface. Every row in this file is solid, so an opacity cannot be matched ` +
+          "against one; the opacity has to enter the key before this utility can have a row.",
+      );
+      continue;
+    }
+    const states = (use.role === "ink" ? inks : grounds).get(canonical(use.token));
+    if (states === undefined) {
+      found.push(`${at} — no declared row uses \`${use.token}\` as an ${use.role}.`);
+      continue;
+    }
+    if (!states.has(use.state)) {
+      found.push(
+        `${at} — \`${use.token}\` is declared as an ${use.role}, but not in the ${use.state} state.`,
+      );
+    }
+  }
+  return [...new Set(found)].sort();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// Anchors — a row cannot outlive the markup it describes
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+type AnchorUnderTest = Anchor & { readonly label: string };
+
+const ALL_ANCHORS: readonly AnchorUnderTest[] = [
+  ...AUTH_INK_ON_GROUND.flatMap((row) => [
+    { ...row.inkFrom, label: `ink of "${row.where}"` },
+    { ...row.groundFrom, label: `ground of "${row.where}"` },
+  ]),
+  ...AUTH_EXEMPT.map((entry) => ({ ...entry.from, label: `exemption ${entry.utility}` })),
+];
+
+describe("every declared row is anchored to markup that still exists", () => {
+  it.each<AnchorUnderTest>([...ALL_ANCHORS])("$label — $file", ({ file, classString, label }) => {
+    const chunks = stringChunksOf(file);
+    // Guard the guard, per file: a parse that produced no literals at all would satisfy nothing
+    // below by reporting everything missing — but a parse that produced literals and found the
+    // string is a real match. Both halves are asserted so a broken parse reads as a broken parse.
+    expect(chunks.length, `${file} parsed to no string literals at all — the scan is broken`).toBeGreaterThan(3);
+    const present = chunks.some((chunk) => chunk.text.includes(classString));
+    expect(
+      present,
+      `the row for ${label} says ${file} writes \`${classString}\`, and no string literal or ` +
+        "template chunk in that file contains it. THE ROW DESCRIBES MARKUP THAT IS NO LONGER " +
+        "THERE, which means the measurement above is about a surface nobody renders — a gate " +
+        "reading green about something it cannot see. The honest fix is to DELETE the row if the " +
+        "element is gone, or RE-ANCHOR it to the class string that replaced it. Relaxing this " +
+        "check to a substring of a substring, or to a raw-text search that a comment can satisfy, " +
+        "is not a fix — it is the defect.",
+    ).toBe(true);
+  });
+
+  it("anchors every row and every exemption, on both sides", () => {
+    // 23 rows × 2 sides + 5 exemptions = 51 when this was written. A floor, moved WITH the
+    // inventory: an inventory that lost half its rows would still pass every `it.each` above,
+    // because an empty list passes them all.
+    expect(ALL_ANCHORS.length).toBeGreaterThanOrEqual(45);
+    expect(new Set(ALL_ANCHORS.map((a) => a.file)).size).toBeGreaterThanOrEqual(8);
+    for (const anchor of ALL_ANCHORS) {
+      // An anchor short enough to match by accident is not an anchor. The shortest real one is
+      // `text-heading` at 12 characters.
+      expect(anchor.classString.length, anchor.label).toBeGreaterThanOrEqual(10);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// The completeness census — what makes this gate non-vacuous
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+describe("the auth composition writes no colour this file has not declared", () => {
+  it("declares a row for every ink and every ground the eight files paint", () => {
+    expect(
+      uncovered(CENSUS, AUTH_INK_ON_GROUND, AUTH_EXEMPT.map((entry) => entry.utility)),
+      "THE CLAIM THIS GATE MAKES, IN ONE ASSERTION: a colour utility added to an auth surface " +
+        "without a declared pairing turns `npm run build` red. Each line above is a `text-<token>` " +
+        "or `bg-<token>` the composition writes that no row here accounts for. It is not a style " +
+        "complaint — it means a pairing is rendering on a login screen and NOTHING in this " +
+        "repository has measured it: the token-layer gate only measures what the inventory " +
+        "declares, and the drift check only sees pairings whose two class names sit on one " +
+        "element. Add the row (with its anchors, its element sentence and its reason), or add an " +
+        "AUTH_EXEMPT entry saying why it is legal unmeasured. Deleting the utility is also a fix; " +
+        "deleting this assertion is not.",
+    ).toEqual([]);
+  });
+
+  it("scanned a real file set and found real colour utilities in it", () => {
+    // Every assertion above is "a list of things that all passed", and this one is worse: a scanner
+    // that classified NOTHING satisfies `toEqual([])` perfectly, and every step of the analysis is
+    // a filter. MEASURED against the tree this commit reads (25 August 2026): 8 files, 28 colour
+    // uses, 7 of the 8 files contributing at least one — `(auth)/error.tsx` is the eighth and
+    // contributes zero, which is why the file-count floor is 6 and not 8. The floors sit just below
+    // each real number and move WITH the tree, never ahead of it.
+    expect(AUTH_COMPOSITION_FILES.length).toBe(8);
+    expect(CENSUS.length, "the census classified nothing — every assertion above is vacuous").toBeGreaterThanOrEqual(24);
+    expect(new Set(CENSUS.map((use) => use.file)).size).toBeGreaterThanOrEqual(6);
+    expect(CENSUS.some((use) => use.role === "ink")).toBe(true);
+    expect(CENSUS.some((use) => use.role === "ground")).toBe(true);
+    // The hover state is genuinely recovered from a variant chain, not merely declared in a row.
+    expect(CENSUS.some((use) => use.state === "hover")).toBe(true);
+  });
+
+  it("ships no tinted colour utility on the auth surface, and pins that it does not", () => {
+    // The moment one appears, the census reports it rather than matching it against a solid row —
+    // see `uncovered`. This assertion is the other half: it says the branch is currently unreached
+    // BY MEASUREMENT rather than by assumption, so nobody reads the empty branch as dead code.
+    expect(CENSUS.filter((use) => use.alpha !== null).map((use) => `${use.file}:${use.line} ${use.raw}`)).toEqual([]);
+  });
+
+  it("writes no dormant-variant colour on the auth surface", () => {
+    // `globals.css:32` defines `dark:` as `&:is(.dark *)` and NOTHING activates `.dark` (D-03/D-06:
+    // both themes are light-background and the block is dormant by decision). `pair-drift.test.ts`
+    // SKIPS `dark:`-scoped utilities for that reason; this file does not skip them, it pins that the
+    // auth composition writes none — the stronger statement, and the one that stays true if the
+    // dormancy ever ends.
+    expect(
+      CENSUS.filter((use) => use.chain.includes("dark")).map((use) => `${use.file}:${use.line} ${use.raw}`),
+    ).toEqual([]);
+  });
+
+  it("classifies only colour utilities as colours", () => {
+    // `pair-drift.test.ts` pins these same behaviours; they are pinned again here because this file
+    // re-states the rules rather than importing them, and an un-pinned copy is how two classifiers
+    // drift. A type role, a size, an alignment and a wrap mode are all `text-*` and none is a colour.
+    expect(colourUsesInText("text-heading text-sm text-center text-balance", "x.tsx", 1)).toEqual([]);
+    expect(colourUsesInText("text-muted-foreground", "x.tsx", 1).map((u) => u.role)).toEqual(["ink"]);
+    expect(colourUsesInText("bg-card", "x.tsx", 1).map((u) => u.role)).toEqual(["ground"]);
+    // Edges are not collected at all — IN-10's decision, followed rather than re-taken.
+    expect(colourUsesInText("border-border ring-ring border-primary", "x.tsx", 1)).toEqual([]);
+  });
+
+  it("strips variant prefixes at bracket depth zero", () => {
+    expect(splitVariants("hover:bg-accent").utility).toBe("bg-accent");
+    expect(splitVariants("data-[state=on]:bg-brand").utility).toBe("bg-brand");
+    expect(splitVariants("group-hover/card:focus-visible:text-brand").utility).toBe("text-brand");
+    expect(splitVariants("supports-[display:grid]:bg-card").chain).toEqual(["supports-[display:grid]"]);
+    expect(splitVariants("sm:lg:bg-muted").chain).toEqual(["sm", "lg"]);
+    // …and the chain decides the state, which is what makes a hover row a different row.
+    expect(stateOf(["hover"])).toBe("hover");
+    expect(stateOf(["group-hover/card"])).toBe("hover");
+    expect(stateOf(["focus-visible"])).toBe("focus-visible");
+    expect(stateOf(["disabled"])).toBe("in-flight");
+    expect(stateOf(["sm"])).toBe("rest");
+    expect(stateOf([])).toBe("rest");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// The three inheritance premises, asserted rather than assumed
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The string value of a top-level `const NAME = "…"` in `file`, or `null` when there is no such thing. */
+function stringConstantIn(file: string, name: string): string | null {
+  const sf = ts.createSourceFile(
+    file,
+    sourceOf(file),
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    ts.ScriptKind.TSX,
+  );
+  let value: string | null = null;
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer !== undefined &&
+      (ts.isStringLiteral(node.initializer) ||
+        ts.isNoSubstitutionTemplateLiteral(node.initializer))
+    ) {
+      value = node.initializer.text;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return value;
+}
+
+/** Every `<PanelCard …>` opened in `file`, with the attribute names it was given. */
+function panelCardCallSites(file: string): { line: number; attributes: string[] }[] {
+  const sf = ts.createSourceFile(
+    file,
+    sourceOf(file),
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    ts.ScriptKind.TSX,
+  );
+  // The EXPORTED name decides what the binding IS; the LOCAL name is only how the JSX spells it, so
+  // `import { PanelCard as Box }` cannot launder a call site past a tag-name check.
+  const locals = new Set<string>();
+  const visitImports = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      const bindings = node.importClause?.namedBindings;
+      if (
+        node.moduleSpecifier.text === "@/components/patterns/panel-card" &&
+        bindings !== undefined &&
+        ts.isNamedImports(bindings)
+      ) {
+        for (const element of bindings.elements) {
+          if ((element.propertyName ?? element.name).text === "PanelCard") {
+            locals.add(element.name.text);
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visitImports);
+  };
+  visitImports(sf);
+
+  const sites: { line: number; attributes: string[] }[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      const tag = node.tagName.getText(sf);
+      if (locals.has(tag)) {
+        sites.push({
+          line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+          attributes: node.attributes.properties.flatMap((property) =>
+            ts.isJsxAttribute(property) ? [property.name.getText(sf)] : [],
+          ),
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return sites;
+}
+
+describe("the premises the inherited rows stand on", () => {
+  it("(1) the wordmark class constant carries no colour utility", () => {
+    const value = stringConstantIn(CHROME, "BRAND_CLASS");
+    expect(
+      value,
+      `${CHROME} does not declare BRAND_CLASS as a plain string constant. The wordmark row's whole ` +
+        "ink premise is that this constant is colour-free, and a premise that cannot be READ is a " +
+        "premise that cannot be checked.",
+    ).not.toBeNull();
+    expect(
+      colourUsesInText(value ?? "", CHROME, 0).map((use) => use.raw),
+      "BRAND_CLASS now carries a colour utility, so the wordmark's ink is NOT inherited from the " +
+        "body rule and the D-162 row above is measuring the wrong ink. Either the row is wrong or " +
+        "the constant is — but they cannot both be right, and this is the assertion that says so.",
+    ).toEqual([]);
+    // Non-vacuity: the constant is a real class list, not an empty string that trivially has no
+    // colour in it.
+    expect((value ?? "").split(/\s+/).filter(Boolean).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("(2) the base layer paints the body with the ink the wordmark inherits", () => {
+    const applied: string[] = [];
+    let bodyRules = 0;
+    postcss.parse(sourceOf(GLOBALS)).walkRules((rule) => {
+      if (rule.selector.replace(/\s+/g, " ").trim() !== "body") return;
+      bodyRules += 1;
+      rule.walkAtRules("apply", (at) => {
+        // A block body, not an expression one: postcss reads a truthy RETURN as "stop walking", and
+        // `Array.prototype.push` returns the new length. An arrow shorthand here would halt the walk
+        // after the first `@apply` — and silently, because the first one is the one this needs.
+        applied.push(...at.params.split(/\s+/).filter(Boolean));
+      });
+    });
+    expect(bodyRules, `${GLOBALS} declares no \`body\` rule at all — the inheritance has no origin`).toBeGreaterThanOrEqual(1);
+    expect(
+      applied,
+      "the body rule no longer applies `text-foreground`. That rule is where the auth documents' " +
+        "INHERITED ink comes from — nothing between the body and the wordmark sets a colour — so " +
+        "without it the wordmark row above is measuring a token the element does not paint.",
+    ).toContain("text-foreground");
+    expect(applied, "the body rule no longer applies `bg-background`").toContain("bg-background");
+  });
+
+  it("(3) no auth page passes `tone` or `footer` to PanelCard", () => {
+    for (const page of [LOGIN, SIGNUP, FORGOT, RESET]) {
+      const sites = panelCardCallSites(page);
+      expect(sites.length, `${page} does not render exactly one PanelCard`).toBe(1);
+      const attributes = sites[0].attributes;
+      expect(
+        attributes,
+        `${page}:${sites[0].line} passes \`tone\` to PanelCard. The card-ground rows above are ` +
+          "measured against `bg-card`; `tone=\"muted\"` swaps that fill for `bg-muted`, which " +
+          "changes every ink-on-card measurement on the screen at once and is declared by no row " +
+          "here.",
+      ).not.toContain("tone");
+      expect(
+        attributes,
+        `${page}:${sites[0].line} passes \`footer\` to PanelCard, which renders CardFooter and its ` +
+          "`bg-muted/50` — a TINTED ground, on a surface where every declared row is solid. It " +
+          "needs a composited row before it can render on an auth screen.",
+      ).not.toContain("footer");
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE POSITIVE CONTROL — the scanner, shown catching its violation
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A module that violates the census's clause and simultaneously carries the two things it must NOT
+ * report, fed to the SAME scanner, and NEVER written to disk.
+ *
+ * `auth-composition.test.tsx:503`'s shape and 13-05's finding: a scan whose list of things-to-catch
+ * was never shown catching one of them reports a clean tree forever, and nothing in a green run
+ * distinguishes that from a correct tree.
+ *
+ * ⚠ THE COMMENT LINE IS ASSEMBLED, NOT WRITTEN OUT, and that is the disarmed-tripwire idiom on the
+ * one line where two requirements collide: the fixture has to CARRY a colour utility inside a
+ * comment for the "comments are not call sites" claim to be provable, while this file must not
+ * itself contain a literal that a future raw-text scan would read as a call site.
+ */
+const VIOLATING_FIXTURE = [
+  "export function Bad() {",
+  "  return (",
+  '    <div className="bg-card p-4">',
+  // A colour utility inside a COMMENT — the twelve-recorded-cases failure mode. Never collected.
+  `      {/* the accent ink here would be ${["text", "brand"].join("-")}, named and not used */}`,
+  '      <p className="text-heading text-sm text-center text-balance text-success">boom</p>',
+  "    </div>",
+  "  );",
+  "}",
+].join("\n");
+
+describe("the census is shown catching its violation", () => {
+  const bad = colourUsesInSource("fixture.tsx", VIOLATING_FIXTURE);
+
+  it("reports the undeclared ink, the commented-out colour, and the non-colour utilities", () => {
+    // (a) the undeclared ink IS collected — and it is the ONLY ink collected, which is the same
+    //     assertion as (b) and (c) stated positively.
+    expect(bad.filter((use) => use.role === "ink").map((use) => use.token)).toEqual(["success"]);
+    // (b) the colour utility inside the COMMENT is NOT collected. A grep would have found it; the
+    //     AST does not, because a comment is not a string literal and a class named in prose is not
+    //     a class a browser paints.
+    expect(bad.map((use) => use.token)).not.toContain("brand");
+    // (c) the four non-colour `text-*` utilities are NOT classified as inks — a type role, a size,
+    //     an alignment and a wrap mode all share the prefix and none is a colour.
+    expect(bad.map((use) => use.raw)).not.toContain("text-heading");
+    expect(bad.map((use) => use.raw)).not.toContain("text-sm");
+    expect(bad.map((use) => use.raw)).not.toContain("text-center");
+    expect(bad.map((use) => use.raw)).not.toContain("text-balance");
+    // …and the declared ground on the ancestor IS collected, so the scanner is not simply
+    // reporting nothing.
+    expect(bad.filter((use) => use.role === "ground").map((use) => use.token)).toEqual(["card"]);
+    // The fixture parses to real chunks — a scan of nothing satisfies three "not.toContain"s.
+    expect(stringChunksOfText("fixture.tsx", VIOLATING_FIXTURE).length).toBeGreaterThan(1);
+  });
+
+  it("reports the undeclared ink as uncovered, and stops reporting it once it is exempt", () => {
+    // BOTH DIRECTIONS OF THE ESCAPE HATCH. The real tree exercises neither — every censused utility
+    // there has a row, and every AUTH_EXEMPT entry names an EDGE, which the census does not collect
+    // — so without this the exemption path would be untested code that a typo could silently kill.
+    const reported = uncovered(bad, AUTH_INK_ON_GROUND, AUTH_EXEMPT.map((entry) => entry.utility));
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toContain("text-success");
+    expect(reported[0]).toContain("no declared row uses");
+
+    const withExemption = uncovered(bad, AUTH_INK_ON_GROUND, [
+      ...AUTH_EXEMPT.map((entry) => entry.utility),
+      "text-success",
+    ]);
+    expect(withExemption).toEqual([]);
+  });
+
+  it("reports a declared ink used in an undeclared STATE", () => {
+    // The state half of the row's identity, shown catching something: `destructive` is a declared
+    // ink at rest and at no other state, so the same token under a hover chain is a pairing nobody
+    // measured — the brand button's rejected 90%-alpha hover in miniature.
+    const hovered = colourUsesInSource(
+      "fixture.tsx",
+      'export const x = "hover:text-destructive";',
+    );
+    const reported = uncovered(hovered, AUTH_INK_ON_GROUND, []);
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toContain("not in the hover state");
+  });
+
+  it("reports a tinted surface rather than matching it against a solid row", () => {
+    // WR-05's defect, shown caught: `bg-card` is declared, `bg-card/40` is a different colour, and a
+    // key with no opacity in it would silently accept the second on the strength of the first.
+    const tinted = colourUsesInSource("fixture.tsx", 'export const x = "bg-card/40";');
+    const reported = uncovered(tinted, AUTH_INK_ON_GROUND, []);
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toContain("TINTED");
   });
 });
