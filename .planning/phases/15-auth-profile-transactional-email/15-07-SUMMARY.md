@@ -379,3 +379,10 @@ None — no external service configuration required.
 ---
 *Phase: 15-auth-profile-transactional-email*
 *Completed: 2026-08-24*
+
+## Self-Check: PASSED
+
+All six modified source/test files and this summary exist on disk; all five commits (`e237267`,
+`a07ccb6`, `0fe5e4d`, `ac0941c`, `311a8bd`) are reachable in `git log`. `git diff --name-only
+68233f0..HEAD` lists exactly the six files in `files_modified` plus this summary — the temporary
+measurement harness used for M1 was deleted and never committed.
