@@ -83,9 +83,9 @@
 
 ### Auth & profile (AUTHUI)
 
-- [ ] **AUTHUI-01**: The auth screens (login, signup, forgot, reset) carry the design system and read as the same product as the app
+- [x] **AUTHUI-01**: The auth screens (login, signup, forgot, reset) carry the design system and read as the same product as the app
 - [ ] **AUTHUI-02**: The profile page carries the design system, and avatar removal is possible
-- [ ] **AUTHUI-03**: The auth screens hold the same five gates as every other surface — 320px, keyboard, AA, designed states, and a baseline
+- [x] **AUTHUI-03**: The auth screens hold the same five gates as every other surface — 320px, keyboard, AA, designed states, and a baseline
 
 ### Transactional email (EMAIL)
 
@@ -222,9 +222,9 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | HFLOW-03 | Phase 14 | Complete |
 | HFLOW-04 | Phase 14 | Complete |
 | HFLOW-05 | Phase 14 | Complete |
-| AUTHUI-01 | Phase 15 | Pending |
+| AUTHUI-01 | Phase 15 | Complete |
 | AUTHUI-02 | Phase 15 | Pending |
-| AUTHUI-03 | Phase 15 | Pending |
+| AUTHUI-03 | Phase 15 | Complete |
 | EMAIL-01 | Phase 15 | Complete |
 | EMAIL-02 | Phase 15 | Complete |
 | EMAIL-03 | Phase 15 | Pending |
