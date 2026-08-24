@@ -266,10 +266,23 @@ git diff --exit-code e2e/visual/theme-swap.spec.ts                   EXIT=0
 
 ⚠ **Treat the local green as silence, not evidence.** The Playwright `visual` project is not constructed on this machine, so nothing local can report a baseline mismatch in either direction.
 
+## Commits
+
+| Hash | Message |
+| --- | --- |
+| `1a65faf` | feat(15-11): the baseline inventory learns the composition 15-06 built |
+| `46b491d` | fix(15-11): move the inventory's runtime twin with its compile gate |
+| `e329d76` | docs(15-11): the inventory summary, at the Task 2 dispatch checkpoint |
+| `f8af1bf` | docs(15-11): log the two pre-existing stale count paragraphs as deferred |
+| `362fb89` | docs(15-11): record the inventory plan and its open dispatch checkpoint |
+
 ## Self-Check: PASSED
 
 - `src/lib/design/visual-baselines.ts` — FOUND (modified, committed in `1a65faf`)
 - `e2e/visual/surfaces.spec.ts` — FOUND (modified, committed in `46b491d`)
-- `.planning/phases/15-auth-profile-transactional-email/15-11-SUMMARY.md` — FOUND
-- commit `1a65faf` — FOUND
-- commit `46b491d` — FOUND
+- `.planning/phases/15-auth-profile-transactional-email/15-11-SUMMARY.md` — FOUND (`e329d76`)
+- `.planning/phases/15-auth-profile-transactional-email/deferred-items.md` — FOUND (`f8af1bf`)
+- commits `1a65faf`, `46b491d`, `e329d76`, `f8af1bf`, `362fb89` — all FOUND
+
+Working tree carries only the three pre-existing entries this plan was told to leave alone
+(` M .planning/config.json`, `?? .claude/`, `?? .planning/phases/13.1-…/.gitkeep`).
