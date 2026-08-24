@@ -91,8 +91,17 @@ import { cn } from "@/lib/utils";
  * The wordmark's type, byte-identical to the three shipped wordmarks
  * (`(app)/layout.tsx:73`, `(host)/host/layout.tsx:88`, and the centred one this plan removes from
  * `(auth)/layout.tsx`). Its colour is inherited `--foreground`; there is no logo asset (D-127).
+ *
+ * EXPORTED SINCE PLAN 15-06, and the export is the mechanism behind a claim rather than a
+ * convenience — the same register `measurements.ts`'s `BOOKING_SHELL` is written in. D-162 put the
+ * wordmark back above the auth card, on a surface this file does not render: `(auth)/layout.tsx` is
+ * outside the chrome, so it cannot reach the constant by composing `SiteChrome`. Left unexported it
+ * would have hand-typed the three classes, and "one identity, two surfaces" would have been an
+ * instruction to the next author instead of a fact about the tree. It is falsifiable only because
+ * both surfaces read THIS binding: change the value here and the auth wordmark moves with the
+ * header's, by construction rather than by diligence.
  */
-const BRAND_CLASS = "text-lg font-semibold tracking-tight";
+export const BRAND_CLASS = "text-lg font-semibold tracking-tight";
 
 /**
  * A header link's type, byte-identical to the four shipped header links.

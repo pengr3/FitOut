@@ -74,8 +74,15 @@ export type PanelCardProps = {
    * only content under the page `<h1>` wants `h2`, and one inside an already-headed section wants
    * `h3`. Nothing here can know which it is, so nothing here decides — the default stays `h2` so
    * every shipped call site keeps the element it already rendered.
+   *
+   * PLAN 15-06 EXTENDS THAT SAME ARGUMENT ONE MEMBER UPWARD, in the direction 14-12 went downward:
+   * on the four `(auth)` routes the panel is not content under a page `<h1>` — it IS the document,
+   * so `Log in` / `Create your account` is that document's `<h1>` and there is no heading above it
+   * to be subordinate to. A fixed `h2` there would leave four documents with no level-1 heading at
+   * all, which is the mirror image of the skipped level 14-12 repaired. The default is untouched at
+   * `"h2"`, so this widening moves nothing that ships today.
    */
-  titleAs?: "h2" | "h3";
+  titleAs?: "h1" | "h2" | "h3";
   /** The lede beneath the title. */
   description?: string;
   /**
@@ -112,7 +119,7 @@ export function PanelCard({
   children,
 }: PanelCardProps) {
   // The heading ELEMENT, chosen by the surface. Capitalised so JSX reads it as a component rather than
-  // as the literal tag, and typed by the union above so it can only ever be one of the two levels —
+  // as the literal tag, and typed by the union above so it can only ever be one of the three levels —
   // `empty-state.tsx`'s idiom, followed rather than re-derived.
   const Title = titleAs;
 
