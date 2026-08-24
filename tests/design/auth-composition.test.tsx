@@ -106,9 +106,13 @@
 //
 //        BOTH LINE NUMBERS ARE IN THE REPORT ON PURPOSE. "This screen has two" is not actionable; a
 //        developer has to know WHICH two before deciding which one was never meant to be accented.
-//        ⚠ THE TOUCH-SIZE HALF OF THE SAME `it()` STAYED GREEN, because the mutated button already
-//        carried `size="touch"`. The two assertions are independent and only one of them is about
-//        count — which is why the 44px floor gets its own array rather than riding on this one.
+//        ⚠ THE TOUCH-SIZE HALF OF THE SAME `it()` NEVER RAN, AND THE FIRST DRAFT OF THIS NOTE SAID IT
+//        "STAYED GREEN" — which was a guess, and wrong. The mutated `Continue with Google` button
+//        carries no `size="touch"` (the page has exactly one, on the submit at :216), so that array
+//        WOULD have reported it; the count assertion above simply threw first. Two `expect`s in one
+//        `it()` are ORDERED, not independent, and the second says nothing at all when the first fails.
+//        This is the same reading M1 forced about case (3)'s loop, arrived at twice in one walk —
+//        which is the argument for watching a red rather than predicting one.
 //   (M4) PENDING — a heading's copy drifts: `title="Welcome back"` → `title="Welcome back!"`.
 //   (M5) PENDING — the single landmark doubles: a second one opened inside `(auth)/layout.tsx`.
 //   (M6) PENDING — a removed region comes back: `role="status"` restored on the login page's
