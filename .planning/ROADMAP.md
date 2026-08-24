@@ -658,7 +658,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
-| 15. Auth, Profile & Transactional Email | v1.1 | 9/11 | All 11 plans EXECUTED; 15-05 (the EMAIL-03 client walk) and 15-11 (the `baselines` workflow_dispatch) each stopped at a BLOCKING operator checkpoint. No autonomous work remains — see STATE.md § Operator Next Steps, then phase verification |  |
+| 15. Auth, Profile & Transactional Email | v1.1 | 10/11 | All 11 plans EXECUTED; 15-11's dispatch is DISCHARGED (comparison run `32752143309`, `gate-visual` green). One operator item left: 15-05 Task 3, the EMAIL-03 real-client walk, deferred by the PM. Then phase verification — two findings are waiting in the phase's `deferred-items.md` |  |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
