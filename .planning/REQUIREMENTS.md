@@ -97,7 +97,7 @@
 
 - [ ] **CROP-01**: A user can frame and zoom their avatar before it uploads, and the server's blind face-gravity re-crop no longer re-frames what the user just chose
 - [ ] **CROP-02**: A host uploading listing photos sees a non-destructive preview of what the 16:9 hero and the 4:3 cards each cut off, with nothing baked into the stored asset
-- [ ] **CROP-03**: A user can remove their avatar
+- [x] **CROP-03**: A user can remove their avatar
 - [ ] **CROP-04**: Cropping works on a real touch device — verified on hardware, not in desktop touch emulation
 
 ### Responsive (RESP)
@@ -230,7 +230,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | EMAIL-03 | Phase 15 | Complete |
 | CROP-01 | Phase 16 | Pending |
 | CROP-02 | Phase 16 | Pending |
-| CROP-03 | Phase 16 | Pending |
+| CROP-03 | Phase 16 | Complete |
 | CROP-04 | Phase 16 | Pending |
 | RESP-01 | Phase 11 | Complete |
 | RESP-02 | Phase 12 | Complete |
@@ -272,6 +272,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 
 **Notes on two intentional near-overlaps** (both requirements stand; neither is double-mapped):
 - **AUTHUI-02** (Phase 15) carries "avatar removal is possible" and **CROP-03** (Phase 16) is "A user can remove their avatar." Phase 15 owns the profile page's design-system pass; the removal affordance itself is delivered by CROP-03 in Phase 16.
+  - **CROP-03 closed in plan 16-12** (2026-08-25): `removeAvatarAction` (null-first, destroy best-effort, session-gated), the `Remove photo` control and its `ResponsiveDialog` confirm all landed in one commit, and the circle falls back to initials. **AUTHUI-02's remaining blocker is therefore cleared** — its design-system half shipped in Phase 15 (`tests/design/profile-pass.test.tsx`, green) and its removal half shipped here. Its row is deliberately left for the phase-closing pass rather than ticked from a Phase-16 plan, because a Phase-15 requirement's status is that phase's to declare; nothing else is outstanding against it.
 - **STATE-04** (Phase 11) covers every list surface's empty state including host inbox-zero; **HFLOW-01** (Phase 14) covers the requests inbox's scannability, SLA countdown and actions. The empty state is authored once in Phase 11 with the shared `EmptyState` pattern and adopted, not re-decided, in Phase 14.
 
 ---

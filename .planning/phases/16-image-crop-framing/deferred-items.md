@@ -40,3 +40,37 @@ wired to the thumb), which is a design call the UI contract should make rather t
 itself), or set the name on the thumb directly. Both are one line plus a rendering assertion.
 
 **Suggested owner:** plan 16-13 (the phase's real-browser a11y pass) or a follow-up in 16-14…16-16.
+
+---
+
+## D2 — `overflow-320.spec.ts`'s Phase-13 confirmed-detail row is flaky under parallel workers
+
+- **Found by:** plan 16-12, running the full `e2e/overflow-320.spec.ts` for the `/profile` rows, 2026-08-25
+- **Owner file:** `e2e/overflow-320.spec.ts` (the AC#30/AC#22 Phase-13 table), or its fixture setup
+- **Severity:** a false red on a green tree — the worst kind, because the next person spends the
+  investigation on their own change
+
+**Measured.** `npx playwright test e2e/overflow-320.spec.ts --project=chromium` (2 workers) failed on
+`AC#30 / AC#22 … › the confirmed detail, no query · court` with `expectTargets`'s own non-vacuity
+floor — zero controls collected:
+
+```
+> 868 |   ).toBeGreaterThan(0);
+        at expectTargets (e2e\overflow-320.spec.ts:868:5)
+1 failed · 14 skipped · 16 did not run · 44 passed
+```
+
+Re-run ALONE (`-g "the confirmed detail, no query"`, 1 worker): **2 passed**, both themes, 1.4s and
+1.2s. So the surface renders and the selector still matches; the failure is a race in the fixture or
+in the shared dev database the e2e run uses, not a layout regression.
+
+**Why it was not fixed here.** Nothing in plan 16-12 touches a booking-detail surface — its files are
+`src/lib/cloudinary.ts`, `src/app/actions/avatar.ts`, `src/components/profile/avatar-field.tsx`,
+`src/lib/design/live-regions.ts` (prose only) and three test files. The `/profile` rows of this same
+spec, which ARE this plan's surface, pass in both themes.
+
+**Cheapest correct fix:** make the Phase-13 rows provision their own booking rather than reading one
+another's, or serialise that describe block. Whichever it is, the fix belongs to whoever owns the
+fixture, with a red watched under two workers first.
+
+**Suggested owner:** the phase's real-browser plan (16-13) or a Phase-17 test-infrastructure pass.
