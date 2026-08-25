@@ -662,9 +662,8 @@ export const LIVE_REGION_IDS = [
   "forgot-request-result",
   // (auth)/reset-password/page.tsx
   "reset-form-error",
-  // (app)/profile/profile-form.tsx — the two alerts are ordinals 1 and 2 in SOURCE order, and the
-  // avatar refusal is the one that comes first in the file.
-  "profile-avatar-error",
+  // (app)/profile/profile-form.tsx — ONE alert and one status since plan 16-11 extracted the avatar
+  // block, so the save refusal is now the file's only `alert` and its ordinal is 1.
   "profile-form-error",
   "profile-save-result",
   // profile/avatar-field.tsx — one region, one kind, so one ordinal.
@@ -1413,34 +1412,17 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
 
   // ─── (app)/profile/profile-form.tsx ─────────────────────────────────────────────────────────────
   //
-  // THREE REGIONS, TWO KINDS, SO TWO ORDINAL SEQUENCES. The two alerts are keyed 1 and 2 in SOURCE
-  // order and the avatar refusal is the earlier of them — it sits in the public panel, above the
-  // fields — while the save result is the file's only `status`. Ordering the rows the way the file
-  // orders the elements is what makes `at` checkable by eye.
-  "profile-avatar-error": {
-    file: "src/app/(app)/profile/profile-form.tsx",
-    kind: "alert",
-    at: 1,
-    announces:
-      "The upload refusal the avatar action returned, verbatim and once — the wrong-file-type " +
-      "sentence, the over-5-MB sentence or the storage failure, whichever came back. It lands beside " +
-      "the `Upload photo` control the person just used, and it is cleared at the top of the next " +
-      "attempt, so a second failure is a second announcement rather than a silent no-op.",
-    why:
-      "RULE 2. An upload the person started came back rejected and the file they chose is the thing " +
-      "that has to change, so it is a genuine failure needing a human rather than a state. RULE 5 by " +
-      "its own text: the sentence names WHICH constraint was missed, and a label announced in its " +
-      "place would leave a person re-picking the same file.\n" +
-      "\n" +
-      "⚠ ITS ORDINAL IS 1 BECAUSE OF WHERE IT SITS, NOT BECAUSE IT MATTERS MORE. Plan 15-08 moved the " +
-      "avatar block INSIDE the form element so one panel could hold it with the public fields; the " +
-      "element did not move relative to the form-level refusal below it, so this ordinal is the one " +
-      "it has always had. If a later plan reorders the two, `at` is what goes red first.",
-  },
+  // TWO REGIONS, TWO KINDS, SO TWO SEQUENCES OF EXACTLY ONE. It carried THREE until plan 16-11: the
+  // avatar block that used to sit in the public panel — with the refusal alert that was this file's
+  // `alert#1` — is now one `<AvatarField />` element, and the refusal is declared against
+  // `src/components/profile/avatar-field.tsx` below. The row was DELETED here rather than retired
+  // anywhere, because the element it described did not disappear; it moved, and the row that
+  // describes it moved with it. Ordering the rows the way the file orders the elements is what makes
+  // `at` checkable by eye.
   "profile-form-error": {
     file: "src/app/(app)/profile/profile-form.tsx",
     kind: "alert",
-    at: 2,
+    at: 1,
     announces:
       "The `updateProfile` server action's refusal sentence, verbatim and once, when a save comes " +
       "back with `ok: false`. It is cleared at the top of the next submit, so the person hears the " +
@@ -1449,7 +1431,14 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "RULE 2, and it is the SAVE's failure rather than a field's — the per-field messages are " +
       "`FormMessage`'s and carry no region at all, which is RULE 6 held by construction: one save " +
       "produces one announcement from one element. Named by its own content, for the reason every " +
-      "server sentence on these surfaces is: the refusal is the actionable half.",
+      "server sentence on these surfaces is: the refusal is the actionable half.\n" +
+      "\n" +
+      "⚠ ITS ORDINAL BECAME 1 BECAUSE A SIBLING LEFT THE FILE, NOT BECAUSE IT MATTERS MORE. It was " +
+      "`alert#2` until plan 16-11 lifted the avatar block out into `avatar-field.tsx`; this element " +
+      "did not move one line, and nothing about what it announces changed. `at` counts regions of " +
+      "the same KIND in the same FILE in source order, so removing the alert above it re-keyed this " +
+      "one by arithmetic alone. That is the whole reason the ordinal is worth stating: the day a " +
+      "later plan puts a second alert back above it, this row is what goes red first.",
   },
   "profile-save-result": {
     file: "src/app/(app)/profile/profile-form.tsx",

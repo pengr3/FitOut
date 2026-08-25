@@ -19,9 +19,16 @@
 // pattern. It cannot see what that pattern renders, so a gate built from source alone stays perfectly
 // green the day `PanelCard` loses its hook. So:
 //
-//   1. file → pattern      an AST walk over the three profile files: what each composes, what it
+//   1. file → pattern      an AST walk over the FOUR profile files: what each composes, what it
 //                          does NOT compose, and which import it reads its container class from.
 //                          Aliased imports resolved through `propertyName ?? name`.
+//                          ⚠ FOUR SINCE PLAN 16-11, and the fourth is not decoration. The avatar
+//                          block left `profile-form.tsx` for `components/profile/avatar-field.tsx`
+//                          (CROP-01), which emptied the two assertions in (10) that were scanned
+//                          against `FORM` specifically. They were RE-SCOPED to the new file by
+//                          NAME rather than widened to "somewhere in the tree": the claim is that
+//                          exactly ONE file input and exactly ONE `Upload avatar` name exist, and
+//                          a claim that does not say where is not worth making (T-16-39).
 //   2. pattern → attribute a RENDER of the REAL `ProfileForm` in jsdom, counting the test-id
 //                          attribute off the produced DOM rather than off anybody's source.
 //   3. attribute → contract that value pinned against `SELECTOR_IDS`, the closed union that declares
@@ -80,10 +87,11 @@
 // can be.
 //
 // It is also why the "no removal affordance" assertion below reads the AST's STRING LITERALS AND JSX
-// TEXT rather than the file's bytes. `profile-form.tsx:120-122` contains the sentence *"Crop and
-// avatar teardown are Phase 16 (CROP-01 / CROP-03)"*, and a prose grep for the removal register
-// would report that comment — the one that explains why there is no removal control — as the
-// removal control.
+// TEXT rather than the file's bytes. The seam comment above `profile-form.tsx`'s avatar row still
+// says in prose that avatar teardown is CROP-03 and has not landed — plan 16-11 REWROTE that comment
+// rather than deleting it, because half of what it recorded is now discharged and half is not — and a
+// prose grep for the removal register would report that comment, the one that explains why there is
+// no removal control, as the removal control.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WHAT THIS DOES NOT DUPLICATE
@@ -351,6 +359,21 @@ vi.mock("next/navigation", () => ({
 const PAGE = "src/app/(app)/profile/page.tsx";
 const LOADING = "src/app/(app)/profile/loading.tsx";
 const FORM = "src/app/(app)/profile/profile-form.tsx";
+/**
+ * The avatar field, extracted out of `FORM` by plan 16-11 (CROP-01).
+ *
+ * It joins this file's set because two of AC#12's claims WENT WITH IT — the hidden file input and its
+ * accessible name — and an assertion scanned against `FORM` after the extraction is an assertion over
+ * an empty list. Adding the path is what keeps them claims about a NAMED file.
+ *
+ * ⚠ IT IS NOT ADDED TO (7), (8) OR (9), AND THE OMISSION IS THE DESIGN. Case (8)'s destructive ban is
+ * scoped to `FORM` on purpose and must stay green forever: CROP-03's removal confirm lands in THIS
+ * file in plan 16-12 and will legitimately carry `variant="destructive"`. Keeping the confirm out of
+ * `profile-form.tsx` is what lets a surface hold a destructive control and a reference truthful-save
+ * machine at once without either gate having to be softened — an argument for the file layout, not
+ * merely a consequence of it.
+ */
+const FIELD = "src/components/profile/avatar-field.tsx";
 
 /** The vendored primitive's module. ANY binding imported from here is a raw container. */
 const UI_CARD_MODULE = "@/components/ui/card";
@@ -399,11 +422,25 @@ const PINNED_COPY: Readonly<Record<string, readonly string[]>> = {
     "What other people on FitOut can see.",
     "Private account info",
     "Only you can see this. Never shown to other people.",
-    "Your avatar",
-    "Upload avatar",
-    "Upload photo",
-    "Uploading…",
-    "JPG or PNG, up to 5 MB. Optional.",
+    // ⚠ FIVE AVATAR SENTENCES LEFT THIS ENTRY IN PLAN 16-11, AND NOT ONE OF THEM WAS DROPPED — a pin
+    // dropped is a copy contract silently retired (T-16-40). Where each one went:
+    //   `Your avatar` and `Upload avatar`  → PINNED_COPY[FIELD] below. Still literals, new file.
+    //   `Upload photo`                     → `tests/design/avatar-copy.test.tsx`. It is no longer a
+    //                                        literal ANYWHERE under src/ — the field renders
+    //                                        AVATAR_UPLOAD_LABEL from `@/lib/avatar` — so an AST pin
+    //                                        cannot see it and a RENDER compared to the export can.
+    //   `JPG or PNG, up to 5 MB. Optional.` → RETIRED by Δ14 and replaced by AVATAR_HELPER, which
+    //                                        names WebP. `avatar-copy.test.tsx` asserts the new one
+    //                                        renders byte-for-byte AND that the shipped one is gone
+    //                                        from the whole tree.
+    //   the shipped busy label             → RETIRED by Δ14 outright. Nothing uploads between the
+    //   (`Uploading` + an ellipsis)          pick and the confirm any more, so it described a state
+    //                                        that no longer exists. `avatar-copy.test.tsx` asserts
+    //                                        its absence over src/ rather than over one render, and
+    //                                        it is spelled out THERE and not here on purpose: this
+    //                                        line would otherwise be the last copy of a string the
+    //                                        phase is retiring, sitting inside the note explaining
+    //                                        the retirement.
     "First name",
     "Shown publicly as your display name.",
     "About",
@@ -421,6 +458,10 @@ const PINNED_COPY: Readonly<Record<string, readonly string[]>> = {
     "Saving…",
     "Save profile",
   ],
+  // The two avatar sentences that are still AUTHORED LITERALS after the extraction, pinned against
+  // the file that now authors them. Everything else the field says is an imported constant and is
+  // pinned in `avatar-copy.test.tsx` instead — see the note in [FORM] above for where each one went.
+  [FIELD]: ["Your avatar", "Upload avatar"],
 };
 
 /** The two panels, in source order, asserted as WHOLE lists so a third panel reddens here too. */
@@ -756,16 +797,27 @@ function readAndScan(path: string): Read {
 const page = readAndScan(PAGE);
 const loading = readAndScan(LOADING);
 const form = readAndScan(FORM);
-const files = [page, loading, form] as const;
+const field = readAndScan(FIELD);
+const files = [page, loading, form, field] as const;
 
 /** A file smaller than this is a stub or a truncated read; the smallest real one here is 3.3 KB. */
 const MIN_BYTES = 2000;
 
 /**
+ * ⚠ THE SET IS FOUR SINCE PLAN 16-11 and the three vacuity guards below walk all four. Nothing else
+ * does: (4) walks the page and its plate, (5)-(9) name `page`, `loading` and `form` individually, and
+ * (11) reads `PINNED_COPY` per path — so a file with no entry is pinned to nothing rather than
+ * silently exempted from a ban. That distinction is what keeps case (8)'s destructive ban scoped to
+ * `FORM` deliberately rather than by omission; see `FIELD`'s docblock.
+ */
+
+/**
  * The per-file JSX-element floor, MEASURED against the tree this commit reads (24 August 2026) and
  * set below each real count rather than at it.
  *
- * Measured: page 4 · loading 4 · profile-form 53. The spread is more than a factor of TEN, which is
+ * Measured 24 August 2026: page 4 · loading 4 · profile-form 53. RE-MEASURED 25 August 2026, after
+ * plan 16-11 moved the avatar block: page 4 · loading 4 · profile-form **45** · avatar-field **10**.
+ * The spread is more than a factor of TEN, which is
  * why a single blanket floor was never on the table here — `auth-composition.test.tsx:571-583`
  * records watching exactly that mistake report two correct pages as unparsed, on a set whose spread
  * was only a factor of three.
@@ -778,7 +830,15 @@ const MIN_BYTES = 2000;
 const JSX_FLOOR: Readonly<Record<string, number>> = {
   [PAGE]: 3,
   [LOADING]: 3,
-  [FORM]: 40,
+  // ⚠ 40 → 33, AND THE MOVE IS THE POINT RATHER THAN AN ALLOWANCE. Plan 16-11 took nine JSX elements
+  // out of this file and put one back, measured 53 → 45; the floor moves with the file it describes
+  // because a floor left at a number the file can no longer reach is a gate that reddens on the work
+  // it was written to permit. It stays BELOW the real count for the reason above.
+  [FORM]: 33,
+  // Measured 10 the same day, and set below it for the same reason. This one is DELIBERATELY low in
+  // absolute terms: the field is a small composite (an avatar, an input, a button, two paragraphs and
+  // a conditionally-mounted dialog), so the number that makes it "clearly parsed" is single-digit.
+  [FIELD]: 7,
 };
 
 /**
@@ -788,7 +848,17 @@ const JSX_FLOOR: Readonly<Record<string, number>> = {
  * back empty (a `visit` that returned early, a corpus filtered to nothing), and every copy assertion
  * in (11) plus the removal absence in (10) reads only the corpus.
  *
- * Measured: page 5 · loading 3 · profile-form 59. ⚠ THE FIRST DRAFT USED A BLANKET 4 AND WATCHED
+ * Measured 24 August 2026: page 5 · loading 3 · profile-form 59. RE-MEASURED 25 August 2026, after
+ * plan 16-11: page 5 · loading 3 · profile-form **40** · avatar-field **18**.
+ *
+ * ⚠ THE FORM'S FLOOR MOVED 40 → 30 AND THAT IS NOT AN ALLOWANCE. Nineteen authored strings left the
+ * file with the avatar block, landing the count on EXACTLY the old floor of 40 — a floor sitting on
+ * its own measured count is precisely the "element census" this docblock's last paragraph refuses,
+ * and it would have reddened on the next innocuous deletion while telling nobody anything about
+ * vacuity. It is re-set below the new count in the same proportion the original was set below its own
+ * (~70%), which is the rule the number was chosen by both times.
+ *
+ * ⚠ THE FIRST DRAFT USED A BLANKET 4 AND WATCHED
  * `loading.tsx` REPORT AT 3 — a perfectly correct file whose whole authored vocabulary is one class,
  * one title and one skeleton label. Transcribed rather than paraphrased, because it is the same
  * blanket-floor mistake `auth-composition.test.tsx:571-583` records making on its own first run:
@@ -800,7 +870,8 @@ const JSX_FLOOR: Readonly<Record<string, number>> = {
 const TEXT_FLOOR: Readonly<Record<string, number>> = {
   [PAGE]: 4,
   [LOADING]: 3,
-  [FORM]: 40,
+  [FORM]: 30,
+  [FIELD]: 12,
 };
 
 afterEach(() => {
@@ -815,7 +886,7 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
   // one. This is the fifth time this repository has written this block for that reason.
   // ───────────────────────────────────────────────────────────────────────────────────────────────
 
-  it("(1) read all three real files rather than three empty ones", () => {
+  it("(1) read all four real files rather than four empty ones", () => {
     const thin = files
       .filter((file) => file.bytes < MIN_BYTES)
       .map((file) => `${file.path} — ${file.bytes} bytes`);
@@ -826,7 +897,7 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
     ).toEqual([]);
   });
 
-  it("(2) resolved JSX in all three — an absence over an unentered tree is not an assertion", () => {
+  it("(2) resolved JSX in all four — an absence over an unentered tree is not an assertion", () => {
     const barren = files
       .filter((file) => file.scan.jsxElements < (JSX_FLOOR[file.path] ?? Number.MAX_SAFE_INTEGER))
       .map(
@@ -842,7 +913,7 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
     ).toEqual([]);
   });
 
-  it("(3) the scan collected authored text from all three — the copy pins need a corpus", () => {
+  it("(3) the scan collected authored text from all four — the copy pins need a corpus", () => {
     // The third vacuity direction, and it is separate from (2) on purpose: the JSX floor is satisfied
     // by a tree whose string literals were never visited (a `visit` that returned early, a corpus
     // filtered to nothing), and the copy assertions below are all "this sentence is PRESENT" — which
@@ -1042,18 +1113,45 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
 
   it("(10) the avatar block keeps its upload and has gained no removal control", () => {
+    // ⚠ THESE TWO ARE SCANNED AGAINST `FIELD`, NOT `FORM`, SINCE PLAN 16-11 — and they were watched
+    // going to zero before they moved. The extraction emptied both against `FORM`, which this file's
+    // own header did not predict (it predicts only the removal-register red below), and the failure was
+    // read off a real run rather than reasoned about:
+    //
+    //   AssertionError: the profile form no longer carries a hidden file input. … expected [] to
+    //   have a length of 1 but got +0
+    //
+    // The second one was HIDDEN BEHIND THE FIRST — two assertions in one `it()` are ordered, not
+    // independent (M1 ③ and M2 record the same reading), so it was measured separately instead:
+    // `form.scan.ariaLabels` came back as exactly `[{ what: "Save state", line: 239 }]`, with no
+    // `Upload avatar` in it at all.
+    //
+    // THE RE-SCOPE NAMES THE NEW FILE AND DOES NOT WIDEN. "Somewhere in the tree there is a file
+    // input" is not the claim; the claim is that this application has exactly ONE, in a file this
+    // test can name, and that it carries exactly ONE accessible name (T-16-39). A search over `src/`
+    // would have stayed green the day a second picker appeared in a third file.
     expect(
-      form.scan.fileInputs.map((f) => `${FORM}:${f.line} — ${f.what}`),
-      "the profile form no longer carries a hidden file input. That control IS the avatar upload " +
+      field.scan.fileInputs.map((f) => `${FIELD}:${f.line} — ${f.what}`),
+      "the avatar field no longer carries a hidden file input. That control IS the avatar upload " +
         "mechanism (D-09) — an absence here is a capability lost in a restyle, which is the failure " +
         "direction a ban-only gate would never notice.",
     ).toHaveLength(1);
 
     expect(
-      form.scan.ariaLabels.filter((f) => f.what === "Upload avatar"),
+      field.scan.ariaLabels.filter((f) => f.what === "Upload avatar"),
       "the hidden file input lost its accessible name. It is visually hidden and triggered by a " +
         "sibling button, so the name is the only thing that identifies it to a screen reader.",
     ).toHaveLength(1);
+
+    // …and the form it was lifted out of now carries NONE, which is the other half of the same
+    // claim: two pickers on one surface is two ways to start one upload, and the extraction is only
+    // correct if the original site is empty rather than duplicated.
+    expect(
+      form.scan.fileInputs.map((f) => `${FORM}:${f.line} — ${f.what}`),
+      "the profile form carries a file input again. The avatar picker lives in avatar-field.tsx " +
+        "since plan 16-11; a second one here would be a second way to start the same upload, and " +
+        "only one of them would be behind the crop confirm (rule F4).",
+    ).toEqual([]);
 
     // …and the ABSENCE, read from the AUTHORED TEXT rather than from the file's bytes. This is the
     // whole reason the corpus exists: profile-form.tsx:120-122 explains IN PROSE that crop and avatar
@@ -1144,6 +1242,14 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
 
     // The rendered proof of the two things case (10) asserts from source: the upload control is
     // reachable by its name, and NO control in the document is named as a removal.
+    //
+    // ⚠ THIS HALF SURVIVED PLAN 16-11 UNCHANGED, AND THAT IS A RESULT RATHER THAN AN OVERSIGHT. The
+    // plan budgeted a red here — the picker left `profile-form.tsx` for `avatar-field.tsx`, so a
+    // missing mock or a client-boundary import would have taken the render down with it. It did not:
+    // the run that reddened (10) and (11) left (12) GREEN, so `AvatarField` mounts inside
+    // `ProfileForm` under this config with the SAME single `next/navigation` stub and nothing else.
+    // The crop dialog is not mounted at first paint (it exists only while a file is staged), so
+    // `react-easy-crop` is imported but never rendered. Not one line of this case's setup moved.
     expect(screen.getByLabelText("Upload avatar")).toBeTruthy();
     const controlNames = [
       ...screen.queryAllByRole("button"),

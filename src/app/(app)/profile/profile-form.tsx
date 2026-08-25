@@ -2,8 +2,12 @@
 
 // Profile edit form (client) — RHF + the SHARED profileSchema (UX validation), submitting to the
 // updateProfile server action which RE-VALIDATES with the same schema (the client is never trusted).
-// The avatar control posts a FormData to uploadAvatarAction; both type and size are re-checked
-// server-side (T-04-04). The form is visually split into "Public profile" vs "Private account info"
+// The avatar control is `<AvatarField />` (`src/components/profile/avatar-field.tsx`) as of plan
+// 16-11 — it owns the picker, the four pre-dialog guards, the framing dialog and the save, and both
+// type and size are STILL re-checked server-side (T-04-04). Nothing about that extraction reaches
+// this form: the field registers no react-hook-form value and carries no `name`, which is the
+// property the comment above the `<form>` element records and the reason it must stay there.
+// The form is visually split into "Public profile" vs "Private account info"
 // (D-09/D-10) so the user sees exactly what other people can see.
 //
 // THE SPLIT IS TWO `PanelCard`s AS OF PLAN 15-08, and that is the whole of what that plan changed
@@ -18,13 +22,12 @@
 // there is no timer on the save path, no optimistic flag, and nothing derived from "probably worked".
 // 14-CONTEXT D-150 copied this file as the reference truthful-save model. Restyle around it.
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { updateProfile } from "@/app/actions/profile";
-import { uploadAvatarAction } from "@/app/actions/avatar";
 import { profileSchema, type ProfileInput } from "@/lib/validation/profile";
 import {
   Form,
@@ -38,12 +41,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AvatarField } from "@/components/profile/avatar-field";
 import { PanelCard } from "@/components/patterns/panel-card";
 
 export function ProfileForm({
   initial,
-  avatarUrl: initialAvatarUrl,
+  avatarUrl,
   displayName,
 }: {
   initial: ProfileInput;
@@ -51,10 +54,6 @@ export function ProfileForm({
   displayName: string;
 }) {
   const router = useRouter();
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [avatarBusy, setAvatarBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -74,25 +73,6 @@ export function ProfileForm({
     setSaved(true);
     router.refresh();
   }
-
-  async function onAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAvatarError(null);
-    setAvatarBusy(true);
-    const fd = new FormData();
-    fd.set("avatar", file);
-    const result = await uploadAvatarAction(fd);
-    setAvatarBusy(false);
-    if (!result.ok) {
-      setAvatarError(result.error);
-      return;
-    }
-    setAvatarUrl(result.avatarUrl);
-    router.refresh();
-  }
-
-  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <Form {...form}>
@@ -117,44 +97,14 @@ export function ProfileForm({
           description="What other people on FitOut can see."
         >
           {/* Avatar (optional — D-09) */}
-          {/* ONE CONTROL, DELIBERATELY. Crop and avatar teardown are Phase 16 (CROP-01 / CROP-03);
-              this row is left able to hold a second control and is given none now, because a
-              destructive affordance shipped ahead of the action behind it is a button that lies. */}
-          <div className="flex items-center gap-4">
-            <Avatar size="lg" className="size-16">
-              {avatarUrl ? (
-                <AvatarImage src={avatarUrl} alt="Your avatar" />
-              ) : null}
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="space-y-1">
-              <input
-                ref={fileInput}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                aria-label="Upload avatar"
-                onChange={onAvatarChange}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={avatarBusy}
-                onClick={() => fileInput.current?.click()}
-              >
-                {avatarBusy ? "Uploading…" : "Upload photo"}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                JPG or PNG, up to 5 MB. Optional.
-              </p>
-              {avatarError && (
-                <p role="alert" className="text-xs text-destructive">
-                  {avatarError}
-                </p>
-              )}
-            </div>
-          </div>
+          {/* STILL ONE CONTROL, AND HALF THE REASON IS NOW DISCHARGED. The row used to carry the
+              whole avatar interaction inline; plan 16-11 replaced it with one element, and the
+              picker, the four guards, the framing dialog and the save all live in
+              `avatar-field.tsx` now — that is CROP-01, landed. AVATAR TEARDOWN HAS NOT LANDED. It
+              is CROP-03 and it arrives in plan 16-12, in that same file rather than in this one,
+              and until then this row is still given no second control — because a destructive
+              affordance shipped ahead of the action behind it is a button that lies. */}
+          <AvatarField avatarUrl={avatarUrl} displayName={displayName} />
 
           <div className="space-y-5">
             <FormField
