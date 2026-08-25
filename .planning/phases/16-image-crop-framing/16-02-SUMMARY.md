@@ -209,3 +209,12 @@ None — no external service configuration required.
 ---
 *Phase: 16-image-crop-framing*
 *Completed: 2026-08-25*
+
+## Self-Check: PASSED
+
+- `src/lib/avatar.ts` — FOUND
+- `tests/design/avatar-zoom.test.ts` — FOUND
+- `.planning/phases/16-image-crop-framing/16-02-SUMMARY.md` — FOUND
+- Commits `5a9d927`, `7738ce1`, `eee39a1`, `4f28e33` — all FOUND in `git log --all`
+- Post-commit deletion check: **zero** tracked files deleted across all four commits
+- `.planning/STATE.md` and `.planning/ROADMAP.md` — **not modified by this executor** (orchestrator owns them)
