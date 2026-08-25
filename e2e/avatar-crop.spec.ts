@@ -445,6 +445,109 @@ test.describe("CROP-01 / Delta-4 — a one-finger drag on the stage cannot scrol
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE MASK RING AND THE SCRIM (Delta-6 / IC-04) — A CASCADE QUESTION ONLY A BROWSER CAN ANSWER
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `react-easy-crop` paints the whole mask off the crop-area element's OWN properties (shipped CSS):
+//
+//   .reactEasyCrop_CropArea { border: 1px solid …; box-shadow: 0 0 0 9999em; color: … }
+//
+// so the scrim's colour comes from `color`, not from a background, and the ring is the `border`.
+// 16-UI-SPEC Delta-6 wants a 2px ring in `--background` and a scrim at 55% of `--foreground` — and
+// 16-RESEARCH § A5 flagged that a Tailwind class route is the right INTENT with no guarantee of
+// winning: the library injects its stylesheet UNLAYERED into the document head, Tailwind v4
+// utilities live in a cascade layer, and unlayered beats layered no matter the source order.
+//
+// ⚠ THIS ASSERTION PINS THE RESULT AND NOT THE MECHANISM, WHICH IS THE WHOLE POINT OF IT. Plan 16-14
+// shipped whichever of the two legal routes the browser actually allowed (its SUMMARY records the
+// three values verbatim and names the route); this case must pass under EITHER, so that fixing or
+// re-fixing the route later is a source change and not a test change. It therefore reads computed
+// values only, and compares them against the THEME's own tokens resolved in the same document rather
+// than against literals — a hard-coded colour here would be the leak the whole design gate exists to
+// stop, wearing a spec file as a disguise.
+
+/**
+ * Resolve a CSS colour expression the way the document would, and hand back the computed string.
+ *
+ * The probe is a detached-but-attached `<span>`: `getComputedStyle` needs the element in the tree to
+ * inherit the theme's custom properties, and `display: none` is avoided because a computed COLOUR is
+ * still resolved for a hidden element but the value would then be read off an element outside the
+ * flow — one less thing to have to argue about.
+ */
+async function resolveColour(page: Page, expression: string): Promise<string> {
+  return page.evaluate((expr) => {
+    const probe = document.createElement("span");
+    probe.style.position = "absolute";
+    probe.style.pointerEvents = "none";
+    probe.style.color = expr;
+    document.body.appendChild(probe);
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return resolved;
+  }, expression);
+}
+
+test.describe("CROP-01 / Delta-6 — the mask ring is 2px in --background and the scrim is 55% ink", () => {
+  test("the crop area's computed border and scrim colour are the contract's, by whichever route won", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    await pick(page, "square-400.png");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    const mask = await computed(stageOf(page), ["border-width", "border-color", "color"]);
+
+    // THE RING. `border-2` and `borderWidth: 2` produce the same computed string; the library's own
+    // rule produces `1px`. This single value is what decides which route ships, and plan 16-14's
+    // SUMMARY transcribes it beside the other two.
+    expect(
+      mask["border-width"],
+      "the crop area's computed `border-width` is " +
+        `\`${mask["border-width"]}\`, not \`2px\`. Delta-6 asks for a 2px mask ring; the library's ` +
+        "own unlayered rule is `border: 1px solid`, so a reading of `1px` means the vendor sheet is " +
+        "still winning this property and the route that shipped is not doing anything. " +
+        `(border-color: ${mask["border-color"]} · color: ${mask["color"]})`,
+    ).toBe("2px");
+
+    // THE RING'S COLOUR, resolved from the theme rather than asserted as a literal.
+    const background = await resolveColour(page, "var(--background)");
+    expect(
+      mask["border-color"],
+      `the crop area's computed \`border-color\` is \`${mask["border-color"]}\`; the theme's ` +
+        `\`--background\` resolves to \`${background}\` in this document. Delta-6's ring is the page ` +
+        "colour so the mask reads as a cut-out rather than as a second frame.",
+    ).toBe(background);
+
+    // THE SCRIM. Read off `color`, because that is the property the library's `box-shadow: 0 0 0
+    // 9999em` takes its colour from — a `bg-*` utility here would do nothing whatsoever.
+    //
+    // ⚠ TWO ACCEPTED SPELLINGS, AND THE REASON IS INTEROPERABILITY BETWEEN THE ROUTES RATHER THAN
+    // LOOSENESS. Tailwind's opacity modifier compiles to `color-mix(in oklab, …)` while a hand-
+    // written inline style is spelled `in oklch`; the two describe the SAME colour (the token's
+    // chroma is 0, so the interpolation space cannot change the result) but Chromium serialises the
+    // computed value in whichever space it was asked for. Pinning one spelling would pin the
+    // mechanism, which is exactly what this case exists not to do.
+    const scrimOklab = await resolveColour(
+      page,
+      "color-mix(in oklab, var(--foreground) 55%, transparent)",
+    );
+    const scrimOklch = await resolveColour(
+      page,
+      "color-mix(in oklch, var(--foreground) 55%, transparent)",
+    );
+    expect(
+      [scrimOklab, scrimOklch],
+      `the crop area's computed \`color\` is \`${mask["color"]}\`. That is the property the ` +
+        "library's scrim takes its colour from, so this value IS the scrim. Delta-6 asks for the " +
+        `ink token at 55%, which resolves here to \`${scrimOklab}\` (or \`${scrimOklch}\` in the ` +
+        "other interpolation space). The library's own default is 50% BLACK — a reading of " +
+        "`rgba(0, 0, 0, 0.5)` means the vendor sheet is still winning this property too.",
+    ).toContain(mask["color"]);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // (a) THE FOUR PRE-DIALOG REFUSALS — WITH A REAL DECODER ON REAL BYTES
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //

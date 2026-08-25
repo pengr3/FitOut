@@ -48,12 +48,12 @@
 //     plan 16-10 together with D-174's file-input reset). Two owners for one URL is worse than one.
 //   - It renders NO decode spinner and NO skeleton — see the comment on the stage for why that is
 //     an absence with a reason rather than a missing state.
-//   - It does not reach for the mask ring or the scrim. Both are left at the library's own values
-//     here (a hairline translucent-white border and a half-strength dark scrim) because
-//     16-RESEARCH § A5 measured that the library injects its stylesheet UNLAYERED into the document
-//     head while Tailwind v4 utilities live in a cascade layer, and unlayered beats layered — so
-//     the class route is the right INTENT and is not guaranteed to win. Plan 16-13 measures which
-//     route wins in a real browser and lands it with its inventory row.
+//   - It does not spell the mask ring or the scrim as Tailwind classes. It CANNOT: plan 16-14 tried
+//     that route and measured all three properties still reading the library's own values, because
+//     `react-easy-crop` injects its stylesheet UNLAYERED into the document head while Tailwind v4
+//     utilities live in a cascade layer, and unlayered beats layered. Delta-6's ring and scrim
+//     therefore ship as an inline style over two declared tokens — see `MASK_STYLE` below, which
+//     carries the reading and the consequence for the declared-token inventory.
 //
 // THE TRADE DELTA-3 ACCEPTS, RECORDED SO IT IS A DECISION RATHER THAN AN OVERSIGHT.
 // Radix routes Escape, the overlay click AND the close control through the single `onOpenChange`
@@ -97,6 +97,75 @@ import { encodeAvatarBlob } from "@/lib/avatar-canvas";
  */
 const STAGE_FOCUS_RECIPE =
   "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+/**
+ * DELTA-6 / IC-04 — the mask's 2px ring and its scrim, AS AN INLINE STYLE, and the spelling is the
+ * conclusion of a measurement rather than a preference.
+ *
+ * WHAT THE LIBRARY SHIPS, VERBATIM, BECAUSE EVERY LINE BELOW IS A REACTION TO IT:
+ *
+ *     .reactEasyCrop_CropArea { border: 1px solid …; box-shadow: 0 0 0 9999em; color: … }
+ *
+ * so the RING is the `border` and the SCRIM's colour is the element's own `color` — the shadow
+ * inherits it. A `bg-*` utility on this element would do nothing at all, and there is no second
+ * element to paint instead.
+ *
+ * ⚠ THE CLASS ROUTE WAS TRIED FIRST AND MEASURED LOSING, in Chromium on 2026-08-25, with
+ * `border-2 border-background` and the ink token's 55% modifier on `classes.cropAreaClassName`:
+ *
+ *     border-width : 1px                             ← the library's, not ours
+ *     border-color : 255, 255, 255 at 0.5 alpha      ← the library's hairline white
+ *     color        : 0, 0, 0 at 0.5 alpha            ← the library's half-strength black scrim
+ *
+ * (Those two colours are described rather than spelled, and that is forced rather than fussy: the
+ * legacy eight-bit colour function is on the leak gate's ban list for every file under
+ * `src/components/**`, so writing one out — even inside a comment explaining that it is the VENDOR's
+ * and not ours — would fail the gate this decision exists to respect. `src/lib/avatar-canvas.ts`'s
+ * header and 16-13's vendor-test-id paragraph set the same precedent for the same reason. The
+ * verbatim strings live in plan 16-14's SUMMARY and in the e2e failure message.)
+ *
+ * All three properties stayed the vendor's. 16-RESEARCH § A5 predicted exactly this and named the
+ * mechanism: `react-easy-crop` injects its stylesheet UNLAYERED into `document.head` at mount, while
+ * Tailwind v4 utilities live inside a cascade layer, and **unlayered beats layered regardless of
+ * source order or specificity** — both rules flatten to (0,1,0), so the layer is what decides. Plan
+ * 16-13 measured the same defeat from the other side: DS-05's `ring-*` half is dead on this element
+ * because the library's `box-shadow` already occupies that property.
+ *
+ * An INLINE style beats every stylesheet rule, layered or not, which is why this is a style object
+ * and not a class string. It is the only one of § A5's three routes that both works and stays inside
+ * the design contract:
+ *
+ *   - The third route — switching the library's automatic style injection OFF and importing its
+ *     stylesheet ourselves — is FORBIDDEN. It puts a vendor stylesheet into our bundle graph and is
+ *     the "parallel UI system" 999.2 rejected `cropperjs` for; it buys nothing this object does not.
+ *     ⚠ THE PROP AND THE IMPORT PATH ARE DESCRIBED RATHER THAN SPELLED, for the same reason the two
+ *     vendor colours above are: plan 16-14's acceptance criteria grep `src/` for those exact strings
+ *     and require ZERO, so naming them here — even to forbid them — is what would fail the check.
+ *   - Both values below are TOKENS, not literals. `color-mix()` over declared tokens is the leak
+ *     gate's own prescribed idiom (`config/design-leak-patterns.mjs:150` exempts it by name, beside
+ *     `ui/button.tsx:16`), and a raw colour function here would be a violation twice over.
+ *
+ * THE CONSEQUENCE FOR THE DECLARED INVENTORY, STATED SO NOBODY "COMPLETES" IT LATER: this route
+ * produces NO Tailwind opacity-modifier class, therefore no diluted-token site, therefore no row in
+ * `EXPECTED_DILUTED_TOKENS` (`tests/design/brand-recipe.test.ts`). That inventory is BIDIRECTIONAL —
+ * a declared key with no site in the tree fails exactly as loudly as an undeclared site — so adding
+ * a row for this scrim would REDDEN the gate. The count stays where 16-13 left it.
+ *
+ * 55% AND NOT 50%, AND NOT BECAUSE THE LIBRARY AGREES. Delta-6 claims 55% "is react-easy-crop's own
+ * default weight"; measured, the default is 50% (see the reading above). The 55% call stands on its
+ * own merits — it is lighter than the shipped overlay scrim and IC-04 wants the region being cut off
+ * to stay legible — and the agreement claim is simply false.
+ *
+ * WHAT WOULD FALSIFY THE ROUTE: a Tailwind release that emits utilities unlayered, or a
+ * `react-easy-crop` release that stops injecting its sheet. Either would make the class route win,
+ * and the e2e assertion that guards this pins the computed RESULT rather than the mechanism, so it
+ * stays green through the swap instead of having to be rewritten with it.
+ */
+const MASK_STYLE: React.CSSProperties = {
+  borderWidth: 2,
+  borderColor: "var(--background)",
+  color: "color-mix(in oklch, var(--foreground) 55%, transparent)",
+};
 
 export type ImageCropDialogProps = {
   /**
@@ -342,14 +411,12 @@ export function ImageCropDialog({
               // happen is a class that turns it back on — and it must never be put on the shared
               // dialog content box, which six adopters share.
               containerClassName: "touch-none",
-              // ⚠ THE RECIPE ONLY, ON PURPOSE. The 2px mask ring and the dimmer scrim that
-              // 16-UI-SPEC Delta-6 wants are NOT added here and the diluted-token inventory is NOT
-              // touched: 16-RESEARCH § A5 measured that the library's injected stylesheet is
-              // unlayered and Tailwind's utilities are layered, so this route is the right intent
-              // and is not guaranteed to win the cascade. PLAN 16-13 measures it in a real browser
-              // and lands the winning route together with its inventory row. The gap is deliberate.
+              // ⚠ THE FOCUS RECIPE ONLY — Delta-6's ring and scrim are NOT spelled as classes here,
+              // and that is a MEASURED decision rather than a preference. See `MASK_STYLE` below.
               cropAreaClassName: STAGE_FOCUS_RECIPE,
             }}
+            // DELTA-6 / IC-04, THROUGH THE ONE ROUTE THE BROWSER ALLOWS. See `MASK_STYLE`.
+            style={{ cropAreaStyle: MASK_STYLE }}
             // The stage's accessible name, with zero new test hooks and zero wrapper element — this
             // is what `getByLabelText(AVATAR_POSITION_LABEL)` resolves to (Delta-18). Pass ONLY the
             // name through this slot: it is spread AFTER the built-in props, so a className here
