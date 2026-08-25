@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: —
+current_plan: 7
 status: executing
-stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-08-25T06:29:40.746Z"
-last_activity: 2026-08-25 -- Phase 16 planning complete
+stopped_at: "Phase 16 wave 1 complete -- 16-01..16-06 executed and committed; post-wave build exit 0 and full suite 183 files / 2068 passed. Next: wave 2 (16-07, 16-08)."
+last_updated: "2026-08-25T07:08:20.183Z"
+last_activity: 2026-08-25 -- Phase 16 wave 1 complete (6/16 plans)
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 121
-  completed_plans: 110
+  completed_plans: 111
   percent: 54
 ---
 
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 15 — auth-profile-transactional-email
+**Current focus:** Phase 16 — image-crop-framing
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 15 (auth-profile-transactional-email) — **COMPLETE 2026-08-25**
-Plan: 14 of 14
-Current Plan: —
+Phase: 16 (image-crop-framing) — EXECUTING
+Plan: 7 of 16
+Current Plan: 7
 Total Plans in Phase: 16
-Status: Ready to execute
+Status: Executing Phase 16
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-25 -- Phase 16 planning complete
+Last activity: 2026-08-25 -- Phase 16 wave 1 complete (6/16 plans)
 
 ## Performance Metrics
 
