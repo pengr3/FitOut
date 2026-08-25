@@ -316,7 +316,7 @@ describe("the DS-13 raw-design-value gate", () => {
     expect(generatedTokenViolations.length).toBeGreaterThanOrEqual(40);
   });
 
-  it("visits all 31 vendored primitives — there is no vendored exemption (D-17)", () => {
+  it("visits all 32 vendored primitives — there is no vendored exemption (D-17)", () => {
     // D-17 made checkable. The primitives are where every card, dialog and button in the app is
     // actually defined; an exemption for them would exempt the majority of the rendered surface and
     // leave the gate policing only the thin layer above it.
@@ -328,7 +328,14 @@ describe("the DS-13 raw-design-value gate", () => {
     // and zero raw design values, so the real `toEqual([])` assertion below did not move — which is
     // exactly the case this positive control exists for: a new primitive that leaks nothing looks
     // identical, to a violations list, to a new primitive the walker never opened.
-    expect(VENDORED_PRIMITIVES).toHaveLength(31);
+    //
+    // 31 -> 32 BY PLAN 16-01, in that plan's own commit, and watched red first: with `slider.tsx`
+    // on disk this assertion read `expected [ Array(32) ] to have a length of 31 but got 32`, and
+    // the `toEqual([])` violations list beside it stayed GREEN — which is the whole reason the
+    // count exists, because a block whose `bg-white`, `ring-ring/50` and 28px hit area were all
+    // corrected in the same edit that vendored it is, to a violations list, indistinguishable from
+    // a block nobody ever scanned.
+    expect(VENDORED_PRIMITIVES).toHaveLength(32);
     expect(VENDORED_PRIMITIVES).toContain("src/components/ui/button.tsx");
     expect(VENDORED_PRIMITIVES).toContain("src/components/ui/badge.tsx");
     // dialog.tsx:42 carried the one vendored `bg-black` at baseline (landmine L7). It is fixed, and
@@ -337,6 +344,12 @@ describe("the DS-13 raw-design-value gate", () => {
     // The 12-11 addition, named rather than left to the length alone: a count is satisfied by any
     // thirty-first file, and the claim here is that THIS one is inside the scanned set.
     expect(VENDORED_PRIMITIVES).toContain("src/components/ui/collapsible.tsx");
+    // The 16-01 addition, on the same terms: a count is satisfied by any thirty-second file, and
+    // the claim here is that THIS one is inside the scanned set. It matters more for `slider` than
+    // it did for `collapsible` — the emitted block arrived carrying a real, in-scope `bg-white`
+    // (D-17: there is no vendored exemption), so a walker that never opened it would have reported
+    // the same empty violations list as one that opened it and found the class already mapped.
+    expect(VENDORED_PRIMITIVES).toContain("src/components/ui/slider.tsx");
   });
 
   it("visits the specific files whose leaks this phase removed", () => {
