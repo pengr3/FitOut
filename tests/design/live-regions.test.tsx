@@ -1112,11 +1112,20 @@ const PHASE_14_OWNED_TREES: readonly string[] = [
  *
  * It is not a ban. A host component added to one of the five surfaces moves this number, and moving it
  * is a one-line edit with the new file named in the diff — which is the whole point: the reach changed
- * and somebody said so. Eighteen is the five roots plus three availability components (the two editors
+ * and somebody said so. Eighteen was the five roots plus three availability components (the two editors
  * and the week strip, which the hours editor mounts), eight host components and the two listing
  * components the wizard renders.
+ *
+ * ⚠ 18 → 19 ON 25 AUGUST 2026 (plan 16-06, CROP-02). THE NEW FILE IS
+ * `src/components/listing/cover-frame-preview.tsx`, which `photo-uploader.tsx` now mounts below the
+ * photo grid. It authors NO live region — it is a heading, a sentence and two captioned `<img>`s — so
+ * the inventory itself is unchanged and `src/lib/design/live-regions.ts` is not edited by that plan.
+ * What moved is only the REACH, which is exactly the change this constant exists to make visible.
+ * (`photo-uploader.tsx`'s own `status#1` row does not move either: `at` is a 1-based ordinal among
+ * regions of the same kind in the same file — `live-regions.ts:227-229` — never a line number, so
+ * inserting markup ABOVE that region re-keys nothing.)
  */
-const PHASE_14_SURFACE_FILE_COUNT = 18;
+const PHASE_14_SURFACE_FILE_COUNT = 19;
 
 /** `from "@/x/y"` — the only import spelling this repository uses for its own modules. */
 const ALIAS_IMPORT = /from\s+["']@\/([^"']+)["']/g;

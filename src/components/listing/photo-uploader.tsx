@@ -48,6 +48,7 @@ import {
   removePhoto,
   type ListingPhotoRow,
 } from "@/app/actions/listing-photo";
+import { CoverFramePreview } from "@/components/listing/cover-frame-preview";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
@@ -241,6 +242,15 @@ export function PhotoUploader({
             </ul>
           </SortableContext>
         </DndContext>
+
+        {/*
+          CROP-02 — what the two cover shapes cut off, shown but never baked in (D-A / D-170).
+
+          NO `photos.length >= 1` GUARD, DELIBERATELY: the zero-photo branch above returns before this
+          point, so a guard here would be dead code shaped like a real branch. NO MARGIN EITHER — the
+          wrapper's `space-y-4` is the gutter.
+        */}
+        <CoverFramePreview url={photos[0].url} alt="Cover photo" />
 
         {photos.length < MIN_PHOTOS && (
           <p
