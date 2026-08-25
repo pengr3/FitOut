@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: —
-status: verifying
-stopped_at: "Phase 16 context gathered 2026-08-25. The PM redirected the discussion away from Claude's gray-area questions and stated three asks: regulate host upload file size, defend against malicious uploads, and shrink stored files. Measured against the live code: the signed-upload pipeline (/api/cloudinary/sign) is genuinely well defended (session gate, 30/60s per-user-id rate limit, ownership check before minting, fixed ALLOWED_SIGN_KEYS) but everything around it is not — NO maxFileSize on the host path at all (photo-uploader.tsx:177-180; the :185 toast promises 'under 10MB' but that is Cloudinary's plan limit, not our enforcement), no clientAllowedFormats (SVG passes), sources includes 'url', no pixel-dimension guard on avatarFileSchema, and raw untransformed originals served through plain <img> on every page view (bandwidth > storage). SCOPE CALL (D-164/165/166): Phase 16 stays FRAMING (CROP-01..04) because upload hardening fails the roadmap's own net-new test; ONE item folded in — persistPhoto (listing-photo.ts:93-108) checks session+ownership then accepts client-supplied publicId/url on a .trim() non-empty test and inserts, so a host can bypass the widget and store any URL rendered as <img src> on their PUBLIC listing page; everything else routed to newly inserted Phase 16.1. ALSO FOUND: the inherited 999.2-UI-SPEC.md is stale in three named ways, most consequentially Open Q6 — its premise ('no shared ratio constant exists') was overturned when Phase 12 created src/lib/design/measurements.ts exporting MOSAIC_ASPECT and RESULT_CARD_MEDIA, so D-170 reverses that call to a plain import. D-176 makes 16-UI-SPEC.md a DELTA over 999.2, not a restatement. The PM declined the implementation questions, so D-167..D-175 were decided by Claude against the inherited spec and recorded as reversible with the reversal cost stated in each. NEXT: /gsd:ui-phase 16, then /gsd:plan-phase 16. STILL OUTSTANDING and unrelated: Phases 13 and 13.1 both await verification."
-last_updated: "2026-08-25T03:46:33.956Z"
-last_activity: "2026-08-25 -- Phase 15 plan 15-14 executed: WR-04's unfailable ops-digest assertion made failable in both projections with the red transcribed, the whole raw-tag set classified by measurement (8/8 failable), AUTHUI-01 claimed on re-measured evidence, and AUTHUI-03's keyboard and AA clauses finally mapped in 15-VALIDATION.md. All 14 plans executed."
+status: executing
+stopped_at: Phase 16 UI-SPEC approved
+last_updated: "2026-08-25T06:29:40.746Z"
+last_activity: 2026-08-25 -- Phase 16 planning complete
 progress:
   total_phases: 13
   completed_phases: 7
-  total_plans: 105
+  total_plans: 121
   completed_plans: 110
   percent: 54
 ---
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 15 (auth-profile-transactional-email) — **COMPLETE 2026-08-25**
 Plan: 14 of 14
 Current Plan: —
-Total Plans in Phase: 14
-Status: **COMPLETE.** All 14 plans executed and re-verified (`gaps: []`, `regressions: []`), and EMAIL-03's real-client walk was completed by the PM on 2026-08-25 with the Outlook-desktop gap explicitly accepted and dated in `15-UAT-EMAIL.md`. Five of six requirements ticked; **AUTHUI-02 stays Pending on purpose** — its avatar-removal clause is Phase 16's CROP-03, not a Phase 15 debt.
+Total Plans in Phase: 16
+Status: Ready to execute
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-25 -- Phase 15 plan 15-14 executed: WR-04's unfailable ops-digest assertion made failable in both projections with the red transcribed, the whole raw-tag set classified by measurement (8/8 failable), AUTHUI-01 claimed on re-measured evidence, and AUTHUI-03's keyboard and AA clauses finally mapped in 15-VALIDATION.md. All 14 plans executed.
+Last activity: 2026-08-25 -- Phase 16 planning complete
 
 ## Performance Metrics
 
@@ -1333,8 +1333,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-25T03:46:33.884Z
-Stopped at: Phase 16 context gathered 2026-08-25. The PM redirected the discussion away from Claude's gray-area questions and stated three asks: regulate host upload file size, defend against malicious uploads, and shrink stored files. Measured against the live code: the signed-upload pipeline (/api/cloudinary/sign) is genuinely well defended (session gate, 30/60s per-user-id rate limit, ownership check before minting, fixed ALLOWED_SIGN_KEYS) but everything around it is not — NO maxFileSize on the host path at all (photo-uploader.tsx:177-180; the :185 toast promises 'under 10MB' but that is Cloudinary's plan limit, not our enforcement), no clientAllowedFormats (SVG passes), sources includes 'url', no pixel-dimension guard on avatarFileSchema, and raw untransformed originals served through plain <img> on every page view (bandwidth > storage). SCOPE CALL (D-164/165/166): Phase 16 stays FRAMING (CROP-01..04) because upload hardening fails the roadmap's own net-new test; ONE item folded in — persistPhoto (listing-photo.ts:93-108) checks session+ownership then accepts client-supplied publicId/url on a .trim() non-empty test and inserts, so a host can bypass the widget and store any URL rendered as <img src> on their PUBLIC listing page; everything else routed to newly inserted Phase 16.1. ALSO FOUND: the inherited 999.2-UI-SPEC.md is stale in three named ways, most consequentially Open Q6 — its premise ('no shared ratio constant exists') was overturned when Phase 12 created src/lib/design/measurements.ts exporting MOSAIC_ASPECT and RESULT_CARD_MEDIA, so D-170 reverses that call to a plain import. D-176 makes 16-UI-SPEC.md a DELTA over 999.2, not a restatement. The PM declined the implementation questions, so D-167..D-175 were decided by Claude against the inherited spec and recorded as reversible with the reversal cost stated in each. NEXT: /gsd:ui-phase 16, then /gsd:plan-phase 16. STILL OUTSTANDING and unrelated: Phases 13 and 13.1 both await verification.
+Last session: 2026-08-25T04:09:44.804Z
+Stopped at: Phase 16 UI-SPEC approved
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
@@ -1420,7 +1420,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/16-image-crop-framing/16-CONTEXT.md
+Resume file: .planning/phases/16-image-crop-framing/16-UI-SPEC.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

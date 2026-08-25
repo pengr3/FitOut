@@ -557,21 +557,50 @@ Plans:
 **Plans**: 16 plans in 10 waves (planned 2026-08-25; worktrees are OFF, so they execute sequentially on `dev`)
 
 Plans:
+**Wave 1**
+
 - [ ] 16-01-PLAN.md — vendor the `slider` block, token-mapped on arrival; leak census 31 → 32
 - [ ] 16-02-PLAN.md — `src/lib/avatar.ts`: the copy literals, the four constants and `avatarMaxZoom` (+ the IC-05 arithmetic gate)
 - [ ] 16-03-PLAN.md — `responsive-dialog.tsx` gains ONE additive prop `onOpenAutoFocus`, proven default-inert
 - [ ] 16-04-PLAN.md — a committed zero-dependency generator and the eleven `e2e/fixtures/` images, drift-gated
 - [ ] 16-05-PLAN.md — D-165: the pure Cloudinary provenance validator, `persistPhoto` fails closed, 12 fixtures rewritten
 - [ ] 16-06-PLAN.md — CROP-02: `CoverFramePreview` (server-safe, imported ratio classes) mounted below the wizard grid
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 16-07-PLAN.md — the avatar server contract: `gravity: "center"`, both false comments corrected, `avatarFileSchema` narrowed
 - [ ] 16-08-PLAN.md — `react-easy-crop@^6.2.3` (the phase's one dependency) + `src/lib/avatar-canvas.ts`
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 16-09-PLAN.md — `ImageCropDialog`: the shell, the stage, the zoom row; live regions 26 → 27
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 16-10-PLAN.md — `AvatarField`: the picker, the four-step guard chain, the D-174 input reset; live regions 27 → 28
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 16-11-PLAN.md — `/profile` extraction, the live-region re-key, three `profile-pass` assertions, the copy gate
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 16-12-PLAN.md — CROP-03: `destroyAvatar`, `removeAvatarAction` (null-first), the confirm with focus on `Keep photo`
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 16-13-PLAN.md — `e2e/avatar-crop.spec.ts`: the stage's real geometry, computed `touch-action`, the refusals, the keyboard
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 16-14-PLAN.md — the scrim/ring cascade route decided by measurement, the EXIF byte-honesty proofs, GATE-STATES
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 16-15-PLAN.md — GATE-RESP's dialog-open 320px row and GATE-VRT's two new surfaces + the CI dispatch checkpoint
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
 - [ ] 16-16-PLAN.md — CROP-04: `16-UAT-CROP.md` and the PM hardware walk (the only discharge, per D-175)
 
 **UI hint**: yes
@@ -607,11 +636,13 @@ Phase 16 already edits that neighbourhood.
 
   1. A host cannot upload a file larger than a limit **FitOut declares and enforces**, and the error copy
      states that limit truthfully rather than describing a vendor default.
+
   2. Only real raster image formats are accepted. An SVG upload is refused.
   3. A stored listing photo is bounded in pixels and bytes by a transformation the **client cannot
      influence** — and no delivery URL changes, so finding N2's pipeline rewrite stays out of scope.
      ⚠ `ALLOWED_SIGN_KEYS` (`sign/route.ts:35`) is load-bearing security: the transformation must NOT
      arrive as a client-passed signed param.
+
   4. Whether existing oversized assets are backfilled is decided explicitly and recorded — not left implicit.
   5. Uploaded photos carry no GPS coordinates a host did not intend to publish.
   6. Assets orphaned by draft abandonment, upload failure, and Phase 16's D-169 best-effort avatar destroy
