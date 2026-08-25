@@ -228,10 +228,10 @@ import {
 const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentySix`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentySeven`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
- * message. Plans 12-12, 12-13, 13-14, 14-14 and 15-09 each moved BOTH, in the commit that added their
+ * message. Plans 12-12, 12-13, 13-14, 14-14, 15-09 and 16-09 each moved BOTH, in the commit that added their
  * component — a set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT
  * names.
  *
@@ -263,13 +263,20 @@ const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
  * failures, the reset page's third, the forgot page's uniform result, and the profile form's three:
  * two alerts and one save line). `LIVE_REGION_EXCLUSIONS` was empty before and is empty after.
  *
- * ⚠ THIS LITERAL MOVING IS WHY TASK 1 OF PLAN 15-09 TOUCHED THIS FILE AT ALL. Its plan named
- * `src/lib/design/live-regions.ts` as its only file; the docblock above is the standing instruction
- * that says both pins move together, and a widened set with a stale literal here fails this gate with
- * the message three lines below. The instruction beat the file list, which is the same precedence call
- * plan 15-08 recorded when a gate and a plan disagreed.
+ * TWENTY-SEVEN as of plan 16-09, which added ONE file — `src/components/profile/image-crop-dialog.tsx`,
+ * the avatar framing step — carrying one region: the save failure that renders INSIDE the dialog,
+ * because rule F5 forbids closing an overlay to report that its confirm did not work. It is a
+ * deliberate pass through this number: 16-UI-SPEC's budget is 26 -> 28 and `avatar-field.tsx` takes it
+ * to 28 in plan 16-10, but each file's row lands in the same commit as its element, so the set moves
+ * once per plan rather than once per phase.
+ *
+ * ⚠ THIS LITERAL MOVING IS WHY TASK 1 OF PLAN 15-09 TOUCHED THIS FILE AT ALL, AND WHY PLAN 16-09 DID
+ * TOO. Both plans named `src/lib/design/live-regions.ts` as their only inventory file; the docblock
+ * above is the standing instruction that says both pins move together, and a widened set with a stale
+ * literal here fails this gate with the message three lines below. The instruction beat the file list
+ * twice now, which is the same precedence call plan 15-08 recorded when a gate and a plan disagreed.
  */
-const DECLARED_FILE_COUNT = 26;
+const DECLARED_FILE_COUNT = 27;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -522,9 +529,9 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsTwentySix` in `src/lib/design/live-regions.ts` " +
-        "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14 and " +
-        "15-09 " +
+        "pinned in TWO places — `DeclaredFileCountIsTwentySeven` in `src/lib/design/live-regions.ts` " +
+        "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14, " +
+        "15-09 and 16-09 " +
         "each moved BOTH, in the same commit as the components they add. A set that widened in one " +
         "place and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);

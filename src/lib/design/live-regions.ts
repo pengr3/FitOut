@@ -393,6 +393,20 @@ export const LIVE_REGION_FILES = [
   "src/app/(auth)/forgot-password/page.tsx",
   "src/app/(auth)/reset-password/page.tsx",
   "src/app/(app)/profile/profile-form.tsx",
+  // ─── the avatar framing step (plan 16-09) ───────────────────────────────────────────────────────
+  //
+  // Same membership rule, same journey: the account surface a person passes through to give
+  // themselves a face. The crop dialog is opened FROM the profile form's avatar block, and it
+  // carries the one announcement that block cannot make on its behalf — a save that failed AFTER
+  // the person confirmed their framing, which has to be heard inside the overlay that is still
+  // open rather than behind it.
+  //
+  // ⚠ A DELIBERATE PASS THROUGH TWENTY-SEVEN. 16-UI-SPEC's declared-inventory budget says 26 -> 28,
+  // because Phase 16 authors alerts in TWO new files; `avatar-field.tsx` arrives in plan 16-10 and
+  // takes it to 28. Each file's row lands in the same commit as its element, which is the rule that
+  // makes this inventory worth having — the intermediate rename is the cost of that rule, and it is
+  // named here so the next reader does not read 27 as a miscount of 28.
+  "src/components/profile/image-crop-dialog.tsx",
 ] as const;
 
 /** The closed union every row's `file` is typed against. */
@@ -478,12 +492,17 @@ export function exclusionReasonIsThin(row: LiveRegionExclusion): boolean {
  *     `tests/design/live-regions.test.tsx` strips comments before its own text scan and why this module
  *     lives outside the DS-13 leak gate's scanned tree.
  *
- * The declared SET is twenty-six files, which is larger than either count because a `role="status"`,
+ * The declared SET is twenty-seven files, which is larger than either count because a `role="status"`,
  * `role="alert"` or `role="timer"` IS a live region without carrying the attribute at all —
  * `book-cta.tsx`, `reserve-actions.tsx`, `relax-band.tsx`, `collision-notice.tsx`,
  * `pending-payment-state.tsx`, `attendee-roster.tsx`, `share-link-box.tsx`, `wizard.tsx`,
  * `request-row.tsx` and `photo-uploader.tsx` are all in that shape. THREE OF THE FOUR FILES PLAN 14-14
  * ADDED ARE IN IT, which is why widening the set moved neither measured number.
+ *
+ * ⚠ AND THE ONE FILE PLAN 16-09 ADDED IS IN IT AS WELL, so neither measured number moved a third
+ * time either. `image-crop-dialog.tsx` renders a bare `role="alert"` on a `<p>` and carries the
+ * attribute nowhere, so the AST walk still finds seven files and ten elements and the text grep still
+ * finds thirteen. The declared set is twenty-seven.
  *
  * ⚠ ALL FIVE FILES PLAN 15-09 ADDED ARE IN IT TOO, so neither measured number moved a second time.
  * Every one of the seven account-surface regions is a bare `role="alert"` or `role="status"` on a `<p>`
@@ -633,6 +652,8 @@ export const LIVE_REGION_IDS = [
   "profile-avatar-error",
   "profile-form-error",
   "profile-save-result",
+  // profile/image-crop-dialog.tsx — one region, one kind, so one ordinal.
+  "avatar-crop-save-error",
 ] as const;
 
 /** The closed union every row is typed against. */
@@ -1430,6 +1451,40 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "version: the string is the wizard's precedent reused verbatim, two words that say WHICH line " +
       "moved rather than a paraphrase of the sentence inside it.",
   },
+
+  // ─── profile/image-crop-dialog.tsx ──────────────────────────────────────────────────────────────
+  //
+  // ONE REGION, ONE KIND, SO ONE ORDINAL, and the file is a composite rather than a page: the crop
+  // dialog is mounted only while a file is staged and unmounted the instant it is not, so this row
+  // describes an element that exists for the length of one framing decision.
+  "avatar-crop-save-error": {
+    file: "src/components/profile/image-crop-dialog.tsx",
+    kind: "alert",
+    at: 1,
+    announces:
+      "The save-failure sentence the avatar action returned, verbatim and once, when a save the " +
+      "person started from inside the crop dialog comes back refused — and the SAME sentence when " +
+      "the framing could not be turned into bytes at all, because to the person those are one " +
+      "outcome and not two. It is cleared at the top of the next attempt, so a second failure is a " +
+      "second announcement rather than a silent no-op.",
+    why:
+      "RULE 2. The person pressed a confirm and the photo is not saved, so it is a genuine failure " +
+      "needing a human — they have to press it again, re-frame, or pick another file — rather than " +
+      "a state that will resolve itself. RULE 5 by its own text: the sentence names what went " +
+      "wrong, and a label announced in its place would leave a person staring at an unchanged " +
+      "dialog with no idea whether anything happened.\n" +
+      "\n" +
+      "⚠ IT IS AN ALERT BECAUSE THE DIALOG STAYS OPEN, WHICH IS THE WHOLE REASON THE ROW EXISTS. " +
+      "Rule F5 forbids close-then-report: a failure never closes this overlay and never disturbs " +
+      "the framing, so nothing about the screen changes except this one line appearing inside a " +
+      "modal the person is already focused within. There is no navigation, no toast and no " +
+      "re-render of the surface behind it to carry the news — without the region the interruption " +
+      "is silent for anyone not looking at that corner of the sheet.\n" +
+      "\n" +
+      "Named by its CONTENT, like every other server sentence on the account surfaces. The dialog " +
+      "authors none of this text: the sentence arrives as a prop and is rendered unmodified, which " +
+      "is what keeps the thing announced identical to the thing the action actually said.",
+  },
 };
 
 /**
@@ -1611,7 +1666,7 @@ export const AUTHOR_NAMED_REGIONS = [
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS TWENTY-SIX FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
+ * THE DECLARED SET IS TWENTY-SEVEN FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
  * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
@@ -1621,9 +1676,10 @@ type Assert<T extends true> = T;
  * (`pending-payment-state.tsx`, `request-countdown.tsx`, `attendee-roster.tsx`,
  * `rsvp-confirmation.tsx`, `rsvp-form.tsx`, `share-link-box.tsx`), and `…IsSeventeen` until plan
  * 14-14's discharge added four (`wizard.tsx`, `request-row.tsx`, `address-autocomplete.tsx`,
- * `photo-uploader.tsx`), and `…IsTwentyOne` until plan 15-09 added five account surfaces — the four
+ * `photo-uploader.tsx`), `…IsTwentyOne` until plan 15-09 added five account surfaces — the four
  * route-group auth pages and the profile form, spelled out at the set itself because a glob written
- * inside a block comment closes it. A `length extends number` assertion would compile forever and
+ * inside a block comment closes it — and `…IsTwentySix` until plan 16-09 added the avatar crop
+ * dialog. A `length extends number` assertion would compile forever and
  * read exactly like this one; that is the failure mode a type-level gate is easiest to write. The friction IS the
  * mechanism: adding a live region to the audited set costs a rename, a row and a second literal in
  * `tests/design/live-regions.test.tsx`, and none of those can be done by accident.
@@ -1657,9 +1713,32 @@ type Assert<T extends true> = T;
  * count. That is the assertion doing exactly the job it was written for. Without it, adding five files
  * and seven rows to this module would have compiled silently, and the audited set would have grown by
  * a quarter with nothing in the diff saying so out loud.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * OBSERVED RED (d) — PLAN 16-09'S ONE, AND THE ORDER THE RED ONLY EXISTS IN. 25 August 2026.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Same procedure, one file: `src/components/profile/image-crop-dialog.tsx` was written into
+ * `LIVE_REGION_FILES` with NO row and the alias left reading `extends 26`, and `npx tsc --noEmit` was
+ * run bare (never piped). Exit code 2, ONE error, verbatim and complete:
+ *
+ *   src/lib/design/live-regions.ts(1663,3): error TS2344: Type 'false' does not satisfy the constraint
+ *   'true'.
+ *
+ * `tests/design/live-regions.test.tsx` failed twice in the same state — the count guard, and SCAN 2
+ * reporting `image-crop-dialog.tsx:404 — alert#1 on <p> (role="alert")` as PRESENT BUT UNDECLARED.
+ * Then the row, `26` → `27`, and the rename → exit 0, 26 tests passed.
+ *
+ * ⚠ THE STEP ORDER IS NOT CEREMONY, AND PLAN 16-09 EXPECTED THE WRONG RED UNTIL IT WAS MEASURED. A
+ * `role="alert"` added to a file that is NOT yet in this array produces NO failure of any kind:
+ * `tests/design/live-regions.test.tsx:228` sets `SCAN_FILES = LIVE_REGION_FILES`, so the walker never
+ * opens an undeclared file and cannot report what it never read. "Present but undeclared" is therefore
+ * reachable only for a file already inside the set — which means the path goes in FIRST, alone, and
+ * the red is watched THEN. A plan that writes the path, the row and the number in one edit has not
+ * skipped a formality; it has never been in the state where the gate could speak.
  */
-export type DeclaredFileCountIsTwentySix = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 26 ? true : false
+export type DeclaredFileCountIsTwentySeven = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 27 ? true : false
 >;
 
 // ---------------------------------------------------------------------------
