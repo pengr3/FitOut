@@ -50,7 +50,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 
 - [ ] **Phase 13: Confirmation, Bookings & Trust** - After paying, a booker sees exactly what they bought, where their money is, and what happens next
 - [x] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees (completed 2026-08-23)
-- [ ] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity
+- [x] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity (completed 2026-08-25)
 - [ ] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
 - [ ] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof
 - [ ] **Phase 18: Search-Results Map** - A booker can see where the results are, not just what they are (net-new capability, D-136)
@@ -524,7 +524,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 15-05-PLAN.md — the preview harness, the walk checklist, and EMAIL-03 handed to the operator with Outlook recorded as blocked rather than covered
+- [x] 15-05-PLAN.md — the preview harness, the walk checklist, and EMAIL-03 handed to the operator with Outlook recorded as blocked rather than covered
 - [x] 15-11-PLAN.md — two baseline rows edited, eight added, the alias moved 66 → 74, and the capture routed to the only workflow allowed to write a PNG
 
 **Wave 6** *(gap closure — AUTHUI-03's two unsampled clauses)*
@@ -667,7 +667,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
-| 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | ALL 14 PLANS EXECUTED — phase-level completion is the re-verification pass's call, not a plan's. 15-14 closed the phase's three remaining non-blocking items: WR-04's unfailable ops-digest assertion is now failable in BOTH projections with the red transcribed, the whole 8-assertion raw-tag set is classified by measurement (8/8 failable), AUTHUI-01 is claimed by ONE plan on evidence re-measured today (gate 13 passed + build-blocking, PanelCard on all four pages, BRAND_CLASS both sides, 8 committed baselines, CI run 32752143309 re-fetched 4/4 green), and 15-VALIDATION.md now maps AUTHUI-03's keyboard and AA clauses (rows 15-12-01/02, 15-13-01/02). `src/` byte-identical. NEXT: re-verify the phase. ONE operator item still open: 15-05 Task 3, the EMAIL-03 real-client walk, deferred by the PM |  |
+| 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
