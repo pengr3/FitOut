@@ -276,3 +276,41 @@ should also come back into the tab order, because a disabled control that announ
 unreachable is a half-measure either way.
 
 **Suggested owner:** a Phase-17 accessibility pass, alongside the milestone's court-only axe sweep.
+
+
+---
+
+## D8 — `price-parity.spec.ts` flakes on `/`'s streaming search bar (two `#search-category`)
+
+- **Found by:** plan 16-14, running its named regression set, 2026-08-25
+- **Owner file:** `e2e/price-parity.spec.ts:279`, or `src/app/(app)/loading.tsx`'s fallback
+- **Severity:** a false red on a green tree — D2's family, on a different route
+
+**Measured.** `npx playwright test e2e/price-parity.spec.ts --project=chromium --workers=1` failed
+once and passed on an immediate identical re-run:
+
+```
+Error: locator.click: Error: strict mode violation:
+locator('#search-category') resolved to 2 elements
+  at price-parity.spec.ts:279  await page.locator("#search-category").click();
+```
+
+**The cause is already recorded in this tree, which is why this is a duplicate rather than a
+discovery.** `src/lib/design/visual-baselines.ts:429` states it verbatim: *"`/` streams, and its own
+`loading.tsx` renders a second `SearchBar` (measured in `e2e/helpers/booker-seed.ts`:
+`#search-category` appears twice while the boundary resolves)"*. So for the window in which the
+Suspense boundary is unresolved there really are two elements carrying that id, and a bare
+`page.locator("#search-category")` is a race against the server's streaming speed.
+
+**Why it is not plan 16-14's.** Two independent proofs. `git diff --name-only 8634bb1~1 HEAD` lists
+eight files, none of which is reachable from `/`: the crop dialog, the vendored slider (whose only
+importer in `src/` is that dialog), one e2e spec, one jsdom test, one generator, one fixture and two
+`.planning` documents. And `src/components/search/search-bar.tsx` — the only place `#search-category`
+is rendered — was last touched by `cafc5bb` on **2026-08-19**, in Phase 12.
+
+**Cheapest correct fix:** wait for the boundary before clicking (the result grid's own hook, which
+`visual-baselines.ts` already names as the only element that cannot exist in the pending shell), or
+scope the locator to the resolved form. The duplicate id itself is the deeper issue and belongs with
+whoever owns the fallback: two live elements sharing an id is invalid HTML regardless of how briefly.
+
+**Suggested owner:** plan 16-15's e2e triage, with D2 and D6.

@@ -95,7 +95,7 @@
 
 ### Image framing (CROP) — promoted from backlog 999.2
 
-- [ ] **CROP-01**: A user can frame and zoom their avatar before it uploads, and the server's blind face-gravity re-crop no longer re-frames what the user just chose
+- [x] **CROP-01**: A user can frame and zoom their avatar before it uploads, and the server's blind face-gravity re-crop no longer re-frames what the user just chose
 - [ ] **CROP-02**: A host uploading listing photos sees a non-destructive preview of what the 16:9 hero and the 4:3 cards each cut off, with nothing baked into the stored asset
 - [x] **CROP-03**: A user can remove their avatar
 - [ ] **CROP-04**: Cropping works on a real touch device — verified on hardware, not in desktop touch emulation
@@ -228,7 +228,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | EMAIL-01 | Phase 15 | Complete |
 | EMAIL-02 | Phase 15 | Complete |
 | EMAIL-03 | Phase 15 | Complete |
-| CROP-01 | Phase 16 | Pending |
+| CROP-01 | Phase 16 | Complete |
 | CROP-02 | Phase 16 | Pending |
 | CROP-03 | Phase 16 | Complete |
 | CROP-04 | Phase 16 | Pending |
@@ -275,11 +275,12 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
   - **CROP-03 closed in plan 16-12** (2026-08-25): `removeAvatarAction` (null-first, destroy best-effort, session-gated), the `Remove photo` control and its `ResponsiveDialog` confirm all landed in one commit, and the circle falls back to initials. **AUTHUI-02's remaining blocker is therefore cleared** — its design-system half shipped in Phase 15 (`tests/design/profile-pass.test.tsx`, green) and its removal half shipped here. Its row is deliberately left for the phase-closing pass rather than ticked from a Phase-16 plan, because a Phase-15 requirement's status is that phase's to declare; nothing else is outstanding against it.
 - **STATE-04** (Phase 11) covers every list surface's empty state including host inbox-zero; **HFLOW-01** (Phase 14) covers the requests inbox's scannability, SLA countdown and actions. The empty state is authored once in Phase 11 with the shared `EmptyState` pattern and adopted, not re-decided, in Phase 14.
 
-**CROP-01's status, recorded because six plans have now carried it and the reason kept changing:**
+**CROP-01's status, recorded because seven plans carried it and the reason kept changing — now CLOSED by plan 16-14 (2026-08-26):**
 - Plans 16-02 / 16-07 / 16-08 / 16-09 / 16-10 / 16-11 all listed CROP-01 as `requirements-advanced` on the standing ground that **jsdom has no crop stage** (`react-easy-crop` renders the crop area only when `state.cropSize` is truthy, which needs a real `getBoundingClientRect()` and a decoded `<img>`; jsdom 29.1.1 has neither), so *"a user can frame and zoom"* was not proved by anything.
-- **Plan 16-13 ends that.** `e2e/avatar-crop.spec.ts` puts the stage in a real browser: it renders, it is addressable by its accessible name, it measures Δ2's derived box at three viewports, its container computes `touch-action: none`, all four pre-dialog refusals fire against a real decoder, the zoom row is disabled-with-its-reason or live-and-bounded per source, and the stage pans by keyboard with `restrictPosition` clamping intact. The requirement's **second clause is also code-complete** — `gravity: "face"` became `gravity: "center"` in plan 16-12 (D-171), so the server no longer re-frames what the user chose.
-- **It stays `Pending` anyway, and the missing piece is named rather than hand-waved.** *"before it uploads"* is a claim about the bytes that reach the server, and nothing yet proves the stored asset IS the square the person framed. That proof is **plan 16-14**: preview-vs-stored-bytes equality, the EXIF-orientation-6 case, the white matte (D-172 / IC-02) and the 400x400 output. Three of the eleven committed fixtures (`exif-orientation-6.jpg`, `transparent.png`, `animated.png`) exist for it and are consumed by nothing today. Pointer drag-pan and pinch-zoom are **CROP-04**'s hardware walk (D-175), not CROP-01's.
-- **So CROP-01 closes with 16-14, not with 16-13.** Ticking it here would claim the round trip on the strength of the half of it that renders.
+- **Plan 16-13 ended that ground.** `e2e/avatar-crop.spec.ts` put the stage in a real browser: it renders, it is addressable by its accessible name, it measures Δ2's derived box at three viewports, its container computes `touch-action: none`, all four pre-dialog refusals fire against a real decoder, the zoom row is disabled-with-its-reason or live-and-bounded per source, and the stage pans by keyboard with `restrictPosition` clamping intact. The requirement's **second clause** was already code-complete — `gravity: "face"` became `gravity: "center"` in plan 16-12 (D-171), so the server no longer re-frames what the user chose. 16-13 nonetheless left the row `Pending`, because *"before it uploads"* is a claim about the bytes that reach the server and nothing yet proved the stored asset IS the square the person framed.
+- **Plan 16-14 supplies that proof, on the bytes captured from the outbound request rather than on an intermediate the component held.** On an EXIF-Orientation-6 source the preview and the saved square sample identically at matched relative offsets (`254, 0, 0` and `255, 255, 255` in both), and the fixture's marker lands in the corner the CORRECTED orientation puts it in. Transparency stores the same white the person saw on the stage before confirming (`255, 255, 255` on screen and in the file, D-172 / IC-02). An animated source stores one still first frame, probed across four dwell times so the claim is not a clock reading. A 300px source stores a 400×400 `image/jpeg` that fills its square. All three fixtures that existed for this and were consumed by nothing are now consumed.
+- **⚠ And the round trip was NOT honest until 16-14 fixed it, which is why the closure is a measurement rather than a formality.** That plan's own assertion caught the crop stage sizing itself from a bounding rect taken while `DialogContent` was mid `zoom-in-95`: the mask rendered at 182.4px over a media element laid out at 192px, so the person saw a circle covering 95% of the photo's width while `croppedAreaPixels` reported 100% of it — the saved avatar carried a ~5% ring that was never inside the circle, on every open, at every viewport. Fixed in commit `7dca510`. Ticking CROP-01 before that would have claimed the round trip while the preview and the bytes were still two different rectangles.
+- **Pointer drag-pan and pinch-zoom are CROP-04's hardware walk (D-175), not CROP-01's** — stated here so the closure is not re-litigated against a clause this requirement never carried.
 
 ---
 *Requirements defined: 2026-08-11*
