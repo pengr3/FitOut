@@ -15,6 +15,7 @@
     "db:test:setup": "tsx scripts/db-test-setup.ts",
     "db:studio": "drizzle-kit studio",
     "design:tokens": "node scripts/generate-design-tokens.mjs",
+    "fixtures:images": "node scripts/generate-image-fixtures.mjs",
     "email:previews": "tsx scripts/send-email-previews.ts",
     "ops:alerts": "tsx scripts/ops-alerts.ts list",
     "ops:alerts:resolve": "tsx scripts/ops-alerts.ts resolve",
