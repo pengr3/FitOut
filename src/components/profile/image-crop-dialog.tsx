@@ -509,12 +509,30 @@ export function ImageCropDialog({
             style={{ cropAreaStyle: MASK_STYLE }}
             // The stage's accessible name, with zero new test hooks and zero wrapper element — this
             // is what `getByLabelText(AVATAR_POSITION_LABEL)` resolves to (Delta-18). Pass ONLY the
-            // name through this slot: it is spread AFTER the built-in props, so a className here
-            // would clobber the computed one and a key handler here would override the library's,
-            // losing the clamp and the pairing that makes the crop rectangle re-emit after a
-            // keyboard nudge. The hooks the library bakes into its own DOM are vendor internals
-            // that no inventory governs; the name is the thing to address it by.
-            cropperProps={{ "aria-label": AVATAR_POSITION_LABEL }}
+            // name and the role through this slot: it is spread AFTER the built-in props, so a
+            // className here would clobber the computed one and a key handler here would override
+            // the library's, losing the clamp and the pairing that makes the crop rectangle re-emit
+            // after a keyboard nudge. The hooks the library bakes into its own DOM are vendor
+            // internals that no inventory governs; the name is the thing to address it by.
+            //
+            // ⚠ THE ROLE IS NOT DECORATION — WITHOUT IT THE NAME IS PROHIBITED AND THE STAGE IS
+            // ANONYMOUS. MEASURED by an axe pass over this open dialog (plan 16-14, court, WCAG
+            // 2.2 AA): `aria-prohibited-attr`, impact SERIOUS, one node, `.reactEasyCrop_CropArea`.
+            // The library renders the crop area as a bare `<div tabindex="0">`, and ARIA forbids
+            // `aria-label` on an element whose implicit role is generic — a generic element is not
+            // nameable, so the name is discarded and a screen-reader user lands on an unlabelled
+            // focus stop in the middle of the one control this dialog exists for. Playwright's
+            // `getByLabel` computes a name anyway, which is exactly why nothing caught it until a
+            // real auditor ran: the tests could address an element the accessibility tree could not.
+            //
+            // `group` is the smallest role that fixes it: it supports an author-supplied name, it
+            // changes no interaction semantics, and it leaves the library's own arrow-key handling
+            // reachable. `application` — the role widgets like this often reach for — was rejected:
+            // it drops assistive technology out of browse mode for everything inside it, which is a
+            // large behavioural change to buy a naming fix. This is the same DEFECT FAMILY as
+            // deferred item D1 (the zoom thumb's missing name), met from the other side: there the
+            // name was on the wrong element, here it was on an element that cannot carry one.
+            cropperProps={{ "aria-label": AVATAR_POSITION_LABEL, role: "group" }}
             // D-178, and the whole of this dialog's keyboard contract. `react-easy-crop@6.2.3`
             // already renders the crop area focusable, already pans it with the arrow keys, already
             // clamps the result, and already treats Shift as a 0.2x FINE adjust. 999.2 § 2g's
