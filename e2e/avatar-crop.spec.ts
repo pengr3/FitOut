@@ -103,7 +103,17 @@ import { BASE, signUpAndReachProfile } from "./helpers/avatar-session";
 // The copy literals are IMPORTED, never re-typed (rule F2). A spec carrying its own copy of a
 // sentence goes green the day the real one changes — `overflow-320.spec.ts` states the same rule for
 // `SUPPORT_EMAIL`, and `src/lib/avatar.ts` is directive-free precisely so a gate can read it.
-import { AVATAR_POSITION_LABEL } from "../src/lib/avatar";
+import {
+  AVATAR_CROP_CANCEL,
+  AVATAR_CROP_CONFIRM,
+  AVATAR_CROP_CONFIRM_BUSY,
+  AVATAR_CROP_TITLE,
+  AVATAR_POSITION_LABEL,
+  AVATAR_SOFT_SOURCE_NOTE,
+  AVATAR_TOO_SMALL_MESSAGE,
+  AVATAR_UNREADABLE_MESSAGE,
+  AVATAR_WRONG_TYPE_MESSAGE,
+} from "../src/lib/avatar";
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // FIXTURES AND HANDLES
@@ -164,6 +174,59 @@ const wrapperOf = (page: Page): Locator => stageOf(page).locator("xpath=../..");
 
 /** Either overlay, addressed by role. `data-testid="responsive-dialog"` is the pattern's own. */
 const dialogOf = (page: Page): Locator => page.getByRole("dialog");
+
+/**
+ * The field's refusal region when it sits ON THE PAGE — no file staged, no overlay open.
+ *
+ * ⚠ SCOPED TO `main`, AND THE SCOPE IS NOT TIDINESS. A bare `page.getByRole("alert")` matches TWO
+ * elements on this route and fails Playwright's strict mode. MEASURED 2026-08-25: the second is an
+ * empty `<div role="alert">` inside `<next-route-announcer>`'s SHADOW ROOT — Next's own route
+ * announcer, which `getByRole` reaches because Playwright's role engine pierces open shadow roots.
+ * It is framework furniture, it ships in production as well as dev, no visitor can address it, and it
+ * is permanently empty. `helpers/focus.ts`'s `DEV_OVERLAY_TAG` is the same situation with the same
+ * shape of answer.
+ *
+ * ⚠ AND THE PARTITION IS ASSERTED, NOT TRUSTED — see `expectNoStrayAlerts`. A scope that silently
+ * swallowed a SECOND product alert would hide exactly the defect `avatar-field.tsx`'s "one refusal
+ * slot" docblock and `src/lib/design/live-regions.ts` exist to prevent.
+ */
+const pageAlertOf = (page: Page): Locator => page.getByRole("main").getByRole("alert");
+
+// The field's refusal region has a SECOND placement — inside whichever overlay is open — and this
+// file deliberately declares no handle for it. The in-dialog half is the save-failure sentence (rule
+// F5: the dialog stays open with the framing intact), and asserting it needs a save that FAILS on
+// demand; the pending-window case below makes a save succeed on demand, which is the opposite
+// instrument. `tests/profile/avatar-field.test.tsx` already covers the failure sentence in jsdom,
+// where the state can be driven directly and no cropper is needed to reach it. The absence is a
+// division of labour, not a gap.
+
+/** The zoom row's control. UNNAMED on purpose — see the header's note on deferred item D1. */
+const sliderOf = (page: Page): Locator => dialogOf(page).getByRole("slider");
+
+/**
+ * Every `role="alert"` this document holds that is NOT the product's must be Next's route announcer.
+ *
+ * This is the assertion that makes `pageAlertOf`'s scope honest rather than convenient: it names the
+ * one element the scope drops and fails if anything else appears, so the day a second product alert
+ * is added the scope reports it instead of hiding it.
+ */
+async function expectNoStrayAlerts(page: Page, where: string): Promise<void> {
+  const strays = await page.getByRole("alert").evaluateAll((nodes) =>
+    nodes
+      .filter((n) => n.closest("main") === null && n.closest('[role="dialog"]') === null)
+      .map((n) => {
+        const root = n.getRootNode();
+        const host = root instanceof ShadowRoot ? root.host.tagName : null;
+        return `${host ?? "(light DOM)"}>${n.tagName}:"${(n.textContent ?? "").trim().slice(0, 40)}"`;
+      }),
+  );
+  expect(
+    strays,
+    `${where}: an interrupting region outside \`main\` and outside every dialog. The ONLY one this ` +
+      "suite tolerates is Next's own empty route announcer; anything else is a live region the " +
+      "product added where `live-regions.ts` has not declared it.",
+  ).toEqual(['NEXT-ROUTE-ANNOUNCER>DIV:""']);
+}
 
 /**
  * Read a set of computed properties off a locator's element, inside the page.
@@ -362,6 +425,373 @@ test.describe("CROP-01 / Delta-4 — a one-finger drag on the stage cannot scrol
         `${content["overscroll-behavior-y"]}\`. Nothing in this phase adds an overscroll rule to ` +
         "the shared dialog box, and 16-RESEARCH § A3.3 names it as the thing not to add.",
     ).toBe("auto");
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// (a) THE FOUR PRE-DIALOG REFUSALS — WITH A REAL DECODER ON REAL BYTES
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// 999.2 § 2e's fixed order is type → size → decode → dimensions, and three of the four are asserted
+// here (the size guard needs a >5MB file, which no fixture is and which the server re-checks anyway).
+//
+// WHAT MAKES THESE DIFFERENT FROM PLAN 16-10's JSDOM VERSIONS. There, `measureImage` was MOCKED —
+// jsdom has no decoder — so what those cases proved is that the branch exists and renders its
+// sentence when told to. Here Chromium decodes the committed bytes itself, so the branch is reached
+// by the decoder's own verdict. `corrupt.jpg` is the case that could not have been written honestly
+// anywhere else: it needs a decoder that actually fails, and getting one to fail took plan 16-04 five
+// measured attempts (a truncated entropy-coded scan fires `load` at every depth; only a cut inside
+// the Huffman-table segment fires `error`).
+
+const REFUSALS = [
+  {
+    fixture: "tiny.gif",
+    expected: AVATAR_WRONG_TYPE_MESSAGE,
+    guard: "1 · TYPE — `image/gif` is outside AVATAR_ALLOWED_TYPES",
+  },
+  {
+    fixture: "tiny.svg",
+    expected: AVATAR_WRONG_TYPE_MESSAGE,
+    // The one rejection that matters beyond tidiness: an SVG is a scriptable document, not an image.
+    guard: "1 · TYPE — `image/svg+xml`, a scriptable document",
+  },
+  {
+    fixture: "corrupt.jpg",
+    expected: AVATAR_UNREADABLE_MESSAGE,
+    guard: "3 · DECODE — a plausible JPEG header cut inside its Huffman tables",
+  },
+  {
+    fixture: "tiny-150.png",
+    expected: AVATAR_TOO_SMALL_MESSAGE,
+    guard: "4 · DIMENSIONS — 150px shorter side, below AVATAR_MIN_SOURCE_PX",
+  },
+] as const;
+
+test.describe("CROP-01 / 999.2 § 2e — the four pre-dialog refusals, decoded for real", () => {
+  for (const row of REFUSALS) {
+    test(`${row.fixture} is refused before the dialog (guard ${row.guard})`, async ({ page }) => {
+      await signUpAndReachProfile(page);
+      await pick(page, row.fixture);
+
+      await expect(
+        pageAlertOf(page),
+        `${row.fixture}: the refusal region does not carry the sentence guard ${row.guard} owns. ` +
+          "The literal is imported from `@/lib/avatar`, so this is a disagreement about BEHAVIOUR " +
+          "and never about spelling.",
+      ).toHaveText(row.expected);
+
+      // BOTH HALVES, ALWAYS. A refusal that also opened the dialog would put a person in a framing
+      // step for a file the app has already declined — and the sentence alone cannot tell you that
+      // did not happen.
+      await expect(
+        dialogOf(page),
+        `${row.fixture}: a dialog is mounted after a refusal. Guard ${row.guard} must return BEFORE ` +
+          "`setStaged`, and the dialog is mounted only while a file is staged.",
+      ).toHaveCount(0);
+
+      // Exactly one interrupting region, and it is the field's own. `live-regions.ts` declares ONE
+      // alert for `avatar-field.tsx`; a second would be an undeclared `alert#2`.
+      await expect(
+        pageAlertOf(page),
+        `${row.fixture}: more than one product alert is mounted at once`,
+      ).toHaveCount(1);
+      await expectNoStrayAlerts(page, row.fixture);
+    });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// (b) THE ZOOM ROW — DISABLED WITH ITS REASON, AND BOTH OF THOSE ARE CONDITIONAL
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ A CORRECTION TO THIS PLAN'S OWN EXPECTATION, MEASURED AND THEN CHECKED AGAINST THE CONTRACT.
+//
+// `16-13-PLAN.md` (b) and `e2e/fixtures/README.md`'s `square-400.png` row both say that at a 400px
+// source the zoom row is disabled and `AVATAR_SOFT_SOURCE_NOTE` is **NOT** rendered — *"400 is
+// neither below `AVATAR_MIN_SOURCE_PX` nor under 400"* — and the plan's reason for wanting that case
+// is to prove the note is conditional rather than always-on.
+//
+// MEASURED 2026-08-25: at `square-400.png` the note **IS** rendered. And the shipped code is right,
+// because the settled contract says so in its own worked table:
+//
+//   `tests/design/avatar-zoom.test.ts:96` — IC-05's 400x400 row, verbatim:
+//       "IC-05 · 400 x 400 — zoom row disabled + soft note"
+//
+// IC-05 is 999.2's, inherited by D-176 and explicitly NOT to be re-derived. `image-crop-dialog.tsx`
+// gates the note on `zoomLocked` (`maxZoom <= 1`), which is true at exactly 400 — matching IC-05.
+// The plan text and the fixture README are the two documents that re-derived the boundary as
+// exclusive and disagreed with the table they inherited. The code and IC-05 agree; two later
+// paraphrases do not. **The paraphrases are what is wrong, and this spec follows the contract.**
+//
+// THE PLAN'S INTENT IS STILL DISCHARGED, AND MORE STRONGLY, by a third row it did not ask for:
+// `panorama-4000x500.jpg` has a 500px shorter side, so `avatarMaxZoom(500)` is 1.25, the row is
+// ENABLED and the note is ABSENT. That proves BOTH the disabled state and the note are conditional —
+// where the 400px case would only ever have proved one of them, and would have proved it wrong.
+//
+// ONE THING WORTH THE PM'S TIME, LOGGED RATHER THAN FIXED HERE: at exactly 400 the sentence the row
+// carries reads *"This photo is small, so it may look a little soft"*, and a 400px source is
+// pixel-for-pixel the output size — nothing about it is soft. Rule F8 wants a disabled control to
+// carry ITS REASON, and at 400 the real reason is "there is no zoom headroom", not softness. That is
+// a COPY decision, not an executor's, and product code is frozen for this plan. Filed as D3 in
+// `deferred-items.md`.
+
+const ZOOM_ROWS = [
+  {
+    fixture: "square-400.png",
+    shorter: 400,
+    locked: true,
+    note: true,
+    why: "avatarMaxZoom(400) === 1 — no headroom (IC-05's own 400x400 row)",
+  },
+  {
+    fixture: "small-300.png",
+    shorter: 300,
+    locked: true,
+    note: true,
+    why: "avatarMaxZoom(300) === 1 — inside D-173's [200, 400) soft band",
+  },
+  {
+    fixture: "panorama-4000x500.jpg",
+    shorter: 500,
+    locked: false,
+    note: false,
+    why: "avatarMaxZoom(500) === 1.25 — real headroom, so neither half applies",
+  },
+] as const;
+
+test.describe("CROP-01 / rule F8 — the zoom row is disabled with its reason, conditionally", () => {
+  for (const row of ZOOM_ROWS) {
+    const state = row.locked ? "DISABLED" : "enabled";
+
+    test(`${row.fixture} (shorter ${row.shorter}px): the row is ${state} — ${row.why}`, async ({
+      page,
+    }) => {
+      await signUpAndReachProfile(page);
+      await pick(page, row.fixture);
+      await expect(stageOf(page)).toBeVisible();
+
+      const slider = sliderOf(page);
+      await expect(
+        slider,
+        `${row.fixture}: the zoom control is not rendered. Rule F8 disables it, never hides it — a ` +
+          "control that vanishes teaches nothing.",
+      ).toHaveCount(1);
+
+      // ⚠ `data-disabled`, NOT `toBeDisabled()`. MEASURED: Radix's thumb is a `<span role="slider">`
+      // that carries `data-disabled=""` and drops out of the tab order, but exposes NO
+      // `aria-disabled` — which is what `toBeDisabled()` reads on a non-native control, so it would
+      // report every state as enabled. That missing `aria-disabled` is the same family of defect as
+      // D1 (the thumb has no accessible name either) and belongs to plan 16-14 with it; this file
+      // asserts the mechanism that IS shipped rather than the one that should be.
+      const disabledAttr = await slider.getAttribute("data-disabled");
+      const tabindex = await slider.getAttribute("tabindex");
+
+      if (row.locked) {
+        expect(
+          disabledAttr,
+          `${row.fixture}: the zoom row is live at a source with no headroom. ${row.why}.`,
+        ).not.toBeNull();
+        // The behavioural half of "disabled": it is not a keyboard stop.
+        expect(
+          tabindex,
+          `${row.fixture}: the disabled zoom thumb is still in the tab order (tabindex=${tabindex}).`,
+        ).toBeNull();
+      } else {
+        expect(
+          disabledAttr,
+          `${row.fixture}: the zoom row is disabled at a source with real headroom. ${row.why}.`,
+        ).toBeNull();
+        expect(
+          tabindex,
+          `${row.fixture}: the live zoom thumb is not a keyboard stop.`,
+        ).toBe("0");
+        // Non-vacuity: the ceiling really did arrive from the image, not from the initial state.
+        await expect(
+          slider,
+          `${row.fixture}: the slider's ceiling is still the mount-time 1. The per-image bound comes ` +
+            "from `onMediaLoaded`, so a stuck 1 means the media size never reached the component.",
+        ).toHaveAttribute("aria-valuemax", "1.25");
+      }
+
+      const note = dialogOf(page).getByText(AVATAR_SOFT_SOURCE_NOTE);
+      await expect(
+        note,
+        row.note
+          ? `${row.fixture}: the zoom row is disabled and carries NO reason. Rule F8 — a disabled ` +
+            "control always says why."
+          : `${row.fixture}: the soft-source note is rendered beside a LIVE zoom row. It is ` +
+            "conditional on the row being locked, not decoration.",
+      ).toHaveCount(row.note ? 1 : 0);
+    });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// (c) D-174 — CANCEL, THEN RE-PICK THE IDENTICAL FILE
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+test.describe("CROP-01 / D-174 — the same file, picked twice, opens the cropper twice", () => {
+  test("cancelling and re-choosing the identical file re-opens the dialog", async ({ page }) => {
+    await signUpAndReachProfile(page);
+
+    await pick(page, "square-400.png");
+    await expect(stageOf(page), "the first pick did not open the cropper").toBeVisible();
+
+    await dialogOf(page).getByRole("button", { name: AVATAR_CROP_CANCEL, exact: true }).click();
+    await expect(
+      dialogOf(page),
+      "Cancel did not close the cropper. A cancel is structurally a no-op — the dialog is mounted " +
+        "only while a file is staged, so unstaging IS unmounting.",
+    ).toHaveCount(0);
+
+    // THE SAME PATH, BYTE-FOR-BYTE. Without `e.target.value = ""` in the change handler's `finally`,
+    // the browser fires no `change` event for a file identical to the one already in the input, and
+    // the flow dies in complete silence — no dialog, no refusal, no sign anything was asked. That is
+    // the shipped bug D-174 makes an acceptance criterion.
+    await pick(page, "square-400.png");
+    await expect(
+      stageOf(page),
+      "re-picking the identical file did nothing. The file input's `value` was not reset after the " +
+        "first handled change (D-174), so the browser had no `change` event to fire.",
+    ).toBeVisible();
+
+    // ⚠ THE HONEST LIMIT OF THIS CASE, STATED WHERE IT IS MADE. `setInputFiles` assigns the input's
+    // `files` programmatically and dispatches `change`; that is NOT byte-for-byte the event sequence
+    // a native OS picker produces, and the OS picker is exactly where D-174's bug lives. So this is
+    // EVIDENCE THAT THE RESET EXISTS AND WORKS, and it is NOT the discharge of D-174's clause in
+    // CROP-04. **Plan 16-16's hardware walk is.** (D-175.)
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// (d) DELTA-3 — ONE GUARD, THREE AFFORDANCES, PROVEN INERT MID-SAVE
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// This is the part jsdom could not assert at all, for the reason the whole file exists: without the
+// stage there is no confirm to press that produces a Blob.
+//
+// HOW THE PENDING WINDOW IS MADE REAL, AND WHY IT IS AN INTERCEPTION RATHER THAN A BIG FILE. A
+// fixture large enough to make the upload "slow" is a race dressed as a test — it would pass on a
+// fast link and hang on a slow one, and it could never assert that the window CLOSED on success.
+// Holding the request open makes the window arbitrarily long and closes it on command.
+//
+// THE REQUEST IS MATCHED BY HEADER, NEVER BY PATH. A Next server action POSTs to the CURRENT ROUTE
+// URL, so a path filter matches the navigation or nothing at all; `next-action` is the observed
+// header name, recorded in `e2e/public-listing.spec.ts`'s header and used the same way by
+// `e2e/mobile-booker-path.spec.ts:570-578`.
+//
+// ⚠ THIS CASE PERFORMS ONE REAL UPLOAD, AND THAT IS A DELIBERATE COST. When the gate opens the
+// request is `continue()`d to the real action, which really uploads a 400x400 JPEG to Cloudinary
+// under `fitout/avatars/<the throwaway signup's user id>` — because "the dialog closes ON SUCCESS"
+// is not a claim a fabricated response can support, and hand-rolling a Next flight payload would be
+// asserting against our own forgery. The asset is orphaned the moment the test ends: nothing ever
+// reads that user's row again. D-169 already tolerates orphans knowingly and Phase 16.1's audit
+// sweeps them; this run adds one per execution, and that is logged as D4 in `deferred-items.md` so
+// the sweep knows to expect an `e2e.avatar.*` cohort.
+
+test.describe("CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert", () => {
+  test("Escape, the overlay click and the close control all do nothing while a save is in flight", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let heldActions = 0;
+
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+        heldActions += 1;
+        await gate;
+      }
+      await route.continue();
+    });
+
+    await pick(page, "square-400.png");
+    await expect(stageOf(page)).toBeVisible();
+
+    const dialog = dialogOf(page);
+    const confirm = dialog.getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true });
+    await confirm.click();
+
+    // THE WINDOW IS REAL BEFORE ANYTHING IS ASSERTED ABOUT IT. A guard test whose pending state
+    // never began would find the dialog open for the trivial reason that nothing had happened —
+    // vacuous, and green. The busy label is the component's own statement that it is saving.
+    const busy = dialog.getByRole("button", { name: AVATAR_CROP_CONFIRM_BUSY, exact: true });
+    await expect(
+      busy,
+      "the confirm never reached its busy label, so there is no pending window to test. Either the " +
+        "action request was not intercepted or the encode failed before it was issued.",
+    ).toBeVisible();
+
+    // Delta-3's SECOND visible busy signal, and the one affordance that is disabled rather than
+    // merely inert: `Cancel`. (The close control carries neither, which is the recorded cost.)
+    await expect(
+      dialog.getByRole("button", { name: AVATAR_CROP_CANCEL, exact: true }),
+      "`Cancel` is live during a save. It is the one dismiss affordance that CAN carry a disabled " +
+        "state, and Delta-3 says it does.",
+    ).toBeDisabled();
+
+    // ⚠ `expect.soft`, AND THE REASON IS THE CLAIM ITSELF. Delta-3's assertion is not "three things
+    // are inert" — it is "ONE line makes three things inert". A hard assertion would stop at the
+    // first affordance, and a report naming only Escape would understate the defect to exactly the
+    // reader who needs to see that the three move together. Soft assertions still fail the test;
+    // they just let all three speak. (Watched red, transcribed at the bottom of this block.)
+    const stillOpen = async (affordance: string): Promise<void> => {
+      await expect
+        .soft(
+          dialog.getByRole("heading", { name: AVATAR_CROP_TITLE, exact: true }),
+          `${affordance} closed the crop dialog during a save. Radix routes Escape, the overlay ` +
+            "click AND the close control through ONE `onOpenChange`, so `if (!next && saving) " +
+            "return;` is the single line that makes all three inert — if this failed, expect the " +
+            "other two to have failed with it.",
+        )
+        .toBeVisible({ timeout: 5_000 });
+    };
+
+    // 1. ESCAPE.
+    await page.keyboard.press("Escape");
+    await stillOpen("Escape");
+
+    // 2. THE OVERLAY, CLICKED OUTSIDE THE PANEL. `page.mouse` rather than a locator click: the
+    //    overlay sits under the content, so an actionability-checked click on it is a fight with
+    //    the panel rather than a click outside it. (5, 5) is the top-left corner of the default
+    //    1280x720 viewport, which no centred `sm:max-w-sm` panel reaches.
+    await page.mouse.click(5, 5);
+    await stillOpen("the overlay click");
+
+    // 3. THE CLOSE CONTROL. Named `Close` by the vendored `DialogContent`'s own `sr-only` span; the
+    //    pattern deliberately does not rename it here, because exactly one of this phase's two
+    //    overlays is mounted at any instant. The short explicit timeout is for the RED case: with
+    //    the guard removed the control is already gone, and a 30s wait for a button that a previous
+    //    affordance dismissed is a worse report than a fast one.
+    await dialog
+      .getByRole("button", { name: "Close", exact: true })
+      .click({ timeout: 5_000 });
+    await stillOpen("the close control");
+
+    // AND THEN IT CLOSES ON SUCCESS — which is what separates "inert while saving" from "broken".
+    release();
+    await expect(
+      dialog,
+      "the crop dialog did not close after the save completed. The guard is `!next && saving`, so it " +
+        "must stop guarding the moment `saving` goes false.",
+    ).toHaveCount(0, { timeout: 30_000 });
+
+    expect(
+      heldActions,
+      "no server action request was ever intercepted, so the pending window above was not the one " +
+        "this test thinks it was measuring.",
+    ).toBeGreaterThan(0);
+
+    // The round trip really happened: the circle now renders the stored avatar rather than initials.
+    await expect(
+      page.getByRole("main").locator('img[alt="Your avatar"]'),
+      "the avatar circle still shows initials after a successful save.",
+    ).toBeVisible({ timeout: 30_000 });
   });
 });
 

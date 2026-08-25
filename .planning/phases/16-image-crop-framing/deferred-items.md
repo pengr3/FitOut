@@ -74,3 +74,72 @@ another's, or serialise that describe block. Whichever it is, the fix belongs to
 fixture, with a red watched under two workers first.
 
 **Suggested owner:** the phase's real-browser plan (16-13) or a Phase-17 test-infrastructure pass.
+
+---
+
+## D3 — At a source of exactly 400px the disabled zoom row gives a reason that is not true
+
+- **Found by:** plan 16-13, `e2e/avatar-crop.spec.ts` (real browser, `square-400.png`), 2026-08-25
+- **Owner file:** `src/components/profile/image-crop-dialog.tsx` — the `zoomLocked` predicate
+- **Severity:** copy correctness (rule F8), not a functional break. No user is blocked.
+
+**Measured.** With `e2e/fixtures/square-400.png` (400x400) the crop dialog renders the zoom row
+DISABLED **and** renders `AVATAR_SOFT_SOURCE_NOTE` — *"This photo is small, so it may look a little
+soft."* A 400px source is pixel-for-pixel `AVATAR_OUTPUT_PX`; nothing about it is soft.
+
+The predicate is `zoomLocked = maxZoom <= 1`, and `avatarMaxZoom(400) === 1`, so the note fires at
+exactly the output size as well as below it. Rule F8 wants a disabled control to carry **its** reason,
+and at 400 the real reason is *"there is no zoom headroom"*, not softness.
+
+**Three documents, two of which disagree with each other.**
+
+| Document | Says at 400px |
+|---|---|
+| `tests/design/avatar-zoom.test.ts:96` (IC-05's own worked row, 999.2, inherited by D-176) | *"400 x 400 — zoom row disabled **+ soft note**"* |
+| `src/lib/avatar.ts` (`AVATAR_SOFT_SOURCE_NOTE` docblock) | *"when the shorter source side is **between** AVATAR_MIN_SOURCE_PX and AVATAR_OUTPUT_PX"* — reads exclusive |
+| `e2e/fixtures/README.md` (16-04) and `16-13-PLAN.md` (b) | **no** note at 400 |
+
+The shipped code matches IC-05, which is the settled contract D-176 says not to re-derive. So the
+spec asserts what IC-05 and the code agree on, and the two later paraphrases are the ones that drifted.
+**Recorded here because "the contract is self-consistent" is not the same as "the sentence is true."**
+
+**Why it was not fixed here.** Plan 16-13's own `<verification>` requires
+`git diff --exit-code src/components/profile/image-crop-dialog.tsx` to exit 0 — this plan asserts, it
+does not change product code. It is also a COPY decision (narrow the predicate to `shorter < 400` and
+keep one sentence, or split into two sentences and add a second literal), which the UI contract should
+make rather than an executor.
+
+**Cheapest correct fix:** either (a) accept IC-05 as written and soften the sentence so it is true at
+400 too, or (b) gate the note on the source's shorter side rather than on `zoomLocked`, leaving the row
+disabled with no note at exactly 400 — which then needs an answer for rule F8. One line either way,
+plus the `square-400.png` row in `e2e/avatar-crop.spec.ts` and the paragraph in `e2e/fixtures/README.md`.
+
+**Suggested owner:** plan 16-14 (the phase's remaining a11y/copy pass) or a PM ruling.
+
+---
+
+## D4 — The Delta-3 e2e case performs one real Cloudinary upload per run
+
+- **Found by:** plan 16-13 (created by it), 2026-08-25
+- **Owner file:** `e2e/avatar-crop.spec.ts` — the Delta-3 pending-save case
+- **Severity:** operational housekeeping, not a defect
+
+**What happens.** The case holds the avatar server action's request open to make the pending window
+deterministic, asserts the three dismiss affordances are inert, then RELEASES the request to the real
+server — because *"the dialog closes on success"* is not a claim a fabricated Next flight payload can
+support, and hand-rolling one would be asserting against our own forgery. The action really uploads a
+400x400 JPEG to `fitout/avatars/<the throwaway signup's user id>`.
+
+The asset is orphaned the instant the test ends: the user row belongs to an `e2e.avatar.<timestamp>`
+signup nothing ever reads again. **One orphan per execution of that one case.**
+
+**Why it was not avoided.** The alternatives are worse: a fixture large enough to make the upload
+"slow" is a race dressed as a test, and it can never assert the window CLOSED; a fabricated success
+response asserts against the test's own invention rather than the server's behaviour.
+
+**Cheapest correct handling:** Phase 16.1's orphaned-asset audit already exists as scope (D-166 /
+D-169 knowingly tolerates orphans). It should expect an `fitout/avatars/*` cohort whose user rows have
+`e2e.avatar.*` emails, and sweep them. Alternatively the e2e run gains a teardown that calls the
+avatar destroy helper — which is a fixture-lifecycle decision, not this plan's.
+
+**Suggested owner:** Phase 16.1 (orphaned-asset audit).
