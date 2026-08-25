@@ -9,7 +9,7 @@
 // The avatarFileSchema guard tests below are genuine and load-bearing (they assert the Zod
 // content-type/size contract directly) and are kept as-is.
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi, type Mock } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
@@ -24,6 +24,7 @@ import { avatarFileSchema, AVATAR_MAX_BYTES } from "@/lib/validation/profile";
 let testDb: TestDb;
 let testAuth: TestAuth;
 let uploadAvatarAction: typeof import("@/app/actions/avatar")["uploadAvatarAction"];
+let uploadStreamSpy: Mock;
 
 // uploadAvatarAction reads the session via next/headers + auth.api.getSession and persists via
 // auth.api.updateUser({ headers }). Mock next/headers to carry the signed-in cookie; bind @/lib/auth
@@ -39,6 +40,11 @@ beforeAll(async () => {
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.resetModules();
   ({ uploadAvatarAction } = await import("@/app/actions/avatar"));
+  // Grab the SAME mocked cloudinary instance the action resolved after resetModules (the pattern
+  // tests/listing/cloudinary-sign.test.ts uses for api_sign_request), so the upload OPTIONS can be
+  // asserted. mockCloudinary only captures the RESULT, and the framing lives in the options.
+  const cloudinary = await import("cloudinary");
+  uploadStreamSpy = cloudinary.v2.uploader.upload_stream as unknown as Mock;
 });
 
 afterAll(async () => {
@@ -127,5 +133,52 @@ describe("avatar upload + persistence via the real uploadAvatarAction (AUTH-05, 
     const res = await uploadAvatarAction(form);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error).toMatch(/signed in/i);
+  });
+});
+
+describe("the server never guesses a framing (CROP-01, D-171, threat T-16-22)", () => {
+  // WHY `center` AND NOT `auto`/`faces`/`custom` (999.2-UI-SPEC § 4): `gravity` must never again
+  // SELECT a region. `center` is the only value that cannot invent a framing — on the square the
+  // cropper produces it is a no-op, and on a non-square input from a client that bypassed the
+  // cropper it takes the middle, the least-surprising possible fallback. `gravity: "face"` picking
+  // an arbitrary region on a faceless source is the literal bug that opened Phase 16.
+  //
+  // WHY THE TRANSFORM IS PINNED AND NOT DELETED: `uploadAvatarAction` is publicly reachable and
+  // `avatarFileSchema` guards type and byte size but NOT pixel dimensions, so the 400x400 `c_fill`
+  // stays as a fail-closed DIMENSION normaliser for that bypass path (D-171). `toEqual` on the whole
+  // transformation object is deliberate: it also fails if a `format`, `quality`, `fetch_format` or
+  // eager transform is ever slipped in, which § 4 forbids.
+  //
+  // NO ASSERTION HERE COMPARES STORED BYTES TO UPLOADED BYTES, and none ever should (RESEARCH §C12):
+  // an upload `transformation` is an INCOMING transformation, so Cloudinary decodes and re-encodes
+  // and the stored asset is not the blob the client produced. "Identity" is a claim about GEOMETRY.
+  it("uploads with gravity center and keeps the 400x400 fill normaliser", async () => {
+    const email = "avatar.gravity@example.com";
+    await signInUser(email, "Grace");
+
+    const callsBefore = uploadStreamSpy.mock.calls.length;
+    const form = new FormData();
+    form.set("avatar", fakeFile("image/png", 2048));
+    const res = await uploadAvatarAction(form);
+
+    expect(res.ok).toBe(true);
+    // Assert the call ACTUALLY happened before reading its arguments — an options assertion against
+    // an upload that never ran would be vacuous and would stay green through any regression.
+    expect(uploadStreamSpy.mock.calls.length).toBe(callsBefore + 1);
+
+    const options = uploadStreamSpy.mock.calls.at(-1)?.[0] as {
+      folder?: string;
+      public_id?: string;
+      overwrite?: boolean;
+      transformation?: Record<string, unknown>;
+    };
+    expect(options.transformation).toEqual({
+      width: 400,
+      height: 400,
+      crop: "fill",
+      gravity: "center",
+    });
+    expect(options.folder).toBe("fitout/avatars");
+    expect(options.overwrite).toBe(true); // D-C: one canonical asset per user.
   });
 });

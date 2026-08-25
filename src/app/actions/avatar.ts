@@ -5,9 +5,14 @@
 // SECURITY CONTRACT:
 //   - The Cloudinary api_secret lives ONLY on the server (src/lib/cloudinary.ts). The file is routed
 //     through this server action so the secret is never shipped to the client (threat T-04-05).
-//   - The uploaded file is UNTRUSTED: we validate content-type (image/*) and size (<= 5MB) with Zod
-//     BEFORE touching Cloudinary (threat T-04-04). Cloudinary's transformation additionally normalizes
-//     to 400x400 face-cropped, so a hostile aspect ratio cannot blow up storage.
+//   - The uploaded file is UNTRUSTED: we validate content-type (JPEG/PNG/WebP — the shared
+//     AVATAR_ALLOWED_TYPES list) and size (<= 5MB) with Zod BEFORE touching Cloudinary (threat
+//     T-04-04). THE FRAMING IS THE USER'S: since CROP-01 the client sends the 400x400 square the
+//     user positioned in the crop dialog, and the server does not re-frame it (D-171). Cloudinary's
+//     retained 400x400 transformation is a DIMENSION normaliser for the BYPASS path only — this
+//     action is publicly reachable and the Zod guard checks type and bytes but not pixel dimensions,
+//     so a hostile aspect ratio from a client that skipped the cropper still cannot blow up storage.
+//     Its `gravity` is `center`, which cannot select a region; see src/lib/cloudinary.ts's header.
 //   - The action requires an authenticated session and writes the avatar to the CALLER's own user row
 //     (server-side, from session.user.id) — a client cannot target another user (threat T-04-06).
 //
