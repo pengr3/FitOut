@@ -765,7 +765,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
-| 16. Image Crop & Framing | v1.1 | 12/16 | Executing — waves 1-6 of 10 complete (16-01..16-12); CROP-02/03 delivered; build + full suite green | - |
+| 16. Image Crop & Framing | v1.1 | 13/16 | Executing — waves 1-7 of 10 complete (16-01..16-13); CROP-02/03 delivered; build + full vitest suite green | - |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 0/? | Not started — inserted 2026-08-25 from the Phase 16 scope split (D-166) | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
