@@ -52,6 +52,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [x] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees (completed 2026-08-23)
 - [x] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity (completed 2026-08-25)
 - [ ] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
+- [ ] **Phase 16.1: Upload Hardening & Storage Economy (INSERTED)** - What a host uploads is bounded, is what it claims to be, and costs what it should to serve
 - [ ] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof
 - [ ] **Phase 18: Search-Results Map** - A booker can see where the results are, not just what they are (net-new capability, D-136)
 - [ ] **Phase 19: Availability Copy-to-All** - A host copies one day's hours across days instead of re-entering them (net-new capability, D-136)
@@ -558,6 +559,51 @@ Plans:
 
 **Inputs already on disk:** `.planning/phases/999.2-profile-picture-and-listing-photo-crop-ui/999.2-UI-SPEC.md` (written 2026-08-10; the contract — frame size, mask shape, zoom bounds, non-square/small-source behaviour, cancel semantics — is already settled). Promoted from backlog 999.2 into v1.1 as CROP-01..04.
 
+### Phase 16.1: Upload Hardening & Storage Economy (INSERTED)
+
+**Goal**: What a host uploads is bounded, is what it claims to be, and costs what it should to serve.
+**Depends on**: Phase 16 (both touch `photo-uploader.tsx` and the Cloudinary helpers; 16 ships the framing, 16.1 hardens what gets framed)
+**Requirements**: TBD (no existing REQ-ID covers this — the milestone's requirements are front-end polish, and minting UPLOAD-NN into v1.1 would fail the roadmap's own net-new test. Same disposition as Phase 13.1.)
+**Inserted**: 2026-08-25, at the PM's direction during the Phase 16 discussion.
+
+**WHY THIS EXISTS — measured against the live code on 2026-08-25, not theorised.** The PM asked for
+upload size regulation, malicious-upload defence and smaller stored files. Scouting the host path found
+the signed-upload pipeline genuinely well defended — session gate, per-user-id rate limit (30/60s),
+ownership check before minting, and a fixed `ALLOWED_SIGN_KEYS` allow-list — and everything *around* it
+undefended:
+
+| # | Gap | Evidence |
+|---|---|---|
+| **U1** | **No size limit exists on the host path at all.** | `photo-uploader.tsx:177-180` passes `{folder, multiple, maxFiles: 20, sources}` — no `maxFileSize`. The error toast at `:185` promises the host *"an image under 10MB"*; nothing in our code enforces it. That is Cloudinary's own plan limit doing the work, so **our copy describes a vendor default we neither control nor declare.** The avatar path does it correctly (`AVATAR_MAX_BYTES` = 5MB, server-checked). |
+| **U2** | **No format allow-list.** | No `clientAllowedFormats` — SVG, TIFF, HEIC and animated GIF all pass. SVG is a scriptable document, not an image. |
+| **U3** | **`sources` includes `"url"`.** | Lets a client hand Cloudinary an arbitrary remote address to fetch, and defeats any client-side size check by construction. |
+| **U4** | **No pixel-dimension guard.** | `avatarFileSchema` (`validation/profile.ts:39-47`) checks MIME type and byte size only. A 40MP image inside 5MB is a decompression bomb against whatever decodes it. This is also why Phase 16's D-171 keeps the server-side transform rather than deleting it. |
+| **U5** | **Raw originals are served on every page view.** | FitOut delivers the untransformed `secure_url` through a plain `<img>` at every render site, so a host's 8MB phone photo is 8MB *per booker per page view*, not 8MB once on disk. **Bandwidth is the larger half of this, not storage.** |
+
+⚠ **The one gap NOT in this phase:** `persistPhoto` accepting an arbitrary client-supplied `url`
+(`listing-photo.ts:93-108`) is folded into **Phase 16** as D-165 — it sits on a public surface and
+Phase 16 already edits that neighbourhood.
+
+**Success Criteria** (what must be TRUE):
+
+  1. A host cannot upload a file larger than a limit **FitOut declares and enforces**, and the error copy
+     states that limit truthfully rather than describing a vendor default.
+  2. Only real raster image formats are accepted. An SVG upload is refused.
+  3. A stored listing photo is bounded in pixels and bytes by a transformation the **client cannot
+     influence** — and no delivery URL changes, so finding N2's pipeline rewrite stays out of scope.
+     ⚠ `ALLOWED_SIGN_KEYS` (`sign/route.ts:35`) is load-bearing security: the transformation must NOT
+     arrive as a client-passed signed param.
+  4. Whether existing oversized assets are backfilled is decided explicitly and recorded — not left implicit.
+  5. Uploaded photos carry no GPS coordinates a host did not intend to publish.
+  6. Assets orphaned by draft abandonment, upload failure, and Phase 16's D-169 best-effort avatar destroy
+     are accounted for.
+
+**Plans**: TBD
+**UI hint**: no — this is a pipeline and validation phase; the only user-visible surface is error copy.
+
+**Inputs already on disk:** `.planning/phases/16-image-crop-framing/16-CONTEXT.md` § Deferred Ideas
+carries the measured evidence for every item above, and `16-DISCUSSION-LOG.md` records the scope split.
+
 ### Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines
 
 **Goal**: The five gates stop being per-phase promises and become the milestone's closing, machine-checked proof across every surface at once.
@@ -647,7 +693,8 @@ D-131 declares four; D-134 adds the fifth. A phase is not done until all five ho
 
 **Execution Order:**
 v1.0 phases executed in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
-v1.1: 10 → 11 → **{12, 13, 14, 15}** → 16 → 17 → 18 → 19
+v1.1: 10 → 11 → **{12, 13, 14, 15}** → 16 → 16.1 → 17 → 18 → 19
+16.1 is sequenced immediately after 16 rather than in parallel: both touch `photo-uploader.tsx` and the Cloudinary helpers, so they collide rather than run alongside each other.
 Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `patterns/` and the tokens), but 12 is sequenced first among them. Worktrees are OFF (`use_worktrees: false`), so plans execute sequentially on `dev` regardless.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -668,7 +715,8 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
-| 16. Image Crop & Framing | v1.1 | 0/? | Not started | - |
+| 16. Image Crop & Framing | v1.1 | 0/? | Context gathered 2026-08-25 — ready for `/gsd:ui-phase 16` then `/gsd:plan-phase 16` | - |
+| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 0/? | Not started — inserted 2026-08-25 from the Phase 16 scope split (D-166) | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
