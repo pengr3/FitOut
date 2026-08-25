@@ -13,6 +13,10 @@
 //   - position is SERVER-assigned (append = current count; reorder = index) — it is never taken from a
 //     client field. position 0 = the cover (D-04).
 //   - ORPHAN CLEANUP (T-04-ORPHAN): removePhoto destroys the Cloudinary asset by its stored public_id.
+//   - PROVENANCE (D-165, T-16-14/15/16): persistPhoto stores { publicId, url } only when the pair is
+//     one OUR pipeline could have produced — url parsed and matched against our own Cloudinary
+//     delivery origin, publicId scoped to fitout/listings/<listingId>/ — and FAILS CLOSED when the
+//     cloud name is unconfigured. The stored url is rendered as <img src> on a PUBLIC page.
 
 import { randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
@@ -22,6 +26,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, listingPhoto } from "@/lib/db/schema";
 import { destroyListingPhoto } from "@/lib/cloudinary";
+import { isOwnCloudinaryAsset } from "@/lib/listing/cloudinary-provenance";
 
 // Generous soft cap (D-04). Publishing needs >=3; this bounds the top end so a single listing can't be
 // used to stockpile unbounded assets. Kept high enough to never get in a real host's way.
@@ -93,6 +98,33 @@ export async function persistPhoto(
   const publicId = input.publicId?.trim();
   const url = input.url?.trim();
   if (!publicId || !url) {
+    return { ok: false, error: "That photo didn't upload. Please try again." };
+  }
+
+  // PROVENANCE (D-165). Everything above proves WHO is writing. This proves WHAT they are writing is
+  // something our own signed-upload pipeline could have produced — because the stored url becomes a
+  // plain <img src> on the PUBLIC listing page, and a host who skips the widget and calls this action
+  // directly would otherwise serve arbitrary third-party content under FitOut's surface.
+  //
+  // The cloud name is resolved HERE, once, and PASSED IN. The check itself
+  // (src/lib/listing/cloudinary-provenance.ts) reads no ambient configuration on purpose.
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  if (!cloudName) {
+    // FAIL CLOSED — and this branch must NEVER become an early `return { ok: true }` or a skip.
+    // .github/workflows/ci.yml records at :151 and :875 that the test jobs hold no Cloudinary
+    // credential, so this is the branch that runs continuously; a skip here would make the guard
+    // dead exactly where it is exercised most while every test of it passed vacuously. An app with
+    // no cloud name configured cannot legitimately be persisting a Cloudinary url in any case.
+    console.warn(
+      "[listing-photo] CLOUDINARY_CLOUD_NAME is not configured — refusing to persist photo metadata (D-165).",
+    );
+  }
+  if (!isOwnCloudinaryAsset({ url, publicId, listingId, cloudName })) {
+    // Δ15 / rule F1 — the SHIPPED literal, naming no vendor, no url and no folder. The distinction
+    // between "empty" and "not ours" belongs in the server log, not in the host's error toast.
+    console.warn(
+      `[listing-photo] rejected photo metadata that our pipeline could not have produced, listing ${listingId} (D-165).`,
+    );
     return { ok: false, error: "That photo didn't upload. Please try again." };
   }
 
