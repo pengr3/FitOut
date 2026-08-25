@@ -157,6 +157,29 @@ listing-direct-to-Cloudinary) are proven against real Cloudinary and stay as the
 - The five hard gates (GATE-RESP / A11Y / STATES / VRT / NOREG) apply — this is a surface-touching phase.
   The cropper is a new surface and needs designed loading and error states as *rendering* assertions.
 
+### PM rulings made 2026-08-25, AFTER research — both amend settled contract text
+
+Research (`16-RESEARCH.md` § Open Risks R4, R5) found two places where the inherited 999.2 contract
+disagrees with what is physically true of the chosen library. Both were escalated rather than absorbed,
+and both were ruled on by the PM on 2026-08-25.
+
+- **D-177 — the crop stage's backing is `bg-background`; 999.2 § 2b's `bg-muted` is amended away.**
+  Research measured that `.reactEasyCrop_Container` is `position: absolute; inset: 0` with **no background
+  of its own**, so the wrapper's colour shows *both* as letterboxing on an extreme aspect *and* through a
+  transparent PNG. 999.2 § 2b (`bg-muted`, letterbox backing) and Δ7 (`bg-background`, the matte) are
+  therefore claims about **the same element** and cannot both hold. **Δ7 wins:** IC-02 — *the user sees the
+  white matte before confirming* — is a named acceptance criterion, and letterboxing is cosmetic. The cost
+  is accepted and recorded: letterbox bars on a panorama render white rather than grey.
+
+- **D-178 — the keyboard pan contract is the library's, not 999.2 § 2g's; § 2g is amended to match.**
+  `react-easy-crop@6.2.3` already ships `tabIndex={0}`, arrow-key panning and `restrictPosition` clamping,
+  and its **Shift modifier is a 0.2× *fine* adjust**. 999.2 § 2g asks for 8px steps with Shift as a 24px
+  *coarse* adjust — the opposite direction. **We accept what ships.** The accessibility requirement is
+  still met (the stage is focusable and pannable without a pointer); only the modifier's direction changes.
+  **No custom `keydown` handler is layered over the library's**, and no suppression of its handler — that
+  would re-create the cross-browser pointer/gesture bug class D-167 chose a library to avoid.
+  A plan that authors avatar-stage key handling has left this decision.
+
 ### Claude's Discretion
 
 - Canvas/decode API used to produce the 400×400 blob — any path satisfying IC-06 and the EXIF proof.
