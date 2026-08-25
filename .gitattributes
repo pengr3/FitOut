@@ -12,3 +12,17 @@
 src/lib/design/tokens.generated.ts text eol=lf
 public/icon-court.svg text eol=lf
 public/icon-grove.svg text eol=lf
+
+# THE IMAGE FIXTURES ARE THE SAME CONTRACT, ONE STEP MORE FRAGILE (16-04).
+# scripts/generate-image-fixtures.mjs writes eleven files under e2e/fixtures/ and
+# tests/design/image-fixtures.test.ts asserts BYTE equality against a fresh in-memory render, exactly
+# as token-drift.test.ts does for the three paths above. The difference is what `* text=auto` can do
+# to them if it guesses wrong: a PNG/JPEG/GIF that got LF->CRLF normalised is not a file with odd
+# line endings, it is a CORRUPT IMAGE — 0x0A bytes inside a DEFLATE stream or an entropy-coded scan
+# are data, not newlines. `binary` (= `-text -diff`) removes the guess entirely.
+# tiny.svg is genuinely text, so it takes the `eol=lf` pin instead, for the same reason the three
+# generated artifacts above do.
+e2e/fixtures/*.png binary
+e2e/fixtures/*.jpg binary
+e2e/fixtures/*.gif binary
+e2e/fixtures/*.svg text eol=lf
