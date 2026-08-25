@@ -366,3 +366,51 @@ so the mechanism is proved; the sheet row is a one-line adoption plus whatever i
 
 **Suggested owner:** whoever next touches the booking sheet, or a Phase-17 responsive sweep. It is
 cheap and the diagnostic is already written.
+
+
+---
+
+## D10 — the wizard's cover-frame preview has no 320px row, and the existing wizard row cannot reach it
+
+- **Found by:** plan 16-15, Task 1, answering the question its own plan told it to ask, 2026-08-26
+- **Owner file:** `e2e/overflow-320.spec.ts` — the AC#36 Phase-14 block
+- **Severity:** a GATE-RESP gap on one of the two surfaces Phase 16 shipped. Not a red; an absence.
+
+**The question 16-15's plan asked:** *"confirm, and record, that the WIZARD photos step is already a
+row on this table … if it is NOT, say so explicitly and raise it rather than silently adding a route
+this phase did not plan for."*
+
+**Measured: it is not, and the row that looks like it is, is not.** `/host/listings/[id]/edit` IS a
+row (AC#36 block), and its `tell` is `[data-testid="wizard-step-rail"]` — the rail, which every step
+renders. The wizard opens on its FIRST step, so that row measures the basics step and has never seen
+the photos step.
+
+**Two independent things stand in the way, and neither is a scheduling problem.**
+
+1. **No interaction seam.** `Phase14Row` has `name` / `path` / `tell` / `tellWhy` / `touch` /
+   `touchWhy` and nothing else — no `open`, no equivalent. The AC#29 table above it HAS one
+   (`RouteRow.open`, used by the booking sheet and, since this plan, by the crop dialog), but the two
+   blocks are separate tables with separate drivers. And a URL is not an alternative: `wizard.tsx`
+   holds the step in CLIENT state (`stepInList`) with no query parameter and no per-step route, so
+   there is no path to point a row at.
+2. **No photo in the fixture.** `grep -n "listing_photo" e2e/overflow-320.spec.ts` returns **nothing**
+   — the host block seeds a listing, a booker and bookings, and no photos. `photo-uploader.tsx`
+   returns its bespoke empty state before `CoverFramePreview` exists, so even a row that reached the
+   photos step would photograph the empty state rather than the preview.
+
+**What the preview's 320px risk actually is,** so whoever closes this knows what they are looking
+for: the two frames are `w-32` inside a `flex … gap-2` row, i.e. 128 + 8 + 128 = **264px**, which
+plan 16-06's own hand-off note says clears the gutters and does not wrap. That is an argument, not a
+measurement, and this item is the measurement it is missing.
+
+**Cheapest correct fix:** add an `open`-shaped seam to `Phase14Row` (the shape is already written one
+table up), seed one `listing_photo` row into the host fixture, and add one row that walks the rail to
+the photos step. ⚠ It is the SAME walk `wizard-cover-preview`'s `blocked` string in
+`src/lib/design/visual-baselines.ts` says the VRT drive needs — so closing this and unblocking that
+row are one piece of work, not two.
+
+**Why 16-15 did not close it:** its Task 1 acceptance says *"Add nothing else to this file"* and
+*"raise it rather than silently adding a route this phase did not plan for"*, in as many words.
+
+**Suggested owner:** phase 16.1 (upload hardening — it owns `photo-uploader.tsx` already), or
+whichever plan first needs a host drive.
