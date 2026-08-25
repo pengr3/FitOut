@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 14
+current_plan: 15
 status: executing
-stopped_at: "Phase 16 wave 7 complete -- 16-01..16-13 executed and committed; the real-browser crop spec is in (20 cases / 56s). Next: wave 8 (16-14, mask route + byte-honest preview). NOTE D6: the full chromium e2e project is NOT green on this tree -- 8 failures, 3 reproducible alone, all verified pre-existing (the draft-listing-200 red is a documented STANDING RED from ab83bff, 2026-08-18). Do not read the phase gate off a full chromium run until triaged."
+stopped_at: "Phase 16 wave 8 complete -- 16-01..16-14 executed and committed; CROP-01, CROP-02 and CROP-03 all delivered. 16-14 found and fixed a real shipped bug: the crop stage sized itself mid zoom-in-95, so every saved avatar carried a ~5% ring the user never saw. Next: wave 9 (16-15, cross-cutting gates -- CHECKPOINT plan, autonomous: false)."
 last_updated: "2026-08-25T07:08:20.183Z"
-last_activity: 2026-08-25 -- Phase 16 wave 7 complete (13/16 plans)
+last_activity: 2026-08-26 -- Phase 16 wave 8 complete (14/16 plans)
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 121
-  completed_plans: 118
+  completed_plans: 119
   percent: 54
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 16 (image-crop-framing) — EXECUTING
-Plan: 14 of 16
-Current Plan: 14
+Plan: 15 of 16
+Current Plan: 15
 Total Plans in Phase: 16
 Status: Executing Phase 16
 
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-25 -- Phase 16 wave 7 complete (13/16 plans)
+Last activity: 2026-08-26 -- Phase 16 wave 8 complete (14/16 plans)
 
 ## Performance Metrics
 
