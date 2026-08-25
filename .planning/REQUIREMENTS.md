@@ -84,7 +84,7 @@
 ### Auth & profile (AUTHUI)
 
 - [x] **AUTHUI-01**: The auth screens (login, signup, forgot, reset) carry the design system and read as the same product as the app
-- [ ] **AUTHUI-02**: The profile page carries the design system, and avatar removal is possible
+- [x] **AUTHUI-02**: The profile page carries the design system, and avatar removal is possible
 - [x] **AUTHUI-03**: The auth screens hold the same five gates as every other surface — 320px, keyboard, AA, designed states, and a baseline
 
 ### Transactional email (EMAIL)
@@ -223,7 +223,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | HFLOW-04 | Phase 14 | Complete |
 | HFLOW-05 | Phase 14 | Complete |
 | AUTHUI-01 | Phase 15 | Complete |
-| AUTHUI-02 | Phase 15 | Pending |
+| AUTHUI-02 | Phase 15 | Complete |
 | AUTHUI-03 | Phase 15 | Complete |
 | EMAIL-01 | Phase 15 | Complete |
 | EMAIL-02 | Phase 15 | Complete |
@@ -272,7 +272,8 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 
 **Notes on two intentional near-overlaps** (both requirements stand; neither is double-mapped):
 - **AUTHUI-02** (Phase 15) carries "avatar removal is possible" and **CROP-03** (Phase 16) is "A user can remove their avatar." Phase 15 owns the profile page's design-system pass; the removal affordance itself is delivered by CROP-03 in Phase 16.
-  - **CROP-03 closed in plan 16-12** (2026-08-25): `removeAvatarAction` (null-first, destroy best-effort, session-gated), the `Remove photo` control and its `ResponsiveDialog` confirm all landed in one commit, and the circle falls back to initials. **AUTHUI-02's remaining blocker is therefore cleared** — its design-system half shipped in Phase 15 (`tests/design/profile-pass.test.tsx`, green) and its removal half shipped here. Its row is deliberately left for the phase-closing pass rather than ticked from a Phase-16 plan, because a Phase-15 requirement's status is that phase's to declare; nothing else is outstanding against it.
+  - **CROP-03 closed in plan 16-12** (2026-08-25): `removeAvatarAction` (null-first, destroy best-effort, session-gated), the `Remove photo` control and its `ResponsiveDialog` confirm all landed in one commit, and the circle falls back to initials. **AUTHUI-02's remaining blocker is therefore cleared** — its design-system half shipped in Phase 15 (`tests/design/profile-pass.test.tsx`, green) and its removal half shipped here. Its row was deliberately left for the phase-closing pass rather than ticked from a Phase-16 plan, because a Phase-15 requirement's status is that phase's to declare; nothing else was outstanding against it.
+  - **AUTHUI-02 closed 2026-08-26** on the PM's explicit instruction, during Phase 16 execution and before Phase 16 itself is verified. Both halves are shipped and green: the design-system half in Phase 15 (`tests/design/profile-pass.test.tsx`) and the removal half in 16-12. Checkbox (`:87`) and traceability row (`:226`) moved together by hand — `requirements mark-complete` moves only the first. Note this closes a Phase-15 requirement from a Phase-16 session; the authority is the PM's ruling, not a Phase-16 plan's.
 - **STATE-04** (Phase 11) covers every list surface's empty state including host inbox-zero; **HFLOW-01** (Phase 14) covers the requests inbox's scannability, SLA countdown and actions. The empty state is authored once in Phase 11 with the shared `EmptyState` pattern and adopted, not re-decided, in Phase 14.
 
 **CROP-01's status, recorded because seven plans carried it and the reason kept changing — now CLOSED by plan 16-14 (2026-08-26):**
