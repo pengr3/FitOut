@@ -249,6 +249,10 @@ export function ImageCropDialog({
   // two-decoders-must-agree bug that ships a rotated avatar the preview swore was upright.
   const imgRef = React.useRef<HTMLImageElement | null>(null);
 
+  // The cropper instance itself, held for ONE call: the post-animation re-measure below. It is a
+  // class component, so a plain ref is its instance, and `computeSizes` is on its published type.
+  const cropperRef = React.useRef<Cropper | null>(null);
+
   // Rule F8: when the source cannot support any zoom at all, the row renders DISABLED with its
   // reason beneath it — never hidden. A control that vanishes teaches nothing.
   const zoomLocked = maxZoom <= 1;
@@ -268,6 +272,91 @@ export function ImageCropDialog({
     event.preventDefault();
     returnFocusRef.current?.focus();
   }
+
+  /**
+   * ⚠ RE-MEASURE THE STAGE ONCE THE OVERLAY'S ENTRY ANIMATION HAS SETTLED. THIS IS NOT POLISH — IT IS
+   * WHAT KEEPS IC-02 TRUE, AND WITHOUT IT THE STORED SQUARE IS NOT THE SQUARE THE PERSON SAW.
+   *
+   * MEASURED IN CHROMIUM, 2026-08-25 (plan 16-14, `e2e/avatar-crop.spec.ts`), with this effect
+   * removed and the stage settled for a further 1.5 s:
+   *
+   *     the stage wrapper (layout AND painted)   288 x 288
+   *     the media element, laid out by CSS       192 x 288
+   *     the crop area the library wrote          182.4 x 182.4      <- 192 x 0.95, EXACTLY
+   *
+   * The library measures the stage with `containerRef.getBoundingClientRect()`, and a bounding rect
+   * is the TRANSFORMED one. `ui/dialog.tsx` opens `DialogContent` with a `zoom-in-95` keyframe, so
+   * the whole overlay is at 95% scale for its first 100 ms — and the cropper measures inside that
+   * window, because the image is an object URL the caller has ALREADY decoded, so it loads within a
+   * frame or two of mount. Every size the library derives is therefore 5% short.
+   *
+   * AND IT NEVER RECOVERS ON ITS OWN. `computeSizes` re-runs on a window resize, on its container's
+   * `ResizeObserver` (whose first callback it skips), and when `rotation`, `aspect`, `objectFit` or
+   * an explicit `cropSize` prop changes. A CSS transform changes none of those: the container's
+   * content box never moves, so no observer fires and the wrong numbers are permanent.
+   *
+   * WHY THAT IS A CORRECTNESS BUG AND NOT A COSMETIC ONE. The media element is laid out by the
+   * library's own stylesheet (`max-width/max-height: 100%`), so it renders at the FULL 192 x 288 —
+   * while the mask drawn over it is 182.4. The person therefore sees a circle covering 95% of the
+   * photo's width, and `croppedAreaPixels` — computed against the library's shrunken `mediaSize` —
+   * reports 100% of it. The saved avatar contains a ~5% ring of the photograph that was never inside
+   * the circle. That is precisely the divergence IC-02 exists to forbid: *the preview IS the
+   * contract*, and here the preview and the bytes were two different rectangles.
+   *
+   * THE FIX IS ONE CALL, ON THE LIBRARY'S OWN DECLARED SURFACE. `computeSizes` is a public member of
+   * the exported class (`index.d.ts:154`), so a plain React ref to this class component is an
+   * imperative re-measure with no vendor internals and no reaching past the typings. It is called
+   * with NO argument on purpose: the `isResizeTriggered` form DEBOUNCES the crop-data emit, and the
+   * point of this call is that `onCropComplete` re-fires with the corrected rectangle before anyone
+   * can press the confirm.
+   *
+   * WHAT WAS REJECTED, AND WHY EACH IS WORSE.
+   *   - Dispatching a window `resize`. MEASURED NOT TO WORK: `componentDidMount` attaches that
+   *     listener ONLY when `ResizeObserver` is undefined, and every browser in our matrix has one.
+   *     The observer it uses instead watches the container's CONTENT BOX, which a transform never
+   *     changes — which is also why nothing recovers on its own.
+   *   - Remounting the cropper with a changed `key`. It works, and it DROPS FOCUS: the crop area is
+   *     the first tabbable element in the overlay and holds focus at open, so a remount would send a
+   *     keyboard user to the document body a tenth of a second after the dialog appeared.
+   *   - Deferring the cropper's MOUNT until the animation ends. It would put a blank moment on the
+   *     stage, contradict the "no loading state" answer to GATE-STATES recorded below, and move
+   *     open-time focus onto `Cancel`.
+   *   - Editing the shared overlay's entry animation. That changes six adopters to fix one, and
+   *     Delta-1 makes width, padding and motion the pattern's rather than this dialog's.
+   *
+   * THE ONE FRAME OF DELAY IS LOAD-BEARING. `useEffect` runs at commit, BEFORE the browser's
+   * "update animations" step has created the entry animation, so asking for `getAnimations()` here
+   * would find an empty list and fire the resize immediately — while the overlay is still at 95%,
+   * which is the state being escaped. One `requestAnimationFrame` puts the read after that step.
+   *
+   * WHAT WOULD FALSIFY THIS: `ui/dialog.tsx` dropping the scale from its entry animation, or
+   * `react-easy-crop` measuring a content box instead of a bounding rect. Either makes this effect
+   * a no-op rather than wrong, and the e2e assertion that guards it compares the crop square against
+   * the media element's own rendered size — a relationship that holds under both.
+   */
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const frame = requestAnimationFrame(() => {
+      if (cancelled) return;
+      const running = document.getAnimations();
+      const settled =
+        running.length === 0
+          ? Promise.resolve()
+          : Promise.all(
+              running.map((animation) => animation.finished.catch(() => undefined)),
+            ).then(() => undefined);
+
+      void settled.then(() => {
+        if (!cancelled) cropperRef.current?.computeSizes();
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   async function handleConfirm() {
     // Re-entrancy guard BEFORE the disabled attribute can apply — `request-row.tsx:165` is the
@@ -374,6 +463,7 @@ export function ImageCropDialog({
             no moment to design a loading state for. */}
         <div className="relative mx-auto size-[min(320px,100vw_-_2rem,40dvh)] overflow-hidden rounded-xl bg-background">
           <Cropper
+            ref={cropperRef}
             image={objectUrl}
             crop={crop}
             onCropChange={setCrop}
