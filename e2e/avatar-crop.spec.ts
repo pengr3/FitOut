@@ -97,9 +97,13 @@
 // owns.
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { BASE, signUpAndReachProfile } from "./helpers/avatar-session";
+// The ONE definition of "a visible focus indicator" in this suite, shared with the auth walk's 59
+// stops. Two copies of a focus criterion is the drift that goes silent in the worst direction.
+import { expectRing, readFocus } from "./helpers/focus";
 // The copy literals are IMPORTED, never re-typed (rule F2). A spec carrying its own copy of a
 // sentence goes green the day the real one changes — `overflow-320.spec.ts` states the same rule for
 // `SUPPORT_EMAIL`, and `src/lib/avatar.ts` is directive-free precisely so a gate can read it.
@@ -792,6 +796,390 @@ test.describe("CROP-01 / Delta-3 — one guard makes all three dismiss affordanc
       page.getByRole("main").locator('img[alt="Your avatar"]'),
       "the avatar circle still shows initials after a successful save.",
     ).toBeVisible({ timeout: 30_000 });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// TASK 3 — THE KEYBOARD PAN IS THE LIBRARY'S, AND THE FOCUS INDICATOR IS OURS (D-178)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-178 is a PM ruling that AMENDS settled contract text, and these cases are what make it
+// verifiable rather than merely written down. 999.2 § 2g asked for a hand-rolled `onKeyDown` mapping
+// the arrows to 8px and Shift to a 24px COARSE adjust, on the stated belief that
+// *"`react-easy-crop` does not provide this"*. In 6.2.3 it does: the crop area already ships
+// `tabIndex={0}`, arrow-key panning, `restrictPosition` clamping and `emitCropData` re-pairing — and
+// its Shift is `step *= 0.2`, a FINE adjust, the opposite direction from § 2g's.
+//
+// **D-178 accepts what ships.** The accessibility requirement is met either way (the stage is
+// focusable and pannable without a pointer); only the modifier's direction changed. The cost of
+// matching § 2g's letter would be a custom handler that discards the clamp and the re-emit — the
+// cross-browser bug class D-167 chose a library to avoid.
+
+/** The `translate(Xpx, Ypx)` the library writes onto its own `<img>`, in container pixels. */
+type CropOffset = { readonly x: number; readonly y: number };
+
+/**
+ * Read the crop position off the media element's inline transform.
+ *
+ * THE MEDIA ELEMENT IS REACHED THROUGH THE NAMED STAGE, never by the library's class: the crop area
+ * and the `<img>` are siblings inside the container, so `parentElement.querySelector("img")` walks
+ * one step up and one across. The library writes
+ * `translate(${crop.x}px, ${crop.y}px) rotate(0deg) scale(${zoom})` on every render, so this string
+ * IS the component's crop state — not a proxy for it, and not a re-derivation this spec could get
+ * wrong independently.
+ */
+async function readCropOffset(page: Page): Promise<CropOffset> {
+  const transform = await stageOf(page).evaluate((el) => {
+    const img = el.parentElement?.querySelector("img");
+    return img instanceof HTMLImageElement ? img.style.transform : "";
+  });
+  const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(transform);
+  expect(
+    match,
+    `the cropper's media element carries no parsable translate — read "${transform}". The library ` +
+      "writes the crop position into this transform on every render, so an unparsable one means the " +
+      "element found is not the media element.",
+  ).not.toBeNull();
+  return { x: Number(match?.[1] ?? NaN), y: Number(match?.[2] ?? NaN) };
+}
+
+/**
+ * Tab until the crop stage has focus, and fail with the order it walked if it never does.
+ *
+ * ⚠ REAL KEY PRESSES, NEVER `.focus()`. `helpers/focus.ts` records the measurement: a programmatic
+ * focus does not match `:focus-visible` in Chromium, so a version of this that called `.focus()`
+ * would report the stage as drawing nothing and would be red on a correct tree.
+ *
+ * MEASURED ORDER inside the crop dialog with a LIVE zoom row (2026-08-25): the stage holds focus at
+ * open (it is the first tabbable in `DialogContent`), then slider thumb → `Cancel` → `Save photo` →
+ * `Close` → back to the stage. Five presses. With the row DISABLED the thumb leaves the order and it
+ * is four. The bound below is triple the longer of the two, which is `WALK_BOUND`'s reasoning at a
+ * smaller scale: an unbounded loop inside a focus trap is a hang, and a hang is a worse report than
+ * an assertion.
+ */
+const STAGE_TAB_BOUND = 15;
+
+async function tabToStage(page: Page): Promise<string[]> {
+  const walked: string[] = [];
+  for (let i = 0; i < STAGE_TAB_BOUND; i += 1) {
+    await page.keyboard.press("Tab");
+    const stop = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (!(el instanceof HTMLElement)) return "(nothing)";
+      const name = el.getAttribute("aria-label") ?? (el.textContent ?? "").trim();
+      return `${el.tagName.toLowerCase()}[${el.getAttribute("role") ?? ""}]:${name.slice(0, 30)}`;
+    });
+    walked.push(stop);
+    if (stop.includes(AVATAR_POSITION_LABEL.slice(0, 14))) return walked;
+  }
+  expect(
+    walked,
+    `the crop stage never took focus in ${STAGE_TAB_BOUND} Tab presses. It is the crop-area element ` +
+      "the library renders with `tabIndex={0}`, so this means either the element is absent (no " +
+      "`cropSize`) or something removed it from the tab order.",
+  ).toEqual([]);
+  return walked;
+}
+
+/**
+ * The two axis fixtures, and what each proves about the OTHER one.
+ *
+ * A panorama alone cannot distinguish "the vertical axis is clamped" from "the vertical key does
+ * nothing" — the reading is identical. Running the same two keys against the AXIS-SWAPPED fixture is
+ * what separates them: the key that is pinned on one is the key that pans on the other. That is the
+ * repo's own rule about vacuity applied to a clamp — the tell is runtime, not output.
+ */
+const AXIS_FIXTURES = [
+  {
+    fixture: "panorama-4000x500.jpg",
+    pans: { key: "ArrowLeft", axis: "x" },
+    pinned: { key: "ArrowUp", axis: "y" },
+  },
+  {
+    fixture: "portrait-strip-500x4000.jpg",
+    pans: { key: "ArrowUp", axis: "y" },
+    pinned: { key: "ArrowLeft", axis: "x" },
+  },
+] as const;
+
+/**
+ * `keyboardStep={8}` is what `image-crop-dialog.tsx` passes, so a full arrow press moves 8 container
+ * pixels on an axis with headroom.
+ */
+const KEYBOARD_STEP_PX = 8;
+
+/**
+ * The pinned axis has SUB-PIXEL slack, and this is the band that separates a clamp from a pan.
+ *
+ * MEASURED on `panorama-4000x500.jpg` at a 320px stage (2026-08-25): the media renders 288 x 36 and
+ * the crop square is 34.1875, so `restrictPosition`'s vertical bound is (36 − 34.1875) / 2 ≈ 0.91px
+ * per side — and the observed displacement after `ArrowUp` was **exactly 0px**. Either reading is a
+ * clamp; neither is a pan. What is asserted is that an 8px REQUEST produced at most 1px of movement,
+ * while the same press on the same image's free axis produced the full 8 — so the comparison is
+ * between two live keys rather than between a key and silence.
+ */
+const PINNED_TOLERANCE_PX = 1;
+
+test.describe("CROP-01 / D-178 — the stage pans by keyboard, with the library's clamp intact", () => {
+  for (const row of AXIS_FIXTURES) {
+    test(`${row.fixture}: ${row.pans.key} pans ${row.pans.axis}, ${row.pinned.key} is clamped on ${row.pinned.axis}`, async ({
+      page,
+    }) => {
+      await signUpAndReachProfile(page);
+      await pick(page, row.fixture);
+      await expect(stageOf(page)).toBeVisible();
+      await settleAnimations(page);
+
+      // (a) THE STAGE IS FOCUSABLE WITHOUT A POINTER.
+      await tabToStage(page);
+      const focusedLabel = await page.evaluate(() =>
+        document.activeElement?.getAttribute("aria-label"),
+      );
+      expect(
+        focusedLabel,
+        "the crop stage is not `document.activeElement` after the tab walk reported reaching it.",
+      ).toBe(AVATAR_POSITION_LABEL);
+
+      const start = await readCropOffset(page);
+
+      // (a, continued) THE CROP MOVES. A CHANGE is asserted, not a pixel count — the count is the
+      // library's business and is measured separately below.
+      await page.keyboard.press(row.pans.key);
+      const panned = await readCropOffset(page);
+      const panDelta = Math.abs(panned[row.pans.axis] - start[row.pans.axis]);
+      expect(
+        panDelta,
+        `${row.fixture}: ${row.pans.key} moved the crop by ${panDelta}px on the free ${row.pans.axis} ` +
+          "axis. The stage is pannable without a pointer or it is not accessible — 999.2 § 2g's " +
+          "requirement survives D-178 unchanged; only the modifier's direction moved.",
+      ).toBeGreaterThan(0);
+
+      // (b) THE PINNED AXIS STAYS PINNED. `restrictPosition` clamping is exactly the behaviour a
+      // hand-rolled `onKeyDown` would have silently discarded, and D-178 forbids authoring one
+      // precisely to keep it.
+      const beforePin = await readCropOffset(page);
+      await page.keyboard.press(row.pinned.key);
+      await page.keyboard.press(row.pinned.key);
+      const afterPin = await readCropOffset(page);
+      const pinDelta = Math.abs(afterPin[row.pinned.axis] - beforePin[row.pinned.axis]);
+      expect(
+        pinDelta,
+        `${row.fixture}: two ${row.pinned.key} presses moved the crop ${pinDelta}px on the PINNED ` +
+          `${row.pinned.axis} axis, where the source has no room. That is ${KEYBOARD_STEP_PX * 2}px ` +
+          "of request arriving as movement — `restrictPosition` is not clamping, and IC-04's " +
+          "guarantee that the framing cannot leave the image goes with it.",
+      ).toBeLessThanOrEqual(PINNED_TOLERANCE_PX);
+    });
+  }
+
+  // (c) SHIFT IS A FINE ADJUST, NOT A COARSE ONE — the assertion that makes D-178 verifiable.
+  test("Shift makes the step FINER, which is the shipped contract D-178 accepted", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    await pick(page, "panorama-4000x500.jpg");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+    await tabToStage(page);
+
+    const origin = await readCropOffset(page);
+    await page.keyboard.press("ArrowLeft");
+    const afterPlain = await readCropOffset(page);
+    const plainStep = Math.abs(afterPlain.x - origin.x);
+
+    await page.keyboard.press("Shift+ArrowLeft");
+    const afterShift = await readCropOffset(page);
+    const shiftStep = Math.abs(afterShift.x - afterPlain.x);
+
+    // Non-vacuity first: if Shift moved nothing at all, "smaller" would be trivially true and the
+    // modifier would be broken rather than fine.
+    expect(
+      shiftStep,
+      `Shift+ArrowLeft moved the crop 0px. A modifier that disables the key is not a fine adjust, ` +
+        "and D-178 accepted a FINER step, not an inert one.",
+    ).toBeGreaterThan(0);
+
+    // ⚠ THE CONTRACT CHANGE, STATED PLAINLY. `react-easy-crop@6.2.3` does `step *= 0.2` on Shift.
+    // With `keyboardStep={8}` that is 8px plain and 1.6px with Shift — MEASURED 2026-08-25, both
+    // values exactly. 999.2 § 2g asked for the opposite (8px arrow, 24px COARSE Shift), and D-178
+    // amended § 2g to match what ships: Shift-as-fine-adjust is the platform convention in every
+    // design tool, the accessibility requirement is met either way, and matching § 2g's letter would
+    // cost a hand-rolled handler that discards the clamp asserted above. THIS ASSERTION IS WHAT
+    // MAKES THAT ACCEPTANCE VERIFIABLE rather than merely written down.
+    expect(
+      shiftStep,
+      `Shift+ArrowLeft moved ${shiftStep}px against a plain ArrowLeft's ${plainStep}px. D-178 ` +
+        "accepted the library's Shift-as-FINE-adjust (`step *= 0.2`) over 999.2 § 2g's coarse one. " +
+        "A Shift step that is not smaller means either a custom handler was layered on (which " +
+        "D-178 forbids) or `keyboardStep` moved.",
+    ).toBeLessThan(plainStep);
+
+    expect(
+      plainStep,
+      `a plain ArrowLeft moved ${plainStep}px; \`keyboardStep={8}\` is what the dialog passes.`,
+    ).toBeCloseTo(KEYBOARD_STEP_PX, 3);
+    expect(
+      shiftStep,
+      `Shift+ArrowLeft moved ${shiftStep}px; the library's 0.2x multiplier on an 8px step is 1.6px.`,
+    ).toBeCloseTo(KEYBOARD_STEP_PX * 0.2, 3);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// (d) NO CUSTOM HANDLER EXISTS — A SOURCE ASSERTION, AND THE RIGHT INSTRUMENT FOR IT
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The failure D-178 guards against is the PRESENCE OF CODE, not a behaviour a browser can show. A
+// hand-rolled handler that happened to reproduce today's steps would pass every assertion above and
+// would still have thrown away `restrictPosition` and the `emitCropData` re-pairing on some path
+// nobody tested. A browser cannot see the difference; the file can.
+
+test("D-178: the crop dialog layers NO key handling over the library's", () => {
+  const source = readFileSync(
+    path.join(__dirname, "..", "src", "components", "profile", "image-crop-dialog.tsx"),
+    "utf8",
+  );
+
+  // A SANITY FLOOR BEFORE THE NEGATIVES. Three "this string is absent" assertions are all vacuously
+  // true against an empty read, a moved file or a typo'd path — this is the line that makes the
+  // three below statements about the shipped component.
+  expect(
+    source,
+    "`image-crop-dialog.tsx` was read but does not contain the cropper. Every assertion below is " +
+      "about the ABSENCE of a string, and absence is free in a file that is not the right one.",
+  ).toContain("react-easy-crop");
+
+  for (const forbidden of ["onKeyDown", "onKeyUp", 'addEventListener("keydown")']) {
+    expect(
+      source.includes(forbidden),
+      `\`image-crop-dialog.tsx\` contains \`${forbidden}\`. D-178: the keyboard pan is the ` +
+        "library's own, unlayered and unsuppressed. A handler in `cropperProps` OVERRIDES the " +
+        "library's (that object is spread after the built-in props), which loses `restrictPosition` " +
+        "clamping and the `onInteractionStart`/`emitCropData` pairing that makes `onCropComplete` " +
+        "fire after a keyboard nudge — so the crop rectangle the encoder reads would go stale.",
+    ).toBe(false);
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// (e) THE FOCUS INDICATOR ON THE STAGE — VISIBLE, AND ITS COLOUR CARRIES NO ALPHA
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ A MEASURED FINDING THAT CHANGES WHICH MECHANISM IS DOING THE WORK, RECORDED RATHER THAN ABSORBED.
+//
+// `image-crop-dialog.tsx` passes DS-05's recipe to the crop area through
+// `classes.cropAreaClassName`, and 16-RESEARCH § A5 flagged that route as the right INTENT with no
+// guarantee of winning: the library injects its stylesheet UNLAYERED into the document head while
+// Tailwind v4 utilities live in a cascade layer, and unlayered beats layered.
+//
+// MEASURED HERE, 2026-08-25, on the focused stage. § A5's risk is REAL:
+//
+//   box-shadow : rgba(0, 0, 0, 0.5) 0px 0px 0px 139986px      ← the LIBRARY's scrim, not a ring
+//   outline    : auto 1px lab(36.2 0 0.00000596046)           ← a real, opaque indicator
+//   class      : reactEasyCrop_CropArea reactEasyCrop_CropAreaRound focus-visible:ring-2 …
+//
+// Tailwind's `ring-*` compiles to `box-shadow`, and `.reactEasyCrop_CropArea`'s own unlayered
+// `box-shadow: 0 0 0 9999em` (IC-04's scrim) occupies that property and wins. **The ring half of
+// DS-05 does not paint on this element.** What paints is the STYLESHEET half — `globals.css`'s
+// base-layer `* { @apply border-border outline-ring }` colouring the UA's own focus outline in
+// `--ring` at FULL alpha (`oklch(0.556 0 0)` → `lab(36.2 …)`, no alpha component). DS-05 is
+// satisfied through its other half, which is why this reads as a correct surface rather than a
+// ringless one.
+//
+// WHAT THIS FILE THEREFORE ASSERTS, AND WHAT IT DELIBERATELY DOES NOT. It asserts the two things
+// that must be true however the cascade lands: an indicator IS painted, and its colour carries no
+// alpha. It does NOT assert "the box-shadow is the scrim" — that would encode today's cascade as a
+// requirement and go red the day somebody lands the winning route, which is the opposite of what is
+// wanted. Filed as D5 in `deferred-items.md` for plan 16-14, which owns the route decision and its
+// inventory row; `image-crop-dialog.tsx`'s own header already names 16-13 as where it would be
+// measured, and this is that measurement.
+
+/**
+ * A `ring-*` compiles to a FIVE-layer box-shadow of which three layers are fully transparent
+ * placeholders, so "the shadow string is not `none`" is not the same claim as "something is drawn".
+ * Strip every fully-transparent layer and something with a colour must remain.
+ *
+ * ⚠ RE-DECLARED, NOT IMPORTED, and that is forced rather than chosen: these two live at
+ * `e2e/auth-keyboard.spec.ts:491-492`, and importing from a spec file would register that file's
+ * whole suite as a side effect of this one. `helpers/focus.ts` is where they would belong if a third
+ * consumer appeared; two is not yet the threshold that file was extracted at.
+ */
+const FULLY_TRANSPARENT = /rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)/g;
+const A_COLOUR = /(rgb|rgba|hsl|hsla|lab|lch|oklab|oklch|color)\(|#[0-9a-f]{3}/i;
+
+/** Any colour function carrying an explicit alpha — the dilution `focus-recipe.test.ts:115` deletes. */
+const ALPHA_BEARING =
+  /(rgba?\([^)]*[,/]\s*(0?\.\d+|0)\s*\)|hsla?\([^)]*[,/]\s*(0?\.\d+|0)\s*\)|(oklch|oklab|lab|lch|color)\([^)]*\/\s*(0?\.\d+|0)[^)]*\))/i;
+
+test.describe("CROP-01 / DS-05 — the focused stage draws a visible, undiluted indicator", () => {
+  test("the stage draws an indicator on keyboard focus, and its colour carries no alpha", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    await pick(page, "square-400.png");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    await tabToStage(page);
+
+    const reading = await readFocus(page);
+    expect(reading, "nothing holds focus after the tab walk reached the stage").not.toBeNull();
+    if (reading === null) return;
+    expect(
+      reading.label,
+      "the focused element is not the crop stage, so the indicator below belongs to something else.",
+    ).toContain(AVATAR_POSITION_LABEL.slice(0, 14));
+
+    // GATE-A11Y's focus half, through the SAME instrument `e2e/auth-keyboard.spec.ts` applies to its
+    // 59 stops — one criterion for the whole suite, never a second one that happens to agree today.
+    expectRing(reading, "the crop stage");
+
+    const focused = await computed(stageOf(page), ["outline-style", "outline-width", "outline-color"]);
+
+    // THE UNFOCUSED BASELINE IS TAKEN AFTERWARDS, BY TABBING OFF THE STAGE, AND THE ORDER IS A
+    // CORRECTION RATHER THAN A PREFERENCE. The first draft read the baseline BEFORE the tab walk and
+    // failed on a correct tree: `ResponsiveDialog` opens with the crop area already holding focus —
+    // it is the first tabbable element in `DialogContent` — so the "unfocused" reading was the
+    // focused one and the difference check compared a state against itself (`auto 1px` both sides).
+    //
+    // The comparison is load-bearing and not ceremony. `expectRing` accepts any non-`none`
+    // box-shadow, and THIS ELEMENT DRAWS A PERMANENT ONE: `.reactEasyCrop_CropArea`'s
+    // `box-shadow: 0 0 0 9999em` is IC-04's scrim and is painted whether the stage has focus or not.
+    // An indicator check that did not compare states would be satisfied by the scrim alone, on a
+    // stage that drew nothing at all on focus.
+    await page.keyboard.press("Tab");
+    const unfocused = await computed(stageOf(page), ["outline-style", "outline-width"]);
+
+    expect(
+      `${focused["outline-style"]} ${focused["outline-width"]}`,
+      "the crop stage draws the same outline focused and unfocused, so what it draws is decoration " +
+        `rather than an indicator (unfocused: ${unfocused["outline-style"]} ` +
+        `${unfocused["outline-width"]}).`,
+    ).not.toBe(`${unfocused["outline-style"]} ${unfocused["outline-width"]}`);
+
+    // THE COLOUR IS REALLY PAINTED — not a transparent placeholder layer.
+    const drawnShadow = reading.boxShadow.replace(FULLY_TRANSPARENT, "").trim();
+    const outlineIsDrawn =
+      focused["outline-style"] !== "none" && parseFloat(focused["outline-width"]) > 0;
+    expect(
+      outlineIsDrawn || A_COLOUR.test(drawnShadow),
+      "the crop stage's focus indicator has no colour left once fully-transparent layers are " +
+        `stripped. outline: ${focused["outline-style"]} ${focused["outline-width"]}; ` +
+        `box-shadow: ${reading.boxShadow}. A ring whose colour went transparent still hands a long ` +
+        "non-`none` string to a naive check and passes — this is the assertion that does not.",
+    ).toBe(true);
+
+    // NO ALPHA. `ring-ring/50` (and its stylesheet twin `outline-ring/50`) is the shadcn default
+    // this repo exists to delete: the half-alpha form compiles to
+    // `color-mix(in oklab, var(--ring) 50%, transparent)` and composites to 1.54:1 against white —
+    // arithmetic no value of `--ring` can rescue (`globals.css:499-513`, `focus-recipe.test.ts:115`).
+    expect(
+      ALPHA_BEARING.test(focused["outline-color"]),
+      `the crop stage's focus outline is \`${focused["outline-color"]}\`, which carries an alpha ` +
+        "channel. DS-05 removed the 50% modifier from the outline colour for an arithmetic reason " +
+        "rather than an aesthetic one, and a diluted indicator on the ONE control a keyboard user " +
+        "pans the photo with is the worst place to reinstate it.",
+    ).toBe(false);
   });
 });
 

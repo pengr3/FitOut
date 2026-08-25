@@ -143,3 +143,55 @@ D-169 knowingly tolerates orphans). It should expect an `fitout/avatars/*` cohor
 avatar destroy helper — which is a fixture-lifecycle decision, not this plan's.
 
 **Suggested owner:** Phase 16.1 (orphaned-asset audit).
+
+---
+
+## D5 — §A5's cascade risk is REAL: DS-05's ring half does not paint on the crop area
+
+- **Found by:** plan 16-13, `e2e/avatar-crop.spec.ts` (computed style on the focused stage), 2026-08-25
+- **Owner file:** `src/components/profile/image-crop-dialog.tsx` — `classes.cropAreaClassName`
+- **Severity:** dead code today, and the open half of 16-UI-SPEC Δ6 / IC-04's mask ring
+
+**Measured on the focused stage, in Chromium:**
+
+```
+box-shadow : rgba(0, 0, 0, 0.5) 0px 0px 0px 139986px      <- the LIBRARY's scrim, not a ring
+outline    : auto 1px lab(36.2 0 0.00000596046)           <- a real, opaque indicator
+class      : reactEasyCrop_CropArea reactEasyCrop_CropAreaRound
+             focus-visible:ring-2 focus-visible:ring-ring
+             focus-visible:ring-offset-2 focus-visible:ring-offset-background
+```
+
+16-RESEARCH §A5 predicted this and flagged the class route as *"the right INTENT and not guaranteed
+to win"*: `react-easy-crop` injects its stylesheet **unlayered** into the document head, Tailwind v4
+utilities live in a cascade **layer**, and unlayered beats layered. Tailwind's `ring-*` compiles to
+`box-shadow`, and `.reactEasyCrop_CropArea`'s own `box-shadow: 0 0 0 9999em` (IC-04's scrim) occupies
+that property. **`STAGE_FOCUS_RECIPE` is dead on this element.**
+
+**The surface is NOT ringless, and that is why this is a finding rather than a defect.** DS-05 has two
+halves. The stylesheet half — `globals.css`'s base-layer `* { @apply border-border outline-ring }` —
+colours the UA's own focus outline in `--ring` at **full alpha**, and that is what a keyboard user
+sees. The e2e case asserts the two things that must hold however the cascade lands (an indicator is
+painted; its colour carries no alpha) and deliberately does **not** assert "the box-shadow is the
+scrim", which would encode today's cascade as a requirement and go red the day the route is fixed.
+
+Watched red, 2026-08-25: diluting `outline-ring` to `outline-ring/50` in `globals.css` reddens the
+alpha assertion with `oklab(0.449999 … / 0.5)`. Restored; tree clean.
+
+**What is still owed.** 16-UI-SPEC Δ6 wants a **2px mask ring** and a dimmer scrim on the crop area,
+and 16-RESEARCH's test map row 9 wants `borderWidth === "2px"` plus the 55% foreground scrim asserted.
+Neither can land through `classes.cropAreaClassName` while the vendor rule is unlayered. §A5's routes:
+**A** inline `style.cropAreaStyle` (wins outright, no inventory row, no diluted-token key), **B** the
+class route plus a diluted-token inventory move (`EXPECTED_DILUTED_TOKENS` 20 → 21 at
+`brand-recipe.test.ts:361`) — now measured to NOT win, so B is off the table unless the layer order
+changes, **C** `disableAutomaticStylesInjection` and vendor the CSS ourselves.
+
+`image-crop-dialog.tsx`'s header says *"Plan 16-13 measures which route wins in a real browser and
+lands it with its inventory row."* **16-13 measured it. It did not land it** — 16-13's tasks do not
+include the route, its `files_modified` is two e2e files, and its `<verification>` requires
+`git diff --exit-code src/components/profile/image-crop-dialog.tsx` to exit 0.
+
+**Cheapest correct fix:** route A. One `style={{ cropAreaStyle: … }}` prop, no inventory move, and the
+existing e2e assertion keeps passing because it tests the outcome rather than the mechanism.
+
+**Suggested owner:** plan 16-14.
