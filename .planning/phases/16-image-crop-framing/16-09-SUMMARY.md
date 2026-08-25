@@ -258,6 +258,10 @@ Four things 16-10 must be right about, each measured here:
 
 **Inventory left for the rest of the phase:** live regions at **27**, moving to 28 in plan 16-10 with `avatar-field.tsx`.
 
+## Self-Check: PASSED
+
+All four files verified present on disk; both commits (`d995d7a`, `bf85403`) verified in `git log --oneline --all`. `.planning/STATE.md` and `.planning/ROADMAP.md` are untouched — the orchestrator owns those. `.planning/REQUIREMENTS.md` is untouched too: CROP-01 has a clause this plan does not close (a *user* cannot reach the framing step until plan 16-10 wires it to `/profile`), so it is recorded as `requirements-advanced` rather than ticked.
+
 ---
 *Phase: 16-image-crop-framing*
 *Completed: 2026-08-25*
