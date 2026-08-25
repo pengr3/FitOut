@@ -101,13 +101,21 @@
 // owns.
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { BASE, signUpAndReachProfile } from "./helpers/avatar-session";
 // The ONE definition of "a visible focus indicator" in this suite, shared with the auth walk's 59
 // stops. Two copies of a focus criterion is the drift that goes silent in the worst direction.
-import { expectRing, readFocus } from "./helpers/focus";
+import {
+  expectRing,
+  indicatorOf,
+  probeActiveStop,
+  probeCandidateStops,
+  readFocus,
+  sameIndicator,
+  type StopProbe,
+} from "./helpers/focus";
 // The copy literals are IMPORTED, never re-typed (rule F2). A spec carrying its own copy of a
 // sentence goes green the day the real one changes — `overflow-320.spec.ts` states the same rule for
 // `SUPPORT_EMAIL`, and `src/lib/avatar.ts` is directive-free precisely so a gate can read it.
@@ -118,6 +126,10 @@ import {
   AVATAR_CROP_TITLE,
   AVATAR_OUTPUT_PX,
   AVATAR_POSITION_LABEL,
+  AVATAR_REMOVE_CANCEL,
+  AVATAR_REMOVE_CONFIRM,
+  AVATAR_REMOVE_LABEL,
+  AVATAR_REMOVE_TITLE,
   AVATAR_SOFT_SOURCE_NOTE,
   AVATAR_TOO_SMALL_MESSAGE,
   AVATAR_UNREADABLE_MESSAGE,
@@ -1435,12 +1447,31 @@ function parseOutboundAvatar(contentType: string, body: Buffer): OutboundAvatar 
  * header name, and `e2e/public-listing.spec.ts` and `e2e/mobile-booker-path.spec.ts` both use it the
  * same way.
  */
-async function interceptAvatarSave(page: Page): Promise<() => Promise<OutboundAvatar>> {
+async function interceptAvatarSave(
+  page: Page,
+  options: {
+    /**
+     * Fetch the refusal and keep its body, so a case can prove the sentence ON SCREEN is the one the
+     * SERVER sent rather than one this file typed out. Off by default: it swaps `continue()` for a
+     * fetch-and-replay, and the byte-proof groups have no need of the response at all.
+     */
+    readonly keepResponse?: boolean;
+    /** Held open until this resolves, so a case can measure the pending window. */
+    readonly gate?: Promise<void>;
+  } = {},
+): Promise<{
+  readonly outbound: () => Promise<OutboundAvatar>;
+  readonly serverBody: () => Promise<string>;
+}> {
   let settle!: (value: OutboundAvatar) => void;
   let fail!: (reason: Error) => void;
   const captured = new Promise<OutboundAvatar>((resolve, reject) => {
     settle = resolve;
     fail = reject;
+  });
+  let settleBody!: (value: string) => void;
+  const responseBody = new Promise<string>((resolve) => {
+    settleBody = resolve;
   });
 
   await page.route("**/*", async (route) => {
@@ -1450,13 +1481,13 @@ async function interceptAvatarSave(page: Page): Promise<() => Promise<OutboundAv
       return;
     }
 
-    const body = request.postDataBuffer();
+    const postData = request.postDataBuffer();
     const parsed =
-      body === null
+      postData === null
         ? null
-        : parseOutboundAvatar(request.headers()["content-type"] ?? "", body);
+        : parseOutboundAvatar(request.headers()["content-type"] ?? "", postData);
 
-    if (body === null || parsed === null) {
+    if (postData === null || parsed === null) {
       fail(
         new Error(
           "the avatar server action's POST carried no parsable image part. Either the confirm did " +
@@ -1472,15 +1503,38 @@ async function interceptAvatarSave(page: Page): Promise<() => Promise<OutboundAv
 
     // TAMPER-AND-CONTINUE. See this block's header for why the request is made to fail rather than
     // let through. The rewrite is in place and same-length, so `Content-Length` is untouched.
-    const tampered = Buffer.from(body);
-    if (parsed.declaredType.length === REFUSED_TYPE.length) {
-      tampered.write(REFUSED_TYPE, tampered.indexOf(Buffer.from(PART_TYPE_HEADER, "latin1")) +
-        "Content-Type: ".length, "latin1");
+    const tampered = Buffer.from(postData);
+    expect(
+      parsed.declaredType.length,
+      `the outbound part declares \`${parsed.declaredType}\`, which is not the same length as the ` +
+        `\`${REFUSED_TYPE}\` this interception rewrites it to. An in-place rewrite is the only one ` +
+        "that leaves `Content-Length` and every following byte untouched; a different length needs " +
+        "the whole multipart body rebuilt, which this file has no business doing.",
+    ).toBe(REFUSED_TYPE.length);
+    tampered.write(
+      REFUSED_TYPE,
+      tampered.indexOf(Buffer.from(PART_TYPE_HEADER, "latin1")) + "Content-Type: ".length,
+      "latin1",
+    );
+
+    // The pending window, when a case asked for one. The request is genuinely in flight and the
+    // component is genuinely saving; nothing about the state is simulated.
+    if (options.gate !== undefined) await options.gate;
+
+    if (options.keepResponse !== true) {
+      await route.continue({ postData: tampered });
+      return;
     }
-    await route.continue({ postData: tampered });
+
+    // FETCH THE REAL REFUSAL AND KEEP IT, THEN REPLAY IT UNCHANGED. This is what lets rule F5's
+    // "the server's own sentence, verbatim" be asserted without this file carrying a copy of the
+    // sentence — the response the browser renders is the same bytes this holds.
+    const response = await route.fetch({ postData: tampered });
+    settleBody(await response.text());
+    await route.fulfill({ response });
   });
 
-  return () => captured;
+  return { outbound: () => captured, serverBody: () => responseBody };
 }
 
 /**
@@ -1681,7 +1735,7 @@ test.describe("CROP-01 / IC-02 — what the person saw is what leaves the browse
     page,
   }) => {
     await signUpAndReachProfile(page);
-    const awaitCapture = await interceptAvatarSave(page);
+    const { outbound: awaitCapture } = await interceptAvatarSave(page);
 
     await pick(page, "exif-orientation-6.jpg");
     await expect(stageOf(page)).toBeVisible();
@@ -1806,7 +1860,7 @@ test.describe("CROP-01 / D-172 + D-177 — transparency is flattened onto a whit
     page,
   }) => {
     await signUpAndReachProfile(page);
-    const awaitCapture = await interceptAvatarSave(page);
+    const { outbound: awaitCapture } = await interceptAvatarSave(page);
 
     await pick(page, "transparent.png");
     await expect(stageOf(page)).toBeVisible();
@@ -1866,7 +1920,7 @@ test.describe("CROP-01 / D-172 + D-177 — transparency is flattened onto a whit
     page,
   }) => {
     await signUpAndReachProfile(page);
-    const awaitCapture = await interceptAvatarSave(page);
+    const { outbound: awaitCapture } = await interceptAvatarSave(page);
 
     await pick(page, "animated.png");
     await expect(stageOf(page)).toBeVisible();
@@ -1931,7 +1985,7 @@ test.describe("CROP-01 / D-172 + D-177 — transparency is flattened onto a whit
 test.describe("CROP-01 / IC-06 + D-172 — the output size is the contract, not the source's size", () => {
   test("small-300.png: a 300px source still stores a 400x400 JPEG", async ({ page }) => {
     await signUpAndReachProfile(page);
-    const awaitCapture = await interceptAvatarSave(page);
+    const { outbound: awaitCapture } = await interceptAvatarSave(page);
 
     await pick(page, "small-300.png");
     await expect(stageOf(page)).toBeVisible();
@@ -2009,6 +2063,462 @@ test.describe("CROP-01 / IC-06 + D-172 — the output size is the contract, not 
           "produces. A 400x400 asset whose picture fills a corner is still the wrong asset.",
       ).toBe(true);
     });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// TASK 3 — GATE-STATES AS A RENDERING ASSERTION, AND GATE-A11Y ON THE OPEN DIALOG
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-131 words GATE-STATES precisely, and the wording is the instruction: designed loading, empty and
+// error states on every async surface *"as a RENDERING assertion (in the a11y tree with a non-zero
+// bounding box in a real browser), not a design deliverable. jsdom cannot catch this class of bug at
+// all."* So an element that exists in the DOM is not the claim; an element a screen reader can reach
+// AND that occupies space is.
+//
+// TWO OF THE THREE STATES ARE DELIBERATE ABSENCES ON THIS SURFACE, and 16-UI-SPEC states the mapping
+// explicitly so it can be DISCHARGED rather than argued. They are asserted below as absences, with
+// their reason, so that a later reader cannot mistake them for an oversight — which is the whole
+// difference between a state that was designed away and one that was forgotten.
+
+/** Read an element's box in the page, so "non-zero" is a measurement rather than a visibility flag. */
+async function boxOf(locator: Locator): Promise<{ width: number; height: number }> {
+  const box = await locator.boundingBox();
+  return { width: box?.width ?? 0, height: box?.height ?? 0 };
+}
+
+/** The zoom slider's current value, as the a11y tree reports it — not as React holds it. */
+async function zoomValueOf(page: Page): Promise<string | null> {
+  return sliderOf(page).getAttribute("aria-valuenow");
+}
+
+test.describe("CROP-01 / GATE-STATES + rule F5 — a failed save keeps the work on screen", () => {
+  test("the refusal is announceable, has a box, and the framing the person chose is untouched", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    const { outbound, serverBody } = await interceptAvatarSave(page, { keepResponse: true });
+
+    // A source with real zoom headroom, so BOTH halves of "the framing" are movable and can be shown
+    // to have survived. On a locked row the zoom half would be trivially true.
+    await pick(page, "panorama-4000x500.jpg");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    // FRAME SOMETHING FIRST. A test that confirms the DEFAULT framing and then finds the default
+    // framing afterwards has proved nothing at all — rule F5 is about work the person did.
+    await tabToStage(page);
+    for (let i = 0; i < 3; i += 1) await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Tab");
+    for (let i = 0; i < 5; i += 1) await page.keyboard.press("ArrowRight");
+
+    const framedCrop = await readCropOffset(page);
+    const framedZoom = await zoomValueOf(page);
+    expect(
+      framedZoom,
+      "the zoom did not move off 1, so the 'framing intact' assertion below would be vacuous on its " +
+        "zoom half. `panorama-4000x500.jpg` has a 1.25 ceiling and the row should be live.",
+    ).not.toBe("1");
+    expect(Math.abs(framedCrop.x), "the crop did not move, so the pan half would be vacuous").toBeGreaterThan(0);
+
+    await outbound;
+    await dialogOf(page)
+      .getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true })
+      .click();
+    await outbound();
+
+    // 1. THE DIALOG IS STILL OPEN. Closing on failure throws away the very thing the person is being
+    //    asked to retry.
+    await expect(
+      dialogOf(page).getByRole("heading", { name: AVATAR_CROP_TITLE, exact: true }),
+      "the crop dialog closed on a failed save. Rule F5: a failure NEVER closes this overlay.",
+    ).toBeVisible();
+
+    // 2. THE SENTENCE IS IN THE A11Y TREE. `role="alert"` scoped to the dialog — `live-regions.ts`
+    //    declares exactly one alert for this field and the render places it here while a file is
+    //    staged.
+    const alert = dialogOf(page).getByRole("alert");
+    await expect(alert, "no interrupting region carries the failure inside the dialog").toHaveCount(1);
+    const announced = ((await alert.textContent()) ?? "").trim();
+
+    // 3. …AND IT IS THE SERVER'S OWN SENTENCE, PROVED WITHOUT THIS FILE OWNING A COPY OF IT. The
+    //    refusal was fetched and replayed by the interception, so the response body held here is the
+    //    same bytes the browser rendered from. Asserting `body.includes(rendered)` is rule F5's
+    //    "verbatim, no client re-authoring" as a mechanical check — and it cannot go green against a
+    //    stale literal the way a re-typed sentence would (rule F2).
+    expect(announced.length, "the alert rendered an empty sentence").toBeGreaterThan(10);
+    expect(
+      (await serverBody()).includes(announced),
+      `the dialog announced "${announced}", which does not appear in the server action's own ` +
+        "response. The caller renders the action's sentence VERBATIM — a client that re-words, " +
+        "truncates or substitutes it is showing the person something the server never said.",
+    ).toBe(true);
+
+    // 4. IT OCCUPIES SPACE. D-131's second clause, and the half jsdom cannot reach: a region that is
+    //    in the tree with a zero box is announced and invisible.
+    const alertBox = await boxOf(alert);
+    expect(
+      alertBox.width > 0 && alertBox.height > 0,
+      `the failure sentence measures ${alertBox.width}x${alertBox.height}. GATE-STATES is a ` +
+        "RENDERING assertion (D-131): present in the a11y tree AND painted, in a real browser.",
+    ).toBe(true);
+
+    // 5. THE FRAMING IS INTACT — the clause that is rule F5's real content. Closing would discard the
+    //    person's work; silently resetting it discards the same work while looking like it did not.
+    expect(
+      await zoomValueOf(page),
+      "the zoom reset after a failed save. The person framed the photo, the save failed, and the " +
+        "framing must be exactly where they left it.",
+    ).toBe(framedZoom);
+    const afterCrop = await readCropOffset(page);
+    expect(
+      Math.abs(afterCrop.x - framedCrop.x) + Math.abs(afterCrop.y - framedCrop.y),
+      `the crop position moved from (${framedCrop.x}, ${framedCrop.y}) to (${afterCrop.x}, ` +
+        `${afterCrop.y}) across a failed save.`,
+    ).toBeLessThanOrEqual(0.5);
+  });
+
+  test("the pending window is a designed state, and the two absences beside it are designed too", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { outbound } = await interceptAvatarSave(page, { gate });
+
+    await pick(page, "square-400.png");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    const dialog = dialogOf(page);
+    await dialog.getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true }).click();
+
+    // THE LOADING STATE, WHICH ON THIS SURFACE IS A BUSY LABEL ON THE CONFIRM AND NOTHING ELSE.
+    const busy = dialog.getByRole("button", { name: AVATAR_CROP_CONFIRM_BUSY, exact: true });
+    await expect(busy, "the confirm never reached its busy label").toBeVisible();
+    await expect(busy, "the busy confirm is not disabled").toBeDisabled();
+    const busyBox = await boxOf(busy);
+    expect(
+      busyBox.width > 0 && busyBox.height > 0,
+      `the busy confirm measures ${busyBox.width}x${busyBox.height} — GATE-STATES wants a painted ` +
+        "state, not a present one.",
+    ).toBe(true);
+
+    // ⚠ THE TWO ABSENCES, ASSERTED RATHER THAN LEFT TO BE INFERRED, WITH THE REASON THEY ARE CORRECT.
+    //
+    // THERE IS NO DECODE SPINNER AND NO SKELETON INSIDE THIS DIALOG, and that is an answer to
+    // GATE-STATES rather than a gap in one. The four guards and the decode both complete BEFORE the
+    // component is mounted (999.2 § 2e; `avatar-field.tsx` mounts it only while a file is staged),
+    // so the stage never renders without its measured image and there is no moment for a loading
+    // state to describe. A spinner here would be a control that appears for zero milliseconds.
+    //
+    // THERE IS NO EMPTY STATE, for the same structural reason: "no image" is not a state this dialog
+    // can be in. With nothing staged there is no dialog — unstaging IS unmounting.
+    //
+    // Asserted DURING the pending window, which is the only moment either could plausibly appear.
+    await expect(
+      dialog.locator('[data-slot="skeleton"]'),
+      "a skeleton is mounted inside the crop dialog. The decode completes before this component " +
+        "mounts, so a skeleton here describes a moment that does not exist.",
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByRole("progressbar"),
+      "a progress indicator is mounted inside the crop dialog. The busy label on the confirm is " +
+        "this surface's whole loading state (999.2 § 2d).",
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByLabel(/loading/i),
+      "something inside the crop dialog is labelled `Loading`.",
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByText(/loading/i),
+      "something inside the crop dialog reads `Loading`.",
+    ).toHaveCount(0);
+
+    release();
+    await outbound();
+
+    // And the window CLOSES: the busy label is a state, not a permanent label.
+    await expect(
+      dialog.getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true }),
+      "the confirm never returned from its busy label after the request settled.",
+    ).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// GATE-A11Y — AN AXE PASS OVER THE OPEN DIALOG, AND EVERY CONTROL REACHABLE BY KEYBOARD
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// ⚠ AXE IS INJECTED FROM `node_modules`, AND `package.json` IS UNTOUCHED. `axe-core` 4.12.0 is
+// already resolved in this repo's lockfile — it arrives under `eslint-config-next` via
+// `eslint-plugin-jsx-a11y` — so the audit needs no dependency of its own. This phase's ONE argued
+// dependency exception is already spent on `react-easy-crop` (D-167), and Phase 11 shipped an empty
+// `package.json` diff as an acceptance criterion; adding `@axe-core/playwright` to run four rules
+// over one dialog would spend a budget that is not this plan's to spend.
+//
+// THE COST IS NAMED RATHER THAN HIDDEN: a transitive dependency can move without warning. The path is
+// therefore asserted to EXIST before the injection, so the failure is one line saying the file is
+// gone rather than a silent skip — and the run itself is asserted to be NON-EMPTY, so an axe that
+// loaded and audited nothing cannot report zero violations and look like a pass.
+//
+// COURT ONLY (D-138). The single-theme audit is the milestone's rule and this file does not seed a
+// theme, so `/profile` renders the product theme; the assertion below records which one it measured
+// rather than trusting that.
+const AXE_SOURCE = path.join(__dirname, "..", "node_modules", "axe-core", "axe.min.js");
+
+/** The WCAG tags the milestone's exit criterion is written against. */
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] as const;
+
+type AxeSummary = {
+  readonly violations: {
+    id: string;
+    impact: string | null;
+    nodes: number;
+    help: string;
+    targets: string[];
+  }[];
+  readonly passes: number;
+  readonly incomplete: number;
+  readonly theme: string | null;
+};
+
+async function runAxe(page: Page): Promise<AxeSummary> {
+  expect(
+    existsSync(AXE_SOURCE),
+    `\`${AXE_SOURCE}\` is not on disk. \`axe-core\` reaches this repo TRANSITIVELY (through ` +
+      "`eslint-config-next` -> `eslint-plugin-jsx-a11y`) and is pinned in the lockfile, so this " +
+      "means the dependency graph moved. The fix is a one-line `devDependencies` entry — NOT " +
+      "deleting this audit, and NOT `npx`-ing a package at test time.",
+  ).toBe(true);
+
+  await page.addScriptTag({ content: readFileSync(AXE_SOURCE, "utf8") });
+
+  return page.evaluate(async (tags: readonly string[]) => {
+    const axe = (window as unknown as { axe?: { run: (ctx: unknown, opts: unknown) => Promise<unknown> } })
+      .axe;
+    if (axe === undefined) throw new Error("axe did not attach to the page");
+
+    // THE TWO EXCLUSIONS ARE THE DEV SERVER'S OWN FURNITURE, NOT PRODUCT MARKUP. `nextjs-portal` is
+    // the dev-tools indicator (absent from a production build) and `next-route-announcer` is Next's
+    // own live region; `helpers/focus.ts` and this file's `expectNoStrayAlerts` already partition
+    // both by name for the same reason. Nothing of the product's is excluded.
+    const result = (await axe.run(
+      { exclude: [["nextjs-portal"], ["next-route-announcer"]] },
+      { runOnly: { type: "tag", values: [...tags] } },
+    )) as {
+      violations: {
+        id: string;
+        impact: string | null;
+        nodes: { target?: unknown[] }[];
+        help: string;
+      }[];
+      passes: unknown[];
+      incomplete: unknown[];
+    };
+
+    return {
+      violations: result.violations.map((v) => ({
+        id: v.id,
+        impact: v.impact,
+        nodes: v.nodes.length,
+        help: v.help,
+        // The SELECTOR, so a failure names the element instead of the rule. A violation report that
+        // says only "aria-prohibited-attr" costs the next reader the whole investigation.
+        targets: v.nodes.map((n) => String((n as { target?: unknown[] }).target?.join(" ") ?? "?")),
+      })),
+      passes: result.passes.length,
+      incomplete: result.incomplete.length,
+      theme: document.documentElement.getAttribute("data-theme"),
+    };
+  }, AXE_TAGS);
+}
+
+/**
+ * Walk the tab order INSIDE an open overlay, which is a cycle rather than a line.
+ *
+ * `walkForward` in `helpers/focus.ts` walks until focus LEAVES the document — inside a focus trap it
+ * never does, so it would run to its bound every time and report the same control repeatedly. This
+ * stops when a descriptor repeats, which is what "the trap closed the loop" looks like.
+ *
+ * At every stop it also snapshots every candidate element, so each control's UNFOCUSED indicator can
+ * be read from a moment when something else had focus. That comparison is not ceremony here: the
+ * crop area draws a PERMANENT box-shadow (the library's scrim), so an indicator check that did not
+ * compare two states would be satisfied on a stage that drew nothing at all on focus.
+ */
+async function walkOverlayStops(
+  page: Page,
+  bound = 12,
+): Promise<{ active: StopProbe; candidates: StopProbe[] }[]> {
+  const steps: { active: StopProbe; candidates: StopProbe[] }[] = [];
+  for (let i = 0; i < bound; i += 1) {
+    await page.keyboard.press("Tab");
+    // ⚠ SETTLE FIRST, AND IT WAS MEASURED. `ui/button.tsx` carries `transition-[color,box-shadow]`,
+    // so a ring read immediately after a Tab is a ring MID-FADE — and the unfocused snapshot taken a
+    // moment later catches the OUTGOING fade of the previous control at a similar alpha. Probed
+    // 2026-08-25 without this line: the removal confirm's `Close` reported an identical
+    // `oklab(... / 0.309085)` shadow in both readings and the difference check called a real
+    // indicator "decoration". A margin that is a race rather than a tolerance, exactly as 16-13
+    // found for `boundingBox()`.
+    await settleAnimations(page);
+    const active = await probeActiveStop(page);
+    if (active === null) break;
+    if (steps.some((s) => s.active.descriptor === active.descriptor)) break;
+    steps.push({ active, candidates: await probeCandidateStops(page) });
+  }
+  return steps;
+}
+
+/** Every stop draws something on focus, and it is something it does NOT draw unfocused. */
+function expectEveryStopIndicated(
+  steps: { active: StopProbe; candidates: StopProbe[] }[],
+  where: string,
+): void {
+  expect(steps.length, `${where}: the tab walk found no stops at all`).toBeGreaterThan(1);
+
+  for (const step of steps) {
+    expectRing(step.active, `${where} — ${step.active.descriptor}`);
+
+    // The same element, read from a step where SOMETHING ELSE held focus.
+    const elsewhere = steps.find((s) => s.active.descriptor !== step.active.descriptor);
+    const unfocused = elsewhere?.candidates.find(
+      (c) => c.descriptor === step.active.descriptor,
+    );
+    expect(
+      unfocused,
+      `${where}: ${step.active.descriptor} could not be read while unfocused, so the comparison ` +
+        "below would be against nothing.",
+    ).not.toBeUndefined();
+    if (unfocused === undefined) continue;
+
+    expect(
+      sameIndicator(indicatorOf(step.active), indicatorOf(unfocused)),
+      `${where}: ${step.active.descriptor} draws the SAME thing focused and unfocused (outline ` +
+        `${step.active.outlineStyle} ${step.active.outlineWidth}, box-shadow ` +
+        `${step.active.boxShadow}), so what it draws is decoration rather than an indicator.`,
+    ).toBe(false);
+  }
+}
+
+test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone", () => {
+  test("the crop dialog: zero axe violations, and every stop paints a DS-05 indicator", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    await pick(page, "panorama-4000x500.jpg");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    const audit = await runAxe(page);
+
+    expect(
+      audit.theme,
+      `the audit ran against \`data-theme=${audit.theme}\`. D-138 makes the axe pass COURT-ONLY, ` +
+        "and this file seeds no theme — a grove reading means something else set one.",
+    ).not.toBe("grove");
+
+    // NON-VACUITY BEFORE THE ZERO. An axe that loaded, found nothing to audit and returned an empty
+    // violations list reports exactly the same green as a clean surface.
+    expect(
+      audit.passes,
+      "axe reported ZERO passing rules, which means it audited nothing — the context selector " +
+        "excluded the whole document, or the dialog was not open when it ran.",
+    ).toBeGreaterThan(5);
+
+    expect(
+      audit.violations,
+      `axe found ${audit.violations.length} violation(s) on \`/profile\` with the crop dialog open:` +
+        `\n${audit.violations
+          .map((v) => `  ${v.id} (${v.impact ?? "no impact"}) — ${v.help} @ ${v.targets.join(" ; ")}`)
+          .join("\n")}`,
+    ).toEqual([]);
+
+    // KEYBOARD OPERABILITY, END TO END. The dialog opens with the stage focused, so the walk starts
+    // from there and closes the loop back onto it.
+    const steps = await walkOverlayStops(page);
+    const order = steps.map((s) => s.active.descriptor);
+
+    // The four controls the contract names, each addressed by what it ANNOUNCES.
+    expect(
+      order.join(" | "),
+      `the crop dialog's tab order is [${order.join(" | ")}]. Every control it renders has to be ` +
+        "reachable without a pointer: the stage, the zoom slider, `Cancel` and the confirm.",
+    ).toContain(AVATAR_POSITION_LABEL.slice(0, 14));
+    for (const expected of [AVATAR_ZOOM_LABEL, AVATAR_CROP_CANCEL, AVATAR_CROP_CONFIRM]) {
+      expect(
+        order.some((d) => d.includes(expected)),
+        `\`${expected}\` is not a keyboard stop inside the crop dialog. Order walked: ` +
+          `[${order.join(" | ")}].`,
+      ).toBe(true);
+    }
+
+    expectEveryStopIndicated(steps, "the crop dialog");
+  });
+
+  test("the removal confirm: `Keep photo` holds focus on open, and every stop is indicated", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+
+    // ⚠ THIS CASE PERFORMS ONE REAL UPLOAD, AND IT IS UNAVOIDABLE RATHER THAN CONVENIENT. The removal
+    // affordance is rendered only when there is a photo to remove (`avatar-field.tsx`: there is no
+    // disabled-but-present spelling of a control that would act on nothing), and the profile's avatar
+    // comes from the server-rendered row. So reaching this overlay at all requires a save that really
+    // landed. Fabricating one would mean asserting against our own forgery. The cost is a second
+    // orphaned `fitout/avatars/*` asset per run, on top of the one the Delta-3 case already leaves —
+    // both are logged as D4 in `deferred-items.md` for Phase 16.1's sweep.
+    await pick(page, "square-400.png");
+    await expect(stageOf(page)).toBeVisible();
+    await dialogOf(page)
+      .getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true })
+      .click();
+    await expect(
+      page.getByRole("main").locator('img[alt="Your avatar"]'),
+      "the save did not land, so there is no photo to remove and no confirm to audit.",
+    ).toBeVisible({ timeout: 30_000 });
+
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: AVATAR_REMOVE_LABEL, exact: true })
+      .click();
+    await expect(dialogOf(page).getByRole("heading", { name: AVATAR_REMOVE_TITLE })).toBeVisible();
+    await settleAnimations(page);
+
+    // D-168's BINDING MITIGATION, measured in a real browser. Plan 16-03 measured that Radix's
+    // untouched behaviour focuses `Remove photo` — the DESTRUCTIVE button — on this footer order, and
+    // D-168 declined an alarm-semantics overlay primitive on the explicit condition that focus lands
+    // on the safe action instead. This is that condition, checked rather than assumed.
+    const landed = await probeActiveStop(page);
+    expect(
+      landed?.descriptor ?? "(nothing)",
+      "the removal confirm did not open with `Keep photo` focused. D-168 accepted ONE overlay " +
+        "primitive for this app on the binding condition that default focus lands on the SAFE " +
+        "action; DOM order cannot substitute, because the footer is `flex-col-reverse` and putting " +
+        "the safe action first would stack the destructive one under the thumb on mobile.",
+    ).toContain(AVATAR_REMOVE_CANCEL);
+
+    const audit = await runAxe(page);
+    expect(audit.passes, "axe audited nothing on the removal confirm").toBeGreaterThan(5);
+    expect(
+      audit.violations,
+      `axe found ${audit.violations.length} violation(s) on the removal confirm:\n${audit.violations
+        .map((v) => `  ${v.id} (${v.impact ?? "no impact"}) — ${v.help} @ ${v.targets.join(" ; ")}`)
+        .join("\n")}`,
+    ).toEqual([]);
+
+    const steps = await walkOverlayStops(page);
+    const order = steps.map((s) => s.active.descriptor);
+    for (const expected of [AVATAR_REMOVE_CANCEL, AVATAR_REMOVE_CONFIRM]) {
+      expect(
+        order.some((d) => d.includes(expected)),
+        `\`${expected}\` is not a keyboard stop inside the removal confirm. Order walked: ` +
+          `[${order.join(" | ")}].`,
+      ).toBe(true);
+    }
+    expectEveryStopIndicated(steps, "the removal confirm");
   });
 });
 
