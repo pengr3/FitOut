@@ -228,11 +228,11 @@ import {
 const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentySeven`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentyEight`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
- * message. Plans 12-12, 12-13, 13-14, 14-14, 15-09 and 16-09 each moved BOTH, in the commit that added their
- * component — a set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT
+ * message. Plans 12-12, 12-13, 13-14, 14-14, 15-09, 16-09 and 16-10 each moved BOTH, in the commit that added
+ * their component — a set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT
  * names.
  *
  * TEN as of plan 12-12, which added `src/components/search/relax-band.tsx` (STATE-03's relaxation band,
@@ -265,18 +265,24 @@ const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
  *
  * TWENTY-SEVEN as of plan 16-09, which added ONE file — `src/components/profile/image-crop-dialog.tsx`,
  * the avatar framing step — carrying one region: the save failure that renders INSIDE the dialog,
- * because rule F5 forbids closing an overlay to report that its confirm did not work. It is a
- * deliberate pass through this number: 16-UI-SPEC's budget is 26 -> 28 and `avatar-field.tsx` takes it
- * to 28 in plan 16-10, but each file's row lands in the same commit as its element, so the set moves
- * once per plan rather than once per phase.
+ * because rule F5 forbids closing an overlay to report that its confirm did not work. It was a
+ * deliberate pass through that number: 16-UI-SPEC's budget is 26 -> 28, but each file's row lands in
+ * the same commit as its element, so the set moves once per plan rather than once per phase.
  *
- * ⚠ THIS LITERAL MOVING IS WHY TASK 1 OF PLAN 15-09 TOUCHED THIS FILE AT ALL, AND WHY PLAN 16-09 DID
- * TOO. Both plans named `src/lib/design/live-regions.ts` as their only inventory file; the docblock
- * above is the standing instruction that says both pins move together, and a widened set with a stale
- * literal here fails this gate with the message three lines below. The instruction beat the file list
- * twice now, which is the same precedence call plan 15-08 recorded when a gate and a plan disagreed.
+ * TWENTY-EIGHT as of plan 16-10, which closed that pass-through with the OTHER half of the same
+ * surface — `src/components/profile/avatar-field.tsx`, the field that opens the dialog — carrying one
+ * region: the single refusal slot the four pre-dialog guards share. All four refuse BEFORE any overlay
+ * opens, so nothing else on the page changes to carry the news; without the region, picking a rejected
+ * file and picking an accepted one are indistinguishable to a listener.
+ *
+ * ⚠ THIS LITERAL MOVING IS WHY TASK 1 OF PLAN 15-09 TOUCHED THIS FILE AT ALL, AND WHY PLANS 16-09 AND
+ * 16-10 DID TOO. All three named `src/lib/design/live-regions.ts` as their only inventory file; the
+ * docblock above is the standing instruction that says both pins move together, and a widened set with
+ * a stale literal here fails this gate with the message three lines below. The instruction beat the
+ * file list three times now, which is the same precedence call plan 15-08 recorded when a gate and a
+ * plan disagreed.
  */
-const DECLARED_FILE_COUNT = 27;
+const DECLARED_FILE_COUNT = 28;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -529,9 +535,9 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsTwentySeven` in `src/lib/design/live-regions.ts` " +
+        "pinned in TWO places — `DeclaredFileCountIsTwentyEight` in `src/lib/design/live-regions.ts` " +
         "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14, " +
-        "15-09 and 16-09 " +
+        "15-09, 16-09 and 16-10 " +
         "each moved BOTH, in the same commit as the components they add. A set that widened in one " +
         "place and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);

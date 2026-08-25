@@ -34,7 +34,10 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { uploadAvatar } from "@/lib/cloudinary";
-import { avatarFileSchema } from "@/lib/validation/profile";
+import {
+  avatarFileSchema,
+  AVATAR_UPLOAD_FAILED_MESSAGE,
+} from "@/lib/validation/profile";
 
 export type AvatarResult =
   | { ok: true; avatarUrl: string }
@@ -81,6 +84,11 @@ export async function uploadAvatarAction(
 
     return { ok: true, avatarUrl: secure_url };
   } catch {
-    return { ok: false, error: "Could not upload your photo. Please try again." };
+    // IMPORTED, NOT SPELLED, as of plan 16-10. The crop dialog reports a local encode failure with
+    // this same sentence — to the person, bytes that could not be made and bytes that would not
+    // upload are one outcome — and a `"use server"` module may export nothing but async functions,
+    // so the shared home is `@/lib/validation/profile` beside the other two shipped avatar
+    // sentences. The value is byte-unchanged.
+    return { ok: false, error: AVATAR_UPLOAD_FAILED_MESSAGE };
   }
 }

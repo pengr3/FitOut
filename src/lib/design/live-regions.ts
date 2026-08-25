@@ -401,11 +401,26 @@ export const LIVE_REGION_FILES = [
   // the person confirmed their framing, which has to be heard inside the overlay that is still
   // open rather than behind it.
   //
-  // ⚠ A DELIBERATE PASS THROUGH TWENTY-SEVEN. 16-UI-SPEC's declared-inventory budget says 26 -> 28,
-  // because Phase 16 authors alerts in TWO new files; `avatar-field.tsx` arrives in plan 16-10 and
-  // takes it to 28. Each file's row lands in the same commit as its element, which is the rule that
-  // makes this inventory worth having — the intermediate rename is the cost of that rule, and it is
-  // named here so the next reader does not read 27 as a miscount of 28.
+  // ⚠ TWENTY-SEVEN WAS A DELIBERATE PASS-THROUGH, AND PLAN 16-10 CLOSED IT. 16-UI-SPEC's
+  // declared-inventory budget says 26 -> 28, because Phase 16 authors alerts in TWO new files. The
+  // dialog arrived alone in plan 16-09 (27) and `avatar-field.tsx` joined it here (28). Each file's
+  // row lands in the same commit as its element, which is the rule that makes this inventory worth
+  // having — the intermediate rename is the cost of that rule, and it is named here so a reader who
+  // finds the one-file-short spelling of the count alias in the history does not read it as a
+  // miscount. (The obsolete alias NAME is described rather than spelled, here and in the rename
+  // chain below: plan 16-10's acceptance greps this module to prove the old name is gone, and a
+  // comment that spelled it would fail the very check it is explaining. Same resolution, and the
+  // same reason, as this module's other worked-around tokens.)
+  //
+  // The FIELD carries the four pre-dialog refusals — wrong type, over the size cap, undecodable,
+  // too small — every one of which is announced on the page with no overlay ever opening. The
+  // DIALOG carries the one announcement the field cannot make on its behalf: a save that failed
+  // after the person confirmed their framing, which has to be heard inside the overlay that is
+  // still open rather than behind it. Between plan 16-10 and plan 16-11 the avatar refusal exists
+  // in `profile-form.tsx` AND here, and both are declared; that is correct rather than duplicated,
+  // because the block does not LEAVE the form until 16-11's extraction and a row moves in the same
+  // commit as the code that moved it.
+  "src/components/profile/avatar-field.tsx",
   "src/components/profile/image-crop-dialog.tsx",
 ] as const;
 
@@ -652,6 +667,8 @@ export const LIVE_REGION_IDS = [
   "profile-avatar-error",
   "profile-form-error",
   "profile-save-result",
+  // profile/avatar-field.tsx — one region, one kind, so one ordinal.
+  "avatar-field-refusal",
   // profile/image-crop-dialog.tsx — one region, one kind, so one ordinal.
   "avatar-crop-save-error",
 ] as const;
@@ -1452,6 +1469,41 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "moved rather than a paraphrase of the sentence inside it.",
   },
 
+  // ─── profile/avatar-field.tsx ───────────────────────────────────────────────────────────────────
+  //
+  // ONE REGION FOR FOUR REFUSALS AND FOR THE SAVE FAILURE, SO ONE ORDINAL. The field holds a single
+  // refusal slot rather than one per guard, because a field that can only ever have refused ONE
+  // thing rendering two regions is the shape rule 6 forbids. The slot is spent in exactly one place
+  // at a time: on the page while no file is staged, and inside the crop dialog while one is — which
+  // is why this row and `avatar-crop-save-error` below describe two elements that are never mounted
+  // together.
+  "avatar-field-refusal": {
+    file: "src/components/profile/avatar-field.tsx",
+    kind: "alert",
+    at: 1,
+    announces:
+      "Whichever of the four pre-dialog refusals the person's file earned, verbatim and once — the " +
+      "wrong-type sentence, the over-5-MB sentence, the undecodable sentence or the too-small " +
+      "sentence. Each names what to pick INSTEAD rather than only what was wrong, so a listener is " +
+      "told what to do next and not merely that they failed. It is cleared at the top of the next " +
+      "attempt, so a second refusal is a second announcement rather than a silent no-op.",
+    why:
+      "RULE 2. An upload the person started came back refused and the FILE THEY CHOSE is the thing " +
+      "that has to change, so it is a genuine failure needing a human rather than a state that will " +
+      "resolve itself. RULE 5 by its own text: the sentence names which constraint was missed, and " +
+      "a label announced in its place would leave a person re-picking the same file.\n" +
+      "\n" +
+      "⚠ NOTHING ELSE ON THIS SURFACE CARRIES THE NEWS, which is why the region is not optional " +
+      "decoration. All four refusals happen BEFORE any overlay opens: no dialog appears, no page " +
+      "navigates, the avatar in the circle does not change, and the picker closes exactly as it " +
+      "does on success. To anyone not watching that one line, choosing a rejected file and choosing " +
+      "an accepted one look identical.\n" +
+      "\n" +
+      "Named by its CONTENT, like every other refusal on the account surfaces. The component " +
+      "authors none of these sentences — each is an imported literal — which is what keeps the " +
+      "thing announced identical to the thing the contract says.",
+  },
+
   // ─── profile/image-crop-dialog.tsx ──────────────────────────────────────────────────────────────
   //
   // ONE REGION, ONE KIND, SO ONE ORDINAL, and the file is a composite rather than a page: the crop
@@ -1666,7 +1718,7 @@ export const AUTHOR_NAMED_REGIONS = [
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS TWENTY-SEVEN FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
+ * THE DECLARED SET IS TWENTY-EIGHT FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
  * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
@@ -1678,8 +1730,11 @@ type Assert<T extends true> = T;
  * 14-14's discharge added four (`wizard.tsx`, `request-row.tsx`, `address-autocomplete.tsx`,
  * `photo-uploader.tsx`), `…IsTwentyOne` until plan 15-09 added five account surfaces — the four
  * route-group auth pages and the profile form, spelled out at the set itself because a glob written
- * inside a block comment closes it — and `…IsTwentySix` until plan 16-09 added the avatar crop
- * dialog. A `length extends number` assertion would compile forever and
+ * inside a block comment closes it — `…IsTwentySix` until plan 16-09 added the avatar crop dialog,
+ * and the one-file-short spelling of the present name (described, not spelled — see the note at the
+ * set itself) until plan 16-10 added the avatar FIELD that opens it, closing the pass-through
+ * 16-UI-SPEC's 26 -> 28 budget always described as two moves. A `length extends number`
+ * assertion would compile forever and
  * read exactly like this one; that is the failure mode a type-level gate is easiest to write. The friction IS the
  * mechanism: adding a live region to the audited set costs a rename, a row and a second literal in
  * `tests/design/live-regions.test.tsx`, and none of those can be done by accident.
@@ -1736,9 +1791,28 @@ type Assert<T extends true> = T;
  * reachable only for a file already inside the set — which means the path goes in FIRST, alone, and
  * the red is watched THEN. A plan that writes the path, the row and the number in one edit has not
  * skipped a formality; it has never been in the state where the gate could speak.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * OBSERVED RED (e) — PLAN 16-10'S ONE, AND THE FIRST TIME (d)'S NOTE WAS USED RATHER THAN REDISCOVERED.
+ * 25 August 2026.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `src/components/profile/avatar-field.tsx` was created with its `role="alert"` and the suite was run
+ * FIRST, before this module was touched at all: `1 passed (1) / 26 passed (26)`. That is (d)'s claim
+ * re-measured on a second file rather than taken on trust — a region in an undeclared file is
+ * invisible to this gate. The path then went into `LIVE_REGION_FILES` ALONE, no row, alias left
+ * reading `extends 27`. `npx tsc --noEmit`, run bare — exit code 2, ONE error, the whole of stdout:
+ *
+ *   src/lib/design/live-regions.ts(1742,3): error TS2344: Type 'false' does not satisfy the constraint
+ *   'true'.
+ *
+ * `tests/design/live-regions.test.tsx` failed twice in that same state — the count guard ("the
+ * declared set is 28 files, not 27"), and SCAN 2 reporting `avatar-field.tsx:296 — alert#1 on <p>
+ * (role="alert")` as PRESENT BUT UNDECLARED. Then the row, `27` → `28`, the rename, and the second
+ * pin in the test → exit 0, 26 tests passed.
  */
-export type DeclaredFileCountIsTwentySeven = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 27 ? true : false
+export type DeclaredFileCountIsTwentyEight = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 28 ? true : false
 >;
 
 // ---------------------------------------------------------------------------

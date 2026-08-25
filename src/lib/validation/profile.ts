@@ -36,6 +36,32 @@ export type ProfileInput = z.infer<typeof profileSchema>;
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 /**
+ * The over-size refusal. UNCHANGED in value and NAMED as of plan 16-10, which is the whole of the
+ * edit: CROP-01 applies this same check client-side before the decode, so the sentence now has two
+ * consumers — the refine below and `components/profile/avatar-field.tsx` — and 16-UI-SPEC's "Reused
+ * verbatim" table says reused, not rewritten. Two copies of a string are two strings (rule F2), and
+ * a directive-free module is the only place a `"use server"` action and a client component can both
+ * read one from.
+ */
+export const AVATAR_TOO_LARGE_MESSAGE = "Image must be 5 MB or smaller.";
+
+/**
+ * The save-failure sentence: the upload was accepted, tried and did not land.
+ *
+ * MOVED HERE FROM `src/app/actions/avatar.ts` BY PLAN 16-10, value byte-unchanged, and the move is
+ * forced rather than tidying. It now has a SECOND consumer that cannot reach the first: the crop
+ * dialog reports a local encode failure — no measured element, no crop rectangle, a rejecting
+ * encoder — and to the person that is the same outcome as a refused upload, so it must be the same
+ * sentence (one region, one source). The action is a `"use server"` module and may export nothing
+ * but async functions, so it cannot be the shared home; `src/lib/avatar.ts` is ruled out too, since
+ * 16-UI-SPEC pins this string as SHIPPED and re-declaring it beside the phase's new copy would make
+ * it look authored. It lands beside the other two shipped avatar sentences instead, which is where
+ * `Only image files are allowed.` and the one above already live. Still exactly one home.
+ */
+export const AVATAR_UPLOAD_FAILED_MESSAGE =
+  "Could not upload your photo. Please try again.";
+
+/**
  * Validate an uploaded avatar File: must be non-empty, under the size cap, and one of the three
  * types AVATAR_ALLOWED_TYPES declares — JPEG, PNG or WebP (it was `image/*` until CROP-01). The list
  * lives in `@/lib/avatar` and the client file picker's `accept` attribute reads that SAME array, so
@@ -60,5 +86,5 @@ export const avatarFileSchema = z
     message: "Only image files are allowed.",
   })
   .refine((f) => f.size <= AVATAR_MAX_BYTES, {
-    message: "Image must be 5 MB or smaller.",
+    message: AVATAR_TOO_LARGE_MESSAGE,
   });
