@@ -4,9 +4,9 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
 status: executing
-stopped_at: "Phase 16 wave 9: plan 16-15 is PARKED AT AN OPERATOR CHECKPOINT -- Tasks 1-2 committed, Task 3 (CI baselines dispatch) is blocked because playwright.config.ts only builds the visual project on linux and this box is win32. 16-15 is 2/3, NOT complete, despite its SUMMARY.md existing -- do not let any SDK verb tick it. Next: 16-16 prepare (autonomous), then both operator checkpoints go to the PM together."
+stopped_at: "Phase 16: 14 of 16 plans complete. BOTH remaining plans are parked at OPERATOR checkpoints and neither is complete despite both having SUMMARY.md files -- do not let any SDK verb tick them. 16-15 is 2/3 (Task 3 = CI baselines dispatch; playwright visual project is linux-only, this box is win32). 16-16 is 1/2 (Task 2 = PM hardware walk on real iOS Safari + Android Chrome; 16-UAT-CROP.md is authored with every observation cell empty). CROP-01/03 closed; CROP-02 (D10) and CROP-04 open. Phase verification and code review deliberately NOT run yet."
 last_updated: "2026-08-25T07:08:20.183Z"
-last_activity: 2026-08-26 -- Phase 16 wave 9: 16-15 parked at operator checkpoint (2/3 tasks)
+last_activity: 2026-08-26 -- Phase 16: 14/16 plans done; 16-15 and 16-16 both awaiting the operator
 progress:
   total_phases: 13
   completed_phases: 7
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-26 -- Phase 16 wave 9: 16-15 parked at operator checkpoint (2/3 tasks)
+Last activity: 2026-08-26 -- Phase 16: 14/16 plans done; 16-15 and 16-16 both awaiting the operator
 
 ## Performance Metrics
 
