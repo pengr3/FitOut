@@ -63,20 +63,24 @@
 // The re-pick case below therefore carries its own caveat, and the hardware walk is plan 16-16.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// A DEFECT ON THIS SURFACE THAT IS NOT THIS FILE'S TO FIX, AND WHAT IT COSTS THE LOCATORS
+// A DEFECT ON THIS SURFACE THAT WAS FIXED IN 16-14, AND WHAT IT BOUGHT THE LOCATORS
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// The zoom slider ships with NO ACCESSIBLE NAME (`deferred-items.md` D1, measured by plan 16-10,
-// assigned to plan 16-14). The element carrying `role="slider"` is Radix's THUMB; the dialog's
-// `aria-label={AVATAR_ZOOM_LABEL}` lands on the Root, which renders a `<span>` with no role and so
-// contributes no name to anything. `getByRole("slider", { name: "Zoom" })` matches ZERO elements
-// today.
+// The zoom slider USED TO SHIP WITH NO ACCESSIBLE NAME (`deferred-items.md` D1, measured by plan
+// 16-10, fixed by plan 16-14). The element carrying `role="slider"` is Radix's THUMB; the dialog's
+// `aria-label` landed on the Root, which renders a `<span>` with no role and so contributed no name
+// to anything — `getByRole("slider", { name: "Zoom" })` matched ZERO elements.
 //
-// So every slider locator below is `getByRole("slider")` UNNAMED, scoped to the dialog. That is
-// correct-but-loose on purpose: this file does not fix the defect, does not assert that the name is
-// fine, and does not encode the broken state as an expectation. ⚠ WHEN 16-14 NAMES THE THUMB, THESE
-// LOCATORS SHOULD TIGHTEN TO `getByRole("slider", { name: AVATAR_ZOOM_LABEL })` — one edit per
-// locator, and the scoping to `dialog` becomes redundant rather than load-bearing.
+// `ui/slider.tsx` now forwards a single-thumb slider's `aria-label` to the thumb, so the locator
+// below is NAMED and this file no longer has to be loose about it. The name is now a load-bearing
+// part of the locator rather than a nicety: a regression that put the label back on the Root would
+// redden every case that touches the zoom row, instead of passing silently.
+//
+// ⚠ THE OTHER HALF OF D1's FAMILY IS STILL OPEN AND IS NOT THIS FILE'S TO INVENT. The thumb still
+// exposes no `aria-disabled` — Radix removes it from the tab order and marks it `data-disabled`
+// instead — so the disabled assertions below read `data-disabled` and the tab order rather than
+// `toBeDisabled()`, which reads `aria-disabled` on a non-native control and would report every
+// state as enabled.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // SELECTORS: ZERO NEW TEST HOOKS, AND ZERO VENDOR INTERNALS (Delta-18)
@@ -117,6 +121,7 @@ import {
   AVATAR_TOO_SMALL_MESSAGE,
   AVATAR_UNREADABLE_MESSAGE,
   AVATAR_WRONG_TYPE_MESSAGE,
+  AVATAR_ZOOM_LABEL,
 } from "../src/lib/avatar";
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -204,8 +209,15 @@ const pageAlertOf = (page: Page): Locator => page.getByRole("main").getByRole("a
 // where the state can be driven directly and no cropper is needed to reach it. The absence is a
 // division of labour, not a gap.
 
-/** The zoom row's control. UNNAMED on purpose — see the header's note on deferred item D1. */
-const sliderOf = (page: Page): Locator => dialogOf(page).getByRole("slider");
+/**
+ * The zoom row's control, addressed by the SAME string a screen reader announces.
+ *
+ * The `dialog` scope is kept rather than deleted now that the name resolves: it is no longer
+ * load-bearing (there is one named slider in this app), but it keeps the locator's failure message
+ * about the dialog's contents rather than about the whole page.
+ */
+const sliderOf = (page: Page): Locator =>
+  dialogOf(page).getByRole("slider", { name: AVATAR_ZOOM_LABEL });
 
 /**
  * Every `role="alert"` this document holds that is NOT the product's must be Next's route announcer.
@@ -584,9 +596,10 @@ test.describe("CROP-01 / rule F8 — the zoom row is disabled with its reason, c
       // ⚠ `data-disabled`, NOT `toBeDisabled()`. MEASURED: Radix's thumb is a `<span role="slider">`
       // that carries `data-disabled=""` and drops out of the tab order, but exposes NO
       // `aria-disabled` — which is what `toBeDisabled()` reads on a non-native control, so it would
-      // report every state as enabled. That missing `aria-disabled` is the same family of defect as
-      // D1 (the thumb has no accessible name either) and belongs to plan 16-14 with it; this file
-      // asserts the mechanism that IS shipped rather than the one that should be.
+      // report every state as enabled. D1's OTHER half — the thumb had no accessible name either —
+      // is fixed as of plan 16-14 and the locator above is named because of it; the missing
+      // `aria-disabled` is Radix's own choice and is logged as D7 rather than patched over here.
+      // This file asserts the mechanism that IS shipped rather than the one that should be.
       const disabledAttr = await slider.getAttribute("data-disabled");
       const tabindex = await slider.getAttribute("tabindex");
 

@@ -247,3 +247,32 @@ per-file fixture rather than shared reads — to the contention set.
 
 **Suggested owner:** plan 16-15, or a Phase-17 test-infrastructure pass. **This should be resolved
 before the phase gate is read off a full `chromium` run.**
+
+
+---
+
+## D7 — The zoom thumb still exposes no `aria-disabled` when the row is locked
+
+- **Found by:** plan 16-13 (recorded beside its `data-disabled` assertion), promoted to its own row by
+  plan 16-14 while fixing D1, 2026-08-25
+- **Owner file:** `src/components/ui/slider.tsx` (the vendored block), or Radix upstream
+- **Severity:** minor. The control IS removed from the tab order, so no keyboard user can land on it
+  and be told nothing; what is missing is the state on the element itself.
+
+**Measured.** With a locked row (`square-400.png`, `small-300.png`) the thumb renders
+`role="slider" data-disabled="" ` with **no** `tabindex` and **no** `aria-disabled`. Playwright's
+`toBeDisabled()` reads `aria-disabled` on a non-native control, so it reports every state as ENABLED
+here — which is why `e2e/avatar-crop.spec.ts` asserts `data-disabled` and the tab order instead.
+
+**Why it was not fixed with D1.** D1 is a *name* defect — WCAG 2.2 SC 4.1.2's "Name" clause, a real
+failure with a one-line fix inside a block we own. This is the "Value" clause on a control that is
+already unreachable, and the fix is a policy call about whether a disabled slider should stay in the
+accessibility tree with its state, or leave the tab order silently as Radix chose. The orchestrator
+assigned 16-14 the name, not the policy.
+
+**Cheapest correct fix:** `aria-disabled={props.disabled || undefined}` on `SliderPrimitive.Thumb`,
+plus flipping the two e2e assertions to `toBeDisabled()` — but only after deciding whether the thumb
+should also come back into the tab order, because a disabled control that announces its state and is
+unreachable is a half-measure either way.
+
+**Suggested owner:** a Phase-17 accessibility pass, alongside the milestone's court-only axe sweep.

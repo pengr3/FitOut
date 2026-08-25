@@ -173,6 +173,7 @@ import {
   AVATAR_UNREADABLE_MESSAGE,
   AVATAR_UPLOAD_LABEL,
   AVATAR_WRONG_TYPE_MESSAGE,
+  AVATAR_ZOOM_LABEL,
 } from "@/lib/avatar";
 import {
   AVATAR_MAX_BYTES,
@@ -415,17 +416,21 @@ describe("rule F8 — a source inside the soft band opens, with the row disabled
 
     // Disabled, never hidden — a control that vanishes teaches nothing.
     //
-    // ⚠ QUERIED BY ROLE ALONE, AND THAT IS A FINDING RATHER THAN A SHORTCUT. Measured here on
-    // 2026-08-25: the element carrying `role="slider"` is Radix's THUMB, and with a single value
-    // its auto-generated name is `undefined`, so it has no `aria-label` and no `aria-labelledby` at
-    // all — `queryAllByRole("slider", { name: "Zoom" })` returns 0. The `aria-label` the dialog
-    // passes lands on the slider ROOT, which carries no role and therefore contributes no name.
-    // The zoom control ships UNNAMED. That is `image-crop-dialog.tsx`'s to fix, not this plan's
-    // file and not this plan's scope; it is logged in the phase's `deferred-items.md` and named in
-    // 16-10's SUMMARY so it is fixed deliberately rather than discovered by a person on a device.
+    // ⚠ THE NAME IS ASSERTED HERE BECAUSE THIS IS WHERE ITS ABSENCE WAS MEASURED. Plan 16-10 read
+    // this out of a real render on 2026-08-25 and filed it as deferred item D1: the element carrying
+    // `role="slider"` is Radix's THUMB, and with a single value its auto-generated name is
+    // `undefined`, so the thumb had no `aria-label` and no `aria-labelledby` at all —
+    // `queryAllByRole("slider", { name: "Zoom" })` returned 0 while the `aria-label` the dialog
+    // passes sat on the slider ROOT, a `<span>` with no role, contributing no name to anything.
+    // A WCAG 2.2 SC 4.1.2 failure on a shipped control, invisible to every query that did not ask
+    // for a name. Plan 16-14 moved the label onto the thumb (`ui/slider.tsx`), and this line is what
+    // stops it drifting back — the same defect shape GATE-03's live-region gate exists for.
     //
     // Read as plain DOM state: `jest-dom`'s matchers are not registered in this suite
     // (`tests/group/state08-alerts.test.tsx:249` records the same).
+    expect(
+      within(dialog).getByRole("slider", { name: AVATAR_ZOOM_LABEL }),
+    ).not.toBeNull();
     expect(
       within(dialog).getByRole("slider").hasAttribute("data-disabled"),
     ).toBe(true);
