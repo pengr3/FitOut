@@ -18,6 +18,9 @@
 // tests/use-server-exports.test.ts enforces this repo-wide.
 
 import { z } from "zod";
+// The single avatar allow-list. Imported, not duplicated: @/lib/avatar is a directive-free leaf that
+// the client file picker's `accept` reads too, so the picker and this schema cannot disagree.
+import { AVATAR_ALLOWED_TYPES } from "@/lib/avatar";
 
 export const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -33,13 +36,27 @@ export type ProfileInput = z.infer<typeof profileSchema>;
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 /**
- * Validate an uploaded avatar File: must be a non-empty image/* under the size cap. Exported so the
- * test suite can assert the guard in isolation and so callers re-validate the same contract.
+ * Validate an uploaded avatar File: must be non-empty, under the size cap, and one of the three
+ * types AVATAR_ALLOWED_TYPES declares — JPEG, PNG or WebP (it was `image/*` until CROP-01). The list
+ * lives in `@/lib/avatar` and the client file picker's `accept` attribute reads that SAME array, so
+ * a picker that offers what this schema refuses is not expressible. Narrowing also stops an SVG —
+ * a scriptable document, not an image — reaching Cloudinary (threat T-16-23).
+ *
+ * The refusal message is unchanged and must stay so: 16-UI-SPEC pins it as the server-side backstop
+ * and the client surfaces AVATAR_WRONG_TYPE_MESSAGE instead.
+ *
+ * There is deliberately NO pixel-size refine here. The server is handed a File and never learns how
+ * many pixels are inside it, so such a check could not run — which is exactly why D-171 KEEPS the
+ * 400x400 transform in src/lib/cloudinary.ts as the bounded-storage backstop. A real pixel guard is
+ * Phase 16.1 (D-164 / D-166).
+ *
+ * Exported so the test suite can assert the guard in isolation and so callers re-validate the same
+ * contract.
  */
 export const avatarFileSchema = z
   .instanceof(File, { message: "An image file is required." })
   .refine((f) => f.size > 0, { message: "The file is empty." })
-  .refine((f) => f.type.startsWith("image/"), {
+  .refine((f) => (AVATAR_ALLOWED_TYPES as readonly string[]).includes(f.type), {
     message: "Only image files are allowed.",
   })
   .refine((f) => f.size <= AVATAR_MAX_BYTES, {

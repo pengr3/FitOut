@@ -93,6 +93,36 @@ describe("avatar file validation (threat T-04-04)", () => {
     );
     expect(tooBig.success).toBe(false);
   });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────
+  // Phase 16 / CROP-01: the guard narrows from `image/*` to the three types AVATAR_ALLOWED_TYPES
+  // declares. The three cases below EXTEND this describe; not one assertion above was edited.
+  // The rejection message is asserted with `toBe` against the pinned literal because 16-UI-SPEC's
+  // "Reused verbatim" table pins it as the SERVER-SIDE BACKSTOP — the client shows
+  // AVATAR_WRONG_TYPE_MESSAGE instead, and churning this string is a copy change nobody asked for.
+  // ───────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The one refusal string this schema is allowed to produce for a wrong content type. */
+  const WRONG_TYPE = "Only image files are allowed.";
+
+  it("accepts image/webp — the type AVATAR_HELPER promises and the old copy omitted", () => {
+    const ok = avatarFileSchema.safeParse(fakeFile("image/webp", 1024));
+    expect(ok.success).toBe(true);
+  });
+
+  it("rejects image/gif — the narrowing itself (it passed under startsWith(\"image/\"))", () => {
+    const gif = avatarFileSchema.safeParse(fakeFile("image/gif", 1024));
+    expect(gif.success).toBe(false);
+    if (gif.success) return;
+    expect(gif.error.issues[0]?.message).toBe(WRONG_TYPE);
+  });
+
+  it("rejects image/svg+xml — a scriptable document must not reach Cloudinary (T-16-23)", () => {
+    const svg = avatarFileSchema.safeParse(fakeFile("image/svg+xml", 1024));
+    expect(svg.success).toBe(false);
+    if (svg.success) return;
+    expect(svg.error.issues[0]?.message).toBe(WRONG_TYPE);
+  });
 });
 
 describe("avatar upload + persistence via the real uploadAvatarAction (AUTH-05, D-11, WR-07)", () => {
