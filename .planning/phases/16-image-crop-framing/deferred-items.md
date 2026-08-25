@@ -195,3 +195,55 @@ include the route, its `files_modified` is two e2e files, and its `<verification
 existing e2e assertion keeps passing because it tests the outcome rather than the mechanism.
 
 **Suggested owner:** plan 16-14.
+
+---
+
+## D6 — The full `chromium` e2e project is not green on this tree, and none of it is Phase 16's
+
+- **Found by:** plan 16-13, running `npx playwright test --project=chromium` for its own
+  `<verification>` bullet, 2026-08-25
+- **Owner files:** `e2e/public-listing.spec.ts`, `e2e/cancel.spec.ts`, `e2e/confirmation-decay.spec.ts`
+  (reproducible), plus `e2e/hold-countdown.spec.ts`, `e2e/host-headings.spec.ts`,
+  `e2e/price-one-fact.spec.ts`, `e2e/reduced-motion.spec.ts` (parallel-contention only)
+- **Severity:** the phase gate cannot be read off this command until it is triaged
+
+**The run.** `218 passed · 8 failed · 16 skipped · 22 did not run` in 9.8 minutes at 4 workers. All
+20 of plan 16-13's own cases passed. The eight failures split cleanly on re-run:
+
+| Spec | Alone, 1 worker | Verdict |
+|---|---|---|
+| `public-listing.spec.ts` — *a draft listing 404s to the public* | **fails** (`404` expected, `200` received) | reproducible |
+| `cancel.spec.ts` — *re-opening the review screen … never re-refunds* | **fails** (`getByText(/refund on its way/i)` not found) | reproducible |
+| `confirmation-decay.spec.ts` — *the moment is a full screen …* | **fails** (`grove · 320x568`: the moment measured **0px** against a `>= 504` floor) | reproducible |
+| `hold-countdown.spec.ts` | 4 passed | contention only (D2 class) |
+| `host-headings.spec.ts` | passed in the isolation batch | contention only (D2 class) |
+| `price-one-fact.spec.ts` | passed in the isolation batch | contention only (D2 class) |
+| `reduced-motion.spec.ts` (x2) | passed in the isolation batch | contention only (D2 class) |
+
+Note that `confirmation-decay` failed on a DIFFERENT case in the full run (`:254`) than alone
+(`:151`), so that file has both problems at once.
+
+**Why none of it is this plan's.** Two independent proofs, neither of them an argument:
+
+1. `git diff --name-only 9b2d6f3~1 HEAD -- src/` returns **zero files**. Plan 16-13 changed
+   `e2e/avatar-crop.spec.ts`, `e2e/helpers/avatar-session.ts` and this document, and nothing else.
+   A draft listing serving 200 is not reachable from an additive spec file.
+2. Every reproducible failure reproduces when its spec is run **alone**, with
+   `e2e/avatar-crop.spec.ts` not collected at all.
+
+**Why it was not fixed here.** Three different Phase-12/13 surfaces, product behaviour in at least
+one of them (`404` vs `200` is a route-level authorisation outcome, not a test artifact), and the
+executor scope rule confines auto-fixes to what the current task's own changes caused.
+
+**What this costs the phase, stated plainly.** `16-13-PLAN.md`'s `<verification>` asks for
+`npx playwright test --project=chromium` to exit 0 for the whole set. **It does not, and it did not
+before this plan either.** The bullet's INTENT — no regression from this plan on the ~30 existing
+specs — is met and is provable by the two points above. The literal bullet is not, and it cannot be
+met by anything inside this plan's `files_modified`.
+
+**Cheapest correct handling:** triage the three reproducible ones first (the draft-listing 404 is the
+one that reads like a real product regression rather than a fixture race), then apply D2's remedy — a
+per-file fixture rather than shared reads — to the contention set.
+
+**Suggested owner:** plan 16-15, or a Phase-17 test-infrastructure pass. **This should be resolved
+before the phase gate is read off a full `chromium` run.**
