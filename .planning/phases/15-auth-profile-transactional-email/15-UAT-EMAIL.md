@@ -141,29 +141,41 @@ which is exactly the part EMAIL-01 is graded on.
 
 | # | Send | Variant | Renders correctly | Preheader shows | CTA tappable | Plain-text part present |
 |---|------|---------|-------------------|-----------------|--------------|-------------------------|
-| 01 | `sendVerificationEmail` | verify email |  |  |  | see § Plain-text |
-| 02 | `sendResetPassword` | reset password |  |  |  | see § Plain-text |
-| 03 | `sendBookingConfirmed` | booking confirmed |  |  |  | see § Plain-text |
-| 04 | `sendRequestReceived` | request received |  |  |  | see § Plain-text |
-| 05 | `sendRequestApproved` | request approved — pay now |  |  |  | see § Plain-text |
-| 06 | `sendRequestDeclined` | request declined by the host |  |  |  | see § Plain-text |
-| 07 | `sendRequestDeclined` | request expired before the host answered |  |  |  | see § Plain-text |
-| 08 | `sendNewRequestToHost` | new request (host) |  |  |  | see § Plain-text |
-| 09 | `sendBookingCancelledByBooker` | cancelled by booker (host side) |  |  |  | see § Plain-text |
-| 10 | `sendBookingCancelledByHost` | cancelled by host (booker side) |  |  |  | see § Plain-text |
-| 11 | `sendHostCancellationRecord` | host cancellation record — with a D-71 fee |  |  |  | see § Plain-text |
-| 12 | `sendHostCancellationRecord` | host cancellation record — no fee charged (CR-01) |  |  |  | see § Plain-text |
-| 13 | `sendRefundIssued` | refund issued |  |  |  | see § Plain-text |
-| 14 | `sendReminderPreExpiry` | pre-expiry reminder |  |  |  | see § Plain-text |
-| 15 | `sendReminderPreSession` | pre-session reminder |  |  |  | see § Plain-text |
-| 16 | `sendReminderPreSla` | pre-SLA reminder (host) |  |  |  | see § Plain-text |
-| 17 | `sendGroupRsvpReceived` | group RSVP received — yes |  |  |  | see § Plain-text |
-| 18 | `sendGroupRsvpReceived` | group RSVP received — no |  |  |  | see § Plain-text |
-| 19 | `sendGroupRsvpConfirmed` | group RSVP confirmed (attendee) |  |  |  | see § Plain-text |
-| 20 | `sendGroupCancelled` | group cancelled (attendee) |  |  |  | see § Plain-text |
-| 21 | `sendGuestRsvpEmail` | guest RSVP confirmed |  |  |  | see § Plain-text |
-| 22 | `sendGuestRsvpEmail` | guest group cancelled |  |  |  | see § Plain-text |
-| 23 | `sendOpsAlertDigest` | ops alert digest — two rows, one aging, truncated |  |  | n/a — no CTA by design | see § Plain-text |
+| 01 | `sendVerificationEmail` | verify email | ✓ |  |  | see § Plain-text |
+| 02 | `sendResetPassword` | reset password | ✓ |  |  | see § Plain-text |
+| 03 | `sendBookingConfirmed` | booking confirmed | ✓ |  |  | see § Plain-text |
+| 04 | `sendRequestReceived` | request received | ✓ |  |  | see § Plain-text |
+| 05 | `sendRequestApproved` | request approved — pay now | ✓ |  |  | see § Plain-text |
+| 06 | `sendRequestDeclined` | request declined by the host | ✓ |  |  | see § Plain-text |
+| 07 | `sendRequestDeclined` | request expired before the host answered | ✓ |  |  | see § Plain-text |
+| 08 | `sendNewRequestToHost` | new request (host) | ✓ |  |  | see § Plain-text |
+| 09 | `sendBookingCancelledByBooker` | cancelled by booker (host side) | ✓ |  |  | see § Plain-text |
+| 10 | `sendBookingCancelledByHost` | cancelled by host (booker side) | ✓ |  |  | see § Plain-text |
+| 11 | `sendHostCancellationRecord` | host cancellation record — with a D-71 fee | ✓ |  |  | see § Plain-text |
+| 12 | `sendHostCancellationRecord` | host cancellation record — no fee charged (CR-01) | ✓ |  |  | see § Plain-text |
+| 13 | `sendRefundIssued` | refund issued | ✓ |  |  | see § Plain-text |
+| 14 | `sendReminderPreExpiry` | pre-expiry reminder | ✓ |  |  | see § Plain-text |
+| 15 | `sendReminderPreSession` | pre-session reminder | ✓ |  |  | see § Plain-text |
+| 16 | `sendReminderPreSla` | pre-SLA reminder (host) | ✓ |  |  | see § Plain-text |
+| 17 | `sendGroupRsvpReceived` | group RSVP received — yes | ✓ |  |  | see § Plain-text |
+| 18 | `sendGroupRsvpReceived` | group RSVP received — no | ✓ |  |  | see § Plain-text |
+| 19 | `sendGroupRsvpConfirmed` | group RSVP confirmed (attendee) | ✓ |  |  | see § Plain-text |
+| 20 | `sendGroupCancelled` | group cancelled (attendee) | ✓ |  |  | see § Plain-text |
+| 21 | `sendGuestRsvpEmail` | guest RSVP confirmed | ✓ |  |  | see § Plain-text |
+| 22 | `sendGuestRsvpEmail` | guest group cancelled | ✓ |  |  | see § Plain-text |
+| 23 | `sendOpsAlertDigest` | ops alert digest — two rows, one aging, truncated | ✓ |  | n/a — no CTA by design | see § Plain-text |
+
+**Walk record — Gmail Android, 2026-08-25, the PM.** The PM ran `npm run email:previews -- <account-owner-address> --send`, received the messages and opened them in the Gmail app on Android. Reported: **all 23 rendered**, with one query raised against message 23 (below). The **Renders correctly** column is ticked on the PM's statement. **The Preheader and CTA columns are deliberately left EMPTY** — the PM did not report on either, and this file does not fill a cell by inference. They remain open for a later pass, in this client and the two others.
+
+**Message 23 queried and cleared — it is NOT a defect.** The PM's first reading was that the ops digest "is in plain text". Investigated against the captured part rather than settled by opinion: the digest composes a **2,532 B HTML part** (the largest of the 23) carrying the full shell — the `FitOut` wordmark, the 600px white card on `#f5f5f5`, a styled 20px `h1` and styled paragraphs, all present in the captured markup. What reads as plain is its **data table**, emitted as `<table border="1" cellpadding="4" cellspacing="0">` with no inline CSS and nothing from the token module. That table is the shell's **one sanctioned raw slot** — `email-shell.ts:127` documents `tableHtml` as *"PRE-ESCAPED raw markup, inserted untouched. The ops digest's table is its ONLY sanctioned"* use — and its plainness is partly deliberate house style: 15-04 removed the `<code>` wrappers around the runbook commands on the recorded reasoning that *"an operator email that reads its commands as plain text is the same house style as the `— AGING` marker."*
+
+**The discriminator was run, because two very different things look alike on a phone.** If Gmail had fallen back to the `text/plain` part — a genuine EMAIL-01 failure — the columns would have appeared pipe-separated (`audit_fixture_1 | auto_refund_manual | system | …`) with no wordmark styling. The PM confirmed they saw **a real bordered grid with the wordmark and heading above it, and no pipe characters**. That is the HTML part rendering. **EMAIL-01 holds for the ops digest.**
+
+**M3 (clipping) — not reported, and the arithmetic says it cannot arise here.** This section's header asks the operator to watch for `[Message clipped] View entire message` on message 23. At 2,532 B the digest is roughly forty times below Gmail's ~102 KB clip threshold, and the PM saw the table body itself. Recorded as observed-not-clipped rather than as a measured M3 result; see § M3.
+
+**Raw-table styling — the PM's call, 2026-08-25: leave it as-is.** The unstyled five-column table (audit id + UTC timestamp) will overflow 600px on a phone. The PM was offered three options — log it as a backlog item, style it from the token module, or accept it — and **chose to accept it with no follow-up recorded.** It is an internal operator email, and EMAIL-01 requires the shared *shell*, which is present, not a styled inner data table. No backlog item is opened. Noted here so a later reader does not re-raise it as an oversight.
+
+**Still open in this client:** Preheader and CTA columns (22 rows — message 23 has no CTA by design), the § Plain-text inspection, and § M4. **Still open overall:** Gmail web, Apple Mail, the dark-mode pass, and the Outlook-desktop acceptance line.
 
 ### Apple Mail
 
