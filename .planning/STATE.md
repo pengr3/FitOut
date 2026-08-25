@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 15
+current_plan: 16
 status: executing
-stopped_at: "Phase 16 wave 8 complete -- 16-01..16-14 executed and committed; CROP-01, CROP-02 and CROP-03 all delivered. 16-14 found and fixed a real shipped bug: the crop stage sized itself mid zoom-in-95, so every saved avatar carried a ~5% ring the user never saw. Next: wave 9 (16-15, cross-cutting gates -- CHECKPOINT plan, autonomous: false)."
+stopped_at: "Phase 16 wave 9: plan 16-15 is PARKED AT AN OPERATOR CHECKPOINT -- Tasks 1-2 committed, Task 3 (CI baselines dispatch) is blocked because playwright.config.ts only builds the visual project on linux and this box is win32. 16-15 is 2/3, NOT complete, despite its SUMMARY.md existing -- do not let any SDK verb tick it. Next: 16-16 prepare (autonomous), then both operator checkpoints go to the PM together."
 last_updated: "2026-08-25T07:08:20.183Z"
-last_activity: 2026-08-26 -- Phase 16 wave 8 complete (14/16 plans)
+last_activity: 2026-08-26 -- Phase 16 wave 9: 16-15 parked at operator checkpoint (2/3 tasks)
 progress:
   total_phases: 13
   completed_phases: 7
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 16 (image-crop-framing) — EXECUTING
-Plan: 15 of 16
-Current Plan: 15
+Plan: 16 of 16
+Current Plan: 16
 Total Plans in Phase: 16
 Status: Executing Phase 16
 
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-26 -- Phase 16 wave 8 complete (14/16 plans)
+Last activity: 2026-08-26 -- Phase 16 wave 9: 16-15 parked at operator checkpoint (2/3 tasks)
 
 ## Performance Metrics
 
