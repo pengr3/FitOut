@@ -554,7 +554,26 @@ Plans:
   3. A host uploading listing photos sees, per photo, a non-destructive preview of what the 16:9 hero and the 4:3 cards each cut off — with nothing baked into the stored asset and no delivery-code change.
   4. Cropping works on a real touch device — drag, pinch and the slider, verified on hardware rather than in desktop touch emulation — and cancelling then re-picking **the same file** re-opens the cropper rather than dying silently.
 
-**Plans**: TBD
+**Plans**: 16 plans in 10 waves (planned 2026-08-25; worktrees are OFF, so they execute sequentially on `dev`)
+
+Plans:
+- [ ] 16-01-PLAN.md — vendor the `slider` block, token-mapped on arrival; leak census 31 → 32
+- [ ] 16-02-PLAN.md — `src/lib/avatar.ts`: the copy literals, the four constants and `avatarMaxZoom` (+ the IC-05 arithmetic gate)
+- [ ] 16-03-PLAN.md — `responsive-dialog.tsx` gains ONE additive prop `onOpenAutoFocus`, proven default-inert
+- [ ] 16-04-PLAN.md — a committed zero-dependency generator and the eleven `e2e/fixtures/` images, drift-gated
+- [ ] 16-05-PLAN.md — D-165: the pure Cloudinary provenance validator, `persistPhoto` fails closed, 12 fixtures rewritten
+- [ ] 16-06-PLAN.md — CROP-02: `CoverFramePreview` (server-safe, imported ratio classes) mounted below the wizard grid
+- [ ] 16-07-PLAN.md — the avatar server contract: `gravity: "center"`, both false comments corrected, `avatarFileSchema` narrowed
+- [ ] 16-08-PLAN.md — `react-easy-crop@^6.2.3` (the phase's one dependency) + `src/lib/avatar-canvas.ts`
+- [ ] 16-09-PLAN.md — `ImageCropDialog`: the shell, the stage, the zoom row; live regions 26 → 27
+- [ ] 16-10-PLAN.md — `AvatarField`: the picker, the four-step guard chain, the D-174 input reset; live regions 27 → 28
+- [ ] 16-11-PLAN.md — `/profile` extraction, the live-region re-key, three `profile-pass` assertions, the copy gate
+- [ ] 16-12-PLAN.md — CROP-03: `destroyAvatar`, `removeAvatarAction` (null-first), the confirm with focus on `Keep photo`
+- [ ] 16-13-PLAN.md — `e2e/avatar-crop.spec.ts`: the stage's real geometry, computed `touch-action`, the refusals, the keyboard
+- [ ] 16-14-PLAN.md — the scrim/ring cascade route decided by measurement, the EXIF byte-honesty proofs, GATE-STATES
+- [ ] 16-15-PLAN.md — GATE-RESP's dialog-open 320px row and GATE-VRT's two new surfaces + the CI dispatch checkpoint
+- [ ] 16-16-PLAN.md — CROP-04: `16-UAT-CROP.md` and the PM hardware walk (the only discharge, per D-175)
+
 **UI hint**: yes
 
 **Inputs already on disk:** `.planning/phases/999.2-profile-picture-and-listing-photo-crop-ui/999.2-UI-SPEC.md` (written 2026-08-10; the contract — frame size, mask shape, zoom bounds, non-square/small-source behaviour, cancel semantics — is already settled). Promoted from backlog 999.2 into v1.1 as CROP-01..04.
@@ -715,7 +734,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
-| 16. Image Crop & Framing | v1.1 | 0/? | Context gathered 2026-08-25 — ready for `/gsd:ui-phase 16` then `/gsd:plan-phase 16` | - |
+| 16. Image Crop & Framing | v1.1 | 0/16 | Planned 2026-08-25 — 16 plans in 10 waves; ready for `/gsd:execute-phase 16` | - |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 0/? | Not started — inserted 2026-08-25 from the Phase 16 scope split (D-166) | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
