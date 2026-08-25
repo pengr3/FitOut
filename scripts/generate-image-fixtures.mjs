@@ -15,7 +15,8 @@
 //   • square-400.png              400x400 flat            (shorter side 400 -> avatarMaxZoom === 1)
 //   • small-300.png               300x300 flat            (shorter side 300 -> soft-source note)
 //   • tiny-150.png                150x150 flat            (shorter side 150 -> refused pre-dialog)
-//   • animated.png                160x160 APNG, 2 frames  (still first frame)
+//   • animated.png                320x320 APNG, 2 frames  (still first frame; 320 clears the
+//                                 AVATAR_MIN_SOURCE_PX floor, so it reaches the crop stage at all)
 //   • tiny.gif                    8x8 static GIF          (type-rejection case)
 //   • tiny.svg                    8x8 SVG document        (type-rejection case)
 //   • exif-orientation-6.jpg      480x320 stored, EXIF Orientation = 6 -> displays 320x480
@@ -1057,15 +1058,23 @@ export const FIXTURES = [
     render: () => renderPng({ width: 150, height: 150, pixels: solidRgba(150, 150, RED) }),
   },
   {
-    // The two frames are red and blue — as far apart as sRGB gets — because the assertion is "the
-    // saved bytes are frame ONE", and a subtle difference between frames would make a failure look
-    // like a rounding artefact instead of a wrong frame.
+    // The two frames are red and blue — as far apart as sRGB gets — because the assertion is about
+    // WHICH FRAME the saved bytes came from, and a subtle difference between frames would make a
+    // failure look like a rounding artefact instead of a wrong frame.
+    //
+    // ⚠ 320, NOT 160, AND THE SIZE IS THE WHOLE REASON THIS FIXTURE WORKS. Plan 16-04 emitted it at
+    // 160x160; plan 16-14 measured that a 160px source is REFUSED BY GUARD 4 before the crop dialog
+    // ever opens — the shorter side is below AVATAR_MIN_SOURCE_PX (200), so `/profile` renders
+    // AVATAR_TOO_SMALL_MESSAGE and there is no stage, no confirm and no Blob. The one behaviour this
+    // file exists to prove is only reachable through the shipped flow, so the fixture has to clear
+    // the floor the shipped flow enforces. 320 also matches `transparent.png`, which keeps the two
+    // flatten/still-frame cases on the same geometry.
     name: "animated.png",
     render: () =>
       renderApng({
-        width: 160,
-        height: 160,
-        frames: [solidRgba(160, 160, RED), solidRgba(160, 160, BLUE)],
+        width: 320,
+        height: 320,
+        frames: [solidRgba(320, 320, RED), solidRgba(320, 320, BLUE)],
       }),
   },
   {

@@ -14,7 +14,7 @@ policed in the opposite direction by `tests/design/gitignore-baselines.test.ts`.
 |---|---|---|---|
 | `exif-orientation-6.jpg` | 480×320 | Landscape raster, **EXIF Orientation = 6**, one 64×64 pure-red block at the stored top-left, white elsewhere. Displays as **320×480 portrait** with the red block in the **TOP-RIGHT**. | **The phase's named acceptance criterion.** Plan 16-14 Task 2: `img.naturalWidth === mediaSize.naturalWidth` on the cropper's own `<img>`, and the preview-vs-stored-bytes equality proof — the saved crop must put the corner block where the *corrected* orientation puts it, not where the raw raster would. |
 | `transparent.png` | 320×320 | RGBA. Alpha 0 everywhere except one opaque 64×64 pure-red block at the top-left. | Plan 16-14 Task 2, the **white-matte** proof (D-172): the produced JPEG's transparent region must decode to white, and the stage must have *shown* that white before the user confirmed (IC-02 / D-177). |
-| `animated.png` | 160×160 | **APNG**, two frames — frame 1 pure red, frame 2 pure blue, 0.5 s apart, looping. | Plan 16-14 Task 2, the **still first frame** assertion: the produced Blob's sampled pixel must match frame ONE's colour. |
+| `animated.png` | 320×320 | **APNG**, two frames — frame 1 pure red, frame 2 pure blue, 0.5 s apart, looping. **320, not 160** — see “The animated fixture's size” below. | Plan 16-14, the **still frame** assertion: the produced Blob must sample as ONE flat frame, and that frame must be one of the two the source cycles. |
 | `panorama-4000x500.jpg` | 4000×500 | Flat white with a 64×64 pure-red block at the left edge and a 64×64 pure-blue block at the right edge. Shorter side 500 → `avatarMaxZoom` = 1.25. | Plan 16-13: pans one axis, pinned on the other. |
 | `portrait-strip-500x4000.jpg` | 500×4000 | The same with the axes swapped — red at the top edge, blue at the bottom. | Plan 16-13: the same bound, the other axis. |
 | `square-400.png` | 400×400 | Flat pure blue. Shorter side 400 → `avatarMaxZoom` = **exactly 1**. | Plan 16-13: the zoom row renders **DISABLED**, and **no** soft-source note (400 is neither below `AVATAR_MIN_SOURCE_PX` nor under 400). Also 16-13's "the stage exists" reach. |
@@ -23,6 +23,25 @@ policed in the opposite direction by `tests/design/gitignore-baselines.test.ts`.
 | `corrupt.jpg` | declares 64×64 | A real SOI, a real all-ones DQT and a real baseline SOF0, cut off **inside the DHT segment**. A plausible JPEG by extension and by header; undecodable in fact. | Plan 16-13: `<img>` fires `onerror` → `AVATAR_UNREADABLE_MESSAGE`. |
 | `tiny.gif` | 8×8 | A static GIF89a. `image/gif` is not in `AVATAR_ALLOWED_TYPES`. | Plan 16-13: rejected by the narrowed accept/type guard → `AVATAR_WRONG_TYPE_MESSAGE`. |
 | `tiny.svg` | 8×8 | An SVG document. Not in `AVATAR_ALLOWED_TYPES`, and the one rejection that matters beyond tidiness — an SVG is a scriptable document, not an image. | Plan 16-13: rejected by the narrowed accept/type guard → `AVATAR_WRONG_TYPE_MESSAGE`. |
+
+### The animated fixture's size, stated once because it was measured the hard way
+
+`animated.png` was generated at **160×160** by plan 16-04 and **could not be used by anything**: 160 is
+below `AVATAR_MIN_SOURCE_PX` (200), so guard 4 refuses the file *before the crop dialog opens*.
+`/profile` renders `AVATAR_TOO_SMALL_MESSAGE`, there is no stage, no confirm and no produced Blob — so
+the one behaviour the fixture exists to prove was unreachable through the shipped flow.
+
+Measured by plan 16-14, 2026-08-25, as a Playwright timeout on the crop stage:
+
+```
+Locator: getByLabel('Photo position. Use the arrow keys to move your photo.')
+Expected: visible
+Error: element(s) not found
+```
+
+**Regenerated at 320×320.** A fixture for a behaviour that only exists past a guard has to clear that
+guard; asserting the behaviour anywhere other than through the shipped flow would be asserting about
+a `drawImage` call this repository does not make.
 
 ### Colour policy, and whose job the tolerance is
 
