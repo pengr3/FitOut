@@ -116,6 +116,7 @@ import {
   AVATAR_CROP_CONFIRM,
   AVATAR_CROP_CONFIRM_BUSY,
   AVATAR_CROP_TITLE,
+  AVATAR_OUTPUT_PX,
   AVATAR_POSITION_LABEL,
   AVATAR_SOFT_SOURCE_NOTE,
   AVATAR_TOO_SMALL_MESSAGE,
@@ -1296,6 +1297,718 @@ test.describe("CROP-01 / DS-05 — the focused stage draws a visible, undiluted 
         "rather than an aesthetic one, and a diluted indicator on the ONE control a keyboard user " +
         "pans the photo with is the worst place to reinstate it.",
     ).toBe(false);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// TASK 2 — THE PREVIEW *IS* THE CONTRACT (IC-02 / IC-06), PROVEN ON THE BYTES THAT LEAVE THE BROWSER
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// This is the block CROP-01's last clause was waiting for. Six plans carried the requirement on the
+// standing ground that *jsdom has no crop stage*; 16-13 ended that ground and proved the stage
+// renders, measures, refuses and pans. What none of it proved is that **the square the person framed
+// is the square that gets stored** — and *"a user can frame and zoom their avatar before it uploads"*
+// is a claim about bytes, not about a rendered element.
+//
+// WHERE THE BYTES ARE TAKEN FROM, AND WHY IT IS THE REQUEST RATHER THAN THE BLOB. `page.route`
+// intercepts the server action's POST and reads its multipart body. That is what actually LEFT the
+// browser. The alternative — exposing the `Blob` on `window` from the confirm handler under a
+// test-only hook — would assert against an intermediate the component happened to hold, and would
+// cost product code a test hook Delta-18 spent this whole phase not adding.
+//
+// ⚠ AND THE CAPTURED REQUEST IS THEN MADE TO FAIL ON PURPOSE, WHICH IS CHEAPER *AND* CLEANER THAN
+// LETTING IT THROUGH. After the body is captured verbatim, the interception rewrites FOUR CHARACTERS
+// of the part's declared media type to one outside `AVATAR_ALLOWED_TYPES` and lets the request go to
+// the REAL server, which refuses it in Zod before Cloudinary is touched. Nothing is forged: the
+// response the browser renders is the real action's real refusal. The bytes asserted below are the
+// pre-tamper ones. Two things this buys, both of them real:
+//
+//   1. NO ORPHANED CLOUDINARY ASSET. `deferred-items.md` D4 records that the one case which lets a
+//      save succeed orphans one avatar per run. Four more proof groups letting four more through
+//      would quadruple that, for nothing — none of these groups asserts anything about the server.
+//   2. IT IS FASTER by the whole Cloudinary round trip, four times over.
+//
+// ⚠ NOTHING HERE ASSERTS ANYTHING ABOUT WHAT CLOUDINARY STORES, AND THAT IS DELIBERATE — see the
+// comment above the 400x400 group, which is where the temptation lives.
+
+/** One sampled pixel, as the four channels `getImageData` returns. */
+type Channels = readonly [number, number, number, number];
+
+/** A point to sample, in the coordinate space of whichever bitmap is being read. */
+type SamplePoint = { readonly x: number; readonly y: number };
+
+/**
+ * The per-channel band a JPEG round trip is allowed to move a flat colour by.
+ *
+ * `e2e/fixtures/README.md` states this as the CONSUMER's job and gives the reason: the generator
+ * emits exact sRGB values, and a JPEG round trip goes through YCbCr with integer rounding at both
+ * ends, so pure red comes back as 254,0,0 and pure blue as 1,0,254. Do not "fix" a fixture because a
+ * sample came back one off, and do not widen this band to make an assertion pass — a sample outside
+ * it is a different colour, not a rounder one.
+ */
+const CHANNEL_TOLERANCE = 8;
+
+/** Render a sample for a failure message without spelling a CSS colour function. */
+const channels = (p: Channels | number[]): string => `${p[0]},${p[1]},${p[2]} a${p[3]}`;
+
+const channelsClose = (a: Channels | number[], b: Channels | number[]): boolean =>
+  [0, 1, 2].every((i) => Math.abs((a[i] ?? NaN) - (b[i] ?? NaN)) <= CHANNEL_TOLERANCE);
+
+/** The three flat fixture colours, classified rather than pinned — see each call site's reason. */
+const isRed = (p: Channels | number[]): boolean => p[0] > 200 && p[1] < 60 && p[2] < 60;
+const isBlue = (p: Channels | number[]): boolean => p[2] > 200 && p[0] < 60 && p[1] < 60;
+const isWhite = (p: Channels | number[]): boolean =>
+  p[0] > 235 && p[1] > 235 && p[2] > 235 && p[3] === 255;
+
+/** The avatar part of a server-action POST, exactly as the browser handed it to the transport. */
+type OutboundAvatar = {
+  /** The encoded bytes themselves — the thing every assertion in this block is really about. */
+  readonly bytes: Buffer;
+  /** The media type the browser DECLARED for the part. `blob.type`, seen from the wire. */
+  readonly declaredType: string;
+  /** The part's own `Content-Disposition`, so a failure can say which field was read. */
+  readonly disposition: string;
+};
+
+/**
+ * The media type the interception rewrites the captured part to.
+ *
+ * IT MUST BE EXACTLY AS LONG AS THE ONE IT REPLACES, and the code below asserts that rather than
+ * trusting it: a length change would move every byte after it and require the whole multipart body
+ * and its `Content-Length` to be rebuilt, which is a parser this file has no business owning.
+ * `image/heic` is the honest choice — it is precisely the type `avatar-canvas.ts` discusses as
+ * reaching the guard on one machine and not another, and it is outside `AVATAR_ALLOWED_TYPES`.
+ */
+const REFUSED_TYPE = "image/heic";
+
+/** The header the outbound part is found by. Any image type the client could ever declare. */
+const PART_TYPE_HEADER = "Content-Type: image/";
+
+/**
+ * Pull the image part out of a `multipart/form-data` body, without a dependency and without
+ * pretending to be a general parser.
+ *
+ * It looks for the ONE part whose declared type begins `image/`, which in this request is the avatar
+ * — a Next server action serialises its `FormData` argument into the same body as the flight
+ * payload, and the flight payload is not an image. If the shape ever changes, this returns `null`
+ * and the caller fails with a message saying so, rather than asserting against a wrong slice.
+ */
+function parseOutboundAvatar(contentType: string, body: Buffer): OutboundAvatar | null {
+  const boundaryMatch = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(contentType);
+  if (boundaryMatch === null) return null;
+  const boundary = Buffer.from(`\r\n--${boundaryMatch[1] ?? boundaryMatch[2]}`, "latin1");
+
+  const typeAt = body.indexOf(Buffer.from(PART_TYPE_HEADER, "latin1"));
+  if (typeAt < 0) return null;
+
+  const crlf = Buffer.from("\r\n", "latin1");
+  const typeEnd = body.indexOf(crlf, typeAt);
+  const headEnd = body.indexOf(Buffer.from("\r\n\r\n", "latin1"), typeAt);
+  if (typeEnd < 0 || headEnd < 0) return null;
+
+  const declaredType = body
+    .subarray(typeAt + "Content-Type: ".length, typeEnd)
+    .toString("latin1")
+    .trim();
+
+  // The part's own headers start at the boundary before the type header.
+  const partStart = body.lastIndexOf(boundary, typeAt);
+  const headers = body
+    .subarray(partStart < 0 ? 0 : partStart, headEnd)
+    .toString("latin1");
+  const disposition = /Content-Disposition:([^\r\n]*)/i.exec(headers)?.[1]?.trim() ?? "(none)";
+
+  const bodyStart = headEnd + 4;
+  const bodyEnd = body.indexOf(boundary, bodyStart);
+  return {
+    bytes: body.subarray(bodyStart, bodyEnd < 0 ? body.length : bodyEnd),
+    declaredType,
+    disposition,
+  };
+}
+
+/**
+ * Start intercepting the avatar save, and hand back a function that awaits the captured part.
+ *
+ * The route is matched by HEADER, never by path: a Next server action POSTs to the CURRENT route
+ * URL, so a path filter matches the navigation or nothing at all. `next-action` is the observed
+ * header name, and `e2e/public-listing.spec.ts` and `e2e/mobile-booker-path.spec.ts` both use it the
+ * same way.
+ */
+async function interceptAvatarSave(page: Page): Promise<() => Promise<OutboundAvatar>> {
+  let settle!: (value: OutboundAvatar) => void;
+  let fail!: (reason: Error) => void;
+  const captured = new Promise<OutboundAvatar>((resolve, reject) => {
+    settle = resolve;
+    fail = reject;
+  });
+
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST" || request.headers()["next-action"] === undefined) {
+      await route.continue();
+      return;
+    }
+
+    const body = request.postDataBuffer();
+    const parsed =
+      body === null
+        ? null
+        : parseOutboundAvatar(request.headers()["content-type"] ?? "", body);
+
+    if (body === null || parsed === null) {
+      fail(
+        new Error(
+          "the avatar server action's POST carried no parsable image part. Either the confirm did " +
+            "not produce a Blob, or Next's argument serialisation changed shape — in both cases " +
+            "nothing below is measuring the bytes it thinks it is.",
+        ),
+      );
+      await route.continue();
+      return;
+    }
+
+    settle(parsed);
+
+    // TAMPER-AND-CONTINUE. See this block's header for why the request is made to fail rather than
+    // let through. The rewrite is in place and same-length, so `Content-Length` is untouched.
+    const tampered = Buffer.from(body);
+    if (parsed.declaredType.length === REFUSED_TYPE.length) {
+      tampered.write(REFUSED_TYPE, tampered.indexOf(Buffer.from(PART_TYPE_HEADER, "latin1")) +
+        "Content-Type: ".length, "latin1");
+    }
+    await route.continue({ postData: tampered });
+  });
+
+  return () => captured;
+}
+
+/**
+ * Decode an image IN THE PAGE and sample it. Used for the produced JPEG and for element screenshots.
+ *
+ * The decode happens in the same browser that produced the bytes, which is the whole point: a Node
+ * decoder would be a SECOND decoder, and "two decoders agree" is exactly the structure IC-06 was
+ * written against. It also needs no dependency — this repo has none that can read a JPEG.
+ */
+async function decodeAndSample(
+  page: Page,
+  bytes: Buffer,
+  mime: string,
+  points: readonly SamplePoint[],
+): Promise<{ width: number; height: number; pixels: number[][] }> {
+  return page.evaluate(
+    async (input) => {
+      const binary = atob(input.base64);
+      const buffer = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) buffer[i] = binary.charCodeAt(i);
+      const bitmap = await createImageBitmap(new Blob([buffer], { type: input.mime }));
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d");
+      if (ctx === null) throw new Error("no 2d context in the page");
+      ctx.drawImage(bitmap, 0, 0);
+      return {
+        width: bitmap.width,
+        height: bitmap.height,
+        pixels: input.points.map((p) => Array.from(ctx.getImageData(p.x, p.y, 1, 1).data)),
+      };
+    },
+    { base64: bytes.toString("base64"), mime, points: [...points] },
+  );
+}
+
+/**
+ * Sample the PREVIEW — the library's own `<img>`, drawn into a scratch canvas at its natural size.
+ *
+ * Reached by walking one step up and one across from the NAMED stage, exactly as `readCropOffset`
+ * does, so no vendor selector appears. Drawing this element is what the shipped encoder does too
+ * (`avatar-canvas.ts` takes an `HTMLImageElement` in, on purpose), so a pixel read here and a pixel
+ * read out of the produced Blob are two reads of ONE bitmap rather than two bitmaps that agree.
+ */
+async function samplePreview(
+  page: Page,
+  points: readonly SamplePoint[],
+): Promise<{
+  naturalWidth: number;
+  naturalHeight: number;
+  offsetWidth: number;
+  offsetHeight: number;
+  pixels: number[][];
+}> {
+  return stageOf(page).evaluate((el, pts: readonly SamplePoint[]) => {
+    const img = el.parentElement?.querySelector("img");
+    if (!(img instanceof HTMLImageElement)) {
+      throw new Error("the cropper's media element was not found beside the named stage");
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) throw new Error("no 2d context in the page");
+    ctx.drawImage(img, 0, 0);
+    return {
+      naturalWidth: img.naturalWidth,
+      naturalHeight: img.naturalHeight,
+      offsetWidth: img.offsetWidth,
+      offsetHeight: img.offsetHeight,
+      pixels: pts.map((p) => Array.from(ctx.getImageData(p.x, p.y, 1, 1).data)),
+    };
+  }, points);
+}
+
+/**
+ * Pan the framing hard against the TOP edge of the source, and report where it landed.
+ *
+ * THE KEY'S DIRECTION IS DISCOVERED, NOT ASSUMED. Which arrow reveals the top is the library's
+ * business and is not written down anywhere this file can read; one press and a comparison settles
+ * it, and the caller then asserts the result reached `restrictPosition`'s clamp — so a wrong guess
+ * fails as "did not reach the clamp" rather than silently framing the middle of the photo.
+ */
+async function panToTopEdge(page: Page): Promise<number> {
+  await tabToStage(page);
+  const before = await readCropOffset(page);
+  await page.keyboard.press("ArrowUp");
+  const after = await readCropOffset(page);
+  const key = after.y > before.y ? "ArrowUp" : "ArrowDown";
+  for (let i = 0; i < 40; i += 1) await page.keyboard.press(key);
+  return (await readCropOffset(page)).y;
+}
+
+/** Press the confirm and wait for the outbound bytes the interception captured. */
+async function confirmAndCapture(
+  page: Page,
+  awaitCapture: () => Promise<OutboundAvatar>,
+): Promise<OutboundAvatar> {
+  await dialogOf(page)
+    .getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true })
+    .click();
+  return awaitCapture();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// (a) THE RUNTIME INVARIANT — THE LIBRARY MEASURED THE ELEMENT IT RENDERED, AND THE BROWSER ORIENTED IT
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+test.describe("CROP-01 / IC-06 — one bitmap, one coordinate system, on a rotated source", () => {
+  test("the crop rectangle is derived from the same oriented element the encoder draws", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    await pick(page, "exif-orientation-6.jpg");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    const preview = await samplePreview(page, []);
+
+    // THE BROWSER APPLIED THE ORIENTATION, on the element the library measured. The fixture's raster
+    // is stored 480x320 LANDSCAPE with Orientation 6; `image-orientation: from-image` is the CSS
+    // initial value, so a correct decode reports it 320x480 PORTRAIT. This is the reading everything
+    // downstream rests on, and it is asserted before anything is sampled.
+    expect(
+      `${preview.naturalWidth}x${preview.naturalHeight}`,
+      `the cropper's media element reports ${preview.naturalWidth}x${preview.naturalHeight}. ` +
+        "`exif-orientation-6.jpg` is stored 480x320 and declares Orientation 6, so a browser that " +
+        "honoured the tag reports 320x480. A landscape reading means the orientation was IGNORED, " +
+        "and every crop rectangle computed from it is stated in the wrong coordinate system.",
+    ).toBe("320x480");
+
+    // THE RENDERED BOX HAS THE SAME ASPECT AS THE NATURAL ONE — i.e. what is laid out is the oriented
+    // bitmap, not a transposed one that happens to be the same area.
+    const naturalAspect = preview.naturalWidth / preview.naturalHeight;
+    const renderedAspect = preview.offsetWidth / preview.offsetHeight;
+    expect(
+      Math.abs(naturalAspect - renderedAspect),
+      `the media element is laid out at ${preview.offsetWidth}x${preview.offsetHeight} (aspect ` +
+        `${renderedAspect.toFixed(4)}) from a natural ${preview.naturalWidth}x` +
+        `${preview.naturalHeight} (aspect ${naturalAspect.toFixed(4)}).`,
+    ).toBeLessThan(0.01);
+
+    // AND THE LIBRARY'S DERIVED CROP SQUARE IS THAT ELEMENT'S SHORTER RENDERED SIDE. `getCropSize`
+    // at aspect 1 in `contain` mode is exactly `min(renderedWidth, renderedHeight)`, computed from
+    // the naturals of the SAME `<img>` — so this equality is the observable form of *"the rectangle
+    // and the bitmap are one coordinate system by identity"*. If a refactor ever fed the cropper a
+    // size measured somewhere other than off this element, the two would drift and this goes red.
+    const stageBox = await stageOf(page).boundingBox();
+    expect(stageBox, "the crop area has no layout box").not.toBeNull();
+    if (stageBox === null) return;
+
+    const expectedSide = Math.min(preview.offsetWidth, preview.offsetHeight);
+    expect(
+      Math.abs(stageBox.width - expectedSide),
+      `the crop square measures ${stageBox.width}px against a media element whose shorter rendered ` +
+        `side is ${expectedSide}px. The library computes the crop size from the naturals it read off ` +
+        "THAT element; a disagreement means it is sizing against something else.",
+    ).toBeLessThanOrEqual(1);
+    expect(Math.abs(stageBox.width - stageBox.height)).toBeLessThanOrEqual(1);
+  });
+
+  // THE GUARD THAT SURVIVES A REFACTOR, AND IT IS A SOURCE ASSERTION BECAUSE THE FAILURE IS THE
+  // PRESENCE OF CODE. A second decoder that happened to agree with the first today would pass every
+  // browser assertion above and would still have re-introduced the two-corrections-must-agree
+  // structure IC-06 was written against. A browser cannot see the difference; the file can.
+  test("IC-06: the crop dialog builds no image of its own — it draws the library's", () => {
+    const source = readFileSync(
+      path.join(__dirname, "..", "src", "components", "profile", "image-crop-dialog.tsx"),
+      "utf8",
+    );
+
+    // The sanity floor first: three absence assertions are vacuously true against a wrong path.
+    expect(
+      source,
+      "`image-crop-dialog.tsx` was read but does not capture the library's own element. Every " +
+        "assertion below is about an ABSENCE, and absence is free in the wrong file.",
+    ).toContain("setImageRef");
+
+    for (const forbidden of ["new Image(", "createImageBitmap", "OffscreenCanvas"]) {
+      expect(
+        source.includes(forbidden),
+        `\`image-crop-dialog.tsx\` contains \`${forbidden}\`. The bytes MUST come from the element ` +
+          "`react-easy-crop` measured and the person framed (IC-06). A second decode of the same " +
+          "file is a second EXIF correction that has to agree with the first, and the bug it ships " +
+          "is a rotated stored avatar that the preview swore was upright.",
+      ).toBe(false);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// (b) THE END-TO-END EXIF PROOF — THE SAME PIXEL, SAMPLED IN THE PREVIEW AND IN THE SAVED BYTES
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+test.describe("CROP-01 / IC-02 — what the person saw is what leaves the browser", () => {
+  test("exif-orientation-6.jpg: the saved square samples the same as the preview it was framed in", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    const awaitCapture = await interceptAvatarSave(page);
+
+    await pick(page, "exif-orientation-6.jpg");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    // FRAME THE TOP OF THE PHOTO, because the default framing does not include the marker. At zoom 1
+    // the crop square is the source's shorter side (320) centred in a 480-tall portrait, so it spans
+    // source rows 80..400 — and the fixture's 64px corner block lives in rows 0..64. Panning to the
+    // clamp puts the crop at source (0, 0, 320, 320), which is asserted rather than assumed below.
+    const landed = await panToTopEdge(page);
+    const preview = await samplePreview(page, []);
+    const stageBox = await stageOf(page).boundingBox();
+    expect(stageBox).not.toBeNull();
+    if (stageBox === null) return;
+
+    // `restrictPosition`'s vertical bound, in container pixels, and the framing really reached it.
+    const clamp = (preview.offsetHeight - stageBox.height) / 2;
+    expect(
+      Math.abs(landed - clamp),
+      `the framing settled at crop.y = ${landed}px against a clamp of ${clamp}px. Forty presses of ` +
+        "the vertical key must reach `restrictPosition`'s bound; if it did not, the crop rectangle " +
+        "below is not the one this case reasoned about.",
+    ).toBeLessThanOrEqual(0.5);
+
+    // …which puts the crop rectangle's origin at source (0, 0), derived rather than asserted flat.
+    const sourcePerContainerPx = preview.naturalHeight / preview.offsetHeight;
+    const sourceY = (preview.offsetHeight / 2 - stageBox.height / 2 - landed) * sourcePerContainerPx;
+    const sourceSide = stageBox.height * sourcePerContainerPx;
+    expect(Math.abs(sourceY), `the crop rectangle starts at source row ${sourceY}`).toBeLessThan(1);
+    expect(
+      Math.abs(sourceSide - preview.naturalWidth),
+      `the crop rectangle is ${sourceSide} source px across a ${preview.naturalWidth}px-wide source`,
+    ).toBeLessThan(1);
+
+    // TWO MATCHED OFFSETS, one inside the marker and one in the flat white body, expressed as
+    // fractions of the crop rectangle so the preview read and the output read are the SAME point of
+    // the SAME picture at two different scales (320 source px -> 400 output px).
+    const offsets = [
+      { rx: 0.9, ry: 0.1, what: "inside the orientation marker" },
+      { rx: 0.1, ry: 0.9, what: "in the flat body, far from every edge" },
+    ] as const;
+
+    const previewPoints = offsets.map((o) => ({
+      x: Math.round(o.rx * preview.naturalWidth),
+      y: Math.round(o.ry * preview.naturalWidth),
+    }));
+    const previewRead = await samplePreview(page, previewPoints);
+
+    const sent = await confirmAndCapture(page, awaitCapture);
+    const outPoints = offsets.map((o) => ({
+      x: Math.round(o.rx * AVATAR_OUTPUT_PX),
+      y: Math.round(o.ry * AVATAR_OUTPUT_PX),
+    }));
+    const output = await decodeAndSample(page, sent.bytes, sent.declaredType, outPoints);
+
+    expect(
+      `${output.width}x${output.height}`,
+      `the saved bytes decode to ${output.width}x${output.height}`,
+    ).toBe(`${AVATAR_OUTPUT_PX}x${AVATAR_OUTPUT_PX}`);
+
+    offsets.forEach((o, i) => {
+      const seen = previewRead.pixels[i] ?? [];
+      const stored = output.pixels[i] ?? [];
+      expect(
+        channelsClose(seen, stored),
+        `at the relative offset (${o.rx}, ${o.ry}) — ${o.what} — the PREVIEW sampled ` +
+          `${channels(seen)} and the SAVED BYTES sampled ${channels(stored)}. IC-02 says the ` +
+          "preview IS the contract: these are two reads of one bitmap through one crop rectangle, " +
+          `so they must agree within +/-${CHANNEL_TOLERANCE} per channel (the YCbCr round trip's ` +
+          "rounding, and nothing else).",
+      ).toBe(true);
+    });
+
+    // THE STRONGER, UNAMBIGUOUS HALF — WHICH CORNER THE MARKER LANDS IN.
+    //
+    // Orientation 6 means "rotate the stored raster 90 degrees CLOCKWISE to display", and a 90-degree
+    // clockwise rotation carries a top-left corner to the TOP-RIGHT one. The fixture's red block is
+    // at the stored raster's top-left, so:
+    //
+    //   honoured -> 320x480 portrait, marker TOP-RIGHT, and the framing above includes it
+    //   ignored  -> 480x320 landscape, marker top-LEFT, and a centred crop excludes it ENTIRELY,
+    //               so the saved square would be flat white in all four corners
+    //
+    // Those differ in aspect AND in corner, which is the whole reason the fixture has a corner block.
+    // ⚠ `16-14-PLAN.md` asserts the BOTTOM-LEFT here and is wrong, exactly as `16-04-PLAN.md` was;
+    // two independent decoders put it top-right, and `e2e/fixtures/README.md` records the reading.
+    const corners = await decodeAndSample(page, sent.bytes, sent.declaredType, [
+      { x: 380, y: 20 },
+      { x: 20, y: 20 },
+      { x: 20, y: 380 },
+      { x: 380, y: 380 },
+    ]);
+    const [topRight, topLeft, bottomLeft, bottomRight] = corners.pixels;
+
+    expect(
+      isRed(topRight ?? []),
+      `the saved square's TOP-RIGHT corner sampled ${channels(topRight ?? [])}. The corrected ` +
+        "orientation puts the fixture's marker there; the raw raster puts it top-left, where this " +
+        "framing would have cut it off altogether and left the corner white.",
+    ).toBe(true);
+    for (const [name, pixel] of [
+      ["top-left", topLeft],
+      ["bottom-left", bottomLeft],
+      ["bottom-right", bottomRight],
+    ] as const) {
+      expect(
+        isWhite(pixel ?? []),
+        `the saved square's ${name} corner sampled ${channels(pixel ?? [])}, and the fixture is ` +
+          "white everywhere except its ONE marker block. A second coloured corner means the source " +
+          "was rotated by something other than the tag.",
+      ).toBe(true);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// (c) THE WHITE MATTE THE PERSON SAW FIRST, AND THE STILL FIRST FRAME
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+test.describe("CROP-01 / D-172 + D-177 — transparency is flattened onto a white the person saw", () => {
+  test("transparent.png: the stage shows white through the alpha, and the saved JPEG stores it", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    const awaitCapture = await interceptAvatarSave(page);
+
+    await pick(page, "transparent.png");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    // THE IC-02 HALF THAT MATTERS: the matte is on screen BEFORE the confirm. D-177 made the stage
+    // wrapper `bg-background`, and the library's container paints nothing of its own — so the alpha
+    // in this PNG composites onto the wrapper. Court's `--background` is pure white and the encoder's
+    // matte literal is `#ffffff`, which is what makes the on-screen white and the encoded white the
+    // same white in the shipped theme rather than merely a close pair.
+    const stageShot = await wrapperOf(page).screenshot();
+    const onScreen = await decodeAndSample(page, stageShot, "image/png", [
+      { x: 160, y: 160 },
+    ]);
+    const matte = onScreen.pixels[0] ?? [];
+    expect(
+      isWhite(matte),
+      `the crop stage renders ${channels(matte)} through the fixture's transparent region. The ` +
+        "person must SEE the matte they are about to store (IC-02) — a grey or a chequerboard here " +
+        "means D-177's `bg-background` on the stage wrapper was lost, and the first time anybody " +
+        "would learn what the transparency became is after the save.",
+    ).toBe(true);
+
+    const sent = await confirmAndCapture(page, awaitCapture);
+    const output = await decodeAndSample(page, sent.bytes, sent.declaredType, [
+      { x: 200, y: 200 },
+      { x: 40, y: 40 },
+    ]);
+    const stored = output.pixels[0] ?? [];
+    const marker = output.pixels[1] ?? [];
+
+    expect(
+      isWhite(stored),
+      `the saved bytes store ${channels(stored)} where the source was fully transparent. JPEG has ` +
+        "no alpha channel, so SOMETHING chooses — Firefox picks black, Chrome and Safari differ " +
+        "again — and `avatar-canvas.ts` paints the matte itself, first and across the whole canvas, " +
+        "so that the choice is ours and is identical in every browser (D-172).",
+    ).toBe(true);
+
+    // NON-VACUITY: an encoder that produced a blank white square would satisfy the line above
+    // perfectly. The fixture's one OPAQUE block must survive the flatten.
+    expect(
+      isRed(marker),
+      `the saved bytes store ${channels(marker)} where the source was fully OPAQUE. Without this ` +
+        "line, an encode that dropped the photo entirely and stored the matte alone would pass.",
+    ).toBe(true);
+
+    // AND THE TWO WHITES ARE THE SAME WHITE, which is the sentence IC-02 actually makes.
+    expect(
+      channelsClose(matte, stored),
+      `the stage showed ${channels(matte)} and the saved bytes store ${channels(stored)}. IC-02 is ` +
+        "not 'both are whitish' — it is that the person approved the exact surface that got stored.",
+    ).toBe(true);
+  });
+
+  test("animated.png: the saved bytes are ONE still frame of the two the source cycles", async ({
+    page,
+  }) => {
+    await signUpAndReachProfile(page);
+    const awaitCapture = await interceptAvatarSave(page);
+
+    await pick(page, "animated.png");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    const sent = await confirmAndCapture(page, awaitCapture);
+    const output = await decodeAndSample(page, sent.bytes, sent.declaredType, [
+      { x: 60, y: 60 },
+      { x: 200, y: 200 },
+      { x: 340, y: 340 },
+    ]);
+    const samples = output.pixels;
+
+    // 999.2 rule F7 forbids warning anybody that an animated source becomes a still, so an assertion
+    // is the only thing holding the behaviour true. What is asserted is that the saved square is ONE
+    // FLAT FRAME — `drawImage(HTMLImageElement)` captures whichever frame the element is presenting
+    // at that instant, never a blend of two and never the animation.
+    expect(
+      samples.every((p) => channelsClose(p, samples[0] ?? [])),
+      `the saved square is not one flat frame: it sampled ${samples.map(channels).join(" / ")} at ` +
+        "three points of a source whose every frame is a single flat colour. A blend of two frames " +
+        "would mean the encode caught the element mid-transition.",
+    ).toBe(true);
+
+    // AND IT IS FRAME ONE, WHICH IS PINNED ONLY BECAUSE IT WAS PROVED NOT TO BE A CLOCK READING.
+    //
+    // The fixture loops two 0.5 s frames forever, so "the saved bytes are frame one" LOOKS like an
+    // assertion about when the confirm happened to land — the shape this repository has shipped as a
+    // time bomb twice. It was therefore probed rather than assumed: the confirm was delayed by 0 ms,
+    // 700 ms, 1200 ms and 2600 ms — spanning more than two full loops of the animation — and the
+    // stored pixel read `254, 0, 0` every time. Whatever the element is presenting on screen,
+    // `drawImage` yields the first frame, so this assertion is invariant to elapsed time rather than
+    // lucky with it. If it ever reddens with BLUE, the finding is that Chromium changed which frame
+    // a canvas draw captures, and 999.2 rule F7's "no detection, no warning" needs re-arguing —
+    // it is not a flake to re-run.
+    const stored = samples[0] ?? [];
+    expect(
+      isBlue(stored),
+      `the saved square stores ${channels(stored)} — the fixture's SECOND frame. See above: this is ` +
+        "a behaviour change, not a timing flake.",
+    ).toBe(false);
+    expect(
+      isRed(stored),
+      `the saved square stores ${channels(stored)}, which is neither of the fixture's two frames ` +
+        "(pure red and pure blue). Whatever was drawn, it was not this source.",
+    ).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// (d) ALWAYS 400x400, AND ALWAYS THE ONE FORMAT — EVEN FROM AN UNDERSIZED SOURCE
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// ⚠ WHAT THIS GROUP DELIBERATELY DOES NOT ASSERT, BECAUSE IT IS THE TEMPTING WRONG TEST. Nothing
+// here says anything about the bytes Cloudinary ends up storing. The upload carries an INCOMING
+// transformation, and an incoming transformation re-encodes: 16-RESEARCH § C12 measures that the
+// 400x400 `c_fill` is the geometric IDENTITY on a 400x400 input — same pixels, same framing — while
+// the stored file is a different JPEG. An equality assertion over the two byte strings would be red
+// on a correct system, and chasing it green would mean deleting the transform that bounds storage on
+// the bypass path (D-171). The claim this phase makes is about what LEAVES the browser.
+
+test.describe("CROP-01 / IC-06 + D-172 — the output size is the contract, not the source's size", () => {
+  test("small-300.png: a 300px source still stores a 400x400 JPEG", async ({ page }) => {
+    await signUpAndReachProfile(page);
+    const awaitCapture = await interceptAvatarSave(page);
+
+    await pick(page, "small-300.png");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    // The premise of the case, asserted rather than assumed: this source has NO zoom headroom, so
+    // the crop rectangle really is 300 source pixels across.
+    await expect(
+      sliderOf(page),
+      "`small-300.png` should render the zoom row locked (`avatarMaxZoom(300) === 1`); if it does " +
+        "not, the crop rectangle is not the 300px one this case is about.",
+    ).toHaveAttribute("data-disabled", "");
+
+    const sent = await confirmAndCapture(page, awaitCapture);
+
+    // THE FORMAT, READ OFF THE WIRE. `blob.type` seen from the transport is the client's own output
+    // declaring itself, and it has to be inside the allow-list plan 16-07 narrowed — the same list
+    // the server re-checks. A client whose own bytes its own server would refuse is a split.
+    expect(
+      sent.declaredType,
+      `the avatar part left the browser declared as \`${sent.declaredType}\` (${sent.disposition}). ` +
+        "D-172 emits ONE format with no branching, and `avatarFileSchema` re-checks it server-side " +
+        "against the same array the file picker's `accept` reads.",
+    ).toBe("image/jpeg");
+
+    // …and it really is one, rather than merely labelled one.
+    expect(
+      [...sent.bytes.subarray(0, 3)],
+      `the avatar part's first bytes are ${[...sent.bytes.subarray(0, 3)]}, which is not a JPEG SOI.`,
+    ).toEqual([0xff, 0xd8, 0xff]);
+
+    // FIVE POINTS, NOT ONE, AND THE FOUR CORNERS ARE THE ONES THAT DO THE WORK — see below.
+    const FILL_POINTS = [
+      { x: 200, y: 200 },
+      { x: 10, y: 10 },
+      { x: 390, y: 10 },
+      { x: 10, y: 390 },
+      { x: 390, y: 390 },
+    ] as const;
+    const output = await decodeAndSample(page, sent.bytes, sent.declaredType, FILL_POINTS);
+
+    // THE ASSERTION THIS GROUP EXISTS FOR. A destination rectangle computed from `area.width` /
+    // `area.height` instead of the literal output size would emit 300x300 here and look completely
+    // reasonable — and it would quietly break the ONE fact that lets `cloudinary.ts`'s 400x400
+    // `c_fill` be called the geometric identity on the honest path (D-171).
+    expect(
+      `${output.width}x${output.height}`,
+      `a ${output.width}x${output.height} avatar was produced from a 300x300 source. The output ` +
+        "size is a CONSTANT (D-172): the destination rectangle in `avatar-canvas.ts` is the literal " +
+        "0, 0, AVATAR_OUTPUT_PX, AVATAR_OUTPUT_PX, and `area.width`/`area.height` appear in that " +
+        "call ONLY as source dimensions.",
+    ).toBe(`${AVATAR_OUTPUT_PX}x${AVATAR_OUTPUT_PX}`);
+
+    // ⚠ THE DIMENSION ASSERTION ALONE DOES NOT CATCH THE REGRESSION IT WAS WRITTEN FOR, AND THAT WAS
+    // MEASURED RATHER THAN REASONED. `16-14-PLAN.md` names the break to watch red — deriving the
+    // DESTINATION rectangle from `area.width` / `area.height` instead of the output constant — and
+    // asks for the 400x400 assertion to fail on it. Applied for real, 2026-08-25: it did NOT fail.
+    // The canvas is still sized `AVATAR_OUTPUT_PX` square, so `toBlob` still emits 400x400; what
+    // changes is that the photo is painted into the TOP-LEFT 300x300 of it and the remaining L-shape
+    // stays the white matte. A 400x400 avatar with the person's face in one corner passes every
+    // assertion about its size.
+    //
+    // So the corners are what actually pin it. `small-300.png` is flat green edge to edge and the
+    // crop covers all of it, so every corner of a correct output is green; under the plan's named
+    // break, two of the four decode as matte white. Watched red on exactly that edit — see the
+    // SUMMARY for the transcript.
+    output.pixels.forEach((pixel, i) => {
+      expect(
+        (pixel[1] ?? 0) > 200 && (pixel[0] ?? 255) < 60 && (pixel[2] ?? 255) < 60,
+        `the saved square samples ${channels(pixel)} at ` +
+          `(${FILL_POINTS[i]?.x}, ${FILL_POINTS[i]?.y}). ` +
+          "`small-300.png` is flat green edge to edge and the crop covers all of it, so a WHITE " +
+          "reading here is the matte showing through — the photo was drawn into part of the square " +
+          "instead of all of it, which is what a destination rectangle taken from the SOURCE size " +
+          "produces. A 400x400 asset whose picture fills a corner is still the wrong asset.",
+      ).toBe(true);
+    });
   });
 });
 
