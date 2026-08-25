@@ -183,6 +183,26 @@ export type ResponsiveDialogProps = {
    */
   closeLabel?: string;
   /**
+   * Radix's open-time focus hook, forwarded verbatim to `DialogContent`.
+   *
+   * ⚠ THE REASON THIS EXISTS IS A STRUCTURAL IMPOSSIBILITY, NOT A CONVENIENCE (D-168). Radix
+   * autofocuses the FIRST TABBABLE ELEMENT inside `DialogContent`, and the vendored `DialogFooter` is
+   * `flex-col-reverse … sm:flex-row` (`ui/dialog.tsx:119`) — so below `sm:` the footer's DOM order and
+   * its VISUAL order are inverted. An adopter whose footer holds a destructive action and a safe one
+   * therefore has NO DOM order that satisfies both requirements at once: safe-action-first wins the
+   * focus but stacks the DESTRUCTIVE action on top, under the thumb; destructive-first fixes the stack
+   * and focuses the destructive action. D-168 declined `alert-dialog` — the primitive that would have
+   * enforced safe-action focus for us — in order to keep ONE overlay mechanism, ONE focus trap and ONE
+   * escape behaviour in this app, and made *"default focus lands on the safe action, never on the
+   * destructive one"* the BINDING mitigation for that trade. This hook is the only mechanism that
+   * mitigation has; without it the mitigation is unimplementable rather than merely awkward.
+   *
+   * Every adopter whose default focus is already correct should leave this undefined — Radix's own
+   * behaviour is right for them, and taking the decision over unconditionally would be a claim this
+   * pattern has no basis for. It is here for the adopters whose footer inverts.
+   */
+  onOpenAutoFocus?: (event: Event) => void;
+  /**
    * Radix's close-time focus hook, forwarded verbatim to `DialogContent`.
    *
    * ⚠ THE REASON THIS EXISTS IS A MEASURED DEFECT, NOT A CONVENIENCE (12-07 finding 1). Radix's MODAL
@@ -210,6 +230,7 @@ export function ResponsiveDialog({
   children,
   footer,
   closeLabel,
+  onOpenAutoFocus,
   onCloseAutoFocus,
 }: ResponsiveDialogProps) {
   // Radix wires `aria-describedby` to its own generated id unconditionally and then warns at runtime
@@ -231,6 +252,7 @@ export function ResponsiveDialog({
         data-testid="responsive-dialog"
         className={SHEET_PRESENTATION}
         showCloseButton={closeLabel === undefined}
+        onOpenAutoFocus={onOpenAutoFocus}
         onCloseAutoFocus={onCloseAutoFocus}
         {...describedBy}
       >
