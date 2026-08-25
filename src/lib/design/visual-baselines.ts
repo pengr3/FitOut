@@ -48,7 +48,7 @@
 // all of which are Windows or macOS — NOTHING would check the three counts this file's acceptance
 // rests on. A criterion checked only in an environment nobody runs is not a criterion.
 //
-// `BaselineCountIsSeventyFour`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
+// `BaselineCountIsSeventyEight`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
 // below are therefore type-level
 // assertions, enforced by `npx tsc --noEmit` and by `next build`'s own type check — which runs inside
 // `npm run build`, which is CI job 1. They fail on EVERY machine, in the build, before a browser is
@@ -239,6 +239,26 @@ export const SURFACE_IDS = [
   "auth-forgot",
   "auth-reset",
   "profile",
+  // ─── 16-15 — the crop dialog and the wizard's cover preview ──────────────────────────────────────
+  //
+  // ⚠ TWO IDS, BOTH BLOCKED, AND NEITHER IS A NEW ROUTE. Both are STATES of documents this inventory
+  // already knows: `avatar-crop-dialog` is `/profile` one interaction in, and `wizard-cover-preview`
+  // is the same wizard `host-wizard-rail` names, walked to its photos step. They are their own ids
+  // rather than extra widths on those two rows for the reason the Phase-13 block gives for D-96's
+  // third branch — a state that needs a different drive and carries a different blocker is a
+  // different surface, and folding it into its parent's row hides both facts.
+  //
+  // ⚠ BOTH ARE BLOCKED, AND THE TWO BLOCKS ARE NOT THE SAME SIZE, which is the useful half of this
+  // block. `avatar-crop-dialog` inherits `profile`'s two blockers whole and adds a third of its own
+  // (a staged file). `wizard-cover-preview` inherits the Phase-14 host block's ONE structural blocker
+  // and adds a second — and notably does NOT need what a reader would assume it needs, because the
+  // seed fixture already commits eight local photo assets for this listing. Each row says so.
+  //
+  // ⚠ NEITHER WAS GENERATED, and neither could have been: `playwright.config.ts:39` constructs the
+  // `visual` project only on Linux, and plan 16-15 ran on win32. Same standing as the Phase-14 block —
+  // an inventory to work FROM, never a claim of coverage.
+  "avatar-crop-dialog",
+  "wizard-cover-preview",
 ] as const;
 
 /** The closed union every baseline row and every exclusion is typed against. */
@@ -1066,6 +1086,83 @@ export const VISUAL_SURFACES = {
       "date-independent by construction — the `[14-16]` rule is satisfied by the fixture, and " +
       "installing a clock here would be ceremony that pins nothing.",
   },
+
+  // ─── 16-15 — the avatar crop dialog, and the wizard's cover-frame preview ────────────────────────
+  "avatar-crop-dialog": {
+    kind: "document",
+    // The same route as `profile` above. The state is one interaction in, not a second URL — the crop
+    // flow has no path of its own and never will: `ResponsiveDialog` is a portal over `/profile`.
+    url: "/profile",
+    hook: '[data-testid="responsive-dialog"]:has-text("Position your photo")',
+    hookWhy:
+      "the overlay's own box, narrowed by the crop dialog's title — and BOTH halves are load-bearing. " +
+      "`responsive-dialog` alone is also rendered by this route's removal confirm and by the booking " +
+      "sheet on another route, so the bare hook names a primitive rather than a surface. ⚠ AND THIS " +
+      "HOOK IS THE ONE THING THIS ROW HAS THAT `profile` DOES NOT: it is a genuine reachability proof. " +
+      "An undriven capture of `/profile` lands on `/login`, which renders a `panel-card` and would " +
+      "satisfy that row's hook while photographing the sign-in page; `/login` renders no dialog at " +
+      "all, so the same mistake here TIMES OUT instead of minting a permanent picture of the wrong " +
+      "document. The title is spelled literally because this module is a declaration and cannot " +
+      "import from `e2e/`; the RUNNING gate on this state — `e2e/overflow-320.spec.ts`'s crop-dialog " +
+      "row — imports `AVATAR_CROP_TITLE` from `src/lib/avatar.ts` instead, which is where a copy that " +
+      "must not drift belongs.",
+    blocked:
+      "BLOCKED ON THREE THINGS, AND THE FIRST TWO ARE `profile`'S, INHERITED WHOLE — this surface IS " +
+      "`/profile`, one interaction in. (1) A DRIVE. `e2e/helpers/visual-drive.ts`'s `DRIVES` map has " +
+      "no entry for `/profile` and none for this state, so both fall through to the default plain " +
+      "`goto` with no session, and an unauthenticated visitor is redirected to `/login`. (2) A SEEDED " +
+      "USER WITH FIXED LITERALS, and on THIS row it is load-bearing in a way it is not on its parent, " +
+      "because an overlay is captured `viewport` rather than `fullPage` (the lightbox and the sheet " +
+      "are the precedent) — so the profile document behind the scrim is IN FRAME, member-since line " +
+      "and fallback initials and all. An ad-hoc signup would put a `Member since <this month>` string " +
+      "into a committed reference image, which is the time-bomb class this repository has already " +
+      "shipped twice. What is owed is the same `vrt_%` user `profile`'s row names: a fixed literal " +
+      "`createdAt`, a fixed first and last name, and no avatar. (3) A STAGED FILE, which is the one " +
+      "blocker genuinely new here: this dialog does not exist until an image has passed all four " +
+      "pre-dialog guards in `avatar-field.tsx`, so the drive must `setInputFiles` a committed fixture " +
+      "and wait for the stage. ⚠ THAT THIRD ONE IS THE CHEAP HALF — `e2e/fixtures/square-400.png` is " +
+      "generator-produced and gated byte-for-byte by `tests/design/image-fixtures.test.ts`, so the " +
+      "pixels inside the crop circle are already as fixed as a literal. What is missing is a drive " +
+      "that hands it over, not bytes to hand.",
+  },
+  "wizard-cover-preview": {
+    kind: "document",
+    // The fixture's own exclusive listing, by its literal id — `VRT_IDS.exclusive`, the same spelling
+    // `host-wizard-rail` uses and for the same reason its comment gives (this module lives in `src/`
+    // and cannot import the seed script). ⚠ The URL-contract test in `e2e/visual/surfaces.spec.ts`
+    // filters on `/listings/`, so it does NOT see this row either — the same standing gap that row
+    // records, now on a third surface.
+    url: "/host/listings/vrt_listing_exclusive/edit",
+    hook: 'figure:has-text("Listing page")',
+    hookWhy:
+      "the 16:9 frame, addressed through the caption the host actually reads. It proves two things at " +
+      "once, which is why it is the caption and not the block's heading: the preview rendered, AND " +
+      "the wizard is on the photos step WITH at least one photo — `photo-uploader.tsx` returns its " +
+      "bespoke empty state before this block exists, so a frame cannot be on screen with an empty " +
+      "gallery. ⚠ WHAT IT DOES NOT PROVE, said here rather than discovered later: that the PHOTOGRAPH " +
+      "decoded. A `<figure>` renders perfectly around a broken image, and a baseline of eight " +
+      "broken-image glyphs is exactly the failure `scripts/seed-baseline-fixtures.ts`'s determinism " +
+      "paragraph was written after. What closes that is the fixture, not the hook: the seeded rows " +
+      "carry committed local urls (`/vrt/photo-{i}.svg`), and `public/vrt/photo-0.svg`'s own header " +
+      "is the authority on why each index looks different.",
+    blocked:
+      "BLOCKED ON TWO THINGS, AND THE FIRST IS THE PHASE-14 HOST BLOCK'S ONE STRUCTURAL BLOCKER, " +
+      "SHARED VERBATIM: `e2e/helpers/visual-drive.ts`'s `DRIVES` map has no host entry, so this row " +
+      "falls through to the default plain `goto` with no session — and every host route redirects an " +
+      "unauthenticated visitor, so the default drive photographs `/login`. The fixture's own host " +
+      "(`VRT_HOST_ID` = `vrt_host_1`, `can_host`) exists and owns this listing; what does not exist " +
+      "is any way for a drive to BE that user, which is the same missing piece all nine Phase-14 rows " +
+      "name. (2) A DRIVE THAT WALKS TO THE PHOTOS STEP. The wizard's step is CLIENT state — " +
+      "`wizard.tsx` holds it in `stepInList` and there is no query parameter and no per-step route — " +
+      "so no URL reaches this block and `?step=` would be an invention rather than a path. The drive " +
+      "has to click through the rail, which is precisely what `host-wizard-rail`'s own blocked string " +
+      "says is owed. ⚠ AND WHAT IS *NOT* OWED, because it is the assumption a reader will arrive " +
+      "with and it is wrong: NO CLOUDINARY ROUND TRIP AND NO PHOTO FIXTURE. The uploader's widget is " +
+      "how a host adds a photo, but the seed already commits EIGHT rows for this listing with local " +
+      "urls under `public/vrt/`, and both the tiles and the preview render `photo.url` rather than " +
+      "deriving anything from the Cloudinary-shaped `public_id`. The pixels are committed; the " +
+      "session and the walk are not.",
+  },
 } as const satisfies Record<SurfaceId, SurfaceRow>;
 
 /**
@@ -1081,35 +1178,88 @@ export type DocumentSurfaceId = {
 }[SurfaceId];
 
 // ---------------------------------------------------------------------------
-// The 53 baselines
+// The 78 baselines
 // ---------------------------------------------------------------------------
 
 /**
- * Every baseline, in the UI-SPEC tables' own order and adding up to their own totals:
+ * Every baseline, in the UI-SPEC tables' own order and adding up to their own totals. COURT ONLY,
+ * one shot per width, since D-138.
+ *
+ * ⚠ THIS TABLE WAS STALE IN TWO DIFFERENT WAYS UNTIL PLAN 16-15 REWROTE IT, and both are worth a
+ * sentence, because a stale count inside a gate's own file is the defect class Phase 15 exists to
+ * repair and this one sat two lines above the array it describes. (1) It stopped at Phase 12: plans
+ * 13-15, 14-16 and 15-11 each added rows BELOW it and moved only the alias's docblock, so it read
+ * `TOTAL 53` against an array of 74. (2) Every number in it was a TWO-THEME number — `both themes`,
+ * `SUBTOTAL 27` — from before D-138 made `court` the single product theme, so even its Phase-11 half
+ * was wrong by ten. It is rewritten from the array rather than amended, and the per-surface counts
+ * below were MEASURED off the rows (`surface` + `width` extracted and tallied) rather than carried
+ * over from any prose.
  *
  *   ── 11-UI-SPEC § GATE-01 (plan 11-22) ──────────────────────────────────────────────────────
- *   /dev/theme          320 / 768 / 1280   one shot per width, both themes in frame     3
- *   /terms, /privacy    320 / 768 / 1280   both themes                                 12
- *   root not-found      320 / 1280         both themes                                  4
- *   global-error        1280               court only                                   1
- *   (auth) login        320 / 1280         both themes                                  4
- *   listing/invite/root OG   1200 × 630    court only                                   3
- *                                                                         SUBTOTAL     27
+ *   /dev/theme          320 / 768 / 1280   both themes in one frame; see its rows        3
+ *   /terms              320 / 768 / 1280                                                 3
+ *   /privacy            320 / 768 / 1280                                                 3
+ *   root not-found      320 / 1280                                                       2
+ *   global-error        1280               BLOCKED — nothing can throw from the root     1
+ *   (auth) login        320 / 1280         hook + all three claims rewritten by 15-11    2
+ *   root / listing / invite OG   1200 × 630   one each                                   3
+ *                                                                         SUBTOTAL     17
  *
  *   ── 12-UI-SPEC § Visual Baselines (plan 12-14) ─────────────────────────────────────────────
- *   / with results      320 / 768 / 1280   both themes                                  6
- *   / zero-result band  320 / 1280         both themes                                  4
- *   /listings/[id]      320 / 768 / 1280   both themes                                  6
- *   listing lightbox    1280               both themes                                  2
- *   listing sheet       375                both themes                                  2
- *   /listings/[id]/book 320 / 1280         both themes                                  4
- *   collision notice    1280               both themes                                  2
- *                                                                         SUBTOTAL     26
- *                                                                            TOTAL     53
+ *   / with results      320 / 768 / 1280                                                 3
+ *   / zero-result band  320 / 1280                                                       2
+ *   /listings/[id]      320 / 768 / 1280                                                 3
+ *   listing lightbox    1280               overlay, captured `viewport`                  1
+ *   listing sheet       375                overlay, captured `viewport`                  1
+ *   /listings/[id]/book 320 / 1280                                                       2
+ *   collision notice    1280                                                             1
+ *                                                                         SUBTOTAL     13
+ *
+ *   ── 13-UI-SPEC § Visual Baselines (plan 13-15) — 11 of the 12 BLOCKED ──────────────────────
+ *   booking-moment      320 / 768 / 1280                                                 3
+ *   booking-confirmed   320 / 1280                                                       2
+ *   payment-pending     1280                                                             1
+ *   payment-not-completed        320 / 1280                                              2
+ *   payment-reversed-auto        1280                                                    1
+ *   payment-reversed-manual      320 / 1280                                              2
+ *   payment-reversed-indeterminate  320 / 1280   D-96's third branch; see SURFACE_IDS    2
+ *   receipt-screen      320 / 1280                                                       2
+ *   receipt-print       1280                                                             1
+ *   booking-group       320 / 1280                                                       2
+ *   invite-active       320 / 1280                                                       2
+ *   booking-not-found   1280               the one that is SHOT                          1
+ *                                                                         SUBTOTAL     21
+ *
+ *   ── 14-UI-SPEC § Visual Baselines (plan 14-16) — ALL NINE BLOCKED ──────────────────────────
+ *   host-dashboard-agenda        320 / 1280                                              2
+ *   host-dashboard-quiet         1280                                                    1
+ *   host-dashboard-none          1280                                                    1
+ *   host-requests-triage         320 / 1280                                              2
+ *   host-requests-zero           1280                                                    1
+ *   host-bookings-upcoming       320 / 1280                                              2
+ *   host-wizard-rail             320 / 768 / 1280                                        3
+ *   host-availability-strip      320 / 1280                                              2
+ *   host-earnings                1280                                                    1
+ *                                                                         SUBTOTAL     15
+ *
+ *   ── 15-UI-SPEC § Visual Baselines (plan 15-11) ─────────────────────────────────────────────
+ *   (auth) signup       320 / 1280                                                       2
+ *   (auth) forgot-password       320 / 1280                                              2
+ *   (auth) reset-password        320 / 1280   WITH-token branch, by a fixture literal    2
+ *   /profile            320 / 1280         BLOCKED — a drive and a seeded user           2
+ *                                                                         SUBTOTAL      8
+ *
+ *   ── 16-UI-SPEC § Delta-16 (plan 16-15) — BOTH BLOCKED ──────────────────────────────────────
+ *   avatar-crop-dialog  320 / 1280         bottom sheet at 320, centred 384px box at 1280   2
+ *   wizard-cover-preview         320 / 1280   the frames are `w-32` at 320 and `w-40` above  2
+ *                                                                         SUBTOTAL      4
+ *                                                                            TOTAL     78
  *
  * The eighth row of 12-UI-SPEC's table — the listing OG card — is NOT in the Phase-12 subtotal. It is
- * the `og-listing` row already counted in the 27: plan 12-14 UNBLOCKED it with a fixture rather than
- * adding it, so counting it twice is the one arithmetic mistake this table exists to prevent.
+ * the `og-listing` row already counted in the 17: plan 12-14 UNBLOCKED it with a fixture rather than
+ * adding it, so counting it twice is the one arithmetic mistake this table exists to prevent. The
+ * same shape recurs at Phase 15 (`auth-login` is an EDIT, not a fifth addition) and at Phase 16,
+ * where BOTH surfaces are states of documents already in this table and neither is a new route.
  *
  * The `{arg}` each row produces is `{surface}-{width}-{theme}.png` (see `baselineArg`), which
  * Playwright expands to `{arg}-visual-linux.png` — the ONLY filename shape `.gitignore` permits to be
@@ -2021,6 +2171,62 @@ export const VISUAL_BASELINES = [
       "Currently BLOCKED for the same two reasons as its pair — and blocked is the honest state: an " +
       "undriven capture here photographs `/login`, which renders a card and satisfies the hook.",
   },
+
+  // ─── the avatar crop dialog — 2, BLOCKED ────────────────────────────────────────────────────────
+  {
+    surface: "avatar-crop-dialog",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, where this overlay is a BOTTOM SHEET rather than a centred box — a different " +
+      "composition, not the same one narrowed, which is the whole reason the surface earns two widths " +
+      "instead of one. What only this width pins: the crop stage at its `dvh`-capped size " +
+      "(`min(320px, 100vw - 2rem, 40dvh)`, which at this viewport resolves to the 288px content box " +
+      "and leaves the stage nothing to spare), the action bar reversed into a column, and the mask " +
+      "ring drawn over a circle that fills its container edge to edge. Currently BLOCKED — see the " +
+      "surface's `blocked` reason, which names a drive, a seeded user and a staged file, and says " +
+      "which of the three is already solved.",
+  },
+  {
+    surface: "avatar-crop-dialog",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, where the same dialog is a CENTRED 384px box on a scrim — measured 384 wide against " +
+      "the 320px row's 320, i.e. the overlay is wider than the whole viewport its other row uses. " +
+      "What only this width pins: the primitive's declared max-width actually holding (the 320 row " +
+      "cannot see it, because there the viewport is the constraint), the scrim around it, and the " +
+      "action bar in its row direction rather than its column one. Currently BLOCKED for the same " +
+      "three reasons as its pair.",
+  },
+
+  // ─── the wizard's cover-frame preview — 2, BLOCKED ──────────────────────────────────────────────
+  {
+    surface: "wizard-cover-preview",
+    width: 320,
+    height: 720,
+    theme: "court",
+    why:
+      "the floor, and the one width where the preview's layout can actually fail: the two frames are " +
+      "`w-32` here, so 128 + the `gap-2` gutter + 128 = 264px has to fit inside the wizard's content " +
+      "box, and if it does not they wrap and the block stops being a side-by-side comparison — which " +
+      "is the only thing it is for. Currently BLOCKED — see the surface's `blocked` reason, which " +
+      "names a host session and a walk to the photos step, and says why no photo fixture is owed.",
+  },
+  {
+    surface: "wizard-cover-preview",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why:
+      "desktop, where the `sm:` branch takes over and both frames are `w-40` — a DIFFERENT pair of " +
+      "boxes rather than the same pair with more room, which is why one shot cannot stand for both. " +
+      "This is also the width at which the two aspect ratios are far enough apart to read as the " +
+      "comparison the block is making: the 16:9 hero frame and the squarer 4:3 card frame side by " +
+      "side, both cropping the same photograph. Currently BLOCKED for the same two reasons as its pair.",
+  },
 ] as const satisfies readonly BaselineRow[];
 
 // ---------------------------------------------------------------------------
@@ -2119,7 +2325,8 @@ type Assert<T extends true> = T;
  *   14-UI-SPEC § Visual Baselines (14-16)      2 + 1 + 1 + 2 + 1 + 2 + 3
  *                                              + 2 + 1                         = 15
  *   15-UI-SPEC § Visual Baselines (15-11)      2 + 2 + 2 + 2                   =  8
- *                                                                        TOTAL = 74
+ *   16-UI-SPEC § Delta-16 (plan 16-15)         2 + 2                           =  4
+ *                                                                        TOTAL = 78
  *
  * ⚠ 15-UI-SPEC's TABLE HAS FIVE ROWS AND THIS SUBTOTAL IS FOUR SURFACES, AND THE DIFFERENCE IS AN
  * EDIT RATHER THAN A LOSS. The fifth is `auth-login`, declared in Phase 11 and still carrying its
@@ -2177,6 +2384,25 @@ type Assert<T extends true> = T;
  * can turn six of them into pictures, and until that runs the honest reading of this file is still
  * "an inventory somebody can work from".
  *
+ * PHASE 16 ADDS FOUR ROWS AND MOVES THE PICTURE COUNT BY NOTHING. Current number, re-stated in full
+ * for the same reason the Phase-15 paragraph re-stated its own: **78 declared, 42 blocked (1
+ * structural + 20 Phase-13 + 15 Phase-14 + 2 Phase-15 + 4 Phase-16), 36 shot.** The four are
+ * `avatar-crop-dialog` and `wizard-cover-preview` at 320 and 1280, court only, one shot per width
+ * (D-138), and both surfaces are blocked at the surface with their reasons.
+ *
+ * ⚠ AND THE PHASE-15 DISPATCH HAS SINCE RUN, WHICH CHANGES WHAT THE PARAGRAPHS ABOVE MEAN. Generation
+ * run `32751407382`, comparison run `32752143309`, `gate-visual` green; **36 files on disk, measured
+ * here by `git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' | wc -l` → 36**, so
+ * the 36-shot arithmetic above is now a fact rather than a projection. The half worth carrying to
+ * Phase 16 is the other one STATE.md records verbatim: **both `profile` rows correctly produced
+ * nothing.**
+ *
+ * ⚠ SO PHASE 16 INVALIDATES NO COMMITTED `profile` BASELINE, BECAUSE THERE IS NONE. A phase brief
+ * reading `profile` in `SURFACE_IDS` will assume the avatar-field restyle made its references stale;
+ * the measured answer is that the row is declared, blocked, and has never been shot. And it follows
+ * that **16-15's dispatch is expected to add ZERO files** — all four of its rows are blocked, so a
+ * dispatch that adds any is a dispatch that shot something it was told it could not reach.
+ *
  * THE NAME CARRIES THE NUMBER ON PURPOSE, AND IT IS RENAMED IN THE SAME COMMIT AS THE ROWS. The alias
  * was `BaselineCountIsTwentySeven`, then `BaselineCountIsFiftyThree`, then `BaselineCountIsNinetyFive`,
  * then `BaselineCountIsFiftyOne`. A gate whose name says 51 while its constraint says 66 is a gate that
@@ -2216,6 +2442,24 @@ type Assert<T extends true> = T;
  * in the ordinary course of adding rows, which is the only evidence that it fires when nobody is
  * staging it.
  *
+ * OBSERVED RED A FOURTH TIME — 26 August 2026, plan 16-15, UNFORCED, and this time BOTH literals were
+ * watched. The four Phase-16 rows were inserted with the alias still reading `74`; `npx tsc --noEmit`
+ * run bare, EXIT=2, and the whole of stdout was one line:
+ *
+ *   src/lib/design/visual-baselines.ts(2477,3): error TS2344: Type 'false' does not satisfy the
+ *   constraint 'true'.
+ *
+ * Renamed to `…IsSeventyEight` and moved to 78 → exit 0. And then the SECOND literal, the one this
+ * docblock's last paragraph says nothing will remind you about, was watched separately: with
+ * `e2e/visual/surfaces.spec.ts` still on 74, `npx vitest run tests/design/… ` says nothing (it is not
+ * a vitest file) and `tsc` says nothing (it is a `const`) — the failure only appears where the
+ * paragraph says it appears, inside a dispatch. So it was moved in the SAME COMMIT as this one rather
+ * than in a later one, which is the change plan 15-11's split invited and 16-15 made: `git show --stat`
+ * on that commit lists both files. ⚠ THE PAIRING IS NOW A RECORD RATHER THAN A WARNING — if you add
+ * rows, move `src/lib/design/visual-baselines.ts` and `e2e/visual/surfaces.spec.ts` together, and
+ * `EXPECTED_BLOCKED` in that same file if any of the new surfaces is blocked (16-15's two both were,
+ * which is a third place the 15-11 note did not name).
+ *
  * ⚠ AND THE THIRD SIGHTING OF THE SAME STANDING WEAKNESS, plus one NEW one worth more than it. The
  * old weakness: the error names the alias's own line (2181) and not one of the eight rows, which is
  * why the arithmetic is spelled out in prose above. The NEW one, measured in the same run: this gate
@@ -2229,8 +2473,8 @@ type Assert<T extends true> = T;
  * moved that literal in a separate commit for exactly this reason; if you add rows here, that file is
  * the second place to look and nothing will remind you.
  */
-export type BaselineCountIsSeventyFour = Assert<
-  (typeof VISUAL_BASELINES)["length"] extends 74 ? true : false
+export type BaselineCountIsSeventyEight = Assert<
+  (typeof VISUAL_BASELINES)["length"] extends 78 ? true : false
 >;
 
 /** D-135 / AC#30: exactly one exclusion. Probe (b) above. */

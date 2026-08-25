@@ -239,15 +239,31 @@ const EXPECTED_BLOCKED = [
   // a literal `createdAt` and no avatar) and what it does NOT (a clock — the member-since line is
   // derived from `createdAt`, never from `now`).
   "profile",
+  // --- 16-15 - the crop dialog and the wizard's cover preview ----------------------------------
+  // BOTH of Phase 16's surfaces join, and neither is a surprise: both are STATES of documents this
+  // list already contains a blocker for. `avatar-crop-dialog` is `/profile` one interaction in and
+  // inherits its two blockers whole, plus a third (the dialog does not exist until a file has passed
+  // all four pre-dialog guards, so a drive must stage one). `wizard-cover-preview` is the same wizard
+  // `host-wizard-rail` names, so it shares the Phase-14 structural blocker — no host entry in
+  // `DRIVES` — and adds one of its own: the wizard's step is CLIENT state with no query parameter, so
+  // no URL reaches the photos step and the drive has to walk the rail.
+  //
+  // ⚠ ONE OF THE TWO IS SAFER THAN ITS PARENT, AND IT IS WORTH KNOWING WHICH. `profile`'s sting above
+  // is that an undriven capture SATISFIES its hook (`/login` renders a `panel-card`).
+  // `avatar-crop-dialog`'s hook is the crop dialog's own box narrowed by its title, and `/login`
+  // renders no dialog at all — so the same mistake there times out instead of minting a permanent
+  // picture of the sign-in page. Blocked is still the right state; the failure mode is just louder.
+  "avatar-crop-dialog",
+  "wizard-cover-preview",
 ] as const;
 
 /**
- * All four UI-SPECs' totals, COURT ONLY since D-138: 17 + 13 + 21 + 15 (13-UI-SPEC's table adds to
- * 19; the extra two are the reversed state's third branch, which that table predates). It was 95
- * while every surface carried a second-theme row; `court` is now FitOut's single product theme and
+ * All six UI-SPECs' totals, COURT ONLY since D-138: 17 + 13 + 21 + 15 + 8 + 4 (13-UI-SPEC's table
+ * adds to 19; the extra two are the reversed state's third branch, which that table predates). It was
+ * 95 while every surface carried a second-theme row; `court` is now FitOut's single product theme and
  * the 44 `grove` rows are gone from the inventory. No surface lost its last row. Compile-checked too
- * — see `BaselineCountIsSixtySix` in the module, which is what catches it off Linux where this file
- * never runs.
+ * — see `BaselineCountIsSeventyEight` in the module, which is what catches it off Linux where this
+ * file never runs.
  *
  * ⚠ 74 DECLARED, 38 BLOCKED, 36 SHOT as of plan 15-11 — and this is the first time since Phase 12
  * that the third number moved. It was 66/36/30 through Phases 13 and 14, whose rows were
@@ -263,14 +279,26 @@ const EXPECTED_BLOCKED = [
  *
  * ⚠ THIS LITERAL IS WHY THE PHASE-15 EDIT NEEDED TWO COMMITS, AND THE REASON IS WORTH KNOWING BEFORE
  * YOU ADD A ROW. It is the deliberate SECOND spelling of a number whose FIRST spelling is a compile
- * gate (`BaselineCountIsSeventyFour`), so that an edit to one without the other fails loudly — but it
- * is a `const`, not a type, so `tsc` reads it as a number and says nothing at all when it goes stale.
- * What a stale value here produces is worse than a compile error and arrives much later: the
+ * gate (`BaselineCountIsSeventyEight`), so that an edit to one without the other fails loudly — but
+ * it is a `const`, not a type, so `tsc` reads it as a number and says nothing at all when it goes
+ * stale. What a stale value here produces is worse than a compile error and arrives much later: the
  * `baselines` dispatch runs this spec, the test below fails on the count, the Playwright step exits
  * non-zero, and the stage/commit steps never run — a dispatch that renders every surface and commits
  * NOTHING, reported as a test failure rather than as a stale literal.
+ *
+ * ⚠ PLAN 16-15 MOVED BOTH LITERALS IN ONE COMMIT, WHICH IS THE CHANGE 15-11's TWO-COMMIT SPLIT
+ * INVITED. `git show --stat` on that commit lists `src/lib/design/visual-baselines.ts` and this file
+ * together. And it found a THIRD place the paragraph above does not name: `EXPECTED_BLOCKED` at the
+ * top of this file, which moves whenever a NEW surface arrives blocked — as both of Phase 16's did.
+ * Three pins, one commit. The count is not the whole of it.
+ *
+ * ⚠ 78 DECLARED, 42 BLOCKED, 36 SHOT as of plan 16-15, and the third number DID NOT MOVE. Both
+ * Phase-16 surfaces are blocked, so a 16-15 dispatch is expected to add ZERO files to
+ * `surfaces.spec.ts-snapshots/` — a dispatch that adds one has shot something the inventory says it
+ * cannot reach. Measured against the tree as this was written:
+ * `git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' | wc -l` → 36.
  */
-const EXPECTED_BASELINE_COUNT = 74;
+const EXPECTED_BASELINE_COUNT = 78;
 
 /**
  * Trap 1. Assert the surface rendered its subject before any pixel is read.
@@ -290,17 +318,19 @@ async function expectReachable(page: Page, row: BaselineRow): Promise<void> {
 }
 
 test.describe("GATE-01 — the declared baseline inventory", () => {
-  test("the inventory is the 74 rows the five UI-SPECs declare, and the blocked set is the declared one", () => {
+  test("the inventory is the 78 rows the six UI-SPECs declare, and the blocked set is the declared one", () => {
     expect(
       VISUAL_BASELINES.length,
-      "the five UI-SPECs declare 74 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
+      "the six UI-SPECs declare 78 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
         "12-UI-SPEC § Visual Baselines, 21 from 13-UI-SPEC § Visual Baselines, 15 from " +
-        "14-UI-SPEC § Visual Baselines and 8 from 15-UI-SPEC § Visual Baselines. D-138 makes " +
-        "`court` the single product theme, so the second theme's rows are no longer declared here. " +
-        "15-UI-SPEC's table has FIVE rows and contributes FOUR surfaces: the fifth is `auth-login`, " +
-        "which Phase 11 already declared and plan 15-11 EDITED rather than added twice. This is the " +
-        "runtime half of the compile gate in `visual-baselines.ts`; the type-level one is what " +
-        "catches it off Linux, where this file never runs.",
+        "14-UI-SPEC § Visual Baselines, 8 from 15-UI-SPEC § Visual Baselines and 4 from " +
+        "16-UI-SPEC § Delta-16. D-138 makes `court` the single product theme, so the second theme's " +
+        "rows are no longer declared here. 15-UI-SPEC's table has FIVE rows and contributes FOUR " +
+        "surfaces: the fifth is `auth-login`, which Phase 11 already declared and plan 15-11 EDITED " +
+        "rather than added twice. Phase 16's two are STATES of `/profile` and of the wizard rather " +
+        "than new routes, and both arrive blocked. This is the runtime half of the compile gate in " +
+        "`visual-baselines.ts`; the type-level one is what catches it off Linux, where this file " +
+        "never runs.",
     ).toBe(EXPECTED_BASELINE_COUNT);
 
     const blocked = blockedSurfaces();
