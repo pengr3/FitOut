@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import postgres from "postgres";
 
 import {
@@ -9,7 +10,7 @@ import {
   type SeededListing,
 } from "./helpers/booker-seed";
 import { expectRing, readFocus, type FocusReading } from "./helpers/focus";
-import { FLOOR_PX, expectNoOverflow } from "./helpers/overflow";
+import { FLOOR_PX, expectNoOverflow, expectNoOverflowWithin } from "./helpers/overflow";
 import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
@@ -17,6 +18,12 @@ import { seedTheme } from "./helpers/theme";
 // pure and isomorphic (no `server-only` guard) precisely so a gate can read it. The D-83 case below
 // branches on it, so a spec carrying its own copy would go green the day the real one changed.
 import { SUPPORT_EMAIL } from "../src/lib/site";
+// Same rule, one phase later (plan 16-15). `src/lib/avatar.ts` is directive-free precisely so a gate
+// can read it, and the crop dialog's title is the only string that distinguishes the overlay this
+// file's new row measures from the two other `responsive-dialog` overlays in the app. A re-typed copy
+// of it would go green the day the sentence changed, which is the whole failure the `tell` mechanism
+// exists to catch.
+import { AVATAR_CROP_TITLE } from "../src/lib/avatar";
 
 // RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on seventeen named routes
 // plus three route STATES, in both themes. Measured in real pixels in real Chromium.
@@ -239,6 +246,48 @@ async function signUpAndReachProfile(page: Page): Promise<string | null> {
   return "/profile";
 }
 
+/**
+ * The committed fixture the crop-dialog row stages (plan 16-15).
+ *
+ * `e2e/fixtures/` is generator-produced and gated byte-for-byte by `tests/design/image-fixtures.test
+ * .ts`, so these bytes are as fixed as a string literal — which is what a geometry gate needs and
+ * what a file picked off the machine would not be.
+ *
+ * ⚠ `square-400.png` RATHER THAN ONE OF THE OTHER TEN, AND THE REASON IS THAT IT RENDERS THE MOST.
+ * `avatarMaxZoom(400) === 1`, so this source lands on IC-05's 400x400 row: the zoom control is
+ * DISABLED (rule F8 disables it, never hides it) *and* the soft-source note renders beside it. That
+ * is one more block inside the sheet than any source with real headroom produces — a strictly larger
+ * subtree to measure at the floor, which is the only axis this row is judged on. It is also the
+ * smallest of the eleven at 1208 bytes, so the extra coverage costs nothing in decode time.
+ */
+const AVATAR_CROP_FIXTURE = path.join(__dirname, "fixtures", "square-400.png");
+
+/**
+ * Open the avatar crop dialog on `/profile`, for the row below (plan 16-15).
+ *
+ * The session is already established — `signUpAndReachProfile` above is this row's `path`, and the
+ * driver navigates before `open` runs — so all this does is hand a file to the shipped picker and
+ * wait for the overlay it produces.
+ *
+ * ⚠ THE INPUT IS ADDRESSED BY TYPE, NOT BY A TEST ID, and Playwright's strict mode is what makes that
+ * safe: `avatar-field.tsx` records that this is the only `<input type="file">` in `src/`, so a second
+ * one appearing anywhere on this route fails here rather than silently staging the wrong control.
+ *
+ * ⚠ AND THE WAIT IS ON THE DIALOG'S ACCESSIBLE NAME rather than on the file input's `change`. Guards
+ * 1-4 in `avatar-field.tsx` refuse four classes of file BEFORE any dialog mounts — a refusal renders
+ * an alert on the page and no overlay at all — so a wait on anything weaker than the named dialog
+ * would hand a refused file to the measurement and report the page behind it as covered.
+ */
+async function openAvatarCropDialog(page: Page): Promise<void> {
+  await page.locator('input[type="file"]').setInputFiles(AVATAR_CROP_FIXTURE);
+  await expect(
+    page.getByRole("dialog", { name: AVATAR_CROP_TITLE }),
+    "the crop dialog did not open after a valid fixture was staged. Either the pre-dialog guards " +
+      "refused it (check for an alert on `/profile`) or the decode never resolved — either way the " +
+      "row below would be measuring the profile page, which the row above it already measures.",
+  ).toBeVisible({ timeout: 30_000 });
+}
+
 type RouteRow = {
   /** How the route is named in failures and skip messages. */
   readonly name: string;
@@ -268,10 +317,25 @@ type RouteRow = {
    * page this table already covers, twice.
    */
   readonly open?: (page: Page) => Promise<void>;
+  /**
+   * A SECOND, SCOPED measurement, for a row whose subject is an open overlay (plan 16-15).
+   *
+   * ⚠ NOT A CONVENIENCE, AND NOT A DUPLICATE OF THE DOCUMENT SCAN. A Radix modal locks body scroll —
+   * measured, `<body>` computes `overflow: hidden` the instant one opens — which retires all three of
+   * `expectNoOverflow`'s clauses at once: the document can no longer widen, and `isClipped` walks
+   * through `<body>` and reports everything on the page as clipped. A 500px-wide div appended into
+   * the open crop dialog produced `scrollWidth 320` and `offenders: []`. So a row that only opens an
+   * overlay and calls the document scan CANNOT FAIL, which is the measurement-side twin of the
+   * vacuity the `tell` above exists to catch. `helpers/overflow.ts`'s second header has the numbers.
+   *
+   * Set to the selector of the overlay's own box. `expectNoOverflowWithin` then asks whether anything
+   * inside it reaches past ITS right edge, which is the question that is still answerable.
+   */
+  readonly scope?: string;
 };
 
 /**
- * SEVENTEEN ROUTES AND THREE ROUTE STATES — 20 rows, 40 cases at two themes each.
+ * SEVENTEEN ROUTES AND FOUR ROUTE STATES — 21 rows, 42 cases at two themes each.
  *
  * RE-MEASURED AGAINST THE ARRAY BELOW BY PLAN 15-10, which added five routes and two states. The
  * previous figure ("the twelve routes `11-UI-SPEC § Responsive Baseline` names, in its order — eight
@@ -279,15 +343,22 @@ type RouteRow = {
  * two Phase-12 states had joined it; it is replaced rather than annotated, because a stale measured
  * count in a gate's own header is the defect class Phase 15 exists to repair.
  *
+ * RE-MEASURED AGAIN BY PLAN 16-15, which adds ONE row and no route: `/profile` with the avatar crop
+ * dialog OPEN. The ROUTE count therefore does not move — 17 is still 17, because the new row is a
+ * STATE of a route this table already covers — and only the state count, the row count and the case
+ * count do. Stated that way round on purpose: the arithmetic a reader is most likely to get wrong
+ * here is incrementing the route count for a row that adds no route, and the header is the one place
+ * that mistake would be believed.
+ *
  * THE SPLIT, counted from the rows below:
  *
  *   • 13 of the 17 routes are REACHABLE — the 8 `11-UI-SPEC` names plus the 5 account routes
  *     AUTHUI-03 gate 1 adds (`/login`, `/signup`, `/forgot-password`, `/reset-password`, `/profile`).
  *   • 4 are NOT, and each says why in the string a skipped run prints. All four are error boundaries;
  *     that asymmetry is the finding rather than a shortfall — see the note on the first skipped row.
- *   • 3 STATES ride alongside their routes: the booking sheet open (12-10), forgot-password after
- *     submit and reset-password with no token (both 15-10).
- *   • 8 of the 40 cases are the four unreachable rows × two themes.
+ *   • 4 STATES ride alongside their routes: the booking sheet open (12-10), forgot-password after
+ *     submit and reset-password with no token (both 15-10), and the avatar crop dialog open (16-15).
+ *   • 8 of the 42 cases are the four unreachable rows × two themes.
  *
  * THE ORDER IS BY OWNING PLAN, not by URL, for `selector-contract.ts`'s stated reason: the reading
  * question this table gets asked is "has the phase that owns this surface run yet", not "where is /x
@@ -523,6 +594,52 @@ const ROUTES: readonly RouteRow[] = [
     path: signUpAndReachProfile,
     tell: '[data-testid="panel-card"]:has-text("Private account info")',
   },
+  {
+    name: "/profile · crop dialog open",
+    // ⚠ THE SAME ROUTE, MEASURED IN A STATE THE ROW ABOVE STRUCTURALLY CANNOT REACH (plan 16-15) —
+    // the second time this table has needed that sentence, and the `open` seam exists because of the
+    // first. Its own docblock says it is for "a row whose subject only exists once a booker has done
+    // something", which is precisely this: `ResponsiveDialog` is a Radix portal, so nothing the crop
+    // flow renders is in the document until a file is staged.
+    //
+    // WHY THE FLOOR IS WORTH MEASURING HERE AT ALL, in the shape the sheet-open row argues its case:
+    // at 320px this overlay is a BOTTOM SHEET, and inside it sits the one element on this whole table
+    // that is sized by a `min()` of three different units — the crop stage, capped at
+    // `min(320px, 100vw - 2rem, 40dvh)`. At this width the middle term wins and the stage is the full
+    // 288px content box, i.e. the widest subtree in the document with nothing to spare. Beside it are
+    // a slider whose track is the only horizontally-stretching control in the flow, and (with this
+    // fixture) rule F8's disabled-with-its-reason note. None of that was previously measured anywhere.
+    //
+    // ⚠ THE `tell` NAMES THE DIALOG, AND ON THIS ROW THAT IS THE WHOLE POINT — the same argument the
+    // row above makes about `/login`, arriving one layer in. `[data-testid="panel-card"]` is rendered
+    // by the profile page BEHIND this overlay, so a row hooked on it would pass with the dialog shut,
+    // report this state as covered, and measure the document the row above already measures, twice.
+    // Scoping to the overlay hook AND the dialog's own accessible name is what makes the selector
+    // true of this state and of nothing else in the app: `responsive-dialog` alone is also rendered
+    // by the removal confirm and by the booking sheet, and the title is the string that separates
+    // them. It is IMPORTED (`AVATAR_CROP_TITLE`) rather than typed, for the reason the import says.
+    //
+    // MEASURED, 26 August 2026, before this row was trusted — the vacuity probe this file's own
+    // header demands, run in both directions with the `open` removed so the dialog stays shut:
+    //   • `tell: '[data-testid="panel-card"]'`  → 2 passed. The bare hook reports a closed page as
+    //     this state. That is the failure the narrowing prevents, observed rather than argued.
+    //   • `tell` as it ships below                → 2 failed at `expectReachable`, "the route rendered
+    //     no `[data-testid=\"responsive-dialog\"]:has-text(\"Position your photo\")`". The shipped
+    //     selector cannot pass without the interaction.
+    //
+    // ⚠ AND THE SECOND PROBE FOUND SOMETHING THE FIRST DOES NOT COVER, WHICH IS WHY THIS ROW CARRIES
+    // A `scope`. A correct `tell` proves the row is LOOKING at the overlay; it says nothing about
+    // whether the MEASUREMENT can fail on it. Measured: with a modal open `<body>` computes
+    // `overflow: hidden`, and a 500px-wide div appended straight into this dialog produced
+    // `scrollWidth 320` and an EMPTY offender list — every clause of the document scan retired at
+    // once. Scoped to the overlay's own box the same div reports `scrollWidth 532` against
+    // `clientWidth 320` and fourteen named offenders. See `helpers/overflow.ts`'s second header for
+    // all three measurements and `deferred-items.md` D9 for the pre-existing row this also affects.
+    path: signUpAndReachProfile,
+    open: openAvatarCropDialog,
+    tell: `[data-testid="responsive-dialog"]:has-text("${AVATAR_CROP_TITLE}")`,
+    scope: '[data-testid="responsive-dialog"]',
+  },
 
   // ─── THE FOUR THIS HARNESS CANNOT REACH ──────────────────────────────────────────────────────────
   // Plan 11-21 says to drive the boundaries "through the same dev throw affordance plan 11-18 added
@@ -643,6 +760,11 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
         await expectReachable(page, row, where);
 
         await expectNoOverflow(page, where);
+
+        // The overlay rows' second measurement. Runs AFTER the document scan rather than instead of
+        // it: the document clause is still the right question for the page BEHIND the overlay, and
+        // dropping it would trade one blind spot for another.
+        if (row.scope) await expectNoOverflowWithin(page, row.scope, where);
       });
     }
   }

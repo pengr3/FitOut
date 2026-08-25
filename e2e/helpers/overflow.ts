@@ -139,3 +139,151 @@ export async function expectNoOverflow(page: Page, where: string): Promise<Overf
 
   return m;
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE OVERLAY MEASUREMENT (plan 16-15) — AND WHY THE ONE ABOVE CANNOT ANSWER FOR AN OPEN MODAL
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ EVERY CLAUSE IN `expectNoOverflow` IS SATISFIED BY CONSTRUCTION WHILE A RADIX MODAL IS OPEN. That
+// is not a hedge, it is three measurements taken on 26 August 2026 in real Chromium at 320x800:
+//
+//   (1) `document.body` COMPUTES `overflow: hidden` THE MOMENT A MODAL OPENS. Measured `visible` on
+//       all seven ordinary routes in the table (`/`, `/terms`, `/privacy`, `/login`, `/signup`,
+//       `/forgot-password`, `/reset-password`) and `hidden` — with `position: relative` — on
+//       `/listings/[id]` with the booking sheet open and on `/profile` with the crop dialog open.
+//       That is `react-remove-scroll`'s scroll lock, which the vendored dialog primitive installs.
+//
+//   (2) SO THE DOCUMENT CLAUSE GOES QUIET. `<body>` is a 320px box that now clips its own content, so
+//       `documentElement.scrollWidth` can no longer exceed `clientWidth` whatever is inside it.
+//       MEASURED by appending a 500px-wide `<div>` straight into the open dialog: `scrollWidth` 320,
+//       `clientWidth` 320. The document says the page is fine while a fifth of the overlay's content
+//       is unreachable.
+//
+//   (3) AND THE PER-ELEMENT CLAUSE GOES QUIET TWICE OVER. `isClipped` walks ancestors up to (but not
+//       including) the document element, so it walks THROUGH `<body>` and reports every element on
+//       the page as clipped — and separately, `DialogContent` itself computes `overflow-x: auto`
+//       (Tailwind's `overflow-y-auto` makes the other axis compute to `auto` per CSS), so anything
+//       inside it is clipped by the overlay's own box as well. The same injected 500px div came back
+//       with `offenders: []`.
+//
+// So a row that opens an overlay and calls only `expectNoOverflow` measures NOTHING — it reports the
+// state as covered and cannot fail. That is the measurement-side twin of the vacuity the route table's
+// `tell` mechanism exists to catch, and it is why this second function is not a second copy of the
+// first: it asks a DIFFERENT question, the one that is still answerable once the document's answer has
+// been suppressed. Does anything inside the overlay lay out past the OVERLAY'S OWN right edge, and does
+// the overlay's own box scroll sideways?
+//
+// SAME INJECTED DIV, ASKED THAT WAY: the crop dialog reported `scrollWidth 532` against `clientWidth
+// 320` and 14 named offenders; the booking sheet reported 532 against 320 and 48. Clean, both report
+// `320 === 320` and an empty list. That is a gate.
+//
+// ⚠ THE ANCESTOR WALK STOPS AT THE SCOPE, WHICH IS THE WHOLE TRICK. The scope element is the one doing
+// the hiding, so treating its overflow as a clip would reproduce the defect this function exists to
+// fix. Containers BETWEEN an element and the scope still clip — the sheet's own `max-h-72` scroll area
+// is a real scroll container and an element inside it is not an overflow defect, which is the identical
+// argument `collectOffenders` above makes for the map pane.
+
+export type ScopedOverflowMeasurement = {
+  /** False when the selector matched nothing — asserted before anything else is read. */
+  found: boolean;
+  /** The scope's own horizontal scroll extent and its visible width. */
+  scrollWidth: number;
+  clientWidth: number;
+  /** Descendants past the scope's right edge that nothing between them and the scope clips. */
+  offenders: string[];
+  /** Laid-out descendants examined. Zero means the scope was empty and the numbers above are free. */
+  examined: number;
+};
+
+/** One evaluate, one typed object, asserted in Node — the same idiom as `measureOverflow`. */
+export async function measureOverflowWithin(
+  page: Page,
+  selector: string,
+): Promise<ScopedOverflowMeasurement> {
+  return page.evaluate((sel) => {
+    const scope = document.querySelector<HTMLElement>(sel);
+    if (!scope) return { found: false, scrollWidth: 0, clientWidth: 0, offenders: [], examined: 0 };
+
+    const limit = scope.getBoundingClientRect().right;
+    const offenders: string[] = [];
+    let examined = 0;
+
+    /** True when something between `el` and the SCOPE clips it horizontally. The scope itself does not. */
+    const isClipped = (el: Element): boolean => {
+      let parent = el.parentElement;
+      while (parent && parent !== scope) {
+        const style = getComputedStyle(parent);
+        if (style.overflowX !== "visible" || style.overflow !== "visible") return true;
+        parent = parent.parentElement;
+      }
+      return false;
+    };
+
+    for (const el of Array.from(scope.querySelectorAll<HTMLElement>("*"))) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) continue;
+      examined += 1;
+      if (rect.right <= limit + 0.5) continue;
+      if (isClipped(el)) continue;
+      const testId = el.getAttribute("data-testid");
+      const cls = typeof el.className === "string" ? el.className : "";
+      offenders.push(
+        `${el.tagName.toLowerCase()}${testId ? `[${testId}]` : ""}.${cls.slice(0, 48)} right=${Math.round(rect.right)}`,
+      );
+    }
+
+    return { found: true, scrollWidth: scope.scrollWidth, clientWidth: scope.clientWidth, offenders, examined };
+  }, selector);
+}
+
+/**
+ * AC#29, asked of an open overlay rather than of the document it has suppressed.
+ *
+ * Four assertions, in the order they have to run: the scope exists, it laid something out, its own box
+ * does not scroll sideways, and nothing unclipped inside it reaches past its right edge. The first two
+ * are the vacuity guards and they are not optional here — a selector that matched nothing and a scope
+ * with nothing in it both satisfy the last two perfectly, which is the exact failure that made this
+ * function necessary in the first place.
+ */
+export async function expectNoOverflowWithin(
+  page: Page,
+  selector: string,
+  where: string,
+): Promise<ScopedOverflowMeasurement> {
+  const m = await measureOverflowWithin(page, selector);
+
+  expect(
+    m.found,
+    `${where}: no element matched \`${selector}\`, so the scoped measurement measured nothing. The ` +
+      "document-level scan cannot answer for an open overlay (see this file's header), so a missing " +
+      "scope here is a silently unmeasured row rather than a missing diagnostic.",
+  ).toBe(true);
+
+  expect(
+    m.examined,
+    `${where}: the scoped measurement examined ${m.examined} elements inside \`${selector}\`. An ` +
+      "empty scope never overflows, so this number is what makes the two assertions below mean " +
+      `something. The floor is ${MIN_EXAMINED_ELEMENTS} — the same constant, for the same reason.`,
+  ).toBeGreaterThanOrEqual(MIN_EXAMINED_ELEMENTS);
+
+  expect(
+    m.scrollWidth,
+    `${where}: \`${selector}\` scrolls horizontally — scrollWidth ${m.scrollWidth} against a ` +
+      `clientWidth of ${m.clientWidth}. The DOCUMENT will not report this: a modal locks body scroll, ` +
+      "so the overflow is hidden inside the overlay's own box rather than widening the page. " +
+      "Offending elements (right edge past the overlay):\n" +
+      (m.offenders.length
+        ? m.offenders.map((o) => `  ${o}`).join("\n")
+        : "  (none — the overflow comes from something this collector cannot see: a margin, a " +
+          "negative offset, or an element clipped by a container that is itself too wide)"),
+  ).toBeLessThanOrEqual(m.clientWidth + OVERFLOW_TOLERANCE_PX);
+
+  expect(
+    m.offenders,
+    `${where}: ${m.offenders.length} element(s) inside \`${selector}\` lay out past its ` +
+      `${m.clientWidth}px box without being clipped by a container between them and it:\n` +
+      m.offenders.map((o) => `  ${o}`).join("\n"),
+  ).toEqual([]);
+
+  return m;
+}

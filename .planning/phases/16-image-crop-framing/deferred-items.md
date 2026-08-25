@@ -314,3 +314,55 @@ scope the locator to the resolved form. The duplicate id itself is the deeper is
 whoever owns the fallback: two live elements sharing an id is invalid HTML regardless of how briefly.
 
 **Suggested owner:** plan 16-15's e2e triage, with D2 and D6.
+
+
+---
+
+## D9 — the 12-10 booking-sheet row measures nothing: a modal retires all three AC#29 clauses
+
+- **Found by:** plan 16-15, while building its own dialog-open row, 2026-08-26
+- **Owner file:** `e2e/overflow-320.spec.ts` — the `/listings/[id] · sheet open` row (plan 12-10)
+- **Severity:** a green gate on an unmeasured surface. Not a false red — the opposite, and worse.
+
+**Measured, in real Chromium at 320x800, three readings.**
+
+| reading | value |
+|---|---|
+| `getComputedStyle(document.body).overflow` on `/`, `/terms`, `/privacy`, `/login`, `/signup`, `/forgot-password`, `/reset-password` | **`visible`** |
+| the same, on `/listings/[id]` with the booking sheet OPEN | **`hidden`** (and `position: relative`) |
+| the same, on `/profile` with the crop dialog OPEN | **`hidden`** |
+
+That is `react-remove-scroll`'s scroll lock, installed by the vendored dialog primitive. Its effect on
+`expectNoOverflow` is total, and was measured by appending a **500px-wide `<div>` straight into the open
+sheet**:
+
+```
+documentElement.scrollWidth 320   clientWidth 320   offenders []
+```
+
+**All three clauses go quiet at once.** `examined` is satisfied (156 elements). The document clause
+cannot fire because `<body>` is now a 320px box that clips its own content. And the per-element clause
+cannot fire twice over: `isClipped` walks ancestors up to — but not including — the document element,
+so it walks **through** `<body>` and reports every element on the page as clipped; and separately
+`DialogContent` itself computes `overflow-x: auto` (Tailwind's `overflow-y-auto` makes the other axis
+compute to `auto` per CSS), so anything inside the overlay is clipped by the overlay's own box as well.
+
+**So the row that plan 12-10 added specifically because "the sheet is where the 320px floor is
+HARDEST" has never been able to fail.** Its `tell` is correct and its argument is right; the
+measurement behind it is the part that was never checked.
+
+**The fix already exists and is not applied to this row.** Plan 16-15 added
+`expectNoOverflowWithin(page, selector, where)` to `e2e/helpers/overflow.ts` and an optional
+`scope` field to `RouteRow`. Asked that way, the same injected div reports **`scrollWidth 532` against
+`clientWidth 320`** and **48 named offenders** on the sheet (14 on the crop dialog). Closing this is one
+line — `scope: '[data-testid="responsive-dialog"]'` on the sheet row.
+
+**Why 16-15 did not close it.** Its plan says in as many words *"Add nothing else to this file"* and
+*"do NOT refactor … that spec passes"*, and editing a pre-existing row is outside the one row this plan
+is chartered to add. More honestly: turning the clause on for the sheet may well produce a **real red**
+on a Phase-12 surface, and that is a finding somebody should be watching for rather than something to
+discover inside a gate plan's own verification run. The scoped clause fires on the crop dialog today,
+so the mechanism is proved; the sheet row is a one-line adoption plus whatever it then reports.
+
+**Suggested owner:** whoever next touches the booking sheet, or a Phase-17 responsive sweep. It is
+cheap and the diagnostic is already written.
