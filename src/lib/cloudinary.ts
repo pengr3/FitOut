@@ -103,10 +103,44 @@ export function signUploadParams(
 /**
  * Destroy a listing photo asset by its Cloudinary `public_id` (orphan cleanup, T-04-ORPHAN). Called
  * when a photo is removed (or a draft abandoned) so deleted photos don't linger in storage or serve
- * stale CDN copies — `invalidate: true` busts the CDN cache (RESEARCH Pattern 2 orphan handling).
+ * stale CDN copies — the destroy's CDN-invalidation option busts the cached copy (RESEARCH Pattern 2
+ * orphan handling).
+ *
+ * The option is named DESCRIPTIVELY in this sentence rather than quoted, and that is deliberate: plan
+ * 16-12 counts its occurrences in this file to prove there are exactly TWO destroy call sites (the
+ * listing one below and the avatar one at the foot of the file), and a comment that quoted the token
+ * would be counted as a third. Same resolution, and the same reason, as `responsive-dialog.tsx:113-117`.
  */
 export function destroyListingPhoto(
   publicId: string,
 ): Promise<{ result: string }> {
+  return cloudinary.uploader.destroy(publicId, { invalidate: true });
+}
+
+// ---------------------------------------------------------------------------
+// Phase-16 avatar teardown (CROP-03 / D-169).
+// ---------------------------------------------------------------------------
+
+/**
+ * Destroy an avatar asset by its Cloudinary `public_id` (orphan cleanup, T-16-44).
+ *
+ * The twin of `destroyListingPhoto` above, down to the CDN-invalidation option — and the id needs no
+ * reconstruction, because `uploadAvatarAction` persists Cloudinary's OWN `public_id`, which given
+ * `folder: "fitout/avatars"` + `public_id: userId` is already the fully-qualified
+ * `fitout/avatars/<userId>`.
+ *
+ * ⚠ THE CDN INVALIDATION MATTERS MORE HERE THAN IT DOES FOR A LISTING PHOTO, and the reason is
+ * `overwrite: true` at the top of this file: one canonical asset per user means the avatar's delivery
+ * URL is STABLE across replacements, so a cached edge copy is not merely stale — it is the removed
+ * photo, still being served from the same address the profile used to point at. A listing photo gets a
+ * fresh id per upload, so its worst case is an unreferenced object.
+ *
+ * ⚠ IT RESOLVES ON A MISSING ID AND REJECTS ONLY ON NETWORK/AUTH FAILURE. `uploader.destroy` answers
+ * `{ result: "not found" }` for an id that is not there rather than throwing, so a caller that only
+ * writes a `catch` has handled one of the two failure shapes. Under D-169 neither shape may reach the
+ * person: see `src/app/actions/avatar.ts`'s `removeAvatarAction`, which handles both and lets neither
+ * change its result.
+ */
+export function destroyAvatar(publicId: string): Promise<{ result: string }> {
   return cloudinary.uploader.destroy(publicId, { invalidate: true });
 }

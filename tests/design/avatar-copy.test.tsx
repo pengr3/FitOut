@@ -119,11 +119,18 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }),
 }));
 
-// The two server actions. `uploadAvatarAction` is never reached — every path this file drives
-// refuses BEFORE the dialog exists, so there is nothing to confirm — and `updateProfile` is a
+// The three server actions. `uploadAvatarAction` is never reached — every path this file drives
+// refuses BEFORE the crop dialog exists, so there is nothing to confirm — and `updateProfile` is a
 // promise that never settles on purpose, which is the only way to hold the profile submit in its
 // busy state long enough to read the word it renders. See the `Saving…` section.
-vi.mock("@/app/actions/avatar", () => ({ uploadAvatarAction: vi.fn() }));
+//
+// `removeAvatarAction` (CROP-03, plan 16-12) IS driven, by one case, and with a promise that never
+// settles for the same reason: `Removing…` is a word the FIELD authors, so reading it off the DOM is
+// link 2 rather than a restatement of the export.
+vi.mock("@/app/actions/avatar", () => ({
+  uploadAvatarAction: vi.fn(),
+  removeAvatarAction: vi.fn(),
+}));
 vi.mock("@/app/actions/profile", () => ({ updateProfile: vi.fn() }));
 
 // `measureImage` is driven to resolve a size or to reject, which is how guards 3 and 4 are reached
@@ -136,11 +143,19 @@ vi.mock("@/lib/avatar-canvas", () => ({
 }));
 
 import { measureImage } from "@/lib/avatar-canvas";
+import { removeAvatarAction } from "@/app/actions/avatar";
 import { updateProfile } from "@/app/actions/profile";
 import {
   AVATAR_CHANGE_LABEL,
   AVATAR_CROP_CONFIRM_BUSY,
   AVATAR_HELPER,
+  AVATAR_REMOVE_BODY,
+  AVATAR_REMOVE_CANCEL,
+  AVATAR_REMOVE_CONFIRM,
+  AVATAR_REMOVE_CONFIRM_BUSY,
+  AVATAR_REMOVE_FAILED_MESSAGE,
+  AVATAR_REMOVE_LABEL,
+  AVATAR_REMOVE_TITLE,
   AVATAR_TOO_SMALL_MESSAGE,
   AVATAR_UNREADABLE_MESSAGE,
   AVATAR_UPLOAD_LABEL,
@@ -156,6 +171,7 @@ import { ProfileForm } from "@/app/(app)/profile/profile-form";
 
 const measureMock = vi.mocked(measureImage);
 const updateProfileMock = vi.mocked(updateProfile);
+const removeMock = vi.mocked(removeAvatarAction);
 
 // jsdom implements neither half of the object-URL pair, and guards 3 and 4 run only after one has
 // been minted. Nothing below reads the value.
@@ -387,6 +403,35 @@ describe("the avatar copy contract — the exported literal, the rendered senten
     expect(AVATAR_UPLOAD_FAILED_MESSAGE).toBe(
       "Could not upload your photo. Please try again.",
     );
+
+    // ── CROP-03's five sentences, pinned by plan 16-12 ────────────────────────────────────────
+    // They were absent from this case until the removal shipped, and they arrive here rather than in
+    // `profile-pass.test.tsx`'s `PINNED_COPY` for a mechanical reason: PINNED_COPY compares against
+    // the string literals a FILE authors, and `avatar-field.tsx` authors none of these — it renders
+    // the imports. An AST pin over that file would look for sentences that are not in it and would
+    // report every one of them missing.
+    expect(AVATAR_REMOVE_LABEL).toBe("Remove photo");
+    expect(AVATAR_REMOVE_TITLE).toBe("Remove your photo?");
+    expect(AVATAR_REMOVE_BODY).toBe(
+      "Your profile will show your initials instead. You can add a new photo any time.",
+    );
+    expect(AVATAR_REMOVE_CONFIRM).toBe("Remove photo");
+    expect(AVATAR_REMOVE_CANCEL).toBe("Keep photo");
+    expect(AVATAR_REMOVE_FAILED_MESSAGE).toBe(
+      "Couldn't remove your photo. Try again.",
+    );
+
+    // The busy label, character by character, the way the crop confirm's twin is pinned below: same
+    // one-word-plus-ellipsis shape, and a single U+2026 rather than three full stops.
+    expect(AVATAR_REMOVE_CONFIRM_BUSY).toBe("Removing…");
+    expect(AVATAR_REMOVE_CONFIRM_BUSY.length).toBe(9);
+    expect(AVATAR_REMOVE_CONFIRM_BUSY.codePointAt(8)).toBe(0x2026);
+
+    // The trigger and the confirm verb are the SAME sentence, deliberately — the control names the
+    // outcome and the confirm repeats it, so a person who opened the overlay by accident reads the
+    // same words they pressed. Two constants because they are two surfaces with two owners, not
+    // because they are allowed to drift; this line is what would notice if one of them did.
+    expect(AVATAR_REMOVE_CONFIRM).toBe(AVATAR_REMOVE_LABEL);
   });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -408,26 +453,91 @@ describe("the avatar copy contract — the exported literal, the rendered senten
     expect(textOf(paragraphs[0])).toBe(AVATAR_HELPER);
   });
 
-  it("(3) the primary control reads Upload with no photo and Change with one", () => {
+  it("(3) the controls read Upload alone with no photo, and Change + Remove with one", () => {
+    // ⚠ THIS CASE IS WHERE CROP-03 LANDED, AND THE RED WAS WATCHED RATHER THAN ANTICIPATED. Until
+    // plan 16-12 both halves asserted ONE control, and the first half's message said so in as many
+    // words — *"CROP-03's removal button is plan 16-12's and does not exist yet; a second control
+    // here now would be an affordance ahead of its action."* The removal shipped and the second half
+    // failed on the count:
+    //
+    //   AssertionError: expected 2 to be 1 // Object.is equality
+    //     - Expected: 1   + Received: 2
+    //     ❯ tests/design/avatar-copy.test.tsx:426:27
+    //
+    // The assertion MOVED rather than loosening. What it claims now is stronger than the count it
+    // replaced: the field renders exactly TWO controls with a photo and exactly ONE without, and it
+    // names both, in order. "At least one control exists" would have been the cheap repair and it
+    // would stay green against a third control nobody ordered.
+    //
+    // ⚠ AND THE FIRST HALF'S `1` IS NOT LEFT-OVER STRICTNESS. A removal affordance on a profile with
+    // no photo is a control that acts on nothing, so its absence there is a claim CROP-03 makes, not
+    // one it retired.
     const withoutPhoto = renderField(null);
     const first = Array.from(withoutPhoto.container.querySelectorAll("button"));
     expect(
-      first.length,
-      "the avatar field renders more than one control. CROP-03's removal button is plan 16-12's " +
-        "and does not exist yet; a second control here now would be an affordance ahead of its " +
-        "action.",
-    ).toBe(1);
-    expect(textOf(first[0])).toBe(AVATAR_UPLOAD_LABEL);
+      first.map(textOf),
+      "the avatar field renders the wrong controls for a profile with no photo. There is exactly " +
+        "one thing to offer — the first upload — and a removal control here would act on nothing.",
+    ).toEqual([AVATAR_UPLOAD_LABEL]);
 
     cleanup();
 
     const withPhoto = renderField("https://cdn.example/avatar.jpg");
     const second = Array.from(withPhoto.container.querySelectorAll("button"));
-    expect(second.length).toBe(1);
-    // The SAME control, re-labelled — which is the claim worth making. A person who already has a
-    // photo is replacing one, and `Upload photo` would describe a first-time action they are not
-    // taking.
-    expect(textOf(second[0])).toBe(AVATAR_CHANGE_LABEL);
+    // The primary control is the SAME control, re-labelled — a person who already has a photo is
+    // replacing one, and `Upload photo` would describe a first-time action they are not taking — and
+    // the removal control follows it, because the constructive action reads first.
+    expect(
+      second.map(textOf),
+      "the avatar field renders the wrong controls for a profile WITH a photo. It offers exactly " +
+        "two: replace it, or remove it — in that order.",
+    ).toEqual([AVATAR_CHANGE_LABEL, AVATAR_REMOVE_LABEL]);
+  });
+
+  it("(3b) the removal confirm's four sentences are the exported literals, read off the DOM", async () => {
+    // LINK 2, on CROP-03's overlay: a source scan can see that the component names these constants;
+    // only a render can see what a person is shown. The confirm is opened through its real trigger.
+    renderField("https://cdn.example/avatar.jpg");
+    fireEvent.click(screen.getByRole("button", { name: AVATAR_REMOVE_LABEL }));
+
+    const dialog = await screen.findByRole("dialog");
+    // The title and the body come through the pattern's own `title` / `description` slots, so this
+    // also proves the field did not hand them to some other slot or re-word them on the way.
+    expect(textOf(dialog.querySelector("h2"))).toBe(AVATAR_REMOVE_TITLE);
+    expect(
+      textOf(dialog.querySelector('[data-slot="dialog-description"]')),
+    ).toBe(AVATAR_REMOVE_BODY);
+
+    const footer = dialog.querySelector('[data-slot="dialog-footer"]');
+    expect(footer, "the confirm rendered no footer").not.toBeNull();
+    const actions = Array.from(
+      (footer as HTMLElement).querySelectorAll("button"),
+    ).map(textOf);
+    // Destructive verb first in the DOM — `profile-pass.test.tsx` and
+    // `tests/profile/avatar-field.test.tsx` own WHY; this file only asks what the two say.
+    expect(actions).toEqual([AVATAR_REMOVE_CONFIRM, AVATAR_REMOVE_CANCEL]);
+  });
+
+  it("(3c) the confirm's busy label is the word the field authors, held in flight", async () => {
+    // The same technique case (7) uses for `Saving…`, and for the same reason: a promise that never
+    // settles is the only way to read a busy word without a timer racing the assertion.
+    removeMock.mockReturnValue(new Promise<never>(() => {}));
+
+    renderField("https://cdn.example/avatar.jpg");
+    fireEvent.click(screen.getByRole("button", { name: AVATAR_REMOVE_LABEL }));
+    const dialog = await screen.findByRole("dialog");
+
+    const confirm = Array.from(dialog.querySelectorAll("button")).find(
+      (button) => textOf(button) === AVATAR_REMOVE_CONFIRM,
+    );
+    expect(confirm, "the confirm verb is not in the overlay").not.toBeUndefined();
+    fireEvent.click(confirm as HTMLButtonElement);
+
+    await waitFor(() =>
+      expect(textOf(confirm as HTMLButtonElement)).toBe(
+        AVATAR_REMOVE_CONFIRM_BUSY,
+      ),
+    );
   });
 
   it("(4) each of the four refusals renders its exported sentence byte-for-byte", async () => {

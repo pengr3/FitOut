@@ -474,14 +474,24 @@ const PANEL_DESCRIPTIONS = [
 /**
  * The removal register, as whole words.
  *
- * AUTHUI-02's last clause is "and avatar removal is possible", which REQUIREMENTS.md's own conflict
- * note assigns to Phase 16 CROP-03 — so on THIS tree the correct state is that no such control
- * exists. `profile-form.tsx:120-122` says the same thing from the other side and gives the reason: a
- * destructive affordance shipped ahead of the action behind it is a button that lies.
+ * AUTHUI-02's last clause is "and avatar removal is possible", assigned to Phase 16 CROP-03 by
+ * REQUIREMENTS.md's own conflict note. **CROP-03 SHIPPED IN PLAN 16-12** — and the register stays,
+ * because what it is scoped to has changed rather than expired.
  *
- * ⚠ WHEN CROP-03 LANDS, THIS ASSERTION IS THE ONE THAT REDDENS, AND THAT IS THE POINT. It is not a
- * ban forever; it is a pin saying the capability has not arrived yet, so the plan that adds it must
- * move this file and declare the new control's accessible name here.
+ * ⚠ THE PREDICTION THIS DOCBLOCK USED TO CARRY DID NOT COME TRUE, AND THE REASON IS WORTH KEEPING.
+ * It said that CROP-03 landing would redden the assertion in case (10) and that the plan adding the
+ * control would have to declare the new name HERE. Plan 16-11 then lifted the whole avatar block out
+ * of `profile-form.tsx` into `avatar-field.tsx` and re-scoped that assertion to `FORM` — so when
+ * 16-12 added the control to the FIELD, case (10) stayed green, correctly: the sentence it makes is
+ * "the profile form ships no removal copy", and the form still ships none. The red arrived instead
+ * in `tests/design/avatar-copy.test.tsx` case (3), on a control COUNT, and the declaration the old
+ * text asked for was made there — that file already pins avatar copy byte-for-byte AND renders it,
+ * which is what these sentences need, since `avatar-field.tsx` AUTHORS none of them (they are
+ * imported constants, invisible to the AST literal scan this file's corpus is built from).
+ *
+ * What the register still buys, both directions asserted: the form must never grow removal copy of
+ * its own (case 10), and the RENDERED form must show exactly one removal control when there is a
+ * photo and none when there is not (case 12).
  */
 const REMOVAL_WORDS = /\b(remove|removing|delete|deleting)\b/i;
 
@@ -1109,10 +1119,10 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
   });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
-  // THE AVATAR BLOCK — the upload survives, the removal has not arrived
+  // THE AVATAR BLOCK — the upload survives, and the removal arrived in the FIELD (CROP-03, 16-12)
   // ───────────────────────────────────────────────────────────────────────────────────────────────
 
-  it("(10) the avatar block keeps its upload and has gained no removal control", () => {
+  it("(10) the avatar block keeps its upload, and the form itself names no removal", () => {
     // ⚠ THESE TWO ARE SCANNED AGAINST `FIELD`, NOT `FORM`, SINCE PLAN 16-11 — and they were watched
     // going to zero before they moved. The extraction emptied both against `FORM`, which this file's
     // own header did not predict (it predicts only the removal-register red below), and the failure was
@@ -1157,14 +1167,19 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
     // whole reason the corpus exists: profile-form.tsx:120-122 explains IN PROSE that crop and avatar
     // teardown are Phase 16's, and a byte scan for the removal register would report that comment —
     // the one saying there is deliberately no such control — as the control.
+    //
+    // ⚠ THIS ASSERTION SURVIVED CROP-03 UNCHANGED AND STAYED GREEN, WHICH IS A RESULT RATHER THAN AN
+    // OVERSIGHT — see `REMOVAL_WORDS`'s docblock for the full reading. Plan 16-12 shipped the removal
+    // control into `avatar-field.tsx`; this scan is scoped to `FORM`, and the claim it makes is that
+    // the form itself never grows removal copy. It did not, and it must not: a second removal
+    // affordance on this surface would be a second way to destroy one photo, and only one of them
+    // would be behind the confirm.
     const removalCopy = form.scan.texts.filter((value) => REMOVAL_WORDS.test(value));
     expect(
       removalCopy,
-      "the profile form ships a control whose name reads as a removal. AUTHUI-02's last clause " +
-        "(\"and avatar removal is possible\") is assigned to Phase 16 CROP-03 by REQUIREMENTS.md's " +
-        "own conflict note, so on this tree the correct state is that no such affordance exists. " +
-        "⚠ WHEN CROP-03 LANDS THIS IS THE ASSERTION THAT REDDENS, AND THAT IS THE POINT — the plan " +
-        "adding the control must move this file and declare the new name here.",
+      "the profile form ships a control whose name reads as a removal. CROP-03's removal lives in " +
+        "`avatar-field.tsx` since plan 16-12, behind a confirmation dialog; a removal named here " +
+        "would be a second, unconfirmed way to destroy the same photo.",
     ).toEqual([]);
   });
 
@@ -1257,8 +1272,39 @@ describe("AUTHUI-02 — the profile design pass, as counts and absences", () => 
     ].map((el) => (el.textContent ?? "").trim());
     expect(
       controlNames.filter((name) => REMOVAL_WORDS.test(name)),
-      "a rendered control on the profile form is named as a removal.",
+      "a rendered control on the profile form is named as a removal, on a profile that HAS NO " +
+        "PHOTO. CROP-03's control is offered only when there is something to remove; one offered " +
+        "here would act on nothing.",
     ).toEqual([]);
+
+    // ── THE POSITIVE HALF, added by plan 16-12 when CROP-03 shipped ────────────────────────────
+    //
+    // The render above passes `avatarUrl={null}`, so the absence it asserts is the correct state for
+    // a profile with no photo — and on its own it is also the state a tree with NO removal
+    // capability at all would produce. This second render is what tells those two apart, and it is
+    // the assertion the old ⚠ note in `REMOVAL_WORDS` was reaching for: it names the control, and it
+    // requires EXACTLY ONE of it. Two would be two ways to destroy one photo.
+    cleanup();
+    render(
+      <ProfileForm
+        initial={{ firstName: "Ada", lastName: "Lovelace", phone: "", bio: "", city: "" }}
+        avatarUrl="https://cdn.example/avatar.jpg"
+        displayName="Ada"
+      />,
+    );
+    const withPhoto = [
+      ...screen.queryAllByRole("button"),
+      ...screen.queryAllByRole("link"),
+    ]
+      .map((el) => (el.textContent ?? "").trim())
+      .filter((name) => REMOVAL_WORDS.test(name));
+    expect(
+      withPhoto,
+      "the rendered profile form does not offer exactly one removal control for a profile WITH a " +
+        "photo. AUTHUI-02's last clause is \"and avatar removal is possible\", and this is the " +
+        "assertion that says it is — zero means the capability is gone, and two means one photo " +
+        "has two ways to be destroyed, only one of which is behind the confirm.",
+    ).toEqual(["Remove photo"]);
   });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────

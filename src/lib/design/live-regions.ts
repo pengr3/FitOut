@@ -1460,22 +1460,30 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
 
   // ─── profile/avatar-field.tsx ───────────────────────────────────────────────────────────────────
   //
-  // ONE REGION FOR FOUR REFUSALS AND FOR THE SAVE FAILURE, SO ONE ORDINAL. The field holds a single
-  // refusal slot rather than one per guard, because a field that can only ever have refused ONE
-  // thing rendering two regions is the shape rule 6 forbids. The slot is spent in exactly one place
-  // at a time: on the page while no file is staged, and inside the crop dialog while one is — which
-  // is why this row and `avatar-crop-save-error` below describe two elements that are never mounted
-  // together.
+  // ONE REGION FOR FOUR REFUSALS, THE SAVE FAILURE AND THE REMOVAL FAILURE, SO ONE ORDINAL. The
+  // field holds a single refusal slot rather than one per outcome, because a field that can only
+  // ever have refused ONE thing rendering two regions is the shape rule 6 forbids. The slot is spent
+  // in exactly one place at a time: on the page while nothing is open, inside the crop dialog while
+  // a file is staged, and inside the removal confirm while that is open — which is why this row and
+  // `avatar-crop-save-error` below describe elements that are never mounted together.
+  //
+  // ⚠ AND THE ELEMENT IS WRITTEN ONCE IN THAT FILE AND GIVEN TWO POSSIBLE PARENTS, rather than
+  // written twice. Plan 16-12 added the removal failure to this slot; a second element would have
+  // been an undeclared `alert#2` in a declared file, which the scan keys by ordinal and would
+  // report — whether or not the two could ever be on screen together.
   "avatar-field-refusal": {
     file: "src/components/profile/avatar-field.tsx",
     kind: "alert",
     at: 1,
     announces:
-      "Whichever of the four pre-dialog refusals the person's file earned, verbatim and once — the " +
-      "wrong-type sentence, the over-5-MB sentence, the undecodable sentence or the too-small " +
-      "sentence. Each names what to pick INSTEAD rather than only what was wrong, so a listener is " +
-      "told what to do next and not merely that they failed. It is cleared at the top of the next " +
-      "attempt, so a second refusal is a second announcement rather than a silent no-op.",
+      "Whichever refusal the person earned, verbatim and once. Four of them are pre-dialog and are " +
+      "about the FILE — the wrong-type sentence, the over-5-MB sentence, the undecodable sentence " +
+      "or the too-small sentence — and each names what to pick INSTEAD rather than only what was " +
+      "wrong, so a listener is told what to do next and not merely that they failed. The other two " +
+      "are about an attempt that was made and did not land: a save that failed after the framing " +
+      "was confirmed, and (since CROP-03) a removal that failed, each announced from inside the " +
+      "overlay that is still open on it. It is cleared at the top of the next attempt, so a second " +
+      "refusal is a second announcement rather than a silent no-op.",
     why:
       "RULE 2. An upload the person started came back refused and the FILE THEY CHOSE is the thing " +
       "that has to change, so it is a genuine failure needing a human rather than a state that will " +
@@ -1489,8 +1497,9 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "an accepted one look identical.\n" +
       "\n" +
       "Named by its CONTENT, like every other refusal on the account surfaces. The component " +
-      "authors none of these sentences — each is an imported literal — which is what keeps the " +
-      "thing announced identical to the thing the contract says.",
+      "authors none of these sentences — each is an imported literal, and the two failure sentences " +
+      "are the SERVER'S OWN, passed through verbatim — which is what keeps the thing announced " +
+      "identical to the thing the contract says.",
   },
 
   // ─── profile/image-crop-dialog.tsx ──────────────────────────────────────────────────────────────

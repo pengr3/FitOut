@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-// THE AVATAR FIELD'S STATE MACHINE, AND ONLY THAT (plan 16-10 · CROP-01).
+// THE AVATAR FIELD'S STATE MACHINE, AND ONLY THAT (plan 16-10 · CROP-01; plan 16-12 · CROP-03).
 //
 // WHAT THIS FILE CATCHES.
 //   1. RULE F4, the behaviour the whole phase exists for: picking a file calls NOTHING over the
@@ -17,6 +17,13 @@
 //      disabled nor annotated — see the note on vacuity below.
 //   5. Rule F5: a failed save leaves the dialog open with the server's own sentence inside it.
 //   6. Rule 6 of GATE-03: one refusal region at a time, counted, never sampled.
+//   7. CROP-03's removal trigger, in BOTH directions — absent with no photo, present after the
+//      change control with one.
+//   8. D-168's binding mitigation, by mechanism: the confirm opens with focus on `Keep photo`,
+//      asserted BY ACCESSIBLE NAME with `toBe`, over a footer whose DOM order puts the destructive
+//      action first. Watched red with the handler removed — Radix focused `Remove photo`.
+//   9. The confirm's pending and failure behaviour: `Removing…` with both actions disabled, and a
+//      failure that leaves the overlay open carrying the server's own sentence.
 //
 // WHAT THIS FILE DELIBERATELY CANNOT CATCH, AND DOES NOT PRETEND TO.
 // **In jsdom the crop stage does not exist in the DOM.** `react-easy-crop` renders its crop-area
@@ -128,7 +135,10 @@ URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL;
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
-vi.mock("@/app/actions/avatar", () => ({ uploadAvatarAction: vi.fn() }));
+vi.mock("@/app/actions/avatar", () => ({
+  uploadAvatarAction: vi.fn(),
+  removeAvatarAction: vi.fn(),
+}));
 
 // `measureImage` is driven to resolve a size or to reject, which is how the decode and dimension
 // guards are reached. `encodeAvatarBlob` is mocked because jsdom's `getContext("2d")` is null, so the
@@ -139,7 +149,7 @@ vi.mock("@/lib/avatar-canvas", () => ({
   revokeAvatarObjectUrl: vi.fn(),
 }));
 
-import { uploadAvatarAction } from "@/app/actions/avatar";
+import { removeAvatarAction, uploadAvatarAction } from "@/app/actions/avatar";
 import {
   measureImage,
   encodeAvatarBlob,
@@ -152,6 +162,12 @@ import {
   AVATAR_HELPER,
   AVATAR_MIN_SOURCE_PX,
   AVATAR_OUTPUT_PX,
+  AVATAR_REMOVE_CANCEL,
+  AVATAR_REMOVE_CONFIRM,
+  AVATAR_REMOVE_CONFIRM_BUSY,
+  AVATAR_REMOVE_FAILED_MESSAGE,
+  AVATAR_REMOVE_LABEL,
+  AVATAR_REMOVE_TITLE,
   AVATAR_SOFT_SOURCE_NOTE,
   AVATAR_TOO_SMALL_MESSAGE,
   AVATAR_UNREADABLE_MESSAGE,
@@ -166,6 +182,7 @@ import {
 import { AvatarField } from "@/components/profile/avatar-field";
 
 const uploadMock = vi.mocked(uploadAvatarAction);
+const removeMock = vi.mocked(removeAvatarAction);
 const measureMock = vi.mocked(measureImage);
 const encodeMock = vi.mocked(encodeAvatarBlob);
 const revokeMock = vi.mocked(revokeAvatarObjectUrl);
@@ -266,6 +283,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   encodeMock.mockResolvedValue(CROPPED);
   uploadMock.mockResolvedValue({ ok: true, avatarUrl: "https://cdn/new.jpg" });
+  removeMock.mockResolvedValue({ ok: true });
 });
 
 afterEach(cleanup);
@@ -540,5 +558,183 @@ describe("the copy on the resting surface is the exported literal", () => {
     expect(
       screen.queryByRole("button", { name: AVATAR_UPLOAD_LABEL }),
     ).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// CROP-03 — THE REMOVAL CONTROL AND ITS CONFIRM (plan 16-12)
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// WHAT THE CASES BELOW CATCH, and why each is shaped the way it is.
+//
+//   · The trigger's PRESENCE is asserted in both directions on the same component, because "no
+//     removal control on a profile with no photo" and "a removal control on a profile with one" are
+//     independent claims and only the pair rules out a control that is always there or never there.
+//   · FOCUS is asserted BY ACCESSIBLE NAME with `toBe`, resolved through `@testing-library`'s
+//     `{ name }` option — the arrangement `tests/design/responsive-dialog-autofocus.test.tsx`
+//     established, reused here against the real component. `expect(active).not.toBe(destructive)`
+//     would pass on `<body>`, on the overlay container and on any of the three dismiss affordances,
+//     which is to say it would pass in every arrangement where the mitigation had failed.
+//   · The FOOTER'S DOM ORDER is read off the footer element in document order, because it is what
+//     decides the mobile stacking (`flex-col-reverse` below `sm:`) and because it is exactly the
+//     order that makes the focus handler load-bearing rather than decorative.
+//
+// WHAT THESE CASES DELIBERATELY CANNOT COVER. **The overlay's own close control and the overlay
+// click being inert while the removal is in flight are NOT assertable here.** Both are Radix
+// behaviours that need a real browser — the outside-press dismissal runs through pointer capture and
+// `react-remove-scroll`, neither of which jsdom implements — so in this environment they produce no
+// observable difference between "guarded" and "unguarded". The single `onOpenChange` guard is what
+// makes all three affordances inert, and this file can only drive the ONE it can reach
+// (`Keep photo`). The other two belong to plan 16-13's Playwright spec.
+
+/** A stored avatar, so the removal control has something to act on. */
+const AN_AVATAR = "https://cdn/existing.jpg";
+
+/**
+ * The ACCESSIBLE NAME of `document.activeElement`, matched against every button the confirm can
+ * hold. Returning a NAME rather than an element is what lets the assertion read
+ * `expected 'Remove photo' to be 'Keep photo'` instead of an element-identity mismatch.
+ */
+function focusedButtonName(dialog: HTMLElement): string {
+  for (const name of [AVATAR_REMOVE_CONFIRM, AVATAR_REMOVE_CANCEL, "Close"]) {
+    const button = within(dialog).queryByRole("button", { name });
+    if (button !== null && button === document.activeElement) return name;
+  }
+  const node = document.activeElement;
+  if (node === null) return "«null»";
+  if (node === document.body) return "«document.body — focus was dropped»";
+  const label = (node.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+  return `«${node.tagName.toLowerCase()} "${label}"»`;
+}
+
+/** Render a field WITH a photo, press its removal trigger, and wait for the confirm's portal. */
+async function openRemoveConfirm(): Promise<HTMLElement> {
+  render(<AvatarField avatarUrl={AN_AVATAR} displayName="Alex Doe" />);
+  // Before the overlay opens the trigger is the only control by this name; afterwards the confirm
+  // verb shares it, which is why every later lookup is scoped with `within(dialog)`.
+  fireEvent.click(screen.getByRole("button", { name: AVATAR_REMOVE_LABEL }));
+  return await screen.findByRole("dialog");
+}
+
+describe("CROP-03 — the removal control exists only when there is a photo to remove", () => {
+  it("renders no removal trigger for a profile with no photo", () => {
+    renderField(null);
+
+    expect(
+      screen.queryByRole("button", { name: AVATAR_REMOVE_LABEL }),
+    ).toBeNull();
+    // …and the constructive control is still there, so the absence above is a SCOPED absence rather
+    // than a component that rendered nothing.
+    expect(
+      screen.getByRole("button", { name: AVATAR_UPLOAD_LABEL }),
+    ).not.toBeNull();
+  });
+
+  it("renders the removal trigger, after the change control, for a profile with one", () => {
+    renderField(AN_AVATAR);
+
+    const controls = screen
+      .getAllByRole("button")
+      .map((button) => (button.textContent ?? "").trim());
+    // `Change photo` before `Remove photo` — the circle is the anchor and the constructive action
+    // reads first.
+    expect(controls).toEqual([AVATAR_CHANGE_LABEL, AVATAR_REMOVE_LABEL]);
+  });
+});
+
+describe("CROP-03 — D-168's mitigation, by mechanism (T-16-45)", () => {
+  it("lands focus on Keep photo when the confirm opens", async () => {
+    const dialog = await openRemoveConfirm();
+
+    // Radix places focus in an effect after the content mounts, so the read is awaited rather than
+    // taken on the same tick.
+    await waitFor(() =>
+      expect(focusedButtonName(dialog)).toBe(AVATAR_REMOVE_CANCEL),
+    );
+  });
+
+  it("keeps the destructive action FIRST in the footer's DOM order", async () => {
+    const dialog = await openRemoveConfirm();
+
+    const footer = dialog.querySelector('[data-slot="dialog-footer"]');
+    expect(footer, "the confirm rendered no footer").not.toBeNull();
+    const names = within(footer as HTMLElement)
+      .getAllByRole("button")
+      .map((button) => (button.textContent ?? "").trim());
+    // Destructive first, so `flex-col-reverse` stacks `Keep photo` on top under the thumb below
+    // `sm:` and `sm:flex-row` puts it on the right above it. This is the order that makes the focus
+    // handler load-bearing: in it, untouched Radix focuses the destructive button (plan 16-03).
+    expect(names).toEqual([AVATAR_REMOVE_CONFIRM, AVATAR_REMOVE_CANCEL]);
+    expect(within(dialog).getByText(AVATAR_REMOVE_TITLE)).not.toBeNull();
+  });
+});
+
+describe("CROP-03 — pending and failure inside the confirm", () => {
+  it("reads Removing… and disables both actions while the removal is in flight", async () => {
+    // A promise that never settles IS the pending state — no timer, no fake clock, and no window in
+    // which the assertion could be racing a resolution.
+    removeMock.mockReturnValue(new Promise<never>(() => {}));
+
+    const dialog = await openRemoveConfirm();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: AVATAR_REMOVE_CONFIRM }),
+    );
+
+    const busy = await within(dialog).findByRole("button", {
+      name: AVATAR_REMOVE_CONFIRM_BUSY,
+    });
+    const keep = within(dialog).getByRole("button", {
+      name: AVATAR_REMOVE_CANCEL,
+    });
+    // Read as plain DOM state — `jest-dom`'s matchers are not registered in this suite.
+    expect(busy.hasAttribute("disabled")).toBe(true);
+    expect(busy.getAttribute("aria-disabled")).toBe("true");
+    expect(keep.hasAttribute("disabled")).toBe(true);
+    expect(keep.getAttribute("aria-disabled")).toBe("true");
+    // The verb it replaced is GONE rather than merely joined by a second one.
+    expect(
+      within(dialog).queryByRole("button", { name: AVATAR_REMOVE_CONFIRM }),
+    ).toBeNull();
+  });
+
+  it("keeps the confirm OPEN with the server's own sentence when the removal fails", async () => {
+    removeMock.mockResolvedValue({
+      ok: false,
+      error: AVATAR_REMOVE_FAILED_MESSAGE,
+    });
+
+    const dialog = await openRemoveConfirm();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: AVATAR_REMOVE_CONFIRM }),
+    );
+
+    await waitFor(() => expect(alerts()).toHaveLength(1));
+    expect(textOf(alerts()[0])).toBe(AVATAR_REMOVE_FAILED_MESSAGE);
+    // Still open, still offering both ways out — a failure that closed the overlay would leave the
+    // person looking at the photo they asked to remove with nothing on screen saying why.
+    expect(screen.getByRole("dialog")).not.toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: AVATAR_REMOVE_CONFIRM }),
+    ).not.toBeNull();
+    // …and the one region is INSIDE the overlay, not a second copy behind it (GATE-03 rule 6).
+    expect(within(dialog).getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("closes the confirm and falls back to initials when the removal succeeds", async () => {
+    const dialog = await openRemoveConfirm();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: AVATAR_REMOVE_CONFIRM }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(removeMock).toHaveBeenCalledTimes(1);
+    // The circle is back to initials, so the removal trigger has nothing to act on and is gone with
+    // it; the control re-reads as a first upload.
+    expect(
+      screen.queryByRole("button", { name: AVATAR_REMOVE_LABEL }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: AVATAR_UPLOAD_LABEL }),
+    ).not.toBeNull();
   });
 });

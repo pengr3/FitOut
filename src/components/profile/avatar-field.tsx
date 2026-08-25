@@ -1,7 +1,8 @@
 "use client";
 
-// The `/profile` avatar field (CROP-01) — the picker, the four pre-dialog guards, the staged file,
-// the crop dialog and the upload action, in one client composite.
+// The `/profile` avatar field (CROP-01 + CROP-03) — the picker, the four pre-dialog guards, the
+// staged file, the crop dialog and the upload action, plus the removal control and its confirm, in
+// one client composite.
 //
 // ⚠ RULE F4 IS THE HEADLINE BEHAVIOUR, AND IT IS THE REASON THIS PHASE EXISTS. NOTHING REACHES THE
 // NETWORK BETWEEN PICKING A FILE AND PRESSING THE CONFIRM. No pre-upload, no speculative upload, no
@@ -24,16 +25,43 @@
 //     not participate in `updateProfile`. The file input carries no `name` and is deliberately
 //     unregistered; `profile-form.tsx:99-103` records why, and that property must survive plan
 //     16-11's extraction or the values the profile action receives change.
-//   - It renders NO removal control and NO destructive affordance of any kind. CROP-03 and its
-//     action land together in plan 16-12, in this same file, because a destructive button shipped
-//     ahead of the action behind it is a button that lies — `profile-form.tsx:120-122` says exactly
-//     that about the seam this composite replaces.
+//   - It composes the removal confirm HERE rather than in `profile-form.tsx`, and that placement is
+//     mechanical rather than aesthetic: `profile-pass.test.tsx` case (8) bans the destructive button
+//     variant in the form, so composing the confirm there would redden an assertion nobody budgeted.
+//     Case (8) must stay green through this file's whole life.
 //   - It authors NO user-visible string. Every sentence it renders is an imported literal: the four
 //     refusals and the helper from `@/lib/avatar`, the size refusal and the save failure from
 //     `@/lib/validation/profile`, which is where the two shipped ones already live. Two copies of a
 //     string are two strings (rule F2).
 //   - It knows nothing about the crop stage's geometry, its gestures or its bytes. `ImageCropDialog`
 //     hands back a Blob; this file turns that Blob into a request.
+//
+// ⚠ CROP-03 ARRIVED IN PLAN 16-12 — THE CONTROL AND THE ACTION IN THE SAME COMMIT. Until then this
+// file said, in the list above, that it rendered no removal affordance of any kind, because a
+// destructive button shipped ahead of the action behind it is a button that lies
+// (`profile-form.tsx:120-122` reserved the seam in those words). `removeAvatarAction` now exists, so
+// the sentence is discharged rather than deleted. Three properties of the removal are load-bearing:
+//
+//   FOCUS LANDS ON THE SAFE ACTION BY MECHANISM, NOT BY DOM ORDER. D-168 declined the alarm-semantics
+//   overlay primitive in order to keep ONE focus trap and ONE escape behaviour in this app, and made
+//   "default focus lands on `Keep photo`, never on `Remove photo`" the BINDING mitigation for that
+//   trade. Plan 16-03 MEASURED what happens without a handler, on this exact footer order: Radix
+//   focuses `Remove photo` — the destructive button. So the pattern's open-time focus hook is
+//   supplied below, and omitting it would not be a cosmetic miss; it would be the mitigation failing
+//   open. DOM order cannot substitute: `DialogFooter` is `flex-col-reverse … sm:flex-row`, so putting
+//   the safe action first in the DOM would stack the DESTRUCTIVE one on top of the mobile column,
+//   under the thumb.
+//
+//   THE TRIGGER IS PASSED TO THE OVERLAY, so Radix's `triggerRef` is real and its own close-time
+//   restore is correct here — which is why this confirm does NOT take that decision over.
+//   `request-row.tsx:242` makes the same call for the same reason, and overriding it on a stable
+//   trigger would be a claim this file has no basis for. It is the opposite call from the one the
+//   crop dialog makes, and the difference is the presence of a trigger rather than a preference.
+//
+//   DESTRUCTIVE COLOUR APPEARS EXACTLY ONCE IN THE PHASE, on the confirm verb INSIDE the overlay. The
+//   `Remove photo` control on the page is `variant="outline"` and stays that way: 02-UI-SPEC's rule
+//   is that the alarm palette pairs with a destructive verb inside a confirmation, never as a bare
+//   coloured button in normal flow.
 //
 // ⚠ THE CLIENT GUARDS ARE A UX AFFORDANCE, NOT THE TRUST BOUNDARY (T-16-33). They exist so a person
 // learns in a hundred milliseconds what they would otherwise learn after a five-megabyte round trip —
@@ -52,8 +80,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { Trash2Icon } from "lucide-react";
 
-import { uploadAvatarAction } from "@/app/actions/avatar";
+import { removeAvatarAction, uploadAvatarAction } from "@/app/actions/avatar";
+import { ResponsiveDialog } from "@/components/patterns/responsive-dialog";
 import { ImageCropDialog } from "@/components/profile/image-crop-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -62,6 +92,12 @@ import {
   AVATAR_CHANGE_LABEL,
   AVATAR_HELPER,
   AVATAR_MIN_SOURCE_PX,
+  AVATAR_REMOVE_BODY,
+  AVATAR_REMOVE_CANCEL,
+  AVATAR_REMOVE_CONFIRM,
+  AVATAR_REMOVE_CONFIRM_BUSY,
+  AVATAR_REMOVE_LABEL,
+  AVATAR_REMOVE_TITLE,
   AVATAR_TOO_SMALL_MESSAGE,
   AVATAR_UNREADABLE_MESSAGE,
   AVATAR_UPLOAD_LABEL,
@@ -110,20 +146,43 @@ export function AvatarField({
    */
   const primaryControl = React.useRef<HTMLButtonElement>(null);
 
+  /**
+   * The removal confirm's SAFE action, so focus can be placed on it deliberately when the overlay
+   * opens.
+   *
+   * ⚠ THIS REF IS THE WHOLE OF D-168's MITIGATION. Plan 16-03 measured Radix's untouched behaviour
+   * against this exact footer order and recorded the reading: focus lands on `Remove photo`. There is
+   * no DOM order that fixes it without putting the destructive action under the thumb on mobile (see
+   * the header), so the only mechanism is to suppress Radix's own choice and focus this element.
+   */
+  const keepPhotoControl = React.useRef<HTMLButtonElement>(null);
+
   const [avatarUrl, setAvatarUrl] = React.useState(initialAvatarUrl);
   const [staged, setStaged] = React.useState<StagedAvatar | null>(null);
   const [saving, setSaving] = React.useState(false);
+  const [removeOpen, setRemoveOpen] = React.useState(false);
+  const [removing, setRemoving] = React.useState(false);
 
   /**
-   * ONE REFUSAL SLOT FOR EVERY WAY THIS FIELD CAN REFUSE — the four pre-dialog guards AND the save
-   * failure — not one per guard.
+   * ONE REFUSAL SLOT FOR EVERY WAY THIS FIELD CAN REFUSE — the four pre-dialog guards, the save
+   * failure AND the removal failure — not one per outcome.
    *
    * A field that can only ever have refused ONE thing rendering two regions is the shape GATE-03
    * rule 6 forbids, and four slots would make that shape reachable by accident. It is safe to share
-   * because the two halves are mutually exclusive in time: a guard refuses only when no file is
-   * staged (it returns without mounting the dialog), and a save can only fail while one is. The
-   * render below spends the slot in exactly one place accordingly — inside the dialog when a file is
-   * staged, on the page when none is — so at no instant are both mounted.
+   * because the halves are mutually exclusive in time: a guard refuses only when no file is staged
+   * (it returns without mounting the dialog), a save can only fail while one is, and a removal can
+   * only fail while the confirm is open — which requires no file staged and nothing saving. The
+   * render below spends the slot in exactly one place accordingly — inside the crop dialog when a
+   * file is staged, inside the removal confirm while it is open, on the page otherwise — so at no
+   * instant are two mounted.
+   *
+   * ⚠ AND THERE IS EXACTLY ONE INTERRUPTING-REGION ELEMENT IN THIS FILE, WRITTEN ONCE AND PLACED
+   * TWICE. That is not a style preference: `src/lib/design/live-regions.ts` declares this file as
+   * carrying
+   * ONE alert region, and `tests/design/live-regions.test.tsx` scans the SOURCE and keys regions by
+   * their ordinal among same-kind siblings — so a second element here would be an undeclared
+   * `alert#2` and would redden that gate, whether or not the two could ever mount together. Writing
+   * the element once and choosing its parent is the shape that keeps the declaration true.
    */
   const [refusal, setRefusal] = React.useState<string | null>(null);
 
@@ -252,7 +311,75 @@ export function AvatarField({
     setRefusal(AVATAR_UPLOAD_FAILED_MESSAGE);
   }
 
+  /**
+   * ONE guard covering all three of the confirm's dismiss affordances while the removal is in
+   * flight — the `×`, the overlay click and `Escape` — exactly as the crop dialog does it (Delta-3).
+   * The pattern exposes no `dismissLocked` prop and deliberately never will (plan 16-03 refused to
+   * add one), so the controlled state IS the lock, which is why this overlay's `open` is controlled
+   * even though it also has a trigger. The two compose.
+   */
+  function handleRemoveOpenChange(next: boolean) {
+    if (removing) return;
+    // Clear-then-set, the same idiom the picker uses: a sentence from a previous attempt must not
+    // outlive it, in either direction of travel.
+    setRefusal(null);
+    setRemoveOpen(next);
+  }
+
+  /**
+   * Place focus on the safe action when the overlay opens, suppressing Radix's own first-tabbable
+   * choice. BOTH halves are required — without the `preventDefault()` Radix focuses the destructive
+   * button after this returns, which plan 16-03 measured rather than predicted.
+   */
+  function steerFocusToSafeAction(event: Event) {
+    event.preventDefault();
+    keepPhotoControl.current?.focus();
+  }
+
+  async function handleRemove() {
+    // Re-entrancy guard BEFORE the disabled attribute can apply — the same idiom the crop confirm
+    // uses, and on a DESTRUCTIVE action the failure it prevents is two removals from one press.
+    if (removing) return;
+    setRemoving(true);
+    setRefusal(null);
+
+    let result: Awaited<ReturnType<typeof removeAvatarAction>>;
+    try {
+      result = await removeAvatarAction();
+    } catch (e) {
+      setRemoving(false);
+      throw e;
+    }
+
+    setRemoving(false);
+
+    if (!result.ok) {
+      // THE SERVER'S OWN SENTENCE, VERBATIM, and the overlay STAYS OPEN on it (rule F5). Closing on
+      // a failure would leave the person looking at the photo they asked to remove with nothing on
+      // screen saying why it is still there.
+      setRefusal(result.error);
+      return;
+    }
+
+    setRemoveOpen(false);
+    // The circle falls back to initials immediately; `router.refresh()` re-renders the server tree
+    // so every other surface reading this row agrees.
+    setAvatarUrl(null);
+    router.refresh();
+  }
+
   const initials = displayName.slice(0, 2).toUpperCase();
+
+  /**
+   * THE FIELD'S ONE REFUSAL REGION, written once here and placed by the render below. Declared in
+   * `src/lib/design/live-regions.ts` as this file's alert #1 — see the state's docblock for why a
+   * second element rather than a second parent would be the wrong shape.
+   */
+  const refusalLine = refusal ? (
+    <p role="alert" className="text-label text-destructive">
+      {refusal}
+    </p>
+  ) : null;
 
   return (
     <div className="flex items-center gap-4">
@@ -273,30 +400,84 @@ export function AvatarField({
           aria-label="Upload avatar"
           onChange={onAvatarChange}
         />
-        <Button
-          ref={primaryControl}
-          type="button"
-          variant="outline"
-          size="touch"
-          onClick={() => fileInput.current?.click()}
-        >
-          {avatarUrl ? AVATAR_CHANGE_LABEL : AVATAR_UPLOAD_LABEL}
-        </Button>
+        {/* `Change photo` FIRST, `Remove photo` after it — the 64px circle is the anchor and the
+            constructive action reads first. `flex-wrap` so the pair falls to two rows rather than
+            overflowing at 320px, where two 44px controls plus the circle do not fit on one line. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            ref={primaryControl}
+            type="button"
+            variant="outline"
+            size="touch"
+            onClick={() => fileInput.current?.click()}
+          >
+            {avatarUrl ? AVATAR_CHANGE_LABEL : AVATAR_UPLOAD_LABEL}
+          </Button>
+
+          {/* RENDERED ONLY WITH A PHOTO TO REMOVE. There is no disabled-but-present spelling of this
+              control: a removal affordance on a profile that has no photo is a control that acts on
+              nothing. */}
+          {avatarUrl ? (
+            <ResponsiveDialog
+              open={removeOpen}
+              onOpenChange={handleRemoveOpenChange}
+              onOpenAutoFocus={steerFocusToSafeAction}
+              title={AVATAR_REMOVE_TITLE}
+              description={AVATAR_REMOVE_BODY}
+              trigger={
+                // Passed as the pattern's `trigger` so Radix's own `triggerRef` is populated — which
+                // is what makes leaving its close-time restore alone the correct call here.
+                <Button type="button" variant="outline" size="touch">
+                  <Trash2Icon aria-hidden="true" />
+                  {AVATAR_REMOVE_LABEL}
+                </Button>
+              }
+              footer={
+                <>
+                  {/* DOM ORDER: DESTRUCTIVE FIRST. `DialogFooter` is `flex-col-reverse … sm:flex-row`,
+                      so this puts `Keep photo` on TOP of the mobile stack (under the thumb) and on
+                      the RIGHT on desktop. Focus is steered by the handler above, never by this
+                      order — the two requirements pull in opposite directions and only one of them
+                      can be satisfied by DOM order. */}
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="touch"
+                    onClick={handleRemove}
+                    disabled={removing}
+                    aria-disabled={removing}
+                  >
+                    {removing ? AVATAR_REMOVE_CONFIRM_BUSY : AVATAR_REMOVE_CONFIRM}
+                  </Button>
+                  <Button
+                    ref={keepPhotoControl}
+                    type="button"
+                    variant="outline"
+                    size="touch"
+                    onClick={() => handleRemoveOpenChange(false)}
+                    disabled={removing}
+                    aria-disabled={removing}
+                  >
+                    {AVATAR_REMOVE_CANCEL}
+                  </Button>
+                </>
+              }
+            >
+              {/* The removal failure, in the field's one region. See `refusalLine`. */}
+              {refusalLine}
+            </ResponsiveDialog>
+          ) : null}
+        </div>
         {/* Delta-14: the helper NAMES WEBP now. The shipped one did not, which under-stated what the
             picker accepts — so this is a changed string and not a lifted one. Delta-11: the label
             role, which is 14px in court AND travels to grove; a frozen size would fork this line
             from the second theme, which is the exact failure D-02 exists to surface. */}
         <p className="text-label text-muted-foreground">{AVATAR_HELPER}</p>
-        {/* THE FIELD'S ONE REFUSAL REGION, and it renders only while no file is staged — when one
-            is, the same slot is spent inside the dialog instead (see the state's docblock). The
-            shipped block's busy label is gone with the state it described: nothing is in flight
-            between picking a photo and confirming it, so there is nothing to report. Declared in
-            `src/lib/design/live-regions.ts` as this file's alert #1. */}
-        {refusal && !staged ? (
-          <p role="alert" className="text-label text-destructive">
-            {refusal}
-          </p>
-        ) : null}
+        {/* The refusal region on its PAGE parent, which it takes only when neither overlay owns it —
+            no file staged, and the removal confirm closed. The shipped block's busy label is gone
+            with the state it described: nothing is in flight between picking a photo and confirming
+            it, so there is nothing to report. */}
+        {!staged && !removeOpen ? refusalLine : null}
       </div>
 
       {/* MOUNTED ONLY WHILE A FILE IS STAGED. That is what makes a cancel structurally a no-op
