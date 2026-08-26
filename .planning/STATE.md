@@ -4,9 +4,9 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
 status: executing
-stopped_at: "Phase 16: 14 of 16 plans complete. BOTH remaining plans are parked at OPERATOR checkpoints and neither is complete despite both having SUMMARY.md files -- do not let any SDK verb tick them. 16-15 is 2/3 (Task 3 = CI baselines dispatch; playwright visual project is linux-only, this box is win32). 16-16 is 1/2 (Task 2 = PM hardware walk on real iOS Safari + Android Chrome; 16-UAT-CROP.md is authored with every observation cell empty). CROP-01/03 closed; CROP-02 (D10) and CROP-04 open. Phase verification and code review deliberately NOT run yet."
+stopped_at: "Phase 16: 14 of 16 plans complete, and the CODE REVIEW IS NOW RUN AND FULLY FIXED -- 16-REVIEW.md found 15 (3 critical, 10 warning, 2 info) and all 15 are closed across 8 commits b7cbc55..37cf230; the record with every red-run reading is 16-REVIEW-FIXES.md. Gates after the fixes: tsc exit 0, vitest 2121 passed / 0 failed, test:design 1138 passed, npm run build exit 0, e2e avatar-crop 33 passed. BOTH remaining plans are still parked at OPERATOR checkpoints and neither is complete despite both having SUMMARY.md files -- do not let any SDK verb tick them. 16-15 is 2/3 (Task 3 = CI baselines dispatch; playwright visual project is linux-only, this box is win32). 16-16 is 1/2 (Task 2 = PM hardware walk on real iOS Safari + Android Chrome; 16-UAT-CROP.md is authored with every observation cell empty). CROP-01/03 closed; CROP-02 (D10) and CROP-04 open. PHASE VERIFICATION still NOT run."
 last_updated: "2026-08-25T07:08:20.183Z"
-last_activity: 2026-08-26 -- Phase 16: 14/16 plans done; 16-15 and 16-16 both awaiting the operator
+last_activity: 2026-08-26 -- Phase 16: code review fixed end to end (15/15); 16-15 and 16-16 still awaiting the operator
 progress:
   total_phases: 13
   completed_phases: 7

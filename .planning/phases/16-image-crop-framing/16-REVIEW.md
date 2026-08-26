@@ -45,7 +45,9 @@ findings:
   warning: 10
   info: 2
   total: 15
-status: issues_found
+status: all_findings_fixed
+fixed: 2026-08-26
+fix_record: 16-REVIEW-FIXES.md
 ---
 
 # Phase 16: Code Review Report
@@ -53,7 +55,13 @@ status: issues_found
 **Reviewed:** 2026-08-25T17:27:16Z
 **Depth:** standard
 **Files Reviewed:** 36
-**Status:** issues_found
+**Status:** all_findings_fixed — see [16-REVIEW-FIXES.md](16-REVIEW-FIXES.md)
+
+> **All 15 findings were closed on 2026-08-26** (commits `b7cbc55`..`37cf230`). Each fix was watched
+> RED before acceptance; those readings are in the fix record. One prescription was deliberately not
+> taken — CR-02's proposed anchor is reopened by a version segment placed after an `l_fetch:` overlay,
+> so the shipped fix refuses the transformation DSL entirely. The findings below are preserved
+> verbatim as the record of what was found.
 
 ## Summary
 
