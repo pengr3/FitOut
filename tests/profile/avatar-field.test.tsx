@@ -88,7 +88,7 @@
 //     LARGE source through the identical path and asserts the row is enabled with no note.
 
 import * as React from "react";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import {
   render,
   screen,
@@ -722,5 +722,100 @@ describe("CROP-03 — pending and failure inside the confirm", () => {
     expect(
       screen.getByRole("button", { name: AVATAR_UPLOAD_LABEL }),
     ).not.toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WR-09 — the object URL's FOURTH release path.
+//
+// The field documents three: a guard that refuses after minting, a cancel, and a successful save.
+// Nothing released it when the component itself went away with a file still staged — a client-side
+// navigation with the crop dialog open, a `router.refresh()` that re-renders the route skeleton, an
+// error boundary. The URL then pins its decoded bitmap for the life of the tab; on a 5 MB source
+// that is a real retention.
+//
+// A cleanup was DECLINED for this originally, on the reasoning that React remounts effects in
+// development and would revoke the URL the still-open dialog is showing. That hazard is real for a
+// cleanup keyed to `staged`; it is not for one keyed to `[]` reading a ref, because the dev
+// double-invoke fires once at MOUNT, when nothing is staged. The last case here is the proof of
+// that half — the distinction is the whole reason the fix is safe.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+describe("the staged object URL is released when the field unmounts (WR-09)", () => {
+  it("revokes the staged URL on unmount, and it is the URL that was minted", async () => {
+    const field = renderField();
+    await openCropper(field, { width: 800, height: 800 });
+
+    const minted = (URL.createObjectURL as unknown as Mock).mock.results.at(-1)?.value as string;
+    expect(minted, "nothing was minted, so the assertion below would be vacuous").toBeTruthy();
+
+    const revokesBefore = revokeMock.mock.calls.length;
+    // Not through cancel, not through save — the component simply stops existing, which is what a
+    // client-side navigation does to it.
+    cleanup();
+
+    const revokes = revokeMock.mock.calls;
+    expect(
+      revokes.length,
+      "unmounting a field with a file staged released nothing — the object URL and its decoded " +
+        "bitmap are pinned for the life of the tab (WR-09).",
+    ).toBe(revokesBefore + 1);
+    expect(revokes.at(-1)?.[0]).toBe(minted);
+  });
+
+  it("revokes NOTHING on unmount when no file was ever staged", async () => {
+    // The non-vacuity pair: if the cleanup revoked unconditionally, or revoked a stale value from a
+    // previous test's field, the case above would pass for a reason that is not the fix.
+    renderField();
+    const revokesBefore = revokeMock.mock.calls.length;
+    cleanup();
+    expect(revokeMock.mock.calls.length).toBe(revokesBefore);
+  });
+
+  it("does not double-release a URL the cancel path already revoked", async () => {
+    const field = renderField();
+    const dialog = await openCropper(field, { width: 800, height: 800 });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: AVATAR_CROP_CANCEL }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    const revokesAfterCancel = revokeMock.mock.calls.length;
+    cleanup();
+    // The cancel already cleared `staged`, so the unmount cleanup finds nothing to release. Revoking
+    // twice would be harmless, but a cleanup that fires on an already-cleared field is a cleanup
+    // reading state it should not have.
+    expect(revokeMock.mock.calls.length).toBe(revokesAfterCancel);
+  });
+
+  it("survives StrictMode's dev remount with the dialog open — the hazard the fix had to avoid", async () => {
+    // THE HAZARD THE ORIGINAL DECISION NAMED, CHECKED RATHER THAN REASONED ABOUT. The field
+    // declined an effect cleanup because "React remounts effects in development", i.e. the dev
+    // double-invoke (mount → effects → cleanup → effects) would revoke the URL the open dialog is
+    // displaying. Keyed to `[]` it cannot: the double-invoke happens at MOUNT, when nothing is
+    // staged, so the cleanup finds a null ref and does nothing. This case mounts inside StrictMode,
+    // stages a file, and asserts the dialog is still showing the URL that was minted.
+    //
+    // ⚠ AND IT IS NOT WHAT SEPARATES THIS FIX FROM THE DEPS-KEYED ONE — measured, not assumed. A
+    // `[staged?.objectUrl]`-keyed cleanup passes this case too (the double-invoke is a mount-time
+    // event, not a per-stage one). What it fails is the DOUBLE-RELEASE: its cleanup fires whenever
+    // the dep changes, so the cancel path revokes and then the dep change revokes again. The case
+    // above and the existing "resets after a pick that was accepted and then CANCELLED" case are
+    // the ones that go red on that variant. Both discriminators were run.
+    render(
+      <React.StrictMode>
+        <AvatarField avatarUrl={null} displayName="Alex Doe" />
+      </React.StrictMode>,
+    );
+    const input = screen.getByLabelText("Upload avatar") as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [jpeg()] } });
+
+    const dialog = await screen.findByRole("dialog");
+    const minted = (URL.createObjectURL as unknown as Mock).mock.results.at(-1)?.value as string;
+    const img = dialog.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(minted);
+    expect(
+      revokeMock.mock.calls.some((c) => c[0] === minted),
+      "the staged URL was revoked while the dialog was still displaying it — this is the exact " +
+        "hazard the original decision declined an effect cleanup over.",
+    ).toBe(false);
   });
 });

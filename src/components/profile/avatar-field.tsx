@@ -80,10 +80,22 @@
 //
 // THE OBJECT URL'S LIFETIME IS THIS FILE'S (T-16-35). `image-crop-dialog.tsx` neither mints nor
 // revokes it, deliberately — whoever mints a URL revokes it, and two owners for one URL is a worse
-// bug than the leak it would be trying to prevent. It is released on all three paths: a guard that
-// refuses after minting, a cancel, and a successful save. It is NOT released from an effect cleanup,
-// and that is a decision rather than an oversight: React remounts effects in development, so a
-// cleanup here would revoke the URL the still-open dialog is displaying.
+// bug than the leak it would be trying to prevent. It is released on FOUR paths: a guard that
+// refuses after minting, a cancel, a successful save, and — since WR-09 — this component unmounting
+// while a file is still staged.
+//
+// THAT FOURTH PATH USED TO BE MISSING, AND ITS ABSENCE WAS RECORDED AS A DECISION: "React remounts
+// effects in development, so a cleanup here would revoke the URL the still-open dialog is
+// displaying." The reasoning was sound and the CONSEQUENCE was written down nowhere — a client-side
+// navigation with the crop dialog open, a `router.refresh()` that re-renders the route skeleton, an
+// error boundary, all unmount this component with `staged` non-null, and the URL then pins its
+// decoded bitmap for the life of the tab. On a 5 MB source that is a real retention.
+//
+// The revoke is keyed to UNMOUNT ALONE (`[]` deps reading a ref), which is what makes it safe under
+// the remount the old note was worried about: React's dev double-invoke fires the cleanup once
+// immediately after mount, when nothing is staged yet, so it is a no-op — and it then never fires
+// again until the component really goes away. A deps-keyed cleanup would have had the problem
+// described; this one cannot.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -192,6 +204,32 @@ export function AvatarField({
    * the element once and choosing its parent is the shape that keeps the declaration true.
    */
   const [refusal, setRefusal] = React.useState<string | null>(null);
+
+  /**
+   * The staged file as of the last commit, readable from a cleanup that must not depend on it.
+   *
+   * An unmount cleanup with `staged` in its dep array would re-run on every stage and unstage, which
+   * is exactly the revoke-while-the-dialog-is-open hazard the header used to decline the cleanup
+   * over. A ref carries the value across instead, so the cleanup can have NO dependencies and
+   * therefore fire only at mount (harmlessly, with nothing staged) and at real unmount.
+   */
+  const stagedRef = React.useRef<StagedAvatar | null>(null);
+  React.useEffect(() => {
+    stagedRef.current = staged;
+  }, [staged]);
+
+  React.useEffect(
+    () => () => {
+      // WR-09's fourth release path. Every ORDINARY end to a staged file — refuse, cancel, save —
+      // has already revoked and cleared `staged` by the time this runs, and `URL.revokeObjectURL`
+      // on an already-revoked url is a no-op, so this is the backstop for the ways a component
+      // disappears without one of those: a client-side navigation with the dialog open, a
+      // `router.refresh()` that re-renders the route, an error boundary.
+      const url = stagedRef.current?.objectUrl;
+      if (url) revokeAvatarObjectUrl(url);
+    },
+    [],
+  );
 
   /** Unstage, release the URL, and forget any sentence the staged attempt produced. */
   function discardStaged(current: StagedAvatar) {
