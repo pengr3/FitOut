@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
-status: executing
-stopped_at: "Phase 16 IS VERIFIED, COMPLETE AND PUSHED (2026-08-26). .planning/phases/16-image-crop-framing/16-VERIFICATION.md, status: passed, 4/4 requirements (CROP-01..04), ZERO gaps, EMPTY human_verification. Every gate was RE-RUN at HEAD by the verifier, not read off a summary: tsc exit 0; vitest 185 files / 2121 passed; test:design 59 files / 1140 passed (TWO MORE than the review record -- 6123766's D10 rows); npm run build exit 0; e2e avatar-crop 33/33; e2e overflow-320 64 passed / 15 skipped. M1 IS ANSWERED and resolves in the product's favour: Save photo clears the fold at every viewport UI-SPEC D2 names (320x568 confirm bottom 553.41 of 568 = 14.59px margin; 360x640 573.02/640; 390x844 776/844), so the 44px stage discrepancy does NOT push the confirm below the fold and the 40dvh -> 35dvh reversal is NOT needed. W-2 IS DISCHARGED: dev was pushed bfb58cd..025c1ad and ci run 32939455683 is GREEN ON ALL FOUR JOBS (gate-db-free, gate-db, gate-price-parity, and gate-visual). gate-visual is now green on THIS tree rather than on an ancestor, and the prediction held -- the publish-checklist.tsx change moved no baseline. W-1 STILL STANDS AND A GREEN ci IS NOT EVIDENCE AGAINST IT: the full local chromium project is 242 passed / 10 failed, and CI does not measure it -- ci runs FOUR gates and ELEVEN of the twelve e2e specs are excluded by decision (D-24), price-parity being the one exception (it passes). ZERO of the ten are Phase 16's (avatar-crop 33/33 and overflow-320 64/64 inside that same run), and all three of D6's named reproducible failures reproduce unchanged: public-listing draft-404, cancel re-refund, confirmation-decay. That is Phase-12/13 debt and the right input to Phase 17. F-1 fixed: deferred-items.md's D1 row was stale and is now closed in place (slider.tsx forwards aria-label to the Thumb when single-thumb; tests/profile/avatar-field.test.tsx:413 asserts it). D2..D9 remain open. ALSO: this pass orphaned 2 Cloudinary assets -- per D4 the Delta-3 case does one REAL upload per run and avatar-crop was run twice. NEXT STEP: /gsd-plan-phase 16.1 (upload-hardening-storage-economy)."
-last_updated: "2026-08-26T14:45:00.000Z"
-last_activity: 2026-08-26 -- Phase 16 VERIFIED (passed, 4/4, no gaps) and PUSHED; ci 32939455683 green on all four jobs incl. gate-visual
+status: verifying
+stopped_at: "Phase 16.1 context gathered — 15 decisions (D-179..D-193) locked, 4 research questions raised with R-1 BLOCKING. PM decided: 10MB declared limit (advisory, transformation is the hard bound), 2048px long-edge cap, JPEG/PNG/WebP/HEIC allow-list with SVG+animated-GIF refused, sources:[local] only, a sentence per refusal reason, stop-new-orphans-only with no reaper, immediate photo destroy on listing soft-delete, silent EXIF/GPS stripping, and NO BACKFILL because production holds ZERO real host uploads (confirmed by PM; local DB's 27 rows are seeded Unsplash URLs). The whole phase is therefore PREVENTIVE, not remedial. R-1 gates planning: criterion 3's 'transformation the client cannot influence' must be reachable given ALLOWED_SIGN_KEYS signs only {folder,source,timestamp} and Cloudinary 401s on signed-vs-sent mismatch — if neither an upload preset nor a server-fixed param holds, criteria 3+5 are unreachable as worded and D-181's premise collapses, which is a PM escalation not a workaround. NEXT STEP: /gsd-plan-phase 16.1"
+last_updated: "2026-08-26T10:56:19.352Z"
+last_activity: "2026-08-26 -- Phase 16: 14/16 plans done; 16-15 and 16-16 both awaiting the operator"
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 121
-  completed_plans: 121
+  completed_plans: 126
   percent: 62
 ---
 
@@ -1334,8 +1334,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-25T04:09:44.804Z
-Stopped at: Phase 16 UI-SPEC approved
+Last session: 2026-08-26T10:56:19.325Z
+Stopped at: Phase 16.1 context gathered — 15 decisions (D-179..D-193) locked, 4 research questions raised with R-1 BLOCKING. PM decided: 10MB declared limit (advisory, transformation is the hard bound), 2048px long-edge cap, JPEG/PNG/WebP/HEIC allow-list with SVG+animated-GIF refused, sources:[local] only, a sentence per refusal reason, stop-new-orphans-only with no reaper, immediate photo destroy on listing soft-delete, silent EXIF/GPS stripping, and NO BACKFILL because production holds ZERO real host uploads (confirmed by PM; local DB's 27 rows are seeded Unsplash URLs). The whole phase is therefore PREVENTIVE, not remedial. R-1 gates planning: criterion 3's 'transformation the client cannot influence' must be reachable given ALLOWED_SIGN_KEYS signs only {folder,source,timestamp} and Cloudinary 401s on signed-vs-sent mismatch — if neither an upload preset nor a server-fixed param holds, criteria 3+5 are unreachable as worded and D-181's premise collapses, which is a PM escalation not a workaround. NEXT STEP: /gsd-plan-phase 16.1
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
@@ -1421,7 +1421,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/16-image-crop-framing/16-UI-SPEC.md
+Resume file: .planning/phases/16.1-upload-hardening-storage-economy/16.1-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
