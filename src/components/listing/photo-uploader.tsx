@@ -57,6 +57,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+// The listing-upload contract, in ONE declaration that both sides of the boundary read (rule F2).
+// Every value the widget below hands Cloudinary — the byte ceiling, the format list, the preset name,
+// the photo cap — and every sentence a host is shown when an upload is refused comes from here.
+// NOTHING IN THIS COMPONENT SPELLS ANY OF THEM, which is the only way the picker's hint and the
+// boundary's gate cannot come to disagree, and the only way this file's error copy cannot promise a
+// limit our code does not have.
+import {
+  LISTING_ALLOWED_FORMATS,
+  LISTING_MAX_BYTES,
+  LISTING_MAX_PHOTOS,
+  LISTING_UPLOAD_PRESET,
+  listingUploadRefusal,
+} from "@/lib/listing/upload-policy";
 import { cn } from "@/lib/utils";
 
 const MIN_PHOTOS = 3; // D-02/D-04 — minimum to publish.
@@ -174,18 +187,94 @@ export function PhotoUploader({
   const uploader = (
     <CldUploadWidget
       signatureEndpoint={`/api/cloudinary/sign?listingId=${encodeURIComponent(listingId)}`}
+      // D-194 — THE PRESET IS A TOP-LEVEL PROP, AND ITS POSITION IS AS LOAD-BEARING AS ITS VALUE.
+      // Inside `next-cloudinary` the widget's option object is composed with the preset taken from
+      // this prop — or, when the prop is unset, from NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET — and then
+      // `options` is spread LAST OVER THE RESULT. Two consequences, both silent:
+      //   - the same name written as a key INSIDE `options` would quietly win over this prop; and
+      //   - leaving this prop unset falls back to that environment variable, which is in neither
+      //     .env.example nor .env.local today and must stay that way. The preset name is a repo
+      //     constant, not configuration (threat T-16.1-09).
+      //
+      // WHAT THE PROP BUYS, stated because it is not obvious from the name: it is what puts the
+      // preset key into the widget's OWN paramsToSign, and that key is the one
+      // `/api/cloudinary/sign` now REFUSES TO MINT A SIGNATURE WITHOUT. Remove this prop and every
+      // upload fails at our own endpoint before Cloudinary is reached at all — loudly and
+      // immediately, which is the intended failure mode rather than a regression to be feared.
+      uploadPreset={LISTING_UPLOAD_PRESET}
       options={{
         folder: `fitout/listings/${listingId}`,
         multiple: true,
-        maxFiles: 20,
-        sources: ["local", "camera", "url"],
+        // D-180 / D-181 — the declared byte ceiling, honest about what it is: a courtesy to hosts and
+        // NOT a security boundary. The bytes go browser-to-Cloudinary directly and our server never
+        // sees them, so anyone who bypasses this widget bypasses this number by construction. The
+        // security boundary is the transformation the preset carries, which bounds the STORED asset
+        // whatever arrived.
+        //
+        // U1, the gap this closes: until now this file PROMISED a ten-megabyte limit in its error
+        // toast and nothing in our code enforced one — our copy was describing a vendor default. The
+        // declared limit and the enforced limit are now the same imported number.
+        maxFileSize: LISTING_MAX_BYTES,
+        // D-184 — the picker's hint and the boundary's gate are LITERALLY the same array. The
+        // server-side half is the preset's own format list, built from this same constant by
+        // `scripts/cloudinary-preset.ts`; that half is the gate, server-enforced and un-omittable by
+        // any client. THIS half is a fast local refusal the host actually sees, and it is not the
+        // gate.
+        //
+        // ⚠ A SPREAD OF THE IMPORTED ARRAY, DELIBERATELY NOT A HAND-TYPED SECOND COPY. On this one
+        // point the avatar path is the counter-example rather than the model: `avatar-field.tsx`
+        // types its file picker's accept attribute out again as a second copy of the three allowed
+        // types, which is what makes `validation/profile.ts`'s claim that the picker "reads it here"
+        // aspirational rather than literal. This option takes an array of plain strings, so spreading
+        // costs nothing and there is no reason to inherit that residual.
+        clientAllowedFormats: [...LISTING_ALLOWED_FORMATS],
+        // D-185 — local files only. Both of the other two sources this widget used to offer are gone,
+        // for two different reasons.
+        //
+        // The remote-address source is the load-bearing removal (threat T-16.1-15): it lets a client
+        // hand Cloudinary an arbitrary address to go and fetch, and there is then NO LOCAL FILE TO
+        // MEASURE — so the ceiling above and the format list above are both defeated BY
+        // CONSTRUCTION, not by a bug. It is a documented client-side-validation bypass, and we were
+        // offering it from our own UI.
+        //
+        // The webcam source went with it, and the practical loss is desktop-webcam capture only: on
+        // mobile the local source already opens the OS photo picker, which offers the camera on both
+        // iOS and Android.
+        sources: ["local"],
+        // D-195 — offer only the slots this listing actually has left, instead of a flat number that
+        // was a second copy of the server-side cap.
+        //
+        // THE SHAPE THIS NARROWS: a listing already holding 18 photos, a host who selects a full cap
+        // worth of files in one click, every one of them uploaded and billed, two persisted, the rest
+        // refused at the server-side cap with nothing destroying the bytes. Deriving the limit from
+        // what is left makes that same click offer two files rather than twenty.
+        //
+        // ⚠ IT NARROWS THE WINDOW; IT DOES NOT CLOSE IT, and it never replaces the server-side
+        // destroy. The server-side count can change between this render and the upload, so D-187's
+        // destroy on the rejection path in `persistPhoto` is the half that actually closes it.
+        //
+        // THE CLAMP IS DELIBERATE, NOT DEFENSIVE HABIT. The subtraction reaches zero on a full
+        // listing, and zero is falsy in an options object whose vendor semantics for it are
+        // UNMEASURED — a plausible reading is "no limit", which is the exact opposite of the intent
+        // here. Clamping to a single file is safe precisely because this option was never the thing
+        // closing the window: that one file is refused by `persistPhoto` at the cap and destroyed
+        // there.
+        maxFiles: Math.max(1, LISTING_MAX_PHOTOS - photos.length),
       }}
       onSuccess={handleUploadSuccess}
-      onError={() =>
-        toast.error(
-          "That photo didn't upload. Check the file is an image under 10MB and try again.",
-        )
-      }
+      // D-186 / D-193 — one generic sentence became three, and not one of them is authored here.
+      // `listingUploadRefusal` maps whatever the widget hands us onto the too-large, the
+      // wrong-format or the upload-failed sentence, each with exactly one home in the declaration.
+      //
+      // THE THREE REASONS ARE DISTINGUISHABLE ONLY BY MATCHING VENDOR ENGLISH. There is no error
+      // code, no enum and no discriminant field — the reason lives only in a sentence Cloudinary
+      // wrote. So when the vendor rewords, this degrades to upload-failed BY DESIGN: the failure mode
+      // of a vendor copy change is a less specific message, never a misleading one.
+      //
+      // AND THIS TOAST IS A SECOND SURFACE, NOT THE ONLY ONE. The widget renders its own English
+      // error inside its cross-origin iframe too, so the host sees the vendor's sentence AND ours.
+      // Ours exists to be the one in FitOut's voice.
+      onError={(error) => toast.error(listingUploadRefusal(error))}
     >
       {({ open }) => (
         <Button type="button" variant="outline" onClick={() => open()}>
