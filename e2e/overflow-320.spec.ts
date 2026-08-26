@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import postgres from "postgres";
@@ -24,6 +24,11 @@ import { SUPPORT_EMAIL } from "../src/lib/site";
 // of it would go green the day the sentence changed, which is the whole failure the `tell` mechanism
 // exists to catch.
 import { AVATAR_CROP_TITLE } from "../src/lib/avatar";
+// The same rule again, for the cover preview's heading — the string `openWizardPhotosStep` waits on to
+// prove the walk arrived at the photos step. `src/lib/listing/cover-frames.ts` is directive-free for
+// this purpose, and a re-typed copy would report ARRIVAL the day the heading changed while the walk
+// was in fact still standing on the wizard's first step (D10).
+import { COVER_PREVIEW_TITLE } from "../src/lib/listing/cover-frames";
 
 // RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on seventeen named routes
 // plus three route STATES, in both themes. Measured in real pixels in real Chromium.
@@ -1699,6 +1704,29 @@ async function seedHostSurfaces(page: Page): Promise<Omit<HostFixture, "cookies"
     }
   };
 
+  // ⚠ EXACTLY ONE PHOTO, AND THE COUNT IS LOAD-BEARING IN BOTH DIRECTIONS (D10).
+  //   - At least one, or `photo-uploader.tsx:199` returns its zero-photo empty state and
+  //     `CoverFramePreview` never renders, so the photos row would have nothing to measure.
+  //   - Fewer than three, or the checklist's `3+ photos` row goes `done`, its `Fix` link stops
+  //     rendering (`publish-checklist.tsx:220`) and `openWizardPhotosStep` loses its only seam.
+  // One is the only count that satisfies both. `openWizardPhotosStep` asserts each half separately so
+  // that raising this number fails with a message naming the cause rather than a timeout.
+  //
+  // A LOCAL URL, NOT A CLOUDINARY ONE. `public/vrt/photo-0.svg` is committed and served by the dev
+  // server, so this fixture needs no upload, no credential and no network — the preview renders
+  // `photo.url` directly and derives nothing from the Cloudinary-shaped `public_id`.
+  // `scripts/seed-baseline-fixtures.ts` seeds its eight rows the same way for the same reason.
+  //
+  // No teardown: `listing_photo.listing_id` is `ON DELETE CASCADE` and `afterAll` deletes the host,
+  // whose deletion cascades to the listing. The FK does the work the DELETE order would have.
+  await sql`
+    INSERT INTO "listing_photo" (id, listing_id, public_id, url, position, created_at)
+    VALUES (
+      ${`e2e_of320_photo_${randomUUID()}`}, ${listingId},
+      ${`fitout/listings/${listingId}/cover`}, ${"/vrt/photo-0.svg"}, ${0}, now()
+    )
+  `;
+
   // Today's session (the agenda's busiest state), a live request (the inbox's row state, and the
   // requested row on the bookings list that carries the two 44px controls), and a future confirmed
   // booking (the bookings list's resting row).
@@ -1722,7 +1750,88 @@ type Phase14Row = {
   /** The 44px controls this surface declares. AN EMPTY LIST IS A DECLARATION — `touchWhy` says why. */
   readonly touch: readonly TouchTarget[];
   readonly touchWhy: string;
+  /**
+   * An interaction to perform AFTER `goto` and AFTER `tell`, but BEFORE the measurement — for a row
+   * whose subject only exists once the host has walked somewhere (plan 16-15's D10).
+   *
+   * ⚠ THE SHAPE IS `RouteRow.open`'s, DELIBERATELY, AND THE DUPLICATION IS THE POINT. The AC#29 table
+   * one block up has carried this field since 12-10 and the two tables have separate drivers, so this
+   * is a second declaration of one idea rather than a shared one. Merging the tables to share it was
+   * considered and rejected: they measure different acceptance criteria, seed different fixtures and
+   * assert different touch floors, and a single table taking a discriminant would be harder to read
+   * than two that each fit on a screen.
+   *
+   * ⚠ AN `open` IS NOT ITS OWN PROOF — `subject` IS. See the field below; this one only navigates.
+   */
+  readonly open?: (page: Page) => Promise<void>;
+  /**
+   * The declared element proving the walk ARRIVED, asserted by the loop AFTER `open` returns.
+   *
+   * ⚠ WHY THIS IS A ROW FIELD AND NOT A LINE AT THE END OF `open`, MEASURED RATHER THAN PREFERRED.
+   * It was written the other way first — `openWizardPhotosStep` ended in its own arrival assertion —
+   * and the discriminator killed it: stubbing the helper to `return` immediately made the row PASS,
+   * because the early return skipped the assertion that was supposed to catch exactly that. The proof
+   * and the thing it proves cannot live in the same function, or one edit removes both.
+   *
+   * On the row, the loop asserts it unconditionally and a helper that stops walking goes red. That is
+   * a stronger arrangement than the AC#29 table's (its `open` implementations assert internally), and
+   * it is the one to copy if that table ever grows another walked row.
+   *
+   * `tell` and `subject` are different claims: `tell` proves the ROUTE resolved (for the wizard, the
+   * step rail — which every step renders), `subject` proves WHICH STATE is on screen. A row with an
+   * `open` and no `subject` is a row that can silently degrade into a duplicate of an earlier one.
+   */
+  readonly subject?: (page: Page) => Locator;
+  /** Why that element cannot be satisfied by the step the route mounts on. Required with `subject`. */
+  readonly subjectWhy?: string;
 };
+
+/**
+ * Walk the wizard from its mount step to the PHOTOS step, the way a host actually gets there.
+ *
+ * ⚠ WHY A WALK AND NOT A URL. `wizard.tsx` holds the step in CLIENT state (`const [step, setStep] =
+ * useState(0)`) with no query parameter and no per-step route, so there is no path to point a row at.
+ * It also mounts at step 0 with only `STEPS[0].key` in `visitedKeys`, which means the step RAIL is no
+ * route either: a marker is only a control when its step is both `done` and visited, so on a fresh
+ * load every marker past the first is an inert `<span>`.
+ *
+ * The seam that does exist is the publish checklist's `Fix` link. `publish-checklist.tsx:220` renders
+ * it for any row that is `!done` with a `step`, and `wizard.tsx:1769` wires `onFix={goToStep}` —
+ * reachable from the FIRST step since 14-10. So the walk is the shipped one: open the checklist, press
+ * `Fix` on the photos row.
+ *
+ * ⚠ IT DEPENDS ON THE FIXTURE SEEDING FEWER THAN THREE PHOTOS, and that is asserted rather than
+ * assumed. The checklist row is `{ label: "3+ photos", done: photoCount >= 3 }`; at three the row goes
+ * `done`, the `Fix` link stops rendering and this walk has no seam. One photo satisfies both halves at
+ * once — under three so the link exists, and at least one so `photo-uploader.tsx:199` returns past its
+ * zero-photo branch and `CoverFramePreview` is on the page to be measured.
+ */
+async function openWizardPhotosStep(page: Page): Promise<void> {
+  // The collapsed disclosure. D-149 defaults the checklist closed at this width, and this trigger is
+  // the row's own declared 44px touch target — so the walk starts on the control the table already
+  // asserts is reachable by thumb.
+  const trigger = page.getByRole("button", { name: / ready to publish$/ });
+  await expect(
+    trigger,
+    "the publish checklist's disclosure trigger is not on the page, so there is no route to the " +
+      "photos step. The wizard holds its step in client state with no query parameter, and the step " +
+      "rail's markers are inert on a fresh mount — this trigger is the only seam.",
+  ).toBeVisible({ timeout: 60_000 });
+  await trigger.click();
+
+  const fix = page.getByRole("button", { name: "Fix" }).first();
+  await expect(
+    fix,
+    "the checklist rendered no `Fix` link. `publish-checklist.tsx:220` renders one only for a row " +
+      "that is NOT done, so the likeliest cause is the fixture seeding three or more photos — at " +
+      "three, `3+ photos` goes done and this walk loses its only seam. See `seedHostSurfaces`.",
+  ).toBeVisible({ timeout: 30_000 });
+  await fix.click();
+
+  // NO ARRIVAL ASSERTION HERE, DELIBERATELY. It lives on the row as `subject`, because a proof that
+  // sits inside the function it is proving is removed by the same edit that breaks the walk — watched:
+  // stubbing this helper to `return` early made the row pass. See `Phase14Row.subject`.
+}
 
 const PHASE_14_ROWS: readonly Phase14Row[] = [
   {
@@ -1814,6 +1923,40 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
       "one control, and it is the disclosure rather than an advance button: `Get started` and `Save " +
       "and continue` are listed by 14-UI-SPEC as `(neutral solid)` with no height note and ship at " +
       "the Button's default, the same opt-in argument `/host` records above.",
+  },
+  {
+    // CROP-02's GATE-RESP half, and the ONLY row on this table that measures a wizard step other than
+    // the one it mounts on. Filed as D10 by plan 16-15 with its measurements; this is that measurement.
+    //
+    // WHAT IS AT RISK HERE, so a later reader knows what a red would mean: `CoverFramePreview` renders
+    // two `CoverFrame`s in a `flex items-start gap-2`, each `w-32 sm:w-40`. At this width that is
+    // 128 + 8 + 128 = 264px against a 320px floor, which clears the gutters and does not wrap. Plan
+    // 16-06's hand-off note says exactly that — as ARITHMETIC. This row is the measurement that
+    // arithmetic never was, and it also covers the uploader's tiles and its `3 photos minimum` note,
+    // which share the step.
+    name: "/host/listings/[id]/edit · photos step",
+    path: (f) => `/host/listings/${f.listingId}/edit`,
+    tell: '[data-testid="wizard-step-rail"]',
+    tellWhy:
+      "the same rail the row above pins, and for the same reason — it is what proves the WIZARD " +
+      "resolved rather than a redirect or a plate. It deliberately does NOT prove which step is on " +
+      "screen (every step renders the rail); that is `open`'s job, and it asserts it.",
+    open: openWizardPhotosStep,
+    subject: (page) => page.getByRole("heading", { name: COVER_PREVIEW_TITLE }),
+    subjectWhy:
+      "the cover preview's own heading, which ONLY the photos step renders and only once the listing " +
+      "has at least one photo (`photo-uploader.tsx:199` returns its empty state before the preview " +
+      "exists). The wizard's first step — the one this route mounts on and the row above measures — " +
+      "renders no such heading, so this is what tells the two apart. Imported from " +
+      "`cover-frames.ts`, never re-typed: a spec carrying its own copy of a heading reports ARRIVAL " +
+      "the day the heading changes while the walk is still standing on the wrong step.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED ON THIS STEP. The row above already asserts the checklist trigger, which is the " +
+      "one control 14-UI-SPEC § Primary CTAs gives a height note to on this route, and this walk " +
+      "presses that very control to get here — so asserting it again would be the same measurement " +
+      "twice. The uploader's own controls are listed as SHIPPED with no height note, the same opt-in " +
+      "argument `/host` records. The 24px AA bar still applies and `expectTargets` still runs.",
   },
   {
     name: "/host/listings/[id]/availability",
@@ -1926,6 +2069,18 @@ test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both t
           // page with nothing wrong with it, and the next invocation against the warm route resolved
           // in under four seconds. `e2e/host-headings.spec.ts` carries the same allowance and note.
         ).not.toHaveCount(0, { timeout: 60_000 });
+
+        // AFTER the tell, BEFORE the measurement. The tell proves the route RESOLVED; the walk moves
+        // to the state being measured, and `subject` proves it got there.
+        if (row.open) await row.open(page);
+        if (row.subject) {
+          await expect(
+            row.subject(page),
+            `${where}: the walk did not reach the surface this row measures — ${row.subjectWhy} ` +
+              "Without this the case would measure the state the route MOUNTS on, which an earlier " +
+              "row already covers, and report green having measured the same pixels twice.",
+          ).toBeVisible({ timeout: 30_000 });
+        }
 
         await expectNoOverflow(page, where);
         await expectTargets(page, where);

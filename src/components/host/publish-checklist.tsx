@@ -217,12 +217,34 @@ function ChecklistRows({
             stuck gets an email they did not need and no report either way. The lock is the same lock
             the nav row uses for the same in-flight window.
           */}
+          {/*
+            ⚠ `min-size-6` IS THE WCAG 2.5.8 AA TARGET FLOOR, AND IT IS NOT DECORATION. `h-auto p-0`
+            collapses these two to their own line box: MEASURED at the 320px floor, `Fix` was
+            20.3 x 20.3 and `Resend verification email` was 156.1 x 20.3, both under the 24px bar on
+            their smaller axis. On the persistent placement that is a host on a phone trying to hit a
+            20px square. `min-h-6 min-w-6` gives the box a floor without touching the type, the
+            colour or the padding — the Button base is `inline-flex items-center justify-center`, so
+            the label simply centres in it — and the row grows by under 4px.
+
+            THE INLINE EXEMPTION WAS CONSIDERED AND NOT RELIED ON. SC 2.5.8 exempts a target "in a
+            sentence or [whose] size is otherwise constrained by the line-height of non-target text",
+            and an argument can be made that these qualify: they sit on the label's text line and
+            `h-auto` is exactly that constraint. It was not taken, for two reasons. The exemption is
+            a defence for text that CANNOT be enlarged without breaking prose; these are discrete
+            row actions in a flex row with nothing to break. And relying on it here would have meant
+            widening `collectControls`' filter — which keys on `display === "inline"` and so misses
+            every `inline-flex` control — i.e. weakening a live gate to admit a newly-measured
+            surface, which is the rubber-stamp shape this suite refuses everywhere else.
+
+            FOUND BY the AC#36 photos-step row in `e2e/overflow-320.spec.ts` (D10). Nothing had
+            opened this disclosure at 320px before, so nothing had ever measured these two.
+          */}
           {!c.done && c.step !== null && (
             <Button
               type="button"
               variant="link"
               size="sm"
-              className="h-auto p-0"
+              className="h-auto min-h-6 min-w-6 p-0"
               disabled={disabled}
               onClick={() => onFix(c.step as number)}
             >
@@ -234,7 +256,7 @@ function ChecklistRows({
               type="button"
               variant="link"
               size="sm"
-              className="h-auto p-0"
+              className="h-auto min-h-6 min-w-6 p-0"
               disabled={disabled}
               onClick={c.action}
             >
