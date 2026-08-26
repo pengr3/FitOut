@@ -38,7 +38,7 @@ patterns-established:
   - "Measurements the walk can settle are numbered M1..M3, separately from the six clauses, so nothing that does not gate the requirement can be mistaken for something that does"
   - "A 'known and filed — do not re-raise' block (D3, D5, D7) so a walker's true observations are not spent re-discovering deferred items"
 
-requirements-completed: []  # CROP-04 stays Pending — it is discharged by the walk in Task 2, which has not happened
+requirements-completed: [CROP-04]  # discharged 2026-08-26 by the PM's walk on BOTH required platforms
 
 # Metrics
 duration: 12min
@@ -56,7 +56,7 @@ walk that is CROP-04's only discharge, is awaiting the PM and CROP-04 remains `P
 - **Duration:** ~12 min
 - **Started:** 2026-08-25T16:43:00Z
 - **Completed:** 2026-08-25T16:55:09Z
-- **Tasks:** 1 of 2 complete (Task 2 is a blocking human checkpoint)
+- **Tasks:** 2 of 2 complete. Task 2 was walked by the PM on 2026-08-26 on iOS Safari AND Android Chrome; see 16-UAT-CROP.md for what the tick does and does not claim.
 - **Files modified:** 1 created, 0 modified
 
 ## Accomplishments
@@ -111,7 +111,7 @@ walk that is CROP-04's only discharge, is awaiting the PM and CROP-04 remains `P
 ## Task Commits
 
 1. **Task 1: Author `16-UAT-CROP.md`** — `6676fcf` (docs)
-2. **Task 2: The PM hardware walk** — **NOT RUN.** Blocking human checkpoint; see below.
+2. **Task 2: The PM hardware walk** — **RUN 2026-08-26, both required platforms.** No defects filed (one candidate raised and withdrawn on disambiguation). Three sub-observations recorded as unanswered rather than passed — clause 6's focus half is not observable on touch hardware without a keyboard, clause 4's header/footer half, and M1.
 
 ## Files Created/Modified
 

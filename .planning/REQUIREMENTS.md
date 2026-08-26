@@ -98,7 +98,7 @@
 - [x] **CROP-01**: A user can frame and zoom their avatar before it uploads, and the server's blind face-gravity re-crop no longer re-frames what the user just chose
 - [x] **CROP-02**: A host uploading listing photos sees a non-destructive preview of what the 16:9 hero and the 4:3 cards each cut off, with nothing baked into the stored asset
 - [x] **CROP-03**: A user can remove their avatar
-- [ ] **CROP-04**: Cropping works on a real touch device — verified on hardware, not in desktop touch emulation
+- [x] **CROP-04**: Cropping works on a real touch device — verified on hardware, not in desktop touch emulation
 
 ### Responsive (RESP)
 
@@ -231,7 +231,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | CROP-01 | Phase 16 | Complete |
 | CROP-02 | Phase 16 | Complete |
 | CROP-03 | Phase 16 | Complete |
-| CROP-04 | Phase 16 | Pending |
+| CROP-04 | Phase 16 | Complete |
 | RESP-01 | Phase 11 | Complete |
 | RESP-02 | Phase 12 | Complete |
 | RESP-03 | Phase 17 | Pending |
@@ -275,6 +275,19 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
   - **CROP-03 closed in plan 16-12** (2026-08-25): `removeAvatarAction` (null-first, destroy best-effort, session-gated), the `Remove photo` control and its `ResponsiveDialog` confirm all landed in one commit, and the circle falls back to initials. **AUTHUI-02's remaining blocker is therefore cleared** — its design-system half shipped in Phase 15 (`tests/design/profile-pass.test.tsx`, green) and its removal half shipped here. Its row was deliberately left for the phase-closing pass rather than ticked from a Phase-16 plan, because a Phase-15 requirement's status is that phase's to declare; nothing else was outstanding against it.
   - **AUTHUI-02 closed 2026-08-26** on the PM's explicit instruction, during Phase 16 execution and before Phase 16 itself is verified. Both halves are shipped and green: the design-system half in Phase 15 (`tests/design/profile-pass.test.tsx`) and the removal half in 16-12. Checkbox (`:87`) and traceability row (`:226`) moved together by hand — `requirements mark-complete` moves only the first. Note this closes a Phase-15 requirement from a Phase-16 session; the authority is the PM's ruling, not a Phase-16 plan's.
 - **STATE-04** (Phase 11) covers every list surface's empty state including host inbox-zero; **HFLOW-01** (Phase 14) covers the requests inbox's scannability, SLA countdown and actions. The empty state is authored once in Phase 11 with the shared `EmptyState` pattern and adopted, not re-decided, in Phase 14.
+
+**CROP-04 — CLOSED 2026-08-26 by the PM's hardware walk (D-175's only permitted discharge):** both
+required platforms driven by a human — iOS Safari (*"did the walk step 1-6 was smooth and end goal was
+acheved"*) and Android Chrome (*"I walked on android now, it works fine the same with ios safari"*). Four
+sub-observations were asked for individually: the sheet did NOT steal a one-finger pan (Δ4 holds on
+hardware), and the saved avatar MATCHED what the circle showed — the hardware confirmation that 16-14's
+`7dca510` fix really closed the ~5% ring. **Three things the tick does NOT claim, recorded rather than
+smoothed over:** clause 6's focus half (iOS paints no focus indicator without a keyboard, so "which
+button was focused" is unanswerable by eye on either platform — it stays held by the Chromium
+assertions, which D-175 says cannot discharge the requirement), clause 4's header/footer half, and M1
+(is `Save photo` above the fold on a short phone — the 44px stage discrepancy is still unresolved on
+hardware). No defects filed; one candidate was raised and withdrawn on disambiguation. Full record and
+the reasoning: `phases/16-image-crop-framing/16-UAT-CROP.md`.
 
 **CROP-01's status, recorded because seven plans carried it and the reason kept changing — now CLOSED by plan 16-14 (2026-08-26):**
 - Plans 16-02 / 16-07 / 16-08 / 16-09 / 16-10 / 16-11 all listed CROP-01 as `requirements-advanced` on the standing ground that **jsdom has no crop stage** (`react-easy-crop` renders the crop area only when `state.cropSize` is truthy, which needs a real `getBoundingClientRect()` and a decoded `<img>`; jsdom 29.1.1 has neither), so *"a user can frame and zoom"* was not proved by anything.
