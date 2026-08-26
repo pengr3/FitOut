@@ -116,6 +116,16 @@ const ZOOM_ROWS: readonly ZoomRow[] = [
     expected: 1,
     source: "clamp lower arm — a negative must not return a negative",
   },
+  {
+    // IN-02. The sweep covered 0 and -1 and missed the one nonsense value that ESCAPED both clamp
+    // arms: every comparison against NaN is false, so `Math.min(Math.max(NaN, 1), 3)` is NaN and a
+    // NaN max-zoom hands the slider a degenerate range. No consumer can produce it today, which is
+    // why it went unnoticed — the docblock claimed both arms clamped "for nonsense input" and this
+    // is the input that made the claim untrue.
+    shorter: Number.NaN,
+    expected: 1,
+    source: "clamp lower arm — NaN escapes both arms without the `|| 1` (IN-02)",
+  },
 ];
 
 describe("IC-05 — avatarMaxZoom reproduces every worked row", () => {

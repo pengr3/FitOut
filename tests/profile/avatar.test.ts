@@ -20,6 +20,8 @@ import { user } from "@/lib/db/schema";
 // because Vitest does not enforce that rule. Only the path changed; the cases below are unaltered
 // and still drive the same schema. tests/use-server-exports.test.ts is what stops the regression.
 import { avatarFileSchema, AVATAR_MAX_BYTES } from "@/lib/validation/profile";
+// The output size the upload transform must agree with (D-172). See the `toEqual` below.
+import { AVATAR_OUTPUT_PX } from "@/lib/avatar";
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -209,8 +211,12 @@ describe("the server never guesses a framing (CROP-01, D-171, threat T-16-22)", 
       transformation?: Record<string, unknown>;
     };
     expect(options.transformation).toEqual({
-      width: 400,
-      height: 400,
+      // AGAINST THE CONSTANT, NOT A LITERAL (WR-03). Pinning `400` on both sides is a test that
+      // agrees with itself while disagreeing with `AVATAR_OUTPUT_PX` — the very drift the source
+      // fix removes. `avatar.ts` states the rule: a hard-coded 400 anywhere else in the phase
+      // silently breaks the derivation the day D-172's output size moves.
+      width: AVATAR_OUTPUT_PX,
+      height: AVATAR_OUTPUT_PX,
       crop: "fill",
       gravity: "center",
     });

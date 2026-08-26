@@ -66,6 +66,10 @@
 // `src/components/**` only), so this module can quote route paths and pixel widths honestly without
 // needing a per-line exemption.
 
+// The crop dialog's title, IMPORTED so this declaration and the shipped copy cannot drift (WR-07).
+// `@/lib/avatar` is a directive-free leaf — `e2e/overflow-320.spec.ts` reads it for the same reason.
+import { AVATAR_CROP_TITLE } from "@/lib/avatar";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -1093,7 +1097,7 @@ export const VISUAL_SURFACES = {
     // The same route as `profile` above. The state is one interaction in, not a second URL — the crop
     // flow has no path of its own and never will: `ResponsiveDialog` is a portal over `/profile`.
     url: "/profile",
-    hook: '[data-testid="responsive-dialog"]:has-text("Position your photo")',
+    hook: `[data-testid="responsive-dialog"]:has-text("${AVATAR_CROP_TITLE}")`,
     hookWhy:
       "the overlay's own box, narrowed by the crop dialog's title — and BOTH halves are load-bearing. " +
       "`responsive-dialog` alone is also rendered by this route's removal confirm and by the booking " +
@@ -1102,10 +1106,12 @@ export const VISUAL_SURFACES = {
       "An undriven capture of `/profile` lands on `/login`, which renders a `panel-card` and would " +
       "satisfy that row's hook while photographing the sign-in page; `/login` renders no dialog at " +
       "all, so the same mistake here TIMES OUT instead of minting a permanent picture of the wrong " +
-      "document. The title is spelled literally because this module is a declaration and cannot " +
-      "import from `e2e/`; the RUNNING gate on this state — `e2e/overflow-320.spec.ts`'s crop-dialog " +
-      "row — imports `AVATAR_CROP_TITLE` from `src/lib/avatar.ts` instead, which is where a copy that " +
-      "must not drift belongs.",
+      "document. ⚠ THE TITLE IS INTERPOLATED FROM `AVATAR_CROP_TITLE`, NOT RESPELLED (WR-07). It " +
+      "was a literal, justified as \"this module is a declaration and cannot import from `e2e/`\" — " +
+      "but the string was never in `e2e/`. It lives in `src/lib/avatar.ts`, a directive-free leaf " +
+      "this module may read as freely as `e2e/overflow-320.spec.ts` does (and that spec says so). " +
+      "So the literal was a second spelling of a pinned copy string with nothing holding the two " +
+      "in agreement — the rule-F2 hazard this phase enforces everywhere else.",
     blocked:
       "BLOCKED ON THREE THINGS, AND THE FIRST TWO ARE `profile`'S, INHERITED WHOLE — this surface IS " +
       "`/profile`, one interaction in. (1) A DRIVE. `e2e/helpers/visual-drive.ts`'s `DRIVES` map has " +

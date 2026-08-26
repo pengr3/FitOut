@@ -1,6 +1,14 @@
-// D-18, applied to bytes instead of text — THIS TEST *IS* THE CI CHECK for `e2e/fixtures/`. There is
-// no CI in this repository, so `npm run test:design` (which `package.json` wires into `build`) is the
-// only place a regen-diff gate can live.
+// D-18, applied to bytes instead of text — THIS TEST *IS* THE REGEN-DIFF GATE for `e2e/fixtures/`,
+// and it lives in `npm run test:design` because that script is build-blocking: `package.json` wires
+// `build` as `lint && test:design && next build`, and `.github/workflows/ci.yml:602` runs `npm run
+// build` on `node-version: "24"` (`:566`). So placing it here makes it fail LOCALLY and in CI from
+// one home, with no second registration to keep in step.
+//
+// ⚠ THIS PARAGRAPH USED TO OPEN "There is no CI in this repository" AND CONCLUDE THAT NO OTHER HOME
+// EXISTED (WR-08). Both halves were false: `.github/workflows/ci.yml` and `baselines.yml` are both
+// present, and two files added by this same phase cite `ci.yml` BY LINE NUMBER
+// (`cloudinary-provenance.ts:28-30`, `listing-photo.ts:113-117`). A reader deciding where to put the
+// next binary-drift gate would have been misled by a premise, not by a preference.
 //
 // WHAT IT CATCHES THAT NOTHING ELSE WOULD: A FIXTURE EDITED BY HAND.
 //

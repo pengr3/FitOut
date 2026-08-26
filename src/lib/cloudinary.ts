@@ -33,6 +33,10 @@
 
 import { v2 as cloudinary } from "cloudinary";
 
+// The ONE declaration of the avatar's output size (D-172). Imported rather than respelled — see the
+// transform below. `@/lib/avatar` is directive-free, so a server-only module can read it freely.
+import { AVATAR_OUTPUT_PX } from "@/lib/avatar";
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -49,7 +53,19 @@ export function uploadAvatar(
         folder: "fitout/avatars",
         public_id: userId,
         overwrite: true,
-        transformation: { width: 400, height: 400, crop: "fill", gravity: "center" },
+        // ⚠ THE OUTPUT SIZE IS IMPORTED, NEVER RESPELLED (WR-03). `src/lib/avatar.ts` states the
+        // rule this used to break: "a hard-coded `400` anywhere else in the phase silently breaks
+        // the derivation the day D-172's output size moves". The header above rests its whole
+        // argument on this transform being arithmetically the IDENTITY on the encoder's output —
+        // move `AVATAR_OUTPUT_PX` to 512 with a literal here and the transform quietly DOWNSIZES
+        // every avatar, the header's claim becomes false, and nothing goes red. `avatar.ts` is
+        // directive-free precisely so any module can read it, and this file is server-only.
+        transformation: {
+          width: AVATAR_OUTPUT_PX,
+          height: AVATAR_OUTPUT_PX,
+          crop: "fill",
+          gravity: "center",
+        },
       },
       (err, res) =>
         err || !res

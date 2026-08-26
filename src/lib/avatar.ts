@@ -83,13 +83,20 @@ export const AVATAR_ALLOWED_TYPES = [
  * photo that can be in frame — `minZoom = 1` IS fit-the-mask, by construction, not by a rule we
  * impose. The upper arm is AVATAR_MAX_ZOOM_CEILING.
  *
+ * ⚠ `NaN` USED TO ESCAPE BOTH OF THEM (IN-02), because every comparison against `NaN` is false:
+ * `Math.min(Math.max(NaN, 1), 3)` is `NaN`, and a `NaN` max-zoom hands the slider a degenerate
+ * range. The docblock claimed both arms clamped "for nonsense input" and the sweep in
+ * `tests/design/avatar-zoom.test.ts` covered `0` and `-1` — the one nonsense value that got through
+ * was the one nobody wrote down. No consumer can produce it today (`naturalWidth`/`naturalHeight`
+ * are always numbers), so this is a note made true rather than a bug fixed; the `|| 1` is what
+ * makes the sentence above accurate.
+ *
  * @param shorterSourcePx `min(naturalWidth, naturalHeight)` of the decoded source image.
  */
 export function avatarMaxZoom(shorterSourcePx: number): number {
-  return Math.min(
-    Math.max(shorterSourcePx / AVATAR_OUTPUT_PX, 1),
-    AVATAR_MAX_ZOOM_CEILING,
-  );
+  const ratio = shorterSourcePx / AVATAR_OUTPUT_PX;
+  // `|| 1` catches NaN (and 0, and -0) BEFORE the clamp, because `Math.max(NaN, 1)` is NaN.
+  return Math.min(Math.max(ratio || 1, 1), AVATAR_MAX_ZOOM_CEILING);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

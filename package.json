@@ -2,6 +2,9 @@
   "name": "fitout",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24.2"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:inngest": "npx inngest-cli@latest dev",

@@ -18,7 +18,7 @@
 //
 // The set was ELEVEN booker-path files with TEN deferred to Phase 13 and one to Phase 14. Plan 13-14
 // discharged the ten (see the DISCHARGE section below), taking the set to SEVENTEEN with exactly one
-// exclusion left. Plan 14-14 discharged that one: the set is TWENTY-SIX files and the exclusion list is
+// exclusion left. Plan 14-14 discharged that one: the set is TWENTY-EIGHT files and the exclusion list is
 // EMPTY. It was TWENTY-ONE until plan 15-09 widened the membership rule past the host tooling to the
 // ACCOUNT surfaces — the four `(auth)` screens and the profile form — which THE RENAME's rule had named
 // as out of scope rather than excluded. Nothing was discharged to get there and nothing was excluded to
@@ -324,7 +324,7 @@
 // ---------------------------------------------------------------------------
 
 /**
- * THE TWENTY-SIX FILES GATE-03 IS A CLAIM ABOUT.
+ * THE TWENTY-EIGHT FILES GATE-03 IS A CLAIM ABOUT.
  *
  * Ordered by surface — availability, then booking, then search, then the group lifecycle, then the host
  * tooling, then the account surfaces plan 15-09 added — rather than alphabetically, because the reading question this list gets asked is "does the
@@ -507,7 +507,7 @@ export function exclusionReasonIsThin(row: LiveRegionExclusion): boolean {
  *     `tests/design/live-regions.test.tsx` strips comments before its own text scan and why this module
  *     lives outside the DS-13 leak gate's scanned tree.
  *
- * The declared SET is twenty-seven files, which is larger than either count because a `role="status"`,
+ * The declared SET is twenty-eight files, which is larger than either count because a `role="status"`,
  * `role="alert"` or `role="timer"` IS a live region without carrying the attribute at all —
  * `book-cta.tsx`, `reserve-actions.tsx`, `relax-band.tsx`, `collision-notice.tsx`,
  * `pending-payment-state.tsx`, `attendee-roster.tsx`, `share-link-box.tsx`, `wizard.tsx`,
@@ -517,7 +517,7 @@ export function exclusionReasonIsThin(row: LiveRegionExclusion): boolean {
  * ⚠ AND THE ONE FILE PLAN 16-09 ADDED IS IN IT AS WELL, so neither measured number moved a third
  * time either. `image-crop-dialog.tsx` renders a bare `role="alert"` on a `<p>` and carries the
  * attribute nowhere, so the AST walk still finds seven files and ten elements and the text grep still
- * finds thirteen. The declared set is twenty-seven.
+ * finds thirteen. The declared set is twenty-eight.
  *
  * ⚠ ALL FIVE FILES PLAN 15-09 ADDED ARE IN IT TOO, so neither measured number moved a second time.
  * Every one of the seven account-surface regions is a bare `role="alert"` or `role="status"` on a `<p>`

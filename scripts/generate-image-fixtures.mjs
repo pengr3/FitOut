@@ -1202,6 +1202,11 @@ if (import.meta.main === true) {
 } else if (import.meta.main === undefined) {
   // Older node exposes no such flag. Failing loudly beats the alternative: a silent exit 0 that
   // writes nothing, leaving stale committed fixtures and a drift test that passes against them.
+  //
+  // The cost of throwing at IMPORT time is that `tests/design/image-fixtures.test.ts` — which imports
+  // this module — fails at SUITE LOAD on an older node, with a message that reads like a fixture
+  // problem. `package.json` therefore declares `"engines": { "node": ">=24.2" }` (IN-01) so npm warns
+  // at install time instead. CI already pins `node-version: "24"`, so this only ever bit contributors.
   throw new Error(
     "[generate-image-fixtures] this node build does not expose an entry-point flag on import.meta; node >= 24 is required.",
   );
