@@ -96,7 +96,7 @@
 ### Image framing (CROP) — promoted from backlog 999.2
 
 - [x] **CROP-01**: A user can frame and zoom their avatar before it uploads, and the server's blind face-gravity re-crop no longer re-frames what the user just chose
-- [ ] **CROP-02**: A host uploading listing photos sees a non-destructive preview of what the 16:9 hero and the 4:3 cards each cut off, with nothing baked into the stored asset
+- [x] **CROP-02**: A host uploading listing photos sees a non-destructive preview of what the 16:9 hero and the 4:3 cards each cut off, with nothing baked into the stored asset
 - [x] **CROP-03**: A user can remove their avatar
 - [ ] **CROP-04**: Cropping works on a real touch device — verified on hardware, not in desktop touch emulation
 
@@ -229,7 +229,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | EMAIL-02 | Phase 15 | Complete |
 | EMAIL-03 | Phase 15 | Complete |
 | CROP-01 | Phase 16 | Complete |
-| CROP-02 | Phase 16 | Pending |
+| CROP-02 | Phase 16 | Complete |
 | CROP-03 | Phase 16 | Complete |
 | CROP-04 | Phase 16 | Pending |
 | RESP-01 | Phase 11 | Complete |
@@ -283,12 +283,35 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 - **⚠ And the round trip was NOT honest until 16-14 fixed it, which is why the closure is a measurement rather than a formality.** That plan's own assertion caught the crop stage sizing itself from a bounding rect taken while `DialogContent` was mid `zoom-in-95`: the mask rendered at 182.4px over a media element laid out at 192px, so the person saw a circle covering 95% of the photo's width while `croppedAreaPixels` reported 100% of it — the saved avatar carried a ~5% ring that was never inside the circle, on every open, at every viewport. Fixed in commit `7dca510`. Ticking CROP-01 before that would have claimed the round trip while the preview and the bytes were still two different rectangles.
 - **Pointer drag-pan and pinch-zoom are CROP-04's hardware walk (D-175), not CROP-01's** — stated here so the closure is not re-litigated against a clause this requirement never carried.
 
-**CROP-02's status, recorded by plan 16-15 because 16-06 named this plan as the one that would close it — it does NOT, and the remainder is one named item:**
+**CROP-02 — CLOSED 2026-08-26 by the D10 follow-up (`6123766`). The history below is kept because the reason it stayed open for two plans is the useful part:**
 - **Its functional clause shipped in plan 16-06** (2026-08-25). `CoverFramePreview` renders the 16:9 hero cut and the 4:3 card cut side by side from one URL, sized by `MOSAIC_ASPECT` and `RESULT_CARD_MEDIA` **imported as class strings** so the preview structurally cannot disagree with the surfaces it previews (D-170 / Δ8); it is a Server Component, proved over the AST with a both-directions self-test; and the *"nothing baked into the stored asset"* half is satisfied by construction — no upload option, no signature parameter, no delivery-URL change, no shipped render surface was touched.
 - **16-06 recorded that plan 16-15 carries the remaining GATE-RESP and GATE-VRT clauses.** Of those two, **one is discharged and one is not**, and the split is the reason this row stays `Pending`.
 - **GATE-VRT: discharged as a declaration.** `wizard-cover-preview` is now in `SURFACE_IDS`, `VISUAL_SURFACES` and `VISUAL_BASELINES` with two court-only rows (320 and 1280), each carrying a `why` naming what that width pins that the other does not — at 320 the two `w-32` frames plus the `gap-2` gutter, at 1280 the `sm:w-40` pair. The rows are **BLOCKED**, with the reason argued at the surface, which is this repository's stated convention for a surface no environment can currently reach: *an inventory somebody can work from, never a gap dressed as coverage*.
-- **GATE-RESP: NOT discharged, and this is the whole of what CROP-02 still owes.** The cover preview has **no 320px row**, and the wizard row that looks like it should cover it does not: `/host/listings/[id]/edit` measures the wizard's FIRST step, `Phase14Row` has no interaction seam, `wizard.tsx` holds the step in client state with no query parameter, and the host fixture seeds no `listing_photo` row at all (`grep -n "listing_photo" e2e/overflow-320.spec.ts` returns nothing). Plan 16-15's own acceptance told it to **raise** this rather than silently add a route the phase did not plan for, so it is filed with its measurements and its cheapest fix as **D10** in `phases/16-image-crop-framing/deferred-items.md`.
-- **The two remaining items are ONE piece of work, not two**, which is worth knowing before either is scheduled: the walk to the photos step that D10 needs is the same walk `wizard-cover-preview`'s `blocked` string says the VRT drive needs, and a `listing_photo` row is the other half of both.
+- **GATE-RESP: DISCHARGED 2026-08-26 — this was the whole of what CROP-02 owed, and it is now measured.**
+  `e2e/overflow-320.spec.ts`'s AC#36 table carries a second wizard row, `/host/listings/[id]/edit · photos
+  step`, in both themes. It walks the shipped seam — the publish checklist's `Fix` link — because the
+  wizard has no URL for a step, and it proves arrival through a `subject` declared ON THE ROW rather
+  than inside the walk: written the other way first, a stubbed walk PASSED, because the early return
+  skipped its own assertion. The fixture seeds exactly one `listing_photo`, and the count is
+  load-bearing in both directions (one or the uploader shows its empty state; three and the `Fix` link
+  disappears). Plan 16-06's *"264px clears the gutters and does not wrap"* is now a measurement rather
+  than arithmetic. **It also caught two shipped controls under the 24px AA bar** — `Fix` at 20.3x20.3
+  and `Resend verification email` at 156.1x20.3 — which nothing had measured because nothing had opened
+  that disclosure at 320px; both raised to the floor in the same commit.
+
+  <details><summary>What it said while it was open</summary>
+
+  **GATE-RESP: NOT discharged, and this is the whole of what CROP-02 still owes.** The cover preview has **no 320px row**, and the wizard row that looks like it should cover it does not: `/host/listings/[id]/edit` measures the wizard's FIRST step, `Phase14Row` has no interaction seam, `wizard.tsx` holds the step in client state with no query parameter, and the host fixture seeds no `listing_photo` row at all (`grep -n "listing_photo" e2e/overflow-320.spec.ts` returns nothing). Plan 16-15's own acceptance told it to **raise** this rather than silently add a route the phase did not plan for, so it is filed with its measurements and its cheapest fix as **D10** in `phases/16-image-crop-framing/deferred-items.md`.
+  </details>
+
+- **⚠ THE VRT ROW IS STILL BLOCKED, AND THAT IS NOT AN OVERSIGHT.** 16-15 recorded that D10 and the
+  `wizard-cover-preview` baseline are "ONE piece of work" — the same walk, the same seeded photo. Half
+  of that is now true: the walk exists and `e2e/helpers/visual-drive.ts` could adopt it. It was NOT
+  adopted here, deliberately. Unblocking a VRT surface changes `EXPECTED_BLOCKED`, and the next
+  baselines dispatch would then MINT a new PNG — which is precisely the "this dispatch is expected to
+  add ZERO files" property that made run `32925834322` readable. Minting a baseline is an operator
+  action with a diff somebody has to read, so it is the PM's to schedule, not a side effect of closing
+  a GATE-RESP item. CROP-02 does not depend on it: GATE-VRT was already discharged as a DECLARATION.
 - **⚠ What CROP-02 does NOT owe, because the assumption is easy to make and it is wrong:** a Cloudinary round trip or a photo fixture for the VRT row. `scripts/seed-baseline-fixtures.ts` already commits **eight** `listing_photo` rows for `vrt_listing_exclusive` with local urls under `public/vrt/`, and both the wizard's tiles and the preview render `photo.url` rather than deriving anything from the Cloudinary-shaped `public_id`. The pixels are committed; the host session and the walk are not.
 
 ---

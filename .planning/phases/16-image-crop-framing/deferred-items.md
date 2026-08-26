@@ -372,6 +372,34 @@ cheap and the diagnostic is already written.
 
 ## D10 — the wizard's cover-frame preview has no 320px row, and the existing wizard row cannot reach it
 
+> **CLOSED 2026-08-26 — commit `6123766`.** The row exists, in both themes, and CROP-02 closed with it.
+> Three things are worth carrying forward from doing it:
+>
+> 1. **The seam is the publish checklist's `Fix` link, not the step rail.** This item suggested adding
+>    an `open` to `Phase14Row` and walking the rail. The rail is not walkable: `wizard.tsx` mounts with
+>    only `STEPS[0]` in `visitedKeys`, so every marker past the first is an inert `<span>`. The `Fix`
+>    link is a shipped control that calls `goToStep` and is reachable from the first step (14-10).
+> 2. **An `open` that asserts its own arrival is not a guard.** The arrival check was written at the
+>    end of the walk first; stubbing the walk to `return` early made the row PASS, because the early
+>    return skipped the assertion meant to catch exactly that. It now lives on the row as `subject`,
+>    asserted by the loop. **Copy that shape, not the AC#29 table's**, if either table grows another
+>    walked row.
+> 3. **The seeded photo count is load-bearing in both directions.** One, and only one: at zero the
+>    uploader returns its empty state and there is no preview; at three `3+ photos` goes `done` and the
+>    `Fix` link — the only seam — stops rendering.
+>
+> **And it found something no other row could.** Opening that disclosure at 320px measured `Fix`
+> (20.3x20.3) and `Resend verification email` (156.1x20.3) against the 24px WCAG 2.5.8 AA bar. Both
+> raised to the floor in the same commit. The inline exemption was considered and not relied on —
+> taking it would have meant widening `collectControls`' filter to admit `inline-flex`, i.e. weakening
+> a live gate to admit a newly-measured surface.
+>
+> The VRT half is deliberately NOT done — see CROP-02's block in `REQUIREMENTS.md` for why minting a
+> baseline is the PM's call rather than a side effect of this.
+
+<details><summary>The item as filed</summary>
+
+
 - **Found by:** plan 16-15, Task 1, answering the question its own plan told it to ask, 2026-08-26
 - **Owner file:** `e2e/overflow-320.spec.ts` — the AC#36 Phase-14 block
 - **Severity:** a GATE-RESP gap on one of the two surfaces Phase 16 shipped. Not a red; an absence.
@@ -414,3 +442,5 @@ row are one piece of work, not two.
 
 **Suggested owner:** phase 16.1 (upload hardening — it owns `photo-uploader.tsx` already), or
 whichever plan first needs a host drive.
+
+</details>
