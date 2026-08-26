@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 16
+current_plan: 2
 status: executing
-stopped_at: "Phase 16.1 context gathered — 15 decisions (D-179..D-193) locked, 4 research questions raised with R-1 BLOCKING. PM decided: 10MB declared limit (advisory, transformation is the hard bound), 2048px long-edge cap, JPEG/PNG/WebP/HEIC allow-list with SVG+animated-GIF refused, sources:[local] only, a sentence per refusal reason, stop-new-orphans-only with no reaper, immediate photo destroy on listing soft-delete, silent EXIF/GPS stripping, and NO BACKFILL because production holds ZERO real host uploads (confirmed by PM; local DB's 27 rows are seeded Unsplash URLs). The whole phase is therefore PREVENTIVE, not remedial. R-1 gates planning: criterion 3's 'transformation the client cannot influence' must be reachable given ALLOWED_SIGN_KEYS signs only {folder,source,timestamp} and Cloudinary 401s on signed-vs-sent mismatch — if neither an upload preset nor a server-fixed param holds, criteria 3+5 are unreachable as worded and D-181's premise collapses, which is a PM escalation not a workaround. NEXT STEP: /gsd-plan-phase 16.1"
-last_updated: "2026-08-26T13:43:04.061Z"
-last_activity: 2026-08-26 -- Phase 16.1 planning complete
+stopped_at: "Phase 16.1 EXECUTING — plan 16.1-01 (wave 1) COMPLETE, 3/3 tasks, commits ab795ac / bdcc0b6 / e1405d3. `src/lib/listing/upload-policy.ts` now declares the preset name, the byte ceiling as `10 * 1024 * 1024` (the vendor ceiling on this account is EXACTLY 10485760, zero headroom), the 2048 long-edge cap, the six-format array, the `f_auto`-carrying incoming transformation and `LISTING_MAX_PHOTOS` — plus the three D-186 refusal sentences and the pure `listingUploadRefusal()` matcher. `MAX_PHOTOS` left the \"use server\" module it could never be exported from; the shipped `That photo didn't upload.` sentence has one home and identical bytes. Gates: `npm run build` exit 0 (61 design files, 1116 passed), tsc 0, photos.test.ts + use-server-exports.test.ts green untouched, `drizzle/` at 0025, avatar ceiling byte-unchanged (D-183). TWO PLAN-INTERNAL CONTRADICTIONS were auto-resolved and are documented in the SUMMARY: the round decimal spelling of the ceiling is deliberately never typed out in upload-policy.ts (the verify-workflows.mjs:24-32 falsely-red-prohibition trap), and a spelling pin was added to the test so the module's docblock is not describing a gate that does not exist. ⚠ The Cloudinary preset `fitout_listing_v1` still does NOT exist on the account — 16.1-04's reconciler creates it; the mechanism fails closed until then. NEXT STEP: execute 16.1-02 (sign-route equality gate, wave 2)."
+last_updated: "2026-08-26T14:20:00.000Z"
+last_activity: 2026-08-26 -- 16.1-01 executed: the upload declaration + its three gates
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 128
-  completed_plans: 126
+  completed_plans: 127
   percent: 62
 ---
 
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 16 — image-crop-framing
+**Current focus:** Phase 16.1 — upload-hardening-storage-economy
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 16 (image-crop-framing) — VERIFIED COMPLETE (2026-08-26)
-Plan: 16 of 16
-Current Plan: 16
+Phase: 16.1 (upload-hardening-storage-economy) — EXECUTING
+Plan: 2 of 7
+Current Plan: 2
 Total Plans in Phase: 7
-Status: Ready to execute
+Status: Executing — 16.1-01 (wave 1) complete; 16.1-02 is next
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-26 -- Phase 16.1 planning complete
+Last activity: 2026-08-26 -- 16.1-01 executed: the upload declaration + its three gates
 
 ## Performance Metrics
 
@@ -500,6 +500,20 @@ Last activity: 2026-08-26 -- Phase 16.1 planning complete
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
 | 15 | 14 | - | - |
+| 16.1 | 1 | - | - |
+
+*16.1-01: ~23 min wall-clock, 3 tasks (all auto), 4 files created + 1 modified, 3 commits + 1 metadata.
+The whole plan is one declaration and three gates: `upload-policy.ts` is now the only place in the repo that
+spells the preset name, the byte ceiling, the 2048 edge cap, the six formats, the transformation or the photo
+cap. ONE watched red, applied and reverted (the ceiling respelled as a round decimal million) and it produced
+TWO independent failures — the VALUE assertion and a SPELLING assertion over comment-stripped source — which is
+the point of pinning both: the value pin catches the number moving, the source pin catches a reader being
+misled about which number it is. The finding worth carrying: the second failure's received value is a field of
+newlines, because the module is mostly argument; a whole-file `toContain` would have been GREEN there, since the
+docblock immediately above the declaration argues about the arithmetic at length. That is the falsely-green half
+of `verify-workflows.mjs:24-32` demonstrated on this phase's own file, and it is why `tests/helpers/source-text.ts`
+exists. TWO PLAN-INTERNAL CONTRADICTIONS auto-resolved (Rule 3 + Rule 2, both in the SUMMARY): the plan's action
+text asked the module to quote the token its own acceptance criterion counts to zero.*
 
 *15-14: ~35 min wall-clock, 3 tasks (all auto), 0 files created + 3 modified, 2 commits + 1 metadata.
 Zero product surface and `src/` byte-identical: one test file made able to fail, two planning artifacts. FOUR mutations
@@ -750,6 +764,12 @@ deferred walk is inconsistent rather than honest.*
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [16.1-01]: **`f_auto`, not `f_jpg`, for the incoming transformation (D-182's delegated spelling, closed).** It is literally "format chosen by Cloudinary", it converts HEIC — which without a format component is stored AND delivered as a content type Chrome and Firefox cannot render, against eight plain `<img src>` render sites — and measured across five inputs it preserved alpha where `f_jpg` flattened onto white. `f_jpg`'s only advantage is a deterministic stored extension, and that buys nothing because `cloudinary-provenance.ts:22-23` already declines to require the url and the publicId to agree about the extension. **That accepted residual is now LOAD-BEARING** — a later "tightening" of it breaks the pipeline, and the constant's docblock says so.
+- [16.1-01]: **The round decimal spelling of the 10 MiB ceiling is deliberately NEVER typed out in `upload-policy.ts`, and the argument for it is made in prose instead.** The plan asked the docblock to quote the token its own acceptance criterion counts to zero — which is `scripts/verify-workflows.mjs:24-32`'s measured mirror failure ("substring checks are wrong in both directions on a documented file: falsely green for requirements, falsely RED for prohibitions") arriving inside a single task. Resolved the way `tests/design/avatar-zoom.test.ts:27-30` already resolves it for the jsdom pragma. The prohibition is pinned in the TEST, over comment-stripped source, where the token may be spelled freely.
+- [16.1-01]: **Both new pure test files live in `tests/design/`, not `tests/listing/`** (PATTERNS C-2, the `avatar-zoom.test.ts:13-20` precedent). They run inside `npm run build` and pay no Postgres preflight. **The consequence, verified empirically rather than assumed: `npx vitest run tests/listing` (22 files, 245 tests) does not mention either file.** Any later plan looking for these gates wants `npm run test:design`.
+- [16.1-01]: **`tests/helpers/source-text.ts` is the phase's ONE way to assert a prohibition over source text.** A second hand-rolled stripper is a second answer to "what counts as code", which is the same class of split rule F2 exists to prevent. It is a regex pass and not a parser — it does not know about string literals — so callers narrow first; if a caller ever cannot narrow, replace it with a real tokeniser rather than growing special cases.
+- [16.1-01]: **gsd-sdk v1.42.3's string-arg state verbs failed again, as the memory predicts.** `state.record-metric` → `"phase, plan, and duration required"`, `state.add-decision` → `"summary required"` (×3), `state.update-progress` → `"Progress field not found in STATE.md"` against a `progress:` block plainly present in the frontmatter. `state.advance-plan` was the only one that worked and it moved `completed_plans` by exactly +1 (126→127) this time. The metric row, these decision entries and `stopped_at` were hand-written; the diff was checked line by line.
 
 - [15-14]: **An assertion that cannot fail for the regression it names is a defect in the TEST, and the only proof it is fixed is applying that exact regression and watching the new line go red.** The phase's third instance. Both halves were transcribed, and the half that condemns the old line is the one where it stayed GREEN under the mutation - a fix without that half is indistinguishable from a differently-spelled unfailable string.
 - [15-14]: **One message, two projections, two independent failures.** `renderEmail` escapes the `paragraphs` array into the HTML part and takes it RAW into the `text/plain` twin, so an absence check about AUTHORED markup must be written in the ESCAPED form for `html` and the LITERAL form for `text`. Writing it once, in the wrong spelling, is what produced WR-04.
@@ -1334,8 +1354,40 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-26T10:56:19.325Z
-Stopped at: Phase 16.1 context gathered — 15 decisions (D-179..D-193) locked, 4 research questions raised with R-1 BLOCKING. PM decided: 10MB declared limit (advisory, transformation is the hard bound), 2048px long-edge cap, JPEG/PNG/WebP/HEIC allow-list with SVG+animated-GIF refused, sources:[local] only, a sentence per refusal reason, stop-new-orphans-only with no reaper, immediate photo destroy on listing soft-delete, silent EXIF/GPS stripping, and NO BACKFILL because production holds ZERO real host uploads (confirmed by PM; local DB's 27 rows are seeded Unsplash URLs). The whole phase is therefore PREVENTIVE, not remedial. R-1 gates planning: criterion 3's 'transformation the client cannot influence' must be reachable given ALLOWED_SIGN_KEYS signs only {folder,source,timestamp} and Cloudinary 401s on signed-vs-sent mismatch — if neither an upload preset nor a server-fixed param holds, criteria 3+5 are unreachable as worded and D-181's premise collapses, which is a PM escalation not a workaround. NEXT STEP: /gsd-plan-phase 16.1
+Last session: 2026-08-26T14:20:00.000Z
+Stopped at: Completed 16.1-01-PLAN.md — the upload declaration. 1 of 7 plans done; wave 1 closed.
+
+`src/lib/listing/upload-policy.ts` is layer 1 of RESEARCH § R-1.6 and is now the only place in the
+repo that spells the preset name, the byte ceiling, the 2048 edge cap, the six formats, the incoming
+transformation or the photo cap. `MAX_PHOTOS` left `listing-photo.ts` (a `"use server"` module could
+never export it) and became `LISTING_MAX_PHOTOS`; the shipped `That photo didn't upload. Please try
+again.` sentence has one home and identical bytes, with `photos.test.ts:339`/`:385` green untouched.
+Gates: `npm run build` exit 0 (61 design files / 1116 passed), `tsc` 0, `drizzle/` at 0025, avatar
+ceiling and sentence byte-unchanged (D-183), seven of eight render sites diff-clean.
+
+⚠ FOUR THINGS THE NEXT PLAN MUST NOT REDISCOVER. (1) **The Cloudinary preset `fitout_listing_v1` does
+not exist on the account yet.** This plan declares its NAME; 16.1-04's reconciler creates its
+CONTENTS. Until then nothing uploads through it — and that is the mechanism failing CLOSED
+(`Upload preset not found`, probe E7), not a bug to work around. (2) **`tests/design/**` is invisible
+to `npx vitest run tests/listing`** — verified, 22 files / 245 tests, zero mentions. The command that
+runs 16.1's two new gates is `npm run test:design` (and `npm run build`, which contains it).
+(3) **`tests/helpers/source-text.ts` is the agreed way to assert a prohibition over source** — do not
+hand-roll a second stripper; it is a regex pass, so narrow the region first. (4) **The round decimal
+spelling of the byte ceiling must stay absent from `upload-policy.ts`** — the module argues the case
+in prose without the token on purpose, and the test pins the absence over stripped source.
+
+⚠ `f_auto` makes `cloudinary-provenance.ts:22-23`'s extension-agnosticism LOAD-BEARING: a stored asset
+may now legitimately carry an extension the publicId does not. Anyone "tightening" that clause breaks
+every HEIC upload. The constant's docblock says so; this is the second place it is written down.
+
+<details><summary>Previous session (16.1 planning, superseded 2026-08-26)</summary>
+
+Phase 16.1 context gathered — 15 decisions (D-179..D-193) locked, 4 research questions raised with R-1 BLOCKING. PM decided: 10MB declared limit (advisory, transformation is the hard bound), 2048px long-edge cap, JPEG/PNG/WebP/HEIC allow-list with SVG+animated-GIF refused, sources:[local] only, a sentence per refusal reason, stop-new-orphans-only with no reaper, immediate photo destroy on listing soft-delete, silent EXIF/GPS stripping, and NO BACKFILL because production holds ZERO real host uploads (confirmed by PM; local DB's 27 rows are seeded Unsplash URLs). The whole phase is therefore PREVENTIVE, not remedial. R-1 came back ANSWERED — a named upload preset is the only mechanism reachable through `<CldUploadWidget>`, and `ALLOWED_SIGN_KEYS` converted into a required-key equality gate is the enforcement point (D-194/D-195).
+
+</details>
+
+<details><summary>Previous session (14-16 host loading plates, superseded 2026-08-26)</summary>
+
 Every host loading plate now draws the list that is actually coming. Measured on the RENDERED routes
 with a real host, a real listing and five real bookings (Playwright Chromium, 2026-08-23): the agenda
 row is **132.00 / 72.00**, the request row **254.05 / 83.02**, the host booking row **196.00 / 37.02**
@@ -1365,6 +1417,8 @@ yet. The spec warms each route before its pending pass; do not delete that navig
 were NOT measured and are still on the 80px assumption — recorded in phase 11's `deferred-items.md`.
 `HFLOW-04` stays deliberately unticked in `REQUIREMENTS.md`: **14-16 still carries it**, so the plan
 that closes its last clause is the one that ticks it.
+
+</details>
 
 <details><summary>Previous session (14-13, superseded 2026-08-23)</summary>
 

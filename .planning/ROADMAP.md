@@ -654,7 +654,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 16.1-01-PLAN.md — The one declaration: `upload-policy.ts`, the three refusal sentences, and the two pure gates that pin them
+- [x] 16.1-01-PLAN.md — The one declaration: `upload-policy.ts`, the three refusal sentences, and the two pure gates that pin them
 
 **Wave 2** *(blocked on Wave 1 completion — every plan below imports the Wave-1 declaration and the shared `tests/helpers/source-text.ts`)*
 
@@ -798,7 +798,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
-| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 0/7 | Planned 2026-08-26 — 7 plans in 4 waves; R-1 answered by measurement (named upload preset, D-194 Option A), GATE-06 intact | - |
+| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 1/7 | In Progress — wave 1 closed 2026-08-26. `upload-policy.ts` is layer 1: the preset name, `10 * 1024 * 1024`, the 2048 edge cap, six formats, the `f_auto` transformation and `LISTING_MAX_PHOTOS`, plus the three D-186 sentences and `listingUploadRefusal()`. Two build-blocking design gates pin it. GATE-06 intact (`drizzle/` at 0025); the preset `fitout_listing_v1` is still absent from the account until 16.1-03's reconciler runs | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
