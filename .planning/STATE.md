@@ -4,15 +4,15 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
 status: executing
-stopped_at: "Phase 16: 14 of 16 plans complete, and the CODE REVIEW IS NOW RUN AND FULLY FIXED -- 16-REVIEW.md found 15 (3 critical, 10 warning, 2 info) and all 15 are closed across 8 commits b7cbc55..37cf230; the record with every red-run reading is 16-REVIEW-FIXES.md. Gates after the fixes: tsc exit 0, vitest 2121 passed / 0 failed, test:design 1138 passed, npm run build exit 0, e2e avatar-crop 33 passed. 16-15 IS NOW 3/3 -- the operator ran the baselines dispatch (run 32925834322) on 2026-08-26 and it added ZERO files exactly as predicted (43 passed / 42 skipped under --update-snapshots, 'Files: 0', origin/dev still 36 PNGs at bfb58cd). Its follow-up comparison is ci run 32924501782 on the SAME commit bfb58cd, gate-visual SUCCESS -- which also finally verified the five PNGs b938aa7 pushed on 08-25 and nothing had ever compared against (T-11-UNVERIFIED closed). dev was merged (NOT rebased -- .planning cites 236 live SHAs) and PUSHED to origin/dev at bfb58cd. ONE plan is still parked at an OPERATOR checkpoint -- do not let any SDK verb tick it. 16-16 IS NOW 2/2 -- the PM walked BOTH required platforms on 2026-08-26 (iOS Safari and Android Chrome), so 16-UAT-CROP.md is filled and CROP-04 is Complete. ALL 16 PLANS AND ALL FOUR CROP REQUIREMENTS ARE NOW CLOSED. Three sub-observations are recorded as UNANSWERED rather than passed: clause 6's focus half (iOS paints no focus ring without a keyboard, so it is unanswerable by eye), clause 4's header/footer half, and M1 (is Save photo above the fold on a short phone -- the 44px stage discrepancy is still open on hardware). CROP-01/02/03/04 ALL CLOSED. CROP-02 closed 2026-08-26 by the D10 follow-up (6123766); CROP-04 closed the same day by the PM's hardware walk. NEXT STEP IS PHASE VERIFICATION -- it has NOT been run and no 16-VERIFICATION.md exists. D10 closed; the VRT half of it deliberately NOT done -- unblocking wizard-cover-preview would make the next baselines dispatch MINT a PNG, which is an operator call. PHASE VERIFICATION still NOT run."
-last_updated: "2026-08-25T07:08:20.183Z"
-last_activity: 2026-08-26 -- Phase 16: ALL 16 plans done, all 4 CROP requirements closed; awaiting phase verification
+stopped_at: "Phase 16 IS VERIFIED AND COMPLETE (2026-08-26) -- .planning/phases/16-image-crop-framing/16-VERIFICATION.md exists, status: passed, 4/4 requirements (CROP-01..04), ZERO gaps and an EMPTY human_verification section. Every gate was RE-RUN at HEAD 24332b8 by the verifier, not read off a summary: tsc exit 0; vitest 185 files / 2121 passed; test:design 59 files / 1140 passed (TWO MORE than the review record, which is 6123766's D10 rows); npm run build exit 0; e2e avatar-crop 33/33; e2e overflow-320 64 passed / 15 skipped incl. both crop-dialog and both photos-step rows. M1 IS NOW ANSWERED and it resolves in the product's favour -- Save photo clears the fold at every viewport UI-SPEC D2 names (320x568 confirm bottom 553.41 of 568, i.e. 14.59px of margin; 360x640 573.02 of 640; 390x844 776 of 844), so the 44px stage discrepancy does NOT push the confirm below the fold and the named reversal 40dvh -> 35dvh is NOT needed. THREE THINGS ARE OWED AND NONE OF THEM GATES THE PHASE. (1) W-2 PUSH dev -- it is 4 commits ahead of origin/dev (bfb58cd) and CI has NEVER run on this tree; one of the four, 6123766, is a feat that changed src/components/host/publish-checklist.tsx. Checked before raising: no /host/* surface is among the 36 committed VRT baselines, so gate-visual CANNOT go stale from it -- but "gate-visual is green" is true of bfb58cd, not of HEAD. (2) W-1 the full chromium project is 242 passed / 10 failed; ZERO of the ten are Phase 16 (avatar-crop 33/33 and overflow-320 64/64 INSIDE that same run), and all three of D6's named reproducible failures reproduce unchanged -- public-listing draft-404, cancel re-refund, confirmation-decay. That is Phase-12/13 debt and the right input to Phase 17. (3) F-1 deferred-items.md's D1 row is STALE -- D1 is closed in code (slider.tsx forwards aria-label to the Thumb when single-thumb; tests/profile/avatar-field.test.tsx:413 asserts it, green). D2..D9 remain genuinely open. ALSO: this verification pass orphaned 2 Cloudinary assets, because per D4 the Delta-3 case does one REAL upload per run and avatar-crop was run twice. NEXT STEP: push dev, then /gsd-plan-phase 16.1."
+last_updated: "2026-08-26T14:45:00.000Z"
+last_activity: 2026-08-26 -- Phase 16 VERIFIED (passed, 4/4, no gaps); M1 settled by measurement; dev still unpushed (W-2)
 progress:
   total_phases: 13
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 121
-  completed_plans: 119
-  percent: 54
+  completed_plans: 121
+  percent: 62
 ---
 
 # Project State
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 16 (image-crop-framing) — EXECUTING
+Phase: 16 (image-crop-framing) — VERIFIED COMPLETE (2026-08-26)
 Plan: 16 of 16
 Current Plan: 16
 Total Plans in Phase: 16
-Status: Executing Phase 16
+Status: Phase 16 verified — next phase is 16.1 (upload-hardening-storage-economy), not yet started
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist

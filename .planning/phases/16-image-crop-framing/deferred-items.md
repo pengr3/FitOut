@@ -7,6 +7,13 @@ owns it, the plan that found it, and what a fix would cost.
 
 ## D1 — The zoom slider ships with NO accessible name
 
+> **CLOSED — confirmed by the phase verifier 2026-08-26.** The vendored block now forwards the caller's
+> `aria-label` to `SliderPrimitive.Thumb` when there is exactly one thumb, and drops it from the Root
+> (`src/components/ui/slider.tsx:53-63,83`). `tests/profile/avatar-field.test.tsx:413` asserts
+> `getByRole("slider", { name: AVATAR_ZOOM_LABEL })` and is green in the 2121-test run. The row below is
+> kept because the MEASUREMENT is the useful part — the name was present in the source and absent from the
+> accessibility tree, which is a class of defect nothing on screen shows.
+
 - **Found by:** plan 16-10, `tests/profile/avatar-field.test.tsx` (jsdom), 2026-08-25
 - **Owner file:** `src/components/profile/image-crop-dialog.tsx` (plan 16-09's), the `<Slider>` call
 - **Severity:** WCAG 2.2 SC 4.1.2 (Name, Role, Value) failure on a shipped control

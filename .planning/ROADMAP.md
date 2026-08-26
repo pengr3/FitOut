@@ -51,7 +51,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [ ] **Phase 13: Confirmation, Bookings & Trust** - After paying, a booker sees exactly what they bought, where their money is, and what happens next
 - [x] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees (completed 2026-08-23)
 - [x] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity (completed 2026-08-25)
-- [ ] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
+- [x] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
 - [ ] **Phase 16.1: Upload Hardening & Storage Economy (INSERTED)** - What a host uploads is bounded, is what it claims to be, and costs what it should to serve
 - [ ] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof
 - [ ] **Phase 18: Search-Results Map** - A booker can see where the results are, not just what they are (net-new capability, D-136)
@@ -559,49 +559,49 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 16-01-PLAN.md — vendor the `slider` block, token-mapped on arrival; leak census 31 → 32
-- [ ] 16-02-PLAN.md — `src/lib/avatar.ts`: the copy literals, the four constants and `avatarMaxZoom` (+ the IC-05 arithmetic gate)
-- [ ] 16-03-PLAN.md — `responsive-dialog.tsx` gains ONE additive prop `onOpenAutoFocus`, proven default-inert
-- [ ] 16-04-PLAN.md — a committed zero-dependency generator and the eleven `e2e/fixtures/` images, drift-gated
-- [ ] 16-05-PLAN.md — D-165: the pure Cloudinary provenance validator, `persistPhoto` fails closed, 12 fixtures rewritten
-- [ ] 16-06-PLAN.md — CROP-02: `CoverFramePreview` (server-safe, imported ratio classes) mounted below the wizard grid
+- [x] 16-01-PLAN.md — vendor the `slider` block, token-mapped on arrival; leak census 31 → 32
+- [x] 16-02-PLAN.md — `src/lib/avatar.ts`: the copy literals, the four constants and `avatarMaxZoom` (+ the IC-05 arithmetic gate)
+- [x] 16-03-PLAN.md — `responsive-dialog.tsx` gains ONE additive prop `onOpenAutoFocus`, proven default-inert
+- [x] 16-04-PLAN.md — a committed zero-dependency generator and the eleven `e2e/fixtures/` images, drift-gated
+- [x] 16-05-PLAN.md — D-165: the pure Cloudinary provenance validator, `persistPhoto` fails closed, 12 fixtures rewritten
+- [x] 16-06-PLAN.md — CROP-02: `CoverFramePreview` (server-safe, imported ratio classes) mounted below the wizard grid
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 16-07-PLAN.md — the avatar server contract: `gravity: "center"`, both false comments corrected, `avatarFileSchema` narrowed
-- [ ] 16-08-PLAN.md — `react-easy-crop@^6.2.3` (the phase's one dependency) + `src/lib/avatar-canvas.ts`
+- [x] 16-07-PLAN.md — the avatar server contract: `gravity: "center"`, both false comments corrected, `avatarFileSchema` narrowed
+- [x] 16-08-PLAN.md — `react-easy-crop@^6.2.3` (the phase's one dependency) + `src/lib/avatar-canvas.ts`
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 16-09-PLAN.md — `ImageCropDialog`: the shell, the stage, the zoom row; live regions 26 → 27
+- [x] 16-09-PLAN.md — `ImageCropDialog`: the shell, the stage, the zoom row; live regions 26 → 27
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 16-10-PLAN.md — `AvatarField`: the picker, the four-step guard chain, the D-174 input reset; live regions 27 → 28
+- [x] 16-10-PLAN.md — `AvatarField`: the picker, the four-step guard chain, the D-174 input reset; live regions 27 → 28
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 16-11-PLAN.md — `/profile` extraction, the live-region re-key, three `profile-pass` assertions, the copy gate
+- [x] 16-11-PLAN.md — `/profile` extraction, the live-region re-key, three `profile-pass` assertions, the copy gate
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 16-12-PLAN.md — CROP-03: `destroyAvatar`, `removeAvatarAction` (null-first), the confirm with focus on `Keep photo`
+- [x] 16-12-PLAN.md — CROP-03: `destroyAvatar`, `removeAvatarAction` (null-first), the confirm with focus on `Keep photo`
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 16-13-PLAN.md — `e2e/avatar-crop.spec.ts`: the stage's real geometry, computed `touch-action`, the refusals, the keyboard
+- [x] 16-13-PLAN.md — `e2e/avatar-crop.spec.ts`: the stage's real geometry, computed `touch-action`, the refusals, the keyboard
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 16-14-PLAN.md — the scrim/ring cascade route decided by measurement, the EXIF byte-honesty proofs, GATE-STATES
+- [x] 16-14-PLAN.md — the scrim/ring cascade route decided by measurement, the EXIF byte-honesty proofs, GATE-STATES
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 16-15-PLAN.md — GATE-RESP's dialog-open 320px row and GATE-VRT's two new surfaces + the CI dispatch checkpoint
+- [x] 16-15-PLAN.md — GATE-RESP's dialog-open 320px row and GATE-VRT's two new surfaces + the CI dispatch checkpoint
 
 **Wave 10** *(blocked on Wave 9 completion)*
 
-- [ ] 16-16-PLAN.md — CROP-04: `16-UAT-CROP.md` and the PM hardware walk (the only discharge, per D-175)
+- [x] 16-16-PLAN.md — CROP-04: `16-UAT-CROP.md` and the PM hardware walk (the only discharge, per D-175)
 
 **UI hint**: yes
 
@@ -765,7 +765,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
-| 16. Image Crop & Framing | v1.1 | 14/16 | Executing — 16-01..16-14 complete. Both remaining plans await the OPERATOR: 16-15 (2/3, CI baselines dispatch) and 16-16 (1/2, PM hardware walk). CROP-01/03 closed; CROP-02 (D10) and CROP-04 open | - |
+| 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). CI has not yet run on this tree: push `dev` (W-2) | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 0/? | Not started — inserted 2026-08-25 from the Phase 16 scope split (D-166) | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
