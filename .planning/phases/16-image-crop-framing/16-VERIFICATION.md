@@ -15,7 +15,7 @@ gates_rerun_by_this_verifier:
   e2e_avatar_crop: "exit 0 · 33 passed (1.8m)"
   e2e_overflow_320: "exit 0 · 64 passed | 15 skipped"
   e2e_full_chromium: "242 passed | 10 failed | 16 skipped | 13 did not run (12.1m) — ZERO failures in Phase 16 files; see W-1"
-  gate_vrt: "NOT RUNNABLE on win32 (linux-only project) — CI-discharged at bfb58cd, see W-2"
+  gate_vrt: "NOT RUNNABLE on win32 (linux-only project) — DISCHARGED ON THIS TREE: ci run 32939455683 at 025c1ad, gate-visual success"
 measurements_settled_by_this_pass:
   - "M1 ANSWERED: `Save photo` clears the fold at every viewport 16-UI-SPEC Δ2 names. 320x568 → confirm bottom 553.41 of 568 (14.59px of margin); 360x640 → 573.02 of 640; 390x844 → 776 of 844. The 44px stage discrepancy does NOT push the confirm below the fold, and Δ2's Reversals row 14 (`40dvh` → `35dvh`) is not needed."
 deferred:
@@ -233,11 +233,32 @@ not collected at all. **This is a Phase-12/13 debt and a Phase-17 test-infrastru
 not gate Phase 16, but the phase gate must not be read off a bare full-project run until it is
 triaged.**
 
-**W-2 · CI has never run on HEAD.** `dev` is **4 commits ahead of `origin/dev`** (`bfb58cd`). One of
-them, `6123766`, is a `feat` that changed `src/components/host/publish-checklist.tsx`. Checked before
-raising: **no `/host/*` surface appears among the 36 committed VRT baselines**, so `gate-visual`
-cannot go stale from that change — but the sentence *"gate-visual is green"* is true of `bfb58cd`,
-not of `24332b8`. Push `dev` and let `ci` run before treating the CI half as covering this tree.
+**W-2 · ~~CI has never run on HEAD~~ — DISCHARGED 2026-08-26, after this report was first written.**
+
+*Original finding.* `dev` was **4 commits ahead of `origin/dev`** (`bfb58cd`). One of them, `6123766`,
+is a `feat` that changed `src/components/host/publish-checklist.tsx`. Checked before raising: **no
+`/host/*` surface appears among the 36 committed VRT baselines**, so `gate-visual` could not go stale
+from that change — but the sentence *"gate-visual is green"* was true of `bfb58cd`, not of `24332b8`.
+
+*Resolution.* `dev` pushed `bfb58cd..025c1ad` at the PM's instruction. **`ci` run `32939455683` is
+GREEN on all four jobs:**
+
+| CI job | Result | Provable locally? |
+| --- | --- | --- |
+| `gate-db-free` (lint + design + build + workflow parse) | **success** | yes — `npm run build` exit 0, `verify-workflows.mjs` 38/38 invariants |
+| `gate-db` (vitest against PostGIS 18) | **success** | yes — 2121 passed |
+| `gate-price-parity` (1 spec) | **success** | yes — `price-parity.spec.ts` ok, 20.3s |
+| `gate-visual` (GATE-01) | **success** | **no** — linux-only by construction; this run is the only thing that could ever settle it |
+
+The prediction held: the `publish-checklist.tsx` change moved no baseline. **`gate-visual` is now
+green on THIS tree, not on an ancestor**, so the CI half genuinely covers `025c1ad`.
+
+⚠ **Note on W-1's relationship to CI.** The ten full-project e2e failures do **not** appear in CI
+because CI runs **four** gates, and eleven of the twelve `e2e/*.spec.ts` files are excluded from it by
+decision, not oversight (D-24 — each boots a dev server and seeds real data; *"a flaky gate does not
+get fixed; it gets retried until green, and then it is not a gate"*). `price-parity.spec.ts` is the
+one narrow exception and it passes. So **a green `ci` is not evidence that W-1 is resolved** — the two
+measure different sets, and W-1 stands exactly as written below.
 
 **W-3 · This verification pass orphaned 2 Cloudinary assets.** Per D4, `avatar-crop.spec.ts`'s Δ3
 pending-save case performs one **real** upload per execution to
@@ -257,6 +278,7 @@ sees both cover cuts without a byte being altered, and the whole thing was drive
 iOS and real Android hardware. Four of four requirements are verified; there are no gaps and no
 outstanding human checkpoints.
 
-**Before the phase is treated as closed in tracking:** push `dev` so CI covers this tree (W-2). The
-full-project e2e reds (W-1) are pre-existing cross-phase debt and are the right input to Phase 17,
-not a blocker here.
+**Tracking is closed.** `dev` was pushed and `ci` run `32939455683` is green on all four jobs
+including `gate-visual`, so W-2 is discharged and the CI half now covers this tree. The full-project
+e2e reds (W-1) are pre-existing cross-phase debt, are outside every gate CI runs, and are the right
+input to Phase 17 — not a blocker here.
