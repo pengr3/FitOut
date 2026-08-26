@@ -45,12 +45,15 @@
 //     implementation. Radix measures with one.
 //   · `URL.createObjectURL` / `URL.revokeObjectURL` — undefined in jsdom; the field calls the first
 //     directly and the whole flow is dead without it.
-//   · An invalid CSS value is made a NO-OP instead of a throw. This is not a convenience: jsdom's
-//     style parser THROWS `SyntaxError: ")" is expected` on `calc(NaN% + 0px)`, which every browser
-//     merely ignores, and the CSSOM specification requires a no-op. Radix's slider emits exactly
-//     that value whenever `min === max`, which is the zoom row's resting state on every source
-//     smaller than the output size — so without this the whole dialog unmounts mid-render and the
-//     field cannot be tested at all. Measured, not assumed; see the SUMMARY.
+//   · (RETIRED — WR-05.) A CSSStyleDeclaration monkey-patch used to sit here making an invalid CSS
+//     value a no-op instead of a throw, because jsdom's style parser THROWS `SyntaxError: ")" is
+//     expected` on `calc(NaN% + 0px)` where a browser merely ignores it. Radix's slider emitted
+//     exactly that whenever `min === max`, which was the zoom row's RESTING state on every source
+//     at or under the output size, so without the patch the dialog unmounted mid-render. The patch
+//     was real and correct about jsdom — and it was absorbing a NaN on the component's behalf. The
+//     dialog now gives the locked row the real ceiling instead of a degenerate range, so nothing
+//     emits NaN and the patch is gone. Its removal is the second, independent signal that the cause
+//     was fixed rather than papered over: if it comes back, so does the throw.
 //   · An image's `naturalWidth` / `naturalHeight`, defined on the ONE element the library rendered,
 //     immediately before firing that element's own `load` event. jsdom fetches and decodes nothing,
 //     so those naturals are the single fact it cannot know; every consequence of them — the per-image
@@ -104,28 +107,6 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver =
   globalThis.ResizeObserver ?? (ResizeObserverStub as unknown as typeof ResizeObserver);
-
-// CSSOM conformance, not convenience — see the header. Setting an unparsable value must be a no-op;
-// jsdom throws. Only the four physical offsets are wrapped, because that is the whole set Radix's
-// slider can write its thumb position to.
-const CSS_STYLE_PROTOTYPE = Object.getPrototypeOf(
-  document.createElement("span").style,
-) as CSSStyleDeclaration;
-for (const property of ["left", "right", "top", "bottom"]) {
-  const descriptor = Object.getOwnPropertyDescriptor(CSS_STYLE_PROTOTYPE, property);
-  if (!descriptor?.set) continue;
-  const write = descriptor.set;
-  Object.defineProperty(CSS_STYLE_PROTOTYPE, property, {
-    ...descriptor,
-    set(this: CSSStyleDeclaration, value: string) {
-      try {
-        write.call(this, value);
-      } catch {
-        /* an unparsable declaration is dropped, exactly as a browser drops it */
-      }
-    },
-  });
-}
 
 // jsdom implements neither half of the object-URL pair. The field mints one directly.
 URL.createObjectURL = vi.fn(

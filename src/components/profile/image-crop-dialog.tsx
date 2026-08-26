@@ -77,6 +77,9 @@ import {
   AVATAR_CROP_CONFIRM_BUSY,
   AVATAR_CROP_HELPER,
   AVATAR_CROP_TITLE,
+  // The zoom ceiling — read here only to keep the slider's range non-degenerate when the row is
+  // locked (WR-05). `avatarMaxZoom` is what actually derives the per-image bound.
+  AVATAR_MAX_ZOOM_CEILING,
   AVATAR_POSITION_LABEL,
   AVATAR_SOFT_SOURCE_NOTE,
   AVATAR_ZOOM_LABEL,
@@ -367,9 +370,22 @@ export function ImageCropDialog({
       // product owns, not a test hook — so the scope is the element the entry animation is actually
       // on, plus its subtree.
       const overlay = stageRef.current?.closest('[role="dialog"]') ?? null;
-      const running = (overlay?.getAnimations({ subtree: true }) ?? []).filter(
-        (animation) => animation.effect?.getComputedTiming().iterations !== Infinity,
-      );
+      // FEATURE-DETECTED, because the Web Animations query is not universal — jsdom implements no
+      // `getAnimations` on either `document` or `Element`, so the previous unconditional call threw
+      // an UNCAUGHT `TypeError` out of every `requestAnimationFrame` in `avatar-field.test.tsx`:
+      // eleven per run, which vitest reports as "unhandled errors … might cause false positive
+      // tests". An environment that cannot enumerate animations has none to wait for, so the
+      // absence resolves to an empty list and the re-measure runs immediately — failing toward the
+      // repair, the same direction as the deadline below.
+      const running =
+        typeof overlay?.getAnimations === "function"
+          ? overlay
+              .getAnimations({ subtree: true })
+              .filter(
+                (animation) =>
+                  animation.effect?.getComputedTiming().iterations !== Infinity,
+              )
+          : [];
 
       const settled = new Promise<void>((resolve) => {
         // Whichever comes first. The entry animation is a tenth of a second; 400ms is late enough
@@ -597,7 +613,20 @@ export function ImageCropDialog({
             value={[zoom]}
             onValueChange={(next) => setZoom(next[0] ?? 1)}
             min={1}
-            max={maxZoom}
+            // ⚠ NEVER `min === max` (WR-05). Radix positions its thumb at
+            // `(value - min) / (max - min)`, so a degenerate range is a division by zero and it
+            // writes `calc(NaN% + 0px)` into the thumb's inline style. A browser drops an unparsable
+            // declaration silently, so the shipped symptom was a left-anchored disabled thumb rather
+            // than a crash — but jsdom THROWS on it, and the field's own test harness had to
+            // monkey-patch four CSSStyleDeclaration setters to keep the dialog from unmounting
+            // mid-render. A test harness absorbing a NaN on a component's behalf is the component's
+            // defect, not the harness's.
+            //
+            // `maxZoom` rests at 1 for every source whose shorter side is at or under the output
+            // size — the row's RESTING STATE, not an edge case. When the row is locked the ceiling
+            // is unreachable by construction (the control is disabled), so it is cosmetic; giving it
+            // the real ceiling costs nothing and makes the range non-degenerate in every state.
+            max={zoomLocked ? AVATAR_MAX_ZOOM_CEILING : maxZoom}
             step={0.01}
             disabled={zoomLocked}
             aria-label={AVATAR_ZOOM_LABEL}

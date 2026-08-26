@@ -41,8 +41,9 @@
 //      primitive rather than on the removal confirm that does not exist yet — so the mitigation
 //      cannot ship as a no-op and be discovered later by a human on a device.
 //
-//   3. THE ADOPTER CENSUS. The five files that use `ResponsiveDialog` are read from disk and none of
-//      them may contain the prop's name. This is the standing form of the plan's `git diff`, plus a
+//   3. THE ADOPTER CENSUS. Every file that renders `ResponsiveDialog` is DERIVED from the tree
+//      (WR-06 — a hard-coded list cannot notice a future adopter), minus two deliberate exceptions
+//      that each say why, and none of the rest may contain the prop's name. This is the standing form of the plan's `git diff`, plus a
 //      liveness guard: the pattern itself MUST contain the name, or the census is scanning for a
 //      token that no longer exists and would pass by vacuum after a rename.
 //
@@ -75,8 +76,8 @@
 // its pre-probe copy afterwards.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 
 import * as React from "react";
 import { describe, it, expect, afterEach } from "vitest";
@@ -112,16 +113,55 @@ const VENDORED_CLOSE = "Close";
 const BUTTON_NAMES = [DESTRUCTIVE, SAFE, VENDORED_CLOSE] as const;
 
 /**
- * The five files that render `ResponsiveDialog` (six call sites — `blocks-editor.tsx` has two),
- * enumerated in `16-RESEARCH.md` §D13 and re-verified 2026-08-25.
+ * The adopters that must NOT steer focus — DERIVED FROM THE TREE, not listed (WR-06).
+ *
+ * ⚠ A HARD-CODED CENSUS POLICES ONLY THE PAST. This used to be five literal paths with a docblock
+ * claiming they were "the five files that render `ResponsiveDialog`", re-verified by hand. Measured
+ * against the tree, SEVEN files render it across EIGHT call sites: the five below plus the two
+ * `src/components/profile/` files this phase added, both of which legitimately pass a focus hook.
+ * So the docblock's claim was false, and — the part that matters — a FUTURE adopter that added the
+ * prop would have been invisible to the gate, because a list cannot notice what is not on it. That
+ * is the guard-the-guard failure this file's own header is otherwise careful about.
+ *
+ * Deriving it inverts that: the set widens by itself, and the only maintenance is the deliberate
+ * exceptions below, each of which has to say why. The floor assertion beneath keeps the derivation
+ * itself honest — a glob that silently matched nothing would make every case here pass vacuously.
  */
-const ADOPTERS = [
-  "src/app/dev/theme/page.tsx",
-  "src/components/availability/blocks-editor.tsx",
-  "src/components/booking/booking-sticky-bar.tsx",
-  "src/components/host/request-row.tsx",
-  "src/components/patterns/site-chrome.tsx",
-] as const;
+const DELIBERATE = new Set([
+  // D-168's mitigation — `onOpenAutoFocus` places focus on `Keep photo`, because Radix's own choice
+  // on this footer order is the DESTRUCTIVE button. Also `onCloseAutoFocus` (CR-03): the trigger
+  // unmounts in the same commit as a successful removal, so Radix's restore has nothing to aim at.
+  "src/components/profile/avatar-field.tsx",
+  // Δ5c — `onCloseAutoFocus` with no trigger at all: this overlay opens programmatically, so Radix
+  // suppresses the browser's restore and then focuses a `triggerRef` that was never populated.
+  "src/components/profile/image-crop-dialog.tsx",
+]);
+
+/**
+ * Every `.tsx` under `src/`, repo-relative and forward-slashed.
+ *
+ * The recursive-walk shape is `avatar-copy.test.ts:225`'s and `brand-recipe.test.ts:431`'s, and the
+ * slash normalisation is `brand-recipe.test.ts:442-449`'s line, load-bearing for the same reason it
+ * is there: on this box `path.relative` emits backslashes, and `DELIBERATE` is written with the
+ * forward slashes every path in this repo's prose uses. Without the normalisation an exception would
+ * silently fail to match and the file it names would be policed after all — a red with a confusing
+ * message, on Windows only.
+ */
+function collectTsxFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) collectTsxFiles(full, out);
+    else if (entry.name.endsWith(".tsx")) out.push(full);
+  }
+  return out;
+}
+
+/** Every file under `src/` that renders the pattern, minus the deliberate exceptions above. */
+const ADOPTERS = collectTsxFiles(resolve(ROOT, "src"))
+  .filter((full) => readFileSync(full, "utf8").includes("<ResponsiveDialog"))
+  .map((full) => relative(ROOT, full).split("\\").join("/"))
+  .filter((f) => !DELIBERATE.has(f))
+  .sort();
 
 /**
  * The removal confirm's footer, in Δ5b's DOM order: DESTRUCTIVE FIRST, so that `flex-col-reverse`
@@ -240,14 +280,52 @@ describe("responsive-dialog · the adopter census (T-16-07)", () => {
     expect(readFileSync(resolve(ROOT, PATTERN), "utf8")).toContain(PROP);
   });
 
-  it.each(ADOPTERS)("%s does not mention the new prop", (adopter) => {
-    const source = readFileSync(resolve(ROOT, adopter), "utf8");
-
+  it("the census found the adopters it claims to police", () => {
+    // THE DERIVATION'S OWN NON-VACUITY FLOOR. `it.each([])` registers ZERO cases and reports green,
+    // so a glob that stopped matching — a moved directory, a changed extension, a rename of the
+    // component — would retire the whole gate in silence. Five is the count measured when WR-06 was
+    // fixed, stated as a FLOOR rather than an equality precisely because the point of deriving the
+    // set is that it is allowed to grow without anyone editing this file.
     expect(
-      source.includes(PROP),
-      `${adopter} now passes \`${PROP}\`. The prop is additive by contract (Δ5b): every existing ` +
-        `adopter must keep Radix's own focus behaviour. If this overlay genuinely needs to steer ` +
-        `focus, that is a decision to record, not a line to add — and this census is the record.`,
-    ).toBe(false);
+      ADOPTERS.length,
+      `the census matched ${ADOPTERS.length} adopter(s): [${ADOPTERS.join(", ")}]. It should find ` +
+        "at least the five that rendered the pattern when this gate was written. A smaller number " +
+        "means the derivation broke, not that adopters were deleted — check the glob first.",
+    ).toBeGreaterThanOrEqual(5);
   });
+
+  it("every deliberate exception really does still render the pattern and steer focus", () => {
+    // Guard-the-exceptions. An entry left behind after its file stopped using the pattern (or
+    // stopped steering focus) is a silent hole in the census — the path would be subtracted from
+    // the derived set for a reason that no longer exists.
+    for (const exception of DELIBERATE) {
+      const source = readFileSync(resolve(ROOT, exception), "utf8");
+      expect(source, `${exception} no longer renders <ResponsiveDialog>`).toContain(
+        "<ResponsiveDialog",
+      );
+      expect(
+        source.includes(PROP) || source.includes("onCloseAutoFocus"),
+        `${exception} is exempted from the census but steers no focus. Remove it from ` +
+          "`DELIBERATE` so the census polices it again.",
+      ).toBe(true);
+    }
+  });
+
+  // A plain loop rather than `it.each`, because `ADOPTERS` is now DERIVED and therefore a
+  // `string[]` rather than a literal tuple — the same shape `tests/design/avatar-zoom.test.ts` uses
+  // for its row sweep. Registration still happens at collection time, so each adopter is its own
+  // named case; the floor assertion above is what stops an empty derivation registering none.
+  for (const adopter of ADOPTERS) {
+    it(`${adopter} does not mention the new prop`, () => {
+      const source = readFileSync(resolve(ROOT, adopter), "utf8");
+
+      expect(
+        source.includes(PROP),
+        `${adopter} now passes \`${PROP}\`. The prop is additive by contract (Δ5b): every existing ` +
+          `adopter must keep Radix's own focus behaviour. If this overlay genuinely needs to steer ` +
+          `focus, that is a decision to record, not a line to add — and this census is the record. ` +
+          `Recording it means adding the file to \`DELIBERATE\` with the reason.`,
+      ).toBe(false);
+    });
+  }
 });
