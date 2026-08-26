@@ -2,7 +2,7 @@
 phase: 16-image-crop-framing
 plan: 15
 subsystem: testing
-tags: [gate-resp, gate-vrt, overflow-320, visual-baselines, vacuity, scroll-lock, d-138, checkpoint-pending]
+tags: [gate-resp, gate-vrt, overflow-320, visual-baselines, vacuity, scroll-lock, d-138, checkpoint-discharged]
 
 # Dependency graph
 requires:
@@ -71,7 +71,8 @@ completed: 2026-08-26
 - **Duration:** ~1 h 45 m
 - **Started:** 2026-08-26T00:05Z (local +08)
 - **Completed:** 2026-08-26T00:50Z (local +08)
-- **Tasks:** 2 of 3 complete; **Task 3 is a BLOCKING operator checkpoint** and is open
+- **Tasks:** 3 of 3 complete. Task 3's dispatch was run by the operator on 2026-08-26 and
+  added **zero** files, which is the outcome the plan predicted.
 - **Files:** 1 created, 6 modified (2 of them `.planning/`)
 
 ## Task Commits
@@ -81,7 +82,7 @@ completed: 2026-08-26
 | 1 | **Task 1** — the crop-dialog-open row at 320px, plus the overlay measurement it needed | `8febb80` | test |
 | 2 | **Task 2** — two court-only VRT surfaces, four rows, and BOTH count literals moved together | `a514061` | feat |
 | — | this SUMMARY, D9/D10, and CROP-02's honest status | *(final commit)* | docs |
-| 3 | **Task 3** — the CI dispatch | **OPEN — operator** | — |
+| 3 | **Task 3** — the CI dispatch | run `32925834322` — **no commit, 0 files** | ops |
 
 ---
 
@@ -354,7 +355,58 @@ The plan's four registered threats, marked as discharged rather than assumed:
 
 ---
 
-## Task 3 — OPEN, blocking, operator
+## Task 3 — DISCHARGED 2026-08-26
+
+**The dispatch: run `32925834322`, `workflow_dispatch` on `dev`, conclusion `success`, 2.1 minutes.**
+It ran on `bfb58cdc13893861b4999bcf1e316656bc0b0376`.
+
+**The number the plan told the operator to check first, checked: ZERO files added.** The job's own
+commit step reported it in as many words — *"No baseline changes — nothing to commit … Files: 0."* —
+and `git ls-tree -r --name-only origin/dev 'e2e/visual/surfaces.spec.ts-snapshots/' | grep -c
+"visual-linux.png"` still reads **36**. `origin/dev`'s tip is unchanged at `bfb58cd`. That is exactly
+what this plan predicted, and for the reason it gave: all four new rows are blocked, so there was
+nothing new for the dispatch to reach.
+
+**It was not a vacuous green.** `npx playwright test --project=visual --update-snapshots` reported
+**43 passed, 42 skipped**. So 43 surfaces really were re-rendered with the write flag active and
+every one of them came back byte-identical to its committed baseline — a stronger statement than a
+comparison run makes, because `--update-snapshots` would have overwritten any that differed.
+
+**⚠ THE FOLLOW-UP COMPARISON RUN, AND WHY THIS ONE IS SATISFIED BY A RUN THAT CAME *BEFORE* THE
+DISPATCH.** This plan's deliverable was written as *"the follow-up comparison run's id and its
+`gate-visual` status — never the generation run's, because a `GITHUB_TOKEN` push triggers no workflow
+run."* Read literally, no run followed this dispatch. Read for the property it protects, the
+requirement is met, and the distinction is worth stating rather than quietly ticking:
+
+  - The follow-up exists because the bot's push is **unverified** — writing a baseline is not
+    comparing against it (threat T-11-UNVERIFIED).
+  - **The bot pushed nothing.** There is no new commit, so there is nothing in that unverified state.
+  - `ci` run **`32924501782`** ran on **`bfb58cd`** — the *same* commit the dispatch ran on, and the
+    commit `origin/dev` still points at — and its **`gate-visual` (GATE-01 visual regression) job
+    concluded `success`**, alongside `gate-db`, `gate-price-parity` and `gate-db-free`. It ran; it was
+    not skipped.
+
+So `gate-visual` is green on the exact tree at `origin/dev` HEAD, with both Phase-16 surfaces declared
+and blocked. If a later dispatch DOES commit, that one still owes a real follow-up run.
+
+**⚠ AND IT CLEARED A DEBT THIS PLAN DID NOT CREATE.** The previous dispatch (run `32876732420`,
+2026-08-25 17:14) pushed `b938aa7` with five regenerated PNGs — `collision-notice-1280`,
+`listing-detail-{320,768,1280}`, `listing-sheet-375`, all court — and **nothing ever compared against
+them**. Its own commit message says `NOT YET VERIFIED`. The newest `ci` run on `dev` at that moment
+(`32752143309`, 2026-08-24 16:40Z) predated it by a day. That commit had also never been pulled into
+the local tree, which had since gone 118 commits ahead. It was taken in by a merge (`bfb58cd`) — a
+merge and not a rebase, because `.planning` cites 236 live commit SHAs across this phase's artifacts
+and a rebase would have turned every one of them into a dangling reference. `32924501782` is the run
+that finally compared against those five, and it is green. **T-11-UNVERIFIED is closed for them.**
+
+**The warning this plan carried, discharged with nothing to report.** *"If `gate-visual` is red on a
+surface this phase did not touch, name it rather than accepting it silently."* It is not red, and no
+surface was re-minted — so there is no diff for anyone to have failed to read. That is the opposite
+of the 15-11 outcome this warning was written from.
+
+---
+
+## Task 3 — the original checkpoint, kept for the record
 
 Everything automatable is done. Task 3 cannot run on this machine and was not simulated: `playwright.config.ts` constructs the `visual` project only when `process.platform === "linux"`, this machine is win32, and `updateSnapshots: "none"` is unconditional. Baselines are generated only by the `workflow_dispatch`-only `baselines` workflow. Handled exactly as `15-11-02` and `12-14` Task 3 were.
 
@@ -400,4 +452,4 @@ Everything automatable is done. Task 3 cannot run on this machine and was not si
 
 ---
 
-*Phase: 16-image-crop-framing · Plan 15 · Tasks 1–2 complete 2026-08-26 · Task 3 open at a blocking operator checkpoint*
+*Phase: 16-image-crop-framing · Plan 15 · Tasks 1–2 complete 2026-08-26 · Task 3 discharged 2026-08-26 (dispatch `32925834322`, 0 files; `gate-visual` green on `bfb58cd` via `32924501782`)*
