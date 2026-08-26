@@ -21,13 +21,17 @@
 // fail in CI. The last three cases in this file are the guard's own: two rejections that must write
 // NO row, and the absent-cloud-name case that proves the guard FAILS CLOSED rather than skipping.
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi, type Mock } from "vitest";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { asc, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockCloudinary } from "../helpers/mocks";
+import { stripComments } from "../helpers/source-text";
 import { listing, listingPhoto } from "@/lib/db/schema";
+import { LISTING_MAX_PHOTOS } from "@/lib/listing/upload-policy";
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -35,6 +39,12 @@ type PhotoActions = typeof import("@/app/actions/listing-photo");
 let persistPhoto: PhotoActions["persistPhoto"];
 let reorderPhotos: PhotoActions["reorderPhotos"];
 let removePhoto: PhotoActions["removePhoto"];
+/**
+ * The SAME mocked `uploader.destroy` the action's `@/lib/cloudinary` resolved after `resetModules()`
+ * — per-case overrides have to land on the function that actually runs. Precedent and rationale:
+ * `tests/profile/avatar-remove.test.ts:88-93`.
+ */
+let destroySpy: Mock;
 
 const sessionHeaders: { cookie: string } = { cookie: "" };
 vi.mock("next/headers", () => ({
@@ -70,6 +80,8 @@ beforeAll(async () => {
   ({ persistPhoto, reorderPhotos, removePhoto } = await import(
     "@/app/actions/listing-photo"
   ));
+  const cloudinary = await import("cloudinary");
+  destroySpy = cloudinary.v2.uploader.destroy as unknown as Mock;
 });
 
 afterAll(async () => {
@@ -342,6 +354,11 @@ describe("D-165 — persistPhoto refuses metadata our pipeline could not have pr
     const after = await photosOf(listingId);
     expect(after).toHaveLength(1);
     expect(after.map((r) => r.publicId)).toEqual([legit.publicId]);
+
+    // D-187 — A REJECTION PROVES THE ID IS NOT OURS TO DELETE, so nothing may be destroyed here.
+    // The EMPTY ARRAY, not `not.toContain(publicId)`: an empty-array assertion also catches a
+    // destroy of the WRONG id, which is the shape the IDOR would actually take.
+    expect(mockCloudinary.destroys()).toEqual([]);
   });
 
   it("rejects a TRAVERSAL publicId inside a legitimate prefix and writes no row", async () => {
@@ -363,6 +380,11 @@ describe("D-165 — persistPhoto refuses metadata our pipeline could not have pr
     const after = await photosOf(listingId);
     expect(after).toHaveLength(1);
     expect(after.map((r) => r.publicId)).toEqual([legit.publicId]);
+
+    // D-187 — a rejection proves the id is not ours to delete, and THIS is the case that makes the
+    // point loudest: the string names `fitout/avatars/victim`. A destroy on this path would have
+    // deleted someone's face on the strength of a `startsWith` that the guard already refused.
+    expect(mockCloudinary.destroys()).toEqual([]);
   });
 
   it("FAILS CLOSED when CLOUDINARY_CLOUD_NAME is absent — the state every CI run is in (R1)", async () => {
@@ -388,6 +410,12 @@ describe("D-165 — persistPhoto refuses metadata our pipeline could not have pr
       process.env.CLOUDINARY_CLOUD_NAME = TEST_CLOUD_NAME;
     }
 
+    // D-187 — the fail-closed branch sits ABOVE the provenance gate, so it too has proven nothing
+    // about the publicId and may destroy nothing. This is the branch that runs continuously in CI
+    // (no Cloudinary credential), which makes it the likeliest place for a hoisted cleanup to be
+    // "simplified" into.
+    expect(mockCloudinary.destroys()).toEqual([]);
+
     const after = await photosOf(listingId);
     expect(after).toHaveLength(1);
     expect(after.map((r) => r.publicId)).toEqual([legit.publicId]);
@@ -396,5 +424,227 @@ describe("D-165 — persistPhoto refuses metadata our pipeline could not have pr
     // MISSING CONFIGURATION and not something else wrong with the fixture.
     expect((await persistPhoto(listingId, second)).ok).toBe(true);
     expect(await photosOf(listingId)).toHaveLength(2);
+  });
+});
+
+// ── D-187 — the destroy that closes the orphan source, and the constraint that keeps it safe ──────
+//
+// THE ORPHAN THIS CLOSES. Photo bytes go browser→Cloudinary direct; only metadata reaches
+// `persistPhoto`. So every refusal this action makes leaves an asset ALREADY paid for. The most
+// reachable spelling is one click: 18 photos stored, 20 selected, 2 persisted, 18 refused at the
+// cap — 18 unreachable, permanently-billed assets that no row names and no page renders.
+//
+// ⚠⚠ AND THE CONSTRAINT, WHICH IS THE ACTUAL SUBJECT OF THIS BLOCK. The destroy may run ONLY on a
+// refusal that happens AFTER `isOwnCloudinaryAsset` has PASSED. Every refusal above it — no session,
+// not your listing, empty fields, no cloud name, and above all the provenance REJECTION itself —
+// has proven NOTHING about the publicId, and a destroy there would hand any signed-in caller an
+// arbitrary-delete primitive against our own Cloudinary account: another host's cover photo, or
+// `fitout/avatars/<victim-userId>`, deleted by naming it and taking the refusal. The cleanup would
+// introduce a destructive IDOR inside the phase that exists to prevent one.
+//
+// EVERY REJECTION CASE ASSERTS THE EMPTY ARRAY, NOT `not.toContain(id)`. An empty-array assertion
+// also catches a destroy of the WRONG id, which is the shape the IDOR would actually take — the
+// same discipline the D-165 cases above apply to the photo COUNT rather than to `ok` alone.
+describe("D-187 — persistPhoto destroys the asset it refuses, and NOTHING it has not vouched for", () => {
+  const CAP_MESSAGE = `You can add up to ${LISTING_MAX_PHOTOS} photos. Remove one to add another.`;
+
+  /**
+   * A listing already sitting exactly at the cap.
+   *
+   * ⚠ SEEDED WITH ONE DIRECT `db.insert`, NOT WITH `LISTING_MAX_PHOTOS` SEQUENTIAL `persistPhoto`
+   * CALLS. 21 action calls against a live schema would be the largest single case in this file, and
+   * `vitest.config.ts:64` sets `testTimeout: 20_000`. The rows are built from the same `upload()`
+   * fixture builder every other case uses, so they are the shapes the real pipeline produces; only
+   * the WAY they arrive is short-circuited, and the ONE call under test is the overflow.
+   */
+  async function listingAtTheCap(email: string): Promise<string> {
+    const hostId = await signInHost(email);
+    const listingId = await makeListing(hostId);
+    await testDb.db.insert(listingPhoto).values(
+      Array.from({ length: LISTING_MAX_PHOTOS }, (_, i) => {
+        const seeded = upload(listingId, `seed-${i}`);
+        return {
+          id: randomUUID(),
+          listingId,
+          publicId: seeded.publicId,
+          url: seeded.url,
+          position: i,
+        };
+      }),
+    );
+    expect(await photosOf(listingId)).toHaveLength(LISTING_MAX_PHOTOS);
+    return listingId;
+  }
+
+  it("the CAP refusal destroys EXACTLY the refused publicId, and still writes no row", async () => {
+    const listingId = await listingAtTheCap("photos.cap.destroy@example.com");
+    const overflow = upload(listingId, "overflow");
+
+    const res = await persistPhoto(listingId, overflow);
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe(CAP_MESSAGE);
+    // The count is unchanged — a branch that refused and still inserted would satisfy `ok === false`
+    // completely (the same reasoning the D-165 cases above state at :315-317).
+    expect(await photosOf(listingId)).toHaveLength(LISTING_MAX_PHOTOS);
+    // …and the asset we refused is the one and only thing destroyed.
+    expect(mockCloudinary.destroys()).toEqual([overflow.publicId]);
+  });
+
+  it("an OWNERSHIP refusal destroys NOTHING — the path where the destroy would BE the IDOR", async () => {
+    const ownerId = await signInHost("photos.destroy.owner@example.com");
+    const listingId = await makeListing(ownerId);
+    const cover = upload(listingId, "cover");
+    expect((await persistPhoto(listingId, cover)).ok).toBe(true);
+
+    // A DIFFERENT host names the owner's own, perfectly legitimate publicId. The refusal alone is
+    // not the property under test — the refusal is exactly what an attacker is willing to accept in
+    // exchange for the delete. Under a destroy hoisted above `assertOwnership` this single call
+    // deletes another host's cover photo.
+    await signInHost("photos.destroy.attacker@example.com");
+    const res = await persistPhoto(listingId, cover);
+
+    expect(res.ok).toBe(false);
+    expect(mockCloudinary.destroys()).toEqual([]);
+    // The victim's row is untouched, so the asset it points at had better still exist.
+    expect((await photosOf(listingId)).map((r) => r.publicId)).toEqual([cover.publicId]);
+  });
+
+  it("the PROVENANCE rejection destroys NOTHING — an id under ANOTHER host's listing folder", async () => {
+    const victimId = await signInHost("photos.destroy.victim@example.com");
+    const victimListing = await makeListing(victimId);
+    const victimPhoto = upload(victimListing, "cover");
+    expect((await persistPhoto(victimListing, victimPhoto)).ok).toBe(true);
+
+    // The attacker owns THEIR OWN listing, so session and ownership both PASS — the guard that
+    // refuses is `isOwnCloudinaryAsset`, on the ground that the id is scoped to a folder that is
+    // not this listing's. That rejection is the proof that the id is NOT ours to delete, and it is
+    // the exact branch a "tidy" refactor would hoist a shared cleanup above.
+    const attackerId = await signInHost("photos.destroy.attacker2@example.com");
+    const attackerListing = await makeListing(attackerId);
+    const res = await persistPhoto(attackerListing, victimPhoto);
+
+    expect(res.ok).toBe(false);
+    expect(mockCloudinary.destroys()).toEqual([]);
+    expect((await photosOf(victimListing)).map((r) => r.publicId)).toEqual([victimPhoto.publicId]);
+  });
+
+  it("a NON-OK destroy result does not change what the host sees (both failure shapes, S-1)", async () => {
+    const listingId = await listingAtTheCap("photos.cap.notfound@example.com");
+    const overflow = upload(listingId, "overflow");
+
+    // ⚠ THE SHARED DOUBLE ALWAYS RESOLVES `{ result: "ok" }` (`tests/helpers/mocks.ts:103-108`), so
+    // the non-ok branch is not reachable through it as it stands — only through a per-test
+    // override. And the override REPLACES the implementation for that call, so the publicId is NOT
+    // pushed onto `destroys()` for it. The assertions below are therefore deliberately about the
+    // RESULT the host sees and about the call having been ATTEMPTED, never about the capture.
+    destroySpy.mockResolvedValueOnce({ result: "not found" });
+    const callsBefore = destroySpy.mock.calls.length;
+
+    // Nothing threw: `persistPhoto` RESOLVING at all is that assertion. `uploader.destroy` answers
+    // HTTP 200 `{ result: "not found" }` for an id that is not there, which a bare `catch` would
+    // have let slip through silently rather than logged.
+    const res = await persistPhoto(listingId, overflow);
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe(CAP_MESSAGE);
+    expect(await photosOf(listingId)).toHaveLength(LISTING_MAX_PHOTOS);
+    // ATTEMPTED and absorbed — a best-effort call that silently stopped being made would produce
+    // this same green without this line (`avatar-remove.test.ts:218-221`).
+    expect(destroySpy.mock.calls.length).toBe(callsBefore + 1);
+    // …and the documented consequence of the override, asserted rather than assumed.
+    expect(mockCloudinary.destroys()).toEqual([]);
+  });
+});
+
+// ── D-187, layer two — the ordering, in SOURCE, because behaviour cannot see it ───────────────────
+//
+// WHY THIS IS NOT REDUNDANT WITH THE FIVE CASES ABOVE. A behavioural test is satisfied by a destroy
+// that merely happens to be SKIPPED on the paths it exercises. The ordering assertion is what stops
+// the call MIGRATING UPWARD in a later refactor — someone folding the guards into one block, or
+// hoisting the cleanup into a shared helper at the top of the function. The day this goes red, the
+// reviewer should be pointed at the IDOR reasoning in `listing-photo.ts`'s ⚠⚠ block rather than left
+// to rediscover why the two calls are in the order they are in.
+//
+// ⚠ IT READS COMMENT-STRIPPED CODE, AND IT MUST. `listing-photo.ts` discusses provenance, orphan
+// cleanup and the destructive-IDOR hazard in prose ABOVE the code, and this phase added more of it —
+// so a naive whole-file `indexOf` would be measuring the header, not the function.
+// `scripts/verify-workflows.mjs:24-32` measured that failure; `tests/helpers/source-text.ts` is this
+// phase's single agreed answer to it (16.1-PATTERNS § S-2).
+//
+// ⚠ AND IT NARROWS TO `persistPhoto`'S OWN BODY, WHICH IS WHAT MAKES IT MEAN WHAT IT SAYS. An
+// unnarrowed `indexOf` would be satisfied by accident: `removePhoto` calls `destroyListingPhoto`
+// too, later in the file, so the assertion would stay green with the destroy hoisted to the very
+// top of `persistPhoto`.
+//
+// ── OBSERVED RED, 2026-08-26 — the unsafe placement, watched failing ─────────────────────────────
+// The destroy was temporarily moved out of the cap branch to immediately BEFORE the
+// `isOwnCloudinaryAsset` call, and reverted. SIX independent reds for one relocation — the five
+// empty-array behavioural assertions above AND the ordering assertion below:
+//
+//     × rejects a FOREIGN url and writes no row
+//     × rejects a TRAVERSAL publicId inside a legitimate prefix and writes no row
+//     × FAILS CLOSED when CLOUDINARY_CLOUD_NAME is absent — the state every CI run is in (R1)
+//     × an OWNERSHIP refusal destroys NOTHING — the path where the destroy would BE the IDOR
+//     × the PROVENANCE rejection destroys NOTHING — an id under ANOTHER host's listing folder
+//     × the destroy sits BELOW the provenance gate, in code, inside persistPhoto's own body
+//
+//     AssertionError: expected [ …(2) ] to deeply equal []
+//     + [ "fitout/listings/<id>/one", "fitout/listings/<id>/../../avatars/victim" ]
+//
+// That second received value is the finding, not the failure: the mutated action DESTROYED the
+// traversal id naming `avatars/victim` — the arbitrary-delete primitive, demonstrated in CI, with no
+// credential. Full transcript in `16.1-05-SUMMARY.md`.
+describe("D-187 — the source ordering inside persistPhoto", () => {
+  const ACTION_PATH = "src/app/actions/listing-photo.ts";
+  const SOURCE = readFileSync(resolve(process.cwd(), ACTION_PATH), "utf8");
+  const CODE = stripComments(SOURCE);
+  const START = CODE.indexOf("export async function persistPhoto");
+  /** `persistPhoto`'s body: from its own `export` to the next top-level `export`. */
+  const BODY = (() => {
+    if (START < 0) return "";
+    const next = CODE.indexOf("\nexport ", START + 1);
+    return next === -1 ? CODE.slice(START) : CODE.slice(START, next);
+  })();
+
+  it("the module under test really was read, and the narrowing really found persistPhoto", () => {
+    // Guards the path: a typo in ACTION_PATH would make readFileSync throw, but a stale read or a
+    // renamed export would make every assertion below vacuous — `"".indexOf(x)` is −1 for both
+    // tokens and `-1 > -1` is simply false, which reads like a real failure rather than a missing
+    // file. Same "the file was really read" rule as `tests/design/avatar-zoom.test.ts:301-306`.
+    expect(START).toBeGreaterThanOrEqual(0);
+    expect(BODY).toContain("LISTING_MAX_PHOTOS");
+    expect(BODY).not.toContain("export async function removePhoto");
+  });
+
+  it("the stripper itself works in BOTH directions (detector self-test)", () => {
+    // Without this, an over-eager stripper that returned "" would make the ordering assertion pass
+    // vacuously — a green suite over a constraint that is not being checked, which is the defect
+    // shape `tests/use-server-exports.test.ts` exists to prevent.
+    const onlyInAComment = `// never destroy on the rejection path\nconst a = 1;\n`;
+    const inActualCode = `await destroyListingPhoto(publicId);\n`;
+    expect(stripComments(onlyInAComment)).not.toContain("destroy");
+    expect(stripComments(inActualCode)).toContain("destroyListingPhoto(");
+  });
+
+  it("the destroy sits BELOW the provenance gate, in code, inside persistPhoto's own body", () => {
+    const provenance = BODY.indexOf("isOwnCloudinaryAsset(");
+    const destroy = BODY.indexOf("destroyListingPhoto(");
+
+    expect(
+      provenance,
+      "persistPhoto no longer calls isOwnCloudinaryAsset",
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      destroy,
+      "persistPhoto no longer destroys the asset it refuses (D-187)",
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      destroy,
+      "THE DESTROY HAS MIGRATED ABOVE THE PROVENANCE GATE. Read the double-warning block in " +
+        "src/app/actions/listing-photo.ts before changing this test: a destroy on a path where " +
+        "isOwnCloudinaryAsset has not passed is an arbitrary-delete primitive against our own " +
+        "Cloudinary account (another host's cover photo, fitout/avatars/<victim-userId>).",
+    ).toBeGreaterThan(provenance);
   });
 });
