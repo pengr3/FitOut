@@ -31,8 +31,11 @@
 // deliberately NOT re-exported from here: a re-export out of a "use server" module is the same
 // violation wearing a compatibility shim. tests/use-server-exports.test.ts holds this line repo-wide.
 
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { user } from "@/lib/db/schema";
 import { destroyAvatar, uploadAvatar } from "@/lib/cloudinary";
 import { AVATAR_REMOVE_FAILED_MESSAGE } from "@/lib/avatar";
 import {
@@ -88,10 +91,19 @@ export async function uploadAvatarAction(
     );
 
     // 4. Persist BOTH the URL and the public_id (the latter enables later delete/replace).
-    await auth.api.updateUser({
-      body: { avatarUrl: secure_url, avatarPublicId: public_id },
-      headers: requestHeaders,
-    });
+    //
+    //    THROUGH DRIZZLE, NOT `auth.api.updateUser`, AND THAT IS THE SECURITY FIX, NOT A STYLE
+    //    CHOICE. Both columns are declared `input: false` in src/lib/auth.ts so Better Auth's
+    //    publicly-mounted `/api/auth/update-user` can never be handed an `avatarUrl` — the column
+    //    is rendered as `<img src>` on a PUBLIC page and `avatarPublicId` is a delete handle. That
+    //    guard is enforced inside `parseInputData`, which the server-side `auth.api.updateUser`
+    //    goes through too, so it would now throw FIELD_NOT_ALLOWED here as well. The row write is
+    //    still scoped to `session.user.id` — never a client-supplied id (T-04-06) — and this is the
+    //    same trade capability.ts:75 already makes for the other `input: false` columns.
+    await db
+      .update(user)
+      .set({ avatarUrl: secure_url, avatarPublicId: public_id })
+      .where(eq(user.id, session.user.id));
 
     return { ok: true, avatarUrl: secure_url };
   } catch {
@@ -139,17 +151,20 @@ export async function removeAvatarAction(): Promise<AvatarRemoveResult> {
   const publicId =
     (session.user as { avatarPublicId?: string | null }).avatarPublicId ?? null;
 
-  // 2. NULL BOTH COLUMNS FIRST. Better Auth owns this row, so this is `updateUser` and not a Drizzle
-  //    write — the same call `uploadAvatarAction` uses to SET the pair.
+  // 2. NULL BOTH COLUMNS FIRST, through Drizzle — the same write `uploadAvatarAction` uses to SET
+  //    the pair, for the same reason. Both columns are `input: false` (src/lib/auth.ts), which the
+  //    server-side `auth.api.updateUser` honours as strictly as the public endpoint: it drops a
+  //    null silently and the route then rejects the emptied body as "No fields to update", so the
+  //    old call would fail EVERY removal. The write is scoped to the caller's own row (T-16-41).
   //
   //    Running it even when there is no stored id keeps removal IDEMPOTENT rather than making
   //    "there was nothing to remove" an error: a person pressing the confirm twice, or a row whose
   //    url and id ever disagreed, both end at the same truthful state.
   try {
-    await auth.api.updateUser({
-      body: { avatarUrl: null, avatarPublicId: null },
-      headers: requestHeaders,
-    });
+    await db
+      .update(user)
+      .set({ avatarUrl: null, avatarPublicId: null })
+      .where(eq(user.id, userId));
   } catch {
     // The ONLY failure a person is told about, and it is the one that matters: the row still points
     // at a photo. The dialog stays open on this sentence (rule F5) and the asset is untouched.

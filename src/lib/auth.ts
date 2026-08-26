@@ -119,8 +119,22 @@ export const auth = betterAuth({
       // --- Profile: public (D-09) ---
       bio: { type: "string", required: false }, // "About".
       city: { type: "string", required: false },
-      avatarUrl: { type: "string", required: false }, // Cloudinary secure_url.
-      avatarPublicId: { type: "string", required: false }, // for later delete/replace.
+      // ⚠ `input: false`, FOR THE SAME REASON canBook/canHost/role carry it above — these two are
+      // NOT profile text the person types, they are the RESULT of a Cloudinary upload the server
+      // performed. `avatarUrl` is classed PUBLIC (src/lib/profile.ts:8) and rendered as a plain
+      // `<img src>` on the public listing page (host-block.tsx:98), so a writable column here is a
+      // "serve arbitrary third-party bytes under FitOut's product surface" primitive — byte-for-byte
+      // the threat D-165 closes for listing photos (cloudinary-provenance.ts:5-11). And a writable
+      // `avatarPublicId` is worse: removeAvatarAction destroys whatever it names, which is a
+      // cross-tenant DELETE. Without this, Better Auth's `/api/auth/update-user` accepted both from
+      // any signed-in caller.
+      //
+      // The cost is that `auth.api.updateUser` can no longer write them EITHER — `parseInputData`
+      // throws FIELD_NOT_ALLOWED on a truthy value and silently drops a null, and the route then
+      // rejects the emptied body as "No fields to update". Both avatar actions therefore write these
+      // two columns through Drizzle, exactly as capability.ts:75 does for `canHost`.
+      avatarUrl: { type: "string", required: false, input: false }, // Cloudinary secure_url.
+      avatarPublicId: { type: "string", required: false, input: false }, // for later delete/replace.
     },
   },
 

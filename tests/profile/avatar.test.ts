@@ -26,9 +26,13 @@ let testAuth: TestAuth;
 let uploadAvatarAction: typeof import("@/app/actions/avatar")["uploadAvatarAction"];
 let uploadStreamSpy: Mock;
 
-// uploadAvatarAction reads the session via next/headers + auth.api.getSession and persists via
-// auth.api.updateUser({ headers }). Mock next/headers to carry the signed-in cookie; bind @/lib/auth
-// to the test-schema auth. Cloudinary is already mocked globally (tests/setup.ts).
+// uploadAvatarAction reads the session via next/headers + auth.api.getSession and persists the two
+// avatar columns through DRIZZLE (they are `input: false`, so Better Auth's own update-user route —
+// which `auth.api.updateUser` also goes through — refuses them; see the CR-01 describe at the foot
+// of this file). Mock next/headers to carry the signed-in cookie, bind @/lib/auth to the test-schema
+// auth AND @/lib/db to the test-schema db, or the action's write lands in `public` instead of this
+// file's isolated schema and the assertion below reads a row the action never touched.
+// Cloudinary is already mocked globally (tests/setup.ts).
 const sessionHeaders: { cookie: string } = { cookie: "" };
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
@@ -38,6 +42,7 @@ beforeAll(async () => {
   testDb = await setupTestDb();
   testAuth = makeTestAuth(testDb);
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.resetModules();
   ({ uploadAvatarAction } = await import("@/app/actions/avatar"));
   // Grab the SAME mocked cloudinary instance the action resolved after resetModules (the pattern
@@ -49,6 +54,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   vi.doUnmock("@/lib/auth");
+  vi.doUnmock("@/lib/db");
   await teardownTestDb(testDb);
 });
 
@@ -210,5 +216,98 @@ describe("the server never guesses a framing (CROP-01, D-171, threat T-16-22)", 
     });
     expect(options.folder).toBe("fitout/avatars");
     expect(options.overwrite).toBe(true); // D-C: one canonical asset per user.
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────────────────────────
+// CR-01: the COLUMN is the boundary, not the action.
+//
+// `uploadAvatarAction` was always safe — it uploads to Cloudinary itself and never takes a url from
+// the caller. That is not what protects the column. `avatarUrl`/`avatarPublicId` were declared as
+// Better Auth `additionalFields` with no `input: false`, and Better Auth mounts `update-user` at
+// `/api/auth/[...all]`, so ANY signed-in user could PATCH both directly — bypassing the action
+// entirely. `src/lib/profile.ts:8` classes `avatarUrl` PUBLIC and the listing page renders it as a
+// plain `<img src>`, so that was an "arbitrary third-party bytes on FitOut's product surface"
+// primitive; a writable `avatarPublicId` additionally aims `removeAvatarAction`'s `destroyAvatar`
+// at any asset in our cloud, which is a cross-tenant delete.
+//
+// These cases drive the SAME API surface the browser reaches (`auth.api.updateUser`, which is the
+// route handler) rather than the action, because the action was never the hole.
+// ───────────────────────────────────────────────────────────────────────────────────────────────
+describe("avatarUrl/avatarPublicId are NOT client-writable (CR-01)", () => {
+  /** Read the two avatar columns straight off the row. */
+  async function columns(userId: string) {
+    const rows = await testDb.db.select().from(user).where(eq(user.id, userId));
+    return {
+      avatarUrl: rows[0]?.avatarUrl ?? null,
+      avatarPublicId: rows[0]?.avatarPublicId ?? null,
+    };
+  }
+
+  it("refuses an avatarUrl smuggled through update-user, and leaves the column untouched", async () => {
+    const userId = await signInUser("avatar.smuggle.url@example.com", "Mallory");
+
+    // Establish a real, legitimately-uploaded avatar first, so the assertion below distinguishes
+    // "the write was refused" from "the column happened to be null anyway".
+    const form = new FormData();
+    form.set("avatar", fakeFile("image/png", 2048));
+    const seeded = await uploadAvatarAction(form);
+    expect(seeded.ok).toBe(true);
+    const before = await columns(userId);
+    expect(before.avatarUrl).toBeTruthy();
+
+    await expect(
+      (testAuth.api.updateUser as unknown as (a: {
+        body: Record<string, unknown>;
+        headers: Headers;
+      }) => Promise<unknown>)({
+        body: { avatarUrl: "https://evil.tld/x.png" },
+        headers: new Headers({ cookie: sessionHeaders.cookie }),
+      }),
+    ).rejects.toThrow();
+
+    expect(await columns(userId)).toEqual(before);
+  });
+
+  it("refuses an avatarPublicId aimed at ANOTHER user's asset (the cross-tenant delete handle)", async () => {
+    const victimId = await signInUser("avatar.victim@example.com", "Vic");
+    const victimForm = new FormData();
+    victimForm.set("avatar", fakeFile("image/png", 2048));
+    expect((await uploadAvatarAction(victimForm)).ok).toBe(true);
+    const victimPublicId = (await columns(victimId)).avatarPublicId;
+    expect(victimPublicId).toBeTruthy();
+
+    const attackerId = await signInUser("avatar.attacker@example.com", "Mal");
+    const before = await columns(attackerId);
+
+    await expect(
+      (testAuth.api.updateUser as unknown as (a: {
+        body: Record<string, unknown>;
+        headers: Headers;
+      }) => Promise<unknown>)({
+        body: { avatarPublicId: victimPublicId },
+        headers: new Headers({ cookie: sessionHeaders.cookie }),
+      }),
+    ).rejects.toThrow();
+
+    expect(await columns(attackerId)).toEqual(before);
+    // And the victim's row — the thing `destroyAvatar` would have been pointed at — is intact.
+    expect((await columns(victimId)).avatarPublicId).toBe(victimPublicId);
+  });
+
+  it("still lets a person update the profile fields that ARE theirs to type", async () => {
+    // The guard-the-guard case: if `update-user` rejected EVERY body the two cases above would pass
+    // for the wrong reason. `bio` is a sibling additionalField with no `input: false`.
+    const userId = await signInUser("avatar.bio@example.com", "Bea");
+    await (testAuth.api.updateUser as unknown as (a: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<unknown>)({
+      body: { bio: "I run a small studio." },
+      headers: new Headers({ cookie: sessionHeaders.cookie }),
+    });
+
+    const rows = await testDb.db.select().from(user).where(eq(user.id, userId));
+    expect(rows[0]?.bio).toBe("I run a small studio.");
   });
 });
