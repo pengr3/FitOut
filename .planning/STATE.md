@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 16.1-04-PLAN.md — the widget block. 4 of 7 plans done; wave 2 has only 16.1-05 (the orphan sources) left. EXECUTED ACROSS AN INTERRUPTION: Task 1 is `fe181c6`, Task 2 is `d262b98` from a continuation run that RE-OBSERVED both mandated mutations RED rather than inheriting the interrupted run's transcripts. The preset `fitout_listing_v1` still does not exist on the Cloudinary account — every live upload fails closed until 16.1-07's `--apply`, which is the human step, not a plan's.
-last_updated: "2026-08-26T18:14:33.000Z"
-last_activity: 2026-08-27
+stopped_at: "Completed 16.1-05-PLAN.md — the orphan sources. WAVE 2 IS COMPLETE; 5 of 7 plans done. D-187's destroy ships in persistPhoto's post-provenance cap branch and D-188's in softDeleteListing, both best-effort, both handling uploader.destroy's two failure shapes. The unsafe placement (destroy above the provenance gate = an arbitrary-delete primitive against our own Cloudinary account) was applied and watched turning SIX assertions red, including a real destroy of `fitout/listings/<id>/../../avatars/victim`, then reverted. One measured finding for 16.1-06/07: D-188's behavioural pair is BLIND to a bare positional move of the photo read, so a source-ordering assertion was added (Rule 2). The preset `fitout_listing_v1` still does not exist on the Cloudinary account — 16.1-07's operator step."
+last_updated: "2026-08-26T18:40:25.963Z"
+last_activity: 2026-08-26
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 128
-  completed_plans: 130
+  completed_plans: 131
   percent: 62
 ---
 
@@ -45,10 +45,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 16.1 (upload-hardening-storage-economy) — EXECUTING
-Plan: 5 of 7
-Current Plan: 5
+Plan: 6 of 7
+Current Plan: 6
 Total Plans in Phase: 7
-Status: Ready to execute — wave 2's last plan is 16.1-05 (the orphan sources)
+Status: Ready to execute — **WAVE 2 IS COMPLETE** (16.1-01 … 16.1-05). Wave 3 is 16.1-06 (stale
+comments + e2e teardown) and 16.1-07 (UAT, the operator's `--apply` step).
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -753,6 +754,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 16.1 P02 | 19min | 2 tasks | 3 files |
 | Phase 16.1 P03 | 21min | 2 tasks | 3 files |
 | Phase 16.1 P04 | ~30min across an interruption | 2 tasks | 2 files |
+| Phase 16.1 P05 | 18min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1257,6 +1259,8 @@ Recent decisions affecting current work:
 - [Phase 15]: D-15-09d: a green-but-unprobed gate is committed with its mutation walk marked NOT YET RUN in its own header, so an executor that dies mid-walk cannot leave behind a header claiming reds nobody watched
 - [Phase 16.1]: sign/route.ts is a required-key equality gate: no signature is minted on either path without upload_preset === LISTING_UPLOAD_PRESET — Cloudinary validates a signature against exactly the param set it receives, so the server cannot ADD the incoming transformation to a client upload - it can only refuse to sign without it. transformation/allowed_formats/eager stay out of ALLOWED_SIGN_KEYS because a client transformation CHAINS AFTER the preset's (probe E11 stored 4000x6000 from a 2048-capped preset).
 - [Phase 16.1]: signListingUpload deleted; signUploadParams is the only Cloudinary upload signer — Re-grepped before deleting: sign/route.ts:109 was its only caller repo-wide. Its {timestamp, folder} type could not carry a preset, and two signers for one job was the duplication phase 16.1 exists to end. Path 5b now routes through signUploadParams, closing RESEARCH F-1.
+- [Phase 16.1]: 16.1-05: D-187 shipped: persistPhoto destroys the asset it refuses, in the post-provenance cap branch ONLY — a destroy above isOwnCloudinaryAsset would be an arbitrary-delete primitive against our own Cloudinary account; pinned on five behavioural paths and by a narrowed source-ordering assertion, both watched RED
+- [Phase 16.1]: 16.1-05: D-188 shipped: softDeleteListing destroys its photos, rows read BEFORE the deletedAt write; the listing_photo rows survive (GATE-06) and there is still no restore path anywhere
 
 ### Pending Todos
 
@@ -1370,7 +1374,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-26T18:14:33.000Z
+Last session: 2026-08-26T18:39:52.560Z
 Stopped at: Completed 16.1-04-PLAN.md — the widget block. 4 of 7 plans done; wave 2 has only 16.1-05 left.
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
