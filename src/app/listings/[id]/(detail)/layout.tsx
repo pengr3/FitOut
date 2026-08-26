@@ -18,12 +18,28 @@
 // The wrapper is `flex min-h-dvh flex-col` for the same reason `(public)/layout.tsx` gives: plan
 // `11-14`'s footer hangs off it with `mt-auto`.
 
+import { assertPublicListing } from "@/lib/listing/public-listing";
 import { PublicHeader } from "@/components/site/public-header";
 import { SiteFooter } from "@/components/patterns/site-footer";
 
-export default function ListingDetailLayout({
+// ── AND THE SECOND REASON THIS FILE EXISTS: IT IS WHERE THE 404 STATUS IS WON ─────────────────────
+//
+// `page.tsx` 404s draft/unlisted/missing listings (D-13) and always has. But `loading.tsx` wraps the
+// page in a Suspense boundary, so the shell — this layout — is flushed with a `200` status line
+// BEFORE the page body runs `notFound()`. The route answered 200 with not-found content: no leak, but
+// a soft 404, and only a real 404 removes an unpublished listing from a search index.
+//
+// A layout renders in the shell, ABOVE that boundary, so awaiting here blocks the flush and the status
+// is still settable. That is the whole trick, and it is why this call cannot be moved into the page.
+// `assertPublicListing`'s header carries the measurements, the two fixes that DON'T work, and why the
+// eight sibling routes with the same defect are deliberately left alone.
+export default async function ListingDetailLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  params,
+}: Readonly<{ children: React.ReactNode; params: Promise<{ id: string }> }>) {
+  const { id } = await params;
+  await assertPublicListing(id);
+
   return (
     <div className="flex min-h-dvh flex-col">
       <PublicHeader />

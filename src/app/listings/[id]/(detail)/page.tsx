@@ -44,6 +44,7 @@ import {
   listingActivityTag,
 } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
+import { isPubliclyViewable } from "@/lib/listing/public-listing";
 import { listingHasOperatingHours } from "@/lib/listing/hours-signal";
 import { publicListing } from "@/lib/listing-public";
 import { publicProfile } from "@/lib/profile";
@@ -249,7 +250,14 @@ export default async function PublicListingPage({
   const row = rows[0];
 
   // Draft/unlisted/missing → 404 to the public (D-13). Only published listings are viewable by link.
-  if (!row || row.listing.status !== "published") {
+  //
+  // ⚠ THIS GUARD NO LONGER SETS THE HTTP STATUS, AND IT IS STILL REQUIRED. `loading.tsx` puts a
+  // Suspense boundary around this page, so by the time this line runs the shell has been flushed and
+  // the status line is spent — `(detail)/layout.tsx` is what wins the 404 now, by asserting the same
+  // rule above the boundary. This call remains because it is what narrows `row` for everything below
+  // and what keeps the BODY honest if the two ever disagree. Both go through `isPubliclyViewable` so
+  // they cannot: one rule, one expression, two call sites.
+  if (!row || !isPubliclyViewable(row.listing.status, row.listing.deletedAt)) {
     notFound();
   }
 
