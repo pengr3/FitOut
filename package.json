@@ -19,6 +19,7 @@
     "db:studio": "drizzle-kit studio",
     "design:tokens": "node scripts/generate-design-tokens.mjs",
     "fixtures:images": "node scripts/generate-image-fixtures.mjs",
+    "cloudinary:preset": "tsx scripts/cloudinary-preset.ts",
     "email:previews": "tsx scripts/send-email-previews.ts",
     "ops:alerts": "tsx scripts/ops-alerts.ts list",
     "ops:alerts:resolve": "tsx scripts/ops-alerts.ts resolve",
