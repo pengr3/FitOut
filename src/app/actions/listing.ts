@@ -47,6 +47,11 @@ import {
   type DraftListingInput,
 } from "@/lib/validation/listing";
 import { getModeLockState } from "@/lib/listing/mode-lock";
+// D-188 — softDeleteListing destroys the listing's Cloudinary assets. A new CALLER of the existing
+// helper, never a new helper: `src/lib/cloudinary.ts` counts its own destroy call sites and this
+// module is server-only, so importing it into a `"use server"` module is the move
+// `listing-photo.ts` already makes.
+import { destroyListingPhoto } from "@/lib/cloudinary";
 
 const MIN_PHOTOS = 3; // D-02/D-04 — minimum photos to publish.
 
@@ -415,6 +420,42 @@ export async function unlistListing(listingId: string): Promise<ListingResult> {
 /**
  * Soft-delete a listing (Claude's discretion) — sets deletedAt so the row is retained (forward-safe
  * for when bookings FK to listings in later phases) but excluded from all normal reads.
+ *
+ * ── D-188: IT ALSO DESTROYS THE LISTING'S CLOUDINARY ASSETS, IMMEDIATELY AND BEST-EFFORT ─────────
+ * Before this, a deleted listing's photos were billed FOREVER: the row went dark, every read
+ * excluded it, and the bytes stayed on Cloudinary with nothing left in the product that could ever
+ * name them. That is a permanent cost for something no one can reach.
+ *
+ * ⚠ THE READ HAPPENS BEFORE THE WRITE, AND THAT ORDERING IS BEHAVIOUR, NOT TIDINESS. `assertOwnership`
+ * filters `isNull(listing.deletedAt)`, so anything routed through it AFTER the `deletedAt` write
+ * finds nothing — the destroy loop would iterate an empty array, do nothing at all, and every test
+ * of it would still be GREEN while the bill ran forever. The photo read below is scoped to
+ * `listingId` and sits above the UPDATE for exactly that reason.
+ *
+ * ⚠ AND THE DESTROY HAPPENS AFTER THE WRITE, for the reason `avatar.ts`'s `removeAvatarAction`
+ * gives: if the assets went first and the write then failed, a LIVE listing would point at bytes
+ * that no longer exist — broken images on a public surface, unfixable by retrying. In this order the
+ * worst case is an orphaned asset nobody references, which is the tolerated outcome, not the lie.
+ *
+ * ⚠ NO FAILURE CHANGES THE RESULT. A Cloudinary outage must not tell a host their delete failed when
+ * the row is already gone. Both of the helper's failure shapes are handled — it RESOLVES
+ * `{ result: "not found" }` for a missing id and REJECTS only on network/auth failure — and neither
+ * reaches the caller.
+ *
+ * D-188's two consequences, recorded rather than softened:
+ *   1. The `listing_photo` ROWS SURVIVE. No column, no migration, no schema change (GATE-06). Their
+ *      urls become 404s the moment the assets are destroyed, which is harmless because a
+ *      soft-deleted listing is excluded from every read in the product — but it is stated here
+ *      rather than left for someone to discover from a broken image in a database browser.
+ *   2. THERE IS NO RESTORE PATH ANYWHERE. Nothing in this codebase sets `deletedAt` back to null;
+ *      there is no undelete action and no UI, and this soft delete exists for forward-safe FK
+ *      integrity (see the paragraph above), not for host-facing undo. So destroying the photos costs
+ *      nothing a host can reach TODAY — and whoever ever builds an undelete inherits a listing with
+ *      no photos from this decision. That is the trade, made knowingly.
+ *
+ * There is no path that double-destroys: `removePhoto` (`listing-photo.ts`) funnels through its own
+ * `assertOwnership`, which carries the same `isNull(deletedAt)` filter, so a soft-deleted listing's
+ * photos can no longer be removed one at a time.
  */
 export async function softDeleteListing(listingId: string): Promise<ListingResult> {
   const userId = await requireUserId();
@@ -425,10 +466,41 @@ export async function softDeleteListing(listingId: string): Promise<ListingResul
   if (!row) {
     return { ok: false, error: "We couldn't find that listing, or it isn't yours." };
   }
+
+  // READ FIRST — see the ⚠ in the docblock. Ownership is already proven by `assertOwnership` above,
+  // so this select needs only the listing scope. After the UPDATE below it would return nothing.
+  const photos = await db
+    .select({ publicId: listingPhoto.publicId })
+    .from(listingPhoto)
+    .where(eq(listingPhoto.listingId, listingId));
+
   await db
     .update(listing)
     .set({ deletedAt: new Date() })
     .where(and(eq(listing.id, listingId), eq(listing.hostId, userId)));
+
+  // …and only then the assets (D-188). Sequential on purpose: a listing holds at most the photo cap,
+  // so there is nothing to gain from fanning out, and a serial loop keeps the log readable. Both
+  // failure shapes are logged distinguishably — `warn` = the vendor answered and declined, `error` =
+  // we never got an answer — and NEITHER changes the `{ ok: true }` below.
+  for (const photo of photos) {
+    try {
+      const res = await destroyListingPhoto(photo.publicId);
+      if (res.result !== "ok") {
+        console.warn("[listing:destroy] non-ok on soft-delete — orphan tolerated (D-188)", {
+          listingId,
+          publicId: photo.publicId,
+          result: res.result,
+        });
+      }
+    } catch (err) {
+      console.error("[listing:destroy] failed on soft-delete — orphan tolerated (D-188)", {
+        listingId,
+        publicId: photo.publicId,
+        err,
+      });
+    }
+  }
 
   revalidatePath("/host/listings");
   return { ok: true, id: listingId };
