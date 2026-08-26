@@ -207,6 +207,56 @@ existing e2e assertion keeps passing because it tests the outcome rather than th
 
 ## D6 — The full `chromium` e2e project is not green on this tree, and none of it is Phase 16's
 
+> **TRIAGED 2026-08-26 by the phase verifier, at `d24b212`.** D6 asked for triage before the phase
+> gate is read off a full run. Done — the ten failures split **3 reproducible / 7 environment**, and
+> the one that "reads like a real product regression" is now diagnosed. **No data is exposed by any
+> of them.** Detail below; the original D6 text follows unchanged.
+>
+> **The re-measurement was done properly.** The first full run was taken against a dev server whose
+> `.next` this session had overwritten with `npm run build` mid-flight — the same trap `6123766`
+> records. So every candidate was re-run after killing `next dev`, deleting `.next`, and letting it
+> rebuild, at `--workers=1`. That reclassified one failure and confirmed the rest.
+>
+> **REPRODUCIBLE (3).**
+>
+> 1. **`public-listing.spec.ts:385` — a draft listing 404s to the public. THE PRODUCT IS NOT LEAKING;
+>    the STATUS CODE is wrong.** Measured over HTTP, outside Playwright: a draft returns **200**, and
+>    the body is the not-found page — *"We couldn't find that page"* — with the draft's title
+>    **absent** (checked against a draft with a real title, `KAI Sports Center`; the first two draft
+>    rows have empty titles and would have made a `grep -F` leak-test vacuously true).
+>    `page.tsx:252`'s gate (`status !== "published" → notFound()`) is correct and is firing.
+>    **The cause is streaming, and it is route-wide, not draft-specific.** Isolated in two curls:
+>    a *nonexistent* id on the same route is **also 200**, and a bogus path on a route with no
+>    `loading.tsx` is a proper **404**. `src/app/listings/[id]/(detail)/loading.tsx` creates an
+>    implicit Suspense boundary, so Next flushes the shell — committing 200 — before `notFound()` is
+>    reached. **Every `loading.tsx`-bearing route in `src/app` has the same soft-404**, which is ~10
+>    routes, not one. Impact is SEO/crawler correctness and any client keying off status; it is not
+>    an authorisation hole. Verified in `next dev` — the mechanism is streaming, so production is
+>    expected to behave the same, but that has NOT been measured.
+> 2. **`cancel.spec.ts:224` — the safety property HOLDS; the copy assertion is what failed.** The
+>    error context shows the redirect worked and the destination renders
+>    `heading "This booking was cancelled"` at `/bookings/<id>/receipt`. The test died at line 241 on
+>    `getByText(/refund on its way/i)`, **before** reaching its DB check at line 244 — so
+>    *"never re-refunds"* was never disproven, and no double refund is in evidence. A status line
+>    moved or was reworded out from under the assertion.
+> 3. **`confirmation-decay.spec.ts:151`** — expected `/bookings`, got `/bookings/<id>`. A
+>    navigation/decay-rule difference. Not money, not access.
+>
+> **ENVIRONMENT / CONTENTION (7)** — `hold-countdown:292`, `price-one-fact:313`, `reduced-motion:368`,
+> `shell:291`, `shell:1221`, `shell:1302`, `stale-session-selfheal:90`. Every one is a timeout, a
+> detached frame, an intercepted click, or a repeated bounce to `/` inside
+> `helpers/booker-seed.ts:365-367`. **`reduced-motion:368` PASSED on the clean single-worker re-run**,
+> which is what re-classified it out of the reproducible set.
+>
+> **None of the ten is Phase 16's** — `avatar-crop` is 33/33 and `overflow-320` is 64/64 *inside* the
+> same failing run. **None is caught by CI**, which runs four gates and excludes eleven of the twelve
+> e2e specs by decision (D-24); `price-parity` is the exception and it passes.
+>
+> **Suggested split for Phase 17:** the soft-404 is one fix in one place if `loading.tsx` is the
+> agreed cause (or an accepted limitation to record); items 2 and 3 are assertion-vs-product
+> questions someone must answer per surface; the seven are D2's per-file-fixture remedy.
+
+
 - **Found by:** plan 16-13, running `npx playwright test --project=chromium` for its own
   `<verification>` bullet, 2026-08-25
 - **Owner files:** `e2e/public-listing.spec.ts`, `e2e/cancel.spec.ts`, `e2e/confirmation-decay.spec.ts`
