@@ -3,17 +3,23 @@
 // GREEN as of Plan 04. The endpoint mints an upload signature server-side (api_secret NEVER leaves the
 // server) and MUST: (1) require a session (401 otherwise), (2) verify the target listing belongs to
 // the session user before signing (cross-host upload guard → 403), (3) sign ONLY the allowed, minimal
-// param set (timestamp + folder `fitout/listings/<listingId>`) — the signed params must exactly match
-// the client params or Cloudinary 401s (Pitfall 3), (4) never echo the api_secret, and (5) be
-// rate-limited (WR-06 carry-forward). Harness = tests/profile/profile.test.ts: mock next/headers +
-// doMock @/lib/auth + @/lib/db to the isolated test schema, then drive the REAL exported POST handler.
-// The global setup (tests/setup.ts) mocks `cloudinary` so api_sign_request returns "mock-signature".
+// param set (the folder `fitout/listings/<listingId>`, the timestamp, the widget's `source`, and the
+// upload preset) — the signed params must exactly match the client params or Cloudinary 401s
+// (Pitfall 3), (4) never echo the api_secret, and (5) be rate-limited (WR-06 carry-forward).
+// Harness = tests/profile/profile.test.ts: mock next/headers + doMock @/lib/auth + @/lib/db to the
+// isolated test schema, then drive the REAL exported POST handler. The global setup (tests/setup.ts)
+// mocks `cloudinary` so api_sign_request returns "mock-signature".
+//
+// EXTENDED BY 16.1-02 (D-194) with the requirement the allow-list cannot express: the upload preset
+// must be PRESENT and must EQUAL the repo constant, or nothing is signed at all. See the two
+// describes at the foot of this file.
 
 import { describe, it, expect, beforeAll, afterAll, vi, type Mock } from "vitest";
 import { randomUUID } from "node:crypto";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { listing } from "@/lib/db/schema";
+import { LISTING_UPLOAD_PRESET } from "@/lib/listing/upload-policy";
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -123,7 +129,15 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
     expect(res.status).toBe(403);
   });
 
-  it("signs ONLY the allowed param set (timestamp + folder fitout/listings/<listingId>) for the owner", async () => {
+  it("signs the allowed param set INCLUDING the upload preset (path 5b, F-1 closed) for the owner", async () => {
+    // CHANGED BY 16.1-02, and the change is the whole point of the case rather than an adjustment
+    // to it. This case used to assert the signed set was exactly { folder, timestamp } — and it was,
+    // which is precisely what RESEARCH F-1 named as a live bypass. Path 5b handed any signed-in
+    // owner a signature with no preset on it, and therefore no incoming transformation and no format
+    // gate: everything needed to POST straight to Cloudinary and store an asset of any size, any
+    // format, with the source's EXIF intact. The session, rate-limit, ownership and folder gates all
+    // held while it did; none of them bounds the stored asset. The preset is now signed here too, so
+    // the assertion is three keys, and the response tells the caller the name it signed.
     const ownerId = await signInHost("sign.ok@example.com");
     const listingId = await makeListing(ownerId);
     signSpy.mockClear();
@@ -134,6 +148,7 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
       signature: string;
       timestamp: number;
       folder: string;
+      uploadPreset?: string;
       apiKey?: string;
       cloudName?: string;
     };
@@ -142,13 +157,21 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
     expect(body.signature).toBe("mock-signature");
     expect(typeof body.timestamp).toBe("number");
     expect(body.folder).toBe(`fitout/listings/${listingId}`);
+    // …and the preset NAME, so a direct caller knows the exact set it must post. Omitting it from
+    // the POST is a 401 at Cloudinary (probe E10), which is what makes the transformation stick.
+    expect(body.uploadPreset).toBe(LISTING_UPLOAD_PRESET);
 
-    // Pitfall 3 / T-04-SIGMATCH: the SIGNED param set is EXACTLY { timestamp, folder } — nothing else.
+    // Pitfall 3 / T-04-SIGMATCH: the SIGNED param set is EXACTLY these three — nothing else.
     expect(signSpy).toHaveBeenCalledTimes(1);
     const signedParams = signSpy.mock.calls[0][0] as Record<string, unknown>;
-    expect(Object.keys(signedParams).sort()).toEqual(["folder", "timestamp"]);
+    expect(Object.keys(signedParams).sort()).toEqual([
+      "folder",
+      "timestamp",
+      "upload_preset",
+    ]);
     expect(signedParams.folder).toBe(`fitout/listings/${listingId}`);
     expect(signedParams.timestamp).toBe(body.timestamp);
+    expect(signedParams.upload_preset).toBe(LISTING_UPLOAD_PRESET);
   });
 
   it("never exposes CLOUDINARY_API_SECRET in the response body", async () => {
@@ -208,7 +231,10 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
     }
   });
 
-  it("signs a clean paramsToSign of exactly {folder, source, timestamp} for the owned listing (widget happy path)", async () => {
+  it("signs a clean paramsToSign of exactly {folder, source, timestamp, upload_preset} for the owned listing (widget happy path)", async () => {
+    // The four keys are not a guess. Read out of a live Chromium (probe E7) with `uploadPreset` set
+    // on the widget, `paramsToSign` was { timestamp, folder, upload_preset, source: "uw" } — so this
+    // is the exact set the shipped uploader will present once 16.1-04 passes the prop.
     const owner = await signInHost("sign.widgetok@example.com");
     const listingId = await makeListing(owner);
     signSpy.mockClear();
@@ -218,17 +244,25 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
         folder: `fitout/listings/${listingId}`,
         source: "uw",
         timestamp: 1700000000,
+        upload_preset: LISTING_UPLOAD_PRESET,
       }),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { signature: string };
     expect(body.signature).toBe("mock-signature");
 
-    // The signed set is EXACTLY the allow-listed keys, scoped to the owned listing's folder.
+    // The signed set is EXACTLY the allow-listed keys, scoped to the owned listing's folder, and
+    // the preset is the one the repo declares rather than any name that merely parses.
     expect(signSpy).toHaveBeenCalledTimes(1);
     const signedParams = signSpy.mock.calls[0][0] as Record<string, unknown>;
-    expect(Object.keys(signedParams).sort()).toEqual(["folder", "source", "timestamp"]);
+    expect(Object.keys(signedParams).sort()).toEqual([
+      "folder",
+      "source",
+      "timestamp",
+      "upload_preset",
+    ]);
     expect(signedParams.folder).toBe(`fitout/listings/${listingId}`);
+    expect(signedParams.upload_preset).toBe(LISTING_UPLOAD_PRESET);
   });
 
   it("returns 403 when paramsToSign.folder points outside the owned listing's folder (path-5a folder scope holds)", async () => {

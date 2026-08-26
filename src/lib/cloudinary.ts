@@ -85,22 +85,6 @@ export function uploadAvatar(
 // ---------------------------------------------------------------------------
 
 /**
- * Mint an upload signature for a listing photo upload. `params` is the EXACT set of params the
- * client widget will send (currently { timestamp, folder }) — Cloudinary 401s if the signed set and
- * the sent set differ (RESEARCH Pitfall 3 / T-04-SIGMATCH), so callers must sign exactly what they
- * send. Wraps `cloudinary.utils.api_sign_request` with the server-only CLOUDINARY_API_SECRET.
- */
-export function signListingUpload(params: {
-  timestamp: number;
-  folder: string;
-}): string {
-  return cloudinary.utils.api_sign_request(
-    params,
-    process.env.CLOUDINARY_API_SECRET!, // SERVER ONLY — never shipped to the client.
-  );
-}
-
-/**
  * Sign the EXACT param set a signed Upload Widget sends (e.g. { folder, source, timestamp }). The
  * live <CldUploadWidget> adds its own params (`source=uw`, its own `timestamp`), so the server MUST
  * sign what the widget actually sends — signing a server-recomputed subset makes Cloudinary reject
