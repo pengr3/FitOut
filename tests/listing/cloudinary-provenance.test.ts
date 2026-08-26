@@ -159,17 +159,88 @@ describe("D-165 — the guard rejects everything the real pipeline could not hav
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// CR-02: `/image/upload/` is a TENANT check, not an ASSET check.
+//
+// Until this was fixed the url side of the guard stopped at the prefix, and the whole of
+// Cloudinary's transformation language sat between it and the asset — attacker-controlled, with the
+// `publicId` field free to hold the caller's own legitimate, correctly-scoped id. Two distinct
+// outcomes rode on that, and the file's docblock called the first of them "cosmetic":
+//   1. name ANOTHER asset in our account (another host's photo, or `fitout/avatars/<victim>`), and
+//   2. pull in a FOREIGN one, because `l_fetch:<base64url>` is a transformation and therefore lives
+//      under `/image/upload/` — not under the `/image/fetch/` delivery type the old comment claimed
+//      to have closed.
+//
+// Every url below passes https + host + tenant-prefix, and every `publicId` below is the caller's
+// own. The anchor is the only thing that can reject them, which is what makes them non-vacuous.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+describe("D-165 / CR-02 — the url must DELIVER the asset the public id names", () => {
+  /** Assert the case really does clear every check that precedes the anchor. */
+  function reachesTheAnchor(url: string) {
+    const parsed = new URL(url);
+    expect(parsed.protocol).toBe("https:");
+    expect(parsed.hostname).toBe("res.cloudinary.com");
+    expect(parsed.pathname.startsWith(`/${CLOUD}/image/upload/`)).toBe(true);
+  }
+
+  it("rejects an `l_fetch:` REMOTE OVERLAY composed over the caller's own asset", () => {
+    const overlay =
+      "l_fetch:aHR0cHM6Ly9ldmlsLnRsZC94LnBuZw,fl_layer_apply,w_2000,h_2000";
+    const attack = `https://res.cloudinary.com/${CLOUD}/image/upload/${overlay}/v1734/fitout/listings/${LISTING}/one.jpg`;
+    reachesTheAnchor(attack);
+    // The public id is entirely legitimate — this is the caller's OWN photo. Only the url lies.
+    expect(check({ url: attack })).toBe(false);
+  });
+
+  it("rejects the same overlay with NO version segment", () => {
+    // The version is not what saves us: dropping `v<digits>` must not be the whole mechanism, or an
+    // attacker simply omits it (or, worse, supplies one, which is the shape above).
+    const overlay = "l_fetch:aHR0cHM6Ly9ldmlsLnRsZC94LnBuZw,fl_layer_apply";
+    const attack = `https://res.cloudinary.com/${CLOUD}/image/upload/${overlay}/fitout/listings/${LISTING}/one.jpg`;
+    reachesTheAnchor(attack);
+    expect(check({ url: attack })).toBe(false);
+  });
+
+  it("rejects a url naming ANOTHER USER'S AVATAR while the public id is the caller's own", () => {
+    const attack = `https://res.cloudinary.com/${CLOUD}/image/upload/v1734/fitout/avatars/victim-user-id.jpg`;
+    reachesTheAnchor(attack);
+    expect(check({ url: attack })).toBe(false);
+  });
+
+  it("rejects a url naming ANOTHER LISTING'S photo while the public id is the caller's own", () => {
+    const attack = `https://res.cloudinary.com/${CLOUD}/image/upload/v1734/fitout/listings/L2/theirs.jpg`;
+    reachesTheAnchor(attack);
+    expect(check({ url: attack })).toBe(false);
+  });
+
+  it("rejects a benign-looking `f_auto,q_auto` transformation too — no safe subset is enumerated", () => {
+    // Deliberately NOT special-cased. `f_auto,q_auto` is harmless; `l_fetch:` is not; and telling
+    // them apart means maintaining a blocklist against a vendor DSL that grows without us. The
+    // pipeline never STORES a transformed url (`photo-uploader.tsx:127` stores `secure_url`), so
+    // refusing the whole class costs nothing real. This case exists so that the day someone wants
+    // to relax it, they find the reason rather than assuming an oversight.
+    const shaped = `https://res.cloudinary.com/${CLOUD}/image/upload/f_auto,q_auto/v1734/fitout/listings/${LISTING}/one.jpg`;
+    reachesTheAnchor(shaped);
+    expect(check({ url: shaped })).toBe(false);
+  });
+
+  it("rejects an EXTRA path segment after the asset", () => {
+    const attack = `https://res.cloudinary.com/${CLOUD}/image/upload/v1734/fitout/listings/${LISTING}/one.jpg/x.png`;
+    reachesTheAnchor(attack);
+    expect(check({ url: attack })).toBe(false);
+  });
+
+  it("rejects a url whose asset merely STARTS WITH the public id", () => {
+    // `…/one-evil.jpg` against the id `…/one`: a `startsWith` anchor with no separator would accept.
+    const attack = `https://res.cloudinary.com/${CLOUD}/image/upload/v1734/fitout/listings/${LISTING}/one-evil.jpg`;
+    reachesTheAnchor(attack);
+    expect(check({ url: attack })).toBe(false);
+  });
+});
+
 describe("D-165 — the guard preserves every url the real pipeline actually produces", () => {
   it("accepts the widget's own `secure_url` + `public_id` pair", () => {
     expect(check({})).toBe(true);
-  });
-
-  it("accepts a delivery url carrying a TRANSFORMATION segment", () => {
-    expect(
-      check({
-        url: `https://res.cloudinary.com/${CLOUD}/image/upload/f_auto,q_auto/v1734/fitout/listings/${LISTING}/one.jpg`,
-      }),
-    ).toBe(true);
   });
 
   it("accepts a delivery url with NO `v<digits>` version segment", () => {
@@ -178,6 +249,31 @@ describe("D-165 — the guard preserves every url the real pipeline actually pro
     expect(
       check({
         url: `https://res.cloudinary.com/${CLOUD}/image/upload/fitout/listings/${LISTING}/one.jpg`,
+      }),
+    ).toBe(true);
+  });
+
+  it("accepts a delivery url with the version and no transformation — what the widget returns", () => {
+    // The row this file's GOOD_URL already is, restated on its own so the accept side of CR-02's
+    // anchor is named. `check({})` above proves the same thing; this states WHICH shape survives.
+    expect(
+      check({
+        url: `https://res.cloudinary.com/${CLOUD}/image/upload/v1755102030/fitout/listings/${LISTING}/one.jpg`,
+        publicId: `fitout/listings/${LISTING}/one`,
+      }),
+    ).toBe(true);
+  });
+
+  it("accepts a PERCENT-ENCODED path against a public id carrying the raw character", () => {
+    // Cloudinary's `public_id` holds the literal space; the `secure_url` it returns in the same
+    // response holds `%20`. The anchor decodes before comparing, or every upload of a file whose
+    // name has a space in it would be refused as forged — a self-inflicted outage, not a defence.
+    expect(
+      isOwnCloudinaryAsset({
+        url: `https://res.cloudinary.com/${CLOUD}/image/upload/v1/fitout/listings/${LISTING}/gym%20wide.jpg`,
+        publicId: `fitout/listings/${LISTING}/gym wide`,
+        listingId: LISTING,
+        cloudName: CLOUD,
       }),
     ).toBe(true);
   });

@@ -19,10 +19,26 @@
 //   - It does NOT pre-emptively allow a CNAME or a private CDN. `src/lib/cloudinary.ts:13-17`
 //     configures neither `secure_distribution` nor `private_cdn`, so no such host can be produced by
 //     this app today. The day one is adopted, this going red is the CORRECT alarm and not a bug.
-//   - It does NOT require the url's path to contain the `publicId`. Both are independently scoped to
-//     us below; the residual — one of our own listing assets referenced from another of our own
-//     listings — is a cosmetic mix-up inside our own account, not a foreign-content vector. Recorded
-//     rather than silently closed, because scope creep here is how a security fix becomes unshippable.
+//   - It does NOT check that the url and the `publicId` agree about the FILE EXTENSION, only about
+//     the asset. `…/one.jpg` and `…/one.webp` are the same asset in two encodings, both ours.
+//
+// ⚠ WHAT IT USED TO MISS, AND WHY THE CORRECTION IS NOT SCOPE CREEP (CR-02). This file previously
+// recorded "it does NOT require the url's path to contain the `publicId`" as an accepted residual,
+// on the reasoning that both halves were independently scoped to us so the worst case was "a
+// cosmetic mix-up inside our own account". Both clauses were wrong:
+//   - The url side was never scoped to an ASSET, only to a TENANT. `startsWith('/<cloud>/image/
+//     upload/')` says the bytes come from our account; everything after it is Cloudinary's
+//     transformation language, and that language can name assets we did not intend — including
+//     `fitout/avatars/<victim-userId>`. Another person's FACE on your public listing is not cosmetic.
+//   - And it does not even keep the bytes inside our account. Cloudinary's remote-image OVERLAY is
+//     `l_fetch:<base64url-of-any-https-url>,fl_layer_apply` and it lives under `/image/upload/`, not
+//     under `/image/fetch/`. Composed over a legitimately-owned, correctly-prefixed asset it
+//     satisfied every check this function performed while rendering `evil.tld`'s pixels — the exact
+//     "arbitrary third-party content under FitOut's product surface" outcome the file exists to stop.
+//     Whether Cloudinary honours it depends on the account's *Allowed fetch domains* setting, which
+//     is ambient, off-repo configuration — the one thing this module refuses to depend on.
+// So the asset is now ANCHORED: the delivery path must be the `publicId` itself, optionally behind a
+// `v<digits>` version and optionally carrying a file extension, and NOTHING ELSE.
 //
 // ⚠ IT READS NO AMBIENT CONFIGURATION, AND THAT IS THE LOAD-BEARING DESIGN DECISION (16-RESEARCH
 // §C10, R1). `CLOUDINARY_CLOUD_NAME` is an ARGUMENT, never an environment read. `.github/workflows/
@@ -105,10 +121,15 @@ export function isOwnCloudinaryAsset(input: {
   if (parsed.hostname !== DELIVERY_HOST) return false;
 
   // Closes: another TENANT on the same host (`/someoneelse/image/upload/...`), non-image asset types
-  // (`/raw/upload/`, where an SVG or an html file would live), and the `fetch`/`twitter` delivery
-  // types that proxy an ARBITRARY REMOTE URL through our own cloud name — the one shape that would
-  // otherwise satisfy every check above while serving someone else's bytes.
-  if (!parsed.pathname.startsWith(`/${cloudName}/image/upload/`)) return false;
+  // (`/raw/upload/`, where an SVG or an html file would live), and the `fetch`/`twitter` DELIVERY
+  // TYPES that proxy an arbitrary remote url through our own cloud name.
+  //
+  // ⚠ IT DOES NOT CLOSE REMOTE CONTENT, and it used to claim it did. `l_fetch:` — the remote-image
+  // overlay — is a TRANSFORMATION, and transformations live under `/image/upload/` like everything
+  // else. This test is a tenant check. The asset check is the next one, and it is the load-bearing
+  // half; see the ⚠ block in the file header.
+  const uploadPrefix = `/${cloudName}/image/upload/`;
+  if (!parsed.pathname.startsWith(uploadPrefix)) return false;
 
   // ── the public id, SCOPED ─────────────────────────────────────────────────────────────────────
   // Order matters: the four character-level rejections run BEFORE the prefix test, so each one is
@@ -137,6 +158,46 @@ export function isOwnCloudinaryAsset(input: {
   // Closes: the prefix ALONE (`fitout/listings/<id>/`), which is a folder and names no asset. Also
   // closes the prefix without its trailing slash, which the check above already refuses.
   if (publicId.length <= prefix.length) return false;
+
+  // ── the url's ASSET, ANCHORED (CR-02) ─────────────────────────────────────────────────────────
+  // Everything between `/image/upload/` and the asset is Cloudinary's transformation language, and
+  // that language can BOTH name a different asset of ours (`l_fitout:avatars:<victim>`) and pull in
+  // a foreign one (`l_fetch:<base64url>`). There is no safe subset to enumerate — a vendor DSL grows
+  // and a blocklist against it is the same losing shape as substring-matching a hostname, which the
+  // lesson at the foot of this header already rejects. So the path is required to be EXACTLY the
+  // asset, and the whole DSL is refused:
+  //
+  //     /<cloud>/image/upload/[v<digits>/]<publicId>[.<ext>]
+  //
+  // That is byte-for-byte what the signed direct upload's `secure_url` returns
+  // (`photo-uploader.tsx:127`), which is the only url this action is ever legitimately handed. A
+  // RENDERING transformation is applied by building a url from the stored `publicId` at render time;
+  // it is never a thing we STORE. Refusing one here costs the real pipeline nothing.
+  let assetPath: string;
+  try {
+    // Percent-decoded, because the WHATWG parser encodes a space (and every other non-ASCII byte) in
+    // `pathname` while Cloudinary's `public_id` carries the raw character. Comparing the two
+    // spellings without decoding would reject a legitimate upload whose filename had a space in it.
+    // A malformed escape sequence throws, and an unparseable path is not an asset we can vouch for.
+    assetPath = decodeURIComponent(parsed.pathname.slice(uploadPrefix.length));
+  } catch {
+    return false;
+  }
+  // Drop ONLY a leading `v<digits>` version. A transformation component in that position is not
+  // dropped — it makes the comparison below fail, which is the intent.
+  const withoutVersion = assetPath.replace(/^v\d+\//, "");
+  // `<publicId>` or `<publicId>.<ext>`, and nothing else. The extension is deliberately not pinned
+  // to a list: Cloudinary picks it from the source, and a wrong-but-ours extension is not a threat.
+  // It IS required to be a single path segment — an ANCHORED pattern, like every other rejection in
+  // this file and for the reason the source gate in `tests/listing/cloudinary-provenance.test.ts`
+  // states: a substring search is the shape that lets `…/one.jpg/x.png` through.
+  const suffix =
+    withoutVersion.startsWith(`${publicId}.`)
+      ? withoutVersion.slice(publicId.length + 1)
+      : null;
+  if (withoutVersion !== publicId && !(suffix !== null && /^[^/]+$/.test(suffix))) {
+    return false;
+  }
 
   return true;
 }
