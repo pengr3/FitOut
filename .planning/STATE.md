@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 16
-status: verifying
+status: executing
 stopped_at: "Phase 16.1 context gathered — 15 decisions (D-179..D-193) locked, 4 research questions raised with R-1 BLOCKING. PM decided: 10MB declared limit (advisory, transformation is the hard bound), 2048px long-edge cap, JPEG/PNG/WebP/HEIC allow-list with SVG+animated-GIF refused, sources:[local] only, a sentence per refusal reason, stop-new-orphans-only with no reaper, immediate photo destroy on listing soft-delete, silent EXIF/GPS stripping, and NO BACKFILL because production holds ZERO real host uploads (confirmed by PM; local DB's 27 rows are seeded Unsplash URLs). The whole phase is therefore PREVENTIVE, not remedial. R-1 gates planning: criterion 3's 'transformation the client cannot influence' must be reachable given ALLOWED_SIGN_KEYS signs only {folder,source,timestamp} and Cloudinary 401s on signed-vs-sent mismatch — if neither an upload preset nor a server-fixed param holds, criteria 3+5 are unreachable as worded and D-181's premise collapses, which is a PM escalation not a workaround. NEXT STEP: /gsd-plan-phase 16.1"
-last_updated: "2026-08-26T10:56:19.352Z"
-last_activity: "2026-08-26 -- Phase 16: 14/16 plans done; 16-15 and 16-16 both awaiting the operator"
+last_updated: "2026-08-26T13:43:04.061Z"
+last_activity: 2026-08-26 -- Phase 16.1 planning complete
 progress:
   total_phases: 13
   completed_phases: 8
-  total_plans: 121
+  total_plans: 128
   completed_plans: 126
   percent: 62
 ---
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 16 (image-crop-framing) — VERIFIED COMPLETE (2026-08-26)
 Plan: 16 of 16
 Current Plan: 16
-Total Plans in Phase: 16
-Status: Phase 16 verified — next phase is 16.1 (upload-hardening-storage-economy), not yet started
+Total Plans in Phase: 7
+Status: Ready to execute
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-26 -- Phase 16: 14/16 plans done; 16-15 and 16-16 both awaiting the operator
+Last activity: 2026-08-26 -- Phase 16.1 planning complete
 
 ## Performance Metrics
 

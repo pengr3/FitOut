@@ -651,13 +651,35 @@ Phase 16 already edits that neighbourhood.
 **Plans**: 7 plans in 4 waves
 
 Plans:
-- [ ] 16.1-01-PLAN.md — The one declaration: `upload-policy.ts`, the three refusal sentences, and the two pure gates that pin them (wave 1)
-- [ ] 16.1-02-PLAN.md — The sign route's required-key equality gate, path 5b closed (F-1), and the exclusion source-assertion (wave 2)
-- [ ] 16.1-03-PLAN.md — `scripts/cloudinary-preset.ts` — the `--apply` / `--verify` reconciler over the committed declaration (wave 2)
-- [ ] 16.1-04-PLAN.md — The widget: `maxFileSize`, `clientAllowedFormats`, `sources: ["local"]`, a derived `maxFiles`, the preset prop and three sentences (wave 2)
-- [ ] 16.1-05-PLAN.md — The orphan sources: `persistPhoto`'s destroy strictly below provenance, and `softDeleteListing`'s (wave 2)
-- [ ] 16.1-06-PLAN.md — Seven comments that stop promising declined work, and teardown on the two leaking e2e cases (wave 3)
-- [ ] 16.1-07-PLAN.md — The UAT checklist, the preset applied and verified, and criterion 4's backfill decision recorded *(checkpoint: credential-bearing human walk)* (wave 4)
+
+**Wave 1**
+
+- [ ] 16.1-01-PLAN.md — The one declaration: `upload-policy.ts`, the three refusal sentences, and the two pure gates that pin them
+
+**Wave 2** *(blocked on Wave 1 completion — every plan below imports the Wave-1 declaration and the shared `tests/helpers/source-text.ts`)*
+
+- [ ] 16.1-02-PLAN.md — The sign route's required-key equality gate, path 5b closed (F-1), and the exclusion source-assertion
+- [ ] 16.1-03-PLAN.md — `scripts/cloudinary-preset.ts` — the `--apply` / `--verify` reconciler over the committed declaration
+- [ ] 16.1-04-PLAN.md — The widget: `maxFileSize`, `clientAllowedFormats`, `sources: ["local"]`, a derived `maxFiles`, the preset prop and three sentences
+- [ ] 16.1-05-PLAN.md — The orphan sources: `persistPhoto`'s destroy strictly below provenance, and `softDeleteListing`'s
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 16.1-06-PLAN.md — Seven comments that stop promising declined work, and teardown on the two leaking e2e cases
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 16.1-07-PLAN.md — The UAT checklist, the preset applied and verified, and criterion 4's backfill decision recorded *(checkpoint: credential-bearing human walk, `autonomous: false`)*
+
+Cross-cutting constraints:
+
+- **GATE-06 — zero schema migrations.** `git diff --exit-code drizzle/` is an acceptance criterion in six of the seven plans; `drizzle/` stays at `0025`.
+- **No delivery URL changes (criterion 3).** The eight render sites appear only in confirm-unchanged assertions; only `photo-uploader.tsx` is edited, and its own render site is asserted in-file.
+- **`ALLOWED_SIGN_KEYS` gains exactly one key (`upload_preset`).** `transformation`, `allowed_formats` and `eager` never join it — a client-supplied `transformation` chains *after* the preset's and was measured upscaling a 2048-capped asset to 4000×6000.
+- **D-187's destroy runs only after `isOwnCloudinaryAsset` has passed.** On the rejection path it would be an arbitrary-delete IDOR against our own Cloudinary account.
+- **Wave 2 is atomic in effect:** plan 02 (route requires `upload_preset`) and plan 04 (widget sends it) are mutually required — either alone 400s every real upload. Do not ship a partial Wave 2.
+
+⚠ **Wave 2's 02↔04 pairing is invisible to CI** — both plans' tests are isolated source/unit assertions, so nothing automated catches a half-applied wave. The wave gate is what protects it.
 
 **UI hint**: no — this is a pipeline and validation phase; the only user-visible surface is error copy.
 
