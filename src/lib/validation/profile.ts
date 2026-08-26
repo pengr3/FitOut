@@ -73,8 +73,12 @@ export const AVATAR_UPLOAD_FAILED_MESSAGE =
  *
  * There is deliberately NO pixel-size refine here. The server is handed a File and never learns how
  * many pixels are inside it, so such a check could not run — which is exactly why D-171 KEEPS the
- * 400x400 transform in src/lib/cloudinary.ts as the bounded-storage backstop. A real pixel guard is
- * Phase 16.1 (D-164 / D-166).
+ * 400x400 transform in src/lib/cloudinary.ts as the bounded-storage backstop. The "real pixel guard"
+ * D-164 / D-166 pointed at is CLOSED AS UNNECESSARY by D-191, not delivered: nothing on the server
+ * decodes these bytes — `uploadAvatarAction` hands the Buffer straight to `upload_stream` — so there
+ * is no decoder of ours for a large-pixel image to exhaust, and the transform bounds what is stored.
+ * ⚠ D-191 is void the day any server-side code decodes an uploaded image — for dimensions, for a
+ * blurhash, for a thumbnail. On that day this refine becomes necessary and belongs right here.
  *
  * Exported so the test suite can assert the guard in isolation and so callers re-validate the same
  * contract.

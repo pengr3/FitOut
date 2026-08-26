@@ -16,7 +16,15 @@
 // server action and `avatarFileSchema` guards content-type and byte size but NOT pixel
 // dimensions, so a non-browser client can POST a 4.9 MB 8000x6000 JPEG straight to it and never
 // touch the cropper. The transform is what makes that case store a bounded 400x400 asset.
-// Deleting it opens that hole; closing it properly (a real pixel guard) is Phase 16.1 scope.
+// Deleting it opens that hole — and the transform is the WHOLE guard, deliberately. D-191 closes the
+// "real pixel guard" this comment used to promise as UNNECESSARY rather than as done: this file
+// receives a Buffer and hands it to `upload_stream` without ever decoding it, so an 8000x6000 source
+// has no decoder of ours to exhaust. Cloudinary decodes it, and 40MP is unremarkable there. A
+// header-parsing dimension check would be new code defending a threat this architecture does not
+// have.
+// ⚠ THE CONDITION THAT REVERSES D-191: the day any server-side code decodes uploaded image bytes —
+// to read dimensions, to generate a blurhash, to produce a thumbnail — a dimension check becomes
+// necessary and this decision is void.
 //
 // `gravity` MUST NEVER AGAIN SELECT A REGION. `center` is the only value that cannot invent a
 // framing: on a square it is a no-op, and on a bypassed non-square input it takes the middle —

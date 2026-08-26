@@ -124,7 +124,19 @@ export async function uploadAvatarAction(
  * first and the row write then failed, a live profile would point at an asset that no longer exists —
  * a broken image on a public surface, and no amount of retrying fixes it because the bytes are gone.
  * In this order the worst case is an ORPHANED ASSET nobody references: invisible to every person,
- * knowingly tolerated by D-169, logged with both ids below, and swept by Phase 16.1's orphan audit.
+ * knowingly tolerated by D-169, and logged with both ids below. IT IS NOT SWEPT, and this sentence
+ * no longer says it will be: the Cloudinary Admin-API diff sweep it used to point at was considered
+ * by Phase 16.1 and DECLINED (D-187). With zero real host uploads in production, everything
+ * orphaned is a dev/test artefact, and none of it was worth the risk of an irreversible
+ * diff-driven delete; that phase closed the SOURCES of new orphans instead.
+ *
+ * ⚠ Which KIND of leftover this is, because the two are not interchangeable and only one of them a
+ * sweep could ever have reached. The row is ALREADY nulled when the destroy runs, so a failure here
+ * leaves bytes with no row pointing at them — a TRUE orphan, of the kind a diff sweep would have
+ * found. It is tolerated by decision, not by oversight. The `fitout/avatars/*` assets our own e2e
+ * run used to leave behind are the OTHER kind: abandoned-but-REFERENCED, each still carrying a live
+ * `user.avatar_public_id`, invisible to any diff. Those are ended at the source by D-192's teardown
+ * in `e2e/avatar-crop.spec.ts` rather than by a reaper.
  * `listing-photo.ts:206-210` makes the identical trade for the same reason.
  *
  * ⚠ AND THE DESTROY NEVER CHANGES THIS ACTION'S RESULT. An un-guarded `await` here would turn a
@@ -184,9 +196,10 @@ export async function removeAvatarAction(): Promise<AvatarRemoveResult> {
         });
       }
     } catch (err) {
-      // Orphan cleanup — best-effort; the columns are already null. A failed destroy leaves an
-      // orphaned asset (D-169, swept by Phase 16.1's orphan audit) but must NOT surface as a
-      // user-facing removal failure.
+      // Orphan cleanup — best-effort; the columns are already null, so what a failure leaves is a
+      // TRUE orphan: bytes with no row. D-169 tolerates it knowingly and D-187 does NOT sweep it —
+      // the Admin-API diff reaper was considered by Phase 16.1 and declined, see the docblock — but
+      // it must NOT surface as a user-facing removal failure.
       console.warn("[avatar:destroy] failed — orphan tolerated (D-169)", {
         userId,
         publicId,

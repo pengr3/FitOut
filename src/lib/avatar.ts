@@ -22,7 +22,16 @@
 //   - AVATAR_MIN_SOURCE_PX NEVER reaches the server schema. The server is handed a File and has no
 //     pixel dimensions at all, so a dimension refine there would be a check that cannot run. That
 //     hole is exactly why D-171 KEEPS the `{ width: 400, height: 400, crop: "fill" }` transform as a
-//     server-side ceiling; closing it properly is Phase 16.1 scope, not this phase's.
+//     server-side ceiling — and D-191 closes the missing pixel guard as UNNECESSARY, not as done.
+//     Nothing on our side ever DECODES those bytes: `uploadAvatarAction` does `arrayBuffer()` ->
+//     `Buffer` -> `upload_stream`, so a 40MP image inside the byte cap has nothing HERE to detonate
+//     against; it is Cloudinary that decodes it, and 40MP is unremarkable there. Storage is bounded
+//     by that transform already. Parsing an image header for dimensions would be new code defending
+//     a threat this architecture does not have — and this file's whole safety case is that there is
+//     no decoder on our side of the boundary.
+//     ⚠ THE CONDITION THAT REVERSES D-191, stated so it is checkable rather than remembered: the
+//     day any server-side code decodes an uploaded image — to read its dimensions, to generate a
+//     blurhash, to produce a thumbnail — the guard becomes necessary and this decision is void.
 //
 // THE MISTAKE THIS FILE'S EXISTENCE IS A RESPONSE TO — read before "tidying" these exports anywhere.
 // `src/app/actions/avatar.ts` is a `"use server"` module, and Next rejects such a module that exports
