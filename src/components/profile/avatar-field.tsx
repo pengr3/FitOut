@@ -52,11 +52,18 @@
 //   the safe action first in the DOM would stack the DESTRUCTIVE one on top of the mobile column,
 //   under the thumb.
 //
-//   THE TRIGGER IS PASSED TO THE OVERLAY, so Radix's `triggerRef` is real and its own close-time
-//   restore is correct here — which is why this confirm does NOT take that decision over.
-//   `request-row.tsx:242` makes the same call for the same reason, and overriding it on a stable
-//   trigger would be a claim this file has no basis for. It is the opposite call from the one the
-//   crop dialog makes, and the difference is the presence of a trigger rather than a preference.
+//   THE TRIGGER IS PASSED TO THE OVERLAY — AND ON THE SUCCESS PATH IT UNMOUNTS ANYWAY, WHICH IS WHY
+//   THE CLOSE-TIME RESTORE IS TAKEN OVER (CR-03). This file used to reason that a real `triggerRef`
+//   made Radix's own restore correct here, and cited `request-row.tsx:242` for it. That is true on
+//   the CANCEL path and false on the one the control exists for: `handleRemove` closes the overlay
+//   and calls `setAvatarUrl(null)` in the same commit, and the whole `<ResponsiveDialog>` — trigger
+//   included — is rendered only `{avatarUrl ? … : null}`. So React has detached the trigger's ref by
+//   the time Radix's `onCloseAutoFocus` runs; `triggerRef.current` is `null`, its `?.focus()` is a
+//   no-op, and the `preventDefault()` it already called has suppressed the browser's own restore.
+//   Focus lands on `<body>` and the next Tab restarts the page — a WCAG 2.4.3 failure, and verbatim
+//   the case `responsive-dialog.tsx:205-220` documents and supplies the prop for. The primary
+//   control survives the commit (it only relabels to `Upload photo`), so it is the restore target,
+//   exactly as `ImageCropDialog` does for the identical unmount-while-open situation.
 //
 //   DESTRUCTIVE COLOUR APPEARS EXACTLY ONCE IN THE PHASE, on the confirm verb INSIDE the overlay. The
 //   `Remove photo` control on the page is `variant="outline"` and stays that way: 02-UI-SPEC's rule
@@ -336,6 +343,24 @@ export function AvatarField({
     keepPhotoControl.current?.focus();
   }
 
+  /**
+   * Where focus goes when the removal confirm CLOSES (CR-03).
+   *
+   * ⚠ NOT REDUNDANT WITH RADIX'S OWN RESTORE, because on the path that matters there is nothing left
+   * for Radix to restore to. A successful removal unmounts the trigger in the SAME COMMIT as the
+   * close (the overlay is rendered only while `avatarUrl` is non-null), so `triggerRef.current` is
+   * already `null` inside `onCloseAutoFocus` and Radix's `?.focus()` no-ops after it has suppressed
+   * the browser's own restore. `primaryControl` survives — it relabels from `Change photo` to
+   * `Upload photo` — so it is both the nearest surviving control and the one that now offers the
+   * only action left on the field. On the CANCEL path this lands focus one control to the left of
+   * where Radix would have put it, which is the price of having one correct behaviour instead of
+   * two divergent ones.
+   */
+  function returnFocusToPrimary(event: Event) {
+    event.preventDefault();
+    primaryControl.current?.focus();
+  }
+
   async function handleRemove() {
     // Re-entrancy guard BEFORE the disabled attribute can apply — the same idiom the crop confirm
     // uses, and on a DESTRUCTIVE action the failure it prevents is two removals from one press.
@@ -422,11 +447,14 @@ export function AvatarField({
               open={removeOpen}
               onOpenChange={handleRemoveOpenChange}
               onOpenAutoFocus={steerFocusToSafeAction}
+              onCloseAutoFocus={returnFocusToPrimary}
               title={AVATAR_REMOVE_TITLE}
               description={AVATAR_REMOVE_BODY}
               trigger={
-                // Passed as the pattern's `trigger` so Radix's own `triggerRef` is populated — which
-                // is what makes leaving its close-time restore alone the correct call here.
+                // Passed as the pattern's `trigger` for the OPEN side — Radix wires the click and
+                // the `aria-haspopup` relationship from it. The close side is handled by
+                // `onCloseAutoFocus` above, because this element does not survive a successful
+                // removal; see CR-03 in the header.
                 <Button type="button" variant="outline" size="touch">
                   <Trash2Icon aria-hidden="true" />
                   {AVATAR_REMOVE_LABEL}

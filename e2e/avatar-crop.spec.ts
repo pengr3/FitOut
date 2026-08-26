@@ -133,6 +133,7 @@ import {
   AVATAR_SOFT_SOURCE_NOTE,
   AVATAR_TOO_SMALL_MESSAGE,
   AVATAR_UNREADABLE_MESSAGE,
+  AVATAR_UPLOAD_LABEL,
   AVATAR_WRONG_TYPE_MESSAGE,
   AVATAR_ZOOM_LABEL,
 } from "../src/lib/avatar";
@@ -2519,6 +2520,77 @@ test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operabl
       ).toBe(true);
     }
     expectEveryStopIndicated(steps, "the removal confirm");
+  });
+
+  test("the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03)", async ({
+    page,
+  }) => {
+    // ⚠ THE CASE ABOVE OPENS THIS CONFIRM AND NEVER PRESSES `Remove photo`, WHICH IS EXACTLY WHY THE
+    // DEFECT SURVIVED IT. Open-time focus, axe and the tab walk all pass on the CANCEL-shaped
+    // overlay. The success path is structurally different: `handleRemove` calls `setRemoveOpen(false)`
+    // and `setAvatarUrl(null)` in one commit, and the whole `<ResponsiveDialog>` — its trigger
+    // included — is rendered only while `avatarUrl` is non-null. So the trigger UNMOUNTS in the same
+    // commit as the close, Radix's `onCloseAutoFocus` finds `triggerRef.current === null` after it
+    // has already `preventDefault()`ed the browser's own restore, and focus falls to `<body>`: the
+    // next Tab restarts the whole page. That is a WCAG 2.4.3 failure and it is invisible to every
+    // assertion that stops at the audit.
+    //
+    // This case is therefore about the ONE press the sibling case does not make.
+    await signUpAndReachProfile(page);
+
+    // The same unavoidable real upload the sibling case documents — the removal affordance exists
+    // only when there is a photo to remove. Leaves one more orphaned asset per run (D4).
+    await pick(page, "square-400.png");
+    await expect(stageOf(page)).toBeVisible();
+    await dialogOf(page)
+      .getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true })
+      .click();
+    await expect(
+      page.getByRole("main").locator('img[alt="Your avatar"]'),
+      "the save did not land, so there is no photo to remove.",
+    ).toBeVisible({ timeout: 30_000 });
+
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: AVATAR_REMOVE_LABEL, exact: true })
+      .click();
+    await expect(dialogOf(page).getByRole("heading", { name: AVATAR_REMOVE_TITLE })).toBeVisible();
+    await settleAnimations(page);
+
+    // PRESS IT. `AVATAR_REMOVE_CONFIRM` and `AVATAR_REMOVE_LABEL` are the same string, so the
+    // confirm is scoped to the overlay — the page control is still mounted at this moment.
+    await dialogOf(page)
+      .getByRole("button", { name: AVATAR_REMOVE_CONFIRM, exact: true })
+      .click();
+
+    // The removal landed: the photo is gone and the primary control has relabelled. Both are waited
+    // for BEFORE focus is read, so a slow round trip cannot make this pass or fail by timing.
+    await expect(
+      page.getByRole("main").locator('img[alt="Your avatar"]'),
+      "the removal did not land, so the focus reading below would be about the wrong DOM.",
+    ).toHaveCount(0, { timeout: 30_000 });
+    await expect(
+      page.getByRole("main").getByRole("button", { name: AVATAR_UPLOAD_LABEL, exact: true }),
+    ).toBeVisible();
+    await settleAnimations(page);
+
+    const landed = await probeActiveStop(page);
+    // NULL IS THE DEFECT, SPELLED IN THE HELPER'S OWN TERMS: `probeActiveStop` returns null exactly
+    // when focus is on `<body>` or `<html>` (`e2e/helpers/focus.ts:250`). Asserting non-null first
+    // gives the failure its own sentence instead of leaving it to be inferred from a descriptor
+    // mismatch, which would read as "focus went somewhere unexpected" rather than "focus went
+    // nowhere".
+    expect(
+      landed,
+      "after a successful removal focus fell to the document body — the next Tab restarts the page. " +
+        "The trigger unmounts in the same commit as the close, so Radix's own restore has nothing " +
+        "to aim at and its `preventDefault()` has already suppressed the browser's; " +
+        "`avatar-field.tsx` must supply `onCloseAutoFocus`.",
+    ).not.toBeNull();
+    expect(
+      landed?.descriptor ?? "(nothing focused)",
+      "focus did not return to the field's primary control after a successful removal.",
+    ).toContain(AVATAR_UPLOAD_LABEL);
   });
 });
 
