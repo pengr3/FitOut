@@ -127,6 +127,41 @@ plus the `square-400.png` row in `e2e/avatar-crop.spec.ts` and the paragraph in 
 
 ## D4 — The Delta-3 e2e case performs one real Cloudinary upload per run
 
+> **DISCHARGED 2026-08-26 — Phase 16.1 plan 16.1-06, D-192.** Both leaking cases in
+> `e2e/avatar-crop.spec.ts` now end by driving the SHIPPED `Remove photo` control, which runs
+> `removeAvatarAction` → `destroyAvatar`: the asset is deleted and the row is nulled, from a test
+> process that still holds no Cloudinary credential and still fabricates no response. No `afterAll`,
+> no fixture, no seed. A local run of that spec now leaves nothing behind.
+>
+> **Two corrections to the row below, both measured on the live account and the live DB on
+> 2026-08-26, because the fix could not be designed against what it originally said.**
+>
+> 1. **It was TWO cases per run, not one.** Three cases in the file perform a real upload; the third
+>    (`…a SUCCESSFUL removal returns focus to a real control`) already pressed `Remove photo` and so
+>    already cleaned up. The `Keep photo` focus case leaked a second asset alongside Delta-3's. Both
+>    now have teardown, modelled on the third.
+> 2. **The "cheapest correct handling" below points at an audit that does not exist and never will,
+>    and it would not have worked anyway.** Phase 16.1 CONSIDERED a Cloudinary Admin-API diff sweep
+>    and **DECLINED** it (D-187): with zero real host uploads in production everything orphaned is a
+>    dev/test artefact, and none of it was worth the risk of an irreversible diff-driven delete; the
+>    phase closed the SOURCES of new orphans instead. And these particular assets were never orphans
+>    under that sweep's own definition — *bytes on Cloudinary with no DB row.* All 28 assets under
+>    `fitout/avatars` have a matching `user.avatar_public_id` row (28 assets / 28 rows, sampled ids
+>    all matching). They are **abandoned-but-REFERENCED**: a real `user` row for a throwaway account
+>    nothing will ever read again. A diff sweep would have found **none** of them. Teardown is the
+>    only mechanism that reaches them, which is why it is the fix rather than the alternative.
+>
+> Pinning the test user — the other alternative — was checked first and is the EXPENSIVE option, not
+> the cheap one. `overwrite: true` + `public_id: userId` cannot make repeat runs idempotent because
+> `e2e/helpers/avatar-session.ts:56` mints a fresh randomised
+> `e2e.avatar.<Date.now()>.<random>@example.com` every run, and that helper's header refuses seeds
+> and DB fixtures on the record; a fixed email fails signup on the second run against the unique
+> constraint.
+>
+> The row below is kept because the MEASUREMENT is the useful part: it is the record of a test suite
+> billing the account once per execution, which is invisible to CI by construction — no CI job holds
+> a Cloudinary credential (`ci.yml:151`, `:757`, `:875`) and this spec is not among the specs CI runs.
+
 - **Found by:** plan 16-13 (created by it), 2026-08-25
 - **Owner file:** `e2e/avatar-crop.spec.ts` — the Delta-3 pending-save case
 - **Severity:** operational housekeeping, not a defect
@@ -144,12 +179,15 @@ signup nothing ever reads again. **One orphan per execution of that one case.**
 "slow" is a race dressed as a test, and it can never assert the window CLOSED; a fabricated success
 response asserts against the test's own invention rather than the server's behaviour.
 
-**Cheapest correct handling:** Phase 16.1's orphaned-asset audit already exists as scope (D-166 /
-D-169 knowingly tolerates orphans). It should expect an `fitout/avatars/*` cohort whose user rows have
-`e2e.avatar.*` emails, and sweep them. Alternatively the e2e run gains a teardown that calls the
-avatar destroy helper — which is a fixture-lifecycle decision, not this plan's.
+**Cheapest correct handling** *(as recorded in 2026-08-25 — superseded; see the DISCHARGED block
+above)*: it named Phase 16.1's orphaned-asset audit as existing scope (D-166 / D-169 knowingly
+tolerates orphans), expecting it to sweep an `fitout/avatars/*` cohort whose user rows carry
+`e2e.avatar.*` emails, with a teardown as the alternative. **That audit was declined (D-187), and it
+could not have swept these assets in any case — every one of them is still referenced by a `user`
+row, so a diff sweep sees nothing to delete.** The alternative was the answer, and it is what shipped.
 
-**Suggested owner:** Phase 16.1 (orphaned-asset audit).
+**Suggested owner:** ~~Phase 16.1 (orphaned-asset audit)~~ — **closed by Phase 16.1 plan 16.1-06
+(D-192), teardown on both leaking cases in `e2e/avatar-crop.spec.ts`.**
 
 ---
 
