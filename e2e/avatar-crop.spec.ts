@@ -174,8 +174,44 @@ async function pick(page: Page, name: string): Promise<void> {
  * purpose.
  */
 async function settleAnimations(page: Page): Promise<void> {
-  await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  await page.evaluate(
+    () =>
+      // INFINITE ANIMATIONS ARE SKIPPED, or this helper hangs instead of settling (WR-01). An
+      // animation with `iteration-count: infinite` never resolves `finished`, so a `Promise.all`
+      // that includes one waits for the test timeout and reports as a product failure. Nothing on
+      // `/profile` mounts one today — `ui/skeleton.tsx`'s `animate-pulse` and `ui/sonner.tsx`'s
+      // `animate-spin` both do, and the WR-01 case below mounts one deliberately.
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+          .map((a) => a.finished.catch(() => undefined)),
+      ),
+  );
+}
+
+/**
+ * Mount an animation that NEVER FINISHES, and return once the browser has really started it.
+ *
+ * Used by the WR-01 case to reproduce the condition the shipped app can fall into at any time — a
+ * toast spinner, a skeleton, anything with `iteration-count: infinite` — without waiting for a
+ * component that happens to mount one to appear on `/profile`.
+ */
+async function mountInfiniteAnimation(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const el = document.createElement("div");
+    el.id = "wr-01-infinite";
+    el.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none";
+    document.body.append(el);
+    el.animate([{ opacity: 0 }, { opacity: 0.01 }], {
+      duration: 500,
+      iterations: Infinity,
+    });
+  });
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .some((a) => a.effect?.getComputedTiming().iterations === Infinity),
   );
 }
 
@@ -1696,6 +1732,65 @@ test.describe("CROP-01 / IC-06 — one bitmap, one coordinate system, on a rotat
         "THAT element; a disagreement means it is sizing against something else.",
     ).toBeLessThanOrEqual(1);
     expect(Math.abs(stageBox.width - stageBox.height)).toBeLessThanOrEqual(1);
+  });
+
+  test("WR-01: the crop square is repaired even with an INFINITE animation on the page", async ({
+    page,
+  }) => {
+    // WHAT THIS IS ABOUT. The stage's entry animation scales the overlay to 95%, and
+    // `react-easy-crop` measures its container DURING that — so every size it derives is 5% short,
+    // and nothing re-measures on its own (a CSS transform moves no content box, so no
+    // `ResizeObserver` fires). The dialog repairs it with one `computeSizes()` after the animation
+    // settles. THE REPAIR USED TO BE GATED ON `document.getAnimations()`, unfiltered: one animation
+    // anywhere in the tree with `iteration-count: infinite` never resolves `finished`, so the
+    // `Promise.all` never settled and the repair never ran. The person would then see a circle
+    // covering 95% of the photo's width while `croppedAreaPixels` reported 100% of it — the saved
+    // avatar carrying a ring that was never inside the mask. That is the IC-02 divergence itself.
+    //
+    // `/profile` mounts no infinite animation today, which is what made this latent rather than
+    // live. A stored asset's correctness must not depend on which unrelated component is on screen,
+    // so this case puts one there.
+    await signUpAndReachProfile(page);
+    await mountInfiniteAnimation(page);
+
+    await pick(page, "exif-orientation-6.jpg");
+    await expect(stageOf(page)).toBeVisible();
+    await settleAnimations(page);
+
+    const preview = await samplePreview(page, []);
+    const expectedSide = Math.min(preview.offsetWidth, preview.offsetHeight);
+
+    // The repair is one frame plus the entry animation away, and this assertion is about whether it
+    // happens AT ALL rather than when — so poll rather than pin a delay. On the defect it never
+    // arrives and this exhausts the timeout at ~95%; the message reports the ratio, which is the
+    // number that names the cause.
+    await expect
+      .poll(
+        async () => {
+          const box = await stageOf(page).boundingBox();
+          return box === null ? 0 : Math.abs(box.width - expectedSide);
+        },
+        {
+          timeout: 10_000,
+          message:
+            `the crop square never converged on the media element's shorter rendered side ` +
+            `(${expectedSide}px). A square stuck at ~95% of it means the post-animation ` +
+            "`computeSizes()` never ran — the infinite animation this case mounts is gating it, " +
+            "which is WR-01.",
+        },
+      )
+      .toBeLessThanOrEqual(1);
+
+    // And the infinite animation really was running for the whole of that, or the case proved
+    // nothing about the condition it names.
+    expect(
+      await page.evaluate(() =>
+        document
+          .getAnimations()
+          .some((a) => a.effect?.getComputedTiming().iterations === Infinity),
+      ),
+      "the infinite animation was gone by the end of the case, so it never gated anything.",
+    ).toBe(true);
   });
 
   // THE GUARD THAT SURVIVES A REFACTOR, AND IT IS A SOURCE ASSERTION BECAUSE THE FAILURE IS THE

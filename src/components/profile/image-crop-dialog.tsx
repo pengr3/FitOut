@@ -253,6 +253,13 @@ export function ImageCropDialog({
   // class component, so a plain ref is its instance, and `computeSizes` is on its published type.
   const cropperRef = React.useRef<Cropper | null>(null);
 
+  /**
+   * The stage wrapper, held ONLY so the post-animation re-measure below can find the overlay it
+   * lives in (`closest('[role="dialog"]')`). Nothing reads its geometry — the measuring is the
+   * library's, and a second measurer would be a second answer.
+   */
+  const stageRef = React.useRef<HTMLDivElement | null>(null);
+
   // Rule F8: when the source cannot support any zoom at all, the row renders DISABLED with its
   // reason beneath it — never hidden. A control that vanishes teaches nothing.
   const zoomLocked = maxZoom <= 1;
@@ -329,6 +336,10 @@ export function ImageCropDialog({
    * would find an empty list and fire the resize immediately — while the overlay is still at 95%,
    * which is the state being escaped. One `requestAnimationFrame` puts the read after that step.
    *
+   * AND THE READ IS SCOPED AND DEADLINED (WR-01), for reasons written at the call site: a
+   * document-wide, unfiltered `getAnimations()` is gated by every animation in the tree, and one
+   * infinite animation anywhere makes the repair never happen.
+   *
    * WHAT WOULD FALSIFY THIS: `ui/dialog.tsx` dropping the scale from its entry animation, or
    * `react-easy-crop` measuring a content box instead of a bounding rect. Either makes this effect
    * a no-op rather than wrong, and the e2e assertion that guards it compares the crop square against
@@ -336,16 +347,40 @@ export function ImageCropDialog({
    */
   React.useEffect(() => {
     let cancelled = false;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
 
     const frame = requestAnimationFrame(() => {
       if (cancelled) return;
-      const running = document.getAnimations();
-      const settled =
-        running.length === 0
-          ? Promise.resolve()
-          : Promise.all(
-              running.map((animation) => animation.finished.catch(() => undefined)),
-            ).then(() => undefined);
+
+      // ⚠ THE OVERLAY'S OWN ANIMATIONS, NOT THE DOCUMENT'S, AND NOT THE INFINITE ONES (WR-01). This
+      // read used to be `document.getAnimations()`, unfiltered, and `Promise.all` over the result.
+      // Both halves were wrong in the same direction — toward NEVER RE-MEASURING, which is the
+      // failure this whole effect exists to prevent:
+      //   - Document-wide, so ANY animation anywhere in the tree gates the repair. A single
+      //     `iteration-count: infinite` — `ui/skeleton.tsx`'s `animate-pulse`, `ui/sonner.tsx`'s
+      //     `animate-spin` — never resolves `finished`, so `Promise.all` never settles and
+      //     `computeSizes()` is never called at all. `/profile` happens not to mount one today,
+      //     which made this latent rather than live; the correctness of a STORED asset must not
+      //     depend on which unrelated component is on screen.
+      //   - And no deadline, so a long or stalled animation delays the repair indefinitely.
+      // The overlay is reached by walking UP from the stage through `role="dialog"` — ARIA the
+      // product owns, not a test hook — so the scope is the element the entry animation is actually
+      // on, plus its subtree.
+      const overlay = stageRef.current?.closest('[role="dialog"]') ?? null;
+      const running = (overlay?.getAnimations({ subtree: true }) ?? []).filter(
+        (animation) => animation.effect?.getComputedTiming().iterations !== Infinity,
+      );
+
+      const settled = new Promise<void>((resolve) => {
+        // Whichever comes first. The entry animation is a tenth of a second; 400ms is late enough
+        // to be a backstop and early enough that a person cannot reach the confirm before it.
+        // FAILING TOWARD THE RE-MEASURE IS THE POINT: measuring once too often is a no-op, and not
+        // measuring is a saved avatar that disagrees with the preview.
+        deadline = setTimeout(resolve, 400);
+        void Promise.all(
+          running.map((animation) => animation.finished.catch(() => undefined)),
+        ).then(() => resolve());
+      });
 
       void settled.then(() => {
         if (!cancelled) cropperRef.current?.computeSizes();
@@ -355,6 +390,7 @@ export function ImageCropDialog({
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
+      if (deadline !== undefined) clearTimeout(deadline);
     };
   }, []);
 
@@ -461,7 +497,10 @@ export function ImageCropDialog({
             to GATE-STATES. The guards and the decode both complete BEFORE this component is
             mounted (999.2 § 2e), so the stage never renders without its measured image and there is
             no moment to design a loading state for. */}
-        <div className="relative mx-auto size-[min(320px,100vw_-_2rem,40dvh)] overflow-hidden rounded-xl bg-background">
+        <div
+          ref={stageRef}
+          className="relative mx-auto size-[min(320px,100vw_-_2rem,40dvh)] overflow-hidden rounded-xl bg-background"
+        >
           <Cropper
             ref={cropperRef}
             image={objectUrl}
