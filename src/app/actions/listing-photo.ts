@@ -27,10 +27,10 @@ import { db } from "@/lib/db";
 import { listing, listingPhoto } from "@/lib/db/schema";
 import { destroyListingPhoto } from "@/lib/cloudinary";
 import { isOwnCloudinaryAsset } from "@/lib/listing/cloudinary-provenance";
-
-// Generous soft cap (D-04). Publishing needs >=3; this bounds the top end so a single listing can't be
-// used to stockpile unbounded assets. Kept high enough to never get in a real host's way.
-const MAX_PHOTOS = 20;
+import {
+  LISTING_MAX_PHOTOS,
+  LISTING_UPLOAD_FAILED_MESSAGE,
+} from "@/lib/listing/upload-policy";
 
 export type ListingPhotoRow = {
   id: string;
@@ -98,7 +98,7 @@ export async function persistPhoto(
   const publicId = input.publicId?.trim();
   const url = input.url?.trim();
   if (!publicId || !url) {
-    return { ok: false, error: "That photo didn't upload. Please try again." };
+    return { ok: false, error: LISTING_UPLOAD_FAILED_MESSAGE };
   }
 
   // PROVENANCE (D-165). Everything above proves WHO is writing. This proves WHAT they are writing is
@@ -125,7 +125,7 @@ export async function persistPhoto(
     console.warn(
       "[listing-photo] CLOUDINARY_CLOUD_NAME is not configured — refusing to persist photo metadata (D-165).",
     );
-    return { ok: false, error: "That photo didn't upload. Please try again." };
+    return { ok: false, error: LISTING_UPLOAD_FAILED_MESSAGE };
   }
   if (!isOwnCloudinaryAsset({ url, publicId, listingId, cloudName })) {
     // Δ15 / rule F1 — the SHIPPED literal, naming no vendor, no url and no folder. The distinction
@@ -133,14 +133,14 @@ export async function persistPhoto(
     console.warn(
       `[listing-photo] rejected photo metadata that our pipeline could not have produced, listing ${listingId} (D-165).`,
     );
-    return { ok: false, error: "That photo didn't upload. Please try again." };
+    return { ok: false, error: LISTING_UPLOAD_FAILED_MESSAGE };
   }
 
   const position = await photoCount(listingId);
-  if (position >= MAX_PHOTOS) {
+  if (position >= LISTING_MAX_PHOTOS) {
     return {
       ok: false,
-      error: `You can add up to ${MAX_PHOTOS} photos. Remove one to add another.`,
+      error: `You can add up to ${LISTING_MAX_PHOTOS} photos. Remove one to add another.`,
     };
   }
 
