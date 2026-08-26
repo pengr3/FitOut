@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 16.1-01-PLAN.md — the upload declaration. 1 of 7 plans done; wave 1 closed.
-last_updated: "2026-08-26T14:47:50.597Z"
+stopped_at: Completed 16.1-03-PLAN.md — the preset reconciler (`--apply`/`--verify`) and its build-blocking rule-F2 pin. 3 of 7 plans done; wave 2 has 16.1-04 and 16.1-05 left. The preset `fitout_listing_v1` still does not exist on the Cloudinary account — `--apply` is 16.1-07's human step, not a plan's.
+last_updated: "2026-08-26T15:11:43.014Z"
 last_activity: 2026-08-26
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 128
-  completed_plans: 128
+  completed_plans: 129
   percent: 62
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 16.1 (upload-hardening-storage-economy) — EXECUTING
-Plan: 3 of 7
-Current Plan: 3
+Plan: 4 of 7
+Current Plan: 4
 Total Plans in Phase: 7
 Status: Ready to execute
 
@@ -751,6 +751,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P09 | 21min | 2 tasks | 3 files |
 | Phase 15 P10 | 37 | 2 tasks | 2 files |
 | Phase 16.1 P02 | 19min | 2 tasks | 3 files |
+| Phase 16.1 P03 | 21min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -765,6 +766,11 @@ deferred walk is inconsistent rather than honest.*
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [16.1-03]: **The reconciler is `scripts/cloudinary-preset.ts` run through `tsx`, not a `.mjs` run through `node`** (16.1-PATTERNS named this as a choice the plan had to make out loud). Plain `node` can neither `import` a `.ts` file nor resolve the `@/` alias, so a `.mjs` reconciler would have had to RE-SPELL the transformation string — a second copy of the one value the phase exists to keep single, which would make `--verify` compare the account against the script's own private spelling rather than against the declaration. **The cost is recorded rather than absorbed:** `tsx` is not a declared devDependency; it resolves at 4.22.4 via `drizzle-kit@0.31.10` and `vite@8.0.16`, and four shipped scripts (`db:seed`, `db:test:setup`, `email:previews`, `ops:alerts`) already rest on that same transitive. The header carries `verify-workflows.mjs:116-121`'s rule verbatim: the day it becomes unresolvable, the fix is a dependency decision to raise, never the deletion of the reconciler.
+- [16.1-03]: **`fetch_format` is the script's explicit, PINNED guess for the `f_` component's long key, and any other returned key is a hard failure.** Probe E12 measured the Admin API returning `settings.transformation` as a parsed array of objects, but that preset predates the format-conversion component, so the vendor's spelling for `f_` was never observed. The script canonicalises both sides through one table and treats an unknown short prefix (throw) or an unrecognised returned long key (difference line) as a FAILURE with the raw payload printed — never a skip, because "I did not understand this" and "this agrees" must not be the same outcome. **16.1-07's real `--verify` is where the spelling is measured; if the table needs a row that is a one-line change at `scripts/cloudinary-preset.ts` + `tests/design/cloudinary-preset-script.test.ts:86` and the fixture at `:147`, made with evidence in hand.**
+- [16.1-03]: **Exit 3 means "the tool could not LOOK", in full — not only "no credential".** The plan's contract enumerated the absent-credential case; a rejected credential (401/403), an unanswered Admin API and an unexpected status all mean nothing was checked, and reporting any of them as drift is exactly what the contract's own stated reason forbids ("would train people to ignore the check"). All four now print the same `THIS IS *NOT* A DRIFT FINDING` banner and exit 3. CI structurally holds no Cloudinary credential (`T-11-CISECRET`), so exit 3 is the code CI would see.
+- [16.1-03]: **A file asserted over with `stripComments()` must keep the slash-star sequence out of its PROSE.** Measured this run, and it cost a debugging pass: the helper strips block comments first with a regex, so a path glob written inside a `//` LINE comment opened a "block comment" that ran past the imports and made `stripComments(source)` not contain the script's own `@/lib/listing/upload-policy` import — the plan's highest-value assertion reporting RED against a correct file. A third failure mode in the same family as `verify-workflows.mjs:24-32`'s falsely-green/falsely-red pair. The helper was NOT changed (its header explicitly says to replace it with a real tokeniser rather than grow special cases); the script's prose was.
 
 - [16.1-01]: **`f_auto`, not `f_jpg`, for the incoming transformation (D-182's delegated spelling, closed).** It is literally "format chosen by Cloudinary", it converts HEIC — which without a format component is stored AND delivered as a content type Chrome and Firefox cannot render, against eight plain `<img src>` render sites — and measured across five inputs it preserved alpha where `f_jpg` flattened onto white. `f_jpg`'s only advantage is a deterministic stored extension, and that buys nothing because `cloudinary-provenance.ts:22-23` already declines to require the url and the publicId to agree about the extension. **That accepted residual is now LOAD-BEARING** — a later "tightening" of it breaks the pipeline, and the constant's docblock says so.
 - [16.1-01]: **The round decimal spelling of the 10 MiB ceiling is deliberately NEVER typed out in `upload-policy.ts`, and the argument for it is made in prose instead.** The plan asked the docblock to quote the token its own acceptance criterion counts to zero — which is `scripts/verify-workflows.mjs:24-32`'s measured mirror failure ("substring checks are wrong in both directions on a documented file: falsely green for requirements, falsely RED for prohibitions") arriving inside a single task. Resolved the way `tests/design/avatar-zoom.test.ts:27-30` already resolves it for the jsdom pragma. The prohibition is pinned in the TEST, over comment-stripped source, where the token may be spelled freely.
@@ -1256,6 +1262,8 @@ None yet.
 ### Blockers/Concerns
 
 [Issues that affect future work]
+
+- **[16.1-03, tracking hygiene — NOT a code issue] The frontmatter now reads `completed_plans: 129` against `total_plans: 128`, and the executor deliberately did NOT invent a number to fix it.** `state.advance-plan` moved `completed_plans` by exactly +1, which is the correctness check the toolchain memory prescribes, and 129 is factually the number of `*-SUMMARY.md` files on disk. `total_plans` is the stale half: it tracks the 128 `*-PLAN.md` files and so cannot see the **five gap-closure units that shipped a SUMMARY with no PLAN** (`13-17` … `13-20`, `13.1-06`). Disk-true totals are 129 completed of 133 units. Left as-is because plan-count accounting across a milestone is the verifier's / milestone-close's call, not a plan executor's — recorded here so it is owned rather than silently "corrected". `percent: 62` is phase-derived (8/13) and is unaffected either way.
 
 > **Both entries below are CLOSED — reconciled at the v1.0 milestone close (2026-08-11), where they were
 > still standing as OPEN.** The double-charge blocker was closed by quick task `260801-kv2` (`1a85510`,
