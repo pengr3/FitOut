@@ -190,6 +190,96 @@ describe("listing photo persistence + reorder (LIST-02)", () => {
     expect(after.map((r) => r.publicId)).toEqual([p0.publicId, p1.publicId]);
   });
 
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // WR-02: `orderedIds` is a client field, and it was used raw.
+  //
+  // The reversal case above is the only shape it was ever driven with — a genuine permutation. Two
+  // others reach the same code from the browser and neither is a reordering of anything:
+  //   - DUPLICATES: the same row is written twice, so it ends at the LAST index and one index goes
+  //     unclaimed.
+  //   - A SUBSET: the omitted rows keep their original positions, which the negative parking never
+  //     touches, so a parked row can be assigned a position another row still holds.
+  // Both collide with the (listingId, position) unique index at statement end, and there was no
+  // `try` — the rejection escaped the server action instead of returning `{ ok: false, error }`.
+  // `photo-uploader.tsx:136-143` is written against that shape and reverts its optimistic order on
+  // it, so what the host SAW after the throw was an order the database had refused.
+  //
+  // EVERY CASE ASSERTS THE STORED ORDER IS UNCHANGED, not merely that `ok` is false. A refusal that
+  // had already half-applied the parking phase would satisfy the weaker assertion completely, and
+  // half-applied is worse than either outcome — the rows would be sitting at negative positions.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  describe("reorder refuses anything that is not a permutation (WR-02)", () => {
+    /** Three photos on a fresh listing; returns the ids in stored order. */
+    async function threePhotos(email: string) {
+      const hostId = await signInHost(email);
+      const listingId = await makeListing(hostId);
+      const uploads = ["one", "two", "three"].map((n) => upload(listingId, n));
+      for (const u of uploads) await persistPhoto(listingId, u);
+      const rows = await photosOf(listingId);
+      expect(rows.map((r) => r.position)).toEqual([0, 1, 2]);
+      return { listingId, ids: rows.map((r) => r.id), publicIds: uploads.map((u) => u.publicId) };
+    }
+
+    it("refuses a DUPLICATED id, answers with the refusal shape, and leaves the order intact", async () => {
+      const { listingId, ids, publicIds } = await threePhotos("photos.reorder.dupe@example.com");
+
+      // `[c, c, a]`: `b` is missing and `c` appears twice. Under the old code this reached the
+      // transaction and threw out of the action.
+      const res = await reorderPhotos(listingId, [ids[2], ids[2], ids[0]]);
+      expect(res.ok).toBe(false);
+      // The SHAPE is the finding — a thrown rejection has no `.error` at all.
+      if (!res.ok) expect(typeof res.error).toBe("string");
+
+      const after = await photosOf(listingId);
+      expect(after.map((r) => r.position)).toEqual([0, 1, 2]);
+      expect(after.map((r) => r.publicId)).toEqual(publicIds);
+    });
+
+    it("refuses a SUBSET, and no row is left parked at a negative position", async () => {
+      const { listingId, ids, publicIds } = await threePhotos("photos.reorder.subset@example.com");
+
+      // `["c"]` — the exact sequence in the finding: park `c` at −1, then set it to 0, which `a`
+      // still holds.
+      const res = await reorderPhotos(listingId, [ids[2]]);
+      expect(res.ok).toBe(false);
+
+      const after = await photosOf(listingId);
+      expect(
+        after.every((r) => r.position >= 0),
+        "a row was left at a negative position, so the refusal happened AFTER the parking phase " +
+          "rather than before the transaction opened.",
+      ).toBe(true);
+      expect(after.map((r) => r.position)).toEqual([0, 1, 2]);
+      expect(after.map((r) => r.publicId)).toEqual(publicIds);
+    });
+
+    it("refuses an id belonging to ANOTHER listing, even one this host owns", async () => {
+      const hostId = await signInHost("photos.reorder.crosslisting@example.com");
+      const mine = await makeListing(hostId);
+      const other = await makeListing(hostId);
+      for (const n of ["one", "two"]) await persistPhoto(mine, upload(mine, n));
+      await persistPhoto(other, upload(other, "theirs"));
+
+      const mineRows = await photosOf(mine);
+      const otherRows = await photosOf(other);
+
+      // Right length, no duplicates, this host's own photos — and still not a permutation of THIS
+      // listing. Ownership passes; membership is what rejects it.
+      const res = await reorderPhotos(mine, [mineRows[0].id, otherRows[0].id]);
+      expect(res.ok).toBe(false);
+
+      expect((await photosOf(mine)).map((r) => r.id)).toEqual(mineRows.map((r) => r.id));
+      expect((await photosOf(other)).map((r) => r.position)).toEqual([0]);
+    });
+
+    it("refuses an EMPTY list against a listing that has photos", async () => {
+      const { listingId, publicIds } = await threePhotos("photos.reorder.empty@example.com");
+      const res = await reorderPhotos(listingId, []);
+      expect(res.ok).toBe(false);
+      expect((await photosOf(listingId)).map((r) => r.publicId)).toEqual(publicIds);
+    });
+  });
+
   it("removing a photo deletes its row, re-packs positions, and destroys the Cloudinary asset (orphan cleanup)", async () => {
     const hostId = await signInHost("photos.remove@example.com");
     const listingId = await makeListing(hostId);

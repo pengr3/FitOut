@@ -115,9 +115,17 @@ export async function persistPhoto(
     // credential, so this is the branch that runs continuously; a skip here would make the guard
     // dead exactly where it is exercised most while every test of it passed vacuously. An app with
     // no cloud name configured cannot legitimately be persisting a Cloudinary url in any case.
+    //
+    // ⚠ IT RETURNS, AND THAT IS WHY THE COMMENT ABOVE IS NOW TRUE (WR-10). This branch used to only
+    // LOG, delegating the actual refusal to `isOwnCloudinaryAsset`'s own missing-cloud-name guard.
+    // That was correct by accident of the validator's signature: give `cloudName` a default
+    // parameter one day and the property this comment claims is silently gone while the comment
+    // still reads like the guard. It also emitted TWO warn lines for one rejection in the state
+    // every CI run is in. The validator's own guard stays as defence in depth.
     console.warn(
       "[listing-photo] CLOUDINARY_CLOUD_NAME is not configured — refusing to persist photo metadata (D-165).",
     );
+    return { ok: false, error: "That photo didn't upload. Please try again." };
   }
   if (!isOwnCloudinaryAsset({ url, publicId, listingId, cloudName })) {
     // Δ15 / rule F1 — the SHIPPED literal, naming no vendor, no url and no folder. The distinction
@@ -149,6 +157,18 @@ export async function persistPhoto(
  * single-pass "set position = i" would collide mid-swap (e.g. a reversal), so we do it in TWO phases —
  * first park every row at a temporary NEGATIVE position (distinct and disjoint from the final 0..n-1
  * range), then assign the final contiguous positions. Every update is re-scoped to listingId (IDOR).
+ *
+ * ⚠ `orderedIds` IS UNTRUSTED AND MUST BE A PERMUTATION OF THIS LISTING'S PHOTOS, checked before the
+ * transaction opens (WR-02). It used to be used raw, and two client-supplied shapes broke it:
+ *   - DUPLICATES write the same row twice, so its final position is the LAST index — leaving another
+ *     index unclaimed and two rows able to land on one position.
+ *   - A SUBSET leaves the omitted rows at their original positions, which the two-phase parking never
+ *     touches. `[a=0,b=1,c=2]` reordered as `["c"]` parks `c` at −1 and then sets it to 0, which `a`
+ *     still holds — the (listingId, position) unique index rejects the statement.
+ * Either way the transaction throws, and there was no `try`, so the rejection ESCAPED the server
+ * action instead of returning the `{ ok: false, error }` shape `photo-uploader.tsx:136-143` is
+ * written against — the optimistic UI never reverted and the grid kept showing an order the database
+ * had refused. The shape check and the catch are both here for that: this action always answers.
  */
 export async function reorderPhotos(
   listingId: string,
@@ -163,26 +183,59 @@ export async function reorderPhotos(
     return { ok: false, error: "We couldn't find that listing, or it isn't yours." };
   }
 
-  await db.transaction(async (tx) => {
-    // Phase 1: temporary negative slots — no collision with any row still holding a final position.
-    for (let i = 0; i < orderedIds.length; i++) {
-      await tx
-        .update(listingPhoto)
-        .set({ position: -(i + 1) })
-        .where(
-          and(eq(listingPhoto.id, orderedIds[i]), eq(listingPhoto.listingId, listingId)),
-        );
-    }
-    // Phase 2: final contiguous positions (0 = cover).
-    for (let i = 0; i < orderedIds.length; i++) {
-      await tx
-        .update(listingPhoto)
-        .set({ position: i })
-        .where(
-          and(eq(listingPhoto.id, orderedIds[i]), eq(listingPhoto.listingId, listingId)),
-        );
-    }
-  });
+  // A PERMUTATION, OR NOTHING. Same length, no duplicates, and exactly this listing's photo ids —
+  // the three together spell "a reordering of what is there", which is the only input this action
+  // has a meaning for. The row read is scoped to `listingId`, so an id belonging to another listing
+  // is simply absent from `ownedIds` and fails the membership test (IDOR, again).
+  const rows = await db
+    .select({ id: listingPhoto.id })
+    .from(listingPhoto)
+    .where(eq(listingPhoto.listingId, listingId));
+  const ownedIds = new Set(rows.map((r) => r.id));
+  const distinct = new Set(orderedIds);
+  if (
+    distinct.size !== orderedIds.length ||
+    orderedIds.length !== ownedIds.size ||
+    orderedIds.some((id) => !ownedIds.has(id))
+  ) {
+    console.warn(
+      `[listing-photo] rejected a reorder that is not a permutation of listing ${listingId}'s photos.`,
+    );
+    return {
+      ok: false,
+      error: "We couldn't reorder those photos. Please refresh and try again.",
+    };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      // Phase 1: temporary negative slots — no collision with a row still holding a final position.
+      for (let i = 0; i < orderedIds.length; i++) {
+        await tx
+          .update(listingPhoto)
+          .set({ position: -(i + 1) })
+          .where(
+            and(eq(listingPhoto.id, orderedIds[i]), eq(listingPhoto.listingId, listingId)),
+          );
+      }
+      // Phase 2: final contiguous positions (0 = cover).
+      for (let i = 0; i < orderedIds.length; i++) {
+        await tx
+          .update(listingPhoto)
+          .set({ position: i })
+          .where(
+            and(eq(listingPhoto.id, orderedIds[i]), eq(listingPhoto.listingId, listingId)),
+          );
+      }
+    });
+  } catch (err) {
+    // The permutation check closes every shape we know how to name. This closes the ones we do not:
+    // a concurrent removal between the read and the transaction, a connection drop mid-phase. The
+    // caller gets the refusal shape it is written against instead of an exception, so its optimistic
+    // order reverts and the grid stops showing an order the database refused.
+    console.warn(`[listing-photo] reorder failed for listing ${listingId}`, err);
+    return { ok: false, error: "We couldn't reorder those photos. Please try again." };
+  }
 
   revalidateEdit(listingId);
   return { ok: true };
