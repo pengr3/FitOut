@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 16.1-03-PLAN.md — the preset reconciler (`--apply`/`--verify`) and its build-blocking rule-F2 pin. 3 of 7 plans done; wave 2 has 16.1-04 and 16.1-05 left. The preset `fitout_listing_v1` still does not exist on the Cloudinary account — `--apply` is 16.1-07's human step, not a plan's.
-last_updated: "2026-08-26T15:11:43.014Z"
-last_activity: 2026-08-26
+stopped_at: Completed 16.1-04-PLAN.md — the widget block. 4 of 7 plans done; wave 2 has only 16.1-05 (the orphan sources) left. EXECUTED ACROSS AN INTERRUPTION: Task 1 is `fe181c6`, Task 2 is `d262b98` from a continuation run that RE-OBSERVED both mandated mutations RED rather than inheriting the interrupted run's transcripts. The preset `fitout_listing_v1` still does not exist on the Cloudinary account — every live upload fails closed until 16.1-07's `--apply`, which is the human step, not a plan's.
+last_updated: "2026-08-26T18:14:33.000Z"
+last_activity: 2026-08-27
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 128
-  completed_plans: 129
+  completed_plans: 130
   percent: 62
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 16.1 (upload-hardening-storage-economy) — EXECUTING
-Plan: 4 of 7
-Current Plan: 4
+Plan: 5 of 7
+Current Plan: 5
 Total Plans in Phase: 7
-Status: Ready to execute
+Status: Ready to execute — wave 2's last plan is 16.1-05 (the orphan sources)
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -500,7 +500,7 @@ Last activity: 2026-08-26
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
 | 15 | 14 | - | - |
-| 16.1 | 1 | - | - |
+| 16.1 | 4 | - | - |
 
 *16.1-01: ~23 min wall-clock, 3 tasks (all auto), 4 files created + 1 modified, 3 commits + 1 metadata.
 The whole plan is one declaration and three gates: `upload-policy.ts` is now the only place in the repo that
@@ -752,6 +752,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P10 | 37 | 2 tasks | 2 files |
 | Phase 16.1 P02 | 19min | 2 tasks | 3 files |
 | Phase 16.1 P03 | 21min | 2 tasks | 3 files |
+| Phase 16.1 P04 | ~30min across an interruption | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -767,6 +768,10 @@ deferred walk is inconsistent rather than honest.*
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [16.1-04]: **The two mandated mutations were RE-RUN in the continuation, not inherited from the interrupted run.** This plan was executed across an interruption: Task 1 committed (`fe181c6`), then the executor stopped with `tests/design/photo-uploader-options.test.ts` written but uncommitted and its observed-RED transcripts already in the file header. A transcript nobody in the current run watched is a claim, not evidence — the same thing the phase says about a comment that reads like a guard. Both mutations were therefore applied again, run, transcribed and reverted with `git checkout --` and a verified-empty `git diff --exit-code`. Both reproduced the header's transcripts exactly (2 reds each, same test names, same messages), so the header stands as written.
+- [16.1-04]: **The `maxFiles` prohibition is narrowed to the `options={{ … }}` region, because a whole-file check is falsely RED on the correct component.** `delayDuration={200}` further down the file carries the photo cap's digits as a substring, so `expect(CODE).not.toContain("20")` fails against a component that spells the cap nowhere. Narrowing to the parsed options object is 16.1-PATTERNS § S-2's other precedented escape, used here ALONGSIDE stripping rather than instead of it — and the narrowing THROWS if it matches nothing, so a restructured widget reports itself instead of silently asserting over an empty string.
+- [16.1-04]: **The prohibited literals are derived from the imported constants, never typed out.** The test forbids `String(LISTING_MAX_BYTES)`, `String(LISTING_MAX_PHOTOS)`, `LISTING_UPLOAD_PRESET` and each entry of `LISTING_ALLOWED_FORMATS` — so if the declaration's numbers ever change, the prohibition follows them instead of going quietly stale against a value nothing uses. The one hard-coded literal is `fitout_listing_v1`, asserted alongside the derived one so a rename cannot leave the old name behind.
+- [16.1-04]: **`sources` is pinned in BOTH directions, and the second half is the one that matters.** `toContain('sources: ["local"]')` alone would stay green if a THIRD source were appended, because the substring survives; the separate `not.toMatch(/["']url["']/)` and `not.toMatch(/["']camera["']/)` prohibitions are what actually bound the option. Mutation 2 reds both, which is how the pair was confirmed to be doing two different jobs.
 - [16.1-03]: **The reconciler is `scripts/cloudinary-preset.ts` run through `tsx`, not a `.mjs` run through `node`** (16.1-PATTERNS named this as a choice the plan had to make out loud). Plain `node` can neither `import` a `.ts` file nor resolve the `@/` alias, so a `.mjs` reconciler would have had to RE-SPELL the transformation string — a second copy of the one value the phase exists to keep single, which would make `--verify` compare the account against the script's own private spelling rather than against the declaration. **The cost is recorded rather than absorbed:** `tsx` is not a declared devDependency; it resolves at 4.22.4 via `drizzle-kit@0.31.10` and `vite@8.0.16`, and four shipped scripts (`db:seed`, `db:test:setup`, `email:previews`, `ops:alerts`) already rest on that same transitive. The header carries `verify-workflows.mjs:116-121`'s rule verbatim: the day it becomes unresolvable, the fix is a dependency decision to raise, never the deletion of the reconciler.
 - [16.1-03]: **`fetch_format` is the script's explicit, PINNED guess for the `f_` component's long key, and any other returned key is a hard failure.** Probe E12 measured the Admin API returning `settings.transformation` as a parsed array of objects, but that preset predates the format-conversion component, so the vendor's spelling for `f_` was never observed. The script canonicalises both sides through one table and treats an unknown short prefix (throw) or an unrecognised returned long key (difference line) as a FAILURE with the raw payload printed — never a skip, because "I did not understand this" and "this agrees" must not be the same outcome. **16.1-07's real `--verify` is where the spelling is measured; if the table needs a row that is a one-line change at `scripts/cloudinary-preset.ts` + `tests/design/cloudinary-preset-script.test.ts:86` and the fixture at `:147`, made with evidence in hand.**
 - [16.1-03]: **Exit 3 means "the tool could not LOOK", in full — not only "no credential".** The plan's contract enumerated the absent-credential case; a rejected credential (401/403), an unanswered Admin API and an unexpected status all mean nothing was checked, and reporting any of them as drift is exactly what the contract's own stated reason forbids ("would train people to ignore the check"). All four now print the same `THIS IS *NOT* A DRIFT FINDING` banner and exit 3. CI structurally holds no Cloudinary credential (`T-11-CISECRET`), so exit 3 is the code CI would see.
@@ -1365,8 +1370,29 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-26T14:43:00.462Z
-Stopped at: Completed 16.1-01-PLAN.md — the upload declaration. 1 of 7 plans done; wave 1 closed.
+Last session: 2026-08-26T18:14:33.000Z
+Stopped at: Completed 16.1-04-PLAN.md — the widget block. 4 of 7 plans done; wave 2 has only 16.1-05 left.
+
+The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
+from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
+limit in a toast and nothing in our code enforced one), `clientAllowedFormats: [...LISTING_ALLOWED_FORMATS]`
+(U2 — a spread, so the picker hint and the preset gate are literally one array), `sources: ["local"]`
+(U3 — the remote-address source is a documented client-side-validation bypass, T-16.1-15, and we were
+offering it from our own UI), a clamped `maxFiles` derived from the remaining count (D-195), the preset
+as a TOP-LEVEL PROP (D-194) and `listingUploadRefusal` in `onError` (D-186). Two hunks, 103 lines, and
+the `src={photo.url}` render is asserted unchanged rather than promised unchanged.
+
+⚠ **THIS PLAN RAN ACROSS AN INTERRUPTION AND THE SEAM IS VISIBLE IN THE LOG.** Task 1 is `fe181c6`;
+Task 2 is `d262b98`, written by the interrupted run but committed by the continuation, which re-ran
+BOTH mandated mutations rather than trusting transcripts it had not watched. Both reproduced exactly.
+
+⚠ **`npm test` needs Docker Postgres up on this box** — the suite failed its global setup with
+`[test-db] cannot reach the test database` until `npm run db:up`. That is the preflight working, not a
+regression; 185 files / 2128 tests passed immediately afterwards. Design suite is 63 files / 1201
+passed, and `npx vitest run tests/listing` still does not collect the new file — `npm run test:design`
+does.
+
+<details><summary>Previous session (16.1-01 — the upload declaration, superseded 2026-08-27)</summary>
 
 `src/lib/listing/upload-policy.ts` is layer 1 of RESEARCH § R-1.6 and is now the only place in the
 repo that spells the preset name, the byte ceiling, the 2048 edge cap, the six formats, the incoming
@@ -1390,6 +1416,8 @@ in prose without the token on purpose, and the test pins the absence over stripp
 ⚠ `f_auto` makes `cloudinary-provenance.ts:22-23`'s extension-agnosticism LOAD-BEARING: a stored asset
 may now legitimately carry an extension the publicId does not. Anyone "tightening" that clause breaks
 every HEIC upload. The constant's docblock says so; this is the second place it is written down.
+
+</details>
 
 <details><summary>Previous session (16.1 planning, superseded 2026-08-26)</summary>
 
