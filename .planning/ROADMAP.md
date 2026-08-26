@@ -665,7 +665,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 16.1-06-PLAN.md — Seven comments that stop promising declined work, and teardown on the two leaking e2e cases
+- [x] 16.1-06-PLAN.md — Seven comments that stop promising declined work, and teardown on the two leaking e2e cases
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -798,7 +798,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
-| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 5/7 | In Progress|  |
+| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 6/7 | In Progress|  |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |

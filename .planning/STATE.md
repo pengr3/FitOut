@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: "Completed 16.1-05-PLAN.md — the orphan sources. WAVE 2 IS COMPLETE; 5 of 7 plans done. D-187's destroy ships in persistPhoto's post-provenance cap branch and D-188's in softDeleteListing, both best-effort, both handling uploader.destroy's two failure shapes. The unsafe placement (destroy above the provenance gate = an arbitrary-delete primitive against our own Cloudinary account) was applied and watched turning SIX assertions red, including a real destroy of `fitout/listings/<id>/../../avatars/victim`, then reverted. One measured finding for 16.1-06/07: D-188's behavioural pair is BLIND to a bare positional move of the photo read, so a source-ordering assertion was added (Rule 2). The preset `fitout_listing_v1` still does not exist on the Cloudinary account — 16.1-07's operator step."
-last_updated: "2026-08-26T18:40:25.963Z"
+stopped_at: "Completed 16.1-06-PLAN.md — seven truthful comments and an e2e suite that stops billing us. WAVE 3's only plan is done; 6 of 7 plans complete, 16.1-07 (UAT) is all that remains. No file under src/ or e2e/ still promises a Phase 16.1 orphan audit or a Phase 16.1 pixel guard: D-191 is recorded at all three of its sites WITH the condition that reverses it (a server-side image decoder), and D-187's declined sweep at both avatar-path sites. ONE CORRECTION TO THE PLAN'S OWN WORDING, recorded because it matters for 16.1-07: removeAvatarAction nulls the row BEFORE the destroy, so the leftover it can leave is a TRUE orphan, not abandoned-but-referenced — that phrase is true only of the e2e assets. Both leaking e2e cases now end by driving the shipped Remove photo control; Phase 16 deferred item D4 is DISCHARGED. The preset `fitout_listing_v1` still does not exist on the Cloudinary account — 16.1-07's operator step, along with the credential-bearing check that a local run of avatar-crop.spec.ts now leaves the fitout/avatars count UNCHANGED (28 as of 2026-08-26)."
+last_updated: "2026-08-26T19:04:28.548Z"
 last_activity: 2026-08-26
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 128
-  completed_plans: 131
+  completed_plans: 132
   percent: 62
 ---
 
@@ -45,11 +45,12 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 16.1 (upload-hardening-storage-economy) — EXECUTING
-Plan: 6 of 7
-Current Plan: 6
+Plan: 7 of 7
+Current Plan: 7
 Total Plans in Phase: 7
-Status: Ready to execute — **WAVE 2 IS COMPLETE** (16.1-01 … 16.1-05). Wave 3 is 16.1-06 (stale
-comments + e2e teardown) and 16.1-07 (UAT, the operator's `--apply` step).
+Status: Ready to execute — **WAVE 3 IS COMPLETE** (16.1-06). Only 16.1-07 (UAT) remains, and it
+is the phase's operator step: run `npm run cloudinary:preset -- --apply` to create
+`fitout_listing_v1` on the account, then the credential-bearing walkthrough.
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -755,6 +756,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 16.1 P03 | 21min | 2 tasks | 3 files |
 | Phase 16.1 P04 | ~30min across an interruption | 2 tasks | 2 files |
 | Phase 16.1 P05 | 18min | 3 tasks | 4 files |
+| Phase 16.1 P06 | 16min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1261,6 +1263,9 @@ Recent decisions affecting current work:
 - [Phase 16.1]: signListingUpload deleted; signUploadParams is the only Cloudinary upload signer — Re-grepped before deleting: sign/route.ts:109 was its only caller repo-wide. Its {timestamp, folder} type could not carry a preset, and two signers for one job was the duplication phase 16.1 exists to end. Path 5b now routes through signUploadParams, closing RESEARCH F-1.
 - [Phase 16.1]: 16.1-05: D-187 shipped: persistPhoto destroys the asset it refuses, in the post-provenance cap branch ONLY — a destroy above isOwnCloudinaryAsset would be an arbitrary-delete primitive against our own Cloudinary account; pinned on five behavioural paths and by a narrowed source-ordering assertion, both watched RED
 - [Phase 16.1]: 16.1-05: D-188 shipped: softDeleteListing destroys its photos, rows read BEFORE the deletedAt write; the listing_photo rows survive (GATE-06) and there is still no restore path anywhere
+- [Phase ?]: D-191 recorded in source at all three sites as closed-as-UNNECESSARY with its reversal condition (a server-side image decoder); no pixel guard, no sharp, no header parser added
+- [Phase ?]: D-187's declined sweep now stated at both avatar-path sites, with which kind of leftover each leaves: removeAvatarAction nulls the row before the destroy, so its leftover is a TRUE orphan (the plan's abandoned-but-referenced wording was right only for the e2e assets)
+- [Phase ?]: D-192: both leaking e2e cases in avatar-crop.spec.ts end by driving the shipped Remove photo control — no afterAll, no fixture, no seed, no credential in the test process; Phase 16 deferred item D4 DISCHARGED
 
 ### Pending Todos
 
@@ -1374,7 +1379,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-26T18:39:52.560Z
+Last session: 2026-08-26T19:04:21.731Z
 Stopped at: Completed 16.1-04-PLAN.md — the widget block. 4 of 7 plans done; wave 2 has only 16.1-05 left.
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
