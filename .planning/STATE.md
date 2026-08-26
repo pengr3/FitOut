@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: "Phase 16.1 EXECUTING — plan 16.1-01 (wave 1) COMPLETE, 3/3 tasks, commits ab795ac / bdcc0b6 / e1405d3. `src/lib/listing/upload-policy.ts` now declares the preset name, the byte ceiling as `10 * 1024 * 1024` (the vendor ceiling on this account is EXACTLY 10485760, zero headroom), the 2048 long-edge cap, the six-format array, the `f_auto`-carrying incoming transformation and `LISTING_MAX_PHOTOS` — plus the three D-186 refusal sentences and the pure `listingUploadRefusal()` matcher. `MAX_PHOTOS` left the \"use server\" module it could never be exported from; the shipped `That photo didn't upload.` sentence has one home and identical bytes. Gates: `npm run build` exit 0 (61 design files, 1116 passed), tsc 0, photos.test.ts + use-server-exports.test.ts green untouched, `drizzle/` at 0025, avatar ceiling byte-unchanged (D-183). TWO PLAN-INTERNAL CONTRADICTIONS were auto-resolved and are documented in the SUMMARY: the round decimal spelling of the ceiling is deliberately never typed out in upload-policy.ts (the verify-workflows.mjs:24-32 falsely-red-prohibition trap), and a spelling pin was added to the test so the module's docblock is not describing a gate that does not exist. ⚠ The Cloudinary preset `fitout_listing_v1` still does NOT exist on the account — 16.1-04's reconciler creates it; the mechanism fails closed until then. NEXT STEP: execute 16.1-02 (sign-route equality gate, wave 2)."
-last_updated: "2026-08-26T14:20:00.000Z"
-last_activity: 2026-08-26 -- 16.1-01 executed: the upload declaration + its three gates
+stopped_at: Completed 16.1-01-PLAN.md — the upload declaration. 1 of 7 plans done; wave 1 closed.
+last_updated: "2026-08-26T14:47:50.597Z"
+last_activity: 2026-08-26
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 128
-  completed_plans: 127
+  completed_plans: 128
   percent: 62
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 16.1 (upload-hardening-storage-economy) — EXECUTING
-Plan: 2 of 7
-Current Plan: 2
+Plan: 3 of 7
+Current Plan: 3
 Total Plans in Phase: 7
-Status: Executing — 16.1-01 (wave 1) complete; 16.1-02 is next
+Status: Ready to execute
 
 **Phase 14 (Host Tooling) is COMPLETE** (2026-08-23) — corrected 2026-08-25. This block previously
 read "READY FOR VERIFICATION — no 14-VERIFICATION.md exists yet", which was stale: the file DOES exist
@@ -476,7 +476,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-26 -- 16.1-01 executed: the upload declaration + its three gates
+Last activity: 2026-08-26
 
 ## Performance Metrics
 
@@ -750,6 +750,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 15 P04 | 78min | 3 tasks | 5 files |
 | Phase 15 P09 | 21min | 2 tasks | 3 files |
 | Phase 15 P10 | 37 | 2 tasks | 2 files |
+| Phase 16.1 P02 | 19min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1243,6 +1244,8 @@ Recent decisions affecting current work:
 - [Phase 15]: D-15-09b: five of the seven new live regions stay content-named — each carries a SERVER refusal sentence, and on VoiceOver a named region can be announced by its name INSTEAD of its content, which would trade the reason for a label
 - [Phase 15]: D-15-09c: the composition gate bans SiteChrome, not the plan's PublicHeader — no component by that name is exported anywhere in src/, and a gate banning a name nothing exports is green forever
 - [Phase 15]: D-15-09d: a green-but-unprobed gate is committed with its mutation walk marked NOT YET RUN in its own header, so an executor that dies mid-walk cannot leave behind a header claiming reds nobody watched
+- [Phase 16.1]: sign/route.ts is a required-key equality gate: no signature is minted on either path without upload_preset === LISTING_UPLOAD_PRESET — Cloudinary validates a signature against exactly the param set it receives, so the server cannot ADD the incoming transformation to a client upload - it can only refuse to sign without it. transformation/allowed_formats/eager stay out of ALLOWED_SIGN_KEYS because a client transformation CHAINS AFTER the preset's (probe E11 stored 4000x6000 from a 2048-capped preset).
+- [Phase 16.1]: signListingUpload deleted; signUploadParams is the only Cloudinary upload signer — Re-grepped before deleting: sign/route.ts:109 was its only caller repo-wide. Its {timestamp, folder} type could not carry a preset, and two signers for one job was the duplication phase 16.1 exists to end. Path 5b now routes through signUploadParams, closing RESEARCH F-1.
 
 ### Pending Todos
 
@@ -1354,7 +1357,7 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-26T14:20:00.000Z
+Last session: 2026-08-26T14:43:00.462Z
 Stopped at: Completed 16.1-01-PLAN.md — the upload declaration. 1 of 7 plans done; wave 1 closed.
 
 `src/lib/listing/upload-policy.ts` is layer 1 of RESEARCH § R-1.6 and is now the only place in the
@@ -1475,7 +1478,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/16.1-upload-hardening-storage-economy/16.1-CONTEXT.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
