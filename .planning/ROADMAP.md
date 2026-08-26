@@ -648,7 +648,17 @@ Phase 16 already edits that neighbourhood.
   6. Assets orphaned by draft abandonment, upload failure, and Phase 16's D-169 best-effort avatar destroy
      are accounted for.
 
-**Plans**: TBD
+**Plans**: 7 plans in 4 waves
+
+Plans:
+- [ ] 16.1-01-PLAN.md — The one declaration: `upload-policy.ts`, the three refusal sentences, and the two pure gates that pin them (wave 1)
+- [ ] 16.1-02-PLAN.md — The sign route's required-key equality gate, path 5b closed (F-1), and the exclusion source-assertion (wave 2)
+- [ ] 16.1-03-PLAN.md — `scripts/cloudinary-preset.ts` — the `--apply` / `--verify` reconciler over the committed declaration (wave 2)
+- [ ] 16.1-04-PLAN.md — The widget: `maxFileSize`, `clientAllowedFormats`, `sources: ["local"]`, a derived `maxFiles`, the preset prop and three sentences (wave 2)
+- [ ] 16.1-05-PLAN.md — The orphan sources: `persistPhoto`'s destroy strictly below provenance, and `softDeleteListing`'s (wave 2)
+- [ ] 16.1-06-PLAN.md — Seven comments that stop promising declined work, and teardown on the two leaking e2e cases (wave 3)
+- [ ] 16.1-07-PLAN.md — The UAT checklist, the preset applied and verified, and criterion 4's backfill decision recorded *(checkpoint: credential-bearing human walk)* (wave 4)
+
 **UI hint**: no — this is a pipeline and validation phase; the only user-visible surface is error copy.
 
 **Inputs already on disk:** `.planning/phases/16-image-crop-framing/16-CONTEXT.md` § Deferred Ideas
@@ -766,7 +776,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
-| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 0/? | Not started — inserted 2026-08-25 from the Phase 16 scope split (D-166) | - |
+| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 0/7 | Planned 2026-08-26 — 7 plans in 4 waves; R-1 answered by measurement (named upload preset, D-194 Option A), GATE-06 intact | - |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
