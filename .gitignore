@@ -27,6 +27,10 @@
 .DS_Store
 *.pem
 
+# the detached `npm run dev` log a UAT walk writes when the dev server is started
+# for the operator (16.1-07). Runtime output, never repo state.
+/.next-dev.log
+
 # debug
 npm-debug.log*
 yarn-debug.log*
