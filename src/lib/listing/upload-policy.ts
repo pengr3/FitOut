@@ -171,14 +171,46 @@ export const LISTING_ALLOWED_FORMATS = [
  * moves, the derivation breaks silently, the docblock above becomes false, and nothing goes red.
  * `tests/design/upload-policy.test.ts` sweeps a band of candidate edge values to keep that honest.
  *
- * `f_auto` IS NOT DECORATION. Without a format conversion a HEIC upload is STORED and DELIVERED as
- * `image/heic`, which Chrome and Firefox cannot render — and all eight render sites are a plain
- * `<img src>`. Measured across five inputs on 2026-08-26: it turns HEIC into jpg, picks jpg for
- * photographic input, preserves alpha on a transparent PNG (where `f_jpg` flattens it onto white),
- * and never once chose webp or avif. `f_jpg`'s only advantage is a deterministic stored extension,
- * and that buys nothing here, because `cloudinary-provenance.ts:22-23` already declines to require
- * the url and the publicId to agree about the extension. That accepted residual is now LOAD-BEARING
- * — nobody should "tighten" it later.
+ * `f_auto` IS NOT DECORATION, AND THE REASON IS NARROWER THAN THIS PARAGRAPH USED TO CLAIM. Without a
+ * format conversion a HEIC upload is STORED and DELIVERED as `image/heic`, which Chrome and Firefox
+ * cannot render — and all eight render sites are a plain `<img src>`. That is the whole job, and it
+ * is the part that reproduced.
+ *
+ * ⚠ CORRECTED 2026-08-27 — THE 2026-08-26 MEASUREMENT THIS PARAGRAPH RECORDED DOES NOT REPRODUCE, and
+ * it is corrected rather than deleted so the next reader knows the claim was tested and not merely
+ * softened. It said `f_auto` "turns HEIC into jpg, picks jpg for photographic input … and never once
+ * chose webp or avif". Plan 16.1-07's live run against the real account, through the real preset,
+ * measured this instead:
+ *
+ *   - a real HEIC through this preset was stored as **png**, not jpg;
+ *   - the same HEIC with NO transformation at all — the control — was stored as **heic**;
+ *   - a 900x700 random-noise PNG was stored as png in all four of: through this preset; with this
+ *     transformation inline as a string; with it inline as a structured object; and with the
+ *     format-conversion component ALONE. Its format was never changed.
+ *
+ * WHAT SURVIVES, AND IT IS THE ONLY THING THIS COMPONENT IS LOAD-BEARING FOR: the HEIC pair is a
+ * controlled experiment — same bytes, same endpoint, one variable — and it shows the conversion DOES
+ * move HEIC off HEIC. F-2's requirement is met. What is NOT true is any prediction about which format
+ * it picks. Do not write code, tests or copy that assumes a stored extension.
+ *
+ * ⚠ AND IT CAN COST BYTES, IN A PHASE NAMED FOR STORAGE ECONOMY. That HEIC went in at 448,047 B and
+ * was stored at 2,512,665 B — a 5.6x INFLATION, on the exact input class this component exists to
+ * handle. The transformation is still correct to keep, because an unrenderable photo is a broken
+ * listing and that outranks its size, but the trade is real and is recorded here rather than
+ * discovered later by someone reading a storage bill. The alpha-preservation claim from 2026-08-26
+ * was NOT re-tested on 2026-08-27 and is left out rather than repeated: it came from the same run as
+ * the claims that failed, so it no longer carries evidence.
+ *
+ * `f_jpg`'s only advantage is a deterministic stored extension, and that buys nothing here, because
+ * `cloudinary-provenance.ts:22-23` already declines to require the url and the publicId to agree
+ * about the extension. That accepted residual is now LOAD-BEARING — nobody should "tighten" it later,
+ * and the measurement above is why: the stored extension is not predictable even in principle.
+ *
+ * ⚠ ONE MORE THING THE SAME RUN ESTABLISHED, because it changes what can be verified about this line:
+ * Cloudinary APPLIES this component but does NOT PERSIST it in the preset the Admin API hands back.
+ * `scripts/cloudinary-preset.ts` therefore cannot check that it is set, and says so at
+ * `VENDOR_NORMALISES_AWAY` with the evidence. What proves this component is live is the UAT's product
+ * check — a real HEIC uploads AND renders — not a scripted diff.
  *
  * `eager` IS THE WRONG TOOL and its absence is deliberate. It DERIVES an extra asset and leaves the
  * ORIGINAL stored, which fails criteria 3 and 5 outright, and the derived url carries transformation
