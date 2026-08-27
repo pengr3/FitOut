@@ -692,6 +692,28 @@ async function runApply(ctx: AdminContext): Promise<void> {
  * this module for its pure half must not run a single check or print a single line.
  */
 export async function main(argv: readonly string[]): Promise<void> {
+  // ── WHY EVERY EXIT BELOW IS `process.exitCode` AND NEVER `process.exit()` ──────────────────────
+  // MEASURED 16.1-07, 2026-08-27, Node v24.13.0 on Windows. This script's ONLY product is a
+  // machine-readable exit code, so an exit code it never emits on purpose is a contract defect and
+  // not a cosmetic one.
+  //
+  // `process.exit()` tears the process down SYNCHRONOUSLY. Called while an undici socket from a
+  // `fetch` above is still closing, libuv aborts on a handle it is asked to close twice:
+  //
+  //     Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76
+  //
+  // and the shell sees 127 — which conventionally means COMMAND NOT FOUND. Observed twice, on the
+  // 404 branch specifically: that branch returns from the verify path BEFORE the account-wide scan,
+  // so exactly one socket is mid-close when the exit fires. The verdict TEXT was correct every time.
+  // Only the status was clobbered, which is the worst shape this bug could take — a human reading the
+  // output sees the right answer and never suspects the number a script would have branched on.
+  //
+  // And the branch it fired on is the one that means THE SECURITY CONTROL IS MISSING.
+  //
+  // So: set the code, return, and let the event loop drain. Node exits with it once the last handle
+  // is genuinely closed. Anyone adding a new exit path here must do the same — a bare
+  // `process.exit()` after any network call reintroduces this exactly.
+
   // ── ARGUMENTS FIRST, BEFORE ANY CREDENTIAL WORK ────────────────────────────────────────────────
   // So every hard stop below is reachable with no environment at all, which is what makes them
   // testable and what makes a typo cheap to discover.
@@ -706,7 +728,8 @@ export async function main(argv: readonly string[]): Promise<void> {
     console.error("");
     console.error("A misspelled flag must not run zero checks and exit 0 — that green would be a");
     console.error("lie, and indistinguishable from a real one. Hard stop.");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   if (modes.length === 0) {
     console.error("FATAL: no mode given. This script does not default to either one.");
@@ -714,7 +737,8 @@ export async function main(argv: readonly string[]): Promise<void> {
     console.error("");
     console.error("--apply MUTATES live vendor state; --verify only reads. Guessing which one was");
     console.error("meant is not a kindness. Hard stop.");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   if (modes.length > 1) {
     console.error(`FATAL: ${modes.length} modes given [${modes.join(", ")}]. Give exactly one.`);
@@ -722,7 +746,8 @@ export async function main(argv: readonly string[]): Promise<void> {
     console.error("");
     console.error("--apply already re-runs the verify path and exits on ITS result, so the pair is");
     console.error("never needed and asking for both hides which one was intended. Hard stop.");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   const mode = modes[0];
 
@@ -739,7 +764,8 @@ export async function main(argv: readonly string[]): Promise<void> {
     console.error("  in .env.local (or export them) and re-run. CI structurally holds no Cloudinary");
     console.error("  credential (T-11-CISECRET), so this exit code is expected there and must never");
     console.error("  be read as drift.");
-    process.exit(3);
+    process.exitCode = 3;
+    return;
   }
 
   const cloudName = String(process.env.CLOUDINARY_CLOUD_NAME);
@@ -766,12 +792,14 @@ export async function main(argv: readonly string[]): Promise<void> {
       console.error(`FATAL: ${cause.message} THIS IS *NOT* A DRIFT FINDING.`);
       console.error("════════════════════════════════════════════════════════════════════════════");
       for (const line of cause.detail) console.error(`  ${line}`);
-      process.exit(3);
+      process.exitCode = 3;
+      return;
     }
     if (cause instanceof TransformationParseError) {
       console.error("");
       console.error(`FATAL: ${cause.message}`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
     throw cause;
   }
@@ -789,7 +817,8 @@ export async function main(argv: readonly string[]): Promise<void> {
   if (failures.length > 0) {
     console.error(`${failures.length} checked propert(ies) FAILED:`);
     for (const failure of failures) console.error(`  - ${failure}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log(`All checked properties hold for preset "${DECLARED_PRESET.name}".`);
 }
