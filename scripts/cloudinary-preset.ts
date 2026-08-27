@@ -70,6 +70,12 @@
 // This script prints that sentence in its own output, so the person reading a green does not have to
 // have read this header to know what the green is worth.
 //
+// AND ONE DECLARED COMPONENT IS INVISIBLE TO IT ENTIRELY. The vendor APPLIES the format-conversion
+// component but does not PERSIST it in the preset it hands back, so `--verify` can say nothing about
+// whether it is set. That is measured, not assumed, and the measurement is written out in full beside
+// `VENDOR_NORMALISES_AWAY` below. Anyone who sees a check that looks missing should read it there
+// before "restoring" one: a check that fires on a correct account is an alarm nobody re-runs.
+//
 // ONE FREE PROPERTY MAKES THE RESIDUAL TOLERABLE: the mechanism fails CLOSED. Delete or rename the
 // preset on the dashboard and Cloudinary answers `Upload preset not found` (measured, probe E7) —
 // NO upload succeeds at all. There is no silent-degradation mode in which uploads keep working
@@ -121,13 +127,18 @@ const CREDENTIAL_KEYS = [
 // converted to the other, and doing it with one table used in both directions is what stops the
 // diff from silently comparing a thing to itself.
 //
-// ⚠ THE `f` ROW IS THE ONE NOT CONFIRMED AGAINST A LIVE GET. Probe E12's preset was created before
-// the format-conversion component was chosen, so the long key the vendor uses for it was never
-// measured. This script must not guess and pass: an unknown short prefix, or a returned long key
-// this table does not know, is a HARD FAILURE with the raw payload printed — never a skip. Plan
-// 16.1-07's `--apply` + `--verify` UAT run is where the real spelling is observed; if this table
-// needs a row, that is a one-line change made with the evidence in hand rather than a green that
-// meant nothing.
+// ⚠ THE `f` ROW WAS THE ONE NOT CONFIRMED AGAINST A LIVE GET, AND IT HAS NOW BEEN MEASURED — the
+// answer was not a rename. Probe E12's preset predated the format-conversion component, so the long
+// key the vendor uses for it was never seen. Plan 16.1-07's live `--apply` + `--verify` run on
+// 2026-08-27 settled it: the vendor returns NO key for that component at all. The persisted preset
+// carries exactly four keys and the format-conversion component is absent from every one of them.
+// The row below stays, because the DECLARATION still spells that component and this table is what
+// parses it — and because if the vendor ever starts persisting the key, it must be recognised rather
+// than reported as an unknown vendor key. What changed is not this table but what ABSENCE means; see
+// `VENDOR_NORMALISES_AWAY` below.
+//
+// The hard-stop rule is unchanged and still absolute: an unknown short prefix, or a returned long key
+// this table does not know, is a HARD FAILURE with the raw payload printed — never a skip.
 
 /** short prefix → the long key the Admin API returns for it. */
 export const TRANSFORMATION_KEYS: Readonly<Record<string, string>> = {
@@ -145,6 +156,47 @@ const NUMERIC_KEYS: ReadonlySet<string> = new Set(["width", "height"]);
 export const KNOWN_LONG_KEYS: ReadonlySet<string> = new Set(
   Object.values(TRANSFORMATION_KEYS),
 );
+
+/**
+ * ── THE ONE THING THIS TOOL CANNOT CHECK, AND THE MEASUREMENT THAT PROVES WHY ───────────────────
+ *
+ * Declared components that Cloudinary APPLIES at upload but does NOT PERSIST in the preset it hands
+ * back from `GET /upload_presets/<name>`. Their ABSENCE from the returned object is not drift; a
+ * PRESENT value that disagrees with the declaration still is.
+ *
+ * ⚠ DO NOT "RESTORE" THE MISSING CHECK. It looks like a hole. It was measured, and the measurement
+ * is why the hole is the honest answer.
+ *
+ * WHAT WAS OBSERVED (16.1-07 UAT, 2026-08-27, against the real account). The preset was created from
+ * this repo's declaration and immediately read back. The returned transformation object carried
+ * exactly FOUR keys — the crop mode, the two dimensions and the quality — and the format-conversion
+ * component was absent from it under NO spelling at all. Not renamed. Gone.
+ *
+ * WHY THAT COULD NOT BE READ CHARITABLY. "The vendor drops a key it still honours" and "the
+ * transformation you believe you applied was never applied" produce an IDENTICAL GET, and they have
+ * opposite consequences: the second one means an image format that browsers cannot render is stored
+ * and delivered as-is, and this phase's whole render-side guarantee is silently false. So it was
+ * settled by experiment, not by assumption.
+ *
+ * THE EXPERIMENT (six probe uploads, ALL SIX DESTROYED afterwards, zero residue on the account). The
+ * decisive pair is E and F: the same real source file, through the same endpoint, differing only in
+ * whether this preset's transformation was applied. WITH the preset, the stored asset's format was
+ * CHANGED. WITHOUT any transformation — the control — the stored asset kept the source's own format.
+ * Four further probes established that the effect is not visible on an input the optimiser has no
+ * reason to convert, which is why the control pair, and not a single upload, is what decides.
+ *
+ * CONCLUSION. The transformation IS applied at upload and the format conversion DOES happen. The
+ * component missing from the GET is a VERIFIER-ONLY false alarm — the vendor normalises it out of the
+ * persisted representation while still honouring it.
+ *
+ * WHAT THIS COSTS, SAID OUT LOUD RATHER THAN IMPLIED AWAY. This tool no longer proves that the format
+ * conversion is present on the preset, because the vendor gives it no way to. What proves it is the
+ * UAT's product check — a real file of that format uploads AND renders on a human's screen. That is a
+ * weaker mechanism than a scripted diff, and pretending otherwise by keeping a check that fires on a
+ * correct account would be worse: an alarm that always fires is an alarm nobody re-runs, which is the
+ * same law as the vacuous-green rule, pointed the other way.
+ */
+export const VENDOR_NORMALISES_AWAY: ReadonlySet<string> = new Set([TRANSFORMATION_KEYS.f]);
 
 /** Base class so a caller can catch every parse refusal without enumerating the subclasses. */
 export class TransformationParseError extends Error {}
@@ -298,6 +350,9 @@ export function presetDrift(remote: RemotePreset, declared: DeclaredPreset): str
     const component = remoteTransformation[0] as Record<string, unknown>;
     for (const [key, want] of Object.entries(expected)) {
       if (!(key in component)) {
+        // Absent AND known to be normalised away by the vendor is not drift — measured, see
+        // `VENDOR_NORMALISES_AWAY`. Absent for any other key still is.
+        if (VENDOR_NORMALISES_AWAY.has(key)) continue;
         lines.push(
           `transformation.${key}: ABSENT on the account, declaration says ${JSON.stringify(want)}`,
         );
@@ -531,11 +586,18 @@ async function runVerify(ctx: AdminContext): Promise<string[]> {
       : null;
   for (const [key, want] of Object.entries(expected)) {
     const have = component === null ? undefined : component[key];
+    // The echo must agree with `presetDrift` about what absence means, or the printed row and the
+    // authoritative drift list would contradict each other on a correct account.
+    const normalisedAway = have === undefined && VENDOR_NORMALISES_AWAY.has(key);
     reportCheck(
       failures,
       `transformation.${key}`,
-      component !== null && have === want,
-      `account=${JSON.stringify(have)}  declared=${JSON.stringify(want)}`,
+      component !== null && (normalisedAway || have === want),
+      normalisedAway
+        ? `NOT PERSISTED by the vendor, and that is expected — declared=${JSON.stringify(want)}. ` +
+            `It IS applied at upload; this tool cannot see it. Measured 2026-08-27, see this ` +
+            `script's note. Do not restore a check here.`
+        : `account=${JSON.stringify(have)}  declared=${JSON.stringify(want)}`,
     );
   }
 

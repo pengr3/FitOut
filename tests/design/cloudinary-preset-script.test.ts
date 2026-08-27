@@ -78,11 +78,17 @@ describe("canonicalizeTransformation — total over our own declaration, hostile
     expect(typeof canonical.width).toBe("number");
     expect(typeof canonical.height).toBe("number");
 
-    // ⚠ THE ONE ROW NOT CONFIRMED AGAINST A LIVE GET. E12's preset predates the format-conversion
-    // component, so the long key the vendor returns for `f_` was never measured. `fetch_format` is
-    // this script's explicit guess, and THIS LINE IS WHERE THE CORRECTION LANDS when plan 16.1-07's
-    // real `--verify` run observes the true spelling. It is pinned rather than left loose precisely
-    // so the change is deliberate and one line, made with the evidence in hand.
+    // ⚠ THIS ROW IS NOW MEASURED, AND THE ANSWER WAS NOT A RENAME. Plan 16.1-07's live `--verify`
+    // run on 2026-08-27 read the created preset back: the vendor returns NO key for the
+    // format-conversion component at all. The persisted object carries four keys and this one is
+    // absent from every one of them.
+    //
+    // THE PIN STAYS EXACTLY AS IT WAS, and that is the point rather than an oversight. This assertion
+    // is about the PARSER, not about the account: the declaration still spells that component, so
+    // `canonicalizeTransformation` must still turn it into something rather than throw — and if it
+    // silently dropped it, the coverage assertion below would go red. What the measurement changed is
+    // what the ABSENCE of this key on a remote preset MEANS, which lives in `VENDOR_NORMALISES_AWAY`
+    // in the script and is pinned by the fixture below.
     expect(canonical.fetch_format).toBe("auto");
   });
 
@@ -134,17 +140,29 @@ describe("canonicalizeTransformation — total over our own declaration, hostile
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The single transformation component the Admin API should return for our declaration, in the shape
- * probe E12 measured. Built from the IMPORTED edge cap, so a moved `LISTING_MAX_EDGE_PX` moves the
- * fixture with it — and built from LITERALS for the non-numeric keys, deliberately independent of
- * `canonicalizeTransformation`, so describe 2 is not asserting the parser against itself.
+ * The single transformation component the Admin API ACTUALLY returns for our declaration. Built from
+ * the IMPORTED edge cap, so a moved `LISTING_MAX_EDGE_PX` moves the fixture with it — and built from
+ * LITERALS for the non-numeric keys, deliberately independent of `canonicalizeTransformation`, so
+ * describe 2 is not asserting the parser against itself.
+ *
+ * ⚠ FOUR KEYS, NOT FIVE, AND `fetch_format` IS MISSING ON PURPOSE. Do not "complete" this fixture.
+ * Probe E12's shape had five because E12 predated the format-conversion component; plan 16.1-07's
+ * live run on 2026-08-27 created the preset from this repo's own declaration and read it straight
+ * back, and what came back had exactly these four keys. The vendor APPLIES the format conversion at
+ * upload — proven by a controlled pair of probe uploads, with and without the preset, on a real file
+ * whose stored format changed only in the WITH case — but it does not PERSIST that component in the
+ * preset it hands back.
+ *
+ * SO THIS FIXTURE IS THE MEASUREMENT, and the assertion that `presetDrift` returns `[]` for it is
+ * what keeps the tool from crying wolf on a correct account. Add the fifth key back and this file
+ * goes green while the real `--verify` reds — a fixture asserting the shape we wish the vendor used.
+ * The script's `VENDOR_NORMALISES_AWAY` carries the full measurement and the reason.
  */
 const MATCHING_COMPONENT: Record<string, string | number> = {
   crop: "limit",
   width: LISTING_MAX_EDGE_PX,
   height: LISTING_MAX_EDGE_PX,
   quality: "auto",
-  fetch_format: "auto",
 };
 
 /** A remote preset that agrees with the declaration in every checked respect. */
@@ -165,6 +183,20 @@ describe("presetDrift — reports the drift it should, and none it should not", 
     // a line for everything would make every case below pass while the tool cried wolf on a
     // correct account — and an alarm that always fires is an alarm nobody re-runs.
     expect(presetDrift(matchingRemote(), DECLARED_PRESET)).toEqual([]);
+  });
+
+  it("still reports a PRESENT `fetch_format` that disagrees — the exemption is absence-only", () => {
+    // THE BOUNDARY OF THE ONE EXEMPTION, PINNED SO IT CANNOT WIDEN. `VENDOR_NORMALISES_AWAY` excuses
+    // this key being ABSENT, because the vendor measurably drops it from the persisted preset while
+    // still applying it. It excuses nothing else. An exemption whose edge is unpinned is how a
+    // narrow, measured allowance becomes a blanket skip in a later edit — and a blanket skip here is
+    // the vacuous green this whole file exists to make impossible.
+    const remote = matchingRemote();
+    remote.settings = {
+      ...remote.settings,
+      transformation: [{ ...MATCHING_COMPONENT, fetch_format: "not-what-we-declared" }],
+    };
+    expect(presetDrift(remote, DECLARED_PRESET).length).toBeGreaterThan(0);
   });
 
   it("reports a preset saved under a different name", () => {
