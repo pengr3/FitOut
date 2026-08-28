@@ -18,6 +18,14 @@
 //     the same preset, which the server adds because 5b takes no client params. Both sign only the
 //     set the caller will actually post — no extra params on one side. The api_secret is used only
 //     inside the signer and never returned.
+//   - SIGNED-PARAM VALUES (WR-01): the key set is only half of it, and the other half is what makes
+//     the "a caller cannot ADD one" claim below true ON OUR SIDE of the boundary rather than only
+//     on Cloudinary's. The string this endpoint signs is `key=value` pairs joined with `&`, so a
+//     VALUE containing an `&` is a smuggled parameter wearing a permitted key's name. All four
+//     admitted keys are therefore constrained: `folder` and the preset by equality, and — since
+//     WR-01 — `timestamp` to digits within an hour of our own clock and `source` to the one value
+//     the widget emits. See the block at path 5a for the vendor default this is deliberately
+//     redundant with, and why the redundancy is not dead weight.
 //
 // WHY THE PRESET IS A REQUIREMENT AND NOT A CONVENIENCE (D-194). The preset carries the incoming
 // transformation that bounds a stored photo in pixels and bytes, and the format gate that refuses
@@ -70,6 +78,25 @@ import { rateLimit } from "@/lib/rate-limit";
 // `tests/listing/cloudinary-sign.test.ts` counts the entries of this set and reads the tokens back
 // out of this file's stripped code, so a widening cannot land quietly.
 const ALLOWED_SIGN_KEYS = new Set(["folder", "source", "timestamp", "upload_preset"]);
+
+// The one value the widget's `source` key has ever carried — "upload widget", read out of a live
+// Chromium in probe E7 and re-observed end to end in 16.1-UAT Check 1. It is an equality gate rather
+// than a shape check for the same reason the preset is: this endpoint knows the exact set it is
+// signing for, so anything else is a caller inventing a value we have no meaning for.
+const WIDGET_SOURCE = "uw";
+
+// How far the client's clock may sit from ours before we refuse to sign its timestamp.
+//
+// ⚠ THE NUMBER IS THE VENDOR'S OWN HORIZON, NOT A PREFERENCE. Cloudinary rejects an upload whose
+// timestamp is more than an hour behind its server ("Stale request"), so on the PAST side this
+// refuses nothing the upload would not have refused anyway — it just refuses it here, with a
+// sentence, instead of at a third party. What it genuinely adds is the FUTURE side: without it the
+// validity window of the token this route mints is chosen by the caller, who can date a signature
+// years ahead and hold it. The accepted cost, said out loud: a browser whose clock is off by more
+// than an hour now gets a 400 from us rather than an upload. That machine's uploads were already
+// failing on the past side, and the log line below names the value so it is diagnosable in one look
+// rather than being discovered as "Invalid Signature" at the vendor.
+const SIGN_TIMESTAMP_SKEW_SECONDS = 3600;
 
 export async function POST(req: Request) {
   // 1. SESSION gate — no session, no signature.
@@ -154,6 +181,62 @@ export async function POST(req: Request) {
     if (paramsToSign.upload_preset !== LISTING_UPLOAD_PRESET) {
       return new Response("Bad Request — upload preset out of scope", { status: 400 });
     }
+
+    // ── THE VALUES OF THE OTHER TWO KEYS (WR-01) ────────────────────────────────────────────────
+    // Everything above this line gates key IDENTITY, plus the VALUES of the two keys that have a
+    // single correct answer. `source` and `timestamp` reached the signer exactly as the client
+    // wrote them, and that is a hole with a specific shape rather than an untidiness.
+    //
+    // The signer joins the params as `key=value` pairs with `&` between them. So a value that
+    // CONTAINS an `&` is not a value at all — it is an extra parameter wearing a permitted key's
+    // name. A timestamp of `1700000000&<a scaling directive>` passes all three gates above (four
+    // allow-listed keys, the exact folder, the exact preset) and the string it produces is
+    // byte-identical to the one Cloudinary derives from an upload that really carries that fourth
+    // parameter, because the alphabetical sort drops it between the timestamp and the preset. That
+    // is probe E11's upscale-past-the-cap — the thing this whole phase exists to prevent — reached
+    // THROUGH the gate rather than around it.
+    //
+    // ⚠ THIS CHECK IS REDUNDANT TODAY AND IT STAYS. `cloudinary@2.10.0` escapes `&` to `%26` in
+    // every signed value (signature version 2's `api_string_to_sign`), added by the vendor for
+    // precisely this attack, and `src/lib/cloudinary.ts` leaves `signature_version` unset so that
+    // default applies. Do not delete this as dead weight: the vendor's half is A DEFAULT IN A
+    // DEPENDENCY, not a control this repo owns. A `CLOUDINARY_URL` carrying `signature_version=1`,
+    // an explicit config change, or a downgrade each removes it, and none of the three is anything
+    // this repo would go red about. That is the same argument this phase makes about the upload
+    // preset — a control that lives outside the repo must not be silently depended on — aimed at
+    // the one dependency the paragraph above rests its "cannot add one" claim on.
+    // `tests/design/cloudinary-signature-encoding.test.ts` pins the vendor's half so it cannot go
+    // quietly either. Two independent things now have to fail before a param can be smuggled.
+    //
+    // A NUMBER *OR* A STRING OF DIGITS, DELIBERATELY. The four keys were measured in a live browser
+    // (probe E7); the JSON TYPE of this one was not. Refusing a numeric string would be this gate
+    // answering a question the measurement never asked, at the price of every live upload — while
+    // admitting one costs nothing, because "digits and nothing else" is the whole of what closes
+    // the smuggle. Arrays and objects are refused by the `typeof` pair: `String([1700000000])` is
+    // all digits, and the declared param type has no array in it.
+    const rawTimestamp = paramsToSign.timestamp;
+    const timestampSeconds = Number(rawTimestamp);
+    const timestampOk =
+      (typeof rawTimestamp === "number" || typeof rawTimestamp === "string") &&
+      /^\d+$/.test(String(rawTimestamp)) &&
+      Number.isSafeInteger(timestampSeconds) &&
+      Math.abs(timestampSeconds - Math.round(Date.now() / 1000)) <= SIGN_TIMESTAMP_SKEW_SECONDS;
+    if (!timestampOk) {
+      // The value is echoed to the SERVER LOG only — it is the client's own input, not a secret,
+      // and "which timestamp did it send" is the entire diagnosis for both a clock skew and an
+      // attempt. The response says nothing beyond the refusal.
+      console.warn(
+        `[cloudinary-sign] refused to sign a timestamp of ${JSON.stringify(rawTimestamp)} (WR-01).`,
+      );
+      return new Response("Bad Request — unexpected upload param", { status: 400 });
+    }
+    if (paramsToSign.source !== undefined && paramsToSign.source !== WIDGET_SOURCE) {
+      console.warn(
+        `[cloudinary-sign] refused to sign a source of ${JSON.stringify(paramsToSign.source)} (WR-01).`,
+      );
+      return new Response("Bad Request — unexpected upload param", { status: 400 });
+    }
+
     return Response.json({ signature: signUploadParams(paramsToSign) });
   }
 

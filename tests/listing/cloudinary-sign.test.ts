@@ -91,6 +91,22 @@ function signRequest(body: Record<string, unknown>): Request {
 }
 
 /**
+ * A timestamp the route will sign: the widget's own spelling of "now", in whole seconds.
+ *
+ * ⚠ NOT A FIXED LITERAL, AND THAT IS THE POINT OF THE HELPER RATHER THAN AN INLINE EXPRESSION.
+ * Since WR-01 the route refuses a timestamp more than an hour from its own clock, so the frozen
+ * `1700000000` these cases used to carry is now a REFUSED value — correctly, it is two years stale.
+ * Every case that expects a signature therefore has to spell "now", and every case that expects a
+ * refusal for some OTHER reason has to keep spelling something the route reaches that reason on.
+ * The cases below that still carry the frozen literal do so deliberately: each is refused ABOVE the
+ * timestamp check (extra key, folder scope, preset), and using a live value there would hide a
+ * regression that moved the value check above them.
+ */
+function freshTimestamp(): number {
+  return Math.round(Date.now() / 1000);
+}
+
+/**
  * Build a POST Request for the REAL <CldUploadWidget> path (5a): listingId travels in the
  * `?listingId=` query string and the body carries only `{ paramsToSign }` (no top-level listingId).
  */
@@ -264,7 +280,7 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
       signParamsRequest(listingId, {
         folder: `fitout/listings/${listingId}`,
         source: "uw",
-        timestamp: 1700000000,
+        timestamp: freshTimestamp(),
         upload_preset: LISTING_UPLOAD_PRESET,
       }),
     );
@@ -352,6 +368,147 @@ describe("cloudinary sign endpoint (LIST-02)", () => {
     expect(res.status).toBe(400);
     expect(signSpy).not.toHaveBeenCalled();
     expect(await res.text()).not.toContain("mock-signature");
+  });
+
+  // --- WR-01: the VALUES of the two keys that had none ------------------------------------------
+  //
+  // The three gates above are about key IDENTITY (plus the two keys with a single correct value).
+  // They admit `source` and `timestamp` with whatever the client put in them, and the signer joins
+  // the admitted pairs as `key=value` with `&` between them — so a value CARRYING an `&` is an
+  // extra signed parameter that never had to pass a gate, because it never presented itself as a
+  // key. That is the smuggle these cases pin, and it is the same probe-E11 outcome the allow-list
+  // cases above refuse at the key level, obtained through the gate instead of around it.
+  //
+  // ⚠ THESE CASES DO NOT PROVE THE SMUGGLE IS CLOSED — THEY PROVE **WE** CLOSE IT. Today it is
+  // closed twice: the route refuses the value, and `cloudinary@2.10.0` escapes `&` to `%26` inside
+  // the signer regardless. That second half is a vendor DEFAULT, invisible to every test in this
+  // file, and `tests/design/cloudinary-signature-encoding.test.ts` is where it is pinned. A test
+  // that only asserted a 400 would stay green if the route's check were deleted and the vendor's
+  // escaping were doing all the work — which is exactly the state this repo was in before WR-01,
+  // and it is the state this pair of files exists to make visible.
+
+  it("refuses a timestamp whose value SMUGGLES a second parameter, and mints nothing (WR-01)", async () => {
+    const owner = await signInHost("sign.smuggle@example.com");
+    const listingId = await makeListing(owner);
+    signSpy.mockClear();
+
+    // Four allow-listed keys, the exact folder, the exact preset — every gate that existed before
+    // WR-01 passes on this body. The payload rides in the timestamp: alphabetically `transformation`
+    // sorts between `timestamp` and `upload_preset`, so the string an unescaped signer produces is
+    // byte-identical to the one Cloudinary derives from an upload that really carries it, and the
+    // stored asset would be scaled to 4000px past a preset capped at 2048.
+    const res = await POST(
+      signParamsRequest(listingId, {
+        folder: `fitout/listings/${listingId}`,
+        source: "uw",
+        timestamp: "1700000000&transformation=c_scale,w_4000",
+        upload_preset: LISTING_UPLOAD_PRESET,
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(signSpy).not.toHaveBeenCalled();
+    expect(await res.text()).not.toContain("mock-signature");
+  });
+
+  it("refuses every timestamp that is not a whole number of seconds near NOW (WR-01)", async () => {
+    const owner = await signInHost("sign.badtimestamp@example.com");
+    const listingId = await makeListing(owner);
+
+    const now = freshTimestamp();
+    const refused: ReadonlyArray<readonly [string, unknown]> = [
+      // The smuggling family, in the three punctuation marks that matter to a query string.
+      ["an ampersand", `${now}&public_id=attacker/evil`],
+      ["an equals sign", `${now}=1`],
+      ["whitespace and a second pair", `${now} public_id=x`],
+      // Shapes that are not a timestamp at all.
+      ["a fractional second", now + 0.5],
+      ["a negative value", -now],
+      ["words", "not-a-timestamp"],
+      ["a boolean", true],
+      ["an empty string", ""],
+      // ⚠ `String([n])` IS ALL DIGITS, so an array is refused by the type pair rather than by the
+      // digit test. Named here because it is the one shape the regex alone would have admitted.
+      ["a single-element array", [now]],
+      // The window. `1700000000` is Nov 2023: the exact literal every case in this file used to
+      // carry, which is why the helper above exists.
+      ["a stale timestamp", 1700000000],
+      ["one second past the window", now - 3601],
+      ["a signature dated a year ahead", now + 365 * 24 * 3600],
+    ];
+
+    for (const [shape, timestamp] of refused) {
+      signSpy.mockClear();
+      const res = await POST(
+        signParamsRequest(listingId, {
+          folder: `fitout/listings/${listingId}`,
+          source: "uw",
+          timestamp,
+          upload_preset: LISTING_UPLOAD_PRESET,
+        }),
+      );
+      expect(res.status, `${shape} must not be signed`).toBe(400);
+      expect(signSpy, `${shape} reached the signer`).not.toHaveBeenCalled();
+    }
+  });
+
+  it("still signs a timestamp the widget sent as a STRING of digits (WR-01 is about the value, not the JSON type)", async () => {
+    // THE HEDGE, ASSERTED RATHER THAN ASSUMED. Probe E7 measured WHICH four keys the widget sends;
+    // it did not record whether this one arrives as a JSON number or as a string, and the widget is
+    // a third party's script served from their CDN. "Digits and nothing else" is the whole of what
+    // closes the smuggle, so admitting the string costs nothing — and a later tightening to
+    // `typeof === "number"` would break every live upload with no test to catch it. This is it.
+    const owner = await signInHost("sign.stringts@example.com");
+    const listingId = await makeListing(owner);
+    signSpy.mockClear();
+
+    const res = await POST(
+      signParamsRequest(listingId, {
+        folder: `fitout/listings/${listingId}`,
+        source: "uw",
+        timestamp: String(freshTimestamp()),
+        upload_preset: LISTING_UPLOAD_PRESET,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(signSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a `source` the widget never emits, and signs when the key is simply absent (WR-01)", async () => {
+    const owner = await signInHost("sign.source@example.com");
+    const listingId = await makeListing(owner);
+
+    // `uw` is the only value measured on this key. Anything else is a caller inventing a value we
+    // have no meaning for — and, like the timestamp, a place an `&` could ride in.
+    for (const source of ["uw2", "uw&public_id=attacker/evil", "", 1, null]) {
+      signSpy.mockClear();
+      const res = await POST(
+        signParamsRequest(listingId, {
+          folder: `fitout/listings/${listingId}`,
+          source,
+          timestamp: freshTimestamp(),
+          upload_preset: LISTING_UPLOAD_PRESET,
+        }),
+      );
+      expect(res.status, `source ${JSON.stringify(source)} must not be signed`).toBe(400);
+      expect(signSpy).not.toHaveBeenCalled();
+    }
+
+    // ABSENT IS NOT REFUSED, and that is the shipped contract rather than an oversight: the allow-
+    // list makes three of the four keys OPTIONAL and the preset the one required key (D-194). The
+    // route signs the set it is given; a caller who omits `source` simply must omit it from the
+    // upload too, or Cloudinary answers 401.
+    signSpy.mockClear();
+    const res = await POST(
+      signParamsRequest(listingId, {
+        folder: `fitout/listings/${listingId}`,
+        timestamp: freshTimestamp(),
+        upload_preset: LISTING_UPLOAD_PRESET,
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(signSpy).toHaveBeenCalledTimes(1);
   });
 });
 
