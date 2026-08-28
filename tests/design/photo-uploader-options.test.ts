@@ -36,10 +36,10 @@
 // build`) with no Postgres preflight. The cost, so nobody rediscovers it: `npx vitest run
 // tests/listing` does NOT collect this file, and neither does `npm test`. `npm run test:design` does.
 //
-// ── OBSERVED RED — the two ways these options could silently regress ────────────────────────────
-// A gate that has never been watched failing is a rubber stamp. Both mutations below were applied to
-// `src/components/listing/photo-uploader.tsx`, run, transcribed and reverted with the diff verified
-// empty afterwards. 2026-08-26.
+// ── OBSERVED RED — the three ways these options could silently regress ─────────────────────────
+// A gate that has never been watched failing is a rubber stamp. All three mutations below were
+// applied to `src/components/listing/photo-uploader.tsx`, run, transcribed and reverted with the
+// diff verified empty afterwards. MUTATIONS 1 and 2: 2026-08-26. MUTATION 3: 2026-08-28.
 //
 // MUTATION 1 — the preset moved from the PROP into `options`. This is the regression the ordering
 // hazard in the component's own comment describes, and NOTHING ELSE IN THE REPO WOULD SEE IT: the
@@ -76,6 +76,9 @@
 // own file, of the falsely-GREEN half of the `verify-workflows.mjs:24-32` finding: an unstripped
 // whole-file prohibition would have been green under mutation 2, because the correct component
 // necessarily NAMES the remote-address source in prose in order to explain that it is gone.
+//
+// MUTATION 3 — ⟨TRANSCRIPT PENDING: task 2 applies `transformation: "c_limit,w_4096"` inside the
+// widget's `options`, runs, transcribes it here, and reverts.⟩
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -222,6 +225,37 @@ describe("the prohibitions — what the correct file names in prose and must not
         "format list are both defeated by construction rather than by a bug",
     ).not.toMatch(/["']url["']/);
     expect(CODE).not.toMatch(/["']camera["']/);
+  });
+
+  it("no `transformation` is passed from the client — the preset's ceiling stays the preset's", () => {
+    // ANCHOR FIRST, because the read-guard at the top of this file does NOT cover this prohibition.
+    // Its two anchors — `CldUploadWidget` and `export function PhotoUploader` — both sit OUTSIDE the
+    // `options={{ … }}` body (`photo-uploader.tsx:205-263`), so a phantom block comment of the kind
+    // 16.1-03 actually measured (a `/*` sequence inside a line comment, opening a block the stripper
+    // then closes far below) could swallow the entire options object and leave that guard GREEN
+    // while this prohibition passed over nothing. That is the falsely-GREEN half of the
+    // `verify-workflows.mjs:24-32` finding. `optionsRegion` THROWS when it matches nothing, so
+    // requiring it to still carry a real key makes a restructured widget report itself instead.
+    expect(optionsRegion(CODE)).toContain("maxFiles:");
+
+    // Then the prohibition — over the WHOLE stripped source, not over the region. Measured rather
+    // than assumed: the raw component names `transformation` exactly ONCE, at `:211`, inside a `//`
+    // comment saying the boundary is the transformation the PRESET carries, and `stripComments`
+    // removes that occurrence completely — zero matches case-insensitively in `CODE`. So unlike the
+    // photo-cap prohibition below, where `delayDuration={200}` puts those digits back outside any
+    // comment and narrowing is forced, no narrowing is needed here; and the whole-file form is the
+    // strictly stronger property, because it also catches a `transformation` grown on a second
+    // widget, a helper or a prop rather than as an options key.
+    expect(
+      CODE,
+      "the client must never pass a `transformation` (T-16.1-01). The stored-asset ceiling is the " +
+        "PRESET's, and admitting this key hands it back to the caller — which is exactly what turns " +
+        "the preset from a bound into a suggestion. The real boundary is `ALLOWED_SIGN_KEYS` " +
+        "(`src/app/api/cloudinary/sign/route.ts:80` — four keys, this one deliberately absent, with " +
+        "the reasoning at `:70-79`) plus the 400-before-the-signer gate at `:159-162`, so a key " +
+        "regrown here would be REFUSED anyway. This pin is the second layer: without it that " +
+        "refusal surfaces as an uploader broken in production instead of as a red test in CI.",
+    ).not.toMatch(/transformation/i);
   });
 
   it("no flat photo cap survives — the widget and the server share ONE number", () => {
