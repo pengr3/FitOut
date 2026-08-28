@@ -34,11 +34,16 @@
 // Exit codes:
 //   0  every checked property holds (or `--apply` reconciled successfully and the re-verify passed)
 //   1  a property FAILED (drift), or a hard stop fired (no mode given, both modes given, an
-//      unrecognised argument, the preset does not exist, an unrecognised vendor key)
-//   3  THE TOOL COULD NOT RUN — no credential, a rejected credential, or the Admin API did not
-//      answer. NOT a drift finding. Reporting "I could not look" as "I looked and it is broken"
-//      trains people to ignore the check, which is the same law as the vacuous-green rule above,
-//      pointed the other way.
+//      unrecognised argument, the preset does not exist, an unrecognised vendor key, or — WR-05 —
+//      an `--apply` WRITE THE API REFUSED: a POST/PUT answered 400/422/500 is the vendor declining
+//      the reconciliation, so the preset was not written and the account is in whatever state it
+//      was in. That is a failure, not an inability to look, and it is the one code an operator or a
+//      CI wrapper must not read as "expected here, skip")
+//   3  THE TOOL COULD NOT RUN — no credential, a rejected credential (401/403), or the Admin API did
+//      not answer at all. NOT a drift finding. Reporting "I could not look" as "I looked and it is
+//      broken" trains people to ignore the check, which is the same law as the vacuous-green rule
+//      above, pointed the other way — and so does the reverse, which is why the write refusal above
+//      is not filed here.
 //
 // ── `tsx` IS AN UNDECLARED TRANSITIVE, AND THAT IS RECORDED RATHER THAN ABSORBED ────────────────
 // This file is `.ts` and runs through `tsx`, not `.mjs` through plain `node`, because plain `node`
@@ -419,6 +424,31 @@ class CouldNotRunError extends Error {
   }
 }
 
+/**
+ * Thrown when the API ANSWERED AND REFUSED — exit 1, a hard stop, and emphatically not a "could not
+ * look" (WR-05).
+ *
+ * ⚠ THE DISTINCTION IS THE WHOLE POINT OF HAVING TWO CLASSES. A `POST`/`PUT` that comes back 400,
+ * 422 or 500 is the Admin API talking: it received the write, it declined it, and the preset is in
+ * whatever state it was in before. That is a FAILED RECONCILIATION of this phase's load-bearing
+ * security control. Reporting it as 3 tells the operator — and any CI wrapper following this file's
+ * own header, which instructs them to read 3 as "no credential here, expected, skip" — that nothing
+ * was checked and nothing is wrong. Nothing is a worse outcome for a checker than a failure that
+ * reads as a routine skip; it is the same law as the vacuous-green rule, pointed a third way.
+ *
+ * Credential rejections (401/403) and network silence stay on `CouldNotRunError`, because those are
+ * genuinely "I could not look".
+ */
+class HardStopError extends Error {
+  constructor(
+    message: string,
+    readonly detail: readonly string[] = [],
+  ) {
+    super(message);
+    this.name = "HardStopError";
+  }
+}
+
 const USAGE = [
   "Usage:",
   "  npm run cloudinary:preset -- --apply     create or update the preset from the declaration",
@@ -680,9 +710,15 @@ async function runApply(ctx: AdminContext): Promise<void> {
   );
 
   if (written.status < 200 || written.status >= 300) {
-    throw new CouldNotRunError("THE PRESET COULD NOT BE WRITTEN.", [
+    // EXIT 1, NOT 3 (WR-05). The API answered and refused — see `HardStopError`. `runVerify` is not
+    // reached, so nothing downstream corrects this verdict; it is the only thing the operator gets.
+    throw new HardStopError("THE PRESET COULD NOT BE WRITTEN.", [
       `${creating ? "POST" : "PUT"} → ${written.status}`,
       `body           ${written.raw.slice(0, 500)}`,
+      "",
+      "The API ANSWERED and declined the write. This is NOT a 'could not look': the preset was NOT",
+      "reconciled and the account is in whatever state it was in before this ran. Re-verify with",
+      "--verify once the cause above is fixed.",
     ]);
   }
 }
@@ -786,6 +822,17 @@ export async function main(argv: readonly string[]): Promise<void> {
     if (mode === "--apply") await runApply(ctx);
     failures = await runVerify(ctx);
   } catch (cause) {
+    // BEFORE the CouldNotRunError arm, deliberately: these two are printed the same way and differ
+    // only in the code and the sentence, so the order is what keeps them from being merged one day.
+    if (cause instanceof HardStopError) {
+      console.error("");
+      console.error("════════════════════════════════════════════════════════════════════════════");
+      console.error(`FATAL: ${cause.message} THIS IS A HARD STOP, NOT A "COULD NOT RUN".`);
+      console.error("════════════════════════════════════════════════════════════════════════════");
+      for (const line of cause.detail) console.error(`  ${line}`);
+      process.exitCode = 1;
+      return;
+    }
     if (cause instanceof CouldNotRunError) {
       console.error("");
       console.error("════════════════════════════════════════════════════════════════════════════");
