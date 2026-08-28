@@ -14,12 +14,18 @@
 //     client field. position 0 = the cover (D-04).
 //   - ORPHAN CLEANUP (T-04-ORPHAN): removePhoto destroys the Cloudinary asset by its stored public_id.
 //   - ORPHAN CLEANUP AT THE REFUSAL (D-187, T-16.1-17): persistPhoto destroys the asset when IT is
-//     the refusing party — the bytes are already on Cloudinary before this action runs — but
-//     STRICTLY BELOW the provenance gate, and nowhere above it, and ONLY for an id no live row names
-//     (WR-02). See the ⚠⚠ block at the LISTING_MAX_PHOTOS branch: the same destroy two branches up
-//     is an arbitrary-delete primitive against our own account, because a refusal above the gate
-//     proves nothing about the publicId — and the same destroy without the reference check deletes
-//     an asset a surviving row still points at, which no part of the product can then repair.
+//     the refusing party — the bytes are already on Cloudinary before this action runs — at its two
+//     refusals below the provenance gate (the photo cap, and an insert the database refused), and
+//     nowhere above it, and ONLY for an id no live row names (WR-02). See the ⚠⚠ block at the
+//     LISTING_MAX_PHOTOS branch: the same destroy two branches up is an arbitrary-delete primitive
+//     against our own account, because a refusal above the gate proves nothing about the publicId —
+//     and the same destroy without the reference check deletes an asset a surviving row still points
+//     at, which no part of the product can then repair.
+//   - EVERY ACTION ANSWERS (WR-03/WR-04): all three return their `{ ok: false, error }` shape rather
+//     than rejecting, on every path including a lost insert race and a failed transaction. The
+//     client (`photo-uploader.tsx`) updates optimistically and reverts on that shape; a rejection
+//     escaping a server action leaves the grid showing what the database refused, and — on
+//     persistPhoto — a billed asset nothing will ever name.
 //   - PROVENANCE (D-165, T-16-14/15/16): persistPhoto stores { publicId, url } only when the pair is
 //     one OUR pipeline could have produced — url parsed and matched against our own Cloudinary
 //     delivery origin, publicId scoped to fitout/listings/<listingId>/ — and FAILS CLOSED when the
@@ -80,6 +86,32 @@ async function photoCount(listingId: string): Promise<number> {
   return rows[0]?.count ?? 0;
 }
 
+/**
+ * The rows of THIS listing that still name `publicId` (WR-02, WR-03).
+ *
+ * ⚠ IT EXISTS BECAUSE "PROVENANCE PASSED" AND "NOTHING POINTS AT THESE BYTES" ARE DIFFERENT CLAIMS,
+ * and `persistPhoto` has two places where it is about to destroy an asset and only the first claim
+ * has been established. `isOwnCloudinaryAsset` answers "is this id ours to delete at all"; this
+ * answers "is anything still using it". A destroy on the strength of the first alone deletes the
+ * bytes out from under a surviving row, and no part of the product can repair that: the public
+ * listing page renders a 404 image from an address the database still calls valid.
+ *
+ * Scoped to `listingId` — covered by `listing_photo_listing_idx`, so it is one indexed read — and
+ * that scope is complete rather than convenient: both call sites sit BELOW the provenance gate,
+ * which has already proven the id is under this listing's own folder, and `persistPhoto` cannot
+ * write such an id against any other listing because that call's provenance gate would demand a
+ * different prefix.
+ *
+ * This is a READ, and hoisting it says nothing about where the DESTROYS may sit. Read the ⚠⚠ block
+ * in `persistPhoto` before moving either of those.
+ */
+async function rowsNamingAsset(listingId: string, publicId: string) {
+  return db
+    .select({ id: listingPhoto.id })
+    .from(listingPhoto)
+    .where(and(eq(listingPhoto.listingId, listingId), eq(listingPhoto.publicId, publicId)));
+}
+
 function revalidateEdit(listingId: string) {
   revalidatePath(`/host/listings/${listingId}/edit`);
 }
@@ -88,6 +120,9 @@ function revalidateEdit(listingId: string) {
  * Append one photo's metadata to the owner's listing. position = the current photo count (so the very
  * first upload lands at 0 = cover, D-04). Rejects beyond the soft max and validates the metadata is
  * present (the columns are NOT NULL). Returns the created row so the client can update its grid.
+ *
+ * IT ALWAYS ANSWERS. Every refusal — including one the DATABASE makes, when a concurrent call has
+ * taken the position this one read (WR-03) — comes back as `{ ok: false, error }`. It never rejects.
  */
 export async function persistPhoto(
   listingId: string,
@@ -188,14 +223,9 @@ export async function persistPhoto(
     //
     // ONE INDEXED READ, INSIDE THE BRANCH, BELOW THE PROVENANCE GATE — the placement rules in the
     // block above are unchanged and this read does not move the destroy relative to any of them.
-    // Scoped to `listingId` (which `listing_photo_listing_idx` covers) AND the id: provenance has
-    // already proven the id sits under THIS listing's folder, so a row that could legitimately name
-    // it belongs to this listing and no other — `persistPhoto` cannot write this id against a
-    // different listingId, because that call's own provenance gate would demand a different prefix.
-    const referencing = await db
-      .select({ id: listingPhoto.id })
-      .from(listingPhoto)
-      .where(and(eq(listingPhoto.listingId, listingId), eq(listingPhoto.publicId, publicId)));
+    // `rowsNamingAsset` carries the reasoning about why a listing-scoped read is the complete
+    // answer here.
+    const referencing = await rowsNamingAsset(listingId, publicId);
 
     // Best-effort, and BOTH of the helper's failure shapes are handled: it RESOLVES
     // `{ result: "not found" }` for an id that is not there and REJECTS only on network/auth failure
@@ -235,8 +265,63 @@ export async function persistPhoto(
     };
   }
 
+  // ⚠ THE INSERT CAN LOSE A RACE, AND IT MUST ANSWER RATHER THAN THROW (WR-03). `position` was read
+  // by a NON-TRANSACTIONAL `photoCount()` above and is used as the insert value, under
+  // `uniqueIndex("listing_photo_position_uq").on(listingId, position)` (`src/lib/db/schema.ts`). The
+  // widget runs with `multiple: true` and up to 20 files, and `photo-uploader.tsx`'s `onSuccess`
+  // fires once per file and launches `void addPhoto(...)` WITHOUT awaiting the previous one — so two
+  // calls reading the same count is the normal case here, not an edge case. The second insert
+  // violates the index.
+  //
+  // This is the identical shape `reorderPhotos` documents at its own `catch`: with no `try` the
+  // rejection ESCAPES the server action instead of returning the `{ ok: false, error }` shape
+  // `photo-uploader.tsx` is written against. Its consequences here are worse than a stale grid,
+  // which is why this is not merely symmetry: the bytes are ALREADY on Cloudinary, so an escaping
+  // rejection leaves a permanently billed orphan on a path D-187's cleanup never covered — and the
+  // client's `void addPhoto(...)` has no `.catch`, so the host is shown NO toast at all and the
+  // photo simply never appears. Serialising the client would narrow this window; it would not close
+  // it, because two tabs still collide. The server has to answer.
   const id = randomUUID();
-  await db.insert(listingPhoto).values({ id, listingId, publicId, url, position });
+  try {
+    await db.insert(listingPhoto).values({ id, listingId, publicId, url, position });
+  } catch (err) {
+    console.warn(`[listing-photo] insert failed for listing ${listingId}`, err);
+
+    // THE SAME TWO CLAIMS AS THE CAP BRANCH, IN THE SAME ORDER (WR-02). Provenance passed far above,
+    // so the id IS ours to delete — but "the insert failed" does not imply "nothing names these
+    // bytes". Two concurrent submissions of the SAME pair collide on position exactly like two
+    // different photos do, and there the loser's publicId is the one the WINNER's row now names.
+    // Destroying it because our own statement lost would delete a live photo.
+    //
+    // THE WHOLE BLOCK IS GUARDED, because this path is reached precisely when the database is
+    // misbehaving: an unguarded read here would reject for the same reason the insert did and the
+    // action would escape after all, which is the defect this branch exists to remove. Both of the
+    // destroy helper's failure shapes are covered — a non-ok RESOLVE by the `if`, a rejection by the
+    // `catch` — the same pairing `removePhoto` and the cap branch use.
+    try {
+      const stillNamed = await rowsNamingAsset(listingId, publicId);
+      if (stillNamed.length > 0) {
+        console.warn(
+          "[listing-photo:destroy] SKIPPED after a refused insert — a live row still names this asset (WR-02)",
+          { listingId, publicId },
+        );
+      } else {
+        const res = await destroyListingPhoto(publicId);
+        if (res.result !== "ok") {
+          console.warn(
+            "[listing-photo:destroy] non-ok after a refused insert — orphan tolerated (WR-03)",
+            { listingId, publicId, result: res.result },
+          );
+        }
+      }
+    } catch (cleanupErr) {
+      console.error(
+        "[listing-photo:destroy] failed after a refused insert — orphan tolerated (WR-03)",
+        { listingId, publicId, err: cleanupErr },
+      );
+    }
+    return { ok: false, error: LISTING_UPLOAD_FAILED_MESSAGE };
+  }
 
   revalidateEdit(listingId);
   return { ok: true, photo: { id, publicId, url, position } };

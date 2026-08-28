@@ -31,7 +31,10 @@ import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockCloudinary } from "../helpers/mocks";
 import { stripComments } from "../helpers/source-text";
 import { listing, listingPhoto } from "@/lib/db/schema";
-import { LISTING_MAX_PHOTOS } from "@/lib/listing/upload-policy";
+import {
+  LISTING_MAX_PHOTOS,
+  LISTING_UPLOAD_FAILED_MESSAGE,
+} from "@/lib/listing/upload-policy";
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -558,6 +561,77 @@ describe("D-187 — persistPhoto destroys the asset it refuses, and NOTHING it h
     expect(res.ok).toBe(false);
     expect(mockCloudinary.destroys()).toEqual([]);
     expect((await photosOf(victimListing)).map((r) => r.publicId)).toEqual([victimPhoto.publicId]);
+  });
+
+  // ── WR-03 — the OTHER refusal below the provenance gate: one the DATABASE makes ────────────────
+  //
+  // HOW THE COLLISION IS PROVOKED, AND WHY IT IS AN HONEST REPRODUCTION RATHER THAN A CONTRIVANCE.
+  // `position` is read with a NON-transactional `photoCount()` and written under
+  // `uniqueIndex("listing_photo_position_uq").on(listingId, position)`. In production the two calls
+  // that collide are concurrent — the widget's `onSuccess` fires per file and `photo-uploader.tsx`
+  // launches `void addPhoto(...)` without awaiting the previous one — which is not a thing a
+  // single-connection integration test can schedule deterministically. Seeding a GAP (rows at 0 and
+  // 2, count 2) puts the action in exactly the state the loser of that race is in: it computes a
+  // position that is already taken and its insert violates the index. The failing statement, the
+  // failing constraint and the code path are the production ones; only the way the state was reached
+  // is short-circuited, which is the same trade `listingAtTheCap` makes above.
+  async function listingWithAPositionGap(email: string): Promise<{
+    listingId: string;
+    /** The row seeded at the position `persistPhoto` will compute — the one it collides with. */
+    blocking: { publicId: string; url: string };
+  }> {
+    const hostId = await signInHost(email);
+    const listingId = await makeListing(hostId);
+    const cover = upload(listingId, "cover");
+    const blocking = upload(listingId, "blocking");
+    await testDb.db.insert(listingPhoto).values([
+      { id: randomUUID(), listingId, publicId: cover.publicId, url: cover.url, position: 0 },
+      // position 2, not 1: `photoCount()` returns 2, so this is the slot the action will aim at.
+      { id: randomUUID(), listingId, publicId: blocking.publicId, url: blocking.url, position: 2 },
+    ]);
+    return { listingId, blocking };
+  }
+
+  it("an insert the DATABASE refuses ANSWERS with the shipped shape and destroys the orphan (WR-03)", async () => {
+    const { listingId } = await listingWithAPositionGap("photos.insert.race@example.com");
+    const arriving = upload(listingId, "lost-the-race");
+
+    // RESOLVING AT ALL IS HALF THE ASSERTION. Before WR-03 there was no `try` here, so this call
+    // REJECTED: `photo-uploader.tsx` does `void addPhoto(...)` with no `.catch`, so the host saw no
+    // toast, the photo never appeared, and the rejection surfaced as an unhandled promise rejection.
+    const res = await persistPhoto(listingId, arriving);
+
+    expect(res.ok).toBe(false);
+    // The shipped sentence, not a leaked database error — rule F1: a constraint name is not a thing
+    // to show a host.
+    if (!res.ok) expect(res.error).toBe(LISTING_UPLOAD_FAILED_MESSAGE);
+
+    // THE BILLED ORPHAN IS THE REASON THIS IS NOT MERELY A TIDINESS FIX. The bytes were on
+    // Cloudinary before the action ran, no row will ever name them, no page will ever render them,
+    // and D-187's cleanup did not cover this path at all.
+    expect(mockCloudinary.destroys()).toEqual([arriving.publicId]);
+
+    // Nothing was written, and the row that blocked it is untouched.
+    const after = await photosOf(listingId);
+    expect(after.map((r) => r.position)).toEqual([0, 2]);
+    expect(after.map((r) => r.publicId)).not.toContain(arriving.publicId);
+  });
+
+  it("…and destroys NOTHING when the refused insert names an asset a live row already holds (WR-02 inside WR-03)", async () => {
+    // THE FAILURE THE CLEANUP ITSELF COULD CAUSE. Two concurrent submissions of the SAME pair
+    // collide on position exactly like two different photos do — and there the loser's publicId is
+    // the one the WINNER's row names. A catch that destroyed unconditionally would delete a live
+    // photo BECAUSE its own statement lost a race, which is the WR-02 defect resurfacing one branch
+    // over. The `blocking` row here plays the winner.
+    const { listingId, blocking } = await listingWithAPositionGap("photos.insert.dupe@example.com");
+
+    const res = await persistPhoto(listingId, blocking);
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe(LISTING_UPLOAD_FAILED_MESSAGE);
+    expect(mockCloudinary.destroys()).toEqual([]);
+    // The live row still names the asset it always did.
+    expect((await photosOf(listingId)).map((r) => r.publicId)).toContain(blocking.publicId);
   });
 
   it("a NON-OK destroy result does not change what the host sees (both failure shapes, S-1)", async () => {
