@@ -35,10 +35,74 @@
 // no `--apply` or `--verify`, print a usage banner and `process.exit(1)` — a unit test file that
 // kills its own runner. The behavioural proof of the guard is that this suite runs at all; the
 // structural proof is in describe 3.
+//
+// ── OBSERVED RED — WR-05 AND WR-06, THE TWO DESCRIBES CLOSING THE REVIEW'S GAPS ─────────────────
+// All six mutations below were applied to `scripts/cloudinary-preset.ts`, run, transcribed, then
+// reverted with `git checkout --` and the diff verified empty afterwards. Taken 2026-08-28.
+//
+// MUTATION 1 — the `--bogus` branch's `process.exitCode = 1;` changed to `= 2;`. One red, and only
+// the parameterized case for that branch — the other two hard stops stayed green, which is the
+// point of exercising all three rather than trusting one to stand for the contract:
+//
+//    ❯ tests/design/cloudinary-preset-script.test.ts (28 tests | 1 failed) 23ms
+//        × main() exits 1, never exit 3's 'could not run', on an unrecognised argument 8ms
+//
+//    AssertionError: expected 2 to be 1 // Object.is equality
+//
+// MUTATION 2 — a dead `if (false) process.exit(2);` line added inside `printUsage`. Never reached at
+// runtime, and every behavioural test stayed green — proving the prohibition really is a SOURCE
+// property, not a reachability one:
+//
+//    ❯ tests/design/cloudinary-preset-script.test.ts (28 tests | 1 failed) 51ms
+//        × never calls process.exit() — only process.exitCode — so a mid-fetch socket close cannot
+//          corrupt the exit status 14ms
+//
+//    AssertionError: expected '\n\n\n\n\n…' not to match /process\.exit\(/
+//
+// MUTATION 3 — the scan's predicate flipped from `entry?.unsigned !== false` to
+// `entry?.unsigned === true`, i.e. WR-06's exact original bug reintroduced:
+//
+//    ❯ tests/design/cloudinary-preset-script.test.ts (28 tests | 1 failed) 26ms
+//        × the predicate is `unsigned !== false`, never `unsigned === true` — WR-06's exact
+//          regression 10ms
+//
+//    AssertionError: expected '\n  let cursor: string | undefined;\n…' to contain
+//    'entry?.unsigned !== false'
+//
+// MUTATION 4 — the cursor-follow assignment collapsed to a flat `cursor = undefined;`, so the scan
+// can no longer see a preset past the first page:
+//
+//    ❯ tests/design/cloudinary-preset-script.test.ts (28 tests | 1 failed) 24ms
+//        × follows `next_cursor` — a preset past the first page is not invisible to the scan 8ms
+//
+//    AssertionError: expected '\n  let cursor: string | undefined;\n…' to contain 'page?.next_cursor'
+//
+// MUTATION 5 — `reportCheck`'s ok argument narrowed from `notProvablySigned.length === 0 &&
+// !truncated` to `notProvablySigned.length === 0`, dropping the truncation flag from the verdict:
+//
+//    ❯ tests/design/cloudinary-preset-script.test.ts (28 tests | 1 failed) 25ms
+//        × MAX_SCAN_PAGES bounds the loop, and hitting it FAILS the check rather than passing on a
+//          partial read 11ms
+//
+//    AssertionError: expected '\n  let cursor: string | undefined;\n…' to contain
+//    'notProvablySigned.length === 0 && !truncated'
+//
+// MUTATION 6 (supplementary — the OTHER anchor in the same `it`) — the page-cap condition replaced
+// with `if (false) {`, removing the bound entirely rather than only the AND clause:
+//
+//    ❯ tests/design/cloudinary-preset-script.test.ts (28 tests | 1 failed) 65ms
+//        × MAX_SCAN_PAGES bounds the loop, and hitting it FAILS the check rather than passing on a
+//          partial read 25ms
+//
+//    AssertionError: expected '\n  let cursor: string | undefined;\n…' to contain
+//    'pages >= MAX_SCAN_PAGES'
+//
+// Nothing else went red under any of the six — each mutation reddened exactly the test built to
+// catch it, and reverting brought `git diff --exit-code scripts/` back to exit 0 every time.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   LISTING_ALLOWED_FORMATS,
@@ -50,6 +114,7 @@ import { stripComments } from "../helpers/source-text";
 import {
   canonicalizeTransformation,
   DECLARED_PRESET,
+  main,
   MalformedTransformationValueError,
   presetDrift,
   UnknownTransformationKeyError,
@@ -57,6 +122,28 @@ import {
 } from "../../scripts/cloudinary-preset";
 
 const SCRIPT_PATH = "scripts/cloudinary-preset.ts";
+
+/**
+ * The account-wide unsigned-preset scan inside `runVerify` (WR-06), isolated from the rest of the
+ * file.
+ *
+ * Narrowed because the predicate under test — `unsigned !== false` — is not unique to the scan:
+ * `presetDrift`'s own `unsigned` check (line ~326) uses the identical spelling for the identical
+ * reason (WR-06's whole point is that the two must agree), so a whole-file assertion could not tell
+ * "the scan carries the correct predicate" from "the scan happens to sit in a file that also
+ * contains `presetDrift`'s line". Narrowing to the scan's own block — from its `presets` accumulator
+ * to its final `return` — is what makes each prohibition below a statement about the SCAN.
+ */
+function accountScanRegion(code: string): string {
+  const match = /const presets: RemotePreset\[\] = \[\];([\s\S]*?)return failures;/.exec(code);
+  if (!match) {
+    throw new Error(
+      `Could not find the account-wide scan block in ${SCRIPT_PATH}. If runVerify was ` +
+        `restructured, this narrowing must be rewritten — it must never silently match nothing.`,
+    );
+  }
+  return match[1];
+}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -362,5 +449,117 @@ describe("rule F2 — the script re-spells nothing the declaration owns", () => 
     for (const format of LISTING_ALLOWED_FORMATS) {
       expect(CODE, `the script must not spell the format "${format}"`).not.toContain(format);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WR-05 — the exit-code contract. `main`'s three credential-free hard stops are placed BEFORE any
+// credential work specifically so they are reachable with no environment at all (the script's own
+// comment at `main`'s top says so), which is what makes this describe possible: no network, no
+// credential, no database.
+//
+// ⚠ HAZARD, READ BEFORE TOUCHING THIS DESCRIBE. `main()` sets `process.exitCode` as a real side
+// effect on the actual Node process running this test file. Left set, it would make the WHOLE
+// `vitest run` process exit non-zero even with every test green — a global side effect from a "pure"
+// unit test. Every case below saves the ambient value up front and restores it in `afterEach`, and
+// `console.error`/`console.log` are spied and silenced because every hard-stop path in `main` prints
+// a usage banner.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+describe("WR-05 — main()'s credential-free hard stops exit 1, the code the contract reserves for drift-or-hard-stop", () => {
+  const ambientExitCode = process.exitCode;
+
+  afterEach(() => {
+    process.exitCode = ambientExitCode;
+    vi.restoreAllMocks();
+  });
+
+  it.each<[string, readonly string[]]>([
+    ["an unrecognised argument", ["--bogus"]],
+    ["no mode given at all", []],
+    ["both modes given at once", ["--apply", "--verify"]],
+  ])("main() exits 1, never exit 3's 'could not run', on %s", async (_label, argv) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    process.exitCode = undefined;
+
+    await main(argv);
+
+    // Exit 3 is reserved for "the tool could not run" (no credential, a rejected one, a silent
+    // Admin API) and is explicitly NOT what any of these three cases are: each is a hard stop the
+    // script can and does detect with zero environment. Reading 1 here — not 3, not 0, not left
+    // `undefined` — is the entire contract 16.1-03-PLAN Task 1's automated verify pins with
+    // `test $? -eq 1`, and it is exercised behaviourally here rather than only by a human re-running
+    // the CLI by hand.
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("never calls process.exit() — only process.exitCode — so a mid-fetch socket close cannot corrupt the exit status", () => {
+    const code = stripComments(readFileSync(resolve(process.cwd(), SCRIPT_PATH), "utf8"));
+
+    // ANCHOR FIRST. Without proving the read+strip actually found exit-code assignments, a stale
+    // read or an over-eager strip could make the prohibition below pass over nothing.
+    expect(code).toContain("process.exitCode = 1");
+    expect(code).toContain("process.exitCode = 3");
+
+    // THE PROHIBITION. `process.exit()` tears the process down synchronously; called while an undici
+    // socket from a `fetch` above is still closing, it corrupts the exit status to 127 (measured on
+    // this machine, per the script's own header) — and the branch it fired on that one time was the
+    // one meaning THE SECURITY CONTROL IS MISSING. `process.exitCode` never matches this pattern,
+    // because the regex requires the literal open-paren that only a call carries.
+    expect(code).not.toMatch(/process\.exit\(/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WR-06 — the account-wide unsigned scan fails CLOSED and follows the cursor. The scan lives inside
+// `runVerify`, which is not exported and needs a live Admin API credential this design config
+// structurally cannot hold (`T-11-CISECRET`) — so, per this phase's established pattern for exactly
+// this situation (`tests/design/photo-uploader-options.test.ts`'s header), the inputs are pinned as a
+// SOURCE assertion over the isolated scan block rather than left unpinned because the behaviour
+// cannot be driven.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+describe("WR-06 — the account-wide unsigned scan fails CLOSED and follows the cursor", () => {
+  // Read ONCE, comment-stripped ONCE, and then narrowed ONCE — matching describe 3's own convention
+  // above, restated here because this describe reads the file independently of it.
+  const CODE = stripComments(readFileSync(resolve(process.cwd(), SCRIPT_PATH), "utf8"));
+  const SCAN = accountScanRegion(CODE);
+
+  it("the scan block was really found, and still contains the check it reports", () => {
+    // ANCHOR. Without this, a narrowing regex that silently matched the empty string — or matched
+    // the wrong block after a refactor — would make every prohibition below pass vacuously, the same
+    // both-directions rule this phase applies everywhere it strips or narrows source.
+    expect(SCAN).toContain("reportCheck");
+    expect(SCAN).toContain("every preset on the account is provably signed");
+  });
+
+  it("the predicate is `unsigned !== false`, never `unsigned === true` — WR-06's exact regression", () => {
+    // The whole of WR-06 in one line. `presetDrift`'s own `unsigned` check states the rule out loud:
+    // an absent, stringified or otherwise non-boolean `unsigned` must land on the REFUSING side,
+    // because "we could not tell" must not read as "it is signed". `=== true` is the identical
+    // sentence with the polarity inverted — if the list endpoint ever omits the field or returns it
+    // as a string, every entry would count as signed and the check would print an empty list: a
+    // green indistinguishable from a real one, on the control this file calls a standing upload hole.
+    expect(SCAN).toContain("entry?.unsigned !== false");
+    expect(SCAN).not.toContain("unsigned === true");
+  });
+
+  it("follows `next_cursor` — a preset past the first page is not invisible to the scan", () => {
+    // Three anchors for one behaviour: the request carries the cursor forward, the response's cursor
+    // is read back, and the loop condition is what makes it a loop rather than a single page. Any one
+    // of the three going missing silently caps the scan at the first `max_results=500` page.
+    expect(SCAN).toContain("page?.next_cursor");
+    expect(SCAN).toContain("next_cursor=${encodeURIComponent(cursor)}");
+    expect(SCAN).toContain("while (cursor !== undefined)");
+  });
+
+  it("MAX_SCAN_PAGES bounds the loop, and hitting it FAILS the check rather than passing on a partial read", () => {
+    expect(SCAN).toContain("pages >= MAX_SCAN_PAGES");
+    // The `truncated` flag must be ANDed into the boolean `reportCheck` uses to decide the exit code
+    // — never merely printed as evidence beside a check that already reported `ok`. A truncated scan
+    // that still passes would be exactly the vacuous green this whole file exists to prevent; this is
+    // the one line that makes truncation a FAILURE rather than a footnote.
+    expect(SCAN).toContain("notProvablySigned.length === 0 && !truncated");
   });
 });
