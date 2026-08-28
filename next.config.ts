@@ -14,7 +14,7 @@ import type { NextConfig } from "next";
 //
 // THE SYMPTOM, WHEN IT BITES — worth naming, because it does not look like a security block.
 // Reaching the dev server from any OTHER origin — an ngrok/cloudflared tunnel or a LAN IP like
-// 192.168.1.7, both of which you need to test on a real phone — is cross-origin, so the HMR
+// 192.168.1.50, both of which you need to test on a real phone — is cross-origin, so the HMR
 // websocket upgrade is dropped. Every HTTP asset still returns 200. The page paints, looks perfect,
 // and then IGNORES EVERY CLICK, because React never hydrates: a form submit falls through to a
 // native GET. Measured on an iPhone over a tunnel: 37x 200 / 87x 304 / zero failed assets, and 27
@@ -30,8 +30,8 @@ import type { NextConfig } from "next";
 // DO NOT "tidy" this into a hardcoded array.
 //
 // Format is the hostname ONLY — no scheme, and NO PORT. Next compares against
-// `new URL(origin).hostname`, which strips the port, so "192.168.1.7:3000" is not a stricter
-// version of "192.168.1.7", it is an entry that can never match anything. Subdomain wildcards
+// `new URL(origin).hostname`, which strips the port, so "192.168.1.50:3000" is not a stricter
+// version of "192.168.1.50", it is an entry that can never match anything. Subdomain wildcards
 // ("*.ngrok-free.dev") work; a bare "*" is rejected by Next on purpose.
 //
 // The NODE_ENV gate: `allowedDevOrigins` is read only by the dev server, so in production it is
