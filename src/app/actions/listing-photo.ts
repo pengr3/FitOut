@@ -15,9 +15,11 @@
 //   - ORPHAN CLEANUP (T-04-ORPHAN): removePhoto destroys the Cloudinary asset by its stored public_id.
 //   - ORPHAN CLEANUP AT THE REFUSAL (D-187, T-16.1-17): persistPhoto destroys the asset when IT is
 //     the refusing party — the bytes are already on Cloudinary before this action runs — but
-//     STRICTLY BELOW the provenance gate, and nowhere above it. See the ⚠⚠ block at the
-//     LISTING_MAX_PHOTOS branch: the same destroy two branches up is an arbitrary-delete primitive
-//     against our own account, because a refusal above the gate proves nothing about the publicId.
+//     STRICTLY BELOW the provenance gate, and nowhere above it, and ONLY for an id no live row names
+//     (WR-02). See the ⚠⚠ block at the LISTING_MAX_PHOTOS branch: the same destroy two branches up
+//     is an arbitrary-delete primitive against our own account, because a refusal above the gate
+//     proves nothing about the publicId — and the same destroy without the reference check deletes
+//     an asset a surviving row still points at, which no part of the product can then repair.
 //   - PROVENANCE (D-165, T-16-14/15/16): persistPhoto stores { publicId, url } only when the pair is
 //     one OUR pipeline could have produced — url parsed and matched against our own Cloudinary
 //     delivery origin, publicId scoped to fitout/listings/<listingId>/ — and FAILS CLOSED when the
@@ -167,33 +169,65 @@ export async function persistPhoto(
     //
     // The line is held by tests, not only by this paragraph, so the day someone moves it they meet a
     // red suite: `tests/listing/photos.test.ts` → "D-187 — the destroy lives BELOW the provenance
-    // gate and nowhere above it" (five behavioural cases asserting the captured destroys are the
-    // EMPTY ARRAY on every pre-provenance and rejection path, plus one asserting they contain
-    // exactly the refused publicId here) and "D-187 — the source ordering inside persistPhoto" (an
-    // index assertion over comment-stripped code, which is what stops the call migrating upward in a
-    // refactor that every behavioural case would still pass).
+    // gate and nowhere above it" (SIX behavioural cases asserting the captured destroys are the
+    // EMPTY ARRAY on every pre-provenance path, on every rejection path, and on the WR-02
+    // already-referenced path below, plus one asserting they contain exactly the refused publicId
+    // here) and "D-187 — the source ordering inside persistPhoto" (an index assertion over
+    // comment-stripped code, which is what stops the call migrating upward in a refactor that every
+    // behavioural case would still pass).
     //
+    // ⚠ AND PROVENANCE IS NOT THE WHOLE PRECONDITION (WR-02). `isOwnCloudinaryAsset` proves the id
+    // is OURS and under THIS listing's folder. It does not prove the asset is UNREFERENCED, and the
+    // destroy below is unconditional destruction. Both values of an already-stored photo are
+    // rendered on the host's own edit page, so a host who re-submits a pair they already have —
+    // a double-fired widget callback, a retried action, a copied pair — while sitting at the cap
+    // gets the asset deleted while its `listing_photo` row survives untouched. The public listing
+    // page then renders a 404 image from an address the database still calls valid, and nothing in
+    // the product can repair it: `removePhoto` would delete a row whose bytes are already gone.
+    // Owner-scoped and silent, which is worse than loud.
+    //
+    // ONE INDEXED READ, INSIDE THE BRANCH, BELOW THE PROVENANCE GATE — the placement rules in the
+    // block above are unchanged and this read does not move the destroy relative to any of them.
+    // Scoped to `listingId` (which `listing_photo_listing_idx` covers) AND the id: provenance has
+    // already proven the id sits under THIS listing's folder, so a row that could legitimately name
+    // it belongs to this listing and no other — `persistPhoto` cannot write this id against a
+    // different listingId, because that call's own provenance gate would demand a different prefix.
+    const referencing = await db
+      .select({ id: listingPhoto.id })
+      .from(listingPhoto)
+      .where(and(eq(listingPhoto.listingId, listingId), eq(listingPhoto.publicId, publicId)));
+
     // Best-effort, and BOTH of the helper's failure shapes are handled: it RESOLVES
     // `{ result: "not found" }` for an id that is not there and REJECTS only on network/auth failure
     // (`src/lib/cloudinary.ts`), so the `if` and the `catch` are two halves of one guard rather than
     // belt-and-braces. Neither may change what the host sees — a Cloudinary hiccup must never turn a
     // legitimate refusal into a different sentence. No `revalidateEdit`: nothing in the database
     // changed.
-    try {
-      const res = await destroyListingPhoto(publicId);
-      if (res.result !== "ok") {
-        console.warn("[listing-photo:destroy] non-ok at the photo cap — orphan tolerated (D-187)", {
+    if (referencing.length > 0) {
+      // The asset is live. Refusing the write is the whole of the correct behaviour here; there is
+      // no orphan to clean up, because a row names it. Logged so the tolerated non-cleanup is
+      // visible rather than being an absence nobody can see.
+      console.warn(
+        "[listing-photo:destroy] SKIPPED at the photo cap — a live row still names this asset (WR-02)",
+        { listingId, publicId },
+      );
+    } else {
+      try {
+        const res = await destroyListingPhoto(publicId);
+        if (res.result !== "ok") {
+          console.warn("[listing-photo:destroy] non-ok at the photo cap — orphan tolerated (D-187)", {
+            listingId,
+            publicId,
+            result: res.result,
+          });
+        }
+      } catch (err) {
+        console.error("[listing-photo:destroy] failed at the photo cap — orphan tolerated (D-187)", {
           listingId,
           publicId,
-          result: res.result,
+          err,
         });
       }
-    } catch (err) {
-      console.error("[listing-photo:destroy] failed at the photo cap — orphan tolerated (D-187)", {
-        listingId,
-        publicId,
-        err,
-      });
     }
     return {
       ok: false,

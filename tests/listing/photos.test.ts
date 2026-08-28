@@ -491,6 +491,37 @@ describe("D-187 — persistPhoto destroys the asset it refuses, and NOTHING it h
     expect(mockCloudinary.destroys()).toEqual([overflow.publicId]);
   });
 
+  it("re-submitting an ALREADY-PERSISTED pair at the cap destroys NOTHING (WR-02)", async () => {
+    // THE PRECONDITION THE PROVENANCE GATE DOES NOT SUPPLY. `isOwnCloudinaryAsset` proves the id is
+    // ours and under this listing's folder; it says nothing about whether a row still names it. The
+    // seeded rows below are the shapes `upload()` produces, and both of a photo's values are
+    // rendered on the host's own edit page — so this body is not exotic, it is what a double-fired
+    // widget callback or a retried action sends. Before WR-02 it destroyed the asset while leaving
+    // the row: the public listing page renders a 404 image from an address the database still calls
+    // valid, and `removePhoto` can then only delete a row whose bytes are already gone.
+    //
+    // ── OBSERVED RED, 2026-08-28 — the guard's condition neutralised, then restored ────────────────
+    //     × re-submitting an ALREADY-PERSISTED pair at the cap destroys NOTHING (WR-02)
+    //     AssertionError: expected [ Array(1) ] to deeply equal []
+    // That one-element array is the finding rather than the failure: it is the publicId of a photo
+    // whose row is still sitting in the listing.
+    const listingId = await listingAtTheCap("photos.cap.referenced@example.com");
+    const rows = await photosOf(listingId);
+    const alreadyStored = { publicId: rows[0].publicId, url: rows[0].url };
+
+    const res = await persistPhoto(listingId, alreadyStored);
+
+    // The refusal is unchanged — the cap is still the cap, and the host still sees one sentence.
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe(CAP_MESSAGE);
+    // NOTHING WAS DESTROYED. This is the assertion; everything else here is the setup for it.
+    expect(mockCloudinary.destroys()).toEqual([]);
+    // …and the row that names the asset is still there, so "nothing destroyed" means "nothing
+    // orphaned" rather than "the row went too".
+    expect(await photosOf(listingId)).toHaveLength(LISTING_MAX_PHOTOS);
+    expect((await photosOf(listingId)).map((r) => r.publicId)).toContain(alreadyStored.publicId);
+  });
+
   it("an OWNERSHIP refusal destroys NOTHING — the path where the destroy would BE the IDOR", async () => {
     const ownerId = await signInHost("photos.destroy.owner@example.com");
     const listingId = await makeListing(ownerId);
