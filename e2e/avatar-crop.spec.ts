@@ -314,6 +314,105 @@ async function computed<K extends string>(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE TEARDOWN (D-192) — IT RUNS AFTER EVERY CASE, INCLUDING THE ONES THAT FAILED
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHAT IT CLEANS AND WHY THERE IS ANYTHING TO CLEAN. Three cases in this file perform a REAL avatar
+// upload, and in each one the upload is unavoidable rather than convenient — the argument is written
+// at the head of each. A save that really lands stores a 400x400 JPEG at
+// `fitout/avatars/<the throwaway signup's user id>`, and nothing ever reads that signup's row again,
+// so the asset is abandoned the instant the case ends. It is abandoned-but-REFERENCED (the `user`
+// row still carries the id), so an Admin-API diff sweep would never have found it either — and that
+// sweep does not exist and will not: Phase 16.1 DECLINED it (D-187) and closed the sources of new
+// leftovers instead. `D4` in `deferred-items.md` is discharged by this function.
+//
+// ⚠ WHY IT IS AN `afterEach` AND NOT THE LAST LINES OF THOSE CASES (WR-07). It WAS the last lines of
+// two of them, after every assertion — and Playwright aborts a test body at the first failed
+// `expect`. So any earlier failure (a flaky 30s avatar-visible wait, an axe regression, a
+// focus assertion) skipped the cleanup entirely and the run leaked the billed asset again. Failures
+// are exactly when a case gets re-run, so the leak multiplied precisely when the mechanism was most
+// needed. A hook cannot be skipped that way, and being file-scoped it also covers the third
+// uploading case, whose own removal is an ASSERTION rather than a cleanup and therefore does not run
+// when the case fails before it.
+//
+// WHY IT DRIVES THE SHIPPED CONTROL RATHER THAN CALLING THE CREDENTIALED DESTROY HELPER IN
+// `src/lib/cloudinary.ts`. That helper would need `CLOUDINARY_API_SECRET` inside the e2e process, and
+// no e2e helper in this repo holds a Cloudinary credential — introducing one to clean up after a test
+// is a worse trade than the asset. Pressing `Remove photo` runs `removeAvatarAction`, which deletes
+// the asset AND nulls the row, forges nothing and needs no secret. (That helper is named
+// descriptively rather than quoted here for the reason `src/lib/cloudinary.ts:125-128` records: plan
+// 16.1-06 asserts the identifier appears NOWHERE under `e2e/`, and a comment spelling it would be
+// counted.) It also cannot pass against a product that has stopped working, which a direct destroy
+// could.
+//
+// AND NOT BY PINNING THE TEST USER — measured, so nobody re-derives it: `uploadAvatar`'s
+// `overwrite: true` + `public_id: userId` does NOT make repeat runs idempotent, because
+// `e2e/helpers/avatar-session.ts:56` mints a fresh randomised
+// `e2e.avatar.<Date.now()>.<random>@example.com` every run. New signup, new `user.id`, new
+// `public_id`; `overwrite: true` overwrites nothing.
+
+/**
+ * Remove the avatar this case stored, if it stored one. A no-op for the ~30 cases that never saved.
+ *
+ * ⚠ IT NAVIGATES FIRST, AND BOTH STEPS BEFORE THE LOCATOR ARE LOAD-BEARING. A failed body can leave
+ * the page in a state where the page-level control is unreachable — an overlay still open over it
+ * (the crop dialog deliberately ignores Escape while saving, so it cannot always be dismissed), or a
+ * `page.route` handler still installed and holding every server action open on a gate the case never
+ * released. `unrouteAll` drops the handlers; a fresh `goto` discards every open overlay and re-reads
+ * the avatar from the SERVER-rendered row, which is also the only state that can tell us whether an
+ * upload really landed. A case that failed between a successful save and its own UI update is
+ * precisely the leak this hook exists for, and the client's DOM at that moment does not know.
+ *
+ * THE TWO ASSERTIONS ARE KEPT: they are what proves the teardown itself worked. A removal that
+ * silently stopped happening would otherwise look identical to a case that never uploaded.
+ */
+async function teardownAvatar(page: Page): Promise<void> {
+  if (page.isClosed()) return;
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await page.goto(`${BASE}/profile`);
+
+  const removeControl = page
+    .getByRole("main")
+    .getByRole("button", { name: AVATAR_REMOVE_LABEL, exact: true });
+  // THE GUARD, AND WHAT IT MEANS. The removal affordance is rendered ONLY when the row carries a
+  // photo (`avatar-field.tsx` has no disabled-but-present spelling of a control that would act on
+  // nothing), so its absence IS "there is nothing to clean" — including for a case that never signed
+  // in, where `/profile` has redirected to the login route and there is no `main` control at all.
+  if ((await removeControl.count()) === 0) return;
+
+  await removeControl.click();
+  await expect(dialogOf(page).getByRole("heading", { name: AVATAR_REMOVE_TITLE })).toBeVisible();
+  await settleAnimations(page);
+  // `dialogOf` scoping is load-bearing — `AVATAR_REMOVE_CONFIRM` and `AVATAR_REMOVE_LABEL` are the
+  // same string and the page control is still mounted at this moment.
+  await dialogOf(page)
+    .getByRole("button", { name: AVATAR_REMOVE_CONFIRM, exact: true })
+    .click();
+  await expect(
+    page.getByRole("main").locator('img[alt="Your avatar"]'),
+    "the teardown removal did not land, so this run LEAKED a permanently-billed " +
+      "`fitout/avatars/*` asset. Read the teardown comment before deleting this assertion.",
+  ).toHaveCount(0, { timeout: 30_000 });
+  await expect(
+    page.getByRole("main").getByRole("button", { name: AVATAR_UPLOAD_LABEL, exact: true }),
+    "the upload control did not come back, so the removal is not the settled state it looks like.",
+  ).toBeVisible();
+}
+
+test.afterEach(async ({ page }, testInfo) => {
+  // ⚠ THE EXTENSION IS NOT PADDING — IT IS WHAT MAKES THE HOOK REACH ITS WORST CASE. Playwright
+  // counts `afterEach` against the TEST's timeout (30s here — `playwright.config.ts` sets none, so
+  // the default stands), so a case that failed BY TIMING OUT has already spent the whole budget and
+  // a teardown sharing it would time out immediately and clean nothing. That case is not a corner:
+  // a flaky 30s avatar-visible wait is precisely the failure this hook exists to survive, and it is
+  // the one that leaves the asset behind. `test.setTimeout` from a hook extends the running test's
+  // budget (the vendor's own documented use for exactly this), so the teardown gets its own room
+  // whether the body finished in five seconds or died at thirty.
+  test.setTimeout(testInfo.timeout + 30_000);
+  await teardownAvatar(page);
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // (c) THE STAGE EXISTS
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -854,8 +953,9 @@ test.describe("CROP-01 / D-174 — the same file, picked twice, opens the croppe
 // request is `continue()`d to the real action, which really uploads a 400x400 JPEG to Cloudinary
 // under `fitout/avatars/<the throwaway signup's user id>` — because "the dialog closes ON SUCCESS"
 // is not a claim a fabricated response can support, and hand-rolling a Next flight payload would be
-// asserting against our own forgery. ⚠ SO THE CASE CLEANS UP AFTER ITSELF — see the teardown at the
-// foot of it (D-192). Nothing else would have: the asset is abandoned the instant the test ends,
+// asserting against our own forgery. ⚠ SO THE RUN CLEANS UP AFTER ITSELF — see the file-scoped
+// `test.afterEach` (D-192), which since WR-07 also runs when this case FAILS, unlike the in-body
+// teardown it replaced. Nothing else would have: the asset is abandoned the instant the test ends,
 // because nothing ever reads that throwaway signup's row again, and it is abandoned-but-REFERENCED
 // rather than orphaned — the `user` row still carries the `avatar_public_id` — so the Admin-API diff
 // sweep this comment used to defer to would never have found it in the first place. That sweep does
@@ -967,50 +1067,12 @@ test.describe("CROP-01 / Delta-3 — one guard makes all three dismiss affordanc
       "the avatar circle still shows initials after a successful save.",
     ).toBeVisible({ timeout: 30_000 });
 
-    // ── TEARDOWN (D-192) ─────────────────────────────────────────────────────────────────────────
-    // WHAT IT IS: the release above sent the held request to the REAL action, which really stored a
-    // 400x400 JPEG under `fitout/avatars/<this throwaway signup's user id>`. That upload is
-    // unavoidable — the paragraph at the head of this describe argues why and is still true — so the
-    // case removes what it made instead of pretending it did not make it.
-    //
-    // WHY IT DRIVES THE SHIPPED CONTROL RATHER THAN CALLING THE CREDENTIALED DESTROY HELPER IN
-    // `src/lib/cloudinary.ts` DIRECTLY. A direct destroy would put `CLOUDINARY_API_SECRET` inside the
-    // e2e process, and no e2e helper in this repo holds a Cloudinary credential. Pressing
-    // `Remove photo` runs `removeAvatarAction`, which deletes the asset AND nulls the row, forges
-    // nothing, and needs no secret — this file's own discipline is that fabricating a response means
-    // asserting against our own forgery, and that applies to cleaning up as much as to measuring.
-    // (That helper is named descriptively rather than quoted here for the reason the `Keep photo`
-    // teardown records.)
-    //
-    // AND NOT BY PINNING THE TEST USER — measured: `uploadAvatar`'s `overwrite: true` +
-    // `public_id: userId` cannot make repeat runs idempotent, because
-    // `e2e/helpers/avatar-session.ts:56` mints a fresh randomised
-    // `e2e.avatar.<Date.now()>.<random>@example.com` every run. New signup, new `user.id`, new
-    // `public_id`; `overwrite: true` overwrites nothing.
-    //
-    // ⚠ Unlike the `Keep photo` case, this one is NOT standing in the confirm, so it opens it from
-    // scratch exactly as `avatar-crop.spec.ts`'s CR-03 case does. The route handler above is still
-    // installed and will see this action POST too; `gate` is already resolved, so it passes straight
-    // through. `dialogOf` scoping is load-bearing — `AVATAR_REMOVE_CONFIRM` and
-    // `AVATAR_REMOVE_LABEL` are the same string and the page control is still mounted.
-    await page
-      .getByRole("main")
-      .getByRole("button", { name: AVATAR_REMOVE_LABEL, exact: true })
-      .click();
-    await expect(dialogOf(page).getByRole("heading", { name: AVATAR_REMOVE_TITLE })).toBeVisible();
-    await settleAnimations(page);
-    await dialogOf(page)
-      .getByRole("button", { name: AVATAR_REMOVE_CONFIRM, exact: true })
-      .click();
-    await expect(
-      page.getByRole("main").locator('img[alt="Your avatar"]'),
-      "the teardown removal did not land, so this run LEAKED a permanently-billed " +
-        "`fitout/avatars/*` asset. Read the teardown comment before deleting this assertion.",
-    ).toHaveCount(0, { timeout: 30_000 });
-    await expect(
-      page.getByRole("main").getByRole("button", { name: AVATAR_UPLOAD_LABEL, exact: true }),
-      "the upload control did not come back, so the removal is not the settled state it looks like.",
-    ).toBeVisible();
+    // ── TEARDOWN (D-192) — NOT HERE ANY MORE (WR-07) ─────────────────────────────────────────────
+    // The release above sent the held request to the REAL action, which really stored a 400x400 JPEG
+    // under `fitout/avatars/<this throwaway signup's user id>`. The removal that cleans it up used to
+    // be the last statements of this body, which meant it ran only when every assertion above it had
+    // already passed — i.e. never on the runs that get repeated. It is now the file-scoped
+    // `test.afterEach`; read its block for the whole argument. Nothing is left to do here.
   });
 });
 
@@ -2614,7 +2676,7 @@ test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operabl
     // comes from the server-rendered row. So reaching this overlay at all requires a save that really
     // landed. Fabricating one would mean asserting against our own forgery. That cost USED to be a
     // second abandoned `fitout/avatars/*` asset per run, on top of the one the Delta-3 case left; the
-    // teardown at the foot of this case ends it, as Delta-3's now does (D-192). Neither defers to the
+    // file-scoped `test.afterEach` ends it for every case at once (D-192). Neither defers to the
     // sweep D4 pointed at: Phase 16.1 declined it (D-187), and it would never have reached these
     // assets anyway, because each is still REFERENCED by its throwaway `user` row. D4 is discharged.
     await pick(page, "square-400.png");
@@ -2667,44 +2729,12 @@ test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operabl
     }
     expectEveryStopIndicated(steps, "the removal confirm");
 
-    // ── TEARDOWN (D-192) ─────────────────────────────────────────────────────────────────────────
-    // WHAT IT IS: the case's real upload above is unavoidable (see the paragraph at its head, which
-    // is still true), so this case USED to end by leaving a `fitout/avatars/<throwaway userId>`
-    // asset on the account for good. It now removes it by pressing the button a real person would.
-    //
-    // WHY IT IS SHAPED THIS WAY RATHER THAN AS A DIRECT DESTROY. Two reasons, and both are this
-    // file's own standing discipline rather than preference. (1) Calling the credentialed avatar
-    // destroy helper in `src/lib/cloudinary.ts` would need `CLOUDINARY_API_SECRET` inside the e2e
-    // process, and no e2e helper in this repo holds a Cloudinary credential — introducing one to
-    // clean up after a test is a worse trade than the asset. (Named descriptively rather than
-    // quoted, deliberately: plan 16.1-06 asserts that identifier appears NOWHERE under `e2e/`, and a
-    // comment that spelled it would be counted. Same resolution, same reason, as
-    // `src/lib/cloudinary.ts:125-128`.) (2) Driving the SHIPPED control forges nothing: it is
-    // `removeAvatarAction` doing the deleting, the same path the case below asserts against, so the
-    // teardown cannot pass against a product that has stopped working.
-    //
-    // AND WHY NOT SIMPLY PIN THE TEST USER — measured, so the next reader does not re-derive it:
-    // `uploadAvatar`'s `overwrite: true` + `public_id: userId` does NOT make repeat runs idempotent,
-    // because `e2e/helpers/avatar-session.ts:56` mints a fresh randomised
-    // `e2e.avatar.<Date.now()>.<random>@example.com` every run. A new signup is a new `user.id`, a
-    // new `public_id`, and `overwrite: true` overwrites nothing. Pinning is the EXPENSIVE option
-    // against a helper whose header refuses seeds and fixtures on the record.
-    //
-    // This case is standing in the OPEN confirm at this moment, so it is one click. `dialogOf` is
-    // load-bearing: `AVATAR_REMOVE_CONFIRM` and `AVATAR_REMOVE_LABEL` are the same string and the
-    // page control is still mounted, exactly as the case below records.
-    await dialogOf(page)
-      .getByRole("button", { name: AVATAR_REMOVE_CONFIRM, exact: true })
-      .click();
-    await expect(
-      page.getByRole("main").locator('img[alt="Your avatar"]'),
-      "the teardown removal did not land, so this run LEAKED a permanently-billed " +
-        "`fitout/avatars/*` asset. Read the teardown comment before deleting this assertion.",
-    ).toHaveCount(0, { timeout: 30_000 });
-    await expect(
-      page.getByRole("main").getByRole("button", { name: AVATAR_UPLOAD_LABEL, exact: true }),
-      "the upload control did not come back, so the removal is not the settled state it looks like.",
-    ).toBeVisible();
+    // ── TEARDOWN (D-192) — NOT HERE ANY MORE (WR-07) ─────────────────────────────────────────────
+    // This case's real upload is unavoidable (see the paragraph at its head, still true), so its
+    // asset has to be removed. That removal used to be the last statements of this body — after the
+    // axe audit and the tab walk, either of which can fail — so a regression in EITHER skipped the
+    // cleanup and leaked the asset. It is now the file-scoped `test.afterEach`, which also means
+    // this case can end while standing in the open confirm without owing anything.
   });
 
   test("the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03)", async ({
@@ -2724,7 +2754,13 @@ test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operabl
     await signUpAndReachProfile(page);
 
     // The same unavoidable real upload the sibling case documents — the removal affordance exists
-    // only when there is a photo to remove. Leaves one more orphaned asset per run (D4).
+    // only when there is a photo to remove.
+    //
+    // ⚠ THIS CASE'S OWN REMOVAL IS AN ASSERTION, NOT A CLEANUP, and the distinction is why WR-07
+    // matters here too. It presses `Remove photo` because the FOCUS BEHAVIOUR after a successful
+    // removal is the subject; when the case fails before that press — on the save wait, say — the
+    // asset was leaked with nothing to catch it, because this file had no hook. It has one now, and
+    // on the happy path the hook finds the photo already gone and does nothing.
     await pick(page, "square-400.png");
     await expect(stageOf(page)).toBeVisible();
     await dialogOf(page)
