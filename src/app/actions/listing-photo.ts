@@ -422,6 +422,9 @@ export async function reorderPhotos(
  * (no gaps, 0 = cover preserved), then destroy the Cloudinary asset by its stored public_id (orphan
  * cleanup, T-04-ORPHAN). The delete + re-pack run in one transaction; the external Cloudinary destroy
  * happens after commit and is best-effort (a destroy hiccup must not fail the user's removal).
+ *
+ * IT ALWAYS ANSWERS (WR-04). A transaction the database refuses comes back as `{ ok: false, error }`
+ * like every other refusal, because the caller removed the tile optimistically before awaiting it.
  */
 export async function removePhoto(
   listingId: string,
@@ -446,22 +449,41 @@ export async function removePhoto(
     return { ok: false, error: "That photo is no longer here." };
   }
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(listingPhoto)
-      .where(and(eq(listingPhoto.id, photoId), eq(listingPhoto.listingId, listingId)));
-    // Re-pack: close the gap so positions stay contiguous. A single UPDATE statement checks the unique
-    // index once at statement end, so decrementing everything above the removed slot never collides.
-    await tx
-      .update(listingPhoto)
-      .set({ position: sql`${listingPhoto.position} - 1` })
-      .where(
-        and(
-          eq(listingPhoto.listingId, listingId),
-          gt(listingPhoto.position, photo.position),
-        ),
-      );
-  });
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(listingPhoto)
+        .where(and(eq(listingPhoto.id, photoId), eq(listingPhoto.listingId, listingId)));
+      // Re-pack: close the gap so positions stay contiguous. A single UPDATE statement checks the unique
+      // index once at statement end, so decrementing everything above the removed slot never collides.
+      await tx
+        .update(listingPhoto)
+        .set({ position: sql`${listingPhoto.position} - 1` })
+        .where(
+          and(
+            eq(listingPhoto.listingId, listingId),
+            gt(listingPhoto.position, photo.position),
+          ),
+        );
+    });
+  } catch (err) {
+    // THE SAME OMISSION `reorderPhotos` DOCUMENTS AS FIXED, WHICH LIVED ON HERE (WR-04). Its own
+    // paragraph says it: with no `try` the rejection ESCAPED the server action instead of returning
+    // the `{ ok: false, error }` shape `photo-uploader.tsx` is written against, and the optimistic
+    // UI never reverted. `handleRemove` removes the tile BEFORE awaiting this call, so the escape
+    // leaves the grid showing a photo gone that the database still holds — until a reload puts it
+    // back, which is the worst way for a host to find out.
+    //
+    // The re-pack is not merely theoretically fallible: two removals racing on one listing re-pack
+    // OVERLAPPING position ranges against the same non-deferrable unique index, and a connection
+    // drop mid-transaction ends the same way. Neither is a shape the reads above can rule out.
+    //
+    // ⚠ THE ORDERING SURVIVES THIS. The destroy below is still reached only after a COMMITTED
+    // delete: this branch returns, so a transaction that rolled back never reaches it. Cleaning up
+    // an asset whose row is still there is precisely the WR-02 defect.
+    console.warn(`[listing-photo] remove failed for listing ${listingId}`, err);
+    return { ok: false, error: "We couldn't remove that photo. Please try again." };
+  }
 
   // Orphan cleanup — best-effort; the row is already gone. A failed destroy leaves an orphan asset but
   // must not surface as a user-facing removal failure.

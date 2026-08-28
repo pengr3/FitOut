@@ -320,6 +320,47 @@ describe("listing photo persistence + reorder (LIST-02)", () => {
     // The removed asset's public_id was destroyed on Cloudinary (T-04-ORPHAN).
     expect(mockCloudinary.destroys()).toContain(gone1.publicId);
   });
+
+  it("a remove whose TRANSACTION fails answers with the refusal shape and destroys nothing (WR-04)", async () => {
+    const hostId = await signInHost("photos.remove.txfail@example.com");
+    const listingId = await makeListing(hostId);
+    const uploads = ["one", "two"].map((n) => upload(listingId, n));
+    for (const u of uploads) await persistPhoto(listingId, u);
+    const rows = await photosOf(listingId);
+
+    // ⚠ THE FAILURE IS INJECTED AT THE `db.transaction` BOUNDARY, AND THAT IS THE HONEST WAY TO
+    // REACH THIS BRANCH. The two shapes that produce it in production — two removals racing on one
+    // listing and re-packing overlapping position ranges against the same non-deferrable unique
+    // index, and a connection dropped mid-transaction — are a scheduler and a socket, neither of
+    // which a single-connection integration test can arrange. What is under test is not WHETHER the
+    // transaction can fail (Postgres decides that) but what this action does WHEN it does, and the
+    // injection puts it in exactly that state. Precedent: the destroy override at the foot of the
+    // D-187 describe, for the same reason.
+    const failing = vi
+      .spyOn(testDb.db, "transaction")
+      .mockRejectedValueOnce(new Error("connection terminated unexpectedly"));
+
+    // RESOLVING AT ALL IS THE ASSERTION. Before WR-04 this REJECTED, and `handleRemove` has already
+    // removed the tile optimistically by then — so `setPhotos(previous)` never ran and the grid
+    // showed a photo gone that the database still held, until a reload put it back.
+    const res = await removePhoto(listingId, rows[0].id);
+    failing.mockRestore();
+
+    expect(res.ok).toBe(false);
+    // The SHAPE is the finding — a thrown rejection has no `.error` at all. (Same reasoning, and
+    // the same assertion, as the reorder cases above: the sentence itself is not re-typed here.)
+    if (!res.ok) expect(typeof res.error).toBe("string");
+
+    // The database is exactly as it was, which is what the host's reverted grid will now agree with.
+    const after = await photosOf(listingId);
+    expect(after.map((r) => r.publicId)).toEqual(uploads.map((u) => u.publicId));
+    expect(after.map((r) => r.position)).toEqual([0, 1]);
+
+    // AND NOTHING WAS DESTROYED. The destroy sits below this branch and the branch RETURNS, so a
+    // rolled-back transaction can never reach it — destroying the asset of a row that is still
+    // there is the WR-02 defect, one action over.
+    expect(mockCloudinary.destroys()).toEqual([]);
+  });
 });
 
 // ── D-165 — the provenance guard, driven through the REAL action against the REAL database ───────
