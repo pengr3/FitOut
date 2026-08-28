@@ -544,6 +544,16 @@ async function adminFetch(
 
 const CHECK_INDENT = "          ";
 
+/**
+ * How many pages of the preset list the account-wide scan will read before it gives up (WR-06).
+ *
+ * At `max_results=500` a page each, this is more presets than any plausible account holds — the cap
+ * is not a limit on the account, it is a limit on US: it bounds the request count and it terminates
+ * a vendor that hands back the same `next_cursor` forever. Reaching it is a FAILED check, never a
+ * silently partial one.
+ */
+const MAX_SCAN_PAGES = 20;
+
 function reportCheck(failures: string[], property: string, ok: boolean, evidence: string): void {
   console.log(`  ${ok ? "ok  " : "FAIL"}  ${property}`);
   console.log(`${CHECK_INDENT}${evidence}`);
@@ -660,26 +670,71 @@ async function runVerify(ctx: AdminContext): Promise<string[]> {
   // An unsigned preset ANYWHERE on the account is a standing upload hole, whatever this one preset
   // says. `ml_default` was checked on 2026-08-26 and was `unsigned: false`; this re-proves it rather
   // than inheriting a research note.
+  // ⚠ THIS SCAN READS THE SAME PROPERTY AS `presetDrift`'S `unsigned` CHECK AND MUST AGREE WITH IT
+  // ABOUT WHAT ABSENCE MEANS (WR-06). That check states the rule out loud — "An absent field, a
+  // string, or anything else the vendor might hand back is NOT a signed preset as far as this check
+  // is concerned … 'we could not tell' must land on the refusing side" — and tests `!== false`. This
+  // one used to test `=== true`, which is the same sentence with the polarity inverted: if the LIST
+  // endpoint ever omits the field, or returns it as the STRING "true", every entry would count as
+  // signed and the check would print an empty list — a green indistinguishable from a real one, on
+  // the control this file calls a standing upload hole. The two spellings of one rule in one file
+  // are now the same spelling.
+  //
+  // AND IT FOLLOWS THE CURSOR. `max_results=500` with no follow-up silently never sees preset 501,
+  // so a large account's unsigned preset would sit outside the scan and the tool would report
+  // nothing about it. The page cap below bounds both the request count and a vendor that hands back
+  // the same cursor forever; hitting it FAILS the check rather than reporting on a partial read,
+  // which is the same "we could not tell must refuse" rule applied to our own enumeration.
   console.log(`\n── account-wide preset scan ${"─".repeat(56)}`);
-  const listed = await adminFetch(ctx, "GET", `${ctx.collectionUrl}?max_results=500`);
-  if (listed.status < 200 || listed.status >= 300) {
-    throw new CouldNotRunError("THE PRESET LIST COULD NOT BE READ.", [
-      `GET ${ctx.collectionUrl} → ${listed.status}`,
-      `body           ${listed.raw.slice(0, 500)}`,
-    ]);
-  }
-  const presets = Array.isArray((listed.body as { presets?: unknown })?.presets)
-    ? ((listed.body as { presets: unknown[] }).presets as RemotePreset[])
-    : [];
-  const unsignedPresets = presets
-    .filter((entry) => entry?.unsigned === true)
-    .map((entry) => String(entry?.name));
+  const presets: RemotePreset[] = [];
+  let cursor: string | undefined;
+  let pages = 0;
+  let truncated = false;
+  do {
+    const pageUrl =
+      `${ctx.collectionUrl}?max_results=500` +
+      (cursor === undefined ? "" : `&next_cursor=${encodeURIComponent(cursor)}`);
+    const listed = await adminFetch(ctx, "GET", pageUrl);
+    if (listed.status < 200 || listed.status >= 300) {
+      throw new CouldNotRunError("THE PRESET LIST COULD NOT BE READ.", [
+        `GET ${ctx.collectionUrl} → ${listed.status}`,
+        `page           ${pages + 1}`,
+        `body           ${listed.raw.slice(0, 500)}`,
+      ]);
+    }
+    const page = listed.body as { presets?: unknown; next_cursor?: unknown };
+    if (Array.isArray(page?.presets)) presets.push(...(page.presets as RemotePreset[]));
+    cursor =
+      typeof page?.next_cursor === "string" && page.next_cursor !== ""
+        ? page.next_cursor
+        : undefined;
+    pages += 1;
+    if (cursor !== undefined && pages >= MAX_SCAN_PAGES) {
+      truncated = true;
+      break;
+    }
+  } while (cursor !== undefined);
+
+  // The evidence is the RAW per-entry value, not a filtered list of names. The old line printed
+  // `unsigned=[]` and nothing else, so the one output that mattered — what the vendor actually said
+  // about each preset — was the one thing the reader could not see.
+  const notProvablySigned = presets
+    .filter((entry) => entry?.unsigned !== false)
+    .map((entry) => `${String(entry?.name)}=${JSON.stringify(entry?.unsigned)}`);
   reportCheck(
     failures,
-    "no preset on the account is unsigned",
-    unsignedPresets.length === 0,
-    `presets=${JSON.stringify(presets.map((entry) => String(entry?.name)))}  ` +
-      `unsigned=${JSON.stringify(unsignedPresets)}`,
+    "every preset on the account is provably signed",
+    notProvablySigned.length === 0 && !truncated,
+    `pages=${pages}  presets=${JSON.stringify(
+      presets.map((entry) => [String(entry?.name), entry?.unsigned]),
+    )}` +
+      (notProvablySigned.length === 0
+        ? ""
+        : `  NOT PROVABLY SIGNED=${JSON.stringify(notProvablySigned)}`) +
+      (truncated
+        ? `  ⚠ TRUNCATED after ${MAX_SCAN_PAGES} pages and the account had more — the presets ` +
+          `beyond this point were NOT scanned, so this check cannot pass`
+        : ""),
   );
 
   return failures;
