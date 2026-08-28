@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 7
-status: verifying
-stopped_at: "Completed 16.1-07-PLAN.md — the credential-bearing UAT. ALL 7 PLANS OF PHASE 16.1 ARE DONE; the phase is READY FOR VERIFICATION. The preset fitout_listing_v1 now EXISTS on the Cloudinary account, created from the committed declaration, and --verify exits 0 both before the walk and after every upload in it. Nine checks walked with pasted evidence in 16.1-UAT.md. THREE DEFECTS the CI-provable half could never have reached were found and fixed: (1) Cloudinary APPLIES f_auto but does NOT PERSIST it in the preset GET, so --verify failed on a correct account — settled by a with/without control pair, not by charity, and the exemption is pinned ABSENCE-ONLY; (2) upload-policy.ts's recorded measurement that f_auto 'turns HEIC into jpg' does NOT reproduce — the walk stored png for a synthetic HEIC and jpg for a real phone one, so NOTHING may assume a stored extension, and the same false line in the UAT would have red-flagged a correct result; (3) the reconciler's 404 branch exited 127 not 1, a libuv abort from process.exit() over a closing undici socket. Assumption A1 CLOSED, Open Question 1 ANSWERED 'acceptable' (D-179 done), T-16.1-06 ACCEPTED, D-190 re-confirmed 27/0/27 BEFORE the walk and 32/5/27 after (all 5 attributable). Check 7: fitout/avatars 28 to 28, delta 0, 33 Playwright cases green — Phase 16's D4 holds. TWO THINGS A VERIFIER MUST READ RATHER THAN ASSUME: Check 6's DELIVERED half is byte-verified (exif {} gps {} from the downloaded res.cloudinary.com file) but its SOURCE half is OPERATOR-ATTESTED, not byte-read; and Checks 1-6 ran against a PRODUCTION build, not next dev, because of a mobile hydration problem that is OUT OF SCOPE and NOT fixed (PM's call). Operator cleanup outstanding: test photos incl. a personal photograph remain publicly reachable on two listings."
-last_updated: "2026-08-28T05:39:23.119Z"
+status: ready_to_plan
+stopped_at: Phase 16.1 complete (7/7) — ready to discuss Phase 999.1
+last_updated: 2026-08-28T06:07:25.190Z
 last_activity: 2026-08-28
 progress:
   total_phases: 13
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 16.1 — upload-hardening-storage-economy
+**Current focus:** Phase 999.1 — auth flow tells the user nothing thin emails and silent post
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 16.1 (upload-hardening-storage-economy) — **ALL 7 PLANS EXECUTED, READY FOR VERIFICATION**
+Phase: 999.1
 Plan: 7 of 7
-Current Plan: 7
+Current Plan: Not started
 Total Plans in Phase: 7
-Status: Phase complete — ready for verification. **16.1-07 discharged the operator step**: the
+Status: Ready to plan
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
 declaration, and `--verify` exits 0 both before the walk and after every upload in it. The
 credential-bearing walkthrough is done — nine checks with pasted evidence in `16.1-UAT.md`.
@@ -502,7 +502,7 @@ Last activity: 2026-08-28
 
 **Velocity:**
 
-- Total plans completed: 66
+- Total plans completed: 73
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -520,7 +520,7 @@ Last activity: 2026-08-28
 | 13 | 15 | - | - |
 | 14 | 14 | - | - |
 | 15 | 14 | - | - |
-| 16.1 | 4 | - | - |
+| 16.1 | 7 | - | - |
 
 *16.1-01: ~23 min wall-clock, 3 tasks (all auto), 4 files created + 1 modified, 3 commits + 1 metadata.
 The whole plan is one declaration and three gates: `upload-policy.ts` is now the only place in the repo that

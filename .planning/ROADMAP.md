@@ -52,7 +52,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [x] **Phase 14: Host Tooling** - A host opens FitOut and sees what they owe today, in the same product the booker sees (completed 2026-08-23)
 - [x] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity (completed 2026-08-25)
 - [x] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
-- [ ] **Phase 16.1: Upload Hardening & Storage Economy (INSERTED)** - What a host uploads is bounded, is what it claims to be, and costs what it should to serve (all 7 plans executed 2026-08-28 — AWAITING VERIFICATION)
+- [x] **Phase 16.1: Upload Hardening & Storage Economy (INSERTED)** - What a host uploads is bounded, is what it claims to be, and costs what it should to serve (all 7 plans executed 2026-08-28) (completed 2026-08-28)
 - [ ] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof
 - [ ] **Phase 18: Search-Results Map** - A booker can see where the results are, not just what they are (net-new capability, D-136)
 - [ ] **Phase 19: Availability Copy-to-All** - A host copies one day's hours across days instead of re-entering them (net-new capability, D-136)
@@ -798,7 +798,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
-| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | All plans executed — AWAITING VERIFICATION. The credential-bearing UAT is walked and signed off (`16.1-UAT.md`, nine checks); no `16.1-VERIFICATION.md` exists yet, and phase completion is the verifier's call — the same rule that holds 13 and 13.1 incomplete | 2026-08-28 |
+| 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
