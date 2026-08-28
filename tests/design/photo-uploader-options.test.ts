@@ -77,8 +77,30 @@
 // whole-file prohibition would have been green under mutation 2, because the correct component
 // necessarily NAMES the remote-address source in prose in order to explain that it is gone.
 //
-// MUTATION 3 — ⟨TRANSCRIPT PENDING: task 2 applies `transformation: "c_limit,w_4096"` inside the
-// widget's `options`, runs, transcribes it here, and reverts.⟩
+// MUTATION 3 — `transformation: "c_limit,w_4096"` added inside `options`, next to `maxFiles`. This
+// is the regression the client can realistically grow, and the reason it needs a pin HERE and not
+// only at the boundary: `/api/cloudinary/sign` refuses to sign the key at all (`ALLOWED_SIGN_KEYS`,
+// `route.ts:80`; 400 before the signer, `:159-162`), so without this test the mistake surfaces as an
+// UPLOADER BROKEN IN PRODUCTION rather than as a red in CI. Nothing else in the repo would see it:
+// lint is silent, no other test reads this file, and the design config never imports the component.
+// One red, and exactly one:
+//
+//    ❯ tests/design/photo-uploader-options.test.ts (17 tests | 1 failed) 13ms
+//        × no `transformation` is passed from the client — the preset's ceiling stays the preset's 6ms
+//
+//    AssertionError: the client must never pass a `transformation` (T-16.1-01). The stored-asset
+//    ceiling is the PRESET's, and admitting this key hands it back to the caller — which is exactly
+//    what turns the preset from a bound into a suggestion. The real boundary is `ALLOWED_SIGN_KEYS`
+//    (`src/app/api/cloudinary/sign/route.ts:80` — four keys, this one deliberately absent, with the
+//    reasoning at `:70-79`) plus the 400-before-the-signer gate at `:159-162`, so a key regrown here
+//    would be REFUSED anyway. This pin is the second layer: without it that refusal surfaces as an
+//    uploader broken in production instead of as a red test in CI.:
+//    expected '"use client";\r\n\r\n\r\n\r\n\r\n\r\n…' not to match /transformation/i
+//
+// `w_4096` rather than `w_2048` in that mutation is a measured choice, not an arbitrary number:
+// `String(LISTING_MAX_PHOTOS)` is "20" and the photo-cap prohibition below forbids that substring
+// inside `optionsRegion(CODE)`, so "2048" would have reddened a second, unrelated test and
+// muddied the evidence that the NEW pin is the thing doing the work.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
