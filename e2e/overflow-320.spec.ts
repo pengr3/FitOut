@@ -1089,12 +1089,88 @@ async function collectControls(page: Page): Promise<Control[]> {
  * The fifteen seconds are `expectReachable`'s measured allowance, for its measured reason: the dev
  * server compiles routes on demand and a guard that flakes is a guard people learn to ignore.
  */
-async function expectTargets(page: Page, where: string): Promise<void> {
+async function expectTargets(
+  page: Page,
+  where: string,
+  /**
+   * ⚠ THE ONE SURFACE IN THE APP THAT SHIPS NO INTERACTIVE CONTROL OF ITS OWN, DECLARED (plan 17-11).
+   *
+   * The guard below asserts *"every Phase-13 and Phase-14 surface ships at least one action of its
+   * own"*. MEASURED 30 August 2026, when `/host/earnings` joined this file's tables: that sentence is
+   * FALSE of the shipped app. The route polled zero non-shell controls for the full fifteen seconds on
+   * a page with nothing wrong with it — `payouts_enabled` suppresses `PayoutBanner` (its `Set up
+   * payouts` button is the only one the surface can render), `payout-row.tsx` states in as many words
+   * that a payout row is TERMINAL and takes no `href`, and the zero-ledger branch passes
+   * `actions={null}` with its own argument for doing so. It is a read-only status view by design.
+   *
+   * SO THE ROW DECLARES IT AND THE GUARD INVERTS, rather than the row being exempted from the scan.
+   * Passing this string turns the guard from "at least one" into "EXACTLY zero, and here is why" —
+   * which is the stronger claim on this surface, because it fails BOTH when the declaration is wrong
+   * (a control appeared and the row must lose its declaration) and when the surface stops rendering.
+   * The 24px floor below is untouched and still runs over every control the scan found, shell
+   * included; nothing about this route is excused from it.
+   *
+   * ⚠ IT IS ONE READING RATHER THAN A POLL, and the asymmetry is the reason. The original guard polls
+   * because it asserts the PRESENCE of something that paints late ([15-12]); asserting absence has the
+   * opposite timing profile, and a poll for zero would pass on its first check anyway. Every control
+   * this route could grow is server-rendered (the page is an RSC and the one client component on it is
+   * the banner), so a single reading taken after the `tell` resolved sees it. A control that only
+   * appeared at hydration would slip past — named here rather than left to be discovered.
+   */
+  declaredControlless?: string,
+): Promise<void> {
   let controls: Control[] = [];
+
+  if (declaredControlless !== undefined) {
+    controls = await collectControls(page);
+    const own = controls.filter((c) => !c.inShell);
+    expect(
+      own.map((c) => `  ${c.label} ${c.w}x${c.h}`),
+      `${where}: this row DECLARES that the surface renders no interactive control of its own — ` +
+        `${declaredControlless} — and the scan found ${own.length}. A control appearing here is not ` +
+        "a product failure; it is a row whose declaration has gone stale, and the fix is to delete " +
+        "the declaration so the ordinary 'at least one action of its own' guard applies again. The " +
+        `${TARGET_FLOOR_PX}px floor below still runs over every control the scan found, shell ` +
+        "included.",
+    ).toEqual([]);
+  } else {
+    await expectOwnControlsPresent(page, where, (c) => {
+      controls = c;
+    });
+  }
+
+  const undersized = controls
+    .filter((c) => Math.min(c.w, c.h) < TARGET_FLOOR_PX)
+    .map((c) => `  ${c.label} ${c.w}x${c.h}`);
+  expect(
+    undersized,
+    `${where}: ${undersized.length} control(s) are smaller than the ${TARGET_FLOOR_PX}px WCAG 2.5.8 AA ` +
+      `target-size bar on their smaller axis:\n${undersized.join("\n")}\n` +
+      "Inline targets (a link inside a sentence) are exempt by the success criterion itself and are " +
+      "already filtered out, so anything listed here is a block-level control that is genuinely too " +
+      "small to hit. The app's own bar for a primary action is higher still — `size=\"touch\"`, 44px.",
+  ).toEqual([]);
+}
+
+/**
+ * The polled vacuity guard, EXTRACTED VERBATIM from `expectTargets` by plan 17-11 so that the
+ * declared-controlless branch above sits beside it rather than inside it.
+ *
+ * Not one character of the claim, the window or the message changed in the move — [15-12]'s closure is
+ * this poll and it is the thing that must not drift. `report` hands the collected list back so the
+ * 24px clause still measures what the poll last saw, which is what the shared `controls` variable did
+ * before the extraction.
+ */
+async function expectOwnControlsPresent(
+  page: Page,
+  where: string,
+  report: (controls: Control[]) => void,
+): Promise<void> {
   await expect
     .poll(
       async () => {
-        controls = await collectControls(page);
+        const controls = await collectControls(page);
+        report(controls);
         // ⚠ THE GUARD COUNTS NON-SHELL CONTROLS, WHICH IS THE CLAIM IT HAS ALWAYS MADE — it is
         // spelled out only because plan 17-06 put the site header INTO the scan (D-196). While the
         // header was excluded, "how many controls did the scan find" and "did the surface's own
@@ -1118,18 +1194,6 @@ async function expectTargets(page: Page, where: string): Promise<void> {
       },
     )
     .toBeGreaterThan(0);
-
-  const undersized = controls
-    .filter((c) => Math.min(c.w, c.h) < TARGET_FLOOR_PX)
-    .map((c) => `  ${c.label} ${c.w}x${c.h}`);
-  expect(
-    undersized,
-    `${where}: ${undersized.length} control(s) are smaller than the ${TARGET_FLOOR_PX}px WCAG 2.5.8 AA ` +
-      `target-size bar on their smaller axis:\n${undersized.join("\n")}\n` +
-      "Inline targets (a link inside a sentence) are exempt by the success criterion itself and are " +
-      "already filtered out, so anything listed here is a block-level control that is genuinely too " +
-      "small to hit. The app's own bar for a primary action is higher still — `size=\"touch\"`, 44px.",
-  ).toEqual([]);
 }
 
 // `FocusReading` and `readFocus` MOVED to the shared focus helper under `e2e/helpers/` (plan 15-12),
@@ -1293,6 +1357,31 @@ function mintInviteToken(): string {
 }
 
 const PHASE_13_ROWS: readonly Phase13Row[] = [
+  {
+    // ⚠ PLAN 17-11 — THE SEVENTH OF THE SEVEN ROUTES WITH ZERO 320px MEASUREMENT, and the only one of
+    // them that is a BOOKER surface rather than a host one. It is a row HERE rather than in the AC#36
+    // host block or in a fourth table for one reason: `/bookings` needs a booker session with real
+    // bookings behind it, and this block's fixture is the only one in the file that produces both. The
+    // other six are host routes and are rows in the Phase-14 table for the mirror-image reason.
+    //
+    // WHAT IT ADDS THAT THE ROWS BELOW DO NOT: this is the only LIST on the booker side, and at 320px a
+    // list is a different composition from a detail — `md:hidden` card stack, one `RowCard` per
+    // booking, each carrying a status chip, a `whenLabel` and a right-aligned `tabular-nums` money
+    // figure in a `flex justify-between` row. Three of the fixture's six seeded bookings land on the
+    // upcoming tab (`ends_at > now() AND status NOT IN ('cancelled','declined')`), so the surface is
+    // measured with rows on it rather than in its empty state.
+    name: "/bookings (the booker's list)",
+    path: () => "/bookings",
+    tell: (page) => page.getByTestId("row-card"),
+    tellWhy:
+      "a booking row in the MOBILE tree, which is the only tree that exists at this width (the route " +
+      "renders a `hidden md:block` table beside a `md:hidden` card stack). The heading is the trap " +
+      "here: `bookings/loading.tsx` composes `PageHeader title=\"Your bookings\"` and the real " +
+      "`BookingsTabs` verbatim — deliberately, so the strip does not move when the rows land — so an " +
+      "`h1` or a tab hook is satisfied by the skeleton. The plate's data region is a " +
+      "`skeleton-row-list` and BOTH empty branches render `empty-state`, so this id pins the surface " +
+      "AND the state that has something to overflow with.",
+  },
   {
     name: "the confirmation moment",
     path: (f) => `/bookings/${f.states.bookingIds.confirmed}?paid=1`,
@@ -1628,8 +1717,20 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// PHASE 14 — THE FIVE HOST SURFACES (plan 14-16)
+// PHASE 14 — THE FIVE HOST SURFACES (plan 14-16) · WIDENED TO ELEVEN BY PLAN 17-11 (RESP-03 / AC#1)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ THE HEADING KEEPS ITS ORIGINAL CLAIM AND ADDS THE NEW ONE BESIDE IT, which is this file's
+// amendment idiom (plan 17-06 established it: a closed finding's stale sentence is REPLACED with its
+// own text quoted as history, never silently deleted). "Five" is what plan 14-16 shipped and is what
+// every paragraph below was written about; ELEVEN is the count as of plan 17-11, which added six host
+// routes that had zero 320px measurement anywhere. The six are grouped at the END of `PHASE_14_ROWS`
+// under their own banner with their own argument — read that block, not this paragraph, for why each
+// one is here and what it can and cannot prove.
+//
+// TWO SENTENCES BELOW ARE NOW HISTORY AND ARE MARKED WHERE THEY STAND rather than rewritten in place:
+// the "TWO OF THE FIVE SURFACES DECLARE NONE" bullet (it is EIGHT OF THE ELEVEN as of 17-11, and the
+// argument is identical) and the NOT-COVERED list, which gains two entries from this plan.
 //
 // ROADMAP § Cross-Cutting Constraints makes GATE-RESP and GATE-A11Y exit criteria on every
 // surface-touching phase. 14-UI-SPEC states them as AC#36: `scrollWidth <= clientWidth` at 320px on
@@ -1666,6 +1767,9 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
 // accessible name, and each named control must be PRESENT and at least 44px tall.
 //
 // ⚠ TWO OF THE FIVE SURFACES DECLARE NONE, AND THAT IS RECORDED RATHER THAN QUIETLY OMITTED.
+// [AMENDED BY PLAN 17-11 — it is EIGHT OF THE ELEVEN now, because all six routes that plan added
+// declare an empty list too. The sentence below is left standing because its ARGUMENT is unchanged and
+// is the one every new row cites by name; only the arithmetic moved.]
 // `/host`'s `Create listing` is the page's one accent-filled control and it renders at the Button's
 // DEFAULT height, not the touch one — D-22 makes 44px an EXPLICIT OPT-IN and never a responsive
 // default, and this surface did not take it. Asserting 44 there would be red against shipped,
@@ -1693,6 +1797,16 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
 //     controls — which are the same header's — are measured against the 24px floor on every row in
 //     this block. What IS still excluded is the FOOTER, and its reason is measured rather than
 //     inherited; see `collectControls`.
+//   • THE FOCUS WALK CAN LAND IN THE FOOTER ON A CONTROL-LESS SURFACE (found by plan 17-11, NOT fixed
+//     here). `expectVisibleFocus` walks Tab until `inHeader` is false — and `inHeader` is `site-header`
+//     alone, so on `/host/earnings`, which ships no action of its own (see its row's `noOwnControls`),
+//     the "first in-surface control" it measures is a FOOTER link. The ring assertion is still made and
+//     still true; what it is not is a statement about that route. Fixing it means teaching the walk
+//     what "the surface" is, which changes what every row in two blocks measures — out of scope for a
+//     plan whose subject is coverage. Recorded for 17-13's ledger.
+//   • `/host/payouts/refresh` ISSUES A REAL PAYMONGO REQUEST PER CASE. Its row's comment has the whole
+//     measurement; it is repeated here because it is the only thing in this file that leaves the
+//     machine, and a reader auditing this suite's blast radius should not have to find it in a row.
 //   • Like the rest of this file, none of it runs in CI (D-24).
 
 /** AC#36's second clause. DS-09 / D-22's declared control height, in pixels. */
@@ -1711,6 +1825,27 @@ type HostFixture = {
   readonly listingId: string;
   readonly bookerId: string;
   readonly hostEmail: string;
+  /**
+   * The signed-up host's own id (plan 17-11).
+   *
+   * Needed by TWO of this plan's six new rows and by the teardown. `/host/earnings` reads
+   * `host_payout_ledger` scoped to `host_id`, so the fixture's one ledger row has to name it; and
+   * `/host/payouts/refresh` writes an `audit` row per visit whose `actor_id` is this value. `audit`
+   * carries NO foreign key by design (schema.ts's D4 note), so those rows do not block the teardown —
+   * which is exactly why they have to be deleted explicitly rather than left to a cascade.
+   */
+  readonly hostId: string;
+  /**
+   * The FUTURE confirmed booking's id — the row `/host/bookings/[id]` is measured on (plan 17-11).
+   *
+   * The future one specifically, and it is the fixture's own `cancellable` predicate that decides it:
+   * `(host)/host/bookings/[id]/page.tsx` renders the cancel section only while
+   * `status === 'confirmed' && starts_at > now()`, so today's session (dayOffset 0, which has already
+   * started by the time a run reaches it) renders the SHORTER document. This block's stated rule is to
+   * measure the state with the most in it, so the row takes the one that still carries the separator,
+   * the fee sentence and the dialog trigger.
+   */
+  readonly confirmedBookingId: string;
   readonly sql: ReturnType<typeof postgres>;
   readonly cookies: Awaited<ReturnType<BrowserContext["cookies"]>>;
 };
@@ -1797,13 +1932,20 @@ async function seedHostSurfaces(page: Page): Promise<Omit<HostFixture, "cookies"
     )
   `;
 
-  /** One booking, positioned by VENUE-LOCAL day offset — `host-dashboard.spec.ts:263-280`'s idiom. */
+  /**
+   * One booking, positioned by VENUE-LOCAL day offset — `host-dashboard.spec.ts:263-280`'s idiom.
+   *
+   * RETURNS THE ID SINCE PLAN 17-11, and the change is one line for a reason worth stating: the
+   * `/host/bookings/[id]` row needs a real booking id and the alternative — re-querying the table for
+   * "the confirmed one" — would make the row depend on a SELECT that another seeded row could satisfy.
+   * The id the fixture minted is the id the fixture means.
+   */
   const addBooking = async (
     dayOffset: number,
     startHour: number,
     endHour: number,
     status: "confirmed" | "requested",
-  ): Promise<void> => {
+  ): Promise<string> => {
     const id = `e2e_of320_booking_${randomUUID()}`;
     await sql`
       INSERT INTO "booking" (
@@ -1831,6 +1973,7 @@ async function seedHostSurfaces(page: Page): Promise<Omit<HostFixture, "cookies"
       // ordinary shape — the widest one, since the D-99 reason line is what fills the status column.
       await sql`UPDATE "booking" SET expires_at = now() + make_interval(hours => ${20}) WHERE id = ${id}`;
     }
+    return id;
   };
 
   // ⚠ EXACTLY ONE PHOTO, AND THE COUNT IS LOAD-BEARING IN BOTH DIRECTIONS (D10).
@@ -1861,9 +2004,40 @@ async function seedHostSurfaces(page: Page): Promise<Omit<HostFixture, "cookies"
   // booking (the bookings list's resting row).
   await addBooking(0, 8, 10, "confirmed");
   await addBooking(2, 9, 11, "requested");
-  await addBooking(3, 14, 16, "confirmed");
+  const confirmedBookingId = await addBooking(3, 14, 16, "confirmed");
 
-  return { listingId, bookerId, hostEmail: email, sql };
+  // ⚠ ONE PAYOUT LEDGER ROW, AND IT IS THE DIFFERENCE BETWEEN MEASURING `/host/earnings` AND MEASURING
+  // ITS EMPTY STATE (plan 17-11). MEASURED first, on a signed-up host with no ledger row: the route
+  // renders `PageHeader`, the two `PayoutSummary` panels and `EmptyState` — i.e. everything except the
+  // thing that can overflow. The mobile tree the 320px floor is actually about is `PayoutRow`, a
+  // `RowCard` carrying three `tabular-nums` money figures in `flex items-baseline justify-between`
+  // rows, one of them labelled `FitOut commission (10%)` — the longest label/figure pair on any host
+  // surface. A row that swept the empty state would have reported this route COVERED while the only
+  // composition on it able to break the floor was never on screen, which is the silent-absence failure
+  // this whole plan exists to close, arriving one level in.
+  //
+  // `kind: 'payout'`, because `(host)/host/earnings/page.tsx`'s query scopes to it and a
+  // `host_cancel_fee` row would render nowhere. `state: 'held'` because that is what a confirmed,
+  // not-yet-delivered session's payout IS under the hold-until-session model (CLAUDE.md § Payments) —
+  // the fixture's future booking has not happened, so any other state would be a lie the surface then
+  // renders as a badge.
+  //
+  // ⚠ TEARDOWN IS NOT A CASCADE HERE. `host_payout_ledger.booking_id` AND `.host_id` are both
+  // ON DELETE RESTRICT (schema.ts:432-439), so this row BLOCKS both the booking delete and the host
+  // delete. `afterAll` deletes it first, explicitly; see the note there.
+  const commissionCents = 10_500; // 10% of the seeded 105,000 quoted total (D-52's gross − commission).
+  await sql`
+    INSERT INTO "host_payout_ledger" (
+      id, booking_id, host_id, gross_cents, commission_rate_bps, commission_cents, net_cents,
+      currency, state, kind, created_at, updated_at
+    ) VALUES (
+      ${`e2e_of320_ledger_${randomUUID()}`}, ${confirmedBookingId}, ${host.id},
+      ${105_000}, ${1_000}, ${commissionCents}, ${105_000 - commissionCents},
+      ${"php"}, ${"held"}::payout_ledger_state, ${"payout"}::ledger_kind, now(), now()
+    )
+  `;
+
+  return { listingId, bookerId, hostId: host.id, hostEmail: email, confirmedBookingId, sql };
 }
 
 /** One control 14-UI-SPEC § Primary CTAs declares at the touch height, named the way a user reaches it. */
@@ -1913,6 +2087,19 @@ type Phase14Row = {
   readonly subject?: (page: Page) => Locator;
   /** Why that element cannot be satisfied by the step the route mounts on. Required with `subject`. */
   readonly subjectWhy?: string;
+  /**
+   * This surface renders NO interactive control of its own — the reason, in the message (plan 17-11).
+   *
+   * ⚠ A DECLARATION, NOT AN EXEMPTION, and the distinction is the same one `touch: []` + `touchWhy`
+   * makes one field up. Setting it INVERTS `expectTargets`'s vacuity guard from "at least one action of
+   * its own" to "exactly zero, and here is why", so the row goes red the day the surface grows a
+   * control — which is the direction a stale declaration fails in. The 24px floor is unaffected and
+   * still runs over every control the scan found, shell included.
+   *
+   * Exactly one row sets it today. See `expectTargets`'s parameter docblock for the measurement that
+   * made the original guard's own sentence false of the shipped app.
+   */
+  readonly noOwnControls?: string;
 };
 
 /**
@@ -2101,6 +2288,202 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
       "UNCHANGED, with no height note on any of them. The 24px AA bar still applies, and it is the " +
       "bar that matters on a surface whose densest control is a row of hour selects.",
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // PLAN 17-11 — THE SIX HOST ROUTES WITH ZERO 320px MEASUREMENT (RESP-03 clause A, AC#1)
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // ENUMERATED, NOT REMEMBERED (17-CONTEXT D-201). `src/app/**/page.tsx` is 29 files; less the two
+  // `src/app/dev/**` instruments that is 27 production-reachable page routes. Twenty were measured at
+  // 320px in both themes before this plan and SEVEN were absent from this file entirely — all seven
+  // behind the host or booker session gate, which is why they were never seed-free enough for the AC#29
+  // table. Six of them are here; the seventh (`/bookings`) is a BOOKER surface and lives in the Phase-13
+  // block, whose fixture already produces the session it needs.
+  //
+  // THEY ARE ROWS IN THIS TABLE RATHER THAN A FOURTH TABLE, and that is the plan's own instruction with
+  // its own reason: a fourth table is a fourth place a surface can be silently absent, which is exactly
+  // what the D-201 inventory assertion below exists to forbid. Every one runs the block's existing
+  // chain unchanged — `seedTheme`, `setViewportSize` to `FLOOR_PX`, `goto`, `document.fonts.ready`, the
+  // `tell`, then `expectNoOverflow`, `expectTargets` at 24 and `expectTouchTargets` at 44 BY NAME.
+  //
+  // ⚠ NOT ONE OF THE SIX DECLARES A TOUCH TARGET, AND THAT IS SIX DECLARATIONS RATHER THAN SIX
+  // OMISSIONS. 14-UI-SPEC § Primary CTAs gives a height note to exactly four controls in the whole host
+  // area, and all four are already asserted by the rows above. Every control on these six ships at the
+  // Button's default height — D-22 makes 44px an explicit OPT-IN and never a responsive default — so a
+  // blanket 44 here would be red against shipped, reviewed, deliberate code, which is the false-positive
+  // failure `TARGET_FLOOR_PX`'s docstring records this file refusing twice already. Each row says which
+  // control it looked at.
+  {
+    name: "/host/bookings/[id]",
+    path: (f) => `/host/bookings/${f.confirmedBookingId}`,
+    // THE `tell` IS A DEFINITION TERM, AND THE OBVIOUS HOOKS ARE ALL TRAPS ON THIS ROUTE. The `h1` is
+    // the listing title, which four other rows in this table also render; the back button
+    // (`← Back to bookings`) is composed BYTE-IDENTICALLY by `bookings/[id]/loading.tsx:24-26`, so a
+    // control hook is satisfied by the plate. What only the RESOLVED page renders is its `<dl>` — the
+    // plate's data region is a `PanelSkeleton` with no list in it at all. `Guest paid` is the string
+    // that names it: grepped over `src/`, it appears exactly ONCE, in this route's own page.tsx:150.
+    tell: 'dt:text-is("Guest paid")',
+    tellWhy:
+      "the detail's own definition list, which the route's `loading.tsx` does not render — its data " +
+      "region is a `PanelSkeleton` and it composes the same container and the same back button " +
+      "verbatim, so anything weaker is satisfied by the plate. A booking that is missing OR not this " +
+      "host's takes the same bare `notFound()` (never a distinguishing message), which renders the " +
+      "host not-found boundary and no `<dl>`; `/login` renders `panel-card` and no `<dl>` either.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED. This surface has exactly one action below the fold — `Cancel booking`, the " +
+      "dialog trigger at `host-cancel-dialog.tsx:131` — and it is `variant=\"outline\"` at the " +
+      "Button's DEFAULT height with no `size` prop. 14-UI-SPEC § Primary CTAs gives it no height " +
+      "note, so asserting 44 would be the `/host` argument again on a different control. The 24px AA " +
+      "bar applies to it and `expectTargets` runs.",
+  },
+  {
+    name: "/host/earnings",
+    path: () => "/host/earnings",
+    // ⚠ THE PLATE COMPOSES THE SAME `PageHeader title="Earnings"` — MEASURED, `earnings/loading.tsx:28`,
+    // and it reads one shared constant with the page precisely so the two cannot drift. So the heading
+    // is the trap here, not the tell: an `h1` hook would report this route covered off its own skeleton.
+    // `PayoutSummary` is what only the resolved page renders, and the panel carrying `Upcoming payouts`
+    // is the one element on the surface that exists in every state — empty ledger or full.
+    tell: '[data-testid="panel-card"]:has-text("Upcoming payouts")',
+    tellWhy:
+      "the earnings summary pair. The route's plate renders `PageHeader` with the IDENTICAL title and " +
+      "a `skeleton-row-list`, and carries no panel card — so the heading is satisfied by the skeleton " +
+      "and this is not. Scoped by the label rather than by `panel-card` alone because `PayoutBanner` " +
+      "and the empty state are panels on this surface too.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED. In the fixture's state (`payouts_enabled`) this surface renders NO button at " +
+      "all — the banner is suppressed, the payout rows are terminal (`payout-row.tsx` states in as " +
+      "many words that a payout row navigates nowhere) and the empty state passes `actions={null}`. " +
+      "There is no control here to give a height note to, which is a stronger form of the same " +
+      "declaration the rows above make.",
+    // ⚠ THE ONLY ROW IN EITHER BLOCK THAT SETS THIS, AND IT WAS FOUND BY GOING RED. This row's first
+    // run failed `expectTargets`'s vacuity guard — zero non-shell controls, polled for the full
+    // fifteen seconds, on a correct tree — which means the guard's own sentence ("every Phase-13 and
+    // Phase-14 surface ships at least one action of its own") was false of the shipped app and nobody
+    // could know until a control-less surface joined the table. It is declared rather than exempted;
+    // see the field's docblock and `expectTargets`'s parameter.
+    noOwnControls:
+      "`/host/earnings` is a read-only status view and ships no action. In the fixture's " +
+      "`payouts_enabled` state `PayoutBanner` (whose `Set up payouts` button is the only control this " +
+      "route can render) is suppressed by the page's own condition; `payout-row.tsx` takes NO `href` " +
+      "on purpose, stating that a payout row is terminal and that giving it a destination would be a " +
+      "product change smuggled in by a container swap; and the zero-ledger branch passes " +
+      "`actions={null}` with its own written argument (the next step is a guest booking the space, " +
+      "which the host cannot do). Every route that could give this surface an action is elsewhere",
+  },
+  {
+    name: "/host/listings",
+    path: () => "/host/listings",
+    // THE SAME PLATE TRAP AS `/host/earnings`, one route over: `listings/loading.tsx:39` composes
+    // `PageHeader title="Your listings"` verbatim. The `Availability` action on a listing card is what
+    // the plate cannot produce — `CardGridSkeleton` draws boxes and no anchors — and it also pins the
+    // STATE with a card in it, since the zero-listings branch renders `EmptyState` whose only link is
+    // `/host/listings/new`.
+    tell: 'a[href^="/host/listings/"][href$="/availability"]',
+    tellWhy:
+      "the `Availability` action on a real listing card. The route's plate composes the identical " +
+      "`PageHeader` and a `skeleton-card-grid` with no anchors in it; the no-listings state renders " +
+      "`empty-state` and links only to `/host/listings/new`. So this href pins the surface AND the " +
+      "state that has something to overflow with — a card grid carrying the fixture's deliberately " +
+      "long space title.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED, and it is `/host`'s argument verbatim: `Create listing` is this page's one " +
+      "accent-filled control and it renders at the Button's DEFAULT height. The card's own " +
+      "`Edit`/`Availability`/`Unlist`/`Delete` cluster is `size=\"sm\"`, i.e. SMALLER than the " +
+      "default by design. Asserting 44 on any of them would be red against reviewed code; all of them " +
+      "are inside `expectTargets`'s 24px scan.",
+  },
+  {
+    name: "/host/payouts/return",
+    path: () => "/host/payouts/return",
+    // ⚠ THE WORST PLATE TRAP IN THE TABLE, AND IT IS WORTH NAMING AS ONE. `payouts/return/loading.tsx`
+    // renders `<h1>Thanks — that&apos;s submitted</h1>` BYTE-IDENTICALLY to the page it stands in for —
+    // deliberately, so the sentence does not move when the payout state lands. A heading hook here does
+    // not merely fail to prove the resolved page; it proves the SKELETON. `PayoutBanner` is the one
+    // element the plate replaces with a `PanelSkeleton`, so it is the only honest tell on this route.
+    tell: "[data-payout-banner]",
+    tellWhy:
+      "the payout banner, which is the entire difference between this route's resolved document and " +
+      "its plate — the plate renders the SAME `h1` verbatim and a `PanelSkeleton` in the banner's " +
+      "slot. The attribute is state-agnostic on purpose: the banner renders one of four states and " +
+      "`derivePayoutStatus` picks it from the fixture's `host_payout` row, so pinning a single state " +
+      "here would make the row a fixture assertion rather than a reachability guard.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED. The one control is `Back to your dashboard`, `variant=\"outline\"` at the " +
+      "Button's default height (`payouts/return/page.tsx:49`), with no height note anywhere in the " +
+      "spec. The banner's own `Set up payouts` action does not render in the fixture's enabled state.",
+  },
+  {
+    name: "/host/payouts/refresh",
+    path: () => "/host/payouts/refresh",
+    // ⚠ THIS ROW MEASURES A FALLBACK, AND THE FALLBACK IS THE ONLY THING IT CAN MEASURE — MEASURED
+    // 30 August 2026 rather than reasoned about, because the plan's own threat model got this route
+    // wrong (T-17-59 asserts these two rows "issue no PayMongo call").
+    //
+    // `payouts/refresh/page.tsx` calls `refreshOnboardingLink()` → `startPayoutOnboarding()` →
+    // `createOnboardingLink()`, which is a REAL `POST https://api.paymongo.com/v1/linked_accounts/
+    // onboarding_links` with whatever `PAYMONGO_SECRET_KEY` the local `.env` carries. On success the
+    // page `redirect()`s to PayMongo and there is no document here at all. Platforms / Linked Accounts
+    // is beta / sales-gated (src/lib/paymongo.ts's own BETA NOTE), so the call fails, `res.ok` is
+    // false, and the host lands on the retry sentence this row names. PROBED on a freshly signed-up
+    // host, both directions of the failure: `h1: "Let's pick up where you left off"`, no redirect.
+    //
+    // WHAT THAT COSTS, stated so nobody discovers it: two outbound POSTs per run (one per theme), each
+    // writing one `audit` row with `outcome: "error"`. Neither creates a PayMongo resource — the
+    // endpoint 404s before it reaches one — and `afterAll` deletes the audit rows. It also spends 2 of
+    // `startPayoutOnboarding`'s 5-per-60s per-identity budget, which is why the two cases are the only
+    // visits this file makes to this route.
+    //
+    // AND THE PLATE IS NOT A TRAP HERE, unusually: `payouts/refresh/loading.tsx` renders one
+    // `Reopening payout setup…` paragraph and no heading at all.
+    tell: 'h1:has-text("pick up where you left off")',
+    tellWhy:
+      "the retry sentence's own heading, which exists on no other route and which the route's plate " +
+      "does not render (its whole content is a `Reopening payout setup…` status paragraph). It is " +
+      "matched on a substring rather than in full because the shipped copy contains a typographic " +
+      "apostrophe (`&apos;`), and a spec re-typing one is the drift `AVATAR_CROP_TITLE`'s import note " +
+      "warns about — the substring carries no apostrophe and cannot go quietly wrong.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED. The fallback renders exactly one control, `Back to your dashboard`, " +
+      "`variant=\"outline\"` at the Button's default height and with no height note in the spec — the " +
+      "same opt-in argument every row above records.",
+  },
+  {
+    // ⚠ LAST IN THIS TABLE ON PURPOSE, AND THE ORDER IS THE MEASUREMENT. Every visit to this route
+    // CREATES A DRAFT LISTING owned by the fixture host (`createDraftListing`, then `redirect` into
+    // `[id]/edit`), so two visits add two cards to the grid `/host/listings` measures three rows above.
+    // Sitting last, this row cannot change what any earlier row measured; sitting anywhere else it
+    // would silently make one of them measure a different page than the one it names. The drafts
+    // themselves are cleaned by the cascade — `listing.host_id` is ON DELETE CASCADE — see `afterAll`.
+    //
+    // ⚠ AND WHAT IT MEASURES IS A COMPOSITION THIS TABLE ALREADY COVERS, WHICH IS RECORDED RATHER THAN
+    // TREATED AS A REASON TO DROP THE ROW. MEASURED, 30 August 2026: `page.goto('/host/listings/new')`
+    // ends on `h1: "What kind of space is it?"` with one `wizard-step-rail` — i.e. the wizard's FIRST
+    // STEP, the same composition the `/host/listings/[id]/edit` row measures, with strictly LESS in it
+    // (a brand-new draft has no title, no photos and no rates). D-201 still wants the route in the
+    // table with a measurement rather than a reason, and the measurement is cheap; what it is NOT is a
+    // new surface, and a later reader counting distinct compositions should count this one as zero.
+    name: "/host/listings/new",
+    path: () => "/host/listings/new",
+    tell: '[data-testid="wizard-step-rail"]',
+    tellWhy:
+      "the step rail, which only the resolved wizard renders — and on THIS route it proves one thing " +
+      "more than it does on the two rows above: `page.tsx` redirects to `/host/listings` when " +
+      "`createDraftListing` fails, and that grid renders no rail. So the rail is also the proof that " +
+      "the draft was created rather than that the fallback was taken. The route's own plate is a " +
+      "`Creating your listing…` status paragraph with no rail, and `/login` renders `panel-card`.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED, for the `/host/listings/[id]/edit · photos step` row's reason: the one control " +
+      "14-UI-SPEC gives a height note to on the wizard is the publish checklist's disclosure trigger, " +
+      "and the row three above already asserts it on the same composition. Asserting it here would be " +
+      "the same measurement twice on a strictly emptier document.",
+  },
 ];
 
 /**
@@ -2166,6 +2549,20 @@ test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both t
     // ORDER IS THE FK'S (`booker-seed.ts`'s header): `booking.booker_id` is ON DELETE RESTRICT, so the
     // notifications and bookings go first, then the booker, then the host — whose deletion cascades to
     // the listing. `sql.end()` is unconditionally last.
+    //
+    // ⚠ THREE OF THE FIVE STATEMENTS ARE PLAN 17-11'S, AND EACH IS A ROW NO CASCADE WOULD REACH:
+    //
+    //   • `host_payout_ledger` — the earnings row this fixture seeds. BOTH its `booking_id` and its
+    //     `host_id` are ON DELETE RESTRICT (schema.ts:432-439), so leaving it would fail the booking
+    //     delete AND the host delete and leak the entire fixture into the dev database. It goes FIRST.
+    //   • `audit` — `/host/payouts/refresh` calls `startPayoutOnboarding`, which records one audit row
+    //     per visit (two per run, one per theme). The table carries NO foreign key by design, so these
+    //     rows are invisible to every cascade and would accumulate silently, one pair per run, forever.
+    //   • The DRAFT LISTINGS `/host/listings/new` creates — one per theme per run. `listing.host_id` IS
+    //     ON DELETE CASCADE, so the host delete below already removes them; they are named here only so
+    //     the next reader does not go looking for the statement that must be missing.
+    await fixture.sql`DELETE FROM host_payout_ledger WHERE host_id = ${fixture.hostId}`;
+    await fixture.sql`DELETE FROM audit WHERE actor_id = ${fixture.hostId}`;
     await fixture.sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ${fixture.listingId})`;
     await fixture.sql`DELETE FROM booking WHERE listing_id = ${fixture.listingId}`;
     await fixture.sql`DELETE FROM "user" WHERE id = ${fixture.bookerId}`;
@@ -2212,7 +2609,7 @@ test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both t
         }
 
         await expectNoOverflow(page, where);
-        await expectTargets(page, where);
+        await expectTargets(page, where, row.noOwnControls);
         await expectTouchTargets(page, where, row);
         await expectVisibleFocus(page, where);
       });
