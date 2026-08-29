@@ -9,6 +9,7 @@ import {
   signUpBooker,
   type SeededListing,
 } from "./helpers/booker-seed";
+import { expectNoWrap } from "./helpers/nowrap";
 import { FLOOR_PX, expectNoOverflow } from "./helpers/overflow";
 import { seedTheme } from "./helpers/theme";
 
@@ -453,36 +454,19 @@ test.describe(`RESP-02 — the ${FLOOR.width}×${FLOOR.height} floor`, () => {
           "is about something else.",
       ).toHaveCount(2);
 
+      // ⚠ THE MEASUREMENT MOVED TO `e2e/helpers/nowrap.ts` (plan 17-04) AND NOTHING ELSE CHANGED.
+      // Same reading, same `TOLERANCE_PX`, same two guards, same reasons in the messages — the
+      // declarations were MOVED rather than rewritten, `helpers/focus.ts`'s rule. Two more specs need
+      // the identical question asked (this file's checkout half below, and `overflow-320.spec.ts`'s
+      // status chips in plan 17-11), and three copies of a no-wrap criterion is the drift that goes
+      // silent in the worst direction. That file's header carries the before/after run counts, which
+      // are the proof the extraction changed no behaviour.
       for (let i = 0; i < 2; i++) {
-        const measured = await lines.nth(i).evaluate((el) => {
-          const style = window.getComputedStyle(el);
-          return {
-            clientHeight: el.clientHeight,
-            lineHeight: parseFloat(style.lineHeight),
-            text: (el.textContent ?? "").trim(),
-          };
-        });
-
-        // Guard the guard, twice: an empty line never wraps, and a `normal` line-height parses to NaN,
-        // which compares false against every bound and would make this a silent pass.
-        expect(
-          measured.text.length,
-          `${where}: bar line ${i} rendered no text, so a no-wrap assertion over it is free.`,
-        ).toBeGreaterThan(0);
-        expect(
-          Number.isFinite(measured.lineHeight),
-          `${where}: bar line ${i} resolves no numeric line-height (${JSON.stringify(
-            measured.text,
-          )}), so there is no single-line reference to compare against.`,
-        ).toBe(true);
-
-        expect(
-          measured.clientHeight,
-          `${where}: the bar's ${i === 0 ? "rate" : "fee note"} line wraps — it renders ` +
-            `${measured.clientHeight}px against a one-line box of ${measured.lineHeight}px. Text: ` +
-            `${JSON.stringify(measured.text)}. The bar's height is a fixed 64px, so a second line is ` +
-            "clipped rather than accommodated (12-UI-SPEC § The sticky bottom bar).",
-        ).toBeLessThanOrEqual(measured.lineHeight + TOLERANCE_PX);
+        await expectNoWrap(
+          lines.nth(i),
+          `${where}: the bar's ${i === 0 ? "rate" : "fee note"} line`,
+          TOLERANCE_PX,
+        );
       }
 
       // ── (f) THE SHEET'S PINNED ACTION SURVIVES A SCROLL TO THE BOTTOM ────────────────────────────
