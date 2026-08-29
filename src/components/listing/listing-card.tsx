@@ -156,6 +156,7 @@ export function ListingCard({
   priceParts,
   bookable = false,
   hoursMissing = false,
+  titleAs: TitleTag = "h3",
   editHref,
   availabilityHref,
   onUnlist,
@@ -192,6 +193,25 @@ export function ListingCard({
    * notice. What changed is upstream — the value of `bookable` that the host grid now computes.
    */
   hoursMissing?: boolean;
+  /**
+   * The heading LEVEL the card's title renders at. `EmptyState`'s prop of the same name, for the same
+   * reason: a card is a fragment of somebody else's outline, and only the page knows what level it
+   * sits at.
+   *
+   * ⚠ THE DEFAULT IS THE SEARCH GRID'S LEVEL, AND IT IS CORRECT THERE — MEASURED (plan 17-07). On `/`
+   * the outline is `h1` "Find a space to play" → `h2` the results heading (`search-results.tsx:187`)
+   * → these titles, so `h3` is the right rung and the first GATE-02 axe sweep scanned that page clean.
+   * On `/host/listings` there is no intermediate heading — the page is its `h1` and then the grid —
+   * so the same default SKIPPED a level, and the sweep reported `heading-order (moderate) x1: h3` at
+   * both 320 and 1280. That call site passes `h2`.
+   *
+   * The level is a prop rather than a fix inside the card, because the card is right in one document
+   * and wrong in the other with identical markup: which rung a fragment sits on is a property of the
+   * page, and baking either answer in makes the other page wrong. Changing the default to `h2` would
+   * have flattened the search grid's titles into siblings of the results heading they belong under —
+   * legal to `heading-order` and a worse outline, which is the trade this prop refuses to make.
+   */
+  titleAs?: "h2" | "h3";
   editHref?: string;
   availabilityHref?: string;
   onUnlist?: (id: string) => Promise<ActionResult>;
@@ -242,7 +262,12 @@ export function ListingCard({
 
       <CardContent className="space-y-1 py-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-medium leading-snug">{listing.title || "Untitled listing"}</h3>
+          {/* The tag is the `titleAs` prop's; the classes are unchanged, and Tailwind's preflight
+              resets every heading's size and weight to `inherit`, so swapping h3 for h2 here moves
+              the outline and NOT a single pixel. */}
+          <TitleTag className="font-medium leading-snug">
+            {listing.title || "Untitled listing"}
+          </TitleTag>
           <Badge variant={badge.variant} className={badge.className}>
             {badge.Icon ? <badge.Icon className="size-3 text-success" aria-hidden="true" /> : null}
             {badge.label}

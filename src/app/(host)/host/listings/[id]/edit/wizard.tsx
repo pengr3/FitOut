@@ -875,10 +875,28 @@ export function ListingWizard({
 
       {/* --- Stepper + progress --------------------------------------------------------------- */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-muted-foreground">
+        {/*
+          THE ID IS THE PROGRESS BAR'S ACCESSIBLE NAME, and it exists for a MEASURED reason (plan
+          17-07). The first GATE-02 axe sweep reported `aria-progressbar-name (serious)` on this bar
+          at both 320 and 1280 — a `role="progressbar"` with no name at all, which is SC 4.1.2's
+          Name clause failing outright, so a screen-reader user heard a percentage with nothing
+          saying what it measured.
+
+          ⚠ `aria-labelledby` RATHER THAN AN INVENTED `aria-label`, and the choice is the phase's
+          copywriting rule rather than a preference. This sentence is already the visible answer to
+          "progress through what", it is already maintained here, and it already moves with the step
+          — so pointing at it gives an assistive-technology user exactly what a sighted user gets
+          and adds ZERO new product copy. A hand-written label would have been a second string
+          saying the same thing, free to drift the day the step vocabulary changes.
+
+          The fix is at the CALL SITE, not in `ui/progress.tsx`: a default name baked into the
+          vendored primitive would be a generic invented string that is wrong on every other bar,
+          which is the per-call-site judgement the design system exists to remove — in reverse.
+        */}
+        <p id="wizard-step-progress-label" className="text-sm font-medium text-muted-foreground">
           Step {stepInList + 1} of {steps.length}
         </p>
-        <Progress value={progress} />
+        <Progress value={progress} aria-labelledby="wizard-step-progress-label" />
         {/*
           THE RAIL (D-148). Three states, and EXACTLY ONE of them is a control.
 

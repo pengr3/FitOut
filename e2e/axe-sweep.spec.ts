@@ -63,10 +63,79 @@ import type { ThemeName } from "../src/components/theme/theme-provider";
 //     source gate, not a rendered one, and saying so is the point of saying it.
 //   • THE RESOLVED CHECKOUT IS NOT SCANNED. Its row measures the SERVED document; reaching the
 //     resolved page needs a hold a POST minted, and this file mints no database rows — see the row.
-//   • SC 2.5.8's 24px target floor is NOT covered here. Axe's rule for it is disabled by default in
-//     axe-core and a tag filter does not enable a disabled rule; `expectTargets` in
-//     `e2e/overflow-320.spec.ts` already owns that floor with its measured argument.
+//   • THE 24px TARGET FLOOR IS STILL `expectTargets`' — SEE THE MEASUREMENT BELOW, WHICH CORRECTS THE
+//     SENTENCE THAT USED TO STAND HERE. It read: *"SC 2.5.8's 24px target floor is NOT covered here.
+//     Axe's rule for it is disabled by default in axe-core and a tag filter does not enable a
+//     disabled rule."* The first half is now MEASURED FALSE at axe-core 4.13.0 and the conclusion is
+//     unchanged; both halves are in the first-run block below. `expectTargets` remains the authority
+//     because it is the one with the measured 24px argument and the named-offender report.
 //   • Like the rest of `e2e/`, none of this runs in CI (D-24).
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE FIRST RUN — 2026-08-29. FOUR THINGS THAT WERE ASSUMED, AND ARE NOW READINGS
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Command: `npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1 --reporter=list`
+// Result:  **48 passed · 4 failed · 36 skipped**, 4.9 minutes. The four reds were two defects and two
+// tell mistakes, all four fixed; both defects are recorded at the source that carries the fix.
+//
+// ── A1 (17-RESEARCH § Assumptions): does excluding the `nextjs-portal` HOST also take its OPEN shadow
+//    subtree out of scope? **YES — no violation and no incomplete target began `nextjs-portal` on any
+//    of the 48 scans.** The two violations the sweep found were `.h-1` and `h3`, both product nodes.
+//    Confirmed a second way by a throwaway probe (written, run, deleted) that read every violation AND
+//    incomplete target on `/terms`, `/` and the root not-found: `portal-targets=0` on all three. So
+//    the fallback `helpers/axe.ts` names — a shadow-piercing selector, or a production-build run — is
+//    NOT needed, and nothing was added. The host-level exclusion is sufficient at Next's current
+//    dev-overlay shape, which is the shape it was measured against and not a guarantee about the next.
+//
+// ── A4: does `heading-order` survive being enabled alongside the tag filter? **YES, AND THE PROOF IS
+//    STRONGER THAN THE ONE THAT WAS ASKED FOR.** It appears in `results.passes` on every surface
+//    probed — `/terms` (22 passing rules), `/` (26), the root not-found (13) — and it also FIRED, as a
+//    real violation, on `/host/listings`. A rule that both passes and fails on this app under the
+//    declared tags is not merely present in the result object; it is doing work. Heading coverage is
+//    therefore NOT host-only, and plan 17-10's bespoke outline walk lands on top of it rather than
+//    instead of it.
+//
+// ── A5: the RESEARCH prediction of which rules would fire is **replaced by this measurement, and it
+//    was wrong in both directions.** Predicted, ranked: `color-contrast`, `scrollable-region-focusable`,
+//    `nested-interactive`, `aria-prohibited-attr`, `label` / `form-field-multiple-labels`,
+//    `aria-required-children`. Measured: **not one of the six fired.** `color-contrast`,
+//    `aria-prohibited-attr` and `nested-interactive` are all in `results.passes` on the surfaces that
+//    exercise them. What DID fire was two rules the list did not mention — `aria-progressbar-name`
+//    (serious) and `heading-order` (moderate). The useful correction is not the ranking but the shape:
+//    the defects on this app are MISSING ACCESSIBLE NAMES and OUTLINE RUNGS, not colour.
+//
+//    ⚠ AND ONE RULE IS RUNNING THAT `helpers/axe.ts` STATES CANNOT. `target-size` is in
+//    `results.passes` on all three probed surfaces, so at **axe-core 4.13.0** SC 2.5.8's rule is NOT
+//    disabled-by-default any more and the `wcag22aa` tag reaches it. That claim is stale in the
+//    helper's own docblock — it cannot be corrected there, because 17-01's acceptance grep requires
+//    zero occurrences of that rule id in that file, so the correction lives here and is carried to
+//    `deferred-items.md`. NOTHING IN THIS PHASE'S POLICY CHANGES: `expectTargets`
+//    (`overflow-320.spec.ts`, `TARGET_FLOOR_PX = 24`) stays the authority on the floor, because axe's
+//    rule takes SC 2.5.8's spacing and inline exceptions into account and reports no named offenders,
+//    and two definitions of one floor is the drift the one-import-site rule exists to stop. What
+//    changes is what a green here MEANS: slightly more than the helper claims, not less.
+//
+// ── THE VACUITY GUARD, WATCHED RED (RESEARCH Pattern 3). ⚠ THE MUTATION IS NOT THE ONE THE PLAN
+//    ASKED FOR, AND THAT IS ITSELF A MEASUREMENT. A URL that 404s is NOT a vacuity probe on this app:
+//    plan 17-01 measured a 404 route rendering a full not-found document — 57 nodes, 22 passing rules,
+//    zero violations — so a watch pointed at one cannot go red. `about:blank` is the subject that
+//    works, and it was used.
+//
+//    MUTATION: the `/terms` row's `tell` set to `html` (so the reachability guard passes and cannot be
+//    what fires) and its navigation redirected to `about:blank`.
+//    COMMAND: `npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1 --grep terms`
+//    OBSERVED — **2 failed**, and the failure is the NODE FLOOR at `helpers/axe.ts:173`, not the
+//    violation list at :181 and not the tell:
+//
+//      Error: /terms · court · 1280px: axe examined 3 nodes across its passes, violations and
+//      incomplete results, against a floor of 8. An empty document violates nothing, so a scan this
+//      small is an instrument failure and not a verdict …
+//      expect(received).toBeGreaterThanOrEqual(expected)  Expected: >= 8  Received: 3
+//
+//    That distinction is the whole point: an empty page reports ZERO violations, which is byte-for-
+//    byte what a clean surface reports, so the assertion that must fire is the one counting what was
+//    looked at. RESTORED; `git diff` on this file after the restore was empty.
 
 // ---------------------------------------------------------------------------
 // The scope constants

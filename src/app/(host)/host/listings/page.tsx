@@ -161,6 +161,13 @@ export default async function HostListingsPage() {
                 key={r.id}
                 listing={data}
                 priceParts={priceParts}
+                // ⚠ `h2`, NOT THE CARD'S DEFAULT `h3` — MEASURED (plan 17-07). This page's outline is
+                // the `<h1>` above and then this grid, with nothing between them, so the card's
+                // search-grid default skipped a rung: the first GATE-02 axe sweep reported
+                // `heading-order (moderate) x1: h3` here at both 320 and 1280. `/` keeps the default
+                // because it HAS the intermediate heading (`search-results.tsx:187`'s results `h2`),
+                // which is why the level is a prop rather than a change inside the card.
+                titleAs="h2"
                 bookable={bookable}
                 hoursMissing={missingHours.has(r.id)}
                 editHref={`/host/listings/${r.id}/edit`}
