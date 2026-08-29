@@ -704,7 +704,7 @@ Plans:
 
 **Wave 1** *(no dependencies; zero `files_modified` overlap between them)*
 
-- [ ] 17-01-PLAN.md — the declared e2e baseline red set, `@axe-core/playwright@4.13.0` pinned, and `e2e/helpers/axe.ts` (one `.options()`, one vacuity guard)
+- [x] 17-01-PLAN.md — the declared e2e baseline red set, `@axe-core/playwright@4.13.0` pinned, and `e2e/helpers/axe.ts` (one `.options()`, one vacuity guard)
 - [x] 17-02-PLAN.md — three DB-free design gates: the GATE-06 content digest, AC#26's grove half, and `focus-definition.test.ts` (AC#20)
 - [ ] 17-03-PLAN.md — RESP-04's source scan (`one-tree.test.ts`, AC#10/11) plus the two structural container test ids
 - [ ] 17-04-PLAN.md — `e2e/helpers/nowrap.ts` and the sticky-bar clause AC#4-7, in `mobile-booker-path.spec.ts` (the Decision-Point call)
