@@ -718,11 +718,12 @@ describe("DS-09 / D-22 — the two 44px CTAs say so by name", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("MEASURES how many <Button> elements still hand-roll the height (DS-09 is Pending)", () => {
-    // NOT A REQUIREMENT — A MEASUREMENT, and the distinction is the whole point. DS-09 is recorded
-    // as Pending with Phase 17 as its owner, so this must not fail the build for sites that phase
-    // has not reached yet. What it must do is stop the adoption gap being invisible, which is how
-    // it came to be described by a comment that was simply wrong (WR-01).
+  it("requires that ZERO <Button> elements hand-roll the height (DS-09, closed by Phase 17)", () => {
+    // THIS WAS A MEASUREMENT AND IS NOW A REQUIREMENT. DS-09 shipped Pending with Phase 17 named as
+    // its owner, so until that phase arrived this could not fail the build for sites nobody had
+    // reached yet; what it had to do instead was stop the adoption gap being invisible, which is how
+    // the gap came to be described by a comment that was simply wrong (WR-01). Phase 17 (plan 17-05)
+    // converted the sites, so the ceiling is gone and the assertion below is a zero.
     //
     // Counts `<Button …>` tags carrying a bare `h-11`. `<Input>`, `<SelectTrigger>`, `<InputGroup>`
     // and `<Skeleton>` are excluded because they genuinely expose no `touch` size — the claim the
@@ -738,25 +739,41 @@ describe("DS-09 / D-22 — the two 44px CTAs say so by name", () => {
       }
     }
 
-    // The ceiling is the record. If this drops, Phase 17 converted something — lower the number and
-    // say which site moved. If it RISES, a new site hand-rolled the height that should have opted
-    // into the size, and that is the regression this measurement exists to surface.
+    // ZERO is now the record, and a rise is the only way this can move. If it RISES, a new site
+    // hand-rolled the height that should have opted into the size, and that is the regression this
+    // gate exists to surface. Do not answer a red here by raising a number back into this line.
     //
-    // SIX, and the arithmetic getting here makes the case for measuring over describing. The review
-    // that raised WR-01 enumerated the sites by hand and found seven. Running this count found
-    // EIGHT — `rsvp-form.tsx`'s "Change my answer" button was missed by the hand pass. Both of that
-    // file's are converted in this commit, because one of them sat directly beside an
-    // already-converted sibling and the pair rendered the same 44px with different padding. Six
-    // remain. A comment describing the gap was wrong twice over; a count cannot be.
+    // THE LITERAL SAID SIX AND THE TREE MEASURED FIVE — recorded because the gap is the point, not
+    // a footnote. When plan 17-05 reached this line the count came back **5**, reproduced through
+    // this file's own scan (same walker, same `BARE_TOUCH_HEIGHT`, same `enclosingButtonTag`, same
+    // `stripComments`) over the pre-conversion tree, in four files:
     //
-    // The six left are Phase 17's to convert under DS-09, which is why this is a ceiling and not a
-    // zero. It is deliberately NOT scoped to exclude the D-22 files: `search-bar.tsx` is a named
-    // D-22 site that still has two, and hiding that behind a per-site exemption would recreate
-    // exactly the comfortable, wrong story WR-01 is about.
+    //   src/components/search/search-bar.tsx        — the date trigger and the price trigger
+    //   src/components/group/group-refresh.tsx      — the load-failure retry
+    //   src/components/group/regenerate-link-button.tsx
+    //   src/components/group/remove-attendee-button.tsx
+    //
+    // So the gate had been PASSING AT 5 AGAINST A LITERAL OF 6, and would have kept passing if a
+    // sixth site appeared. That is exactly the shape this file's own docblock warns about: a ceiling
+    // that reads as a considered decision and is a forgotten one. The arithmetic that produced the 6
+    // is the same lesson from the other side — the WR-01 review enumerated the sites by hand and
+    // found seven, running the count found EIGHT (`rsvp-form.tsx`'s "Change my answer" was missed by
+    // the hand pass), two were converted then and the literal was set to six without the remainder
+    // ever being re-counted. A comment describing the gap was wrong twice over; a stale ceiling was
+    // wrong a third time. Only a number that must be zero cannot drift.
+    //
+    // The scan is deliberately NOT scoped to exclude the D-22 files, and that argument still stands
+    // at zero: `search-bar.tsx` is a named D-22 site and it carried two of the five, so a per-site
+    // exemption would have hidden the largest part of the gap and recreated exactly the comfortable,
+    // wrong story WR-01 is about.
+    //
+    // The offender list stays in the failure message. At `toBe(0)` the message is the only thing
+    // that tells the next author WHICH site regressed, and a zero with no names is a gate nobody can
+    // act on.
     expect(
       handRolled.length,
       `hand-rolled 44px <Button> heights:\n${handRolled.join("\n")}`,
-    ).toBeLessThanOrEqual(6);
+    ).toBe(0);
   });
 });
 
