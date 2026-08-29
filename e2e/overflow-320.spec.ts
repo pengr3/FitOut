@@ -15,6 +15,11 @@ import {
   type SeededListing,
 } from "./helpers/booker-seed";
 import { expectRing, readFocus, type FocusReading } from "./helpers/focus";
+// RESP-03 clause C's ONE definition of "this text did not wrap", shipped by plan 17-04 and imported
+// here by plan 17-11 as its SECOND consumer — which is the entire reason it was extracted rather than
+// left inline in `mobile-booker-path.spec.ts`. Never re-implemented: see the declared-set block above
+// the AC#30 describe for what this file measures with it and what it deliberately does not.
+import { expectNoWrap } from "./helpers/nowrap";
 import { FLOOR_PX, expectNoOverflow, expectNoOverflowWithin } from "./helpers/overflow";
 import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
@@ -1577,6 +1582,474 @@ const PHASE_13_ROWS: readonly Phase13Row[] = [
   },
 ];
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// RESP-03 CLAUSE C — THE DECLARED NO-WRAP SET, ON THE PHASE-13 SURFACES (plan 17-11, AC#8)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE SECOND CONSUMER OF `e2e/helpers/nowrap.ts`, AND THE REASON THE EXTRACTION EXISTS. Plan 17-04
+// pulled `expectNoWrap` out of `mobile-booker-path.spec.ts` case (b) specifically so this file could
+// ask the same question of subjects that spec's fixture cannot reach, and it left TWO rows in its own
+// declared set carrying a paragraph skip that names PLAN 17-11 TASK 3 as their owner. These are those
+// rows. The measurement is IMPORTED, never re-inlined: three copies of a no-wrap criterion is the
+// drift that goes silent in the worst direction — the day a subject stops resolving a numeric
+// `line-height`, one copy grows a guard and the others keep reporting green about `NaN`.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WHY THE SET IS A TABLE AND NOT A LOOP OVER A SELECTOR
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// 17-UI-SPEC § Typography declares THREE classes — price, countdown, label — and a wrap means
+// something different in each. A table makes every member carry its class, its locator, the surfaces
+// it is measured on, and WHY it may not wrap; a bare `document.querySelectorAll('.tabular-nums')`
+// sweep would measure whatever happened to match and would say nothing about what was left out. The
+// integrity case at the foot of this block asserts the table cannot quietly lose a reason, an owner or
+// a whole class — 17-04's discipline, applied to this file's half of the same set.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// ⚠ THE STATUS CHIP CANNOT BE MEASURED BY `expectNoWrap`, AND THAT IS A MEASUREMENT
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// The plan's own words for this task are *"every status chip label … measure at 320px in both
+// themes"*, and 17-04's skip row hands them here. MEASURED FIRST, on `/dev/theme` at 320px in both
+// themes (44 badges), and the result changes the instrument rather than the subject:
+//
+//   shipped, roomy                  clientHeight 18 · scrollHeight 19 · clientWidth 135 · scrollWidth 135
+//   `nowrap` deleted, roomy         clientHeight 18 · scrollHeight 19 · clientWidth 135 · scrollWidth 135
+//   `nowrap` deleted AND squeezed   clientHeight 18 · scrollHeight 27 · clientWidth  58 · scrollWidth  64
+//   `nowrap` restored, squeezed     clientHeight 18 · scrollHeight 19 · clientWidth  58 · scrollWidth  90
+//
+// `clientHeight` is **18 in every one of those four states**, because `ui/badge.tsx`'s recipe pins the
+// box at `h-5` — 20px less 1px of border top and bottom. So `expectNoWrap` on a chip is wrong in BOTH
+// directions at once: it is RED on a correct tree (18 against a 16px line-height plus the 1px
+// tolerance is 18 <= 17, false) and it is UNFALSIFIABLE (a genuine wrap leaves `clientHeight` at 18).
+// That is 17-04's finding F3 — "a declared reservation compared against a line box" — arriving on a
+// different element, and it is why the hold countdown's `h-8` slot is measured through its
+// `p[role="timer"]` child rather than through the box.
+//
+// WHAT THE FOUR READINGS DO GIVE IS THE RIGHT CLAUSE, AND THE FIRST DRAFT OF IT WAS WRONG TOO — which
+// is recorded rather than quietly corrected, because the wrong version looked obviously right. It
+// asserted `scrollHeight <= clientHeight + 1` alongside the width clause and went RED on shipped code:
+//
+//   /bookings · grove · the first mobile row card    clientHeight 18 · scrollHeight 20
+//
+// EVERY shipped chip already lays out 1–2px more content than its box holds, because `h-5` is tighter
+// than `py-0.5` plus a 16px line box by design — the ink fits, the line box does not — and the
+// overhang varies by SURFACE (19 on `/dev/theme` in both themes, 20 on `/bookings`) rather than by
+// theme. A tight vertical bound is therefore red on correct code, and a bound loose enough to be green
+// would have to permit a whole extra line box.
+//
+// SO THE CLAUSE IS ASSERTED AT THE CAUSE INSTEAD. A chip is `h-5 overflow-hidden whitespace-nowrap`;
+// while that last declaration holds, a wrap is IMPOSSIBLE, and the two things that can actually take
+// the label away are the declaration being removed and the chip being squeezed. `expectChipNotClipped`
+// asserts (1) the computed `white-space` is still `nowrap` — measured, deleting it changes nothing
+// visible until a parent squeezes the chip, so a symptom-side gate would go green on the very commit
+// that removed the protection — and (2) `scrollWidth <= clientWidth + 1`, which is the clip a nowrap
+// chip actually has (90 against 58 squeezed; 135 = 135 shipped).
+//
+// IT IS NOT A SECOND DEFINITION OF "THIS TEXT DID NOT WRAP". It reads no `line-height` and makes no
+// single-line claim; it is the measurement `expectNoWrap` structurally cannot make on a box whose
+// height is a declaration. Every subject in this table that HAS its own text box goes through the
+// shared helper, and the entry that does not says so in `measureWhy`.
+
+/** The 1px allowance both clauses carry, and it is the SAME number for the same reason. */
+const WRAP_TOLERANCE_PX = 1;
+
+/**
+ * ⚠ WHAT MAKES A `tabular-nums` ELEMENT A MONEY FIGURE — AND IT IS NOT THE CLASS. WATCHED RED.
+ *
+ * The first draft of the facts-list entry below located `dd.tabular-nums` and nothing else, which is
+ * 17-UI-SPEC's price class read literally. It failed on the receipt with a 48px reading against a 24px
+ * line box, and the subject it named was not a price:
+ *
+ *   Text: "Sunday, Aug 30, 10:51 AM – 11:51 AM (Makati time)"   clientHeight 48 · lineHeight 24
+ *
+ * `tabular-nums` is applied to DATES too — deliberately, and by rule: `payout-row.tsx` says in as many
+ * words that a when-label carries the utility because it is a date. A when-label is prose, it is
+ * `max-w-prose`-shaped, and it wraps by design; asserting one line on it is red on a correct tree and
+ * names the wrong defect, which is the same trap `[data-testid="paid-statement"]` is declared a skip
+ * for one entry down. So the class is NECESSARY and not SUFFICIENT, and the sufficient condition is
+ * the one thing every money figure in this product renders and nothing else does: the currency symbol
+ * `formatMoney` puts in front of it (optionally behind D-59's minus sign for a commission line).
+ *
+ * MEASURED with the filter, court, 320×568, on the Phase-13 fixture — the counts every `atLeast` below
+ * is taken from, and the receipt is where the filter earns itself:
+ *
+ *   /bookings              3 visible `dd.tabular-nums`, 3 money   (₱1,050.00 ×3, one per row card)
+ *   confirmation moment    3 visible, 3 money                     (₱1,000.00 · ₱50.00 · ₱1,050.00)
+ *   confirmed detail       3 visible, 3 money                     (as above)
+ *   the receipt            5 visible, 3 money                     (2 dropped: both when-labels)
+ *   /bookings/[id]/cancel  6 visible, 6 money                     (the refund arithmetic)
+ *
+ * ⚠ IT IS CURRENCY-SPECIFIC, AND THE `atLeast` FLOORS ARE WHAT KEEP THAT HONEST. If the display
+ * currency ever stops being `₱`, this filter matches nothing and every entry using it fails its floor
+ * by name — which is the right failure, rather than a silent green over zero subjects.
+ */
+const MONEY_FIGURE = /^\s*[−-]?\s*₱/;
+
+/** One member of the declared no-wrap set, on this file's Phase-13 surfaces. */
+type NoWrapEntry = {
+  /** How the member is named in failures and in the skip output. */
+  readonly name: string;
+  /** 17-UI-SPEC § Typography's three classes. The integrity case asserts all three are represented. */
+  readonly kind: "price" | "countdown" | "label";
+  /**
+   * Which measurement this subject ADMITS.
+   *
+   * `no-wrap` goes through the shared `expectNoWrap`. `not-clipped` is for a subject whose height is a
+   * DECLARED RESERVATION rather than a line box, where the shared helper is red on a correct tree and
+   * unfalsifiable at the same time — `measureWhy` is then required and carries the readings.
+   */
+  readonly measure: "no-wrap" | "not-clipped";
+  /** Required when `measure` is `not-clipped`: why the shared helper cannot be pointed at this. */
+  readonly measureWhy?: string;
+  /** The `PHASE_13_ROWS` names this entry is measured on. Asserted to resolve. */
+  readonly on: readonly string[];
+  /** `null` for a member no instrument in THIS file can reach; `skip` then says why, IN THE MESSAGE. */
+  readonly locate: ((page: Page) => Locator) | null;
+  /**
+   * The vacuity floor for this entry's locator on every surface in `on`.
+   *
+   * A `for` loop over zero matches measures nothing and passes, which is the failure every guard in
+   * this file exists to prevent. It is a FLOOR, never a pin: low enough that ordinary fixture
+   * variation does not trip it, high enough that zero can never pass. Each entry's `why` carries the
+   * count actually measured, so the two are readable side by side and a drift is visible.
+   */
+  readonly atLeast: number;
+  /** Why this member may not wrap, in RESP-03's terms. */
+  readonly why: string;
+  /** Required when `locate` is `null`. A paragraph, and it names an owner. */
+  readonly skip?: string;
+};
+
+/**
+ * ⚠ MEASURED 30 August 2026 AT 320×568, court, against the Phase-13 fixture, before any of it was
+ * trusted. The readings are in each entry, because a bound with no reading behind it is a guess:
+ *
+ *   booking-reference   clientHeight 24 · lineHeight 24 · display block   → ONE LINE, ZERO SLACK
+ *   receipt-total       clientHeight 26 · lineHeight 26 · display block   → ONE LINE, ZERO SLACK
+ *   paid-statement      clientHeight 72 · lineHeight 24 · display block   → THREE LINES, BY DESIGN
+ *   [data-slot=badge]   clientHeight 18 · lineHeight 16 · display flex    → A RESERVATION, NOT A LINE
+ *
+ * The third and fourth are why two members of this table are not measured by `expectNoWrap`, and both
+ * are recorded rather than dropped: a money figure is not automatically a no-wrap subject, and neither
+ * is a fixed-height chip.
+ */
+const PHASE_13_NO_WRAP: readonly NoWrapEntry[] = [
+  {
+    name: "the booking reference",
+    kind: "label",
+    measure: "no-wrap",
+    on: [
+      "the confirmation moment",
+      "the confirmed detail, no query",
+      "payment state: pending settlement",
+      "payment state: reversed, INDETERMINATE branch (D-96)",
+      "the receipt",
+    ],
+    locate: (page) => page.getByTestId("booking-reference"),
+    atLeast: 1,
+    why:
+      "TRUST-02 / D-78's booking reference — the string a booker reads out to support when something " +
+      "has gone wrong with their money, on the five surfaces that render one. It is " +
+      "`font-mono tabular-nums` at `text-body`, and MEASURED it has ZERO SLACK: `clientHeight 24` " +
+      "against a resolved `line-height` of 24. A reference one character longer, or a theme one type " +
+      "step up, wraps — and a reference read out from a clipped second line is a reference that " +
+      "identifies the wrong booking or none at all.",
+  },
+  {
+    name: "the receipt's Total",
+    kind: "price",
+    measure: "no-wrap",
+    on: ["the receipt"],
+    locate: (page) => page.getByTestId("receipt-total"),
+    atLeast: 1,
+    why:
+      "The figure the receipt exists to state, on the surface a booker keeps. Measured `clientHeight " +
+      "26` against a 26px line-height — one line, no slack, at the largest type step on the document. " +
+      "17-UI-SPEC's price class names `price-total` explicitly; this is that hook's receipt-surface " +
+      "twin (`price-breakdown.tsx` forks the id per surface so one document holds exactly one total).",
+  },
+  {
+    name: "the itemised money figures in the booking facts list",
+    kind: "price",
+    measure: "no-wrap",
+    on: ["the confirmation moment", "the confirmed detail, no query", "the receipt"],
+    locate: (page) => page.locator("dd.tabular-nums").filter({ hasText: MONEY_FIGURE }),
+    atLeast: 3,
+    why:
+      "17-UI-SPEC's price class is *every `tabular-nums` money figure in a fixed-height box*, and this " +
+      "is where they are densest: each one is the `<dd>` of a `flex items-baseline justify-between` " +
+      "row whose `<dt>` label is beside it, so a wrap does not push the row taller in a way anybody " +
+      "reviews — it re-flows the amount UNDER its own label and the two stop reading as one fact. " +
+      "Measured with the money filter: 3 on the moment, 3 on the detail, 3 on the receipt " +
+      "(₱1,000.00 / ₱50.00 / ₱1,050.00 on each). The filter is not decoration — see `MONEY_FIGURE` " +
+      "for the receipt's two `tabular-nums` when-labels, which this entry went red on first.",
+  },
+  {
+    name: "the booker list's per-row amounts",
+    kind: "price",
+    measure: "no-wrap",
+    on: ["/bookings (the booker's list)"],
+    locate: (page) =>
+      page.locator('[data-testid="row-card"] dd.tabular-nums').filter({ hasText: MONEY_FIGURE }),
+    atLeast: 1,
+    why:
+      "The same class on the only LIST the booker has, where the box is tighter than on a detail page: " +
+      "a `RowCard` at 320px carries a 48px thumbnail, a title, a meta line and this figure. Scoped " +
+      "INSIDE `row-card` deliberately — the route renders a `hidden md:block` table beside the " +
+      "`md:hidden` stack, and naming the tree that EXISTS at this width says more than relying on the " +
+      "visibility filter to drop the other one. Measured: 3, one per seeded upcoming booking.",
+  },
+  {
+    name: "the cancellation quote's money figures",
+    kind: "price",
+    measure: "no-wrap",
+    on: ["/bookings/[id]/cancel"],
+    locate: (page) => page.locator("dd.tabular-nums").filter({ hasText: MONEY_FIGURE }),
+    atLeast: 3,
+    why:
+      "The refund arithmetic a booker is agreeing to before they cancel — measured, SIX money figures " +
+      "on one 320px screen (₱1,050.00 · ₱1,000.00 · ₱50.00 · ₱500.00 · ₱0.00 · ₱500.00), the densest " +
+      "money surface in the app. D-79's rule that a refund figure is a SIBLING line rather than part " +
+      "of a badge is what puts them all here, in their own rows, where a wrap would separate an amount " +
+      "from the thing it is an amount of. The floor is 3 rather than 6 because how many lines the " +
+      "quote has depends on which cancellation window the fixture's booking falls in.",
+  },
+  {
+    name: "every status chip label on the booking surfaces",
+    kind: "label",
+    measure: "not-clipped",
+    measureWhy:
+      "THE SHARED HELPER IS RED ON A CORRECT TREE AND UNFALSIFIABLE AT THE SAME TIME, MEASURED. " +
+      "`ui/badge.tsx` pins the chip at `h-5`, so `clientHeight` reads 18 (20 less 1px of border top " +
+      "and bottom) in EVERY state — with the label short, with `whitespace-nowrap` deleted, and with " +
+      "the chip squeezed to 58px and genuinely broken over two lines. Against a 16px `line-height` " +
+      "plus the 1px tolerance, `expectNoWrap` compares 18 <= 17 and fails a shipped chip; raise the " +
+      "tolerance to make that pass and the clause can never fail again, because the number it reads " +
+      "is a declaration and not a line box. It is 17-04's finding F3 on a different element. So the " +
+      "clause is asserted at the CAUSE: `expectChipNotClipped` reads the computed `white-space` — the " +
+      "one declaration that makes a wrap impossible in this box — and then the clip a nowrap chip " +
+      "actually has (`scrollWidth 90 > clientWidth 58` squeezed; 135 = 135 shipped). It carries NO " +
+      "vertical bound, and that is a measurement too: shipped chips read `scrollHeight` 19–20 against " +
+      "an 18px box on correct code, varying by surface, so any tight vertical clause is red on a " +
+      "clean tree. It reads no line-height and is a complement to the shared helper, not a copy.",
+    on: [
+      "/bookings (the booker's list)",
+      "the confirmation moment",
+      "the confirmed detail, no query",
+      "the receipt",
+    ],
+    locate: (page) => page.locator('[data-slot="badge"]'),
+    atLeast: 1,
+    why:
+      "A status chip whose label is clipped in a fixed-height chip is a clipped STATUS, and status is " +
+      "the one thing these surfaces exist to communicate — `Awaiting payment` and `Approved — pay " +
+      "now` are the longest in the vocabulary and both are states where money is outstanding. " +
+      "Measured on the fixture: 6 chips on the booker's list, 1 on each detail surface.",
+  },
+  {
+    name: "the money-carrying paid statement",
+    kind: "price",
+    measure: "no-wrap",
+    on: ["the confirmation moment", "the confirmed detail, no query"],
+    locate: null,
+    atLeast: 0,
+    why:
+      "It carries a `tabular-nums` money figure inside a sentence, which is exactly the shape a reader " +
+      "adding to this table would assume belongs in the price class.",
+    skip:
+      "NOT A NO-WRAP SUBJECT, AND THE MEASUREMENT IS THE POINT — recorded as a row rather than left " +
+      "out, because the next author to widen this table will reach for it first. " +
+      "`[data-testid=\"paid-statement\"]` measured `clientHeight 72` against a resolved `line-height` " +
+      "of 24 on the confirmed detail at 320px: it renders on THREE LINES, by design. It is " +
+      "`mx-auto max-w-prose` prose that happens to contain ₱1,050.00, not a figure in a declared box, " +
+      "and 17-UI-SPEC's price class is *every tabular-nums money figure in a FIXED-HEIGHT BOX*. " +
+      "Pointing the shared helper at it would be red on a correct tree and the diagnosis would name " +
+      "the wrong thing entirely — a wrapped sentence rather than a clipped amount. The figure INSIDE " +
+      "it is not separately addressable (it is a bare text node in the sentence), so measuring it " +
+      "honestly would need a wrapper element, which is a product-source change this audit may not " +
+      "make (17-UI-SPEC § Remediation). Same class of instrument limit as 17-04's F3; RECORDED FOR " +
+      "PLAN 17-13's ledger.",
+  },
+  {
+    name: "the checkout header's live hold countdown",
+    kind: "countdown",
+    measure: "no-wrap",
+    on: ["the confirmation moment"],
+    locate: null,
+    atLeast: 0,
+    why:
+      "17-UI-SPEC's countdown class has exactly one member, and a table that represented only two of " +
+      "the three classes would report clause C as covered while saying nothing about the third.",
+    skip:
+      "NOT ON ANY SURFACE THIS BLOCK REACHES, AND ALREADY MEASURED BY ITS OWNER. The countdown class's " +
+      "one member is the checkout header's `HOLD_COUNTDOWN_BOX` (`h-8 min-w-24`) on " +
+      "`/listings/[id]/book`, which needs a MINTED HOLD — and `e2e/mobile-booker-path.spec.ts` is the " +
+      "only spec in the tree that mints one. Plan 17-04 measured it there, in both themes at 320px, " +
+      "through this same `expectNoWrap`, pointed at the box's `p[role=\"timer\"]` CHILD rather than at " +
+      "the box (the reservation reads `clientHeight 32` against a 20px line-height and is red on a " +
+      "correct tree — the same trap the status-chip row above records one element over). The " +
+      "Phase-13 surfaces render no countdown: the confirmation moment's decay (D-60) is a marker with " +
+      "no ticking digits, and the pending state's 2.5s poller (D-71) renders no clock at all. This " +
+      "row exists so the class is REPRESENTED with its owner named, rather than absent.",
+  },
+];
+
+/**
+ * RESP-03 clause C's other half, for a subject whose height is a DECLARATION.
+ *
+ * ⚠ READ THE BLOCK HEADER BEFORE CHANGING THIS. It is deliberately NOT a second `expectNoWrap`: it
+ * reads no `line-height` and makes no single-line claim. On a `whitespace-nowrap overflow-hidden`
+ * chip a wrap is IMPOSSIBLE while the declaration holds, so the two things that can actually take the
+ * label away are (1) the declaration being removed and (2) the chip being squeezed until its one line
+ * is clipped at the right edge. This asserts both, in that order.
+ *
+ * ⚠ AND THERE IS DELIBERATELY NO VERTICAL CLAUSE. The first draft asserted
+ * `scrollHeight <= clientHeight + 1` and WENT RED ON SHIPPED CODE, which is the measurement worth
+ * keeping rather than the assertion:
+ *
+ *   /dev/theme, court AND grove   clientHeight 18 · scrollHeight 19   (six chips, both themes)
+ *   /bookings,  grove             clientHeight 18 · scrollHeight 20   (the first mobile row card)
+ *   nowrap deleted AND squeezed   clientHeight 18 · scrollHeight 27
+ *
+ * Every shipped chip already lays out 1–2px MORE content than its box holds, because `h-5` (20px, less
+ * 1px of border top and bottom = 18) is tighter than `py-0.5` plus a 16px line box by design — the ink
+ * fits, the line box does not, and how much it overhangs varies by SURFACE (19 on `/dev/theme`, 20 on
+ * `/bookings`) rather than by theme. So a tight vertical bound is red on correct code, and a bound
+ * loose enough to be green would have to allow a whole extra line box, at which point it is no longer
+ * measuring anything. A real wrap adds ~9px (27 against 18) and is caught by clause (1) at its cause.
+ */
+async function expectChipNotClipped(locator: Locator, where: string): Promise<void> {
+  await expect(
+    locator,
+    `${where}: no element matched, so there is nothing to measure a clip on. A chip that stopped ` +
+      "rendering and a chip that fits are the same green to every assertion below.",
+  ).toHaveCount(1);
+
+  const m = await locator.evaluate((el) => {
+    const style = window.getComputedStyle(el);
+    return {
+      clientHeight: el.clientHeight,
+      scrollHeight: el.scrollHeight,
+      clientWidth: el.clientWidth,
+      scrollWidth: el.scrollWidth,
+      overflow: style.overflow,
+      whiteSpace: style.whiteSpace,
+      text: (el.textContent ?? "").trim(),
+    };
+  });
+
+  // The same guard (a) `expectNoWrap` carries: an empty chip clips nothing.
+  expect(
+    m.text.length,
+    `${where}: the chip rendered no text, so a clip assertion over it is free.`,
+  ).toBeGreaterThan(0);
+
+  // ── CLAUSE (1) — THE DECLARATION THAT MAKES A WRAP IMPOSSIBLE IS STILL THERE ────────────────────
+  // This is the clause that stands in for a no-wrap measurement on this subject, and it is asserted at
+  // the CAUSE rather than at the symptom on purpose: measured, deleting `whitespace-nowrap` from
+  // `ui/badge.tsx`'s recipe changes NOTHING visible while the chip has room (`clientHeight 18 ·
+  // scrollHeight 19` before and after), and only produces a clipped second line once a parent squeezes
+  // it (`scrollHeight 27`). A gate that waited for the symptom would report green on the commit that
+  // removed the protection and red on some unrelated layout change months later.
+  expect(
+    m.whiteSpace,
+    `${where}: this chip computes \`white-space: ${m.whiteSpace}\`, not \`nowrap\`. Text: ` +
+      `${JSON.stringify(m.text)}. That declaration is the ONLY thing stopping the label wrapping ` +
+      "inside a box whose height is fixed at `h-5` and whose overflow is hidden — measured, a chip " +
+      "with it removed and 58px of room lays out 27px of content inside an 18px box and simply does " +
+      "not paint the second line. The wrap is invisible to `scrollWidth` gates and invisible to " +
+      "`expectNoWrap` (the box height is a declaration, so `clientHeight` reads 18 either way), which " +
+      "is why the property itself is the assertion here.",
+  ).toBe("nowrap");
+
+  // ── CLAUSE (2) — THE CLIP A NOWRAP CHIP ACTUALLY HAS ────────────────────────────────────────────
+  expect(
+    m.scrollWidth,
+    `${where}: this chip's label is CLIPPED HORIZONTALLY — ${m.scrollWidth}px of content inside a ` +
+      `${m.clientWidth}px box (computed \`overflow: ${m.overflow}\`). Text: ` +
+      `${JSON.stringify(m.text)}. This is the failure a nowrap chip has INSTEAD of a wrap: squeezed ` +
+      "by a parent, it keeps its one line and loses the end of the word. Measured at 90 against 58 " +
+      "with the chip forced to 58px, against 135 = 135 shipped. `Awaiting payment` and `Approved — " +
+      "pay now` are the longest labels in the vocabulary and are the two to check first.",
+  ).toBeLessThanOrEqual(m.clientWidth + WRAP_TOLERANCE_PX);
+}
+
+/**
+ * Run every declared member of the no-wrap set that lives on this row, through the ONE shared helper
+ * (or, for the chip, through the clip clause the header argues for).
+ *
+ * ⚠ CALLED AFTER THE ROW'S OWN TELL HAS RESOLVED, and that ordering is [15-12] in a different clause:
+ * a no-wrap measurement taken over a skeleton reads the plate's boxes and reports them as the
+ * surface's. The loop below places the call after the tell and after `expectNoOverflow`, and BEFORE
+ * `expectVisibleFocus` — which walks the keyboard forward and SCROLLS, which `expectMoneyStatement-
+ * AboveFold`'s own note records as the thing that broke the first draft of this block's ordering.
+ */
+async function expectDeclaredNoWrap(page: Page, where: string, rowName: string): Promise<void> {
+  for (const entry of PHASE_13_NO_WRAP) {
+    if (entry.locate === null) continue;
+    if (!entry.on.includes(rowName)) continue;
+
+    // ⚠ `visible: true` IS AN INSTRUMENT CORRECTION, NOT A RELAXED ASSERTION, AND IT IS THIS FILE'S
+    // OWN PRECEDENT — `expectMoneyStatementAboveFold` carries the same filter with the same
+    // measurement, one screen up. TWO different invisible trees would otherwise be measured here:
+    //
+    //   • THE RETAINED PREVIOUS TREE UNDER A DRIVEN CLOCK. Watched red, 30 August 2026: on `the
+    //     confirmation moment` (a `ticks: true` row, so `page.clock` is installed before the first
+    //     navigation) `[data-testid="booking-reference"]` matched TWO elements, and #1 read
+    //     `display: block · clientHeight 0 · rectHeight 0` with the same text. That is the mid-flight
+    //     `router.refresh()` tree a frozen clock leaves inside a `hidden` container on `<body>`. It
+    //     paints nothing, no booker can read it — and `expectNoWrap`'s guard (c) caught it and named
+    //     it exactly, which is guard (c) doing its job on the first real subject that met it.
+    //   • THE DESKTOP TABLE ON EVERY LIST SURFACE. `/bookings` renders `hidden md:block` beside
+    //     `md:hidden`, so an unfiltered `[data-slot="badge"]` matched 6 where 3 are on screen.
+    //     A `display: none` element reports 0 for every box, so it would satisfy the width clause
+    //     trivially and report the surface as measured having measured nothing.
+    //
+    // The claim is therefore stated on what is RENDERED. The floor below counts visible matches, so a
+    // subject that stopped painting still fails rather than passing quietly.
+    const locator = entry.locate(page).filter({ visible: true });
+
+    // ⚠ THE FLOOR IS POLLED, AND THE POLL WAS EARNED IN A RED-WATCH RATHER THAN ADDED IN ADVANCE.
+    // `locator.count()` is an IMMEDIATE snapshot with no auto-wait — unlike every `expect(locator)`
+    // form in this file — so the first draft raced the surface it measured. Watched, 30 August 2026,
+    // during the `whitespace-nowrap` mutation below: `the receipt` reported *"the booking reference
+    // matched 0 element(s) … under its floor of 1"* on a surface that renders one, because the dev
+    // server was recompiling and the row's `tell` had resolved while the rest of the document had not.
+    // That is [15-12] exactly — a vacuity guard firing on a correct tree — and 17-06's closure is the
+    // one to copy: give the existing claim the same fifteen seconds `expectReachable` already allows,
+    // and change nothing about what it asserts.
+    let count = 0;
+    await expect
+      .poll(
+        async () => {
+          count = await locator.count();
+          return count;
+        },
+        {
+          timeout: 15_000,
+          message:
+            `${where}: the declared no-wrap member "${entry.name}" (${entry.kind}) stayed under its ` +
+            `floor of ${entry.atLeast} for fifteen seconds. ${entry.why} A loop over zero matches ` +
+            "measures nothing and passes, so an absent subject is a failure here — either the fixture " +
+            "no longer reaches the state that renders it, or the subject moved and this entry must " +
+            "move with it.",
+        },
+      )
+      .toBeGreaterThanOrEqual(entry.atLeast);
+
+    for (let i = 0; i < count; i += 1) {
+      const subject = locator.nth(i);
+      const label = `${where} · ${entry.kind}: ${entry.name} #${i}`;
+      if (entry.measure === "not-clipped") {
+        await expectChipNotClipped(subject, label);
+      } else {
+        await expectNoWrap(subject, label, WRAP_TOLERANCE_PX);
+      }
+    }
+  }
+}
+
 test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in both themes`, () => {
   // SERIAL, and it is not a performance setting: the whole block shares ONE seeded fixture built in
   // `beforeAll`. Playwright runs `beforeAll` once per WORKER, so a parallel block would seed one listing
@@ -1664,6 +2137,10 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
         ).not.toHaveCount(0, { timeout: 20_000 });
 
         await expectNoOverflow(page, where);
+
+        // RESP-03 clause C, AFTER the tell and BEFORE the focus walk (which scrolls). The declared set
+        // and the reason for that placement are in the block above this describe.
+        await expectDeclaredNoWrap(page, where, row.name);
 
         // ⚠ THE ORDER OF THE NEXT THREE IS LOAD-BEARING AND IT WAS MEASURED. STATE-06's claim is about
         // the INITIAL viewport, and `expectVisibleFocus` walks the keyboard forward until focus leaves
@@ -1784,6 +2261,121 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
     ).toBeLessThan(p.y);
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE DECLARED NO-WRAP SET ASSERTS ITS OWN INTEGRITY (plan 17-11, 17-04's discipline)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A SIXTH DESCRIBE, AND LIKE D-201's IT OPENS NO BROWSER. `PHASE_13_NO_WRAP` is a claim about
+// COVERAGE, and a set that quietly loses a member reports "clause C: covered" while a status chip
+// clips its label on a surface nobody looked at. 17-04's own table carries the same case for the same
+// reason; this is its half of the set. Everything here is about the TABLE, never about a page.
+test.describe("RESP-03 clause C — the declared no-wrap set is complete and every row carries a reason", () => {
+  const PHASE_13_ROW_NAMES = new Set(PHASE_13_ROWS.map((r) => r.name));
+
+  test("every entry names Phase-13 rows that exist", () => {
+    const dangling: string[] = [];
+    for (const entry of PHASE_13_NO_WRAP) {
+      if (entry.on.length === 0) dangling.push(`${entry.name} -> (no surface named)`);
+      for (const rowName of entry.on) {
+        if (!PHASE_13_ROW_NAMES.has(rowName)) dangling.push(`${entry.name} -> "${rowName}"`);
+      }
+    }
+    expect(
+      dangling,
+      `${dangling.length} no-wrap entr(ies) name a Phase-13 row that does not exist, or name none at ` +
+        `all:\n${dangling.map((s) => `  ${s}`).join("\n")}\n` +
+        "An entry whose surfaces do not resolve is measured on nothing and still reads like coverage " +
+        "— the same failure D-201's inventory catches one level up. Renaming a row is what usually " +
+        "breaks this; rename the entry with it.",
+    ).toEqual([]);
+  });
+
+  test("every entry carries prose, and every unreachable one carries a paragraph and an owner", () => {
+    const thin = PHASE_13_NO_WRAP.filter((e) => e.why.trim().length < 80).map(
+      (e) => `${e.name} (why: ${e.why.trim().length} chars)`,
+    );
+    expect(
+      thin,
+      `${thin.length} entr(ies) have a \`why\` shorter than 80 characters:\n` +
+        `${thin.map((s) => `  ${s}`).join("\n")}\n` +
+        "RESP-03's clause is *why it may not wrap*, per member. A locator with no argument behind it " +
+        "is a selector somebody will delete the first time it is inconvenient.",
+    ).toEqual([]);
+
+    const silentSkips = PHASE_13_NO_WRAP.filter(
+      (e) => e.locate === null && (e.skip ?? "").trim().length < 80,
+    ).map((e) => `${e.name} (skip: ${(e.skip ?? "").trim().length} chars)`);
+    expect(
+      silentSkips,
+      `${silentSkips.length} unreachable entr(ies) carry no paragraph reason:\n` +
+        `${silentSkips.map((s) => `  ${s}`).join("\n")}\n` +
+        "A silent absence is the failure; a NAMED skip is a measurement of a different kind. Say what " +
+        "stands in the way, why this file's fixture cannot produce it, and which plan or spec owns it.",
+    ).toEqual([]);
+
+    const orphanSkips = PHASE_13_NO_WRAP.filter(
+      (e) => e.locate !== null && e.skip !== undefined,
+    ).map((e) => e.name);
+    expect(
+      orphanSkips,
+      `${orphanSkips.length} entr(ies) are MEASURED and also carry a skip reason:\n` +
+        `${orphanSkips.map((s) => `  ${s}`).join("\n")}\n` +
+        "A reason for not measuring something that is being measured is a stale sentence, and stale " +
+        "sentences in a gate are what plan 17-06 spent a task removing.",
+    ).toEqual([]);
+  });
+
+  test("a `not-clipped` entry explains why the shared helper cannot be used on it", () => {
+    const unexplained = PHASE_13_NO_WRAP.filter(
+      (e) => e.measure === "not-clipped" && (e.measureWhy ?? "").trim().length < 80,
+    ).map((e) => e.name);
+    expect(
+      unexplained,
+      `${unexplained.length} entr(ies) opt out of \`expectNoWrap\` without saying why:\n` +
+        `${unexplained.map((s) => `  ${s}`).join("\n")}\n` +
+        "There is ONE definition of \"this text did not wrap\" in this repository and every subject " +
+        "that can go through it must. An entry that takes the clip clause instead is making a claim " +
+        "about its subject's BOX — that its height is a declaration rather than a line box — and that " +
+        "claim needs its readings written down, or the next author will assume the helper was simply " +
+        "inconvenient.",
+    ).toEqual([]);
+  });
+
+  test("all three of 17-UI-SPEC's classes are represented, and the set is not all skips", () => {
+    const kinds = new Set(PHASE_13_NO_WRAP.map((e) => e.kind));
+    for (const kind of ["price", "countdown", "label"] as const) {
+      expect(
+        kinds.has(kind),
+        `17-UI-SPEC § Typography declares THREE no-wrap classes — price, countdown, label — and this ` +
+          `table represents ${[...kinds].join(", ")}. A missing class is a class nobody is measuring ` +
+          "and nobody can see is unmeasured. If this file genuinely cannot reach a member of it, add " +
+          "the row with `locate: null` and a paragraph naming its owner, the way the countdown row " +
+          "does.",
+      ).toBe(true);
+    }
+
+    const measured = PHASE_13_NO_WRAP.filter((e) => e.locate !== null);
+    expect(
+      measured.length,
+      `this table declares ${PHASE_13_NO_WRAP.length} member(s) and MEASURES ${measured.length} of ` +
+        "them. A set that measures nothing is a set of reasons, and clause C would be reported as " +
+        "covered by a table that never opened a page.",
+    ).toBeGreaterThanOrEqual(4);
+
+    // The shared helper has to be the one doing most of the work, or the extraction bought nothing.
+    const throughHelper = measured.filter((e) => e.measure === "no-wrap");
+    expect(
+      throughHelper.length,
+      `${throughHelper.length} of the ${measured.length} measured entr(ies) go through the shared ` +
+        "`expectNoWrap`. The clip clause is a complement for ONE subject class whose box is a " +
+        "declared height; if it has become the majority, the file has grown a second definition of " +
+        "the criterion by attrition, which is the exact drift `helpers/nowrap.ts` was extracted to " +
+        "prevent.",
+    ).toBeGreaterThan(measured.length - throughHelper.length);
+  });
+});
+
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // PHASE 14 — THE FIVE HOST SURFACES (plan 14-16) · WIDENED TO ELEVEN BY PLAN 17-11 (RESP-03 / AC#1)
