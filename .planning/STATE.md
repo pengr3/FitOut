@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 17-07-PLAN.md
-last_updated: "2026-08-29T11:35:00.000Z"
-last_activity: 2026-08-29 -- 17-07 complete: GATE-02's axe sweep EXISTS and has a verdict -- e2e/axe-sweep.spec.ts, 43 rows (one per declared surface, the row set ASSERTED equal to the set derived from disk so a new page.tsx with no row is a failing test), 24 measured with no postgres client, court only at 320/1280. First run 48 measured: 4 red -> 2 real defects fixed (aria-progressbar-name on the wizard progress bar, closed with aria-labelledby at the call site; heading-order on /host/listings, closed with a titleAs prop on ListingCard because h3 is CORRECT on / and wrong there) + 2 of my own tells. Re-run 52 passed / 0 failed / 36 named skips. A1 measured TRUE (zero nextjs-portal targets in 48 scans), A4 measured TRUE and stronger than asked (heading-order both passes AND fired), A5's predicted rule list wrong in both directions -- not one of its six fired. Vacuity guard watched red against about:blank (the node floor fired, not the violation list); a 404 cannot work here, per 17-01. AC#24 done: six sentences in four files now say court-only with the grove cost named, history quoted as SUPERSEDED. Two findings batched to deferred-items: helpers/axe.ts says target-size cannot run and at axe-core 4.13.0 it does, and a dev-only hydration mismatch on the nav drawer trigger. GATE-02 stays Pending -- keyboard operability is 17-08's, so this is requirements-advanced only. NOTE for the verifier: the body "Current Position" block still reads "Plan: 2 of 14" and has since 17-02 -- left byte-identical rather than corrected here, because six consecutive plans have left it and a lone edit now would read as tampering with the file this phase keeps recording as sdk-damaged. The frontmatter above is the accurate position.
+stopped_at: Completed 17-08-PLAN.md
+last_updated: "2026-08-29T12:10:00.000Z"
+last_activity: 2026-08-29 -- 17-08 complete, EXECUTED ACROSS AN INTERRUPTION: GATE-02's keyboard walk now covers the five COMPOSITE families -- e2e/keyboard-composites.spec.ts, 7 cases, all five properties (reachable, operable, indicated, escapable, returned). Task 1 (calendar + slot-picker tab orders, 21 and 23 stops) was committed by a PRIOR executor at 250e32c and left Tasks 2-3 uncommitted and NEVER RUN; this session verified, finished and committed them (de097f8, 7641f44). ESCAPABLE and RETURNED had no shipped assertion anywhere in the repo before this and are the plan's genuinely new measurement -- both RED-WATCHED by mutating responsive-dialog.tsx (the ONE overlay primitive) rather than the test: onEscapeKeyDown->preventDefault gave a named assertion not a hang, and onCloseAutoFocus={undefined} gave Expected "button[button]:Upload photo" / Received null with `<body>` named in the message while properties 1-4 all still passed. THREE DEFECTS FOUND BY RUNNING THE PRIOR EXECUTOR'S WORK: (1) the whole first run was red against a WEDGED next dev server returning 500 "Jest worker encountered 2 child process exceptions" -- environment, not spec; killed, rm -rf .next, restarted, everything green. (2) getByRole("button",{name:"Back"}) was AMBIGUOUS on the wizard, resolving to the Back button AND a rail marker labelled `Go back to step 1: ...` -- which is the evidence the step rail BECOMES a control after the advance (wizard.tsx:454 seeds visitedKeys with step 1 only, :953 needs done AND visited), so the rail is now measured where it exists rather than declared absent. (3) the wizard row was flaky one run in twelve: the space-type Select is named by its PLACEHOLDER until React Hook Form applies defaultValues, so the baseline and the walk named the same element differently -- armWizard now waits for the seeded value. WALK_BOUND untouched at 40, zero new focus definitions (focus-definition.test.ts green), auth-keyboard.spec.ts still 6 documents / 59 stops, /signup radio group untouched per D-198, drizzle/ clean. GATE-02 stays Pending -- 'every surface' is wider than the five composite families and 17-10/17-13 still owe it work, so this is requirements-advanced only.
 progress:
   total_phases: 13
   completed_phases: 9
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 17 (cross-cutting-audit-themes-responsive-a11y-baselines) — EXECUTING
-Plan: 8 of 14
-Current Plan: 8
+Plan: 9 of 14
+Current Plan: 9
 Total Plans in Phase: 14
 Status: Executing Phase 17
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
