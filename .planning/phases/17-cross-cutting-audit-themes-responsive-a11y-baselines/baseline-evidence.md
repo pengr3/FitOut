@@ -478,3 +478,84 @@ enumeration was one row short.
 
 **Nothing in this diff is unexplained.** Every changed file has a cause identified from an image, and
 the one cause nobody predicted is escalated rather than absorbed.
+
+---
+
+# 3 · THE CLOSING EVIDENCE — the green COMPARISON run on the phase's head commit (D-202)
+
+## 3.1 How the comparison was forced, since nothing triggers it by itself
+
+The generation job's push authenticated with `GITHUB_TOKEN`, so it created **no** workflow run — the
+fact `baselines.yml`'s header calls *"the half people miss"*. At `84d6c77` the new PNGs existed and
+nothing had ever compared against them.
+
+`ci.yml` declares no `workflow_dispatch`, so a re-dispatch of it is not available; its trigger is
+`push: branches: [dev, main]` with **no path filter**. The forcing action was therefore a **push of a
+real commit** — `708de3a`, the `.planning/`-only commit carrying § 2's diff review — which is
+functionally identical to the plan's `git commit --allow-empty` (a non-`GITHUB_TOKEN` push to `dev`)
+and strictly better in one respect: **the commit the gate compares is also the commit that carries
+the written review of what it is comparing.**
+
+## 3.2 The run
+
+| Item | Value |
+|---|---|
+| **COMPARISON run id** | **`33273927029`** |
+| Workflow / event | `ci` / `push` |
+| **Conclusion** | **`success`** |
+| **Head SHA it ran against** | **`708de3a9bc108cdc33a7fc637dadb63bb0e06d4b`** (`708de3a`) |
+| Started / finished | `2026-08-29T20:36:26Z` / `2026-08-29T20:43:10Z` |
+| `gate-visual (GATE-01 visual regression)` | **success** — **43 passed / 42 skipped / 0 failed** |
+| `gate-db-free (lint + design + build + workflow parse)` | **success** |
+| `gate-db (vitest against PostGIS 18)` | **success** |
+| `gate-price-parity (DB-vs-DOM price, 1 spec)` | **success** |
+
+**All four jobs green.** The 42 skipped are the declared blocked rows (`EXPECTED_BLOCKED` = 24
+surfaces expanding to 42 baseline rows), which the inventory assertion at `surfaces.spec.ts:321`
+checks *by name* in the same run — so a skipped row is a declared decision and not a silently absent
+surface (D-201).
+
+`gate-visual` went **11 failed → 0 failed** across exactly the 11 files the generation commit
+touched, and **no other row moved** in either direction.
+
+> ### THIS — run `33273927029`, green, on `708de3a` — IS PHASE 17's CLOSING EVIDENCE UNDER D-202.
+> The generation run `33273465053` is recorded in § 2.1 and is **explicitly not** the evidence.
+> `[13-16]` is the reason that distinction is spelled out twice rather than once.
+
+## 3.3 What lands after the comparison, and why it does not invalidate it
+
+The plan's rule is that nothing may land after the recorded comparison run, because a
+post-regeneration commit invalidates the evidence. Honoured as follows, and stated so it is
+checkable rather than asserted:
+
+* **No code, test, workflow, config, schema or baseline commit lands after `708de3a`.**
+* The only commits after it are this section, the plan's `SUMMARY.md`, and the hand-edited
+  `STATE.md` / `ROADMAP.md` position lines — **all under `.planning/`**, none of which any job in
+  `ci.yml` reads and none of which can change a rendered pixel.
+* The check that proves it: `git diff 708de3a..HEAD -- . ':(exclude).planning'` prints **nothing**.
+  Recorded in the plan's SUMMARY with its measured output.
+
+So the tree `33273927029` compared is byte-identical, outside `.planning/`, to the tree at the end of
+this phase.
+
+## 3.4 The AC roll-call for this plan, measured
+
+| Criterion | Result |
+|---|---|
+| **AC#25** — regeneration only via `baselines.yml` in the pinned image, `updateSnapshots: "none"` unchanged | **holds** — one dispatch, `mcr.microsoft.com/playwright:v1.60.0-noble`, `playwright.config.ts:78` byte-unchanged since `e439bf9` and unconditional |
+| `--update-snapshots` appears in no run command outside `baselines.yml` | **holds** — `verify-workflows.mjs` exit 0 over the parsed tree; `ci.yml` line count **0** |
+| **AC#26** — zero grove, zero `win32`, zero `darwin` baselines on disk | **holds** — `0`; disk count **36**, every file `*-court-visual-linux.png` |
+| **AC#27 / D-202** — a green COMPARISON run on the phase's head commit, id recorded, generation run labelled as not the evidence | **holds** — `33273927029` green on `708de3a`; `33273465053` labelled in § 2.1 |
+| Every changed PNG predicted in writing, or investigated and explained | **holds** — 6 of 11 predicted and confirmed by crop; the other 5 investigated to an image and escalated as `[17-D26]` |
+| **AC#32** — zero schema migrations proposed or absorbed | **holds** — `git status --porcelain drizzle/` empty, `drizzle/*.sql` = **26** |
+| No commit lands after the recorded comparison run | **holds for everything outside `.planning/`** — see § 3.3 |
+
+## 3.5 The one thing a reader must carry away from this file
+
+Two of the three causes in this diff were predicted and confirmed. **The third was not predicted by
+anyone, is not Phase 17's code, and is the finding worth more than the round-trip itself:** the
+availability calendar renders the real venue-local *today*, so four GATE-01 baselines have a
+**one-day shelf life**, and `gate-visual` had already been red on `dev` since 2026-08-27 for that
+reason alone with nobody watching. The regeneration re-pinned it to 30 August 2026 rather than fixing
+it — **it could not fix it, and did not pretend to.** Full write-up, mechanism, timeline and the
+cheapest correct fix: `[17-D26]` in this phase's `deferred-items.md`.
