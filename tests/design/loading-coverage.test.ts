@@ -224,10 +224,38 @@ const APP_DIR = resolve(process.cwd(), "src/app");
 // `/bookings/[id]/receipt` (see the header for the three verbatim assertions, taken one constant at a
 // time). A change here means a ROUTE WAS ADDED and needs a decision — is its default export async, and
 // therefore does it need a loading state — not that the number should be bumped to make the run green.
+//
+// ── RE-MEASURED 30 AUGUST 2026 (plan 17-12): 29 → 33 PAGES, 8 → 12 NON-QUALIFYING, 21 UNCHANGED ────
+//
+// FOUR ROUTES WERE ADDED, AND HERE IS THE DECISION THE SENTENCE ABOVE ASKS FOR. They are one deliberate
+// throw affordance per route group, so that each of the four error boundaries that previously had NO
+// way into them can be driven and measured:
+//
+//   src/app/(app)/dev-throw-app/page.tsx        → src/app/(app)/error.tsx
+//   src/app/(host)/host/dev-throw/page.tsx      → src/app/(host)/host/error.tsx
+//   src/app/(auth)/dev-throw-auth/page.tsx      → src/app/(auth)/error.tsx
+//   src/app/(legal)/dev-throw-legal/page.tsx    → src/app/(legal)/error.tsx
+//
+// The four paths are named so the next reader can CHECK the claim below rather than take it, which is
+// the whole difference between a recorded decision and a bumped number.
+//
+// THE DECISION, AND IT IS THE SAME ONE `src/app/dev/throw/page.tsx` RECORDED WHEN IT MOVED 27→28 AND
+// 7→8: each of the four has a **sync** default export that throws immediately. A sync component can
+// never suspend, so a `loading.tsx` beside any of them could never render — it would be a fallback
+// this classifier would then correctly report as dead. All four therefore join the NON-QUALIFYING
+// side, `EXPECTED_NON_QUALIFYING` moves by exactly four, and **`EXPECTED_QUALIFYING` does not move at
+// all**. That last clause is the content of the decision rather than a side effect of it: if a later
+// edit makes one of those four exports `async`, this file goes red on the qualifying count and the
+// remedy is a `loading.tsx` for it, not a fifth number.
+//
+// ⚠ THE WARNING ABOVE STILL BINDS AND IS NOT WEAKENED BY THIS PARAGRAPH. What makes this bump
+// legitimate is not that a plan asked for it — it is that the routes are enumerated, the classifier's
+// verdict on each is stated, and the count that WOULD have signalled a missing loading state was
+// asserted to be unchanged. A bump without those three is the thing the sentence forbids.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-const EXPECTED_PAGES = 29;
+const EXPECTED_PAGES = 33;
 const EXPECTED_QUALIFYING = 21;
-const EXPECTED_NON_QUALIFYING = 8;
+const EXPECTED_NON_QUALIFYING = 12;
 
 /** The three declared skeleton shapes, by module and by export name. */
 const SKELETON_PATTERNS: Readonly<Record<string, string>> = {
@@ -568,24 +596,35 @@ describe("AC#15 — every async-default page has a loading state, and nothing el
     ).toEqual([]);
   });
 
-  it("pins the counts: 28 pages, 20 qualifying, 8 not, 20 loading files", () => {
-    const qualifying = PAGES.filter((p) => p.qualifies);
-    const note =
-      "A CHANGE HERE MEANS A ROUTE WAS ADDED OR REMOVED and somebody has to decide which side it is " +
-      "on — is its default export async, and does it therefore need a loading state. It does not " +
-      "mean this number should be bumped.";
-    expect(PAGES.length, `the number of page.tsx files under src/app changed. ${note}`).toBe(
-      EXPECTED_PAGES,
-    );
-    expect(qualifying.length, `the routes that qualify changed. ${note}`).toBe(EXPECTED_QUALIFYING);
-    expect(PAGES.length - qualifying.length, `the routes that do not qualify changed. ${note}`).toBe(
-      EXPECTED_NON_QUALIFYING,
-    );
-    expect(
-      LOADING_FILES.length,
-      `the number of loading.tsx files on disk changed. ${note}`,
-    ).toBe(EXPECTED_QUALIFYING);
-  });
+  // ⚠ THE TITLE IS DERIVED FROM THE CONSTANTS RATHER THAN RETYPED (plan 17-12). It used to read
+  // "28 pages, 20 qualifying, 8 not, 20 loading files" against constants that said 29 / 21 / 8 — a
+  // stale claim in a gate's own NAME, which is the one place a reader trusts without checking and the
+  // exact defect class this phase exists to repair. Two literals in two places are two things that
+  // drift; there is now one.
+  it(
+    `pins the counts: ${EXPECTED_PAGES} pages, ${EXPECTED_QUALIFYING} qualifying, ` +
+      `${EXPECTED_NON_QUALIFYING} not, ${EXPECTED_QUALIFYING} loading files`,
+    () => {
+      const qualifying = PAGES.filter((p) => p.qualifies);
+      const note =
+        "A CHANGE HERE MEANS A ROUTE WAS ADDED OR REMOVED and somebody has to decide which side it " +
+        "is on — is its default export async, and does it therefore need a loading state. It does " +
+        "not mean this number should be bumped.";
+      expect(PAGES.length, `the number of page.tsx files under src/app changed. ${note}`).toBe(
+        EXPECTED_PAGES,
+      );
+      expect(qualifying.length, `the routes that qualify changed. ${note}`).toBe(
+        EXPECTED_QUALIFYING,
+      );
+      expect(
+        PAGES.length - qualifying.length,
+        `the routes that do not qualify changed. ${note}`,
+      ).toBe(EXPECTED_NON_QUALIFYING);
+      expect(LOADING_FILES.length, `the number of loading.tsx files on disk changed. ${note}`).toBe(
+        EXPECTED_QUALIFYING,
+      );
+    },
+  );
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
   // The two Task-2 acceptance criteria that would otherwise be review instructions.

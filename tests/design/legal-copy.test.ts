@@ -62,6 +62,20 @@
 // `/cookies` page fails until somebody writes its sentinel down. The reverse direction is asserted
 // too, so a page that MOVED fails rather than silently dropping out of scope.
 //
+// ── AMENDED 30 AUGUST 2026 (plan 17-12): "A ROW IN `LEGAL_PAGES`" BECAME "AN ACCOUNT" ─────────────
+//
+// The group gained its first page with no copy at all — `dev-throw-legal`, a deliberate throw whose
+// only purpose is to make `(legal)/error.tsx` reachable. It went RED here, on both clauses, which is
+// this file working: a new page under `(legal)` is exactly what it is watching for. The two obvious
+// remedies were both wrong. Narrowing the walk defeats the clause permanently for every future page;
+// giving it a `LEGAL_PAGES` row would make this file assert a sentinel sentence, a notice hook and a
+// `PanelCard` against a page that renders none of them, i.e. it would invent the copy it is meant to
+// be checking. What was added instead is `LEGAL_NON_PROSE` — a declared exclusion WITH A REASON,
+// asserted in both directions and against an 80-character floor, and the excluded page stays inside
+// the walk, inside the banned-term scan and inside a (smaller, declared) chunk floor. An excluded page
+// and a forgotten one look identical in a table that only lists what it checks; they look nothing
+// alike in one where the excluded one carries its argument.
+//
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WATCHED RED — SIX PROBES, ALL RUN. 17 August 2026. GREEN IS 21 PASSED.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -243,6 +257,47 @@ const LEGAL_PAGES: readonly LegalPage[] = [
   },
 ];
 
+/**
+ * ⚠ PAGES UNDER `(legal)` THAT ARE NOT PROSE — DECLARED, NEVER SUBTRACTED FROM THE WALK (plan 17-12).
+ *
+ * The closure clause above is stated FORWARDS on purpose: every `page.tsx` the walk finds must be
+ * accounted for. Plan 17-12 added the group's first page that has no copy to check, and there are
+ * exactly two wrong ways to make this file green again. Narrowing `collectPages`, or filtering the
+ * directory out, would defeat the clause for every future page in the group. Writing a `LEGAL_PAGES`
+ * row for it would be worse: every row asserts a sentinel sentence, a notice hook and a `PanelCard`,
+ * so the row would have to invent copy that does not exist and the assertions would then be about a
+ * fiction.
+ *
+ * So the third way, which is `overflow-320.spec.ts`'s D-201 idiom and this repository's rule
+ * generally: an EXCLUSION IS A ROW WITH A REASON, never an absence. The excluded page still goes
+ * through the banned-term scan below (it is in `discovered`), still has to yield readable chunks —
+ * against a smaller floor, asserted rather than skipped — and still fails this file the day it stops
+ * existing.
+ */
+type LegalExclusion = {
+  /** Repo-relative, forward-slashed. Asserted to exist on disk, so the row cannot rot. */
+  readonly file: string;
+  /** Why a copy check of this page would not be a check of anything. Asserted to be substantive. */
+  readonly why: string;
+};
+
+const LEGAL_NON_PROSE: readonly LegalExclusion[] = [
+  {
+    file: "src/app/(legal)/dev-throw-legal/page.tsx",
+    why:
+      "NOT A PROSE SURFACE (plan 17-12). This route's whole body is `notFound()` in production and a " +
+      "deliberate `throw` in development — it renders NO document of its own, ever, so it has no " +
+      "headline, no placeholder notice and no copy for a banned term to appear in. It exists so that " +
+      "`src/app/(legal)/error.tsx` can be driven and measured at 320px: `(legal)/layout.tsx` records " +
+      "that the boundary is there because STATE-02 wants one per group `even where it should never " +
+      "fire`, and until this file was added it was the one surface in the app with no route into it. " +
+      "What renders when it throws is the BOUNDARY's copy, which `tests/design/error-boundaries.test" +
+      ".ts` owns and pins byte-for-byte, and the rendered result is measured by " +
+      "`e2e/overflow-320.spec.ts`. ⚠ If this page ever gains real copy, delete this row and add a " +
+      "`LEGAL_PAGES` one — do NOT keep both.",
+  },
+];
+
 /** Repo-relative, forward-slashed. See `leak.test.ts:157-165` for why the normalisation matters. */
 function label(file: string): string {
   return relative(process.cwd(), file).split("\\").join("/");
@@ -403,10 +458,20 @@ for (const file of discovered) {
   scans.set(file, scanSource(file, readFileSync(resolve(process.cwd(), file), "utf8")));
 }
 
-/** Pages the walk found that nobody declared. THE closure direction — see the header. */
-const undeclared = discovered.filter((f) => !LEGAL_PAGES.some((p) => p.file === f));
+/**
+ * Pages the walk found that nobody declared — as a prose page OR as a named non-prose exclusion.
+ * THE closure direction — see the header. An exclusion is an ACCOUNT, which is why it satisfies this
+ * clause; an absence is not, which is why nothing here filters the walk itself.
+ */
+const undeclared = discovered.filter(
+  (f) => !LEGAL_PAGES.some((p) => p.file === f) && !LEGAL_NON_PROSE.some((p) => p.file === f),
+);
 /** Declared rows the walk never found. The reverse, so a MOVED page fails rather than dropping out. */
 const missing = LEGAL_PAGES.filter((p) => !discovered.includes(p.file)).map((p) => p.file);
+/** The same reverse direction for the exclusions, so an excluded row cannot outlive its file. */
+const staleExclusions = LEGAL_NON_PROSE.filter((p) => !discovered.includes(p.file)).map(
+  (p) => p.file,
+);
 
 describe("guard-the-guard — the scanner reached both pages and read real text", () => {
   // ASSERTED FIRST. Every real assertion below is either "a list was empty" or "a count was one",
@@ -431,17 +496,48 @@ describe("guard-the-guard — the scanner reached both pages and read real text"
       missing,
       "LEGAL_PAGES names a file the walk never found. If it moved, move the row in the same commit.",
     ).toEqual([]);
+    expect(
+      staleExclusions,
+      "LEGAL_NON_PROSE names a file the walk never found. An exclusion that outlives its file is a " +
+        "standing licence for the next page to take that path — delete the row in the same commit " +
+        "that deletes the page.",
+    ).toEqual([]);
+  });
+
+  it("gives every non-prose exclusion a reason somebody can re-evaluate", () => {
+    // An exclusion is a decision, and a one-line "n/a" satisfies the closure clause above while
+    // carrying no argument at all — `overflow-320.spec.ts`'s D-201 block asserts the same 80-char
+    // floor for the same reason.
+    const thin = LEGAL_NON_PROSE.filter((p) => p.why.trim().length < 80).map(
+      (p) => `${p.file} (${p.why.trim().length} chars)`,
+    );
+    expect(
+      thin,
+      `${thin.length} exclusion reason(s) are shorter than 80 characters. Say what the page is, why ` +
+        "a copy check of it would not be a check of anything, and which gate owns what it DOES render.",
+    ).toEqual([]);
   });
 
   it("read a non-zero number of text chunks out of every page", () => {
+    const excluded = new Set(LEGAL_NON_PROSE.map((p) => p.file));
     for (const file of discovered) {
       const scan = scans.get(file);
       expect(scan, `${file} was never scanned`).toBeDefined();
+      // TWO FLOORS, AND THE SMALLER ONE IS ASSERTED RATHER THAN SKIPPED. A non-prose page has no copy
+      // to count, so the 10-chunk floor is false of a correct tree there — but it is still in
+      // `discovered`, so the banned-term scan below still runs over it, and a parser that produced
+      // ZERO chunks would make that scan vacuous for that file exactly as it would for a prose one.
+      const floor = excluded.has(file) ? 0 : 10;
       expect(
         scan!.chunks.length,
-        `${file} yielded 0 readable text chunks. A parser that produced nothing passes both real ` +
-          "assertion groups below with a clean sheet.",
-      ).toBeGreaterThan(10);
+        `${file} yielded ${scan!.chunks.length} readable text chunk(s), at or under its floor of ` +
+          `${floor}. A parser that produced nothing passes both real assertion groups below with a ` +
+          "clean sheet." +
+          (excluded.has(file)
+            ? " This file is a declared LEGAL_NON_PROSE exclusion, so its floor is the vacuity one " +
+              "rather than the copy one — but a scan that reads nothing at all is still a broken scan."
+            : ""),
+      ).toBeGreaterThan(floor);
     }
   });
 
