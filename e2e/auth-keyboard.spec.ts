@@ -291,6 +291,28 @@ const EXPECTED_SEQUENCES: readonly AuthDocument[] = [
     // `.planning/phases/15-auth-profile-transactional-email/deferred-items.md`, where it is logged
     // for a future look rather than done quietly inside a test-only plan.
     //
+    // ⚠ PHASE 17 LOOKED, AND DELIBERATELY DID NOT CONVERT — 17-CONTEXT **D-198**. (Cited with the
+    // document name because PROJECT.md keeps its own D-numbered rows and a bare "D-198" would be
+    // ambiguous against them.) The audit considered converting this radio group to the roving-tabindex
+    // pattern and recorded the reasoning here rather than doing it:
+    //
+    //   1. WCAG **2.1.1 (Keyboard) is SATISFIED as shipped.** Every radio is reachable by Tab and
+    //      operable by Space/Enter — measured by this very file, whose walk visits both intent-radio
+    //      stops declared below and asserts an indicator on each. So the divergence from the
+    //      WAI-ARIA authoring practice is a question of AUTHORING PRACTICE, not of CONFORMANCE, and
+    //      there is no accessibility defect to repair.
+    //   2. **Converting would churn the declaration in this file for zero conformance gain.** The
+    //      arithmetic, MEASURED off the run rather than estimated: `/signup` declares 14 stops (the 9
+    //      panel entries below plus `FOOTER_TAIL`'s 5), 2 of which are these radios. Roving tabindex
+    //      collapses those 2 into 1, so `/signup` goes 14 -> 13, this file's six-document total goes
+    //      59 -> 58, and the seven cases it actually walks go 73 -> 71 (`/signup · 320x568` walks the
+    //      same document a second time). Rewriting a declared, measured sequence to adopt a pattern
+    //      that buys no conformance is a REWRITE MOVE INSIDE AN AUDIT — the one thing 17-CONTEXT says
+    //      this phase does not do.
+    //
+    // Phase 17 therefore changed nothing on `/signup`: not a stop, not an assertion, not a byte of
+    // the page. This comment is the deliverable, and the 59 stops above and below it are untouched.
+    //
     // ⚠ THE SUBMIT LABEL IS INTENT-DEPENDENT (`Sign up to book` / `Sign up to host`). The declared
     // sequence names the DEFAULT, which is what the page renders on load, so the walk must not click
     // a radio before walking — and it does not: nothing in this row's case interacts before the Tab
