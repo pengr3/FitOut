@@ -802,13 +802,10 @@ test.describe(`RESP-02 — the ${FLOOR.width}×${FLOOR.height} floor`, () => {
       // status chips in plan 17-11), and three copies of a no-wrap criterion is the drift that goes
       // silent in the worst direction. That file's header carries the before/after run counts, which
       // are the proof the extraction changed no behaviour.
-      for (let i = 0; i < 2; i++) {
-        await expectNoWrap(
-          lines.nth(i),
-          `${where}: the bar's ${i === 0 ? "rate" : "fee note"} line`,
-          TOLERANCE_PX,
-        );
-      }
+      //
+      // The two subjects are the DECLARED SET's rows for this route rather than a local loop — the
+      // count assertion above is what pins their `nth()` indexes to the shape the rows assume.
+      await expectNoWrapSet(page, "/listings/[id]", where);
 
       // ── (f) THE SHEET'S PINNED ACTION SURVIVES A SCROLL TO THE BOTTOM ────────────────────────────
       // 320×568 is the case the pinned bar exists for: the sheet's content does not fit, so the booker
@@ -1055,6 +1052,241 @@ test.describe("RESP-02 — two views, one state, ONE fetch", () => {
 
 const CHECKOUT_BAR = '[data-testid="checkout-sticky-bar"]';
 const DISCLOSURE = '[data-testid="price-disclosure"]';
+
+/** The checkout header's live hold countdown. `HOLD_COUNTDOWN_BOX` is its box; see the table below. */
+const COUNTDOWN = '[data-testid="hold-countdown"]';
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// RESP-03 CLAUSE C — THE DECLARED NO-WRAP SET (plan 17-04)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// 17-UI-SPEC § Typography declares the set as three CLASSES — price, countdown, label — each with its
+// members and its own reason. This table is that declaration, in code, with one row per member and
+// `RouteRow`'s discipline copied verbatim from `overflow-320.spec.ts:296-340`: every field carries
+// prose, and a member this spec's seed cannot reach carries a MANDATORY `skip` that names its owner.
+//
+// ⚠ THE `skip` IS THE WHOLE POINT OF THE TABLE. A no-wrap clause that measured five elements and said
+// nothing about the sixth would report "clause C: covered" while a status chip clips its label on a
+// surface nobody looked at — the same vacuity the route table's `tell` exists to catch, one level up.
+// So every skip THROWS its reason into the run's output (`overflow-320.spec.ts:719-725`'s named-skip
+// idiom): a skipped row is visible in the report with its paragraph attached, and the paragraph names
+// the plan that closes it. ZERO SILENT ABSENCES.
+//
+// ⚠ AND THE SUBJECT IS ALWAYS THE ELEMENT THAT RENDERS THE CHARACTERS, never the reservation around it.
+// Two rows here would be red against a correct tree if pointed one level out, and both are measurements
+// rather than warnings: `[data-testid="hold-countdown"]` is `HOLD_COUNTDOWN_BOX` (`h-8 min-w-24`) and
+// reports `clientHeight 32` against a 20px line-height, while `[data-testid="booking-sticky-bar"]` is
+// `STICKY_BAR_HEIGHT` (`h-16`) and reports 63 against 24. Both are declared boxes doing their job. The
+// rows below therefore name the `p` inside each.
+
+type WrapClass = "price" | "countdown" | "label";
+
+/** The two routes this spec's seed reaches. A row on any other route is a `skip` row by construction. */
+type NoWrapRoute = "/listings/[id]" | "/listings/[id]/book";
+
+type NoWrapRow = {
+  /** How the row is named in a failure and in its skip. */
+  readonly name: string;
+  /** Which of 17-UI-SPEC § Typography's three declared classes this member belongs to. */
+  readonly kind: WrapClass;
+  /** Where the subject lives. Prose for the unreachable rows, whose route is not one of the two. */
+  readonly route: NoWrapRoute | string;
+  /**
+   * Resolves the subject on a page this spec has ALREADY driven to `route`, or `null` for a member
+   * this spec's fixture cannot reach — in which case `skip` says why and who owns it.
+   */
+  readonly locate: ((page: Page) => Locator) | null;
+  /** Why this member may not wrap. 17-UI-SPEC's third column, per row. */
+  readonly why: string;
+  /** Required when `locate` is null. A paragraph naming the owner — never a phrase. */
+  readonly skip?: string;
+};
+
+const NO_WRAP_SET: readonly NoWrapRow[] = [
+  {
+    name: "the sticky bar's rate line",
+    kind: "price",
+    route: "/listings/[id]",
+    locate: (page) => page.locator(BAR).locator("p").nth(0),
+    why:
+      "A wrapped rate inside a 64px bar is a CLIPPED rate, on the one surface carrying the price at " +
+      "320px. `scrollWidth <= clientWidth` is green on it, which is why clause C exists at all.",
+  },
+  {
+    name: "the sticky bar's `Service fee included` note",
+    kind: "label",
+    route: "/listings/[id]",
+    locate: (page) => page.locator(BAR).locator("p").nth(1),
+    why:
+      "A disclosure the booker cannot finish reading is a disclosure that was not made — and D-74 " +
+      "put the fee INSIDE the headline rate, so this sentence is what makes the number honest.",
+  },
+  {
+    name: "the checkout breakdown's Total",
+    kind: "price",
+    route: "/listings/[id]/book",
+    locate: (page) => page.getByTestId("price-total"),
+    why:
+      "The figure the booker is agreeing to, on the screen where they agree to it. It is written as " +
+      "a `<span>` and measures `display: block` because it is a flex item — see `helpers/nowrap.ts`'s " +
+      "guard (c), which exists so that surprise cannot make this row free.",
+  },
+  {
+    name: "the checkout bar's `Total` label",
+    kind: "label",
+    route: "/listings/[id]/book",
+    locate: (page) => page.locator(CHECKOUT_BAR).locator("p").nth(0),
+    why:
+      "The word that makes the amount beside it something other than an unlabelled number on a " +
+      "payment screen. Case (i) asserts the word is present; this asserts it is legible.",
+  },
+  {
+    name: "the checkout bar's amount",
+    kind: "price",
+    route: "/listings/[id]/book",
+    locate: (page) => page.locator(CHECKOUT_BAR).locator("p").nth(1),
+    why:
+      "The same 64px box as the listing bar's, one route later, carrying the figure that is about to " +
+      "be charged. A clipped total on the terminal money surface is the worst place in the app for one.",
+  },
+  {
+    name: "the checkout header's live hold countdown",
+    kind: "countdown",
+    route: "/listings/[id]/book",
+    locate: (page) => page.locator(COUNTDOWN).locator('p[role="timer"]'),
+    why:
+      "A countdown that reflows on each tick is both a layout shift and a re-announcement hazard. " +
+      "`HOLD_COUNTDOWN_BOX` reserves 32 × 96px precisely so `14:52` and `0:09` occupy one box; a wrap " +
+      "inside that reservation is the reservation failing.",
+  },
+  {
+    name: "every status chip label on the booking surfaces",
+    kind: "label",
+    route: "/bookings, /host/inbox and the Phase-13 booking surfaces",
+    locate: null,
+    why:
+      "A status chip whose label wraps in a fixed-height chip is a clipped status — and status is the " +
+      "one thing those surfaces exist to communicate.",
+    skip:
+      "UNREACHABLE FROM THIS SPEC'S FIXTURE, AND THE OWNER IS NAMED. This file seeds ONE bookable " +
+      "listing and mints ONE hold per theme; a status chip needs bookings sitting in several payment " +
+      "and lifecycle states, which `e2e/helpers/seed-payment-states.ts` already seeds for the Phase-13 " +
+      "specs. Driving them here would put a second, heavier fixture into a spec that mints real holds " +
+      "on a shared listing — the contention `deferred-items.md` warns about by name. The call sites " +
+      "belong in `e2e/overflow-320.spec.ts`'s Phase-13 block, which already reaches those surfaces " +
+      "with their tells, and PLAN 17-11 TASK 3 adds them there importing this same `expectNoWrap`. " +
+      "That cross-plan reuse is the entire reason the measurement was extracted into " +
+      "`e2e/helpers/nowrap.ts` rather than left inline in this file.",
+  },
+  {
+    name: "every `tabular-nums` money figure in a fixed-height box off the booker path",
+    kind: "price",
+    route: "the Phase-13 booking surfaces, the receipt and the host inbox",
+    locate: null,
+    why:
+      "17-UI-SPEC's price class is not only the two bars: any money figure inside a declared box can " +
+      "wrap into a clip, and the boxes are declared exactly where the figures are densest.",
+    skip:
+      "SAME OWNER, SAME FIXTURE ARGUMENT AS THE STATUS-CHIP ROW ABOVE. The reachable members of this " +
+      "class — the two bars' amounts and the checkout breakdown's Total — are measured by this file; " +
+      "the rest live on surfaces behind a booker or host session with seeded payment states, which " +
+      "`e2e/overflow-320.spec.ts` reaches and this spec does not. PLAN 17-11 TASK 3 owns them and " +
+      "measures them through the same helper, so the two files cannot drift about what a wrap is.",
+  },
+  {
+    name: "every named 44px action's label",
+    kind: "label",
+    route: "every surface with a `size=\"touch\"` control",
+    locate: null,
+    why:
+      "A CTA whose label wraps inside a 44px control is a clipped instruction on the control the " +
+      "surface is about — `Check availability` and `Book · {total}` are both close to the 320px width.",
+    skip:
+      "NOT A REACHABILITY GAP — AN INSTRUMENT LIMIT, AND IT IS RECORDED RATHER THAN QUIETLY DROPPED. " +
+      "A `size=\"touch\"` button renders its label as a direct text child, so the only element that " +
+      "carries the text IS the 44px control: `expectNoWrap` would compare a declared 44px reservation " +
+      "against a ~24px line box and be red on a correct tree, which is exactly the trap the hold " +
+      "countdown's `h-8` slot demonstrates in this table's header. Measuring it honestly needs a " +
+      "wrapper element around the label, and adding one is a product-source change this audit may not " +
+      "make (17-UI-SPEC § Remediation). `whitespace-nowrap` on both bars' columns is the shipped " +
+      "mitigation. RECORDED FOR PLAN 17-13's findings ledger as the one member of the declared set " +
+      "that no instrument in this phase measures.",
+  },
+];
+
+/** The reachable rows for one route, with `locate` narrowed to non-null for the caller. */
+function noWrapRowsFor(
+  route: NoWrapRoute,
+): readonly (NoWrapRow & { locate: (page: Page) => Locator })[] {
+  return NO_WRAP_SET.filter(
+    (row): row is NoWrapRow & { locate: (page: Page) => Locator } =>
+      row.locate !== null && row.route === route,
+  );
+}
+
+/**
+ * Measure every reachable row for one route, at whatever viewport the caller has already set.
+ *
+ * The count guard is not decoration: a filter that matched nothing would measure nothing and every
+ * assertion built on it would be green — the same vacuity `MIN_EXAMINED_ELEMENTS` answers for the
+ * overflow scan, applied to a table instead of a page.
+ */
+async function expectNoWrapSet(page: Page, route: NoWrapRoute, where: string): Promise<void> {
+  const rows = noWrapRowsFor(route);
+  expect(
+    rows.length,
+    `${where}: the declared no-wrap set holds no reachable row for \`${route}\`, so this call measured ` +
+      "nothing at all while reporting clause C as covered.",
+  ).toBeGreaterThan(0);
+
+  for (const row of rows) {
+    await expectNoWrap(row.locate(page), `${where} · ${row.kind} · ${row.name}`, TOLERANCE_PX);
+  }
+}
+
+// The unreachable half of the set, in the RUN'S OUTPUT rather than in a comment nobody greps.
+// `overflow-320.spec.ts:719-725`'s idiom: a skipped test that THROWS its reason, so the report carries
+// the paragraph and the owner instead of a silent absence.
+test.describe("RESP-03 clause C — the declared no-wrap set", () => {
+  for (const row of NO_WRAP_SET.filter((r) => r.locate === null)) {
+    test.skip(`${row.name} (${row.kind}) — unreachable from this spec's fixture`, () => {
+      throw new Error(`unreachable: ${row.skip}`);
+    });
+  }
+
+  // THE TABLE'S OWN INTEGRITY, asserted rather than trusted. Every clause above is "measure the rows";
+  // a row that quietly lost its reason, or an unreachable row that quietly lost its owner, would leave
+  // the set looking complete while a member of it went unaudited.
+  test("every row carries its reason, and every unreachable row carries its owner", () => {
+    for (const row of NO_WRAP_SET) {
+      expect(row.why.length, `${row.name}: declared with no reason it may not wrap.`).toBeGreaterThan(
+        40,
+      );
+      if (row.locate === null) {
+        expect(
+          (row.skip ?? "").length,
+          `${row.name}: unreachable and carries no skip. A row this spec cannot measure must name why ` +
+            "and name the plan that closes it — a phrase is not enough, because the next reader " +
+            "decides whether to trust the set from this string alone.",
+        ).toBeGreaterThan(80);
+      } else {
+        expect(
+          row.skip,
+          `${row.name}: is reachable AND carries a skip. One or the other — a row that is both is a ` +
+            "measurement nobody can tell was taken.",
+        ).toBeUndefined();
+      }
+    }
+
+    // All three declared classes are represented. 17-UI-SPEC names price, countdown and label; a set
+    // that lost a whole class would still pass every per-row check above.
+    const kinds = new Set(NO_WRAP_SET.map((r) => r.kind));
+    expect(
+      [...kinds].sort(),
+      "the declared no-wrap set no longer covers all three of 17-UI-SPEC § Typography's classes.",
+    ).toEqual(["countdown", "label", "price"]);
+  });
+});
 
 /**
  * One window per theme, DISTINCT from `WINDOWS` above and from each other.
@@ -1319,6 +1551,27 @@ test.describe("BFLOW-06 / BFLOW-07 — checkout at 375px", () => {
         width: FLOOR_PX,
         height: FLOOR.height,
       });
+
+      // ── (n) RESP-03 CLAUSE C ON THE CHECKOUT'S FOUR DECLARED NO-WRAP ROWS — AC#8 ─────────────────
+      // Still at the 320px floor, and deliberately AFTER (j) opened the disclosure: the breakdown's
+      // Total sits below a region that just grew, and a Total measured before the reflow would be a
+      // Total measured in a layout the booker never sees at this point in the flow.
+      //
+      // The two `p` guards below pin the `nth()` indexes the bar's rows assume — the same argument
+      // case (b) makes for the listing bar. Without them a bar that lost a line would silently
+      // re-point the amount row at the label.
+      await expect(
+        page.locator(CHECKOUT_BAR).locator("p"),
+        `${floorWhere}: the confirm bar rendered a different number of text lines than the \`Total\` ` +
+          "label and the amount, so the declared no-wrap rows are pointed at something else.",
+      ).toHaveCount(2);
+      await expect(
+        page.locator(COUNTDOWN).locator('p[role="timer"]'),
+        `${floorWhere}: the checkout header holds no live countdown, so the countdown row of the ` +
+          "declared set would measure nothing. A hold that expired mid-run reports exactly this — " +
+          "check the run's duration against the 15-minute TTL before reading it as a defect.",
+      ).toHaveCount(1);
+      await expectNoWrapSet(page, "/listings/[id]/book", floorWhere);
 
       // `price-total` is the resolved breakdown's own hook and exists at every width — `placeHold`
       // already waits on it for exactly that reason, and `hold-countdown.spec.ts` uses it as the
