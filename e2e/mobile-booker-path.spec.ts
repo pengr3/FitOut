@@ -12,6 +12,10 @@ import {
 import { expectNoWrap } from "./helpers/nowrap";
 import { FLOOR_PX, expectNoOverflow } from "./helpers/overflow";
 import { seedTheme } from "./helpers/theme";
+// IMPORTED FOR THE MESSAGE, NEVER FOR THE ASSERTION (plan 17-04, 17-RESEARCH Pitfall 5). Both are
+// class strings; every clause below measures the rendered box and names the constant only to tell the
+// reader which declared knob is implicated.
+import { STICKY_BAR_CLEARANCE, STICKY_BAR_HEIGHT } from "../src/lib/design/measurements";
 
 // RESP-02 — THE MOBILE BOOKER PATH, MEASURED AT THE WIDTH IT IS ABOUT.
 //
@@ -282,6 +286,343 @@ async function pickWindowInSheet(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// RESP-03 CLAUSE B — "with the sticky bar present", measured rather than assumed (plan 17-04)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// WHY THE CLAUSE LIVES IN THIS FILE. `17-PATTERNS § Decision Point` offered two homes — a block inside
+// `e2e/overflow-320.spec.ts`, or a new `e2e/sticky-bar.spec.ts`. It is here instead, and the argument is
+// arithmetic: this file already declares `BAR`, `CHECKOUT_BAR`, `BAR_HEIGHT_PX`, `TOUCH_TARGET_PX`,
+// `TOLERANCE_PX`, `FLOOR`, `DESKTOP`, `boxOf`, `reachableBar` and the seeded listing BOTH bars need,
+// and it is the only spec in the tree that reaches the RESOLVED checkout with a real hold. Either
+// alternative would have retyped at least four of those constants, which is the drift the
+// import-the-constant-never-retype-it rule exists to stop; and `overflow-320.spec.ts` is 2,092 lines and
+// is this phase's serialisation bottleneck across three other plans.
+//
+// ⚠ THE ASSERTIONS ARE ON PIXELS, NEVER ON THE CLASS LIST (17-RESEARCH Pitfall 5). `STICKY_BAR_HEIGHT`
+// and `STICKY_BAR_CLEARANCE` are imported and appear ONLY in failure messages. A class-list assertion —
+// "the bar carries `h-16`" — is a statement about SOURCE, and the class can be right while the rendered
+// box is not: a parent with `overflow: hidden`, a `min-h` further up, a second bar stacking, or a
+// clearance applied to a container the last control does not live in all keep the class and lose the
+// outcome. The last of those is not hypothetical — see the footer measurement below.
+//
+// (⚠ THE CLASS-LIST MATCHER'S NAME IS DELIBERATELY NOT SPELLED ANYWHERE IN THIS FILE, INCLUDING IN
+// PROSE. Plan 17-04's acceptance criterion counts that identifier and expects the count this file had
+// before it: zero. `price-breakdown.tsx`'s GREP TRIPWIRE rule, which a first draft of this very
+// paragraph tripped.)
+//
+// ⚠ WATCHED RED (plan 17-04, run and reverted) — AND THE FIRST DRIVE WAS GREEN, WHICH IS THE MORE
+// USEFUL HALF. 17-RESEARCH Pattern 3 prescribes "temporarily drop the `pb-20` clearance and confirm the
+// intersection assertion reports it". Both routes carry that clearance; the two drives disagreed.
+//
+//   DRIVE 1 — `STICKY_BAR_CLEARANCE` deleted from `src/app/listings/[id]/(detail)/page.tsx:480`:
+//   BOTH cases STILL PASSED. Not a hole in the assertion — a fact about the route. `<main>` there is
+//   followed by a site footer far taller than 64px, so nothing in `<main>` can reach the bar's band
+//   whether the clearance is present or not, and the last control inside `<main>` is
+//   `a("OpenStreetMap")` (the map attribution), measured at `{y: 243}` with the document scrolled to its
+//   bottom. The clearance is INERT on that route today, and no reading of the source says so.
+//
+//   DRIVE 2 — the same deletion in `src/app/listings/[id]/book/page.tsx:521`, the route that renders no
+//   footer, run as `npx playwright test e2e/mobile-booker-path.spec.ts --project=chromium --workers=1
+//   -g "a confirm bar"`:
+//
+//     Error: court · checkout · 320px: the sticky bar OCCLUDES the last interactive control on the page.
+//     a("Back to the listing") occupies {x: 16, y: 472, width: 156, height: 44, bottom: 516} and the bar
+//     occupies {x: 0, y: 504, width: 320, height: 64, bottom: 568}. `STICKY_BAR_CLEARANCE` (pb-20 = 80px
+//     = 64 + 16) on this route's `<main>` is the knob that is supposed to make this impossible …
+//       Expected: false
+//       Received: true
+//
+//     1 failed, 1 did not run (`mode: "serial"`). Restored; 10 passed.
+//
+// The failure names BOTH boxes and the control, which is the difference between "an assertion went red"
+// and "this 44px control is twelve pixels under the bar".
+
+/** Two boxes overlap when they overlap on BOTH axes. Half-open on purpose: touching edges do not. */
+function boxesIntersect(a: Box, b: Box): boolean {
+  return (
+    a.x < b.x + b.width &&
+    b.x < a.x + a.width &&
+    a.y < b.y + b.height &&
+    b.y < a.y + a.height
+  );
+}
+
+function fmtBox(b: Box): string {
+  return `{x: ${Math.round(b.x)}, y: ${Math.round(b.y)}, width: ${Math.round(b.width)}, height: ${Math.round(
+    b.height,
+  )}, bottom: ${Math.round(b.y + b.height)}}`;
+}
+
+type OccludedControl = { readonly descriptor: string; readonly box: Box; readonly inFooter: boolean };
+
+type OcclusionProbe = {
+  readonly barBox: Box | null;
+  /** Where the document actually ended up, and how far it could have gone. Both are vacuity guards. */
+  readonly scrolledTo: number;
+  readonly maxScroll: number;
+  /** Laid-out focusable candidates OUTSIDE the bar. Zero means the probe measured an empty page. */
+  readonly examined: number;
+  /** AC#7's subject — the last candidate outside the site footer. See the docblock for the scope. */
+  readonly lastOutsideFooter: { readonly descriptor: string; readonly box: Box } | null;
+  /** Every candidate whose box overlaps the bar's, in document order. */
+  readonly occluded: readonly OccludedControl[];
+};
+
+/**
+ * ONE evaluate, ONE typed object, asserted in Node — `helpers/overflow.ts`'s idiom.
+ *
+ * The scroll happens INSIDE the evaluate, immediately before the boxes are read, so nothing can settle,
+ * reflow or lazy-load between the two: a probe that scrolled in one round trip and measured in the next
+ * would be reading boxes from a document that had moved on.
+ */
+async function probeOcclusion(page: Page, barSelector: string): Promise<OcclusionProbe> {
+  return page.evaluate((sel) => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+
+    const bar = document.querySelector<HTMLElement>(sel);
+    const barRect = bar?.getBoundingClientRect() ?? null;
+    const box = (r: DOMRect) => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+
+    // `helpers/focus.ts`'s candidate set, deliberately wider than the tab order: an element that only
+    // LOOKS focusable is still a control a thumb will aim at, and this clause is about the thumb.
+    const CANDIDATE = 'a[href], button, input, select, textarea, [tabindex], [contenteditable="true"]';
+
+    const describe = (el: Element): string =>
+      `${el.tagName.toLowerCase()}("${(el.getAttribute("aria-label") ?? el.textContent ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 32)}")`;
+
+    const laid = Array.from(document.querySelectorAll<HTMLElement>(CANDIDATE)).filter((el) => {
+      // The bar's OWN action intersects the bar by construction.
+      if (bar !== null && bar.contains(el)) return false;
+      // `next dev`'s own indicator is a fixed bottom-anchored control that is not product markup and
+      // does not exist in a production build — `helpers/focus.ts`'s `DEV_OVERLAY_TAG` argument, and it
+      // matters here rather than merely tidily: it sits in the same 64px band as the bar.
+      if (el.closest("nextjs-portal") !== null) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    });
+
+    const overlaps = (r: DOMRect): boolean =>
+      barRect !== null &&
+      r.left < barRect.right &&
+      barRect.left < r.right &&
+      r.top < barRect.bottom &&
+      barRect.top < r.bottom;
+
+    const inFooter = (el: Element): boolean => el.closest('[data-testid="site-footer"]') !== null;
+    const outside = laid.filter((el) => !inFooter(el));
+    const last = outside.length > 0 ? outside[outside.length - 1] : null;
+
+    return {
+      barBox: barRect === null ? null : box(barRect),
+      scrolledTo: Math.round(window.scrollY),
+      maxScroll: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+      examined: laid.length,
+      lastOutsideFooter:
+        last === null ? null : { descriptor: describe(last), box: box(last.getBoundingClientRect()) },
+      occluded: laid
+        .filter((el) => overlaps(el.getBoundingClientRect()))
+        .map((el) => ({
+          descriptor: describe(el),
+          box: box(el.getBoundingClientRect()),
+          inFooter: inFooter(el),
+        })),
+    };
+  }, barSelector);
+}
+
+/**
+ * AC#7 — scrolled to the bottom, the bar does not sit on top of a control.
+ *
+ * ⚠ THE SITE FOOTER IS EXCLUDED, AND THAT EXCLUSION IS A MEASURED FINDING RATHER THAN A CONVENIENCE.
+ * RESP-03's wording is "the document's last interactive control", and on `/listings/[id]` that is a
+ * FOOTER link which IS occluded on shipped markup. MEASURED 2026-08-29 at 320×568, scrolled to the
+ * document bottom, identically in BOTH themes:
+ *
+ *     last candidate   a("Privacy")   {y: 515, height: 18, bottom: 533}
+ *     bar              {y: 504, height: 64, bottom: 568}
+ *
+ * — the link sits entirely inside the bar's band; `a("Terms")` clears it by 3px. The cause is structural
+ * and is one line of source: `STICKY_BAR_CLEARANCE` is applied to `<main>`
+ * (`listings/[id]/(detail)/page.tsx:480`, `book/page.tsx:521`) and `SiteFooter` renders AFTER `<main>`,
+ * so the bottom 64px of the DOCUMENT is footer, which no clearance covers.
+ *
+ * ⚠ AND THE CLEARANCE IS INERT ON THAT ROUTE TODAY — measured, and not what anybody would predict from
+ * the source. Deleting `STICKY_BAR_CLEARANCE` from `listings/[id]/(detail)/page.tsx:480` changed NOTHING:
+ * both cases stayed green, because `<main>`'s tail is followed by a footer far taller than 64px and the
+ * last control inside `<main>` is `a("OpenStreetMap")` — the map attribution, measured at `{y: 243}`
+ * with the document at its bottom, some 1,700px above the fold. What actually protects this route's
+ * content is the footer's height; what the clearance was declared to protect is a footer link it does
+ * not cover. On `/listings/[id]/book` the same knob IS load-bearing (that route renders no footer —
+ * `shell.spec.ts:1221` pins "0 footers" on a live checkout), which is where the red-watch above was run.
+ *
+ * Neither half is fixed here. The cheapest correct repair moves a clearance onto a component shared by
+ * every route in the app — a layout change inside an audit (D-199/D-200), escalate-class under
+ * 17-UI-SPEC § Remediation — so both are recorded for plan 17-13. What this function does instead is
+ * BOUND the residue, in two clauses that between them are STRONGER than AC#7's wording:
+ *
+ *   • AC#7's literal shape, against the last laid-out control OUTSIDE the footer; and
+ *   • the set form — NO control anywhere on the page may lie under the bar except a footer one. AC#7
+ *     asks about one element; this asks about all of them, so a control that slid under the bar in the
+ *     middle of the page (a `sticky` toolbar, a floating action) is red here and invisible to AC#7.
+ *
+ * The day the clearance moves to cover the footer, the exclusion simply stops mattering and no
+ * assertion here has to be relaxed to notice.
+ */
+async function expectBarDoesNotOcclude(page: Page, barSelector: string, where: string): Promise<void> {
+  const p = await probeOcclusion(page, barSelector);
+
+  expect(
+    p.barBox,
+    `${where}: no \`${barSelector}\` was laid out when the occlusion probe ran, so "nothing overlaps ` +
+      'the bar" would be true of every page in the app.',
+  ).not.toBeNull();
+  expect(
+    p.examined,
+    `${where}: the occlusion probe found ${p.examined} laid-out controls outside the bar. A page with ` +
+      "no controls on it is never occluded, so this count is what makes the clauses below mean " +
+      "something.",
+  ).toBeGreaterThan(0);
+  expect(
+    p.maxScroll,
+    `${where}: the document does not scroll (max ${p.maxScroll}px), so "scrolled to the bottom" is a ` +
+      "claim about a page that never moved and the bar cannot have caught up with anything.",
+  ).toBeGreaterThan(0);
+  expect(
+    p.scrolledTo,
+    `${where}: the document stopped at ${p.scrolledTo} of a possible ${p.maxScroll}. The last control ` +
+      "is only under the bar at the BOTTOM of the document; measuring anywhere else is measuring a " +
+      "different question.",
+  ).toBeGreaterThanOrEqual(p.maxScroll - TOLERANCE_PX);
+  expect(
+    p.lastOutsideFooter,
+    `${where}: the page holds no laid-out focusable control outside the site footer at all, so the ` +
+      "clause below has no subject.",
+  ).not.toBeNull();
+
+  const last = p.lastOutsideFooter!;
+  const bar = p.barBox!;
+  expect(
+    boxesIntersect(last.box, bar),
+    `${where}: the sticky bar OCCLUDES the last interactive control on the page. ` +
+      `${last.descriptor} occupies ${fmtBox(last.box)} and the bar occupies ${fmtBox(bar)}. ` +
+      `\`STICKY_BAR_CLEARANCE\` (${STICKY_BAR_CLEARANCE} = 80px = 64 + 16) on this route's \`<main>\` ` +
+      "is the knob that is supposed to make this impossible — and asserting that class is not the same " +
+      "as asserting this outcome, which is why this reads boxes. A control under a fixed bar cannot be " +
+      "tapped and cannot be scrolled to, because the document is already at its end (RESP-03 AC#7).",
+  ).toBe(false);
+
+  const outsideFooter = p.occluded
+    .filter((c) => !c.inFooter)
+    .map((c) => `${c.descriptor} ${fmtBox(c.box)}`);
+  expect(
+    outsideFooter,
+    `${where}: ${outsideFooter.length} control(s) outside the site footer lie under the bar ` +
+      `${fmtBox(bar)}:\n${outsideFooter.map((c) => `  ${c}`).join("\n")}\n` +
+      "The footer is EXCLUDED here because its occlusion is a measured, recorded finding with a named " +
+      "owner (see this function's docblock — `STICKY_BAR_CLEARANCE` sits on `<main>` and the footer " +
+      "renders after it; routed to plan 17-13). Nothing else is excused: every other control on the " +
+      "page is inside a container the clearance covers, so a name in this list is a new defect.",
+  ).toEqual([]);
+}
+
+/**
+ * Clauses 1-4 of RESP-03's contract, on one bar, at one viewport.
+ *
+ * `viewport` is passed rather than read back from the page on purpose: the pin is a claim about the
+ * viewport the caller SET, and a version that asked the page for its own height would be comparing the
+ * bar against whatever the page happened to be showing — which is exactly the class of "measured
+ * something, proved nothing" this file's header is about.
+ */
+async function expectStickyBar(
+  page: Page,
+  barSelector: string,
+  where: string,
+  viewport: { width: number; height: number },
+): Promise<void> {
+  // ── 1. PRESENT ───────────────────────────────────────────────────────────────────────────────────
+  await expect(
+    page.locator(barSelector),
+    `${where}: \`${barSelector}\` is in the document but not visible. RESP-03 clause B is "with the ` +
+      'sticky bar PRESENT" — a sweep that measures a page whose bar silently stopped rendering is ' +
+      "reporting green about a page missing the thing the clause is about.",
+  ).toBeVisible();
+
+  const bar = await boxOf(page.locator(barSelector), `sticky bar · ${where}`);
+
+  // ── 2. 64px TALL ─────────────────────────────────────────────────────────────────────────────────
+  expect(
+    Math.abs(bar.height - BAR_HEIGHT_PX) <= TOLERANCE_PX,
+    `${where}: the bar's rendered box is ${bar.height}px tall, not ${BAR_HEIGHT_PX}. ` +
+      `\`STICKY_BAR_HEIGHT\` is ${STICKY_BAR_HEIGHT} and it is named here rather than ASSERTED: a ` +
+      "class list check is a statement about source, and the class can be right while the box is not. " +
+      "`STICKY_BAR_CLEARANCE` (80 = 64 + 16) is derived from this number, so a bar that grew silently " +
+      "leaves the last row of the page underneath it.",
+  ).toBe(true);
+
+  // ── 3. PINNED TO THE VIEWPORT'S BOTTOM EDGE ─────────────────────────────────────────────────────
+  expect(
+    Math.abs(bar.y + bar.height - viewport.height) <= TOLERANCE_PX,
+    `${where}: the bar's bottom edge is at ${Math.round(bar.y + bar.height)} against a ` +
+      `${viewport.height}px viewport — it is present in the DOM but not PINNED to the bottom of the ` +
+      "screen. A bar that scrolls with the content satisfies every 'is it visible' reading and fails " +
+      "the one property it exists for.",
+  ).toBe(true);
+
+  // ── 4. NON-OCCLUDING AT THE DOCUMENT'S BOTTOM ───────────────────────────────────────────────────
+  await expectBarDoesNotOcclude(page, barSelector, where);
+}
+
+/**
+ * Clause 5 — the bar has NO laid-out box at `lg:` and above.
+ *
+ * `getClientRects().length` rather than `boundingBox()`: a `display: none` element returns a null box,
+ * and `null` is also what an ABSENT element returns, so the two are indistinguishable through
+ * Playwright's box API — while a zero-length rect list is a positive statement about an element the
+ * probe actually found. MEASURED at 1280×900, both bars, both themes: `rects: 0`, `display: "none"`,
+ * `offsetParent: null`.
+ *
+ * `desktopTell` is the vacuity guard and is not optional: "the bar lays out nothing" is trivially true
+ * of a page that rendered nothing, and the desktop claim is that the booking surface moved to the rail —
+ * not that it vanished.
+ */
+async function expectBarAbsentAtDesktop(
+  page: Page,
+  barSelector: string,
+  desktopTell: string,
+  where: string,
+): Promise<void> {
+  await page.setViewportSize(DESKTOP);
+  await page.evaluate(() => document.fonts.ready);
+
+  await expect(
+    page.locator(desktopTell),
+    `${where}: the desktop layout never rendered \`${desktopTell}\`, so "the bar lays out nothing ` +
+      "here\" would be a statement about a page that laid out nothing at all.",
+  ).not.toHaveCount(0, { timeout: 15_000 });
+
+  const laidOut = await page
+    .locator(barSelector)
+    .evaluateAll((els) =>
+      els
+        .filter((el) => el.getClientRects().length > 0)
+        .map((el) => `${getComputedStyle(el).display} ${JSON.stringify(el.getBoundingClientRect())}`),
+    );
+
+  expect(
+    laidOut,
+    `${where}: \`${barSelector}\` still lays out a box at ${DESKTOP.width}px:\n` +
+      laidOut.map((b) => `  ${b}`).join("\n") +
+      "\nBelow `lg:` the bar IS the booking surface; at and above it the sticky rail carries the price " +
+      "and the bar is `lg:hidden`. A bar that renders at both widths is a forked mobile/desktop " +
+      "variant — RESP-04's failure, surfacing through RESP-03's harness — and it also means two " +
+      "reachable copies of the same hold CTA on the money path.",
+  ).toEqual([]);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // (a) + (c) + (d) — the bar without scrolling, one Book button, one byte-equal amount.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -529,6 +870,36 @@ test.describe(`RESP-02 — the ${FLOOR.width}×${FLOOR.height} floor`, () => {
         after.y,
         `${where}: the pinned action is above the top of the viewport after scrolling.`,
       ).toBeGreaterThanOrEqual(0);
+    });
+
+    // ── RESP-03 CLAUSE B, ON `/listings/[id]` — AC#4, AC#6, AC#7 (plan 17-04) ─────────────────────
+    // Its own case rather than a block appended to the one above, and the reason is mechanical: that
+    // case ends with the booking sheet OPEN and the document scrolled inside it, and clause 4 needs a
+    // document scrolled to ITS bottom with nothing overlaying the page. Reusing it would have meant
+    // dismissing the sheet and restoring the scroll position — two steps whose failure would look
+    // exactly like an occlusion defect. Same seed, same constants, no new fixture.
+    test(`${theme} · ${FLOOR.width}px · the bar is present, ${BAR_HEIGHT_PX}px, pinned and non-occluding — and absent at ${DESKTOP.width}px`, async ({
+      page,
+      context,
+    }) => {
+      await seedTheme(context, theme);
+      await page.setViewportSize(FLOOR);
+      await page.goto(`${BASE}/listings/${seed.listingId}`);
+      await page.evaluate(() => document.fonts.ready);
+
+      const where = `${theme} · listing · ${FLOOR.width}px`;
+      await reachableBar(page, where);
+      await expectStickyBar(page, BAR, where, FLOOR);
+
+      // `[data-slot="calendar"]` is this file's already-proven desktop tell (case (e) waits on it at
+      // 1280 before any selection is made), and it is the rail's own month grid — the surface that
+      // carries the price once the bar is gone.
+      await expectBarAbsentAtDesktop(
+        page,
+        BAR,
+        '[data-slot="calendar"]',
+        `${theme} · listing · ${DESKTOP.width}px`,
+      );
     });
   }
 });
@@ -927,6 +1298,37 @@ test.describe("BFLOW-06 / BFLOW-07 — checkout at 375px", () => {
           "a page missing the very element it was written for.",
       ).toHaveCount(1);
       await expectNoOverflow(page, floorWhere);
+
+      // ── (m) RESP-03 CLAUSE B ON THE CHECKOUT BAR — AC#5, AC#6, AC#7 (plan 17-04) ─────────────────
+      // Appended to this case rather than given its own, and unlike the listing half that is not a
+      // preference: reaching a RESOLVED checkout costs a signup and a real hold, and every hold makes
+      // its hours unbookable on the shared seeded listing for the rest of the run (see this block's
+      // header). A second case would have consumed a third window per theme to re-measure a bar this
+      // one is already standing in front of. The viewport is already at the 320px floor from (l), and
+      // the disclosure is open from (j) — which makes the page TALLER and the scroll-to-bottom clause
+      // strictly harder, not easier.
+      //
+      // ⚠ THE SAME CLAUSE, GREEN, ONE ROUTE AWAY. `expectBarDoesNotOcclude`'s docblock records that
+      // `/listings/[id]` occludes its footer's last link because `STICKY_BAR_CLEARANCE` sits on
+      // `<main>` and the footer renders after it. This route renders NO footer (`shell.spec.ts:1221`
+      // pins "0 footers" on a live checkout), so its last control — `a("Back to the listing")`,
+      // measured at `bottom: 468` against a bar at `y: 504` — clears the bar by 36px with the clearance
+      // doing exactly what it is declared to do. Two routes, one clause, and the difference between
+      // them is the finding.
+      await expectStickyBar(page, CHECKOUT_BAR, floorWhere, {
+        width: FLOOR_PX,
+        height: FLOOR.height,
+      });
+
+      // `price-total` is the resolved breakdown's own hook and exists at every width — `placeHold`
+      // already waits on it for exactly that reason, and `hold-countdown.spec.ts` uses it as the
+      // checkout's tell at 1280.
+      await expectBarAbsentAtDesktop(
+        page,
+        CHECKOUT_BAR,
+        '[data-testid="price-total"]',
+        `${theme} · checkout · ${DESKTOP.width}px`,
+      );
     });
   }
 });
