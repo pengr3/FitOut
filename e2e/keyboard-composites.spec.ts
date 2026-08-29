@@ -23,7 +23,13 @@ import {
 // is directive-free precisely so a gate can read it, and this title is the only string that tells the
 // crop overlay apart from the two other `responsive-dialog` overlays in the app. A re-typed copy would
 // go green the day the sentence changed, which is the whole failure a `tell` exists to catch.
-import { AVATAR_CROP_TITLE } from "../src/lib/avatar";
+import {
+  AVATAR_CROP_CANCEL,
+  AVATAR_CROP_CONFIRM,
+  AVATAR_CROP_TITLE,
+  AVATAR_POSITION_LABEL,
+  AVATAR_UPLOAD_LABEL,
+} from "../src/lib/avatar";
 
 // GATE-02's KEYBOARD gate on the five COMPOSITE surfaces — the calendar, the slot picker, the wizard,
 // dialogs and sheets.
@@ -168,6 +174,38 @@ const WIZARD_RAIL = '[data-testid="wizard-step-rail"]';
  * byte-for-byte by `tests/design/image-fixtures.test.ts`, so these bytes are as fixed as a literal.
  */
 const AVATAR_CROP_FIXTURE = path.join(__dirname, "fixtures", "square-400.png");
+
+/**
+ * THE CROP DIALOG'S FOCUS CYCLE, declared the same way every tab order in this file is: as data, read
+ * off a real walk and then reviewed against the rendered overlay.
+ *
+ * Every label is IMPORTED from `src/lib/avatar.ts` rather than typed, for the reason the import block
+ * at the top of this file already gives — a re-typed copy goes green the day the sentence changes.
+ *
+ * MEASURED 2026-08-29, and TWO of the four entries corrected a written-first guess:
+ *
+ *   • THE FIRST STOP IS THE CROP STAGE, NOT THE CLOSE CONTROL. It is a focusable `<div>` — the exact
+ *     shape this file's header names as the reason property 1 cannot imply property 2 — and here it is
+ *     the legitimate case: D-178 gives it `tabindex` and an arrow contract so the photo can be panned
+ *     without a pointer, and `AVATAR_POSITION_LABEL` is the accessible name that says so. Its own arrow
+ *     behaviour is `e2e/avatar-crop.spec.ts:2327`'s subject and is not restated here; what this
+ *     declaration records is that the stage is IN the trap's cycle at all.
+ *   • THE VENDORED `Close` IS LAST, not first. It is pinned to the content's top-right VISUALLY
+ *     (`responsive-dialog.tsx:268`'s `absolute top-2 right-2`) while sitting at the END of
+ *     `DialogContent`'s DOM order, so the two orders disagree — which is a fact worth having written
+ *     down somewhere, because reading it off the screenshot gives the wrong answer.
+ *
+ * WHY FOUR AND NOT FIVE: `avatarMaxZoom(400) === 1`, so the zoom row renders DISABLED (D-197 exposes
+ * that state deliberately rather than hiding the control), and Radix keeps a disabled slider's thumb
+ * out of the tab order. Seed a larger source image and this declaration grows a fifth entry — which is
+ * the correct blast radius, because the cycle a keyboard user walks would genuinely have changed.
+ */
+const CROP_TRAP_CYCLE: readonly string[] = [
+  `div:${AVATAR_POSITION_LABEL}@none`,
+  `button[button]:${AVATAR_CROP_CANCEL}`,
+  `button[button]:${AVATAR_CROP_CONFIRM}`,
+  "button[button]:Close",
+];
 
 /** react-day-picker's in-month day buttons. `selectTargetDayIn`'s own spelling, reused. */
 const DAY_CELL = 'td:not([data-outside="true"]) button';
@@ -679,6 +717,228 @@ async function expectCalendarArrows(scope: Page | Locator, page: Page, where: st
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// PROPERTIES 4 AND 5 — ESCAPABLE AND RETURNED
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// These two had NO shipped assertion anywhere in this repository before this file, and the reason they
+// are separate from properties 1–3 is that a forward walk cannot see either of them:
+//
+//   • A modal that traps focus never lets a forward walk leave, so `recordForwardWalk`'s bounded clause
+//     reports a TRAP where the other three properties would report a document. That is why the
+//     functions below press ESCAPE rather than walking past the trap, and why `WALK_BOUND` stays at 40:
+//     raising it would turn a correct trap into a slower failure and would measure nothing new.
+//   • A dialog that drops focus to `<body>` on close passes every assertion above it. The next Tab
+//     restarts the page from the top, which for a screen-reader user is a dead end with no symptom.
+//     `responsive-dialog.tsx:206-220` documents that exact defect on `onCloseAutoFocus` and names the
+//     adopters it can happen to; property 5 is the browser-side measurement of the mitigation.
+
+/**
+ * Is focus inside the open overlay right now?
+ *
+ * A CONTAINMENT read and deliberately not a focus verdict — it reads `closest()` and nothing else, so
+ * this file still computes no answer of its own about whether focus is DRAWN (AC#20). The two questions
+ * are different and only the second one belongs to `helpers/focus.ts`.
+ */
+async function focusIsInsideOverlay(page: Page): Promise<boolean> {
+  return page.evaluate((selector) => {
+    const el = document.activeElement;
+    return el instanceof Element && el.closest(selector) !== null;
+  }, OVERLAY);
+}
+
+/**
+ * Walk the OPEN overlay's focus cycle once, and prove it IS a cycle.
+ *
+ * Not `recordForwardWalk`: that function's first assertion is that the walk left the document inside
+ * `WALK_BOUND` presses, which is precisely what a modal must NOT do. Here the same bound is spent the
+ * other way — a lap that never returns to its first stop inside 40 presses is the failure.
+ *
+ * Two claims are made on every press, and they are different: focus is still IN THE DOCUMENT (a modal
+ * that leaks focus to the page behind its own scrim is not a trap), and focus is still INSIDE THE
+ * OVERLAY (a modal that lets Tab reach the scrimmed page beneath it is worse than one that does not
+ * trap at all, because the page it reaches is `aria-hidden`).
+ */
+async function recordTrapCycle(page: Page, where: string): Promise<StopProbe[]> {
+  const first = await probeActiveStop(page);
+  expect(
+    first,
+    `${where}: the overlay is open and NOTHING in the document has focus. Radix autofocuses the first ` +
+      "tabbable element inside `DialogContent` on open, so focus on `<body>` here means either the " +
+      "overlay holds no focusable control at all or its open-time focus was suppressed without a " +
+      "replacement — both are dead ends for a keyboard user before a single key is pressed.",
+  ).not.toBeNull();
+  expect(
+    await focusIsInsideOverlay(page),
+    `${where}: the overlay opened but focus is on \`${identify(first as StopProbe)}\`, which is ` +
+      "OUTSIDE it. Everything below would then be measuring the page behind the scrim.",
+  ).toBe(true);
+
+  const opening = identify(first as StopProbe);
+  const cycle: StopProbe[] = [first as StopProbe];
+
+  for (let press = 1; press <= WALK_BOUND; press += 1) {
+    await page.keyboard.press("Tab");
+    const stop = await probeActiveStop(page);
+    expect(
+      stop,
+      `${where}: Tab press ${press} inside the open overlay took focus OUT OF THE DOCUMENT. A modal ` +
+        "whose trap leaks is a modal a keyboard user tabs out of and cannot tab back into, because " +
+        "everything behind the scrim is `aria-hidden`.",
+    ).not.toBeNull();
+    expect(
+      await focusIsInsideOverlay(page),
+      `${where}: Tab press ${press} landed on \`${identify(stop as StopProbe)}\`, which is outside ` +
+        "the overlay. The trap is not holding.",
+    ).toBe(true);
+
+    if (identify(stop as StopProbe) === opening) return cycle;
+    cycle.push(stop as StopProbe);
+  }
+
+  throw new Error(
+    `${where}: ${WALK_BOUND} Tab presses inside the open overlay never came back to \`${opening}\`. ` +
+      `The stops reached, in order: ${JSON.stringify(cycle.map(identify))}. Either the cycle is wider ` +
+      `than ${WALK_BOUND} — which no overlay in this app is — or focus is being moved somewhere this ` +
+      "walk cannot name.",
+  );
+}
+
+/**
+ * The same cycle backwards, from the stop the forward lap wrapped onto.
+ *
+ * The claim GATE-02 wants is *"a user tabbing backwards is not dumped somewhere different from where
+ * they came"*, and the equality is what says it: a trap can hold focus perfectly and still route
+ * Shift+Tab through a different order — Radix's sentinel guards are two separate nodes and only one of
+ * them is on the reverse path.
+ *
+ * ⚠ `walkBackward` IS USED WITH AN EXPLICIT BOUND, AND THAT ARGUMENT IS THE WHOLE ADAPTATION. Its
+ * default is `WALK_BOUND` and its stop condition is "focus left the document" — a condition a modal
+ * must NEVER meet, so calling it unbounded inside a trap returns 40 stops and says nothing. Passing
+ * `cycle.length` turns the same shipped primitive into "take exactly one lap backwards", and a SHORT
+ * return is then the interesting failure: it means focus left the document part-way round, i.e. the
+ * trap is DIRECTIONAL — forward it holds, backward it leaks — which is worse than no trap at all
+ * because nothing on the way out is announced.
+ */
+async function expectReverseCycle(page: Page, cycle: readonly StopProbe[], where: string): Promise<void> {
+  const backward = await walkBackward(page, cycle.length);
+
+  expect(
+    backward.length,
+    `${where}: one lap backwards through the open overlay reached ${backward.length} of the ` +
+      `${cycle.length} stops the forward lap found, because focus left the document part-way round. ` +
+      "The trap holds forwards and leaks backwards, and everything behind the scrim is `aria-hidden`, " +
+      "so a user who tabs out that way cannot tab back in.",
+  ).toBe(cycle.length);
+
+  expect(
+    backward.map(identify),
+    `${where}: tabbing BACKWARDS through the open overlay does not retrace the forward order. ` +
+      "Forward and reverse must be the same sequence read the other way round, or a keyboard user " +
+      "who overshoots a control cannot get back to it the obvious way.",
+  ).toEqual([...cycle].map(identify).reverse());
+}
+
+/**
+ * PROPERTIES 4 AND 5 IN ONE PRESS — Escape closes the overlay, and focus goes back where it came from.
+ *
+ * `opener` is the trigger's OWN `StopProbe`, taken from `probeActiveStop` via `tabUntil` before the
+ * overlay opened. Both sides of the comparison therefore come out of ONE projection: a descriptor
+ * computed one way at open and another way at close would miss on every comparison and this assertion
+ * would silently measure nothing — which is the failure mode T-17-39 names.
+ *
+ * ⚠ ONE `Escape` PRESS IN THIS FILE, THREE OVERLAYS, AND THE COUNT IS DELIBERATE. 17-08-PLAN's
+ * acceptance criterion asks for `grep -c '"Escape"'` ≥ 3 — one per overlay — and this file reads 1
+ * because the press is factored here and called three times (the booking sheet, the crop dialog, the
+ * host nav drawer). The factored form is the one that matches the product: `sheet-absent.test.ts`
+ * asserts there is exactly ONE overlay mechanism and therefore exactly ONE escape behaviour, so three
+ * inlined copies of this press would be three places to disagree about one behaviour. The criterion's
+ * claim — every overlay this phase names is dismissed with Escape rather than walked past — holds at
+ * three CALL SITES; the grep counts spellings, not assertions. Recorded so the next reader running it
+ * gets the reason instead of a discrepancy.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────────
+ * RED-WATCHED 2026-08-29, BOTH PROPERTIES, BY BREAKING THE PRIMITIVE RATHER THAN THE TEST
+ * ─────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * A gate that has never been watched failing is not a gate (`tests/design/infra.test.ts:5-9`). Both
+ * mutations were made in `src/components/patterns/responsive-dialog.tsx` — the app's ONE overlay
+ * mechanism — and reverted; `git status --porcelain src/` printed nothing afterwards.
+ *
+ * ESCAPABLE. Mutation: `onEscapeKeyDown={(event) => event.preventDefault()}` added to `DialogContent`,
+ * which is Radix's supported way to refuse the key. Command:
+ * `npx playwright test e2e/keyboard-composites.spec.ts --project=chromium --workers=1`. Observed — an
+ * ASSERTION naming the overlay, not a timeout on a hung walk:
+ *
+ *     /profile · the avatar crop dialog: Escape did not close the overlay. `Escape` is one of the
+ *     three dismiss affordances `responsive-dialog.tsx:64` declares at every width …
+ *     expect(locator).toHaveCount(expected) failed
+ *     Locator: locator('[data-testid="responsive-dialog"]')   Expected: 0   Received: 1
+ *
+ * RETURNED. Mutation: `onCloseAutoFocus` dropped from the forwarded props (`onCloseAutoFocus={undefined}`),
+ * which reproduces exactly the defect that file's own docblock describes for an adopter with no
+ * `DialogTrigger` — Radix suppresses the browser's restore and focuses a `triggerRef` that was never
+ * populated. Same command. Observed, with the landing site NAMED rather than a bare boolean:
+ *
+ *     /profile · the avatar crop dialog: Escape closed the overlay and left focus on «nothing — focus
+ *     is on `<body>`, which is what a dead end looks like from here» rather than on the trigger
+ *     `button[button]:Upload photo` it was opened from …
+ *     Expected: "button[button]:Upload photo"   Received: null
+ *
+ * The second reading is the whole reason property 5 exists: with `onCloseAutoFocus` gone, properties
+ * 1–4 all still passed on that overlay.
+ *
+ * ⚠ A THIRD READING FROM THE SAME MUTATION, RECORDED SO NOBODY OVER-READS THIS FILE'S GREEN. The whole
+ * spec was run with `onCloseAutoFocus` dropped, and the BOOKING SHEET's `returned` assertion stayed
+ * GREEN. That is correct rather than a hole: that adopter opens through a stable `DialogTrigger` and —
+ * with only a DAY selected — its trigger is still in the document, so Radix's own restore covers it.
+ * `restoreFocusToAction` is the defence for the case where the trigger has been REPLACED by the
+ * `Book · {total}` action, which is `booking-sticky-bar.tsx:38-53`'s own subject and needs a window
+ * selected to reach. This file measures the same-button case on that surface and says so at the call.
+ */
+async function expectEscapableAndReturned(page: Page, opener: StopProbe, where: string): Promise<void> {
+  const trigger = identify(opener);
+
+  // ── PROPERTY 4 — ESCAPABLE ──────────────────────────────────────────────────────────────────────
+  await page.keyboard.press("Escape");
+  await expect(
+    page.locator(OVERLAY),
+    `${where}: Escape did not close the overlay. \`Escape\` is one of the three dismiss affordances ` +
+      "`responsive-dialog.tsx:64` declares at every width, and it is the only one a keyboard-only " +
+      "user has that does not require finding a control inside the trap first.",
+  ).toHaveCount(0, { timeout: 15_000 });
+
+  expect(
+    await focusIsInsideOverlay(page),
+    `${where}: the overlay closed but focus is still inside a node matching \`${OVERLAY}\`, so a ` +
+      "second overlay is open, or the closed one is still in the tree holding focus.",
+  ).toBe(false);
+
+  // ── PROPERTY 5 — RETURNED ───────────────────────────────────────────────────────────────────────
+  // BOUNDED SETTLE, not a wait. Radix runs `onCloseAutoFocus` as the content unmounts, so the restore
+  // and the `toHaveCount(0)` above can resolve in either order. Two seconds is the bound; a restore
+  // that never happens still fails, with the message below rather than with a locator timeout.
+  let landed = await probeActiveStop(page);
+  for (let i = 0; i < 20 && (landed === null || identify(landed) !== trigger); i += 1) {
+    await page.waitForTimeout(100);
+    landed = await probeActiveStop(page);
+  }
+
+  const observed =
+    landed === null
+      ? "«nothing — focus is on `<body>`, which is what a dead end looks like from here»"
+      : `\`${identify(landed)}\``;
+  expect(
+    landed === null ? null : identify(landed),
+    `${where}: Escape closed the overlay and left focus on ${observed} rather than on the trigger ` +
+      `\`${trigger}\` it was opened from. Focus on \`<body>\` is not "nowhere in particular" — the ` +
+      "next Tab restarts the document from its first stop, so a screen-reader user who dismisses this " +
+      "overlay is returned to the top of the page with no announcement that anything happened. " +
+      "`responsive-dialog.tsx:206-220` records the mechanism and names `onCloseAutoFocus` as the only " +
+      "mitigation an adopter without a stable `DialogTrigger` has.",
+  ).toBe(trigger);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // THE LISTING COMPOSITES — the calendar and the slot picker
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -781,6 +1041,16 @@ test.describe("GATE-02 keyboard — the booking composites on /listings/[id]", (
     // against the page addresses both.
     await armNextMonthDayOne(sheet, where);
     await expectCalendarArrows(sheet, page, where);
+
+    // ── PROPERTIES 4 AND 5 — ESCAPABLE AND RETURNED ──────────────────────────────────────────────
+    // ⚠ ONLY A DAY IS SELECTED AT THIS POINT, AND THAT IS LOAD-BEARING FOR WHAT `returned` MEANS HERE.
+    // `booking-sticky-bar.tsx:38-53` records the hazard this overlay has and the lightbox does not:
+    // choosing a WINDOW inside the sheet flips the bar into its `Book · {total}` state, which unmounts
+    // the very `Check availability` button Radix would restore to. `restoreFocusToAction` answers that
+    // by focusing whichever button the bar is currently rendering. Selecting a day clears the slot
+    // selection (`selectDay` → `setSelection(null)`), so the trigger survives and the assertion below
+    // is the SAME-BUTTON case. The replaced-button case is that file's own subject, not this one's.
+    await expectEscapableAndReturned(page, trigger, where);
   });
 
   // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -799,7 +1069,7 @@ test.describe("GATE-02 keyboard — the booking composites on /listings/[id]", (
     await page.goto(`${BASE}/profile`);
     await expectReachable(page, 'input[type="file"]', `${where} (before the resolver)`);
 
-    const trigger = await tabUntil(page, "button[button]:Upload photo", where);
+    const trigger = await tabUntil(page, `button[button]:${AVATAR_UPLOAD_LABEL}`, where);
     expectRealPress(trigger, `${where} · the picker's trigger`);
 
     // The file is STAGED rather than the trigger pressed, because pressing it opens the operating
@@ -818,7 +1088,7 @@ test.describe("GATE-02 keyboard — the booking composites on /listings/[id]", (
     // `Cancel` and `Escape` are DIFFERENT claims and this file makes both: this one says the rendered
     // control answers a key press, and the escapable block below says the overlay answers the key
     // every modal in the platform answers. An overlay can have one and not the other.
-    const cancel = await tabUntil(page, "button[button]:Cancel", where);
+    const cancel = await tabUntil(page, `button[button]:${AVATAR_CROP_CANCEL}`, where);
     expectRealPress(cancel, `${where} · the dialog's cancel action`);
     await page.keyboard.press("Enter");
     await expect(
@@ -827,6 +1097,59 @@ test.describe("GATE-02 keyboard — the booking composites on /listings/[id]", (
         "contract is `e2e/avatar-crop.spec.ts:2327`'s subject and is not restated here; what this " +
         "case adds is that the dialog's footer answers a keyboard at all.",
     ).toHaveCount(0);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // THE TRAP, AND THE TWO PROPERTIES NOTHING IN THIS SUITE MEASURED BEFORE
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // A SECOND CASE OVER THE SAME OVERLAY, and the split is deliberate rather than incidental. The case
+  // above asks whether the dialog's own footer control answers a key press; this one asks whether the
+  // OVERLAY MECHANISM does — the trap, the Escape route out of it, and where focus goes afterwards. An
+  // overlay can have either without the other, and `responsive-dialog.tsx:206-220` describes an adopter
+  // class that has the first and not the second.
+  //
+  // THE CROP DIALOG IS THE ONE THIS FILE DECLARES A FULL CYCLE FOR, for three reasons that are facts
+  // about the fixture rather than preferences: its contents are FIXED (a committed 400px PNG, byte-gated
+  // by `tests/design/image-fixtures.test.ts`), its zoom control renders DISABLED at that source size so
+  // the cycle cannot change width on a rounding difference, and it is the app's one overlay with NO
+  // `DialogTrigger` — which makes it the only place `returned` can fail in the way the primitive warns
+  // about. The booking sheet and the host drawer both open through a stable trigger and are measured for
+  // escapable/returned without a declared cycle: their contents are a month grid and a nav list whose
+  // widths are properties of other fixtures.
+  test("/profile · the avatar crop dialog — trapped, escapable, and focus returned to the trigger", async ({
+    page,
+  }) => {
+    const where = "/profile · the avatar crop dialog";
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await signUpBooker(page, seed);
+    await page.goto(`${BASE}/profile`);
+    await expectReachable(page, 'input[type="file"]', `${where} (before the resolver)`);
+
+    // THE TRIGGER'S OWN PROBE, taken BEFORE the overlay exists and reused as the expected destination
+    // after it closes. One projection, both sides — see `expectEscapableAndReturned`.
+    const trigger = await tabUntil(page, `button[button]:${AVATAR_UPLOAD_LABEL}`, where);
+    expectRealPress(trigger, `${where} · the picker's trigger`);
+
+    await page.locator('input[type="file"]').setInputFiles(AVATAR_CROP_FIXTURE);
+    await expect(
+      page.getByRole("dialog", { name: AVATAR_CROP_TITLE }),
+      `${where}: the crop dialog did not open after a valid fixture was staged.`,
+    ).toHaveCount(1, { timeout: 30_000 });
+
+    // ── THE TRAP, DECLARED ───────────────────────────────────────────────────────────────────────
+    const cycle = await recordTrapCycle(page, where);
+    expect(
+      cycle.map(identify),
+      `${where}: the overlay's focus cycle is not the one this file declares. If the dialog is right ` +
+        "and the declaration is stale, fix the declaration and say why in the summary — never edit " +
+        "the overlay to make the cycle come true.",
+    ).toEqual([...CROP_TRAP_CYCLE]);
+
+    await expectReverseCycle(page, cycle, where);
+
+    // ── PROPERTIES 4 AND 5 ───────────────────────────────────────────────────────────────────────
+    await expectEscapableAndReturned(page, trigger, where);
   });
 });
 
@@ -1044,6 +1367,28 @@ test.describe("GATE-02 keyboard — the listing wizard and its drawer", () => {
         "declared stop, and the subject of the escapable block — would be absent from a walk of a " +
         "document that does render it.",
     ).toHaveCount(1, { timeout: 60_000 });
+
+    // ⚠ THE THIRD WAIT WAS ADDED BY A FLAKE, AND THE FLAKE IS A PROPERTY OF THE STOP IDENTITY RATHER
+    // THAN OF THE PAGE. The space-type control is a Radix `Select`, and `wizard.tsx:1062` gives its
+    // `SelectValue` the placeholder `Choose the best match` — so between first paint and React Hook
+    // Form applying `defaultValues`, THE SAME ELEMENT has two names: `button[combobox]:Choose the best
+    // match` and then `button[combobox]:Multi-sport court`. `identify` names a button by its text, so
+    // a baseline snapped inside that window has no entry under the identity the walk will later
+    // produce, and the difference check for that stop then has nothing to compare against.
+    //
+    // Observed 2026-08-29 on one run in twelve, with nothing wrong with the document:
+    //   stop 7/14 `button[combobox]:Multi-sport court`: this stop has no entry in the unfocused
+    //   baseline …
+    // It is the same failure shape `settleListing` was written for, and it is silent in the dangerous
+    // direction — a missing baseline entry is what an assertion measuring nothing looks like from the
+    // inside, which is why it is a WAIT here and not a tolerated absence in `expectIndicated`.
+    await expect(
+      page.getByRole("combobox").filter({ hasText: HOST_SPACE_TYPE_LABEL }),
+      `${where}: the space-type control never resolved to the seeded value ` +
+        `\`${HOST_SPACE_TYPE_LABEL}\`, so it is still showing \`wizard.tsx:1062\`'s placeholder and ` +
+        "the walk and the baseline would be naming it differently.",
+    ).toHaveCount(1, { timeout: 60_000 });
+
     await page.evaluate(() => document.fonts.ready);
   }
 
@@ -1130,5 +1475,49 @@ test.describe("GATE-02 keyboard — the listing wizard and its drawer", () => {
         "and navigated nowhere — reachable, indicated and dead, which is what property 2 is separate " +
         "from property 1 to catch.",
     ).toBeVisible({ timeout: 30_000 });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // THE DRAWER — this route's own overlay, and the third subject of properties 4 and 5
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // `site-chrome.tsx:299` composes it from the SAME `ResponsiveDialog` the booking sheet and the crop
+  // dialog use — the closed set of one that `tests/design/sheet-absent.test.ts` enforces — but this
+  // adopter differs from the other two in the way that matters to property 5: it opens through a plain
+  // `DialogTrigger` and supplies NO `onCloseAutoFocus`, so the restore measured here is RADIX'S OWN,
+  // untouched. The crop dialog's is the app's replacement for it and the sheet's is a third thing
+  // again. Three adopters, three restore paths, one assertion — which is the only way to find out that
+  // all three actually work.
+  //
+  // It is also the only overlay in this file whose CONTENT is the point rather than a form: a nav
+  // drawer whose links are unreachable inside its own trap is a dead end with an escape hatch.
+  test("/host/listings/[id]/edit · the host nav drawer at 320 — trapped, escapable, focus returned", async ({
+    page,
+  }) => {
+    const where = "/host/listings/[id]/edit · the host nav drawer at 320";
+    await armWizard(page, where);
+
+    const trigger = await tabUntil(page, "button[button]:Menu", where);
+    expectRealPress(trigger, `${where} · the drawer's trigger`);
+    await page.keyboard.press("Enter");
+
+    await expect(
+      page.locator(OVERLAY),
+      `${where}: Enter on \`${identify(trigger)}\` opened no overlay. Below \`md:\` the host nav's ` +
+        "link list is not in the tree at all (`site-chrome.tsx`'s `hidden md:flex`), so this trigger " +
+        "is the only route to it — a trigger that answers only a pointer puts every host route " +
+        "except the current one out of keyboard reach.",
+    ).toHaveCount(1, { timeout: 30_000 });
+
+    const cycle = await recordTrapCycle(page, where);
+    expect(
+      cycle.filter((stop) => stop.tag === "a").length,
+      `${where}: the open drawer's focus cycle contains no links at all — ` +
+        `${JSON.stringify(cycle.map(identify))}. The drawer's entire content is \`NavLinks\`, so a ` +
+        "trap holding only the close control means the navigation it exists to present is unreachable " +
+        "from inside it while everything behind the scrim is `aria-hidden`.",
+    ).toBeGreaterThan(0);
+
+    await expectEscapableAndReturned(page, trigger, where);
   });
 });
