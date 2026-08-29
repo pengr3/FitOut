@@ -891,9 +891,12 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 //   • THE TARGET-SIZE BAR IS WCAG 2.5.8 AA (24px), NOT THE APP'S 44px `size="touch"`. See
 //     `TARGET_FLOOR_PX` for the measured reason a blanket 44 would be red on correct code.
-//   • THE TARGET-SIZE SCAN DOES NOT SEE THE APP SHELL, and the shell has a real 16x16 control in it
-//     below `sm:`. Measured, argued and deferred — `collectControls`'s docstring carries the whole
-//     entry and `deferred-items.md` carries the row.
+//   • THIS BULLET WAS A BLIND SPOT AND IS NOW A COVERED CASE (plan 17-06) — replaced rather than
+//     deleted, because what it recorded was true when it was written. It read: *"THE TARGET-SIZE SCAN
+//     DOES NOT SEE THE APP SHELL, and the shell has a real 16x16 control in it below `sm:`."* The
+//     control is 28x28 as of D-196 and the scan sees the header as of this commit, so what remains
+//     outside it is the FOOTER — measured, and exempt by WCAG 2.5.8's own inline exception anyway.
+//     `collectControls`'s docstring carries both halves.
 //   • FOCUS IS CHECKED ON TWO STOPS, not on every control: the first tab stop (which is shell chrome on
 //     every route, so it is really one assertion made many times) and the first stop INSIDE the
 //     surface's own content, which is the one that says something per-row.
@@ -950,7 +953,13 @@ const CLOCK_PAUSE_LEAD_MS = 1_000;
  */
 const TARGET_FLOOR_PX = 24;
 
-type Control = { readonly label: string; readonly w: number; readonly h: number };
+type Control = {
+  readonly label: string;
+  readonly w: number;
+  readonly h: number;
+  /** True for a control inside `site-header`. See `collectControls`'s docstring and `expectTargets`. */
+  readonly inShell: boolean;
+};
 
 /**
  * Every interactive control laid out on the page, with its box.
@@ -964,19 +973,35 @@ type Control = { readonly label: string; readonly w: number; readonly h: number 
  * construction (`clip-path` plus `w-px h-px`) and are not pointer targets at all — the skip link is the
  * example — so measuring them would be measuring a thing no finger can miss.
  *
- * ⚠ THE SHELL CHROME IS EXCLUDED, AND IT IS EXCLUDED BECAUSE IT FAILS — which is the opposite of the
- * reason an exclusion is usually written, so it is stated rather than implied. MEASURED on this block's
- * second run, 21 August 2026: `site-chrome.tsx`'s `ProfileLink` renders as a bare `size-4` icon link
- * below `sm:` (the label is `hidden sm:inline` to fit the signed-in cluster into 226px), so at the 320px
- * floor it is a **16x16** pointer target — 8px under the AA bar, on the control that reaches a user's own
- * account, on every signed-in route in the app.
+ * ⚠ THE HEADER HALF OF THE SHELL EXCLUSION IS GONE (plan 17-06, 17-CONTEXT D-196), AND THE PARAGRAPH
+ * THAT STOOD HERE HAS BEEN REPLACED RATHER THAN ANNOTATED. It recorded a real finding — 13-15 measured
+ * `site-chrome.tsx`'s `ProfileLink` as a bare `size-4` glyph below `sm:`, a **16x16** pointer target,
+ * 8px under the AA bar, on the control that reaches a user's own account, on every signed-in route —
+ * and then said, correctly for that plan, that it was NOT ITS TO FIX. It now is fixed, and a sentence
+ * declaring a closed finding out of scope, sitting one line above the exclusion it justifies, is the
+ * defect class this file's own header (`:342-349`) says Phase 15 exists to repair. The finding and its
+ * measurement are kept, annotated CLOSED, in `13-…/deferred-items.md` — that is where a measurement
+ * belongs, not here.
  *
- * That is a real finding and it is NOT this plan's to fix: `site-chrome.tsx` is the Phase-11 app shell,
- * it is on no Phase-13 surface list, and widening it changes the header on every route in the product
- * while re-opening the responsive budget its own docstring records. Silently letting it fail here would
- * have made twenty-two Phase-13 cases red for one Phase-11 element; silently dropping the assertion would
- * have hidden it. So the scan is scoped to the surface's OWN content, the finding is written up in
- * `deferred-items.md` with this plan named as the finder, and this comment is the pointer.
+ * SO THE SITE HEADER'S CONTROLS ARE IN THE SCAN NOW, and they clear the bar. MEASURED at 320px,
+ * 29 August 2026, with `p-1.5` on `ProfileLink`:
+ *
+ *   `/` (signed out)      a[FitOut] 52x28 · a[Log in] 62.3x32 · a[Sign up] 72.6x32
+ *   `/profile` (signed in) a[FitOut] 52x28 · button[Booking] 94.4x28 ·
+ *                          button[Notifications, 0 unread] 44x44 · a[Profile] 28x28
+ *
+ * ⚠ THE FOOTER HALF IS KEPT, AND — MEASURED — IT IS A NO-OP TODAY, WHICH IS ITSELF THE REASON TO SAY
+ * SO RATHER THAN LEAVE IT UNARGUED. All five footer controls are `display: inline` at every width
+ * (`a[FitOut] 42.2x18`, `a[Find a space] 81x18`, `a[Host your space] 104x18`, `a[Terms] 38.5x18`,
+ * `a[Privacy] 46.8x18`), so the inline clause four lines below would drop every one of them anyway,
+ * by WCAG 2.5.8's own exception. It is retained because widening this gate's subject to the footer is
+ * a decision D-196 did not make and `site-footer.tsx` is on no list this plan owns — not because
+ * anything down there fails.
+ *
+ * ⚠ AND THE COST OF KEEPING IT IS STATED, BECAUSE A NO-OP EXCLUSION IS THE KIND THAT SURVIVES PAST ITS
+ * REASON: the day the footer ships a BLOCK-LEVEL control, this line hides it from the only gate that
+ * would have measured it. Whoever adds one should delete this clause in the same commit — the header
+ * half above is the worked example of what that costs (nothing: the controls passed).
  *
  * ⚠ A SECOND EXCLUSION ARRIVED WITH THE PHASE-14 BLOCK, AND IT IS THE `sr-only` ONE UNDER A DIFFERENT
  * SPELLING (plan 14-16). Radix's `Select` renders a NATIVE `<select>` beside its trigger — its
@@ -998,7 +1023,7 @@ async function collectControls(page: Page): Promise<Control[]> {
     const SEL =
       'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], ' +
       '[role="link"], [role="switch"], [role="checkbox"], [role="tab"]';
-    const out: { label: string; w: number; h: number }[] = [];
+    const out: { label: string; w: number; h: number; inShell: boolean }[] = [];
     for (const el of Array.from(document.querySelectorAll<HTMLElement>(SEL))) {
       const style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden") continue;
@@ -1007,13 +1032,9 @@ async function collectControls(page: Page): Promise<Control[]> {
       // Out of the accessibility tree AND out of the tab order — see the docstring's second
       // exclusion. Both halves are required; either alone would exclude a real control.
       if (el.closest('[aria-hidden="true"]') !== null && el.tabIndex < 0) continue;
-      // The app shell, excluded with a measurement and a reason — see the docstring above.
-      if (
-        el.closest('[data-testid="site-header"]') !== null ||
-        el.closest('[data-testid="site-footer"]') !== null
-      ) {
-        continue;
-      }
+      // The footer only, and its measured reason is in the docstring above. The header half of this
+      // clause was deleted by plan 17-06 — D-196 fixed the control it was written around.
+      if (el.closest('[data-testid="site-footer"]') !== null) continue;
       const rect = el.getBoundingClientRect();
       if (rect.width < 1 || rect.height < 1) continue;
       const name =
@@ -1023,6 +1044,12 @@ async function collectControls(page: Page): Promise<Control[]> {
         label: `${el.tagName.toLowerCase()}[${name || el.getAttribute("id") || "?"}]`,
         w: Math.round(rect.width * 10) / 10,
         h: Math.round(rect.height * 10) / 10,
+        // WHICH HALF OF THE PAGE THE CONTROL CAME FROM, and it is load-bearing rather than
+        // diagnostic: the vacuity guard in `expectTargets` claims the SURFACE'S OWN content produced
+        // a control, and that claim was true for free while the header was excluded. With the header
+        // in the scan, an unfiltered count would be satisfied by the shell on every route in the app
+        // — the same assertion, gone quiet. See `expectTargets`.
+        inShell: el.closest('[data-testid="site-header"]') !== null,
       });
     }
     return out;
@@ -1068,18 +1095,26 @@ async function expectTargets(page: Page, where: string): Promise<void> {
     .poll(
       async () => {
         controls = await collectControls(page);
-        return controls.length;
+        // ⚠ THE GUARD COUNTS NON-SHELL CONTROLS, WHICH IS THE CLAIM IT HAS ALWAYS MADE — it is
+        // spelled out only because plan 17-06 put the site header INTO the scan (D-196). While the
+        // header was excluded, "how many controls did the scan find" and "did the surface's own
+        // content produce one" were the same number. They are not any more: an unfiltered count is
+        // satisfied by the brand link on every route in the app, so the guard would go quiet
+        // everywhere while still reading like a guard — and it would re-open [15-12] as well, since
+        // the shell paints before the surface's actions do.
+        return controls.filter((c) => !c.inShell).length;
       },
       {
         timeout: 15_000,
         message:
-          `${where}: the target-size scan found ZERO interactive controls INSIDE the surface, and ` +
-          "kept finding zero for fifteen seconds. The shell's header and footer are excluded by " +
-          "design (see `collectControls`), so this counts only the row's own content — and every " +
-          "Phase-13 surface ships at least one action. An empty list is a page that did not render " +
-          "or a selector that stopped matching, never a clean result. The poll is what separates " +
-          "those from a surface whose actions had not painted yet ([15-12]); fifteen seconds in, it " +
-          "is the former.",
+          `${where}: the target-size scan found ZERO interactive controls in the surface's OWN ` +
+          "content, and kept finding zero for fifteen seconds. The site header IS scanned (its " +
+          "controls are judged against the same floor); it is discounted HERE because every route " +
+          "renders it, so counting it would make this guard true of a page with nothing on it. " +
+          "Every Phase-13 and Phase-14 surface ships at least one action of its own. An empty list " +
+          "is a page that did not render or a selector that stopped matching, never a clean result. " +
+          "The poll is what separates those from a surface whose actions had not painted yet " +
+          "([15-12]); fifteen seconds in, it is the former.",
       },
     )
     .toBeGreaterThan(0);
@@ -1650,10 +1685,14 @@ test.describe(`AC#30 / AC#22 — every Phase-13 surface at ${FLOOR_PX}px, in bot
 //   • THE DASHBOARD'S QUIET, EMPTY AND NO-LISTINGS STATES ARE NOT SWEPT. This block measures the state
 //     with the most in it, because that is the one that can overflow; the other three are strictly
 //     less content in the same containers.
-//   • THE SHELL CHROME IS STILL EXCLUDED from the target-size scan, and it still fails — the 16x16
-//     `ProfileLink` below `sm:` is a Phase-11 finding carried in `deferred-items.md`. Host routes
-//     render that same header, so the exclusion is doing exactly as much work here as it does for the
-//     Phase-13 block above.
+//   • THE SITE HEADER IS NO LONGER A BLIND SPOT, AND THIS BULLET IS REPLACED RATHER THAN DELETED
+//     (plan 17-06). It read: *"THE SHELL CHROME IS STILL EXCLUDED from the target-size scan, and it
+//     still fails — the 16x16 `ProfileLink` below `sm:` is a Phase-11 finding carried in
+//     `deferred-items.md`."* Both halves are now false. D-196 padded the control to 28x28 and this
+//     commit deleted the `site-header` half of `collectControls`'s exclusion, so the host header's
+//     controls — which are the same header's — are measured against the 24px floor on every row in
+//     this block. What IS still excluded is the FOOTER, and its reason is measured rather than
+//     inherited; see `collectControls`.
 //   • Like the rest of this file, none of it runs in CI (D-24).
 
 /** AC#36's second clause. DS-09 / D-22's declared control height, in pixels. */
@@ -2178,5 +2217,148 @@ test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both t
         await expectVisibleFocus(page, where);
       });
     }
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// AC#22 / 17-CONTEXT D-196 — THE SIGNED-IN HEADER CLUSTER (plan 17-06)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A FOURTH DESCRIBE, AND IT IS THE ONLY ONE IN THIS FILE WHOSE SUBJECT IS NOT A SURFACE. The three
+// above sweep routes; this one makes two claims about the APP SHELL, which every one of those routes
+// renders. That is why it is not a row in any of their tables: a row asserts something about the page
+// it names, and this would assert the same two numbers 79 times.
+//
+// It exists because D-196 is a PAIR of decisions that have to hold together, and the blocks above can
+// only see half of it. `ProfileLink` reaching the 24px AA floor is now enforced by `expectTargets` on
+// every Phase-13 and Phase-14 case (the header entered that scan in this same commit). The 226px
+// cluster budget the padding SPENDS FROM is enforced nowhere — no overflow scan can see it, because
+// the cluster is `ml-auto` inside a flex row and a cluster over budget pushes the brand, wraps, or
+// shrinks a sibling long before the document scrolls sideways. D-196 says a miss there is a finding to
+// escalate rather than something to make room for silently, and a decision with no assertion under it
+// is a decision that survives exactly as long as nobody edits the header.
+//
+// ⚠ NO DATABASE FIXTURE. `signUpAndReachProfile` drives the shipped signup form, which is what the
+// `/profile` rows in the table above already do. Two signups per run, one per theme, for the reason
+// that resolver's own note gives: it produces a SESSION COOKIE and the `page` fixture is per-test, so
+// it is deliberately not memoised.
+
+/**
+ * The signed-in header cluster's width budget, and it is the SPEC'S number rather than the measured
+ * one — deliberately, because the spec's is the tighter of the two and the assertion should be the
+ * harder claim.
+ *
+ * 226 is `11-UI-SPEC § Responsive behaviour`'s figure, quoted by `site-chrome.tsx`'s module header and
+ * by `measurements.ts`. MEASURED at 320px on 29 August 2026 the available width is **224px** — the
+ * header's 288px content box (320 less two `px-4`s) less the 52px brand less the one `gap-3` between
+ * them — so the spec rounded its own arithmetic up by 2px. Asserting 226 rather than 224 is not
+ * sloppiness: the 2px sit between "the spec's stated budget" and "what this composition happens to
+ * lay out today", and a gate that pins the second would go red the day the wordmark's font metrics
+ * moved by a pixel, which is not the failure anybody wants reported here.
+ *
+ * The cluster measures **190.4px in court and 191.6px in grove** against it after D-196's `p-1.5`
+ * (178.4 court before), so the tightest headroom is 34.4px against the spec's budget and 32.4px
+ * against the measured one. The 1.2px between the themes is a font-metric difference and it is
+ * recorded rather than averaged: `measurements.ts` already notes grove as the wider of the two in the
+ * header (*"the host cluster measures 352px … at 320px in grove"*), so the theme that would fail
+ * first is the theme that was already known to be the tight one.
+ *
+ * BOTH ASSERTIONS BELOW WERE WATCHED RED, 29 August 2026, so their messages have been read rather
+ * than merely written (`money-path-invariants.test.ts:71-77`'s rule):
+ *   • budget set to 150 → *"court · 320px: the signed-in header cluster measures 190.4px against its
+ *     150px budget — over by 40.4px"*, and grove at 191.6. Reverted.
+ *   • the `site-header` half of `collectControls`'s exclusion restored → *"the target-size scan
+ *     returned no `a[Profile]` from inside `site-header`. The scan found 0 shell control(s): (none)"*,
+ *     in both themes. That is the positive control doing its job: it fails when the narrowing is
+ *     undone, which is the only thing that makes the two floor assertions worth reading. Reverted.
+ */
+const HEADER_CLUSTER_BUDGET_PX = 226;
+
+test.describe(`AC#22 / D-196 — the signed-in header cluster at ${FLOOR_PX}px`, () => {
+  // 60s for the twelve-route table's reason: this block signs a user up through the real form against
+  // a dev server that may still be compiling `/signup` and `/profile`.
+  test.describe.configure({ timeout: 60_000 });
+
+  for (const theme of THEMES) {
+    test(`${theme} · Profile clears ${TARGET_FLOOR_PX}px and the cluster fits its budget`, async ({
+      page,
+    }) => {
+      await seedTheme(page.context(), theme);
+      await page.setViewportSize({ width: FLOOR_PX, height: 800 });
+
+      const path = await signUpAndReachProfile(page);
+      expect(
+        path,
+        `${theme}: the signup flow did not produce a signed-in route, so there is no signed-in header ` +
+          "to measure and both assertions below would be about the anonymous one.",
+      ).toBeTruthy();
+      await page.goto(`${BASE}${path as string}`);
+      await page.evaluate(() => document.fonts.ready);
+
+      const where = `${theme} · ${FLOOR_PX}px`;
+
+      // ── THE VACUITY GUARD, AND HERE IT IS ALSO THE POSITIVE CONTROL FOR THIS COMMIT ──────────────
+      // The two assertions below are about a control that, until this commit, `collectControls`
+      // deliberately skipped. Reading it out of the SCAN rather than off the page is what proves the
+      // exclusion was actually narrowed: if the header were still excluded, this would be `undefined`
+      // and the case would fail here rather than passing on a measurement nothing else can see.
+      const controls = await collectControls(page);
+      const shell = controls.filter((c) => c.inShell);
+      const profile = shell.find((c) => c.label === "a[Profile]");
+      expect(
+        profile,
+        `${where}: the target-size scan returned no \`a[Profile]\` from inside \`site-header\`. The ` +
+          `scan found ${shell.length} shell control(s): ${shell.map((c) => `${c.label} ${c.w}x${c.h}`).join(", ") || "(none)"}. ` +
+          "Either the header is excluded from `collectControls` again — the exclusion D-196 narrowed " +
+          "— or the signed-in cluster stopped rendering the Profile control, and the two assertions " +
+          "below would be vacuous either way.",
+      ).toBeDefined();
+
+      const { w, h } = profile as Control;
+      expect(
+        w,
+        `${where}: the Profile control measures ${w}x${h}px, and its WIDTH is ` +
+          `${Math.round((TARGET_FLOOR_PX - w) * 10) / 10}px under the ${TARGET_FLOOR_PX}px WCAG 2.5.8 ` +
+          "AA target-size floor. This is the control that reaches a user's own account, on every " +
+          "signed-in route in the product. D-196's fix is PADDING on the link (`p-1.5`, 6px, taking " +
+          "a 16px glyph to 28px) — not a bigger glyph, and not on `NAV_LINK_CLASS`, which four " +
+          "header links share.",
+      ).toBeGreaterThanOrEqual(TARGET_FLOOR_PX);
+      expect(
+        h,
+        `${where}: the Profile control measures ${w}x${h}px, and its HEIGHT is ` +
+          `${Math.round((TARGET_FLOOR_PX - h) * 10) / 10}px under the ${TARGET_FLOOR_PX}px floor. ` +
+          "Both axes are asserted separately so the failure names which one moved: padding fixes " +
+          "both, a width-only change fixes neither.",
+      ).toBeGreaterThanOrEqual(TARGET_FLOOR_PX);
+
+      // ── THE OTHER HALF OF D-196: THE BUDGET THE PADDING SPENDS FROM ──────────────────────────────
+      const slot = page.getByTestId("site-auth-slot");
+      await expect(
+        slot,
+        `${where}: the signed-in header renders no \`site-auth-slot\`. That slot is the cluster this ` +
+          "assertion is about, and a missing one measures nothing.",
+      ).toHaveCount(1);
+      const box = await slot.boundingBox();
+      expect(
+        box,
+        `${where}: \`site-auth-slot\` is in the document but has no layout box, so its width is not a ` +
+          "measurement of anything.",
+      ).not.toBeNull();
+
+      const width = Math.round((box as { width: number }).width * 10) / 10;
+      expect(
+        width,
+        `${where}: the signed-in header cluster measures ${width}px against its ` +
+          `${HEADER_CLUSTER_BUDGET_PX}px budget — over by ` +
+          `${Math.round((width - HEADER_CLUSTER_BUDGET_PX) * 10) / 10}px. Measured on 29 August 2026 ` +
+          "it was 190.4px in court and 191.6px in grove, i.e. ~34px of headroom, so something has " +
+          "been added to the cluster or a control in it has grown.\n" +
+          "⚠ D-196: THIS IS A FINDING TO ESCALATE, NOT A LICENCE TO REDESIGN THE HEADER. Do not " +
+          "shrink another control, drop another label or reduce a gap to make this pass — the budget " +
+          "was re-opened deliberately and a miss is the thing it was re-opened to detect. Record the " +
+          "measurement in this phase's `deferred-items.md` with the theme, the width and the number.",
+      ).toBeLessThanOrEqual(HEADER_CLUSTER_BUDGET_PX);
+    });
   }
 });

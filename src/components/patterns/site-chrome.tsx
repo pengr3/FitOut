@@ -394,6 +394,8 @@ export function SiteNav({
  *
  *   before `p-1.5`   slot 178.4 × 32   ·   a[Profile] 16 × 16   ·   brand 52 wide, right edge 68
  *   after  `p-1.5`   slot 190.4 × 32   ·   a[Profile] 28 × 28   ·   brand unchanged
+ *   the same, grove  slot 191.6        ·   1.2px wider than court on font metrics alone, which is the
+ *                    theme that would breach the budget first and is asserted per theme
  *   available        224px — the header's 288px content box (320 − 2 × `px-4`) less the 52px brand
  *                    less the one `gap-3` between them. Not 226; that figure was the estimate's.
  *   headroom after   224 − 190.4 = **33.6px**
