@@ -708,7 +708,7 @@ Plans:
 - [x] 17-02-PLAN.md — three DB-free design gates: the GATE-06 content digest, AC#26's grove half, and `focus-definition.test.ts` (AC#20)
 - [x] 17-03-PLAN.md — RESP-04's source scan (`one-tree.test.ts`, AC#10/11) plus the two structural container test ids
 - [x] 17-04-PLAN.md — `e2e/helpers/nowrap.ts` and the sticky-bar clause AC#4-7, in `mobile-booker-path.spec.ts` (the Decision-Point call)
-- [ ] 17-05-PLAN.md — mechanical conformance: DS-09 ×5 + the ceiling to `toBe(0)` (AC#34), and D-197's slider `aria-disabled` (AC#23)
+- [x] 17-05-PLAN.md — mechanical conformance: DS-09 ×5 + the ceiling to `toBe(0)` (AC#34), and D-197's slider `aria-disabled` (AC#23)
 - [ ] 17-06-PLAN.md — harness defects [16-D9] + [15-12], and D-196's ProfileLink padding with the 226px cluster re-measured (AC#3/9/22)
 
 **Wave 2** *(blocked on Wave 1)*
