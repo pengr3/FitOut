@@ -721,7 +721,7 @@ Plans:
 
 **Wave 3** *(blocked on 17-11 — same file)*
 
-- [ ] 17-12-PLAN.md — [11-21]: four group-local throw routes, the moved `loading-coverage` pins (29→33 / 8→12), and the four unskipped rows
+- [x] 17-12-PLAN.md — [11-21]: four group-local throw routes, the moved `loading-coverage` pins (29→33 / 8→12), and the four unskipped rows
 
 **Wave 4** *(blocked on every measurement plan)*
 
