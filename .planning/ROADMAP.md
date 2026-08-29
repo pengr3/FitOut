@@ -729,7 +729,7 @@ Plans:
 
 **Wave 5** *(last — a post-regeneration commit invalidates the evidence)*
 
-- [ ] 17-14-PLAN.md — baseline regeneration via `baselines.yml`, the forced comparison run, and the recorded run id (AC#25/26/27, D-202) — **has a checkpoint**
+- [x] 17-14-PLAN.md — baseline regeneration via `baselines.yml`, the forced comparison run, and the recorded run id (AC#25/26/27, D-202) — **has a checkpoint**
 
 **UI hint**: yes
 
