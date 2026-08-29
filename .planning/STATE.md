@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 17-05-PLAN.md
-last_updated: "2026-08-29T08:33:12.000Z"
-last_activity: 2026-08-29 -- 17-05 complete: DS-09 x5 converted to size="touch" and the ceiling flipped to toBe(0) (AC#34, measured gap was FIVE not six); D-197 aria-disabled on the slider thumb with both e2e assertions flipped (AC#23, assumption A2 verified)
+stopped_at: Completed 17-06-PLAN.md
+last_updated: "2026-08-29T10:05:00.000Z"
+last_activity: 2026-08-29 -- 17-06 complete: [16-D9] closed (the sheet row is scoped and now measures 129 elements inside the overlay -- 532 under the 500px probe, so it can finally fail); [15-12] closed by POLLING expectTargets' vacuity guard for 15s, NOT by the reordering the plan asked for (the tell already ran first at 335bf6c :1381/:1396); D-196 shipped -- ProfileLink p-1.5 takes it 16x16 -> 28x28 and the re-measured cluster is 190.4 court / 191.6 grove against 226 (the old 200/226 pair was an estimate, both halves wrong)
 progress:
   total_phases: 13
   completed_phases: 9
