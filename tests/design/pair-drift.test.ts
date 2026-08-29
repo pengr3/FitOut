@@ -66,8 +66,23 @@
 // NOT COVERED — real blind spots, listed so the next reader under-trusts this file rather than over-trusts it:
 //   • A CROSS-ELEMENT pairing is invisible to same-string analysis. A `text-brand` child rendered
 //     inside a `bg-muted` parent is a real rendered pairing whose two class names never appear on
-//     the same element, so nothing here can see it. That residue is covered by Phase 17's two-theme
-//     axe pass, on the rendered DOM — not by this file, and saying so is the point of saying it.
+//     the same element, so nothing here can see it. That residue is covered by
+//     `e2e/axe-sweep.spec.ts` on the rendered DOM — not by this file, and saying so is the point of
+//     saying it — BUT IN COURT ONLY, WHICH IS WHY THE BULLET STAYS IN THIS LIST RATHER THAN MOVING
+//     OUT OF IT. Amended by plan 17-07; it used to read *"covered by Phase 17's two-theme axe pass"*
+//     — SUPERSEDED, quoted rather than deleted, because a NOT-COVERED list that quietly narrows one
+//     of its own entries is failing at the one job it has. **D-138 (2026-08-23) postdates that
+//     sentence** and scopes the sweep to the single product theme. The consequence, in full:
+//       – in `court` the residue is FULLY covered — every declared surface at 320 and 1280;
+//       – in the probe theme it is covered only by the FOUR-surface swap contract in
+//         `e2e/visual/theme-swap.spec.ts` (`search-results`, `auth-login`, `terms`,
+//         `root-not-found`), plus `theme-tokens.test.ts`'s 24-name key-set parity check and the
+//         two-theme declared-pair table this file reads. A cross-element pairing legal in court and
+//         sub-bar in the probe theme, on a surface outside those four, IS NOT DETECTED;
+//       – that is acceptable and is the POINT of D-138 — the second direction is a probe rather than
+//         a shippable theme, and no user can reach it;
+//       – it becomes a real gap the day that theme, or any second theme, becomes shippable, which is
+//         a DSFUT-02 concern (dark mode).
 //   • Narrowing A costs real coverage in one direction: a foreground and a background under two
 //     DIFFERENT non-empty chains that CAN co-apply (`hover:bg-muted` with `focus:text-brand`) are
 //     not paired here. Chains are also compared as ordered strings, so `focus:hover:` and

@@ -18,7 +18,20 @@
 // D-08 — Two override paths exist, and both go through THIS module's storage key:
 //   1. Tests    — Playwright seeds `localStorage["theme"]` via `context.addInitScript` before
 //                 navigation (see e2e/helpers/theme.ts). This is the seam Phase 11's theme-swap smoke
-//                 and Phase 17's two-theme axe pass both depend on.
+//                 and Phase 17's axe sweep (`e2e/axe-sweep.spec.ts`) both depend on.
+//
+//                 ⚠ AMENDED BY PLAN 17-07, AND NARROWED. This line used to end *"and Phase 17's
+//                 two-theme axe pass both depend on"* — SUPERSEDED, quoted rather than deleted.
+//                 **D-138 (2026-08-23) postdates it and makes the sweep COURT ONLY**, so what the
+//                 seam feeds it is one theme rather than two. In `court` the sweep covers the
+//                 cross-element residue on the rendered DOM completely; in the probe theme that
+//                 residue is covered only by `theme-swap.spec.ts`'s FIXED FOUR surfaces, the
+//                 24-name key-set parity check and the two-theme declared-pair table — so a pairing
+//                 legal in court and sub-bar in the probe theme, on any other surface, is NOT
+//                 detected. That is acceptable and is the point of D-138: `grove` below is a
+//                 direction to COMPARE against, not one a user can select, exactly as D-06 says two
+//                 paragraphs up. It becomes a real gap the day a second theme ships, which is a
+//                 DSFUT-02 concern (dark mode).
 //   2. Humans   — `?theme=` outside production (see ./theme-query-param.tsx).
 //
 // BROWSER-LOCAL STATE THIS PHASE CREATES: `localStorage["theme"]`. next-themes persists every

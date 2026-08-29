@@ -24,8 +24,24 @@
 //   • A CROSS-ELEMENT pairing is invisible to the same-string drift check that reads this file
 //     (`tests/design/pair-drift.test.ts`). A `text-brand` child rendered inside a `bg-muted` parent
 //     is a real pairing that no string comparison can see, because the two class names never appear
-//     on the same element. That class of defect is covered instead by Phase 17's two-theme axe
-//     pass, on the rendered DOM.
+//     on the same element. That class of defect is covered instead by `e2e/axe-sweep.spec.ts` on the
+//     rendered DOM — IN COURT ONLY, AND THIS BULLET STAYS IN THIS LIST BECAUSE OF THE HALF THAT IS
+//     NOT COVERED. Amended by plan 17-07. It used to read *"covered instead by Phase 17's two-theme
+//     axe pass, on the rendered DOM"* — SUPERSEDED, and quoted rather than deleted, because what
+//     this list is for is being honest about its own edges and a silently-narrowed promise is the
+//     opposite of that. **D-138 (2026-08-23) postdates that sentence** and scopes the sweep to the
+//     one product theme. So, precisely:
+//       – in `court`, the residue is FULLY covered — every declared surface, at 320 and 1280, and
+//         the first sweep found and closed two real violations there;
+//       – in the probe theme it is covered only by the FOUR-surface swap contract in
+//         `e2e/visual/theme-swap.spec.ts` (`search-results`, `auth-login`, `terms`,
+//         `root-not-found`), plus `theme-tokens.test.ts`'s 24-name key-set parity check and the
+//         two-theme declared-pair table BELOW IN THIS FILE. A cross-element pairing that is legal in
+//         court and sub-bar in the probe theme, on a surface outside those four, IS NOT DETECTED;
+//       – that is acceptable and is the POINT of D-138 — the second direction is a probe, not a
+//         shippable theme, and no user can reach it, so the residue would be a defect nobody sees;
+//       – it becomes a real gap the day that theme, or any second theme, becomes shippable. That is
+//         a DSFUT-02 concern (dark mode), and this is the paragraph to re-read first.
 //   • This is an inventory of pairings the system DECLARES legal. Nothing here proves a component
 //     actually uses one of them — a surface can still hand-roll an undeclared pairing, and only the
 //     leak gate plus the drift check push back on that.
