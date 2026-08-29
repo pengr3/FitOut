@@ -67,7 +67,7 @@ export function GroupPoller() {
 export function RefreshGroupButton({ label = "Try again" }: { label?: string }) {
   const router = useRouter();
   return (
-    <Button type="button" variant="outline" className="h-11" onClick={() => router.refresh()}>
+    <Button type="button" variant="outline" size="touch" onClick={() => router.refresh()}>
       {label}
     </Button>
   );

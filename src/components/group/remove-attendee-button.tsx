@@ -118,10 +118,18 @@ export function RemoveAttendeeButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {/* h-11 clears the 44px touch target (08-UI-SPEC §Spacing). The label is hidden on the narrowest
-            viewports where a roster row has no room for it — the `aria-label` carries the whole action AND
-            the person either way, so the control is never ambiguous to a screen reader or a keyboard user. */}
-        <Button variant="outline" className="h-11 px-3" aria-label={`Remove ${name} from this group`}>
+        {/* The 44px touch target comes from the DECLARED `touch` size (DS-09), not from a hand-rolled
+            `h-11` on this call site — Phase 17 converted it. `px-3` STAYS and is load-bearing: tailwind-merge
+            keeps a class on the element over the variant's `px-4`, so this is the one conversion of the five
+            that changes the rendered width by zero. The label is hidden on the narrowest viewports where a
+            roster row has no room for it — the `aria-label` carries the whole action AND the person either
+            way, so the control is never ambiguous to a screen reader or a keyboard user. */}
+        <Button
+          variant="outline"
+          size="touch"
+          className="px-3"
+          aria-label={`Remove ${name} from this group`}
+        >
           <UserRoundMinusIcon aria-hidden="true" />
           <span className="hidden sm:inline">Remove attendee</span>
         </Button>

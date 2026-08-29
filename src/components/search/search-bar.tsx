@@ -322,9 +322,10 @@ export function SearchBar({
                 type="button"
                 id="search-date"
                 variant="outline"
+                size="touch"
                 data-relaxed={relaxedAttr("date")}
                 className={cn(
-                  "h-11 w-full min-w-[150px] justify-start gap-2 font-normal",
+                  "w-full min-w-[150px] justify-start gap-2 font-normal",
                   relaxedTone("date"),
                 )}
               >
@@ -423,9 +424,10 @@ export function SearchBar({
                 type="button"
                 id="search-price"
                 variant="outline"
+                size="touch"
                 data-relaxed={relaxedAttr("price")}
                 className={cn(
-                  "h-11 w-full min-w-[130px] justify-start font-normal",
+                  "w-full min-w-[130px] justify-start font-normal",
                   relaxedTone("price"),
                 )}
               >

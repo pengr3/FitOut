@@ -99,9 +99,11 @@ export function RegenerateLinkButton({ groupId }: { groupId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {/* h-11 clears the 44px touch target (08-UI-SPEC §Spacing). Full width on mobile, intrinsic from
-            `sm` up, matching the Copy-link control it sits beneath. */}
-        <Button variant="outline" className="h-11 w-full sm:w-auto">
+        {/* The 44px touch target comes from the DECLARED `touch` size (DS-09), not from a hand-rolled
+            `h-11` on this call site — Phase 17 converted it. The height is identical; the padding is the
+            variant's `px-4` instead of `size:default`'s `px-2.5`, so the control is 12px wider. Full width
+            on mobile, intrinsic from `sm` up, matching the Copy-link control it sits beneath. */}
+        <Button variant="outline" size="touch" className="w-full sm:w-auto">
           <RefreshCwIcon aria-hidden="true" />
           Regenerate link
         </Button>
