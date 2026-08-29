@@ -76,11 +76,13 @@
 // part of the locator rather than a nicety: a regression that put the label back on the Root would
 // redden every case that touches the zoom row, instead of passing silently.
 //
-// ⚠ THE OTHER HALF OF D1's FAMILY IS STILL OPEN AND IS NOT THIS FILE'S TO INVENT. The thumb still
-// exposes no `aria-disabled` — Radix removes it from the tab order and marks it `data-disabled`
-// instead — so the disabled assertions below read `data-disabled` and the tab order rather than
-// `toBeDisabled()`, which reads `aria-disabled` on a non-native control and would report every
-// state as enabled.
+// ⚠ THE OTHER HALF OF D1's FAMILY IS NOW CLOSED, AND THIS FILE MOVED WITH IT. The thumb used to
+// expose no ARIA disabled state at all — Radix drops it from the tab order and marks it
+// `data-disabled` instead — so the disabled assertions below read that styling hook, and this
+// header argued for reading it. 17-CONTEXT D-197 put the ARIA state on the thumb (plan 17-05), so
+// those assertions now read the accessibility tree instead. The TAB ORDER assertion did NOT move:
+// D-197 keeps an inert control out of the tab order deliberately, so that half still measures
+// shipped, intended behaviour.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // SELECTORS: ZERO NEW TEST HOOKS, AND ZERO VENDOR INTERNALS (Delta-18)
@@ -845,31 +847,36 @@ test.describe("CROP-01 / rule F8 — the zoom row is disabled with its reason, c
           "control that vanishes teaches nothing.",
       ).toHaveCount(1);
 
-      // ⚠ `data-disabled`, NOT `toBeDisabled()`. MEASURED: Radix's thumb is a `<span role="slider">`
-      // that carries `data-disabled=""` and drops out of the tab order, but exposes NO
-      // `aria-disabled` — which is what `toBeDisabled()` reads on a non-native control, so it would
-      // report every state as enabled. D1's OTHER half — the thumb had no accessible name either —
-      // is fixed as of plan 16-14 and the locator above is named because of it; the missing
-      // `aria-disabled` is Radix's own choice and is logged as D7 rather than patched over here.
-      // This file asserts the mechanism that IS shipped rather than the one that should be.
-      const disabledAttr = await slider.getAttribute("data-disabled");
+      // ⚠ THE STATE ASSERTIONS READ THE ACCESSIBILITY TREE NOW, AND THE `tabindex` ONE DOES NOT.
+      // This block used to read `data-disabled` and argue for it, because Radix's thumb — a `<span
+      // role="slider">` — shipped that styling hook and nothing an assistive technology could see.
+      // That argument died with the gap: 17-CONTEXT D-197 put the ARIA disabled state on the thumb
+      // in `src/components/ui/slider.tsx` (plan 17-05), so the state halves below assert the
+      // mechanism that is actually announced, which is what they were always trying to measure.
+      // D1's other half — the thumb had no accessible name — was fixed in plan 16-14 and is why the
+      // locator above can be named at all.
+      //
+      // THE `tabindex` HALF IS UNCHANGED, DELIBERATELY. D-197 keeps the disabled thumb OUT of the
+      // tab order: an inert control need not be a keyboard stop, it merely may not be invisible to
+      // AT. So that assertion still measures shipped, intended behaviour and was not flipped with
+      // the others.
       const tabindex = await slider.getAttribute("tabindex");
 
       if (row.locked) {
-        expect(
-          disabledAttr,
+        await expect(
+          slider,
           `${row.fixture}: the zoom row is live at a source with no headroom. ${row.why}.`,
-        ).not.toBeNull();
+        ).toBeDisabled();
         // The behavioural half of "disabled": it is not a keyboard stop.
         expect(
           tabindex,
           `${row.fixture}: the disabled zoom thumb is still in the tab order (tabindex=${tabindex}).`,
         ).toBeNull();
       } else {
-        expect(
-          disabledAttr,
+        await expect(
+          slider,
           `${row.fixture}: the zoom row is disabled at a source with real headroom. ${row.why}.`,
-        ).toBeNull();
+        ).not.toBeDisabled();
         expect(
           tabindex,
           `${row.fixture}: the live zoom thumb is not a keyboard stop.`,

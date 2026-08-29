@@ -53,6 +53,43 @@ function Slider({
   const isSingleThumb = _values.length === 1
   const thumbLabel = isSingleThumb ? ariaLabel : undefined
 
+  /**
+   * D-197 — THE DISABLED STATE IS EXPOSED TO THE ACCESSIBILITY TREE; THE TAB ORDER IS NOT TOUCHED.
+   *
+   * MEASURED by [16-D7] out of a real render and re-measured before this fix: with `disabled` set,
+   * the THUMB — again the element carrying `role="slider"` — renders `data-disabled=""`, no
+   * `tabindex`, and no ARIA disabled state at all. `data-*` is a styling hook; it reaches no
+   * assistive technology. So the control announced itself as an operable slider while being inert.
+   * That is WCAG 2.2 SC 4.1.2's *Value* clause on a shipped control — the same defect class as D1
+   * above, one state further along, and found the same way.
+   *
+   * BOTH HALVES OF THE DECISION, and they deliberately point different ways:
+   *   • The STATE is now announced, by the ARIA attribute on the Thumb below.
+   *   • The TAB ORDER STANDS. Radix drops a disabled thumb out of the tab order and that choice is
+   *     right: an inert control need not be a keyboard stop. What it may not be is INVISIBLE. A
+   *     keyboard user who never lands on it loses nothing; a screen-reader user told the control is
+   *     operable loses the whole state. `e2e/avatar-crop.spec.ts` still asserts the `tabindex` half,
+   *     unchanged, and for exactly that reason.
+   *
+   * `|| undefined`, NOT `|| false` — the same idiom as `thumbLabel` two lines up. React renders a
+   * literal `false` into an `aria-*` attribute as the STRING "false", so the alternative announces
+   * "this control is not disabled" on every enabled slider in the app. An explicit false negative in
+   * the accessibility tree is a worse answer than an absent attribute.
+   *
+   * NAMED ONCE, ON THE LINE THAT SHIPS IT. This block describes the attribute rather than quoting
+   * it — the same discipline `button.tsx` and `contrast-pairs.ts` use, and for the same reason:
+   * prose quoting an attribute is textually indistinguishable from a call site using it, and this
+   * one is counted.
+   *
+   * MULTI-THUMB SLIDERS ARE UNTOUCHED here too. `disabled` is a Root prop, so every thumb reflects
+   * the one state and no per-thumb policy is being invented — the same case D1 leaves alone, left
+   * alone for the same reason.
+   *
+   * PHASE 17's ONE SANCTIONED VENDORED EDIT (17-UI-SPEC § Registry Safety). Everywhere else the rule
+   * is compose over the primitive, never fork it. A future `npx shadcn add slider` re-collides with
+   * this line and with D1's, which is why both carry their reason here.
+   */
+
   return (
     <SliderPrimitive.Root
       data-slot="slider"
@@ -81,6 +118,7 @@ function Slider({
           data-slot="slider-thumb"
           key={index}
           aria-label={thumbLabel}
+          aria-disabled={props.disabled || undefined}
           className="relative block size-3 shrink-0 rounded-full border border-ring bg-background transition-[color,box-shadow] select-none after:absolute after:-inset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50"
         />
       ))}
