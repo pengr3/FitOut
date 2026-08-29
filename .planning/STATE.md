@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 7
-status: ready_to_plan
-stopped_at: Phase 16.1 complete (7/7) and THREAT-SECURE (24/24, threats_open 0). Audit warnings W-1 and W-3 both closed by quick tasks 260828-q1x and 260828-qd5; W-2 was documentation drift only. Ready to discuss Phase 999.1
-last_updated: 2026-08-28T11:12:31.000Z
+current_plan: Not started
+status: planning
+stopped_at: Phase 17 context gathered
+last_updated: "2026-08-29T04:26:13.651Z"
 last_activity: 2026-08-28
 progress:
   total_phases: 13
@@ -1406,8 +1406,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-28T05:39:23.087Z
-Stopped at: Completed 16.1-07-PLAN.md — the credential-bearing UAT. ALL 7 PLANS OF PHASE 16.1 ARE DONE; the phase is READY FOR VERIFICATION. The preset fitout_listing_v1 now EXISTS on the Cloudinary account, created from the committed declaration, and --verify exits 0 both before the walk and after every upload in it. Nine checks walked with pasted evidence in 16.1-UAT.md. THREE DEFECTS the CI-provable half could never have reached were found and fixed: (1) Cloudinary APPLIES f_auto but does NOT PERSIST it in the preset GET, so --verify failed on a correct account — settled by a with/without control pair, not by charity, and the exemption is pinned ABSENCE-ONLY; (2) upload-policy.ts's recorded measurement that f_auto 'turns HEIC into jpg' does NOT reproduce — the walk stored png for a synthetic HEIC and jpg for a real phone one, so NOTHING may assume a stored extension, and the same false line in the UAT would have red-flagged a correct result; (3) the reconciler's 404 branch exited 127 not 1, a libuv abort from process.exit() over a closing undici socket. Assumption A1 CLOSED, Open Question 1 ANSWERED 'acceptable' (D-179 done), T-16.1-06 ACCEPTED, D-190 re-confirmed 27/0/27 BEFORE the walk and 32/5/27 after (all 5 attributable). Check 7: fitout/avatars 28 to 28, delta 0, 33 Playwright cases green — Phase 16's D4 holds. TWO THINGS A VERIFIER MUST READ RATHER THAN ASSUME: Check 6's DELIVERED half is byte-verified (exif {} gps {} from the downloaded res.cloudinary.com file) but its SOURCE half is OPERATOR-ATTESTED, not byte-read; and Checks 1-6 ran against a PRODUCTION build, not next dev, because of a mobile hydration problem that is OUT OF SCOPE and NOT fixed (PM's call). Operator cleanup outstanding: test photos incl. a personal photograph remain publicly reachable on two listings.
+Last session: 2026-08-29T04:26:13.623Z
+Stopped at: Phase 17 context gathered
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
@@ -1550,7 +1550,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None — phase 16.1 is ready for /gsd:verify-phase
+Resume file: .planning/phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
