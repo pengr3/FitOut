@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 17 context gathered
-last_updated: "2026-08-29T05:59:03.110Z"
-last_activity: 2026-08-29 -- Phase 17 planning complete
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-08-29T06:57:22.000Z"
+last_activity: 2026-08-29 -- 17-01 complete: e2e baseline red set declared, axe helper landed
 progress:
   total_phases: 13
   completed_phases: 9
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 999.1 — auth flow tells the user nothing thin emails and silent post
+**Current focus:** Phase 17 — cross-cutting-audit-themes-responsive-a11y-baselines
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 999.1
-Plan: 7 of 7
-Current Plan: Not started
+Phase: 17 (cross-cutting-audit-themes-responsive-a11y-baselines) — EXECUTING
+Plan: 2 of 14
+Current Plan: 2
 Total Plans in Phase: 14
-Status: Ready to execute
+Status: Executing Phase 17
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
 declaration, and `--verify` exits 0 both before the walk and after every upload in it. The
 credential-bearing walkthrough is done — nine checks with pasted evidence in `16.1-UAT.md`.
@@ -496,7 +496,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-29 -- Phase 17 planning complete
+Last activity: 2026-08-29 -- 17-01 complete: e2e baseline red set declared, axe helper landed
 
 ## Performance Metrics
 
