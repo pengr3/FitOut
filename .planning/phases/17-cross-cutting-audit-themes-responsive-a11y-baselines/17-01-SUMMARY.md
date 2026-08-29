@@ -204,6 +204,14 @@ None — no external service configuration required.
 2. **Plan 17-07's red-watch subject needs changing.** The plan for it names *"a URL that 404s"* as the vacuity probe. A 404 route on this app renders a full not-found document — 57 nodes, 22 passing rules, **zero violations** — so that watch cannot go red. `about:blank` is the subject that works, and it is already watched red here.
 3. **Plan 17-13 owns the soft-404 escalation** and now also owns `open-capacity.spec.ts:407`, whose month-hop cause is stated as derived rather than isolated and wants a clock-pinned control run.
 
+## Self-Check: PASSED
+
+- All three created files exist on disk (`e2e-baseline-reds.md`, `e2e/helpers/axe.ts`, this file)
+- All four commits resolve in `git log --all`: `4ca7d7a`, `dc9b689`, `72b5c9c`, `f699563`
+- `git diff --diff-filter=D --name-only e439bf9..HEAD` is empty — this plan deleted nothing
+- Every task's `<acceptance_criteria>` was executed and logged; all pass
+- The plan-level `<verification>` block was re-run at close: `test:design` exit 0, `tsc --noEmit` exit 0, four declared files only, `drizzle/` untouched
+
 ---
 *Phase: 17-cross-cutting-audit-themes-responsive-a11y-baselines*
 *Completed: 2026-08-29*
