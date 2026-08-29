@@ -274,6 +274,49 @@ export type SurfaceId = (typeof SURFACE_IDS)[number];
  * row is a compile error, exactly as in `selector-contract.ts`), while `as const` preserves the
  * literal `kind` values that `DocumentSurfaceId` below is derived from. An annotation alone would
  * widen `kind` to `SurfaceKind` and silently make that derivation return every id.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠ PLAN 17-13 WALKED ALL 24 BLOCKED ROWS ON 2026-08-30 AND UNBLOCKED **ZERO**. Recorded here rather
+ * than left to be re-derived, because "nobody unblocked anything" and "nobody looked" are the same
+ * shape in a diff, and 17-UI-SPEC § GATE-01 clause 5 is explicit that a blocked row whose reason has
+ * gone stale is WORSE than a blocked row — it reads as a considered decision and is a forgotten one.
+ *
+ * The walk expected several rows to have come free after twelve plans of Phase-17 work. MEASURED,
+ * they had not, and the measurement is one command:
+ *
+ *   git diff --stat e439bf9..HEAD -- e2e/helpers/visual-drive.ts scripts/seed-baseline-fixtures.ts
+ *   → EMPTY. Both files are byte-identical across the whole of Phase 17.
+ *
+ * Those two files are where every one of the 24 blockers actually lives, so nothing could have come
+ * free. Concretely, against the three changes a reader would expect to have helped:
+ *
+ *   • **The four new dev-throw affordances (plan 17-12) do NOT reach `global-error`.** They reach
+ *     each ROUTE GROUP's own boundary — `src/app/(app)/error.tsx`, `(auth)/error.tsx`,
+ *     `(legal)/error.tsx`, `(host)/host/error.tsx` — which is what 17-12 built them to measure. The
+ *     count of throw affordances went 1 -> 5 and the number that can make the ROOT LAYOUT throw is
+ *     still 0. That row's reason is corrected below, because the sentence it used to carry is now
+ *     false in its details even though its conclusion is unchanged.
+ *   • **The `[16-D9]` sheet fix (plan 17-06) touched no blocked row.** It scoped
+ *     `e2e/overflow-320.spec.ts`'s sheet measurement to the dialog box. The baseline surface
+ *     `listing-sheet` was already SHOT and stays shot; there is no blocked row on that account.
+ *   • **The seven host routes plan 17-11 brought into the 320px sweep did NOT bring a host into
+ *     THIS one.** Its fixture is spec-local — written in `beforeAll` and deleted in `afterAll` — and
+ *     the nine Phase-14 rows are blocked on committed seed data in `scripts/seed-baseline-fixtures.ts`
+ *     plus a `hostDrive` in `e2e/helpers/visual-drive.ts` that lets a capture BE `vrt_host_1`.
+ *     `grep -c 'hostDrive' e2e/helpers/visual-drive.ts` is still 0 and the `DRIVES` map still keys
+ *     exactly six surfaces, none of them a host one.
+ *
+ * So `EXPECTED_BLOCKED` in `e2e/visual/surfaces.spec.ts` still names 24 entries, `EXPECTED_BASELINE_COUNT`
+ * is still 78, and plan 17-14's dispatch should mint **NO new PNG from this file**. A minted PNG is a
+ * finding, not an outcome.
+ *
+ * ⚠ WHAT PHASE 17 *DID* CHANGE FOR THIS FILE IS A PIXEL, NOT A BLOCKER. D-196 (plan 17-06) padded
+ * `ProfileLink` from 16x16 to 28x28, which is +12px at EVERY width in all three signed-in
+ * compositions. That is invisible to the 24 rows below — they are blocked — but it is NOT invisible
+ * to `booking-not-found`, which is shot and renders the signed-in shell. A 12px-wider Profile control
+ * is the EXPECTED delta on that row at 17-14's comparison dispatch; anything else, anywhere else, is
+ * a finding. Written up in full at `[17-D6]` in this phase's `deferred-items.md`.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const VISUAL_SURFACES = {
   // ─── the primary surface ────────────────────────────────────────────────────────────────────────
@@ -338,8 +381,17 @@ export const VISUAL_SURFACES = {
     blocked:
       "NOTHING IN THIS REPOSITORY CAN RENDER THIS SURFACE, and plan 11-22's own instruction to " +
       "'drive it through the dev throw affordance plan 11-18 added' is not satisfiable: " +
-      "`/dev/throw` throws inside a PAGE, and `src/app/error.tsx` — the root route boundary — " +
-      "catches every page throw in the tree. `global-error.tsx` renders only when the ROOT LAYOUT " +
+      "`/dev/throw` throws inside a PAGE, and a page throw is caught by the nearest route boundary " +
+      "above it, never by this one. ⚠ THAT CLAUSE IS AMENDED BY PLAN 17-13 (2026-08-30) AND THE " +
+      "PREVIOUS WORDING IS QUOTED RATHER THAN DELETED, because it is now false in its details while " +
+      "its conclusion is unchanged. It used to read *'`src/app/error.tsx` — the root route boundary " +
+      "— catches every page throw in the tree'*. Plan 17-12 added FOUR more throw affordances — " +
+      "`/dev-throw-app`, `/host/dev-throw`, `/dev-throw-auth`, `/dev-throw-legal` — and MEASURED " +
+      "that each is caught by its own ROUTE GROUP's boundary (`(app)/error.tsx`, " +
+      "`(host)/host/error.tsx`, `(auth)/error.tsx`, `(legal)/error.tsx`), not by the root one. So " +
+      "the affordance count went 1 -> 5, the root boundary is one catcher of five rather than the " +
+      "only one, and the number of affordances that can make the ROOT LAYOUT throw is still ZERO. " +
+      "`global-error.tsx` renders only when the ROOT LAYOUT " +
       "itself throws, and there is no affordance for that. `deferred-items.md:268-270` (plan 11-18) " +
       "reached the same conclusion independently and addressed the open `<title>` question to this " +
       "plan on the assumption a browser would have this surface; it does not. The two ways to " +
@@ -1005,7 +1057,19 @@ export const VISUAL_SURFACES = {
       "so a picture taken now would establish the reference rather than check it. D-156 and plan " +
       "14-01's string-literal freeze are what actually carry that proof today. This declaration was " +
       "written from 14-UI-SPEC's table and the seed script's contents WITHOUT opening the route or any " +
-      "`payout-*` file, which the earnings freeze forbids this plan to touch.",
+      "`payout-*` file, which the earnings freeze forbids this plan to touch. ⚠ THAT LAST SENTENCE IS " +
+      "NO LONGER THE CURRENT TRUTH, AMENDED BY PLAN 17-13 (2026-08-30) AND KEPT RATHER THAN DELETED " +
+      "because it is the provenance of everything above it: plan 17-11 has since DRIVEN this route at " +
+      "320px in both themes, and what it measured changes what a baseline of it would be a picture " +
+      "OF. `/host/earnings` polled ZERO non-shell interactive controls for a full 15 seconds on a " +
+      "correct tree — the `payouts_enabled` fixture state suppresses `PayoutBanner`, `payout-row.tsx` " +
+      "takes no `href` by design, and the zero-ledger branch passes `actions={null}`. So the surface " +
+      "this row is waiting on a ledger to photograph is, in its CURRENT fixture state, a page with no " +
+      "action of its own at all, and whether that is correct is an open PRODUCT question recorded as " +
+      "`[17-D16]` in Phase 17's `deferred-items.md`. Whoever unblocks this row should read that first: " +
+      "if the answer is that the surface should have a route out, the frame changes and a baseline " +
+      "minted before the answer is a reference to the wrong page. The blockers themselves are " +
+      "UNCHANGED — still the ledger with literal instants, still the missing host drive.",
   },
 
   // ─── 15-11 — the three remaining auth documents, and the profile ─────────────────────────────────
@@ -1167,7 +1231,24 @@ export const VISUAL_SURFACES = {
       "how a host adds a photo, but the seed already commits EIGHT rows for this listing with local " +
       "urls under `public/vrt/`, and both the tiles and the preview render `photo.url` rather than " +
       "deriving anything from the Cloudinary-shaped `public_id`. The pixels are committed; the " +
-      "session and the walk are not.",
+      "session and the walk are not. " +
+      "⚠ AND A THIRD THING STANDS IN THE WAY TODAY THAT IS NOT TECHNICAL, ADDED BY PLAN 17-13 " +
+      "(2026-08-30) — read this one FIRST, because it is the reason a reader who clears blockers (1) " +
+      "and (2) must still stop. UNBLOCKING THIS ROW IS THE PM'S TO SCHEDULE, NOT A SIDE EFFECT. " +
+      "17-UI-SPEC § GATE-01 says of every other blocked row *'where this phase unblocks one it " +
+      "unblocks it and shoots it'*, and this is the single row where that rule must NOT be reflexive. " +
+      "Plan 16-15 recorded why as `[16-D10]`, and plan 17-13 re-affirmed it and deliberately left the " +
+      "row blocked rather than taking it: flipping this `blocked` to `null` moves " +
+      "`EXPECTED_BLOCKED` in `e2e/visual/surfaces.spec.ts` from 24 named entries to 23 AND makes the " +
+      "next dispatch MINT a new court PNG — a 37th committed reference image. A binary reference " +
+      "committed to this repository is a milestone artefact somebody has to look at and accept, not " +
+      "an output an audit produces on its way past. `13-16` records that a phase can COMPLETE with " +
+      "GATE-01 red and nothing notices, and `15-11` records ten references re-minted without anyone " +
+      "reading the diff; both are what this clause exists to prevent a third time. WHEN THE PM " +
+      "SCHEDULES IT: flip this field to `null`, remove the name from `EXPECTED_BLOCKED` IN THE SAME " +
+      "COMMIT (or the visual gate goes red for the wrong reason), run a GENERATION dispatch in the " +
+      "pinned Linux image (D-27/D-29 — no machine off Linux can do it), and READ the minted PNG " +
+      "before committing it.",
   },
 } as const satisfies Record<SurfaceId, SurfaceRow>;
 
