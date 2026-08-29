@@ -725,7 +725,7 @@ Plans:
 
 **Wave 4** *(blocked on every measurement plan)*
 
-- [ ] 17-13-PLAN.md — the batched findings ledger (D-199/D-200), D-198's recorded observation, blocked-row currency (AC#29) and the closed-inventory re-proof
+- [x] 17-13-PLAN.md — the batched findings ledger (D-199/D-200), D-198's recorded observation, blocked-row currency (AC#29) and the closed-inventory re-proof
 
 **Wave 5** *(last — a post-regeneration commit invalidates the evidence)*
 
