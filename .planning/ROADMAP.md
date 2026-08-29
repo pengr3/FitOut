@@ -716,7 +716,7 @@ Plans:
 - [x] 17-07-PLAN.md — `e2e/axe-sweep.spec.ts`: the court-only sweep at 320/1280, its first-run triage, and AC#24's six amended sentences
 - [x] 17-08-PLAN.md — `e2e/keyboard-composites.spec.ts`: five properties on calendar, slot picker, wizard, dialogs and sheets (AC#19)
 - [x] 17-09-PLAN.md — `e2e/one-tree.spec.ts`: one instance in the document at 320/768/1280, plus the navigation landmark (AC#12/13)
-- [ ] 17-10-PLAN.md — the heading-outline walk joining `host-headings.spec.ts`'s 28-state loop, red-watched against a SKIP (AC#21)
+- [x] 17-10-PLAN.md — the heading-outline walk joining `host-headings.spec.ts`'s 28-state loop, red-watched against a SKIP (AC#21)
 - [ ] 17-11-PLAN.md — RESP-03 coverage delta: the seven unmeasured routes and the D-201 inventory assertion (AC#1/2/8)
 
 **Wave 3** *(blocked on 17-11 — same file)*
