@@ -1,5 +1,10 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+// The D-201 inventory assertion at the foot of this file walks `src/app/**` in Node. It is the only
+// filesystem read in the suite, and it is here rather than in `tests/design/` because the set it
+// compares against is THIS FILE'S three route tables — a gate in another file could only assert about a
+// list it was also given, which is the remembering D-201 exists to replace.
+import { readdirSync, existsSync, type Dirent } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 
@@ -380,6 +385,14 @@ type RouteRow = {
 /**
  * SEVENTEEN ROUTES AND FOUR ROUTE STATES — 21 rows, 42 cases at two themes each.
  *
+ * ⚠ RE-MEASURED AGAIN BY PLAN 17-11: **SEVENTEEN routes and FIVE route states — 22 rows, 44 cases, of
+ * which 10 are the five unreachable rows × two themes.** The sentence above is left standing as the
+ * historical claim it is (this file's amendment idiom), and the split enumerated below is amended in
+ * place where it would otherwise be wrong. The one new row is `/listings/[id]`'s NOT-FOUND boundary,
+ * and it is the fifth unreachable row rather than the fourteenth reachable one — it was written as a
+ * measurement, went red at `expectReachable`, and the probe that followed found the cause. Read that
+ * row: it is the only surface in the app whose own boundary file cannot be rendered.
+ *
  * RE-MEASURED AGAINST THE ARRAY BELOW BY PLAN 15-10, which added five routes and two states. The
  * previous figure ("the twelve routes `11-UI-SPEC § Responsive Baseline` names, in its order — eight
  * reachable, four not") was written when this table was the Phase-11 baseline and nothing but the
@@ -399,6 +412,10 @@ type RouteRow = {
  *     AUTHUI-03 gate 1 adds (`/login`, `/signup`, `/forgot-password`, `/reset-password`, `/profile`).
  *   • 4 are NOT, and each says why in the string a skipped run prints. All four are error boundaries;
  *     that asymmetry is the finding rather than a shortfall — see the note on the first skipped row.
+ *     [17-11: FIVE are not, and the asymmetry sentence is now false. The fifth is a NOT-FOUND boundary
+ *     — `listings/[id]/(detail)/not-found.tsx` — and its reason has nothing to do with dev throw
+ *     affordances: a layout wins the 404 above it, so nothing can render it. The bullet above is left
+ *     standing because its four-error-boundary argument is unchanged and is what those four rows cite.]
  *   • 4 STATES ride alongside their routes: the booking sheet open (12-10), forgot-password after
  *     submit and reset-password with no token (both 15-10), and the avatar crop dialog open (16-15).
  *   • 8 of the 42 cases are the four unreachable rows × two themes.
@@ -513,6 +530,58 @@ const ROUTES: readonly RouteRow[] = [
     name: "root not-found",
     path: "/a-route-that-does-not-exist-11-21",
     tell: '[data-testid="empty-state"]',
+  },
+  {
+    // ⚠ ADDED BY PLAN 17-11 AS A MEASURED ROW, AND DEMOTED TO A NAMED SKIP BY THE MEASUREMENT ITSELF.
+    // Both halves are kept here because the second is a FINDING and the first is how it was found.
+    //
+    // 17-11 § interfaces lists the four `not-found.tsx` files as "root ✓ · listing ✗ · booking ✓ ·
+    // invite ✓" and asks for a named reason wherever a surface cannot be measured. This file's own
+    // header (plan 11-19) says the boundary IS reachable — *"`curl` against `next start`:
+    // `/listings/does-not-exist` answers with the right status … this component arrives in the flight
+    // payload"* — so the row was written as a measurement first, with `path:
+    // "/listings/a-listing-that-must-never-exist-17-11"` and a copy-carrying tell.
+    //
+    // IT WENT RED AT `expectReachable` IN BOTH THEMES, and the probe that followed is the finding:
+    //
+    //   status 404 · url unchanged · h2 "We couldn't find that page" · empty-state x1 · header x1 ·
+    //   footer x1 · body text "The link may be old, or the page may have moved." / "Back to search"
+    //
+    // That is `src/app/not-found.tsx` — the ROOT boundary — not `(detail)/not-found.tsx`, whose copy
+    // ("This space isn't available") is nowhere in the document. THE CAUSE IS A SEGMENT-BOUNDARY FACT
+    // and it is in the tree's own comments, one file apart: `(detail)/layout.tsx:41` awaits
+    // `assertPublicListing(id)`, which calls `notFound()` at `public-listing.ts:104` — and it was put
+    // there deliberately, because `loading.tsx`'s Suspense boundary means the page's own `notFound()`
+    // runs after the shell has flushed and can no longer win the 404 status. A `notFound()` raised in a
+    // LAYOUT is handled by the boundary of the PARENT segment, and `src/app/listings/[id]/` has none —
+    // so it falls all the way to the root. The layout and the page share one predicate ("one rule, one
+    // expression, two call sites"), so the page's call can never fire on a listing the layout let
+    // through. `(detail)/not-found.tsx` is therefore unreachable in every state.
+    //
+    // THE FILE HEADER IT CONTRADICTS IS LEFT ALONE. It was true when it was written — the layout's
+    // assert arrived later, with the soft-404 fix — and editing a source comment is a product change
+    // this audit may not make (17-UI-SPEC § Remediation). Recorded here and for 17-13's ledger instead,
+    // which is where the disposition belongs: deleting or relocating a route file is escalate-class.
+    name: "listing not-found · src/app/listings/[id]/(detail)/not-found.tsx",
+    path: null,
+    skip:
+      "UNREACHABLE IN EVERY STATE, AND THE REASON IS A SEGMENT BOUNDARY RATHER THAN A MISSING FIXTURE. " +
+      "MEASURED 30 August 2026 against `/listings/a-listing-that-must-never-exist-17-11`: status 404, " +
+      "and the document that renders is the ROOT not-found (`We couldn't find that page`, one " +
+      "`empty-state`, the public header and the site footer) — this boundary's own copy, `This space " +
+      "isn't available`, appears nowhere. Cause: `(detail)/layout.tsx` awaits `assertPublicListing`, " +
+      "which raises `notFound()` from a LAYOUT, and a layout's `notFound()` is handled by the PARENT " +
+      "segment's boundary — `src/app/listings/[id]/` has none, so it falls to the root. That assert " +
+      "cannot move into the page: it is there precisely because `loading.tsx`'s Suspense boundary " +
+      "flushes the shell before the page body runs, which is what made the route answer a soft 200. " +
+      "The layout and the page share ONE predicate, so the page's own `notFound()` can never fire on a " +
+      "listing the layout admitted. Reaching this file needs either a `not-found.tsx` at " +
+      "`src/app/listings/[id]/` or the assert moved back below the boundary — the first adds a route " +
+      "state, the second re-opens the soft-404, and both are source changes no acceptance criterion in " +
+      "this plan asks for. ⚠ THIS FILE'S OWN HEADER STILL SAYS THE OPPOSITE (plan 11-19, written " +
+      "before the layout gained the assert); it is left byte-identical and contradicted HERE rather " +
+      "than edited. Escalate-class — recorded for plan 17-13.",
+    tell: '[data-testid="empty-state"]:has-text("This space")',
   },
   {
     name: "error boundary · src/app/error.tsx (root)",
@@ -2758,4 +2827,503 @@ test.describe(`AC#22 / D-196 — the signed-in header cluster at ${FLOOR_PX}px`,
       ).toBeLessThanOrEqual(HEADER_CLUSTER_BUDGET_PX);
     });
   }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// 17-CONTEXT D-201 / 17-UI-SPEC AC#2 — THE INVENTORY IS ENUMERATED, NOT REMEMBERED (plan 17-11)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A FIFTH DESCRIBE, AND THE ONLY ONE IN THIS FILE THAT OPENS NO BROWSER. The four above measure
+// surfaces; this one measures the TABLES — it asks whether the set of surfaces they name is the set of
+// surfaces that exist. That question cannot be answered from inside a route sweep, because a sweep can
+// only ever visit what it was told about.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WHY IT EXISTS, IN ONE SENTENCE
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// RESP-03 says EVERY surface. Until this block, "every" meant "every one somebody remembered", and
+// nothing in the tree could tell a surface that was audited and found clean from a surface nobody had
+// ever opened at 320px — both read as green. Plan 17-11's own starting condition is the proof: SEVEN
+// production page routes had zero measurement anywhere and were absent from this file entirely, and
+// that was discovered by a human reading a directory listing, which is not a gate.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// THE SHAPE — A DECLARED MAP, ASSERTED IN BOTH DIRECTIONS
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// `SURFACE_INVENTORY` below maps every surface to HOW it is covered: either `coveredBy` (row names in
+// this file's three tables) or `excluded` (a D-201 reason). The assertions run both ways round, and
+// all three directions are load-bearing:
+//
+//   • disk → map: a surface on disk with no entry FAILS BY PATH. This is D-201's own clause.
+//   • map → disk: an entry naming a surface that no longer exists FAILS TOO, so the map cannot rot
+//     into a list of routes the app deleted while still reading like coverage.
+//   • map → tables: every `coveredBy` name must resolve to a REAL row in `ROUTES`, `PHASE_13_ROWS` or
+//     `PHASE_14_ROWS`. Without this the map could claim coverage that does not exist anywhere, which
+//     is the same failure one level up.
+//
+// ⚠ THE FOUR D-201 EXCLUSIONS ARE ROWS HERE, NOT ABSENCES, and that distinction is the decision. An
+// excluded surface and a forgotten surface look identical in a table that only lists what it measures;
+// they look nothing alike in a table where the excluded one carries its reason.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// GUARD THE GUARD — THE SCAN OF NOTHING
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// A recursive `readdirSync` that resolves to `[]` makes every assertion below pass VACUOUSLY: an empty
+// disk set is trivially a subset of any map. This repository has recorded the scan-of-nothing failure
+// often enough that `loading-coverage.test.ts` opens with the same guard and `helpers/overflow.ts`
+// carries `MIN_EXAMINED_ELEMENTS` for the DOM version of it. `MIN_APP_PAGES` below is that guard, and
+// it is asserted FIRST — before anything is compared — so a broken scan reports itself rather than
+// reporting success.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// NOT COVERED — stated so the next reader under-trusts this block
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//   • IT PROVES A ROW EXISTS, NOT THAT THE ROW IS GOOD. A `coveredBy` pointing at a row whose `tell`
+//     is the site header would satisfy every assertion here. That claim is the `tell` mechanism's, and
+//     each table makes it separately.
+//   • THE ROUTE DERIVATION IS SYNTACTIC — route groups stripped, `page.tsx` dropped. It does not read
+//     `next.config`, rewrites, middleware or `generateStaticParams`, so a route reachable only through
+//     a rewrite would not be enumerated. There is no such route in this tree today.
+//   • THE `loading.tsx` FILES ARE COVERED AS A CLASS, not one row each. Their per-file claim here is
+//     narrower and is stated at that entry: each one sits beside a `page.tsx` whose route IS in the
+//     map. Their geometry is `skeleton-geometry.spec.ts`'s subject and their existence is
+//     `loading-coverage.test.ts`'s.
+//   • `src/app/api/**` AND `auth/session-check` ARE NOT ENUMERATED. They are `route.ts` handlers that
+//     return JSON or a redirect; there is no document, no viewport and no theme. The families this
+//     block walks are the five that render one.
+
+/** The scanned tree, as ONE constant — `loading-coverage.test.ts`'s idiom, for its reason. */
+const APP_DIR = path.resolve(process.cwd(), "src/app");
+
+/**
+ * The scan-of-nothing floor. 25 rather than the 29 on disk today, deliberately: this number is a
+ * VACUITY guard, not a second copy of `loading-coverage.test.ts`'s `EXPECTED_PAGES` pin. That file
+ * already owns the exact count and fails loudly when a route is added or removed; pinning 29 here as
+ * well would make every route addition fail in two places with two different remedies, and the remedy
+ * HERE is never "bump the number" — it is "add a row to the inventory". 25 is low enough that no
+ * ordinary edit trips it and high enough that a scan resolving to a handful of files cannot pass.
+ */
+const MIN_APP_PAGES = 25;
+
+/** One surface, and how the audit accounts for it. Exactly one of `coveredBy` / `excluded` is set. */
+type SurfaceCoverage = {
+  /**
+   * The surface's key. A derived ROUTE for a `page.tsx` (`/host/earnings`), and the repo-relative FILE
+   * PATH for a route STATE (`src/app/(app)/error.tsx`) — because that is how the shipped skip rows
+   * already name those four, and a key that matches the row names is a key a reader can follow.
+   */
+  readonly surface: string;
+  /** Row names in `ROUTES` / `PHASE_13_ROWS` / `PHASE_14_ROWS`. Asserted to resolve. */
+  readonly coveredBy?: readonly string[];
+  /** The D-201 reason this surface is not an audit subject. Required when `coveredBy` is absent. */
+  readonly excluded?: string;
+  /** True for an entry that describes a CLASS of files rather than one path on disk. */
+  readonly declaredClass?: boolean;
+};
+
+/**
+ * ⚠ EVERY SURFACE IN `src/app/**`, WITH ITS ACCOUNT. Ordered by family, then by path.
+ *
+ * A row here is not a measurement — the tables above are. It is the sentence that says which
+ * measurement covers this file, or why no measurement does. Both are answers; an ABSENCE is not.
+ */
+const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
+  // ─── PAGE ROUTES · PUBLIC ─────────────────────────────────────────────────────────────────────
+  { surface: "/", coveredBy: ["/"] },
+  { surface: "/listings/[id]", coveredBy: ["/listings/[id]", "/listings/[id] · sheet open"] },
+  { surface: "/listings/[id]/book", coveredBy: ["/listings/[id]/book"] },
+  { surface: "/invite/[token]", coveredBy: ["/invite/[token]"] },
+  { surface: "/terms", coveredBy: ["/terms"] },
+  { surface: "/privacy", coveredBy: ["/privacy"] },
+
+  // ─── PAGE ROUTES · ACCOUNT (AUTHUI-03 gate 1, plan 15-10) ─────────────────────────────────────
+  { surface: "/login", coveredBy: ["/login"] },
+  { surface: "/signup", coveredBy: ["/signup"] },
+  { surface: "/forgot-password", coveredBy: ["/forgot-password", "/forgot-password · post-submit"] },
+  { surface: "/reset-password", coveredBy: ["/reset-password", "/reset-password · missing token"] },
+  { surface: "/profile", coveredBy: ["/profile", "/profile · crop dialog open"] },
+
+  // ─── PAGE ROUTES · BOOKER (Phase 13, plan 13-15 · `/bookings` added by 17-11) ─────────────────
+  { surface: "/bookings", coveredBy: ["/bookings (the booker's list)"] },
+  {
+    surface: "/bookings/[id]",
+    coveredBy: [
+      "the confirmation moment",
+      "the confirmed detail, no query",
+      "payment state: pending settlement",
+      "payment state: not completed",
+      "payment state: reversed, AUTOMATIC branch",
+      "payment state: reversed, MANUAL branch",
+      "payment state: reversed, INDETERMINATE branch (D-96)",
+    ],
+  },
+  { surface: "/bookings/[id]/receipt", coveredBy: ["the receipt"] },
+  { surface: "/bookings/[id]/cancel", coveredBy: ["/bookings/[id]/cancel"] },
+  { surface: "/bookings/[id]/group", coveredBy: ["/bookings/[id]/group"] },
+
+  // ─── PAGE ROUTES · HOST (Phase 14, plan 14-16 · six added by 17-11) ───────────────────────────
+  { surface: "/host", coveredBy: ["/host"] },
+  { surface: "/host/requests", coveredBy: ["/host/requests"] },
+  { surface: "/host/bookings", coveredBy: ["/host/bookings"] },
+  { surface: "/host/bookings/[id]", coveredBy: ["/host/bookings/[id]"] },
+  { surface: "/host/earnings", coveredBy: ["/host/earnings"] },
+  { surface: "/host/listings", coveredBy: ["/host/listings"] },
+  { surface: "/host/listings/new", coveredBy: ["/host/listings/new"] },
+  {
+    surface: "/host/listings/[id]/edit",
+    coveredBy: ["/host/listings/[id]/edit", "/host/listings/[id]/edit · photos step"],
+  },
+  { surface: "/host/listings/[id]/availability", coveredBy: ["/host/listings/[id]/availability"] },
+  { surface: "/host/payouts/return", coveredBy: ["/host/payouts/return"] },
+  { surface: "/host/payouts/refresh", coveredBy: ["/host/payouts/refresh"] },
+
+  // ─── PAGE ROUTES · THE `src/app/dev` EXCLUSION (D-201, exclusion 1 of 4) ──────────────────────
+  {
+    surface: "/dev/theme",
+    excluded:
+      "AN AUDIT INSTRUMENT, NOT AN AUDIT SUBJECT (D-201). `/dev/theme` is the token and component " +
+      "gallery several gates in this repository DRIVE in order to measure something else — " +
+      "`scroll-area-overflow.spec.ts` uses it precisely because it is deterministic where the real " +
+      "notification panel is not, and section 12 of it is what covers `ErrorState` for the four " +
+      "unreachable error-boundary rows above. It is `NODE_ENV`-gated out of production, so no visitor " +
+      "can reach it and its 320px behaviour is a claim about nobody's experience.",
+  },
+  {
+    surface: "/dev/throw",
+    excluded:
+      "THE SAME EXCLUSION (D-201, `src/app/dev`), plus one fact worth keeping in view: this instrument " +
+      "is the VEHICLE for the `error boundary · src/app/error.tsx (root)` row above, which drives it to " +
+      "reach a boundary that has no other route into it. So it is excluded as a SUBJECT while being " +
+      "load-bearing as a MECHANISM — deleting it would take a measured row with it, which is not " +
+      "obvious from its path.",
+  },
+
+  // ─── ROUTE STATES · not-found (4) ─────────────────────────────────────────────────────────────
+  { surface: "src/app/not-found.tsx", coveredBy: ["root not-found"] },
+  {
+    surface: "src/app/listings/[id]/(detail)/not-found.tsx",
+    coveredBy: ["listing not-found · src/app/listings/[id]/(detail)/not-found.tsx"],
+  },
+  { surface: "src/app/(app)/bookings/[id]/not-found.tsx", coveredBy: ["bookings/[id]/not-found"] },
+  {
+    // The `/invite/[token]` row drives a DELIBERATELY unmatched token, so the document it measures IS
+    // this file — plan 11-19 built it as a byte-identical inactive twin of the invite surface
+    // (T-11-ORACLE). That row's own comment carries the argument; this entry records that the row
+    // covers two surfaces rather than one, which is not visible from the row's name.
+    surface: "src/app/(public)/invite/[token]/not-found.tsx",
+    coveredBy: ["/invite/[token]"],
+  },
+
+  // ─── ROUTE STATES · error boundaries (5) ──────────────────────────────────────────────────────
+  { surface: "src/app/error.tsx", coveredBy: ["error boundary · src/app/error.tsx (root)"] },
+  { surface: "src/app/(app)/error.tsx", coveredBy: ["error boundary · src/app/(app)/error.tsx"] },
+  { surface: "src/app/(auth)/error.tsx", coveredBy: ["error boundary · src/app/(auth)/error.tsx"] },
+  {
+    surface: "src/app/(host)/host/error.tsx",
+    coveredBy: ["error boundary · src/app/(host)/host/error.tsx"],
+  },
+  {
+    surface: "src/app/(legal)/error.tsx",
+    coveredBy: ["error boundary · src/app/(legal)/error.tsx"],
+  },
+
+  // ─── THE `global-error` EXCLUSION (D-201, exclusion 2 of 4) ───────────────────────────────────
+  {
+    surface: "src/app/global-error.tsx",
+    excluded:
+      "THE ONE DECLARED ROUTE-LEVEL EXCLUSION (D-201). `global-error.tsx` renders its OWN `html` and " +
+      "`body` — it REPLACES the root layout rather than sitting inside it — so it carries neither the " +
+      "theme class nor the app shell, and there is nothing for a theme sweep to sweep. It is already " +
+      "`THEME_SWAP_EXCLUSIONS`' only entry, with the same reason, which is why this is a restatement " +
+      "rather than a new decision. What it renders IS measured as a composition elsewhere: the panel " +
+      "is `patterns/error-state.tsx`, covered by `/dev/theme` section 12 in both themes.",
+  },
+
+  // ─── THE OG-IMAGE EXCLUSION (D-201, exclusion 3 of 4) ─────────────────────────────────────────
+  {
+    surface: "src/app/opengraph-image.tsx",
+    excluded:
+      "NOT AN INTERACTIVE DOCUMENT (D-201). An OG route renders a fixed-size PNG — no viewport, no " +
+      "theme class, no controls, and no text a booker can wrap. `scrollWidth <= clientWidth` is a " +
+      "question about a document that scrolls, and this one is an image. `og-routes.test.ts` owns them " +
+      "and asserts the things that ARE true of an image.",
+  },
+  {
+    surface: "src/app/listings/[id]/opengraph-image.tsx",
+    excluded:
+      "Same as the root OG route (D-201): an image, not a document — no viewport and nothing to " +
+      "scroll. `og-routes.test.ts` owns it, and it is the gate to extend if this image gains a rule.",
+  },
+  {
+    surface: "src/app/(public)/invite/[token]/opengraph-image.tsx",
+    excluded:
+      "Same as the root OG route (D-201): an image, not a document — no viewport and nothing to " +
+      "scroll. `og-routes.test.ts` owns it, and it is the gate to extend if this image gains a rule.",
+  },
+
+  // ─── THE EMAIL-TEMPLATE EXCLUSION (D-201, exclusion 4 of 4) ───────────────────────────────────
+  {
+    surface: "src/lib/email-shell.ts",
+    declaredClass: true,
+    excluded:
+      "NOT BROWSER DOCUMENTS (D-201). Every transactional email in this product is rendered by " +
+      "`src/lib/email-shell.ts` into table-layout HTML for mail clients that support neither the " +
+      "viewport units nor the custom properties this file's whole subject rests on. A 320px sweep of " +
+      "one would measure Chromium's opinion of a document Chromium never renders. `email-shell.test.ts` " +
+      "and `email-tokens.test.ts` own them and assert the constraints that ARE real there. ⚠ THE ENTRY " +
+      "IS A CLASS rather than a path per template, and the assertion below pins the half that matters: " +
+      "no email module may live under `src/app`, or it would be routable and this exclusion would be " +
+      "hiding a route.",
+  },
+
+  // ─── THE `loading.tsx` FAMILY (a class, per this block's NOT-COVERED note) ────────────────────
+  {
+    surface: "src/app/**/loading.tsx",
+    declaredClass: true,
+    excluded:
+      "A TRANSIENT FALLBACK, COVERED AS A CLASS AND NOT ROW BY ROW. A `loading.tsx` is on screen only " +
+      "while its page resolves, and it is never a destination — no link points at one and no booker " +
+      "can hold one still. What IS asserted per file, below, is the claim that makes the class " +
+      "argument sound: every one of them sits beside a `page.tsx` whose route is in this inventory, so " +
+      "a plate for a route nobody audits cannot hide here. Their geometry is " +
+      "`skeleton-geometry.spec.ts`'s subject, their existence and box literals are " +
+      "`loading-coverage.test.ts`'s, and ONE of them is measured at 320px directly — " +
+      "`book/loading.tsx`, through the `served: true` row above, which is the only row in this file " +
+      "whose subject is a plate.",
+  },
+];
+
+/** Every file with a given basename under a directory, recursively. `[]` on a missing tree. */
+function collectAppFiles(dir: string, basename: string, out: string[] = []): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    // A broken scan surfaces as ONE named guard-the-guard failure below, never as a stack trace that
+    // buries which gate went quiet — `loading-coverage.test.ts`'s rule, and the reason `MIN_APP_PAGES`
+    // is asserted before anything is compared.
+    return out;
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) collectAppFiles(full, basename, out);
+    else if (entry.name === basename) out.push(full);
+  }
+  return out;
+}
+
+/** Repo-relative, forward-slashed — the spelling every inventory key and every row name uses. */
+const relFromRepo = (p: string): string => path.relative(process.cwd(), p).split(path.sep).join("/");
+
+/**
+ * `src/app/(host)/host/earnings/page.tsx` becomes `/host/earnings`. Route groups are dropped because
+ * Next drops them; `(detail)` is why `src/app/listings/[id]/(detail)/page.tsx` is `/listings/[id]` and
+ * not something with a parenthesis in it.
+ */
+function routeOfPage(pageFile: string): string {
+  const segments = relFromRepo(pageFile)
+    .replace(/^src\/app\//, "")
+    .replace(/\/page\.tsx$/, "")
+    .split("/")
+    .filter((s) => s.length > 0 && !(s.startsWith("(") && s.endsWith(")")));
+  return segments.length === 0 ? "/" : `/${segments.join("/")}`;
+}
+
+test.describe("D-201 / AC#2 — every surface on disk is in this file's tables, or excluded by name", () => {
+  const PAGES = collectAppFiles(APP_DIR, "page.tsx");
+  const NOT_FOUNDS = collectAppFiles(APP_DIR, "not-found.tsx");
+  const ERRORS = collectAppFiles(APP_DIR, "error.tsx");
+  const GLOBAL_ERRORS = collectAppFiles(APP_DIR, "global-error.tsx");
+  const OG_IMAGES = collectAppFiles(APP_DIR, "opengraph-image.tsx");
+  const LOADINGS = collectAppFiles(APP_DIR, "loading.tsx");
+
+  const bySurface = new Map(SURFACE_INVENTORY.map((e) => [e.surface, e]));
+
+  /** Every row name in this file's three route tables — the set `coveredBy` must resolve into. */
+  const ROW_NAMES = new Set<string>([
+    ...ROUTES.map((r) => r.name),
+    ...PHASE_13_ROWS.map((r) => r.name),
+    ...PHASE_14_ROWS.map((r) => r.name),
+  ]);
+
+  /** Every surface key derivable from disk, across the five document-rendering families. */
+  const onDisk = (): string[] => [
+    ...PAGES.map(routeOfPage),
+    ...NOT_FOUNDS.map(relFromRepo),
+    ...ERRORS.map(relFromRepo),
+    ...GLOBAL_ERRORS.map(relFromRepo),
+    ...OG_IMAGES.map(relFromRepo),
+  ];
+
+  // ⚠ THE WRONG REMEDY, SAID OUT LOUD — `loading-coverage.test.ts` and `gitignore-baselines.test.ts`
+  // both do this, and for the same reason: the cheapest way to make either of the clauses below pass
+  // is to make the enumeration smaller, and a failure message that does not forbid that is a message
+  // that suggests it. The phrase "NEVER AUDITED" is deliberately kept on ONE line so a grep over this
+  // file finds it in the source and not only in a rendered failure.
+  const REMEDY =
+    "THE REMEDY IS TO ADD A ROW — with a measurement, or with a named reason — AND NEVER TO NARROW " +
+    "THE ENUMERATION. A surface silently absent from these tables is one that was NEVER AUDITED, and " +
+    "it is indistinguishable from one that was audited and found clean, because both read as green. " +
+    "Deleting the path from this inventory, adding it to an ignore list, or making the scan skip its " +
+    "directory would each make this assertion pass while making the claim it protects false — which " +
+    "is the wrong fix, said out loud here so nobody has to guess.";
+
+  // ⚠ FIRST, AND BEFORE ANYTHING IS COMPARED. Everything below is a subset test against the disk set,
+  // and an EMPTY disk set is a subset of everything.
+  test("guard the guard: the enumeration actually scanned the app tree", () => {
+    expect(
+      PAGES.length,
+      `the recursive scan of ${relFromRepo(APP_DIR)} found ${PAGES.length} \`page.tsx\` file(s), ` +
+        `under the floor of ${MIN_APP_PAGES}. Every assertion in this block is a subset test against ` +
+        "that list, so an empty or truncated scan makes ALL of them pass having compared nothing — " +
+        "the scan-of-nothing failure this repository has recorded on both the DOM side " +
+        "(`MIN_EXAMINED_ELEMENTS`) and the filesystem side (`loading-coverage.test.ts`). Either the " +
+        "tree moved, or this process is running from a different working directory.",
+    ).toBeGreaterThanOrEqual(MIN_APP_PAGES);
+
+    // The other five families are asserted non-empty for the same reason, in one place, by name.
+    for (const [label, files] of [
+      ["not-found.tsx", NOT_FOUNDS],
+      ["error.tsx", ERRORS],
+      ["global-error.tsx", GLOBAL_ERRORS],
+      ["opengraph-image.tsx", OG_IMAGES],
+      ["loading.tsx", LOADINGS],
+    ] as const) {
+      expect(
+        files.length,
+        `the scan found ZERO \`${label}\` files under ${relFromRepo(APP_DIR)}. This tree has at ` +
+          "least one of every family; zero means the scan is broken, not that the family was removed.",
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  test("disk to inventory: every surface on disk is accounted for, by path", () => {
+    const absent = onDisk()
+      .filter((s) => !bySurface.has(s))
+      .sort();
+    expect(
+      absent,
+      `${absent.length} surface(s) exist in \`src/app\` and appear NOWHERE in this file's route ` +
+        `tables and nowhere in its declared exclusions:\n${absent.map((s) => `  ${s}`).join("\n")}\n` +
+        REMEDY,
+    ).toEqual([]);
+  });
+
+  test("inventory to disk: no entry claims a surface that is gone", () => {
+    const present = new Set(onDisk());
+    const stale = SURFACE_INVENTORY.filter(
+      (e) => e.declaredClass !== true && !present.has(e.surface),
+    ).map((e) => e.surface);
+    expect(
+      stale,
+      `${stale.length} inventory entr(ies) name a surface that is not on disk:\n` +
+        `${stale.map((s) => `  ${s}`).join("\n")}\n` +
+        "This direction matters as much as the other one: a map that keeps entries for deleted routes " +
+        "grows into a list of things the app used to have while still reading like coverage, and the " +
+        "next reader counts it as evidence. Delete the entry, and delete its rows in the tables above " +
+        "in the same commit.",
+    ).toEqual([]);
+  });
+
+  test("every entry carries exactly one account — a measurement or a reason, never neither", () => {
+    const malformed = SURFACE_INVENTORY.filter((e) => {
+      const covered = (e.coveredBy?.length ?? 0) > 0;
+      const excluded = (e.excluded ?? "").trim().length > 0;
+      return covered === excluded; // both, or neither
+    }).map((e) => e.surface);
+    expect(
+      malformed,
+      `${malformed.length} inventory entr(ies) are neither covered nor excluded, or claim to be ` +
+        `both:\n${malformed.map((s) => `  ${s}`).join("\n")}\n` +
+        "An entry with no account is the silent absence with extra steps — it is IN the table and " +
+        "still says nothing about whether the surface was ever opened at 320px.",
+    ).toEqual([]);
+
+    // A reason has to be a REASON. The four D-201 exclusions are paragraphs in the decision's own
+    // words; a one-line "n/a" would satisfy the clause above while carrying no argument at all.
+    const thin = SURFACE_INVENTORY.filter(
+      (e) => e.excluded !== undefined && e.excluded.trim().length < 80,
+    ).map((e) => `${e.surface} (${e.excluded?.trim().length} chars)`);
+    expect(
+      thin,
+      `${thin.length} exclusion reason(s) are shorter than 80 characters:\n` +
+        `${thin.map((s) => `  ${s}`).join("\n")}\n` +
+        "An exclusion is a decision somebody has to be able to re-evaluate. Say what the surface is, " +
+        "why a 320px measurement of it would not be a measurement of anything, and which gate owns it.",
+    ).toEqual([]);
+  });
+
+  test("inventory to tables: every `coveredBy` name resolves to a real row", () => {
+    const dangling: string[] = [];
+    for (const entry of SURFACE_INVENTORY) {
+      for (const name of entry.coveredBy ?? []) {
+        if (!ROW_NAMES.has(name)) dangling.push(`${entry.surface} -> "${name}"`);
+      }
+    }
+    expect(
+      dangling,
+      `${dangling.length} inventory entr(ies) name a row that does not exist in \`ROUTES\`, ` +
+        `\`PHASE_13_ROWS\` or \`PHASE_14_ROWS\`:\n${dangling.map((s) => `  ${s}`).join("\n")}\n` +
+        "Without this clause the inventory could claim coverage that is nowhere in the file — the " +
+        "same failure this block exists to catch, one level up. Renaming a row is what usually breaks " +
+        "it; rename the entry with it.",
+    ).toEqual([]);
+  });
+
+  test("the `loading.tsx` class entry earns its class treatment", () => {
+    const orphans = LOADINGS.filter((f) => {
+      const beside = path.join(path.dirname(f), "page.tsx");
+      return !PAGES.includes(beside) || !bySurface.has(routeOfPage(beside));
+    }).map(relFromRepo);
+    expect(
+      orphans,
+      `${orphans.length} \`loading.tsx\` file(s) have no \`page.tsx\` beside them, or sit beside one ` +
+        `whose route is not in this inventory:\n${orphans.map((s) => `  ${s}`).join("\n")}\n` +
+        "The class entry's whole argument is that a plate belongs to a route that IS audited. A plate " +
+        "for an unaudited route would be exactly the silent absence this block forbids, wearing a " +
+        `different basename. ${REMEDY}`,
+    ).toEqual([]);
+  });
+
+  test("the email-template exclusion names something real, and nothing under `src/app`", () => {
+    expect(
+      existsSync(path.resolve(process.cwd(), "src/lib/email-shell.ts")),
+      "the email-template exclusion names `src/lib/email-shell.ts`, and that file does not exist. An " +
+        "exclusion pointing at nothing is an exclusion nobody can check — either the shell moved and " +
+        "the entry must move with it, or the templates are somewhere this inventory is not looking.",
+    ).toBe(true);
+
+    // The half that could actually hide a route: an email module UNDER `src/app` would be routable.
+    const emailUnderApp = collectAppFiles(APP_DIR, "email-shell.ts")
+      .concat(collectAppFiles(APP_DIR, "email.ts"))
+      .map(relFromRepo);
+    expect(
+      emailUnderApp,
+      `${emailUnderApp.length} email module(s) live under \`src/app\`, where they are routable:\n` +
+        `${emailUnderApp.map((s) => `  ${s}`).join("\n")}\n` +
+        "The exclusion's argument is that email templates are not browser documents. That holds only " +
+        "while they are also not routes.",
+    ).toEqual([]);
+  });
+
+  test("all four D-201 exclusions are present, each with its reason", () => {
+    const declared = SURFACE_INVENTORY.filter((e) => e.excluded !== undefined).map((e) => e.surface);
+    for (const [label, matcher] of [
+      ["src/app/dev", (s: string) => s.startsWith("/dev/")],
+      ["email templates", (s: string) => s.includes("email-shell")],
+      ["OG-image routes", (s: string) => s.includes("opengraph-image")],
+      ["global-error", (s: string) => s.includes("global-error")],
+    ] as const) {
+      expect(
+        declared.filter(matcher).length,
+        `17-CONTEXT D-201 names FOUR exclusions and requires each to be recorded IN the table with ` +
+          `its reason. \`${label}\` is not among the ${declared.length} excluded entr(ies): ` +
+          `${declared.join(", ")}. An exclusion that is merely absent is indistinguishable from a ` +
+          "surface nobody looked at, which is the whole distinction this block exists to make.",
+      ).toBeGreaterThan(0);
+    }
+  });
 });
