@@ -285,18 +285,87 @@ async function firstListingPath(page: Page): Promise<string | null> {
  * time-bomb pixel assertions seeded from `now()`, and the reason this is not a third is a property of
  * the assertion rather than good luck.
  */
-async function signUpAndReachProfile(page: Page): Promise<string | null> {
+/**
+ * The signup drive itself, extracted by plan 17-12 so that three rows can share it.
+ *
+ * ⚠ EXTRACTED, NOT REWRITTEN. Every line below is `signUpAndReachProfile`'s, byte for byte, with the
+ * one radio and the one submit-button pattern parameterised by intent. The paragraphs above are still
+ * the argument for all of it — they are attached to that function rather than moved here because it is
+ * the one a reader arrives at from the `/profile` row.
+ *
+ * WHY THE INTENT IS A PARAMETER AND NOT A SECOND COPY OF THIS FUNCTION: `(host)/host` needs the host
+ * CAPABILITY, not just a session, and the capability flag is `input: false` — the server derives it
+ * from the intent on the signup form and there is no other honest way for a browser to obtain it. So
+ * the difference between the two fixtures this table needs is exactly one radio.
+ */
+async function signUpThroughTheForm(page: Page, intent: "book" | "host"): Promise<void> {
   const email = `e2e.overflow.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
   await page.goto(`${BASE}/signup`);
   // The intent defaults to "book"; clicked explicitly to be deterministic, which is the same reason
   // `login-persistence.spec.ts` gives.
-  await page.getByRole("radio", { name: "Book a space" }).click();
+  await page
+    .getByRole("radio", { name: intent === "host" ? "Host a space" : "Book a space" })
+    .click();
   await page.getByLabel("First name").fill("Overflow");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("averylongpassword");
-  await page.getByRole("button", { name: /sign up to book/i }).click();
+  await page
+    .getByRole("button", { name: intent === "host" ? /sign up to host/i : /sign up to book/i })
+    .click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
+}
+
+async function signUpAndReachProfile(page: Page): Promise<string | null> {
+  await signUpThroughTheForm(page, "book");
   return "/profile";
+}
+
+/**
+ * `/dev-throw-app`, reached by signing a booker up through the UI (plan 17-12).
+ *
+ * THE SAME RESOLVER SHAPE AS `signUpAndReachProfile`, AND THE SAME REASON IT IS NOT MEMOISED: what it
+ * produces is a SESSION COOKIE, and Playwright's `page` fixture is per-test. It exists as a separate
+ * function only because the two rows want different destinations behind the same session.
+ *
+ * ⚠ THE SESSION IS NOT OPTIONAL HERE AND THE ROW WOULD LIE WITHOUT IT. `(app)/layout.tsx` carries a
+ * BLOCKING session gate, so an anonymous request to `/dev-throw-app` is answered by `redirect("/login")`
+ * before the page body runs — measured 30 August 2026 against the production build, `307 → /login`.
+ * A row that navigated anonymously would render the login page and, since plan 15-07, `/login` renders
+ * `[data-testid="panel-card"]`; the `tell` below would catch that, but only because it names copy no
+ * other document has. This is the `/profile` row's hole, arriving on a boundary row.
+ */
+async function signUpAndReachAppThrow(page: Page): Promise<string | null> {
+  await signUpThroughTheForm(page, "book");
+  return "/dev-throw-app";
+}
+
+/**
+ * `/host/dev-throw`, reached by signing a HOST up through the UI (plan 17-12).
+ *
+ * ⚠ THIS IS NOT `seedHostSurfaces`, AND THAT IS A DELIBERATE DEPARTURE FROM 17-12'S OWN PLAN TEXT.
+ * The plan says to give this row "the host fixture". It cannot have it, for a structural reason
+ * measured rather than argued: `seedHostSurfaces` returns a fixture containing an OPEN `postgres()`
+ * client plus a seeded host, listing, booker, booking, notification and payout-ledger row, and the
+ * AC#36 block that owns it closes all of that in a `describe`-scoped `afterAll` with five explicit
+ * DELETE statements and an `sql.end()`. A `RouteRow` resolver is handed nothing but a `Page` and has
+ * nowhere to put teardown, so calling it from here would leak one connection and one whole fixture
+ * into the dev database PER THEME, PER RUN, forever — and three of those rows are ones no cascade
+ * reaches (that block's own teardown comment names them).
+ *
+ * WHAT THIS ROW ACTUALLY NEEDS IS SMALLER THAN THAT FIXTURE. It needs a session carrying the host
+ * capability and nothing else: the route it drives reads no listing, no booking and no ledger — it
+ * throws. So it takes the shape this table was built for and the one its own header declares — "NO
+ * SEED AND NO DATABASE FIXTURE … no `postgres()` client, no seeded rows, nothing that stops running
+ * the first time a fixture changes" — and drives the shipped signup form with the host intent, which
+ * the server maps to the capability flag.
+ *
+ * BOTH of `(host)/host/layout.tsx`'s gates are real here: without a session it redirects to `/login`,
+ * and with a booker-only session it redirects to `/`. Measured anonymously against the production
+ * build: `307 → /login`.
+ */
+async function signUpAndReachHostThrow(page: Page): Promise<string | null> {
+  await signUpThroughTheForm(page, "host");
+  return "/host/dev-throw";
 }
 
 /**
@@ -398,6 +467,14 @@ type RouteRow = {
  * measurement, went red at `expectReachable`, and the probe that followed found the cause. Read that
  * row: it is the only surface in the app whose own boundary file cannot be rendered.
  *
+ * ⚠ RE-MEASURED AGAIN BY PLAN 17-12: **TWENTY-ONE routes and FIVE route states — 22 rows, 44 cases, of
+ * which 2 are the ONE remaining unreachable row × two themes.** The ROW count does not move and the
+ * ROUTE count moves by four, which is the arithmetic a reader is most likely to get wrong here and is
+ * therefore stated that way round. No row was added: four rows that carried `path: null` and a named
+ * skip now carry a real path, because 17-12 BUILT the four group-local throw routes those skip strings
+ * named as their price. Forty-two of the forty-four cases are now measurements; before this plan
+ * thirty-four were.
+ *
  * RE-MEASURED AGAINST THE ARRAY BELOW BY PLAN 15-10, which added five routes and two states. The
  * previous figure ("the twelve routes `11-UI-SPEC § Responsive Baseline` names, in its order — eight
  * reachable, four not") was written when this table was the Phase-11 baseline and nothing but the
@@ -421,6 +498,13 @@ type RouteRow = {
  *     — `listings/[id]/(detail)/not-found.tsx` — and its reason has nothing to do with dev throw
  *     affordances: a layout wins the 404 above it, so nothing can render it. The bullet above is left
  *     standing because its four-error-boundary argument is unchanged and is what those four rows cite.]
+ *     [17-12: ONE is not. The four error boundaries are MEASURED — plan 17-12 built the four
+ *     group-local throw routes the skip strings named as their price, so `(app)`, `(host)/host`,
+ *     `(auth)` and `(legal)` each drive their own boundary and prove it by a route out the root
+ *     boundary does not render. The only remaining unreachable row is 17-11's not-found one. The two
+ *     bullets above are left standing as the history they are; what they DESCRIBE is the tree before
+ *     30 August 2026, and the four skip strings themselves are quoted in full at the rows that
+ *     replaced them.]
  *   • 4 STATES ride alongside their routes: the booking sheet open (12-10), forgot-password after
  *     submit and reset-password with no token (both 15-10), and the avatar crop dialog open (16-15).
  *   • 8 of the 42 cases are the four unreachable rows × two themes.
@@ -766,43 +850,76 @@ const ROUTES: readonly RouteRow[] = [
     scope: '[data-testid="responsive-dialog"]',
   },
 
-  // ─── THE FOUR THIS HARNESS CANNOT REACH ──────────────────────────────────────────────────────────
-  // Plan 11-21 says to drive the boundaries "through the same dev throw affordance plan 11-18 added
-  // under `src/app/dev/**`, per group". MEASURED: 11-18 added exactly ONE such route, and `src/app/
-  // dev/` sits under no route group, so it can only ever reach the ROOT boundary. Reaching the other
-  // four would mean four NEW `page.tsx` files inside four route groups — which moves
-  // `loading-coverage.test.ts`'s pinned counts, adds four routes to the production route table, and
-  // is a source change no acceptance criterion in this plan asks for.
+  // ─── PHASE 17 — THE FOUR THIS HARNESS COULD NOT REACH, AND NOW DOES (plan 17-12) ─────────────────
   //
-  // WHAT COVERS THEM INSTEAD, stated so the gap is legible rather than merely declared: each of the
-  // four renders `patterns/error-state.tsx` inside its group's shell, and both halves are measured
-  // elsewhere at 320px — the shells by the reachable rows above (`/` is the public shell; the booker
-  // and host shells are measured at 320px by `e2e/shell.spec.ts`'s AC#4 test), and the panel by
-  // `/dev/theme` section 12, which renders `ErrorState` in both themes with and without a digest.
-  // What is NOT covered is the composite, and that is the honest size of this hole.
+  // ⚠ THE HISTORY IS KEPT RATHER THAN DELETED, BECAUSE THE WRONG FIX IS THE OBVIOUS ONE.
+  //
+  // WHAT THESE FOUR ROWS USED TO SAY. Until 30 August 2026 all four carried `path: null` and a named
+  // skip. The first one's reason, quoted so the correction has something to be a correction OF:
+  // *"no dev throw affordance exists inside the (app) route group — 11-18 shipped one route, at
+  // src/app/dev/throw, which reaches the ROOT boundary only. Reaching this one needs a new page.tsx
+  // inside (app), which moves loading-coverage.test.ts's pinned route counts and adds a route to the
+  // production table."* The other three said "same as (app)", plus: `(host)` additionally sits behind
+  // the capability gate; `(auth)`'s routes are forms that render successfully, so no input makes them
+  // throw; and `/terms` and `/privacy` are static prose with no data path that can fail, *"which is
+  // why they are the two routes in the app least able to reach their own boundary"*. Every one of
+  // those sentences is still TRUE. What changed is that plan 17-12 paid the price they named.
+  //
+  // WHAT 17-12 BUILT: four `page.tsx` files, one inside each group, each a copy of `src/app/dev/throw`
+  // behind the same build-time production guard. `loading-coverage.test.ts`'s pins moved 29→33 and
+  // 8→12 with the decision recorded beside them, and `EXPECTED_QUALIFYING` did not move.
+  //
+  // ⚠ AND THE UI-SPEC'S SUGGESTED SHAPE WOULD HAVE CLOSED NOTHING — RECORDED SO IT IS NOT RE-PROPOSED.
+  // 17-UI-SPEC's `[11-21]` row proposes *"one `src/app/dev/throw-in/[group]/page.tsx` per group behind
+  // the same build-time `NODE_ENV` guard"*. That file sits under NO route group, exactly as
+  // `src/app/dev/throw` does, so every value of `[group]` would be caught by `src/app/error.tsx` — the
+  // ROOT boundary, which the row above already covers. It would have produced four rows reporting
+  // success while measuring the same document four more times, which is strictly worse than four
+  // honest skips. WHICH BOUNDARY CATCHES A THROW IS A PROPERTY OF THE THROWING FILE'S PATH; nothing
+  // about a URL segment, a search param or a dynamic segment can move it.
+  //
+  // WHICH IS WHY EVERY `tell` BELOW NAMES THE ROUTE OUT AND NOT `[data-testid="error-state"]`. All
+  // five boundaries render the same `ErrorState` with the same title and the same body — that
+  // uniformity is `tests/design/error-boundaries.test.ts`'s subject and it pins the strings — so the
+  // panel hook proves "a boundary rendered" and NOT "THIS boundary rendered". The route out is the one
+  // thing each of the five composes differently, so it is the discriminator: root `Back to search`,
+  // `(app)` `Your bookings`, `(host)/host` `Host dashboard`, `(auth)` `Back to log in`, `(legal)`
+  // `Back to FitOut`. This is 17-RESEARCH Pitfall 6's warning sign — *"a 'closed' boundary row whose
+  // rendered copy is the ROOT boundary's copy"* — made mechanical.
+  //
+  // MEASURED BEFORE THE ROWS WERE WRITTEN, 30 August 2026, at 320px, each route driven with whatever
+  // session its group's gates demand. Each document rendered exactly one `error-state`, carried its
+  // OWN route out, and contained the root's `Back to search` ZERO times. The sentinel the throw
+  // carries appeared in no document's `innerText` (`e2e/error-leak.spec.ts` owns that claim in full).
   {
     name: "error boundary · src/app/(app)/error.tsx",
-    path: null,
-    skip: "no dev throw affordance exists inside the (app) route group — 11-18 shipped one route, at src/app/dev/throw, which reaches the ROOT boundary only. Reaching this one needs a new page.tsx inside (app), which moves loading-coverage.test.ts's pinned route counts and adds a route to the production table.",
-    tell: '[data-testid="error-state"]',
+    // THE RESOLVER IS A SIGNUP, NOT A LITERAL PATH, and it is the group's blocking session gate that
+    // makes it one — see `signUpAndReachAppThrow`. Anonymous, this route answers `307 → /login`.
+    path: signUpAndReachAppThrow,
+    tell: '[data-testid="error-state"]:has-text("Your bookings")',
   },
   {
     name: "error boundary · src/app/(host)/host/error.tsx",
-    path: null,
-    skip: "same as (app): no dev throw affordance inside the (host) route group, and this boundary additionally sits behind the canHost capability gate, so reaching it needs a seeded or signed-up host as well as a new route.",
-    tell: '[data-testid="error-state"]',
+    // TWO gates, so the resolver signs up with the HOST intent — see `signUpAndReachHostThrow` for
+    // why this is not `seedHostSurfaces` and what that would have cost the dev database.
+    path: signUpAndReachHostThrow,
+    tell: '[data-testid="error-state"]:has-text("Host dashboard")',
   },
   {
     name: "error boundary · src/app/(auth)/error.tsx",
-    path: null,
-    skip: "same as (app): no dev throw affordance inside the (auth) route group. Every route under it is a form that renders successfully, so there is no input that makes it throw either.",
-    tell: '[data-testid="error-state"]',
+    // No fixture: `(auth)/layout.tsx` is presentational and gates nothing. The URL segment is
+    // `dev-throw-auth` rather than `dev-throw` because `(app)` and `(auth)` share the root URL
+    // namespace and two pages resolving to one path fail the build; the route file says so too.
+    path: "/dev-throw-auth",
+    tell: '[data-testid="error-state"]:has-text("Back to log in")',
   },
   {
     name: "error boundary · src/app/(legal)/error.tsx",
-    path: null,
-    skip: "same as (app): no dev throw affordance inside the (legal) route group. /terms and /privacy are static prose with no data path that can fail, which is why they are the two routes in the app least able to reach their own boundary.",
-    tell: '[data-testid="error-state"]',
+    // No fixture either. This row closes the boundary the old skip called the least reachable in the
+    // app — and it still is, in the sense that mattered: nothing a booker can do to `/terms` or
+    // `/privacy` reaches it. What reaches it is a route built for the purpose.
+    path: "/dev-throw-legal",
+    tell: '[data-testid="error-state"]:has-text("Back to FitOut")',
   },
 ];
 
@@ -3591,6 +3708,43 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
       "reach a boundary that has no other route into it. So it is excluded as a SUBJECT while being " +
       "load-bearing as a MECHANISM — deleting it would take a measured row with it, which is not " +
       "obvious from its path.",
+  },
+
+  // ─── PAGE ROUTES · THE FOUR GROUP-LOCAL THROW ROUTES (plan 17-12) ─────────────────────────────
+  //
+  // ⚠ COVERED, NOT EXCLUDED — AND THAT IS THE OPPOSITE DISPOSITION FROM `/dev/throw` DIRECTLY ABOVE,
+  // WHICH IS WORTH ONE PARAGRAPH BECAUSE THE TWO LOOK ALIKE.
+  //
+  // `/dev/theme` and `/dev/throw` are excluded as SUBJECTS under D-201's `src/app/dev` exclusion:
+  // `/dev/theme` is a gallery whose 320px behaviour is a claim about nobody's experience, and
+  // `/dev/throw` is a vehicle whose own document is the ROOT boundary — measured by the row that
+  // names that boundary, not by a row that names the route.
+  //
+  // These four are vehicles too, and by the same argument their document IS the boundary each one
+  // reaches. The difference is that a vehicle and its subject coincide here: the ONLY document any of
+  // these four routes can ever produce is its group's `error.tsx` rendered inside that group's real
+  // layout stack, which is precisely what the four rows above measure at 320px in both themes. So
+  // `coveredBy` is the honest account and an exclusion would be a false one — there is no unmeasured
+  // 320px behaviour left over for the exclusion to be about.
+  //
+  // They are also production route-table entries in a way `/dev/theme` is not exempt from either: all
+  // four are `NODE_ENV`-guarded out of a production build, probed rather than assumed (three answer a
+  // hard 404 and `/host/dev-throw` a soft one — the route file records the `loading.tsx` cause).
+  {
+    surface: "/dev-throw-app",
+    coveredBy: ["error boundary · src/app/(app)/error.tsx"],
+  },
+  {
+    surface: "/host/dev-throw",
+    coveredBy: ["error boundary · src/app/(host)/host/error.tsx"],
+  },
+  {
+    surface: "/dev-throw-auth",
+    coveredBy: ["error boundary · src/app/(auth)/error.tsx"],
+  },
+  {
+    surface: "/dev-throw-legal",
+    coveredBy: ["error boundary · src/app/(legal)/error.tsx"],
   },
 
   // ─── ROUTE STATES · not-found (4) ─────────────────────────────────────────────────────────────
