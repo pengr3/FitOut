@@ -698,7 +698,39 @@ carries the measured evidence for every item above, and `16-DISCUSSION-LOG.md` r
   3. Every surface is operable end to end by keyboard alone with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets — with an automated axe pass green in **the product theme (`court`)**, the **court** baseline set regenerated in the pinned image, and the leak tests flipped from advisory to blocking. *(D-138 — single-theme axe pass, single-theme baselines; the token contract is proved by the fixed four-surface probe in `e2e/visual/theme-swap.spec.ts`, not by a second full sweep.)*
   4. v1.1 closes having shipped **zero schema migrations** — `drizzle/` is unchanged from its v1.0 state at `0025`.
 
-**Plans**: TBD
+**Plans**: 14 plans in 5 waves (planned 2026-08-29; worktrees are OFF, so they execute sequentially on `dev`)
+
+Plans:
+
+**Wave 1** *(no dependencies; zero `files_modified` overlap between them)*
+
+- [ ] 17-01-PLAN.md — the declared e2e baseline red set, `@axe-core/playwright@4.13.0` pinned, and `e2e/helpers/axe.ts` (one `.options()`, one vacuity guard)
+- [ ] 17-02-PLAN.md — three DB-free design gates: the GATE-06 content digest, AC#26's grove half, and `focus-definition.test.ts` (AC#20)
+- [ ] 17-03-PLAN.md — RESP-04's source scan (`one-tree.test.ts`, AC#10/11) plus the two structural container test ids
+- [ ] 17-04-PLAN.md — `e2e/helpers/nowrap.ts` and the sticky-bar clause AC#4-7, in `mobile-booker-path.spec.ts` (the Decision-Point call)
+- [ ] 17-05-PLAN.md — mechanical conformance: DS-09 ×5 + the ceiling to `toBe(0)` (AC#34), and D-197's slider `aria-disabled` (AC#23)
+- [ ] 17-06-PLAN.md — harness defects [16-D9] + [15-12], and D-196's ProfileLink padding with the 226px cluster re-measured (AC#3/9/22)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 17-07-PLAN.md — `e2e/axe-sweep.spec.ts`: the court-only sweep at 320/1280, its first-run triage, and AC#24's six amended sentences
+- [ ] 17-08-PLAN.md — `e2e/keyboard-composites.spec.ts`: five properties on calendar, slot picker, wizard, dialogs and sheets (AC#19)
+- [ ] 17-09-PLAN.md — `e2e/one-tree.spec.ts`: one instance in the document at 320/768/1280, plus the navigation landmark (AC#12/13)
+- [ ] 17-10-PLAN.md — the heading-outline walk joining `host-headings.spec.ts`'s 28-state loop, red-watched against a SKIP (AC#21)
+- [ ] 17-11-PLAN.md — RESP-03 coverage delta: the seven unmeasured routes and the D-201 inventory assertion (AC#1/2/8)
+
+**Wave 3** *(blocked on 17-11 — same file)*
+
+- [ ] 17-12-PLAN.md — [11-21]: four group-local throw routes, the moved `loading-coverage` pins (29→33 / 8→12), and the four unskipped rows
+
+**Wave 4** *(blocked on every measurement plan)*
+
+- [ ] 17-13-PLAN.md — the batched findings ledger (D-199/D-200), D-198's recorded observation, blocked-row currency (AC#29) and the closed-inventory re-proof
+
+**Wave 5** *(last — a post-regeneration commit invalidates the evidence)*
+
+- [ ] 17-14-PLAN.md — baseline regeneration via `baselines.yml`, the forced comparison run, and the recorded run id (AC#25/26/27, D-202) — **has a checkpoint**
+
 **UI hint**: yes
 
 **Size note:** this phase's size is a direct function of how well Phases 10 and 11 were done, and **both halves are now settled: this is an AUDIT, not a rewrite.** The second theme did ship with the first (grove, Phase 10), and the gates really could fail from Phase 11 onward — the ordering invariants above are the reason, and they are why the question is closed rather than open. The audit-vs-rewrite argument is kept, not deleted, because it is what those invariants exist for and what a future milestone should re-read before deferring an enforcement mechanism.
