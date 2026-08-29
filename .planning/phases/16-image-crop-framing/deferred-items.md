@@ -415,6 +415,24 @@ whoever owns the fallback: two live elements sharing an id is invalid HTML regar
 
 ## D9 — the 12-10 booking-sheet row measures nothing: a modal retires all three AC#29 clauses
 
+> **CLOSED 2026-08-29 — plan 17-06.** The row carries `scope: '[data-testid="responsive-dialog"]'`
+> and the measurement below is now the row's own trailing comment. The row is kept because the
+> MEASUREMENT is the useful part, and because this item's diagnosis turned out to be exactly right in
+> both directions.
+>
+> **Re-measured on the 17-06 tree rather than inherited.** Clean, in BOTH themes:
+> `found true · examined 129 · scrollWidth 320 · clientWidth 320 · offenders []`. The 129 is the half
+> that makes the empty list mean something — `expectNoOverflowWithin` asserts `found` and then
+> `examined >= MIN_EXAMINED_ELEMENTS` before it asserts anything about width. Then the probe this item
+> describes was re-run on the same tree, a 500px `<div>` appended straight into the open sheet:
+> **`scrollWidth 532` against `clientWidth 320`, 48 named offenders** in court
+> (`div.flex flex-col gap-2 right=516` first, the sheet's own month grid at `right=333` behind it).
+> So the row can now fail, and the number this item predicted is the number it produced.
+>
+> **The sheet itself is clean — the finding was never that it overflowed.** It was that nobody could
+> have known either way. `npx playwright test e2e/overflow-320.spec.ts --project=chromium --workers=1`
+> reports **64 passed / 15 skipped** with the field in place.
+
 - **Found by:** plan 16-15, while building its own dialog-open row, 2026-08-26
 - **Owner file:** `e2e/overflow-320.spec.ts` — the `/listings/[id] · sheet open` row (plan 12-10)
 - **Severity:** a green gate on an unmeasured surface. Not a false red — the opposite, and worse.

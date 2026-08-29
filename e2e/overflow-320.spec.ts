@@ -156,6 +156,44 @@ import { COVER_PREVIEW_TITLE } from "../src/lib/listing/cover-frames";
 //   a 404 twice and reported `/terms` and `/privacy` as covered.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
+// TWO INHERITED DEFECTS IN THIS HARNESS, CLOSED BY PLAN 17-06 (29 August 2026)
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// Both were found by the plans that could not fix them, written up in their own phases'
+// `deferred-items.md`, and both are defects in the INSTRUMENT rather than in the product — which is
+// why they are recorded here, at the top of the instrument, rather than only in a summary.
+//
+//   • [16-D9] — THE `/listings/[id] · sheet open` ROW MEASURED NOTHING. A Radix modal makes `<body>`
+//     a 320px box that clips its own content, retiring all three of `expectNoOverflow`'s clauses at
+//     once, so the one row this table added BECAUSE the floor is hardest there could not fail. Closed
+//     by `scope: '[data-testid="responsive-dialog"]'` on that row — the field, its consumer and its
+//     vacuity guards all shipped in 16-15; only the adoption was missing. BOTH SIDES RE-MEASURED ON
+//     THIS TREE, 29 August 2026, rather than inherited from the finding:
+//
+//       clean, both themes     found true · examined 129 · scrollWidth 320 · clientWidth 320 ·
+//                              offenders []
+//       500px div appended     scrollWidth 532 against clientWidth 320, 48 named offenders (court):
+//       into the open sheet    `div.flex flex-col gap-2 right=516` first, then the sheet's own month
+//                              grid at right=333 carried along behind it
+//
+//     The 129 is the half that makes the empty list mean something — `expectNoOverflowWithin` asserts
+//     `found` and then `examined >= MIN_EXAMINED_ELEMENTS` before it asserts anything about width, so
+//     the green is 129 laid-out descendants judged rather than a selector that matched nothing. The
+//     532 is 16-15's own probe reproduced here: the row fails when the sheet overflows, which is the
+//     property that was missing. The sheet itself is clean, and never being able to know that was the
+//     defect.
+//
+//   • [15-12] — THE TARGET-SIZE SCAN RACED THE SURFACE IT MEASURED, firing its own "zero controls is
+//     never clean" guard on a correct tree, on a row that moved run to run, and passing on retry.
+//     Closed by polling that guard for the same fifteen seconds `expectReachable` already allows. The
+//     whole argument, including the re-measured line numbers that rule out the ORDERING reading of
+//     the finding, is above `expectTargets`.
+//
+// Neither closure weakens an assertion: one adds a measurement where there was none, and the other
+// gives an existing measurement time to be true. That direction is the test — a fix to a gate that
+// makes the gate ask less is a fix to the wrong thing.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file:
 //   • FOUR OF THE SEVENTEEN ROUTES ARE SKIPPED, EACH WITH A NAMED REASON (see `ROUTES`). They are four
 //     of the five error boundaries, and they are unreachable because plan 11-18 added exactly ONE
@@ -394,6 +432,14 @@ const ROUTES: readonly RouteRow[] = [
   {
     name: "/listings/[id] · sheet open",
     path: firstListingPath,
+    // ⚠ [16-D9], CLOSED HERE (plan 17-06). ONE LINE THAT TURNS A ROW WHICH COULD NOT FAIL INTO ONE
+    // THAT CAN — and it is placed above the row's own comment rather than beside `tell` so that the
+    // field stays visibly attached to the row it belongs to. With the sheet open a Radix modal makes
+    // `<body>` a 320px box that clips its own content, retiring all three of `expectNoOverflow`'s
+    // clauses at once; the `scope` field's own docblock has the mechanism and the file header has both
+    // re-measured readings — clean `examined 129 · 320 === 320 · offenders []` in both themes, and
+    // `scrollWidth 532` with 48 named offenders once a 500px div is appended into the open sheet.
+    scope: '[data-testid="responsive-dialog"]',
     // ⚠ THE SAME ROUTE, MEASURED IN A STATE THE ROW ABOVE STRUCTURALLY CANNOT REACH (plan 12-10).
     // RESP-02's booking sheet is a Radix portal: its contents do not exist in the document until the
     // sticky bar's `Check availability` is tapped, so the row above measures a page the sheet is not on.
@@ -983,16 +1029,60 @@ async function collectControls(page: Page): Promise<Control[]> {
   });
 }
 
-/** GATE-A11Y's target-size half. The vacuity guard is first, for `expectNoOverflow`'s reason. */
+/**
+ * GATE-A11Y's target-size half. The vacuity guard is first, for `expectNoOverflow`'s reason.
+ *
+ * ⚠ THE VACUITY GUARD IS POLLED RATHER THAN READ ONCE, AND THAT IS [15-12]'S CLOSURE (plan 17-06).
+ * THE CLAIM IS UNCHANGED — zero controls is still never a clean result, and the floor below is still
+ * 24. What changed is that the claim is now given fifteen seconds to become true.
+ *
+ * THE FINDING, as `15-deferred-items.md` recorded it across five runs on 25 August 2026: this
+ * assertion fired on a CORRECT tree, on a row that varied run to run (`the receipt · court`, `the
+ * confirmed detail` in either theme), and run 5 — the CI retry policy — reported *59 passed / 1 flaky*.
+ * The decisive run is the fourth: the file was `git checkout --`'d back to `HEAD` and the same
+ * assertion failed in the same block on a different row, which is what rules out the change that was
+ * in flight at the time. Fixture state was checked rather than assumed and the database was clean
+ * between runs; the cause is in-page timing.
+ *
+ * THE MECHANISM: the case's reachability tell (`booking-detail`) is satisfied by the SERVER-RENDERED
+ * detail shell, and the scan below then ran with no wait for the surface's ACTIONS to paint. On a
+ * loaded box it lands after the shell and before the buttons, and reads zero — which the message says,
+ * correctly, must never be treated as clean. The assertion was behaving; the instrument was
+ * under-synchronised.
+ *
+ * ⚠ AND IT IS A WAIT RATHER THAN A REORDERING, WHICH IS WORTH STATING BECAUSE THE OBVIOUS READING OF
+ * THE FINDING IS THAT THE CALL RUNS BEFORE THE TELL. IT DOES NOT, AND THAT WAS RE-MEASURED BEFORE
+ * THIS FIX WAS WRITTEN. Read out of the tree as it stood at `335bf6c`, the commit this plan started
+ * from, so the numbers stay checkable after this file grew: in the AC#30 block the tell's
+ * `not.toHaveCount(0, { timeout: 20_000 })` was at `:1381` and `expectTargets` at `:1396`; in the
+ * Phase-14 block the tell was at `:2071` and the call at `:2086`. Both already run the tell first, and
+ * both still do. Moving a call that is already in the right place would have closed nothing while
+ * producing a diff that looks like a fix, which is the more expensive of the two mistakes.
+ *
+ * The fifteen seconds are `expectReachable`'s measured allowance, for its measured reason: the dev
+ * server compiles routes on demand and a guard that flakes is a guard people learn to ignore.
+ */
 async function expectTargets(page: Page, where: string): Promise<void> {
-  const controls = await collectControls(page);
-  expect(
-    controls.length,
-    `${where}: the target-size scan found ZERO interactive controls INSIDE the surface. The shell's ` +
-      "header and footer are excluded by design (see `collectControls`), so this counts only the row's " +
-      "own content — and every Phase-13 surface ships at least one action. An empty list is a page that " +
-      "did not render or a selector that stopped matching, never a clean result.",
-  ).toBeGreaterThan(0);
+  let controls: Control[] = [];
+  await expect
+    .poll(
+      async () => {
+        controls = await collectControls(page);
+        return controls.length;
+      },
+      {
+        timeout: 15_000,
+        message:
+          `${where}: the target-size scan found ZERO interactive controls INSIDE the surface, and ` +
+          "kept finding zero for fifteen seconds. The shell's header and footer are excluded by " +
+          "design (see `collectControls`), so this counts only the row's own content — and every " +
+          "Phase-13 surface ships at least one action. An empty list is a page that did not render " +
+          "or a selector that stopped matching, never a clean result. The poll is what separates " +
+          "those from a surface whose actions had not painted yet ([15-12]); fifteen seconds in, it " +
+          "is the former.",
+      },
+    )
+    .toBeGreaterThan(0);
 
   const undersized = controls
     .filter((c) => Math.min(c.w, c.h) < TARGET_FLOOR_PX)

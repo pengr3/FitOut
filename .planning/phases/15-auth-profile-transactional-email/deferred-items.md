@@ -176,7 +176,28 @@ from 14 stops to 13 — the walk is already the gate that would catch a half-don
 
 ---
 
-## [15-12] `overflow-320.spec.ts`'s AC#30 target-size scan races the surface it measures
+## [15-12] `overflow-320.spec.ts`'s AC#30 target-size scan races the surface it measures — **CLOSED 2026-08-29**
+
+> **CLOSED 2026-08-29 — plan 17-06, by the fix this item's own last paragraph specifies.** The row is
+> kept because the five-run table below is the MEASUREMENT, and because it is what rules out the
+> reading that nearly got applied instead.
+>
+> `expectTargets`'s vacuity guard is now **polled** for the same fifteen seconds `expectReachable`
+> already allows, rather than read once. The claim is unchanged — zero controls is still never a clean
+> result, `TARGET_FLOOR_PX` is still 24, and the undersized clause is untouched. What changed is that
+> the claim is given time to become true, which is precisely the "give `expectTargets` its own
+> precondition … the same measured 15s allowance" this item asks for.
+>
+> **⚠ THE ORDERING READING IS WRONG, AND IT WAS CHECKED RATHER THAN ASSUMED.** 17-06-PLAN read this
+> item as "the call runs before the tell" and asked for the call to be moved after `expectReachable`.
+> It was already after: at `335bf6c` the AC#30 block's tell sits at `:1381` and `expectTargets` at
+> `:1396`, and the Phase-14 block's at `:2071` and `:2086`. A move would have produced a diff that
+> looks like a fix and closed nothing — the retry-passes signature in run 5 below is a race, and a
+> race is not closed by reordering two things that are already in order. The argument is written into
+> the `expectTargets` docblock so the next reader does not re-derive it.
+>
+> `npx playwright test e2e/overflow-320.spec.ts --project=chromium --workers=1` → **64 passed /
+> 15 skipped**, exit 0.
 
 **Evidence, measured 25 August 2026 across five runs of
 `npx playwright test e2e/overflow-320.spec.ts --project=chromium`:**
