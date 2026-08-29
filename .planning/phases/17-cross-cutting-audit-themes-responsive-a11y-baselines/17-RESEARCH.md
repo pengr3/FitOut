@@ -843,7 +843,10 @@ probability — useful for scoping the fix budget before the first run:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+*All four were resolved during planning (2026-08-29). Each recommendation is implemented by name in a
+named plan; the owning plan is recorded beside each RESOLVED marker.*
 
 1. **Does the axe sweep get its own spec file, or does it join `overflow-320.spec.ts`?**
    - What we know: the AC#30/AC#36 tables already carry the seeded fixtures and tells the axe sweep
@@ -851,7 +854,8 @@ probability — useful for scoping the fix budget before the first run:
    - What's unclear: `overflow-320.spec.ts` is already 2,092 lines and its AC#29 half is deliberately
      seed-free — mixing an axe pass into it would couple the cheapest gate in the suite to the
      flakiest fixtures.
-   - Recommendation: a new `e2e/axe-sweep.spec.ts` that **imports its route rows** from the shipped
+   - Recommendation — **RESOLVED (implemented by plan 17-07 Task 1; the set-equality half by plan
+     17-11 Task 2, D-201):** a new `e2e/axe-sweep.spec.ts` that **imports its route rows** from the shipped
      tables / `VISUAL_SURFACES` rather than retyping them, so there is still one inventory. Assert
      that the axe table's row set equals the declared surface set — that assertion is what makes AC#2's
      "zero silent absences" mechanical rather than a promise.
@@ -859,21 +863,27 @@ probability — useful for scoping the fix budget before the first run:
 2. **Should `heading-order` be explicitly enabled repo-wide, or left to the bespoke walk?**
    - What we know: it will not run under the declared tags; the bespoke walk covers 28 host states.
    - What's unclear: the non-host surfaces then have no heading-order coverage at all.
-   - Recommendation: enable the rule explicitly (one line, in the one `.options()` object) **and**
+   - Recommendation — **RESOLVED (implemented by plan 17-01 Task 3 for the `.options()` enable and
+     plan 17-07 Task 2's A4 measurement; the bespoke walk by plan 17-10):** enable the rule explicitly
+     (one line, in the one `.options()` object) **and**
      land the bespoke walk. They cover different route sets; neither implies the other. Record the
      enable as the UI-SPEC correction it is.
 
 3. **Does the phase close `[16-D6]`'s three reproducible e2e reds?**
    - What we know: none is Phase 17's by authorship; the soft-404 is product/SEO behaviour across
      ~10 routes; D-200 allows closing green around escalate-class findings.
-   - Recommendation: **declare the baseline red set as a phase artifact**, escalate the soft-404 per
+   - Recommendation — **RESOLVED (implemented by plan 17-01 Task 1 for the declared red set and plan
+     17-13 Task 1 for the D-199 escalation ledger):** **declare the baseline red set as a phase
+     artifact**, escalate the soft-404 per
      D-199 (it is a product question, and the cheapest correct fix touches `loading.tsx` semantics),
      and fix only what a Phase-17 change breaks. Do not absorb them.
 
 4. **Is `[16-D10]`/`wizard-cover-preview` unblocked here?**
    - What we know: `16-15` recorded that unblocking changes `EXPECTED_BLOCKED` and makes the next
      dispatch **mint** a PNG — explicitly *"the PM's to schedule, not a side effect"*.
-   - Recommendation: **no.** Update the blocked row's reason to the current truth (AC#29) and leave
+   - Recommendation — **RESOLVED (implemented by plan 17-13 Task 3, and re-asserted by plan 17-14
+     Task 1's pre-dispatch gate):** **no.** Update the blocked row's reason to the current truth (AC#29)
+     and leave
      the mint to the PM. This is the one place where "unblock it and shoot it" must not be reflexive.
 
 ---
