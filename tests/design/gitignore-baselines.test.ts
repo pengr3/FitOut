@@ -1,6 +1,13 @@
 // GATE-01's static half: a visual-regression baseline generated on Windows or macOS can never be
 // committed. BOTH HALVES — the rules exist in `.gitignore`, AND git tracks zero files matching them.
 //
+// ⚠ AMENDED BY PLAN 17-02: THIS FILE NOW HAS A THIRD CLAUSE, AND IT IS ABOUT THE THEME SEGMENT RATHER
+// THAN THE PLATFORM ONE. AC#26 has two halves and they read the same filenames from opposite ends, so
+// the D-138 court-only rule is asserted at the bottom of this file rather than in a sibling — see the
+// banner above `describe("GATE-01 / D-138 …")`, which carries its own argument for why that half scans
+// the filesystem where the two above it ask git. Everything between here and there is about platforms
+// and is unchanged; read the paragraphs below with "half 1" and "half 2" meaning the platform pair.
+//
 // It runs under `tests/design/**`, so it is DB-free and executes inside `npm run build`
 // (`package.json` → `"build": "npm run lint && npm run test:design && next build"`).
 //
@@ -64,8 +71,14 @@
 //      indistinguishable from a real clean run and green forever.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
-// WATCHED RED — FOUR PROBES ACROSS THREE FAILURE MODES (13 August 2026). GREEN IS 4 PASSED.
+// WATCHED RED — FOUR PROBES ACROSS THREE FAILURE MODES (13 August 2026).
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ "GREEN IS 4 PASSED" STOOD HERE AND IS NOW WRONG — READ THE PASS COUNTS INSIDE THIS BLOCK AS THE
+// HISTORY THEY ARE. Plan 17-02 added three cases (the D-138 theme half and its control), so GREEN IS
+// NOW 7 PASSED and every "1 failed / 3 passed" recorded below was a true reading of a 4-case file. The
+// line is rewritten rather than deleted, and the old counts are kept rather than restated: a probe
+// record whose numbers have been silently re-baselined is a probe record nobody can check.
 //
 // A gate that has never been watched failing is not a gate (`tests/design/infra.test.ts:5-9`). Command
 // for all four: `npx vitest run --config vitest.design.config.ts tests/design/gitignore-baselines.test.ts`
@@ -205,8 +218,8 @@
 //     verbatim. Half 2 is what catches the consequence, which is the only part that matters.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync, type Dirent } from "node:fs";
+import { basename, join, relative, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 
 const REPO_ROOT = process.cwd();
@@ -450,5 +463,184 @@ describe("GATE-01 — a non-Linux visual baseline can never be committed (D-29/D
     // ignores what this one ignores; a substring check would accept both.
     expect(hasRule("*-win32.png.bak", "*-win32.png")).toBe(false);
     expect(hasRule("!*-win32.png", "*-win32.png")).toBe(false);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE THEME HALF OF AC#26 (D-138) — WHY IT LIVES IN THIS FILE AND WHY IT DOES *NOT* USE `git ls-files`
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Everything above is about the PLATFORM segment of a baseline's name. This is about the THEME segment,
+// and it is the same gate's other half: `{arg}-{projectName}-{platform}{ext}` renders as
+// `<surface>-<width>-<theme>-visual-linux.png`, so the two rules read the same filenames from opposite
+// ends. One gate with two halves is one place a reader checks — which is why this extends the file
+// rather than opening `tests/design/baseline-theme.test.ts` beside it.
+//
+// D-138 (2026-08-23) narrowed the visual sweep to ONE product theme. `grove` is not a second product
+// surface to be photographed; it is a TOKEN-CONTRACT PROBE, and the thing that proves it is the fixed
+// four-surface probe in `e2e/visual/theme-swap.spec.ts`, not a second full sweep. A `*-grove-*.png`
+// landing under a `-snapshots/` directory is therefore not a stylistic preference someone exercised —
+// it is the pre-D-138 shape coming back, and it comes back with a doubled baseline count, a doubled
+// dispatch-job runtime, and a second set of references that can drift apart from the first.
+//
+// ─── WHY A FILESYSTEM SCAN HERE, WHEN HALF 2 ABOVE ARGUES HARD FOR `git ls-files` ───────────────────
+//
+// The argument above is that an untracked `*-win32.png` is HARMLESS AND EXPECTED, because it is exactly
+// what a developer's local `--update-snapshots` produces. That reasoning does not carry over, and the
+// reason is mechanical rather than a judgement call: `playwright.config.ts` pins `updateSnapshots` to an
+// unconditional `"none"` (D-28), with `--update-snapshots` confined to the one dispatch workflow. NO
+// LOCAL REGENERATION IS POSSIBLE, BY CONSTRUCTION. So there is no benign local process that writes a
+// grove PNG into a `-snapshots/` directory — anything found there arrived deliberately, and the disk is
+// the earlier and stricter place to catch it than the index. A scan that only asked git would stay green
+// through the whole window between "the file exists and the next dispatch run will compare against it"
+// and "somebody staged it".
+//
+// ─── THE VACUITY PROOF (measured, not asserted) ──────────────────────────────────────────────────────
+//
+// An empty-list result is free if the scan is pointed anywhere wrong, and this scan can go wrong in two
+// ways the platform half cannot: a renamed spec file moves the `<spec>.spec.ts-snapshots/` directory, and
+// a `path.join` on Windows produces `\` separators that a `/`-anchored filter silently never matches.
+// So the CONTROL runs first and is an assertion, not a comment.
+//
+// PROBE (2026-08-29, plan 17-02). `VISUAL_DIR` was repointed at `e2e/visual-baselines` — a directory
+// that does not exist — and the file re-run. Observed 1 failed / 6 passed, and WHICH clause failed is
+// the whole result: the CONTROL fired, and the grove clause did not.
+//
+//     × the scan can see the baselines it is about to make a claim over
+//       AssertionError: the court positive control found 0 files matching `*-court-visual-linux.png`
+//       under e2e/visual-baselines, against a floor of 30 (36 measured 2026-08-29). The scan walked
+//       0 file(s) under `*-snapshots/` in total. … expected +0 to be greater than or equal to 30
+//
+// `zero grove baselines are committed` PASSED in that same run, as did `the two classifiers are
+// discriminating` — an empty directory contains no grove PNGs and no non-court files either, which is
+// precisely the shape of a green that means nothing. `VISUAL_DIR` was restored and the file re-run:
+// 7 passed. The floor is 30 against a measured 36 (all court, zero grove, 2026-08-29) and is a FLOOR
+// rather than an equality on purpose — `visual-baselines.ts` carries `blocked` rows, and unblocking one
+// ADDS baselines. A gate that went red because coverage grew would be a gate somebody deletes.
+
+/** The tree the baselines live in. One constant — the probe above is a one-line edit here. */
+const VISUAL_DIR = resolve(REPO_ROOT, "e2e/visual");
+
+/** Playwright names a baseline directory `<spec file>-snapshots`. */
+const SNAPSHOT_DIR_SUFFIX = "-snapshots";
+
+/** The theme segment D-138 retired. Hyphens on both sides: it is a whole segment, not a substring. */
+const GROVE_MARKER = "-grove-";
+
+/** The one legal theme's full tail, platform included — the two halves of AC#26 meeting in one string. */
+const COURT_BASELINE_SUFFIX = "-court-visual-linux.png";
+
+/** Below the measured 36, above any plausible partial read. See the vacuity-proof note above. */
+const MIN_COURT_BASELINES = 30;
+
+/** Repo-relative and `/`-separated, so a message reads the same on Windows as in the container. */
+const rel = (p: string) => relative(REPO_ROOT, p).replace(/\\/g, "/");
+
+/**
+ * Every file under a `*-snapshots/` directory anywhere in `VISUAL_DIR`, repo-relative.
+ *
+ * Returns `[]` on an unreadable tree rather than throwing — 11-02's rule, and the same one
+ * `selector-contract.test.ts:174-180` gives: a broken scan must surface as ONE named guard-the-guard
+ * failure, never as a stack trace that buries which gate went quiet. The control below is what converts
+ * that `[]` into a red.
+ */
+function collectBaselines(dir: string, insideSnapshotDir: boolean, out: string[] = []): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectBaselines(full, insideSnapshotDir || entry.name.endsWith(SNAPSHOT_DIR_SUFFIX), out);
+    } else if (insideSnapshotDir) {
+      out.push(rel(full));
+    }
+  }
+  return out;
+}
+
+/** `*-grove-*.png`, as a whole-segment match on the basename. */
+function isGroveBaseline(path: string): boolean {
+  return path.endsWith(".png") && basename(path).includes(GROVE_MARKER);
+}
+
+/** `*-court-visual-linux.png` — the positive control's subject. */
+function isCourtBaseline(path: string): boolean {
+  return path.endsWith(COURT_BASELINE_SUFFIX);
+}
+
+const baselineFiles = collectBaselines(VISUAL_DIR, false);
+const courtBaselines = baselineFiles.filter(isCourtBaseline);
+const groveBaselines = baselineFiles.filter(isGroveBaseline);
+
+describe("GATE-01 / D-138 — court is the only theme with committed baselines", () => {
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  // THE POSITIVE CONTROL, FIRST AND AS AN ASSERTION. It is what makes the empty result below a fact
+  // rather than a consequence of looking in the wrong place.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  it("the scan can see the baselines it is about to make a claim over", () => {
+    expect(
+      courtBaselines.length,
+      `the court positive control found ${courtBaselines.length} files matching ` +
+        `\`*${COURT_BASELINE_SUFFIX}\` under ${rel(VISUAL_DIR)}, against a floor of ` +
+        `${MIN_COURT_BASELINES} (36 measured 2026-08-29). The scan walked ${baselineFiles.length} file(s) ` +
+        `under \`*${SNAPSHOT_DIR_SUFFIX}/\` in total.\n\n` +
+        `This is a MEASUREMENT FAILURE, not a baseline failure. A scan pointed at a directory that moved ` +
+        `— a renamed spec renames its \`<spec>.spec.ts${SNAPSHOT_DIR_SUFFIX}/\` directory with it — ` +
+        `returns zero grove PNGs and reads exactly like a pass. Fix the scan before reading anything ` +
+        `below it. If baselines were legitimately REMOVED, that is a finding about the sweep's coverage ` +
+        `and it belongs in a plan, not in a lowered floor.`,
+    ).toBeGreaterThanOrEqual(MIN_COURT_BASELINES);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  // THE CLAIM.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  it("zero grove baselines are committed", () => {
+    expect(
+      groveBaselines,
+      `${groveBaselines.length} grove baseline(s) are on disk:\n${groveBaselines.join("\n")}\n\n` +
+        `D-138 (2026-08-23) narrowed the visual sweep to ONE product theme. \`grove\` is a ` +
+        `TOKEN-CONTRACT probe, and it is proved by the fixed four-surface probe in ` +
+        `\`e2e/visual/theme-swap.spec.ts\` — not by a second full sweep. A second theme's baselines ` +
+        `double the reference set, double the dispatch job, and give the suite two references that can ` +
+        `drift apart while both stay green.\n\n` +
+        `⚠ THE WRONG REMEDY IS A \`.gitignore\` LINE. That is the same argument the platform half of ` +
+        `this file makes about \`*-win32.png\`: \`.gitignore\` is ADVISORY and \`git add -f\` bypasses ` +
+        `it entirely, so an ignore rule would leave this exact file exactly where it is. Remove each ` +
+        `with \`git rm --cached <path>\` AND delete it from disk — this half scans the filesystem, not ` +
+        `the index, because \`playwright.config.ts\` pins \`updateSnapshots: "none"\` (D-28) and no ` +
+        `local process legitimately writes one of these.\n\n` +
+        `The ONLY sanctioned write path for a baseline is the \`baselines.yml\` dispatch job, against ` +
+        `the surface rows declared in \`src/lib/design/visual-baselines.ts\`. If grove genuinely needs ` +
+        `a sweep, that reverses D-138 and it is a decision to raise, not a file to add.`,
+    ).toEqual([]);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  // BOTH DIRECTIONS, on names never written to disk — the same duty the comment fixture above serves.
+  // Without this, both clauses are satisfied by a classifier stuck at `false`.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  it("the two classifiers are discriminating", () => {
+    expect(isGroveBaseline("e2e/visual/x.spec.ts-snapshots/home-320-grove-visual-linux.png")).toBe(true);
+    expect(isCourtBaseline("e2e/visual/x.spec.ts-snapshots/home-320-court-visual-linux.png")).toBe(true);
+
+    // A theme segment, not a substring: neither a surface NAMED grove nor a `.txt` beside a baseline
+    // is a grove baseline, and calling either one would train a reader to ignore this gate.
+    expect(isGroveBaseline("e2e/visual/x.spec.ts-snapshots/grovewood-320-court-visual-linux.png")).toBe(
+      false,
+    );
+    expect(isGroveBaseline("e2e/visual/x.spec.ts-snapshots/home-320-grove-visual-linux.png.txt")).toBe(
+      false,
+    );
+    expect(isCourtBaseline("e2e/visual/x.spec.ts-snapshots/home-320-court-visual-win32.png")).toBe(false);
+
+    // And the real tree agrees with the real inventory: every file the scan walked is a court baseline,
+    // which is the measured 2026-08-29 state and is what makes the count above the WHOLE population
+    // rather than a subset that happens to clear the floor.
+    expect(baselineFiles.filter((p) => !isCourtBaseline(p))).toEqual([]);
   });
 });
