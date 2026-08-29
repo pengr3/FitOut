@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 17 (cross-cutting-audit-themes-responsive-a11y-baselines) — EXECUTING
-Plan: 2 of 14
-Current Plan: 2
+Plan: 8 of 14
+Current Plan: 8
 Total Plans in Phase: 14
 Status: Executing Phase 17
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
