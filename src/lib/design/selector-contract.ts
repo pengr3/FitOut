@@ -222,6 +222,14 @@ export const SELECTOR_IDS = [
   // equivalent that carries its meaning. Same commit as their literals, same rule as the rows above.
   "week-strip",
   "week-strip-text",
+  // 17-03 — RESP-04's two missing structural containers, measured 2026-08-29: of the six named
+  // surfaces, the search-results region and the availability calendar were the only two with no
+  // identifying container id, so AC#12's "exactly ONE in the document at 320/768/1280" could not be
+  // ASKED of them. `skeleton-calendar` existed and is the FALLBACK, which is why counting it answers
+  // the wrong question. Both land in the same commit as their literals, which is this list's rule in
+  // both directions; plan `17-09` is the Playwright half that does the counting.
+  "search-results-region",
+  "availability-calendar",
 ] as const;
 
 /** The closed union every declared hook is typed against. */
@@ -1023,5 +1031,46 @@ export const SELECTOR_CONTRACT: Record<SelectorId, SelectorRow> = {
       "later well-meant addition; scoped to the document it would pass on any page whose regions " +
       "live elsewhere.",
     owner: "14-12",
+  },
+
+  // ─── 17-03 ─────────────────────────────────────────────────────────────────────────────────────────
+  "search-results-region": {
+    why:
+      "THE ASSERTION THIS HOOK EXISTS FOR IS A COUNT OVER THE WHOLE DOCUMENT — exactly ONE results " +
+      "region renders at 320, 768 and 1280 (RESP-04 / AC#12) — and a count needs a CONTAINER to " +
+      "count rather than any element inside it. The failure mode it is aimed at is finding TWO: a " +
+      "forked mobile/desktop variant renders both and hides one with CSS, and `[data-testid]` " +
+      "resolves against a `display: none` node exactly as it resolves against a painted one, which " +
+      "is precisely why the count is the right assertion and \"is visible\" is not. " +
+      "A ROLE QUERY CANNOT CARRY IT, AND NOT MERELY AWKWARDLY. This `<section>` has no accessible " +
+      "name, so it maps to `generic` and NOT to `region` — `getByRole(\"region\")` cannot reach it " +
+      "even in principle. Giving it a name to make it reachable would invent a string for the gate " +
+      "and announce it to every screen-reader user on the app's highest-traffic page. " +
+      "AND EVERY OTHER HANDLE MOVES WITH CONTENT RATHER THAN WITH STRUCTURE. The results heading is " +
+      "CONDITIONAL — the header block renders only when the booker's own search returned rows — so a " +
+      "heading query reads ZERO on the four states this count most needs to hold across (fetch " +
+      "error, searching, the relaxation band, and both empty states). `getByRole(\"list\")` counts " +
+      "LISTS, and a result card that gains a second one (an amenity strip, a photo carousel) changes " +
+      "that count without changing the number of results regions on screen — the same argument " +
+      "`result-card` records one level down, which is exactly why the two hooks are separate.",
+    owner: "17-03",
+  },
+  "availability-calendar": {
+    why:
+      "THE ASSERTION IS THAT EXACTLY ONE CALENDAR CONTAINER EXISTS IN THE DOCUMENT at 320, 768 and " +
+      "1280, and until this row the only hook on this surface was `skeleton-calendar` — which is the " +
+      "FALLBACK. Counting the fallback answers \"is it loading\", not \"is there one calendar\", and " +
+      "on a resolved page those two questions have opposite correct answers; a one-instance gate " +
+      "hung on the skeleton would report a perfect zero against a page carrying two calendars. " +
+      "A ROLE QUERY CANNOT CARRY IT. The container is a bare `<div>` wrapping three children with " +
+      "three different roles — the timezone note, the month grid and the slot picker — and has no " +
+      "role of its own, so there is nothing semantic to select even in principle. Reaching for the " +
+      "month grid instead moves the assertion onto react-day-picker's markup: `getByRole(\"grid\")` " +
+      "resolves on the picker's own grid on the same document, and its count moves whenever a day " +
+      "cell's composition changes — which BFLOW-05 already overrides in two places. " +
+      "AND THE HANDLE HAS TO SURVIVE A REMOUNT. The picker below it is deliberately re-keyed on a " +
+      "collision so the rail and the grid cannot disagree about what is selected, so any hook read " +
+      "off the picker's subtree is a hook that changes identity mid-session. The container does not.",
+    owner: "17-03",
   },
 };

@@ -616,7 +616,7 @@ export function AvailabilityCalendar({
   const hasAnyAvailable = (dayAvail?.slots ?? []).some((s) => s.state === "available");
 
   return (
-    <div className="space-y-3">
+    <div data-testid="availability-calendar" className="space-y-3">
       <p id={TZ_NOTE_ID} className="text-sm text-muted-foreground">
         Times shown in {cityLabel} time ({gmtLabel})
       </p>

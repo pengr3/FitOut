@@ -180,7 +180,7 @@ export function SearchResults({
   const hasResults = results.length > 0;
 
   return (
-    <section className="space-y-6" aria-busy={isPending}>
+    <section data-testid="search-results-region" className="space-y-6" aria-busy={isPending}>
       {/* Header (heading + sort) shows only when populated — the empty states carry their own heading. */}
       {hasResults && (
         <div className="flex flex-wrap items-center justify-between gap-3">
