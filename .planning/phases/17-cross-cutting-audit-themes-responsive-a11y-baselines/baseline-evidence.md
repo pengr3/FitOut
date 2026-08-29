@@ -174,3 +174,141 @@ is small but not empty. The post-dispatch confirmation is in § 2.3.
 
 *(Ambiguity note, recorded not smoothed: the plan's `[A3]` text and `[17-D6]`'s text say opposite
 things. `[17-D6]` — the later, measured one — is right. This file follows `[17-D6]`.)*
+
+## 1.7 The pre-dispatch CI run — the shape, and the FIVE unpredicted rows it exposed BEFORE anything was minted
+
+**Run [`33272796552`](https://github.com/pengr3/FitOut/actions/runs/33272796552)** — `ci`, event `push`,
+head **`0d1ce9311a3fd6ac3f6af012341dc7105b29d59e`** (`0d1ce93`, the commit that added § 1 of this file).
+
+| Job | Conclusion |
+|---|---|
+| `gate-db-free (lint + design + build + workflow parse)` | **success** |
+| `gate-db (vitest against PostGIS 18)` | **success** |
+| `gate-price-parity (DB-vs-DOM price, 1 spec)` | **success** |
+| `gate-visual (GATE-01 visual regression)` | **failure** — **11 failed / 31 passed / 42 skipped** |
+
+**Which failure message was observed, since the plan asks for it by name.** Every one of the 11 is
+`expect(page).toHaveScreenshot(expected) failed` then *"N pixels (ratio 0.01 of all image pixels) are
+different"*. **Zero** rows failed with `A snapshot doesn't exist at …` and **zero** with
+`connect ECONNREFUSED` — no row was unblocked, so no reference was missing, and the database was
+reachable on every one. **This is the correct pre-dispatch shape**: the surfaces rendered, and they
+disagree with a stale reference.
+
+*(Recorded correction: STATE.md's Phase-12 operator note states the two messages' meanings in
+inverted order — it says "The first message means the surface never rendered; the second means it
+rendered and has no reference yet" after listing `A snapshot doesn't exist` first and `ECONNREFUSED`
+second. The plan's own action text states it the right way round. Neither message occurred here, so
+it cost nothing this time; noted so the next reader is not misled.)*
+
+**One flake, named so it is not counted as a diff:** `dev-theme-320-court` failed its first attempt
+and **passed on retry #1**. It is not among the 11 and no baseline of it moved.
+
+### 1.7.1 The 11, mapped to their pixel counts — and the counts are the evidence
+
+| # | Row | Pixels different | Predicted in § 1.5? |
+|---|---|---|---|
+| 1 | `search-results-320-court` | **712** | YES |
+| 2 | `search-results-768-court` | **712** | YES |
+| 3 | `search-results-1280-court` | **712** | YES |
+| 4 | `search-relax-band-320-court` | **712** | YES |
+| 5 | `search-relax-band-1280-court` | **712** | YES |
+| 6 | `listing-detail-320-court` | **173** | **NO** |
+| 7 | `listing-detail-768-court` | **173** | **NO** |
+| 8 | `listing-detail-1280-court` | **173** | **NO** |
+| 9 | `listing-sheet-375-court` | **173** | **NO** |
+| 10 | `booking-not-found-1280-court` | **744** | YES |
+| 11 | `collision-notice-1280-court` | **917** | **NO** |
+
+**The arithmetic is exact, and it is the whole finding:**
+
+```
+712  = the search-bar size="touch" conversion   (identical on all five search rows)
+744  = the ProfileLink p-1.5 conversion         (booking-not-found, signed-in shell)
+173  = a THIRD cause, identical at 320 / 375 / 768 / 1280 — therefore a FIXED-SIZE element
+917  = 744 + 173   <-- collision-notice carries BOTH the ProfileLink change AND the third cause
+```
+
+`744 + 173 = 917` is not a coincidence anyone had to assume: `collision-notice` is the one row that
+is **both** signed-in **and** renders the availability picker.
+
+### 1.7.2 Why the five were missed — the prediction under-enumerated, it was not wrong
+
+* **`collision-notice-1280` — a SECOND shot signed-in surface.** `[17-D6]` says *"At least one
+  shootable baseline row renders that header: `booking-not-found`"*. **At least one** turns out to
+  be **two**: `collisionDrive` signs a booker up (`e2e/helpers/visual-drive.ts:695`) exactly as
+  `bookingNotFoundDrive` does, and its capture is `fullPage`, so the header is in the frame.
+  `checkout` is signed in too and **passed** — because the checkout page renders **no header at
+  all** (`e2e/shell.spec.ts:1221` pins *"0 header anchors, 0 footers"*), which is why it is not a
+  third. The enumeration in `[17-D6]` should have been a command over `DRIVES` x `fullPage` x
+  `blocked: null`, and was a reading.
+* **`listing-detail` x3 and `listing-sheet-375` — not Phase 17's pixels at all.** Measured: the
+  complete set of `src/` files Phase 17 touched is 19, and **exactly two of them can move a pixel** —
+  `search/search-bar.tsx` (the two `size="touch"` conversions) and `patterns/site-chrome.tsx` (the
+  one `p-1.5`). The rest are comment-only (`theme-provider.tsx`), `data-testid`-only
+  (`availability-calendar.tsx`, `search-results.tsx`), one `aria-disabled` (`ui/slider.tsx`), a
+  tag-only `titleAs` on `listing-card.tsx` whose own comment records that *"Tailwind's preflight
+  resets every heading's size and weight to `inherit`, so swapping h3 for h2 here moves the outline
+  and NOT a single pixel"*, four new `dev-throw-*` routes that no row shoots, and declaration
+  modules. **Nothing Phase 17 changed renders on `listing-detail` or inside `listing-sheet`.**
+
+### 1.7.3 The third cause — a WALL-CLOCK dependency in a row whose docblock claims determinism
+
+The pre-Phase-17 range was checked rather than assumed. Between the last **green** `ci` run
+(`32945807603`, head `7b48019`, 2026-08-26) and this one there are **127** commits — **72** before the
+phase base and **55** in Phase 17. Their non-`.planning` reach is small and none of it renders on a
+listing page: Phase 16.1 touched uploads (`listing-photo.ts`, `cloudinary/sign/route.ts`,
+`photo-uploader.tsx`, `upload-policy.ts`), `lib/cloudinary.ts` lost a dead function and gained a
+comment, `next.config.ts` gained a dev-only `allowedDevOrigins`, and **`package-lock.json` moved by
+21 lines — two devDependencies (`@axe-core/playwright`, `tsx`) and nothing runtime**, so `npm ci`
+resolves the same rendering libraries it did on 2026-08-26.
+
+**So the 173 is time, not code.** `listing-detail`'s row pins the date *precisely to prevent this*:
+
+> *"⚠ `?date=` IS NOT DECORATION, IT IS WHAT MAKES THIS BASELINE DETERMINISTIC. Without it the page
+> renders `todayLocal` … so the month grid, the highlighted day and the set of disabled past days all
+> change WITH THE WALL CLOCK — a baseline that goes red tomorrow for no reason."*
+
+**The pin is incomplete, and this is the finding.** `?date=2026-09-16` fixes the *selected* day and
+the *displayed month*. It does **not** fix `todayDate`: `src/app/listings/[id]/(detail)/page.tsx`
+passes `todayDate={todayLocal}` at **three** call sites (`:595`, `:774`, `:822`), and
+`src/components/availability/availability-calendar.tsx:500` takes `todayDate ?? initialDate` — so
+with the prop supplied, `todayStart` is the **real venue-local today**, and the day cell carrying it
+renders the neutral `--muted` today-ring (`availability-calendar.tsx:637`, whose comment says so:
+*"Selected day = coral … today stays the neutral `--muted` ring"*).
+
+The displayed grid is **September 2026**, and react-day-picker renders outside days: `2026-09-01` is
+a **Tuesday**, so the first row is **Aug 30 · Aug 31 · Sep 1 …**, and the last row trails into early
+October. **Today is inside that grid for roughly Aug 30 -> Oct 3.** This run started
+`2026-08-29T20:12Z` = **`2026-08-30` 04:12 in Asia/Manila** — so **Aug 30 became "today" inside the
+pinned September grid between the last green run and this one**, which is exactly a one-cell,
+fixed-size, viewport-independent delta.
+
+That predicts every observed number: `listing-detail` at all three widths and `listing-sheet-375`
+(the same picker inside the overlay) move by the identical **173**; `collision-notice` moves by
+**744 + 173**; `listing-lightbox` (a photo overlay, no calendar) and `checkout` (no calendar, no
+header) **pass**; and it was green on 2026-08-26 because Manila was then Aug 26/27 and no grid cell
+was today.
+
+**Hypothesis status at this point: STRONG but not yet measured.** It is confirmed or refuted in
+§ 2.3 by taking the bounding box of the changed pixels in the regenerated PNGs — if it lands on the
+first-row outside-day cell of the September grid, it holds.
+
+### 1.7.4 The decision to proceed with the dispatch, and why it is not "dispatching against a red tree"
+
+The gate this task exists to be is *"the whole tree is green before a dispatch regenerates baselines
+against it"*, because a dispatch fired against a broken tree mints PNGs that redefine correct from a
+broken state (T-17-74 / T-17-76). Measured against that bar:
+
+* **Three of four CI jobs are green**, and the local `build` / `tsc` / `verify-workflows` gate is
+  green. Nothing is broken.
+* `gate-visual`'s red is **the stale-reference red this plan exists to clear** — every failure is a
+  pixel comparison against a reference, not a render failure, a missing snapshot or a connection
+  error.
+* **Every one of the 11 now has a stated cause written down BEFORE the mint.** That is the condition
+  T-17-76 actually asks for; the prediction being *incomplete* was itself caught by this gate, which
+  is the gate working.
+* Not dispatching is strictly worse: it closes the phase over a red GATE-01, which is `[13-16]`
+  verbatim.
+
+Proceeding. The 173-px cause is carried into the diff review as a **finding to confirm and escalate**,
+not as something the mint is allowed to absorb silently.
