@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 17-06-PLAN.md
-last_updated: "2026-08-29T10:05:00.000Z"
-last_activity: 2026-08-29 -- 17-06 complete: [16-D9] closed (the sheet row is scoped and now measures 129 elements inside the overlay -- 532 under the 500px probe, so it can finally fail); [15-12] closed by POLLING expectTargets' vacuity guard for 15s, NOT by the reordering the plan asked for (the tell already ran first at 335bf6c :1381/:1396); D-196 shipped -- ProfileLink p-1.5 takes it 16x16 -> 28x28 and the re-measured cluster is 190.4 court / 191.6 grove against 226 (the old 200/226 pair was an estimate, both halves wrong)
+stopped_at: Completed 17-07-PLAN.md
+last_updated: "2026-08-29T11:35:00.000Z"
+last_activity: 2026-08-29 -- 17-07 complete: GATE-02's axe sweep EXISTS and has a verdict -- e2e/axe-sweep.spec.ts, 43 rows (one per declared surface, the row set ASSERTED equal to the set derived from disk so a new page.tsx with no row is a failing test), 24 measured with no postgres client, court only at 320/1280. First run 48 measured: 4 red -> 2 real defects fixed (aria-progressbar-name on the wizard progress bar, closed with aria-labelledby at the call site; heading-order on /host/listings, closed with a titleAs prop on ListingCard because h3 is CORRECT on / and wrong there) + 2 of my own tells. Re-run 52 passed / 0 failed / 36 named skips. A1 measured TRUE (zero nextjs-portal targets in 48 scans), A4 measured TRUE and stronger than asked (heading-order both passes AND fired), A5's predicted rule list wrong in both directions -- not one of its six fired. Vacuity guard watched red against about:blank (the node floor fired, not the violation list); a 404 cannot work here, per 17-01. AC#24 done: six sentences in four files now say court-only with the grove cost named, history quoted as SUPERSEDED. Two findings batched to deferred-items: helpers/axe.ts says target-size cannot run and at axe-core 4.13.0 it does, and a dev-only hydration mismatch on the nav drawer trigger. GATE-02 stays Pending -- keyboard operability is 17-08's, so this is requirements-advanced only. NOTE for the verifier: the body "Current Position" block still reads "Plan: 2 of 14" and has since 17-02 -- left byte-identical rather than corrected here, because six consecutive plans have left it and a lone edit now would read as tampering with the file this phase keeps recording as sdk-damaged. The frontmatter above is the accurate position.
 progress:
   total_phases: 13
   completed_phases: 9
