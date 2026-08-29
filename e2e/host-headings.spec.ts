@@ -576,6 +576,54 @@ async function recordHeading(page: Page, where: string): Promise<void> {
         "the tree — and that is a measurement failure, not a page with a flat outline.",
     ).toBeGreaterThan(0);
 
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    // WATCHED RED — 29 August 2026, run and reverted (17-PATTERNS § Shared Patterns 8, plan 17-10)
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // COMMAND:
+    //   npx playwright test e2e/host-headings.spec.ts --project=chromium --workers=1 --reporter=list
+    //
+    // MUTATION: `src/app/(host)/host/listings/[id]/availability/page.tsx` **line 201**,
+    //   `<h2 className="text-xl font-semibold">Weekly hours</h2>`  →  `<h3 …>Weekly hours</h3>`
+    //   — i.e. the route's first section heading demoted one rung, so its outline steps `h1` → `h3`.
+    //
+    // ⚠ A SKIP, DELIBERATELY, AND NEVER A DUPLICATE. A duplicated level (`h2` then `h2`) is LEGAL
+    //   under `findSkippedStep` — the app ships 78 of its 84 outlines that way — so a green against a
+    //   duplicate is produced identically by a walk that works and by a walk that never fires. Only a
+    //   skip separates the two. This is the mutation 17-UI-SPEC § Typography clause 2 and 17-RESEARCH
+    //   § Pattern 3 both name, and this route is the one `[14-REVIEW WR-03]` is about: it is where
+    //   14-12 and 14-13 flattened the outline unobserved while all 84 level-one assertions stayed
+    //   green.
+    //
+    // OBSERVED — **1 failed · 10 passed · 3 did not run**, 21.3s. The message, verbatim:
+    //
+    //   Error: availability · /host/listings/{id}/availability · 320px: this document's heading
+    //   outline SKIPS a level.
+    //     observed, in document order: h1 → h3 → h3 → h3 → h2 → h3 → h2 → h2
+    //     offending step: h1 ("Availability") → h3 ("Weekly hours"), headings 1 and 2 of 8
+    //   An outline may stay at a level, go back UP by any amount, or go exactly one level deeper —
+    //   never two. […] THE FIX IS THE HEADING'S LEVEL, and only that. […]
+    //   Received: {"from": {"level": 1, "text": "Availability"}, "fromIndex": 0,
+    //             "to": {"level": 3, "text": "Weekly hours"}}
+    //
+    // WHY THAT BLAST RADIUS IS THE RIGHT ONE. One state reddened — the only state whose markup
+    //   changed. The ten cases ahead of it all passed, which is the load-bearing half of the reading:
+    //   this walk is not coupled to the shell, to the footer's two `h2`s that appear in every outline,
+    //   or to the seeding, so a mutation on one route does not leak into the other twenty-seven
+    //   states. A walk that reddened more than the mutated route would be measuring something it does
+    //   not name.
+    //
+    // ⚠ TWO NUMBERS THE RUN CORRECTED, both of them this describe's serial configuration rather than
+    //   the mutation's reach — recorded so a later reader does not read them as coupling:
+    //     • The state fails ONCE, at 320px, not "at all three widths". The three widths share one
+    //       test and the first `expect` throw ends it. (The availability outline is identical at all
+    //       three widths, so 320 is simply the first read, not the only broken one.)
+    //     • The three cases after it report "did not run", not "passed" — `mode: "serial"` stops the
+    //       block after a failure, exactly as the size-equality case's own vacuity note says.
+    //
+    // RESTORED byte-for-byte: `git checkout --` the one file, then `git status --porcelain src/`
+    // printed nothing and the re-run was green with the same 84 measurements.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
     const skipped = findSkippedStep(outline);
     const offender =
       skipped === null

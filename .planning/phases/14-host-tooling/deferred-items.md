@@ -408,7 +408,37 @@ measured reason.
 
 ---
 
-## `[14-REVIEW WR-03]` `e2e/host-headings.spec.ts` still says nothing about `<h2>` and below, and that blindness is what let the outline flatten unobserved
+## `[14-REVIEW WR-03]` `e2e/host-headings.spec.ts` still says nothing about `<h2>` and below, and that blindness is what let the outline flatten unobserved — **CLOSED 2026-08-29**
+
+> **CLOSED 2026-08-29 — plan `17-10`, by exactly the shape "What Phase 17 should do" below asks for.**
+> The measurement text under this note is kept verbatim, not rewritten: it is the finding, and a
+> finding whose record is edited the moment it closes cannot be audited.
+>
+> `recordHeading` now collects the whole outline at each of the three widths and asserts no level is
+> skipped — **84 walks across all 28 states**, joining the existing per-state loop rather than a second
+> `host-headings` file (`ls e2e/ | grep -c heading` is still `1`). Levels are read through
+> `getByRole("heading", { level })`, one query per level, merged into document order with
+> `compareDocumentPosition`, so a heading inside a `display: none` subtree is not collected — measured
+> on this app: every wizard step reads `h1 → h2 → h2` at 320/768 and `h1 → h2 → h2 → h2` at 1280,
+> the extra entry being the desktop-only `h2 "Ready to publish?"` rail.
+>
+> **First run: zero skipped levels on all 84.** This route's own outline reads
+> `h1 → h2 → h3 → h3 → h2 → h3 → h2 → h2` at all three widths — well-formed, i.e. `14-13`'s fix holds
+> where nothing could previously see it. **Watched red** against the mutation this item's owner
+> specified: `availability/page.tsx:201` `<h2>Weekly hours</h2>` → `<h3>`, giving
+> `h1 → h3 → …` — **1 failed · 10 passed · 3 did not run**, message naming the state, the width, the
+> observed sequence and the offending step. A SKIP, never a duplicate: a duplicated level is legal
+> under the assertion, so a green against one proves nothing. Mutation restored byte-for-byte
+> (`git status --porcelain src/` empty). The red-watch, its command, its counts and its blast-radius
+> reading are recorded in the spec beside the assertion.
+>
+> **One correction to this item's own framing.** It says a skipped-level rule "is an axe rule
+> (`heading-order`) rather than a bespoke assertion somebody should hand-roll here". Half true, and
+> the half that is wrong mattered: under the phase's declared conformance tags `heading-order` is
+> `best-practice`-tagged and does **not** run — plan 17-07 had to enable it explicitly. It is now live
+> (17-07 measured it both passing and firing on this app, and it found a real violation on
+> `/host/listings`), but it covers the axe sweep's route table, which does not carry these 28 seeded
+> host states. The two cover different route sets and neither implies the other; both landed.
 
 **Found during:** the WR-03 fix (code review, 24 August 2026).
 **Owner:** **Phase 17** — it owns the full axe pass, and a skipped-level rule is an axe rule
