@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 9
+current_plan: 10
 status: executing
-stopped_at: Completed 17-08-PLAN.md
-last_updated: "2026-08-29T12:10:00.000Z"
-last_activity: 2026-08-29 -- 17-08 complete, EXECUTED ACROSS AN INTERRUPTION: GATE-02's keyboard walk now covers the five COMPOSITE families -- e2e/keyboard-composites.spec.ts, 7 cases, all five properties (reachable, operable, indicated, escapable, returned). Task 1 (calendar + slot-picker tab orders, 21 and 23 stops) was committed by a PRIOR executor at 250e32c and left Tasks 2-3 uncommitted and NEVER RUN; this session verified, finished and committed them (de097f8, 7641f44). ESCAPABLE and RETURNED had no shipped assertion anywhere in the repo before this and are the plan's genuinely new measurement -- both RED-WATCHED by mutating responsive-dialog.tsx (the ONE overlay primitive) rather than the test: onEscapeKeyDown->preventDefault gave a named assertion not a hang, and onCloseAutoFocus={undefined} gave Expected "button[button]:Upload photo" / Received null with `<body>` named in the message while properties 1-4 all still passed. THREE DEFECTS FOUND BY RUNNING THE PRIOR EXECUTOR'S WORK: (1) the whole first run was red against a WEDGED next dev server returning 500 "Jest worker encountered 2 child process exceptions" -- environment, not spec; killed, rm -rf .next, restarted, everything green. (2) getByRole("button",{name:"Back"}) was AMBIGUOUS on the wizard, resolving to the Back button AND a rail marker labelled `Go back to step 1: ...` -- which is the evidence the step rail BECOMES a control after the advance (wizard.tsx:454 seeds visitedKeys with step 1 only, :953 needs done AND visited), so the rail is now measured where it exists rather than declared absent. (3) the wizard row was flaky one run in twelve: the space-type Select is named by its PLACEHOLDER until React Hook Form applies defaultValues, so the baseline and the walk named the same element differently -- armWizard now waits for the seeded value. WALK_BOUND untouched at 40, zero new focus definitions (focus-definition.test.ts green), auth-keyboard.spec.ts still 6 documents / 59 stops, /signup radio group untouched per D-198, drizzle/ clean. GATE-02 stays Pending -- 'every surface' is wider than the five composite families and 17-10/17-13 still owe it work, so this is requirements-advanced only.
+stopped_at: Completed 17-09-PLAN.md
+last_updated: "2026-08-29T15:43:44.000Z"
+last_activity: 2026-08-29 -- 17-09 complete, EXECUTED ACROSS AN API INTERRUPTION (the transcript has a gap; nothing had landed at the cut, so no work was duplicated). RESP-04's RENDERED half now exists: e2e/one-tree.spec.ts, 22 cases (20 measured + 2 named skips), green four consecutive runs. AC#12 counts each named surface's identifying container IN THE DOCUMENT at 320/768/1280 -- search-results-region, listing-key-facts, availability-calendar, booking-panel, wizard-step-rail, publish-checklist, checkout-sticky-bar, host-agenda, agenda-rows -- all 1 at all three widths; the file contains ZERO visibility assertions by construction (grep toBeVisible = 0), which is the point: the forked-variant defect is a page where one copy is painted and the other is not. The sanctioned matchMedia exception is proved as a POSITIVE fact -- publish-checklist counts 1 at every width AND its placement flips across the 64rem boundary (collapsible at 320/768, panel at 1280), so the steady 1 is evidence the hook CHOOSES rather than a coincidence; the hook was not touched. AC#13 was MEASURED before it was asserted and the criterion as written ('exactly 1') is true of only some routes: / = 0, /listings/[id] = 1, /profile = 0, /bookings = 1, /host = 1, /host/bookings = 2 -- so the table declares a number per route with its reason, and a blanket toHaveCount(1) would have been red against five correct routes and found a defect on none. Four clauses per row (declared total; site-nav in the DOCUMENT; site-nav in the ACCESSIBILITY TREE; and getByRole("navigation") == 1 at 320 and 1280 on every route declaring one, signed out and signed in), plus the MECHANISM: at each width the inactive nav placement must be ABSENT from the accessibility tree, which is a `hidden` claim made without naming a class. FIVE WATCHED REDS, all by injection from the spec and never by editing src -- a display:none duplicate calendar (locator 2, raw 2, invisible throughout); the placement probe with the breakpoint moved (Expected 1 / Received 0); a second <nav> site-nav (clause a); a sr-only <div> site-nav that is NOT a landmark so clause (a) passed and clause (b) fired; and aria-hidden on the real nav so clause (c) fired at Received 0. site-chrome.tsx untouched (T-17-47/D-04). TWO FINDINGS, RECORDED NOT FIXED: (1) availability-calendar.tsx:551-582 forks on occupancy mode and the open_capacity branch returns a FRAGMENT with no container id, so the count is 0 on a drop-in listing and AC#12 cannot be ASKED of it -- hanging the id there means adding a wrapper to a surface whose own comment records choosing a fragment deliberately, i.e. a src change outside this plan reversing a recorded decision; it is a named skip that throws its reason. (2) the ONLY navigation landmark on /listings/[id] is react-day-picker's month bar, <nav class="rdp-nav" aria-label="Navigation bar">, so on the highest-intent public page the one thing announced as navigation is a vendor's prev/next-month control with a generic name. THREE HARNESS DEFECTS FOUND BY RUNNING IT: the calendar row originally drove 'whichever listing is first' and flaked 1-in-3 because the occupancy fork changes what it is counting (now a seeded exclusive listing, by name); the raw querySelectorAll guard took ONE sample against a RETRYING locator and reported a mid-hydration race as a library bug (now polled until settled, with a diagnostic dump of every node found -- investigated first: the SERVED document has 1, an 8s poll at all three widths never left 1, and the sheet placement is a portal that is not mounted until tapped); and the AC#13 anonymous block had the same discovered-listing problem. RESP-04 stays Pending -- AC#10/11 closed by 17-03, AC#13 closed here, but AC#12 is closed for five of six families and carries two named container-id gaps, so this is requirements-advanced only. tsc 0, lint 0 errors, test:design 66 files / 1247 passed / 3 skipped (unmoved), drizzle/ and src/ clean.
 progress:
   total_phases: 13
   completed_phases: 9
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 17 (cross-cutting-audit-themes-responsive-a11y-baselines) — EXECUTING
-Plan: 9 of 14
-Current Plan: 9
+Plan: 10 of 14
+Current Plan: 10
 Total Plans in Phase: 14
 Status: Executing Phase 17
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
@@ -1406,8 +1406,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-29T04:26:13.623Z
-Stopped at: Phase 17 context gathered
+Last session: 2026-08-29T15:43:44.000Z
+Stopped at: Completed 17-09-PLAN.md (RESP-04 rendered half)
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
