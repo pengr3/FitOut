@@ -1,4 +1,4 @@
-// RESP-04, THE RENDERED HALF — AC#12 (plan 17-09, task 1; AC#13 follows in task 2).
+// RESP-04, THE RENDERED HALF — AC#12 and AC#13 (plan 17-09).
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WHAT THIS FILE MEASURES, AND WHY A SOURCE SCAN COULD NOT
@@ -64,8 +64,8 @@
 // be ASKED of the drop-in calendar. It is a named skip below, not a silent one, and the discovery
 // is recorded in this plan's summary as a finding for the phase's deferred items.
 //
-// AC#13's half — the navigation-landmark count — lands in the next commit, with its own per-route
-// table. Its counts are NOT uniformly 1, which is why it needs one.
+// AC#13's landmark counts are NOT uniformly 1, and the shape of that is a finding this file records
+// rather than smooths over — see `LANDMARK_ROWS` for the per-route table and its reasons.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file
@@ -98,9 +98,9 @@
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WATCHED REDS
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// Recorded verbatim beside the clause each one belongs to — `expectOneInDocument` and the placement
-// probe — rather than collected here. A watched red kept next to its assertion is a red the next
-// editor of that assertion actually reads.
+// Recorded verbatim beside the clause each one belongs to — `expectOneInDocument`, `expectLandmarks`
+// and the placement probe — rather than collected here. A watched red kept next to its assertion is
+// a red the next editor of that assertion actually reads.
 
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
@@ -1113,5 +1113,488 @@ test.describe("RESP-04 AC#12 — one instance in the document · checkout", () =
     } finally {
       await seed.teardown();
     }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// AC#13 — THE NAVIGATION LANDMARK
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `getByRole("navigation")` rather than a `<nav>` selector, and that IS the claim rather than a
+// spelling preference. The role query reads the ACCESSIBILITY TREE, which is the tree the failure
+// lives in: a second navigation hidden with `opacity-0` or `sr-only` is invisible on screen and
+// fully present to a screen-reader user, who is then offered two answers to "how do I move around
+// this site". A `document.querySelectorAll("nav")` count cannot tell those apart, and a class
+// assertion would pin the MECHANISM while saying nothing about the OUTCOME.
+//
+// ── WHAT WAS MEASURED, AND WHY THIS TABLE DECLARES A NUMBER PER ROUTE RATHER THAN ASSERTING 1 ─────
+// AC#13 is written as "exactly 1 at 320 and 1280". Measured on this tree, 29 August 2026, the count
+// is 1 on some routes and 0 or 2 on others, and every one of those is correct:
+//
+//   /                            0   the public composition passes no `nav` prop at all
+//   /listings/[id]               1   react-day-picker's own month bar — see the row's note
+//   /profile                     0   the booker composition passes no `nav` prop either
+//   /bookings?tab=upcoming       1   `bookings-tabs.tsx:90`'s `<nav aria-label="Bookings">`
+//   /host                        1   `site-nav` — THE row AC#13 is about
+//   /host/bookings?tab=upcoming  2   `site-nav` AND the same tab list
+//   /listings/[id]/book          0   SHELL-03: the checkout header carries no navigation by design
+//
+// A blanket `toHaveCount(1)` would therefore have been red against five correct routes and would
+// have "found" a defect on none. `site-chrome.tsx:201-209` renders the landmark only when there IS
+// navigation, and `selector-contract.ts`'s `site-nav` row says the load-bearing assertion is an
+// ABSENCE on the checkout composition — so 0 is a claim this table has to be able to make.
+//
+// What is asserted is therefore stronger AND narrower than the criterion as phrased:
+//   (a) the TOTAL landmark count equals the number declared for that route, so a NEW landmark
+//       arriving anywhere fails by name rather than being averaged away;
+//   (b) the count of SITE navs IN THE DOCUMENT equals the declared number — this is the clause that
+//       catches a duplicate hidden by ANY mechanism, `hidden` included;
+//   (c) the count of site navs IN THE ACCESSIBILITY TREE equals the same number — the clause that
+//       catches a duplicate hidden with `sr-only` or `opacity-0`, which (b) alone would also catch
+//       but which (c) is what makes a screen-reader claim rather than a DOM one;
+//   (d) on every route declaring exactly one, `getByRole("navigation")` resolves to exactly 1 at
+//       320px and at 1280px — AC#13 in its own words, on the routes where its words are true.
+//
+// ⚠ ONE FINDING IS RECORDED HERE RATHER THAN FIXED. The single navigation landmark on
+// `/listings/[id]` is NOT the app's — it is `react-day-picker`'s month bar, `<nav class="rdp-nav"
+// aria-label="Navigation bar">`, inside the availability calendar. On the app's highest-intent public
+// page the only thing announced as navigation is a vendor's prev/next-month control, whose name is
+// the generic "Navigation bar". That is a legitimate landmark and not a duplication, so it is pinned
+// as a measured fact; renaming or relabelling it is a source change in the calendar's subtree and is
+// not this plan's.
+
+type LandmarkRow = {
+  readonly name: string;
+  readonly session: "anonymous" | "booker" | "host";
+  readonly path: (routes: Routes) => string;
+  /** How many navigation landmarks the accessibility tree offers on this route. MEASURED, not hoped. */
+  readonly landmarks: number;
+  /** How many of them are the app's own `site-nav`. */
+  readonly siteNavs: number;
+  /** Why those two numbers are what they are. Travels into every failure message on the row. */
+  readonly why: string;
+  readonly tell: (page: Page) => Locator;
+  readonly tellWhy: string;
+};
+
+/** AC#13's two widths. 768 is not one of them — the criterion names the extremes. */
+const LANDMARK_WIDTHS = [320, 1280] as const;
+
+const LANDMARK_ROWS: readonly LandmarkRow[] = [
+  {
+    name: "signed out · /",
+    session: "anonymous",
+    path: () => "/",
+    landmarks: 0,
+    siteNavs: 0,
+    why:
+      "`PublicHeader` composes `SiteChrome` with a wordmark and an actions cluster and NO `nav` " +
+      "prop, and `site-chrome.tsx:205-209` renders the `<nav>` only when there is navigation to put " +
+      "in it. `selector-contract.ts`'s `site-nav` row states that the load-bearing assertion on this " +
+      "id is an ABSENCE, so 0 here is the declared design and a 1 would mean a landmark arrived on " +
+      "the app's most-hit anonymous surface without a decision behind it.",
+    tell: (page) => byId(page, "result-card"),
+    tellWhy: "a result card, which only the resolved home page renders — its plate renders none.",
+  },
+  {
+    name: "signed out · /listings/[id]",
+    session: "anonymous",
+    path: (r) => requirePath(r.listingPath, "listingPath"),
+    landmarks: 1,
+    siteNavs: 0,
+    why:
+      "⚠ THE ONE LANDMARK HERE IS NOT THE APP'S. Measured 2026-08-29: it is `react-day-picker`'s " +
+      "month bar — `<nav class=\"rdp-nav\" aria-label=\"Navigation bar\">` — inside the availability " +
+      "calendar. The listing page composes `PublicHeader`, which contributes no `site-nav`, so the " +
+      "app's own count here is 0 and the vendor's is 1. Recorded as a finding rather than fixed: " +
+      "renaming a third-party landmark is a change inside the calendar's subtree and belongs to a " +
+      "plan that owns it. A 2 would mean a real second navigation arrived beside it.",
+    tell: (page) => byId(page, "listing-key-facts"),
+    tellWhy:
+      "the key-facts strip, which only the resolved listing page renders — the plate renders a " +
+      "`skeleton-panel` instead.",
+  },
+  {
+    name: "signed in · /profile",
+    session: "booker",
+    path: () => "/profile",
+    landmarks: 0,
+    siteNavs: 0,
+    why:
+      "`(app)/layout.tsx` composes `SiteChrome` with a mode switch, a notification bell and a " +
+      "profile link — and, like the public composition, NO `nav` prop. The booker side of this app " +
+      "has no primary navigation, which is a product decision (D-04's context switch does that job) " +
+      "rather than an omission, and 0 is what it looks like from the accessibility tree.",
+    tell: (page) => byId(page, "panel-card"),
+    tellWhy:
+      "a profile panel card, which the resolved `/profile` renders and a redirect to `/login` does " +
+      "not — and this row is behind a session, so a redirect is the failure most worth excluding.",
+  },
+  {
+    name: "signed in · /bookings",
+    session: "booker",
+    path: () => "/bookings?tab=upcoming",
+    landmarks: 1,
+    siteNavs: 0,
+    why:
+      "`bookings-tabs.tsx:90` renders `<nav aria-label=\"Bookings\">` around the upcoming/past tab " +
+      "pair. It is a real, correctly-named landmark and it is the ONLY one on this route, because " +
+      "the booker shell contributes none — so this row is where AC#13's 'exactly one' is true on a " +
+      "signed-in surface. Two would mean the tab list forked by viewport.",
+    tell: (page) => page.getByRole("navigation", { name: "Bookings" }),
+    tellWhy:
+      "the tab list itself is this route's own surface: `bookings/loading.tsx` renders a skeleton " +
+      "list and no tabs, and a redirect to `/login` renders neither.",
+  },
+  {
+    name: "signed in as host · /host",
+    session: "host",
+    path: () => "/host",
+    landmarks: 1,
+    siteNavs: 1,
+    why:
+      "THE ROW AC#13 IS ABOUT. `(host)/host/layout.tsx` is the one composition in the app that " +
+      "passes a `nav` prop, and `SiteNav` renders the SAME `NavLinks` in TWO DOM placements — an " +
+      "inline bar above `md:` and a drawer below it — because the host cluster measures 352px " +
+      "against 226px of available width at 320px. Both placements live INSIDE the one " +
+      "`<nav data-testid=\"site-nav\">`, so the landmark count is one at every width rather than " +
+      "one-above-`md:`-and-none-below.",
+    tell: (page) => byId(page, "host-agenda"),
+    tellWhy:
+      "the agenda section, which only the resolved dashboard renders — `/host`'s own plate composes " +
+      "the same `PageHeader` and carries none of the agenda's hooks.",
+  },
+  {
+    name: "signed in as host · /host/bookings",
+    session: "host",
+    path: () => "/host/bookings?tab=upcoming",
+    landmarks: 2,
+    siteNavs: 1,
+    why:
+      "TWO LANDMARKS, AND BOTH ARE CORRECT — measured 2026-08-29, and recorded here rather than " +
+      "left out of the table because a route with two is exactly the shape a duplication defect " +
+      "wears. These are the host shell's `site-nav` and `bookings-tabs.tsx`'s " +
+      "`<nav aria-label=\"Bookings\">`: two DIFFERENT navigations, each with its own name, which is " +
+      "what an accessible landmark set is supposed to look like. The clause that matters on this " +
+      "row is the SITE-nav one: exactly one of the two is the app's primary navigation, and a 2 " +
+      "there would be the real defect this criterion exists to catch.",
+    tell: (page) => page.getByRole("navigation", { name: "Bookings" }),
+    tellWhy:
+      "the tab list, which pins the surface AND the state — `bookings/loading.tsx` renders neither " +
+      "the tabs nor a row card.",
+  },
+];
+
+/**
+ * AC#13's four clauses, at one width. See the block header above for what each one buys.
+ *
+ * ⚠ WATCHED RED, 29 August 2026 — ALL THREE CLAUSES, EACH ISOLATED, on `/host` at 320px. The three
+ * probes were temporary `page.evaluate` injections in THIS file and NOT edits to `site-chrome.tsx`:
+ * the shell must not be reshaped to make a count move in either direction (threat T-17-47, D-04 is
+ * on the must-not-be-reversed list), and `git status --porcelain src/components/patterns/
+ * site-chrome.tsx` printed nothing throughout. Observed, verbatim:
+ *
+ *   (a) a second `<nav data-testid="site-nav">` appended to the body —
+ *       Error: … the accessibility tree offers a number of navigation landmarks other than the 1
+ *       this route declares. …  Expected: 1  Received: 2
+ *
+ *   (b) a `<div data-testid="site-nav" class="sr-only">` appended instead — NOT a `<nav>`, so the
+ *       landmark total stayed 1 and clause (a) PASSED:
+ *       Error: … the document holds a number of elements carrying `[data-testid="site-nav"]`
+ *       other than the 1 this route declares. …  Expected: 1  Received: 2
+ *
+ *   (c) `aria-hidden="true"` set on the real `<nav data-testid="site-nav">`, with (a) and (b)
+ *       temporarily disabled so this clause was the one under test:
+ *       Error: … the accessibility tree offers a number of `site-nav` landmarks other than the 1
+ *       this route declares, while the DOM count above agreed. …  Expected: 1  Received: 0
+ *
+ * (b) and (c) are the pair that justify each other: (b) sees a duplicate the accessibility tree
+ * cannot (the `sr-only` div is not a landmark), and (c) sees a site nav that has LEFT the tree while
+ * the DOM still holds exactly one — a document on which a screen-reader user is offered no
+ * navigation at all and every DOM count in this file reads clean. All three probes were removed
+ * before this file was committed.
+ */
+async function expectLandmarks(page: Page, row: LandmarkRow, width: number): Promise<void> {
+  const where = `${row.name} · ${width}px`;
+  const siteNav = byId(page, "site-nav");
+  const landmarks = page.getByRole("navigation");
+
+  // (a) the declared TOTAL, so a new landmark anywhere on the route fails by name.
+  await expect(
+    landmarks,
+    `${where}: the accessibility tree offers a number of navigation landmarks other than the ` +
+      `${row.landmarks} this route declares. ${row.why}\n` +
+      "⚠ A landmark that ARRIVED is as much a finding as one that vanished: every extra one is " +
+      "another answer to 'how do I move around this page' for a screen-reader user. Update this " +
+      "row's number only with the reason for the change written beside it.",
+  ).toHaveCount(row.landmarks);
+
+  // (b) the site nav's count IN THE DOCUMENT — catches a duplicate hidden by ANY mechanism.
+  await expect(
+    siteNav,
+    `${where}: the document holds a number of elements carrying \`${selectorFor("site-nav")}\` ` +
+      `other than the ${row.siteNavs} this route declares. ${row.why}\n` +
+      "This clause is a DOM count on purpose: it sees a second copy however it is hidden, `hidden` " +
+      "included, which is the one hiding mechanism the accessibility-tree clause below cannot see.",
+  ).toHaveCount(row.siteNavs);
+
+  // (c) the site nav's count IN THE ACCESSIBILITY TREE — the screen-reader claim.
+  await expect(
+    landmarks.and(siteNav),
+    `${where}: the accessibility tree offers a number of \`site-nav\` landmarks other than the ` +
+      `${row.siteNavs} this route declares, while the DOM count above agreed. ${row.why}\n` +
+      "⚠ THE TWO CLAUSES DISAGREEING IS THE INTERESTING CASE, and it has exactly two readings. " +
+      "Fewer in the tree than in the DOM: the one site nav has been pushed out of the tree — " +
+      "`aria-hidden`, or an ancestor that is `display: none` at this width — so a screen-reader user " +
+      "is offered NO navigation here. More: a second copy is present to assistive technology while " +
+      "hidden on screen, which is `sr-only` or `opacity-0` doing what `hidden` was chosen to avoid.\n" +
+      "⚠ AND IF THE FIX IS A HIDING MECHANISM, DO NOT MERGE THE TWO. `hidden` removes content from " +
+      "the accessibility tree — correct for THIS case, the nav-duplication one — and is WRONG for an " +
+      "icon-only control, which it would leave with no accessible name at all. `aria-label` names an " +
+      "icon-only control and does nothing about duplication. Applying either in the other's place is " +
+      "a real WCAG 4.1.2 (Name, Role, Value) failure, and this repository has already shipped that " +
+      "bug once.\n" +
+      "⚠ ESCALATE-CLASS IF THE FIX NEEDS THE THREE HEADER COMPOSITIONS RE-FORKED OR MERGED. D-04 is " +
+      "on the must-not-be-reversed list; record the measurement for plan 17-13 rather than reshaping " +
+      "the shell to satisfy a count.",
+  ).toHaveCount(row.siteNavs);
+}
+
+/** AC#13 in its own words, on the routes where its words are true. Clause (d). */
+async function expectExactlyOneLandmark(page: Page, row: LandmarkRow, width: number): Promise<void> {
+  await expect(
+    page.getByRole("navigation"),
+    `${row.name} · ${width}px: this route declares EXACTLY ONE navigation landmark and the ` +
+      `accessibility tree offers a different number. ${row.why}`,
+  ).toHaveCount(1);
+}
+
+async function driveLandmarkRow(page: Page, row: LandmarkRow, routes: Routes): Promise<void> {
+  for (const width of LANDMARK_WIDTHS) {
+    const where = `${row.name} · ${width}px`;
+    await openAt(page, row.path(routes), width);
+    await expectReachable(page, row.tell(page), row.tellWhy, where);
+    await expectLandmarks(page, row, width);
+    if (row.landmarks === 1) await expectExactlyOneLandmark(page, row, width);
+  }
+}
+
+/**
+ * `/profile`, reached by signing a booker up THROUGH THE UI.
+ *
+ * `overflow-320.spec.ts:278-290`'s `signUpAndReachProfile`, replicated for the reason every other
+ * replication in this file records. Deliberately NOT lifted into a `beforeAll` the way the seeded
+ * listings are, and the difference is structural rather than stylistic: a seeded listing is a ROW,
+ * identical for every context that reads it, while this produces a SESSION COOKIE and Playwright's
+ * `page` fixture is per-test — a cached "/profile" handed to a second test would navigate an
+ * ANONYMOUS browser to a route that redirects to `/login`, and every landmark assertion in this
+ * file is true of the page it would land on. Two booker rows therefore cost two signups, which is
+ * the honest price of the row.
+ *
+ * The clock is in the email and nowhere else: `Date.now()` buys uniqueness against the unique-email
+ * constraint across repeated runs and never reaches a measured value.
+ */
+async function signUpAndReachProfile(page: Page): Promise<string | null> {
+  const email = `e2e.onetree.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
+  await page.goto(`${BASE}/signup`);
+  await page.getByRole("radio", { name: "Book a space" }).click();
+  await page.getByLabel("First name").fill("Onetree");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByRole("button", { name: /sign up to book/i }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
+  return "/profile";
+}
+
+test.describe("RESP-04 AC#13 — the navigation landmark · signed out and signed in as a booker", () => {
+  // SERIAL for the shared fixture's reason (`overflow-320.spec.ts:2143-2146`): a `beforeAll` runs
+  // once per WORKER, so a parallel block would seed one listing per worker and tear another's rows
+  // out from under it. 240s because the booker rows sign a user up through the real form.
+  test.describe.configure({ mode: "serial", timeout: 240_000 });
+
+  // The same seeded `exclusive` listing the AC#12 anonymous block drives, and for the same measured
+  // reason: the `/listings/[id]` row below declares a landmark COUNT, and a discovered listing would
+  // let the occupancy fork decide which subtree that count is about.
+  let seed: SeededListing;
+
+  test.beforeAll(async () => {
+    seed = await seedBookableListing({ occupancy: "exclusive", titlePrefix: "E2E One-Tree Nav" });
+  });
+
+  test.afterAll(async () => {
+    if (seed !== undefined) await seed.teardown();
+  });
+
+  test("every landmark row has a runner", () => {
+    // The same T-17-45 discipline the surface table gets: a row whose session no describe drives is
+    // a route this criterion silently stopped checking.
+    const runners = new Set(["anonymous", "booker", "host"]);
+    expect(
+      LANDMARK_ROWS.filter((r) => !runners.has(r.session)).map((r) => r.name),
+      "these landmark rows declare a session no describe in this file runs.",
+    ).toEqual([]);
+    expect(
+      LANDMARK_ROWS.some((r) => r.session === "anonymous") &&
+        LANDMARK_ROWS.some((r) => r.session !== "anonymous"),
+      "AC#13 requires both a signed-out and a signed-in route; this table covers only one kind.",
+    ).toBe(true);
+  });
+
+  for (const row of LANDMARK_ROWS.filter((r) => r.session === "anonymous")) {
+    test(row.name, async ({ page }) => {
+      await seedTheme(page.context(), THEME);
+      await driveLandmarkRow(page, row, {
+        listingPath: listingPathOf(seed),
+        hostListingId: null,
+        checkoutPath: null,
+      });
+    });
+  }
+
+  for (const row of LANDMARK_ROWS.filter((r) => r.session === "booker")) {
+    test(row.name, async ({ page }) => {
+      await seedTheme(page.context(), THEME);
+      await page.setViewportSize({ width: WIDTHS[2], height: HEIGHT });
+      const profile = await signUpAndReachProfile(page);
+      expect(
+        profile,
+        `${row.name}: the signup drive did not produce a signed-in route, so every assertion below ` +
+          "would be about the anonymous shell rather than the booker one.",
+      ).toBeTruthy();
+      await driveLandmarkRow(page, row, {
+        listingPath: null,
+        hostListingId: null,
+        checkoutPath: null,
+      });
+    });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// AC#13 · THE HOST ROUTES, AND THE MECHANISM BEHIND THE OUTCOME
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * A host nav DESTINATION, named the way a user reaches it.
+ *
+ * `src/lib/nav.ts` declares two rows (`Earnings`, `Requests`) and `SiteNav` renders both in the
+ * inline placement. `Requests` is matched by regex rather than exactly because D-65 appends a count
+ * badge to its accessible name whenever there is one — a fixture with a live request would read
+ * `Requests 1` and an exact match would go red naming the wrong cause.
+ */
+const HOST_NAV_LINK = /^Requests/;
+
+/** The drawer placement's trigger. `aria-label="Menu"`, with its glyph `aria-hidden`. */
+const HOST_NAV_DRAWER_TRIGGER = "Menu";
+
+test.describe("RESP-04 AC#13 — the navigation landmark · signed in as a host", () => {
+  test.describe.configure({ mode: "serial", timeout: 300_000 });
+
+  let fixture: HostFixture;
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: BASE });
+    const page = await context.newPage();
+    const seeded = await seedHostSurfaces(page);
+    const cookies = await context.cookies();
+    await context.close();
+    fixture = { ...seeded, cookies };
+  });
+
+  test.afterAll(async () => {
+    if (fixture === undefined) return;
+    await fixture.sql`DELETE FROM notification WHERE booking_id IN (SELECT id FROM booking WHERE listing_id = ${fixture.listingId})`;
+    await fixture.sql`DELETE FROM booking WHERE listing_id = ${fixture.listingId}`;
+    await fixture.sql`DELETE FROM "user" WHERE id = ${fixture.bookerId}`;
+    await fixture.sql`DELETE FROM "user" WHERE email = ${fixture.hostEmail}`;
+    await fixture.sql.end();
+  });
+
+  for (const row of LANDMARK_ROWS.filter((r) => r.session === "host")) {
+    test(row.name, async ({ page }) => {
+      await page.context().addCookies([...fixture.cookies]);
+      await seedTheme(page.context(), THEME);
+      await driveLandmarkRow(page, row, {
+        listingPath: null,
+        hostListingId: fixture.listingId,
+        checkoutPath: null,
+      });
+    });
+  }
+
+  // ── THE MECHANISM, NOT ONLY THE OUTCOME ────────────────────────────────────────────────────────
+  //
+  // The rows above prove ONE landmark at 320 and at 1280. That outcome would stay green if somebody
+  // swapped `hidden` for `sr-only` on a day when only one placement happened to render, and it would
+  // stay green if the two placements were merged into one that renders at both widths — neither of
+  // which is what `site-chrome.tsx:67-73` says is true. So the mechanism is asserted too, and it is
+  // asserted THROUGH THE TREE rather than off a class list: at each width, the INACTIVE placement
+  // must be absent from the accessibility tree.
+  //
+  // That is what makes this a `hidden` assertion without naming a class. `display: none` removes a
+  // subtree from the tree; `sr-only` and `opacity-0` do not. If the inactive placement's controls are
+  // still reachable by role at a width where they are not painted, the wrong mechanism is in use and
+  // a screen-reader user is being offered the site's navigation twice at every viewport.
+  test("the inactive nav placement is absent from the accessibility tree at both widths", async ({
+    page,
+  }) => {
+    await page.context().addCookies([...fixture.cookies]);
+    await seedTheme(page.context(), THEME);
+
+    const inlineLink = page.getByRole("link", { name: HOST_NAV_LINK });
+    const drawerTrigger = page.getByRole("button", { name: HOST_NAV_DRAWER_TRIGGER });
+
+    const mechanism =
+      "`SiteNav` renders one link inventory in two placements — `hidden md:flex` for the inline bar " +
+      "and `md:hidden` for the drawer — inside the ONE `<nav data-testid=\"site-nav\">`. The " +
+      "inactive one is removed with `hidden`, NOT `sr-only` and NOT `opacity-0`, because " +
+      "`display: none` takes the subtree out of the accessibility tree and the other two leave it " +
+      "in. A failure here means the wrong mechanism is in use: the count of landmarks would still " +
+      "be one, and a screen-reader user would still be read the site's navigation twice.\n" +
+      "⚠ TWO MECHANISMS, TWO REASONS — DO NOT MERGE THEM WHEN FIXING THIS. `hidden` removes content " +
+      "from the accessibility tree and is correct HERE, for the nav-duplication case; it is WRONG " +
+      "for an icon-only control, which it would leave with no accessible name at all. `aria-label` " +
+      "names an icon-only control and does nothing about duplication. Applying either in the " +
+      "other's place is a real WCAG 4.1.2 failure, and this repository has already shipped that bug " +
+      "once — which is why it is spelled out in the failure rather than left to be rediscovered.";
+
+    // 320px — the DRAWER placement is the live one.
+    await openAt(page, "/host", 320);
+    await expectReachable(
+      page,
+      byId(page, "host-agenda"),
+      "the agenda section, which only the resolved dashboard renders.",
+      "host nav mechanism · 320px",
+    );
+    await expect(
+      drawerTrigger,
+      `host nav mechanism · 320px: the drawer trigger is not in the accessibility tree. Below \`md:\` ` +
+        `it is the ONLY route into the host's navigation. ${mechanism}`,
+    ).toHaveCount(1);
+    await expect(
+      inlineLink,
+      `host nav mechanism · 320px: a link matching \`${String(HOST_NAV_LINK)}\` from the INLINE ` +
+        `placement is reachable by role at a width where that placement is not painted. ${mechanism}`,
+    ).toHaveCount(0);
+
+    // 1280px — the INLINE placement is the live one.
+    await openAt(page, "/host", 1280);
+    await expectReachable(
+      page,
+      byId(page, "host-agenda"),
+      "the agenda section, which only the resolved dashboard renders.",
+      "host nav mechanism · 1280px",
+    );
+    await expect(
+      inlineLink,
+      `host nav mechanism · 1280px: the inline placement's \`${String(HOST_NAV_LINK)}\` link is not ` +
+        `in the accessibility tree, so the host's navigation is unreachable here. ${mechanism}`,
+    ).toHaveCount(1);
+    await expect(
+      drawerTrigger,
+      `host nav mechanism · 1280px: the DRAWER trigger is still reachable by role at a width where ` +
+        `the inline bar is the live placement, so both placements are in the tree at once. ` +
+        `${mechanism}`,
+    ).toHaveCount(0);
   });
 });
