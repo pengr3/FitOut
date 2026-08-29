@@ -1,4 +1,10 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type ElementHandle,
+  type Page,
+} from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 
@@ -6,7 +12,12 @@ import postgres from "postgres";
 // FIVE PHASE-14 SURFACES, IN EVERY STATE AND BOTH OCCUPANCY MODES, AND ALL OF THEM THE SAME SIZE.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE TWO SILENT FAILURES THIS FILE CATCHES, AND WHY NO SINGLE-SURFACE TEST CAN SEE EITHER
+// THE THREE SILENT FAILURES THIS FILE CATCHES, AND WHY NO SINGLE-SURFACE TEST CAN SEE ANY OF THEM
+//
+// ⚠ THIS HEADING READ "THE TWO SILENT FAILURES" UNTIL 29 AUGUST 2026. Plan 17-10 added (3), the
+//   outline walk, which is the finding `[14-REVIEW WR-03]` handed to Phase 17 by name. The
+//   superseded count is quoted rather than deleted because the two-failure shape is what the rest
+//   of this header, and the `NOT COVERED` list at the bottom of it, were written against.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 //
 //   (1) TWO FIRST-LEVEL HEADINGS ON ONE DOCUMENT GIVE A SCREEN-READER USER TWO ANSWERS TO "WHAT PAGE
@@ -21,6 +32,14 @@ import postgres from "postgres";
 //       page's title sat one step below it, and every surface was individually correct: each one
 //       rendered the size its own file asked for. The disagreement only exists BETWEEN files, so the
 //       only instrument that can see it is one that measures all five and compares.
+//
+//   (3) A DOCUMENT WHOSE OUTLINE SKIPS A LEVEL HAS A HOLE IN IT THAT NO SIGHTED READER CAN SEE.
+//       `h1` → `h3` tells a screen-reader user, navigating by heading, that there is a subsection of
+//       a section that was never announced. Added 29 August 2026 by plan 17-10, closing
+//       `[14-REVIEW WR-03]`: this file measured the level-ONE heading on 28 states and compared their
+//       sizes, and every one of those 84 assertions stayed green while 14-12 and 14-13 promoted two
+//       `<h3>`-level advisories to `<h2>` on `/host/listings/{id}/availability` — three peers where
+//       one was the parent of the other two. See THE OUTLINE WALK below.
 //
 // So the size is not asserted against a literal. Every heading's computed size is RECORDED, and the
 // final case asserts the whole recorded set collapses to one value — printing the full set on failure,
@@ -90,8 +109,15 @@ import postgres from "postgres";
 //   • IT MEASURES `font-size` AND NOTHING ELSE. Two headings at 20px in different weights, colours,
 //     families or letter-spacings satisfy every assertion here. `tests/design/type-scale.test.ts` is
 //     what pins the roles themselves; this proves the five surfaces all reach for the same one.
-//   • IT SAYS NOTHING ABOUT `<h2>` AND BELOW. A surface whose sections skip from level one to level
-//     three has a broken outline and passes this file completely.
+//   • ⚠ SUPERSEDED 29 August 2026 by plan 17-10 — the bullet is kept, with its wording quoted intact,
+//     because it IS `[14-REVIEW WR-03]`, and a finding whose record is deleted the moment it closes
+//     cannot be audited. It read, verbatim:
+//         "IT SAYS NOTHING ABOUT `<h2>` AND BELOW. A surface whose sections skip from level one to
+//          level three has a broken outline and passes this file completely."
+//     `recordHeading` now walks the whole outline at all three widths on all 28 states. What is STILL
+//     true is the narrower claim the bullet above it makes: this file measures `font-size` on the
+//     level-ONE heading only, so nothing here says an `<h2>` renders at the Heading role's size, and
+//     nothing here reads what any heading SAYS. The walk is about STRUCTURE, not type and not copy.
 //   • THE TWO PAYOUT ROUTES AND `/host/listings` ARE NOT PHASE-14 SURFACES and are not measured. Two
 //     of them render a first-level heading one ladder step ABOVE the five below; that is a real
 //     product-wide inconsistency, it is outside this phase's five surfaces, and it is recorded in
@@ -352,9 +378,147 @@ type Measurement = {
   readonly width: number;
   readonly text: string;
   readonly fontSizePx: number;
+  /**
+   * The whole document's outline at this width, as levels in document order — the walk added by plan
+   * 17-10. Recorded beside the size read rather than thrown away, so a later red in EITHER clause can
+   * be read against the other: a size outlier on a surface whose outline also moved is one finding,
+   * not two.
+   */
+  readonly outline: readonly number[];
 };
 
 const measurements: Measurement[] = [];
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE OUTLINE WALK — WHAT IT READ ON ITS FIRST RUN, 29 August 2026 (plan 17-10)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// 84 outlines (28 states × 3 widths), zero skipped levels. FIVE distinct shapes, and the whole set is
+// recorded here because the numbers below are what a future red should be read against:
+//
+//     41 ×  h1 → h2 → h2
+//     26 ×  h1 → h2 → h2 → h2
+//     11 ×  h1 → h2 → h2 → h2 → h2
+//      3 ×  h1 → h2 → h3 → h3 → h2 → h3 → h2 → h2   (the availability route, all three widths)
+//      3 ×  h1 → h2 → h3 → h2 → h2 → h2             (`/host`, nothing-booked, all three widths)
+//
+// THREE readings a later reader should not have to re-derive:
+//
+//   • THE TRAILING `h2 "Product"` + `h2 "Legal & support"` IN EVERY OUTLINE IS THE SITE FOOTER. That
+//     is why no state here can produce an outline shorter than three, and it is also the honest limit
+//     of the vacuity guard below: a floor of "more than zero" is cleared by the shell alone. What
+//     proves the SURFACE rendered is `expectSurface`'s tell and the one-`h1` count, not this floor.
+//
+//   • ONLY 6 OF THE 84 OUTLINES REACH `h3` AT ALL. Seventy-eight bottom out at level two, and a
+//     document whose deepest level is two cannot exhibit a `1 → 3` skip in the first place. So this
+//     walk's discriminating power is concentrated on exactly the two states that nest — one of which
+//     is `/host/listings/{id}/availability`, the route `[14-REVIEW WR-03]` is about. That is not a
+//     weakness of the walk; it is the shape of these 28 states, and it is stated so nobody reads 84
+//     greens as 84 opportunities to fail.
+//
+//   • THE ACCESSIBILITY-TREE READ IS LOAD-BEARING, MEASURED RATHER THAN ARGUED. Every wizard step
+//     reads `h1 → h2 → h2` at 320 and 768 and `h1 → h2 → h2 → h2` at 1280, and the extra entry is
+//     `h2 "Ready to publish?"` — the publish rail, `display: none` below the desktop breakpoint. The
+//     role query does not offer it at 320; a markup sweep would have collected it at all three
+//     widths. Same tree, three different honest answers, which is the whole reason for `getByRole`.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The six levels the ARIA `heading` role can carry. The walk asks for each one SEPARATELY, because
+ * the level is the thing being measured and the query is what supplies it — see `collectOutline`.
+ */
+const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
+
+/** One heading in a resolved document's outline: how deep it sits, and what it says. */
+type OutlineEntry = {
+  readonly level: number;
+  readonly text: string;
+};
+
+/** A step in the outline that goes more than one level deeper than the heading before it. */
+type SkippedStep = {
+  /** Zero-based index of the heading BEFORE the offending step. */
+  readonly fromIndex: number;
+  readonly from: OutlineEntry;
+  readonly to: OutlineEntry;
+};
+
+/**
+ * THE OUTLINE — every heading the resolved document EXPOSES, in document order, with its level.
+ *
+ * ⚠ LEVELS COME FROM `getByRole("heading", { level })`, ONE QUERY PER LEVEL, and that is the
+ * load-bearing part rather than an implementation detail. The role query reads the ACCESSIBILITY
+ * TREE, so a heading inside a `display: none` subtree — every `hidden md:block` desktop table these
+ * routes render — is not offered to a screen-reader user and is not collected here. A CSS-selector
+ * sweep of `h1`…`h6` collects BOTH trees of a responsive surface that only ever shows one, and would
+ * therefore report a skipped level on a page whose outline is perfect; "fixing" that red means
+ * deleting a tree the sighted layout needs. `recordHeading`'s docstring names that anti-pattern by
+ * its DOM identifier — that is the one and only occurrence of the identifier in this file, it is
+ * prose, and comment-stripped this file contains none. (Plan 17-10's acceptance criterion asks for a
+ * raw `grep` count of zero; the raw count is 1 and always was. See 17-10-SUMMARY.)
+ *
+ * DOCUMENT ORDER COSTS ONE ROUND TRIP. Each per-level list already arrives in document order; the
+ * union of six of them does not, so the six are merged by sorting with `compareDocumentPosition` —
+ * the tree's own answer to "which of these two comes first", rather than a second reading of the
+ * markup that could disagree with the first.
+ */
+async function collectOutline(page: Page): Promise<OutlineEntry[]> {
+  const handles: ElementHandle<SVGElement | HTMLElement>[] = [];
+  const found: OutlineEntry[] = [];
+
+  for (const level of HEADING_LEVELS) {
+    for (const heading of await page.getByRole("heading", { level }).all()) {
+      const handle = await heading.elementHandle();
+      if (handle === null) continue;
+      handles.push(handle);
+      found.push({
+        level,
+        text: ((await heading.textContent()) ?? "").replace(/\s+/g, " ").trim(),
+      });
+    }
+  }
+
+  if (handles.length === 0) return [];
+
+  const documentOrder = await page.evaluate((els) => {
+    const positions = new Map<Element, number>();
+    els.forEach((el, index) => positions.set(el, index));
+    return [...els]
+      .sort((a, b) =>
+        (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 ? -1 : 1,
+      )
+      .map((el) => positions.get(el) ?? -1);
+  }, handles);
+
+  await Promise.all(handles.map((handle) => handle.dispose()));
+
+  return documentOrder.map((index) => found[index]);
+}
+
+/**
+ * The first step in the outline that goes MORE THAN ONE LEVEL DEEPER than the heading before it.
+ *
+ * ⚠ WHAT IS LEGAL, STATED SO THE ASSERTION IS NOT MISREAD: a step may stay at the same level, go back
+ * UP the tree by any amount (`h4` → `h2` closes two sections and opens a peer), or go exactly one
+ * level deeper. `h1` → `h3` is the failure. A DUPLICATE LEVEL — `h2` then `h2` — is legal and is not
+ * reported here; that distinction is why the red-watch below mutates a level into a SKIP and not into
+ * a duplicate, since a green against a duplicate would prove nothing.
+ *
+ * ⚠ THE FIRST HEADING'S LEVEL IS NOT ASSERTED, and that is deliberate rather than an omission. Only
+ * transitions are walked — the same semantics as axe's own `heading-order` rule, which this walk sits
+ * alongside rather than replaces (17-07 measured `heading-order` both PASSING and FIRING on this app
+ * under the declared conformance tags, so it is a live rule and not a dormant one). The claim that
+ * the outline has a level-one root is already made, harder, by the `toHaveCount(1)` above: exactly one
+ * first-level heading, on every one of these 28 states, at all three widths.
+ */
+function findSkippedStep(outline: readonly OutlineEntry[]): SkippedStep | null {
+  for (let i = 1; i < outline.length; i += 1) {
+    const from = outline[i - 1];
+    const to = outline[i];
+    if (to.level > from.level + 1) return { fromIndex: i - 1, from, to };
+  }
+  return null;
+}
 
 /**
  * THE MEASUREMENT. Exactly one first-level heading resolves, and its computed size is recorded — at
@@ -391,7 +555,58 @@ async function recordHeading(page: Page, where: string): Promise<void> {
         "equality assertion below perfectly if every other read were also zero.",
     ).toBe(true);
 
-    measurements.push({ where, width, text, fontSizePx: size });
+    // ─── THE OUTLINE WALK (AC#21 · [14-REVIEW WR-03] · 17-UI-SPEC § Typography clause 2) ──────────
+    //
+    // Added INSIDE this loop rather than as a second file, which is the contract the UI-SPEC states
+    // and the reason `[14-REVIEW WR-03]` was left open in Phase 14: the 28 states, their seeding,
+    // their tells and this describe's serial-mode configuration already exist here, and a second
+    // `host-headings` file would need every one of them again.
+    const outline = await collectOutline(page);
+    const sequence = outline.map((entry) => `h${entry.level}`).join(" → ");
+
+    // VACUITY FIRST (17-PATTERNS § Shared Patterns 1), and it is the same shape as the size guard
+    // directly above. An EMPTY outline satisfies the no-skip clause below PERFECTLY — every one of
+    // its zero transitions is legal — so this count is the whole reason the clause means anything.
+    expect(
+      outline.length,
+      `${where} · ${width}px: the accessibility tree offered ZERO headings, so no outline was walked. ` +
+        "The no-skip clause below is true of an empty outline and of every subset of a real one, " +
+        "which makes this count the thing that turns it into a measurement. A zero means the role " +
+        "query resolved nothing — the surface did not render, or every heading on it is hidden from " +
+        "the tree — and that is a measurement failure, not a page with a flat outline.",
+    ).toBeGreaterThan(0);
+
+    const skipped = findSkippedStep(outline);
+    const offender =
+      skipped === null
+        ? ""
+        : `h${skipped.from.level} ("${skipped.from.text}") → h${skipped.to.level} ` +
+          `("${skipped.to.text}"), headings ${skipped.fromIndex + 1} and ${skipped.fromIndex + 2} of ` +
+          `${outline.length}`;
+
+    expect(
+      skipped,
+      `${where} · ${width}px: this document's heading outline SKIPS a level.\n` +
+        `  observed, in document order: ${sequence}\n` +
+        `  offending step: ${offender}\n` +
+        "An outline may stay at a level, go back UP by any amount, or go exactly one level deeper — " +
+        "never two. A screen-reader user navigating by heading is told there is a subsection of a " +
+        "section that was never announced, so the page has a structural hole in it that no sighted " +
+        "reader can see. A DUPLICATE level is legal and is NOT what this reports.\n" +
+        "THE FIX IS THE HEADING'S LEVEL, and only that. Do NOT delete the heading — a section with " +
+        "no heading at all is a worse outline than a mis-levelled one, and it passes this walk " +
+        "silently. Do NOT relax, scope or skip this assertion. If the level cannot be corrected " +
+        "without restructuring the section or changing product copy, that is escalate-class: record " +
+        "it and route it, never absorb it here.",
+    ).toBeNull();
+
+    measurements.push({
+      where,
+      width,
+      text,
+      fontSizePx: size,
+      outline: outline.map((entry) => entry.level),
+    });
   }
 }
 
