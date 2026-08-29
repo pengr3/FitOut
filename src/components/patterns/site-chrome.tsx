@@ -353,9 +353,8 @@ export function SiteNav({
  *
  *   • `hidden sm:inline` on the label, on ONE instance, never a conditional render. `display: none`
  *     removes the label from the accessibility tree below 640px, which is what the responsive budget
- *     needs (the signed-in cluster measures 200px against 226px available, and dropping the label
- *     takes it to ~176px). A conditional render would be two elements that can drift; `sr-only` would
- *     keep the text in the tree and defeat the purpose.
+ *     needs (the figures are re-measured below). A conditional render would be two elements that can
+ *     drift; `sr-only` would keep the text in the tree and defeat the purpose.
  *   • `aria-label="Profile"` on the WRAPPER, and `aria-hidden="true"` on the glyph. This is the half
  *     that is easy to omit and is not optional: with the label display-none'd and the icon the only
  *     remaining content, an unlabelled control has NO ACCESSIBLE NAME AT ALL below 640px — a WCAG
@@ -364,13 +363,57 @@ export function SiteNav({
  *
  * The `aria-label` is deliberately the same string as the visible label, so the accessible name does
  * not change across the breakpoint and voice control keeps working at both widths.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * THE PADDING, AND THE RE-MEASURED BUDGET IT SPENDS FROM ([13-15], CLOSED BY 17-CONTEXT D-196)
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `p-1.5` IS A CONFORMANCE FIX, NOT STYLING. Without it this control is the `size-4` glyph and nothing
+ * else below `sm:` — a **16×16** pointer target, 8px under the WCAG 2.5.8 AA minimum, on the control
+ * that reaches a user's own account, on every signed-in route in the product. Plan 13-15 measured it
+ * (`a[Profile] 16x16`) and could not fix it from a Phase-13 surface list; D-196 is the decision to fix
+ * it here, by padding on the LINK — not by a bigger glyph (`size-4` is untouched) and not on
+ * `NAV_LINK_CLASS`, which four header links share and widening all four is a header change nobody
+ * asked for.
+ *
+ * WHY `p-1.5` (6px → 28×28) AND NOT `p-1` (4px → exactly 24×24) OR `p-2` (8px → 32×32):
+ *   • `p-1` lands the box exactly ON the AA bar, where a sub-pixel rounding decision is the difference
+ *     between conformant and not. The budget below has the room, so buying 4px of margin costs
+ *     nothing that is needed elsewhere.
+ *   • `p-2` would make the link 32px — exactly `AUTH_SLOT_BOX`'s declared `h-8`. The slot's height
+ *     claim is that its content fits inside it; a control sized exactly to the box is one edit away
+ *     from being the thing that defines the box's height.
+ *   • Both are steps on the declared spacing ladder. This phase authors no new spacing value.
+ *
+ * THE 226px BUDGET IS DELIBERATELY RE-OPENED HERE (D-196), AND THE FIGURES THIS PARAGRAPH USED TO
+ * CARRY WERE WRONG IN BOTH DIRECTIONS. It said *"the signed-in cluster measures 200px against 226px
+ * available"*. Both numbers came from `11-UI-SPEC § Responsive behaviour`'s arithmetic — *"mode switch
+ * 96 + bell 32 + `Profile` 48 + 2 gaps 24 = 200px"* — which is an ESTIMATE, and `measurements.ts`'s
+ * `AUTH_SLOT_ICON` docblock already records one of its terms as false (the bell is `size-11`, 44px,
+ * not 32). MEASURED instead, in real Chromium on `/profile` at 320×800, signed in, 29 August 2026:
+ *
+ *   before `p-1.5`   slot 178.4 × 32   ·   a[Profile] 16 × 16   ·   brand 52 wide, right edge 68
+ *   after  `p-1.5`   slot 190.4 × 32   ·   a[Profile] 28 × 28   ·   brand unchanged
+ *   available        224px — the header's 288px content box (320 − 2 × `px-4`) less the 52px brand
+ *                    less the one `gap-3` between them. Not 226; that figure was the estimate's.
+ *   headroom after   224 − 190.4 = **33.6px**
+ *
+ * So the pair this paragraph now states is **190.4 / 226** against the spec's named budget and
+ * **190.4 / 224** against the measured one — replacing the estimated 200 / 226 it carried before. The
+ * fix costs 12px of a budget with 45.6px spare and clears both readings. The slot's own children, for
+ * whoever needs the breakdown next:
+ * `button[Booking] 94.4×28`, `div 44×44` (the bell), `a[Profile] 28×28`, two `gap-3`s.
+ *
+ * ⚠ A MISS HERE WOULD HAVE BEEN A FINDING TO ESCALATE, NOT A LICENCE TO REDESIGN THE HEADER (D-196).
+ * Nothing was shrunk, no label was dropped and no gap was reduced to make this fit — the budget simply
+ * had the room, and the way to know that was to measure rather than to trust the estimate.
  */
 export function ProfileLink({ href = "/profile" }: { href?: string } = {}) {
   return (
     <Link
       href={href}
       aria-label="Profile"
-      className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-1.5")}
+      className={cn(NAV_LINK_CLASS, "inline-flex items-center gap-1.5 p-1.5")}
     >
       <UserIcon aria-hidden="true" className="size-4" />
       <span className="hidden sm:inline">Profile</span>
