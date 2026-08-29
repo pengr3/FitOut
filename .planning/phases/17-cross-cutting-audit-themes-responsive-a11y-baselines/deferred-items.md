@@ -15,6 +15,12 @@ that took it, so the closure is checkable rather than asserted.
 Assembled by plan **17-13** from the twelve `17-*-SUMMARY.md` files, `e2e-baseline-reds.md` and the
 row-level records in the specs themselves. Phase base commit: **`e439bf9`**.
 
+**APPENDED BY PLAN 17-14: `[17-D26]`.** 17-13 assembled and machine-checked **25** findings. The
+phase's final plan — the baseline round-trip — found a **26th** by reading its dispatch diff against
+the prediction written before it, and it is the one finding here that is about GATE-01 itself. The
+four-part format counts re-measured after the append: `## ` **26**, `Owner file` **26**, `Why it was
+not fixed` **26**, `Cheapest correct fix` **26**, `### ` **0**.
+
 **Nothing was relocated here.** Phases 13, 14, 15 and 16 keep their own `deferred-items.md` rows;
 plans 17-06 and 17-10 annotated the ones this phase closed **in place** (`[13-15]`, `[15-12]`,
 `[16-D9]`, `[14-WR-03]`). Those ids are referenced below, never moved.
@@ -816,6 +822,90 @@ the first box is read, rather than raising the bound. Raising the bound would ma
 tolerate the animation permanently.
 
 **Suggested owner:** whichever plan next opens `mobile-booker-path.spec.ts`.
+
+---
+
+## [17-D26] — Four GATE-01 baselines encode the WALL CLOCK, so `gate-visual` goes red on every venue-local day rollover
+
+- **Found by:** plan 17-14, reading the dispatch diff of generation run `33273465053` against the
+  prediction written before it, 2026-08-30
+- **Owner file:** `e2e/helpers/visual-drive.ts` (`listingDetailDrive`, `sheetDrive`, `collisionDrive`
+  — none of which pins a clock), with the false claim living in
+  `src/lib/design/visual-baselines.ts`'s `listing-detail` docblock
+- **Severity:** **GATE-01 integrity, and the highest-value finding this phase made.** It is the
+  mechanism behind `[13-16]`'s *"a phase can COMPLETE with GATE-01 red and nothing notices"* — the
+  gate does not merely fail to notice a red, it **manufactures one every day**, which is precisely
+  how a real regression becomes invisible in a wall of expected noise.
+
+**Measured, not inferred — and read off images, not off an argument.** The pre-dispatch comparison
+run `33272796552` (head `0d1ce93`) reported `gate-visual` **11 failed / 31 passed / 42 skipped**.
+Six of the eleven were predicted in writing. **Four were not**, and their pixel counts were identical
+across four different viewport widths — `listing-detail-320`, `listing-detail-768`,
+`listing-detail-1280` and `listing-sheet-375`, **173 px each** — with a fifth,
+`collision-notice-1280`, at **917 = 744 + 173**, i.e. carrying this cause *plus* the predicted
+`ProfileLink` one.
+
+Decoding both versions of each PNG puts the changed pixels in **two 44px-tall bands separated by an
+8px gap, spanning the calendar grid's full width** — 44px being the `h-11` day-cell height
+`availability-calendar.tsx` records for itself. Cropping `listing-detail-1280` at x 130–530,
+y 1600–1800 shows what moved:
+
+```
+OLD baseline (minted 2026-08-26)         NEW (regenerated 2026-08-30, Asia/Manila)
+  23 24 25 [26] 27 28 29                   23 24 25  26  27 28 29     <- 26..29 now greyed out
+  30 31  1  2  3  4  5                    [30] 31  1  2  3  4  5      <- today-ring moved here
+```
+
+**The mechanism.** `src/app/listings/[id]/(detail)/page.tsx` passes `todayDate={todayLocal}` at three
+call sites (`:595`, `:774`, `:822`); `src/components/availability/availability-calendar.tsx:500`
+takes `todayDate ?? initialDate`, so with the prop supplied `todayStart` is the **real venue-local
+today**. That drives three rendered things: the month the grid opens on, the neutral `--muted`
+today-ring (`:637`), and `disabled={[{ before: todayStart }, …]}` (`:635`).
+
+**The row's own docblock believes it is protected and is wrong.** It says *"⚠ `?date=` IS NOT
+DECORATION, IT IS WHAT MAKES THIS BASELINE DETERMINISTIC. Without it the page renders `todayLocal` …
+so the month grid, the highlighted day and the set of disabled past days all change WITH THE WALL
+CLOCK — a baseline that goes red tomorrow for no reason, which is the flake that gets a threshold
+widened."* Measured: `?date=2026-09-16` pins the **selected day and the hour grid beneath it** and
+nothing else. The grid still opens on **today's** month — the crop above is **August 2026**, not the
+September the parameter names — and the ring and the disabled set still track the wall clock. The
+sentence is not wrong about the danger; it is wrong that the parameter removes it.
+
+**The timeline, which is the part worth keeping.** The previous baselines were minted by dispatch
+`32925834322` at `2026-08-26T03:16Z` (Manila 11:16, Aug 26) and confirmed green by `ci` run
+`32945807603` at `08:03Z` **the same Manila day**. The very next day-rollover broke them.
+`gate-visual` has therefore been red on `dev` since **2026-08-27** for this reason alone, and nothing
+noticed because nothing was pushed until 17-14. **A gate whose baselines have a one-day shelf life is
+a gate that trains its readers to expect red.**
+
+**Why it was not fixed here.** Three independent reasons, and the third is decisive. (1) The repair
+belongs in `e2e/helpers/visual-drive.ts`, which is **not** in plan 17-14's `files_modified` and is
+the file all 24 blocked-baseline reasons hang off — 17-13 measured it byte-identical across the whole
+phase, and changing it inside the phase's last plan lands an instrument change unread. (2) It is an
+instrument change whose entire value is the diff it produces, which is the stated ground on which
+17-13 declined `[17-D12]`, `[17-D17]` and `[17-D19]`. (3) **Any commit after the regeneration
+invalidates this phase's closing evidence and forces another round-trip** (D-202) — the plan is
+sequenced last precisely so nothing lands after the comparison run, and fixing this would require a
+code commit *and* a second regeneration *and* a second comparison.
+
+**⚠ The consequence, stated so a future reader does not mis-read it as a new regression:** the four
+regenerated calendar baselines now encode **"today = 30 August 2026"**. They were green in the
+comparison run recorded as this phase's evidence, and **they will be red on the next Manila
+day-rollover**, by exactly this mechanism, until the fix below lands.
+
+**Cheapest correct fix:** install a fixed clock for the calendar-bearing rows in
+`e2e/helpers/visual-drive.ts` — the mechanism already exists in that file and is already wired
+through `surfaces.spec.ts` (`if (drive.needsClock) await page.clock.install()`, installed **before**
+the first navigation, with `checkoutDrive` as the working precedent). Set `needsClock` on
+`listingDetailDrive`, `sheetDrive` and `collisionDrive` and pin the clock to a literal instant inside
+`VRT_COLLISION`'s day, so the today-ring, the disabled set and the opening month are all fixtures
+rather than wall-clock reads. Then one regeneration and one comparison. The docblock in
+`visual-baselines.ts` gets amended in the same change, with its previous wording quoted as history,
+because it currently tells the next reader the problem is already solved. **Do NOT widen a pixel
+threshold** — the row's own comment names that as the wrong answer, and it is right.
+
+**Suggested owner:** a gap-closure plan, or Phase 18's first plan. It is a prerequisite for any
+future phase reading `gate-visual` as evidence of anything.
 
 ---
 

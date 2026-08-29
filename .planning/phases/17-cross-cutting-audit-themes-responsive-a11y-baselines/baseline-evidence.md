@@ -312,3 +312,169 @@ broken state (T-17-74 / T-17-76). Measured against that bar:
 
 Proceeding. The 173-px cause is carried into the diff review as a **finding to confirm and escalate**,
 not as something the mint is allowed to absorb silently.
+
+---
+
+# 2 · The dispatch, and the diff READ file by file
+
+## 2.1 The GENERATION run — recorded, and explicitly NOT the evidence
+
+| Item | Value |
+|---|---|
+| Workflow | `.github/workflows/baselines.yml`, job `generate-baselines` |
+| Trigger | `workflow_dispatch` (`gh workflow run baselines.yml --ref dev`) |
+| **Generation run id** | **`33273465053`** |
+| Conclusion | `success` |
+| Ran against | `0d1ce9311a3fd6ac3f6af012341dc7105b29d59e` (`0d1ce93`) |
+| Started / finished | `2026-08-29T20:25:44Z` / `2026-08-29T20:30:02Z` |
+| Image | `mcr.microsoft.com/playwright:v1.60.0-noble` (pinned, unchanged) |
+| Commit it produced | **`84d6c7766edab2c9212e88f8d069a47f9324cc1c`** (`84d6c77`), author `github-actions[bot]` |
+| Files staged | **11**, reported by the job's own tripwire as `staged 11 baseline file(s)` |
+
+> ### ⚠ RUN `33273465053` IS THE GENERATION RUN AND IS **NOT** THIS PHASE'S EVIDENCE.
+> Its green means the surfaces rendered and the files landed. **Nothing compared against them.** Its
+> push authenticated with `GITHUB_TOKEN`, so it triggered no workflow; the job says so itself in a
+> `::warning::` on its own run page. Reading a pass off this id is `[13-16]` repeating. The evidence
+> is in § 3.
+
+**Twelve regenerated, eleven committed — and the twelfth is the answer to the flake.** The log shows
+`… is re-generated, writing actual.` for **12** files, one of them `dev-theme-320-court`. Only 11
+were staged, because the regenerated `dev-theme-320` was **byte-identical** to the committed one and
+produced no diff. That is the independent confirmation that its pre-dispatch failure was a flake and
+not a pixel change.
+
+## 2.2 The commit's diff, checked against the three things that had to hold
+
+| Check | Result |
+|---|---|
+| Every path ends `-visual-linux.png` | **yes** — `git show --name-only 84d6c77 \| grep -v -- '-visual-linux\.png$'` counts **0** |
+| Zero `*-grove-*.png`, zero `*-win32.png`, zero `*-darwin.png` on disk after the pull | **0** (AC#26) |
+| New files (`A`) or deletions (`D`) | **0 and 0** — all **11** are `M`. Disk count stays **36** |
+| `EXPECTED_BLOCKED` / `EXPECTED_BASELINE_COUNT` | **24 / 78**, untouched; `wizard-cover-preview` still blocked |
+| `playwright.config.ts` `updateSnapshots: "none"` | **line 78, unchanged and unconditional** |
+| `git diff e439bf9..HEAD` over `playwright.config.ts`, `.github/workflows/`, `surfaces.spec.ts`, `visual-drive.ts`, `seed-baseline-fixtures.ts` | **EMPTY** |
+| `node scripts/verify-workflows.mjs` | **exit 0** — one run command carries `--update-snapshots`, in `baselines.yml` |
+| `git status --porcelain drizzle/` / `drizzle/*.sql` | empty / **26** (AC#32, GATE-06) |
+
+**The prediction's file list was exactly right about what could NOT happen: zero PNGs were minted.**
+
+## 2.3 THE DIFF, READ — measured per file, not accepted
+
+Each regenerated PNG was decoded and compared against its pre-dispatch version pixel by pixel, and
+the **bounding box of the changed pixels** recorded. A pixel count says *how much* moved; a bounding
+box says *what*.
+
+| File | Image | Changed px | Changed-pixel bbox | y-bands |
+|---|---|---|---|---|
+| `search-results-320` | 320×2968 | 1275 | x 40–126, y 497–727 | 497–512, 716–727 |
+| `search-results-768` | 768×2080 | 1275 | x 44–130, y 461–691 | 461–476, 680–691 |
+| `search-results-1280` | 1280×1690 | 1275 | x 537–1008, y 355–370 | 355–370 |
+| `search-relax-band-320` | 320×1868 | 1275 | x 40–126, y 497–727 | 497–512, 716–727 |
+| `search-relax-band-1280` | 1280×1260 | 1275 | x 537–1008, y 355–370 | 355–370 |
+| `booking-not-found-1280` | 1280×800 | 1703 | **x 947–1191, y 18–45** | 18–45 |
+| `listing-detail-320` | 320×3038 | 3697 | x 25–284, y 1382–1477 | **1382–1425, 1434–1477** |
+| `listing-detail-768` | 768×2460 | 4180 | x 25–319, y 1480–1575 | **1480–1523, 1532–1575** |
+| `listing-detail-1280` | 1280×2669 | 4180 | x 153–447, y 1650–1745 | **1650–1693, 1702–1745** |
+| `listing-sheet-375` | 375×812 | 4180 | x 25–319, y 505–600 | **505–548, 557–600** |
+| `collision-notice-1280` | 1280×2879 | 5883 | x 153–1191, y 794–1745 | **794–821**, 1650–1693, 1702–1745 |
+
+*(The counts here are whole-pixel inequality; Playwright's reported 173 / 712 / 744 / 917 are its
+own perceptual-threshold counts. The two agree on which files moved and on the grouping — 1275 on
+all five search rows, 4180 on all three listing rows and the sheet — which is the property being
+read.)*
+
+**Then the regions were CROPPED and looked at**, old beside new. Three causes, each confirmed by an
+image rather than by an argument.
+
+### Cause 1 — the DS-09 padding, on the five `search-*` rows. **PREDICTED. Confirmed.**
+
+Crop of `search-results-1280` at x 480–1080, y 320–400 shows the search bar's `When` / `From` / `To`
+/ `Price` row. Old: `Any date` and `Any price` sit close to their box's left edge. New: both labels
+and the calendar glyph sit **~6px further right**, inside boxes whose borders did not move.
+
+That is exactly `size:default` `px-2.5` → `size:touch` `px-4` on the two popover triggers 17-05
+converted, and it explains the otherwise puzzling shape of the bbox: a 16px-tall band rather than a
+44px one, because the **button boxes are `w-full` / `min-w-[…]` and did not resize — only the glyphs
+inside them moved**. 17-05's prediction was right in every particular, including which five files.
+
+### Cause 2 — D-196's `ProfileLink`, on `booking-not-found` AND `collision-notice`. **HALF PREDICTED.**
+
+Crop of `booking-not-found-1280` at x 900–1240, y 5–65: the signed-in cluster
+`Booking ⌄ · 🔔 · Profile`. New vs old, the whole cluster sits **~12px further left** — the exact
+consequence of `ProfileLink` going 16×16 → 28×28 in a right-aligned row. bbox height **28**, which
+is the new control's height to the pixel.
+
+The identical crop of `collision-notice-1280` at y 780–840 shows the **same** cluster and the **same**
+shift. So `[17-D6]`'s *"at least one shootable baseline row renders that header"* was literally true
+and practically an under-count: **two** shot rows do. Recorded in § 1.7.2; `checkout` is signed in
+and does not, because that page renders no header at all.
+
+### Cause 3 — **A WALL-CLOCK DEPENDENCY. NOT PREDICTED, NOT PHASE 17's, AND A REAL FINDING.**
+
+Crop of `listing-detail-1280` at x 130–530, y 1600–1800 — the availability calendar's month grid:
+
+```
+OLD (baseline minted 2026-08-26)          NEW (regenerated 2026-08-30, Manila)
+  16 17 18 19 20 21 22  (all grey)          16 17 18 19 20 21 22  (all grey)
+  23 24 25 [26] 27 28 29                    23 24 25  26  27 28 29  (ALL grey now)
+  30 31  1  2  3  4  5                     [30] 31  1  2  3  4  5
+      ^ today-ring on 26                      ^ today-ring on 30
+```
+
+**The hypothesis in § 1.7.3 is CONFIRMED by the image, and sharpened in one respect: the grid is
+AUGUST, not September.** `?date=2026-09-16` pins the *selected day* and the hour grid beneath it; it
+does **not** pin which month the calendar opens on, and it does not pin `todayDate`. So:
+
+* the **today-ring** moved from **26 Aug** to **30 Aug** — one cell in each of two different week rows;
+* the **disabled past set** grew from *before 26* to *before 30*, greying out 26, 27, 28 and 29.
+
+That is precisely two 44px-tall bands (the `h-11` day-cell height the calendar's own docblock
+records) separated by an 8px gap, spanning the grid's full width — which is what the y-bands
+column above shows on **all four** affected files, at four different viewport widths.
+
+**Why it hits exactly these rows and no others:** `listing-detail` ×3 render the picker; `listing-sheet`
+is the same picker inside the 375px overlay; `collision-notice` drives the same listing's calendar
+*and* is signed in, which is why it alone carries **both** cause 2 and cause 3. `listing-lightbox`
+(a photo overlay) and `checkout` (no calendar, no header) are untouched, and they passed.
+
+#### ⚠ What this means, stated plainly rather than absorbed
+
+1. **`gate-visual` has been red on `dev` since 2026-08-27 for this reason alone**, and nothing
+   noticed, because nothing was pushed. The previous baselines were minted by dispatch
+   `32925834322` at `2026-08-26T03:16Z` (Manila 11:16, Aug 26) and confirmed green by `ci` run
+   `32945807603` at `08:03Z` the same Manila day. The first Manila day-rollover broke them. That is
+   `[13-16]`'s lesson reproduced exactly, four days later, by a mechanism nobody had named.
+2. **The four regenerated calendar baselines now encode "today = 30 August 2026" and will go red on
+   the next Manila day-rollover.** The regeneration did not fix the determinism gap — it could not;
+   it re-pinned it to a different day. **This is stated here so that a red on these four rows
+   tomorrow is read as this known finding and not as a new regression.**
+3. **It was NOT fixed inside this plan, deliberately.** The fix belongs in
+   `e2e/helpers/visual-drive.ts` (pin the clock for the calendar-bearing rows, the way `checkoutDrive`
+   already installs `page.clock`) or in the row's URL contract — an instrument change outside this
+   plan's `files_modified`, affecting four baselines and requiring another regeneration. A
+   post-regeneration commit invalidates the closing evidence and forces a re-run, which is why this
+   plan is sequenced last. Escalated as a finding instead, in `deferred-items.md`.
+4. **The `?date=` docblock in `visual-baselines.ts` is now known to be incomplete.** It claims the
+   query parameter is *"WHAT MAKES THIS BASELINE DETERMINISTIC"*; measured, it pins the selected day
+   and the hour grid but not the month grid, the today-ring or the disabled set. Correcting that
+   sentence is part of the same escalation, not a drive-by edit here.
+
+## 2.4 The `[A3]` verdict, post-dispatch
+
+**`[A3]` is FALSIFIED, and the diff says so twice.** The assumption was that the signed-in header
+renders on no shot surface. Two shot surfaces render it and **both moved**: `booking-not-found-1280`
+(744px, header-only) and `collision-notice-1280` (917 = 744 header + 173 calendar). `[17-D6]`'s
+prediction — *"a 12px-wider Profile control is the expected delta"* — held on both, and its
+enumeration was one row short.
+
+## 2.5 Verdict on the diff as a whole
+
+| Row | Cause | Predicted? | Accepted? |
+|---|---|---|---|
+| `search-results` ×3, `search-relax-band` ×2 | DS-09 `size="touch"` padding (17-05) | YES | yes — confirmed by crop |
+| `booking-not-found-1280` | D-196 `ProfileLink` `p-1.5` (17-06) | YES | yes — confirmed by crop |
+| `collision-notice-1280` | D-196 **plus** the wall clock | header half only | yes, **with the finding recorded** |
+| `listing-detail` ×3, `listing-sheet-375` | the wall clock alone — **not Phase 17's pixels** | NO | yes, **with the finding recorded** |
+
+**Nothing in this diff is unexplained.** Every changed file has a cause identified from an image, and
+the one cause nobody predicted is escalated rather than absorbed.
