@@ -706,7 +706,7 @@ Plans:
 
 - [x] 17-01-PLAN.md — the declared e2e baseline red set, `@axe-core/playwright@4.13.0` pinned, and `e2e/helpers/axe.ts` (one `.options()`, one vacuity guard)
 - [x] 17-02-PLAN.md — three DB-free design gates: the GATE-06 content digest, AC#26's grove half, and `focus-definition.test.ts` (AC#20)
-- [ ] 17-03-PLAN.md — RESP-04's source scan (`one-tree.test.ts`, AC#10/11) plus the two structural container test ids
+- [x] 17-03-PLAN.md — RESP-04's source scan (`one-tree.test.ts`, AC#10/11) plus the two structural container test ids
 - [ ] 17-04-PLAN.md — `e2e/helpers/nowrap.ts` and the sticky-bar clause AC#4-7, in `mobile-booker-path.spec.ts` (the Decision-Point call)
 - [ ] 17-05-PLAN.md — mechanical conformance: DS-09 ×5 + the ceiling to `toBe(0)` (AC#34), and D-197's slider `aria-disabled` (AC#23)
 - [ ] 17-06-PLAN.md — harness defects [16-D9] + [15-12], and D-196's ProfileLink padding with the 226px cluster re-measured (AC#3/9/22)
@@ -831,7 +831,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
-| 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 2/14 | In Progress | - |
+| 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 3/14 | In Progress | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 
