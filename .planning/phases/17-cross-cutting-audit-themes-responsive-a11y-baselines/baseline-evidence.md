@@ -4,6 +4,11 @@
 happened: the prediction **before** the dispatch, the diff **read** against that prediction, and
 the **comparison** run id that is the phase's closing evidence per **D-202**.
 
+> **CURRENT CLOSING EVIDENCE: comparison run [`33298297450`](https://github.com/pengr3/FitOut/actions/runs/33298297450), green, on `247d1e4`** — § 7.
+> It supersedes `33295755823` (§ 6), which superseded `33273927029` (§ 3). Both are kept, with the
+> reason each was superseded stated where it sits. Round 3 fired **no** generation run: the code
+> review's remediation changed **zero** baseline bytes, which is what § 7.1 predicted in writing.
+
 > ⚠ **A generation run is not the evidence.** `[13-16]` records a phase completing with
 > `gate-visual` red and nothing noticing, and `baselines.yml`'s own header records why: its push
 > authenticates with `GITHUB_TOKEN`, and *a `GITHUB_TOKEN` push triggers no workflow run*. The
@@ -956,3 +961,114 @@ hand-edited `STATE.md` / `ROADMAP.md` position lines — all under `.planning/`,
 escalate-class, all input to next-milestone decisions and blocking nothing. The one coverage note left
 open — the pinned day is also the selected day, so the today-ring is not separately visible — is
 recorded in the closure entry as a cheap future improvement, not a defect.
+
+---
+
+# 7 · Round 3 — the code-review remediation, and the comparison that re-establishes the evidence
+
+## 7.1 Why there is a round 3 at all, and why it is a COMPARISON and not a regeneration
+
+The phase's code review (`17-REVIEW.md`) found six warnings. The PM authorised five, and fixing them
+moved the tree off `085eb07` — the exact commit § 6 records as the closing evidence. That is
+authorised, and it carries an obligation: **the evidence has to be re-established on the new head.**
+
+**It is re-established by a comparison, NOT by a regeneration, and that is a prediction rather than a
+convenience.** Every one of the five fixes is an ARIA attribute, a docblock or a test. The falsifiable
+form of that claim is exactly the one this document has used twice already:
+
+> **If any baseline PNG had moved, that would be a FINDING — one of these "renders no pixels" fixes
+> renders pixels — and not something to absorb by regenerating.** No `baselines.yml` dispatch was
+> fired. No threshold was widened. `updateSnapshots: "none"` stays unconditional.
+
+## 7.2 What landed, and the mechanical proof that no pixel could follow
+
+Five commits, one per finding, on top of `085eb07`:
+
+| Commit | Finding | Files |
+|---|---|---|
+| `6d7c315` | **WR-06** | `ui/progress.tsx` (forward `value` to Root), `wizard.tsx` (docblock), `tests/design/progress-value.test.tsx` (new) |
+| `ba21d38` | **WR-05** | `listing-card.tsx`, `(host)/host/listings/page.tsx`, `deferred-items.md` — **all comment-only in `src/`** |
+| `040205d` | **WR-01** | `tests/security/dev-today-override.test.ts` |
+| `3ba7e6e` | **WR-02 / WR-03** | `tests/security/dev-today-override.test.ts` |
+| `247d1e4` | — | `17-REVIEW.md` resolution record |
+
+| Check | Result |
+|---|---|
+| `git diff 085eb07..HEAD --stat -- '*.png'` | **0 lines** — not one baseline byte moved |
+| `git diff 085eb07..HEAD --stat -- . ':(exclude).planning'` | **6 files, +538 / −46** — two `src/` comment-only, one `src/` one-line ARIA prop, one `src/` docblock, two test files |
+| The only rendered change in the whole diff | `progress.tsx` gains `value={value}` on `ProgressPrimitive.Root`, which adds `aria-valuenow` / `aria-valuetext` / `data-state` / `data-value` **attributes**. Checked: nothing in `globals.css` or any component selects on `[data-state]` for a progress bar, and the indicator's `translateX` is byte-unchanged |
+| The one `src/` surface with a rendered element at all | `/host/listings/[id]/edit` — a **blocked** row; no baseline shoots the wizard |
+| `EXPECTED_BLOCKED` / `EXPECTED_BASELINE_COUNT` / disk count | **24 / 78 / 36**, all unmoved |
+| `playwright.config.ts:78` | `updateSnapshots: "none"` — unconditional, byte-unchanged since `e439bf9` |
+
+## 7.3 The local gates, re-run because `src/` moved
+
+| Check | Result |
+|---|---|
+| `npm run build` (lint + `test:design` + `next build`) | **exit 0** |
+| `npm test` — run **ALONE**, after the build, never concurrently | **exit 0** — **186 files, 2169 passed / 5 skipped** |
+| — the delta from § 5.4's `2165 passed` | **+4**: 7 new in `tests/design/progress-value.test.tsx` (design config, counted separately) and the security file going 17 → 21 assertions |
+| `tests/security/dev-today-override.test.ts` | **21 passed** (was 17) |
+
+## 7.4 THE RUN
+
+| Item | Value |
+|---|---|
+| **COMPARISON run id** | **`33298297450`** |
+| Workflow / event | `ci` / `push` |
+| **Conclusion** | **`success`** |
+| **Head SHA it ran against** | **`247d1e4c1abd6fc9324a149289af5bfc0c193149`** (`247d1e4`) |
+| Started / finished | `2026-08-30T07:03:06Z` / `2026-08-30T07:08:26Z` |
+| `gate-visual (GATE-01 visual regression)` | **success** — **43 passed / 42 skipped / 0 failed** |
+| `gate-db-free (lint + design + build + workflow parse)` | **success** |
+| `gate-db (vitest against PostGIS 18)` | **success** |
+| `gate-price-parity (DB-vs-DOM price, 1 spec)` | **success** |
+
+**43 / 42 / 0 — identical to run `33295755823`, row for row.** No baseline changed on disk *and* the
+running app still renders every one of the 43 shot rows pixel-identically to its committed reference.
+Those are two different statements and both are needed: the first says the remediation did not touch
+the references, the second says it did not touch the pixels either.
+
+**No dispatch of `baselines.yml` was fired in this round.** There is no generation run to label,
+because nothing was generated — which is the point of § 7.1's prediction holding.
+
+*(One thing checked so it is not mistaken for new: the `gate-visual` log carries **2**
+`Hydration failed` lines from the dev `WebServer`. Run `33295755823` carries **2** as well — measured,
+`grep -c` on both logs. Pre-existing and unmoved by this remediation.)*
+
+> ### RUN `33298297450`, GREEN, ON `247d1e4`, IS PHASE 17's CLOSING EVIDENCE (D-202).
+
+## 7.5 ⚠ Run `33295755823` is SUPERSEDED — recorded, not deleted
+
+§ 6 recorded comparison run **`33295755823`** (green, on `085eb07`) as the closing evidence, and it
+was exactly that. It is **superseded rather than wrong**, and for a different reason than § 6.2's:
+
+* `33273927029` was superseded because the tree it compared had a **defect** — clock-dependent
+  baselines that would go red at the next day-rollover.
+* `33295755823` had no such flaw. It is superseded only because **the tree moved underneath it**: the
+  code review's five authorised fixes landed after it, so the commit it ran against is no longer the
+  head. Its green is still true of `085eb07`; it simply no longer speaks for what ships.
+* `33298297450` makes the **same** GATE-01 claim — 43 / 42 / 0 — about a head that also carries the
+  remediation. Strictly more, about strictly more code.
+
+Kept because the chain `33273927029 → 33295755823 → 33298297450` is the readable history of why this
+phase's evidence is trustworthy, and deleting a link hides a decision.
+
+## 7.6 What lands after the comparison
+
+Same rule and same proof shape as § 3.3 and § 6.3: **no code, test, workflow, config, schema or
+baseline commit lands after `247d1e4`.** The only commit after it is this section — `.planning/` only,
+read by no job in `ci.yml`, and unable to change a rendered pixel. The check:
+`git diff 247d1e4..HEAD -- . ':(exclude).planning'` prints **nothing**.
+
+## 7.7 The AC roll-call, re-measured at the end of round 3
+
+| Criterion | Result |
+|---|---|
+| **AC#25** — regeneration only via `baselines.yml` in the pinned image; `updateSnapshots: "none"` unchanged and unconditional | **holds** — and vacuously so this round: **no regeneration was dispatched at all**. `playwright.config.ts:78` byte-unchanged since `e439bf9` |
+| **AC#26** — zero grove / `win32` / `darwin` baselines | **holds** — **0**; disk **36** |
+| **AC#27 / D-202** — a green COMPARISON run on the head commit, id recorded | **holds** — `33298297450` on `247d1e4` |
+| Every changed PNG predicted in writing | **holds, in its strongest form** — **zero** PNGs changed, which is what § 7.1 predicted in writing before the push |
+| No newly minted PNG | **holds** — no generation run exists this round |
+| No pixel threshold widened | **holds** — no `maxDiffPixels` / `threshold` anywhere in the diff |
+| **AC#32** — zero schema migrations | **holds** — `drizzle/` clean, **26** `.sql` |
