@@ -351,6 +351,24 @@ relaxing**; that is why it was written as an exception rather than a narrower su
 
 **Suggested owner:** the PM (it is a layout decision), then whichever plan owns the shell.
 
+**RESOLVED 2026-08-30 — quick `260830-r4b`, commit `4636206`.** `STICKY_BAR_CLEARANCE` moved off
+`(detail)/page.tsx`'s `<main>` and onto `src/app/listings/[id]/(detail)/layout.tsx`'s
+`flex min-h-dvh flex-col` wrapper — the smallest element containing BOTH `<main>` and `SiteFooter` —
+gated `lg:pb-0`, because both bars are `lg:hidden` and 80px of unpainted background under a `bg-muted`
+footer at desktop widths would be a new defect rather than a fix. `book/page.tsx` is byte-identical:
+that route renders no footer, so there `<main>` already IS the document's bottom.
+
+The named footer exception in `e2e/mobile-booker-path.spec.ts` is **deleted** (`grep -c inFooter` → 0)
+and nothing else in the occlusion clause was relaxed — exactly as this row predicted. **DRIVE 4**
+(watched red, run and reverted, transcript in that file's header) reproduced this row's two boxes to
+the pixel from the assertion side, with the clearance deleted from the LAYOUT wrapper. Re-measured
+after the fix at 320×568, both themes: `a("Privacy")` `{y: 435, height: 18, bottom: 453}` against a bar
+at `{y: 504, height: 64, bottom: 568}` — **clears by 51px**.
+
+Two pointers in this row were wrong and are corrected rather than propagated: `SiteFooter` is in
+`src/components/patterns/site-footer.tsx`, not `site-chrome.tsx`; and the `<main>` was at `:500`, not
+`:480`. The `[17-D9]` measurement above is unchanged.
+
 ---
 
 ## [17-D10] — `STICKY_BAR_CLEARANCE` is INERT on `/listings/[id]` today; it is load-bearing only on `/listings/[id]/book`
@@ -381,6 +399,17 @@ changes.
 decision, and the two rows are the two halves of its evidence.
 
 **Suggested owner:** folded into `[17-D9]`.
+
+**RESOLVED 2026-08-30 — quick `260830-r4b`, commit `4636206`,** as the other half of `[17-D9]`'s one
+placement decision. The belief this row was filed about is gone: the listing route no longer declares a
+sticky-bar clearance on an element the bar's victim does not live in, and `lg:pb-0` stops it declaring
+one at widths where no bar renders at all. The knob was NOT deleted from the listing route — this row
+warned against that, and the warning held — it was moved to the element that ends the document. On
+`/listings/[id]/book` it stays on `<main>` and stays load-bearing; DRIVE 2 above is still its watched
+red, and `mobile-booker-path.spec.ts` re-ran green on that half after the move.
+
+The desktop consequence is real and recorded: at `lg:` and above, `/listings/[id]` loses 80px of
+trailing whitespace it was never using for anything. That is this row's finding, spent.
 
 ---
 
