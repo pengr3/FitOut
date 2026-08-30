@@ -230,6 +230,78 @@ The first is one line of work; the second is a product decision about copy.
 
 **Suggested owner:** the PM chooses; whichever plan next opens that route segment executes.
 
+**RESOLVED 2026-08-30 — plan 17.1-02, commit `7c3444b`.** The PM chose the first of the two fixes
+above: **`src/app/listings/[id]/(detail)/not-found.tsx` is deleted**, and the header's false sentence
+went with it. The root not-found is the right document for a missing listing — it is the document the
+route has actually been serving all along, measured at 404 — so nothing replaced the file and no
+`not-found.tsx` was added at `src/app/listings/[id]/`. (Date in UTC, this file's convention; `git log`
+prints the commit at `2026-08-31T00:10:13+08:00` Manila.)
+
+**The four instruments moved in the SAME commit as the deletion**, which is the rule
+`overflow-320.spec.ts`'s own inventory clause states in as many words (*"Delete the entry, and delete
+its rows in the tables above in the same commit"*):
+
+| Instrument | Edit | Build-blocking? |
+|---|---|---|
+| `tests/design/empty-state-adoption.test.ts` | the `ADOPTERS` row, **plus both count pins** — `EXPECTED_ADOPTER_FILES` 15 → 14 and `EXPECTED_EMPTY_STATE_SITES` 18 → 17, with a fourth movement entry in the constants' docblock | **YES** |
+| `e2e/axe-sweep.spec.ts` | the `ROWS` entry (`/listings/[id] · not found`), comment included | no |
+| `e2e/overflow-320.spec.ts` | the `SURFACE_INVENTORY` entry, its section comment `not-found (4)` → `(3)`, **and** the AC#29 named-skip row entire | no |
+| the prose corrections | **THREE, not two** — see the count correction below | no |
+
+**This row's own reference table is wrong, and is corrected rather than propagated** (the same
+treatment `[17-D9]`'s RESOLVED line gave its two bad pointers). The table names **7 references across
+4 files**; the tree carried **10 across 5**. The three it missed are `e2e/shell.spec.ts:1046` — a
+whole file the table does not list — and `e2e/overflow-320.spec.ts:639` and `:648`, two mentions
+buried *inside* the AC#29 skip paragraph rather than in its `name`. That is why the prose corrections
+were three: `bookings/[id]/not-found.tsx` (the `main`-vs-`div` contrast, re-pointed to
+`src/app/not-found.tsx`, **comment-only** — the rendered copy is a security property under
+T-04-CONFIRMIDOR and was not touched), `overflow-320.spec.ts`'s header note (a dated `[17.1:` bracket
+appended, the `[17-11:` and `[17-12:` brackets left byte-identical), and `shell.spec.ts:1046`, which
+was stale **twice over**: it named the deleted file *and* cited as its authority the very header this
+deletion removes.
+
+**This row's `loading-coverage` claim is FALSE, and the docblock correction depends on knowing it.**
+*"Why it was not fixed here"* above says a new `not-found.tsx` at `src/app/listings/[id]/` *"moves
+`tests/design/loading-coverage.test.ts`'s pins"*. It does not — RESEARCH C2, and the same correction
+already appended to `[17-D1]`. That gate's collector takes **`page.tsx` and `loading.tsx` only**;
+`not-found.tsx` and `layout.tsx` are invisible to it. All four of its pins are unmoved and the file is
+untouched by this commit (`git diff --name-only HEAD~1 HEAD -- tests/design/loading-coverage.test.ts`
+prints nothing). Recorded because a reader who expects those pins to move, and finds them still, will
+otherwise conclude the deletion did not land.
+
+**The finding uncovered while deleting: the `axe-sweep` row had been GREEN WHILE AUDITING THE WRONG
+DOCUMENT.** Its `tell` was `[data-testid="empty-state"]` — which the **ROOT** not-found renders too —
+and its `path` (`/listings/a-listing-id-that-must-never-exist-17-07`) 404s to that root boundary. So
+the row never once visited the file in its `file:` column. This was **driven, not inferred**: with the
+file already deleted from disk, `/listings/[id] · not found · court · 320px` and `· 1280px` both
+**passed**. It is this phase's own key insight arriving as a measurement — *the failure mode in this
+codebase is never "no gate", it is "a gate that reads the wrong thing and is green"* — and it is why
+deleting the row costs **zero** real coverage: the document it actually visited is still audited, by
+the `root not-found` row that legitimately owns it. Nobody should read this row's absence as lost
+coverage. Only the disk-walked AC#2 could ever have caught it, because AC#2 is the one clause that
+compares the table against reality instead of against itself.
+
+**The watched red, and its honest limit.** Verbatim transcripts of the intermediate state — the state
+between the deletion and the instrument edits, which exists whether or not anybody looks at it — are
+at `.planning/phases/17.1-close-phase-17-escalations-sticky-bar-clearance-soft-404-pro/17.1-EVIDENCE.md`
+**§ W1**. Four gates red there, two of them build-blocking: `empty-state-adoption` on **three**
+clauses (so `npm run build` cannot reach `next build`), axe-sweep AC#2 with
+`extra: ["src/app/listings/[id]/(detail)/not-found.tsx"]`, `inventory to disk` naming the stale
+surface, and `inventory to tables` as its mirror. **The limit, stated because it matters:** the
+deletion itself *cannot* be watched red from the product side — an unreachable file's presence and
+absence render identically. What § W1 proves is narrower and is the thing worth proving: the coupling
+between a deleted file and the instruments naming it is **enforced**, not remembered.
+
+**One reference survives on purpose.** `grep -rn "detail)/not-found" src tests e2e` returns **1**, not
+0: the `[17-11:` bracket in `overflow-320.spec.ts`'s header note. Plan 17.1-02 asked for both zero
+occurrences and that bracket byte-identical, which cannot both hold — freezing won, because a dated
+amendment that edits the sentence it amends is not an amendment. The `[17.1:` bracket appended beneath
+it says so. Everywhere that was not frozen history, the path is deliberately not spelled as a single
+string, per `price-breakdown.tsx`'s GREP TRIPWIRE idiom, so that count stays meaningful.
+
+The AC#29 skip paragraph's **measurement** was carried into the commit message before the paragraph
+was deleted, and is restated in this row's measured body above, which is unchanged.
+
 ---
 
 ## [17-D4] — `e2e/availability.spec.ts` carries THREE undeclared standing reds beyond the one that was declared
