@@ -26,6 +26,33 @@ describe("17-D26 — the dev-only ?today= override", () => {
     "utf8",
   );
 
+  /**
+   * `SOURCE` with whole-line comments and blank lines removed — HOISTED OUT OF THE ENV-READ TEST by
+   * the phase-17 code review (WR-01), because a second source assertion now needs the same strip and
+   * for the same reason.
+   *
+   * ⚠ THE STRIP IS THE POINT OF BOTH SCANS, NOT NOISE — the [17-D20] defect class, which this one file
+   * has now inflicted on itself three times: PROSE ABOUT A COUNTED TOKEN IS STILL THE TOKEN. The
+   * env-read scan's first draft failed against the correct module because the header necessarily NAMES
+   * the environment variable it explains; the date-regex scan below is exposed to exactly the same
+   * shape, because the honest way to document a shared parser is to quote its regex.
+   *
+   * IT MAKES BOTH ASSERTIONS STRONGER RATHER THAN MORE PERMISSIVE. A comment cannot read an env var and
+   * cannot parse a date, so scanning comments could only ever produce a FALSE RED — never catch a real
+   * widening.
+   *
+   * KNOWN LIMIT, stated so it is not mistaken for a parser: this is a LINE filter, so a trailing `//`
+   * comment on a line that also carries code survives into `CODE`. That is the conservative direction
+   * (it can only over-include), and `tests/design/strip-comments.test.ts` owns the real thing.
+   */
+  const NEWLINE = String.fromCharCode(10);
+  const CODE = SOURCE.split(NEWLINE)
+    .filter((line) => {
+      const t = line.trim();
+      return t !== "" && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*");
+    })
+    .join(NEWLINE);
+
   describe("production inertness — the load-bearing half", () => {
     it("returns null for a PERFECTLY VALID date when NODE_ENV is production", () => {
       vi.stubEnv("NODE_ENV", "production");
@@ -55,22 +82,26 @@ describe("17-D26 — the dev-only ?today= override", () => {
     });
 
     it("reads NO other environment variable — the guard cannot be widened by configuration", () => {
-      // ⚠ SCANNED OVER CODE LINES ONLY, AND THE COMMENT STRIP IS THE POINT OF THE TEST, NOT NOISE.
-      // The first draft scanned the whole file and FAILED against the correct module, because the
-      // header necessarily NAMES the environment variable it is explaining. That is the [17-D20]
-      // defect class — prose about a counted token is still the token — and it is the third time this
-      // plan has inflicted it on itself. The strip also makes the assertion stronger rather than more
-      // permissive: a comment cannot read an env var, so scanning comments could only ever produce a
-      // false red, never catch a real widening.
-      const NL = String.fromCharCode(10);
-      const code = SOURCE.split(NL)
-        .filter((line) => {
-          const t = line.trim();
-          return t !== "" && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*");
-        })
-        .join(NL);
-      const envReads = code.match(/process\.env\.[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
+      // ⚠ SCANNED OVER CODE LINES ONLY — see `CODE`'s docblock above for why the strip is the point of
+      // this assertion rather than noise. (The strip used to be inlined here; WR-01 hoisted it when a
+      // second scan needed the same protection, and it is byte-for-byte the same filter.)
+      const envReads = CODE.match(/process\.env\.[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
       expect(envReads).toEqual(["process.env.NODE_ENV"]);
+    });
+
+    it("proves the comment strip is real — it removes prose and keeps the guard", () => {
+      // GUARD THE GUARD on `CODE`, added by WR-01. Both scans above and below are `not.toMatch` /
+      // `toEqual([…])` shapes over `CODE`, and a `CODE` that had silently become "" would satisfy both
+      // of them forever. Two assertions, in opposite directions, so neither an empty strip nor a
+      // no-op strip can pass.
+      expect(CODE, "the comment strip produced no code at all").toContain(
+        'if (process.env.NODE_ENV === "production") return null;',
+      );
+      expect(
+        CODE,
+        "the comment strip kept a prose line, so both source scans are back in the [17-D20] class",
+      ).not.toContain("WHY THIS EXISTS");
+      expect(SOURCE).toContain("WHY THIS EXISTS");
     });
   });
 
@@ -96,8 +127,74 @@ describe("17-D26 — the dev-only ?today= override", () => {
     it("delegates to the SHARED parser rather than introducing a second date idiom", () => {
       expect(SOURCE).toContain('from "@/lib/search/window-params"');
       expect(SOURCE).toContain("parsePickedDate");
-      // No hand-rolled date regex in this file — the one in window-params.ts is the only one.
-      expect(SOURCE).not.toMatch(/\d\{4\}/);
+    });
+
+    it("introduces no second date regex of the copy-paste shape", () => {
+      // ⚠ THIS ASSERTION USED TO BE UNABLE TO FAIL (phase-17 code review, WR-01). It read:
+      //
+      //     // No hand-rolled date regex in this file — the one in window-params.ts is the only one.
+      //     expect(SOURCE).not.toMatch(/\d\{4\}/);
+      //
+      // In a regex literal `\d` is the DIGIT CLASS and `\{` is a literal brace, so that pattern means
+      // "a digit immediately followed by the characters {4}" — it matches the string `2{4}`, and it
+      // never matches the SOURCE TEXT `\d{4}`, whose `{` is preceded by `d`. It would therefore have
+      // stayed green on the very day someone pasted a second date parser into this module, which is
+      // the only drift its own comment claimed to prevent. False safety on the file that owns a
+      // query-parameter seam is worse than no assertion, because the next reader trusts it.
+      //
+      // MEASURED, both directions, before and after:
+      //
+      //   shipped   /\d\{4\}/     vs `const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);`  → false
+      //   shipped   /\d\{4\}/     vs the string "2{4}"                                   → true
+      //   corrected /\\d\{\d+\}/  vs the same offending line                              → true
+      //   corrected /\\d\{\d+\}/  vs the real src/lib/dev/today-override.ts               → false
+      //
+      // `\\d` is what matches a LITERAL backslash-d in the scanned text. The last row is why the
+      // corrected assertion is green on this tree rather than green by construction.
+      //
+      // ⚠ RED-WATCHED AGAINST THE REAL FILE, not only against a string (30 August 2026). The offending
+      // line above was pasted into `src/lib/dev/today-override.ts` as CODE (`const m = /^(\d{4})-…`),
+      // the suite was run, and the file was reverted:
+      //
+      //   × introduces no second date regex of the copy-paste shape
+      //     → AssertionError: today-override.ts grew a second date regex; the shared strict parser in
+      //       window-params.ts is meant to be the only one, and a second one is a second set of edge
+      //       cases on a query-parameter seam: expected 'import { parsePickedDate } from "@/li…' not
+      //       to match /\\d\{\d+\}/
+      //
+      //   1 failed / 18 passed — ONE test moved, and it is this one. On that same modified tree the
+      //   assertion this replaces was measured GREEN (`/\d\{4\}/` against the file containing the
+      //   offender → false), which is the finding stated as an experiment rather than as an argument.
+      //   Reverted → 19 passed.
+      //
+      //   The [17-D20] half was probed on the same tree: with the identical regex moved into a COMMENT
+      //   instead, an unstripped `SOURCE` scan matches (a false red) and the `CODE` scan does not.
+      //
+      // ⚠ AND THE CLAIM IS NARROWED TO WHAT THE INSTRUMENT ENFORCES — the other half of the fix, and
+      // the reason the old comment was as wrong as the old regex. It said "no hand-rolled date regex
+      // in this file". This catches the `\d{n}` quantifier and NOTHING ELSE — measured: `\d{1,3}` (a
+      // range quantifier), `[0-9]{4}` and `\w{4}` all slip past. It is a tripwire for the obvious
+      // copy-paste of the shared parser, not a proof that no second parser exists. The delegation
+      // assertions above are what carry the real weight; this is the cheap corroboration.
+      const HAND_ROLLED_DIGIT_QUANTIFIER = /\\d\{\d+\}/;
+      const SYNTHETIC_OFFENDER = String.raw`  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);`;
+
+      // THE POSITIVE CONTROL COMES FIRST, and it is not decoration: a `not.toMatch` whose pattern can
+      // match nothing is green forever, which is precisely how the previous version passed review.
+      expect(
+        SYNTHETIC_OFFENDER,
+        "the pattern cannot catch a pasted copy of the shared parser — the exact defect WR-01 " +
+          "reported in the assertion this one replaces",
+      ).toMatch(HAND_ROLLED_DIGIT_QUANTIFIER);
+
+      // Scanned over CODE, not SOURCE: the honest way to document a shared parser is to quote its
+      // regex in a comment, and a comment cannot parse a date. See `CODE`'s docblock ([17-D20]).
+      expect(
+        CODE,
+        "today-override.ts grew a second date regex; the shared strict parser in window-params.ts " +
+          "is meant to be the only one, and a second one is a second set of edge cases on a " +
+          "query-parameter seam",
+      ).not.toMatch(HAND_ROLLED_DIGIT_QUANTIFIER);
     });
 
     it("never casts the request value", () => {
