@@ -38,6 +38,30 @@ const VISUAL_OFF_LINUX_REASON =
  */
 const RUN_VISUAL_PROJECT = process.platform === "linux";
 
+/**
+ * `[17-D28]` — REAL EMAIL IS AN OPT-IN, BY NAME, AND NEVER THE DEFAULT.
+ *
+ * Measured under the phase-17.1 § P3 census at `9683ad9`: a full run of `e2e/overflow-320.spec.ts`
+ * made **12** `POST https://api.resend.com/emails`, and `e2e/axe-sweep.spec.ts` made **2** — all 14 on
+ * the operator's live key, to synthetic recipients minted by the `signUp` fixtures, and all 14 really
+ * left the machine. This flag is the one way back to that behaviour.
+ *
+ * ⚠ THIS FILE NEVER READS THE SECRET'S VALUE, IN EITHER BRANCH. The opt-in branch emits no
+ * `RESEND_API_KEY` entry at all and lets the merge below inherit the operator's own environment; the
+ * default branch writes a constant `""`. Neither reads, logs or interpolates the key. That is how the
+ * "never print the credential" rule is satisfied structurally rather than by remembering.
+ */
+const REAL_EMAIL = process.env.FITOUT_E2E_REAL_EMAIL === "1";
+
+if (REAL_EMAIL) {
+  // Same idiom as the VISUAL_OFF_LINUX_REASON warning above: one line, on stderr, naming the FLAG and
+  // never the key. A run that sends real email should say so before it sends any.
+  console.warn(
+    "[playwright] FITOUT_E2E_REAL_EMAIL=1: RESEND_API_KEY is INHERITED from your environment and " +
+      "this run WILL send real email to the synthetic addresses the fixtures mint (17-D28).",
+  );
+}
+
 if (!RUN_VISUAL_PROJECT) {
   // One line, on stderr, on every non-Linux run. The alternative — silence — makes an absent project
   // indistinguishable from a config that failed to load one.
@@ -110,7 +134,57 @@ export default defineConfig({
   webServer: {
     command: "npm run dev",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────────
+    // `[17-D24]` / `[17-D28]`. UNCONDITIONAL, and — like `updateSnapshots` above — there is
+    // deliberately no CI-conditional ternary here. Restoring `!process.env.CI` is the regression this
+    // line exists to prevent, and `tests/design/e2e-email-silence.test.ts` turns that restoration red.
+    //
+    // WHAT THE OLD VALUE COST. `reuseExistingServer: !process.env.CI` adopts whatever process already
+    // holds :3000 — along with whatever environment THAT process was booted with. Every guarantee
+    // expressed in `env` below is therefore silently void on any machine with a dev server already
+    // running. `[17-D24]` records a second bite of the same trap: a `.next`-wedged server answering
+    // 500 on every route was adopted rather than replaced, and the run reported the 500s as failures
+    // of the product. This has produced false results twice already (17.1 waves 1 and 2).
+    //
+    // WHY DELETION RATHER THAN DETECTION. A marker-file plus pid-liveness probe could tell an adopted
+    // server from a booted one, but such a probe can itself go vacuous — which is the exact failure
+    // class this repo keeps paying for. With the adoption case gone, the `env` guarantee is a STATIC
+    // PROPERTY OF THIS FILE, checkable by reading it, rather than a runtime condition that must be
+    // trusted. Note that on CI the trap never existed (`!process.env.CI` is already false there), so
+    // this changes local behaviour only — while the exposure that mattered was always the CI one.
+    //
+    // THE COST, STATED RATHER THAN HIDDEN: `npx playwright test` now FAILS when anything else holds
+    // :3000, and Playwright's own error names the port. Free the port first. That is loud where the
+    // old behaviour was silent. Turbopack's `.next` compile cache survives boots, so the price is a
+    // boot (~0.7s measured) and not a rebuild.
+    // ─────────────────────────────────────────────────────────────────────────────────────────────
+    reuseExistingServer: false,
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────────
+    // `[17-D28]` — THE SILENCE. `src/lib/email.ts:34-35` binds `resend = key ? new Resend(key) : null`
+    // at MODULE LOAD, and `send()` at `:38-53` returns on the `!resend` branch BEFORE ANY TRANSPORT
+    // OBJECT EXISTS. For Resend the key IS the switch, so emptying it here removes the network — not
+    // merely the credential. (Contrast `instrumentation.ts:20-22`, where PayMongo's `authHeader()`
+    // falls back to `""` and still sends `Basic <base64 of ":">`: same-looking finding, opposite
+    // mechanism, which is why THAT one needed an interception and this one does not. `src/lib/email.ts`
+    // is not touched by this fix and must stay that way.)
+    //
+    // ⚠ WHY `""` AND NOT AN UNSET — BOTH HALVES MEASURED, NEITHER GUESSED:
+    //   • `webServer.env` MERGES over `process.env` (`{ ...process.env, ...this._options.env }`,
+    //     Playwright 1.60.0, `webServerPlugin.js`). A key simply omitted here inherits the live one.
+    //   • `@next/env` applies a `.env.local` value ONLY when `typeof initialEnv[key] === "undefined"`.
+    //     A deleted variable would therefore be re-supplied from `.env.local` at server boot; `""` is
+    //     a defined string, so it survives and shadows the operator's real key.
+    //
+    // The result, measured on both census spec files: 12 → 0 and 2 → 0 outbound Resend requests, with
+    // every spec still green — no spec depends on delivery, because the two that need an emailed token
+    // read it from Postgres and say why (`e2e/password-reset.spec.ts:8-10`,
+    // `e2e/stale-session-selfheal.spec.ts:44-50`). Sends route to `src/lib/email.ts`'s `[email:dev]`
+    // console fallback instead, which is that module's own designed test posture.
+    // ─────────────────────────────────────────────────────────────────────────────────────────────
+    env: REAL_EMAIL ? {} : { RESEND_API_KEY: "" },
+
     timeout: 120_000,
   },
 });
