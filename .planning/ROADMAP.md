@@ -54,6 +54,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [x] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
 - [x] **Phase 16.1: Upload Hardening & Storage Economy (INSERTED)** - What a host uploads is bounded, is what it claims to be, and costs what it should to serve (all 7 plans executed 2026-08-28) (completed 2026-08-28)
 - [x] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof (completed 2026-08-30)
+- [ ] **Phase 17.1: Close Phase 17 Escalations (INSERTED)** - The four audit findings the PM promoted to in-scope stop being recorded and start being fixed
 - [ ] **Phase 18: Search-Results Map** - A booker can see where the results are, not just what they are (net-new capability, D-136)
 - [ ] **Phase 19: Availability Copy-to-All** - A host copies one day's hours across days instead of re-entering them (net-new capability, D-136)
 
@@ -737,6 +738,28 @@ Plans:
 
 *D-138 (2026-08-23) halves it again:* a **court-only** axe pass, a **court-only** baseline sweep, and a **fixed four-surface contract spec** (`e2e/visual/theme-swap.spec.ts`) in place of a second full sweep. What was 24 grove baselines and a two-theme axe pass is now one spec that renders four surfaces twice and requires the frames to differ.
 
+### Phase 17.1: Close Phase 17 escalations — sticky-bar clearance, soft-404 probe, PayMongo interception (INSERTED)
+
+**Goal:** The four escalate-class findings the PM promoted at Phase 17's D-199 review stop being recorded and start being fixed.
+**Requirements**: RESP-03 (advances its sticky-bar clause via [17-D9]); the rest close findings, not requirements
+**Depends on:** Phase 17
+**Plans:** 0 plans
+
+**Scope — decided at the D-199 triage, 2026-08-30. Four items, one per decision:**
+
+1. **[17-D9] + [17-D10] — the 320px sticky-bar occlusion.** On `/listings/[id]` at 320px the footer link sits ENTIRELY under the sticky booking bar: measured `a("Privacy")` at `{y:515, bottom:533}` against a bar at `{y:504, bottom:568}` — untappable and unscrollable-to, in both themes. `STICKY_BAR_CLEARANCE` is applied to `<main>` but `SiteFooter` renders after `<main>`, so no clearance covers the bottom 64px of the DOCUMENT. [17-D10] is the same knob's other half: the clearance is INERT on `/listings/[id]` (deleting `pb-20` at `page.tsx:480` changed nothing) and load-bearing only on `/listings/[id]/book`. Fix the document-level clearance; do not widen a threshold.
+
+2. **[17-D1] + [17-D2] — the soft-404, MEASURED FIRST.** ~10 `loading.tsx` files sit above a `page.tsx` calling `notFound()`; the shell flushes and commits `200` before the body raises. RESEARCH assumption **A6 — that this behaves the same in a production build — has never been driven**. Every reading to date is a `next dev` reading, and 17-01's re-measure did NOT reproduce. **Task 1 is the probe** (`next build && next start` against `/listings/{draft-id}`); the fix is CONDITIONAL on it reproducing. Do not restructure ten boundaries before knowing.
+
+3. **[17-D18] — intercept the PayMongo fetch.** `/host/payouts/refresh` issues **2 real POSTs** to `api.paymongo.com/v1/linked_accounts/onboarding_links` per full e2e run, carrying whatever `PAYMONGO_SECRET_KEY` the local `.env` holds, and consumes 2 of a 5-per-60s per-identity budget. Repair is `page.route` on the PayMongo origin returning the gated-error shape — **keep the row**; dropping it would leave the route unmeasured, which the finding argues is worse. Matters before this suite ever runs in CI with a live key (D-35's boundary).
+
+4. **[17-D3] — delete the unreachable boundary.** `src/app/listings/[id]/(detail)/not-found.tsx` cannot render in any state: `(detail)/layout.tsx` raises `notFound()` from a LAYOUT, so the parent segment's boundary wins and `src/app/listings/[id]/` has none — it falls through to the root, whose document was measured (404, 1 `empty-state`, this file's own copy appearing **0** times). Delete the file and its header, which claims the opposite. The root not-found already serves this case correctly.
+
+**Out of scope, and deliberately so:** the 13 Bucket-C findings ([17-D7], [17-D8], [17-D11]–[17-D25] minus those above) stay parked for "whichever plan next opens the file" — a convention with a track record here, since Phase 17 itself closed [13-15], [15-12], [16-D9] and [14-WR-03] in place. [17-D5] (`wizard-cover-preview`) stays blocked until the PM schedules it; [17-D16] (`/host/earnings` ships zero actions) is accepted as intended product.
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 17.1 to break down)
+
 ### Phase 18: Search-Results Map
 
 **Goal**: A booker can see *where* the results are, not only what they are.
@@ -832,6 +855,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
+| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 0/? | Not started | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 

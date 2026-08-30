@@ -1051,3 +1051,53 @@ a wave-parallel executor that could still close its own criterion by **measuring
 - `[17-D9]` — the sticky bar occludes a footer link at 320px. Moving the clearance is a shell change.
 - `[17-D16]` — a host looking at held payouts has no route forward from `/host/earnings`. Correct?
 - `[17-D18]` — is a real PayMongo POST per e2e run acceptable, or should the fetch be intercepted?
+
+---
+
+# D-199 TRIAGE OUTCOME — the PM's dispositions, 2026-08-30
+
+The D-199 review above asked for one batched decision. This section records what was decided and
+where each finding went, so a later reader does not have to reconstruct it from the roadmap.
+
+⚠ **This section is deliberately level-1.** All 25 finding headings are `##` and level-3 headings are
+zero, so the unanchored heading grep is unambiguous — a `##` heading here would make
+`grep -c '^## '` disagree with `grep -c '^## \[17-D'` and break the very property the file's own
+header warns about. The `[17-D20]` class, avoided rather than re-inflicted.
+
+**Four findings were PROMOTED into `Phase 17.1` (INSERTED after Phase 17).** Each carries its
+decision and the reason it was not the alternative:
+
+| Finding | Decision | Not chosen, and why |
+|---|---|---|
+| `[17-D9]` + `[17-D10]` | **Fix in 17.1** — move the clearance so it covers the DOCUMENT, not just `<main>` | Not folded into Phase 18 (slower to land on a WCAG-adjacent defect sitting on the core booking surface) and not backlogged (reachable-above-320px is not a defence for 320px) |
+| `[17-D1]` + `[17-D2]` | **Measure first in 17.1** — a `next build && next start` probe settles assumption A6; the fix is CONDITIONAL on it reproducing | Not "fix all ~10 routes now" — every reading to date is a `next dev` reading and 17-01's re-measure did NOT reproduce, so restructuring ten boundaries would be a change made before knowing |
+| `[17-D18]` | **Intercept in 17.1** — `page.route` on the PayMongo origin, returning the gated-error shape | Not accepted as-is (D-35's live-key-in-CI boundary is exactly where this becomes unacceptable) and NOT dropped from the sweep — the finding's own argument is that an audit refusing to visit a route *because* it makes a call does not measure the route |
+| `[17-D3]` | **Delete in 17.1** — remove the file and its false header | Not "add the missing segment boundary" — the root not-found already serves this case correctly and measured clean; adding a segment would be new product behaviour introduced by an audit follow-up |
+
+**Two findings were CLOSED at triage with no work owed:**
+
+- `[17-D5]` (`wizard-cover-preview`) — **stays blocked until the PM schedules it.** Unblocking commits
+  a new binary reference image, which `16-15` called *"the PM's to schedule, not a side effect."*
+  Unchanged from the disposition the row already carries.
+- `[17-D16]` (`/host/earnings` ships zero controls of its own) — **accepted as intended product.**
+  Three deliberate decisions produce it, and `17-11` already inverted the guard to *"exactly zero, and
+  here is why"*, which is strictly stronger than an exemption because it now fails when the
+  declaration goes stale. No product change owed.
+
+**The remaining 13 stay parked, and that is a measured choice rather than an omission.** Their
+suggested owner is *"whichever plan next opens `<file>`"* — a convention with a track record **in this
+repository**: Phase 17 itself closed `[13-15]`, `[15-12]`, `[16-D9]` and `[14-WR-03]` in place, each
+annotated where it was filed rather than relocated. Manufacturing a phase for them would be busywork.
+Two are worth a reader's attention because they weaken an INSTRUMENT rather than the product —
+`[17-D17]` (`expectVisibleFocus` can land in the site footer on a control-less surface and still
+report green) and `[17-D19]` (the AC#29 block calls `expectTargets` and `expectVisibleFocus` on no
+row) — so whichever plan next opens `e2e/helpers/focus.ts` or that block should take them first.
+
+**Also carried forward, from the phase's security audit (`17-SECURITY.md`, 80/81 closed, 0 blocking):**
+three unregistered flags that are register gaps rather than code defects — the `?today=` dev seam has
+**no threat ID** (control verified, row missing; recommended as `T-18-TODAYSEAM`), `T-17-19`'s
+*"exactly one vendored file"* was overtaken by the WR-06 fix editing `ui/progress.tsx`, and
+`T-17-59`'s accept rationale is the one measured false by `[17-D18]` above. Residual **R-1** is worth
+Phase 18's attention: CI never exercises the production branch of any `NODE_ENV` guard, because
+`playwright.config.ts` boots `npm run dev` — a `next build && next start` smoke job closes it, and
+`17.1`'s `[17-D1]` probe builds exactly that capability.
