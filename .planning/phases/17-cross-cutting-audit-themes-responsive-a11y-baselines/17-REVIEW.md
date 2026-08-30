@@ -54,6 +54,24 @@ findings:
   info: 5
   total: 11
 status: issues_found
+resolution:
+  fixed_at: 2026-08-30
+  authorized_scope: WR-01, WR-02, WR-03, WR-05, WR-06
+  fixed: 5
+  accepted_unfixed: 6
+  fixed_findings:
+    WR-01: 040205d
+    WR-02: 3ba7e6e
+    WR-03: 3ba7e6e
+    WR-05: ba21d38
+    WR-06: 6d7c315
+  accepted_findings:
+    WR-04: not authorized — inherited from before this phase (present at e439bf9)
+    IN-01: accepted
+    IN-02: accepted
+    IN-03: accepted
+    IN-04: accepted
+    IN-05: accepted
 ---
 
 # Phase 17: Code Review Report
@@ -62,6 +80,32 @@ status: issues_found
 **Depth:** standard (per-file, with cross-file tracing on the `?today=` seam)
 **Files Reviewed:** 43 (baseline PNGs and `.planning/` artefacts excluded)
 **Status:** issues_found — **0 Critical**, 6 Warning, 5 Info
+**Remediation:** 5 of 6 warnings **FIXED** (WR-01, WR-02, WR-03, WR-05, WR-06) — see § Remediation below.
+
+---
+
+## Remediation — what was fixed, and what was deliberately not
+
+The PM authorised five findings. Each was fixed and committed on its own, and each fix was
+**red-watched**: the corrected instrument was run against a synthetic offender and observed to go red,
+then reverted. Where a fix's own measurement disagreed with this report, **the measurement wins and the
+correction is recorded** — twice below.
+
+| Finding | Status | Commit | Note |
+|---|---|---|---|
+| **WR-06** | **FIXED** | `6d7c315` | `value` now reaches `ProgressPrimitive.Root`, so the wizard bar emits `aria-valuenow` + `aria-valuetext`. Pinned by a rendered test (`tests/design/progress-value.test.tsx`) — a source scan could not have seen it, since the old file mentioned `value` three times and forwarded it zero. Reverting the one-line fix: **5 failed / 2 passed**. The `wizard.tsx` docblock's "heard a percentage" sentence is corrected in the same commit, quoted as history. |
+| **WR-05** | **FIXED** | `ba21d38` | All **three** repetitions of the false claim corrected — the docblock, the call-site comment in `(host)/host/listings/page.tsx`, and `deferred-items.md`'s closure row. **DECISION: the `h3` default STAYS.** Two measured reasons, neither the one the old docblock gave: (a) it is not unreachable — `tests/listing/listing-card.test.tsx` mounts the card **9** times and passes `titleAs` **0** of them, so removing it forces 9 unrelated test edits; (b) of the two legal values it is the *loud* wrong answer, since `h3` under an `h1`-then-grid page trips `heading-order` — which is how the one real call site was caught inside this phase — whereas an `h2` default flattens titles into siblings of their section heading and axe is silent about that. Making the prop required was considered and rejected as more invasive and asymmetric with `EmptyState` / `PanelCard`. |
+| **WR-01** | **FIXED** | `040205d` | `/\\d\{\d+\}/`, scanned over **comment-stripped** code rather than raw source ([17-D20]: the honest way to document a shared parser is to quote its regex, and that would false-red — probed). Red-watched against the **real file**: the offending line pasted into `today-override.ts` → **1 failed / 18 passed**, and on that same tree the shipped assertion was measured **green**. The claim in the comment is also narrowed to what the instrument enforces — measured: `\d{1,3}`, `[0-9]{4}` and `\w{4}` all slip past it. |
+| **WR-02** | **FIXED** | `3ba7e6e` | Walks `src/` (**352** files) and asserts the whole referrer **set**, matched on the module specifier so static, type-only, re-export and dynamic references all count. Red-watched: a second referrer in `(app)/dev-throw-app/page.tsx` → **1 failed / 20 passed**, and the diff names the file. |
+| **WR-03** | **FIXED** | `3ba7e6e` | Restore moved to a describe-level `afterEach`, plus a test that asserts the isolation on every green run. `afterEach` **rather than** `unstubEnvs: true`, measured: the global switch restores after every test and would break `payment-reconcile.test.ts` / `retire-checkout.test.ts`, which stub in `beforeAll` and restore in `afterAll` on purpose. ⚠ **The report's cascade count was wrong and is corrected: it is 4, not 7.** The eight parse-table rows assert `toBeNull()` and the leaked production branch *returns* null, so they stay green — for the wrong reason. Measured, pre-fix shape: **4 failed / 16 passed**; fixed shape: **1 failed / 20 passed**. The point stands unchanged — the positive control is still among the false alarms. |
+| **WR-04** | **ACCEPTED, NOT FIXED** | — | Out of the authorised scope. The idiom is **inherited**, not introduced here: it is present at the phase base commit `e439bf9` (`e2e/overflow-320.spec.ts:721`, `:1348`), as the finding's own provenance note says. Left untouched deliberately, including the five sites this phase propagated it to. |
+| **IN-01 … IN-05** | **ACCEPTED, NOT FIXED** | — | All five left as reported. None was authorised, and none changes a behaviour — they are a type narrowing, a softened claim, a module-boundary preference, a wording bound, and a census-scope observation. |
+
+**No fix above renders a pixel** — every one is an ARIA attribute, a docblock or a test, and no baseline
+PNG is touched by this remediation. That is a claim, so it is checked rather than asserted: the phase's
+D-202 closing evidence is re-established by a fresh **comparison** run on the new head (never a
+regeneration, and `updateSnapshots: "none"` stays unconditional). The run id and its head commit are
+recorded in `baseline-evidence.md`.
 
 ## Summary
 
@@ -169,6 +213,7 @@ None found.
 
 **File:** `tests/security/dev-today-override.test.ts:100`
 **Severity:** Warning
+**Resolved:** FIXED — `040205d`. Corrected regex, scanned over comment-stripped code; the claim is narrowed to what it enforces. Red-watched against the real file (1 failed / 18 passed; the shipped assertion measured green on that same tree).
 
 **Issue.** The assertion is:
 
@@ -211,6 +256,7 @@ offender and matched.
 
 **File:** `tests/security/dev-today-override.test.ts:109-121`
 **Severity:** Warning
+**Resolved:** FIXED — `3ba7e6e`. Walks `src/` (352 files) and asserts the referrer set. Red-watched with a second referrer (1 failed / 20 passed; the diff names the file).
 
 **Issue.** The test's name and its docblock both state a *blast-radius* property — *"A dev-only seam that
 spreads is no longer a seam. If this count grows, the new call site needs its own argument for why a
@@ -244,6 +290,7 @@ expect(importers.map(rel).sort()).toEqual(["src/app/listings/[id]/(detail)/page.
 
 **File:** `tests/security/dev-today-override.test.ts:29-35`
 **Severity:** Warning
+**Resolved:** FIXED — `3ba7e6e`. Describe-level `afterEach`, plus a test asserting the isolation on every green run. ⚠ The cascade is **4, not 7** — measured; the parse-table rows assert `toBeNull()` and the leaked production branch returns null. Pre-fix 4 failed / 16 passed, fixed 1 failed / 20 passed.
 
 **Issue.**
 
@@ -284,6 +331,7 @@ afterEach(() => {
 `e2e/axe-sweep.spec.ts:889-891` · `e2e/one-tree.spec.ts:734-736` ·
 `e2e/mobile-booker-path.spec.ts:1252-1254` · `e2e/overflow-320.spec.ts:958-960` and `:2221-2223`
 **Severity:** Warning
+**Resolved:** ACCEPTED, NOT FIXED — outside the authorised scope, and inherited from before this phase (present at `e439bf9`). Left untouched deliberately.
 
 **Issue.** Four files now carry this shape, each with a comment asserting what it buys:
 
@@ -332,6 +380,7 @@ test(title, async () => {
 
 **File:** `src/components/listing/listing-card.tsx:159` (the default) and `:196-213` (the docblock)
 **Severity:** Warning
+**Resolved:** FIXED — `ba21d38`. All three repetitions corrected (docblock, call-site comment, `deferred-items.md`). ⚠ The default is **not unreachable** — measured: `tests/listing/listing-card.test.tsx` mounts the card 9 times passing `titleAs` 0 times. **Decision: the `h3` default stays**, argued from that plus the fact that `h3` fails loudly (`heading-order` fires) where an `h2` default would flatten silently.
 
 **Issue.** The docblock's central argument is:
 
@@ -384,6 +433,7 @@ titleAs: "h2" | "h3";
 **File:** `src/app/(host)/host/listings/[id]/edit/wizard.tsx:899` (the changed line);
 root cause `src/components/ui/progress.tsx:8-20`
 **Severity:** Warning
+**Resolved:** FIXED — `6d7c315`. `value` forwarded to Root; pinned by a rendered test (`tests/design/progress-value.test.tsx`), red-watched at 5 failed / 2 passed. The `wizard.tsx` docblock's false 'heard a percentage' sentence is corrected in the same commit.
 
 **Issue.** The change is:
 
@@ -447,6 +497,7 @@ commit.
 
 **File:** `src/app/listings/[id]/(detail)/page.tsx:199-212`; test at `tests/security/dev-today-override.test.ts:82-96`
 **Severity:** Info
+**Resolved:** ACCEPTED, NOT FIXED — not authorised for this remediation pass.
 
 Next's App Router hands `searchParams` values as `string | string[] | undefined`; the page declares
 `today?: string` (as it already does for `date`, `start`, `end`, `resume`, `passes`). For `?today=a&today=b`
@@ -471,6 +522,7 @@ and/or normalise at the call site: `devTodayOverride(Array.isArray(sp.today) ? u
 
 **Files:** `src/lib/dev/today-override.ts:24-29`; `17-14-SUMMARY.md:482-494`; `playwright.config.ts:111`
 **Severity:** Info
+**Resolved:** ACCEPTED, NOT FIXED — not authorised for this remediation pass.
 
 The summary's production probe (dev `:3000` honours `&today=`, prod `:3101` does not, identical in every
 field) is real evidence and I have no reason to doubt it. Two smaller things are worth naming:
@@ -493,6 +545,7 @@ field) is real evidence and I have no reason to doubt it. Two smaller things are
 **Files:** `src/app/(app)/dev-throw-app/page.tsx:84` · `(auth)/dev-throw-auth/page.tsx:64` ·
 `(host)/host/dev-throw/page.tsx:82` · `(legal)/dev-throw-legal/page.tsx:66`
 **Severity:** Info
+**Resolved:** ACCEPTED, NOT FIXED — not authorised for this remediation pass.
 
 `import { SENTINEL_LEAK_PROBE } from "@/app/dev/throw/page";` pulls a *page module* — with its `metadata`
 export and its default component — into four other route graphs, so that five route files share one
@@ -508,6 +561,7 @@ side effect added to `dev/throw/page.tsx` would now execute in four extra graphs
 
 **File:** `e2e/helpers/visual-drive.ts:333-361`
 **Severity:** Info
+**Resolved:** ACCEPTED, NOT FIXED — not authorised for this remediation pass.
 
 > ⚠ `&today=` IS WHAT STOPS THESE BASELINES EXPIRING
 
@@ -527,6 +581,7 @@ shelf life is unchanged and is described above."*
 
 **File:** `tests/design/loading-coverage.test.ts` (`EXPECTED_PAGES` 29 → 33, `EXPECTED_NON_QUALIFYING` 8 → 12)
 **Severity:** Info
+**Resolved:** ACCEPTED, NOT FIXED — not authorised for this remediation pass.
 
 The bump is arithmetically correct (the four new pages are sync default exports and cannot suspend, so
 they join the non-qualifying side and `EXPECTED_QUALIFYING` does not move), and the failure message
