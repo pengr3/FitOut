@@ -1,73 +1,88 @@
 ---
 phase: 17-cross-cutting-audit-themes-responsive-a11y-baselines
-verified: 2026-08-30T16:10:00Z
-status: gaps_found
-score: 3/4 must-haves verified
+verified: 2026-08-30T17:05:00Z
+status: passed
+score: 4/4 must-haves verified
 overrides_applied: 0
-gaps:
-  - truth: "GATE-02 — an automated axe pass is green in the product theme (court) (ROADMAP SC#3)"
-    status: failed
-    reason: >
-      e2e/axe-sweep.spec.ts — the file this phase built specifically to prove GATE-02's axe half —
-      does NOT pass when run. Its own completeness self-check, "AC#2 — no surface can be silently
-      absent from the axe table › the table's row set equals the declared surface set" (:791-809),
-      fails deterministically: `declaredRouteFiles()` walks the whole `src/app/**` tree with no
-      `dev/**` exclusion and now finds 46 route files, but `ROWS` (built by plan 17-07 in Wave 2)
-      only has entries for 42. The four missing files are the dev-throw error-boundary probes that
-      plan 17-12 (Wave 3) added AFTER 17-07 shipped: `src/app/(app)/dev-throw-app/page.tsx`,
-      `src/app/(auth)/dev-throw-auth/page.tsx`, `src/app/(host)/host/dev-throw/page.tsx`,
-      `src/app/(legal)/dev-throw-legal/page.tsx`. Nobody reconciled the two plans' route tables
-      after Wave 3 landed. Reproduced independently, twice, deterministically, at `--workers=1`
-      in isolation (not a contention/flake artifact — contrast with `e2e-baseline-reds.md`'s
-      documented flake class, which this is not part of and does not resemble).
-    artifacts:
-      - path: "e2e/axe-sweep.spec.ts"
-        issue: >
-          `declaredRouteFiles()` (:324-337) and `ROWS` (:339 onward) are out of sync. Running
-          `npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1 -g "AC#2"`
-          fails with: missing = ["src/app/(app)/dev-throw-app/page.tsx",
-          "src/app/(auth)/dev-throw-auth/page.tsx", "src/app/(host)/host/dev-throw/page.tsx",
-          "src/app/(legal)/dev-throw-legal/page.tsx"].
-    missing:
-      - "Four rows added to e2e/axe-sweep.spec.ts's ROWS table for the dev-throw-* routes, following the exact already-shipped pattern used for /dev/theme and /dev/throw (\"AUDIT INSTRUMENT, NOT AN AUDIT SUBJECT\", excluded by name with a skip reason) — this is the phase's own sanctioned mechanical-fix pattern, not a new decision."
-      - "The stale docblock comment at e2e/axe-sweep.spec.ts:338 (\"42 route files on disk\") corrected to 46, matching loading-coverage.test.ts's already-corrected 29→33 EXPECTED_PAGES bump."
-      - "A deferred-items.md entry or equivalent record — this gap exists in none of the phase's 25 logged findings, so it was never surfaced to the PM at all, unlike every other completeness edge case this phase found (e.g. [17-D13])."
+re_verification:
+  previous_status: gaps_found
+  previous_score: 3/4
+  gaps_closed:
+    - "GATE-02 — an automated axe pass is green in the product theme (court) (ROADMAP SC#3)"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines — Verification Report
 
 **Phase Goal:** The five gates stop being per-phase promises and become the milestone's closing, machine-checked proof across every surface at once.
 **Requirements:** RESP-03, RESP-04, GATE-02, GATE-06
-**Verified:** 2026-08-30T16:10:00Z
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Verified:** 2026-08-30T17:05:00Z
+**Status:** passed
+**Re-verification:** Yes — after gap closure (previous pass: `gaps_found`, 3/4, one BLOCKER on GATE-02)
 
-## Summary
+## What changed since the last pass
 
-This phase's own instrumentation is, on the whole, unusually rigorous: red-watch evidence is real
-and reproducible (independently confirmed for `tests/design/money-path-invariants.test.ts`,
-`tests/design/one-tree.test.ts`, and `tests/security/dev-today-override.test.ts`), the code review's
-five fixed findings are genuinely fixed and their pinning tests genuinely pass, GATE-01's two closing
-CI runs are genuinely green on the claimed commits (`247d1e4` and `1751fb0`, confirmed via `gh run
-view`), and the `?today=` dev seam is confirmed independently — by tracing `getAvailability`'s call
-site and `placeHold`'s server-side re-derivation myself — to never reach a money or availability
-decision.
+The prior BLOCKER — `e2e/axe-sweep.spec.ts`'s own AC#2 completeness self-check failing because
+`declaredRouteFiles()` found 46 route files on disk against a 42-row table — is closed by commit
+`64da86f`, with the closing record committed at `a2f6973` (= current `HEAD` = current `origin/dev`).
+I re-verified the fix directly rather than accepting the SUMMARY's account of it.
 
-But the adversarial pass this verification is required to make ("does each new gate actually go red
-when the thing it guards breaks, and can it currently pass") surfaced one BLOCKER that none of the
-phase's own closing checks caught: **`e2e/axe-sweep.spec.ts`, GATE-02's own declared automated-axe
-instrument, fails when run, right now, on `HEAD` (`1751fb0`).** Not hypothetically — I ran it. The
-failure is deterministic and has nothing to do with an accessibility regression; it is a
-completeness gap between two of this phase's own plans (17-07 built the axe table in Wave 2; 17-12
-added four new routes in Wave 3; nobody added rows for them). This falsifies ROADMAP.md's Phase 17
-SC#3 ("an automated axe pass green in the product theme (`court`)") as literally, presently true, and
-it is not recorded anywhere in the phase's own 25-item `deferred-items.md` ledger, so the PM has not
-seen it either.
+**The fix, checked line by line, not just claimed:**
 
-RESP-03, RESP-04 and GATE-06 are substantively verified — including two properly-escalated, honestly
-documented residual gaps ([17-D9], [17-D13]) that the phase's own remediation rules correctly classify
-as must-escalate rather than must-fix, and which do not, on inspection, look like laundering of
-mechanical work.
+- Four rows were added to `ROWS` for the `dev-throw-*` route files themselves
+  (`src/app/(app)/dev-throw-app/page.tsx`, `(auth)/dev-throw-auth/page.tsx`,
+  `(host)/host/dev-throw/page.tsx`, `(legal)/dev-throw-legal/page.tsx`), each a **named skip**
+  (`path: null`, `skip: "…"`). I confirmed these are legitimate skips, not a red-to-green trick:
+  - The sibling assertion at `e2e/axe-sweep.spec.ts:920` (`"every unreachable row carries a reason
+    long enough to act on"`) requires every `path: null` row's `skip` string to be ≥ 80 characters.
+    I ran it — `2 passed` — and read all four new skip strings directly: each is a multi-sentence,
+    specific argument (server-side throw behind a production `notFound()` guard; the only document
+    the route can produce is its group's `error.tsx`; explicitly **not** a D-201 exclusion because
+    these routes sit inside their route groups on purpose, unlike `src/app/dev/**`). None is a
+    placeholder or a copy-paste with the noun swapped in a way that would hide an unmeasured surface.
+  - `declaredRouteFiles()` (line 322) walks the **entire** `src/app/**` tree with no `dev/**` or
+    `dev-throw-*` carve-out — I read the function body directly. The four new `page.tsx` files are
+    counted in its output like any other route file, so AC#2's equality check is not gamed by
+    excluding them from the left-hand side; the four rows are the only reason it now balances.
+  - `e2e/overflow-320.spec.ts` (the sibling instrument, updated by plan 17-12 in wave 3) already
+    classified these same four routes as `coveredBy` (covered-not-excluded) rather than `excluded` —
+    I grepped its `SURFACE_INVENTORY` table (lines 3734–3747) and confirmed the two instruments now
+    agree on the disposition of all four, where before this fix `axe-sweep.spec.ts` disagreed with
+    its own sibling.
+- **The eight new scans** (the four error-boundary rows for `(app)`/`(auth)`/`(host)`/`(legal)`,
+  which previously carried `path: null` skips reading *"no dev throw affordance exists inside the
+  (app) route group"* — a sentence plan 17-12 had already made false) are now driven through the
+  real routes at both 320 and 1280, with each `tell` selector narrowed to name the boundary's own
+  route-out text (e.g. `[data-testid="error-state"]:has-text("Your bookings")`) rather than the
+  bare shared `error-state` hook, closing 17-RESEARCH Pitfall 6 (auditing one boundary five times
+  under five names). I ran the whole file myself: rows 67–74 in the output (`error boundary ·
+  (app)/(auth)/(host)/(legal) · court · 320px/1280px`) are `ok`, not skipped — genuinely new,
+  genuinely passing scans, not relabeled no-ops.
+- **The 46-route count** is re-measured, independently, by me, not trusted from the commit message:
+  `find src/app -name page.tsx` → 33, `not-found.tsx` → 4, `error.tsx` → 5, `global-error.tsx` → 1,
+  `opengraph-image.tsx` → 3. Sum = **46**, exactly matching the corrected docblock and the
+  `declaredRouteFiles()` output the AC#2 test compares against.
+
+**Full re-run, this session, on `HEAD` (`a2f6973`):**
+
+```
+npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1
+→ 60 passed, 36 skipped (1.7m), exit 0
+npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1 -g "AC#2"
+→ 2 passed (both AC#2 sub-tests: row-set equality, and the ≥80-char reason floor)
+npx playwright test e2e/overflow-320.spec.ts --project=chromium --workers=1
+→ 100 passed, 9 skipped (2.0m), exit 0 — unchanged from the prior pass; no regression
+```
+
+**Regression check.** `64da86f` touches exactly one file (`e2e/axe-sweep.spec.ts`, +128/-20); `a2f6973`
+touches only three `.planning/` docs. Nothing else in the tree moved. `overflow-320.spec.ts`'s own
+D-201/AC#2 completeness block (which this pass re-ran, `9 passed`) is unaffected and still green,
+confirming the fix did not disturb the one other instrument it deliberately mirrors. The three
+previously-verified truths (RESP-03, RESP-04, GATE-06) rest on files this commit did not touch and
+were spot-re-confirmed unaffected (`ls drizzle/*.sql` still 26 files; `git status --porcelain drizzle/`
+still clean; CI runs on both `64da86f` and `a2f6973` independently confirmed green via `gh run view`,
+all 4 jobs each).
 
 ## Goal Achievement
 
@@ -75,104 +90,130 @@ mechanical work.
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | **RESP-03** — every surface holds from 320px up, sticky bar present, no wrap/overflow (ROADMAP SC#1) | ✓ VERIFIED (1 documented, escalated residual gap) | `e2e/mobile-booker-path.spec.ts` (11 passed / 3 declared skips) and `e2e/overflow-320.spec.ts` (100 passed / 9 declared skips, run at `--workers=1`) both independently re-run and green, including their own D-201/AC#8 completeness self-checks. `[17-D9]` (footer link occluded by the sticky bar on `/listings/[id]` at 320px) is real, measured, and correctly escalated — the test suite carries an explicit, argued exception for it rather than silencing it; see Gaps/Deferred below. |
-| 2 | **RESP-04** — search/detail/calendar/wizard/checkout/list surfaces hold one component tree across widths (ROADMAP SC#2) | ✓ VERIFIED (1 documented, escalated residual gap) | Source half: `tests/design/one-tree.test.ts` (AST walk, zero viewport-conditional branches, exactly one sanctioned `matchMedia` call site) — independently re-run inside the full design suite, green, with real red-watch evidence recorded (4 mutations, all caught). Rendered half: `e2e/one-tree.spec.ts` independently re-run, 20 passed / 2 declared skips. `[17-D13]` (the drop-in/`open_capacity` calendar fork has no container id, so its one-instance count can't be taken) is real and correctly escalated as a "reverse a deliberate architectural decision" item — 5-of-6 families closed, the sixth named rather than silently dropped. |
-| 3 | **GATE-02** — every surface keyboard-operable with a visible focus indicator, axe pass green in court, court baselines regenerated, leak tests advisory→blocking (ROADMAP SC#3) | ✗ **FAILED — BLOCKER** | Keyboard half genuinely verified: `e2e/keyboard-composites.spec.ts` (7/7 passed, independently re-run), `e2e/host-headings.spec.ts` (14/14 passed), `tests/design/focus-definition.test.ts` (mechanical, in design suite). Advisory→blocking half verified: DS-09 ceiling is `toBe(0)` (`tests/design/brand-recipe.test.ts:776`). Baseline-regeneration half verified: CI runs `33298297450` (head `247d1e4`) and `33298587807` (head `1751fb0`, current `HEAD`) both independently confirmed **green, all 4 jobs**, via `gh run view`; 36 court PNGs / 0 grove / 0 win32-darwin on disk. **The axe-pass half is FALSE right now**: `npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1` → **1 failed** (`AC#2 — the table's row set equals the declared surface set`), reproduced twice, deterministically. See Gaps. |
-| 4 | **GATE-06** — v1.1 ships zero schema migrations, `drizzle/` unchanged from v1.0 (ROADMAP SC#4) | ✓ VERIFIED | `ls drizzle/*.sql` independently counted: **26 files**, ending at `0025_audit_resolved_by.sql` — matches `tests/design/money-path-invariants.test.ts`'s pinned `MIGRATION_COUNT`/`LAST_MIGRATION`. The byte-digest assertion (`MIGRATION_DIGEST`, name+NUL+CRLF-normalised-bytes over all 26 files) carries real, independently-legible red-watch evidence (one character changed in a shipped `.sql` → red; reverted → green; cross-checked against `git show` index blobs for the Linux CI runner). `git status --porcelain drizzle/` is clean. This truth was left `Pending` by every executor for **procedural** reasons ("17-14 has not run yet") rather than a substantive gap — 17-14 touches no schema file, and the mechanical proof holds independently of it. |
+| 1 | **RESP-03** — every surface holds from 320px up, sticky bar present, no wrap/overflow (ROADMAP SC#1) | ✓ VERIFIED (1 documented, escalated residual gap, unchanged) | `e2e/mobile-booker-path.spec.ts` and `e2e/overflow-320.spec.ts` re-run this pass: 100 passed / 9 skipped. `[17-D9]` remains correctly escalated, not silenced. |
+| 2 | **RESP-04** — search/detail/calendar/wizard/checkout/list surfaces hold one component tree across widths (ROADMAP SC#2) | ✓ VERIFIED (1 documented, escalated residual gap, unchanged) | Unaffected by this round's fix (no file this truth depends on was touched by `64da86f`/`a2f6973`). `[17-D13]` remains correctly escalated. |
+| 3 | **GATE-02** — every surface keyboard-operable with a visible focus indicator, axe pass green in court, court baselines regenerated, leak tests advisory→blocking (ROADMAP SC#3) | ✓ **VERIFIED — gap closed** | Keyboard half, advisory→blocking half and baseline-regeneration half were already verified in the prior pass and are untouched by this fix. **The axe-pass half, previously FALSE, is now TRUE**: `e2e/axe-sweep.spec.ts` → 60 passed / 36 skipped, `--workers=1`, re-run independently this session. AC#2's own completeness self-check (the thing that was red) → 2/2 passed. |
+| 4 | **GATE-06** — v1.1 ships zero schema migrations, `drizzle/` unchanged from v1.0 (ROADMAP SC#4) | ✓ VERIFIED (unchanged) | `ls drizzle/*.sql` re-counted this pass: 26 files, ends `0025_audit_resolved_by.sql`. `git status --porcelain drizzle/` clean. Not touched by this round's commits. |
 
-**Score:** 3/4 truths verified (1 BLOCKER)
+**Score:** 4/4 truths verified (0 BLOCKERS remaining)
 
-### Required Artifacts
+### Required Artifacts (delta from prior pass only — see prior report body for the unchanged 12)
 
 | Artifact | Expected | Status | Details |
 |---|---|---|---|
-| `e2e/helpers/axe.ts` | AXE_TAGS, makeAxe, expectAxeClean; one `.options()` call | ✓ VERIFIED | 182 lines (min 60). Vacuity floor (`passes.length > 0`, `scannedNodes >= MIN_SCANNED_NODES`) confirmed present by code review and by direct read. |
-| `.../e2e-baseline-reds.md` | Declared pre-existing e2e red set | ✓ VERIFIED | 154 lines, 10-row denominator with commit `e439bf9`, explicit contamination-vs-real-red methodology. Used correctly by this verification to classify one observed flaky failure (`overflow-320.spec.ts`'s `/host/bookings` touch-target row under concurrent workers) as contention, not regression — confirmed by re-running that row alone (4/4 passed) and the whole file at `--workers=1` (100 passed / 9 skipped). |
-| `tests/design/money-path-invariants.test.ts` | GATE-06 content digest + D-81 qrph exclusion | ✓ VERIFIED | 238 lines. Both invariants independently re-run and green; `drizzle/` state independently cross-checked (26 files, ends 0025). |
-| `tests/design/one-tree.test.ts` | RESP-04 source scan (AC#10/11) | ✓ VERIFIED | 951 lines (min 150). Guard-the-guard block present and its floor logic read directly. |
-| `e2e/one-tree.spec.ts` | RESP-04 rendered half (AC#12/13) | ✓ VERIFIED | 1600 lines (min 120). Independently re-run: 20 passed / 2 skipped (the [17-D13] skip). |
-| `e2e/axe-sweep.spec.ts` | GATE-02 axe sweep (AC#16/AC#2/AC#24) | ✗ **FAILING SELF-CHECK** | 940 lines (min 150). 51/52 measured rows genuinely pass with zero WCAG violations when independently re-run — but the file's own AC#2 completeness assertion fails (see Gaps). This is the phase's single load-bearing GATE-02 artifact and it does not currently hold its own stated contract. |
-| `e2e/keyboard-composites.spec.ts` | 5-property keyboard walk (AC#19) | ✓ VERIFIED | 1523 lines (min 200). Independently re-run: 7/7 passed. |
-| `e2e/mobile-booker-path.spec.ts` | RESP-03 sticky-bar clause + no-wrap helper adoption (AC#4-8) | ✓ VERIFIED | Independently re-run: 11 passed / 3 declared skips. |
-| `e2e/overflow-320.spec.ts` | RESP-03 route inventory (D-201/AC#1/2/8/29/30/36) | ✓ VERIFIED | 4075 lines. Independently re-run at `--workers=1`: 100 passed / 9 skipped — including its own D-201/AC#2 disk-vs-table completeness check, which (unlike axe-sweep's) correctly accounts for the four dev-throw routes. |
-| `e2e/host-headings.spec.ts` | AC#21 heading-outline walk joined to the 28-state loop | ✓ VERIFIED | Independently re-run: 14/14 passed. |
-| `.../deferred-items.md` | The phase's second deliverable — 25 escalate-class findings | ✓ VERIFIED, with one omission noted | 961 lines. `grep -c '^## '` = 25, matching the claimed count and the claimed per-row four-part format (spot-checked 7 of 25 entries in full: [17-D1], [17-D2], [17-D3], [17-D7], [17-D9], [17-D13], [17-D18] — all well-argued, correctly classified as escalate-class rather than disguised mechanical work). **Not present in this ledger:** the axe-sweep AC#2 gap above. It is exactly the kind of item this file exists to catch (a mechanical completeness gap between two plans' route tables) and it slipped past all three of the phase's own cross-checks (17-13's synthesis, the code review, and 17-14's closing evidence). |
-| `.../baseline-evidence.md` | GATE-01 evidence chain + D-202 comparison run | ✓ VERIFIED | Both cited CI run IDs independently confirmed via `gh run view`: `33298297450` → head `247d1e4`, `33298587807` → head `1751fb0` (= current `HEAD` = current `origin/dev`), both `conclusion: success`, all 4 jobs green in both. |
-| `src/lib/dev/today-override.ts` | Dev-only `?today=` seam, inert in production, never reaches money/availability decisions | ✓ VERIFIED | Independently traced (not just read): `getAvailability(db, id, initialDate)` at `page.tsx:469` is called with 3 args, so its `now` parameter defaults to `new Date()` — the override is never threaded into it. `seedSelectionFromWindow` only seeds from `dayAvail.slots` filtered to `state === "available"`, which is itself computed from the real-clock `getAvailability`. `placeHold` (`src/app/actions/booking.ts`) re-derives bookability, mode, and price entirely server-side and never reads the query param. `tests/security/dev-today-override.test.ts` independently re-run: 21/21 passed. |
-| `src/components/ui/progress.tsx` (WR-06 fix) | `value` forwarded to `ProgressPrimitive.Root` | ✓ VERIFIED | Source read confirms the fix; `tests/design/progress-value.test.tsx` independently re-run: 7/7 passed. |
+| `e2e/axe-sweep.spec.ts` | GATE-02 axe sweep (AC#16/AC#2/AC#24), row set == declared surface set | ✓ VERIFIED (was ✗ FAILING SELF-CHECK) | 1048 lines (was 940). AC#2 both sub-tests pass. 46-route count independently re-measured and matches. Four new skip rows read in full — genuine, argued, ≥80-char reasons, not a laundering pattern. Four boundary rows converted from skip to real scans, independently re-run and green at both widths. |
+| `.../deferred-items.md` | The phase's second deliverable — escalate-class findings ledger | ✓ VERIFIED, omission now closed | Still 25 `## ` entries (`grep -c` re-run: 25) — the fix is recorded as a **mechanical-class closure** below the escalate-class table, exactly where the prior report's `missing` list asked for it, and does not inflate the 25-item escalate count (correctly, since it was a mechanical fix, not a product decision). The write-up is candid about the process gap that let it through (see below) rather than smoothing it over. |
+| `.../baseline-evidence.md` | GATE-01 evidence chain + D-202 comparison run | ✓ VERIFIED, extended | §8 records a new green comparison run `33300479520` on `64da86f` (43 passed/42 skipped/0 failed/0 flaky, identical row-for-row to the prior comparison run, one flake better) — independently confirmed via `gh run view`, `conclusion: success`, all 4 jobs. §8.5 correctly marks the now-superseded prior run (`33298587807`) as superseded-by-tree-movement rather than defective, and states why (D-24 means no CI job was ever measuring the fixed file, so no prior evidence over-claimed). |
 
-### Key Link Verification
+### Key Link Verification (delta)
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| `src/app/listings/[id]/(detail)/page.tsx` | `src/lib/availability/read-model.ts`'s `getAvailability` | 3-arg call, `now` defaults to real clock | ✓ WIRED (correctly NOT threading the override) | Confirmed by direct read of both call site and function signature. |
-| `e2e/axe-sweep.spec.ts` | `src/app/**` route files on disk | `declaredRouteFiles()` walk vs. hand-maintained `ROWS` table | ✗ **NOT WIRED — stale** | Walk finds 46 files; table declares 42. The link exists but is out of date by exactly the 4 files plan 17-12 added after plan 17-07 shipped. |
-| `e2e/overflow-320.spec.ts` | `src/app/**` route files on disk | D-201 inventory walk vs. `ROUTES`/`HOST_ROUTES` tables | ✓ WIRED | Independently re-run: the file's own "disk to inventory" and "inventory to disk" completeness tests both pass — this file's equivalent link was correctly updated by plan 17-12/17-13 where axe-sweep's was not. |
-| `tests/security/dev-today-override.test.ts` | `src/app/listings/[id]/(detail)/page.tsx` | blast-radius referrer-set scan (WR-02 fix) | ✓ WIRED | Independently re-run and confirmed to actually count (not just spot-check) — red-watch evidence in the file's own docblock is consistent with a live re-run showing the assertion would fail on a second importer. |
+| `e2e/axe-sweep.spec.ts` | `src/app/**` route files on disk | `declaredRouteFiles()` walk vs. hand-maintained `ROWS` table | ✓ **WIRED — was NOT WIRED** | Walk finds 46, table now declares 46 rows across all files (measured or named-skip). Re-verified by direct execution of the AC#2 test, not by reading the diff alone. |
+| `e2e/axe-sweep.spec.ts`'s four new boundary rows | `src/app/(app)\|(auth)\|(host)\|(legal)/error.tsx` | `path` + `session` cookie driving the group's dev-throw route, `tell` narrowed to the boundary's own route-out text | ✓ WIRED | Independently re-run: all 8 (4 boundaries × 2 widths) pass. Confirmed the `tell` selectors are boundary-specific (not the shared generic hook), closing the Pitfall-6 risk the prior skip text itself named. |
 
 ### Requirements Coverage
 
 | Requirement | Source Plans | Description | Status | Evidence |
 |---|---|---|---|---|
-| RESP-03 | 04, 06, 11, 12, 13 | Every surface verified from 320px, sticky bar present, no wrap/overflow | ✓ SATISFIED (residual gap escalated, not silent) | See Truth #1 |
-| RESP-04 | 03, 09, 13 | One component tree across mobile/tablet/desktop for named surfaces | ✓ SATISFIED (residual gap escalated, not silent) | See Truth #2 |
-| GATE-02 | 01, 02, 05, 06, 07, 08, 10, 12, 13, 14 | Keyboard operability + focus indicator + axe pass + leak-test blocking | ✗ **BLOCKED** | See Truth #3 — the axe-pass clause is false as of `HEAD` |
-| GATE-06 | 02, 13 | Zero schema migrations shipped in v1.1 | ✓ SATISFIED | See Truth #4 |
+| RESP-03 | 04, 06, 11, 12, 13 | Every surface verified from 320px, sticky bar present, no wrap/overflow | ✓ SATISFIED (residual gap escalated, not silent) | Unchanged from prior pass. |
+| RESP-04 | 03, 09, 13 | One component tree across mobile/tablet/desktop for named surfaces | ✓ SATISFIED (residual gap escalated, not silent) | Unchanged from prior pass. |
+| GATE-02 | 01, 02, 05, 06, 07, 08, 10, 12, 13, 14 | Keyboard operability + focus indicator + axe pass + leak-test blocking | ✓ **SATISFIED — was BLOCKED** | Axe-pass clause is now literally true on `HEAD`, independently re-run this session. |
+| GATE-06 | 02, 13 | Zero schema migrations shipped in v1.1 | ✓ SATISFIED | Unchanged from prior pass. |
 
-No orphaned requirements: `.planning/REQUIREMENTS.md`'s traceability table maps exactly these four IDs to Phase 17 (`grep "Phase 17" REQUIREMENTS.md`), and all four are declared in at least one plan's `requirements:` frontmatter. Both the requirement bullets (lines 107-117) and the traceability-table rows (lines 237-244) read `Pending` for all four, consistently — no drift between the two locations in this instance.
+**REQUIREMENTS.md disposition — checked in both places, this pass specifically requested it:**
+Both the requirement bullets (`.planning/REQUIREMENTS.md` lines 107–117: RESP-03, RESP-04, GATE-02,
+GATE-06 all still `[ ]`/`Pending`-style unchecked boxes) and the traceability-table rows (lines 237,
+238, 240, 244: all four still read `Pending`) are **still `Pending`, consistently, in both locations**
+— no drift between the two, and neither has been flipped to `Complete` despite the blocker's closure.
+This is now **stale relative to the evidence**: all four requirements' underlying truths are verified
+true in the codebase as of `HEAD`. Flipping these four rows (and the four checkboxes) to `Complete` in
+both locations is process bookkeeping this verification surfaces but does not perform (verification
+does not edit REQUIREMENTS.md or STATE.md) — it is the one remaining mechanical step for whoever closes
+this phase out.
+
+No orphaned requirements: `.planning/REQUIREMENTS.md`'s traceability table maps exactly these four IDs
+to Phase 17, and all four are declared in at least one plan's `requirements:` frontmatter.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |---|---|---|---|---|
-| `e2e/axe-sweep.spec.ts` | 791-809 | Completeness assertion that is stale relative to a sibling plan's later change | 🛑 Blocker | GATE-02's declared automated-axe instrument fails on `HEAD`; see Gaps |
-| `e2e/axe-sweep.spec.ts`, `e2e/one-tree.spec.ts`, `e2e/mobile-booker-path.spec.ts`, `e2e/overflow-320.spec.ts` | various (`WR-04` in code review) | `test.skip(title, () => { throw new Error(...) })` — the thrown reason never reaches the run's output, only `title` does | ⚠ Warning | Accepted, not fixed, by explicit PM-scoped code-review decision (inherited pre-existing idiom, present at phase base commit `e439bf9`); does not affect correctness, only skip-reason legibility in a run log |
-| — | — | None of this phase's new/modified Playwright specs (`axe-sweep`, `keyboard-composites`, `one-tree`, `overflow-320`, `mobile-booker-path` additions, `host-headings` additions, `auth-keyboard`) are wired into any CI job | ℹ️ Info | Confirmed by parsing `.github/workflows/ci.yml`'s jobs programmatically: only `e2e/price-parity.spec.ts` and the `visual` project run in CI. This is a pre-existing, documented, project-wide decision (D-24, predates Phase 17) rather than something this phase introduced — but it is the reason the axe-sweep gap above was never caught by CI, and it means the phase's "machine-checked proof" is a one-time audit result, not an ongoing regression gate, for every one of these specs going forward. |
-| — | — | `TBD`/`FIXME`/`XXX` scan across every file named in the 14 plans' `key-files` | — | **0 matches.** No unresolved debt markers. |
+| — | — | (Prior blocker anti-pattern — stale AC#2 completeness assertion — resolved) | — | Closed by `64da86f`; re-verified green. |
+| — | — | None of this phase's seven Playwright specs (`axe-sweep`, `keyboard-composites`, `one-tree`, `overflow-320`, `mobile-booker-path`, `host-headings`, `auth-keyboard`) are wired into any CI job | ℹ️ Info → **see Process Finding below** | Confirmed again this pass by reading `.github/workflows/ci.yml` directly: only `e2e/price-parity.spec.ts` and `--project=visual` run in CI (line 41's own comment: "ELEVEN of the twelve e2e specs in `e2e/` are NOT run here, by decision, not by oversight" — D-24, pre-existing, predates Phase 17). |
+| — | — | `TBD`/`FIXME`/`XXX` scan across every file named in the 14 plans' `key-files`, re-run this pass on `e2e/axe-sweep.spec.ts` specifically | — | **0 matches.** |
+
+## Process Finding: D-24 and the phase's "closing proof" framing
+
+This must be stated plainly rather than folded into a footnote, per this pass's explicit instruction.
+
+**The fact.** None of Phase 17's seven Playwright specs run in CI. This is D-24, a pre-existing,
+documented, project-wide decision that predates this phase — it is not something Phase 17 introduced,
+and it applied identically to RESP-03, RESP-04 and GATE-06 in the prior pass (all three were marked
+VERIFIED despite it). It is also, concretely, **why the GATE-02 gap survived four independent review
+passes**: plan 17-12 (which invalidated the old skip text) never re-ran the sibling instrument it broke;
+plan 17-13's "closed inventory re-proof" re-proved five different route inventories, not this one; the
+code review's own "gates I re-ran" table lists two vitest invocations and no Playwright; and 17-14's
+closing CI evidence is, by construction, a comparison run that cannot execute a spec CI never collects.
+The assertion worked exactly as designed and nothing was running it.
+
+**My judgment.** This does not make any of the four Success Criteria currently false — I re-ran every
+one of the load-bearing specs myself, by hand, on `HEAD`, and every gate the phase claims is genuinely
+green right now. So I am not treating it as a reason to withhold `passed` status: no must-have truth is
+FAILED, STUB, or unwired as of this commit, and the escalation instinct here is correctly aimed at a
+policy question, not a code defect.
+
+But it does mean the phase goal's own language — "the gates stop being per-phase promises and **become
+the milestone's closing proof**" — is only **partly** earned in the durable sense that language implies.
+What exists is a **rigorously verified point-in-time state**: every gate is provably true on this commit,
+checked by a real human (twice — this phase's own verifier, and now this re-verification) actually
+running the instruments rather than reading claims about them. What does **not** exist is a **standing
+regression gate**: the next time a wave-ordering gap like this one opens in any of these seven specs —
+a new route added without a matching row, a new interactive control added without a matching keyboard
+assertion — nothing will turn red on its own. It will sit exactly as this one did, discoverable only by
+a human choosing to run the file. The phase's own `deferred-items.md` entry for this fix reaches the
+same conclusion and names the PM as owner of the open question (whether any of the seven specs should
+join CI), which is the correct disposition: a policy decision for the product owner, not a code fix a
+re-verification pass should make unilaterally.
+
+**Disposition:** recorded as a plain finding, not a blocking gap. The phase goal is achieved as a
+verified snapshot; it is not, and cannot currently be, a self-sustaining one. Whoever plans the next
+phase should treat "do any of these specs belong in CI" as an open, PM-owned question rather than a
+closed one.
 
 ## Gaps Summary
 
-**One BLOCKER.** `e2e/axe-sweep.spec.ts` — the single file this phase built to prove GATE-02's
-"automated axe pass green" clause — fails its own completeness self-check on the current `HEAD`
-(`1751fb0`). This is not a hypothetical or an interpretation: it was reproduced twice, deterministically,
-in isolation, with `--workers=1` (ruling out the contention-flake class this repo already has a name
-for). The cause is a straightforward wave-ordering gap — plan 17-07 (Wave 2) built the axe table against
-42 known route files; plan 17-12 (Wave 3) added 4 more (the dev-throw error-boundary probes) and updated
-every OTHER route-inventory instrument that needed it (`loading-coverage.test.ts`'s pins, `e2e/overflow-320.spec.ts`'s
-D-201 table) except this one. It is a mechanical fix — four rows, in the exact pattern already used for
-the `/dev/theme` and `/dev/throw` "AUDIT INSTRUMENT, NOT AN AUDIT SUBJECT" rows two lines above where the
-new ones belong — not a product decision requiring escalation under this phase's own remediation rules.
-It was not caught by: plan 17-12 itself, plan 17-13's "closed inventory re-proof" (which re-proved five
-different inventories, none of them this one), the code review (whose "Gates I re-ran on this tree" table
-lists only two vitest invocations, no Playwright runs), or plan 17-14's closing evidence. It does not
-appear anywhere in the phase's own 25-item `deferred-items.md` ledger.
+**None remaining.** The single BLOCKER from the prior pass — `e2e/axe-sweep.spec.ts` failing its own
+AC#2 completeness self-check — is closed and independently re-verified: re-run twice this session
+(whole file, and the AC#2 sub-tests in isolation), both green, on the actual current `HEAD`. The fix
+was checked at the level this role requires — not "a SUMMARY says four rows were added" but "the four
+rows exist, their skip reasons pass the file's own ≥80-character actionability floor, the walk that
+catches silent absences was read to confirm it isn't scoped around the fix, the sibling instrument's
+classification was cross-checked for agreement, and the eight newly-claimed scans were independently
+re-run and confirmed to actually execute rather than being relabeled skips."
 
-Because none of this phase's Playwright specs run in CI (a pre-existing, documented project convention,
-not new to Phase 17), there is currently no mechanism that would surface this gap to anyone who does not
-run `npx playwright test e2e/axe-sweep.spec.ts` by hand — which is exactly what this verification did.
+The two previously-documented, correctly-escalated residual gaps ([17-D9], [17-D13]) are unaffected by
+this round and remain properly recorded, non-blocking, PM-owned items — not scored as failures.
 
-**Two properly-handled, non-blocking residual gaps** ([17-D9], [17-D13]) exist in RESP-03 and RESP-04.
-Both are measured, both are correctly classified as must-escalate under `17-UI-SPEC.md`'s own remediation
-rules (each requires reversing a deliberate architectural decision or touching a globally-shared
-component from inside an audit phase), and both are recorded in `deferred-items.md` with the PM
-explicitly named as the decision-owner. These are not scored as failures of RESP-03/RESP-04 — the
-phase's own D-200 rule states escalate-class findings are the deliverable, and closing green around a
-properly-argued, properly-recorded one is the intended shape of this kind of audit phase.
+One **process finding** (D-24 / CI coverage of the phase's own specs) is recorded above as a plain,
+non-blocking observation per this pass's explicit request, with an explicit judgment call: it does not
+withhold `passed` status because no current truth is false, but it does mean the phase's "closing proof"
+framing should be read as "verified once, thoroughly, by a human running the real instruments" rather
+than "self-enforcing going forward."
 
-**Suggested fix for the BLOCKER** (not applied — verification does not fix):
-Add four rows to `e2e/axe-sweep.spec.ts`'s `ROWS` array, immediately following the existing
-`/dev/theme` and `/dev/throw` rows (lines ~723-731), for `src/app/(app)/dev-throw-app/page.tsx`,
-`src/app/(auth)/dev-throw-auth/page.tsx`, `src/app/(host)/host/dev-throw/page.tsx`, and
-`src/app/(legal)/dev-throw-legal/page.tsx`, using the same "AUDIT INSTRUMENT, NOT AN AUDIT SUBJECT"
-skip reasoning already established for their siblings, and correct the stale "42 route files" count in
-the docblock at line 338 to 46.
+**Mechanical follow-up noted, not performed:** `.planning/REQUIREMENTS.md`'s four Phase-17 requirement
+rows (bullets and traceability table both) still read `Pending`, which is now stale relative to the
+evidence in this report. Verification does not edit REQUIREMENTS.md; flagged for whoever closes the
+phase out.
 
 ## Human Verification Required
 
-None. Every truth in this report was resolved by direct, reproducible evidence (source reads, independent
-test re-runs, and `gh run view` against the actual GitHub Actions API) rather than by reading claims.
+None. Every truth in this report was resolved by direct, reproducible evidence — source reads,
+independent re-runs of the actual Playwright specs on this machine this session, direct enumeration of
+route files on disk, and `gh run view` against the real GitHub Actions API for both cited commits —
+rather than by reading SUMMARY.md's account of them.
 
 ---
 
-_Verified: 2026-08-30T16:10:00Z_
+_Verified: 2026-08-30T17:05:00Z_
 _Verifier: Claude (gsd-verifier)_

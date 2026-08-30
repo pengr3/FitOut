@@ -53,7 +53,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [x] **Phase 15: Auth, Profile & Transactional Email** - The first screens a new user sees, and every email FitOut sends, carry the app's identity (completed 2026-08-25)
 - [x] **Phase 16: Image Crop & Framing** - A user controls how their image is framed before it is committed
 - [x] **Phase 16.1: Upload Hardening & Storage Economy (INSERTED)** - What a host uploads is bounded, is what it claims to be, and costs what it should to serve (all 7 plans executed 2026-08-28) (completed 2026-08-28)
-- [ ] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof
+- [x] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof (completed 2026-08-30)
 - [ ] **Phase 18: Search-Results Map** - A booker can see where the results are, not just what they are (net-new capability, D-136)
 - [ ] **Phase 19: Availability Copy-to-All** - A host copies one day's hours across days instead of re-entering them (net-new capability, D-136)
 
@@ -831,7 +831,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
-| 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 4/14 | In Progress | - |
+| 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 
