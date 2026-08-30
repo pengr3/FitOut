@@ -446,3 +446,121 @@ findings **26**, anchored and unanchored heading greps both **26**, the four par
 
 **Still true and still owed:** the four calendar baselines encode *today = 30 August 2026* and will be
 red at the next Manila day-rollover.
+
+---
+
+## Addendum 2 — `[17-D26]` fixed, and the round-trip re-run
+
+**Added after the PM chose option 1. The committed sections above are unchanged.**
+
+### What shipped
+
+| File | Change |
+|---|---|
+| `src/lib/dev/today-override.ts` | **new** — `?today=YYYY-MM-DD` honoured OUTSIDE production only |
+| `src/app/listings/[id]/(detail)/page.tsx` | override applied at the single origin (`:394`) |
+| `e2e/helpers/visual-drive.ts` | `listingUrl()` pins `&today=${VRT_COLLISION.dayIso}` |
+| `tests/security/dev-today-override.test.ts` | **new**, 17 assertions |
+
+It follows D-08's `?theme=` precedent rather than inventing a second idiom: the guard is
+`process.env.NODE_ENV` — a **build-time constant** the bundler prunes, deliberately not an
+operator-settable env var — and the value is parsed by the **shared** `parsePickedDate`, never cast.
+
+### The probe showed the calendar actually moving — before any prediction or CI cycle
+
+| URL | caption | disabled | today |
+|---|---|---|---|
+| no override | August 2026 | 29 | 30 |
+| `&today=2026-09-16` | **September 2026** | **15** | (coincides with selected) |
+| `&today=2026-02-31` | August 2026 | 29 | 30 |
+| `&today=not-a-date` | August 2026 | 29 | 30 |
+
+All three readings moved; both malformed values were inert.
+
+### Production inertness — measured end-to-end, not asserted
+
+A production build was started on `:3101` and the identical probe run against both servers:
+
+| Server | no override | `&today=2026-09-16` | honoured? |
+|---|---|---|---|
+| dev `:3000` | August 2026 · 29 | **September 2026 · 15** | **YES** |
+| **prod `:3101`** | August 2026 · 29 | **August 2026 · 29** | **NO — identical in every field** |
+
+**How production reachability is prevented:** `process.env.NODE_ENV` is a build-time constant, so the
+production bundler substitutes `"production"`, the guard becomes `if ("production" === "production")
+return null;`, and the parse below is **dead code eliminated** — the affordance is absent from the
+production bundle, not merely skipped. An env var was rejected precisely because it can be flipped on
+a live deploy. The test pins the guard's exact spelling, that it is the **first statement**, and that
+the module reads **no other environment variable at all**.
+
+### Gates, re-run because `src/` moved
+
+`npm run build` **exit 0** (design suite 66 files / 1248 passed) · `npx tsc --noEmit` **exit 0** ·
+`npm test` run **alone** afterwards **exit 0** — **186 files, 2165 passed / 5 skipped**.
+
+⚠ One self-inflicted red: the first draft of the "reads no other environment variable" assertion
+scanned the whole source and failed against the *correct* module, because the header **names** the
+variable it explains — the `[17-D20]` class for the third time in this plan. Re-run alone first (it
+reproduced, so it was real), then fixed by scanning code lines only, which is the stronger assertion.
+
+### The prediction held exactly
+
+**Predicted:** 5 changed (`listing-detail` ×3, `listing-sheet-375`, `collision-notice-1280`), large;
+everything else unchanged — including `listing-lightbox` and both `checkout` rows, whose URLs also
+gained the parameter, predicted from **empirical evidence** (they passed in `33272796552` while the
+calendar behind them demonstrably moved). Zero new.
+
+**Measured:** pre-dispatch `ci` **`33295272924`** → `gate-visual` **5 failed / 38 passed / 42
+skipped**, the five being exactly the five predicted (3121 px, 7357 px). Generation
+**`33295540219`** → commit **`bac4b62`**, `staged 5 baseline file(s)`, **5 × `M`, 0 × `A`, 0 × `D`**,
+disk **36**, zero grove/platform. **Zero unpredicted rows; zero predicted rows that did not move.**
+
+**One unpredicted sub-shape, investigated not accepted:** `listing-detail-320` and `-768` changed
+**height** (3038→2986, 2460→2408), both exactly **52px** shorter — August 2026 needs six week rows
+and September 2026 needs five, and a `fullPage` capture is as tall as its document. At 1280 the
+two-column layout absorbs it; the sheet is a fixed-viewport capture.
+
+The crop also shows the new reference is **more coherent than the old one**: previously the hour grid
+read *Wednesday, Sep 16* under a calendar displaying **August** with the 16th not visible at all.
+
+### The new closing evidence
+
+**COMPARISON run `33295755823` — `success`, head `085eb07`, all four jobs green, `gate-visual` 43
+passed / 42 skipped / 0 failed.** Generation `33295540219` is recorded and labelled not-the-evidence.
+
+**`33273927029` is marked SUPERSEDED, not deleted** (`baseline-evidence.md` § 6.2). It was genuinely
+green on the day it ran; it compared baselines that encoded *today = 30 Aug 2026*. The new run is
+green on baselines that no longer depend on the clock — a strictly stronger claim.
+
+### Decided rather than measured
+
+1. **Pinned `today` to `VRT_COLLISION.dayIso`** as instructed, accepting that the pinned day is also
+   the selected day, so the coral selected style covers the today-ring and the ring is not separately
+   visible. Pinning a day or two earlier would show both states. Flagged for the PM; not changed,
+   because it would need a third round-trip.
+2. **Applied the override at the single origin** rather than at the three `todayDate={…}` call sites —
+   an override that moved the ring without the disabled set would be a worse lie than the wall clock.
+3. **Recorded `[17-D26]` under `# Fixed in place` as a separate block, not as a table row.** That
+   table is the closure record for the UI-SPEC's fixed *May fix in place* list; a promoted
+   escalate-class finding is not one of those rows, and filing it as one would widen what the table
+   claims to be.
+
+### Ledger state
+
+Findings list back to **25** (all escalate-class, blocking nothing); `[17-D26]` in the closure record
+with its commits (`c7f1a1a`, `bac4b62`). Format re-measured: findings **25**, anchored and unanchored
+heading greps both **25**, part-labels **25 / 25 / 25 / 25**, level-3 headings **0**.
+
+## Self-Check (round 2): PASSED
+
+- `src/lib/dev/today-override.ts`, `tests/security/dev-today-override.test.ts`,
+  `baseline-evidence.md` — all FOUND
+- Commits `c7f1a1a` (seam + test), `bac4b62` (CI-written baselines), `085eb07` (diff review, the
+  comparison head), `c7e4b49` (closure) — all FOUND
+- `git diff 085eb07..HEAD -- . ':(exclude).planning'` → **0 lines**; `origin/dev` **is** `085eb07`,
+  the exact commit the recorded comparison ran against
+- `playwright.config.ts:78` `updateSnapshots: "none"` unchanged · `verify-workflows.mjs` **exit 0**
+- **No pixel threshold widened:** `git diff 708de3a..HEAD -- e2e/ playwright.config.ts` matches
+  `maxDiffPixels|threshold:` **0** times
+- Disk **36** · grove/`win32`/`darwin` **0** · `drizzle/` clean · working tree carries only the
+  pre-existing untracked `.claude/`

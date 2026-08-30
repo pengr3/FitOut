@@ -886,3 +886,73 @@ changing it would need a third round-trip.
 
 **Verdict: nothing in this diff is unexplained.** Five files, all predicted; two sub-shapes
 (the 52px height change) investigated to an arithmetic cause and confirmed by crop.
+
+---
+
+# 6 · THE CLOSING EVIDENCE — round 2, and it supersedes round 1
+
+## 6.1 The run
+
+| Item | Value |
+|---|---|
+| **COMPARISON run id** | **`33295755823`** |
+| Workflow / event | `ci` / `push` |
+| **Conclusion** | **`success`** |
+| **Head SHA it ran against** | **`085eb073842bbe061be09792b40276174b9527c3`** (`085eb07`) |
+| Started / finished | `2026-08-30T05:55:56Z` / `2026-08-30T06:02:30Z` |
+| `gate-visual (GATE-01 visual regression)` | **success** — **43 passed / 42 skipped / 0 failed** |
+| `gate-db-free (lint + design + build + workflow parse)` | **success** |
+| `gate-db (vitest against PostGIS 18)` | **success** |
+| `gate-price-parity (DB-vs-DOM price, 1 spec)` | **success** |
+
+Forced the same way as round 1 and for the same reason — the generation push used `GITHUB_TOKEN` and
+triggered nothing, and `ci.yml` has no `workflow_dispatch` — by pushing the real commit that carries
+§ 5.8's diff review.
+
+> ### RUN `33295755823`, GREEN, ON `085eb07`, IS PHASE 17's CLOSING EVIDENCE (D-202).
+> Generation run `33295540219` is recorded in § 5.7 and is **explicitly not** the evidence.
+
+## 6.2 ⚠ Run `33273927029` is SUPERSEDED — recorded, not deleted
+
+§ 3 recorded comparison run **`33273927029`** (green, on `708de3a`) as the closing evidence, and at
+the time it was exactly that: a real green comparison on the head commit. **It is superseded rather
+than wrong**, and the distinction is the whole point of `[17-D26]`:
+
+* It was green **on the day it ran**, and would have gone red at the next venue-local day-rollover,
+  because the four calendar baselines it compared encoded *today = 30 August 2026*.
+* § 3 said so at the time — *"the four regenerated calendar baselines now encode 'today = 30 August
+  2026' and will be red at the next Manila day-rollover"*. The PM read that sentence and promoted the
+  finding rather than accepting the evidence.
+* **Run `33295755823` is green on baselines that no longer depend on the clock at all.** That is a
+  strictly stronger claim than `33273927029` could make, and it is the reason the second CI cycle was
+  worth spending.
+
+Kept in this document because deleting a superseded run would hide the one decision that made this
+phase's evidence trustworthy.
+
+## 6.3 What lands after the comparison
+
+Same rule, same proof shape as § 3.3: **no code, test, workflow, config, schema or baseline commit
+lands after `085eb07`.** The only commits after it are this section, the SUMMARY addendum and the
+hand-edited `STATE.md` / `ROADMAP.md` position lines — all under `.planning/`, none read by any job in
+`ci.yml`. The check: `git diff 085eb07..HEAD -- . ':(exclude).planning'` prints **nothing**.
+
+## 6.4 The AC roll-call, re-measured at the end of round 2
+
+| Criterion | Result |
+|---|---|
+| **AC#25** — regeneration only via `baselines.yml` in the pinned image; `updateSnapshots: "none"` unchanged and unconditional | **holds** — `playwright.config.ts:78` byte-unchanged since `e439bf9` |
+| `--update-snapshots` in exactly one run command, in `baselines.yml` | **holds** — `verify-workflows.mjs` exit 0 |
+| **AC#26** — zero grove / `win32` / `darwin` baselines | **holds** — **0**; disk **36** |
+| **AC#27 / D-202** — a green COMPARISON run on the head commit, id recorded, generation run labelled as not the evidence | **holds** — `33295755823` on `085eb07` |
+| Every changed PNG predicted in writing before the dispatch | **holds** — **5 predicted, 5 changed, 0 unpredicted**; one unpredicted *sub-shape* (the 52px height change) investigated and explained |
+| No newly minted PNG | **holds** — 5 × `M`, 0 × `A` |
+| No pixel threshold widened | **holds** — no `maxDiffPixels` / `threshold` anywhere in the diff |
+| **AC#32** — zero schema migrations | **holds** — `drizzle/` clean, **26** `.sql` |
+
+## 6.5 The state of `[17-D26]`
+
+**Fixed, proven, and moved to the closure record.** The ledger's findings list is back to **25**, all
+escalate-class, all input to next-milestone decisions and blocking nothing. The one coverage note left
+open — the pinned day is also the selected day, so the today-ring is not separately visible — is
+recorded in the closure entry as a cheap future improvement, not a defect.

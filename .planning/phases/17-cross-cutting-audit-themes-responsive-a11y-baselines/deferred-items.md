@@ -15,9 +15,13 @@ that took it, so the closure is checkable rather than asserted.
 Assembled by plan **17-13** from the twelve `17-*-SUMMARY.md` files, `e2e-baseline-reds.md` and the
 row-level records in the specs themselves. Phase base commit: **`e439bf9`**.
 
-**APPENDED BY PLAN 17-14: `[17-D26]`.** 17-13 assembled and machine-checked **25** findings. The
-phase's final plan — the baseline round-trip — found a **26th** by reading its dispatch diff against
-the prediction written before it, and it is the one finding here that is about GATE-01 itself.
+**APPENDED, PROMOTED AND THEN CLOSED BY PLAN 17-14: `[17-D26]`.** 17-13 assembled and machine-checked
+**25** findings. The phase's final plan — the baseline round-trip — found a **26th** by reading its
+dispatch diff against the prediction written before it, and it was the one finding here that was about
+GATE-01 itself. The PM **promoted it to in-scope at the D-199 review**; its first prescribed repair was
+**refuted by measurement** before any code was written, its second was **watched working** before it
+was trusted, and it is now **fixed and green**. It therefore lives in the `# Fixed in place` closure
+record rather than in the list below, which is back to **25**.
 
 ⚠ **This paragraph deliberately does NOT spell the four part-labels, and that is not fussiness.**
 They are what the format gate COUNTS, so prose naming them inflates the very numbers it claims to
@@ -830,141 +834,6 @@ tolerate the animation permanently.
 
 ---
 
-## [17-D26] — Four GATE-01 baselines encode the WALL CLOCK, so `gate-visual` goes red on every venue-local day rollover
-
-- **Found by:** plan 17-14, reading the dispatch diff of generation run `33273465053` against the
-  prediction written before it, 2026-08-30
-- **Owner file:** `e2e/helpers/visual-drive.ts` (`listingDetailDrive`, `sheetDrive`, `collisionDrive`
-  — none of which pins a clock), with the false claim living in
-  `src/lib/design/visual-baselines.ts`'s `listing-detail` docblock
-- **Severity:** **GATE-01 integrity, and the highest-value finding this phase made.** It is the
-  mechanism behind `[13-16]`'s *"a phase can COMPLETE with GATE-01 red and nothing notices"* — the
-  gate does not merely fail to notice a red, it **manufactures one every day**, which is precisely
-  how a real regression becomes invisible in a wall of expected noise.
-
-**Measured, not inferred — and read off images, not off an argument.** The pre-dispatch comparison
-run `33272796552` (head `0d1ce93`) reported `gate-visual` **11 failed / 31 passed / 42 skipped**.
-Six of the eleven were predicted in writing. **Four were not**, and their pixel counts were identical
-across four different viewport widths — `listing-detail-320`, `listing-detail-768`,
-`listing-detail-1280` and `listing-sheet-375`, **173 px each** — with a fifth,
-`collision-notice-1280`, at **917 = 744 + 173**, i.e. carrying this cause *plus* the predicted
-`ProfileLink` one.
-
-Decoding both versions of each PNG puts the changed pixels in **two 44px-tall bands separated by an
-8px gap, spanning the calendar grid's full width** — 44px being the `h-11` day-cell height
-`availability-calendar.tsx` records for itself. Cropping `listing-detail-1280` at x 130–530,
-y 1600–1800 shows what moved:
-
-```
-OLD baseline (minted 2026-08-26)         NEW (regenerated 2026-08-30, Asia/Manila)
-  23 24 25 [26] 27 28 29                   23 24 25  26  27 28 29     <- 26..29 now greyed out
-  30 31  1  2  3  4  5                    [30] 31  1  2  3  4  5      <- today-ring moved here
-```
-
-**The mechanism.** `src/app/listings/[id]/(detail)/page.tsx` passes `todayDate={todayLocal}` at three
-call sites (`:595`, `:774`, `:822`); `src/components/availability/availability-calendar.tsx:500`
-takes `todayDate ?? initialDate`, so with the prop supplied `todayStart` is the **real venue-local
-today**. That drives three rendered things: the month the grid opens on, the neutral `--muted`
-today-ring (`:637`), and `disabled={[{ before: todayStart }, …]}` (`:635`).
-
-**The row's own docblock believes it is protected and is wrong.** It says *"⚠ `?date=` IS NOT
-DECORATION, IT IS WHAT MAKES THIS BASELINE DETERMINISTIC. Without it the page renders `todayLocal` …
-so the month grid, the highlighted day and the set of disabled past days all change WITH THE WALL
-CLOCK — a baseline that goes red tomorrow for no reason, which is the flake that gets a threshold
-widened."* Measured: `?date=2026-09-16` pins the **selected day and the hour grid beneath it** and
-nothing else. The grid still opens on **today's** month — the crop above is **August 2026**, not the
-September the parameter names — and the ring and the disabled set still track the wall clock. The
-sentence is not wrong about the danger; it is wrong that the parameter removes it.
-
-**The timeline, which is the part worth keeping.** The previous baselines were minted by dispatch
-`32925834322` at `2026-08-26T03:16Z` (Manila 11:16, Aug 26) and confirmed green by `ci` run
-`32945807603` at `08:03Z` **the same Manila day**. The very next day-rollover broke them.
-`gate-visual` has therefore been red on `dev` since **2026-08-27** for this reason alone, and nothing
-noticed because nothing was pushed until 17-14. **A gate whose baselines have a one-day shelf life is
-a gate that trains its readers to expect red.**
-
-**Why it was not fixed here.** Three independent reasons, and the third is decisive. (1) The repair
-belongs in `e2e/helpers/visual-drive.ts`, which is **not** in plan 17-14's `files_modified` and is
-the file all 24 blocked-baseline reasons hang off — 17-13 measured it byte-identical across the whole
-phase, and changing it inside the phase's last plan lands an instrument change unread. (2) It is an
-instrument change whose entire value is the diff it produces, which is the stated ground on which
-17-13 declined `[17-D12]`, `[17-D17]` and `[17-D19]`. (3) **Any commit after the regeneration
-invalidates this phase's closing evidence and forces another round-trip** (D-202) — the plan is
-sequenced last precisely so nothing lands after the comparison run, and fixing this would require a
-code commit *and* a second regeneration *and* a second comparison.
-
-**⚠ The consequence, stated so a future reader does not mis-read it as a new regression:** the four
-regenerated calendar baselines now encode **"today = 30 August 2026"**. They were green in the
-comparison run recorded as this phase's evidence, and **they will be red on the next Manila
-day-rollover**, by exactly this mechanism, until the fix below lands.
-
-**⚠ PROMOTED TO IN-SCOPE BY THE PM AT THE D-199 REVIEW — AND THEN BLOCKED ON A MEASUREMENT**
-
-The PM read this finding at the phase-close checkpoint and **promoted it from deferred to in-scope**,
-explicitly overriding the three reasons it was declined and authorising `e2e/helpers/visual-drive.ts`
-plus a second regeneration and a second comparison. Their reasoning, recorded because it is right:
-*a gate whose baselines expire within a day trains its readers to expect red, and closing the phase
-on evidence known to be false tomorrow is worse than spending another CI cycle.*
-
-**The fix prescribed below — by this row, in its first draft — WAS WRONG, and the error was this
-row's own.** It was measured before it was written, not after, and the measurement refutes it.
-
-**MEASURED, 2026-08-30, against the running dev server on `localhost:3000` and the local
-`uat_listing_bookable` fixture.** A probe launched Chromium twice against
-`/listings/uat_listing_bookable?date=2026-09-16` — once bare, once with
-`page.clock.install({ time: new Date("2026-11-05T04:00:00Z") })` called **before the first
-navigation**, exactly as `surfaces.spec.ts:438` does it:
-
-| Reading | no clock | clock at 2026-11-05 | moved? |
-|---|---|---|---|
-| `new Date().toISOString()` **inside the page** | `2026-08-30T05:15:08Z` | `2026-11-05T04:00:01Z` | **YES** — the clock really was installed |
-| the cell carrying `data-today="true"` | **30** | **30** | **no** |
-| the month caption | **August 2026** | **August 2026** | **no** |
-| `button[disabled]` count in the calendar | **29** | **29** | **no** |
-
-**The browser clock moved by more than two months and not one rendered pixel of the calendar
-followed it.** The reason is structural: `/listings/[id]` is an **RSC**, and `todayLocal` is computed
-on the **server** at `src/app/listings/[id]/(detail)/page.tsx:394` (`const now = new Date()`), then
-`todayStart` and `horizonEnd` are built from it at `:415-427` and passed down as `startMonth`,
-`endMonth` and `disabled`. `page.clock` emulates time **in the browser**. It cannot reach a value
-that was computed in the Node process before the HTML was sent. `checkoutDrive` is a working
-precedent for controlling a **client-side `setInterval`** — which is a different problem.
-
-**So there is no fix available inside the authorised file.** A drive controls the URL, the viewport,
-the storage, the cookies and the interactions. None of those reaches the server's `new Date()`.
-
-**Cheapest correct fix — now a three-way DECISION rather than a task, because the repair this row
-first named is refuted above. The three that would actually work, with their real costs:**
-
-1. **A dev-only "today" seam in the page.** Have `page.tsx` honour an override (env var or a
-   non-production query parameter) when `NODE_ENV !== "production"`, the way `?theme=` is already
-   honoured *"outside production"* (D-08) and the way `allowedDevOrigins` is already gated in
-   `next.config.ts`. Both visual jobs boot the app with `npm run dev`, so the seam is live exactly
-   where it is needed and inert in production. **Cost: a production `src/` change on the public
-   listing page — the largest of the three, and a Rule-4 architectural call.** Cleanest result: the
-   calendar stays fully pixel-covered and becomes genuinely deterministic.
-2. **Pin the server's clock in the two visual jobs.** `libfaketime` (or a container date) around the
-   `npm run dev` the Playwright `webServer` boots. **Cost: a new package inside the one job that
-   carries `contents: write`.** `baselines.yml`'s header names introducing anything there as *"a
-   supply-chain decision to raise explicitly, not to absorb"* (T-11-SC), and it would also shift the
-   relationship between "now" and the fixture's fixed September instants.
-3. **Mask the calendar region in the comparison.** `toHaveScreenshot({ mask: […] })` on the
-   calendar-bearing rows. **Cost: `e2e/visual/surfaces.spec.ts` plus a declaration in
-   `visual-baselines.ts`, and it removes the availability calendar from GATE-01 coverage on four
-   rows** — i.e. it buys determinism by deleting the coverage this phase exists to defend. Cheapest
-   to build, worst to own.
-
-**Recommendation: option 1**, gated to non-production and declared in `visual-baselines.ts` beside
-the row it serves. It is the only one that keeps the calendar covered *and* makes it deterministic.
-
-**Do NOT widen a pixel threshold** — the row's own comment names that as the wrong answer, and it is
-right. **And do NOT re-dispatch:** a second regeneration against an unchanged tree would re-pin the
-defect to a new day, burn the recorded closing evidence and leave the gate exactly as fragile.
-
-**Suggested owner:** a gap-closure plan, or Phase 18's first plan, once the PM picks an option. It is
-a prerequisite for any future phase reading `gate-visual` as evidence of anything.
-
----
 
 # Fixed in place — the mechanical-class closure record (D-200)
 
@@ -985,6 +854,58 @@ are none.
 | Fixing a heading level to close a skipped step | **FIXED.** `heading-order` (moderate) on `/host/listings` at 320 **and** 1280 — the page is its `h1` and then the grid, so `ListingCard`'s `h3` skipped a rung. Shipped as a `titleAs` **prop** (default `h3`) with the host grid passing `h2`, because the same card is **correct** on `/` where the results `h2` sits between. Tailwind's preflight resets heading size and weight to `inherit`, so **the outline moved and not one pixel did.** Independently, 17-10 walked **84** host outlines across **28** states at 3 widths and found **0** skipped levels. | **17-07**, corroborated by **17-10** | `9989531`, `e2011f3`; `listing-card.tsx`, `(host)/host/listings/page.tsx` |
 | Correcting a stale comment that promises coverage this phase did not build | **FIXED in at least 6 plans.** 17-02: `gitignore-baselines.test.ts`'s stale `GREEN IS 4 PASSED` header count. 17-05: two `"h-11 clears the 44px touch target"` comments and `brand-recipe.test.ts`'s ceiling block. 17-06: three stale sentences rewritten in the **same commits as the fixes that invalidated them**, each quoting its previous text as history — including the `200px / 226px` pair that was `11-UI-SPEC` arithmetic rather than a measurement. 17-07 (AC#24): **6** stale two-theme sentences amended to court-only with the cost named, and `global-error`'s exclusion reason **corrected rather than copied** (the UI-SPEC justified it by a `best-practice`-tagged rule that the declared tag filter can never run). 17-11: `expectTargets`' vacuity sentence inverted on `/host/earnings`. 17-12: a pinned-counts test whose **own name** read `28 pages, 20 qualifying, 8 not` against constants saying 29 / 21 / 8. | **17-02, 17-05, 17-06, 17-07, 17-11, 17-12** | `ed68dea`, `68b10b0`, `d09e98d`/`0d3ae71`, `84e4270`, `e275527`, `6251c40` |
 
+**⚠ PROMOTED AND FIXED — `[17-D26]`, and it is recorded HERE RATHER THAN AS A ROW ABOVE on purpose.**
+
+The table above is the closure record for 17-UI-SPEC § *May fix in place* — a fixed, declared list.
+`[17-D26]` is not one of those rows: it is an **escalate-class** finding that the PM **promoted to
+in-scope at the D-199 review**. Filing it as a table row would quietly widen what that table claims to
+be, so it is closed here instead, in full.
+
+**The finding.** Four GATE-01 baselines encoded the WALL CLOCK. `/listings/[id]` computes venue-local
+today in the RSC and derives the calendar's opening month, its today-ring and its disabled set from it,
+so `listing-detail` ×3, `listing-sheet-375` and `collision-notice-1280` expired at every day-rollover.
+Measured: the references minted 2026-08-26 went red on 2026-08-27, and nothing noticed for four days.
+
+**The first prescribed repair was WRONG, and this row's own draft is what prescribed it.** It named
+`page.clock` on the three drives. Probed before any code was written: with the browser clock moved to
+2026-11-05 the in-page `new Date()` moved and the rendered calendar did **not** — `data-today` stayed
+30, the caption stayed August 2026, the disabled count stayed 29. `page.clock` emulates the BROWSER;
+the value is computed in the Node process before the HTML is sent. Reported back rather than
+implemented, which is how the PM came to choose a different option.
+
+**What shipped (PM's option 1) — a dev-only server seam, following D-08's `?theme=` idiom:**
+
+| Piece | Detail |
+|---|---|
+| `src/lib/dev/today-override.ts` | **new.** `?today=YYYY-MM-DD` honoured OUTSIDE production only. Guard 1 is `process.env.NODE_ENV`, a **build-time constant** the bundler prunes — not an operator-settable env var, which could be flipped on a live deploy. Guard 2 parses with the shared `parsePickedDate`, never a cast. |
+| `src/app/listings/[id]/(detail)/page.tsx` | applied at the **single origin**, so `todayStart`, `horizonEnd` and the `initialDate` fallback move together — an override that moved the ring without the disabled set would be a worse lie than the wall clock. |
+| `e2e/helpers/visual-drive.ts` | `listingUrl()` pins `&today=${VRT_COLLISION.dayIso}`, so the calendar's today, the selected day and the fixture's booked day are **one literal that cannot drift**. |
+| `tests/security/dev-today-override.test.ts` | **new, 17 assertions** — production inertness **with a positive control**, the guard's exact spelling and its position as the first statement, a single-env-read pin, the parse/reject table, and blast radius. |
+
+**Proven before it was trusted, and proven inert where it ships — both measured end-to-end on the real
+route, not asserted:**
+
+| Server | no override | `&today=2026-09-16` | honoured? |
+|---|---|---|---|
+| **dev** `:3000` | August 2026 · 29 disabled | **September 2026 · 15 disabled** | **YES** |
+| **prod build** `:3101` | August 2026 · 29 disabled | August 2026 · 29 disabled | **NO — identical in every field** |
+
+Malformed values (`2026-02-31`, `not-a-date`) fall back to the wall clock rather than throwing or 404ing.
+
+**Closed by the round-trip, and the round-trip held its prediction.** Five files predicted to change,
+five changed, **zero minted**; every row predicted unchanged passed, including `listing-lightbox` and both
+`checkout` rows whose URLs also gained the parameter. Pre-dispatch `ci` **`33295272924`** (5 failed / 38
+passed / 42 skipped, the five being the five predicted); generation **`33295540219`** → commit `bac4b62`,
+`staged 5 baseline file(s)`, all `M`; **green COMPARISON `33295755823` on `085eb07`, all four jobs,**
+**`gate-visual` 43 passed / 42 skipped / 0 failed.**
+
+**Fixed by:** `c7f1a1a` (the seam + the test), `bac4b62` (the CI-written baselines).
+
+**One coverage note left open, deliberately:** the pinned day IS the selected day, so the coral selected
+style covers the neutral today-ring and the ring is not separately visible in the new references. Pinning
+`today` a day or two earlier would show both. Not changed here — the instruction named the fixture's own
+day, and changing it now would need a third round-trip.
+
 **One stale comment was deliberately NOT corrected**, and it is the exception that proves the rule:
 `src/app/listings/[id]/(detail)/not-found.tsx`'s header (`[17-D3]`). It is left byte-identical because
 it is a **source** comment describing shipped product behaviour on a route whose disposition is
@@ -998,11 +919,13 @@ this phase found was in an **instrument**, where the comment is the deliverable.
 **This list is input to next-milestone decisions, reviewed once, at phase close. It is not a blocker
 on Phase 17's completion.** For every finding section above, the finding **is** the deliverable: each
 carries a measurement a reader can re-take, the file that owns the repair, and what the smallest
-correct repair would cost. Phase 17 may close green around **25 of the 26** — the twenty-sixth, `[17-D26]`, was **PROMOTED to
-in-scope by the PM at this review** and is the one row here that is not merely input. Its prescribed
-fix was then **measured and refuted** (a browser clock cannot move a server-rendered date), so it is
-back with the PM as a three-way choice rather than a task. **The count was 25 when 17-13 assembled
-this list; 17-14 appended the twenty-sixth.**
+correct repair would cost. Phase 17 may close green around all **25** that remain here. The list held **26** at its high-water
+mark: 17-13 assembled 25, plan 17-14 appended a twenty-sixth from its dispatch diff, and the PM
+**PROMOTED that one to in-scope at this review** rather than accepting it as input. It was then FIXED
+and PROVEN GREEN, so it has moved to this file's `# Fixed in place` closure record and is no longer a deferred item.
+Its first prescribed repair was refuted by measurement before any code was written; the second was
+watched working before it was trusted. **The 25 that remain are input to next-milestone decisions and
+block nothing.**
 
 **Immediate escalations that occurred — exception (a), a GATE-06 scope alarm: ZERO.** No fix in any of
 the twelve plans appeared to need a schema migration. Re-proved by command at phase close:
