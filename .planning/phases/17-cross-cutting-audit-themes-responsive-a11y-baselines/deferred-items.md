@@ -30,6 +30,18 @@ D-198. The first draft of this note listed all four by name and took one of them
 them with the greps, not from a sentence: each of the four labels must equal the finding-heading
 count, and level-3 headings must stay at zero so the unanchored heading grep is unambiguous.
 
+**APPENDED BY PLAN 17.1-05, 2026-08-31 — THE LIST IS NOW 27.** Everything above stays byte-identical;
+this is the correction, dated, in the format S5 requires. Phase **17.1**'s item-3 outbound census
+(`17.1-EVIDENCE.md` § P3) drove the two spec files that touch `/host/payouts/refresh` under a
+server-side `fetch` instrument and read the result against the prediction. **Two of the measured rows
+were unpredicted**, so under D-11 each became a finding **before** the seam that will fix them exists:
+`[17-D27]` (a third PayMongo endpoint this file's own `[17-D18]` does not record) and `[17-D28]` (a
+second third-party origin, reached on a live key, that no row here records at all). Both sit at the end
+of the list below, in the same shape as every row above them. The invariants this header names still
+hold and were re-checked at the splice: the finding-heading count and each of the four part-label counts
+are all **27**, and the unanchored level-3 heading grep is still **0**. This paragraph names none of the
+four labels, for the reason the paragraph above it gives.
+
 **Nothing was relocated here.** Phases 13, 14, 15 and 16 keep their own `deferred-items.md` rows;
 plans 17-06 and 17-10 annotated the ones this phase closed **in place** (`[13-15]`, `[15-12]`,
 `[16-D9]`, `[14-WR-03]`). Those ids are referenced below, never moved.
@@ -1098,6 +1110,110 @@ tolerate the animation permanently.
 
 ---
 
+
+## [17-D27] — `overflow-320.spec.ts` reaches a THIRD PayMongo endpoint, `GET /v1/checkout_sessions/{id}`, and `[17-D18]` records neither it nor its count
+
+- **Found by:** plan 17.1-05, the item-3 outbound census (`17.1-EVIDENCE.md` § P3), 2026-08-31
+- **Owner file:** `src/lib/payments/checkout-probe.ts` → `probeCheckoutSession` → `getCheckoutSession`
+  (`src/lib/paymongo.ts:400`), reached from the Phase-13 payment-state surfaces; the rows that reach it
+  are `e2e/overflow-320.spec.ts`'s AC#30 / AC#22 block
+- **Severity:** `[17-D18]` is the row that says what this suite sends to PayMongo, and its number is
+  **2**. The measured number for that spec is **8**. A ledger row that under-reports the exposure it
+  exists to report is worse than no row, because it is trusted.
+
+**Measured, not inferred.** `e2e/overflow-320.spec.ts` driven **alone**, `--project=chromium
+--workers=1`, at commit `9683ad9`, under a server-side `fetch` census (§ P3):
+`GET https://api.paymongo.com/v1/checkout_sessions/cs_e2e_97af2aa2-db04-4b5c-940d-aa423e84dd60` — **4**
+per full run, and
+`GET https://api.paymongo.com/v1/checkout_sessions/cs_e2e_06ff1d29-a048-4ef7-b6c2-1f536140c2fc` — **2**
+per full run. **6 GETs on a second endpoint**, on top of the **2**
+`POST https://api.paymongo.com/v1/linked_accounts/onboarding_links` that `[17-D18]` does record. Every
+one carries `Authorization: Basic <base64 of the local PAYMONGO_SECRET_KEY + ":">` — `paymongoFetch`
+sets that header on every call, `GET` included.
+
+Attribution was **driven**, not read off the code — six `-g` drives against the same census:
+`payment state: reversed, INDETERMINATE branch (D-96)` → **4** (2 per theme visit); `the receipt` → **2**
+(1 per theme visit); `payment state: pending settlement`, `the confirmation moment`, `the confirmed
+detail, no query` and `cancel` → **0** each. 4 + 2 = 6, which reproduces the full-file count exactly.
+
+The mechanism is already documented in the spec, one layer down: `e2e/helpers/seed-payment-states.ts`
+mints synthetic `cs_e2e_${randomUUID()}` ids, and `overflow-320.spec.ts:1030` and `:1577` both explain
+that `probeCheckoutSession` returns null *"for a session PayMongo does not know — which every `cs_e2e_…`
+fixture id is"*. **What no file said is that finding that out costs a real credentialed round-trip to
+`api.paymongo.com` per visit.** The comments describe the null; nothing described the request.
+
+**Why it was not fixed here.** Plan 17.1-05's declared job is the census, and D-11 requires an
+unpredicted endpoint to be filed as a finding **before** any seam code exists — precisely so the seam's
+scope is set by the measurement rather than the measurement being absorbed into the seam's design. The
+fix is also not this row's to make: the interception is plan **17.1-06**'s, and this finding's value is
+that it arrives before that plan is written rather than after.
+
+**Cheapest correct fix:** none of its own — **plan 17.1-06's seam already covers it, and this row exists
+to make sure it is scoped that way.** D-08 chose seam **D** (`instrumentation.ts` + undici `MockAgent`)
+because it intercepts at the **origin**, not at a path; an origin-level seam captures this endpoint for
+free, and § P3 confirms the substituted gated-error shape leaves `overflow-320.spec.ts` at
+`100 passed · 7 skipped · 0 failed` — the 6 GETs' results are not load-bearing for any assertion,
+because the branch they feed is the `null` branch either way. ⚠ **What must NOT happen is a seam scoped
+to the two `linked_accounts*` paths**: that would leave this endpoint live and the row would still be
+false. Separately, `[17-D18]`'s own "2 per full run" sentence should be corrected in place (appended,
+not substituted) once the seam lands.
+
+**Suggested owner:** plan **17.1-06** (the seam), for the scoping; whichever plan next opens
+`deferred-items.md`'s `[17-D18]` row, for the correction.
+
+---
+
+## [17-D28] — The e2e suite POSTs to `api.resend.com` on a live key, 14 times across two spec files, and no ledger row records any of it
+
+- **Found by:** plan 17.1-05, the item-3 outbound census (`17.1-EVIDENCE.md` § P3), 2026-08-31
+- **Owner file:** `src/lib/email.ts:34-35` (`const key = process.env.RESEND_API_KEY; const resend = key ? new Resend(key) : null`)
+  and every `void send…` call site that reaches it
+- **Severity:** a **SECOND third-party origin** the suite reaches with a live credential — larger by
+  count than the PayMongo exposure `[17-D18]` exists to record, and completely absent from the ledger.
+  `[17-D18]`'s own headline is that these payouts rows are *"the **only** assertion in this suite that
+  leaves the machine."* That sentence is false in a second, independent way.
+
+**Measured, not inferred.** Both files driven **alone**, `--project=chromium --workers=1`, at commit
+`9683ad9`, under the § P3 census: `POST https://api.resend.com/emails` — **12** per full run of
+`e2e/overflow-320.spec.ts`, **2** per full run of `e2e/axe-sweep.spec.ts`. The census **delegated** these
+untouched (only `api.paymongo.com` was substituted), so all **14** really left this machine during those
+two runs — as they do on every run of these files on any box with the key set. On this box `.env.local`
+carries a `re_`-prefixed, 36-character `RESEND_API_KEY` (checked by prefix and length only; the value was
+never read or printed), so `src/lib/email.ts:35` binds a real client and the dev fallback at `:39-53` —
+the `[email:dev]` log-the-link path that delivers nothing — is **off**.
+
+Two consequences worth stating separately, because they have different owners:
+
+- **Deliverability.** Every verification, reset, booking-confirmation and invite the e2e fixtures
+  generate is a real send attempt to a synthetic recipient minted by `signUp`. Whether they are
+  delivered, bounced or rejected is not measured here; **that they are attempted is.** Bounces on a
+  shared sending domain are a reputational cost that accrues silently.
+- **Credential exposure.** The same argument `[17-D18]` makes about `PAYMONGO_SECRET_KEY` applies
+  verbatim to `RESEND_API_KEY`, and D-35's boundary is the same boundary: the day this suite runs in CI
+  with real secrets, it starts sending real email from CI on every push.
+
+**Why it was not fixed here.** It is outside plan 17.1-05's declared `files_modified` and outside item
+3's subject entirely — item 3 is *"intercept the PayMongo fetch"*, and this is a different origin with a
+different owner and a different correct answer. Folding it into the PayMongo seam would be the worse
+move for a specific reason recorded in § P3: `disableNetConnect()` would silence Resend as a **side
+effect** of a PayMongo decision, changing the behaviour of a shipped code path inside the very runs the
+audit uses to measure the product. Silencing Resend must be a decision taken deliberately or not at all.
+This finding exists so it can be taken deliberately.
+
+**Cheapest correct fix:** do not change `src/lib/email.ts`. The e2e environment already has the correct
+switch built into it — `RESEND_API_KEY` unset routes every send to the `[email:dev]` console fallback,
+which is the behaviour CI wants and delivers nothing. The smallest correct repair is therefore an
+**environment** change plus the assertion that pins it: unset `RESEND_API_KEY` for Playwright runs (⚠
+`playwright.config.ts`'s `webServer` has **no `env:` block** and sets `reuseExistingServer: !CI`, so an
+env var added there is silently ignored whenever a dev server is already running — the `[17-D24]`
+adoption trap, and the same trap 17.1-RESEARCH names against an env-var PayMongo seam), and pin the
+resulting **zero** outbound sends with a test rather than a comment. If a run must exercise real
+delivery, that is a named opt-in, not the default.
+
+**Suggested owner:** whichever plan next opens `playwright.config.ts` or `src/lib/email.ts`; and Phase
+18's CI work, where D-35's boundary is actually crossed.
+
+---
 
 # Fixed in place — the mechanical-class closure record (D-200)
 
