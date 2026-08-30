@@ -194,22 +194,178 @@ and one dispatch closes it.
 
 ### 7b. Generation run — NOT the evidence
 
-To be recorded: `baselines.yml` `workflow_dispatch` run id and conclusion.
+**Dispatched 2026-08-31 by plan 17.1-07, Task 2**, after the PM authorised the held dispatch (D-02).
 
-**This run is not the evidence and cannot be.** Its commit is pushed with `GITHUB_TOKEN`, and a
-`GITHUB_TOKEN` push triggers no workflow — so at the moment it finishes, nothing has ever compared
-against the PNGs it just wrote. `baselines.yml`'s own header says so in a `::warning::`. Writing is
-not comparing.
+| | |
+|---|---|
+| command | `gh workflow run baselines.yml --ref dev` |
+| run id | **33336290052** |
+| workflow | `baselines` · event `workflow_dispatch` |
+| `headSha` | `e2863a705daffeab16136f899249675ac7c70654` (`e2863a7`) |
+| conclusion | **success** |
+| playwright tally | `43 passed · 42 skipped` (1.7m) — zero failed, zero flaky |
+| files staged | **2** (`staged 2 baseline file(s)`) |
+| commit it pushed | `e48654f` — *chore(11-22): regenerate visual baselines in the pinned Linux image* |
 
-### 7c. The actual diff, read file by file against §4
+**THIS RUN IS NOT THE EVIDENCE AND CANNOT BE — and that is a property of the design, not a shortfall
+of this particular run.** The commit `e48654f` was pushed by the job using the repository's
+`GITHUB_TOKEN`, and *"if a workflow run pushes code using the repository's `GITHUB_TOKEN`, a new
+workflow will not run even when the repository contains a workflow configured to run when push events
+occur"* (docs.github.com, "Triggering a workflow", quoted verbatim in `baselines.yml`'s header). So
+**at the instant this run went green, nothing had ever compared against the two PNGs it had just
+written.** Its own green says the surfaces rendered, the fixtures seeded and the files landed. It says
+nothing whatsoever about whether a later run agrees with them.
 
-To be recorded, all five:
+The recursion-prevention property and the nobody-has-verified-these property are **the same sentence**,
+and only the first half is memorable. `baselines.yml` says so out loud on its own run page — the
+`always()` step fired here too:
 
-1. every changed/added path ends `-visual-linux.png`;
-2. zero `*-grove-*`, zero `win32`, zero `darwin`;
-3. exactly the three predicted files changed;
-4. zero added and zero deleted — disk still 36;
-5. `listing-lightbox-1280` and `listing-sheet-375` did not move.
+```
+::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers
+::warning::no workflow run, so nothing has compared against them.
+```
+
+**Writing is not comparing.** The evidence is §7d, and it did not exist when this run finished.
+
+The staging tripwire held: the job stages `"*-visual-linux.png"` only and fails **without committing**
+if anything else is staged. Its `git diff --cached --name-status` printed exactly two `M` lines and no
+others, so nothing rode along in the baseline commit.
+
+### 7c. The actual diff, read file by file against `D1`
+
+⚠ **Read against `D1`** (`17.1-EVIDENCE.md` § D1) — which is §7a's corrected two-row prediction with
+plan 17.1-04's measured `§ P4` rows folded in — **not against §4's superseded three.** `D1` was written
+and committed (`9507989`) before `gh workflow run` was invoked.
+
+`git pull --ff-only` → `e2863a7..e48654f`, fast-forward, no divergence.
+
+```
+$ git show --stat HEAD
+ .../listing-detail-320-court-visual-linux.png      | Bin 118763 -> 118899 bytes
+ .../listing-detail-768-court-visual-linux.png      | Bin 137093 -> 137538 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)
+```
+
+**1. Every changed/added path ends `-visual-linux.png`.**
+
+```
+$ git show --name-status --format="" HEAD
+M	e2e/visual/surfaces.spec.ts-snapshots/listing-detail-320-court-visual-linux.png
+M	e2e/visual/surfaces.spec.ts-snapshots/listing-detail-768-court-visual-linux.png
+```
+
+Two paths, both `M`, both ending `-visual-linux.png`. No other suffix appears.
+
+**2. Zero `*-grove-*`, zero `win32`, zero `darwin`.**
+
+```
+$ git show --name-only --format="" HEAD | grep -c 'grove\|win32\|darwin'      → 0
+$ ls e2e/visual/surfaces.spec.ts-snapshots/ | grep -c 'grove\|win32\|darwin'  → 0
+```
+
+Zero in the diff **and** zero on disk afterwards. T-11-PLATBASE holds.
+
+**3. Exactly the files `D1` predicted changed — with their measured deltas.**
+
+| PNG | md5 before → after | bytes | dimensions before → after | `D1` predicted | verdict |
+|---|---|---|---|---|---|
+| `listing-detail-320-court-visual-linux.png` | `d1c1d33b…` → `af793eb4…` | 118763 → 118899 | 320×2986 → **320×3018** | +32px | **✔ exact** |
+| `listing-detail-768-court-visual-linux.png` | `14418d1b…` → `2deac857…` | 137093 → 137538 | 768×2408 → **768×2488** | +80px | **✔ exact** |
+
+Both heights land on the number `D1` wrote down, which is also the number `gate-visual` had been
+reporting as *received* for four consecutive runs. The prediction and the artefact agree to the pixel.
+
+**4. Zero added, zero deleted — disk still 36.**
+
+```
+$ ls e2e/visual/surfaces.spec.ts-snapshots/ | wc -l   → 36
+```
+
+`git show --name-status` shows two `M` and no `A`, no `D`. And rather than trust the name-status alone,
+**all 36 files were md5'd before the dispatch and again after the pull, and the two manifests diffed**:
+
+```
+$ diff pre-dispatch-md5.txt post-dispatch-md5.txt | grep -c '^>'   → 2
+```
+
+**Exactly two of thirty-six rows moved.** Thirty-four md5s are byte-identical across the dispatch.
+
+**5. `listing-lightbox-1280` and `listing-sheet-375` did NOT move.**
+
+| PNG | md5 before | md5 after | capture mode |
+|---|---|---|---|
+| `listing-lightbox-1280-court-visual-linux.png` | `76519dc8b910e358fb3b3cc938481780` | **identical** | `viewport` (`visual-drive.ts:455`) |
+| `listing-sheet-375-court-visual-linux.png` | `a9bf3df2a84b1c973f43729f86bb60ab` | **identical** | `viewport` (`visual-drive.ts:508`) |
+
+Both hold, for the reason §4 gave in advance: they are `viewport` captures over scroll-locked documents
+anchored to a viewport that never shows the footer, so a change in document height cannot reach them.
+
+**The three other rows `D1` singled out also held**, and they are the ones that make this a real read
+rather than a formality: `listing-detail-1280` (`477396cf…`, unchanged — §7a's correction confirmed a
+second time), `checkout-320` (`080c669f…`, unchanged) and `checkout-1280` (`eb368ebf…`, unchanged) —
+the last two being **`§ P4`'s zero-movement claim for plan 17.1-04's repair, now confirmed by the write
+path itself and not only by `getComputedStyle`.**
+
+#### ⚠ THE NEAR-MISS, RECORDED BECAUSE IT WAS NAMED IN ADVANCE — `dev-theme-1280`
+
+`D1` named `dev-theme-1280-court-visual-linux.png` as *"the live unpredicted-row candidate"*, because it
+was `1 flaky` at `09048d6` and no plan in this phase touches its surface. **It appeared in the
+generation run's log, and it is written up here rather than passed over in silence — even though it did
+not move.**
+
+What was measured, and nothing more:
+
+```
+21:25:37.608Z  /__w/FitOut/FitOut/e2e/visual/surfaces.spec.ts-snapshots/dev-theme-1280-court-visual-linux.png is re-generated, writing actual.
+21:25:37.634Z    ✓   5 [visual] › surfaces.spec.ts:413:7 › dev-theme-1280-court.png (6.0s)
+...
+21:26:54.474Z  M	e2e/visual/surfaces.spec.ts-snapshots/listing-detail-320-court-visual-linux.png
+21:26:54.474Z  M	e2e/visual/surfaces.spec.ts-snapshots/listing-detail-768-court-visual-linux.png
+```
+
+**THREE files were named `is re-generated, writing actual.` — `dev-theme-1280` and the two
+listing-detail rows. TWO were staged.** After the pull, `dev-theme-1280`'s md5 is
+`48fb6d7fea587ba70ce488ccc4185ffb` — **identical to its pre-dispatch md5**. So the third write produced
+bytes indistinguishable from the ones already committed, and git had nothing to stage.
+
+**Why Playwright named a file it then wrote unchanged bytes for is NOT established by this run**, and
+it is left open rather than given a mechanism it has not earned. Two readings survive the evidence and
+this run cannot separate them: the capture may have differed on an early attempt inside
+`toHaveScreenshot`'s own poll loop and converged before the final write (its **6.0s** against
+`dev-theme-320`'s 4.1s and `dev-theme-768`'s 2.5s is consistent with extra attempts, and is the only
+supporting signal there is), or the update path may re-encode on a comparator result that byte-equality
+does not reproduce. **Naming the mechanism would be describing, not measuring.**
+
+**What IS established:** the row did not move, `D1`'s totals stand unamended, and nothing was absorbed.
+No threshold was touched, no re-dispatch was attempted, and no row was added to
+`e2e-baseline-reds.md` (`f354deb46435e464c5b8eaba70f81357`, byte-identical across the whole phase).
+
+**What this leaves standing for a later phase, deliberately unfixed here.** This is the **second**
+signal in four runs pointing at this one row — `1 flaky` at `09048d6`, and this. It is by a wide margin
+the tallest baseline in the set at **1280×8026** (`listing-detail-1280`, the next tallest of the rows
+read here, is 1280×2669 — three times shorter), which is the obvious place to look first. Plan 17.1-07
+may land nothing but its own evidence (D-03), so this is a **watch item recorded at its first sighting**,
+not a repair attempted at the worst possible moment.
+
+#### The invariants that had to survive the pull, re-measured after it
+
+```
+$ node scripts/verify-workflows.mjs
+   All 38 invariants hold across 3 section(s) (baselines=11, ci=20, cross=7).   exit 0
+
+$ git diff --name-only HEAD -- playwright.config.ts .github/workflows/baselines.yml .github/workflows/ci.yml
+   (prints nothing)
+
+$ sed -n '49,87p' baseline-evidence.md | md5sum                  → 48398a95a7a10218baf5df41cc0528cb
+   §4 (lines 49-87), measured BEFORE §7b/§7c were written and again AFTER — byte-identical.
+   Every hunk in this file's own diff starts at line 197 or below (`git diff --unified=0`
+   reports @@197, @@199, @@278, @@280, @@318), so §4 is untouched by construction as well as
+   by hash. The whole-file md5 necessarily moved — filling in §7b/§7c is what this task IS;
+   quoting a whole-file hash as proof of §4 would be measuring the wrong thing.
+
+$ md5sum .planning/phases/17-*/e2e-baseline-reds.md              → f354deb46435e464c5b8eaba70f81357
+   the 10-row denominator, byte-identical across the whole phase
+```
 
 ### 7d. Comparison run — THE evidence
 
